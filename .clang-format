@@ -1,0 +1,12 @@
+BasedOnStyle: LLVM
+NamespaceIndentation: All
+
+IndentWidth: 2
+ColumnLimit: 120
+
+SortIncludes: true
+
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Always

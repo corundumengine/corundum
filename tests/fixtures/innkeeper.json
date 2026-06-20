@@ -1,0 +1,64 @@
+{
+  "id": "innkeeper_intro",
+  "variables": {
+    "gold": 10
+  },
+  "nodes": [
+    {
+      "id": "n0",
+      "type": "talk",
+      "speaker": "Innkeeper",
+      "text": "Welcome, traveller. What brings you here?",
+      "next": "n1"
+    },
+    {
+      "id": "n1",
+      "type": "choice",
+      "choices": [
+        {
+          "label": "I need a room.",
+          "target": "n_pay",
+          "condition": "gold >= 5 && !paid_innkeeper",
+          "actions": ["gold -= 5", "paid_innkeeper = true"],
+          "sequence": "once"
+        },
+        {
+          "label": "I need a room.",
+          "target": "n_already_paid",
+          "condition": "paid_innkeeper == true"
+        },
+        {
+          "label": "Just passing through.",
+          "target": "n_bye"
+        }
+      ]
+    },
+    {
+      "id": "n_pay",
+      "type": "event",
+      "actions": ["play_sound('coin')"],
+      "next": "n2"
+    },
+    {
+      "id": "n2",
+      "type": "talk",
+      "speaker": "Innkeeper",
+      "text": "That'll be 5 gold pieces. Right this way.",
+      "next": "end"
+    },
+    {
+      "id": "n_already_paid",
+      "type": "talk",
+      "speaker": "Innkeeper",
+      "text": "You've already paid. Your room is the last one on the left. Sleep well.",
+      "next": "end"
+    },
+    {
+      "id": "n_bye",
+      "type": "talk",
+      "speaker": "Innkeeper",
+      "text": "Safe travels then. Watch the road south.",
+      "next": "end"
+    }
+  ]
+}

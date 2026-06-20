@@ -1,0 +1,8 @@
+# Common build directories
+/build*/
+
+# Ignore cache files
+.cache
+
+# MacOS Finder files
+.DS_Store
