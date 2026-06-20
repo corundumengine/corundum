@@ -3,6 +3,12 @@
 [![Language](https://img.shields.io/badge/language-C++-blue.svg)](https://isocpp.org/)
 [![Standard](https://img.shields.io/badge/c%2B%2B-23-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B23)
 
+<p align="center">
+  <a href="https://corundumengine.com">
+    <img src="misc/logo.png" width="500" alt="Cordundum Engine logo">
+  </a>
+</p>
+
 Forging tools for 2D RPGs. A data-oriented engine, editor toolset, and asset pipeline in C++23. **Pre-alpha — under active development, expect breakage.**
 
 ## Build
