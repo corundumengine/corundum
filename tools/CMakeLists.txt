@@ -117,3 +117,25 @@ target_link_libraries(spritesmith
 )
 
 target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic)
+
+# ── Talesmith Editor ─────────────────────────────────────────────────────────────
+add_executable(talesmith
+    editors/talesmith/main.cpp
+    editors/talesmith/file_io.cpp
+    editors/talesmith/graph_layout.cpp
+    editors/talesmith/render_graph.cpp
+    editors/talesmith/render_inspector.cpp
+    editors/talesmith/render_node_list.cpp
+)
+
+target_include_directories(talesmith
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/editors/talesmith
+)
+
+target_link_libraries(talesmith
+    PRIVATE
+        tools_common
+)
+
+target_compile_options(talesmith PRIVATE -Wall -Wextra -Wpedantic)
