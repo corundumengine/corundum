@@ -161,7 +161,7 @@ namespace corundum::render::sys {
   // ── load_ui_assets ───────────────────────────────────────────────────────────
 
   std::expected<void, std::string> load_ui_assets(corundum::platform::Renderer &r, data::RenderState &state) {
-    constexpr std::string_view k_path = "game/data/sprite_sheets/ui/borders.json";
+    constexpr std::string_view k_path = "data/sprite_sheets/ui/borders.json";
     std::ifstream f{std::string{k_path}};
     if (!f.is_open()) {
       std::println(stderr, "[renderer] WARNING: could not open '{}'", k_path);

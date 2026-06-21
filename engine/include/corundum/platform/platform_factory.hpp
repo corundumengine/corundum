@@ -30,7 +30,7 @@ namespace corundum::platform {
    * @return PlatformContext on success, or std::unexpected with an error message.
    * @post Both window and renderer are valid (non-null) on success.
    */
-  [[nodiscard]] std::expected<PlatformContext, std::string>
-  create_platform(unsigned width = 1280, unsigned height = 720, std::string_view title = "Project Keystone");
+  [[nodiscard]] std::expected<PlatformContext, std::string> create_platform(unsigned width, unsigned height,
+                                                                            std::string_view title);
 
 } // namespace corundum::platform

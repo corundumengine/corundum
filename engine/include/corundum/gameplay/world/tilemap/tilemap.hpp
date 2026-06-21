@@ -36,8 +36,8 @@ namespace corundum::gameplay::world::tilemap {
 
   /// Metadata about the tileset PNG — owned by core, used by platform.
   struct TilesetInfo {
-    std::string path;   ///< e.g. "game/assets/textures/tileset.png"
-    std::string source; ///< Path to the source JSON file, e.g. "game/data/sprite_sheets/objects/terrain.json"
+    std::string path;
+    std::string source;
     int tile_width = 0;
     int tile_height = 0;
     int columns = 0;

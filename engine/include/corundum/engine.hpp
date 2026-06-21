@@ -47,12 +47,12 @@ namespace corundum {
   };
 
   /** @brief Initialise all systems and load game assets.
-   *  @param[in,out] engine      Uninitialised Engine.
-   *  @param[in]     config_path Filesystem path to game.json.
+   *  @param[in,out] engine Uninitialised Engine.
+   *  @param[in]     cfg    Fully-loaded game configuration (move-ownership).
    *  @return ok on success, or std::unexpected with an error message.
    *  @post On failure the window is closed and engine is partially initialised.
    */
-  [[nodiscard]] std::expected<void, std::string> initialize(Engine &engine, std::string_view config_path);
+  [[nodiscard]] std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg);
 
   /** @brief Run the main loop: poll input, fixed-timestep updates, rendering.
    *  @param[in,out] engine  Initialised Engine.

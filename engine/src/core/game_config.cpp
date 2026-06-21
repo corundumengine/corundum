@@ -276,6 +276,13 @@ namespace corundum::core {
     }
 
     {
+      auto res = get_nonempty_string(j, "window_title", cfg.window_title, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.window_title = std::move(*res);
+    }
+
+    {
       auto res = parse_dialogue_render(j, path);
       if (!res)
         return std::unexpected(res.error());

@@ -57,8 +57,8 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
         "interact_radius": 64.0, "player_speed": 150.0,
         "sprite_scale": 3, "tile_scale": 4,
         "font_dir": "game/assets/fonts", "game_font": "MyFont.ttf",
-        "tilemap_path": "game/data/tilemaps/dungeon.json",
-        "sprites_dir": "game/data/sprite_sheets/dungeon.json",
+        "tilemap_path": "data/tilemaps/dungeon.json",
+        "sprites_dir": "data/sprite_sheets/dungeon.json",
         "dialogue_dir": "data/npc",
         "dialogue_render": {
             "font_size_speaker": 30, "font_size_body": 24, "font_size_prompt": 16,
@@ -77,8 +77,8 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   CHECK(cfg.tile_scale == 4u);
   CHECK(cfg.paths.font_dir == "game/assets/fonts");
   CHECK(cfg.paths.game_font == "MyFont.ttf");
-  CHECK(cfg.paths.tilemap_path == "game/data/tilemaps/dungeon.json");
-  CHECK(cfg.paths.sprites_dir == "game/data/sprite_sheets/dungeon.json");
+  CHECK(cfg.paths.tilemap_path == "data/tilemaps/dungeon.json");
+  CHECK(cfg.paths.sprites_dir == "data/sprite_sheets/dungeon.json");
   CHECK(cfg.paths.dialogue_dir == "data/npc");
   CHECK(cfg.dialogue_render.font_size_speaker == 30u);
   CHECK(cfg.dialogue_render.font_size_body == 24u);

@@ -17,15 +17,8 @@
 
 namespace corundum {
 
-  std::expected<void, std::string> initialize(Engine &engine, std::string_view config_path) {
-    {
-      auto cfg_result = core::load_game_config(config_path);
-      if (!cfg_result) {
-        engine.window->close();
-        return std::unexpected(std::format("[engine] FATAL: {}", cfg_result.error()));
-      }
-      engine.cfg = std::move(*cfg_result);
-    }
+  std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg) {
+    engine.cfg = std::move(cfg);
     engine.timer.set_target_fps(static_cast<float>(engine.cfg.framerate));
     engine.window->set_vsync(engine.cfg.vsync);
     engine.window->resize(static_cast<unsigned>(engine.cfg.win_w), static_cast<unsigned>(engine.cfg.win_h));

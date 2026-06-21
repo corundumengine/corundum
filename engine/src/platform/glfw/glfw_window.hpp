@@ -14,7 +14,7 @@ namespace corundum::platform::glfw {
   public:
     /// Factory method to safely create a window.
     [[nodiscard]] static std::expected<std::unique_ptr<GLFWWindow>, WindowError>
-    create(unsigned width = 1920, unsigned height = 1080, std::string_view title = "Project Keystone");
+    create(unsigned width = 1920, unsigned height = 1080, std::string_view title = "Corundum");
 
     ~GLFWWindow() override;
 

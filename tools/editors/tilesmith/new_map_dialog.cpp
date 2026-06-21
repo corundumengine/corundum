@@ -33,7 +33,7 @@ namespace tools::tilemap {
         return "Tileset source path must not be empty.";
       if (!std::filesystem::exists(dlg.tileset_source))
         return std::string{"Tileset not found: "} + dlg.tileset_source;
-      const auto dest = std::filesystem::path{"game/data/tilemaps"} / (std::string{dlg.id} + ".json");
+      const auto dest = std::filesystem::path{"data/tilemaps"} / (std::string{dlg.id} + ".json");
       if (std::filesystem::exists(dest))
         return std::string{"A tilemap already exists at: "} + dest.string();
       return {};
@@ -83,7 +83,7 @@ namespace tools::tilemap {
 
     ImGui::Spacing();
     ImGui::TextUnformatted("Tileset source (relative to project root):");
-    ImGui::TextDisabled("  e.g. game/data/sprite_sheets/objects/terrain.json");
+    ImGui::TextDisabled("  e.g. data/sprite_sheets/objects/terrain.json");
     ImGui::SetNextItemWidth(480.f);
     ImGui::InputText("##source", dlg.tileset_source, sizeof(dlg.tileset_source));
 
@@ -114,7 +114,7 @@ namespace tools::tilemap {
   }
 
   std::expected<std::filesystem::path, std::string> write_new_tilemap_json(const NewMapDialogState &dlg) {
-    const std::filesystem::path dest = std::filesystem::path{"game/data/tilemaps"} / (std::string{dlg.id} + ".json");
+    const std::filesystem::path dest = std::filesystem::path{"data/tilemaps"} / (std::string{dlg.id} + ".json");
 
     nlohmann::json j;
     j["id"] = dlg.id;

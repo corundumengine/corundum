@@ -174,7 +174,7 @@ namespace tools::tilemap {
   }
 
   std::filesystem::path portals_path(const std::filesystem::path &map_path) {
-    return std::filesystem::path("game/data/portals") / map_path.filename();
+    return std::filesystem::path("data/portals") / map_path.filename();
   }
 
   void load_portals(EditorState &state) {

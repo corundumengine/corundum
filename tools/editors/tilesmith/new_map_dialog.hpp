@@ -35,7 +35,7 @@ namespace tools::tilemap {
   void render_new_map_dialog(NewMapDialogState &dlg);
 
   /**
-   * @brief Write a minimal tilemap JSON to game/data/tilemaps/<dlg.id>.json.
+   * @brief Write a minimal tilemap JSON to data/tilemaps/<dlg.id>.json.
    *
    * @param [in] dlg Validated dialog state.
    * @return The path written on success, or an error string on failure.

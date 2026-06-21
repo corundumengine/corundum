@@ -48,6 +48,8 @@ namespace corundum::core {
   /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
   /// data together.
   struct GameConfig {
+    /** @brief Window title shown in the OS title bar. */
+    std::string window_title = "Corundum Engine";
     /** @brief Initial width of the game window in pixels. */
     float win_w = 800.f;
     /** @brief Initial height of the game window in pixels. */

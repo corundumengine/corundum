@@ -1,6 +1,7 @@
 # Define the core engine library
 add_library(engine STATIC
     src/engine.cpp
+    src/engine_factory.cpp
     src/resources/character_registry.cpp
     src/gameplay/dialogue/action.cpp
     src/gameplay/dialogue/expr.cpp

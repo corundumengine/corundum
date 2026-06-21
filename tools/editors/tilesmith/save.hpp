@@ -22,7 +22,7 @@ namespace tools::tilemap {
   /**
    * @brief Derive the portals file path from a tilemap path.
    *
-   * e.g. "game/data/tilemaps/cave.json" → "data/portals/cave.json"
+   * e.g. "data/tilemaps/cave.json" → "data/portals/cave.json"
    *
    * @param map_path Path to the tilemap JSON file.
    * @return Path to the corresponding portals JSON file.
