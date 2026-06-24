@@ -39,7 +39,7 @@ FetchContent_MakeAvailable(doctest)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        master
+    GIT_TAG        v1.92.8
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -60,7 +60,7 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_Declare(
     freetype
     GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git
-    GIT_TAG        VER-2-13-3
+    GIT_TAG        VER-2-14-3
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -69,8 +69,7 @@ FetchContent_MakeAvailable(freetype)
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
-    GIT_TAG        ae0bc31daad8a60457cad4b5dae9223f237b2e34
-    GIT_SHALLOW    TRUE
+    GIT_TAG        28f9d8d44d92dab8536791a9f7d13d7e911a2b39
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(sokol)
@@ -78,8 +77,7 @@ FetchContent_MakeAvailable(sokol)
 FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE
+    GIT_TAG        31c1ad37456438565541f4919958214b6e762fb4
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(stb)
