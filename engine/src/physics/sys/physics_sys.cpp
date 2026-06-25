@@ -119,8 +119,8 @@ namespace corundum::physics::sys {
 
     if (map.half_tw > 0.f && map.half_th > 0.f && !map.portals.empty()) {
       const float portal_feet_y = p.y + player_rect.yo * map.scale_ratio();
-      const auto p_cart = corundum::core::math::iso_to_cart({p.x, portal_feet_y}, map.half_tw, map.half_th,
-                                                             map.x_origin);
+      const auto p_cart =
+          corundum::core::math::iso_to_cart({p.x, portal_feet_y}, map.half_tw, map.half_th, map.x_origin);
       const float px0 = p_cart.x;
       const float py0 = p_cart.y;
       const float px1 = p_cart.x + player_rect.w;

@@ -1,5 +1,5 @@
-#include <corundum/debug/debug_overlay.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/debug/debug_overlay.hpp>
 #include <corundum/gameplay/ecs/world.hpp>
 #include <corundum/platform/renderer.hpp>
 
@@ -55,14 +55,22 @@ namespace corundum::debug {
             // Offset by -half_th so diamonds render at grid-anchor (above tile sprites),
             // matching the Tilesmith editor convention.
             const float yo = -half_th;
-            r.draw(platform::DrawLine{
-                .start = {v0.x, v0.y + yo}, .end = {v1.x, v1.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
-            r.draw(platform::DrawLine{
-                .start = {v1.x, v1.y + yo}, .end = {v2.x, v2.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
-            r.draw(platform::DrawLine{
-                .start = {v2.x, v2.y + yo}, .end = {v3.x, v3.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
-            r.draw(platform::DrawLine{
-                .start = {v3.x, v3.y + yo}, .end = {v0.x, v0.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
+            r.draw(platform::DrawLine{.start = {v0.x, v0.y + yo},
+                                      .end = {v1.x, v1.y + yo},
+                                      .colour = tile_colour,
+                                      .thickness = k_line_thickness});
+            r.draw(platform::DrawLine{.start = {v1.x, v1.y + yo},
+                                      .end = {v2.x, v2.y + yo},
+                                      .colour = tile_colour,
+                                      .thickness = k_line_thickness});
+            r.draw(platform::DrawLine{.start = {v2.x, v2.y + yo},
+                                      .end = {v3.x, v3.y + yo},
+                                      .colour = tile_colour,
+                                      .thickness = k_line_thickness});
+            r.draw(platform::DrawLine{.start = {v3.x, v3.y + yo},
+                                      .end = {v0.x, v0.y + yo},
+                                      .colour = tile_colour,
+                                      .thickness = k_line_thickness});
           }
         }
       };
@@ -145,7 +153,7 @@ namespace corundum::debug {
       half_tw = static_cast<float>(first_tm.diamond_w()) * cfg.tile_scale * 0.5f;
       half_th = static_cast<float>(first_tm.diamond_h()) * cfg.tile_scale * 0.5f;
       const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
-                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
+                                                         : render.manifest.chunks_tall * render.manifest.chunk_size;
       x_origin = static_cast<float>(total_h - 1) * half_tw;
     } else if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
       const auto &tm = render.map_data.tilemap;
@@ -175,14 +183,22 @@ namespace corundum::debug {
       const float my = feet_y;
       constexpr core::math::Colour k_player_col{0, 255, 0, 220};
       constexpr float k_line_thickness = 2.f;
-      r.draw(platform::DrawLine{
-          .start = {mx, my - k_marker_hh}, .end = {mx + k_marker_hw, my}, .colour = k_player_col, .thickness = k_line_thickness});
-      r.draw(platform::DrawLine{
-          .start = {mx + k_marker_hw, my}, .end = {mx, my + k_marker_hh}, .colour = k_player_col, .thickness = k_line_thickness});
-      r.draw(platform::DrawLine{
-          .start = {mx, my + k_marker_hh}, .end = {mx - k_marker_hw, my}, .colour = k_player_col, .thickness = k_line_thickness});
-      r.draw(platform::DrawLine{
-          .start = {mx - k_marker_hw, my}, .end = {mx, my - k_marker_hh}, .colour = k_player_col, .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{.start = {mx, my - k_marker_hh},
+                                .end = {mx + k_marker_hw, my},
+                                .colour = k_player_col,
+                                .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{.start = {mx + k_marker_hw, my},
+                                .end = {mx, my + k_marker_hh},
+                                .colour = k_player_col,
+                                .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{.start = {mx, my + k_marker_hh},
+                                .end = {mx - k_marker_hw, my},
+                                .colour = k_player_col,
+                                .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{.start = {mx - k_marker_hw, my},
+                                .end = {mx, my - k_marker_hh},
+                                .colour = k_player_col,
+                                .thickness = k_line_thickness});
     }
 
     const float raw_fps = input.timer.last_frame_dt > 0.f ? 1.f / input.timer.last_frame_dt : 0.f;

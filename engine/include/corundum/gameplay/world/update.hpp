@@ -19,17 +19,19 @@ namespace corundum::gameplay::world {
   struct MapView {
     corundum::gameplay::world::tilemap::CollisionRectsView collisions;
     corundum::gameplay::world::tilemap::CollisionTrianglesView collision_triangles;
-    float world_w_px = 0.f; ///< Total isometric world width in display pixels.
-    float world_h_px = 0.f; ///< Total isometric world height in display pixels.
-    float half_tw = 0.f;    ///< Half the scaled diamond width; used for iso↔cart conversion.
-    float half_th = 0.f;    ///< Half the scaled diamond height; used for iso↔cart conversion.
-    float x_origin = 0.f;   ///< Isometric x-shift so the leftmost tile lands at x = 0.
+    float world_w_px = 0.f;   ///< Total isometric world width in display pixels.
+    float world_h_px = 0.f;   ///< Total isometric world height in display pixels.
+    float half_tw = 0.f;      ///< Half the scaled diamond width; used for iso↔cart conversion.
+    float half_th = 0.f;      ///< Half the scaled diamond height; used for iso↔cart conversion.
+    float x_origin = 0.f;     ///< Isometric x-shift so the leftmost tile lands at x = 0.
     float sprite_scale = 1.f; ///< Sprite render scale; used for feet-position offset in isometric mode.
     float tile_scale = 1.f;   ///< Tile render scale.
     std::span<const corundum::gameplay::world::Portal> portals;
 
     /// Ratio sprite_scale / tile_scale; converts tile-space bounding dimensions to screen pixels.
-    [[nodiscard]] float scale_ratio() const noexcept { return sprite_scale / tile_scale; }
+    [[nodiscard]] float scale_ratio() const noexcept {
+      return sprite_scale / tile_scale;
+    }
   };
 
   /**

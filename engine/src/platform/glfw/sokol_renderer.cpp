@@ -487,11 +487,8 @@ void main() {
     const float px = -ny * hw;
     const float py = nx * hw;
     const int offset =
-        emit_quad_verts(impl->vertex_buf,
-                        {cmd.start.x + px, cmd.start.y + py},
-                        {cmd.start.x - px, cmd.start.y - py},
-                        {cmd.end.x - px, cmd.end.y - py},
-                        {cmd.end.x + px, cmd.end.y + py}, cr, cg, cb, ca);
+        emit_quad_verts(impl->vertex_buf, {cmd.start.x + px, cmd.start.y + py}, {cmd.start.x - px, cmd.start.y - py},
+                        {cmd.end.x - px, cmd.end.y - py}, {cmd.end.x + px, cmd.end.y + py}, cr, cg, cb, ca);
     impl->apply_draw(impl->white_view, offset);
   }
 
