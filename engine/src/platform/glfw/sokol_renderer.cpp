@@ -158,6 +158,21 @@ void main() {
       return sg_append_buffer(vbuf, &data);
     }
 
+    // Emit two triangles from four arbitrary vertices (v0-v1-v2, v0-v2-v3).
+    int emit_quad_verts(sg_buffer vbuf, core::math::Vec2 v0, core::math::Vec2 v1, core::math::Vec2 v2,
+                        core::math::Vec2 v3, float r, float g, float b, float a) {
+      const std::array<Vertex, 6> verts{{
+          {v0.x, v0.y, 0.f, 0.f, r, g, b, a},
+          {v1.x, v1.y, 1.f, 0.f, r, g, b, a},
+          {v2.x, v2.y, 1.f, 1.f, r, g, b, a},
+          {v0.x, v0.y, 0.f, 0.f, r, g, b, a},
+          {v2.x, v2.y, 1.f, 1.f, r, g, b, a},
+          {v3.x, v3.y, 0.f, 1.f, r, g, b, a},
+      }};
+      const sg_range data{.ptr = verts.data(), .size = sizeof(verts)};
+      return sg_append_buffer(vbuf, &data);
+    }
+
   } // namespace
 
   // ── Impl ──────────────────────────────────────────────────────────────────────
@@ -458,6 +473,31 @@ void main() {
     impl->apply_draw(impl->white_view, offset);
   }
 
+  static void sokol_draw_line(void *state, const corundum::platform::DrawLine &cmd) {
+    auto *impl = static_cast<Impl *>(state);
+    const float cr = cmd.colour.r / 255.f;
+    const float cg = cmd.colour.g / 255.f;
+    const float cb = cmd.colour.b / 255.f;
+    const float ca = cmd.colour.a / 255.f;
+    const float hw = cmd.thickness * 0.5f;
+    const float dx = cmd.end.x - cmd.start.x;
+    const float dy = cmd.end.y - cmd.start.y;
+    const float len = std::sqrt(dx * dx + dy * dy);
+    if (len < 0.0001f)
+      return;
+    const float nx = dx / len;
+    const float ny = dy / len;
+    const float px = -ny * hw;
+    const float py = nx * hw;
+    const int offset =
+        emit_quad_verts(impl->vertex_buf,
+                        {cmd.start.x + px, cmd.start.y + py},
+                        {cmd.start.x - px, cmd.start.y - py},
+                        {cmd.end.x - px, cmd.end.y - py},
+                        {cmd.end.x + px, cmd.end.y + py}, cr, cg, cb, ca);
+    impl->apply_draw(impl->white_view, offset);
+  }
+
   static float sokol_measure_text(const void *state, uint32_t font_id, std::string_view text, uint32_t char_size) {
     auto *impl = const_cast<Impl *>(static_cast<const Impl *>(state));
     impl->ensure_baked(font_id, char_size);
@@ -601,6 +641,7 @@ void main() {
     r._draw_sprite = sokol_draw_sprite;
     r._draw_text = sokol_draw_text;
     r._draw_rect = sokol_draw_rect;
+    r._draw_line = sokol_draw_line;
     r._measure_text = sokol_measure_text;
     return r;
   }

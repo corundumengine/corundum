@@ -17,6 +17,7 @@ namespace corundum::platform::null {
         ._draw_sprite = [](void *, const corundum::platform::DrawSprite &) {},
         ._draw_text = [](void *, const corundum::platform::DrawText &) {},
         ._draw_rect = [](void *, const corundum::platform::DrawRect &) {},
+        ._draw_line = [](void *, const corundum::platform::DrawLine &) {},
         ._measure_text = [](const void *, uint32_t, std::string_view text, uint32_t) -> float {
           return static_cast<float>(text.size()) * 8.f;
         },

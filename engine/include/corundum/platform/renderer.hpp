@@ -33,6 +33,14 @@ namespace corundum::platform {
     core::math::Colour colour;
   };
 
+  /// Line segment draw command with configurable thickness.
+  struct DrawLine {
+    core::math::Vec2 start;
+    core::math::Vec2 end;
+    core::math::Colour colour{255, 255, 255, 255};
+    float thickness{1.f};
+  };
+
   /** @brief Platform-independent rendering interface — struct of function pointers.
    *
    * Resource IDs (textures, fonts) are opaque uint32_t handles. ID 0 is invalid.
@@ -70,6 +78,11 @@ namespace corundum::platform {
     DrawSprFn _draw_sprite{nullptr};
     DrawTxtFn _draw_text{nullptr};
     DrawRectFn _draw_rect{nullptr};
+    /**
+     * @brief Function pointer type for drawing a line segment.
+     */
+    using DrawLineFn = void (*)(void *, const DrawLine &);
+    DrawLineFn _draw_line{nullptr};
     MeasureFn _measure_text{nullptr};
 
     [[nodiscard]] auto load_texture(std::string_view path) {
@@ -106,6 +119,10 @@ namespace corundum::platform {
 
     void draw(const DrawRect &cmd) {
       _draw_rect(state, cmd);
+    }
+
+    void draw(const DrawLine &cmd) {
+      _draw_line(state, cmd);
     }
 
     [[nodiscard]] float measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const {
