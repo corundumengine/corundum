@@ -24,7 +24,12 @@ namespace corundum::gameplay::world {
     float half_tw = 0.f;    ///< Half the scaled diamond width; used for iso↔cart conversion.
     float half_th = 0.f;    ///< Half the scaled diamond height; used for iso↔cart conversion.
     float x_origin = 0.f;   ///< Isometric x-shift so the leftmost tile lands at x = 0.
+    float sprite_scale = 1.f; ///< Sprite render scale; used for feet-position offset in isometric mode.
+    float tile_scale = 1.f;   ///< Tile render scale.
     std::span<const corundum::gameplay::world::Portal> portals;
+
+    /// Ratio sprite_scale / tile_scale; converts tile-space bounding dimensions to screen pixels.
+    [[nodiscard]] float scale_ratio() const noexcept { return sprite_scale / tile_scale; }
   };
 
   /**

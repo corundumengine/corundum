@@ -58,8 +58,9 @@ namespace corundum::gameplay::world {
         const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
         const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
         const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-        player_bb.w = static_cast<float>(bb_w) * cfg.sprite_scale;
-        player_bb.h = static_cast<float>(bb_h) * cfg.sprite_scale;
+        player_bb.w = static_cast<float>(bb_w) * cfg.tile_scale;
+        player_bb.h = static_cast<float>(bb_h) * cfg.tile_scale;
+        // yo stored in tile-scale units; converted to screen pixels via scale_ratio at use site
         player_bb.yo = player_bb.h * sd->walk_around_offset;
       }
       if (sd->fps > 0.f)
@@ -111,8 +112,9 @@ namespace corundum::gameplay::world {
           const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
           const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
           const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-          bb.w = static_cast<float>(bb_w) * cfg.sprite_scale;
-          bb.h = static_cast<float>(bb_h) * cfg.sprite_scale;
+          bb.w = static_cast<float>(bb_w) * cfg.tile_scale;
+          bb.h = static_cast<float>(bb_h) * cfg.tile_scale;
+          // yo stored in tile-scale units; converted to screen pixels via scale_ratio at use site
           bb.yo = bb.h * sd->walk_around_offset;
         }
       }

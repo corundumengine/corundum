@@ -75,16 +75,19 @@ namespace corundum::physics::sys {
     const Position prev_pos{prev_x, prev_y};
 
     if (map.half_tw > 0.f && map.half_th > 0.f) {
-      auto p_cart = corundum::core::math::iso_to_cart({p.x, p.y}, map.half_tw, map.half_th, map.x_origin);
+      const float scale_ratio = map.scale_ratio();
+      const float feet_y = p.y + player_rect.yo * scale_ratio;
+      const float prev_feet_y = prev_pos.y + player_rect.yo * scale_ratio;
+      auto p_cart = corundum::core::math::iso_to_cart({p.x, feet_y}, map.half_tw, map.half_th, map.x_origin);
       auto prev_cart =
-          corundum::core::math::iso_to_cart({prev_pos.x, prev_pos.y}, map.half_tw, map.half_th, map.x_origin);
+          corundum::core::math::iso_to_cart({prev_pos.x, prev_feet_y}, map.half_tw, map.half_th, map.x_origin);
       Position pc{p_cart.x, p_cart.y};
       const Position pcp{prev_cart.x, prev_cart.y};
-      resolve_collisions(pc, pcp, player_rect.w, player_rect.h, map.collisions, player_rect.yo);
-      resolve_triangle_collisions(pc, pcp, player_rect.w, player_rect.h, map.collision_triangles, player_rect.yo);
+      resolve_collisions(pc, pcp, player_rect.w, player_rect.h, map.collisions, 0.f);
+      resolve_triangle_collisions(pc, pcp, player_rect.w, player_rect.h, map.collision_triangles, 0.f);
       const auto p_iso = corundum::core::math::cart_to_iso({pc.x, pc.y}, map.half_tw, map.half_th, map.x_origin);
       p.x = p_iso.x;
-      p.y = p_iso.y;
+      p.y = p_iso.y - player_rect.yo * scale_ratio;
     }
 
     std::array<float, corundum::gameplay::ecs::k_max_entities> npc_xs{}, npc_ys{}, npc_ws{}, npc_hs{};
@@ -98,15 +101,15 @@ namespace corundum::physics::sys {
       const auto &rect = collisions.rects[i];
       const auto np_slot = transforms.dense_idx(eid);
       npc_xs[npc_count] = transforms.x[np_slot];
-      npc_ys[npc_count] = transforms.y[np_slot] + rect.yo;
+      npc_ys[npc_count] = transforms.y[np_slot];
       npc_ws[npc_count] = rect.w;
-      npc_hs[npc_count] = rect.h - rect.yo;
+      npc_hs[npc_count] = rect.h;
       ++npc_count;
     }
     const corundum::gameplay::world::tilemap::CollisionRectsView npc_view{
         std::span{npc_xs.data(), npc_count}, std::span{npc_ys.data(), npc_count}, std::span{npc_ws.data(), npc_count},
         std::span{npc_hs.data(), npc_count}};
-    resolve_collisions(p, prev_pos, player_rect.w, player_rect.h, npc_view, player_rect.yo);
+    resolve_collisions(p, prev_pos, player_rect.w, player_rect.h, npc_view, 0.f);
 
     p.x = std::clamp(p.x, 0.f, std::max(0.f, map_w - player_rect.w));
     p.y = std::clamp(p.y, 0.f, std::max(0.f, map_h - player_rect.h));
@@ -115,9 +118,11 @@ namespace corundum::physics::sys {
     transforms.y[p_slot] = p.y;
 
     if (map.half_tw > 0.f && map.half_th > 0.f && !map.portals.empty()) {
-      const auto p_cart = corundum::core::math::iso_to_cart({p.x, p.y}, map.half_tw, map.half_th, map.x_origin);
+      const float portal_feet_y = p.y + player_rect.yo * map.scale_ratio();
+      const auto p_cart = corundum::core::math::iso_to_cart({p.x, portal_feet_y}, map.half_tw, map.half_th,
+                                                             map.x_origin);
       const float px0 = p_cart.x;
-      const float py0 = p_cart.y + player_rect.yo;
+      const float py0 = p_cart.y;
       const float px1 = p_cart.x + player_rect.w;
       const float py1 = p_cart.y + player_rect.h;
       for (const auto &portal : map.portals) {

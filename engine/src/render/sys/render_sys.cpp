@@ -78,6 +78,36 @@ namespace corundum::render::sys {
 
   static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg);
 
+  /// Rescale collision rects from tile_width/tile_height space to diamond_w space
+  /// so Cartesian collision coords match the engine's iso↔cart conversion unit.
+  static void rescale_collisions_to_diamond_space(corundum::gameplay::world::tilemap::Tilemap &tilemap) noexcept {
+    using namespace corundum::gameplay::world::tilemap;
+    if (tilemap.tilesets.empty() || tilemap.diamond_w() <= 0)
+      return;
+    const float tw = static_cast<float>(tilemap.tilesets[0].info.tile_width);
+    const float th = static_cast<float>(tilemap.tilesets[0].info.tile_height);
+    if (tw <= 0.f || th <= 0.f)
+      return;
+    // Both Cartesian axes normalise to diamond_w (not diamond_w × diamond_h).
+    // E.g. a 2:1 tile (tile_w=64, tile_h=32, diamond_w=64): sy = 64/32 = 2
+    // maps row*32 → row*64 in Cartesian space.
+    const float dw = static_cast<float>(tilemap.diamond_w());
+    const float sx = dw / tw;
+    const float sy = dw / th;
+    for (std::size_t i = 0; i < tilemap.collisions.size(); ++i) {
+      tilemap.collisions.xs[i] *= sx;
+      tilemap.collisions.ys[i] *= sy;
+      tilemap.collisions.ws[i] *= sx;
+      tilemap.collisions.hs[i] *= sy;
+    }
+    for (std::size_t i = 0; i < tilemap.collision_triangles.size(); ++i) {
+      tilemap.collision_triangles.xs[i] *= sx;
+      tilemap.collision_triangles.ys[i] *= sy;
+      tilemap.collision_triangles.ws[i] *= sx;
+      tilemap.collision_triangles.hs[i] *= sy;
+    }
+  }
+
   static void sync_active_chunks(corundum::platform::Renderer &r, data::RenderState &state,
                                  const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene);
 
@@ -214,6 +244,7 @@ namespace corundum::render::sys {
     auto tilemap = std::move(*tm_result);
     tilemap.collisions.scale(cfg.tile_scale);
     tilemap.collision_triangles.scale(cfg.tile_scale);
+    rescale_collisions_to_diamond_space(tilemap);
 
     std::vector<uint32_t> tex_ids;
     tex_ids.reserve(tilemap.tilesets.size());
@@ -372,6 +403,7 @@ namespace corundum::render::sys {
     corundum::gameplay::world::tilemap::Tilemap tilemap = std::move(*tm_result);
     tilemap.collisions.scale(cfg.tile_scale);
     tilemap.collision_triangles.scale(cfg.tile_scale);
+    rescale_collisions_to_diamond_space(tilemap);
 
     std::vector<uint32_t> tex_ids;
     tex_ids.reserve(tilemap.tilesets.size());
@@ -404,7 +436,7 @@ namespace corundum::render::sys {
     if (state.active_chunks.empty())
       return;
 
-    const int tile_px = state.active_chunks[0].tilemap.tilesets[0].info.tile_width;
+    const int tile_px = state.active_chunks[0].tilemap.diamond_w();
     for (const auto &entry : state.active_chunks) {
       const auto [ox, oy] = chunk_origin_px(entry.coord, state.manifest, tile_px, cfg.tile_scale);
       const auto &cr = entry.tilemap.collisions;

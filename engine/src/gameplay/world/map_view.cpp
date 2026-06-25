@@ -7,9 +7,9 @@ namespace corundum::gameplay::world {
 
   [[nodiscard]] MapView build_map_view(const render::data::RenderState &render, const core::GameConfig &cfg) noexcept {
     if (render.mode == render::data::RenderMode::World) {
-      const int tile_px = render::sys::first_chunk_tile_px(render);
-      const float half_tw = static_cast<float>(tile_px) * cfg.tile_scale * 0.5f;
-      const float half_th = half_tw * 0.5f;
+      const auto &first_tm = render.active_chunks[0].tilemap;
+      const float half_tw = static_cast<float>(first_tm.diamond_w()) * cfg.tile_scale * 0.5f;
+      const float half_th = static_cast<float>(first_tm.diamond_h()) * cfg.tile_scale * 0.5f;
       const auto &manifest = render.manifest;
       const int total_h = manifest.tiles_tall > 0 ? manifest.tiles_tall : manifest.chunks_tall * manifest.chunk_size;
       const float x_origin = static_cast<float>(total_h - 1) * half_tw;
@@ -21,14 +21,15 @@ namespace corundum::gameplay::world {
               .half_tw = half_tw,
               .half_th = half_th,
               .x_origin = x_origin,
+              .sprite_scale = static_cast<float>(cfg.sprite_scale),
+              .tile_scale = static_cast<float>(cfg.tile_scale),
               .portals = {}};
     }
 
     const auto &tm = render.map_data.tilemap;
-    const float tile_px = static_cast<float>(tm.tilesets.empty() ? 16 : tm.tilesets[0].info.tile_width);
-    const float half_tw = tile_px * cfg.tile_scale * 0.5f;
-    const float half_th = half_tw * 0.5f;
-    const float x_origin = static_cast<float>(tm.height) * half_tw;
+    const float half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
+    const float half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
+    const float x_origin = static_cast<float>(tm.height - 1) * half_tw;
     const float iso_extent = static_cast<float>(tm.width + tm.height - 1) * half_tw * 2.f;
     return {.collisions = tm.collisions.view(),
             .collision_triangles = tm.collision_triangles.view(),
@@ -37,6 +38,8 @@ namespace corundum::gameplay::world {
             .half_tw = half_tw,
             .half_th = half_th,
             .x_origin = x_origin,
+            .sprite_scale = static_cast<float>(cfg.sprite_scale),
+            .tile_scale = static_cast<float>(cfg.tile_scale),
             .portals = render.map_data.portals};
   }
 
