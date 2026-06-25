@@ -300,11 +300,8 @@ void main() {
   static void sokol_set_world_view(void *state, corundum::core::math::Vec2 top_left,
                                    corundum::core::math::Vec2 viewport_size) {
     auto *impl = static_cast<Impl *>(state);
-    // Snap to the nearest pixel so tile vertices always land on exact pixel boundaries,
-    // preventing the 1-pixel gaps that appear between tile rows when the camera is
-    // at a sub-pixel offset.
-    impl->cam_x = std::floor(top_left.x);
-    impl->cam_y = std::floor(top_left.y);
+    impl->cam_x = top_left.x;
+    impl->cam_y = top_left.y;
     impl->vp_w = viewport_size.x;
     impl->vp_h = viewport_size.y;
     impl->world_view_active = true;

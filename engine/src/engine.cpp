@@ -105,6 +105,8 @@ namespace corundum {
           engine.render.prev_x[i] = transforms.x[i];
           engine.render.prev_y[i] = transforms.y[i];
         }
+        engine.render.prev_cam_x = engine.scene.camera.x;
+        engine.render.prev_cam_y = engine.scene.camera.y;
       }
 
       engine.timer.tick();

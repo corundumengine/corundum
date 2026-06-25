@@ -92,6 +92,10 @@ namespace corundum::render::data {
     std::vector<float> prev_x{};
     /** @brief Previous-frame entity y positions for render interpolation. */
     std::vector<float> prev_y{};
+    /** @brief Previous-frame camera x for render interpolation. */
+    float prev_cam_x{0.f};
+    /** @brief Previous-frame camera y for render interpolation. */
+    float prev_cam_y{0.f};
   };
 
   /** @brief Combined collision views for debug rendering and collision queries.
