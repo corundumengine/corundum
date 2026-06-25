@@ -1,4 +1,5 @@
 #include <corundum/debug/debug_overlay.hpp>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/ecs/world.hpp>
 #include <corundum/platform/renderer.hpp>
 
@@ -28,23 +29,65 @@ namespace corundum::debug {
 
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris) noexcept {
+                      gameplay::world::tilemap::CollisionTrianglesView tris, float half_tw, float half_th,
+                      float x_origin) noexcept {
     r.set_world_view(camera, viewport);
 
-    for (std::size_t i = 0; i < rects.size(); ++i) {
-      r.draw(platform::DrawRect{
-          .position = {rects.xs[i], rects.ys[i]},
-          .size = {rects.ws[i], rects.hs[i]},
-          .colour = k_rect_col,
-      });
-    }
+    if (half_tw > 0.f && half_th > 0.f) {
+      constexpr float k_line_thickness = 2.f;
 
-    for (std::size_t i = 0; i < tris.size(); ++i) {
-      r.draw(platform::DrawRect{
-          .position = {tris.xs[i], tris.ys[i]},
-          .size = {tris.ws[i], tris.hs[i]},
-          .colour = k_tri_col,
-      });
+      auto draw_cart_rect = [&](float cart_x, float cart_y, float cart_w, float cart_h,
+                                core::math::Colour tile_colour) {
+        const float dw = half_tw * 2.f;
+        const int col_start = static_cast<int>(cart_x / dw);
+        const int col_end = static_cast<int>((cart_x + cart_w - 0.001f) / dw);
+        const int row_start = static_cast<int>(cart_y / dw);
+        const int row_end = static_cast<int>((cart_y + cart_h - 0.001f) / dw);
+
+        for (int row = row_start; row <= row_end; ++row) {
+          for (int col = col_start; col <= col_end; ++col) {
+            const float tx = static_cast<float>(col) * dw;
+            const float ty = static_cast<float>(row) * dw;
+            const auto v0 = core::math::cart_to_iso({tx, ty}, half_tw, half_th, x_origin);
+            const auto v1 = core::math::cart_to_iso({tx + dw, ty}, half_tw, half_th, x_origin);
+            const auto v2 = core::math::cart_to_iso({tx + dw, ty + dw}, half_tw, half_th, x_origin);
+            const auto v3 = core::math::cart_to_iso({tx, ty + dw}, half_tw, half_th, x_origin);
+            // Offset by -half_th so diamonds render at grid-anchor (above tile sprites),
+            // matching the Tilesmith editor convention.
+            const float yo = -half_th;
+            r.draw(platform::DrawLine{
+                .start = {v0.x, v0.y + yo}, .end = {v1.x, v1.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
+            r.draw(platform::DrawLine{
+                .start = {v1.x, v1.y + yo}, .end = {v2.x, v2.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
+            r.draw(platform::DrawLine{
+                .start = {v2.x, v2.y + yo}, .end = {v3.x, v3.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
+            r.draw(platform::DrawLine{
+                .start = {v3.x, v3.y + yo}, .end = {v0.x, v0.y + yo}, .colour = tile_colour, .thickness = k_line_thickness});
+          }
+        }
+      };
+
+      for (std::size_t i = 0; i < rects.size(); ++i)
+        draw_cart_rect(rects.xs[i], rects.ys[i], rects.ws[i], rects.hs[i], k_rect_col);
+
+      for (std::size_t i = 0; i < tris.size(); ++i)
+        draw_cart_rect(tris.xs[i], tris.ys[i], tris.ws[i], tris.hs[i], k_tri_col);
+    } else {
+      for (std::size_t i = 0; i < rects.size(); ++i) {
+        r.draw(platform::DrawRect{
+            .position = {rects.xs[i], rects.ys[i]},
+            .size = {rects.ws[i], rects.hs[i]},
+            .colour = k_rect_col,
+        });
+      }
+
+      for (std::size_t i = 0; i < tris.size(); ++i) {
+        r.draw(platform::DrawRect{
+            .position = {tris.xs[i], tris.ys[i]},
+            .size = {tris.ws[i], tris.hs[i]},
+            .colour = k_tri_col,
+        });
+      }
     }
 
     r.reset_screen_view();
@@ -94,11 +137,54 @@ namespace corundum::debug {
     const core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
     const core::math::Vec2 camera{scene.camera.x, scene.camera.y};
 
-    const auto geo = render::data::current_collisions(render);
-    draw_collision(r, camera, viewport, geo.rects, geo.tris);
+    float half_tw = 0.f;
+    float half_th = 0.f;
+    float x_origin = 0.f;
+    if (render.mode == render::data::RenderMode::World && !render.active_chunks.empty()) {
+      const auto &first_tm = render.active_chunks[0].tilemap;
+      half_tw = static_cast<float>(first_tm.diamond_w()) * cfg.tile_scale * 0.5f;
+      half_th = static_cast<float>(first_tm.diamond_h()) * cfg.tile_scale * 0.5f;
+      const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
+                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
+      x_origin = static_cast<float>(total_h - 1) * half_tw;
+    } else if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
+      const auto &tm = render.map_data.tilemap;
+      half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
+      half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
+      x_origin = static_cast<float>(tm.height - 1) * half_tw;
+    }
 
+    const auto geo = render::data::current_collisions(render);
+    draw_collision(r, camera, viewport, geo.rects, geo.tris, half_tw, half_th, x_origin);
+
+    // Draw player collision bounding box in isometric space
     const auto &w = scene.ecs_world;
     const auto p = scene.player;
+    if (half_tw > 0.f && half_th > 0.f && w.transforms.has(p) && w.collisions.has(p)) {
+      const auto &bb = w.collisions.get_rect(p);
+      const auto slot = w.transforms.dense_idx(p);
+      const float px = w.transforms.x[slot];
+      const float py = w.transforms.y[slot];
+      const float scale_ratio = static_cast<float>(cfg.sprite_scale) / static_cast<float>(cfg.tile_scale);
+      const float feet_y = py + bb.yo * scale_ratio;
+
+      // Draw a small diamond at the feet position — the collision anchor point
+      constexpr float k_marker_hw = 5.f;
+      constexpr float k_marker_hh = 3.f;
+      const float mx = px;
+      const float my = feet_y;
+      constexpr core::math::Colour k_player_col{0, 255, 0, 220};
+      constexpr float k_line_thickness = 2.f;
+      r.draw(platform::DrawLine{
+          .start = {mx, my - k_marker_hh}, .end = {mx + k_marker_hw, my}, .colour = k_player_col, .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{
+          .start = {mx + k_marker_hw, my}, .end = {mx, my + k_marker_hh}, .colour = k_player_col, .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{
+          .start = {mx, my + k_marker_hh}, .end = {mx - k_marker_hw, my}, .colour = k_player_col, .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{
+          .start = {mx - k_marker_hw, my}, .end = {mx, my - k_marker_hh}, .colour = k_player_col, .thickness = k_line_thickness});
+    }
+
     const float raw_fps = input.timer.last_frame_dt > 0.f ? 1.f / input.timer.last_frame_dt : 0.f;
     input.smoothed_fps += 0.05f * (raw_fps - input.smoothed_fps);
     HudData hud{

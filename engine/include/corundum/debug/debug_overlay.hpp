@@ -70,20 +70,26 @@ namespace corundum::debug {
   /**
    * @brief Draw collision geometry in world space as semi-transparent overlays.
    *
+   * Converts Cartesian collision rects/triangles to isometric world space
+   * before drawing so the overlay aligns with the rendered tilemap.
    * Switches to world-space view, draws rects and triangle AABBs, then resets
    * to screen-space view. Call between render() and end_frame().
    *
    * @param[in,out] r        Active renderer; must be between begin_frame/end_frame.
    * @param[in]     camera   Top-left world-pixel coordinate of the viewport.
    * @param[in]     viewport Viewport dimensions in pixels.
-   * @param[in]     rects    Collision rectangles in world space.
-   * @param[in]     tris     Diagonal collision triangles in world space.
+   * @param[in]     rects    Collision rectangles in Cartesian (Tiled pixel) space.
+   * @param[in]     tris     Diagonal collision triangles in Cartesian (Tiled pixel) space.
+   * @param[in]     half_tw  Half the scaled diamond width for iso conversion.
+   * @param[in]     half_th  Half the scaled diamond height for iso conversion.
+   * @param[in]     x_origin Isometric x-origin shift.
    * @pre begin_frame() must have been called before this function.
    * @post platform::Renderer is left in screen-space view.
    */
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris) noexcept;
+                      gameplay::world::tilemap::CollisionTrianglesView tris, float half_tw, float half_th,
+                      float x_origin) noexcept;
 
   /**
    * @brief Draw the debug HUD text overlay in the top-left corner of the screen.

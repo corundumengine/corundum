@@ -34,10 +34,11 @@ namespace tools::tilemap {
     if (state.map.tilesets.empty())
       return;
 
-    const int tw = state.map.tilesets[0].info.tile_width;
-    const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tw) * state.tile_scale * 0.25f;
-    const float x_shift = static_cast<float>(state.map.height - 1) * half_tw;
+    const int dw = effective_diamond_w(state.map);
+    const int dh = effective_diamond_h(state.map);
+    const float half_tw = static_cast<float>(dw) * state.tile_scale * 0.5f;
+    const float half_th = static_cast<float>(dh) * state.tile_scale * 0.5f;
+    const float x_shift = static_cast<float>(state.map.height) * half_tw;
 
     for (int i = 0; i < static_cast<int>(state.portals.size()); ++i) {
       const auto &p = state.portals[i];
@@ -62,10 +63,11 @@ namespace tools::tilemap {
     if (!state.portal_dragging || state.map.tilesets.empty())
       return;
 
-    const int tw = state.map.tilesets[0].info.tile_width;
-    const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tw) * state.tile_scale * 0.25f;
-    const float x_shift = static_cast<float>(state.map.height - 1) * half_tw;
+    const int dw = effective_diamond_w(state.map);
+    const int dh = effective_diamond_h(state.map);
+    const float half_tw = static_cast<float>(dw) * state.tile_scale * 0.5f;
+    const float half_th = static_cast<float>(dh) * state.tile_scale * 0.5f;
+    const float x_shift = static_cast<float>(state.map.height) * half_tw;
 
     const int col = std::min(state.portal_drag_anchor_col, state.portal_drag_cur_col);
     const int row = std::min(state.portal_drag_anchor_row, state.portal_drag_cur_row);

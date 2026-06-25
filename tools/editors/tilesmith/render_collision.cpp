@@ -33,11 +33,13 @@ namespace tools::tilemap {
   void render_collisions(CanvasContext ctx, const EditorState &state) {
     if (state.map.tilesets.empty())
       return;
+    const int dw = effective_diamond_w(state.map);
+    const int dh = effective_diamond_h(state.map);
+    const float half_tw = static_cast<float>(dw) * state.tile_scale * 0.5f;
+    const float half_th = static_cast<float>(dh) * state.tile_scale * 0.5f;
+    const float x_shift = static_cast<float>(state.map.height) * half_tw;
     const int tw = state.map.tilesets[0].info.tile_width;
     const int th = state.map.tilesets[0].info.tile_height;
-    const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tw) * state.tile_scale * 0.25f;
-    const float x_shift = static_cast<float>(state.map.height - 1) * half_tw;
     const float inv_tw = 1.f / static_cast<float>(tw);
     const float inv_th = 1.f / static_cast<float>(th);
 
@@ -65,11 +67,13 @@ namespace tools::tilemap {
   void render_collision_preview(CanvasContext ctx, const EditorState &state) {
     if (!state.collision_dragging || state.map.tilesets.empty())
       return;
+    const int dw = effective_diamond_w(state.map);
+    const int dh = effective_diamond_h(state.map);
+    const float half_tw = static_cast<float>(dw) * state.tile_scale * 0.5f;
+    const float half_th = static_cast<float>(dh) * state.tile_scale * 0.5f;
+    const float x_shift = static_cast<float>(state.map.height) * half_tw;
     const int tw = state.map.tilesets[0].info.tile_width;
     const int th = state.map.tilesets[0].info.tile_height;
-    const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tw) * state.tile_scale * 0.25f;
-    const float x_shift = static_cast<float>(state.map.height - 1) * half_tw;
     const float inv_tw = 1.f / static_cast<float>(tw);
     const float inv_th = 1.f / static_cast<float>(th);
 
@@ -88,11 +92,13 @@ namespace tools::tilemap {
   void render_erase_preview(CanvasContext ctx, const EditorState &state) {
     if (!state.erase_dragging || state.map.tilesets.empty())
       return;
+    const int dw = effective_diamond_w(state.map);
+    const int dh = effective_diamond_h(state.map);
+    const float half_tw = static_cast<float>(dw) * state.tile_scale * 0.5f;
+    const float half_th = static_cast<float>(dh) * state.tile_scale * 0.5f;
+    const float x_shift = static_cast<float>(state.map.height) * half_tw;
     const int tw = state.map.tilesets[0].info.tile_width;
     const int th = state.map.tilesets[0].info.tile_height;
-    const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tw) * state.tile_scale * 0.25f;
-    const float x_shift = static_cast<float>(state.map.height - 1) * half_tw;
     const float inv_tw = 1.f / static_cast<float>(tw);
     const float inv_th = 1.f / static_cast<float>(th);
 
