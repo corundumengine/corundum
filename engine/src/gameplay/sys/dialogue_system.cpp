@@ -4,22 +4,41 @@
 #include <corundum/resources/sprite.hpp>
 
 #include <cmath>
+#include <cstdint>
 #include <utility>
 
 namespace corundum::gameplay::sys {
 
   namespace {
 
+    using corundum::gameplay::ecs::FacingDir;
+    using corundum::resources::AnimId;
+
+    /** @brief Ratio above which the dominant axis is considered "cardinal"
+     *  rather than diagonal when computing facing direction. */
+    inline constexpr float k_cardinal_dominance_ratio = 2.f;
+
     /// Map facing direction to the corresponding directional AnimId.
-    inline constexpr std::array<corundum::resources::AnimId, 8> k_dir_to_anim = {
-        corundum::resources::AnimId::South,     corundum::resources::AnimId::North,
-        corundum::resources::AnimId::East,      corundum::resources::AnimId::West,
-        corundum::resources::AnimId::NorthEast, corundum::resources::AnimId::SouthEast,
-        corundum::resources::AnimId::SouthWest, corundum::resources::AnimId::NorthWest,
+    inline constexpr std::array<AnimId, 8> k_dir_to_anim = {
+        AnimId::South,     AnimId::North,     AnimId::East,      AnimId::West,
+        AnimId::NorthEast, AnimId::SouthEast, AnimId::SouthWest, AnimId::NorthWest,
     };
 
-    [[nodiscard]] constexpr corundum::resources::AnimId dir_to_anim(corundum::gameplay::ecs::FacingDir dir) noexcept {
+    [[nodiscard]] constexpr AnimId dir_to_anim(FacingDir dir) noexcept {
       return k_dir_to_anim[std::to_underlying(dir)];
+    }
+
+    /// Classify a world-space displacement (dx, dy) into the nearest FacingDir.
+    [[nodiscard]] FacingDir dir_from_delta(float dx, float dy) noexcept {
+      const float ax = std::abs(dx);
+      const float ay = std::abs(dy);
+      if (ay > k_cardinal_dominance_ratio * ax)
+        return dy > 0.f ? FacingDir::South : FacingDir::North;
+      if (ax > k_cardinal_dominance_ratio * ay)
+        return dx > 0.f ? FacingDir::East : FacingDir::West;
+      if (dx > 0.f)
+        return dy > 0.f ? FacingDir::SouthEast : FacingDir::NorthEast;
+      return dy > 0.f ? FacingDir::SouthWest : FacingDir::NorthWest;
     }
 
   } // namespace
@@ -27,11 +46,12 @@ namespace corundum::gameplay::sys {
   void update_dialogue(corundum::gameplay::world::Scene &scene,
                        const corundum::input::PressedActions &actions) noexcept {
     using corundum::gameplay::ecs::EntityId;
+    using corundum::gameplay::ecs::World;
 
-    static_cast<void>(corundum::gameplay::dialogue::system(scene.dialogue, actions, scene.flags));
+    scene.pending_dialogue_events = corundum::gameplay::dialogue::system(scene.dialogue, actions, scene.flags);
     if (!scene.dialogue.active) {
       if (scene.dialogue_npc) {
-        auto &world = scene.ecs_world;
+        World &world = scene.ecs_world;
         const EntityId npc = *scene.dialogue_npc;
         if (scene.dialogue_npc_saved_facing && world.facings.has(npc))
           world.facings.dir_ref(npc) = *scene.dialogue_npc_saved_facing;
@@ -50,69 +70,51 @@ namespace corundum::gameplay::sys {
   void try_interact(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg,
                     const corundum::gameplay::dialogue::Registry &graphs) noexcept {
+    using corundum::gameplay::dialogue::Graph;
     using corundum::gameplay::ecs::distance;
     using corundum::gameplay::ecs::EntityId;
     using corundum::gameplay::ecs::Position;
+    using corundum::gameplay::ecs::World;
 
     if (!input.is_pressed(corundum::input::Action::Select))
       return;
 
-    const auto p_slot = scene.ecs_world.transforms.dense_idx(scene.player);
-    const float player_x = scene.ecs_world.transforms.x[p_slot];
-    const float player_y = scene.ecs_world.transforms.y[p_slot];
+    World &world = scene.ecs_world;
+    const std::uint32_t p_slot = world.transforms.dense_idx(scene.player);
+    const float player_x = world.transforms.x[p_slot];
+    const float player_y = world.transforms.y[p_slot];
 
-    for (EntityId eid : scene.ecs_world.dialogue_refs.active_entities()) {
-      if (!scene.ecs_world.transforms.has(eid))
+    for (EntityId eid : world.dialogue_refs.active_entities()) {
+      if (!world.transforms.has(eid))
         continue;
 
-      const auto n_slot = scene.ecs_world.transforms.dense_idx(eid);
-      const float npc_x = scene.ecs_world.transforms.x[n_slot];
-      const float npc_y = scene.ecs_world.transforms.y[n_slot];
+      const std::uint32_t n_slot = world.transforms.dense_idx(eid);
+      const float npc_x = world.transforms.x[n_slot];
+      const float npc_y = world.transforms.y[n_slot];
 
-      const Position player_pos{player_x, player_y};
-      const Position npc_pos{npc_x, npc_y};
-      if (distance(player_pos, npc_pos) > cfg.interact_radius)
+      if (distance(Position{player_x, player_y}, Position{npc_x, npc_y}) > cfg.interact_radius)
         continue;
 
-      auto &world = scene.ecs_world;
-      const EntityId player = scene.player;
-      corundum::gameplay::ecs::FacingDir toward_npc = corundum::gameplay::ecs::FacingDir::South;
-      if (world.facings.has(player)) {
-        const float fdx = npc_x - player_x;
-        const float fdy = npc_y - player_y;
-        const float abs_fdx = std::abs(fdx);
-        const float abs_fdy = std::abs(fdy);
-        using FD = corundum::gameplay::ecs::FacingDir;
-        if (abs_fdy > 2.f * abs_fdx)
-          toward_npc = fdy > 0.f ? FD::South : FD::North;
-        else if (abs_fdx > 2.f * abs_fdy)
-          toward_npc = fdx > 0.f ? FD::East : FD::West;
-        else if (fdx > 0.f)
-          toward_npc = fdy > 0.f ? FD::SouthEast : FD::NorthEast;
-        else
-          toward_npc = fdy > 0.f ? FD::SouthWest : FD::NorthWest;
-        if (world.facings.dir_of(player) != toward_npc)
-          continue;
-      }
-
-      const auto *graph = graphs.find(scene.ecs_world.dialogue_refs.get_graph_id(eid));
+      const Graph *const graph = graphs.find(world.dialogue_refs.get_graph_id(eid));
       if (!graph)
         continue;
 
+      const FacingDir toward_npc = dir_from_delta(npc_x - player_x, npc_y - player_y);
+
       if (world.facings.has(eid)) {
         scene.dialogue_npc_saved_facing = world.facings.dir_of(eid);
-        const corundum::gameplay::ecs::FacingDir new_dir = corundum::gameplay::ecs::opposite(toward_npc);
-        world.facings.dir_ref(eid) = new_dir;
+        const FacingDir face_player = corundum::gameplay::ecs::opposite(toward_npc);
+        world.facings.dir_ref(eid) = face_player;
         if (world.sprites.has(eid) && world.animations.has(eid)) {
           scene.dialogue_npc_saved_anim = world.sprites.anim_id_ref(eid);
-          const corundum::resources::AnimId dir_anim = dir_to_anim(new_dir);
-          const bool has_dir_frames = world.animations.frame_count(eid, dir_anim) > 0;
-          world.sprites.anim_id_ref(eid) = has_dir_frames ? dir_anim : corundum::resources::AnimId::Default;
+          const AnimId dir_anim = dir_to_anim(face_player);
+          const bool has_dir_anim = world.animations.frame_count(eid, dir_anim) > 0;
+          world.sprites.anim_id_ref(eid) = has_dir_anim ? dir_anim : AnimId::Default;
           world.sprites.frame_index_ref(eid) = 0;
         }
       }
-      scene.dialogue_npc = eid;
 
+      scene.dialogue_npc = eid;
       corundum::gameplay::dialogue::start(scene.dialogue, *graph, scene.flags);
       scene.mode = corundum::gameplay::world::GameMode::Dialogue;
       break;

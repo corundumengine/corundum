@@ -1,4 +1,5 @@
 #pragma once
+#include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/ecs/world.hpp>
 #include <corundum/gameplay/flags.hpp>
@@ -7,6 +8,7 @@
 #include <corundum/resources/sprite.hpp>
 
 #include <optional>
+#include <vector>
 
 namespace corundum::gameplay::world {
 
@@ -34,6 +36,7 @@ namespace corundum::gameplay::world {
     std::optional<corundum::gameplay::ecs::EntityId> dialogue_npc;
     std::optional<corundum::gameplay::ecs::FacingDir> dialogue_npc_saved_facing;
     std::optional<corundum::resources::AnimId> dialogue_npc_saved_anim;
+    std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
   };
 
 } // namespace corundum::gameplay::world

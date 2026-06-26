@@ -22,8 +22,7 @@ namespace corundum::gameplay::sys {
 
   /** @brief Check for nearby NPCs and start a dialogue on Select press.
    *
-   * Iterates all entities with dialogue references and checks proximity
-   * and facing direction. The player must face the NPC to interact.
+   * Iterates all entities with dialogue references and checks proximity.
    * On success the scene transitions to Dialogue mode and NPC state is saved.
    *
    *  @param[in,out] scene   All game-world state; transitions to Dialogue mode on success.
@@ -31,7 +30,7 @@ namespace corundum::gameplay::sys {
    *  @param[in]     cfg     Game config (interact_radius, etc.).
    *  @param[in]     graphs  All loaded dialogue graphs for lookup by graph_id.
    *  @pre GameMode must be Exploring.
-   *  @post If an NPC is within range and the player faces them, scene.mode → Dialogue.
+   *  @post If an NPC is within range, scene.mode → Dialogue.
    *  @post NPC facing/animation are saved before modification.
    *  @performance O(n) over dialogue-ref entities. No heap allocation.
    */
