@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <format>
 #include <string>
+#include <utility>
 
 namespace corundum::debug {
 
@@ -23,38 +24,62 @@ namespace corundum::debug {
     constexpr float k_pad = 8.f;
     constexpr float k_box_w = 275.f;
 
-    constexpr std::array<std::string_view, 8> k_facing_names{"South", "North", "East", "West", "NE", "SE", "SW", "NW"};
+    [[nodiscard]] constexpr std::string_view facing_name(gameplay::ecs::FacingDir d) noexcept {
+      using gameplay::ecs::FacingDir;
+      switch (d) {
+      case FacingDir::South:
+        return "South";
+      case FacingDir::North:
+        return "North";
+      case FacingDir::East:
+        return "East";
+      case FacingDir::West:
+        return "West";
+      case FacingDir::NorthEast:
+        return "NE";
+      case FacingDir::SouthEast:
+        return "SE";
+      case FacingDir::SouthWest:
+        return "SW";
+      case FacingDir::NorthWest:
+        return "NW";
+      }
+      std::unreachable();
+    }
+
+    constexpr float k_tile_edge_eps = 0.001f;
+    constexpr float k_fps_ema_alpha = 0.05f;
 
   } // namespace
 
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, float half_tw, float half_th,
-                      float x_origin) noexcept {
+                      gameplay::world::tilemap::CollisionTrianglesView tris, IsoParams iso) noexcept {
     r.set_world_view(camera, viewport);
 
-    if (half_tw > 0.f && half_th > 0.f) {
+    if (iso.half_tw > 0.f && iso.half_th > 0.f) {
       constexpr float k_line_thickness = 2.f;
 
-      auto draw_cart_rect = [&](float cart_x, float cart_y, float cart_w, float cart_h,
-                                core::math::Colour tile_colour) {
-        const float dw = half_tw * 2.f;
+      auto draw_cart_rect = [&r, iso](float cart_x, float cart_y, float cart_w, float cart_h,
+                                      core::math::Colour tile_colour) {
+        const float dw = iso.half_tw * 2.f;
         const int col_start = static_cast<int>(cart_x / dw);
-        const int col_end = static_cast<int>((cart_x + cart_w - 0.001f) / dw);
+        const int col_end = static_cast<int>((cart_x + cart_w - k_tile_edge_eps) / dw);
         const int row_start = static_cast<int>(cart_y / dw);
-        const int row_end = static_cast<int>((cart_y + cart_h - 0.001f) / dw);
+        const int row_end = static_cast<int>((cart_y + cart_h - k_tile_edge_eps) / dw);
 
         for (int row = row_start; row <= row_end; ++row) {
           for (int col = col_start; col <= col_end; ++col) {
             const float tx = static_cast<float>(col) * dw;
             const float ty = static_cast<float>(row) * dw;
-            const auto v0 = core::math::cart_to_iso({tx, ty}, half_tw, half_th, x_origin);
-            const auto v1 = core::math::cart_to_iso({tx + dw, ty}, half_tw, half_th, x_origin);
-            const auto v2 = core::math::cart_to_iso({tx + dw, ty + dw}, half_tw, half_th, x_origin);
-            const auto v3 = core::math::cart_to_iso({tx, ty + dw}, half_tw, half_th, x_origin);
+            const core::math::Vec2 v0 = core::math::cart_to_iso({tx, ty}, iso.half_tw, iso.half_th, iso.x_origin);
+            const core::math::Vec2 v1 = core::math::cart_to_iso({tx + dw, ty}, iso.half_tw, iso.half_th, iso.x_origin);
+            const core::math::Vec2 v2 =
+                core::math::cart_to_iso({tx + dw, ty + dw}, iso.half_tw, iso.half_th, iso.x_origin);
+            const core::math::Vec2 v3 = core::math::cart_to_iso({tx, ty + dw}, iso.half_tw, iso.half_th, iso.x_origin);
             // Offset by -half_th so diamonds render at grid-anchor (above tile sprites),
             // matching the Tilesmith editor convention.
-            const float yo = -half_th;
+            const float yo = -iso.half_th;
             r.draw(platform::DrawLine{.start = {v0.x, v0.y + yo},
                                       .end = {v1.x, v1.y + yo},
                                       .colour = tile_colour,
@@ -107,10 +132,10 @@ namespace corundum::debug {
     std::array<std::string, 5> lines{
         std::format("FPS:  sim {:3.0f} / render {:3.0f}", d.sim_fps, d.render_fps),
         std::format("Position:  x ({:7.1f}), y ({:7.1f})", d.player_x, d.player_y),
-        [&] {
+        [&d] {
           std::string vel = std::format("Velocity:  dx ({:7.1f}), dy ({:7.1f})", d.player_dx, d.player_dy);
           if (d.player_has_facing)
-            vel += std::format("  {}", k_facing_names[std::to_underlying(d.player_facing)]);
+            vel += std::format("  {}", facing_name(d.player_facing));
           return vel;
         }(),
         std::format("Camera:  x ({:7.1f}), y ({:7.1f})", d.camera_x, d.camera_y),
@@ -125,7 +150,7 @@ namespace corundum::debug {
     });
 
     float y = k_y;
-    for (const auto &text : lines) {
+    for (const std::string &text : lines) {
       r.draw(platform::DrawText{
           .font_id = d.font_id,
           .text = text,
@@ -137,10 +162,10 @@ namespace corundum::debug {
     }
   }
 
-  void draw_overlays(platform::Renderer &r, OverlayInput &input) noexcept {
-    const auto &render = input.render_state;
-    const auto &cfg = input.cfg;
-    const auto &scene = input.scene;
+  void draw_overlays(platform::Renderer &r, const OverlayInput &input, float &smoothed_fps) noexcept {
+    const render::data::RenderState &render = input.render_state;
+    const core::GameConfig &cfg = input.cfg;
+    const gameplay::world::Scene &scene = input.scene;
 
     const core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
     const core::math::Vec2 camera{scene.camera.x, scene.camera.y};
@@ -149,28 +174,29 @@ namespace corundum::debug {
     float half_th = 0.f;
     float x_origin = 0.f;
     if (render.mode == render::data::RenderMode::World && !render.active_chunks.empty()) {
-      const auto &first_tm = render.active_chunks[0].tilemap;
+      const gameplay::world::tilemap::Tilemap &first_tm = render.active_chunks[0].tilemap;
       half_tw = static_cast<float>(first_tm.diamond_w()) * cfg.tile_scale * 0.5f;
       half_th = static_cast<float>(first_tm.diamond_h()) * cfg.tile_scale * 0.5f;
       const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
       x_origin = static_cast<float>(total_h - 1) * half_tw;
     } else if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
-      const auto &tm = render.map_data.tilemap;
+      const gameplay::world::tilemap::Tilemap &tm = render.map_data.tilemap;
       half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
       half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
       x_origin = static_cast<float>(tm.height - 1) * half_tw;
     }
 
-    const auto geo = render::data::current_collisions(render);
-    draw_collision(r, camera, viewport, geo.rects, geo.tris, half_tw, half_th, x_origin);
+    const IsoParams iso{.half_tw = half_tw, .half_th = half_th, .x_origin = x_origin};
+    const render::data::CollisionGeometry geo = render::data::current_collisions(render);
+    draw_collision(r, camera, viewport, geo.rects, geo.tris, iso);
 
     // Draw player collision bounding box in isometric space
-    const auto &w = scene.ecs_world;
-    const auto p = scene.player;
-    if (half_tw > 0.f && half_th > 0.f && w.transforms.has(p) && w.collisions.has(p)) {
-      const auto &bb = w.collisions.get_rect(p);
-      const auto slot = w.transforms.dense_idx(p);
+    const gameplay::ecs::World &w = scene.ecs_world;
+    const gameplay::ecs::EntityId p = scene.player;
+    if (iso.half_tw > 0.f && iso.half_th > 0.f && w.transforms.has(p) && w.collisions.has(p)) {
+      const gameplay::ecs::CollisionTable::Rect &bb = w.collisions.get_rect(p);
+      const std::uint32_t slot = w.transforms.dense_idx(p);
       const float px = w.transforms.x[slot];
       const float py = w.transforms.y[slot];
       const float scale_ratio = static_cast<float>(cfg.sprite_scale) / static_cast<float>(cfg.tile_scale);
@@ -202,17 +228,17 @@ namespace corundum::debug {
     }
 
     const float raw_fps = input.timer.last_frame_dt > 0.f ? 1.f / input.timer.last_frame_dt : 0.f;
-    input.smoothed_fps += 0.05f * (raw_fps - input.smoothed_fps);
+    smoothed_fps += k_fps_ema_alpha * (raw_fps - smoothed_fps);
     HudData hud{
         .font_id = render.font_id,
         .win_w = cfg.win_w,
-        .render_fps = input.smoothed_fps,
+        .render_fps = smoothed_fps,
         .sim_fps = static_cast<float>(cfg.framerate),
     };
     if (w.transforms.has(p)) {
       hud.player_x = w.transforms.pos_x(p);
       hud.player_y = w.transforms.pos_y(p);
-      const auto di = w.transforms.dense_idx(p);
+      const std::uint32_t di = w.transforms.dense_idx(p);
       hud.player_dx = w.transforms.dx[di];
       hud.player_dy = w.transforms.dy[di];
     }

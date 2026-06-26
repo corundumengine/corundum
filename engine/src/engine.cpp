@@ -140,14 +140,13 @@ namespace corundum {
       render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.render.interpolation_alpha);
 
       if (engine.show_debug_hud) {
-        debug::OverlayInput hud_input{
+        const debug::OverlayInput hud_input{
             .render_state = engine.render,
             .cfg = engine.cfg,
             .scene = engine.scene,
             .timer = engine.timer,
-            .smoothed_fps = engine.smoothed_fps,
         };
-        debug::draw_overlays(*engine.renderer, hud_input);
+        debug::draw_overlays(*engine.renderer, hud_input, engine.smoothed_fps);
       }
 
       engine.renderer->end_frame();
