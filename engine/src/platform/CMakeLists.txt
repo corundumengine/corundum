@@ -53,3 +53,7 @@ else()
 endif()
 
 target_compile_options(engine_platform_glfw PRIVATE -Wall -Wextra -Wpedantic)
+
+# sokol_gfx.h lacks include guards — double-inclusion in a Unity batch
+# produces redefinition errors. Keep this target out of Unity builds.
+set_target_properties(engine_platform_glfw PROPERTIES UNITY_BUILD OFF)

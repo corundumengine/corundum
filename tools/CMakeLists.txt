@@ -37,13 +37,13 @@ target_compile_definitions(tools_imgui_backend PUBLIC SOKOL_IMGUI_NO_SOKOL_APP)
 target_compile_options(tools_imgui_backend PRIVATE -Wno-all -Wno-extra)
 
 if(APPLE)
-    set_source_files_properties(platform/simgui_impl.cpp PROPERTIES LANGUAGE OBJCXX)
-    target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_METAL)
-    target_link_libraries(tools_imgui_backend PRIVATE "-framework Metal" "-framework QuartzCore")
+  set_source_files_properties(platform/simgui_impl.cpp PROPERTIES LANGUAGE OBJCXX)
+  target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_METAL)
+  target_link_libraries(tools_imgui_backend PRIVATE "-framework Metal" "-framework QuartzCore")
 elseif(WIN32)
-    target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_D3D11)
+  target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_D3D11)
 else()
-    target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_GLCORE)
+  target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_GLCORE)
 endif()
 
 # ── Common tools library ────────────────────────────────────────────────────────
@@ -117,6 +117,9 @@ target_link_libraries(spritesmith
 )
 
 target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic)
+
+# Anonymous namespace helpers (sheet_cols, sheet_rows) collide with Unity builds
+set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Talesmith Editor ─────────────────────────────────────────────────────────────
 add_executable(talesmith

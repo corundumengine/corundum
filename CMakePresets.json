@@ -16,6 +16,42 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
       }
+    },
+    {
+      "name": "release",
+      "displayName": "Release (optimised, no debug symbols)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo (optimised + debug symbols)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-relwithdebinfo",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+      }
+    },
+    {
+      "name": "debug-sanitized",
+      "displayName": "Debug (ASan + UBSan)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-sanitized",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CMAKE_MODULE_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
     }
   ],
 
@@ -23,6 +59,19 @@
     {
       "name": "build",
       "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "debug-sanitized",
+      "configurePreset": "debug-sanitized",
+      "verbose": true
     },
     {
       "name": "format",
@@ -35,6 +84,27 @@
     {
       "name": "test",
       "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "debug-sanitized",
+      "configurePreset": "debug-sanitized",
       "output": {
         "outputOnFailure": true
       }

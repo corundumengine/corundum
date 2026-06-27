@@ -38,6 +38,14 @@ target_include_directories(engine PUBLIC include)
 # Link dependencies that the engine itself needs
 target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json)
 
+# PCH — stable STL + third-party headers that are slow to parse
+target_precompile_headers(engine PRIVATE src/pch.hpp)
+
+# engine_factory.cpp references platform::create_platform in engine_platform_glfw.
+# In a Unity batch the linker can't skip it; keep it standalone so the linker only
+# pulls it in when make_engine() is actually called.
+set_source_files_properties(src/engine_factory.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+
 # Add the platform sub-module
 add_subdirectory(src/platform)
 

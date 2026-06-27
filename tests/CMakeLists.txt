@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 3.28)
-project(corundum_tests LANGUAGES CXX)
-
 enable_testing()
 
 # The test executable
@@ -25,6 +22,10 @@ target_link_libraries(corundum_tests
 )
 
 target_compile_options(corundum_tests PRIVATE -Wall -Wextra -Wpedantic)
+
+# Multiple test files share identical helper functions (write_file, temp_dir)
+# in anonymous namespaces — Unity batching produces redefinition errors.
+set_target_properties(corundum_tests PROPERTIES UNITY_BUILD OFF)
 
 # Enable CTest integration
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)

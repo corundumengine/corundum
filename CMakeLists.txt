@@ -10,14 +10,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# ── ccache (auto-detect; transparent to the build) ──────────────────────────
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+  set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}" CACHE FILEPATH "ccache launcher for C++")
+  set(CMAKE_OBJCXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}" CACHE FILEPATH "ccache launcher for Objective-C++")
+endif()
+
 set(FETCHCONTENT_QUIET FALSE)
 include(FetchContent)
 
 # ── Options for consumer projects ──────────────────────────────────────────────
 option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ON)
 option(CORUNDUM_BUILD_TESTS "Build unit tests" ON)
+option(CORUNDUM_UNITY_BUILD "Enable Unity/Jumbo builds for faster compilation" ON)
 
 # ── Dependencies ───────────────────────────────────────────────────────────────
+# Disable Unity builds for third-party code — external headers often lack
+# include guards or mix C/ObjC/C++ sources that don't batch cleanly.
+set(CMAKE_UNITY_BUILD OFF)
 
 FetchContent_Declare(
     nlohmann_json
@@ -83,6 +94,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(stb)
 
 # ── Engine and tools ───────────────────────────────────────────────────────────
+# Unity/Jumbo builds for first-party code only.
+if(CORUNDUM_UNITY_BUILD)
+  set(CMAKE_UNITY_BUILD ON)
+  set(CMAKE_UNITY_BUILD_BATCH_SIZE 8)
+endif()
+
 add_subdirectory(engine)
 if(CORUNDUM_BUILD_TOOLS)
   add_subdirectory(tools)
@@ -105,6 +122,25 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
         COMMENT "Running code formatter on all source files"
         VERBATIM
     )
+
+  # ── Static analysis ────────────────────────────────────────────────────────
+  find_program(CLANG_TIDY clang-tidy)
+  if(CLANG_TIDY)
+    add_custom_target(run_tidy
+          COMMAND ${CLANG_TIDY}
+              -p ${CMAKE_BINARY_DIR}
+              --warnings-as-errors='*'
+              ${FORMAT_SOURCES}
+          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+          COMMENT "Running clang-tidy on all source files"
+          COMMAND_EXPAND_LISTS
+      )
+  else()
+    add_custom_target(run_tidy
+          COMMAND ${CMAKE_COMMAND} -E echo
+              "clang-tidy not found — install it to use this target"
+      )
+  endif()
 endif()
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
