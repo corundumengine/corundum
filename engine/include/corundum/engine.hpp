@@ -1,4 +1,5 @@
 #pragma once
+#include <corundum/audio/sys/audio_sys.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
@@ -13,7 +14,6 @@
 #include <expected>
 #include <memory>
 #include <string>
-#include <string_view>
 
 namespace corundum {
 
@@ -31,6 +31,7 @@ namespace corundum {
     std::unique_ptr<platform::Window> window;
     std::unique_ptr<platform::Renderer> renderer;
 
+    audio::sys::AudioState audio;
     input::InputState input_state;
     render::data::RenderState render;
 

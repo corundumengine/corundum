@@ -1,5 +1,6 @@
 #include <corundum/platform/platform_factory.hpp>
 
+#include "../sokol/sokol_audio_backend.hpp"
 #include "glfw_window.hpp"
 #include "sokol_renderer.hpp"
 
@@ -12,10 +13,12 @@ namespace corundum::platform {
 
     auto window_ptr = std::move(*window_result);
     auto renderer = std::make_unique<Renderer>(glfw::make_sokol_renderer(window_ptr->glfw_window()));
+    auto audio = glfw::make_sokol_audio_backend();
 
     return PlatformContext{
         .window = std::move(window_ptr),
         .renderer = std::move(renderer),
+        .audio_backend = std::move(audio),
     };
   }
 

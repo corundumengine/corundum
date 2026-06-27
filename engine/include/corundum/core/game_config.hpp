@@ -41,6 +41,11 @@ namespace corundum::core {
     std::string portals_dir{};
     /** @brief Directory containing dialogue data files. */
     std::string dialogue_dir{};
+    /** @brief Directory containing sound (OGG) assets. */
+    std::string sounds_dir{"data/sounds"};
+    /** @brief Optional JSON catalog mapping sound names to file paths (relative to sounds_dir).
+     *  Example: {"coin": "sfx/jingle_coin_01.ogg"}. Empty → names resolve to "{name}.ogg". */
+    std::string sounds_catalog{"data/sounds.json"};
     /** @brief Path to the world manifest JSON. Empty → single-tilemap mode. */
     std::string world_manifest_path{};
   };

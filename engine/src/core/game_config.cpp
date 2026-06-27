@@ -259,6 +259,21 @@ namespace corundum::core {
       cfg.paths.dialogue_dir = std::move(*res);
     }
 
+    {
+      auto res = get_nonempty_string(j, "sounds_dir", cfg.paths.sounds_dir, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.paths.sounds_dir = std::move(*res);
+    }
+
+    if (j.contains("sounds_catalog")) {
+      try {
+        cfg.paths.sounds_catalog = j.at("sounds_catalog").get<std::string>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json 'sounds_catalog' has wrong type: {}", path.string()));
+      }
+    }
+
     if (j.contains("world_manifest_path")) {
       try {
         cfg.paths.world_manifest_path = j.at("world_manifest_path").get<std::string>();

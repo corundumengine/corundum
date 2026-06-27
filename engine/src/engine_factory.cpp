@@ -29,6 +29,7 @@ namespace corundum {
     Engine engine{};
     engine.window = std::move(platform->window);
     engine.renderer = std::move(platform->renderer);
+    engine.audio.backend = std::move(platform->audio_backend);
     engine.show_debug_hud = config.show_debug_hud;
 
     if (auto result = initialize(engine, std::move(cfg)); !result)
