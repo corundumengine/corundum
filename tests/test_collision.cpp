@@ -4,7 +4,7 @@
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/physics/collision.hpp>
 
-using corundum::gameplay::ecs::Position;
+using corundum::gameplay::component::Position;
 using corundum::gameplay::world::tilemap::CollisionRects;
 using corundum::gameplay::world::tilemap::CollisionRectsView;
 using corundum::physics::sys::resolve_collisions;

@@ -1,8 +1,8 @@
 #include <corundum/gameplay/world/update.hpp>
 
 #include <corundum/anim/sys/anim_sys.hpp>
-#include <corundum/gameplay/ecs/components.hpp>
-#include <corundum/gameplay/ecs/world.hpp>
+#include <corundum/gameplay/component/components.hpp>
+#include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/sys/camera_system.hpp>
 #include <corundum/gameplay/sys/dialogue_system.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
@@ -16,9 +16,9 @@ namespace {
   void update_exploring(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
                         const corundum::gameplay::world::MapView &map, const corundum::core::GameConfig &cfg,
                         float dt) {
-    using corundum::gameplay::ecs::EntityId;
+    using corundum::gameplay::entity::EntityId;
 
-    auto &world = scene.ecs_world;
+    auto &world = scene.world;
     const EntityId player = scene.player;
 
     corundum::physics::sys::update_player(world.transforms, world.collisions, player, input, cfg.player_speed, map,

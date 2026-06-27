@@ -71,9 +71,9 @@ namespace corundum::physics::sys {
 
   } // namespace
 
-  void resolve_collisions(corundum::gameplay::ecs::Position &pos, corundum::gameplay::ecs::Position prev_pos,
-                          float entity_w, float entity_h, corundum::gameplay::world::tilemap::CollisionRectsView rects,
-                          float y_offset) noexcept {
+  void resolve_collisions(corundum::gameplay::component::Position &pos,
+                          corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
+                          corundum::gameplay::world::tilemap::CollisionRectsView rects, float y_offset) noexcept {
     const float eff_h = entity_h - y_offset;
 
     // Test X axis: use post-integrate X with pre-integrate Y.
@@ -85,8 +85,8 @@ namespace corundum::physics::sys {
       pos.y = prev_pos.y;
   }
 
-  void resolve_triangle_collisions(corundum::gameplay::ecs::Position &pos, corundum::gameplay::ecs::Position prev_pos,
-                                   float entity_w, float entity_h,
+  void resolve_triangle_collisions(corundum::gameplay::component::Position &pos,
+                                   corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
                                    corundum::gameplay::world::tilemap::CollisionTrianglesView triangles,
                                    float y_offset) noexcept {
     const float eff_h = entity_h - y_offset;

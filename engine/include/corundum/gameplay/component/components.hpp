@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-namespace corundum::gameplay::ecs {
+namespace corundum::gameplay::component {
 
   /// Axis-aligned collision footprint derived from sprite registry data.
   /// Populated once at spawn; eliminates per-frame registry lookups during collision.
@@ -84,4 +84,4 @@ namespace corundum::gameplay::ecs {
     return std::sqrt(dx * dx + dy * dy);
   }
 
-} // namespace corundum::gameplay::ecs
+} // namespace corundum::gameplay::component

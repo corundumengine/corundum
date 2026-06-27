@@ -1,5 +1,5 @@
 #include <corundum/anim/sys/anim_sys.hpp>
-#include <corundum/gameplay/ecs/motion_sprite_table.hpp>
+#include <corundum/gameplay/component/motion_sprite_table.hpp>
 #include <corundum/resources/sprite.hpp>
 
 #include <cmath>
@@ -10,22 +10,22 @@ namespace corundum::anim::sys {
 
   namespace {
 
-    inline constexpr std::array<corundum::gameplay::ecs::FacingDir, 12> k_facing_table = {
+    inline constexpr std::array<corundum::gameplay::component::FacingDir, 12> k_facing_table = {
         // zone 0 (vertical dominant)
-        corundum::gameplay::ecs::FacingDir::North, // dy<0, dx<0
-        corundum::gameplay::ecs::FacingDir::North, // dy<0, dx>0
-        corundum::gameplay::ecs::FacingDir::South, // dy>0, dx<0
-        corundum::gameplay::ecs::FacingDir::South, // dy>0, dx>0
+        corundum::gameplay::component::FacingDir::North, // dy<0, dx<0
+        corundum::gameplay::component::FacingDir::North, // dy<0, dx>0
+        corundum::gameplay::component::FacingDir::South, // dy>0, dx<0
+        corundum::gameplay::component::FacingDir::South, // dy>0, dx>0
         // zone 1 (horizontal dominant)
-        corundum::gameplay::ecs::FacingDir::West, // dy<0, dx<0
-        corundum::gameplay::ecs::FacingDir::East, // dy<0, dx>0
-        corundum::gameplay::ecs::FacingDir::West, // dy>0, dx<0
-        corundum::gameplay::ecs::FacingDir::East, // dy>0, dx>0
+        corundum::gameplay::component::FacingDir::West, // dy<0, dx<0
+        corundum::gameplay::component::FacingDir::East, // dy<0, dx>0
+        corundum::gameplay::component::FacingDir::West, // dy>0, dx<0
+        corundum::gameplay::component::FacingDir::East, // dy>0, dx>0
         // zone 2 (diagonal)
-        corundum::gameplay::ecs::FacingDir::NorthWest, // dy<0, dx<0
-        corundum::gameplay::ecs::FacingDir::NorthEast, // dy<0, dx>0
-        corundum::gameplay::ecs::FacingDir::SouthWest, // dy>0, dx<0
-        corundum::gameplay::ecs::FacingDir::SouthEast, // dy>0, dx>0
+        corundum::gameplay::component::FacingDir::NorthWest, // dy<0, dx<0
+        corundum::gameplay::component::FacingDir::NorthEast, // dy<0, dx>0
+        corundum::gameplay::component::FacingDir::SouthWest, // dy>0, dx<0
+        corundum::gameplay::component::FacingDir::SouthEast, // dy>0, dx>0
     };
 
     inline constexpr std::array<corundum::resources::AnimId, 8> k_anim_for_facing = {
@@ -49,14 +49,16 @@ namespace corundum::anim::sys {
 
   } // namespace
 
-  void animate(corundum::gameplay::ecs::SpriteTable &sprites, const corundum::gameplay::ecs::TransformTable &transforms,
-               corundum::gameplay::ecs::AnimationTable &animations, corundum::gameplay::ecs::FacingTable &facings,
-               corundum::gameplay::ecs::MotionSpriteTable &motion_sprites, float dt) noexcept {
+  void animate(corundum::gameplay::component::SpriteTable &sprites,
+               const corundum::gameplay::component::TransformTable &transforms,
+               corundum::gameplay::component::AnimationTable &animations,
+               corundum::gameplay::component::FacingTable &facings,
+               corundum::gameplay::component::MotionSpriteTable &motion_sprites, float dt) noexcept {
     [[assume(animations.count <= std::remove_reference_t<decltype(animations)>::k_max)]];
     float *timers = std::assume_aligned<16>(animations.timer.data());
     const float *frame_durations = std::assume_aligned<16>(animations.frame_duration.data());
     for (uint16_t i = 0; i < animations.count; ++i) {
-      const corundum::gameplay::ecs::EntityId e = animations.entities[i];
+      const corundum::gameplay::entity::EntityId e = animations.entities[i];
       if (!sprites.has(e) || !transforms.has(e)) [[unlikely]]
         continue;
 
@@ -102,14 +104,14 @@ namespace corundum::anim::sys {
       const int zone = (abs_dy > 2.f * abs_dx) ? 0 : ((abs_dx > 2.f * abs_dy) ? 1 : 2);
       const int dy_sign = vel_dy > 0.f ? 1 : 0;
       const int dx_sign = vel_dx > 0.f ? 1 : 0;
-      const corundum::gameplay::ecs::FacingDir facing = k_facing_table[zone * 4 + dy_sign * 2 + dx_sign];
+      const corundum::gameplay::component::FacingDir facing = k_facing_table[zone * 4 + dy_sign * 2 + dx_sign];
 
       if (moving && facings.has(e)) [[likely]]
         facings.dir_ref(e) = facing;
 
       const corundum::resources::AnimId target = [&]() noexcept -> corundum::resources::AnimId {
-        const corundum::gameplay::ecs::FacingDir fd =
-            moving ? facing : (facings.has(e) ? facings.dir_of(e) : corundum::gameplay::ecs::FacingDir::South);
+        const corundum::gameplay::component::FacingDir fd =
+            moving ? facing : (facings.has(e) ? facings.dir_of(e) : corundum::gameplay::component::FacingDir::South);
         const auto dir_anim = k_anim_for_facing[std::to_underlying(fd)];
         if (animations.frame_count(e, dir_anim) > 0)
           return dir_anim;

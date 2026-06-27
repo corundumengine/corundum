@@ -1,15 +1,15 @@
 #pragma once
 #include <algorithm>
 #include <array>
-#include <corundum/gameplay/ecs/entity.hpp>
-#include <corundum/gameplay/ecs/table_concepts.hpp>
+#include <corundum/gameplay/component/table_concepts.hpp>
+#include <corundum/gameplay/entity/entity.hpp>
 #include <corundum/resources/sprite.hpp>
 #include <cstdint>
 #include <limits>
 #include <span>
 #include <utility>
 
-namespace corundum::gameplay::ecs {
+namespace corundum::gameplay::component {
 
   /** @brief SoA table for the Animation component.
    *
@@ -143,4 +143,4 @@ namespace corundum::gameplay::ecs {
 
   static_assert(GameTable<AnimationTable>);
 
-} // namespace corundum::gameplay::ecs
+} // namespace corundum::gameplay::component

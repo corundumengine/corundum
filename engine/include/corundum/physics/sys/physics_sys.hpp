@@ -1,7 +1,7 @@
 #pragma once
-#include <corundum/gameplay/ecs/collision_table.hpp>
-#include <corundum/gameplay/ecs/entity.hpp>
-#include <corundum/gameplay/ecs/transform_table.hpp>
+#include <corundum/gameplay/component/collision_table.hpp>
+#include <corundum/gameplay/component/transform_table.hpp>
+#include <corundum/gameplay/entity/entity.hpp>
 #include <corundum/input/actions.hpp>
 
 namespace corundum::gameplay::world {
@@ -20,8 +20,9 @@ namespace corundum::physics::sys {
    *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
    *  @performance O(1).
    */
-  void apply_input(corundum::gameplay::ecs::TransformTable &transforms, corundum::gameplay::ecs::EntityId player,
-                   const corundum::input::InputState &input, float speed) noexcept;
+  void apply_input(corundum::gameplay::component::TransformTable &transforms,
+                   corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
+                   float speed) noexcept;
 
   /** @brief Advance positions by velocity * dt for all active transforms.
    *  @param[in,out] transforms  SoA table; x/y are advanced by dx/dy * dt.
@@ -29,7 +30,7 @@ namespace corundum::physics::sys {
    *  @post All entity positions updated by velocity * dt.
    *  @performance O(n) over active entity count. Auto-vectorisable SoA layout.
    */
-  void integrate(corundum::gameplay::ecs::TransformTable &transforms, float dt) noexcept;
+  void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept;
 
   /** @brief Full player step: input → integrate → collision resolve → portal detect.
    *
@@ -50,9 +51,9 @@ namespace corundum::physics::sys {
    *  @post scene.pending_transition is set if a portal was entered.
    *  @performance O(n) over NPC count. No heap allocation.
    */
-  void update_player(corundum::gameplay::ecs::TransformTable &transforms,
-                     const corundum::gameplay::ecs::CollisionTable &collisions,
-                     corundum::gameplay::ecs::EntityId player, const corundum::input::InputState &input,
+  void update_player(corundum::gameplay::component::TransformTable &transforms,
+                     const corundum::gameplay::component::CollisionTable &collisions,
+                     corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
                      float player_speed, const corundum::gameplay::world::MapView &map,
                      corundum::gameplay::world::Scene &scene, float dt) noexcept;
 

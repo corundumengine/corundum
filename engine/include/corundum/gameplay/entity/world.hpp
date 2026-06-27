@@ -1,19 +1,34 @@
 #pragma once
-#include <corundum/gameplay/ecs/animation_table.hpp>
-#include <corundum/gameplay/ecs/collision_table.hpp>
-#include <corundum/gameplay/ecs/components.hpp>
-#include <corundum/gameplay/ecs/dialogue_table.hpp>
-#include <corundum/gameplay/ecs/entity.hpp>
-#include <corundum/gameplay/ecs/facing_table.hpp>
-#include <corundum/gameplay/ecs/motion_sprite_table.hpp>
-#include <corundum/gameplay/ecs/sprite_table.hpp>
-#include <corundum/gameplay/ecs/transform_name_table.hpp>
-#include <corundum/gameplay/ecs/transform_table.hpp>
+#include <corundum/gameplay/component/animation_table.hpp>
+#include <corundum/gameplay/component/collision_table.hpp>
+#include <corundum/gameplay/component/components.hpp>
+#include <corundum/gameplay/component/dialogue_table.hpp>
+#include <corundum/gameplay/component/facing_table.hpp>
+#include <corundum/gameplay/component/motion_sprite_table.hpp>
+#include <corundum/gameplay/component/sprite_table.hpp>
+#include <corundum/gameplay/component/transform_name_table.hpp>
+#include <corundum/gameplay/component/transform_table.hpp>
+#include <corundum/gameplay/entity/entity.hpp>
 #include <vector>
 
-namespace corundum::gameplay::ecs {
+namespace corundum::gameplay::entity {
 
-  /// Top-level ECS container; owns the entity pool and all component tables.
+  // Types owned by corundum::gameplay::component — imported for convenience.
+  using corundum::gameplay::component::Animation;
+  using corundum::gameplay::component::AnimationTable;
+  using corundum::gameplay::component::CollisionTable;
+  using corundum::gameplay::component::DialogueRef;
+  using corundum::gameplay::component::DialogueTable;
+  using corundum::gameplay::component::FacingTable;
+  using corundum::gameplay::component::MotionSpriteTable;
+  using corundum::gameplay::component::Position;
+  using corundum::gameplay::component::Sprite;
+  using corundum::gameplay::component::SpriteTable;
+  using corundum::gameplay::component::TransformNameTable;
+  using corundum::gameplay::component::TransformTable;
+  using corundum::gameplay::component::Velocity;
+
+  /// Top-level entity container; owns the entity pool and all component tables.
   /// @note Not thread-safe.
   struct World {
     EntityManager entities;
@@ -100,4 +115,4 @@ namespace corundum::gameplay::ecs {
     w.pending_deletions.clear();
   }
 
-} // namespace corundum::gameplay::ecs
+} // namespace corundum::gameplay::entity

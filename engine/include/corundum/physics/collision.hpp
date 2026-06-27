@@ -1,5 +1,5 @@
 #pragma once
-#include <corundum/gameplay/ecs/components.hpp>
+#include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 
 namespace corundum::physics::sys {
@@ -21,9 +21,9 @@ namespace corundum::physics::sys {
    * @param y_offset  Shifts the top of the collision box downward, letting the upper portion
    *                  of a sprite visually overlap objects above it.
    */
-  void resolve_collisions(corundum::gameplay::ecs::Position &pos, corundum::gameplay::ecs::Position prev_pos,
-                          float entity_w, float entity_h, corundum::gameplay::world::tilemap::CollisionRectsView rects,
-                          float y_offset = 0.f) noexcept;
+  void resolve_collisions(corundum::gameplay::component::Position &pos,
+                          corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
+                          corundum::gameplay::world::tilemap::CollisionRectsView rects, float y_offset = 0.f) noexcept;
 
   /**
    * @brief Axis-separated diagonal collision resolution for half-tile triangle shapes.
@@ -40,8 +40,8 @@ namespace corundum::physics::sys {
    * @param y_offset  Shifts the top of the collision box downward (same semantics as
    * resolve_collisions).
    */
-  void resolve_triangle_collisions(corundum::gameplay::ecs::Position &pos, corundum::gameplay::ecs::Position prev_pos,
-                                   float entity_w, float entity_h,
+  void resolve_triangle_collisions(corundum::gameplay::component::Position &pos,
+                                   corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
                                    corundum::gameplay::world::tilemap::CollisionTrianglesView triangles,
                                    float y_offset = 0.f) noexcept;
 

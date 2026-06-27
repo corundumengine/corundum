@@ -1,7 +1,7 @@
 #include <corundum/render/sys/render_sys.hpp>
 
 #include <corundum/core/game_config.hpp>
-#include <corundum/gameplay/ecs/transform_table.hpp>
+#include <corundum/gameplay/component/transform_table.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/loader.hpp>
@@ -62,7 +62,7 @@ namespace corundum::render::sys {
   // ── SystemManager equivalents ────────────────────────────────────────────────
 
   std::expected<void, std::string> initialize(data::RenderState &state) {
-    state.draw_list.reserve(corundum::gameplay::ecs::k_max_entities);
+    state.draw_list.reserve(corundum::gameplay::entity::k_max_entities);
     return {};
   }
 
@@ -462,9 +462,9 @@ namespace corundum::render::sys {
     const int diamond_h = state.active_chunks[0].tilemap.diamond_h();
     const float half_tw = static_cast<float>(diamond_w) * cfg.tile_scale * 0.5f;
     const float half_th = static_cast<float>(diamond_h) * cfg.tile_scale * 0.5f;
-    const auto pos_slot = scene.ecs_world.transforms.dense_idx(scene.player);
-    const float pos_x = scene.ecs_world.transforms.x[pos_slot];
-    const float pos_y = scene.ecs_world.transforms.y[pos_slot];
+    const auto pos_slot = scene.world.transforms.dense_idx(scene.player);
+    const float pos_x = scene.world.transforms.x[pos_slot];
+    const float pos_y = scene.world.transforms.y[pos_slot];
     const ChunkCoord center = chunk_at_iso(pos_x, pos_y, state.manifest, half_tw, half_th);
 
     if (center != state.last_center_chunk) {
@@ -670,8 +670,8 @@ namespace corundum::render::sys {
 
     state.draw_list.clear();
 
-    const auto &transforms = scene.ecs_world.transforms;
-    const auto &sprites = scene.ecs_world.sprites;
+    const auto &transforms = scene.world.transforms;
+    const auto &sprites = scene.world.sprites;
     const auto ents = sprites.active_entities();
 
     [[assume(sprites.count <= std::remove_reference_t<decltype(sprites)>::k_max)]];

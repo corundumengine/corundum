@@ -1,8 +1,8 @@
 #include <corundum/gameplay/world/spawn.hpp>
 
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/ecs/components.hpp>
-#include <corundum/gameplay/ecs/world.hpp>
+#include <corundum/gameplay/component/components.hpp>
+#include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/world/actors/actor.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/resources/character_registry.hpp>
@@ -19,13 +19,13 @@ namespace corundum::gameplay::world {
   std::expected<Scene, std::string> spawn_world(const corundum::core::GameConfig &cfg,
                                                 const corundum::resources::CharacterRegistry &registry,
                                                 const corundum::gameplay::world::tilemap::Tilemap &tilemap,
-                                                std::optional<corundum::gameplay::ecs::Position> player_pos) {
-    using corundum::gameplay::ecs::Animation;
-    using corundum::gameplay::ecs::DialogueRef;
-    using corundum::gameplay::ecs::Position;
-    using corundum::gameplay::ecs::Sprite;
-    using corundum::gameplay::ecs::Velocity;
-    using corundum::gameplay::ecs::World;
+                                                std::optional<corundum::gameplay::component::Position> player_pos) {
+    using corundum::gameplay::component::Animation;
+    using corundum::gameplay::component::DialogueRef;
+    using corundum::gameplay::component::Position;
+    using corundum::gameplay::component::Sprite;
+    using corundum::gameplay::component::Velocity;
+    using corundum::gameplay::entity::World;
     using corundum::resources::AnimId;
     using corundum::resources::SpriteId;
 
@@ -46,7 +46,7 @@ namespace corundum::gameplay::world {
 
     std::array<uint8_t, corundum::resources::k_num_anim_ids> walk_counts{};
     std::array<uint8_t, corundum::resources::k_num_anim_ids> idle_counts{};
-    corundum::gameplay::ecs::BoundingBox player_bb{};
+    corundum::gameplay::component::BoundingBox player_bb{};
     float walk_fd = 0.f;
     float idle_fd = 0.f;
 
@@ -81,7 +81,7 @@ namespace corundum::gameplay::world {
     const Position spawn_pos = player_pos.value_or(Position{default_spawn.x, default_spawn.y});
     auto player = spawn(world, spawn_pos, Velocity{0.f, 0.f}, Sprite{idle_sid, AnimId::Default, 0}, player_anim);
     world.collisions.insert(player, player_bb.w, player_bb.h, player_bb.yo);
-    world.facings.insert(player, corundum::gameplay::ecs::FacingDir::South);
+    world.facings.insert(player, corundum::gameplay::component::FacingDir::South);
     if (idle_fd > 0.f)
       world.animations.frame_duration_ref(player) = idle_fd;
     // idle→walk: 0.05 s prevents flicker on a brief key tap.
@@ -105,7 +105,7 @@ namespace corundum::gameplay::world {
         return std::unexpected(std::format("[crpg] unknown sprite '{}'", a.sprite_name));
       }
 
-      corundum::gameplay::ecs::BoundingBox bb{};
+      corundum::gameplay::component::BoundingBox bb{};
       if (const auto *sd = registry.get_sprite_by_id(sid)) {
         if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
           const int rfw = corundum::resources::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
@@ -125,7 +125,7 @@ namespace corundum::gameplay::world {
           npc_anim.frame_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
       }
 
-      corundum::gameplay::ecs::EntityId eid;
+      corundum::gameplay::entity::EntityId eid;
       if (!a.dialogue_ref.empty())
         eid = spawn(world, Position{px, py}, Velocity{}, Sprite{sid, AnimId::Default, 0}, DialogueRef{a.dialogue_ref});
       else
@@ -134,7 +134,7 @@ namespace corundum::gameplay::world {
       world.animations.set_frame_counts(eid, npc_anim.frame_counts);
       world.collisions.insert(eid, bb.w, bb.h, bb.yo);
 
-      using FDir = corundum::gameplay::ecs::FacingDir;
+      using FDir = corundum::gameplay::component::FacingDir;
       static constexpr std::array<std::pair<std::string_view, FDir>, 8> k_facing_map{{
           {"north", FDir::North},
           {"east", FDir::East},
@@ -151,7 +151,7 @@ namespace corundum::gameplay::world {
     }
 
     Scene result;
-    result.ecs_world = std::move(world);
+    result.world = std::move(world);
     result.player = player;
     return result;
   }

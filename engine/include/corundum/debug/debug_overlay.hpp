@@ -2,7 +2,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
-#include <corundum/gameplay/ecs/components.hpp>
+#include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -48,7 +48,7 @@ namespace corundum::debug {
     /** @brief Player velocity Y component. */
     float player_dy{};
     /** @brief Player facing direction. */
-    gameplay::ecs::FacingDir player_facing{gameplay::ecs::FacingDir::South};
+    gameplay::component::FacingDir player_facing{gameplay::component::FacingDir::South};
     /** @brief True if the player entity has a Facing component. */
     bool player_has_facing{};
 

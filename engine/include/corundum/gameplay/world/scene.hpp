@@ -1,7 +1,7 @@
 #pragma once
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
-#include <corundum/gameplay/ecs/world.hpp>
+#include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
@@ -24,8 +24,8 @@ namespace corundum::gameplay::world {
    * @see Engine  For the owning engine struct.
    */
   struct Scene {
-    corundum::gameplay::ecs::World ecs_world;
-    corundum::gameplay::ecs::EntityId player;
+    corundum::gameplay::entity::World world;
+    corundum::gameplay::entity::EntityId player;
 
     GameMode mode = GameMode::Exploring;
     Camera camera;
@@ -33,8 +33,8 @@ namespace corundum::gameplay::world {
     corundum::gameplay::FlagStore flags;
     float elapsed_time = 0.f;
     std::optional<MapTransition> pending_transition;
-    std::optional<corundum::gameplay::ecs::EntityId> dialogue_npc;
-    std::optional<corundum::gameplay::ecs::FacingDir> dialogue_npc_saved_facing;
+    std::optional<corundum::gameplay::entity::EntityId> dialogue_npc;
+    std::optional<corundum::gameplay::component::FacingDir> dialogue_npc_saved_facing;
     std::optional<corundum::resources::AnimId> dialogue_npc_saved_anim;
     std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
   };

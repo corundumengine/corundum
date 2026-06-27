@@ -11,7 +11,7 @@
 
 namespace corundum::physics::sys {
 
-  void integrate(corundum::gameplay::ecs::TransformTable &transforms, float dt) noexcept {
+  void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept {
     [[assume(transforms.count <= std::remove_reference_t<decltype(transforms)>::k_max)]];
     float *px = std::assume_aligned<16>(transforms.x.data());
     float *py = std::assume_aligned<16>(transforms.y.data());
@@ -23,8 +23,9 @@ namespace corundum::physics::sys {
     }
   }
 
-  void apply_input(corundum::gameplay::ecs::TransformTable &transforms, corundum::gameplay::ecs::EntityId player,
-                   const corundum::input::InputState &input, float speed) noexcept {
+  void apply_input(corundum::gameplay::component::TransformTable &transforms,
+                   corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
+                   float speed) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
 
@@ -51,13 +52,13 @@ namespace corundum::physics::sys {
     }
   }
 
-  void update_player(corundum::gameplay::ecs::TransformTable &transforms,
-                     const corundum::gameplay::ecs::CollisionTable &collisions,
-                     corundum::gameplay::ecs::EntityId player, const corundum::input::InputState &input,
+  void update_player(corundum::gameplay::component::TransformTable &transforms,
+                     const corundum::gameplay::component::CollisionTable &collisions,
+                     corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
                      float player_speed, const corundum::gameplay::world::MapView &map,
                      corundum::gameplay::world::Scene &scene, float dt) noexcept {
-    using corundum::gameplay::ecs::EntityId;
-    using corundum::gameplay::ecs::Position;
+    using corundum::gameplay::component::Position;
+    using corundum::gameplay::entity::EntityId;
 
     const auto p_slot = transforms.dense_idx(player);
     const float prev_x = transforms.x[p_slot];
@@ -90,7 +91,7 @@ namespace corundum::physics::sys {
       p.y = p_iso.y - player_rect.yo * scale_ratio;
     }
 
-    std::array<float, corundum::gameplay::ecs::k_max_entities> npc_xs{}, npc_ys{}, npc_ws{}, npc_hs{};
+    std::array<float, corundum::gameplay::entity::k_max_entities> npc_xs{}, npc_ys{}, npc_ws{}, npc_hs{};
     uint16_t npc_count = 0;
     for (uint16_t i = 0; i < collisions.count; ++i) {
       const EntityId eid = collisions.entities[i];

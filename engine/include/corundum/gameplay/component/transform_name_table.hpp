@@ -1,12 +1,12 @@
 #pragma once
 #include <algorithm>
 #include <array>
-#include <corundum/gameplay/ecs/entity.hpp>
+#include <corundum/gameplay/entity/entity.hpp>
 #include <cstdint>
 #include <limits>
 #include <string_view>
 
-namespace corundum::gameplay::ecs {
+namespace corundum::gameplay::component {
 
   /** @brief Cold debug-label table for transforms.
    *
@@ -97,4 +97,4 @@ namespace corundum::gameplay::ecs {
     }
   };
 
-} // namespace corundum::gameplay::ecs
+} // namespace corundum::gameplay::component

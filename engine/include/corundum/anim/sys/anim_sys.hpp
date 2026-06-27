@@ -1,9 +1,9 @@
 #pragma once
-#include <corundum/gameplay/ecs/animation_table.hpp>
-#include <corundum/gameplay/ecs/facing_table.hpp>
-#include <corundum/gameplay/ecs/motion_sprite_table.hpp>
-#include <corundum/gameplay/ecs/sprite_table.hpp>
-#include <corundum/gameplay/ecs/transform_table.hpp>
+#include <corundum/gameplay/component/animation_table.hpp>
+#include <corundum/gameplay/component/facing_table.hpp>
+#include <corundum/gameplay/component/motion_sprite_table.hpp>
+#include <corundum/gameplay/component/sprite_table.hpp>
+#include <corundum/gameplay/component/transform_table.hpp>
 
 namespace corundum::anim::sys {
 
@@ -25,8 +25,10 @@ namespace corundum::anim::sys {
    *  @post Frame indices wrap according to cached frame counts.
    *  @performance O(n) over active animation count. No heap allocation.
    */
-  void animate(corundum::gameplay::ecs::SpriteTable &sprites, const corundum::gameplay::ecs::TransformTable &transforms,
-               corundum::gameplay::ecs::AnimationTable &animations, corundum::gameplay::ecs::FacingTable &facings,
-               corundum::gameplay::ecs::MotionSpriteTable &motion_sprites, float dt) noexcept;
+  void animate(corundum::gameplay::component::SpriteTable &sprites,
+               const corundum::gameplay::component::TransformTable &transforms,
+               corundum::gameplay::component::AnimationTable &animations,
+               corundum::gameplay::component::FacingTable &facings,
+               corundum::gameplay::component::MotionSpriteTable &motion_sprites, float dt) noexcept;
 
 } // namespace corundum::anim::sys

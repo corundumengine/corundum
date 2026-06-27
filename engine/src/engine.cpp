@@ -1,6 +1,6 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
-#include <corundum/gameplay/ecs/world.hpp>
+#include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/spawn.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
@@ -24,7 +24,7 @@ namespace corundum {
       if (!world_result)
         return std::unexpected(world_result.error());
       const auto &info = *world_result;
-      const auto spawn_pos = gameplay::ecs::Position{info.spawn_world_pos.x, info.spawn_world_pos.y};
+      const auto spawn_pos = gameplay::component::Position{info.spawn_world_pos.x, info.spawn_world_pos.y};
       auto scene_result =
           gameplay::world::spawn_world(cfg, engine.characters, engine.render.active_chunks[0].tilemap, spawn_pos);
       if (!scene_result)
@@ -115,7 +115,7 @@ namespace corundum {
 
   void update(Engine &engine) noexcept {
     while (engine.window->is_open() && !engine.quit) {
-      const auto &transforms = engine.scene.ecs_world.transforms;
+      const auto &transforms = engine.scene.world.transforms;
       const auto n = transforms.count;
       if (engine.render.prev_x.size() < n) {
         engine.render.prev_x.resize(n);
@@ -149,7 +149,7 @@ namespace corundum {
 
         process_dialogue_events(engine.audio, engine.scene.pending_dialogue_events);
 
-        gameplay::ecs::flush_deletions(engine.scene.ecs_world);
+        gameplay::entity::flush_deletions(engine.scene.world);
         input::clear_pressed(engine.input_state);
       }
 

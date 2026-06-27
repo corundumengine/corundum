@@ -6,7 +6,7 @@
 #include <numeric>
 #include <utility>
 
-namespace corundum::gameplay::ecs {
+namespace corundum::gameplay::entity {
 
   inline constexpr std::uint32_t k_max_entities = 256;
 
@@ -67,4 +67,4 @@ namespace corundum::gameplay::ecs {
     }
   };
 
-} // namespace corundum::gameplay::ecs
+} // namespace corundum::gameplay::entity

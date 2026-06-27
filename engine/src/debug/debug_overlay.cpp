@@ -1,6 +1,6 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/debug/debug_overlay.hpp>
-#include <corundum/gameplay/ecs/world.hpp>
+#include <corundum/gameplay/entity/world.hpp>
 #include <corundum/platform/renderer.hpp>
 
 #include <array>
@@ -24,8 +24,8 @@ namespace corundum::debug {
     constexpr float k_pad = 8.f;
     constexpr float k_box_w = 275.f;
 
-    [[nodiscard]] constexpr std::string_view facing_name(gameplay::ecs::FacingDir d) noexcept {
-      using gameplay::ecs::FacingDir;
+    [[nodiscard]] constexpr std::string_view facing_name(gameplay::component::FacingDir d) noexcept {
+      using gameplay::component::FacingDir;
       switch (d) {
       case FacingDir::South:
         return "South";
@@ -192,10 +192,10 @@ namespace corundum::debug {
     draw_collision(r, camera, viewport, geo.rects, geo.tris, iso);
 
     // Draw player collision bounding box in isometric space
-    const gameplay::ecs::World &w = scene.ecs_world;
-    const gameplay::ecs::EntityId p = scene.player;
+    const gameplay::entity::World &w = scene.world;
+    const gameplay::entity::EntityId p = scene.player;
     if (iso.half_tw > 0.f && iso.half_th > 0.f && w.transforms.has(p) && w.collisions.has(p)) {
-      const gameplay::ecs::CollisionTable::Rect &bb = w.collisions.get_rect(p);
+      const gameplay::component::CollisionTable::Rect &bb = w.collisions.get_rect(p);
       const std::uint32_t slot = w.transforms.dense_idx(p);
       const float px = w.transforms.x[slot];
       const float py = w.transforms.y[slot];

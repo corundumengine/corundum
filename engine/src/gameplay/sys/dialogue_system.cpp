@@ -1,5 +1,5 @@
+#include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/dialogue/system.hpp>
-#include <corundum/gameplay/ecs/components.hpp>
 #include <corundum/gameplay/sys/dialogue_system.hpp>
 #include <corundum/resources/sprite.hpp>
 
@@ -11,7 +11,7 @@ namespace corundum::gameplay::sys {
 
   namespace {
 
-    using corundum::gameplay::ecs::FacingDir;
+    using corundum::gameplay::component::FacingDir;
     using corundum::resources::AnimId;
 
     /** @brief Ratio above which the dominant axis is considered "cardinal"
@@ -45,13 +45,13 @@ namespace corundum::gameplay::sys {
 
   void update_dialogue(corundum::gameplay::world::Scene &scene,
                        const corundum::input::PressedActions &actions) noexcept {
-    using corundum::gameplay::ecs::EntityId;
-    using corundum::gameplay::ecs::World;
+    using corundum::gameplay::entity::EntityId;
+    using corundum::gameplay::entity::World;
 
     scene.pending_dialogue_events = corundum::gameplay::dialogue::system(scene.dialogue, actions, scene.flags);
     if (!scene.dialogue.active) {
       if (scene.dialogue_npc) {
-        World &world = scene.ecs_world;
+        World &world = scene.world;
         const EntityId npc = *scene.dialogue_npc;
         if (scene.dialogue_npc_saved_facing && world.facings.has(npc))
           world.facings.dir_ref(npc) = *scene.dialogue_npc_saved_facing;
@@ -70,16 +70,16 @@ namespace corundum::gameplay::sys {
   void try_interact(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg,
                     const corundum::gameplay::dialogue::Registry &graphs) noexcept {
+    using corundum::gameplay::component::distance;
+    using corundum::gameplay::component::Position;
     using corundum::gameplay::dialogue::Graph;
-    using corundum::gameplay::ecs::distance;
-    using corundum::gameplay::ecs::EntityId;
-    using corundum::gameplay::ecs::Position;
-    using corundum::gameplay::ecs::World;
+    using corundum::gameplay::entity::EntityId;
+    using corundum::gameplay::entity::World;
 
     if (!input.is_pressed(corundum::input::Action::Select))
       return;
 
-    World &world = scene.ecs_world;
+    World &world = scene.world;
     const std::uint32_t p_slot = world.transforms.dense_idx(scene.player);
     const float player_x = world.transforms.x[p_slot];
     const float player_y = world.transforms.y[p_slot];
@@ -103,7 +103,7 @@ namespace corundum::gameplay::sys {
 
       if (world.facings.has(eid)) {
         scene.dialogue_npc_saved_facing = world.facings.dir_of(eid);
-        const FacingDir face_player = corundum::gameplay::ecs::opposite(toward_npc);
+        const FacingDir face_player = corundum::gameplay::component::opposite(toward_npc);
         world.facings.dir_ref(eid) = face_player;
         if (world.sprites.has(eid) && world.animations.has(eid)) {
           scene.dialogue_npc_saved_anim = world.sprites.anim_id_ref(eid);
