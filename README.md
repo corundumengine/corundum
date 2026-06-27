@@ -25,6 +25,7 @@ Requires CMake 3.28+ and a C++23 compiler. Dependencies (nlohmann/json, ImGui, G
 ```sh
 build/tools/tilesmith      # Tilemap editor
 build/tools/spritesmith    # Sprite sheet editor
+build/tools/talesmith      # Dialogue editor
 ```
 
 ## Test
@@ -36,23 +37,25 @@ build/tests/corundum_tests -tc="*name*"   # single test
 
 ## Components
 
-| Directory              | Purpose                                  |
-| ---------------------- | ---------------------------------------- |
-| `engine/`              | Pure C++23 core library                  |
-| `engine/src/platform/` | GLFW + sokol rendering backend           |
-| `tools/`               | Developer tools (Tilesmith, Spritesmith) |
-| `tests/`               | Unit tests (doctest)                     |
+| Directory                    | Purpose                                             |
+| ---------------------------- | --------------------------------------------------- |
+| `engine/`                    | Pure C++23 core library                             |
+| `engine/src/platform/glfw/`  | GLFW windowing and sokol_gfx renderer               |
+| `engine/src/platform/sokol/` | sokol_gfx + sokol_audio implementation units        |
+| `engine/src/platform/null/`  | No-op stubs for headless testing                    |
+| `tools/`                     | Developer tools (Tilesmith, Spritesmith, Talesmith) |
+| `tests/`                     | Unit tests (doctest)                                |
 
 ## Dependencies
 
-| Library                                           | Purpose             |
-| ------------------------------------------------- | ------------------- |
-| [nlohmann/json](https://github.com/nlohmann/json) | JSON parsing        |
-| [ImGui](https://github.com/ocornut/imgui)         | Editor GUI          |
-| [GLFW](https://github.com/glfw/glfw)              | Windowing and input |
-| [sokol](https://github.com/floooh/sokol)          | GPU rendering       |
-| [stb](https://github.com/nothings/stb)            | Image loading       |
-| [FreeType](https://freetype.org)                  | Font rasterization  |
+| Library                                           | Purpose                     |
+| ------------------------------------------------- | --------------------------- |
+| [nlohmann/json](https://github.com/nlohmann/json) | JSON parsing                |
+| [ImGui](https://github.com/ocornut/imgui)         | Editor GUI                  |
+| [GLFW](https://github.com/glfw/glfw)              | Windowing and input         |
+| [sokol](https://github.com/floooh/sokol)          | GPU rendering, audio        |
+| [stb](https://github.com/nothings/stb)            | Image loading, OGG decoding |
+| [FreeType](https://freetype.org)                  | Font rasterization          |
 
 ## License
 
