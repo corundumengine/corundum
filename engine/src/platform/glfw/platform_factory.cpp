@@ -12,7 +12,7 @@ namespace corundum::platform {
       return std::unexpected("Failed to create GLFW window");
 
     auto window_ptr = std::move(*window_result);
-    auto renderer = std::make_unique<Renderer>(glfw::make_sokol_renderer(window_ptr->glfw_window()));
+    auto renderer = glfw::make_sokol_renderer(window_ptr->glfw_window());
     auto audio = glfw::make_sokol_audio_backend();
 
     return PlatformContext{

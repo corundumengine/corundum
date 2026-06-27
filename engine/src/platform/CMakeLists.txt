@@ -1,7 +1,7 @@
 add_library(engine_platform_glfw STATIC
     glfw/glfw_window.cpp
     glfw/platform_factory.cpp
-    glfw/sokol_impl.cpp
+    sokol/sokol_impl.cpp
     glfw/sokol_renderer.cpp
     sokol/sokol_audio_impl.cpp
     sokol/sokol_audio_backend.cpp
@@ -34,7 +34,7 @@ if(APPLE)
   # sokol_gfx.h uses #import on macOS; the implementation and renderer files
   # that include it must be compiled as Objective-C++.
   set_source_files_properties(
-        glfw/sokol_impl.cpp
+        sokol/sokol_impl.cpp
         glfw/sokol_renderer.cpp
         sokol/sokol_audio_impl.cpp
         sokol/sokol_audio_backend.cpp

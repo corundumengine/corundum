@@ -6,7 +6,7 @@
 #include <string>
 
 namespace corundum::platform {
-  struct Renderer;
+  class Renderer;
 }
 
 namespace corundum::resources {
