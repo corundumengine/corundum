@@ -1,0 +1,30 @@
+{
+  "type": "quest",
+  "id": "find_sword",
+  "name": "The Lost Sword",
+  "description": "A blade of legend, lost in the old dungeon.",
+  "stages": [
+    {
+      "name": "start",
+      "sequence": 1,
+      "objectives": [{ "text": "Find the lost sword in the dungeon" }]
+    },
+    {
+      "name": "return",
+      "sequence": 2,
+      "objectives": [{ "text": "Return the sword to the blacksmith" }]
+    },
+    {
+      "name": "complete_helped",
+      "sequence": 3,
+      "resolved": true,
+      "objectives": []
+    },
+    {
+      "name": "complete_betrayed",
+      "sequence": 4,
+      "resolved": true,
+      "objectives": []
+    }
+  ]
+}

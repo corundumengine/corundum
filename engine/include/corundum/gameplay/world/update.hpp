@@ -8,6 +8,10 @@
 
 #include <span>
 
+namespace corundum::gameplay::quest {
+  class Registry;
+}
+
 namespace corundum::gameplay::world {
 
   /**
@@ -44,6 +48,6 @@ namespace corundum::gameplay::world {
    */
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt);
+              const MapView &map, float dt, const quest::Registry *quests = nullptr);
 
 } // namespace corundum::gameplay::world

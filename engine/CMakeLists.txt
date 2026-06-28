@@ -9,6 +9,9 @@ add_library(engine STATIC
     src/gameplay/dialogue/query.cpp
     src/gameplay/dialogue/registry.cpp
     src/gameplay/dialogue/system.cpp
+    src/gameplay/quest/loader.cpp
+    src/gameplay/quest/registry.cpp
+    src/gameplay/quest/system.cpp
     src/core/files.cpp
     src/physics/collision.cpp
     src/core/game_config.cpp

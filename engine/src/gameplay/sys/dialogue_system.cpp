@@ -43,12 +43,12 @@ namespace corundum::gameplay::sys {
 
   } // namespace
 
-  void update_dialogue(corundum::gameplay::world::Scene &scene,
-                       const corundum::input::PressedActions &actions) noexcept {
+  void update_dialogue(corundum::gameplay::world::Scene &scene, const corundum::input::PressedActions &actions,
+                       const quest::Registry *quests) noexcept {
     using corundum::gameplay::entity::EntityId;
     using corundum::gameplay::entity::World;
 
-    scene.pending_dialogue_events = corundum::gameplay::dialogue::system(scene.dialogue, actions, scene.flags);
+    scene.pending_dialogue_events = corundum::gameplay::dialogue::system(scene.dialogue, actions, scene.flags, quests);
     if (!scene.dialogue.active) {
       if (scene.dialogue_npc) {
         World &world = scene.world;

@@ -1,7 +1,9 @@
 #include <corundum/gameplay/dialogue/expr.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 
 #include <cctype>
 #include <charconv>
+#include <format>
 #include <stdexcept>
 #include <string>
 
@@ -26,6 +28,7 @@ namespace corundum::gameplay::dialogue {
       Or,     // ||
       Not,    // !
       LParen, // (
+      Comma,  // ,
       RParen, // )
       End,    // end of input
     };
@@ -94,6 +97,9 @@ namespace corundum::gameplay::dialogue {
         case ')':
           ++pos_;
           return {TokKind::RParen, 0, src_.substr(start, 1)};
+        case ',':
+          ++pos_;
+          return {TokKind::Comma, 0, src_.substr(start, 1)};
         default:
           break;
         }
@@ -140,7 +146,9 @@ namespace corundum::gameplay::dialogue {
 
     class Parser {
     public:
-      Parser(std::string_view src, const corundum::gameplay::FlagStore &vars) : lex_(src), vars_(vars) {
+      Parser(std::string_view src, const corundum::gameplay::FlagStore &vars,
+             const corundum::gameplay::quest::Registry *quests)
+          : lex_(src), vars_(vars), quests_(quests) {
         advance();
       }
 
@@ -240,6 +248,8 @@ namespace corundum::gameplay::dialogue {
         case TokKind::Ident: {
           const auto name = std::string(cur_.text);
           advance();
+          if (cur_.kind == TokKind::LParen)
+            return parse_quest_helper(name);
           return corundum::gameplay::visit_count(vars_, name);
         }
         case TokKind::LParen: {
@@ -255,20 +265,78 @@ namespace corundum::gameplay::dialogue {
         }
       }
 
+      std::string expect_ident(std::string_view context) {
+        if (cur_.kind != TokKind::Ident)
+          throw std::runtime_error(std::format("expected identifier {}", context));
+        const auto text = std::string(cur_.text);
+        advance();
+        return text;
+      }
+
+      void expect_rparen() {
+        if (cur_.kind != TokKind::RParen)
+          throw std::runtime_error("expected ')'");
+        advance();
+      }
+
+      int parse_quest_helper(const std::string &name) {
+        if (!quests_)
+          return 0;
+
+        advance(); // consume (
+        const auto quest_id = expect_ident("for quest id in quest helper");
+
+        if (name == "quest_started") {
+          expect_rparen();
+          const auto key = corundum::gameplay::quest::quest_flag_key(quest_id);
+          return corundum::gameplay::visit_count(vars_, key) > 0 ? 1 : 0;
+        }
+
+        if (name == "quest_resolved") {
+          expect_rparen();
+          const auto *q = quests_->find(quest_id);
+          return (q && corundum::gameplay::quest::is_complete(*q, vars_)) ? 1 : 0;
+        }
+
+        if (name == "quest_failed") {
+          expect_rparen();
+          const auto *q = quests_->find(quest_id);
+          return (q && corundum::gameplay::quest::is_failed(*q, vars_)) ? 1 : 0;
+        }
+
+        if (name == "quest_at") {
+          advance(); // consume comma
+          const auto stage_name = expect_ident("for stage name in quest_at");
+          expect_rparen();
+          const auto *q = quests_->find(quest_id);
+          if (!q)
+            return 0;
+          const auto *s = q->find_stage(stage_name);
+          if (!s)
+            return 0;
+          const auto key = corundum::gameplay::quest::quest_flag_key(quest_id);
+          return corundum::gameplay::visit_count(vars_, key) == s->sequence ? 1 : 0;
+        }
+
+        throw std::runtime_error("unknown quest helper: " + name);
+      }
+
       Lexer lex_;
       Token cur_;
       const corundum::gameplay::FlagStore &vars_;
+      const corundum::gameplay::quest::Registry *quests_;
     };
 
   } // namespace
 
   // ── Public API ────────────────────────────────────────────────────────────────
 
-  std::expected<bool, ExprError> eval_condition(std::string_view expr, const corundum::gameplay::FlagStore &vars) {
+  std::expected<bool, ExprError> eval_condition(std::string_view expr, const corundum::gameplay::FlagStore &vars,
+                                                const quest::Registry *quests) {
     if (expr.empty())
       return true;
     try {
-      return Parser(expr, vars).parse();
+      return Parser(expr, vars, quests).parse();
     } catch (const std::exception &e) {
       return std::unexpected(ExprError{e.what()});
     }

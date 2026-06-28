@@ -5,6 +5,10 @@
 #include <string>
 #include <string_view>
 
+namespace corundum::gameplay::quest {
+  class Registry;
+}
+
 namespace corundum::gameplay::dialogue {
 
   /**
@@ -33,6 +37,7 @@ namespace corundum::gameplay::dialogue {
    * @return true or false on success; ExprError describing the failure.
    */
   [[nodiscard]] std::expected<bool, ExprError> eval_condition(std::string_view expr,
-                                                              const corundum::gameplay::FlagStore &vars);
+                                                              const corundum::gameplay::FlagStore &vars,
+                                                              const quest::Registry *quests = nullptr);
 
 } // namespace corundum::gameplay::dialogue

@@ -1,6 +1,7 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/entity/world.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/spawn.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
@@ -64,16 +65,58 @@ namespace corundum {
       return {};
     }
 
-    void process_dialogue_events(audio::sys::AudioState &audio,
-                                 std::vector<corundum::gameplay::dialogue::EventAction> &events) {
-      for (const auto &ev : events) {
+    void process_dialogue_events(Engine &engine) {
+      for (const auto &ev : engine.scene.pending_dialogue_events) {
         if (ev.name == "play_sound" && !ev.args.empty()) {
-          std::expected<void, std::string> result = audio::sys::play_sound(audio, ev.args[0]);
+          std::expected<void, std::string> result = audio::sys::play_sound(engine.audio, ev.args[0]);
           if (!result)
             std::println("[engine] {}", result.error());
         }
+        if (ev.name == "quest_start" && !ev.args.empty()) {
+          if (const auto *q = engine.quests.find(ev.args[0]))
+            gameplay::quest::start(*q, engine.scene.flags);
+        }
+        if (ev.name == "quest_advance" && ev.args.size() >= 2) {
+          if (const auto *q = engine.quests.find(ev.args[0]))
+            gameplay::quest::advance(*q, ev.args[1], engine.scene.flags);
+        }
       }
-      events.clear();
+      engine.scene.pending_dialogue_events.clear();
+    }
+
+    void validate_quest_references(const corundum::gameplay::dialogue::Registry &graphs,
+                                   const corundum::gameplay::quest::Registry &quests) {
+      for (const auto &[id, graph] : graphs) {
+        for (const auto &node : graph.nodes) {
+          for (const auto &action : node.actions) {
+            const auto parsed = corundum::gameplay::dialogue::parse_action(action);
+            if (!parsed)
+              continue;
+
+            const auto *ev = std::get_if<corundum::gameplay::dialogue::EventAction>(&*parsed);
+            if (!ev)
+              continue;
+
+            if (ev->name == "quest_start" && !ev->args.empty()) {
+              if (!quests.find(ev->args[0]))
+                std::println(stderr, "[engine] WARN: dialogue '{}' quest_start(\"{}\") references unknown quest", id,
+                             ev->args[0]);
+            }
+
+            if (ev->name == "quest_advance" && ev->args.size() >= 2) {
+              if (!quests.find(ev->args[0])) {
+                std::println(stderr, "[engine] WARN: dialogue '{}' quest_advance(\"{}\") references unknown quest", id,
+                             ev->args[0]);
+              } else if (const auto *q = quests.find(ev->args[0])) {
+                if (!q->find_stage(ev->args[1]))
+                  std::println(stderr,
+                               "[engine] WARN: dialogue '{}' quest_advance(\"{}\", \"{}\") references unknown stage",
+                               id, ev->args[0], ev->args[1]);
+              }
+            }
+          }
+        }
+      }
     }
 
   } // namespace
@@ -127,6 +170,12 @@ namespace corundum {
 
     const auto loaded = engine.graphs.load_all(engine.cfg.paths.dialogue_dir);
     std::println("[engine] Loaded {} dialogue graphs", loaded);
+
+    if (!engine.cfg.paths.quests_dir.empty()) {
+      const auto quest_loaded = engine.quests.load_all(engine.cfg.paths.quests_dir);
+      std::println("[engine] Loaded {} quests", quest_loaded);
+    }
+    validate_quest_references(engine.graphs, engine.quests);
     return {};
   }
 
@@ -139,8 +188,8 @@ namespace corundum {
         engine.render.prev_row.resize(n);
       }
       for (std::uint32_t i = 0; i < n; ++i) {
-      engine.render.prev_col[i] = transforms.col[i];
-      engine.render.prev_row[i] = transforms.row[i];
+        engine.render.prev_col[i] = transforms.col[i];
+        engine.render.prev_row[i] = transforms.row[i];
       }
       engine.render.prev_cam_x = engine.scene.camera.x;
       engine.render.prev_cam_y = engine.scene.camera.y;
@@ -161,10 +210,10 @@ namespace corundum {
           continue;
 
         const auto mv = gameplay::world::build_map_view(engine.render, engine.cfg);
-        gameplay::world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv,
-                                engine.timer.target_dt);
+        gameplay::world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
+                                &engine.quests);
 
-        process_dialogue_events(engine.audio, engine.scene.pending_dialogue_events);
+        process_dialogue_events(engine);
 
         gameplay::entity::flush_deletions(engine.scene.world);
 

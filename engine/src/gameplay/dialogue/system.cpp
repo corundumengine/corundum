@@ -56,7 +56,7 @@ namespace corundum::gameplay::dialogue {
   }
 
   std::vector<EventAction> system(State &state, const input::PressedActions &actions,
-                                  corundum::gameplay::FlagStore &flags) {
+                                  corundum::gameplay::FlagStore &flags, const quest::Registry *quests) {
     std::vector<EventAction> pending;
 
     if (!state.active || !state.graph)
@@ -88,7 +88,7 @@ namespace corundum::gameplay::dialogue {
       break;
 
     case NodeType::Choice: {
-      const auto visible = visible_choices(*node, flags, state.graph->graph_id);
+      const auto visible = visible_choices(*node, flags, state.graph->graph_id, quests);
       const int count = static_cast<int>(visible.size());
 
       if (count == 0) {

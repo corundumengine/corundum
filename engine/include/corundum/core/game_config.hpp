@@ -41,6 +41,8 @@ namespace corundum::core {
     std::string portals_dir{};
     /** @brief Directory containing dialogue data files. */
     std::string dialogue_dir{};
+    /** @brief Directory containing quest data files. */
+    std::string quests_dir{};
     /** @brief Directory containing sound (OGG) assets. */
     std::string sounds_dir{"data/sounds"};
     /** @brief Optional JSON catalog mapping sound names to file paths (relative to sounds_dir).

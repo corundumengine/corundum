@@ -6,6 +6,7 @@ add_executable(corundum_tests
     test_actions.cpp
     test_collision.cpp
     test_dialogue.cpp
+    test_quest.cpp
     test_game_config.cpp
     test_handle_pool.cpp
     test_word_wrap.cpp

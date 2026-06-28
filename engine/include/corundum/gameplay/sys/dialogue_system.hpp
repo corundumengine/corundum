@@ -4,6 +4,10 @@
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/input/actions.hpp>
 
+namespace corundum::gameplay::quest {
+  class Registry;
+}
+
 namespace corundum::gameplay::sys {
 
   /** @brief Advance the active dialogue state machine.
@@ -17,8 +21,8 @@ namespace corundum::gameplay::sys {
    *  @post On dialogue end, NPC facing and animation are restored from saved state.
    *  @performance O(1) per step. No heap allocation.
    */
-  void update_dialogue(corundum::gameplay::world::Scene &scene,
-                       const corundum::input::PressedActions &actions) noexcept;
+  void update_dialogue(corundum::gameplay::world::Scene &scene, const corundum::input::PressedActions &actions,
+                       const quest::Registry *quests = nullptr) noexcept;
 
   /** @brief Check for nearby NPCs and start a dialogue on Select press.
    *

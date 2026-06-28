@@ -25,6 +25,14 @@ namespace corundum::gameplay::dialogue {
       return graphs_.size();
     }
 
+    [[nodiscard]] auto begin() const noexcept {
+      return graphs_.begin();
+    }
+
+    [[nodiscard]] auto end() const noexcept {
+      return graphs_.end();
+    }
+
   private:
     std::flat_map<std::string, Graph, std::less<>> graphs_;
   };

@@ -34,7 +34,7 @@ namespace corundum::gameplay::dialogue {
   }
 
   std::vector<std::size_t> visible_choices(const Node &node, const corundum::gameplay::FlagStore &flags,
-                                           std::string_view graph_id) {
+                                           std::string_view graph_id, const quest::Registry *quests) {
     std::vector<std::size_t> result;
     if (node.type != NodeType::Choice)
       return result;
@@ -102,7 +102,7 @@ namespace corundum::gameplay::dialogue {
       // C++23: monadic optional — absent condition → true; non-empty → eval; empty string → true
       if (!edge.condition
                .transform([&](const std::string &cond) -> bool {
-                 return cond.empty() || eval_condition(cond, flags).value_or(false);
+                 return cond.empty() || eval_condition(cond, flags, quests).value_or(false);
                })
                .value_or(true))
         continue;

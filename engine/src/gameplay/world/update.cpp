@@ -40,11 +40,11 @@ namespace corundum::gameplay::world {
 
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt) {
+              const MapView &map, float dt, const quest::Registry *quests) {
     const auto actions = corundum::input::pressed_actions(input);
 
     if (scene.mode == corundum::gameplay::world::GameMode::Dialogue) [[unlikely]] {
-      corundum::gameplay::sys::update_dialogue(scene, actions);
+      corundum::gameplay::sys::update_dialogue(scene, actions, quests);
     } else [[likely]] {
       update_exploring(scene, input, map, cfg, dt);
       corundum::gameplay::sys::try_interact(scene, input, cfg, graphs);

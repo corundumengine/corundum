@@ -258,6 +258,12 @@ namespace corundum::core {
         return std::unexpected(res.error());
       cfg.paths.dialogue_dir = std::move(*res);
     }
+    {
+      auto res = get_nonempty_string(j, "quests_dir", cfg.paths.quests_dir, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.paths.quests_dir = std::move(*res);
+    }
 
     {
       auto res = get_nonempty_string(j, "sounds_dir", cfg.paths.sounds_dir, path);

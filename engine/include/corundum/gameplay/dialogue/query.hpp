@@ -6,6 +6,10 @@
 #include <format>
 #include <string_view>
 
+namespace corundum::gameplay::quest {
+  class Registry;
+}
+
 // Pure query functions over a dialogue Graph.
 
 namespace corundum::gameplay::dialogue {
@@ -72,7 +76,7 @@ namespace corundum::gameplay::dialogue {
    */
   [[nodiscard]]
   std::vector<std::size_t> visible_choices(const Node &node, const corundum::gameplay::FlagStore &flags,
-                                           std::string_view graph_id);
+                                           std::string_view graph_id, const quest::Registry *quests = nullptr);
 
   /**
    * @brief Returns true if this node terminates the conversation.

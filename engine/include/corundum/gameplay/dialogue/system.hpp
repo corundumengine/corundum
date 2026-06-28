@@ -7,6 +7,10 @@
 
 #include <vector>
 
+namespace corundum::gameplay::quest {
+  class Registry;
+}
+
 namespace corundum::gameplay::dialogue {
 
   /**
@@ -33,7 +37,8 @@ namespace corundum::gameplay::dialogue {
    * @return        All EventActions emitted this frame, for the platform to dispatch.
    */
   [[nodiscard]] std::vector<EventAction> system(State &state, const input::PressedActions &actions,
-                                                corundum::gameplay::FlagStore &flags);
+                                                corundum::gameplay::FlagStore &flags,
+                                                const quest::Registry *quests = nullptr);
 
   /**
    * @brief Opens a dialogue at the graph's first node.
