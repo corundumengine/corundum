@@ -289,12 +289,12 @@ TEST_CASE("load_tilemap — collisions array loads correctly") {
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   REQUIRE(m.collisions.size() == 2);
-  CHECK(m.collisions.xs[0] == doctest::Approx(10.f));
-  CHECK(m.collisions.ys[0] == doctest::Approx(20.f));
-  CHECK(m.collisions.ws[0] == doctest::Approx(30.f));
-  CHECK(m.collisions.hs[0] == doctest::Approx(40.f));
-  CHECK(m.collisions.xs[1] == doctest::Approx(1.5f));
-  CHECK(m.collisions.ys[1] == doctest::Approx(2.5f));
+  CHECK(m.collisions.cols[0] == doctest::Approx(10.f));
+  CHECK(m.collisions.rows[0] == doctest::Approx(20.f));
+  CHECK(m.collisions.col_spans[0] == doctest::Approx(30.f));
+  CHECK(m.collisions.row_spans[0] == doctest::Approx(40.f));
+  CHECK(m.collisions.cols[1] == doctest::Approx(1.5f));
+  CHECK(m.collisions.rows[1] == doctest::Approx(2.5f));
 }
 
 TEST_CASE("load_tilemap — collision with zero width throws") {

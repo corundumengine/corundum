@@ -74,10 +74,10 @@ namespace tools::tilemap {
     const auto &cols = state.map.collisions;
     for (std::size_t i = 0; i < cols.size(); ++i) {
       nlohmann::json cj;
-      cj["x"] = cols.xs[i];
-      cj["y"] = cols.ys[i];
-      cj["w"] = cols.ws[i];
-      cj["h"] = cols.hs[i];
+      cj["x"] = cols.cols[i];
+      cj["y"] = cols.rows[i];
+      cj["w"] = cols.col_spans[i];
+      cj["h"] = cols.row_spans[i];
       collisions_json.push_back(std::move(cj));
     }
     j["collisions"] = std::move(collisions_json);
@@ -100,10 +100,10 @@ namespace tools::tilemap {
     const auto &tris = state.map.collision_triangles;
     for (std::size_t i = 0; i < tris.size(); ++i) {
       nlohmann::json tj;
-      tj["x"] = tris.xs[i];
-      tj["y"] = tris.ys[i];
-      tj["w"] = tris.ws[i];
-      tj["h"] = tris.hs[i];
+      tj["x"] = tris.cols[i];
+      tj["y"] = tris.rows[i];
+      tj["w"] = tris.col_spans[i];
+      tj["h"] = tris.row_spans[i];
       tj["cut"] = cut_to_str(tris.cuts[i]);
       tris_json.push_back(std::move(tj));
     }

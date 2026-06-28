@@ -11,7 +11,9 @@ namespace corundum::gameplay::component {
 
   /** @brief SoA table for Position and Velocity — always spawned together.
    *
-   * Hot path (every frame): x, y, dx, dy — read and written by physics, input, and
+   * All positions are in tile-grid fractional coordinates (col, row).
+   * Velocities are in tiles per second (dc, dr).
+   * Hot path (every frame): col, row, dc, dr — read and written by physics, input, and
    * animation systems. Debug labels live in the paired TransformNameTable to keep
    * this struct cache-clean.
    *
@@ -30,10 +32,10 @@ namespace corundum::gameplay::component {
     std::array<EntityId, k_max> entities{};
 
     // ── Hot: accessed every frame (SoA) ────────────────────────────
-    alignas(16) std::array<float, k_max> x{};
-    alignas(16) std::array<float, k_max> y{};
-    alignas(16) std::array<float, k_max> dx{};
-    alignas(16) std::array<float, k_max> dy{};
+    alignas(16) std::array<float, k_max> col{};
+    alignas(16) std::array<float, k_max> row{};
+    alignas(16) std::array<float, k_max> dc{};
+    alignas(16) std::array<float, k_max> dr{};
 
     std::uint32_t count = 0;
 
@@ -41,29 +43,29 @@ namespace corundum::gameplay::component {
       sparse.fill(k_invalid);
     }
 
-    /** @brief Contiguous span over the x positions of all live entities. */
-    [[nodiscard]] auto active_x(this auto &self) noexcept {
-      return std::span(self.x).first(self.count);
+    /** @brief Contiguous span over the tile columns of all live entities. */
+    [[nodiscard]] auto active_cols(this auto &self) noexcept {
+      return std::span(self.col).first(self.count);
     }
 
-    /** @brief Contiguous span over the y positions of all live entities. */
-    [[nodiscard]] auto active_y(this auto &self) noexcept {
-      return std::span(self.y).first(self.count);
+    /** @brief Contiguous span over the tile rows of all live entities. */
+    [[nodiscard]] auto active_rows(this auto &self) noexcept {
+      return std::span(self.row).first(self.count);
     }
 
-    /** @brief Contiguous span over the x velocities of all live entities. */
-    [[nodiscard]] auto active_dx(this auto &self) noexcept {
-      return std::span(self.dx).first(self.count);
+    /** @brief Contiguous span over the tile-column velocities of all live entities. */
+    [[nodiscard]] auto active_dcs(this auto &self) noexcept {
+      return std::span(self.dc).first(self.count);
     }
 
-    /** @brief Contiguous span over the y velocities of all live entities. */
-    [[nodiscard]] auto active_dy(this auto &self) noexcept {
-      return std::span(self.dy).first(self.count);
+    /** @brief Contiguous span over the tile-row velocities of all live entities. */
+    [[nodiscard]] auto active_drs(this auto &self) noexcept {
+      return std::span(self.dr).first(self.count);
     }
 
-    /** @brief Contiguous span over x (alias for GameTable concept compliance). */
+    /** @brief Contiguous span over col (alias for GameTable concept compliance). */
     [[nodiscard]] auto active_span(this auto &self) noexcept {
-      return std::span(self.x).first(self.count);
+      return std::span(self.col).first(self.count);
     }
 
     /** @brief Contiguous span of the EntityIds in dense order. */
@@ -81,21 +83,21 @@ namespace corundum::gameplay::component {
 
     /** @brief Add a transform row for @p e.
      *  @param[in] e   Entity to add (must not already be present).
-     *  @param[in] px  Initial x position in world pixels.
-     *  @param[in] py  Initial y position in world pixels.
-     *  @param[in] vx  Initial x velocity in world pixels per second.
-     *  @param[in] vy  Initial y velocity in world pixels per second.
+     *  @param[in] pc  Initial tile column (fractional).
+     *  @param[in] pr  Initial tile row (fractional).
+     *  @param[in] vc  Initial column velocity in tiles per second.
+     *  @param[in] vr  Initial row velocity in tiles per second.
      *  @pre has(e) must be false.
      */
-    void insert(EntityId e, float px, float py, float vx, float vy) noexcept {
+    void insert(EntityId e, float pc, float pr, float vc, float vr) noexcept {
       const auto idx = std::to_underlying(e);
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
-      x[slot] = px;
-      y[slot] = py;
-      dx[slot] = vx;
-      dy[slot] = vy;
+      col[slot] = pc;
+      row[slot] = pr;
+      dc[slot] = vc;
+      dr[slot] = vr;
       ++count;
     }
 
@@ -111,33 +113,33 @@ namespace corundum::gameplay::component {
         const EntityId last_e = entities[last];
         sparse[std::to_underlying(last_e)] = slot;
         entities[slot] = last_e;
-        x[slot] = x[last];
-        y[slot] = y[last];
-        dx[slot] = dx[last];
-        dy[slot] = dy[last];
+        col[slot] = col[last];
+        row[slot] = row[last];
+        dc[slot] = dc[last];
+        dr[slot] = dr[last];
       }
       sparse[idx] = k_invalid;
       --count;
     }
 
-    /** @brief X position of @p e. @pre has(e). */
-    [[nodiscard]] float pos_x(EntityId e) const noexcept {
-      return x[sparse[std::to_underlying(e)]];
+    /** @brief Tile column of @p e. @pre has(e). */
+    [[nodiscard]] float pos_col(EntityId e) const noexcept {
+      return col[sparse[std::to_underlying(e)]];
     }
 
-    /** @brief Y position of @p e. @pre has(e). */
-    [[nodiscard]] float pos_y(EntityId e) const noexcept {
-      return y[sparse[std::to_underlying(e)]];
+    /** @brief Tile row of @p e. @pre has(e). */
+    [[nodiscard]] float pos_row(EntityId e) const noexcept {
+      return row[sparse[std::to_underlying(e)]];
     }
 
-    /** @brief Mutable x position of @p e. @pre has(e). */
-    [[nodiscard]] float &pos_x(EntityId e) noexcept {
-      return x[sparse[std::to_underlying(e)]];
+    /** @brief Mutable tile column of @p e. @pre has(e). */
+    [[nodiscard]] float &pos_col(EntityId e) noexcept {
+      return col[sparse[std::to_underlying(e)]];
     }
 
-    /** @brief Mutable y position of @p e. @pre has(e). */
-    [[nodiscard]] float &pos_y(EntityId e) noexcept {
-      return y[sparse[std::to_underlying(e)]];
+    /** @brief Mutable tile row of @p e. @pre has(e). */
+    [[nodiscard]] float &pos_row(EntityId e) noexcept {
+      return row[sparse[std::to_underlying(e)]];
     }
 
     /** @brief Dense row index for @p e; use for direct SoA array subscript on hot paths.

@@ -27,8 +27,11 @@ namespace {
                                  dt);
 
     const auto p_slot = world.transforms.dense_idx(player);
-    corundum::gameplay::sys::follow_player(scene.camera, world.transforms.x[p_slot], world.transforms.y[p_slot], map,
-                                           cfg.win_w, cfg.win_h);
+    const float pc = world.transforms.col[p_slot];
+    const float pr = world.transforms.row[p_slot];
+    const float iso_x = (pc - pr) * map.half_tw + map.x_origin;
+    const float iso_y = (pc + pr) * map.half_th;
+    corundum::gameplay::sys::follow_player(scene.camera, iso_x, iso_y, map, cfg.win_w, cfg.win_h);
   }
 
 } // namespace

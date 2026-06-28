@@ -81,25 +81,25 @@ namespace corundum::gameplay::sys {
 
     World &world = scene.world;
     const std::uint32_t p_slot = world.transforms.dense_idx(scene.player);
-    const float player_x = world.transforms.x[p_slot];
-    const float player_y = world.transforms.y[p_slot];
+    const float player_col = world.transforms.col[p_slot];
+    const float player_row = world.transforms.row[p_slot];
 
     for (EntityId eid : world.dialogue_refs.active_entities()) {
       if (!world.transforms.has(eid))
         continue;
 
       const std::uint32_t n_slot = world.transforms.dense_idx(eid);
-      const float npc_x = world.transforms.x[n_slot];
-      const float npc_y = world.transforms.y[n_slot];
+      const float npc_col = world.transforms.col[n_slot];
+      const float npc_row = world.transforms.row[n_slot];
 
-      if (distance(Position{player_x, player_y}, Position{npc_x, npc_y}) > cfg.interact_radius)
+      if (distance(Position{player_col, player_row}, Position{npc_col, npc_row}) > cfg.interact_radius)
         continue;
 
       const Graph *const graph = graphs.find(world.dialogue_refs.get_graph_id(eid));
       if (!graph)
         continue;
 
-      const FacingDir toward_npc = dir_from_delta(npc_x - player_x, npc_y - player_y);
+      const FacingDir toward_npc = dir_from_delta(npc_col - player_col, npc_row - player_row);
 
       if (world.facings.has(eid)) {
         scene.dialogue_npc_saved_facing = world.facings.dir_of(eid);

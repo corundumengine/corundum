@@ -31,11 +31,6 @@ namespace corundum::gameplay::world {
 
     World world;
 
-    const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
-    // x_origin shifts the grid so the leftmost tile lands at x = 0 (matches renderer and editor).
-    const float x_origin = static_cast<float>(tilemap.height - 1) * half_tw;
-
     const SpriteId walk_sid = registry.get_sprite_id("player_walk");
     if (walk_sid == corundum::resources::k_null_sprite_id)
       return std::unexpected(std::string{"[crpg] unknown sprite 'player_walk'"});
@@ -50,6 +45,9 @@ namespace corundum::gameplay::world {
     float walk_fd = 0.f;
     float idle_fd = 0.f;
 
+    const float dw = static_cast<float>(tilemap.diamond_w());
+    const float dh = static_cast<float>(tilemap.diamond_h());
+
     if (const auto *sd = registry.get_sprite_by_id(walk_sid)) {
       for (uint8_t i = 0; i < corundum::resources::k_num_anim_ids; ++i)
         walk_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
@@ -58,10 +56,9 @@ namespace corundum::gameplay::world {
         const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
         const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
         const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-        player_bb.w = static_cast<float>(bb_w) * cfg.tile_scale;
-        player_bb.h = static_cast<float>(bb_h) * cfg.tile_scale;
-        // yo stored in tile-scale units; converted to screen pixels via scale_ratio at use site
-        player_bb.yo = player_bb.h * sd->walk_around_offset;
+        // BoundingBox in tile-grid units from sprite pixel dimensions.
+        player_bb.col_span = static_cast<float>(bb_w) / dw;
+        player_bb.row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
       }
       if (sd->fps > 0.f)
         walk_fd = 1.f / sd->fps;
@@ -73,19 +70,16 @@ namespace corundum::gameplay::world {
         idle_fd = 1.f / sd->fps;
     }
 
-    // Spawn with idle sprite; animation system switches to walk when the player moves.
     Animation player_anim{};
     player_anim.frame_counts = idle_counts;
 
-    const auto default_spawn = corundum::core::math::tile_to_world(8, 8, 0, half_tw, half_th, 0.f, x_origin);
-    const Position spawn_pos = player_pos.value_or(Position{default_spawn.x, default_spawn.y});
+    // Default spawn at tile (8,8). Position stores feet coordinates.
+    const Position spawn_pos = player_pos.value_or(Position{8.f, 8.f});
     auto player = spawn(world, spawn_pos, Velocity{0.f, 0.f}, Sprite{idle_sid, AnimId::Default, 0}, player_anim);
-    world.collisions.insert(player, player_bb.w, player_bb.h, player_bb.yo);
+    world.collisions.insert(player, player_bb.col_span, player_bb.row_span);
     world.facings.insert(player, corundum::gameplay::component::FacingDir::South);
     if (idle_fd > 0.f)
       world.animations.frame_duration_ref(player) = idle_fd;
-    // idle→walk: 0.05 s prevents flicker on a brief key tap.
-    // walk→idle: 0.12 s lets the walk cycle finish a step before stopping.
     world.motion_sprites.insert(player, walk_sid, idle_sid, walk_counts, idle_counts, 0.05f, 0.12f, walk_fd, idle_fd);
 
     const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
@@ -97,9 +91,8 @@ namespace corundum::gameplay::world {
     const auto &actors = *actors_result;
 
     for (const auto &a : actors) {
-      const auto iso_pos = corundum::core::math::tile_to_world(a.col, a.row, 0, half_tw, half_th, 0.f, x_origin);
-      const float px = iso_pos.x;
-      const float py = iso_pos.y;
+      const float col = static_cast<float>(a.col);
+      const float row_f = static_cast<float>(a.row);
       const SpriteId sid = registry.get_sprite_id(a.sprite_name);
       if (sid == corundum::resources::k_null_sprite_id) {
         return std::unexpected(std::format("[crpg] unknown sprite '{}'", a.sprite_name));
@@ -112,10 +105,8 @@ namespace corundum::gameplay::world {
           const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
           const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
           const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-          bb.w = static_cast<float>(bb_w) * cfg.tile_scale;
-          bb.h = static_cast<float>(bb_h) * cfg.tile_scale;
-          // yo stored in tile-scale units; converted to screen pixels via scale_ratio at use site
-          bb.yo = bb.h * sd->walk_around_offset;
+          bb.col_span = static_cast<float>(bb_w) / dw;
+          bb.row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
         }
       }
 
@@ -127,12 +118,13 @@ namespace corundum::gameplay::world {
 
       corundum::gameplay::entity::EntityId eid;
       if (!a.dialogue_ref.empty())
-        eid = spawn(world, Position{px, py}, Velocity{}, Sprite{sid, AnimId::Default, 0}, DialogueRef{a.dialogue_ref});
+        eid = spawn(world, Position{col, row_f}, Velocity{}, Sprite{sid, AnimId::Default, 0},
+                    DialogueRef{a.dialogue_ref});
       else
-        eid = spawn(world, Position{px, py}, Velocity{}, Sprite{sid, AnimId::Default, 0});
+        eid = spawn(world, Position{col, row_f}, Velocity{}, Sprite{sid, AnimId::Default, 0});
       world.animations.insert(eid);
       world.animations.set_frame_counts(eid, npc_anim.frame_counts);
-      world.collisions.insert(eid, bb.w, bb.h, bb.yo);
+      world.collisions.insert(eid, bb.col_span, bb.row_span);
 
       using FDir = corundum::gameplay::component::FacingDir;
       static constexpr std::array<std::pair<std::string_view, FDir>, 8> k_facing_map{{

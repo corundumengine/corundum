@@ -39,14 +39,14 @@ namespace corundum::debug {
     /** @brief Configured simulation FPS (target). */
     float sim_fps{};
 
-    /** @brief Player world X position. */
-    float player_x{};
-    /** @brief Player world Y position. */
-    float player_y{};
-    /** @brief Player velocity X component. */
-    float player_dx{};
-    /** @brief Player velocity Y component. */
-    float player_dy{};
+    /** @brief Player tile-grid column. */
+    float player_col{};
+    /** @brief Player tile-grid row. */
+    float player_row{};
+    /** @brief Player column velocity (tiles/s). */
+    float player_dc{};
+    /** @brief Player row velocity (tiles/s). */
+    float player_dr{};
     /** @brief Player facing direction. */
     gameplay::component::FacingDir player_facing{gameplay::component::FacingDir::South};
     /** @brief True if the player entity has a Facing component. */

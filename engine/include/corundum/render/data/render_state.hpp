@@ -26,18 +26,25 @@ namespace corundum::render::data {
   struct SpriteFrameIndex {
     std::vector<std::optional<uint32_t>> tex_by_sprite_id;
     std::vector<corundum::core::math::IntRect> frame_rects;
+    std::vector<float> walk_offsets; ///< walk_around_offset per sprite_id.
     std::vector<uint32_t> anim_offsets;
     std::vector<uint8_t> anim_frame_counts;
 
-    /** @brief Look up the texture ID and source rect for a given frame.
+    /// Lookup result: texture id, source rect, and walk_around_offset.
+    struct Entry {
+      uint32_t tex_id;
+      corundum::core::math::IntRect src;
+      float walk_offset;
+    };
+
+    /** @brief Look up the texture ID, source rect, and walk offset for a given frame.
      *  @param[in] sprite_id   Interned sprite identifier.
-     *  @param[in] anim_id     Animation identifier (Idle, WalkSouth, …).
+     *  @param[in] anim_id     Animation identifier.
      *  @param[in] frame_index Zero-based frame within the animation.
-     *  @return Pair of {texture_id, source_rect}, or std::nullopt if not found.
+     *  @return Entry with texture_id, source_rect, walk_offset, or std::nullopt.
      */
-    [[nodiscard]] std::optional<std::pair<uint32_t, corundum::core::math::IntRect>>
-    get(corundum::resources::SpriteId sprite_id, corundum::resources::AnimId anim_id,
-        uint8_t frame_index) const noexcept;
+    [[nodiscard]] std::optional<Entry> get(corundum::resources::SpriteId sprite_id, corundum::resources::AnimId anim_id,
+                                           uint8_t frame_index) const noexcept;
   };
 
   /** @brief A single pre-loaded tilemap (map mode, not world mode). */
@@ -88,10 +95,10 @@ namespace corundum::render::data {
 
     /** @brief Interpolation alpha for render smoothing (0 = no interpolation). */
     float interpolation_alpha{0.f};
-    /** @brief Previous-frame entity x positions for render interpolation. */
-    std::vector<float> prev_x{};
-    /** @brief Previous-frame entity y positions for render interpolation. */
-    std::vector<float> prev_y{};
+    /** @brief Previous-frame entity tile columns for render interpolation. */
+    std::vector<float> prev_col{};
+    /** @brief Previous-frame entity tile rows for render interpolation. */
+    std::vector<float> prev_row{};
     /** @brief Previous-frame camera x for render interpolation. */
     float prev_cam_x{0.f};
     /** @brief Previous-frame camera y for render interpolation. */

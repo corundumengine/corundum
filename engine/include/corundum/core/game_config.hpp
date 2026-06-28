@@ -64,8 +64,8 @@ namespace corundum::core {
     /** @brief Enable vsync for the render loop. */
     bool vsync = true;
 
-    /** @brief Radius used for player interaction detection. */
-    float interact_radius = 80.f;
+    /** @brief Radius in tile-grid units for player interaction detection. */
+    float interact_radius = 2.f;
     /** @brief Base movement speed of the player character. */
     float player_speed = 200.f;
 

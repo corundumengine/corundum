@@ -57,65 +57,63 @@ namespace tools::tilemap {
       if (state.col_drag_sub_tile) {
         candidate =
             pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
-                                state.col_drag_cur_win_y, state.camera.x, state.camera.y, state.tile_scale);
+                                state.col_drag_cur_win_y, state.camera.x, state.camera.y, state.tile_scale,
+                                static_cast<float>(tw), static_cast<float>(th));
       } else {
         candidate = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
-                                      state.col_drag_cur_row, tw, th);
+                                      state.col_drag_cur_row);
       }
       const auto &cols = state.map.collisions;
       bool overlaps = false;
       for (std::size_t ci = 0; ci < cols.size() && !overlaps; ++ci) {
-        overlaps = candidate.x < cols.xs[ci] + cols.ws[ci] && candidate.x + candidate.w > cols.xs[ci] &&
-                   candidate.y < cols.ys[ci] + cols.hs[ci] && candidate.y + candidate.h > cols.ys[ci];
+        overlaps =
+            candidate.col < cols.cols[ci] + cols.col_spans[ci] && candidate.col + candidate.col_span > cols.cols[ci] &&
+            candidate.row < cols.rows[ci] + cols.row_spans[ci] && candidate.row + candidate.row_span > cols.rows[ci];
       }
       state.collision_dragging = false;
       if (overlaps)
         return;
-      state.map.collisions.push_back(candidate.x, candidate.y, candidate.w, candidate.h);
+      state.map.collisions.push_back(candidate.col, candidate.row, candidate.col_span, candidate.row_span);
       state.dirty = true;
     }
 
     void place_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const int tw = state.map.tilesets[0].info.tile_width;
-      const int th = state.map.tilesets[0].info.tile_height;
       const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
                                      state.tile_scale, state.map.width, state.map.height,
                                      effective_diamond_w(state.map), effective_diamond_h(state.map));
       if (!tc)
         return;
-      const float x = static_cast<float>(tc->col * tw);
-      const float y = static_cast<float>(tc->row * th);
-      const float w = static_cast<float>(tw);
-      const float h = static_cast<float>(th);
+      const float col = static_cast<float>(tc->col);
+      const float row = static_cast<float>(tc->row);
+      constexpr float col_span = 1.f;
+      constexpr float row_span = 1.f;
       const auto &tris = state.map.collision_triangles;
       for (std::size_t i = 0; i < tris.size(); ++i) {
-        if (tris.xs[i] == x && tris.ys[i] == y && tris.ws[i] == w && tris.hs[i] == h &&
-            tris.cuts[i] == state.collision_tri_cut)
+        if (tris.cols[i] == col && tris.rows[i] == row && tris.col_spans[i] == col_span &&
+            tris.row_spans[i] == row_span && tris.cuts[i] == state.collision_tri_cut)
           return;
       }
-      state.map.collision_triangles.push_back(x, y, w, h, state.collision_tri_cut);
+      state.map.collision_triangles.push_back(col, row, col_span, row_span, state.collision_tri_cut);
       state.dirty = true;
     }
 
     void remove_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const int tw = state.map.tilesets[0].info.tile_width;
-      const int th = state.map.tilesets[0].info.tile_height;
       const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
                                      state.tile_scale, state.map.width, state.map.height,
                                      effective_diamond_w(state.map), effective_diamond_h(state.map));
       if (!tc)
         return;
-      const float world_x = static_cast<float>(tc->col * tw);
-      const float world_y = static_cast<float>(tc->row * th);
+      const float world_x = static_cast<float>(tc->col);
+      const float world_y = static_cast<float>(tc->row);
       auto &tris = state.map.collision_triangles;
       for (int i = static_cast<int>(tris.size()) - 1; i >= 0; --i) {
         const auto idx = static_cast<std::size_t>(i);
-        if (world_x >= tris.xs[idx] && world_x < tris.xs[idx] + tris.ws[idx] && world_y >= tris.ys[idx] &&
-            world_y < tris.ys[idx] + tris.hs[idx]) {
+        if (world_x >= tris.cols[idx] && world_x < tris.cols[idx] + tris.col_spans[idx] && world_y >= tris.rows[idx] &&
+            world_y < tris.rows[idx] + tris.row_spans[idx]) {
           tris.erase(idx);
           state.dirty = true;
           return;
@@ -228,20 +226,18 @@ namespace tools::tilemap {
     void remove_collision_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const int tw = state.map.tilesets[0].info.tile_width;
-      const int th = state.map.tilesets[0].info.tile_height;
       const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
                                      state.tile_scale, state.map.width, state.map.height,
                                      effective_diamond_w(state.map), effective_diamond_h(state.map));
       if (!tc)
         return;
-      const float world_x = static_cast<float>(tc->col * tw);
-      const float world_y = static_cast<float>(tc->row * th);
+      const float world_x = static_cast<float>(tc->col);
+      const float world_y = static_cast<float>(tc->row);
       auto &cols = state.map.collisions;
       for (int i = static_cast<int>(cols.size()) - 1; i >= 0; --i) {
         const auto idx = static_cast<std::size_t>(i);
-        if (world_x >= cols.xs[idx] && world_x < cols.xs[idx] + cols.ws[idx] && world_y >= cols.ys[idx] &&
-            world_y < cols.ys[idx] + cols.hs[idx]) {
+        if (world_x >= cols.cols[idx] && world_x < cols.cols[idx] + cols.col_spans[idx] && world_y >= cols.rows[idx] &&
+            world_y < cols.rows[idx] + cols.row_spans[idx]) {
           cols.erase(idx);
           state.dirty = true;
           return;

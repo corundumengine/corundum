@@ -33,8 +33,8 @@ using corundum::resources::SpriteId;
 
 namespace corundum::render::data {
 
-  std::optional<std::pair<uint32_t, IntRect>> SpriteFrameIndex::get(SpriteId sprite_id, AnimId anim_id,
-                                                                    uint8_t frame_index) const noexcept {
+  std::optional<SpriteFrameIndex::Entry> SpriteFrameIndex::get(SpriteId sprite_id, AnimId anim_id,
+                                                               uint8_t frame_index) const noexcept {
     if (sprite_id == k_null_sprite_id)
       return std::nullopt;
 
@@ -50,7 +50,8 @@ namespace corundum::render::data {
     if (slot >= anim_frame_counts.size() || frame_index >= anim_frame_counts[slot])
       return std::nullopt;
 
-    return std::make_pair(*tex_by_sprite_id[sid], frame_rects[anim_offsets[slot] + frame_index]);
+    const float woff = sid < walk_offsets.size() ? walk_offsets[sid] : 0.f;
+    return Entry{*tex_by_sprite_id[sid], frame_rects[anim_offsets[slot] + frame_index], woff};
   }
 
 } // namespace corundum::render::data
@@ -73,40 +74,9 @@ namespace corundum::render::sys {
   // ── Internal helpers (forward decls) ─────────────────────────────────────────
 
   static std::optional<data::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r, data::RenderState &state,
-                                                          corundum::gameplay::world::tilemap::ChunkCoord c,
-                                                          const corundum::core::GameConfig &cfg);
+                                                          corundum::gameplay::world::tilemap::ChunkCoord c);
 
   static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg);
-
-  /// Rescale collision rects from tile_width/tile_height space to diamond_w space
-  /// so Cartesian collision coords match the engine's iso↔cart conversion unit.
-  static void rescale_collisions_to_diamond_space(corundum::gameplay::world::tilemap::Tilemap &tilemap) noexcept {
-    using namespace corundum::gameplay::world::tilemap;
-    if (tilemap.tilesets.empty() || tilemap.diamond_w() <= 0)
-      return;
-    const float tw = static_cast<float>(tilemap.tilesets[0].info.tile_width);
-    const float th = static_cast<float>(tilemap.tilesets[0].info.tile_height);
-    if (tw <= 0.f || th <= 0.f)
-      return;
-    // Both Cartesian axes normalise to diamond_w (not diamond_w × diamond_h).
-    // E.g. a 2:1 tile (tile_w=64, tile_h=32, diamond_w=64): sy = 64/32 = 2
-    // maps row*32 → row*64 in Cartesian space.
-    const float dw = static_cast<float>(tilemap.diamond_w());
-    const float sx = dw / tw;
-    const float sy = dw / th;
-    for (std::size_t i = 0; i < tilemap.collisions.size(); ++i) {
-      tilemap.collisions.xs[i] *= sx;
-      tilemap.collisions.ys[i] *= sy;
-      tilemap.collisions.ws[i] *= sx;
-      tilemap.collisions.hs[i] *= sy;
-    }
-    for (std::size_t i = 0; i < tilemap.collision_triangles.size(); ++i) {
-      tilemap.collision_triangles.xs[i] *= sx;
-      tilemap.collision_triangles.ys[i] *= sy;
-      tilemap.collision_triangles.ws[i] *= sx;
-      tilemap.collision_triangles.hs[i] *= sy;
-    }
-  }
 
   static void sync_active_chunks(corundum::platform::Renderer &r, data::RenderState &state,
                                  const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene);
@@ -160,6 +130,10 @@ namespace corundum::render::sys {
         continue;
 
       state.sprite_index.tex_by_sprite_id[frm.sprite_id] = tex_it->second;
+      const auto sid = static_cast<std::size_t>(frm.sprite_id);
+      if (sid >= state.sprite_index.walk_offsets.size())
+        state.sprite_index.walk_offsets.resize(sid + 1, 0.f);
+      state.sprite_index.walk_offsets[sid] = frm.walk_around_offset;
 
       const int fw = rendered_frame_width(frm.col_span, sheet->frame_width, sheet->spacing_x);
       const int fh = rendered_frame_height(frm.row_span, sheet->frame_height, sheet->spacing_y);
@@ -242,9 +216,6 @@ namespace corundum::render::sys {
     if (!tm_result)
       return std::unexpected(tm_result.error());
     auto tilemap = std::move(*tm_result);
-    tilemap.collisions.scale(cfg.tile_scale);
-    tilemap.collision_triangles.scale(cfg.tile_scale);
-    rescale_collisions_to_diamond_space(tilemap);
 
     std::vector<uint32_t> tex_ids;
     tex_ids.reserve(tilemap.tilesets.size());
@@ -299,7 +270,7 @@ namespace corundum::render::sys {
     const ChunkCoord center{state.manifest.chunks_wide / 2, state.manifest.chunks_tall / 2};
     state.last_center_chunk = center;
     for (const ChunkCoord c : active_chunk_coords(center, 1, state.manifest)) {
-      if (auto entry = load_chunk_entry(r, state, c, cfg))
+      if (auto entry = load_chunk_entry(r, state, c))
         state.active_chunks.push_back(std::move(*entry));
     }
     rebuild_collision(state, cfg);
@@ -314,10 +285,11 @@ namespace corundum::render::sys {
 
     const int center_col = state.manifest.chunks_wide * state.manifest.chunk_size / 2;
     const int center_row = state.manifest.chunks_tall * state.manifest.chunk_size / 2;
-    const auto spawn_pos =
-        corundum::core::math::tile_to_world(center_col, center_row, 0, half_tw, half_th, 0.f, x_origin);
+    const float center_col_f = static_cast<float>(center_col);
+    const float center_row_f = static_cast<float>(center_row);
+    const core::math::Vec2 spawn_pos{center_col_f, center_row_f};
 
-    std::println("[keystone] World ready — spawn at world ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
+    std::println("[keystone] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
     return WorldLoadInfo{half_tw, half_th, x_origin, spawn_pos};
   }
 
@@ -397,15 +369,11 @@ namespace corundum::render::sys {
   // ── load_chunk_entry (internal) ──────────────────────────────────────────────
 
   static std::optional<data::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r, data::RenderState &state,
-                                                          corundum::gameplay::world::tilemap::ChunkCoord c,
-                                                          const corundum::core::GameConfig &cfg) {
+                                                          corundum::gameplay::world::tilemap::ChunkCoord c) {
     auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(state.manifest.chunk_path(c));
     if (!tm_result)
       return std::nullopt;
     corundum::gameplay::world::tilemap::Tilemap tilemap = std::move(*tm_result);
-    tilemap.collisions.scale(cfg.tile_scale);
-    tilemap.collision_triangles.scale(cfg.tile_scale);
-    rescale_collisions_to_diamond_space(tilemap);
 
     std::vector<uint32_t> tex_ids;
     tex_ids.reserve(tilemap.tilesets.size());
@@ -429,8 +397,6 @@ namespace corundum::render::sys {
     return data::ChunkEntry{c, std::move(tilemap), std::move(tex_ids), std::move(above_z)};
   }
 
-  // ── rebuild_collision (internal) ─────────────────────────────────────────────
-
   static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg) {
     using namespace corundum::gameplay::world::tilemap;
     state.agg_collisions = {};
@@ -443,10 +409,10 @@ namespace corundum::render::sys {
       const auto [ox, oy] = chunk_origin_px(entry.coord, state.manifest, tile_px, cfg.tile_scale);
       const auto &cr = entry.tilemap.collisions;
       for (std::size_t i = 0; i < cr.size(); ++i)
-        state.agg_collisions.push_back(cr.xs[i] + ox, cr.ys[i] + oy, cr.ws[i], cr.hs[i]);
+        state.agg_collisions.push_back(cr.cols[i] + ox, cr.rows[i] + oy, cr.col_spans[i], cr.row_spans[i]);
       const auto &ct = entry.tilemap.collision_triangles;
       for (std::size_t i = 0; i < ct.size(); ++i)
-        state.agg_triangles.push_back(ct.xs[i] + ox, ct.ys[i] + oy, ct.ws[i], ct.hs[i], ct.cuts[i]);
+        state.agg_triangles.push_back(ct.cols[i] + ox, ct.rows[i] + oy, ct.col_spans[i], ct.row_spans[i], ct.cuts[i]);
     }
   }
 
@@ -463,14 +429,20 @@ namespace corundum::render::sys {
     const float half_tw = static_cast<float>(diamond_w) * cfg.tile_scale * 0.5f;
     const float half_th = static_cast<float>(diamond_h) * cfg.tile_scale * 0.5f;
     const auto pos_slot = scene.world.transforms.dense_idx(scene.player);
-    const float pos_x = scene.world.transforms.x[pos_slot];
-    const float pos_y = scene.world.transforms.y[pos_slot];
-    const ChunkCoord center = chunk_at_iso(pos_x, pos_y, state.manifest, half_tw, half_th);
+    const float pc = scene.world.transforms.col[pos_slot];
+    const float pr = scene.world.transforms.row[pos_slot];
+    // Convert tile-grid position to isometric for chunk-streaming API.
+    const float total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
+                                                        : state.manifest.chunks_tall * state.manifest.chunk_size;
+    const float x_origin = (total_h - 1.f) * half_tw;
+    const float iso_x = (pc - pr) * half_tw + x_origin;
+    const float iso_y = (pc + pr) * half_th;
+    const ChunkCoord center = chunk_at_iso(iso_x, iso_y, state.manifest, half_tw, half_th);
 
     if (center != state.last_center_chunk) {
       constexpr float k_margin_tiles = 0.02f * 128.f;
-      const float col_f = (pos_x / half_tw + pos_y / half_th) * 0.5f;
-      const float row_f = (pos_y / half_th - pos_x / half_tw) * 0.5f;
+      const float col_f = pc;
+      const float row_f = pr;
       const float local_col = col_f - static_cast<float>(center.x * state.manifest.chunk_size);
       const float local_row = row_f - static_cast<float>(center.y * state.manifest.chunk_size);
       const float chunk_tiles = static_cast<float>(state.manifest.chunk_size);
@@ -503,7 +475,7 @@ namespace corundum::render::sys {
     bool any_new = false;
     for (const ChunkCoord c : desired_span) {
       if (!std::ranges::any_of(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == c; })) {
-        if (auto entry = load_chunk_entry(r, state, c, cfg)) {
+        if (auto entry = load_chunk_entry(r, state, c)) {
           std::println("[keystone] Loading chunk ({}, {})", c.x, c.y);
           state.active_chunks.push_back(std::move(*entry));
           any_new = true;
@@ -661,11 +633,21 @@ namespace corundum::render::sys {
                               float alpha) {
     const float scale = static_cast<float>(cfg.sprite_scale);
 
+    float half_tw = 0.f;
     float half_th = 8.f;
+    float x_origin = 0.f;
     if (!state.active_chunks.empty() && !state.active_chunks[0].tilemap.tilesets.empty()) {
-      half_th = static_cast<float>(state.active_chunks[0].tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
+      const auto &tm = state.active_chunks[0].tilemap;
+      half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
+      half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
+      const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
+                                                        : state.manifest.chunks_tall * state.manifest.chunk_size;
+      x_origin = static_cast<float>(total_h - 1) * half_tw;
     } else if (!state.map_data.tilemap.tilesets.empty()) {
-      half_th = static_cast<float>(state.map_data.tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
+      const auto &tm = state.map_data.tilemap;
+      half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
+      half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
+      x_origin = static_cast<float>(tm.height - 1) * half_tw;
     }
 
     state.draw_list.clear();
@@ -681,21 +663,26 @@ namespace corundum::render::sys {
         continue;
 
       const auto tr_slot = transforms.dense_idx(e);
-      float px = transforms.x[tr_slot];
-      float py = transforms.y[tr_slot];
+      float col_f = transforms.col[tr_slot];
+      float row_f = transforms.row[tr_slot];
 
-      if (alpha > 0.f && alpha < 1.f && tr_slot < state.prev_x.size()) {
-        px = state.prev_x[tr_slot] + (px - state.prev_x[tr_slot]) * alpha;
-        py = state.prev_y[tr_slot] + (py - state.prev_y[tr_slot]) * alpha;
+      if (alpha > 0.f && alpha < 1.f && tr_slot < state.prev_col.size()) {
+        col_f = state.prev_col[tr_slot] + (col_f - state.prev_col[tr_slot]) * alpha;
+        row_f = state.prev_row[tr_slot] + (row_f - state.prev_row[tr_slot]) * alpha;
       }
 
       const auto result = state.sprite_index.get(sprites.sprite_id[i], sprites.anim_id[i], sprites.frame_index[i]);
       if (!result) [[unlikely]]
         continue;
 
-      const auto &[tex_id, src] = *result;
-      const float iso_depth = py / half_th;
-      state.draw_list.push_back({tex_id, src, px, py, iso_depth});
+      const auto &entry = *result;
+      const float walk_offset = entry.walk_offset;
+      const float iso_x = (col_f - row_f) * half_tw + x_origin;
+      const float iso_y = (col_f + row_f) * half_th;
+      const float px = iso_x - static_cast<float>(entry.src.width) * scale * 0.5f;
+      const float py = iso_y - walk_offset * static_cast<float>(entry.src.height) * scale;
+      const float iso_depth = iso_y / half_th;
+      state.draw_list.push_back({entry.tex_id, entry.src, px, py, iso_depth});
     }
 
     std::ranges::sort(state.draw_list,

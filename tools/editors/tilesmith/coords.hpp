@@ -114,40 +114,41 @@ namespace tools::tilemap {
    * @return CollisionRect with positive w/h.
    */
   [[nodiscard]] inline corundum::gameplay::world::tilemap::CollisionRect
-  snap_to_tile_rect(int col_a, int row_a, int col_b, int row_b, int tile_w, int tile_h) noexcept {
+  snap_to_tile_rect(int col_a, int row_a, int col_b, int row_b) noexcept {
     const int min_col = std::min(col_a, col_b);
     const int min_row = std::min(row_a, row_b);
     const int max_col = std::max(col_a, col_b);
     const int max_row = std::max(row_a, row_b);
-    return {static_cast<float>(min_col * tile_w), static_cast<float>(min_row * tile_h),
-            static_cast<float>((max_col - min_col + 1) * tile_w), static_cast<float>((max_row - min_row + 1) * tile_h)};
+    return {static_cast<float>(min_col), static_cast<float>(min_row), static_cast<float>(max_col - min_col + 1),
+            static_cast<float>(max_row - min_row + 1)};
   }
 
   /**
-   * @brief Convert two window pixel drag positions to a CollisionRect in Tiled pixel space.
+   * @brief Convert two window pixel drag positions to a CollisionRect in tile-grid space.
    *
    * Used for sub-tile precision collision rect placement (Shift-drag). Coordinates are
-   * converted from window space to Tiled space via camera and tile_scale, then normalized
+   * converted from window space to tile-grid space via camera and tile_scale, then normalized
    * to a positive-size rect.
    *
    * @param win_x_a, win_y_a  Window-space position at drag anchor.
    * @param win_x_b, win_y_b  Window-space position at drag release (or current cursor).
    * @param camera_x, camera_y  Current camera scroll offset.
    * @param tile_scale  Display scale factor.
-   * @return CollisionRect in Tiled pixel space with w/h >= 1.
+   * @param tile_w, tile_h  Tile dimensions in pixels.
+   * @return CollisionRect in tile-grid space with col_span/row_span >= 1/tile_w, 1/tile_h.
    */
   [[nodiscard]] inline corundum::gameplay::world::tilemap::CollisionRect
   pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, float camera_x, float camera_y,
-                      float tile_scale) noexcept {
+                      float tile_scale, float tile_w, float tile_h) noexcept {
     const float txa = (static_cast<float>(win_x_a) + camera_x) / tile_scale;
     const float tya = (static_cast<float>(win_y_a) + camera_y) / tile_scale;
     const float txb = (static_cast<float>(win_x_b) + camera_x) / tile_scale;
     const float tyb = (static_cast<float>(win_y_b) + camera_y) / tile_scale;
-    const float min_x = std::min(txa, txb);
-    const float min_y = std::min(tya, tyb);
-    const float max_x = std::max(txa, txb);
-    const float max_y = std::max(tya, tyb);
-    return {min_x, min_y, std::max(1.f, max_x - min_x), std::max(1.f, max_y - min_y)};
+    const float min_col = std::min(txa, tya) / tile_w;
+    const float min_row = std::min(txa, tya) / tile_h;
+    const float max_col = std::max(txb, tyb) / tile_w;
+    const float max_row = std::max(txb, tyb) / tile_h;
+    return {min_col, min_row, std::max(1.f / tile_w, max_col - min_col), std::max(1.f / tile_h, max_row - min_row)};
   }
 
   /**

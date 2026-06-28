@@ -127,36 +127,36 @@ namespace corundum::gameplay::world::tilemap {
     return get_tile_footprint(ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid));
   }
 
-  /// Axis-aligned rectangle in Tiled pixel space (unscaled).
+  /// Axis-aligned rectangle in tile-grid space.
   /// Used as a temporary during loading; runtime collision uses CollisionRects (SoA).
   struct CollisionRect {
-    float x = 0.f;
-    float y = 0.f;
-    float w = 0.f;
-    float h = 0.f;
+    float col = 0.f;
+    float row = 0.f;
+    float col_span = 0.f;
+    float row_span = 0.f;
   };
 
   /**
-   * @brief Non-owning Structure-of-Arrays view over collision rect data.
+   * @brief Non-owning Structure-of-Arrays view over collision rect data in tile-grid space.
    *
    * Passed to collision functions. Enables SIMD auto-vectorization by
    * exposing each field as a contiguous span rather than interleaved structs.
    * Construct from CollisionRects::view() or directly from stack arrays.
    */
   struct CollisionRectsView {
-    std::span<const float> xs; ///< Left edges.
-    std::span<const float> ys; ///< Top edges.
-    std::span<const float> ws; ///< Widths.
-    std::span<const float> hs; ///< Heights.
+    std::span<const float> cols;      ///< Left edges (tile columns).
+    std::span<const float> rows;      ///< Top edges (tile rows).
+    std::span<const float> col_spans; ///< Horizontal extents in tiles.
+    std::span<const float> row_spans; ///< Vertical extents in tiles.
 
     /// Number of rects in the view.
     [[nodiscard]] std::size_t size() const noexcept {
-      return xs.size();
+      return cols.size();
     }
   };
 
   /**
-   * @brief Owned Structure-of-Arrays storage for axis-aligned collision rects.
+   * @brief Owned Structure-of-Arrays storage for collision rects in tile-grid space.
    *
    * Stores rect fields in four parallel vectors so that overlaps_any() can
    * iterate each field as a contiguous float array, enabling auto-vectorization.
@@ -165,42 +165,27 @@ namespace corundum::gameplay::world::tilemap {
    * @see CollisionRectsView for the non-owning counterpart passed to collision functions.
    */
   struct CollisionRects {
-    std::vector<float> xs; ///< Left edges.
-    std::vector<float> ys; ///< Top edges.
-    std::vector<float> ws; ///< Widths.
-    std::vector<float> hs; ///< Heights.
+    std::vector<float> cols;      ///< Left edges (tile columns).
+    std::vector<float> rows;      ///< Top edges (tile rows).
+    std::vector<float> col_spans; ///< Horizontal extents in tiles.
+    std::vector<float> row_spans; ///< Vertical extents in tiles.
 
-    /// Append one collision rect.
-    void push_back(float x, float y, float w, float h) {
-      xs.push_back(x);
-      ys.push_back(y);
-      ws.push_back(w);
-      hs.push_back(h);
-    }
-
-    /**
-     * @brief Multiply all coordinates and dimensions by @p factor in-place.
-     * @param factor Scale multiplier (e.g. tile_scale to convert Tiled → world pixels).
-     */
-    void scale(float factor) noexcept {
-      for (float &v : xs)
-        v *= factor;
-      for (float &v : ys)
-        v *= factor;
-      for (float &v : ws)
-        v *= factor;
-      for (float &v : hs)
-        v *= factor;
+    /// Append one collision rect in tile-grid space.
+    void push_back(float col, float row, float col_span, float row_span) {
+      cols.push_back(col);
+      rows.push_back(row);
+      col_spans.push_back(col_span);
+      row_spans.push_back(row_span);
     }
 
     /// Number of stored rects.
     [[nodiscard]] std::size_t size() const noexcept {
-      return xs.size();
+      return cols.size();
     }
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionRectsView view() const noexcept {
-      return {xs, ys, ws, hs};
+      return {cols, rows, col_spans, row_spans};
     }
 
     /// Remove the rect at index @p i in O(1) via swap-and-pop. Order is not preserved.
@@ -208,15 +193,15 @@ namespace corundum::gameplay::world::tilemap {
     void erase(std::size_t i) {
       const std::size_t last = size() - 1;
       if (i != last) {
-        xs[i] = xs[last];
-        ys[i] = ys[last];
-        ws[i] = ws[last];
-        hs[i] = hs[last];
+        cols[i] = cols[last];
+        rows[i] = rows[last];
+        col_spans[i] = col_spans[last];
+        row_spans[i] = row_spans[last];
       }
-      xs.pop_back();
-      ys.pop_back();
-      ws.pop_back();
-      hs.pop_back();
+      cols.pop_back();
+      rows.pop_back();
+      col_spans.pop_back();
+      row_spans.pop_back();
     }
   };
 
@@ -228,65 +213,50 @@ namespace corundum::gameplay::world::tilemap {
    */
   enum class TriangleCut : uint8_t { NW, NE, SW, SE };
 
-  /// Non-owning Structure-of-Arrays view over diagonal collision triangle data.
+  /// Non-owning Structure-of-Arrays view over diagonal collision triangle data in tile-grid space.
   struct CollisionTrianglesView {
-    std::span<const float> xs;         ///< Left edges.
-    std::span<const float> ys;         ///< Top edges.
-    std::span<const float> ws;         ///< Widths.
-    std::span<const float> hs;         ///< Heights.
+    std::span<const float> cols;       ///< Left edges (tile columns).
+    std::span<const float> rows;       ///< Top edges (tile rows).
+    std::span<const float> col_spans;  ///< Horizontal extents in tiles.
+    std::span<const float> row_spans;  ///< Vertical extents in tiles.
     std::span<const TriangleCut> cuts; ///< Which corner is empty.
 
     /// Number of triangles in the view.
     [[nodiscard]] std::size_t size() const noexcept {
-      return xs.size();
+      return cols.size();
     }
   };
 
   /**
-   * @brief Owned Structure-of-Arrays storage for diagonal half-tile collision shapes.
+   * @brief Owned Structure-of-Arrays storage for diagonal half-tile collision shapes in tile-grid space.
    *
    * Each entry is a right-isoceles triangle occupying half a tile. The empty corner
    * is identified by TriangleCut; the other half is solid.
    */
   struct CollisionTriangles {
-    std::vector<float> xs;         ///< Left edges.
-    std::vector<float> ys;         ///< Top edges.
-    std::vector<float> ws;         ///< Widths.
-    std::vector<float> hs;         ///< Heights.
+    std::vector<float> cols;       ///< Left edges (tile columns).
+    std::vector<float> rows;       ///< Top edges (tile rows).
+    std::vector<float> col_spans;  ///< Horizontal extents in tiles.
+    std::vector<float> row_spans;  ///< Vertical extents in tiles.
     std::vector<TriangleCut> cuts; ///< Which corner is empty.
 
-    /// Append one diagonal collision triangle.
-    void push_back(float x, float y, float w, float h, TriangleCut cut) {
-      xs.push_back(x);
-      ys.push_back(y);
-      ws.push_back(w);
-      hs.push_back(h);
+    /// Append one diagonal collision triangle in tile-grid space.
+    void push_back(float col, float row, float col_span, float row_span, TriangleCut cut) {
+      cols.push_back(col);
+      rows.push_back(row);
+      col_spans.push_back(col_span);
+      row_spans.push_back(row_span);
       cuts.push_back(cut);
-    }
-
-    /**
-     * @brief Multiply all coordinates and dimensions by @p factor in-place.
-     * @param factor Scale multiplier (e.g. tile_scale to convert Tiled → world pixels).
-     */
-    void scale(float factor) noexcept {
-      for (float &v : xs)
-        v *= factor;
-      for (float &v : ys)
-        v *= factor;
-      for (float &v : ws)
-        v *= factor;
-      for (float &v : hs)
-        v *= factor;
     }
 
     /// Number of stored triangles.
     [[nodiscard]] std::size_t size() const noexcept {
-      return xs.size();
+      return cols.size();
     }
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionTrianglesView view() const noexcept {
-      return {xs, ys, ws, hs, cuts};
+      return {cols, rows, col_spans, row_spans, cuts};
     }
 
     /// Remove the triangle at index @p i in O(1) via swap-and-pop. Order is not preserved.
@@ -294,16 +264,16 @@ namespace corundum::gameplay::world::tilemap {
     void erase(std::size_t i) {
       const std::size_t last = size() - 1;
       if (i != last) {
-        xs[i] = xs[last];
-        ys[i] = ys[last];
-        ws[i] = ws[last];
-        hs[i] = hs[last];
+        cols[i] = cols[last];
+        rows[i] = rows[last];
+        col_spans[i] = col_spans[last];
+        row_spans[i] = row_spans[last];
         cuts[i] = cuts[last];
       }
-      xs.pop_back();
-      ys.pop_back();
-      ws.pop_back();
-      hs.pop_back();
+      cols.pop_back();
+      rows.pop_back();
+      col_spans.pop_back();
+      row_spans.pop_back();
       cuts.pop_back();
     }
   };

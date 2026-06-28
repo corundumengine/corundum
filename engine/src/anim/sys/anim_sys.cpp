@@ -70,8 +70,8 @@ namespace corundum::anim::sys {
       auto &anim_timer = timers[anim_slot];
       const auto &anim_fd = frame_durations[anim_slot];
 
-      const auto &vel_dx = transforms.dx[tr_slot];
-      const auto &vel_dy = transforms.dy[tr_slot];
+      const auto &vel_dx = transforms.dc[tr_slot];
+      const auto &vel_dy = transforms.dr[tr_slot];
 
       const bool moving = (vel_dx != 0.f || vel_dy != 0.f);
 

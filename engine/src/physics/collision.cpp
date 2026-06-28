@@ -14,7 +14,8 @@ namespace corundum::physics::sys {
       const float ay1 = ay + ah;
       const std::size_t n = rects.size();
       for (std::size_t i = 0; i < n; ++i) {
-        if (ax < rects.xs[i] + rects.ws[i] && ax1 > rects.xs[i] && ay < rects.ys[i] + rects.hs[i] && ay1 > rects.ys[i])
+        if (ax < rects.cols[i] + rects.col_spans[i] && ax1 > rects.cols[i] && ay < rects.rows[i] + rects.row_spans[i] &&
+            ay1 > rects.rows[i])
           return true;
       }
       return false;
@@ -38,8 +39,8 @@ namespace corundum::physics::sys {
       const float ay1 = ay + ah;
       const std::size_t n = tris.size();
       for (std::size_t i = 0; i < n; ++i) {
-        const float tx = tris.xs[i], ty = tris.ys[i];
-        const float tw = tris.ws[i], th = tris.hs[i];
+        const float tx = tris.cols[i], ty = tris.rows[i];
+        const float tw = tris.col_spans[i], th = tris.row_spans[i];
         if (ax >= tx + tw || ax1 <= tx || ay >= ty + th || ay1 <= ty) [[likely]]
           continue;
         const float u0 = (ax - tx) / tw;  // left edge (min u)
@@ -77,12 +78,12 @@ namespace corundum::physics::sys {
     const float eff_h = entity_h - y_offset;
 
     // Test X axis: use post-integrate X with pre-integrate Y.
-    if (overlaps_any(pos.x, prev_pos.y + y_offset, entity_w, eff_h, rects))
-      pos.x = prev_pos.x;
+    if (overlaps_any(pos.col, prev_pos.row + y_offset, entity_w, eff_h, rects))
+      pos.col = prev_pos.col;
 
     // Test Y axis: use resolved X with post-integrate Y.
-    if (overlaps_any(pos.x, pos.y + y_offset, entity_w, eff_h, rects))
-      pos.y = prev_pos.y;
+    if (overlaps_any(pos.col, pos.row + y_offset, entity_w, eff_h, rects))
+      pos.row = prev_pos.row;
   }
 
   void resolve_triangle_collisions(corundum::gameplay::component::Position &pos,
@@ -91,11 +92,11 @@ namespace corundum::physics::sys {
                                    float y_offset) noexcept {
     const float eff_h = entity_h - y_offset;
 
-    if (overlaps_any_triangle(pos.x, prev_pos.y + y_offset, entity_w, eff_h, triangles))
-      pos.x = prev_pos.x;
+    if (overlaps_any_triangle(pos.col, prev_pos.row + y_offset, entity_w, eff_h, triangles))
+      pos.col = prev_pos.col;
 
-    if (overlaps_any_triangle(pos.x, pos.y + y_offset, entity_w, eff_h, triangles))
-      pos.y = prev_pos.y;
+    if (overlaps_any_triangle(pos.col, pos.row + y_offset, entity_w, eff_h, triangles))
+      pos.row = prev_pos.row;
   }
 
 } // namespace corundum::physics::sys

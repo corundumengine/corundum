@@ -31,8 +31,11 @@ namespace corundum {
         return std::unexpected(scene_result.error());
       engine.scene = std::move(*scene_result);
       const auto [ww, wh] = gameplay::world::tilemap::world_bounds_iso(engine.render.manifest, info.half_tw);
-      engine.scene.camera.x = std::clamp(info.spawn_world_pos.x - cfg.win_w * 0.5f, 0.f, ww - cfg.win_w);
-      engine.scene.camera.y = std::clamp(info.spawn_world_pos.y - cfg.win_h * 0.5f, 0.f, wh - cfg.win_h);
+      // Convert tile-grid spawn position to isometric for camera tracking.
+      const float iso_spawn_x = (spawn_pos.col - spawn_pos.row) * info.half_tw + info.x_origin;
+      const float iso_spawn_y = (spawn_pos.col + spawn_pos.row) * info.half_th;
+      engine.scene.camera.x = std::clamp(iso_spawn_x - cfg.win_w * 0.5f, 0.f, ww - cfg.win_w);
+      engine.scene.camera.y = std::clamp(iso_spawn_y - cfg.win_h * 0.5f, 0.f, wh - cfg.win_h);
       return {};
     }
 
@@ -44,6 +47,20 @@ namespace corundum {
       if (!scene_result)
         return std::unexpected(scene_result.error());
       engine.scene = std::move(*scene_result);
+
+      // Initialize camera centered on the player.
+      const auto &tm = engine.render.map_data.tilemap;
+      const float half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
+      const float half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
+      const float x_origin = static_cast<float>(tm.height - 1) * half_tw;
+      const auto p_slot = engine.scene.world.transforms.dense_idx(engine.scene.player);
+      const float pc = engine.scene.world.transforms.col[p_slot];
+      const float pr = engine.scene.world.transforms.row[p_slot];
+      const float iso_x = (pc - pr) * half_tw + x_origin;
+      const float iso_y = (pc + pr) * half_th;
+      const float extent = static_cast<float>(tm.width + tm.height - 1) * half_tw * 2.f;
+      engine.scene.camera.x = std::clamp(iso_x - cfg.win_w * 0.5f, 0.f, extent - cfg.win_w);
+      engine.scene.camera.y = std::clamp(iso_y - cfg.win_h * 0.5f, 0.f, extent - cfg.win_h);
       return {};
     }
 
@@ -117,13 +134,13 @@ namespace corundum {
     while (engine.window->is_open() && !engine.quit) {
       const auto &transforms = engine.scene.world.transforms;
       const auto n = transforms.count;
-      if (engine.render.prev_x.size() < n) {
-        engine.render.prev_x.resize(n);
-        engine.render.prev_y.resize(n);
+      if (engine.render.prev_col.size() < n) {
+        engine.render.prev_col.resize(n);
+        engine.render.prev_row.resize(n);
       }
       for (std::uint32_t i = 0; i < n; ++i) {
-        engine.render.prev_x[i] = transforms.x[i];
-        engine.render.prev_y[i] = transforms.y[i];
+      engine.render.prev_col[i] = transforms.col[i];
+      engine.render.prev_row[i] = transforms.row[i];
       }
       engine.render.prev_cam_x = engine.scene.camera.x;
       engine.render.prev_cam_y = engine.scene.camera.y;
@@ -150,6 +167,7 @@ namespace corundum {
         process_dialogue_events(engine.audio, engine.scene.pending_dialogue_events);
 
         gameplay::entity::flush_deletions(engine.scene.world);
+
         input::clear_pressed(engine.input_state);
       }
 

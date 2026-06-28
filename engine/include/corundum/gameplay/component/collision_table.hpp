@@ -11,7 +11,7 @@ namespace corundum::gameplay::component {
 
   /** @brief Table for the BoundingBox collision component.
    *
-   * `w`, `h`, and `yo` are always read together (they form one collision rect), so
+   * `col_span` and `row_span` are always read together (they form one collision rect), so
    * they stay as an AoS `Rect` inside the table. Per DOD §4.3: fields accessed as a
    * unit may remain AoS. The array of rects is `alignas(16)` for cache alignment.
    */
@@ -28,9 +28,8 @@ namespace corundum::gameplay::component {
 
     // ── Collision data (always loaded as a unit) ───────────────────
     struct Rect {
-      float w = 0.f;
-      float h = 0.f;
-      float yo = 0.f;
+      float col_span = 0.f;
+      float row_span = 0.f;
     };
 
     alignas(16) std::array<Rect, k_max> rects{};
@@ -63,18 +62,17 @@ namespace corundum::gameplay::component {
     }
 
     /** @brief Add a collision rect for @p e.
-     *  @param[in] e  Entity (must not already be present).
-     *  @param[in] w  Rect width in world pixels.
-     *  @param[in] h  Rect height in world pixels.
-     *  @param[in] yo Vertical offset from entity origin to top of rect.
+     *  @param[in] e         Entity (must not already be present).
+     *  @param[in] col_span  Horizontal collision extent in tile columns.
+     *  @param[in] row_span  Vertical collision extent in tile rows.
      *  @pre has(e) must be false.
      */
-    void insert(EntityId e, float w, float h, float yo) noexcept {
+    void insert(EntityId e, float col_span, float row_span) noexcept {
       const auto idx = std::to_underlying(e);
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
-      rects[slot] = {w, h, yo};
+      rects[slot] = {col_span, row_span};
       ++count;
     }
 
@@ -105,19 +103,14 @@ namespace corundum::gameplay::component {
       return rects[sparse[std::to_underlying(e)]];
     }
 
-    /** @brief Width of @p e's collision rect. @pre has(e). */
-    [[nodiscard]] float w(EntityId e) const noexcept {
-      return rects[sparse[std::to_underlying(e)]].w;
+    /** @brief col_span of @p e's collision rect. @pre has(e). */
+    [[nodiscard]] float col_span(EntityId e) const noexcept {
+      return rects[sparse[std::to_underlying(e)]].col_span;
     }
 
-    /** @brief Height of @p e's collision rect. @pre has(e). */
-    [[nodiscard]] float h(EntityId e) const noexcept {
-      return rects[sparse[std::to_underlying(e)]].h;
-    }
-
-    /** @brief Vertical offset of @p e's collision rect. @pre has(e). */
-    [[nodiscard]] float yo(EntityId e) const noexcept {
-      return rects[sparse[std::to_underlying(e)]].yo;
+    /** @brief row_span of @p e's collision rect. @pre has(e). */
+    [[nodiscard]] float row_span(EntityId e) const noexcept {
+      return rects[sparse[std::to_underlying(e)]].row_span;
     }
   };
 

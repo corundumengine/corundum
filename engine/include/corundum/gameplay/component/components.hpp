@@ -8,12 +8,13 @@
 
 namespace corundum::gameplay::component {
 
-  /// Axis-aligned collision footprint derived from sprite registry data.
+  /// Axis-aligned collision footprint in tile-grid units.
   /// Populated once at spawn; eliminates per-frame registry lookups during collision.
+  /// The collision AABB extends from (col - col_span/2, row - row_span) to (col + col_span/2, row)
+  /// centered on the entity's feet position (col, row).
   struct BoundingBox {
-    float w = 0.f;  ///< Collision width in world units.
-    float h = 0.f;  ///< Sprite height in world units.
-    float yo = 0.f; ///< Y offset from position.y to the top of the collision rect.
+    float col_span = 0.f; ///< Horizontal collision extent in tile columns.
+    float row_span = 0.f; ///< Vertical collision extent in tile rows (upward from feet).
   };
 
   /// Sprite animation playback state.
@@ -26,10 +27,10 @@ namespace corundum::gameplay::component {
     std::array<uint8_t, corundum::resources::k_num_anim_ids> frame_counts{};
   };
 
-  /// World-space position of an entity.
+  /// Tile-grid position of an entity (feet position in fractional tile coordinates).
   struct Position {
-    float x = 0.f;
-    float y = 0.f;
+    float col = 0.f;
+    float row = 0.f;
   };
 
   /// Rendering component: identifies which sprite asset and animation frame to draw.
@@ -45,10 +46,10 @@ namespace corundum::gameplay::component {
     std::string graph_id;
   };
 
-  /// Per-frame movement delta in world units.
+  /// Per-frame movement delta in tile-grid units.
   struct Velocity {
-    float dx = 0.f;
-    float dy = 0.f;
+    float dc = 0.f;
+    float dr = 0.f;
   };
 
   /// Cardinal and intercardinal directions.
@@ -77,11 +78,11 @@ namespace corundum::gameplay::component {
     return k_opposite_dir[std::to_underlying(dir)];
   }
 
-  /// Euclidean distance between two positions, in world units.
+  /// Euclidean distance between two tile-grid positions.
   [[nodiscard]] inline float distance(Position a, Position b) noexcept {
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return std::sqrt(dx * dx + dy * dy);
+    const float dcol = a.col - b.col;
+    const float drow = a.row - b.row;
+    return std::sqrt(dcol * dcol + drow * drow);
   }
 
 } // namespace corundum::gameplay::component

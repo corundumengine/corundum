@@ -45,22 +45,25 @@ namespace tools::tilemap {
 
     const auto &cols = state.map.collisions;
     for (std::size_t i = 0; i < cols.size(); ++i) {
-      draw_iso_rect(ctx, cols.xs[i], cols.ys[i], cols.ws[i], cols.hs[i], inv_tw, inv_th, half_tw, half_th, x_shift,
-                    state.camera.x, state.camera.y, IM_COL32(255, 80, 80, 60), IM_COL32(255, 80, 80, 200));
+      draw_iso_rect(ctx, cols.cols[i] * tw, cols.rows[i] * th, cols.col_spans[i] * tw, cols.row_spans[i] * th, inv_tw,
+                    inv_th, half_tw, half_th, x_shift, state.camera.x, state.camera.y, IM_COL32(255, 80, 80, 60),
+                    IM_COL32(255, 80, 80, 200));
     }
 
     const auto &tris = state.map.collision_triangles;
     for (std::size_t i = 0; i < tris.size(); ++i) {
-      draw_iso_rect(ctx, tris.xs[i], tris.ys[i], tris.ws[i], tris.hs[i], inv_tw, inv_th, half_tw, half_th, x_shift,
-                    state.camera.x, state.camera.y, IM_COL32(255, 140, 60, 70), IM_COL32(255, 140, 60, 210));
+      draw_iso_rect(ctx, tris.cols[i] * tw, tris.rows[i] * th, tris.col_spans[i] * tw, tris.row_spans[i] * th, inv_tw,
+                    inv_th, half_tw, half_th, x_shift, state.camera.x, state.camera.y, IM_COL32(255, 140, 60, 70),
+                    IM_COL32(255, 140, 60, 210));
     }
 
     if (state.show_collisions && state.triangle_collision_mode && state.hover_tile_col >= 0 &&
         state.hover_tile_row >= 0) {
-      const float x = static_cast<float>(state.hover_tile_col * tw);
-      const float y = static_cast<float>(state.hover_tile_row * th);
-      draw_iso_rect(ctx, x, y, static_cast<float>(tw), static_cast<float>(th), inv_tw, inv_th, half_tw, half_th,
-                    x_shift, state.camera.x, state.camera.y, IM_COL32(100, 255, 100, 50), IM_COL32(100, 255, 100, 220));
+      const float col = static_cast<float>(state.hover_tile_col);
+      const float row = static_cast<float>(state.hover_tile_row);
+      draw_iso_rect(ctx, col * tw, row * th, static_cast<float>(tw), static_cast<float>(th), inv_tw, inv_th, half_tw,
+                    half_th, x_shift, state.camera.x, state.camera.y, IM_COL32(100, 255, 100, 50),
+                    IM_COL32(100, 255, 100, 220));
     }
   }
 
@@ -80,13 +83,14 @@ namespace tools::tilemap {
     corundum::gameplay::world::tilemap::CollisionRect cr;
     if (state.col_drag_sub_tile) {
       cr = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
-                               state.col_drag_cur_win_y, state.camera.x, state.camera.y, state.tile_scale);
+                               state.col_drag_cur_win_y, state.camera.x, state.camera.y, state.tile_scale,
+                               static_cast<float>(tw), static_cast<float>(th));
     } else {
       cr = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
-                             state.col_drag_cur_row, tw, th);
+                             state.col_drag_cur_row);
     }
-    draw_iso_rect(ctx, cr.x, cr.y, cr.w, cr.h, inv_tw, inv_th, half_tw, half_th, x_shift, state.camera.x,
-                  state.camera.y, IM_COL32(100, 255, 100, 40), IM_COL32(100, 255, 100, 230));
+    draw_iso_rect(ctx, cr.col * tw, cr.row * th, cr.col_span * tw, cr.row_span * th, inv_tw, inv_th, half_tw, half_th,
+                  x_shift, state.camera.x, state.camera.y, IM_COL32(100, 255, 100, 40), IM_COL32(100, 255, 100, 230));
   }
 
   void render_erase_preview(CanvasContext ctx, const EditorState &state) {
@@ -103,9 +107,9 @@ namespace tools::tilemap {
     const float inv_th = 1.f / static_cast<float>(th);
 
     const auto cr = snap_to_tile_rect(state.erase_drag_anchor_col, state.erase_drag_anchor_row,
-                                      state.erase_drag_cur_col, state.erase_drag_cur_row, tw, th);
-    draw_iso_rect(ctx, cr.x, cr.y, cr.w, cr.h, inv_tw, inv_th, half_tw, half_th, x_shift, state.camera.x,
-                  state.camera.y, IM_COL32(255, 100, 60, 50), IM_COL32(255, 100, 60, 220));
+                                      state.erase_drag_cur_col, state.erase_drag_cur_row);
+    draw_iso_rect(ctx, cr.col * tw, cr.row * th, cr.col_span * tw, cr.row_span * th, inv_tw, inv_th, half_tw, half_th,
+                  x_shift, state.camera.x, state.camera.y, IM_COL32(255, 100, 60, 50), IM_COL32(255, 100, 60, 220));
   }
 
 } // namespace tools::tilemap

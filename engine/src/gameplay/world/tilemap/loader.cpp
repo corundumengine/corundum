@@ -248,29 +248,29 @@ namespace corundum::gameplay::world::tilemap {
       if (!j["collisions"].is_array())
         return std::unexpected(std::format("Tilemap '{}' field 'collisions' must be an array", id));
       const auto &col_json = j["collisions"];
-      collisions.xs.reserve(col_json.size());
-      collisions.ys.reserve(col_json.size());
-      collisions.ws.reserve(col_json.size());
-      collisions.hs.reserve(col_json.size());
+      collisions.cols.reserve(col_json.size());
+      collisions.rows.reserve(col_json.size());
+      collisions.col_spans.reserve(col_json.size());
+      collisions.row_spans.reserve(col_json.size());
       for (std::size_t ci = 0; ci < col_json.size(); ++ci) {
         const auto &entry = col_json[ci];
         if (!entry.is_object())
           return std::unexpected(std::format("Tilemap '{}' collisions[{}] must be an object", id, ci));
         CollisionRect r;
         try {
-          r.x = entry.at("x").get<float>();
-          r.y = entry.at("y").get<float>();
-          r.w = entry.at("w").get<float>();
-          r.h = entry.at("h").get<float>();
+          r.col = entry.at("x").get<float>();
+          r.row = entry.at("y").get<float>();
+          r.col_span = entry.at("w").get<float>();
+          r.row_span = entry.at("h").get<float>();
         } catch (...) {
           return std::unexpected(
               std::format("Tilemap '{}' collisions[{}] missing or invalid field (x, y, w, h required)", id, ci));
         }
-        if (r.w <= 0.f)
+        if (r.col_span <= 0.f)
           return std::unexpected(std::format("Tilemap '{}' collisions[{}] 'w' must be positive", id, ci));
-        if (r.h <= 0.f)
+        if (r.row_span <= 0.f)
           return std::unexpected(std::format("Tilemap '{}' collisions[{}] 'h' must be positive", id, ci));
-        collisions.push_back(r.x, r.y, r.w, r.h);
+        collisions.push_back(r.col, r.row, r.col_span, r.row_span);
       }
     }
 
@@ -280,10 +280,10 @@ namespace corundum::gameplay::world::tilemap {
       if (!j["collision_triangles"].is_array())
         return std::unexpected(std::format("Tilemap '{}' field 'collision_triangles' must be an array", id));
       const auto &tri_json = j["collision_triangles"];
-      collision_triangles.xs.reserve(tri_json.size());
-      collision_triangles.ys.reserve(tri_json.size());
-      collision_triangles.ws.reserve(tri_json.size());
-      collision_triangles.hs.reserve(tri_json.size());
+      collision_triangles.cols.reserve(tri_json.size());
+      collision_triangles.rows.reserve(tri_json.size());
+      collision_triangles.col_spans.reserve(tri_json.size());
+      collision_triangles.row_spans.reserve(tri_json.size());
       collision_triangles.cuts.reserve(tri_json.size());
       for (std::size_t ci = 0; ci < tri_json.size(); ++ci) {
         const auto &entry = tri_json[ci];

@@ -13,13 +13,13 @@ namespace corundum::physics::sys {
 
   void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept {
     [[assume(transforms.count <= std::remove_reference_t<decltype(transforms)>::k_max)]];
-    float *px = std::assume_aligned<16>(transforms.x.data());
-    float *py = std::assume_aligned<16>(transforms.y.data());
-    const float *pvx = std::assume_aligned<16>(transforms.dx.data());
-    const float *pvy = std::assume_aligned<16>(transforms.dy.data());
+    float *pcol = std::assume_aligned<16>(transforms.col.data());
+    float *prow = std::assume_aligned<16>(transforms.row.data());
+    const float *pdc = std::assume_aligned<16>(transforms.dc.data());
+    const float *pdr = std::assume_aligned<16>(transforms.dr.data());
     for (uint16_t i = 0; i < transforms.count; ++i) {
-      px[i] += pvx[i] * dt;
-      py[i] += pvy[i] * dt;
+      pcol[i] += pdc[i] * dt;
+      prow[i] += pdr[i] * dt;
     }
   }
 
@@ -30,25 +30,38 @@ namespace corundum::physics::sys {
       return;
 
     const auto slot = transforms.dense_idx(player);
-    transforms.dx[slot] = 0.f;
-    transforms.dy[slot] = 0.f;
+    transforms.dc[slot] = 0.f;
+    transforms.dr[slot] = 0.f;
 
-    float vx = 0.f;
-    float vy = 0.f;
-    if (input.is_held(corundum::input::Action::MoveUp))
-      vy = -1.f;
-    if (input.is_held(corundum::input::Action::MoveDown))
-      vy = 1.f;
-    if (input.is_held(corundum::input::Action::MoveLeft))
-      vx = -1.f;
-    if (input.is_held(corundum::input::Action::MoveRight))
-      vx = 1.f;
+    float dc = 0.f;
+    float dr = 0.f;
+    // Map screen directions to tile-grid axes.
+    // Screen up    = NW = both col and row decrease.
+    // Screen down  = SE = both col and row increase.
+    // Screen left  = SW = col decreases, row increases.
+    // Screen right = NE = col increases, row decreases.
+    if (input.is_held(corundum::input::Action::MoveUp)) {
+      dc -= 1.f;
+      dr -= 1.f;
+    }
+    if (input.is_held(corundum::input::Action::MoveDown)) {
+      dc += 1.f;
+      dr += 1.f;
+    }
+    if (input.is_held(corundum::input::Action::MoveLeft)) {
+      dc -= 1.f;
+      dr += 1.f;
+    }
+    if (input.is_held(corundum::input::Action::MoveRight)) {
+      dc += 1.f;
+      dr -= 1.f;
+    }
 
-    const float len_sq = vx * vx + vy * vy;
+    const float len_sq = dc * dc + dr * dr;
     if (len_sq > 0.f) {
       const float inv_len = speed / std::sqrt(len_sq);
-      transforms.dx[slot] = vx * inv_len;
-      transforms.dy[slot] = vy * inv_len;
+      transforms.dc[slot] = dc * inv_len;
+      transforms.dr[slot] = dr * inv_len;
     }
   }
 
@@ -61,10 +74,15 @@ namespace corundum::physics::sys {
     using corundum::gameplay::entity::EntityId;
 
     const auto p_slot = transforms.dense_idx(player);
-    const float prev_x = transforms.x[p_slot];
-    const float prev_y = transforms.y[p_slot];
+    const float prev_col = transforms.col[p_slot];
+    const float prev_row = transforms.row[p_slot];
 
-    apply_input(transforms, player, input, player_speed);
+    // Convert player_speed from isometric pixels/sec to tiles/sec.
+    // For NW/SE movement: Δiso_y = (dc+dr)*half_th, where |dc|=|dr|=speed/√2.
+    // Solving for speed such that Δiso_y/sec = player_speed:
+    //   speed = player_speed / (√2 * half_th)
+    const float tile_speed = player_speed / (1.41421356f * map.half_th);
+    apply_input(transforms, player, input, tile_speed);
     integrate(transforms, dt);
 
     const float map_w = map.world_w_px;
@@ -72,26 +90,22 @@ namespace corundum::physics::sys {
 
     const auto &player_rect = collisions.get_rect(player);
 
-    Position p{transforms.x[p_slot], transforms.y[p_slot]};
-    const Position prev_pos{prev_x, prev_y};
+    Position p{transforms.col[p_slot], transforms.row[p_slot]};
+    const Position prev_pos{prev_col, prev_row};
 
     if (map.half_tw > 0.f && map.half_th > 0.f) {
-      const float scale_ratio = map.scale_ratio();
-      const float feet_y = p.y + player_rect.yo * scale_ratio;
-      const float prev_feet_y = prev_pos.y + player_rect.yo * scale_ratio;
-      auto p_cart = corundum::core::math::iso_to_cart({p.x, feet_y}, map.half_tw, map.half_th, map.x_origin);
-      auto prev_cart =
-          corundum::core::math::iso_to_cart({prev_pos.x, prev_feet_y}, map.half_tw, map.half_th, map.x_origin);
-      Position pc{p_cart.x, p_cart.y};
-      const Position pcp{prev_cart.x, prev_cart.y};
-      resolve_collisions(pc, pcp, player_rect.w, player_rect.h, map.collisions, 0.f);
-      resolve_triangle_collisions(pc, pcp, player_rect.w, player_rect.h, map.collision_triangles, 0.f);
-      const auto p_iso = corundum::core::math::cart_to_iso({pc.x, pc.y}, map.half_tw, map.half_th, map.x_origin);
-      p.x = p_iso.x;
-      p.y = p_iso.y - player_rect.yo * scale_ratio;
+      const float half_cs = player_rect.col_span / 2.f;
+      // AABB extends upward from the feet position.
+      Position pc{p.col - half_cs, p.row - player_rect.row_span};
+      const Position pcp{prev_pos.col - half_cs, prev_pos.row - player_rect.row_span};
+      resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f);
+      resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f);
+      // Convert AABB top-left back to feet position.
+      p.col = pc.col + half_cs;
+      p.row = pc.row + player_rect.row_span;
     }
 
-    std::array<float, corundum::gameplay::entity::k_max_entities> npc_xs{}, npc_ys{}, npc_ws{}, npc_hs{};
+    std::array<float, corundum::gameplay::entity::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
     uint16_t npc_count = 0;
     for (uint16_t i = 0; i < collisions.count; ++i) {
       const EntityId eid = collisions.entities[i];
@@ -101,31 +115,42 @@ namespace corundum::physics::sys {
         continue;
       const auto &rect = collisions.rects[i];
       const auto np_slot = transforms.dense_idx(eid);
-      npc_xs[npc_count] = transforms.x[np_slot];
-      npc_ys[npc_count] = transforms.y[np_slot];
-      npc_ws[npc_count] = rect.w;
-      npc_hs[npc_count] = rect.h;
+      // Convert NPC feet position to AABB top-left.
+      const float half_npc_cs = rect.col_span / 2.f;
+      npc_cols[npc_count] = transforms.col[np_slot] - half_npc_cs;
+      npc_rows[npc_count] = transforms.row[np_slot] - rect.row_span;
+      npc_cs[npc_count] = rect.col_span;
+      npc_rs[npc_count] = rect.row_span;
       ++npc_count;
     }
     const corundum::gameplay::world::tilemap::CollisionRectsView npc_view{
-        std::span{npc_xs.data(), npc_count}, std::span{npc_ys.data(), npc_count}, std::span{npc_ws.data(), npc_count},
-        std::span{npc_hs.data(), npc_count}};
-    resolve_collisions(p, prev_pos, player_rect.w, player_rect.h, npc_view, 0.f);
+        std::span{npc_cols.data(), npc_count}, std::span{npc_rows.data(), npc_count},
+        std::span{npc_cs.data(), npc_count}, std::span{npc_rs.data(), npc_count}};
+    // Convert player feet to AABB top-left for NPC collision.
+    {
+      const float half_cs = player_rect.col_span / 2.f;
+      Position p_aabb{p.col - half_cs, p.row - player_rect.row_span};
+      const Position prev_aabb{prev_pos.col - half_cs, prev_pos.row - player_rect.row_span};
+      resolve_collisions(p_aabb, prev_aabb, player_rect.col_span, player_rect.row_span, npc_view, 0.f);
+      p.col = p_aabb.col + half_cs;
+      p.row = p_aabb.row + player_rect.row_span;
+    }
 
-    p.x = std::clamp(p.x, 0.f, std::max(0.f, map_w - player_rect.w));
-    p.y = std::clamp(p.y, 0.f, std::max(0.f, map_h - player_rect.h));
+    p.col = std::clamp(p.col, 0.f, std::max(0.f, map_w - player_rect.col_span));
+    p.row = std::clamp(p.row, 0.f, std::max(0.f, map_h - player_rect.row_span));
 
-    transforms.x[p_slot] = p.x;
-    transforms.y[p_slot] = p.y;
+    transforms.col[p_slot] = p.col;
+    transforms.row[p_slot] = p.row;
 
     if (map.half_tw > 0.f && map.half_th > 0.f && !map.portals.empty()) {
-      const float portal_feet_y = p.y + player_rect.yo * map.scale_ratio();
-      const auto p_cart =
-          corundum::core::math::iso_to_cart({p.x, portal_feet_y}, map.half_tw, map.half_th, map.x_origin);
-      const float px0 = p_cart.x;
+      const float tile_w = map.half_tw * 2.f;
+      const float px = (p.col - p.row) * map.half_tw + map.x_origin;
+      const float py = (p.col + p.row) * map.half_th;
+      const auto p_cart = corundum::core::math::iso_to_cart({px, py}, map.half_tw, map.half_th, map.x_origin);
+      const float px0 = p_cart.x - player_rect.col_span * tile_w / 2.f;
       const float py0 = p_cart.y;
-      const float px1 = p_cart.x + player_rect.w;
-      const float py1 = p_cart.y + player_rect.h;
+      const float px1 = p_cart.x + player_rect.col_span * tile_w / 2.f;
+      const float py1 = p_cart.y + player_rect.row_span * tile_w;
       for (const auto &portal : map.portals) {
         if (px1 > portal.x && px0 < portal.x + portal.w && py1 > portal.y && py0 < portal.y + portal.h) {
           scene.pending_transition = {portal.target_map, portal.spawn_col, portal.spawn_row};

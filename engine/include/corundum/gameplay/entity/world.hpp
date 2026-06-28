@@ -48,7 +48,7 @@ namespace corundum::gameplay::entity {
   /// Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
   [[nodiscard]] inline EntityId spawn(World &w, Position pos, Velocity vel, Sprite spr) {
     const EntityId e = w.entities.create();
-    w.transforms.insert(e, pos.x, pos.y, vel.dx, vel.dy);
+    w.transforms.insert(e, pos.col, pos.row, vel.dc, vel.dr);
     w.transform_names.insert(e);
     w.sprites.insert(e, spr.sprite_id, spr.anim_id, spr.frame_index);
     return e;

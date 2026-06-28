@@ -47,7 +47,6 @@ namespace corundum::debug {
       std::unreachable();
     }
 
-    constexpr float k_tile_edge_eps = 0.001f;
     constexpr float k_fps_ema_alpha = 0.05f;
 
   } // namespace
@@ -60,64 +59,42 @@ namespace corundum::debug {
     if (iso.half_tw > 0.f && iso.half_th > 0.f) {
       constexpr float k_line_thickness = 2.f;
 
-      auto draw_cart_rect = [&r, iso](float cart_x, float cart_y, float cart_w, float cart_h,
-                                      core::math::Colour tile_colour) {
-        const float dw = iso.half_tw * 2.f;
-        const int col_start = static_cast<int>(cart_x / dw);
-        const int col_end = static_cast<int>((cart_x + cart_w - k_tile_edge_eps) / dw);
-        const int row_start = static_cast<int>(cart_y / dw);
-        const int row_end = static_cast<int>((cart_y + cart_h - k_tile_edge_eps) / dw);
-
-        for (int row = row_start; row <= row_end; ++row) {
-          for (int col = col_start; col <= col_end; ++col) {
-            const float tx = static_cast<float>(col) * dw;
-            const float ty = static_cast<float>(row) * dw;
-            const core::math::Vec2 v0 = core::math::cart_to_iso({tx, ty}, iso.half_tw, iso.half_th, iso.x_origin);
-            const core::math::Vec2 v1 = core::math::cart_to_iso({tx + dw, ty}, iso.half_tw, iso.half_th, iso.x_origin);
-            const core::math::Vec2 v2 =
-                core::math::cart_to_iso({tx + dw, ty + dw}, iso.half_tw, iso.half_th, iso.x_origin);
-            const core::math::Vec2 v3 = core::math::cart_to_iso({tx, ty + dw}, iso.half_tw, iso.half_th, iso.x_origin);
-            // Offset by -half_th so diamonds render at grid-anchor (above tile sprites),
-            // matching the Tilesmith editor convention.
-            const float yo = -iso.half_th;
-            r.draw(platform::DrawLine{.start = {v0.x, v0.y + yo},
-                                      .end = {v1.x, v1.y + yo},
-                                      .colour = tile_colour,
-                                      .thickness = k_line_thickness});
-            r.draw(platform::DrawLine{.start = {v1.x, v1.y + yo},
-                                      .end = {v2.x, v2.y + yo},
-                                      .colour = tile_colour,
-                                      .thickness = k_line_thickness});
-            r.draw(platform::DrawLine{.start = {v2.x, v2.y + yo},
-                                      .end = {v3.x, v3.y + yo},
-                                      .colour = tile_colour,
-                                      .thickness = k_line_thickness});
-            r.draw(platform::DrawLine{.start = {v3.x, v3.y + yo},
-                                      .end = {v0.x, v0.y + yo},
-                                      .colour = tile_colour,
-                                      .thickness = k_line_thickness});
-          }
-        }
+      // Convert a tile-grid rect's four corners to isometric and draw as a diamond.
+      auto draw_tile_rect = [&r, iso](float col, float row, float col_span, float row_span, core::math::Colour colour) {
+        const float x0 = (col - row) * iso.half_tw + iso.x_origin;
+        const float y0 = (col + row) * iso.half_th;
+        const float x1 = ((col + col_span) - row) * iso.half_tw + iso.x_origin;
+        const float y1 = ((col + col_span) + row) * iso.half_th;
+        const float x2 = ((col + col_span) - (row + row_span)) * iso.half_tw + iso.x_origin;
+        const float y2 = ((col + col_span) + (row + row_span)) * iso.half_th;
+        const float x3 = (col - (row + row_span)) * iso.half_tw + iso.x_origin;
+        const float y3 = (col + (row + row_span)) * iso.half_th;
+        const float offset = -iso.half_th;
+        r.draw(platform::DrawLine{
+            .start = {x0, y0 + offset}, .end = {x1, y1 + offset}, .colour = colour, .thickness = k_line_thickness});
+        r.draw(platform::DrawLine{
+            .start = {x1, y1 + offset}, .end = {x2, y2 + offset}, .colour = colour, .thickness = k_line_thickness});
+        r.draw(platform::DrawLine{
+            .start = {x2, y2 + offset}, .end = {x3, y3 + offset}, .colour = colour, .thickness = k_line_thickness});
+        r.draw(platform::DrawLine{
+            .start = {x3, y3 + offset}, .end = {x0, y0 + offset}, .colour = colour, .thickness = k_line_thickness});
       };
 
-      for (std::size_t i = 0; i < rects.size(); ++i)
-        draw_cart_rect(rects.xs[i], rects.ys[i], rects.ws[i], rects.hs[i], k_rect_col);
-
       for (std::size_t i = 0; i < tris.size(); ++i)
-        draw_cart_rect(tris.xs[i], tris.ys[i], tris.ws[i], tris.hs[i], k_tri_col);
+        draw_tile_rect(tris.cols[i], tris.rows[i], tris.col_spans[i], tris.row_spans[i], k_tri_col);
     } else {
       for (std::size_t i = 0; i < rects.size(); ++i) {
         r.draw(platform::DrawRect{
-            .position = {rects.xs[i], rects.ys[i]},
-            .size = {rects.ws[i], rects.hs[i]},
+            .position = {rects.cols[i], rects.rows[i]},
+            .size = {rects.col_spans[i], rects.row_spans[i]},
             .colour = k_rect_col,
         });
       }
 
       for (std::size_t i = 0; i < tris.size(); ++i) {
         r.draw(platform::DrawRect{
-            .position = {tris.xs[i], tris.ys[i]},
-            .size = {tris.ws[i], tris.hs[i]},
+            .position = {tris.cols[i], tris.rows[i]},
+            .size = {tris.col_spans[i], tris.row_spans[i]},
             .colour = k_tri_col,
         });
       }
@@ -131,9 +108,9 @@ namespace corundum::debug {
 
     std::array<std::string, 5> lines{
         std::format("FPS:  sim {:3.0f} / render {:3.0f}", d.sim_fps, d.render_fps),
-        std::format("Position:  x ({:7.1f}), y ({:7.1f})", d.player_x, d.player_y),
+        std::format("Grid:  col ({:7.1f}), row ({:7.1f})", d.player_col, d.player_row),
         [&d] {
-          std::string vel = std::format("Velocity:  dx ({:7.1f}), dy ({:7.1f})", d.player_dx, d.player_dy);
+          std::string vel = std::format("Velocity: dc ({:7.1f}), dr ({:7.1f})", d.player_dc, d.player_dr);
           if (d.player_has_facing)
             vel += std::format("  {}", facing_name(d.player_facing));
           return vel;
@@ -195,18 +172,16 @@ namespace corundum::debug {
     const gameplay::entity::World &w = scene.world;
     const gameplay::entity::EntityId p = scene.player;
     if (iso.half_tw > 0.f && iso.half_th > 0.f && w.transforms.has(p) && w.collisions.has(p)) {
-      const gameplay::component::CollisionTable::Rect &bb = w.collisions.get_rect(p);
+      r.set_world_view(camera, viewport);
       const std::uint32_t slot = w.transforms.dense_idx(p);
-      const float px = w.transforms.x[slot];
-      const float py = w.transforms.y[slot];
-      const float scale_ratio = static_cast<float>(cfg.sprite_scale) / static_cast<float>(cfg.tile_scale);
-      const float feet_y = py + bb.yo * scale_ratio;
+      const float col = w.transforms.col[slot];
+      const float row = w.transforms.row[slot];
 
-      // Draw a small diamond at the feet position — the collision anchor point
+      // Feet position (entity anchor) in isometric space.
+      const float mx = (col - row) * iso.half_tw + iso.x_origin;
+      const float my = (col + row) * iso.half_th;
       constexpr float k_marker_hw = 5.f;
       constexpr float k_marker_hh = 3.f;
-      const float mx = px;
-      const float my = feet_y;
       constexpr core::math::Colour k_player_col{0, 255, 0, 220};
       constexpr float k_line_thickness = 2.f;
       r.draw(platform::DrawLine{.start = {mx, my - k_marker_hh},
@@ -225,6 +200,7 @@ namespace corundum::debug {
                                 .end = {mx, my - k_marker_hh},
                                 .colour = k_player_col,
                                 .thickness = k_line_thickness});
+      r.reset_screen_view();
     }
 
     const float raw_fps = input.timer.last_frame_dt > 0.f ? 1.f / input.timer.last_frame_dt : 0.f;
@@ -236,11 +212,11 @@ namespace corundum::debug {
         .sim_fps = static_cast<float>(cfg.framerate),
     };
     if (w.transforms.has(p)) {
-      hud.player_x = w.transforms.pos_x(p);
-      hud.player_y = w.transforms.pos_y(p);
+      hud.player_col = w.transforms.pos_col(p);
+      hud.player_row = w.transforms.pos_row(p);
       const std::uint32_t di = w.transforms.dense_idx(p);
-      hud.player_dx = w.transforms.dx[di];
-      hud.player_dy = w.transforms.dy[di];
+      hud.player_dc = w.transforms.dc[di];
+      hud.player_dr = w.transforms.dr[di];
     }
     if (w.facings.has(p)) {
       hud.player_has_facing = true;
