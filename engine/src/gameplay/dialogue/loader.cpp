@@ -80,12 +80,9 @@ namespace corundum::gameplay::dialogue {
     node.type = type;
 
     if (type == NodeType::Talk) {
-      node.speaker = require<std::string>(j, "speaker", node_id);
       node.text = require<std::string>(j, "text", node_id);
       node.next_id = require<std::string>(j, "next", node_id);
 
-      if (node.speaker.empty())
-        throw LoadError(std::format("[{}] \"speaker\" must not be empty", node_id));
       if (node.text.empty())
         throw LoadError(std::format("[{}] \"text\" must not be empty", node_id));
       if (node.next_id.empty())
@@ -202,6 +199,9 @@ namespace corundum::gameplay::dialogue {
     graph.graph_id = root["id"].get<std::string>();
     if (graph.graph_id.empty())
       throw LoadError(std::format(R"(dialogue file "{}" has empty top-level "id")", path));
+
+    if (root.contains("speaker") && root["speaker"].is_string())
+      graph.speaker = root["speaker"].get<std::string>();
 
     if (!root.contains("nodes") || !root["nodes"].is_array())
       throw LoadError(std::format("[{}] missing top-level \"nodes\" array", graph.graph_id));

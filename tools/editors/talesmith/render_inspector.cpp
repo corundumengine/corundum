@@ -10,7 +10,6 @@ namespace tools::talesmith {
   namespace {
 
     char id_buf[128];
-    char speaker_buf[256];
     char text_buf[1024];
     char next_id_buf[128];
     char cond_buf[256];
@@ -32,7 +31,6 @@ namespace tools::talesmith {
     }
 
     void render_talk_editor(corundum::gameplay::dialogue::Node &node, EditorState &state) {
-      ImGui::InputText("Speaker", speaker_buf, sizeof(speaker_buf));
       ImGui::InputTextMultiline("Text", text_buf, sizeof(text_buf), {400.f, 80.f});
       ImGui::InputText("Next Node", next_id_buf, sizeof(next_id_buf));
       ImGui::Text("Metadata:");
@@ -152,13 +150,8 @@ namespace tools::talesmith {
       }
 
       if (node.type == corundum::gameplay::dialogue::NodeType::Talk) {
-        const auto new_speaker = from_buf(speaker_buf);
         const auto new_text = from_buf(text_buf);
         const auto new_next = from_buf(next_id_buf);
-        if (node.speaker != new_speaker) {
-          node.speaker = new_speaker;
-          state.dirty = true;
-        }
         if (node.text != new_text) {
           node.text = new_text;
           state.dirty = true;
@@ -222,7 +215,6 @@ namespace tools::talesmith {
 
       switch (node.type) {
       case corundum::gameplay::dialogue::NodeType::Talk:
-        copy_to_buf(node.speaker, speaker_buf, sizeof(speaker_buf));
         copy_to_buf(node.text, text_buf, sizeof(text_buf));
         copy_to_buf(node.next_id, next_id_buf, sizeof(next_id_buf));
         render_talk_editor(node, state);

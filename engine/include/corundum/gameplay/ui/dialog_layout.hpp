@@ -17,7 +17,7 @@ namespace corundum::gameplay::ui {
     core::math::Vec2 panel_pos{};
     core::math::Vec2 panel_size{};
     float inset{0.f};
-    std::string_view speaker{};                ///< Empty on Choice / End nodes.
+    std::string_view speaker{};                ///< Graph-level speaker name.
     std::vector<std::string> body_lines{};     ///< Wrapped body text (Talk nodes).
     std::vector<std::string> choice_lines{};   ///< One label per visible choice.
     std::vector<std::size_t> choice_indices{}; ///< choice_lines[i] → node.choices[j].
@@ -62,8 +62,9 @@ namespace corundum::gameplay::ui {
 
     const float text_w = panel_w - inset * 2.f;
 
+    layout.speaker = state.graph->speaker;
+
     if (node->type == gameplay::dialogue::NodeType::Talk) {
-      layout.speaker = node->speaker;
       layout.body_lines = gameplay::wrap_text(node->text, text_w, measure);
     } else if (node->type == gameplay::dialogue::NodeType::Choice) {
       const float choice_w = panel_w - inset * 3.f;

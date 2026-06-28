@@ -3,6 +3,7 @@
 #include "layout.hpp"
 #include "render_inspector.hpp"
 
+#include <cstring>
 #include <imgui.h>
 
 namespace tools::talesmith {
@@ -46,6 +47,36 @@ namespace tools::talesmith {
     ImGui::BeginChild("##nodes_panel", {static_cast<float>(NODE_LIST_W), avail.y}, ImGuiChildFlags_None,
                       ImGuiWindowFlags_NoScrollbar);
 
+    static char graph_speaker_buf[256] = {};
+    static char graph_id_buf[128] = {};
+
+    if (state.graph.graph_id != std::string_view(graph_id_buf)) {
+      std::strncpy(graph_id_buf, state.graph.graph_id.c_str(), sizeof(graph_id_buf) - 1);
+      graph_id_buf[sizeof(graph_id_buf) - 1] = '\0';
+    }
+    if (state.graph.speaker != std::string_view(graph_speaker_buf)) {
+      std::strncpy(graph_speaker_buf, state.graph.speaker.c_str(), sizeof(graph_speaker_buf) - 1);
+      graph_speaker_buf[sizeof(graph_speaker_buf) - 1] = '\0';
+    }
+
+    ImGui::Text("Graph ID:");
+    ImGui::SameLine();
+    ImGui::InputText("##graph_id", graph_id_buf, sizeof(graph_id_buf));
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+      state.graph.graph_id = std::string(graph_id_buf);
+      state.dirty = true;
+    }
+
+    ImGui::Text("Speaker:");
+    ImGui::SameLine();
+    ImGui::InputText("##graph_speaker", graph_speaker_buf, sizeof(graph_speaker_buf));
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+      state.graph.speaker = std::string(graph_speaker_buf);
+      state.dirty = true;
+    }
+
+    ImGui::Separator();
+
     if (ImGui::Button("+ Add Node", {static_cast<float>(NODE_LIST_W) - 20.f, 0.f}))
       state.add_node_open = true;
 
@@ -63,7 +94,7 @@ namespace tools::talesmith {
 
       std::string label;
       if (node.type == corundum::gameplay::dialogue::NodeType::Talk)
-        label = node.speaker.empty() ? node.id : node.speaker + ": " + node.text.substr(0, 30);
+        label = state.graph.speaker.empty() ? node.id : state.graph.speaker + ": " + node.text.substr(0, 30);
       else if (node.type == corundum::gameplay::dialogue::NodeType::Choice)
         label = node.choices.empty() ? node.id : node.choices[0].label.substr(0, 30);
       else

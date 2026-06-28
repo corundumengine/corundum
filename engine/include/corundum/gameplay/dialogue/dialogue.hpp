@@ -63,7 +63,6 @@ namespace corundum::gameplay::dialogue {
     std::string id; ///< Unique within the graph.
     NodeType type = NodeType::End;
 
-    std::string speaker; ///< Display name (Talk nodes only).
     std::string text;    ///< Body text (Talk nodes only).
     std::string next_id; ///< Target node id (Talk and Event nodes).
 
@@ -86,6 +85,7 @@ namespace corundum::gameplay::dialogue {
    */
   struct Graph {
     std::string graph_id;
+    std::string speaker;
     std::vector<Node> nodes;
 
     // C++23: flat_map — built once, then read-only; sorted contiguous keys hit

@@ -18,6 +18,9 @@ namespace tools::talesmith {
     json j;
     j["id"] = state.graph.graph_id;
 
+    if (!state.graph.speaker.empty())
+      j["speaker"] = state.graph.speaker;
+
     if (!state.graph.variables.empty()) {
       json vars = json::object();
       for (const auto &[k, v] : state.graph.variables)
@@ -33,9 +36,8 @@ namespace tools::talesmith {
       switch (node.type) {
       case corundum::gameplay::dialogue::NodeType::Talk:
         nj["type"] = "talk";
-        nj["speaker"] = node.speaker;
         nj["text"] = node.text;
-        if (!node.next_id.empty() && node.next_id != "end")
+        if (!node.next_id.empty())
           nj["next"] = node.next_id;
         break;
       case corundum::gameplay::dialogue::NodeType::Choice:
@@ -69,7 +71,7 @@ namespace tools::talesmith {
         nj["type"] = "event";
         if (!node.actions.empty())
           nj["actions"] = node.actions;
-        if (!node.next_id.empty() && node.next_id != "end")
+        if (!node.next_id.empty())
           nj["next"] = node.next_id;
         break;
       case corundum::gameplay::dialogue::NodeType::End:

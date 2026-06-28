@@ -26,6 +26,7 @@ static corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
 
   Graph g;
   g.graph_id = "innkeeper_intro";
+  g.speaker = "Innkeeper";
   g.variables = {{"gold", 10}};
 
   auto push = [&](Node n) {
@@ -37,7 +38,6 @@ static corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
     Node n;
     n.id = "n0";
     n.type = NodeType::Talk;
-    n.speaker = "Innkeeper";
     n.text = "Welcome, traveller. What brings you here?";
     n.next_id = "n1";
     push(std::move(n));
@@ -69,7 +69,6 @@ static corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
     Node n;
     n.id = "n2";
     n.type = NodeType::Talk;
-    n.speaker = "Innkeeper";
     n.text = "That'll be 5 gold pieces. Right this way.";
     n.next_id = "end";
     push(std::move(n));
@@ -78,7 +77,6 @@ static corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
     Node n;
     n.id = "n_already_paid";
     n.type = NodeType::Talk;
-    n.speaker = "Innkeeper";
     n.text = "You've already paid. Your room is the last one on the left. Sleep well.";
     n.next_id = "end";
     push(std::move(n));
@@ -87,7 +85,6 @@ static corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
     Node n;
     n.id = "n_bye";
     n.type = NodeType::Talk;
-    n.speaker = "Innkeeper";
     n.text = "Safe travels then. Watch the road south.";
     n.next_id = "end";
     push(std::move(n));
@@ -261,7 +258,7 @@ TEST_CASE("find_node returns correct node for known id") {
   const auto *n0 = corundum::gameplay::dialogue::find_node(g, "n0");
   REQUIRE(n0 != nullptr);
   CHECK(n0->id == "n0");
-  CHECK(n0->speaker == "Innkeeper");
+  CHECK(g.speaker == "Innkeeper");
   CHECK(n0->type == corundum::gameplay::dialogue::NodeType::Talk);
 }
 
@@ -513,13 +510,13 @@ TEST_CASE("load_graph parses innkeeper.json correctly") {
   const auto &g = *result;
 
   CHECK(g.graph_id == "innkeeper_intro");
+  CHECK(g.speaker == "Innkeeper");
   CHECK(g.nodes.size() == 6);
   CHECK(g.variables.at("gold") == 10);
 
   const auto *n0 = corundum::gameplay::dialogue::find_node(g, "n0");
   REQUIRE(n0 != nullptr);
   CHECK(n0->type == corundum::gameplay::dialogue::NodeType::Talk);
-  CHECK(n0->speaker == "Innkeeper");
   CHECK(n0->next_id == "n1");
 
   const auto *n1 = corundum::gameplay::dialogue::find_node(g, "n1");

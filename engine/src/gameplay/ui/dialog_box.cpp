@@ -68,7 +68,8 @@ namespace corundum::gameplay::ui {
       break;
     }
     case gameplay::dialogue::NodeType::Choice: {
-      draw_str("Choose:", ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
+      const char *header = lay.speaker.empty() ? "Choose:" : lay.speaker.data();
+      draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
       for (std::size_t i = 0; i < lay.choice_lines.size(); ++i) {
         const bool is_sel = (static_cast<int>(i) == lay.selected_choice);
         const std::string label = (is_sel ? "> " : "  ") + lay.choice_lines[i];
