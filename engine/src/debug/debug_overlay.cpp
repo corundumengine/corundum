@@ -80,6 +80,11 @@ namespace corundum::debug {
             .start = {x3, y3 + offset}, .end = {x0, y0 + offset}, .colour = colour, .thickness = k_line_thickness});
       };
 
+      // Full-tile collisions — the red diamonds you see in keystone.
+      for (std::size_t i = 0; i < rects.size(); ++i)
+        draw_tile_rect(rects.cols[i], rects.rows[i], rects.col_spans[i], rects.row_spans[i], k_rect_col);
+
+      // Half-tile diagonal collisions (not used in keystone).
       for (std::size_t i = 0; i < tris.size(); ++i)
         draw_tile_rect(tris.cols[i], tris.rows[i], tris.col_spans[i], tris.row_spans[i], k_tri_col);
     } else {
