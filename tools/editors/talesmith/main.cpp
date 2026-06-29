@@ -6,7 +6,9 @@
 #include "render_graph.hpp"
 #include "render_inspector.hpp"
 #include "render_node_list.hpp"
+#include "render_quest_editor.hpp"
 #include "shortcuts.hpp"
+#include "validate_quest_refs.hpp"
 
 #include <corundum/core/game_config.hpp>
 #include <format>
@@ -14,6 +16,7 @@
 #include <print>
 #include <string>
 
+using tools::talesmith::DocumentType;
 using tools::talesmith::EditorState;
 using tools::talesmith::k_default_window_h;
 using tools::talesmith::k_default_window_w;
@@ -23,29 +26,58 @@ using tools::theme::ApplyEditorThemeRefined;
 using tools::theme::load_theme;
 using tools::theme::ThemeColors;
 
-static void new_graph(EditorState &state) {
-  state.undo_stack.clear();
+static void new_dialogue(EditorState &state) {
+  state.doc_type_ = DocumentType::Dialogue;
   state.graph = {};
-  state.graph.graph_id = "untitled";
+  state.graph.graph_id = "untitled_dialogue";
+  state.quest_doc_ = {};
+  state.layout.clear();
   state.file_path.clear();
   state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.last_scroll_target_ = -1;
   state.inspector_open = false;
   state.dirty = false;
+  state.undo_stack.clear();
+}
+
+static void new_quest(EditorState &state) {
+  state.doc_type_ = DocumentType::Quest;
+  state.graph = {};
+  state.quest_doc_ = {};
+  state.quest_doc_.quest_id = "untitled_quest";
   state.layout.clear();
-  state.last_scroll_target_ = -1;
+  state.file_path.clear();
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.undo_stack.clear();
+}
+
+static std::string app_title(const EditorState &state) {
+  std::string t = "Talesmith";
+  if (!state.file_path.empty()) {
+    t += " :: " + state.file_path.filename().string();
+  } else if (state.doc_type_ == DocumentType::Quest) {
+    t += " :: Untitled Quest";
+  } else {
+    t += " :: Untitled Dialogue";
+  }
+  return t;
 }
 
 static void action_save(EditorState &state, tools::ToolApp &app) {
   if (state.file_path.empty()) {
-    const auto default_name = state.graph.graph_id + ".json";
+    auto default_name = default_doc_name(state);
     std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
                 std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
     state.popups.show_save_as = true;
   } else {
-    auto result = save_graph(state);
+    auto result = save_file(state);
     if (result) {
       state.dirty = false;
-      app.set_title("Talesmith :: " + state.file_path.filename().string());
+      app.set_title(app_title(state));
     } else {
       state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
     }
@@ -53,8 +85,7 @@ static void action_save(EditorState &state, tools::ToolApp &app) {
 }
 
 static void action_save_as(EditorState &state) {
-  const auto default_name =
-      state.file_path.empty() ? state.graph.graph_id + ".json" : state.file_path.filename().string();
+  auto default_name = default_doc_name(state);
   std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
               std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
   state.popups.show_save_as = true;
@@ -80,18 +111,29 @@ int main(int argc, char *argv[]) {
 
   EditorState state;
 
+  if (!cfg.paths.quests_dir.empty() && std::filesystem::is_directory(cfg.paths.quests_dir)) {
+    [[maybe_unused]] auto quest_count = state.quest_registry.load_all(cfg.paths.quests_dir);
+    state.quests_loaded_ = true;
+  }
+
   if (argc == 2) {
-    auto load_result = load_graph_file(state, argv[1]);
+    auto load_result = load_file(state, argv[1]);
     if (!load_result) {
       std::println(stderr, "[Talesmith] FATAL: {}", load_result.error());
       return 1;
     }
+    if (state.doc_type_ == DocumentType::Dialogue && state.quests_loaded_) {
+      auto errors = validate_quest_refs(state);
+      if (!errors.empty()) {
+        state.toast.show(
+            std::format("Quest validation: {} warning(s) — check quest references in dialogue actions", errors.size()));
+      }
+    }
   } else {
-    new_graph(state);
+    new_dialogue(state);
   }
 
-  const std::string title =
-      (argc == 2) ? std::string("Talesmith :: ") + state.file_path.filename().string() : "Talesmith :: Untitled";
+  const std::string title = app_title(state);
 
   tools::ToolApp app{static_cast<int>(k_default_window_w), static_cast<int>(k_default_window_h), title};
 
@@ -135,9 +177,16 @@ int main(int argc, char *argv[]) {
     // ── Menu bar ──────────────────────────────────────────────────────────────
     if (ImGui::BeginMenuBar()) {
       if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New", "Ctrl+N")) {
-          new_graph(state);
-          app.set_title("Talesmith :: Untitled");
+        if (ImGui::BeginMenu("New")) {
+          if (ImGui::MenuItem("Dialogue Graph", "Ctrl+N")) {
+            new_dialogue(state);
+            app.set_title(app_title(state));
+          }
+          if (ImGui::MenuItem("Quest", "Ctrl+Shift+N")) {
+            new_quest(state);
+            app.set_title(app_title(state));
+          }
+          ImGui::EndMenu();
         }
         if (ImGui::MenuItem("Open...", "Ctrl+O")) {
           action_open(state);
@@ -174,11 +223,15 @@ int main(int argc, char *argv[]) {
         if (!path.ends_with(".json"))
           path += ".json";
         state.file_path = path;
-        state.graph.graph_id = std::filesystem::path(path).stem().string();
-        auto result = save_graph(state);
+        if (state.doc_type_ == DocumentType::Quest) {
+          state.quest_doc_.quest_id = std::filesystem::path(path).stem().string();
+        } else {
+          state.graph.graph_id = std::filesystem::path(path).stem().string();
+        }
+        auto result = save_file(state);
         if (result) {
           state.dirty = false;
-          app.set_title("Talesmith :: " + state.file_path.filename().string());
+          app.set_title(app_title(state));
           ImGui::CloseCurrentPopup();
         } else {
           state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
@@ -202,9 +255,9 @@ int main(int argc, char *argv[]) {
       ImGui::InputText("##openpath", state.popups.open_path_buf, sizeof(state.popups.open_path_buf));
       if (ImGui::Button("Open") && state.popups.open_path_buf[0] != '\0') {
         std::string path(state.popups.open_path_buf);
-        auto result = load_graph_file(state, path);
+        auto result = load_file(state, path);
         if (result) {
-          app.set_title("Talesmith :: " + std::filesystem::path(path).filename().string());
+          app.set_title(app_title(state));
           std::memset(state.popups.open_path_buf, 0, sizeof(state.popups.open_path_buf));
           ImGui::CloseCurrentPopup();
         } else {
@@ -227,7 +280,7 @@ int main(int argc, char *argv[]) {
     if (ImGui::BeginPopupModal("Unsaved Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
       ImGui::Text("You have unsaved changes. Save before closing?");
       if (ImGui::Button("Save")) {
-        auto result = save_graph(state);
+        auto result = save_file(state);
         if (result) {
           state.dirty = false;
           ImGui::CloseCurrentPopup();
@@ -248,34 +301,37 @@ int main(int argc, char *argv[]) {
       ImGui::EndPopup();
     }
 
-    // ── Compute graph width before panels ───────────────────────────────
-    const ImVec2 root_avail = ImGui::GetContentRegionAvail();
-    state.graph_width_ = root_avail.x - state.node_list_width_ - (state.inspector_open ? state.inspector_width_ : 0.f);
+    if (state.doc_type_ == DocumentType::Dialogue) {
+      // ── DIALOGUE LAYOUT: Node list | Graph | Inspector ──
+      const ImVec2 root_avail = ImGui::GetContentRegionAvail();
+      state.graph_width_ =
+          root_avail.x - state.node_list_width_ - (state.inspector_open ? state.inspector_width_ : 0.f);
 
-    // ── Main panels (children of root, below menu bar) ────────────────────────
-    render_node_list(state);
+      render_node_list(state);
 
-    // ── Splitter: node list | graph ──
-    ImGui::SameLine();
-    ImGui::InvisibleButton("##splitter_nl", {4.f, ImGui::GetContentRegionAvail().y});
-    if (ImGui::IsItemActive())
-      state.node_list_width_ = std::clamp(state.node_list_width_ + ImGui::GetIO().MouseDelta.x, 160.f, 500.f);
-    if (ImGui::IsItemHovered())
-      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-
-    render_graph(state);
-
-    if (state.inspector_open) {
-      // ── Splitter: graph | inspector ──
       ImGui::SameLine();
-      ImGui::InvisibleButton("##splitter_insp", {4.f, ImGui::GetContentRegionAvail().y});
+      ImGui::InvisibleButton("##splitter_nl", {4.f, ImGui::GetContentRegionAvail().y});
       if (ImGui::IsItemActive())
-        state.inspector_width_ = std::clamp(state.inspector_width_ + ImGui::GetIO().MouseDelta.x, 200.f, 600.f);
+        state.node_list_width_ = std::clamp(state.node_list_width_ + ImGui::GetIO().MouseDelta.x, 160.f, 500.f);
       if (ImGui::IsItemHovered())
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 
-      ImGui::SameLine();
-      render_inspector(state, state.inspector_width_);
+      render_graph(state);
+
+      if (state.inspector_open) {
+        ImGui::SameLine();
+        ImGui::InvisibleButton("##splitter_right", {4.f, ImGui::GetContentRegionAvail().y});
+        if (ImGui::IsItemActive())
+          state.inspector_width_ = std::clamp(state.inspector_width_ + ImGui::GetIO().MouseDelta.x, 200.f, 800.f);
+        if (ImGui::IsItemHovered())
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+        ImGui::SameLine();
+        render_inspector(state, state.inspector_width_);
+      }
+    } else {
+      // ── QUEST LAYOUT ──
+      render_quest_editor(state);
     }
 
     ImGui::End(); // ##root

@@ -4,6 +4,6 @@
 
 namespace tools::talesmith {
 
-  void render_inspector(EditorState &state, float width, float height = -1.f);
+  void render_quest_editor(EditorState &state);
 
 } // namespace tools::talesmith

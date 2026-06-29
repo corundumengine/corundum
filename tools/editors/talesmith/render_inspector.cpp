@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <format>
 #include <imgui.h>
+#include <vector>
 
 namespace tools::talesmith {
 
@@ -17,6 +19,140 @@ namespace tools::talesmith {
 
     std::string from_buf(const char *buf) {
       return std::string(buf);
+    }
+
+    void render_quest_action_quick_add(EditorState &state, std::vector<std::string> &actions) {
+      if (!state.quests_loaded_)
+        return;
+
+      std::vector<const char *> quest_ids;
+      for (const auto &[id, quest] : state.quest_registry)
+        quest_ids.push_back(id.c_str());
+      if (quest_ids.empty())
+        return;
+
+      auto &q = state.inspector_bufs;
+      if (q.quick_quest_idx >= static_cast<int>(quest_ids.size()))
+        q.quick_quest_idx = 0;
+
+      ImGui::SeparatorText("Quick Add Quest Action");
+
+      if (ImGui::BeginCombo("##qaq_quest", quest_ids[q.quick_quest_idx])) {
+        for (int i = 0; i < static_cast<int>(quest_ids.size()); ++i) {
+          if (ImGui::Selectable(quest_ids[i], q.quick_quest_idx == i))
+            q.quick_quest_idx = i;
+        }
+        ImGui::EndCombo();
+      }
+
+      ImGui::SameLine();
+      const char *action_types[] = {"quest_start", "quest_advance"};
+      ImGui::Combo("##qaq_action", &q.quick_action_type, action_types, 2);
+
+      if (q.quick_action_type == 1) {
+        const auto *quest = state.quest_registry.find(quest_ids[q.quick_quest_idx]);
+        if (quest && !quest->stages.empty()) {
+          ImGui::SameLine();
+          if (q.quick_stage_idx >= static_cast<int>(quest->stages.size()))
+            q.quick_stage_idx = 0;
+          const char *preview = quest->stages[q.quick_stage_idx].name.c_str();
+          if (ImGui::BeginCombo("##qaq_stage", preview)) {
+            for (int i = 0; i < static_cast<int>(quest->stages.size()); ++i) {
+              if (ImGui::Selectable(quest->stages[i].name.c_str(), q.quick_stage_idx == i))
+                q.quick_stage_idx = i;
+            }
+            ImGui::EndCombo();
+          }
+        }
+      }
+
+      ImGui::SameLine();
+      if (ImGui::SmallButton("+##qaq_add")) {
+        const auto &quest_id = quest_ids[q.quick_quest_idx];
+        std::string action_str;
+        if (q.quick_action_type == 0) {
+          action_str = std::format("quest_start('{}')", quest_id);
+        } else {
+          const auto *quest = state.quest_registry.find(quest_id);
+          if (quest && q.quick_stage_idx < static_cast<int>(quest->stages.size())) {
+            action_str = std::format("quest_advance('{}', '{}')", quest_id, quest->stages[q.quick_stage_idx].name);
+          }
+        }
+        if (!action_str.empty()) {
+          state.push_undo_snapshot();
+          actions.push_back(action_str);
+          state.dirty = true;
+        }
+      }
+    }
+
+    void render_quest_condition_quick_add(EditorState &state, char *cond_buf, int cond_buf_size) {
+      if (!state.quests_loaded_)
+        return;
+
+      std::vector<const char *> quest_ids;
+      for (const auto &[id, quest] : state.quest_registry)
+        quest_ids.push_back(id.c_str());
+      if (quest_ids.empty())
+        return;
+
+      auto &q = state.inspector_bufs;
+      if (q.quick_quest_idx >= static_cast<int>(quest_ids.size()))
+        q.quick_quest_idx = 0;
+
+      ImGui::SeparatorText("Quick Add Condition");
+
+      if (ImGui::BeginCombo("##qac_quest", quest_ids[q.quick_quest_idx])) {
+        for (int i = 0; i < static_cast<int>(quest_ids.size()); ++i) {
+          if (ImGui::Selectable(quest_ids[i], q.quick_quest_idx == i))
+            q.quick_quest_idx = i;
+        }
+        ImGui::EndCombo();
+      }
+
+      ImGui::SameLine();
+      const char *cond_types[] = {"quest_started", "quest_resolved", "quest_failed", "quest_at"};
+      ImGui::Combo("##qac_cond", &q.quick_cond_type, cond_types, 4);
+
+      if (q.quick_cond_type == 3) {
+        const auto *quest = state.quest_registry.find(quest_ids[q.quick_quest_idx]);
+        if (quest && !quest->stages.empty()) {
+          ImGui::SameLine();
+          if (q.quick_cond_stage_idx >= static_cast<int>(quest->stages.size()))
+            q.quick_cond_stage_idx = 0;
+          const char *preview = quest->stages[q.quick_cond_stage_idx].name.c_str();
+          if (ImGui::BeginCombo("##qac_stage", preview)) {
+            for (int i = 0; i < static_cast<int>(quest->stages.size()); ++i) {
+              if (ImGui::Selectable(quest->stages[i].name.c_str(), q.quick_cond_stage_idx == i))
+                q.quick_cond_stage_idx = i;
+            }
+            ImGui::EndCombo();
+          }
+        }
+      }
+
+      ImGui::SameLine();
+      if (ImGui::SmallButton("+##qac_add")) {
+        const auto &quest_id = quest_ids[q.quick_quest_idx];
+        std::string cond_str;
+        if (q.quick_cond_type == 0)
+          cond_str = std::format("quest_started({})", quest_id);
+        else if (q.quick_cond_type == 1)
+          cond_str = std::format("quest_resolved({})", quest_id);
+        else if (q.quick_cond_type == 2)
+          cond_str = std::format("quest_failed({})", quest_id);
+        else {
+          const auto *quest = state.quest_registry.find(quest_id);
+          if (quest && q.quick_cond_stage_idx < static_cast<int>(quest->stages.size()))
+            cond_str = std::format("quest_at({}, {})", quest_id, quest->stages[q.quick_cond_stage_idx].name);
+        }
+        if (!cond_str.empty()) {
+          std::memset(cond_buf, 0, static_cast<std::size_t>(cond_buf_size));
+          std::memcpy(cond_buf, cond_str.data(),
+                      std::min(cond_str.size(), static_cast<std::size_t>(cond_buf_size - 1)));
+          state.dirty = true;
+        }
+      }
     }
 
     void render_talk_editor(corundum::gameplay::dialogue::Node &node, EditorState &state) {
@@ -104,6 +240,15 @@ namespace tools::talesmith {
             ch.condition = std::move(cond_str);
           state.dirty = true;
         }
+        if (state.quests_loaded_) {
+          std::string cond_before = from_buf(local_cond);
+          render_quest_condition_quick_add(state, local_cond, sizeof(local_cond));
+          std::string cond_after = from_buf(local_cond);
+          if (cond_after != cond_before) {
+            ch.condition = std::move(cond_after);
+            state.dirty = true;
+          }
+        }
 
         static const char *seq_labels[] = {"None", "Once", "Cycle", "Random"};
         int local_seq = static_cast<int>(ch.sequence);
@@ -139,6 +284,8 @@ namespace tools::talesmith {
           state.dirty = true;
           std::memset(state.inspector_bufs.action_buf, 0, sizeof(state.inspector_bufs.action_buf));
         }
+
+        render_quest_action_quick_add(state, ch.actions);
 
         ImGui::SameLine();
         if (ImGui::SmallButton("Delete Choice")) {
@@ -180,11 +327,12 @@ namespace tools::talesmith {
         state.dirty = true;
         std::memset(state.inspector_bufs.action_buf, 0, sizeof(state.inspector_bufs.action_buf));
       }
+      render_quest_action_quick_add(state, node.actions);
     }
 
   } // namespace
 
-  void render_inspector(EditorState &state, float width) {
+  void render_inspector(EditorState &state, float width, float height) {
     if (state.selected_node < 0 || state.selected_node >= static_cast<int>(state.graph.nodes.size())) {
       state.inspector_open = false;
       return;
@@ -192,7 +340,7 @@ namespace tools::talesmith {
 
     auto &node = state.graph.nodes[state.selected_node];
 
-    const float avail_y = ImGui::GetContentRegionAvail().y;
+    const float avail_y = (height > 0.f) ? height : ImGui::GetContentRegionAvail().y;
     ImGui::BeginChild("##inspector_panel", {width, avail_y}, ImGuiChildFlags_Borders);
 
     ImGui::Text("Inspector");

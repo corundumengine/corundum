@@ -129,6 +129,7 @@ add_executable(talesmith
     editors/talesmith/render_graph.cpp
     editors/talesmith/render_inspector.cpp
     editors/talesmith/render_node_list.cpp
+    editors/talesmith/render_quest_editor.cpp
 )
 
 target_include_directories(talesmith

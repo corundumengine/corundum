@@ -1,6 +1,8 @@
 #pragma once
 
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
 
 #include <cstddef>
 #include <cstring>
@@ -9,6 +11,8 @@
 #include <vector>
 
 namespace tools::talesmith {
+
+  enum class DocumentType : uint8_t { Dialogue, Quest };
 
   struct CanvasTransform {
     float offset_x = 0.f;
@@ -44,6 +48,12 @@ namespace tools::talesmith {
     char meta_key_buf[128]{};
     char meta_val_buf[256]{};
 
+    int quick_quest_idx = 0;
+    int quick_action_type = 0;
+    int quick_stage_idx = 0;
+    int quick_cond_type = 0;
+    int quick_cond_stage_idx = 0;
+
     void clear() {
       std::memset(id_buf, 0, sizeof(id_buf));
       std::memset(text_buf, 0, sizeof(text_buf));
@@ -59,7 +69,10 @@ namespace tools::talesmith {
 
   struct GraphSnapshot {
     corundum::gameplay::dialogue::Graph graph;
+    corundum::gameplay::quest::Quest quest;
+    DocumentType doc_type = DocumentType::Dialogue;
     int selected_node = -1;
+    int selected_stage = -1;
   };
 
   struct UndoStack {
@@ -120,9 +133,13 @@ namespace tools::talesmith {
     std::filesystem::path file_path;
     bool dirty = false;
 
+    DocumentType doc_type_ = DocumentType::Dialogue;
+
     corundum::gameplay::dialogue::Graph graph;
+    corundum::gameplay::quest::Quest quest_doc_;
 
     int selected_node = -1;
+    int selected_stage_ = -1;
     bool inspector_open = false;
 
     int last_scroll_target_ = -1;
@@ -135,6 +152,8 @@ namespace tools::talesmith {
     char graph_speaker_buf_[256]{};
     char graph_id_buf_[128]{};
     CanvasTransform canvas;
+    corundum::gameplay::quest::Registry quest_registry;
+    bool quests_loaded_ = false;
     PopupState popups;
     InspectorState inspector_bufs;
     ToastState toast;
@@ -147,7 +166,10 @@ namespace tools::talesmith {
     void push_undo_snapshot() {
       GraphSnapshot snap;
       snap.graph = graph;
+      snap.quest = quest_doc_;
+      snap.doc_type = doc_type_;
       snap.selected_node = selected_node;
+      snap.selected_stage = selected_stage_;
       undo_stack.push(snap);
     }
   };
