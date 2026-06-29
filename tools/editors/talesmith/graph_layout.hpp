@@ -4,6 +4,6 @@
 
 namespace tools::talesmith {
 
-  void recompute_layout(corundum::gameplay::dialogue::Graph &graph, std::vector<NodeLayout> &layout);
+  void recompute_layout(corundum::gameplay::dialogue::Graph &graph, std::vector<NodeLayout> &layout, float graph_width);
 
 } // namespace tools::talesmith

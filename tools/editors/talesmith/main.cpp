@@ -4,21 +4,27 @@
 #include "file_io.hpp"
 #include "layout.hpp"
 #include "render_graph.hpp"
+#include "render_inspector.hpp"
 #include "render_node_list.hpp"
+#include "shortcuts.hpp"
 
 #include <corundum/core/game_config.hpp>
+#include <format>
 #include <imgui.h>
 #include <print>
 #include <string>
 
 using tools::talesmith::EditorState;
-using tools::talesmith::WINDOW_H;
-using tools::talesmith::WINDOW_W;
+using tools::talesmith::k_default_window_h;
+using tools::talesmith::k_default_window_w;
+using tools::talesmith::process_shortcuts;
+using tools::talesmith::ShortcutMap;
 using tools::theme::ApplyEditorThemeRefined;
 using tools::theme::load_theme;
 using tools::theme::ThemeColors;
 
 static void new_graph(EditorState &state) {
+  state.undo_stack.clear();
   state.graph = {};
   state.graph.graph_id = "untitled";
   state.file_path.clear();
@@ -26,12 +32,37 @@ static void new_graph(EditorState &state) {
   state.inspector_open = false;
   state.dirty = false;
   state.layout.clear();
+  state.last_scroll_target_ = -1;
 }
 
-static bool show_save_as = false;
-static char save_as_path_buf[512] = {};
-static bool show_open = false;
-static char open_path_buf[512] = {};
+static void action_save(EditorState &state, tools::ToolApp &app) {
+  if (state.file_path.empty()) {
+    const auto default_name = state.graph.graph_id + ".json";
+    std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
+                std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
+    state.popups.show_save_as = true;
+  } else {
+    auto result = save_graph(state);
+    if (result) {
+      state.dirty = false;
+      app.set_title("Talesmith :: " + state.file_path.filename().string());
+    } else {
+      state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+    }
+  }
+}
+
+static void action_save_as(EditorState &state) {
+  const auto default_name =
+      state.file_path.empty() ? state.graph.graph_id + ".json" : state.file_path.filename().string();
+  std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
+              std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
+  state.popups.show_save_as = true;
+}
+
+static void action_open(EditorState &state) {
+  state.popups.show_open = true;
+}
 
 int main(int argc, char *argv[]) {
   if (argc > 2) {
@@ -62,7 +93,7 @@ int main(int argc, char *argv[]) {
   const std::string title =
       (argc == 2) ? std::string("Talesmith :: ") + state.file_path.filename().string() : "Talesmith :: Untitled";
 
-  tools::ToolApp app{WINDOW_W, WINDOW_H, title};
+  tools::ToolApp app{static_cast<int>(k_default_window_w), static_cast<int>(k_default_window_h), title};
 
   ImGuiIO &io = ImGui::GetIO();
   io.Fonts->Clear();
@@ -73,11 +104,14 @@ int main(int argc, char *argv[]) {
   if (auto t = load_theme("tools/editors/common/editor_dark.json"); t)
     theme = *t;
   else {
-    std::println(stderr, "[Talesmith] Theme load failed: {} — using fallback", t.error());
+    state.toast.show(std::format("[Talesmith] Theme load failed: {} — using fallback", t.error()));
     theme = ApplyEditorThemeRefined();
   }
 
   bool running = true;
+
+  ShortcutMap shortcuts;
+  build_shortcuts(shortcuts, state, app, running);
 
   app.run([&]() {
     if (!running) {
@@ -106,48 +140,37 @@ int main(int argc, char *argv[]) {
           app.set_title("Talesmith :: Untitled");
         }
         if (ImGui::MenuItem("Open...", "Ctrl+O")) {
-          show_open = true;
+          action_open(state);
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Save", "Ctrl+S", false, !state.file_path.empty() || state.dirty)) {
-          if (state.file_path.empty()) {
-            std::memcpy(save_as_path_buf, state.graph.graph_id.c_str(), state.graph.graph_id.size() + 1);
-            show_save_as = true;
-          } else {
-            auto result = save_graph(state);
-            if (result) {
-              state.dirty = false;
-              app.set_title("Talesmith :: " + state.file_path.filename().string());
-            } else {
-              std::println(stderr, "[Talesmith] Save error: {}", result.error());
-            }
-          }
+          action_save(state, app);
         }
         if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
-          const auto default_name =
-              state.file_path.empty() ? state.graph.graph_id + ".json" : state.file_path.filename().string();
-          std::memcpy(save_as_path_buf, default_name.c_str(),
-                      std::min(default_name.size(), sizeof(save_as_path_buf) - 1));
-          show_save_as = true;
+          action_save_as(state);
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("Quit", "Ctrl+Q"))
-          running = false;
+        if (ImGui::MenuItem("Quit", "Ctrl+Q")) {
+          if (state.dirty)
+            state.popups.show_close_confirm = true;
+          else
+            running = false;
+        }
         ImGui::EndMenu();
       }
       ImGui::EndMenuBar();
     }
 
     // ── Save As popup ─────────────────────────────────────────────────────────
-    if (show_save_as) {
+    if (state.popups.show_save_as) {
       ImGui::OpenPopup("Save Dialogue Graph As");
-      show_save_as = false;
+      state.popups.show_save_as = false;
     }
     if (ImGui::BeginPopupModal("Save Dialogue Graph As", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
       ImGui::Text("File path:");
-      ImGui::InputText("##savepath", save_as_path_buf, sizeof(save_as_path_buf));
-      if (ImGui::Button("Save") && save_as_path_buf[0] != '\0') {
-        std::string path(save_as_path_buf);
+      ImGui::InputText("##savepath", state.popups.save_as_path_buf, sizeof(state.popups.save_as_path_buf));
+      if (ImGui::Button("Save") && state.popups.save_as_path_buf[0] != '\0') {
+        std::string path(state.popups.save_as_path_buf);
         if (!path.ends_with(".json"))
           path += ".json";
         state.file_path = path;
@@ -158,64 +181,125 @@ int main(int argc, char *argv[]) {
           app.set_title("Talesmith :: " + state.file_path.filename().string());
           ImGui::CloseCurrentPopup();
         } else {
-          std::println(stderr, "[Talesmith] Save error: {}", result.error());
+          state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
         }
       }
       ImGui::SameLine();
       if (ImGui::Button("Cancel")) {
-        save_as_path_buf[0] = '\0';
+        state.popups.save_as_path_buf[0] = '\0';
         ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();
     }
 
     // ── Open popup ────────────────────────────────────────────────────────────
-    if (show_open) {
+    if (state.popups.show_open) {
       ImGui::OpenPopup("Open Dialogue Graph");
-      show_open = false;
+      state.popups.show_open = false;
     }
     if (ImGui::BeginPopupModal("Open Dialogue Graph", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
       ImGui::Text("File path:");
-      ImGui::InputText("##openpath", open_path_buf, sizeof(open_path_buf));
-      if (ImGui::Button("Open") && open_path_buf[0] != '\0') {
-        std::string path(open_path_buf);
+      ImGui::InputText("##openpath", state.popups.open_path_buf, sizeof(state.popups.open_path_buf));
+      if (ImGui::Button("Open") && state.popups.open_path_buf[0] != '\0') {
+        std::string path(state.popups.open_path_buf);
         auto result = load_graph_file(state, path);
         if (result) {
           app.set_title("Talesmith :: " + std::filesystem::path(path).filename().string());
-          std::memset(open_path_buf, 0, sizeof(open_path_buf));
+          std::memset(state.popups.open_path_buf, 0, sizeof(state.popups.open_path_buf));
           ImGui::CloseCurrentPopup();
         } else {
-          std::println(stderr, "[Talesmith] Load error: {}", result.error());
+          state.toast.show(std::format("[Talesmith] Load error: {}", result.error()));
         }
       }
       ImGui::SameLine();
       if (ImGui::Button("Cancel")) {
-        std::memset(open_path_buf, 0, sizeof(open_path_buf));
+        std::memset(state.popups.open_path_buf, 0, sizeof(state.popups.open_path_buf));
         ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();
     }
 
+    // ── Close confirmation popup ────────────────────────────────────────────
+    if (state.popups.show_close_confirm) {
+      ImGui::OpenPopup("Unsaved Changes");
+      state.popups.show_close_confirm = false;
+    }
+    if (ImGui::BeginPopupModal("Unsaved Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::Text("You have unsaved changes. Save before closing?");
+      if (ImGui::Button("Save")) {
+        auto result = save_graph(state);
+        if (result) {
+          state.dirty = false;
+          ImGui::CloseCurrentPopup();
+          running = false;
+        } else {
+          state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+        }
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Don't Save")) {
+        ImGui::CloseCurrentPopup();
+        running = false;
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel")) {
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+    }
+
+    // ── Compute graph width before panels ───────────────────────────────
+    const ImVec2 root_avail = ImGui::GetContentRegionAvail();
+    state.graph_width_ = root_avail.x - state.node_list_width_ - (state.inspector_open ? state.inspector_width_ : 0.f);
+
     // ── Main panels (children of root, below menu bar) ────────────────────────
     render_node_list(state);
+
+    // ── Splitter: node list | graph ──
+    ImGui::SameLine();
+    ImGui::InvisibleButton("##splitter_nl", {4.f, ImGui::GetContentRegionAvail().y});
+    if (ImGui::IsItemActive())
+      state.node_list_width_ = std::clamp(state.node_list_width_ + ImGui::GetIO().MouseDelta.x, 160.f, 500.f);
+    if (ImGui::IsItemHovered())
+      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
     render_graph(state);
+
+    if (state.inspector_open) {
+      // ── Splitter: graph | inspector ──
+      ImGui::SameLine();
+      ImGui::InvisibleButton("##splitter_insp", {4.f, ImGui::GetContentRegionAvail().y});
+      if (ImGui::IsItemActive())
+        state.inspector_width_ = std::clamp(state.inspector_width_ + ImGui::GetIO().MouseDelta.x, 200.f, 600.f);
+      if (ImGui::IsItemHovered())
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+      ImGui::SameLine();
+      render_inspector(state, state.inspector_width_);
+    }
 
     ImGui::End(); // ##root
 
-    // ── Keyboard shortcuts ────────────────────────────────────────────────────
-    const bool ctrl_s = ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S);
-    const bool ctrl_shift_s = ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S);
-    const bool ctrl_o = ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_O);
+    // ── Toast notification bar ───────────────────────────────────────────
+    if (state.toast.frames_remaining > 0) {
+      state.toast.frames_remaining--;
+      const ImGuiViewport *viewport = ImGui::GetMainViewport();
+      ImGui::SetNextWindowPos({viewport->WorkPos.x, viewport->WorkPos.y + viewport->WorkSize.y - 36.f});
+      ImGui::SetNextWindowSize({viewport->WorkSize.x, 36.f});
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+      ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(180, 40, 40, 220));
+      ImGui::Begin("##toast", nullptr,
+                   ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                       ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+      ImGui::Text("%s", state.toast.message.c_str());
+      ImGui::End();
+      ImGui::PopStyleColor();
+      ImGui::PopStyleVar(2);
+    }
 
-    if (ctrl_s || ctrl_shift_s) {
-      const auto default_name =
-          state.file_path.empty() ? state.graph.graph_id + ".json" : state.file_path.filename().string();
-      std::memcpy(save_as_path_buf, default_name.c_str(), std::min(default_name.size(), sizeof(save_as_path_buf) - 1));
-      show_save_as = true;
-    }
-    if (ctrl_o) {
-      show_open = true;
-    }
+    // ── Keyboard shortcuts ───────────────────────────────────────────────
+    process_shortcuts(shortcuts);
   });
 
   return 0;

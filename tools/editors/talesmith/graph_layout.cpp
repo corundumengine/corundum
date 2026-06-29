@@ -8,7 +8,8 @@
 
 namespace tools::talesmith {
 
-  void recompute_layout(corundum::gameplay::dialogue::Graph &graph, std::vector<NodeLayout> &layout) {
+  void recompute_layout(corundum::gameplay::dialogue::Graph &graph, std::vector<NodeLayout> &layout,
+                        float graph_width) {
     layout.clear();
     const auto n = graph.nodes.size();
     if (n == 0)
@@ -75,7 +76,7 @@ namespace tools::talesmith {
       auto &nodes = layer_nodes[l];
       const auto count = nodes.size();
       const float total_w = count * NODE_W + (count - 1) * NODE_SPACING_X;
-      const float start_x = (GRAPH_W - total_w) * 0.5f;
+      const float start_x = (graph_width - total_w) * 0.5f;
       for (std::size_t i = 0; i < count; ++i) {
         const auto idx = nodes[i];
         layout[idx].layer = l;

@@ -109,7 +109,9 @@ namespace tools::talesmith {
     state.selected_node = -1;
     state.inspector_open = false;
     state.dirty = false;
-    recompute_layout(state.graph, state.layout);
+    state.last_scroll_target_ = -1;
+    state.undo_stack.clear();
+    recompute_layout(state.graph, state.layout, state.graph_width_);
     return {};
   }
 
