@@ -1,3 +1,4 @@
+#include <corundum/core/json_schema.hpp>
 #include <corundum/gameplay/quest/loader.hpp>
 
 #include <algorithm>
@@ -17,30 +18,22 @@ namespace corundum::gameplay::quest {
 
     constexpr std::string_view k_ctx = "quest";
 
-    template <typename T> static T require(const json &obj, const std::string &key, const std::string &ctx) {
-      if (!obj.contains(key))
-        throw LoadError(std::format("[{}] missing required field \"{}\"", ctx, key));
-      try {
-        return obj[key].get<T>();
-      } catch (const json::type_error &e) {
-        throw LoadError(std::format("[{}] field \"{}\" has wrong type: {}", ctx, key, e.what()));
-      }
-    }
-
-    static Objective parse_objective(const json &j, const std::string &stage_ctx) {
+    static Objective parse_objective(const json &obj_json) {
+      // Schema guarantees: text is present and non-empty.
       Objective obj;
-      obj.text = require<std::string>(j, "text", stage_ctx);
-      if (j.contains("done_condition"))
-        obj.done_condition = j["done_condition"].get<std::string>();
+      obj.text = obj_json["text"].get<std::string>();
+      if (obj_json.contains("done_condition"))
+        obj.done_condition = obj_json["done_condition"].get<std::string>();
       return obj;
     }
 
     static Stage parse_stage(const json &j, std::size_t index) {
       const auto ctx = std::format("stage[{}]", index);
 
+      // Schema guarantees: name and sequence are present, sequence >= 1.
       Stage stage;
-      stage.name = require<std::string>(j, "name", ctx);
-      stage.sequence = require<int>(j, "sequence", ctx);
+      stage.name = j["name"].get<std::string>();
+      stage.sequence = j["sequence"].get<int>();
 
       if (j.contains("resolved"))
         stage.resolved = j["resolved"].get<bool>();
@@ -51,12 +44,10 @@ namespace corundum::gameplay::quest {
           stage.resolved = true;
       }
 
-      const auto objs = require<json>(j, "objectives", ctx);
-      if (!objs.is_array())
-        throw LoadError(std::format("[{}] \"objectives\" must be an array", ctx));
-
+      // Schema guarantees: objectives is present.
+      const auto &objs = j["objectives"];
       for (std::size_t i = 0; i < objs.size(); ++i)
-        stage.objectives.push_back(parse_objective(objs[i], std::format("{}.objectives[{}]", ctx, i)));
+        stage.objectives.push_back(parse_objective(objs[i]));
 
       return stage;
     }
@@ -66,38 +57,36 @@ namespace corundum::gameplay::quest {
       if (!f)
         throw LoadError(std::format("cannot open quest file: {}", path));
 
-      json j;
-      try {
-        j = json::parse(f);
-      } catch (const json::exception &e) {
-        throw LoadError(std::format("malformed quest JSON: {}", e.what()));
+      const json root = [&] {
+        try {
+          return json::parse(f);
+        } catch (const json::exception &e) {
+          throw LoadError(std::format("malformed quest JSON: {}", e.what()));
+        }
+      }();
+
+      // ── Schema validation ──────────────────────────────────────────────────
+      {
+        auto sv = core::quest_schema().validate(root);
+        if (!sv)
+          throw LoadError(std::format("[schema] {}", sv.error()));
       }
 
-      const auto ctx = std::string(k_ctx);
+      // ── Type field (optional — directory context tells us the type) ────────
+      if (root.contains("type") && root["type"].is_string() && root["type"] != "quest")
+        std::println(stderr, "[warning] quest file {} has type \"{}\" instead of \"quest\"", path,
+                     root["type"].get<std::string>());
 
-      const auto type_val = require<std::string>(j, "type", ctx);
-      if (type_val != "quest")
-        throw LoadError(std::format("[{}] \"type\" must be \"quest\", got \"{}\"", ctx, type_val));
-
+      // Schema guarantees: id, name, description are present; id and name are non-empty.
       Quest quest;
-      quest.quest_id = require<std::string>(j, "id", ctx);
-      quest.name = require<std::string>(j, "name", ctx);
-      quest.description = require<std::string>(j, "description", ctx);
+      quest.quest_id = root["id"].get<std::string>();
+      quest.name = root["name"].get<std::string>();
+      quest.description = root["description"].get<std::string>();
 
-      if (quest.quest_id.empty())
-        throw LoadError(std::format("[{}] \"id\" must not be empty", k_ctx));
-      if (quest.name.empty())
-        throw LoadError(std::format("[{}] \"name\" must not be empty", k_ctx));
-
-      const auto stages = require<json>(j, "stages", ctx);
-      if (!stages.is_array())
-        throw LoadError(std::format("[{}] \"stages\" must be an array", k_ctx));
-
+      // Schema guarantees: stages is a non-empty array.
+      const auto &stages = root["stages"];
       for (std::size_t i = 0; i < stages.size(); ++i)
         quest.stages.push_back(parse_stage(stages[i], i));
-
-      if (quest.stages.empty())
-        throw LoadError(std::format("[{}] must have at least one stage", k_ctx));
 
       // Validate unique stage names via sort + adjacent_find
       {
@@ -112,13 +101,8 @@ namespace corundum::gameplay::quest {
       }
 
       // Validate unique positive sequences via sort + adjacent_find
+      // (schema already enforces >= 1 via minimum)
       {
-        for (const auto &stage : quest.stages) {
-          if (stage.sequence <= 0)
-            throw LoadError(
-                std::format("[{}] stage \"{}\" has non-positive sequence {}", k_ctx, stage.name, stage.sequence));
-        }
-
         std::vector<int> seqs;
         seqs.reserve(quest.stages.size());
         for (const auto &stage : quest.stages)

@@ -15,6 +15,8 @@ add_library(engine STATIC
     src/core/files.cpp
     src/physics/collision.cpp
     src/core/game_config.cpp
+    src/core/json_schema.cpp
+    src/core/json_io.cpp
     src/gameplay/world/actors/actor_loader.cpp
     src/gameplay/world/portals/portal.cpp
     src/anim/sys/anim_sys.cpp
@@ -39,7 +41,8 @@ add_library(engine STATIC
 target_include_directories(engine PUBLIC include)
 
 # Link dependencies that the engine itself needs
-target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json
+                                   PUBLIC nlohmann_json_schema_validator::validator)
 
 # PCH — stable STL + third-party headers that are slow to parse
 target_precompile_headers(engine PRIVATE src/pch.hpp)

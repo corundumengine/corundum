@@ -1,7 +1,7 @@
 #include "new_map_dialog.hpp"
 #include <algorithm>
+#include <corundum/core/json_io.hpp>
 #include <filesystem>
-#include <fstream>
 #include <imgui.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -125,13 +125,11 @@ namespace tools::tilemap {
     j["tilesets"] = nlohmann::json::array({{{"first_gid", 0}, {"source", dlg.tileset_source}}});
     j["layers"] = nlohmann::json::array({{{"name", dlg.layer_name}, {"objects", nlohmann::json::array()}}});
 
-    std::ofstream out{dest};
-    if (!out)
-      return std::unexpected{std::string{"Cannot open for writing: "} + dest.string()};
-
-    out << j.dump(2) << '\n';
-    if (!out)
-      return std::unexpected{std::string{"Write failed: "} + dest.string()};
+    {
+      auto res = corundum::core::write_json(dest, j);
+      if (!res)
+        return std::unexpected(res.error());
+    }
 
     return dest;
   }

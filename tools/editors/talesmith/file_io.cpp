@@ -1,6 +1,7 @@
 #include "file_io.hpp"
 #include "graph_layout.hpp"
 
+#include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/dialogue/loader.hpp>
 #include <corundum/gameplay/quest/loader.hpp>
 
@@ -104,10 +105,11 @@ namespace tools::talesmith {
     }
     j["nodes"] = nodes_arr;
 
-    std::ofstream f(state.file_path);
-    if (!f)
-      return std::unexpected(std::format("Cannot write to {}", state.file_path.string()));
-    f << j.dump(2) << '\n';
+    {
+      auto res = corundum::core::write_json(state.file_path, j);
+      if (!res)
+        return std::unexpected(res.error());
+    }
     return {};
   }
 
@@ -166,10 +168,11 @@ namespace tools::talesmith {
     }
     j["stages"] = stages_arr;
 
-    std::ofstream f(state.file_path);
-    if (!f)
-      return std::unexpected(std::format("Cannot write to {}", state.file_path.string()));
-    f << j.dump(2) << '\n';
+    {
+      auto res = corundum::core::write_json(state.file_path, j);
+      if (!res)
+        return std::unexpected(res.error());
+    }
     return {};
   }
 

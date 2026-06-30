@@ -1,6 +1,6 @@
 #include "save.hpp"
+#include <corundum/core/json_io.hpp>
 #include <corundum/resources/sprite.hpp>
-#include <fstream>
 #include <nlohmann/json.hpp>
 
 namespace tools::sprite {
@@ -87,12 +87,11 @@ namespace tools::sprite {
 
     const nlohmann::json j =
         (state.mode == SheetMode::Character) ? build_character_json(state) : build_sprite_sheet_json(state);
-    std::ofstream f(state.json_path);
-    if (!f.is_open())
-      return std::unexpected("Cannot write to: " + state.json_path.string());
-    f << j.dump(2);
-    if (!f)
-      return std::unexpected("Write failed: " + state.json_path.string());
+    {
+      auto res = corundum::core::write_json(state.json_path, j);
+      if (!res)
+        return std::unexpected(res.error());
+    }
 
     state.dirty = false;
     return {};

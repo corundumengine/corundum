@@ -39,6 +39,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 FetchContent_Declare(
+    nlohmann_json_schema_validator
+    GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
+    GIT_TAG        2.4.0
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(nlohmann_json_schema_validator)
+
+FetchContent_Declare(
     doctest
     GIT_REPOSITORY https://github.com/doctest/doctest
     GIT_TAG        v2.5.2

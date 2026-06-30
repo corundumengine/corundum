@@ -1,5 +1,6 @@
 #include "save.hpp"
 #include "tilemap_encoding.hpp"
+#include <corundum/core/json_io.hpp>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -109,11 +110,11 @@ namespace tools::tilemap {
     }
     j["collision_triangles"] = std::move(tris_json);
 
-    std::ofstream out(state.map_path);
-    if (!out)
-      return std::unexpected("Cannot write: " + state.map_path.string());
-    out << j.dump(2) << '\n';
-    out.close();
+    {
+      auto res = corundum::core::write_json(state.map_path, j);
+      if (!res)
+        return std::unexpected(res.error());
+    }
 
     // Save portals alongside the tilemap.
     nlohmann::json portals_json;
@@ -131,10 +132,11 @@ namespace tools::tilemap {
     }
     const auto ppath = portals_path(state.map_path);
     std::filesystem::create_directories(ppath.parent_path());
-    std::ofstream pout(ppath);
-    if (!pout)
-      return std::unexpected("Cannot write: " + ppath.string());
-    pout << portals_json.dump(2) << '\n';
+    {
+      auto res = corundum::core::write_json(ppath, portals_json);
+      if (!res)
+        return std::unexpected(res.error());
+    }
 
     // Write updated pivot values back to each tileset source JSON.
     for (const auto &saved_ts : state.map.tilesets) {
@@ -163,10 +165,11 @@ namespace tools::tilemap {
       } else {
         tj.erase("tile_footprints");
       }
-      std::ofstream tout(saved_ts.info.source);
-      if (!tout)
-        return std::unexpected("Cannot write tileset: " + saved_ts.info.source);
-      tout << tj.dump(2) << '\n';
+      {
+        auto res = corundum::core::write_json(saved_ts.info.source, tj);
+        if (!res)
+          return std::unexpected(res.error());
+      }
     }
 
     state.dirty = false;
