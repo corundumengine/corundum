@@ -6,6 +6,12 @@
 
 namespace corundum::gameplay::world::tilemap {
 
+  /// Load a tileset from its JSON source file (path, tile_width, tile_height, columns, rows,
+  /// pivot, tile footprints, and animations).
+  /// @param path Path to the tileset JSON (e.g. "data/sprite_sheets/objects/terrain.json").
+  /// @return TilesetInfo on success, or an error string on any parse or validation failure.
+  [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const std::filesystem::path &path);
+
   /// Load and validate a tilemap from a JSON file; also loads the referenced tileset transitively.
   /// Returns a fully populated Tilemap with world-pixel collision data scaled by the tile
   /// dimensions.

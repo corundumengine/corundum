@@ -3,195 +3,16 @@
 #include "layout.hpp"
 #include <algorithm>
 #include <cmath>
+#include <corundum/gameplay/world/tilemap/loader.hpp>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <imgui.h>
-#include <nlohmann/json.hpp>
 #include <print>
 #include <string>
 
 namespace tools::tilemap {
 
   namespace {
-
-    using json = nlohmann::json;
-
-    corundum::gameplay::world::tilemap::TilesetInfo load_tileset_source(const std::filesystem::path &path) {
-      std::ifstream f(path);
-      if (!f)
-        throw std::runtime_error(std::format("Cannot open tileset: {}", path.string()));
-
-      json j;
-      try {
-        j = json::parse(f);
-      } catch (const json::exception &e) {
-        throw std::runtime_error(std::format("Malformed tileset {}: {}", path.string(), e.what()));
-      }
-
-      auto require_str = [&](const char *key) -> std::string {
-        if (!j.contains(key))
-          throw std::runtime_error(std::format("Tileset '{}' missing '{}'", path.string(), key));
-        try {
-          return j[key].get<std::string>();
-        } catch (...) {
-          throw std::runtime_error(std::format("Tileset field '{}' has wrong type", key));
-        }
-      };
-
-      auto require_pos_int = [&](const char *key) -> int {
-        if (!j.contains(key))
-          throw std::runtime_error(std::format("Tileset '{}' missing '{}'", path.string(), key));
-        int v;
-        try {
-          v = j[key].get<int>();
-        } catch (...) {
-          throw std::runtime_error(std::format("Tileset field '{}' has wrong type", key));
-        }
-        if (v <= 0)
-          throw std::runtime_error(std::format("Tileset field '{}' must be positive", key));
-        return v;
-      };
-
-      using corundum::gameplay::world::tilemap::TileAnimation;
-      corundum::gameplay::world::tilemap::TilesetInfo info;
-      info.source = path.string();
-      info.path = require_str("path");
-      info.tile_width = require_pos_int("tile_width");
-      info.tile_height = require_pos_int("tile_height");
-      info.columns = require_pos_int("columns");
-      info.rows = require_pos_int("rows");
-      if (j.contains("pivot_x")) {
-        try {
-          info.pivot_x = j["pivot_x"].get<float>();
-        } catch (...) {
-        }
-      }
-      if (j.contains("pivot_y")) {
-        try {
-          info.pivot_y = j["pivot_y"].get<float>();
-        } catch (...) {
-        }
-      }
-
-      if (j.contains("tile_footprints") && j["tile_footprints"].is_array()) {
-        const auto &fps_json = j["tile_footprints"];
-        for (std::size_t fi = 0; fi < fps_json.size(); ++fi) {
-          const auto &entry = fps_json[fi];
-          if (!entry.is_object())
-            continue;
-          int col = 0, row = 0, w = 1, h = 1;
-          try {
-            col = entry.at("col").get<int>();
-            row = entry.at("row").get<int>();
-          } catch (...) {
-            throw std::runtime_error(
-                std::format("Tileset '{}' tile_footprints[{}] missing 'col' or 'row'", path.string(), fi));
-          }
-          if (col < 0 || col >= info.columns || row < 0 || row >= info.rows)
-            throw std::runtime_error(
-                std::format("Tileset '{}' tile_footprints[{}] col/row out of range", path.string(), fi));
-          if (entry.contains("w")) {
-            try {
-              w = entry["w"].get<int>();
-            } catch (...) {
-            }
-          }
-          if (entry.contains("h")) {
-            try {
-              h = entry["h"].get<int>();
-            } catch (...) {
-            }
-          }
-          info.tile_footprints[row * info.columns + col] = {std::max(1, w), std::max(1, h)};
-        }
-      }
-
-      if (j.contains("animations")) {
-        const auto &anim_obj = j["animations"];
-        if (!anim_obj.is_object())
-          throw std::runtime_error(std::format("Tileset '{}' field 'animations' must be an object", path.string()));
-
-        float default_fps = 5.f;
-        if (anim_obj.contains("fps")) {
-          try {
-            default_fps = anim_obj["fps"].get<float>();
-          } catch (...) {
-            throw std::runtime_error(std::format("Tileset '{}' animations 'fps' has wrong type", path.string()));
-          }
-          if (default_fps <= 0.f)
-            throw std::runtime_error(std::format("Tileset '{}' animations 'fps' must be positive", path.string()));
-        }
-
-        if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
-          throw std::runtime_error(std::format("Tileset '{}' animations missing 'clips' array", path.string()));
-
-        const auto &clips = anim_obj["clips"];
-        for (std::size_t ci = 0; ci < clips.size(); ++ci) {
-          const auto &clip = clips[ci];
-          if (!clip.is_object())
-            throw std::runtime_error(
-                std::format("Tileset '{}' animations.clips[{}] must be an object", path.string(), ci));
-
-          std::string name;
-          try {
-            name = clip.at("name").get<std::string>();
-          } catch (...) {
-            throw std::runtime_error(
-                std::format("Tileset '{}' animations.clips[{}] missing or invalid 'name'", path.string(), ci));
-          }
-          if (name.empty())
-            throw std::runtime_error(
-                std::format("Tileset '{}' animations.clips[{}] 'name' must not be empty", path.string(), ci));
-
-          if (!clip.contains("frames") || !clip["frames"].is_array())
-            throw std::runtime_error(
-                std::format("Tileset '{}' animations.clips[{}] missing 'frames' array", path.string(), ci));
-
-          TileAnimation anim;
-          anim.fps = default_fps;
-          if (clip.contains("fps")) {
-            try {
-              anim.fps = clip["fps"].get<float>();
-            } catch (...) {
-              throw std::runtime_error(
-                  std::format("Tileset '{}' animations.clips[{}] 'fps' has wrong type", path.string(), ci));
-            }
-            if (anim.fps <= 0.f)
-              throw std::runtime_error(
-                  std::format("Tileset '{}' animations.clips[{}] 'fps' must be positive", path.string(), ci));
-          }
-
-          for (std::size_t fi = 0; fi < clip["frames"].size(); ++fi) {
-            const auto &frame = clip["frames"][fi];
-            if (!frame.is_object())
-              throw std::runtime_error(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] must be an object", path.string(), ci, fi));
-            int col, row;
-            try {
-              col = frame.at("col").get<int>();
-              row = frame.at("row").get<int>();
-            } catch (...) {
-              throw std::runtime_error(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] missing or invalid 'col' or 'row'",
-                              path.string(), ci, fi));
-            }
-            if (col < 0 || col >= info.columns)
-              throw std::runtime_error(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] col={} out of range [0, {})", path.string(),
-                              ci, fi, col, info.columns));
-            if (row < 0 || row >= info.rows)
-              throw std::runtime_error(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] row={} out of range [0, {})", path.string(),
-                              ci, fi, row, info.rows));
-            anim.frames.push_back(row * info.columns + col);
-          }
-          info.animations[name] = std::move(anim);
-        }
-      }
-
-      return info;
-    }
 
     void fix_gids_after_removal(EditorState &state, int removed_first_gid, int removed_count) {
       for (auto &layer : state.map.layers) {
@@ -238,8 +59,12 @@ namespace tools::tilemap {
                         std::vector<TilesetView> &tileset_views, const std::string &source_path) {
       using corundum::gameplay::world::tilemap::TileId;
       using corundum::gameplay::world::tilemap::TilemapTileset;
+      using corundum::gameplay::world::tilemap::TilesetInfo;
 
-      auto info = load_tileset_source(source_path);
+      const auto tileset_result = corundum::gameplay::world::tilemap::load_tileset(source_path);
+      if (!tileset_result)
+        throw std::runtime_error(tileset_result.error());
+      TilesetInfo info = std::move(*tileset_result);
 
       // Compute first_gid for the new tileset (appended at the end).
       TileId first_gid = 0;

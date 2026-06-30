@@ -11,212 +11,206 @@ using json = nlohmann::json;
 
 namespace corundum::gameplay::world::tilemap {
 
-  namespace {
+  std::expected<TilesetInfo, std::string> load_tileset(const fs::path &tileset_path) {
+    std::ifstream f(tileset_path);
+    if (!f)
+      return std::unexpected(std::format("Cannot open tileset: {}", tileset_path.string()));
 
-    std::expected<TilesetInfo, std::string> load_tileset(const fs::path &tileset_path) {
-      std::ifstream f(tileset_path);
-      if (!f)
-        return std::unexpected(std::format("Cannot open tileset: {}", tileset_path.string()));
-
-      json j;
-      try {
-        j = json::parse(f);
-      } catch (const json::exception &e) {
-        return std::unexpected(std::format("Malformed tileset {}: {}", tileset_path.string(), e.what()));
-      }
-
-      auto require_str = [&](const char *key) -> std::expected<std::string, std::string> {
-        if (!j.contains(key))
-          return std::unexpected(std::format("Tileset '{}' missing '{}'", tileset_path.string(), key));
-        try {
-          return j[key].get<std::string>();
-        } catch (...) {
-          return std::unexpected(std::format("Tileset field '{}' has wrong type", key));
-        }
-      };
-
-      auto require_pos_int = [&](const char *key) -> std::expected<int, std::string> {
-        if (!j.contains(key))
-          return std::unexpected(std::format("Tileset '{}' missing '{}'", tileset_path.string(), key));
-        int v;
-        try {
-          v = j[key].get<int>();
-        } catch (...) {
-          return std::unexpected(std::format("Tileset field '{}' has wrong type", key));
-        }
-        if (v <= 0)
-          return std::unexpected(std::format("Tileset field '{}' must be positive", key));
-        return v;
-      };
-
-      TilesetInfo info;
-      info.source = tileset_path.string();
-
-      {
-        auto r = require_str("path");
-        if (!r)
-          return std::unexpected(std::move(r.error()));
-        info.path = std::move(*r);
-      }
-      {
-        auto r = require_pos_int("tile_width");
-        if (!r)
-          return std::unexpected(std::move(r.error()));
-        info.tile_width = *r;
-      }
-      {
-        auto r = require_pos_int("tile_height");
-        if (!r)
-          return std::unexpected(std::move(r.error()));
-        info.tile_height = *r;
-      }
-      {
-        auto r = require_pos_int("columns");
-        if (!r)
-          return std::unexpected(std::move(r.error()));
-        info.columns = *r;
-      }
-      {
-        auto r = require_pos_int("rows");
-        if (!r)
-          return std::unexpected(std::move(r.error()));
-        info.rows = *r;
-      }
-      if (j.contains("pivot_x")) {
-        try {
-          info.pivot_x = j["pivot_x"].get<float>();
-        } catch (...) {
-        }
-      }
-      if (j.contains("pivot_y")) {
-        try {
-          info.pivot_y = j["pivot_y"].get<float>();
-        } catch (...) {
-        }
-      }
-      if (j.contains("tile_footprints") && j["tile_footprints"].is_array()) {
-        const auto &fps_json = j["tile_footprints"];
-        for (std::size_t fi = 0; fi < fps_json.size(); ++fi) {
-          const auto &entry = fps_json[fi];
-          if (!entry.is_object())
-            continue;
-          int col = 0, row = 0, w = 1, h = 1;
-          try {
-            col = entry.at("col").get<int>();
-            row = entry.at("row").get<int>();
-          } catch (...) {
-            return std::unexpected(
-                std::format("Tileset '{}' tile_footprints[{}] missing 'col' or 'row'", tileset_path.string(), fi));
-          }
-          if (col < 0 || col >= info.columns || row < 0 || row >= info.rows)
-            return std::unexpected(
-                std::format("Tileset '{}' tile_footprints[{}] col/row out of range", tileset_path.string(), fi));
-          if (entry.contains("w")) {
-            try {
-              w = entry["w"].get<int>();
-            } catch (...) {
-            }
-          }
-          if (entry.contains("h")) {
-            try {
-              h = entry["h"].get<int>();
-            } catch (...) {
-            }
-          }
-          info.tile_footprints[row * info.columns + col] = {std::max(1, w), std::max(1, h)};
-        }
-      }
-
-      if (j.contains("animations")) {
-        const auto &anim_obj = j["animations"];
-        if (!anim_obj.is_object())
-          return std::unexpected(
-              std::format("Tileset '{}' field 'animations' must be an object", tileset_path.string()));
-
-        float default_fps = 5.f;
-        if (anim_obj.contains("fps")) {
-          try {
-            default_fps = anim_obj["fps"].get<float>();
-          } catch (...) {
-            return std::unexpected(std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
-          }
-          if (default_fps <= 0.f)
-            return std::unexpected(
-                std::format("Tileset '{}' animations 'fps' must be positive", tileset_path.string()));
-        }
-
-        if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
-          return std::unexpected(std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
-
-        const auto &clips = anim_obj["clips"];
-        for (std::size_t ci = 0; ci < clips.size(); ++ci) {
-          const auto &clip = clips[ci];
-          if (!clip.is_object())
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] must be an object", tileset_path.string(), ci));
-
-          std::string name;
-          try {
-            name = clip.at("name").get<std::string>();
-          } catch (...) {
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] missing or invalid 'name'", tileset_path.string(), ci));
-          }
-          if (name.empty())
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] 'name' must not be empty", tileset_path.string(), ci));
-
-          if (!clip.contains("frames") || !clip["frames"].is_array())
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] missing 'frames' array", tileset_path.string(), ci));
-
-          TileAnimation anim;
-          anim.fps = default_fps;
-          if (clip.contains("fps")) {
-            try {
-              anim.fps = clip["fps"].get<float>();
-            } catch (...) {
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] 'fps' has wrong type", tileset_path.string(), ci));
-            }
-            if (anim.fps <= 0.f)
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] 'fps' must be positive", tileset_path.string(), ci));
-          }
-
-          for (std::size_t fi = 0; fi < clip["frames"].size(); ++fi) {
-            const auto &frame = clip["frames"][fi];
-            if (!frame.is_object())
-              return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] must "
-                                                 "be an object with 'col' and 'row'",
-                                                 tileset_path.string(), ci, fi));
-            int col, row;
-            try {
-              col = frame.at("col").get<int>();
-              row = frame.at("row").get<int>();
-            } catch (...) {
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] missing or invalid 'col' or 'row'",
-                              tileset_path.string(), ci, fi));
-            }
-            if (col < 0 || col >= info.columns)
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] col={} out of range [0, {})",
-                              tileset_path.string(), ci, fi, col, info.columns));
-            if (row < 0 || row >= info.rows)
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] row={} out of range [0, {})",
-                              tileset_path.string(), ci, fi, row, info.rows));
-            anim.frames.push_back(row * info.columns + col);
-          }
-          info.animations[name] = std::move(anim);
-        }
-      }
-
-      return info;
+    json j;
+    try {
+      j = json::parse(f);
+    } catch (const json::exception &e) {
+      return std::unexpected(std::format("Malformed tileset {}: {}", tileset_path.string(), e.what()));
     }
 
-  } // namespace
+    auto require_str = [&j, &tileset_path](const char *key) -> std::expected<std::string, std::string> {
+      if (!j.contains(key))
+        return std::unexpected(std::format("Tileset '{}' missing '{}'", tileset_path.string(), key));
+      try {
+        return j[key].get<std::string>();
+      } catch (...) {
+        return std::unexpected(std::format("Tileset field '{}' has wrong type", key));
+      }
+    };
+
+    auto require_pos_int = [&j, &tileset_path](const char *key) -> std::expected<int, std::string> {
+      if (!j.contains(key))
+        return std::unexpected(std::format("Tileset '{}' missing '{}'", tileset_path.string(), key));
+      int v;
+      try {
+        v = j[key].get<int>();
+      } catch (...) {
+        return std::unexpected(std::format("Tileset field '{}' has wrong type", key));
+      }
+      if (v <= 0)
+        return std::unexpected(std::format("Tileset field '{}' must be positive", key));
+      return v;
+    };
+
+    TilesetInfo info;
+    info.source = tileset_path.string();
+
+    {
+      auto r = require_str("path");
+      if (!r)
+        return std::unexpected(std::move(r.error()));
+      info.path = std::move(*r);
+    }
+    {
+      auto r = require_pos_int("tile_width");
+      if (!r)
+        return std::unexpected(std::move(r.error()));
+      info.tile_width = *r;
+    }
+    {
+      auto r = require_pos_int("tile_height");
+      if (!r)
+        return std::unexpected(std::move(r.error()));
+      info.tile_height = *r;
+    }
+    {
+      auto r = require_pos_int("columns");
+      if (!r)
+        return std::unexpected(std::move(r.error()));
+      info.columns = *r;
+    }
+    {
+      auto r = require_pos_int("rows");
+      if (!r)
+        return std::unexpected(std::move(r.error()));
+      info.rows = *r;
+    }
+    if (j.contains("pivot_x")) {
+      try {
+        info.pivot_x = j["pivot_x"].get<float>();
+      } catch (...) {
+      }
+    }
+    if (j.contains("pivot_y")) {
+      try {
+        info.pivot_y = j["pivot_y"].get<float>();
+      } catch (...) {
+      }
+    }
+    if (j.contains("tile_footprints") && j["tile_footprints"].is_array()) {
+      const auto &fps_json = j["tile_footprints"];
+      for (std::size_t fi = 0; fi < fps_json.size(); ++fi) {
+        const auto &entry = fps_json[fi];
+        if (!entry.is_object())
+          continue;
+        int col = 0, row = 0, w = 1, h = 1;
+        try {
+          col = entry.at("col").get<int>();
+          row = entry.at("row").get<int>();
+        } catch (...) {
+          return std::unexpected(
+              std::format("Tileset '{}' tile_footprints[{}] missing 'col' or 'row'", tileset_path.string(), fi));
+        }
+        if (col < 0 || col >= info.columns || row < 0 || row >= info.rows)
+          return std::unexpected(
+              std::format("Tileset '{}' tile_footprints[{}] col/row out of range", tileset_path.string(), fi));
+        if (entry.contains("w")) {
+          try {
+            w = entry["w"].get<int>();
+          } catch (...) {
+          }
+        }
+        if (entry.contains("h")) {
+          try {
+            h = entry["h"].get<int>();
+          } catch (...) {
+          }
+        }
+        info.tile_footprints[row * info.columns + col] = {std::max(1, w), std::max(1, h)};
+      }
+    }
+
+    if (j.contains("animations")) {
+      const auto &anim_obj = j["animations"];
+      if (!anim_obj.is_object())
+        return std::unexpected(std::format("Tileset '{}' field 'animations' must be an object", tileset_path.string()));
+
+      float default_fps = 5.f;
+      if (anim_obj.contains("fps")) {
+        try {
+          default_fps = anim_obj["fps"].get<float>();
+        } catch (...) {
+          return std::unexpected(std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
+        }
+        if (default_fps <= 0.f)
+          return std::unexpected(std::format("Tileset '{}' animations 'fps' must be positive", tileset_path.string()));
+      }
+
+      if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
+        return std::unexpected(std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
+
+      const auto &clips = anim_obj["clips"];
+      for (std::size_t ci = 0; ci < clips.size(); ++ci) {
+        const auto &clip = clips[ci];
+        if (!clip.is_object())
+          return std::unexpected(
+              std::format("Tileset '{}' animations.clips[{}] must be an object", tileset_path.string(), ci));
+
+        std::string name;
+        try {
+          name = clip.at("name").get<std::string>();
+        } catch (...) {
+          return std::unexpected(
+              std::format("Tileset '{}' animations.clips[{}] missing or invalid 'name'", tileset_path.string(), ci));
+        }
+        if (name.empty())
+          return std::unexpected(
+              std::format("Tileset '{}' animations.clips[{}] 'name' must not be empty", tileset_path.string(), ci));
+
+        if (!clip.contains("frames") || !clip["frames"].is_array())
+          return std::unexpected(
+              std::format("Tileset '{}' animations.clips[{}] missing 'frames' array", tileset_path.string(), ci));
+
+        TileAnimation anim;
+        anim.fps = default_fps;
+        if (clip.contains("fps")) {
+          try {
+            anim.fps = clip["fps"].get<float>();
+          } catch (...) {
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] 'fps' has wrong type", tileset_path.string(), ci));
+          }
+          if (anim.fps <= 0.f)
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] 'fps' must be positive", tileset_path.string(), ci));
+        }
+
+        for (std::size_t fi = 0; fi < clip["frames"].size(); ++fi) {
+          const auto &frame = clip["frames"][fi];
+          if (!frame.is_object())
+            return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] must "
+                                               "be an object with 'col' and 'row'",
+                                               tileset_path.string(), ci, fi));
+          int col, row;
+          try {
+            col = frame.at("col").get<int>();
+            row = frame.at("row").get<int>();
+          } catch (...) {
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] frames[{}] missing or invalid 'col' or 'row'",
+                            tileset_path.string(), ci, fi));
+          }
+          if (col < 0 || col >= info.columns)
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] frames[{}] col={} out of range [0, {})",
+                            tileset_path.string(), ci, fi, col, info.columns));
+          if (row < 0 || row >= info.rows)
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] frames[{}] row={} out of range [0, {})",
+                            tileset_path.string(), ci, fi, row, info.rows));
+          anim.frames.push_back(row * info.columns + col);
+        }
+        info.animations[name] = std::move(anim);
+      }
+    }
+
+    return info;
+  }
 
   std::expected<Tilemap, std::string> load_tilemap(const fs::path &path) {
     std::ifstream f(path);
