@@ -1,11 +1,9 @@
 #include <corundum/core/files.hpp>
 #include <corundum/resources/character_registry.hpp>
+#include <corundum/resources/character_sheet_loader.hpp>
 #include <corundum/resources/sprite.hpp>
-#include <fstream>
-#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
-using json = nlohmann::json;
 
 namespace corundum::resources {
 
@@ -42,121 +40,37 @@ namespace corundum::resources {
   }
 
   std::expected<void, std::string> CharacterRegistry::load_sheet(const fs::path &sheet_path) {
-    std::ifstream f(sheet_path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open sheet: {}", sheet_path.string()));
+    auto result = load_character_sheet(sheet_path);
+    if (!result)
+      return std::unexpected(result.error());
 
-    json j;
-    try {
-      j = json::parse(f);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed sheet {}: {}", sheet_path.string(), e.what()));
-    }
+    CharacterSheetData &data = *result;
 
-    auto require_str = [&](const char *key) -> std::expected<std::string, std::string> {
-      if (!j.contains(key))
-        return std::unexpected(std::format("Sheet '{}' missing '{}'", sheet_path.string(), key));
-      try {
-        return j[key].get<std::string>();
-      } catch (...) {
-        return std::unexpected(std::format("Sheet field '{}' has wrong type", key));
-      }
-    };
-
-    auto require_int = [&](const char *key) -> std::expected<int, std::string> {
-      if (!j.contains(key))
-        return std::unexpected(std::format("Sheet '{}' missing '{}'", sheet_path.string(), key));
-      try {
-        return j[key].get<int>();
-      } catch (...) {
-        return std::unexpected(std::format("Sheet field '{}' has wrong type", key));
-      }
-    };
-
-    auto id_result = require_str("id");
-    if (!id_result)
-      return std::unexpected(id_result.error());
-    const auto id = *id_result;
-
-    auto path_result = require_str("path");
-    if (!path_result)
-      return std::unexpected(path_result.error());
-    const auto path_str = *path_result;
-
-    auto fw_result = require_int("frame_width");
-    if (!fw_result)
-      return std::unexpected(fw_result.error());
-    const int frame_width = *fw_result;
-
-    auto fh_result = require_int("frame_height");
-    if (!fh_result)
-      return std::unexpected(fh_result.error());
-    const int frame_height = *fh_result;
-
-    const int offset_x = j.value("offset_x", 0);
-    const int offset_y = j.value("offset_y", 0);
-    const int spacing_x = j.value("spacing_x", 0);
-    const int spacing_y = j.value("spacing_y", 0);
-
-    if (!j.contains("frames") || !j["frames"].is_object())
-      return std::unexpected(std::format("Sprite Sheet '{}' missing 'sprites' object", id));
-
-    if (sheet_ids_.contains(id))
-      return std::unexpected(std::format("Duplicate sheet id: '{}'", id));
+    if (sheet_ids_.contains(data.id))
+      return std::unexpected(std::format("Duplicate sheet id: '{}'", data.id));
 
     const Id sheet_id = next_id_++;
-    sheet_ids_.emplace(id, sheet_id);
-    sheets_by_id_.emplace(
-        sheet_id, SpriteSheet{sheet_id, path_str, frame_width, frame_height, offset_x, offset_y, spacing_x, spacing_y});
+    sheet_ids_.emplace(data.id, sheet_id);
+    sheets_by_id_.emplace(sheet_id, SpriteSheet{sheet_id, data.path, data.frame_width, data.frame_height, data.offset_x,
+                                                data.offset_y, data.spacing_x, data.spacing_y});
 
-    for (const auto &[sprite_name, anims_json] : j["frames"].items()) {
-      if (!anims_json.is_object())
-        return std::unexpected(std::format("Sprite '{}' must be an object of animations", sprite_name));
+    for (auto &entry : data.sprites) {
+      if (frames_.contains(entry.name))
+        return std::unexpected(std::format("Duplicate sprite name: '{}'", entry.name));
 
-      if (frames_.contains(sprite_name))
-        return std::unexpected(std::format("Duplicate sprite name: '{}'", sprite_name));
+      Frames frames;
+      frames.sheet_id = sheet_id;
+      frames.col_span = entry.col_span;
+      frames.row_span = entry.row_span;
+      frames.collision_w = entry.collision_w;
+      frames.collision_h = entry.collision_h;
+      frames.walk_around_offset = entry.walk_around_offset;
+      frames.fps = entry.fps;
+      frames.sprite_id = next_sprite_id_++;
+      frames.animations = std::move(entry.animations);
+      frames.anim_frames = std::move(entry.anim_frames);
 
-      Frames data;
-      data.sheet_id = sheet_id;
-      data.col_span = anims_json.value("col_span", 1);
-      data.row_span = anims_json.value("row_span", 1);
-      if (data.col_span < 1)
-        return std::unexpected(std::format("Sprite '{}' col_span must be >= 1", sprite_name));
-      if (data.row_span < 1)
-        return std::unexpected(std::format("Sprite '{}' row_span must be >= 1", sprite_name));
-      data.collision_w = anims_json.value("collision_w", 0);
-      data.collision_h = anims_json.value("collision_h", 0);
-      data.walk_around_offset = anims_json.value("walk_around_offset", 0.f);
-      data.fps = anims_json.value("fps", 0.f);
-      data.sprite_id = next_sprite_id_++;
-      data.anim_frames.fill({});
-
-      for (const auto &[anim_name, frames_json] : anims_json.items()) {
-        if (anim_name == "walk_around_offset" || anim_name == "col_span" || anim_name == "row_span" ||
-            anim_name == "fps" || anim_name == "collision_w" || anim_name == "collision_h")
-          continue;
-        if (!frames_json.is_array() || frames_json.empty())
-          return std::unexpected(std::format("Animation '{}/{}' must be a non-empty array", sprite_name, anim_name));
-
-        std::vector<FrameCoord> coords;
-        coords.reserve(frames_json.size());
-
-        for (const auto &frame : frames_json) {
-          try {
-            coords.push_back({frame.at("col").get<int>(), frame.at("row").get<int>()});
-          } catch (...) {
-            return std::unexpected(std::format("Frame in '{}/{}' missing 'col' or 'row'", sprite_name, anim_name));
-          }
-        }
-
-        const auto aid = anim_name_to_id(anim_name);
-        if (aid != AnimId::COUNT)
-          data.anim_frames[static_cast<uint8_t>(aid)] = coords;
-
-        data.animations.emplace(anim_name, std::move(coords));
-      }
-
-      frames_.emplace(sprite_name, std::move(data));
+      frames_.emplace(entry.name, std::move(frames));
     }
 
     return {};

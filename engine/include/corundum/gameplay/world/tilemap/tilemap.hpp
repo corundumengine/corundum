@@ -1,4 +1,5 @@
 #pragma once
+#include <corundum/core/math/vec.hpp>
 #include <cstdint>
 #include <flat_map>
 #include <mdspan>
@@ -125,6 +126,18 @@ namespace corundum::gameplay::world::tilemap {
     if (!ts)
       return {};
     return get_tile_footprint(ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid));
+  }
+
+  /// Returns the source rect in the tileset texture for @p gid.
+  /// @param ts Tileset entry that owns gid (caller must use find_tileset first).
+  /// @param gid Global tile ID.
+  /// @return Source rectangle, in pixels, within the tileset texture for this tile.
+  /// @pre ts.info.columns > 0
+  [[nodiscard]] inline corundum::core::math::IntRect tile_source_rect(const TilemapTileset &ts, TileId gid) noexcept {
+    const int local_id = static_cast<int>(gid) - static_cast<int>(ts.first_gid);
+    const int src_col = local_id % ts.info.columns;
+    const int src_row = local_id / ts.info.columns;
+    return {src_col * ts.info.tile_width, src_row * ts.info.tile_height, ts.info.tile_width, ts.info.tile_height};
   }
 
   /// Axis-aligned rectangle in tile-grid space.

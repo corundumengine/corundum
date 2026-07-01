@@ -549,11 +549,7 @@ namespace corundum::render::sys {
           if (tex_id == 0) [[unlikely]]
             continue;
 
-          const int local_id = static_cast<int>(gid) - static_cast<int>(ts->first_gid);
-          const int src_col = local_id % ts->info.columns;
-          const int src_row = local_id / ts->info.columns;
-          const IntRect src{src_col * ts->info.tile_width, src_row * ts->info.tile_height, ts->info.tile_width,
-                            ts->info.tile_height};
+          const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
 
           bool flip_x = false;
           bool flip_y = false;

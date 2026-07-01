@@ -48,21 +48,14 @@ namespace tools::tilemap {
       return {};
 
     const std::ptrdiff_t idx = ts - map.tilesets.data();
-    const int local_id = static_cast<int>(gid) - static_cast<int>(ts->first_gid);
-    const int src_col = local_id % ts->info.columns;
-    const int src_row = local_id / ts->info.columns;
+    const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
 
     const ToolTexture &tex = store.textures[static_cast<std::size_t>(idx)];
     return {
         tex_id(app, tex),
         tex.w,
         tex.h,
-        corundum::core::math::IntRect{
-            src_col * ts->info.tile_width,
-            src_row * ts->info.tile_height,
-            ts->info.tile_width,
-            ts->info.tile_height,
-        },
+        src,
     };
   }
 
@@ -75,7 +68,7 @@ namespace tools::tilemap {
     const int dw = map.diamond_w();
     const float half_tw = static_cast<float>(dw) * tile_scale * 0.5f;
     const float half_th = static_cast<float>(map.diamond_h()) * tile_scale * 0.5f;
-    const float x_shift = static_cast<float>(map.height) * half_tw;
+    const float x_origin = static_cast<float>(map.height - 1) * half_tw;
 
     // Diagonal sweep (depth = col + row) for correct isometric draw order.
     const int depth_max = map.width + map.height - 2;
@@ -119,9 +112,9 @@ namespace tools::tilemap {
           const float scaled_tw = std::round(static_cast<float>(ts->info.tile_width) * tile_scale);
           const float scaled_th = std::round(static_cast<float>(ts->info.tile_height) * tile_scale);
 
-          // adj_iso_x = (col - row + map_h - 1) * half_tw
-          const float iso_x = static_cast<float>(col - row) * half_tw + x_shift;
-          const float iso_y = static_cast<float>(col + row + 1) * half_th;
+          const auto world = corundum::core::math::tile_to_world(col, row, 0, half_tw, half_th, 0.f, x_origin);
+          const float iso_x = world.x;
+          const float iso_y = world.y;
           // Pivot offset: shift image so the pivot point aligns with the world anchor.
           const float pivot_x_px = ts ? (ts->info.pivot_x * scaled_tw) : 0.f;
           const float pivot_y_px = ts ? ((1.f - ts->info.pivot_y) * scaled_th) : 0.f;
