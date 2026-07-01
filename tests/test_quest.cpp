@@ -167,6 +167,39 @@ TEST_CASE("quest loader: invalid JSON returns error") {
   std::filesystem::remove(tmp);
 }
 
+// ── validate ──────────────────────────────────────────────────────────────────
+
+TEST_CASE("validate: valid quest returns empty vector") {
+  auto q = make_test_quest();
+  CHECK(quest::validate(q).empty());
+}
+
+TEST_CASE("validate: duplicate stage names") {
+  auto q = make_test_quest();
+  q.stages.push_back({"start", 5, true, false, {}});
+  const auto errors = quest::validate(q);
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("duplicate stage name") != std::string::npos);
+}
+
+TEST_CASE("validate: duplicate sequences") {
+  auto q = make_test_quest();
+  q.stages.push_back({"unique_name", 2, true, false, {}});
+  const auto errors = quest::validate(q);
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("duplicate sequence") != std::string::npos);
+}
+
+TEST_CASE("validate: no resolved stage") {
+  quest::Quest q;
+  q.quest_id = "unresolved";
+  q.stages.push_back({"a", 1, false, false, {}});
+  q.stages.push_back({"b", 2, false, false, {}});
+  const auto errors = quest::validate(q);
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("no resolved stage") != std::string::npos);
+}
+
 // ── find_stage ────────────────────────────────────────────────────────────────
 
 TEST_CASE("Quest::find_stage returns correct stage for known name") {

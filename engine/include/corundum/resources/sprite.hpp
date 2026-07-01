@@ -93,6 +93,37 @@ namespace corundum::resources {
     return row_span * frame_height + (row_span - 1) * spacing_y;
   }
 
+  /** @brief Integer pixel-space point. */
+  struct IntPoint {
+    int x = 0;
+    int y = 0;
+  };
+
+  /** @brief Compute the pixel-space top-left origin of a frame cell within a sprite-sheet grid.
+   *  @param offset_x  Pixel offset from left edge of image to the first frame.
+   *  @param offset_y  Pixel offset from top edge of image to the first frame.
+   *  @param frame_w   Width of one grid cell in pixels.
+   *  @param frame_h   Height of one grid cell in pixels.
+   *  @param spacing_x Horizontal gap between frame cells in pixels.
+   *  @param spacing_y Vertical gap between frame cells in pixels.
+   *  @param col       Frame column index.
+   *  @param row       Frame row index.
+   *  @return The {x, y} origin of the frame cell in image pixel space. */
+  [[nodiscard]] inline constexpr IntPoint frame_origin(int offset_x, int offset_y, int frame_w, int frame_h,
+                                                       int spacing_x, int spacing_y, int col, int row) noexcept {
+    return {offset_x + col * (frame_w + spacing_x), offset_y + row * (frame_h + spacing_y)};
+  }
+
+  /** @brief Compute the pixel-space top-left origin of a frame within the sheet's grid.
+   *  @param sheet The sprite sheet providing grid geometry (offset, frame size, spacing).
+   *  @param fc    Frame coordinate (column, row) within the sheet.
+   *  @return The {x, y} origin of the frame in image pixel space.
+   *  @note Delegates to the raw-parameter overload. */
+  [[nodiscard]] inline constexpr IntPoint frame_origin(const SpriteSheet &sheet, FrameCoord fc) noexcept {
+    return frame_origin(sheet.offset_x, sheet.offset_y, sheet.frame_width, sheet.frame_height, sheet.spacing_x,
+                        sheet.spacing_y, fc.col, fc.row);
+  }
+
   /// Per-sprite frame data for a character; hot-path access goes through anim_frames.
   /// col_span/row_span express the character's footprint in grid-cell units,
   /// e.g. col_span=1, row_span=2 for a 1x2-tile-tall character.

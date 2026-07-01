@@ -40,8 +40,11 @@ namespace tools::sprite {
     // Return UV rect {u0,v0,u1,v1} covering pixel_w × pixel_h at frame (col,row).
     std::array<float, 4> frame_uvs(const FrameCoord &fc, const EditorState &state, float tex_w, float tex_h,
                                    int pixel_w, int pixel_h) {
-      const float px = static_cast<float>(state.offset_x + fc.col * (state.frame_width + state.spacing_x));
-      const float py = static_cast<float>(state.offset_y + fc.row * (state.frame_height + state.spacing_y));
+      const corundum::resources::IntPoint origin =
+          corundum::resources::frame_origin(state.offset_x, state.offset_y, state.frame_width, state.frame_height,
+                                            state.spacing_x, state.spacing_y, fc.col, fc.row);
+      const float px = static_cast<float>(origin.x);
+      const float py = static_cast<float>(origin.y);
       return {px / tex_w, py / tex_h, (px + static_cast<float>(pixel_w)) / tex_w,
               (py + static_cast<float>(pixel_h)) / tex_h};
     }

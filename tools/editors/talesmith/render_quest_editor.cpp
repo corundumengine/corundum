@@ -2,6 +2,8 @@
 #include "graph_layout.hpp"
 #include "validate_quest_refs.hpp"
 
+#include <corundum/gameplay/quest/quest.hpp>
+
 #include <format>
 #include <imgui.h>
 
@@ -214,31 +216,14 @@ namespace tools::talesmith {
 
     // ── Validation section at bottom of editor ──
     ImGui::Separator();
-    // Simple quest validation
+    constexpr auto k_warning_col = ImVec4{1.f, 0.6f, 0.f, 1.f};
     if (state.quest_doc_.quest_id.empty())
-      ImGui::TextColored({1.f, 0.6f, 0.f, 1.f}, "  Quest ID is empty");
+      ImGui::TextColored(k_warning_col, "  Quest ID is empty");
     if (state.quest_doc_.name.empty())
-      ImGui::TextColored({1.f, 0.6f, 0.f, 1.f}, "  Quest name is empty");
+      ImGui::TextColored(k_warning_col, "  Quest name is empty");
 
-    bool has_resolved = false;
-    bool names_unique = true;
-    bool seqs_unique = true;
-    for (std::size_t i = 0; i < state.quest_doc_.stages.size(); ++i) {
-      if (state.quest_doc_.stages[i].resolved)
-        has_resolved = true;
-      for (std::size_t j = i + 1; j < state.quest_doc_.stages.size(); ++j) {
-        if (state.quest_doc_.stages[i].name == state.quest_doc_.stages[j].name)
-          names_unique = false;
-        if (state.quest_doc_.stages[i].sequence == state.quest_doc_.stages[j].sequence)
-          seqs_unique = false;
-      }
-    }
-    if (!has_resolved)
-      ImGui::TextColored({1.f, 0.6f, 0.f, 1.f}, "  At least one stage must be Resolved");
-    if (!names_unique)
-      ImGui::TextColored({1.f, 0.6f, 0.f, 1.f}, "  Stage names must be unique");
-    if (!seqs_unique)
-      ImGui::TextColored({1.f, 0.6f, 0.f, 1.f}, "  Stage sequences must be unique");
+    for (const auto &msg : corundum::gameplay::quest::validate(state.quest_doc_))
+      ImGui::TextColored(k_warning_col, "  %s", msg.c_str());
 
     ImGui::EndChild(); // quest_editor
   }

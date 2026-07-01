@@ -11,6 +11,7 @@ add_library(engine STATIC
     src/gameplay/dialogue/registry.cpp
     src/gameplay/dialogue/system.cpp
     src/gameplay/quest/loader.cpp
+    src/gameplay/quest/validate.cpp
     src/gameplay/quest/registry.cpp
     src/gameplay/quest/system.cpp
     src/core/files.cpp

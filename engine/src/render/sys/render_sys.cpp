@@ -144,9 +144,8 @@ namespace corundum::render::sys {
         state.sprite_index.anim_offsets[slot] = static_cast<uint32_t>(state.sprite_index.frame_rects.size());
         state.sprite_index.anim_frame_counts[slot] = static_cast<uint8_t>(coords.size());
         for (const auto &c : coords) {
-          const int x = sheet->offset_x + c.col * (sheet->frame_width + sheet->spacing_x);
-          const int y = sheet->offset_y + c.row * (sheet->frame_height + sheet->spacing_y);
-          state.sprite_index.frame_rects.push_back(IntRect{x, y, fw, fh});
+          const resources::IntPoint origin = frame_origin(*sheet, c);
+          state.sprite_index.frame_rects.push_back(IntRect{origin.x, origin.y, fw, fh});
         }
       }
     }

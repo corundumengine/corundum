@@ -88,34 +88,8 @@ namespace corundum::gameplay::quest {
       for (std::size_t i = 0; i < stages.size(); ++i)
         quest.stages.push_back(parse_stage(stages[i], i));
 
-      // Validate unique stage names via sort + adjacent_find
-      {
-        std::vector<std::string> names;
-        names.reserve(quest.stages.size());
-        for (const auto &stage : quest.stages)
-          names.push_back(stage.name);
-        std::ranges::sort(names);
-        const auto dup = std::ranges::adjacent_find(names);
-        if (dup != names.end())
-          throw LoadError(std::format("[{}] duplicate stage name \"{}\"", k_ctx, *dup));
-      }
-
-      // Validate unique positive sequences via sort + adjacent_find
-      // (schema already enforces >= 1 via minimum)
-      {
-        std::vector<int> seqs;
-        seqs.reserve(quest.stages.size());
-        for (const auto &stage : quest.stages)
-          seqs.push_back(stage.sequence);
-        std::ranges::sort(seqs);
-        const auto dup = std::ranges::adjacent_find(seqs);
-        if (dup != seqs.end())
-          throw LoadError(std::format("[{}] duplicate sequence {} in stages", k_ctx, *dup));
-      }
-
-      // At least one resolved stage
-      if (!std::ranges::any_of(quest.stages, &Stage::resolved))
-        throw LoadError(std::format("[{}] \"{}\" has no resolved stage", k_ctx, quest.quest_id));
+      if (const auto errors = validate(quest); !errors.empty())
+        throw LoadError(std::format("[{}] {}", k_ctx, errors.front()));
 
       return quest;
     }

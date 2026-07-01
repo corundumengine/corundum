@@ -54,4 +54,9 @@ namespace corundum::gameplay::quest {
     }
   };
 
+  /** @brief Validate stage-uniqueness and resolution invariants on an in-memory Quest.
+   *  @param quest The quest to validate.
+   *  @return One message per violated rule; empty vector = valid. */
+  [[nodiscard]] std::vector<std::string> validate(const Quest &quest);
+
 } // namespace corundum::gameplay::quest

@@ -88,8 +88,10 @@ namespace tools::sprite {
   [[nodiscard]] inline FrameRect frame_to_canvas_rect(int col, int row, float camera_x, float camera_y, float zoom,
                                                       int frame_w, int frame_h, int offset_x, int offset_y,
                                                       int spacing_x, int spacing_y) noexcept {
-    const float x = static_cast<float>(offset_x + col * (frame_w + spacing_x)) * zoom - camera_x;
-    const float y = static_cast<float>(offset_y + row * (frame_h + spacing_y)) * zoom - camera_y;
+    const corundum::resources::IntPoint origin =
+        corundum::resources::frame_origin(offset_x, offset_y, frame_w, frame_h, spacing_x, spacing_y, col, row);
+    const float x = static_cast<float>(origin.x) * zoom - camera_x;
+    const float y = static_cast<float>(origin.y) * zoom - camera_y;
     return {x, y, static_cast<float>(frame_w) * zoom, static_cast<float>(frame_h) * zoom};
   }
 
