@@ -277,11 +277,9 @@ namespace corundum::render::sys {
 
     const int diamond_w = state.active_chunks[0].tilemap.diamond_w();
     const int diamond_h = state.active_chunks[0].tilemap.diamond_h();
-    const float half_tw = static_cast<float>(diamond_w) * cfg.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(diamond_h) * cfg.tile_scale * 0.5f;
     const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
                                                       : state.manifest.chunks_tall * state.manifest.chunk_size;
-    const float x_origin = static_cast<float>(total_h - 1) * half_tw;
+    const auto iso = core::math::compute_iso_params(diamond_w, diamond_h, total_h, cfg.tile_scale);
 
     const int center_col = state.manifest.chunks_wide * state.manifest.chunk_size / 2;
     const int center_row = state.manifest.chunks_tall * state.manifest.chunk_size / 2;
@@ -290,7 +288,7 @@ namespace corundum::render::sys {
     const core::math::Vec2 spawn_pos{center_col_f, center_row_f};
 
     std::println("[keystone] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
-    return WorldLoadInfo{half_tw, half_th, x_origin, spawn_pos};
+    return WorldLoadInfo{iso.half_tw, iso.half_th, iso.x_origin, spawn_pos};
   }
 
   // ── configure_dialog_style ──────────────────────────────────────────────────
@@ -423,18 +421,15 @@ namespace corundum::render::sys {
 
     const int diamond_w = state.active_chunks[0].tilemap.diamond_w();
     const int diamond_h = state.active_chunks[0].tilemap.diamond_h();
-    const float half_tw = static_cast<float>(diamond_w) * cfg.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(diamond_h) * cfg.tile_scale * 0.5f;
+    const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
+                                                      : state.manifest.chunks_tall * state.manifest.chunk_size;
+    const auto iso = core::math::compute_iso_params(diamond_w, diamond_h, total_h, cfg.tile_scale);
     const auto pos_slot = scene.world.transforms.dense_idx(scene.player);
     const float pc = scene.world.transforms.col[pos_slot];
     const float pr = scene.world.transforms.row[pos_slot];
-    // Convert tile-grid position to isometric for chunk-streaming API.
-    const float total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
-                                                        : state.manifest.chunks_tall * state.manifest.chunk_size;
-    const float x_origin = (total_h - 1.f) * half_tw;
-    const float iso_x = (pc - pr) * half_tw + x_origin;
-    const float iso_y = (pc + pr) * half_th;
-    const ChunkCoord center = chunk_at_iso(iso_x, iso_y, state.manifest, half_tw, half_th);
+    const float iso_x = (pc - pr) * iso.half_tw + iso.x_origin;
+    const float iso_y = (pc + pr) * iso.half_th;
+    const ChunkCoord center = chunk_at_iso(iso_x, iso_y, state.manifest, iso.half_tw, iso.half_th);
 
     if (center != state.last_center_chunk) {
       constexpr float k_margin_tiles = 0.02f * 128.f;
@@ -573,7 +568,9 @@ namespace corundum::render::sys {
     return ResolvedTile{
         .tex_id = tex_id,
         .src = src,
-        .position = {world_pos.x - ts->info.pivot_x * scaled_tw, world_pos.y - (1.f - ts->info.pivot_y) * scaled_th},
+        // Anchor at the southern (bottom) vertex so the tile fills the diamond cell.
+        .position = {world_pos.x - ts->info.pivot_x * scaled_tw,
+                     world_pos.y + core::math::diamond_cell_height(ctx.half_th) - (1.f - ts->info.pivot_y) * scaled_th},
         .scale = static_cast<float>(cfg.tile_scale),
         .flip_x = flip_x,
         .flip_y = flip_y,
@@ -682,16 +679,11 @@ namespace corundum::render::sys {
     if (tilemap.tilesets.empty())
       return;
 
-    const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
-    const TileLayerCtx ctx{&tilemap,
-                           &state.map_data.tileset_texture_ids,
-                           half_tw,
-                           half_th,
-                           cfg.elevation_step_px,
-                           static_cast<float>(tilemap.height - 1) * half_tw,
-                           0,
-                           0};
+    const auto iso =
+        core::math::compute_iso_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height, cfg.tile_scale);
+    const TileLayerCtx ctx{
+        &tilemap, &state.map_data.tileset_texture_ids, iso.half_tw, iso.half_th, cfg.elevation_step_px, iso.x_origin, 0,
+        0};
     collect_tile_layer(r, ctx, 0, cfg, scene, out);
   }
 
@@ -705,16 +697,16 @@ namespace corundum::render::sys {
       if (tilemap.tilesets.empty())
         continue;
 
-      const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
-      const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
       const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
                                                         : state.manifest.chunks_tall * state.manifest.chunk_size;
+      const auto iso =
+          core::math::compute_iso_params(tilemap.diamond_w(), tilemap.diamond_h(), total_h, cfg.tile_scale);
       const TileLayerCtx ctx{&tilemap,
                              &chunk.tileset_texture_ids,
-                             half_tw,
-                             half_th,
+                             iso.half_tw,
+                             iso.half_th,
                              cfg.elevation_step_px,
-                             static_cast<float>(total_h - 1) * half_tw,
+                             iso.x_origin,
                              chunk.coord.x * state.manifest.chunk_size,
                              chunk.coord.y * state.manifest.chunk_size};
       collect_tile_layer(r, ctx, 0, cfg, scene, out);
@@ -727,16 +719,11 @@ namespace corundum::render::sys {
     if (tilemap.tilesets.empty())
       return;
 
-    const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
-    const TileLayerCtx ctx{&tilemap,
-                           &state.map_data.tileset_texture_ids,
-                           half_tw,
-                           half_th,
-                           cfg.elevation_step_px,
-                           static_cast<float>(tilemap.height - 1) * half_tw,
-                           0,
-                           0};
+    const auto iso =
+        core::math::compute_iso_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height, cfg.tile_scale);
+    const TileLayerCtx ctx{
+        &tilemap, &state.map_data.tileset_texture_ids, iso.half_tw, iso.half_th, cfg.elevation_step_px, iso.x_origin, 0,
+        0};
     render_tile_layer(r, ctx, z_index, cfg, scene);
   }
 
@@ -747,16 +734,15 @@ namespace corundum::render::sys {
     if (tilemap.tilesets.empty())
       return;
 
-    const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
     const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
                                                       : state.manifest.chunks_tall * state.manifest.chunk_size;
+    const auto iso = core::math::compute_iso_params(tilemap.diamond_w(), tilemap.diamond_h(), total_h, cfg.tile_scale);
     const TileLayerCtx ctx{&tilemap,
                            &chunk.tileset_texture_ids,
-                           half_tw,
-                           half_th,
+                           iso.half_tw,
+                           iso.half_th,
                            cfg.elevation_step_px,
-                           static_cast<float>(total_h - 1) * half_tw,
+                           iso.x_origin,
                            chunk.coord.x * state.manifest.chunk_size,
                            chunk.coord.y * state.manifest.chunk_size};
     render_tile_layer(r, ctx, z_index, cfg, scene);
@@ -791,6 +777,9 @@ namespace corundum::render::sys {
 
   // ── render_ground_layer (internal) ───────────────────────────────────────────
 
+  /// Fallback half diamond height used when no tilemap is loaded yet (ISO diamond_h default for 32×32 tiles at 1×).
+  constexpr float k_default_half_th = 8.f;
+
   /// Draws the z_index==0 tile band and all entities. Flat ground (elevation 0) draws immediately,
   /// unconditionally beneath entities — a flat tile can never be taller than its own diamond, so it can
   /// never legitimately occlude a taller entity sprite standing near it; this preserves the old two-pass
@@ -802,22 +791,18 @@ namespace corundum::render::sys {
                                   float alpha) {
     const float scale = static_cast<float>(cfg.sprite_scale);
 
-    float half_tw = 0.f;
-    float half_th = 8.f;
-    float x_origin = 0.f;
+    core::math::IsoParams iso{};
     if (!state.active_chunks.empty() && !state.active_chunks[0].tilemap.tilesets.empty()) {
       const auto &tm = state.active_chunks[0].tilemap;
-      half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
-      half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
       const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
                                                         : state.manifest.chunks_tall * state.manifest.chunk_size;
-      x_origin = static_cast<float>(total_h - 1) * half_tw;
+      iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), total_h, cfg.tile_scale);
     } else if (!state.map_data.tilemap.tilesets.empty()) {
       const auto &tm = state.map_data.tilemap;
-      half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
-      half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
-      x_origin = static_cast<float>(tm.height - 1) * half_tw;
+      iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
     }
+    if (iso.half_th == 0.f)
+      iso.half_th = k_default_half_th;
 
     state.draw_list.clear();
 
@@ -851,13 +836,13 @@ namespace corundum::render::sys {
 
       const auto &entry = *result;
       const float walk_offset = entry.walk_offset;
-      const float iso_x = (col_f - row_f) * half_tw + x_origin;
-      const float iso_y = (col_f + row_f) * half_th;
+      const float iso_x = (col_f - row_f) * iso.half_tw + iso.x_origin;
+      const float iso_y = (col_f + row_f) * iso.half_th;
       const float px = iso_x - static_cast<float>(entry.src.width) * scale * 0.5f;
       const float py = iso_y - walk_offset * static_cast<float>(entry.src.height) * scale;
       const int elev = elevation_under(state, col_f, row_f);
-      const float iso_depth =
-          corundum::core::math::iso_depth_key(col_f, row_f, static_cast<float>(elev), half_th, cfg.elevation_step_px);
+      const float iso_depth = corundum::core::math::iso_depth_key(col_f, row_f, static_cast<float>(elev), iso.half_th,
+                                                                  cfg.elevation_step_px);
       state.draw_list.push_back(
           {.tex_id = entry.tex_id, .src = entry.src, .x = px, .y = py, .depth = iso_depth, .scale = scale});
     }

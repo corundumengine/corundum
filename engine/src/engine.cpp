@@ -51,15 +51,13 @@ namespace corundum {
 
       // Initialize camera centered on the player.
       const auto &tm = engine.render.map_data.tilemap;
-      const float half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
-      const float half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
-      const float x_origin = static_cast<float>(tm.height - 1) * half_tw;
+      const auto iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
       const auto p_slot = engine.scene.world.transforms.dense_idx(engine.scene.player);
       const float pc = engine.scene.world.transforms.col[p_slot];
       const float pr = engine.scene.world.transforms.row[p_slot];
-      const float iso_x = (pc - pr) * half_tw + x_origin;
-      const float iso_y = (pc + pr) * half_th;
-      const float extent = static_cast<float>(tm.width + tm.height - 1) * half_tw * 2.f;
+      const float iso_x = (pc - pr) * iso.half_tw + iso.x_origin;
+      const float iso_y = (pc + pr) * iso.half_th;
+      const float extent = static_cast<float>(tm.width + tm.height - 1) * iso.half_tw * 2.f;
       engine.scene.camera.x = std::clamp(iso_x - cfg.win_w * 0.5f, 0.f, extent - cfg.win_w);
       engine.scene.camera.y = std::clamp(iso_y - cfg.win_h * 0.5f, 0.f, extent - cfg.win_h);
       return {};

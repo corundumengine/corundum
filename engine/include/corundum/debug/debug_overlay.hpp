@@ -67,18 +67,6 @@ namespace corundum::debug {
   };
 
   /**
-   * @brief Isometric projection parameters used for world-space debug overlays.
-   */
-  struct IsoParams {
-    /** @brief Half the scaled diamond width for iso conversion. */
-    float half_tw{};
-    /** @brief Half the scaled diamond height for iso conversion. */
-    float half_th{};
-    /** @brief Isometric x-origin shift. */
-    float x_origin{};
-  };
-
-  /**
    * @brief Draw collision geometry in world space as semi-transparent overlays.
    *
    * Converts Cartesian collision rects/triangles to isometric world space
@@ -97,7 +85,7 @@ namespace corundum::debug {
    */
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, IsoParams iso) noexcept;
+                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso) noexcept;
 
   /**
    * @brief Draw the debug HUD text overlay in the top-left corner of the screen.

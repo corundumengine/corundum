@@ -65,10 +65,7 @@ namespace tools::tilemap {
                       const TilemapTextureStore &store, const corundum::gameplay::world::Camera &camera, int z_index,
                       float tile_scale, float elapsed_time) {
     // Use diamond dimensions (world step) for isometric positioning.
-    const int dw = map.diamond_w();
-    const float half_tw = static_cast<float>(dw) * tile_scale * 0.5f;
-    const float half_th = static_cast<float>(map.diamond_h()) * tile_scale * 0.5f;
-    const float x_origin = static_cast<float>(map.height - 1) * half_tw;
+    const auto iso = corundum::core::math::compute_iso_params(map.diamond_w(), map.diamond_h(), map.height, tile_scale);
 
     // Diagonal sweep (depth = col + row) for correct isometric draw order.
     const int depth_max = map.width + map.height - 2;
@@ -112,9 +109,11 @@ namespace tools::tilemap {
           const float scaled_tw = std::round(static_cast<float>(ts->info.tile_width) * tile_scale);
           const float scaled_th = std::round(static_cast<float>(ts->info.tile_height) * tile_scale);
 
-          const auto world = corundum::core::math::tile_to_world(col, row, 0, half_tw, half_th, 0.f, x_origin);
+          const auto world =
+              corundum::core::math::tile_to_world(col, row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
           const float iso_x = world.x;
-          const float iso_y = world.y;
+          // Anchor at the southern (bottom) vertex so the tile image fills the diamond cell.
+          const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
           // Pivot offset: shift image so the pivot point aligns with the world anchor.
           const float pivot_x_px = ts ? (ts->info.pivot_x * scaled_tw) : 0.f;
           const float pivot_y_px = ts ? ((1.f - ts->info.pivot_y) * scaled_th) : 0.f;

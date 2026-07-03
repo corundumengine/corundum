@@ -2,6 +2,8 @@
 #include "render_collision.hpp"
 #include "render_portal.hpp"
 
+#include <corundum/core/math/vec.hpp>
+
 namespace tools::tilemap {
 
   namespace {
@@ -12,25 +14,28 @@ namespace tools::tilemap {
       if (state.map.tilesets.empty())
         return;
 
-      const float half_tw = static_cast<float>(state.map.diamond_w()) * state.tile_scale * 0.5f;
-      const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
+      const auto iso = corundum::core::math::compute_iso_params(state.map.diamond_w(), state.map.diamond_h(),
+                                                                state.map.height, state.tile_scale);
       const float ox = ctx.origin.x - state.camera.x;
       const float oy = ctx.origin.y - state.camera.y;
       const int col = state.hover_tile_col;
       const int row = state.hover_tile_row;
 
-      // Bottom-center anchor: the southernmost vertex of the tile diamond in screen space.
-      const float anchor_x = ox + static_cast<float>(col - row + state.map.height) * half_tw;
-      const float anchor_y = oy + static_cast<float>(col + row + 2) * half_th;
+      // Top vertex of the diamond in world space, then shift to the southern vertex
+      // (the footprint diamond extends downward from the top vertex).
+      const auto top_world =
+          corundum::core::math::tile_to_world(col, row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+      const float anchor_x = ox + top_world.x;
+      const float anchor_y = oy + top_world.y + corundum::core::math::diamond_cell_height(iso.half_th);
 
       const auto fp = corundum::gameplay::world::tilemap::get_tile_footprint(state.map.tilesets, state.selected_gid);
       const float fw = static_cast<float>(fp.w);
       const float fh = static_cast<float>(fp.h);
 
-      const ImVec2 top = {anchor_x - (fw - fh) * half_tw, anchor_y - (fw + fh) * half_th};
-      const ImVec2 right = {anchor_x + fh * half_tw, anchor_y - fh * half_th};
+      const ImVec2 top = {anchor_x - (fw - fh) * iso.half_tw, anchor_y - (fw + fh) * iso.half_th};
+      const ImVec2 right = {anchor_x + fh * iso.half_tw, anchor_y - fh * iso.half_th};
       const ImVec2 bottom = {anchor_x, anchor_y};
-      const ImVec2 left = {anchor_x - fw * half_tw, anchor_y - fw * half_th};
+      const ImVec2 left = {anchor_x - fw * iso.half_tw, anchor_y - fw * iso.half_th};
 
       constexpr ImU32 k_fill = IM_COL32(255, 255, 255, 28);
       constexpr ImU32 k_outline = IM_COL32(255, 220, 80, 210);
@@ -41,26 +46,26 @@ namespace tools::tilemap {
     void render_iso_grid(CanvasContext ctx, const EditorState &state) {
       if (state.map.tilesets.empty())
         return;
-      const float half_tw = static_cast<float>(state.map.diamond_w()) * state.tile_scale * 0.5f;
-      const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
+      const auto iso = corundum::core::math::compute_iso_params(state.map.diamond_w(), state.map.diamond_h(),
+                                                                state.map.height, state.tile_scale);
       const float ox = ctx.origin.x - state.camera.x;
       const float oy = ctx.origin.y - state.camera.y;
       const int W = state.map.width;
       const int H = state.map.height;
       constexpr ImU32 k_color = IM_COL32(255, 255, 255, 40);
 
-      // Column lines (k = 0..W): connect diamond top vertices along col k
+      // Column lines (k = 0..W): connect top vertices of (k, 0) and (k, H).
       for (int k = 0; k <= W; ++k) {
-        const ImVec2 p0{ox + static_cast<float>(k + H) * half_tw, oy + static_cast<float>(k) * half_th};
-        const ImVec2 p1{ox + static_cast<float>(k) * half_tw, oy + static_cast<float>(k + H) * half_th};
-        ctx.dl->AddLine(p0, p1, k_color, 1.f);
+        const auto p0_world = corundum::core::math::tile_to_world(k, 0, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+        const auto p1_world = corundum::core::math::tile_to_world(k, H, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+        ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
       }
 
-      // Row lines (k = 0..H): connect diamond top vertices along row k
+      // Row lines (k = 0..H): connect top vertices of (0, k) and (W, k).
       for (int k = 0; k <= H; ++k) {
-        const ImVec2 p0{ox + static_cast<float>(H - k) * half_tw, oy + static_cast<float>(k) * half_th};
-        const ImVec2 p1{ox + static_cast<float>(W + H - k) * half_tw, oy + static_cast<float>(W + k) * half_th};
-        ctx.dl->AddLine(p0, p1, k_color, 1.f);
+        const auto p0_world = corundum::core::math::tile_to_world(0, k, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+        const auto p1_world = corundum::core::math::tile_to_world(W, k, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+        ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
       }
     }
 

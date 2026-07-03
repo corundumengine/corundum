@@ -49,6 +49,55 @@ namespace corundum::core::math {
   };
 
   /**
+   * @brief Packed isometric projection parameters for a tilemap at a given scale.
+   *
+   * Pass this to tile_to_world / cart_to_iso to avoid computing half_tw, half_th,
+   * and x_origin separately at every call site.
+   */
+  struct IsoParams {
+    /** @brief Half the scaled diamond width (diamond_w * tile_scale * 0.5). */
+    float half_tw{};
+    /** @brief Half the scaled diamond height (diamond_h * tile_scale * 0.5). */
+    float half_th{};
+    /**
+     * @brief Horizontal origin shift so the leftmost tile (0, height-1) lands at x = 0.
+     *   Equals (height - 1) * half_tw.
+     */
+    float x_origin{};
+  };
+
+  /**
+   * @brief Build IsoParams from raw map/metric values.
+   *
+   * @param diamond_w  Tilemap::diamond_w() – the isometric grid-step width  in Tiled pixels.
+   * @param diamond_h  Tilemap::diamond_h() – the isometric grid-step height in Tiled pixels.
+   * @param height     Number of tile rows in the map (Tilemap::height).
+   * @param tile_scale Display scale factor (e.g. 1.f, 2.f).
+   * @return IsoParams with half_tw, half_th, x_origin pre-computed.
+   */
+  [[nodiscard]] constexpr IsoParams compute_iso_params(int diamond_w, int diamond_h, int height,
+                                                       float tile_scale) noexcept {
+    const float half_tw = static_cast<float>(diamond_w) * tile_scale * 0.5f;
+    const float half_th = static_cast<float>(diamond_h) * tile_scale * 0.5f;
+    const float x_origin = static_cast<float>(height - 1) * half_tw;
+    return {half_tw, half_th, x_origin};
+  }
+
+  /**
+   * @brief Full diamond cell height in screen pixels (= 2 * half_th).
+   *
+   * This is the vertical distance from the top vertex to the southern (bottom)
+   * vertex of one isometric diamond cell.  Anchor at this offset from
+   * tile_to_world to place a sprite so its artwork fills the cell naturally.
+   *
+   * @param half_th  Half the scaled diamond height (from IsoParams or equivalent).
+   * @return The full cell height in screen pixels.
+   */
+  [[nodiscard]] constexpr float diamond_cell_height(float half_th) noexcept {
+    return half_th * 2.f;
+  }
+
+  /**
    * @brief Convert a tile grid position and elevation to an isometric screen offset.
    *
    * The origin (0, 0) is the top vertex of the diamond grid.

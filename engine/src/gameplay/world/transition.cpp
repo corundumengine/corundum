@@ -24,10 +24,10 @@ namespace corundum::gameplay::world {
     }
 
     const auto &new_tm = engine.render.map_data.tilemap;
-    const float htw = static_cast<float>(new_tm.diamond_w()) * engine.cfg.tile_scale * 0.5f;
-    const float hth = static_cast<float>(new_tm.diamond_h()) * engine.cfg.tile_scale * 0.5f;
-    const float x_orig = static_cast<float>(new_tm.height) * htw;
-    const auto spawn_pos = core::math::tile_to_world(t.spawn_col, t.spawn_row, 0, htw, hth, 0.f, x_orig);
+    const auto iso =
+        core::math::compute_iso_params(new_tm.diamond_w(), new_tm.diamond_h(), new_tm.height, engine.cfg.tile_scale);
+    const auto spawn_pos =
+        core::math::tile_to_world(t.spawn_col, t.spawn_row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
     const gameplay::component::Position spawn{spawn_pos.x, spawn_pos.y};
     auto scene_result = gameplay::world::spawn_world(engine.cfg, engine.characters, new_tm, spawn);
     if (!scene_result) {

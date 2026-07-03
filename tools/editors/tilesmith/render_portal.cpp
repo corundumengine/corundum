@@ -36,22 +36,20 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const float half_tw = static_cast<float>(dw) * state.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(dh) * state.tile_scale * 0.5f;
-    const float x_shift = static_cast<float>(state.map.height) * half_tw;
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
 
     for (int i = 0; i < static_cast<int>(state.portals.size()); ++i) {
       const auto &p = state.portals[i];
       const bool selected = (i == state.selected_portal);
 
       draw_iso_portal(ctx, static_cast<float>(p.col), static_cast<float>(p.row), static_cast<float>(p.w),
-                      static_cast<float>(p.h), half_tw, half_th, x_shift, state.camera.x, state.camera.y,
+                      static_cast<float>(p.h), iso.half_tw, iso.half_th, iso.x_origin, state.camera.x, state.camera.y,
                       selected ? IM_COL32(0, 200, 200, 80) : IM_COL32(0, 200, 200, 45),
                       selected ? IM_COL32(0, 220, 220, 255) : IM_COL32(0, 220, 220, 180));
 
       // Label at the top corner of the portal rhombus
-      const ImVec2 text_pos = tile_to_iso(ctx, static_cast<float>(p.col), static_cast<float>(p.row), half_tw, half_th,
-                                          x_shift, state.camera.x, state.camera.y);
+      const ImVec2 text_pos = tile_to_iso(ctx, static_cast<float>(p.col), static_cast<float>(p.row), iso.half_tw,
+                                          iso.half_th, iso.x_origin, state.camera.x, state.camera.y);
       const std::string stem = std::filesystem::path(p.target_map).stem().string();
       const std::string label = std::format("-> {} @ ({},{})", stem, p.spawn_col, p.spawn_row);
       ctx.dl->AddText({text_pos.x + 3.f, text_pos.y + 2.f},
@@ -65,16 +63,14 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const float half_tw = static_cast<float>(dw) * state.tile_scale * 0.5f;
-    const float half_th = static_cast<float>(dh) * state.tile_scale * 0.5f;
-    const float x_shift = static_cast<float>(state.map.height) * half_tw;
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
 
     const int col = std::min(state.portal_drag_anchor_col, state.portal_drag_cur_col);
     const int row = std::min(state.portal_drag_anchor_row, state.portal_drag_cur_row);
     const int w = std::abs(state.portal_drag_cur_col - state.portal_drag_anchor_col) + 1;
     const int h = std::abs(state.portal_drag_cur_row - state.portal_drag_anchor_row) + 1;
     draw_iso_portal(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(w), static_cast<float>(h),
-                    half_tw, half_th, x_shift, state.camera.x, state.camera.y, IM_COL32(0, 220, 220, 40),
+                    iso.half_tw, iso.half_th, iso.x_origin, state.camera.x, state.camera.y, IM_COL32(0, 220, 220, 40),
                     IM_COL32(0, 220, 220, 230));
   }
 

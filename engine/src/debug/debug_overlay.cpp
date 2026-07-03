@@ -53,7 +53,7 @@ namespace corundum::debug {
 
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, IsoParams iso) noexcept {
+                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso) noexcept {
     r.set_world_view(camera, viewport);
 
     if (iso.half_tw > 0.f && iso.half_th > 0.f) {
@@ -152,24 +152,16 @@ namespace corundum::debug {
     const core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
     const core::math::Vec2 camera{scene.camera.x, scene.camera.y};
 
-    float half_tw = 0.f;
-    float half_th = 0.f;
-    float x_origin = 0.f;
+    core::math::IsoParams iso{};
     if (render.mode == render::data::RenderMode::World && !render.active_chunks.empty()) {
       const gameplay::world::tilemap::Tilemap &first_tm = render.active_chunks[0].tilemap;
-      half_tw = static_cast<float>(first_tm.diamond_w()) * cfg.tile_scale * 0.5f;
-      half_th = static_cast<float>(first_tm.diamond_h()) * cfg.tile_scale * 0.5f;
       const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
-      x_origin = static_cast<float>(total_h - 1) * half_tw;
+      iso = core::math::compute_iso_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale);
     } else if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
       const gameplay::world::tilemap::Tilemap &tm = render.map_data.tilemap;
-      half_tw = static_cast<float>(tm.diamond_w()) * cfg.tile_scale * 0.5f;
-      half_th = static_cast<float>(tm.diamond_h()) * cfg.tile_scale * 0.5f;
-      x_origin = static_cast<float>(tm.height - 1) * half_tw;
+      iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
     }
-
-    const IsoParams iso{.half_tw = half_tw, .half_th = half_th, .x_origin = x_origin};
     const render::data::CollisionGeometry geo = render::data::current_collisions(render);
     draw_collision(r, camera, viewport, geo.rects, geo.tris, iso);
 

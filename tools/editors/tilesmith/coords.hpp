@@ -60,7 +60,7 @@ namespace tools::tilemap {
     const float world_y = static_cast<float>(py - canvas_top) + camera_y;
     const float u = world_x / half_tw; // col - row + map_h
     const float v = world_y / half_th; // col + row
-    const float h1 = static_cast<float>(map_h);
+    const float h1 = static_cast<float>(map_h - 1);
     const int col = static_cast<int>(std::floor((u + v - h1) * 0.5f));
     const int row = static_cast<int>(std::floor((v - u + h1) * 0.5f));
 
