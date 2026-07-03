@@ -16,6 +16,7 @@ add_executable(corundum_tests
     test_world_manifest.cpp
     test_iso_math.cpp
     test_elevation_at.cpp
+    test_tilemap_validate.cpp
 )
 
 # Link to engine and doctest

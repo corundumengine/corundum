@@ -350,4 +350,17 @@ namespace corundum::gameplay::world::tilemap {
     return result;
   }
 
+  /**
+   * @brief Validates a tilemap for author-time errors: orphaned tile references, duplicate layer
+   * names, and out-of-bounds collision geometry.
+   *
+   * Intended to be run explicitly before save/export (e.g. by an editor), not as a load-time gate —
+   * @see corundum::gameplay::world::tilemap::load_tilemap for load-time structural checks.
+   *
+   * @param tm The tilemap to validate.
+   * @return One human-readable message per problem found, each naming the offending layer/cell/rect
+   *         so an editor can point the author at a specific location. Empty if the map is valid.
+   */
+  [[nodiscard]] std::vector<std::string> validate(const Tilemap &tm);
+
 } // namespace corundum::gameplay::world::tilemap

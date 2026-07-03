@@ -250,6 +250,10 @@ namespace tools::tilemap {
     int layer_rename_idx = -1;           ///< Index of the layer being renamed.
     char layer_rename_buf[256] = {};     ///< Buffer for the new name.
 
+    // ── Validation popup state ───────────────────────────────────────────────
+    bool show_validation_popup = false;         ///< True when Ctrl+S found problems to confirm.
+    std::vector<std::string> validation_errors; ///< Problems found by the last validate() run.
+
     void add_layer(EditorState &state) noexcept {
       const std::string name = std::format("Layer {}", state.map.layers.size() + 1);
       corundum::gameplay::world::tilemap::TilemapLayer layer;
@@ -434,10 +438,15 @@ namespace tools::tilemap {
       }
 
       if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
-        if (auto r = save_tilemap(state); r)
-          std::println("[Tilesmith] Saved: {}", state.map_path.string());
-        else
-          std::println(stderr, "[Tilesmith] Save failed: {}", r.error());
+        validation_errors = corundum::gameplay::world::tilemap::validate(state.map);
+        if (validation_errors.empty()) {
+          if (auto r = save_tilemap(state); r)
+            std::println("[Tilesmith] Saved: {}", state.map_path.string());
+          else
+            std::println(stderr, "[Tilesmith] Save failed: {}", r.error());
+        } else {
+          show_validation_popup = true;
+        }
       }
     }
 
@@ -575,6 +584,35 @@ namespace tools::tilemap {
         layer_rename_idx = -1;
         ImGui::CloseCurrentPopup();
       }
+      ImGui::EndPopup();
+    }
+
+    // ── Validation errors popup ──────────────────────────────────────────────
+    if (show_validation_popup) {
+      ImGui::OpenPopup("Validation Errors");
+      show_validation_popup = false;
+    }
+
+    if (ImGui::BeginPopupModal("Validation Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::TextColored(ImVec4{1.f, .6f, 0.f, 1.f}, "%zu problem(s) found in this map:", validation_errors.size());
+      ImGui::Spacing();
+      for (const auto &msg : validation_errors)
+        ImGui::BulletText("%s", msg.c_str());
+      ImGui::Spacing();
+      ImGui::Separator();
+      ImGui::Spacing();
+
+      if (ImGui::Button("Save Anyway", ImVec2{150.f, 0.f})) {
+        if (auto r = save_tilemap(state); r)
+          std::println("[Tilesmith] Saved with {} validation warning(s): {}", validation_errors.size(),
+                       state.map_path.string());
+        else
+          std::println(stderr, "[Tilesmith] Save failed: {}", r.error());
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel", ImVec2{120.f, 0.f}))
+        ImGui::CloseCurrentPopup();
       ImGui::EndPopup();
     }
   }

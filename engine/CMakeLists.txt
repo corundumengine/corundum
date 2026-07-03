@@ -29,6 +29,7 @@ add_library(engine STATIC
     src/render/sys/render_sys.cpp
     src/gameplay/world/tilemap/loader.cpp
     src/gameplay/world/tilemap/world_manifest.cpp
+    src/gameplay/world/tilemap/validate.cpp
     src/gameplay/world/spawn.cpp
     src/gameplay/world/map_view.cpp
     src/gameplay/world/transition.cpp
