@@ -71,6 +71,14 @@ namespace tools::tilemap {
         lj["tiles"] = convert_layer_dense(project_gids, state.map.width, state.map.height);
       }
 
+      if (!layer.material_overrides.empty()) {
+        nlohmann::json mat_overrides = nlohmann::json::array();
+        for (const auto &[idx, material] : layer.material_overrides)
+          mat_overrides.push_back(
+              {{"col", idx % state.map.width}, {"row", idx / state.map.width}, {"material", material}});
+        lj["material_overrides"] = std::move(mat_overrides);
+      }
+
       layers_json.push_back(std::move(lj));
     }
     j["layers"] = std::move(layers_json);

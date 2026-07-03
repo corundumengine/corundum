@@ -3,6 +3,7 @@
 #include <flat_map>
 #include <format>
 #include <fstream>
+#include <limits>
 #include <nlohmann/json.hpp>
 #include <sstream>
 
@@ -89,6 +90,12 @@ namespace corundum::gameplay::world::tilemap {
     if (j.contains("pivot_y")) {
       try {
         info.pivot_y = j["pivot_y"].get<float>();
+      } catch (...) {
+      }
+    }
+    if (j.contains("material")) {
+      try {
+        info.material = j["material"].get<std::string>();
       } catch (...) {
       }
     }
@@ -731,8 +738,42 @@ namespace corundum::gameplay::world::tilemap {
         }
       }
 
+      // Optional per-cell material overrides: [{"col":x,"row":y,"material":"tag"}], sparse.
+      std::flat_map<int, std::string> material_overrides;
+      if (layer_json.contains("material_overrides") && layer_json["material_overrides"].is_array()) {
+        const auto &mat_json = layer_json["material_overrides"];
+        for (std::size_t mi = 0; mi < mat_json.size(); ++mi) {
+          const auto &entry = mat_json[mi];
+          if (!entry.is_object())
+            return std::unexpected(
+                std::format("Tilemap '{}' layer '{}' material_overrides[{}] must be an object", id, layer_name, mi));
+          int mcol, mrow;
+          std::string material;
+          try {
+            mcol = entry.at("col").get<int>();
+            mrow = entry.at("row").get<int>();
+            material = entry.at("material").get<std::string>();
+          } catch (...) {
+            return std::unexpected(std::format(
+                "Tilemap '{}' layer '{}' material_overrides[{}] missing or invalid 'col', 'row', or 'material'", id,
+                layer_name, mi));
+          }
+          if (mcol < 0 || mcol >= width || mrow < 0 || mrow >= height)
+            return std::unexpected(std::format("Tilemap '{}' layer '{}' material_overrides[{}] position ({}, {}) "
+                                               "out of bounds",
+                                               id, layer_name, mi, mcol, mrow));
+          const std::size_t flat_idx =
+              static_cast<std::size_t>(mrow) * static_cast<std::size_t>(width) + static_cast<std::size_t>(mcol);
+          if (flat_idx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            return std::unexpected(std::format("Tilemap '{}' layer '{}' material_overrides[{}] index {} "
+                                               "exceeds int maximum",
+                                               id, layer_name, mi, flat_idx));
+          material_overrides[static_cast<int>(flat_idx)] = std::move(material);
+        }
+      }
+
       layers.push_back(TilemapLayer{layer_name, z_index, true, std::move(tiles), std::move(animated_cells),
-                                    std::move(flip_flags), std::move(elevation)});
+                                    std::move(flip_flags), std::move(elevation), std::move(material_overrides)});
     }
 
     return Tilemap{path.string(),

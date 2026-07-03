@@ -459,3 +459,89 @@ TEST_CASE("load_tilemap — schema_version wrong type throws") {
   auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
+
+// ── terrain-material tag ─────────────────────────────────────────────────────
+
+TEST_CASE("load_tileset — 'material' field is loaded") {
+  const auto dir = temp_dir("tileset_material");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","tile_width":16,"tile_height":16,)"
+                      R"("columns":8,"rows":4,"material":"stone"})");
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  CHECK(result->material == "stone");
+}
+
+TEST_CASE("load_tileset — absent 'material' field defaults to empty string") {
+  const auto dir = temp_dir("tileset_material_absent");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, TILESET_A_JSON);
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  CHECK(result->material.empty());
+}
+
+TEST_CASE("load_tilemap — layer 'material_overrides' is loaded") {
+  const auto dir = temp_dir("material_overrides");
+  const auto ts_path = dir / "tileset_a.json";
+  const auto map_path = dir / "map.json";
+  write_file(ts_path, TILESET_A_JSON);
+
+  std::string content;
+  content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
+  content += ts_path.string();
+  content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"],)"
+             R"("material_overrides":[{"col":1,"row":0,"material":"snow"}]}]})";
+  write_file(map_path, content);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  REQUIRE(result.has_value());
+  const auto &layer = result->layers[0];
+  REQUIRE(layer.material_overrides.contains(1)); // row 0 * width 2 + col 1
+  CHECK(layer.material_overrides.at(1) == "snow");
+}
+
+TEST_CASE("load_tilemap — absent 'material_overrides' produces an empty map") {
+  const auto dir = temp_dir("material_overrides_absent");
+  const auto map_path = make_single_tileset_map(dir);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  REQUIRE(result.has_value());
+  CHECK(result->layers[0].material_overrides.empty());
+}
+
+TEST_CASE("load_tilemap — material_overrides entry out of bounds throws") {
+  const auto dir = temp_dir("material_overrides_oob");
+  const auto ts_path = dir / "tileset_a.json";
+  const auto map_path = dir / "map.json";
+  write_file(ts_path, TILESET_A_JSON);
+
+  std::string content;
+  content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
+  content += ts_path.string();
+  content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"],)"
+             R"("material_overrides":[{"col":5,"row":0,"material":"snow"}]}]})";
+  write_file(map_path, content);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_tilemap — material_overrides entry missing 'material' throws") {
+  const auto dir = temp_dir("material_overrides_missing_field");
+  const auto ts_path = dir / "tileset_a.json";
+  const auto map_path = dir / "map.json";
+  write_file(ts_path, TILESET_A_JSON);
+
+  std::string content;
+  content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
+  content += ts_path.string();
+  content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"],)"
+             R"("material_overrides":[{"col":1,"row":0}]}]})";
+  write_file(map_path, content);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  CHECK(!result.has_value());
+}

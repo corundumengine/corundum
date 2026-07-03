@@ -2,6 +2,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <cstdint>
 #include <flat_map>
+#include <limits>
 #include <mdspan>
 #include <span>
 #include <string>
@@ -47,6 +48,7 @@ namespace corundum::gameplay::world::tilemap {
     float pivot_y = 0.f; ///< Vertical pivot fraction [0, 1] measured from the BOTTOM (Unity convention).
     std::flat_map<std::string, TileAnimation> animations; ///< name → animation
     std::flat_map<int, TileFootprint> tile_footprints;    ///< local_id → footprint; absent = 1×1.
+    std::string material; ///< Default terrain-material tag (footstep/ambient audio selection); empty == none.
   };
 
   /// Bitmask for horizontal flip. Set in TilemapLayer::flip_flags.
@@ -64,6 +66,11 @@ namespace corundum::gameplay::world::tilemap {
     std::flat_map<int, AnimatedCell> animated_cells; ///< cell_index (row*width+col) → resolved animation.
     std::flat_map<int, uint8_t> flip_flags;          ///< cell_index → k_flip_h | k_flip_v; absent == no flip.
     std::vector<uint8_t> elevation; ///< Per-tile elevation [0–100]; empty == all flat (optional for isometric).
+    std::flat_map<int, std::string> material_overrides; ///< cell_index → terrain-material tag, overriding the
+                                                        ///< owning tileset's default TilesetInfo::material for
+                                                        ///< that one cell (e.g. a snow-dusted patch of an
+                                                        ///< otherwise-stone floor); absent == use the tileset
+                                                        ///< default.
 
     /// 2D mdspan view over the tile grid — rows × cols layout.
     /// @pre tiles.size() == width * height
@@ -346,6 +353,54 @@ namespace corundum::gameplay::world::tilemap {
       if (!has_tile)
         continue;
       result = layer.elevation[uidx];
+    }
+    return result;
+  }
+
+  /**
+   * @brief Terrain-material tag of the tile at (col, row), for footstep/ambient audio selection.
+   *
+   * Resolves a per-cell material_overrides entry on the topmost z_index==0 layer with a tile
+   * present at the cell (same layer-precedence convention as elevation_at); if that cell has no
+   * override, falls back to the owning tileset's default TilesetInfo::material. This keeps the
+   * common case (every tile of a terrain type sharing one material) free, while still letting an
+   * individual placed tile diverge from its tileset's default (e.g. a snow-dusted patch of an
+   * otherwise-stone floor) without deriving the tag from the tile's visual art index.
+   *
+   * @param tm  The tilemap to query.
+   * @param col Column index (0-based, left to right).
+   * @param row Row index (0-based, top to bottom).
+   * @return The resolved material tag, or an empty string if out of bounds, no z_index==0 layer has
+   *         a tile there, or neither an override nor a tileset default is set.
+   */
+  [[nodiscard]] inline std::string material_at(const Tilemap &tm, int col, int row) {
+    if (col < 0 || row < 0 || col >= tm.width || row >= tm.height)
+      return {};
+    const std::size_t uidx =
+        static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
+    if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+      return {};
+    const int idx = static_cast<int>(uidx);
+    std::string result;
+    for (const auto &layer : tm.layers) {
+      if (layer.z_index != 0 || !layer.visible)
+        continue;
+      if (uidx >= layer.tiles.size())
+        continue;
+      const bool is_animated = layer.animated_cells.contains(idx);
+      if (!is_animated && layer.tiles[uidx] == k_empty_tile)
+        continue;
+
+      if (auto it = layer.material_overrides.find(idx); it != layer.material_overrides.end()) {
+        result = it->second;
+        continue;
+      }
+      const TileId gid =
+          is_animated ? (layer.animated_cells.at(idx).frame_gids.empty() ? k_empty_tile
+                                                                         : layer.animated_cells.at(idx).frame_gids[0])
+                      : layer.tiles[uidx];
+      if (const TilemapTileset *ts = find_tileset(tm.tilesets, gid); ts != nullptr)
+        result = ts->info.material;
     }
     return result;
   }

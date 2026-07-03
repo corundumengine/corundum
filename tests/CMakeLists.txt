@@ -17,6 +17,7 @@ add_executable(corundum_tests
     test_iso_math.cpp
     test_elevation_at.cpp
     test_tilemap_validate.cpp
+    test_material_at.cpp
 )
 
 # Link to engine and doctest
