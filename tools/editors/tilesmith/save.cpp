@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <ranges>
+#include <utility>
 
 namespace tools::tilemap {
 
@@ -13,19 +15,14 @@ namespace tools::tilemap {
     if (!in)
       return std::unexpected("Cannot open: " + state.map_path.string());
     nlohmann::json j = nlohmann::json::parse(in);
-    in.close();
 
     // Stamp the current schema version so re-saving an old (unversioned) map upgrades it going forward.
     j["schema_version"] = corundum::gameplay::world::tilemap::k_tilemap_schema_version;
 
     // Serialize tilesets from in-memory state.
     nlohmann::json tilesets_json = nlohmann::json::array();
-    for (const auto &ts : state.map.tilesets) {
-      nlohmann::json tj;
-      tj["first_gid"] = ts.first_gid;
-      tj["source"] = ts.info.source;
-      tilesets_json.push_back(std::move(tj));
-    }
+    for (const auto &ts : state.map.tilesets)
+      tilesets_json.push_back({{"first_gid", ts.first_gid}, {"source", ts.info.source}});
     j["tilesets"] = std::move(tilesets_json);
 
     if (state.map.iso_diamond_w > 0)
@@ -71,6 +68,11 @@ namespace tools::tilemap {
         lj["tiles"] = convert_layer_dense(project_gids, state.map.width, state.map.height);
       }
 
+      if (!layer.elevation.empty()) {
+        const std::vector<int> elev_ints(layer.elevation.begin(), layer.elevation.end());
+        lj["elevation"] = convert_layer_dense(elev_ints, state.map.width, state.map.height);
+      }
+
       if (!layer.material_overrides.empty()) {
         nlohmann::json mat_overrides = nlohmann::json::array();
         for (const auto &[idx, material] : layer.material_overrides)
@@ -85,18 +87,12 @@ namespace tools::tilemap {
 
     nlohmann::json collisions_json = nlohmann::json::array();
     const auto &cols = state.map.collisions;
-    for (std::size_t i = 0; i < cols.size(); ++i) {
-      nlohmann::json cj;
-      cj["x"] = cols.cols[i];
-      cj["y"] = cols.rows[i];
-      cj["w"] = cols.col_spans[i];
-      cj["h"] = cols.row_spans[i];
-      collisions_json.push_back(std::move(cj));
-    }
+    for (auto &&[x, y, w, h] : std::views::zip(cols.cols, cols.rows, cols.col_spans, cols.row_spans))
+      collisions_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}});
     j["collisions"] = std::move(collisions_json);
 
     using Cut = corundum::gameplay::world::tilemap::TriangleCut;
-    auto cut_to_str = [](Cut c) -> const char * {
+    static constexpr auto cut_to_str = [](Cut c) -> const char * {
       switch (c) {
       case Cut::NW:
         return "NW";
@@ -107,19 +103,12 @@ namespace tools::tilemap {
       case Cut::SE:
         return "SE";
       }
-      return "NW";
+      std::unreachable();
     };
     nlohmann::json tris_json = nlohmann::json::array();
     const auto &tris = state.map.collision_triangles;
-    for (std::size_t i = 0; i < tris.size(); ++i) {
-      nlohmann::json tj;
-      tj["x"] = tris.cols[i];
-      tj["y"] = tris.rows[i];
-      tj["w"] = tris.col_spans[i];
-      tj["h"] = tris.row_spans[i];
-      tj["cut"] = cut_to_str(tris.cuts[i]);
-      tris_json.push_back(std::move(tj));
-    }
+    for (auto &&[x, y, w, h, cut] : std::views::zip(tris.cols, tris.rows, tris.col_spans, tris.row_spans, tris.cuts))
+      tris_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}, {"cut", cut_to_str(cut)}});
     j["collision_triangles"] = std::move(tris_json);
 
     {
@@ -131,17 +120,14 @@ namespace tools::tilemap {
     // Save portals alongside the tilemap.
     nlohmann::json portals_json;
     portals_json["portals"] = nlohmann::json::array();
-    for (const auto &p : state.portals) {
-      nlohmann::json pj;
-      pj["col"] = p.col;
-      pj["row"] = p.row;
-      pj["w"] = p.w;
-      pj["h"] = p.h;
-      pj["target_map"] = p.target_map;
-      pj["spawn_col"] = p.spawn_col;
-      pj["spawn_row"] = p.spawn_row;
-      portals_json["portals"].push_back(std::move(pj));
-    }
+    for (const auto &p : state.portals)
+      portals_json["portals"].push_back({{"col", p.col},
+                                         {"row", p.row},
+                                         {"w", p.w},
+                                         {"h", p.h},
+                                         {"target_map", p.target_map},
+                                         {"spawn_col", p.spawn_col},
+                                         {"spawn_row", p.spawn_row}});
     const auto ppath = portals_path(state.map_path);
     std::filesystem::create_directories(ppath.parent_path());
     {
@@ -160,10 +146,9 @@ namespace tools::tilemap {
       nlohmann::json tj;
       try {
         tj = nlohmann::json::parse(tin);
-      } catch (...) {
+      } catch (const nlohmann::json::parse_error &) {
         continue;
       }
-      tin.close();
       tj["pivot_x"] = saved_ts.info.pivot_x;
       tj["pivot_y"] = saved_ts.info.pivot_y;
       if (!saved_ts.info.tile_footprints.empty()) {
@@ -192,30 +177,33 @@ namespace tools::tilemap {
     return std::filesystem::path("data/portals") / map_path.filename();
   }
 
-  void load_portals(EditorState &state) {
+  std::expected<void, std::string> load_portals(EditorState &state) {
     const auto ppath = portals_path(state.map_path);
     std::ifstream in(ppath);
     if (!in) {
       state.portals.clear();
-      return;
+      return {};
     }
 
-    const nlohmann::json j = nlohmann::json::parse(in);
+    nlohmann::json j;
+    try {
+      j = nlohmann::json::parse(in);
+    } catch (const nlohmann::json::parse_error &e) {
+      return std::unexpected("Parse error in " + ppath.string() + ": " + e.what());
+    }
     if (!j.contains("portals") || !j["portals"].is_array())
-      throw std::runtime_error("portals JSON missing 'portals' array: " + ppath.string());
+      return std::unexpected("portals JSON missing 'portals' array: " + ppath.string());
 
     state.portals.clear();
-    for (const auto &pj : j["portals"]) {
-      PortalEntry e;
-      e.col = pj.at("col").get<int>();
-      e.row = pj.at("row").get<int>();
-      e.w = pj.at("w").get<int>();
-      e.h = pj.at("h").get<int>();
-      e.target_map = pj.at("target_map").get<std::string>();
-      e.spawn_col = pj.at("spawn_col").get<int>();
-      e.spawn_row = pj.at("spawn_row").get<int>();
-      state.portals.push_back(std::move(e));
-    }
+    for (const auto &pj : j["portals"])
+      state.portals.push_back({.col = pj.at("col").get<int>(),
+                               .row = pj.at("row").get<int>(),
+                               .w = pj.at("w").get<int>(),
+                               .h = pj.at("h").get<int>(),
+                               .target_map = pj.at("target_map").get<std::string>(),
+                               .spawn_col = pj.at("spawn_col").get<int>(),
+                               .spawn_row = pj.at("spawn_row").get<int>()});
+    return {};
   }
 
 } // namespace tools::tilemap

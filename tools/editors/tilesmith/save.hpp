@@ -33,10 +33,10 @@ namespace tools::tilemap {
    * @brief Load portals from data/portals/{stem}.json into state.portals.
    *
    * Silently succeeds with an empty vector if the file does not exist.
-   * Throws std::runtime_error on a malformed JSON schema.
    *
    * @param state Editor state to populate.
+   * @return An empty expected on success, or an error message string on failure.
    */
-  void load_portals(EditorState &state);
+  [[nodiscard]] std::expected<void, std::string> load_portals(EditorState &state);
 
 } // namespace tools::tilemap

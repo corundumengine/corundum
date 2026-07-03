@@ -95,7 +95,9 @@ static void finish_map_load(tools::ToolApp &app, EditorState &state, TilemapText
   if (!tilemap_result)
     throw std::runtime_error(tilemap_result.error());
   state.map = std::move(*tilemap_result);
-  tools::tilemap::load_portals(state);
+  auto portals_result = tools::tilemap::load_portals(state);
+  if (!portals_result)
+    throw std::runtime_error(portals_result.error());
   texture_store = tools::tilemap::load_tilemap_textures(app, state.map);
   tileset_views = tools::tilemap::rebuild_tileset_views(app, state.map, texture_store);
   center_camera(state);
@@ -132,10 +134,9 @@ int main(int argc, char *argv[]) {
     }
     state.map = std::move(*tilemap_result);
 
-    try {
-      tools::tilemap::load_portals(state);
-    } catch (const std::runtime_error &e) {
-      std::println(stderr, "[Tilesmith] FATAL: {}", e.what());
+    auto portals_result = tools::tilemap::load_portals(state);
+    if (!portals_result) {
+      std::println(stderr, "[Tilesmith] FATAL: {}", portals_result.error());
       return 1;
     }
   }
