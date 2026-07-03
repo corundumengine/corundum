@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iterator>
 #include <print>
 #include <ranges>
 #include <span>
@@ -88,9 +89,9 @@ namespace corundum::render::sys {
                            const data::ChunkEntry &chunk, int z_index, const corundum::core::GameConfig &cfg,
                            const corundum::gameplay::world::Scene &scene);
 
-  static void render_entities(corundum::platform::Renderer &r, data::RenderState &state,
-                              const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                              float alpha);
+  static void render_ground_layer(corundum::platform::Renderer &r, data::RenderState &state,
+                                  const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                                  float alpha);
 
   // ── load_sprite_index ────────────────────────────────────────────────────────
 
@@ -324,9 +325,7 @@ namespace corundum::render::sys {
       sync_active_chunks(r, state, cfg, scene);
 
       r.set_world_view({cam_x, cam_y}, viewport);
-      for (const auto &chunk : state.active_chunks)
-        render_chunk(r, state, chunk, 0, cfg, scene);
-      render_entities(r, state, cfg, scene, alpha);
+      render_ground_layer(r, state, cfg, scene, alpha);
 
       if (state.chunks_dirty) {
         state.above_z_cache.clear();
@@ -345,8 +344,7 @@ namespace corundum::render::sys {
       }
     } else {
       r.set_world_view({cam_x, cam_y}, viewport);
-      render_tilemap(r, state, 0, cfg, scene);
-      render_entities(r, state, cfg, scene, alpha);
+      render_ground_layer(r, state, cfg, scene, alpha);
 
       for (const int z : state.map_data.above_z) {
         r.set_world_view({cam_x, cam_y}, viewport);
@@ -502,6 +500,88 @@ namespace corundum::render::sys {
     int chunk_offset_row;
   };
 
+  /// One fully-resolved tile draw, ready to either draw immediately or collect into a depth-sorted list.
+  struct ResolvedTile {
+    uint32_t tex_id;
+    corundum::core::math::IntRect src;
+    corundum::core::math::Vec2 position;
+    float scale;
+    bool flip_x;
+    bool flip_y;
+    float depth;   ///< iso_depth_key() value, accounting for elevation.
+    int elevation; ///< Raw elevation [0-255]; 0 for flat ground.
+  };
+
+  /// Resolves the tile at (col, row) in @p layer to draw data, or std::nullopt if the cell is empty/unrenderable.
+  /// Shared by render_tile_layer (immediate draw, z>0 bands) and collect_tile_layer (depth-sorted, z==0 band).
+  static std::optional<ResolvedTile> resolve_tile_cell(const TileLayerCtx &ctx,
+                                                       const corundum::gameplay::world::tilemap::TilemapLayer &layer,
+                                                       const corundum::gameplay::world::tilemap::Tilemap &tilemap,
+                                                       int col, int row, const corundum::core::GameConfig &cfg,
+                                                       const corundum::gameplay::world::Scene &scene) {
+    const int cell_idx = row * tilemap.width + col;
+
+    corundum::gameplay::world::tilemap::TileId gid;
+    if (auto it = layer.animated_cells.find(cell_idx); it != layer.animated_cells.end()) {
+      const auto &anim = it->second;
+      if (anim.frame_gids.empty()) [[unlikely]]
+        return std::nullopt;
+      const auto n = anim.frame_gids.size();
+      const auto fidx = static_cast<std::size_t>(static_cast<int>(scene.elapsed_time * anim.fps)) % n;
+      gid = anim.frame_gids[fidx];
+    } else {
+      gid = layer.at(col, row, tilemap.width);
+      if (gid == corundum::gameplay::world::tilemap::k_empty_tile)
+        return std::nullopt;
+    }
+
+    const corundum::gameplay::world::tilemap::TilemapTileset *ts =
+        corundum::gameplay::world::tilemap::find_tileset(tilemap.tilesets, gid);
+    if (!ts) [[unlikely]]
+      return std::nullopt;
+
+    const auto ts_idx = static_cast<std::size_t>(std::distance(tilemap.tilesets.data(), ts));
+    const uint32_t tex_id = (*ctx.tex_ids)[ts_idx];
+    if (tex_id == 0) [[unlikely]]
+      return std::nullopt;
+
+    const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
+
+    bool flip_x = false;
+    bool flip_y = false;
+    if (auto fit = layer.flip_flags.find(cell_idx); fit != layer.flip_flags.end()) {
+      if (fit->second & corundum::gameplay::world::tilemap::k_flip_h)
+        flip_x = true;
+      if (fit->second & corundum::gameplay::world::tilemap::k_flip_v)
+        flip_y = true;
+    }
+
+    const int elev = (!layer.elevation.empty() && cell_idx < static_cast<int>(layer.elevation.size()))
+                         ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
+                         : 0;
+
+    const int abs_col = ctx.chunk_offset_col + col;
+    const int abs_row = ctx.chunk_offset_row + row;
+    const corundum::core::math::Vec2 world_pos = corundum::core::math::tile_to_world(
+        abs_col, abs_row, elev, ctx.half_tw, ctx.half_th, ctx.elev_step, ctx.x_origin);
+
+    const float scaled_tw = static_cast<float>(ts->info.tile_width) * cfg.tile_scale;
+    const float scaled_th = static_cast<float>(ts->info.tile_height) * cfg.tile_scale;
+    const float depth = corundum::core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
+                                                            static_cast<float>(elev), ctx.half_th, ctx.elev_step);
+
+    return ResolvedTile{
+        .tex_id = tex_id,
+        .src = src,
+        .position = {world_pos.x - ts->info.pivot_x * scaled_tw, world_pos.y - (1.f - ts->info.pivot_y) * scaled_th},
+        .scale = static_cast<float>(cfg.tile_scale),
+        .flip_x = flip_x,
+        .flip_y = flip_y,
+        .depth = depth,
+        .elevation = elev,
+    };
+  }
+
   static void render_tile_layer(corundum::platform::Renderer &r, const TileLayerCtx &ctx, int z_index,
                                 const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene) {
     const auto &tilemap = *ctx.tilemap;
@@ -514,7 +594,47 @@ namespace corundum::render::sys {
       if (!layer.visible || layer.z_index != z_index)
         continue;
 
-      const auto tiles = layer.view(tilemap.width, tilemap.height);
+      for (int depth = 0; depth <= depth_max; ++depth) {
+        const int col_lo = std::max(0, depth - (tilemap.height - 1));
+        const int col_hi = std::min(tilemap.width - 1, depth);
+
+        for (int col = col_lo; col <= col_hi; ++col) {
+          const int row = depth - col;
+          const auto rt = resolve_tile_cell(ctx, layer, tilemap, col, row, cfg, scene);
+          if (!rt)
+            continue;
+
+          r.draw(corundum::platform::DrawSprite{
+              .texture_id = rt->tex_id,
+              .position = rt->position,
+              .source = rt->src,
+              .scale = {rt->scale, rt->scale},
+              .flip_x = rt->flip_x,
+              .flip_y = rt->flip_y,
+          });
+        }
+      }
+    }
+  }
+
+  /// Same iteration as render_tile_layer, but splits tiles by elevation: flat ground (elevation 0, the vast
+  /// majority of tiles) draws immediately, unconditionally beneath entities — exactly the old behavior, so
+  /// flat maps are visually unaffected. Only elevated tiles (elevation > 0) are collected into @p out to be
+  /// depth-sorted against entities, since only those need occlusion interaction (see design checklist §2).
+  /// A flat tile can never be taller than the diamond it occupies, so it can never occlude a taller entity
+  /// sprite standing nearby; an elevated tile can, which is the whole point of this fix.
+  static void collect_tile_layer(corundum::platform::Renderer &r, const TileLayerCtx &ctx, int z_index,
+                                 const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                                 std::vector<data::DepthEntry> &out) {
+    const auto &tilemap = *ctx.tilemap;
+    if (tilemap.tilesets.empty())
+      return;
+
+    const int depth_max = tilemap.width + tilemap.height - 2;
+
+    for (const auto &layer : tilemap.layers) {
+      if (!layer.visible || layer.z_index != z_index)
+        continue;
 
       for (int depth = 0; depth <= depth_max; ++depth) {
         const int col_lo = std::max(0, depth - (tilemap.height - 1));
@@ -522,65 +642,82 @@ namespace corundum::render::sys {
 
         for (int col = col_lo; col <= col_hi; ++col) {
           const int row = depth - col;
-          const int cell_idx = row * tilemap.width + col;
-
-          corundum::gameplay::world::tilemap::TileId gid;
-          if (auto it = layer.animated_cells.find(cell_idx); it != layer.animated_cells.end()) {
-            const auto &anim = it->second;
-            if (anim.frame_gids.empty()) [[unlikely]]
-              continue;
-            const int n = static_cast<int>(anim.frame_gids.size());
-            const int fidx = static_cast<int>(scene.elapsed_time * anim.fps) % n;
-            gid = anim.frame_gids[static_cast<std::size_t>(fidx)];
-          } else {
-            gid = tiles[row, col];
-            if (gid == corundum::gameplay::world::tilemap::k_empty_tile)
-              continue;
-          }
-
-          const corundum::gameplay::world::tilemap::TilemapTileset *ts =
-              corundum::gameplay::world::tilemap::find_tileset(tilemap.tilesets, gid);
-          if (!ts) [[unlikely]]
+          const auto rt = resolve_tile_cell(ctx, layer, tilemap, col, row, cfg, scene);
+          if (!rt)
             continue;
 
-          const auto ts_idx = static_cast<std::size_t>(ts - tilemap.tilesets.data());
-          const uint32_t tex_id = (*ctx.tex_ids)[ts_idx];
-          if (tex_id == 0) [[unlikely]]
+          if (rt->elevation <= 0) {
+            r.draw(corundum::platform::DrawSprite{
+                .texture_id = rt->tex_id,
+                .position = rt->position,
+                .source = rt->src,
+                .scale = {rt->scale, rt->scale},
+                .flip_x = rt->flip_x,
+                .flip_y = rt->flip_y,
+            });
             continue;
-
-          const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
-
-          bool flip_x = false;
-          bool flip_y = false;
-          if (auto fit = layer.flip_flags.find(cell_idx); fit != layer.flip_flags.end()) {
-            if (fit->second & corundum::gameplay::world::tilemap::k_flip_h)
-              flip_x = true;
-            if (fit->second & corundum::gameplay::world::tilemap::k_flip_v)
-              flip_y = true;
           }
 
-          const int elev = (!layer.elevation.empty() && cell_idx < static_cast<int>(layer.elevation.size()))
-                               ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
-                               : 0;
-
-          const int abs_col = ctx.chunk_offset_col + col;
-          const int abs_row = ctx.chunk_offset_row + row;
-          const corundum::core::math::Vec2 world_pos = corundum::core::math::tile_to_world(
-              abs_col, abs_row, elev, ctx.half_tw, ctx.half_th, ctx.elev_step, ctx.x_origin);
-
-          const float scaled_tw = static_cast<float>(ts->info.tile_width) * cfg.tile_scale;
-          const float scaled_th = static_cast<float>(ts->info.tile_height) * cfg.tile_scale;
-          r.draw(corundum::platform::DrawSprite{
-              .texture_id = tex_id,
-              .position = {world_pos.x - ts->info.pivot_x * scaled_tw,
-                           world_pos.y - (1.f - ts->info.pivot_y) * scaled_th},
-              .source = src,
-              .scale = {static_cast<float>(cfg.tile_scale), static_cast<float>(cfg.tile_scale)},
-              .flip_x = flip_x,
-              .flip_y = flip_y,
+          out.push_back({
+              .tex_id = rt->tex_id,
+              .src = rt->src,
+              .x = rt->position.x,
+              .y = rt->position.y,
+              .depth = rt->depth,
+              .scale = rt->scale,
+              .flip_x = rt->flip_x,
+              .flip_y = rt->flip_y,
           });
         }
       }
+    }
+  }
+
+  /// Collects z_index==0 tiles from the single-map tilemap into @p out. Mirrors render_tilemap's context setup.
+  static void collect_ground_tiles_map(corundum::platform::Renderer &r, const data::RenderState &state,
+                                       const corundum::core::GameConfig &cfg,
+                                       const corundum::gameplay::world::Scene &scene,
+                                       std::vector<data::DepthEntry> &out) {
+    const auto &tilemap = state.map_data.tilemap;
+    if (tilemap.tilesets.empty())
+      return;
+
+    const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
+    const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
+    const TileLayerCtx ctx{&tilemap,
+                           &state.map_data.tileset_texture_ids,
+                           half_tw,
+                           half_th,
+                           cfg.elevation_step_px,
+                           static_cast<float>(tilemap.height - 1) * half_tw,
+                           0,
+                           0};
+    collect_tile_layer(r, ctx, 0, cfg, scene, out);
+  }
+
+  /// Collects z_index==0 tiles from every active chunk into @p out. Mirrors render_chunk's context setup.
+  static void collect_ground_tiles_chunks(corundum::platform::Renderer &r, const data::RenderState &state,
+                                          const corundum::core::GameConfig &cfg,
+                                          const corundum::gameplay::world::Scene &scene,
+                                          std::vector<data::DepthEntry> &out) {
+    for (const auto &chunk : state.active_chunks) {
+      const auto &tilemap = chunk.tilemap;
+      if (tilemap.tilesets.empty())
+        continue;
+
+      const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
+      const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
+      const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
+                                                        : state.manifest.chunks_tall * state.manifest.chunk_size;
+      const TileLayerCtx ctx{&tilemap,
+                             &chunk.tileset_texture_ids,
+                             half_tw,
+                             half_th,
+                             cfg.elevation_step_px,
+                             static_cast<float>(total_h - 1) * half_tw,
+                             chunk.coord.x * state.manifest.chunk_size,
+                             chunk.coord.y * state.manifest.chunk_size};
+      collect_tile_layer(r, ctx, 0, cfg, scene, out);
     }
   }
 
@@ -592,10 +729,14 @@ namespace corundum::render::sys {
 
     const float half_tw = static_cast<float>(tilemap.diamond_w()) * cfg.tile_scale * 0.5f;
     const float half_th = static_cast<float>(tilemap.diamond_h()) * cfg.tile_scale * 0.5f;
-    const TileLayerCtx ctx{&tilemap, &state.map_data.tileset_texture_ids,
-                           half_tw,  half_th,
-                           0.f,      static_cast<float>(tilemap.height - 1) * half_tw,
-                           0,        0};
+    const TileLayerCtx ctx{&tilemap,
+                           &state.map_data.tileset_texture_ids,
+                           half_tw,
+                           half_th,
+                           cfg.elevation_step_px,
+                           static_cast<float>(tilemap.height - 1) * half_tw,
+                           0,
+                           0};
     render_tile_layer(r, ctx, z_index, cfg, scene);
   }
 
@@ -614,18 +755,51 @@ namespace corundum::render::sys {
                            &chunk.tileset_texture_ids,
                            half_tw,
                            half_th,
-                           4.f,
+                           cfg.elevation_step_px,
                            static_cast<float>(total_h - 1) * half_tw,
                            chunk.coord.x * state.manifest.chunk_size,
                            chunk.coord.y * state.manifest.chunk_size};
     render_tile_layer(r, ctx, z_index, cfg, scene);
   }
 
-  // ── render_entities (internal) ───────────────────────────────────────────────
+  /// Elevation of the tile under (col_f, row_f), resolving world-mode chunk ownership as needed.
+  /// Returns 0 if no tilemap is loaded there (e.g. entity outside the loaded chunk radius).
+  static int elevation_under(const data::RenderState &state, float col_f, float row_f) {
+    using corundum::gameplay::world::tilemap::elevation_at;
 
-  static void render_entities(corundum::platform::Renderer &r, data::RenderState &state,
-                              const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                              float alpha) {
+    if (!state.active_chunks.empty()) {
+      const int chunk_size = state.manifest.chunk_size;
+      if (chunk_size <= 0)
+        return 0;
+      const int col = static_cast<int>(col_f);
+      const int row = static_cast<int>(row_f);
+      const corundum::gameplay::world::tilemap::ChunkCoord owner{
+          static_cast<int>(std::floor(static_cast<float>(col) / static_cast<float>(chunk_size))),
+          static_cast<int>(std::floor(static_cast<float>(row) / static_cast<float>(chunk_size)))};
+      const auto it =
+          std::ranges::find_if(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == owner; });
+      if (it == state.active_chunks.end())
+        return 0;
+      return elevation_at(it->tilemap, col - owner.x * chunk_size, row - owner.y * chunk_size);
+    }
+
+    if (!state.map_data.tilemap.tilesets.empty())
+      return elevation_at(state.map_data.tilemap, static_cast<int>(col_f), static_cast<int>(row_f));
+
+    return 0;
+  }
+
+  // ── render_ground_layer (internal) ───────────────────────────────────────────
+
+  /// Draws the z_index==0 tile band and all entities. Flat ground (elevation 0) draws immediately,
+  /// unconditionally beneath entities — a flat tile can never be taller than its own diamond, so it can
+  /// never legitimately occlude a taller entity sprite standing near it; this preserves the old two-pass
+  /// behavior exactly for flat maps. Elevated tiles (elevation > 0) are depth-sorted together with entities
+  /// (see iso_depth_key) so a raised platform correctly occludes/is-occluded-by nearby entities and tiles.
+  /// z_index>0 layers remain a separate, subsequent immediate-draw pass (always above entities).
+  static void render_ground_layer(corundum::platform::Renderer &r, data::RenderState &state,
+                                  const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                                  float alpha) {
     const float scale = static_cast<float>(cfg.sprite_scale);
 
     float half_tw = 0.f;
@@ -646,6 +820,11 @@ namespace corundum::render::sys {
     }
 
     state.draw_list.clear();
+
+    if (!state.active_chunks.empty())
+      collect_ground_tiles_chunks(r, state, cfg, scene, state.draw_list);
+    else
+      collect_ground_tiles_map(r, state, cfg, scene, state.draw_list);
 
     const auto &transforms = scene.world.transforms;
     const auto &sprites = scene.world.sprites;
@@ -676,19 +855,28 @@ namespace corundum::render::sys {
       const float iso_y = (col_f + row_f) * half_th;
       const float px = iso_x - static_cast<float>(entry.src.width) * scale * 0.5f;
       const float py = iso_y - walk_offset * static_cast<float>(entry.src.height) * scale;
-      const float iso_depth = iso_y / half_th;
-      state.draw_list.push_back({entry.tex_id, entry.src, px, py, iso_depth});
+      const int elev = elevation_under(state, col_f, row_f);
+      const float iso_depth =
+          corundum::core::math::iso_depth_key(col_f, row_f, static_cast<float>(elev), half_th, cfg.elevation_step_px);
+      state.draw_list.push_back(
+          {.tex_id = entry.tex_id, .src = entry.src, .x = px, .y = py, .depth = iso_depth, .scale = scale});
     }
 
-    std::ranges::sort(state.draw_list,
-                      [](const data::DepthEntry &a, const data::DepthEntry &b) noexcept { return a.depth < b.depth; });
+    // Stable: ties are common (flat tiles on the same anti-diagonal, or an entity's depth exactly matching
+    // the tile it's standing on) and an unstable sort would reorder them inconsistently frame-to-frame as
+    // draw_list's contents shift slightly with entity movement, producing visible z-fighting/flicker.
+    std::ranges::stable_sort(state.draw_list, [](const data::DepthEntry &a, const data::DepthEntry &b) noexcept {
+      return a.depth < b.depth;
+    });
 
     for (const auto &entry : state.draw_list) {
       r.draw(corundum::platform::DrawSprite{
           .texture_id = entry.tex_id,
           .position = {entry.x, entry.y},
           .source = entry.src,
-          .scale = {scale, scale},
+          .scale = {entry.scale, entry.scale},
+          .flip_x = entry.flip_x,
+          .flip_y = entry.flip_y,
       });
     }
   }

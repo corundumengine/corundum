@@ -15,6 +15,7 @@ add_executable(corundum_tests
     test_character_sheet_loader.cpp
     test_world_manifest.cpp
     test_iso_math.cpp
+    test_elevation_at.cpp
 )
 
 # Link to engine and doctest

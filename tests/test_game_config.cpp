@@ -55,7 +55,7 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   write_file(p, R"({
         "win_w": 1280.0, "win_h": 720.0, "framerate": 30,
         "interact_radius": 64.0, "player_speed": 150.0,
-        "sprite_scale": 3, "tile_scale": 4,
+        "sprite_scale": 3, "tile_scale": 4, "elevation_step_px": 6.0,
         "font_dir": "game/assets/fonts", "game_font": "MyFont.ttf",
         "tilemap_path": "data/tilemaps/dungeon.json",
         "sprites_dir": "data/sprite_sheets/dungeon.json",
@@ -75,6 +75,7 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   CHECK(cfg.player_speed == doctest::Approx(150.f));
   CHECK(cfg.sprite_scale == 3u);
   CHECK(cfg.tile_scale == 4u);
+  CHECK(cfg.elevation_step_px == doctest::Approx(6.f));
   CHECK(cfg.paths.font_dir == "game/assets/fonts");
   CHECK(cfg.paths.game_font == "MyFont.ttf");
   CHECK(cfg.paths.tilemap_path == "data/tilemaps/dungeon.json");
@@ -100,7 +101,8 @@ TEST_CASE("load_game_config — partial JSON overrides only specified fields") {
   CHECK(cfg.win_w == doctest::Approx(1024.f));
   CHECK(cfg.win_h == doctest::Approx(600.f)); // default
   CHECK(cfg.player_speed == doctest::Approx(300.f));
-  CHECK(cfg.sprite_scale == 2u); // default
+  CHECK(cfg.sprite_scale == 2u);                        // default
+  CHECK(cfg.elevation_step_px == doctest::Approx(4.f)); // default
 }
 
 // ── Numeric validation ────────────────────────────────────────────────────────
@@ -165,6 +167,14 @@ TEST_CASE("load_game_config — interact_radius <= 0 throws") {
   const auto dir = temp_dir("interact_radius_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"interact_radius": 0.0})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — elevation_step_px <= 0 throws") {
+  const auto dir = temp_dir("elevation_step_px_zero");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"elevation_step_px": 0.0})");
   auto result = load_game_config(p);
   CHECK(!result.has_value());
 }

@@ -130,4 +130,26 @@ namespace corundum::core::math {
     return {col_f * tile_w, row_f * tile_w};
   }
 
+  /**
+   * @brief Draw-order depth key that accounts for elevation, for painter's-algorithm sorting.
+   *
+   * Extends the plain grid depth (tx + ty) with an elevation term scaled so that an
+   * elevation delta which lifts a tile by exactly one grid-step's worth of screen
+   * pixels (half_th) shifts the depth by exactly 1.0 — the same units as a genuine
+   * one-cell grid move. This keeps the key consistent with tile_to_screen/tile_to_world's
+   * geometry instead of using an arbitrary weight, so a raised tile correctly sorts
+   * after (draws on top of/occludes) a lower neighboring tile once its screen-space
+   * lift visually overhangs into that neighbor's footprint.
+   *
+   * @param tx, ty    Tile column/row (fractional for interpolated entity positions).
+   * @param elevation Tile height, same units as tile_to_screen's elevation parameter.
+   * @param half_th   Half the scaled diamond height in screen pixels.
+   * @param elev_step Screen pixels lifted per unit of elevation.
+   * @return Depth key; smaller draws first (further back).
+   */
+  [[nodiscard]] constexpr float iso_depth_key(float tx, float ty, float elevation, float half_th,
+                                              float elev_step) noexcept {
+    return (tx + ty) + elevation * (half_th > 0.f ? elev_step / half_th : 0.f);
+  }
+
 } // namespace corundum::core::math

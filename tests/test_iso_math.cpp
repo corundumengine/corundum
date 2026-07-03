@@ -71,6 +71,44 @@ TEST_CASE("tile_to_world — elevation lifts tile upward") {
   CHECK(raised.y == doctest::Approx(flat.y - 20.f)); // 5 * 4.f
 }
 
+// ── iso_depth_key ────────────────────────────────────────────────────────────
+
+TEST_CASE("iso_depth_key — flat map reproduces plain tx+ty ordering") {
+  CHECK(ccm::iso_depth_key(0.f, 0.f, 0.f, k_half_th, 4.f) == doctest::Approx(0.f));
+  CHECK(ccm::iso_depth_key(3.f, 4.f, 0.f, k_half_th, 4.f) == doctest::Approx(7.f));
+  CHECK(ccm::iso_depth_key(1.f, 0.f, 0.f, k_half_th, 4.f) > ccm::iso_depth_key(0.f, 0.f, 0.f, k_half_th, 4.f));
+}
+
+TEST_CASE("iso_depth_key — monotonic in tx+ty at fixed elevation") {
+  const float d0 = ccm::iso_depth_key(0.f, 0.f, 3.f, k_half_th, 4.f);
+  const float d1 = ccm::iso_depth_key(1.f, 0.f, 3.f, k_half_th, 4.f);
+  const float d2 = ccm::iso_depth_key(2.f, 0.f, 3.f, k_half_th, 4.f);
+  CHECK(d0 < d1);
+  CHECK(d1 < d2);
+}
+
+TEST_CASE("iso_depth_key — raised platform occludes lower cliff-bottom neighbor past threshold") {
+  // Platform A=(0,0), cliff-bottom neighbor B=(1,0), elevation 0. Flat: A must draw before B (unchanged).
+  constexpr float elev_step = 4.f;
+  const float depth_b = ccm::iso_depth_key(1.f, 0.f, 0.f, k_half_th, elev_step);
+
+  const float flat_depth_a = ccm::iso_depth_key(0.f, 0.f, 0.f, k_half_th, elev_step);
+  CHECK(flat_depth_a < depth_b);
+
+  // Threshold elevation at which A's screen lift equals one grid-step (half_th px): H = half_th / elev_step.
+  const float threshold = k_half_th / elev_step;
+
+  const float below_depth_a = ccm::iso_depth_key(0.f, 0.f, threshold * 0.5f, k_half_th, elev_step);
+  CHECK(below_depth_a < depth_b); // below threshold: A still draws before B (no occlusion flip yet)
+
+  const float above_depth_a = ccm::iso_depth_key(0.f, 0.f, threshold * 1.5f, k_half_th, elev_step);
+  CHECK(above_depth_a > depth_b); // above threshold: A now draws after/on top of B (correct occlusion)
+}
+
+TEST_CASE("iso_depth_key — guards against division by zero half_th") {
+  CHECK(ccm::iso_depth_key(1.f, 2.f, 5.f, 0.f, 4.f) == doctest::Approx(3.f));
+}
+
 // ── cart_to_iso / iso_to_cart round-trips ─────────────────────────────────────
 
 TEST_CASE("cart_to_iso — tile origin") {

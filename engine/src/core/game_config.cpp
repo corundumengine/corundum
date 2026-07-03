@@ -191,6 +191,12 @@ namespace corundum::core {
         return std::unexpected(res.error());
       cfg.tile_scale = *res;
     }
+    {
+      auto res = get_positive_float(j, "elevation_step_px", cfg.elevation_step_px, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.elevation_step_px = *res;
+    }
 
     if (j.contains("framerate")) {
       unsigned fr;

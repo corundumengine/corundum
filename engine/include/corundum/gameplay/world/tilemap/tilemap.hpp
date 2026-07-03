@@ -318,4 +318,36 @@ namespace corundum::gameplay::world::tilemap {
     }
   };
 
+  /**
+   * @brief Elevation of the tile at (col, row), for entities standing on it.
+   *
+   * A cell can carry independent elevation data on more than one z_index==0
+   * layer; this resolves to the last (topmost-painted) such layer that has a
+   * tile present at the cell — a deliberate convention, since no single
+   * canonical "ground layer" is otherwise designated.
+   *
+   * @return Elevation [0-255], or 0 if out of bounds, no z_index==0 layer has
+   *         a tile there, or the layer has no elevation data.
+   */
+  [[nodiscard]] inline int elevation_at(const Tilemap &tm, int col, int row) noexcept {
+    if (col < 0 || row < 0 || col >= tm.width || row >= tm.height)
+      return 0;
+    const auto uidx =
+        static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
+    int result = 0;
+    for (const auto &layer : tm.layers) {
+      if (layer.z_index != 0 || !layer.visible)
+        continue;
+      if (uidx >= layer.elevation.size())
+        continue;
+      const int idx = static_cast<int>(uidx);
+      const bool has_tile =
+          layer.animated_cells.contains(idx) || (uidx < layer.tiles.size() && layer.tiles[uidx] != k_empty_tile);
+      if (!has_tile)
+        continue;
+      result = layer.elevation[uidx];
+    }
+    return result;
+  }
+
 } // namespace corundum::gameplay::world::tilemap

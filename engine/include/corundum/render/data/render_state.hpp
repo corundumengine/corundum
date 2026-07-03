@@ -63,13 +63,16 @@ namespace corundum::render::data {
     std::vector<int> above_z{};
   };
 
-  /** @brief Sorted draw-list entry for depth-ordered entity rendering. */
+  /** @brief Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
   struct DepthEntry {
     uint32_t tex_id;
     corundum::core::math::IntRect src;
     float x;
     float y;
     float depth;
+    float scale = 1.f;
+    bool flip_x = false;
+    bool flip_y = false;
   };
 
   /** @brief All mutable rendering state — pure data with no behaviour.
