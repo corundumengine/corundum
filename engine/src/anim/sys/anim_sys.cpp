@@ -11,21 +11,24 @@ namespace corundum::anim::sys {
   namespace {
 
     inline constexpr std::array<corundum::gameplay::component::FacingDir, 12> k_facing_table = {
-        // zone 0 (vertical dominant)
-        corundum::gameplay::component::FacingDir::North, // dy<0, dx<0
-        corundum::gameplay::component::FacingDir::North, // dy<0, dx>0
-        corundum::gameplay::component::FacingDir::South, // dy>0, dx<0
-        corundum::gameplay::component::FacingDir::South, // dy>0, dx>0
-        // zone 1 (horizontal dominant)
-        corundum::gameplay::component::FacingDir::West, // dy<0, dx<0
-        corundum::gameplay::component::FacingDir::East, // dy<0, dx>0
-        corundum::gameplay::component::FacingDir::West, // dy>0, dx<0
-        corundum::gameplay::component::FacingDir::East, // dy>0, dx>0
-        // zone 2 (diagonal)
-        corundum::gameplay::component::FacingDir::NorthWest, // dy<0, dx<0
-        corundum::gameplay::component::FacingDir::NorthEast, // dy<0, dx>0
-        corundum::gameplay::component::FacingDir::SouthWest, // dy>0, dx<0
-        corundum::gameplay::component::FacingDir::SouthEast, // dy>0, dx>0
+        // zone 0 (row/vertical dominant: |dr| >> |dc|)
+        // row axis (dr) maps to NE/SW on screen; entries here use FacingDir in screen-space terms.
+        corundum::gameplay::component::FacingDir::NorthEast, // dr<0, dc<0  (NE-ish on screen)
+        corundum::gameplay::component::FacingDir::NorthEast, // dr<0, dc>0  (NE-ish on screen)
+        corundum::gameplay::component::FacingDir::SouthWest, // dr>0, dc<0  (SW-ish on screen)
+        corundum::gameplay::component::FacingDir::SouthWest, // dr>0, dc>0  (SW-ish on screen)
+        // zone 1 (col/horizontal dominant: |dc| >> |dr|)
+        // col axis (dc) maps to NW/SE on screen.
+        corundum::gameplay::component::FacingDir::NorthWest, // dc<0, dr<0  (NW-ish on screen)
+        corundum::gameplay::component::FacingDir::SouthEast, // dc>0, dr<0  (SE-ish on screen)
+        corundum::gameplay::component::FacingDir::NorthWest, // dc<0, dr>0  (NW-ish on screen)
+        corundum::gameplay::component::FacingDir::SouthEast, // dc>0, dr>0  (SE-ish on screen)
+        // zone 2 (diagonal: |dc| ≈ |dr|)
+        // Pure screen-cardinal directions from combined tile axes.
+        corundum::gameplay::component::FacingDir::North, // dr<0, dc<0  (NW tile = up on screen)
+        corundum::gameplay::component::FacingDir::East,  // dr<0, dc>0  (NE tile = right on screen)
+        corundum::gameplay::component::FacingDir::West,  // dr>0, dc<0  (SW tile = left on screen)
+        corundum::gameplay::component::FacingDir::South, // dr>0, dc>0  (SE tile = down on screen)
     };
 
     inline constexpr std::array<corundum::resources::AnimId, 8> k_anim_for_facing = {
@@ -46,6 +49,10 @@ namespace corundum::anim::sys {
         corundum::resources::AnimId::West,  corundum::resources::AnimId::North, corundum::resources::AnimId::South,
         corundum::resources::AnimId::South, corundum::resources::AnimId::North,
     };
+
+    /// Ratio above which the dominant velocity axis snaps fully cardinal (zone 0 or 1)
+    /// instead of remaining diagonal (zone 2).
+    inline constexpr float k_cardinal_dominance_ratio = 2.f;
 
   } // namespace
 
@@ -101,7 +108,8 @@ namespace corundum::anim::sys {
         }
       }
 
-      const int zone = (abs_dy > 2.f * abs_dx) ? 0 : ((abs_dx > 2.f * abs_dy) ? 1 : 2);
+      const int zone =
+          (abs_dy > k_cardinal_dominance_ratio * abs_dx) ? 0 : ((abs_dx > k_cardinal_dominance_ratio * abs_dy) ? 1 : 2);
       const int dy_sign = vel_dy > 0.f ? 1 : 0;
       const int dx_sign = vel_dx > 0.f ? 1 : 0;
       const corundum::gameplay::component::FacingDir facing = k_facing_table[zone * 4 + dy_sign * 2 + dx_sign];

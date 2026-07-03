@@ -28,17 +28,21 @@ namespace corundum::gameplay::sys {
       return k_dir_to_anim[std::to_underlying(dir)];
     }
 
-    /// Classify a world-space displacement (dx, dy) into the nearest FacingDir.
+    /// Classify a tile-grid displacement (dx=Δcol, dy=Δrow) into the nearest screen-space FacingDir.
+    /// The isometric projection rotates the grid axes 45° relative to screen space,
+    /// so tile-cardinal directions (pure dc/dr) map to screen-intercardinal and vice versa:
+    ///   Tile SE (+,+) → screen South,  Tile NW (-,-) → screen North,
+    ///   Tile NE (+,-) → screen East,   Tile SW (-,+) → screen West.
     [[nodiscard]] FacingDir dir_from_delta(float dx, float dy) noexcept {
       const float ax = std::abs(dx);
       const float ay = std::abs(dy);
       if (ay > k_cardinal_dominance_ratio * ax)
-        return dy > 0.f ? FacingDir::South : FacingDir::North;
+        return dy > 0.f ? FacingDir::SouthWest : FacingDir::NorthEast;
       if (ax > k_cardinal_dominance_ratio * ay)
-        return dx > 0.f ? FacingDir::East : FacingDir::West;
+        return dx > 0.f ? FacingDir::SouthEast : FacingDir::NorthWest;
       if (dx > 0.f)
-        return dy > 0.f ? FacingDir::SouthEast : FacingDir::NorthEast;
-      return dy > 0.f ? FacingDir::SouthWest : FacingDir::NorthWest;
+        return dy > 0.f ? FacingDir::South : FacingDir::East;
+      return dy > 0.f ? FacingDir::West : FacingDir::North;
     }
 
   } // namespace
