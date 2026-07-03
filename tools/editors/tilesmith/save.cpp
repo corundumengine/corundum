@@ -1,6 +1,7 @@
 #include "save.hpp"
 #include "tilemap_encoding.hpp"
 #include <corundum/core/json_io.hpp>
+#include <corundum/gameplay/world/tilemap/loader.hpp>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -13,6 +14,9 @@ namespace tools::tilemap {
       return std::unexpected("Cannot open: " + state.map_path.string());
     nlohmann::json j = nlohmann::json::parse(in);
     in.close();
+
+    // Stamp the current schema version so re-saving an old (unversioned) map upgrades it going forward.
+    j["schema_version"] = corundum::gameplay::world::tilemap::k_tilemap_schema_version;
 
     // Serialize tilesets from in-memory state.
     nlohmann::json tilesets_json = nlohmann::json::array();

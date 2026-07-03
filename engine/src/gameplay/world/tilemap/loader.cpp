@@ -212,6 +212,28 @@ namespace corundum::gameplay::world::tilemap {
     return info;
   }
 
+  /// Migrates a tilemap JSON object in place from @p from_version up to k_tilemap_schema_version,
+  /// applying each version-to-version step in sequence. No migrations exist yet — schema_version 1
+  /// is both the legacy (absent-field) format and the current format, so this is a no-op today. This
+  /// is the hook point for future schema changes, e.g.:
+  ///   if (from_version < 2) { /* rewrite v1 fields into v2 shape */ from_version = 2; }
+  /// Existing steps must never be edited once shipped, since already-migrated files may depend on
+  /// the exact transformation a step performed.
+  static std::expected<void, std::string> migrate_tilemap_json(json & /*j*/, int from_version, const fs::path &path) {
+    if (from_version < 1)
+      return std::unexpected(std::format("Tilemap '{}' has invalid schema_version {}", path.string(), from_version));
+    return {};
+  }
+
+  /// Parse the optional "schema_version" field. Absent -> legacy version 1.
+  static std::expected<int, std::string> parse_schema_version(const json &j, const fs::path &path) {
+    if (!j.contains("schema_version"))
+      return 1;
+    if (!j["schema_version"].is_number_integer())
+      return std::unexpected(std::format("Tilemap '{}' field 'schema_version' must be an integer", path.string()));
+    return j["schema_version"].get<int>();
+  }
+
   std::expected<Tilemap, std::string> load_tilemap(const fs::path &path) {
     std::ifstream f(path);
     if (!f)
@@ -222,6 +244,20 @@ namespace corundum::gameplay::world::tilemap {
       j = json::parse(f);
     } catch (const json::exception &e) {
       return std::unexpected(std::format("Malformed tilemap {}: {}", path.string(), e.what()));
+    }
+
+    const auto sv = parse_schema_version(j, path);
+    if (!sv)
+      return std::unexpected(sv.error());
+    const int schema_version = *sv;
+    if (schema_version > k_tilemap_schema_version)
+      return std::unexpected(std::format(
+          "Tilemap '{}' has schema_version {}, newer than this engine supports (max {}) — update the engine",
+          path.string(), schema_version, k_tilemap_schema_version));
+    if (schema_version < k_tilemap_schema_version) {
+      auto mig = migrate_tilemap_json(j, schema_version, path);
+      if (!mig)
+        return std::unexpected(mig.error());
     }
 
     // id

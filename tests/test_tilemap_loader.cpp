@@ -4,6 +4,7 @@
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string>
 
@@ -44,6 +45,20 @@ namespace {
     content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":[")";
     content += std::string(extra_tiles);
     content += R"("]}]})";
+    write_file(map_path, content);
+    return map_path;
+  }
+
+  /// Builds a 2x1 single-tileset map with an explicit schema_version.
+  fs::path make_schema_map(const fs::path &dir, int version) {
+    const auto ts_path = dir / "tileset_a.json";
+    const auto map_path = dir / "map.json";
+    write_file(ts_path, TILESET_A_JSON);
+
+    std::string content;
+    content += std::format(R"({{"id":"test","schema_version":{},"tilesets":[{{"first_gid":0,"source":")", version);
+    content += ts_path.string();
+    content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"]}]})";
     write_file(map_path, content);
     return map_path;
   }
@@ -393,6 +408,52 @@ TEST_CASE("load_tilemap — collision element missing field throws") {
   content += ts_path.string();
   content +=
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"y":0,"w":16,"h":16}]})";
+  write_file(map_path, content);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  CHECK(!result.has_value());
+}
+
+// ── schema_version ────────────────────────────────────────────────────────────
+
+TEST_CASE("load_tilemap — absent schema_version is treated as version 1 and loads fine") {
+  const auto dir = temp_dir("schema_absent");
+  const auto map_path = make_single_tileset_map(dir);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  CHECK(result.has_value());
+}
+
+TEST_CASE("load_tilemap — explicit current schema_version loads fine") {
+  const auto map_path =
+      make_schema_map(temp_dir("schema_current"), corundum::gameplay::world::tilemap::k_tilemap_schema_version);
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  CHECK(result.has_value());
+}
+
+TEST_CASE("load_tilemap — schema_version newer than supported throws") {
+  const auto map_path =
+      make_schema_map(temp_dir("schema_future"), corundum::gameplay::world::tilemap::k_tilemap_schema_version + 1);
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_tilemap — schema_version zero (invalid) throws") {
+  const auto map_path = make_schema_map(temp_dir("schema_zero"), 0);
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_tilemap — schema_version wrong type throws") {
+  const auto dir = temp_dir("schema_wrong_type");
+  const auto ts_path = dir / "tileset_a.json";
+  const auto map_path = dir / "map.json";
+  write_file(ts_path, TILESET_A_JSON);
+
+  std::string content;
+  content += R"({"id":"test","schema_version":"1","tilesets":[{"first_gid":0,"source":")";
+  content += ts_path.string();
+  content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"]}]})";
   write_file(map_path, content);
 
   auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
