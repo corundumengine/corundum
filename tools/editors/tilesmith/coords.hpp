@@ -144,10 +144,10 @@ namespace tools::tilemap {
     const float tya = (static_cast<float>(win_y_a) + camera_y) / tile_scale;
     const float txb = (static_cast<float>(win_x_b) + camera_x) / tile_scale;
     const float tyb = (static_cast<float>(win_y_b) + camera_y) / tile_scale;
-    const float min_col = std::min(txa, tya) / tile_w;
-    const float min_row = std::min(txa, tya) / tile_h;
-    const float max_col = std::max(txb, tyb) / tile_w;
-    const float max_row = std::max(txb, tyb) / tile_h;
+    const float min_col = std::min(txa, txb) / tile_w;
+    const float min_row = std::min(tya, tyb) / tile_h;
+    const float max_col = std::max(txa, txb) / tile_w;
+    const float max_row = std::max(tya, tyb) / tile_h;
     return {min_col, min_row, std::max(1.f / tile_w, max_col - min_col), std::max(1.f / tile_h, max_row - min_row)};
   }
 

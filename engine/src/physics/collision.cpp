@@ -27,11 +27,13 @@ namespace corundum::physics::sys {
     // If the AABB lies entirely in the empty half-space, there is no collision.
     // This correctly handles players wider or taller than the tile.
     //
-    // Solid half-spaces (u=(px-tx)/tw, v=(py-ty)/th):
-    //   NW: solid u+v < 1  — AABB in empty if min u+v > 1  → u0+v0 > 1
-    //   NE: solid u-v > 0  — AABB in empty if max u-v < 0  → u1-v0 < 0
-    //   SW: solid u-v < 0  — AABB in empty if min u-v > 0  → u0-v1 > 0
-    //   SE: solid u+v > 1  — AABB in empty if max u+v < 1  → u1+v1 < 1
+    // Solid half-spaces (u=(px-tx)/tw, v=(py-ty)/th). TriangleCut names the EMPTY
+    // corner (tilemap.hpp), so e.g. NW means the NW corner is empty and the rest
+    // of the tile (u+v > 1) is solid:
+    //   NW: solid u+v > 1  — AABB in empty if max u+v < 1  → u1+v1 < 1
+    //   NE: solid u-v < 0  — AABB in empty if min u-v > 0  → u0-v1 > 0
+    //   SW: solid u-v > 0  — AABB in empty if max u-v < 0  → u1-v0 < 0
+    //   SE: solid u+v < 1  — AABB in empty if min u+v > 1  → u0+v0 > 1
     [[nodiscard]] bool overlaps_any_triangle(float ax, float ay, float aw, float ah,
                                              corundum::gameplay::world::tilemap::CollisionTrianglesView tris) noexcept {
       using corundum::gameplay::world::tilemap::TriangleCut;
@@ -50,16 +52,16 @@ namespace corundum::physics::sys {
         bool in_empty = false;
         switch (tris.cuts[i]) {
         case TriangleCut::NW:
-          in_empty = u0 + v0 > 1.f;
+          in_empty = u1 + v1 < 1.f;
           break;
         case TriangleCut::NE:
-          in_empty = u1 - v0 < 0.f;
-          break;
-        case TriangleCut::SW:
           in_empty = u0 - v1 > 0.f;
           break;
+        case TriangleCut::SW:
+          in_empty = u1 - v0 < 0.f;
+          break;
         case TriangleCut::SE:
-          in_empty = u1 + v1 < 1.f;
+          in_empty = u0 + v0 > 1.f;
           break;
         default:
           std::unreachable();

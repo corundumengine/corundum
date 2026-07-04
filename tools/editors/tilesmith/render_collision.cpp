@@ -1,5 +1,6 @@
 #include "render_collision.hpp"
 #include "coords.hpp"
+#include <utility>
 
 namespace tools::tilemap {
   using namespace tools::common;
@@ -28,6 +29,48 @@ namespace tools::tilemap {
       ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
     }
 
+    // Draw only the solid half of a tile for a given TriangleCut. The rhombus's four
+    // vertices are top=NW corner, right=NE corner, bottom=SE corner, left=SW corner
+    // (per tiled_to_iso's corner mapping); TriangleCut names the EMPTY corner, so the
+    // solid triangle is the other three vertices.
+    void draw_iso_triangle(const CanvasContext &ctx, float x, float y, float w, float h, float inv_tw, float inv_th,
+                           float half_tw, float half_th, float x_shift, float cam_x, float cam_y,
+                           corundum::gameplay::world::tilemap::TriangleCut cut, ImU32 fill, ImU32 outline) noexcept {
+      using corundum::gameplay::world::tilemap::TriangleCut;
+      const ImVec2 top = tiled_to_iso(ctx, x, y, inv_tw, inv_th, half_tw, half_th, x_shift, cam_x, cam_y);
+      const ImVec2 right = tiled_to_iso(ctx, x + w, y, inv_tw, inv_th, half_tw, half_th, x_shift, cam_x, cam_y);
+      const ImVec2 bottom = tiled_to_iso(ctx, x + w, y + h, inv_tw, inv_th, half_tw, half_th, x_shift, cam_x, cam_y);
+      const ImVec2 left = tiled_to_iso(ctx, x, y + h, inv_tw, inv_th, half_tw, half_th, x_shift, cam_x, cam_y);
+
+      ImVec2 a, b, c;
+      switch (cut) {
+      case TriangleCut::NW:
+        a = right;
+        b = bottom;
+        c = left;
+        break;
+      case TriangleCut::SE:
+        a = top;
+        b = right;
+        c = left;
+        break;
+      case TriangleCut::NE:
+        a = top;
+        b = bottom;
+        c = left;
+        break;
+      case TriangleCut::SW:
+        a = top;
+        b = right;
+        c = bottom;
+        break;
+      default:
+        std::unreachable();
+      }
+      ctx.dl->AddTriangleFilled(a, b, c, fill);
+      ctx.dl->AddTriangle(a, b, c, outline, 1.f);
+    }
+
   } // namespace
 
   void render_collisions(CanvasContext ctx, const EditorState &state) {
@@ -50,18 +93,18 @@ namespace tools::tilemap {
 
     const auto &tris = state.map.collision_triangles;
     for (std::size_t i = 0; i < tris.size(); ++i) {
-      draw_iso_rect(ctx, tris.cols[i] * tw, tris.rows[i] * th, tris.col_spans[i] * tw, tris.row_spans[i] * th, inv_tw,
-                    inv_th, iso.half_tw, iso.half_th, iso.x_origin, state.camera.x, state.camera.y,
-                    IM_COL32(255, 140, 60, 70), IM_COL32(255, 140, 60, 210));
+      draw_iso_triangle(ctx, tris.cols[i] * tw, tris.rows[i] * th, tris.col_spans[i] * tw, tris.row_spans[i] * th,
+                        inv_tw, inv_th, iso.half_tw, iso.half_th, iso.x_origin, state.camera.x, state.camera.y,
+                        tris.cuts[i], IM_COL32(255, 140, 60, 70), IM_COL32(255, 140, 60, 210));
     }
 
     if (state.show_collisions && state.triangle_collision_mode && state.hover_tile_col >= 0 &&
         state.hover_tile_row >= 0) {
       const float col = static_cast<float>(state.hover_tile_col);
       const float row = static_cast<float>(state.hover_tile_row);
-      draw_iso_rect(ctx, col * tw, row * th, static_cast<float>(tw), static_cast<float>(th), inv_tw, inv_th,
-                    iso.half_tw, iso.half_th, iso.x_origin, state.camera.x, state.camera.y, IM_COL32(100, 255, 100, 50),
-                    IM_COL32(100, 255, 100, 220));
+      draw_iso_triangle(ctx, col * tw, row * th, static_cast<float>(tw), static_cast<float>(th), inv_tw, inv_th,
+                        iso.half_tw, iso.half_th, iso.x_origin, state.camera.x, state.camera.y, state.collision_tri_cut,
+                        IM_COL32(100, 255, 100, 50), IM_COL32(100, 255, 100, 220));
     }
   }
 

@@ -7,7 +7,10 @@
 using corundum::gameplay::component::Position;
 using corundum::gameplay::world::tilemap::CollisionRects;
 using corundum::gameplay::world::tilemap::CollisionRectsView;
+using corundum::gameplay::world::tilemap::CollisionTriangles;
+using corundum::gameplay::world::tilemap::TriangleCut;
 using corundum::physics::sys::resolve_collisions;
+using corundum::physics::sys::resolve_triangle_collisions;
 
 namespace ccm = corundum::core::math;
 
@@ -77,6 +80,93 @@ TEST_CASE("resolve_collisions — Y movement into wall from below") {
   //   → Y not blocked: pos.y stays 100
   CHECK(pos.col == doctest::Approx(105.f));
   CHECK(pos.row == doctest::Approx(100.f));
+}
+
+// ── resolve_triangle_collisions ──────────────────────────────────────────────
+//
+// TriangleCut names the EMPTY corner of a 1x1 tile at (0,0); a tiny 0.01x0.01
+// probe box pins down a single half of the tile without axis-separated
+// sliding muddying the result. k_near/k_far sit just inside the tile from a
+// given corner; k_outside is far enough away on both axes that neither phase
+// of resolve_triangle_collisions sees a spurious overlap.
+
+namespace {
+  constexpr float k_probe = 0.01f;
+  constexpr float k_near = 0.02f;
+  constexpr float k_far = 0.97f;
+  constexpr Position k_outside{-1.f, -1.f};
+} // namespace
+
+TEST_CASE("resolve_triangle_collisions — NW cut: empty corner is passable") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NW);
+  Position pos{k_near, k_near};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_near));
+  CHECK(pos.row == doctest::Approx(k_near));
+}
+
+TEST_CASE("resolve_triangle_collisions — NW cut: solid half blocks movement") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NW);
+  Position pos{k_far, k_far};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_far));
+  CHECK(pos.row == doctest::Approx(k_outside.row));
+}
+
+TEST_CASE("resolve_triangle_collisions — NE cut: empty corner is passable") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NE);
+  Position pos{k_far, k_near};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_far));
+  CHECK(pos.row == doctest::Approx(k_near));
+}
+
+TEST_CASE("resolve_triangle_collisions — NE cut: solid half blocks movement") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NE);
+  Position pos{k_near, k_far};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_near));
+  CHECK(pos.row == doctest::Approx(k_outside.row));
+}
+
+TEST_CASE("resolve_triangle_collisions — SW cut: empty corner is passable") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SW);
+  Position pos{k_near, k_far};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_near));
+  CHECK(pos.row == doctest::Approx(k_far));
+}
+
+TEST_CASE("resolve_triangle_collisions — SW cut: solid half blocks movement") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SW);
+  Position pos{k_far, k_near};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_far));
+  CHECK(pos.row == doctest::Approx(k_outside.row));
+}
+
+TEST_CASE("resolve_triangle_collisions — SE cut: empty corner is passable") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SE);
+  Position pos{k_far, k_far};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_far));
+  CHECK(pos.row == doctest::Approx(k_far));
+}
+
+TEST_CASE("resolve_triangle_collisions — SE cut: solid half blocks movement") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SE);
+  Position pos{k_near, k_near};
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
+  CHECK(pos.col == doctest::Approx(k_near));
+  CHECK(pos.row == doctest::Approx(k_outside.row));
 }
 
 TEST_CASE("iso feet offset: round-trip with zero x_origin") {

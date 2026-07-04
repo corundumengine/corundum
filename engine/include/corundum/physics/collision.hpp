@@ -13,11 +13,13 @@ namespace corundum::physics::sys {
    *   2. Try Y: AABB at (pos.x, pos.y).      If it overlaps any rect, revert pos.y.
    * This allows sliding along a wall in the non-blocked axis.
    *
-   * @param pos       Post-integrate position (top-left corner, world pixels). Modified in-place.
+   * @param pos       Post-integrate position (top-left corner). Modified in-place. In practice
+   *                  callers pass tile-grid (col,row) units, matching the collision data below,
+   *                  but the math itself is unit-agnostic.
    * @param prev_pos  Position before integrate ran this frame.
-   * @param entity_w  Rendered sprite width in world pixels.
-   * @param entity_h  Rendered sprite height in world pixels.
-   * @param rects     World-space SoA collision rects (already scaled from Tiled pixel space).
+   * @param entity_w  Entity collision width, in the same units as pos.
+   * @param entity_h  Entity collision height, in the same units as pos.
+   * @param rects     SoA collision rects in tile-grid space.
    * @param y_offset  Shifts the top of the collision box downward, letting the upper portion
    *                  of a sprite visually overlap objects above it.
    */
@@ -32,11 +34,13 @@ namespace corundum::physics::sys {
    * each AABB against a half-space defined by the triangle's hypotenuse rather than
    * a full rect. A player moving along a diagonal wall will slide naturally.
    *
-   * @param pos       Post-integrate position (top-left corner, world pixels). Modified in-place.
+   * @param pos       Post-integrate position (top-left corner). Modified in-place. In practice
+   *                  callers pass tile-grid (col,row) units, matching the collision data below,
+   *                  but the math itself is unit-agnostic.
    * @param prev_pos  Position before integrate ran this frame.
-   * @param entity_w  Rendered sprite width in world pixels.
-   * @param entity_h  Rendered sprite height in world pixels.
-   * @param triangles World-space SoA collision triangles (already scaled from Tiled pixel space).
+   * @param entity_w  Entity collision width, in the same units as pos.
+   * @param entity_h  Entity collision height, in the same units as pos.
+   * @param triangles SoA collision triangles in tile-grid space.
    * @param y_offset  Shifts the top of the collision box downward (same semantics as
    * resolve_collisions).
    */
