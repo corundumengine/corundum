@@ -74,7 +74,9 @@ namespace tools::tilemap {
       state.collision_dragging = false;
       if (overlaps)
         return;
-      state.map.collisions.push_back(candidate.col, candidate.row, candidate.col_span, candidate.row_span);
+      const uint8_t elev = static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(
+          state.map, static_cast<int>(candidate.col), static_cast<int>(candidate.row)));
+      state.map.collisions.push_back(candidate.col, candidate.row, candidate.col_span, candidate.row_span, elev);
       state.dirty = true;
     }
 
@@ -96,7 +98,9 @@ namespace tools::tilemap {
             tris.row_spans[i] == row_span && tris.cuts[i] == state.collision_tri_cut)
           return;
       }
-      state.map.collision_triangles.push_back(col, row, col_span, row_span, state.collision_tri_cut);
+      const uint8_t elev =
+          static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(state.map, tc->col, tc->row));
+      state.map.collision_triangles.push_back(col, row, col_span, row_span, state.collision_tri_cut, elev);
       state.dirty = true;
     }
 

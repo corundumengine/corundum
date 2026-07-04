@@ -279,6 +279,7 @@ namespace corundum::gameplay::world::tilemap {
       collisions.rows.reserve(col_json.size());
       collisions.col_spans.reserve(col_json.size());
       collisions.row_spans.reserve(col_json.size());
+      collisions.elevations.reserve(col_json.size());
       for (std::size_t ci = 0; ci < col_json.size(); ++ci) {
         const auto &entry = col_json[ci];
         if (!entry.is_object())
@@ -297,7 +298,8 @@ namespace corundum::gameplay::world::tilemap {
           return std::unexpected(std::format("Tilemap '{}' collisions[{}] 'w' must be positive", id, ci));
         if (r.row_span <= 0.f)
           return std::unexpected(std::format("Tilemap '{}' collisions[{}] 'h' must be positive", id, ci));
-        collisions.push_back(r.col, r.row, r.col_span, r.row_span);
+        const uint8_t elevation = entry.contains("elevation") ? entry["elevation"].get<uint8_t>() : uint8_t{0};
+        collisions.push_back(r.col, r.row, r.col_span, r.row_span, elevation);
       }
     }
 
@@ -312,6 +314,7 @@ namespace corundum::gameplay::world::tilemap {
       collision_triangles.col_spans.reserve(tri_json.size());
       collision_triangles.row_spans.reserve(tri_json.size());
       collision_triangles.cuts.reserve(tri_json.size());
+      collision_triangles.elevations.reserve(tri_json.size());
       for (std::size_t ci = 0; ci < tri_json.size(); ++ci) {
         const auto &entry = tri_json[ci];
         if (!entry.is_object())
@@ -345,7 +348,8 @@ namespace corundum::gameplay::world::tilemap {
         else
           return std::unexpected(
               std::format("Tilemap '{}' collision_triangles[{}] 'cut' must be NW, NE, SW, or SE", id, ci));
-        collision_triangles.push_back(x, y, w, h, cut);
+        const uint8_t elevation = entry.contains("elevation") ? entry["elevation"].get<uint8_t>() : uint8_t{0};
+        collision_triangles.push_back(x, y, w, h, cut, elevation);
       }
     }
 

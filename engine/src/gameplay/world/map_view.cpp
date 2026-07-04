@@ -37,7 +37,8 @@ namespace corundum::gameplay::world {
             .x_origin = iso.x_origin,
             .sprite_scale = static_cast<float>(cfg.sprite_scale),
             .tile_scale = static_cast<float>(cfg.tile_scale),
-            .portals = render.map_data.portals};
+            .portals = render.map_data.portals,
+            .elevation_map = &tm};
   }
 
 } // namespace corundum::gameplay::world

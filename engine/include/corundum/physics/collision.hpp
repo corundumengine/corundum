@@ -22,10 +22,16 @@ namespace corundum::physics::sys {
    * @param rects     SoA collision rects in tile-grid space.
    * @param y_offset  Shifts the top of the collision box downward, letting the upper portion
    *                  of a sprite visually overlap objects above it.
+   * @param entity_elevation    The entity's own current elevation [0-100]. Ignored when
+   *                            @p rects carries no per-rect elevation data.
+   * @param elevation_tolerance A rect is only tested if its elevation is within this many
+   *                            units of @p entity_elevation; lets a raised platform's walls
+   *                            block only entities standing on that platform.
    */
   void resolve_collisions(corundum::gameplay::component::Position &pos,
                           corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
-                          corundum::gameplay::world::tilemap::CollisionRectsView rects, float y_offset = 0.f) noexcept;
+                          corundum::gameplay::world::tilemap::CollisionRectsView rects, float y_offset = 0.f,
+                          int entity_elevation = 0, int elevation_tolerance = 0) noexcept;
 
   /**
    * @brief Axis-separated diagonal collision resolution for half-tile triangle shapes.
@@ -43,10 +49,13 @@ namespace corundum::physics::sys {
    * @param triangles SoA collision triangles in tile-grid space.
    * @param y_offset  Shifts the top of the collision box downward (same semantics as
    * resolve_collisions).
+   * @param entity_elevation     Same semantics as resolve_collisions.
+   * @param elevation_tolerance  Same semantics as resolve_collisions.
    */
   void resolve_triangle_collisions(corundum::gameplay::component::Position &pos,
                                    corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
                                    corundum::gameplay::world::tilemap::CollisionTrianglesView triangles,
-                                   float y_offset = 0.f) noexcept;
+                                   float y_offset = 0.f, int entity_elevation = 0,
+                                   int elevation_tolerance = 0) noexcept;
 
 } // namespace corundum::physics::sys

@@ -87,8 +87,9 @@ namespace tools::tilemap {
 
     nlohmann::json collisions_json = nlohmann::json::array();
     const auto &cols = state.map.collisions;
-    for (auto &&[x, y, w, h] : std::views::zip(cols.cols, cols.rows, cols.col_spans, cols.row_spans))
-      collisions_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}});
+    for (auto &&[x, y, w, h, elev] :
+        std::views::zip(cols.cols, cols.rows, cols.col_spans, cols.row_spans, cols.elevations))
+      collisions_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}, {"elevation", elev}});
     j["collisions"] = std::move(collisions_json);
 
     using Cut = corundum::gameplay::world::tilemap::TriangleCut;
@@ -107,8 +108,9 @@ namespace tools::tilemap {
     };
     nlohmann::json tris_json = nlohmann::json::array();
     const auto &tris = state.map.collision_triangles;
-    for (auto &&[x, y, w, h, cut] : std::views::zip(tris.cols, tris.rows, tris.col_spans, tris.row_spans, tris.cuts))
-      tris_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}, {"cut", cut_to_str(cut)}});
+    for (auto &&[x, y, w, h, cut, elev] :
+        std::views::zip(tris.cols, tris.rows, tris.col_spans, tris.row_spans, tris.cuts, tris.elevations))
+      tris_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}, {"cut", cut_to_str(cut)}, {"elevation", elev}});
     j["collision_triangles"] = std::move(tris_json);
 
     {

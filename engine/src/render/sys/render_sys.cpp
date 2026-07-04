@@ -404,10 +404,12 @@ namespace corundum::render::sys {
       const auto [ox, oy] = chunk_origin_px(entry.coord, state.manifest, tile_px, cfg.tile_scale);
       const auto &cr = entry.tilemap.collisions;
       for (std::size_t i = 0; i < cr.size(); ++i)
-        state.agg_collisions.push_back(cr.cols[i] + ox, cr.rows[i] + oy, cr.col_spans[i], cr.row_spans[i]);
+        state.agg_collisions.push_back(cr.cols[i] + ox, cr.rows[i] + oy, cr.col_spans[i], cr.row_spans[i],
+                                       cr.elevations[i]);
       const auto &ct = entry.tilemap.collision_triangles;
       for (std::size_t i = 0; i < ct.size(); ++i)
-        state.agg_triangles.push_back(ct.cols[i] + ox, ct.rows[i] + oy, ct.col_spans[i], ct.row_spans[i], ct.cuts[i]);
+        state.agg_triangles.push_back(ct.cols[i] + ox, ct.rows[i] + oy, ct.col_spans[i], ct.row_spans[i], ct.cuts[i],
+                                      ct.elevations[i]);
     }
   }
 

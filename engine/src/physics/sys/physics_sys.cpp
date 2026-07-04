@@ -77,6 +77,15 @@ namespace corundum::physics::sys {
     const float prev_col = transforms.col[p_slot];
     const float prev_row = transforms.row[p_slot];
 
+    // The floor the player is standing on at the start of the frame — computed from the
+    // pre-move position so collision resolution doesn't depend on its own not-yet-resolved
+    // result. Null elevation_map (chunked World mode) means "no elevation data": treat as 0.
+    constexpr int k_elevation_tolerance = 0;
+    const int player_elev = map.elevation_map ? corundum::gameplay::world::tilemap::elevation_at(
+                                                    *map.elevation_map, static_cast<int>(prev_col),
+                                                    static_cast<int>(prev_row))
+                                              : 0;
+
     // Convert player_speed from isometric pixels/sec to tiles/sec.
     // For NW/SE movement: Δiso_y = (dc+dr)*half_th, where |dc|=|dr|=speed/√2.
     // Solving for speed such that Δiso_y/sec = player_speed:
@@ -98,8 +107,10 @@ namespace corundum::physics::sys {
       // AABB extends upward from the feet position.
       Position pc{p.col - half_cs, p.row - player_rect.row_span};
       const Position pcp{prev_pos.col - half_cs, prev_pos.row - player_rect.row_span};
-      resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f);
-      resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f);
+      resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f, player_elev,
+                        k_elevation_tolerance);
+      resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f,
+                                  player_elev, k_elevation_tolerance);
       // Convert AABB top-left back to feet position.
       p.col = pc.col + half_cs;
       p.row = pc.row + player_rect.row_span;

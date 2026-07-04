@@ -31,6 +31,10 @@ namespace corundum::gameplay::world {
     float sprite_scale = 1.f; ///< Sprite render scale.
     float tile_scale = 1.f;   ///< Tile render scale.
     std::span<const corundum::gameplay::world::Portal> portals;
+    /// Single-map tilemap, used to look up an entity's own elevation for elevation-aware
+    /// collision. Null in chunked/streamed World mode, where this isn't wired up yet —
+    /// entities there are treated as elevation 0 (no filtering).
+    const corundum::gameplay::world::tilemap::Tilemap *elevation_map = nullptr;
   };
 
   /**

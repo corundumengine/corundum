@@ -82,6 +82,39 @@ TEST_CASE("resolve_collisions — Y movement into wall from below") {
   CHECK(pos.row == doctest::Approx(100.f));
 }
 
+// ── elevation-gated collision ────────────────────────────────────────────────
+
+TEST_CASE("resolve_collisions — elevation mismatch lets entity pass through a raised wall") {
+  CollisionRects wall;
+  wall.push_back(120.f, 80.f, 32.f, 32.f, 50); // wall authored at elevation 50
+  Position pos{110.f, 90.f};
+  const Position prev{90.f, 90.f};
+  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, /*entity_elevation=*/0, /*elevation_tolerance=*/0);
+  // Entity is at elevation 0, wall at 50 — filtered out entirely, no block.
+  CHECK(pos.col == doctest::Approx(110.f));
+  CHECK(pos.row == doctest::Approx(90.f));
+}
+
+TEST_CASE("resolve_collisions — matching elevation still blocks movement") {
+  CollisionRects wall;
+  wall.push_back(120.f, 80.f, 32.f, 32.f, 50);
+  Position pos{110.f, 90.f};
+  const Position prev{90.f, 90.f};
+  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, /*entity_elevation=*/50, /*elevation_tolerance=*/0);
+  CHECK(pos.col == doctest::Approx(90.f));
+  CHECK(pos.row == doctest::Approx(90.f));
+}
+
+TEST_CASE("resolve_collisions — elevation within tolerance still blocks") {
+  CollisionRects wall;
+  wall.push_back(120.f, 80.f, 32.f, 32.f, 50);
+  Position pos{110.f, 90.f};
+  const Position prev{90.f, 90.f};
+  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, /*entity_elevation=*/48, /*elevation_tolerance=*/5);
+  CHECK(pos.col == doctest::Approx(90.f));
+  CHECK(pos.row == doctest::Approx(90.f));
+}
+
 // ── resolve_triangle_collisions ──────────────────────────────────────────────
 //
 // TriangleCut names the EMPTY corner of a 1x1 tile at (0,0); a tiny 0.01x0.01
@@ -167,6 +200,16 @@ TEST_CASE("resolve_triangle_collisions — SE cut: solid half blocks movement") 
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
   CHECK(pos.row == doctest::Approx(k_outside.row));
+}
+
+TEST_CASE("resolve_triangle_collisions — elevation mismatch lets entity pass through solid half") {
+  CollisionTriangles tris;
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NW, 50); // triangle authored at elevation 50
+  Position pos{k_far, k_far};                              // deep in NW cut's solid half
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view(), 0.f, /*entity_elevation=*/0,
+                              /*elevation_tolerance=*/0);
+  CHECK(pos.col == doctest::Approx(k_far));
+  CHECK(pos.row == doctest::Approx(k_far));
 }
 
 TEST_CASE("iso feet offset: round-trip with zero x_origin") {

@@ -168,6 +168,9 @@ namespace corundum::gameplay::world::tilemap {
     std::span<const float> rows;      ///< Top edges (tile rows).
     std::span<const float> col_spans; ///< Horizontal extents in tiles.
     std::span<const float> row_spans; ///< Vertical extents in tiles.
+    /// Per-rect elevation [0-100], same semantics as TilemapLayer::elevation; empty means
+    /// "no elevation data for any rect in this view" and disables elevation filtering entirely.
+    std::span<const uint8_t> elevations{};
 
     /// Number of rects in the view.
     [[nodiscard]] std::size_t size() const noexcept {
@@ -185,17 +188,19 @@ namespace corundum::gameplay::world::tilemap {
    * @see CollisionRectsView for the non-owning counterpart passed to collision functions.
    */
   struct CollisionRects {
-    std::vector<float> cols;      ///< Left edges (tile columns).
-    std::vector<float> rows;      ///< Top edges (tile rows).
-    std::vector<float> col_spans; ///< Horizontal extents in tiles.
-    std::vector<float> row_spans; ///< Vertical extents in tiles.
+    std::vector<float> cols;        ///< Left edges (tile columns).
+    std::vector<float> rows;        ///< Top edges (tile rows).
+    std::vector<float> col_spans;   ///< Horizontal extents in tiles.
+    std::vector<float> row_spans;   ///< Vertical extents in tiles.
+    std::vector<uint8_t> elevations; ///< Per-rect elevation [0-100]; see CollisionRectsView.
 
     /// Append one collision rect in tile-grid space.
-    void push_back(float col, float row, float col_span, float row_span) {
+    void push_back(float col, float row, float col_span, float row_span, uint8_t elevation = 0) {
       cols.push_back(col);
       rows.push_back(row);
       col_spans.push_back(col_span);
       row_spans.push_back(row_span);
+      elevations.push_back(elevation);
     }
 
     /// Number of stored rects.
@@ -205,7 +210,7 @@ namespace corundum::gameplay::world::tilemap {
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionRectsView view() const noexcept {
-      return {cols, rows, col_spans, row_spans};
+      return {cols, rows, col_spans, row_spans, elevations};
     }
 
     /// Remove the rect at index @p i in O(1) via swap-and-pop. Order is not preserved.
@@ -217,11 +222,13 @@ namespace corundum::gameplay::world::tilemap {
         rows[i] = rows[last];
         col_spans[i] = col_spans[last];
         row_spans[i] = row_spans[last];
+        elevations[i] = elevations[last];
       }
       cols.pop_back();
       rows.pop_back();
       col_spans.pop_back();
       row_spans.pop_back();
+      elevations.pop_back();
     }
   };
 
@@ -240,6 +247,8 @@ namespace corundum::gameplay::world::tilemap {
     std::span<const float> col_spans;  ///< Horizontal extents in tiles.
     std::span<const float> row_spans;  ///< Vertical extents in tiles.
     std::span<const TriangleCut> cuts; ///< Which corner is empty.
+    /// Per-triangle elevation [0-100]; empty disables elevation filtering. See CollisionRectsView.
+    std::span<const uint8_t> elevations{};
 
     /// Number of triangles in the view.
     [[nodiscard]] std::size_t size() const noexcept {
@@ -254,19 +263,21 @@ namespace corundum::gameplay::world::tilemap {
    * is identified by TriangleCut; the other half is solid.
    */
   struct CollisionTriangles {
-    std::vector<float> cols;       ///< Left edges (tile columns).
-    std::vector<float> rows;       ///< Top edges (tile rows).
-    std::vector<float> col_spans;  ///< Horizontal extents in tiles.
-    std::vector<float> row_spans;  ///< Vertical extents in tiles.
-    std::vector<TriangleCut> cuts; ///< Which corner is empty.
+    std::vector<float> cols;        ///< Left edges (tile columns).
+    std::vector<float> rows;        ///< Top edges (tile rows).
+    std::vector<float> col_spans;   ///< Horizontal extents in tiles.
+    std::vector<float> row_spans;   ///< Vertical extents in tiles.
+    std::vector<TriangleCut> cuts;  ///< Which corner is empty.
+    std::vector<uint8_t> elevations; ///< Per-triangle elevation [0-100]; see CollisionTrianglesView.
 
     /// Append one diagonal collision triangle in tile-grid space.
-    void push_back(float col, float row, float col_span, float row_span, TriangleCut cut) {
+    void push_back(float col, float row, float col_span, float row_span, TriangleCut cut, uint8_t elevation = 0) {
       cols.push_back(col);
       rows.push_back(row);
       col_spans.push_back(col_span);
       row_spans.push_back(row_span);
       cuts.push_back(cut);
+      elevations.push_back(elevation);
     }
 
     /// Number of stored triangles.
@@ -276,7 +287,7 @@ namespace corundum::gameplay::world::tilemap {
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionTrianglesView view() const noexcept {
-      return {cols, rows, col_spans, row_spans, cuts};
+      return {cols, rows, col_spans, row_spans, cuts, elevations};
     }
 
     /// Remove the triangle at index @p i in O(1) via swap-and-pop. Order is not preserved.
@@ -289,12 +300,14 @@ namespace corundum::gameplay::world::tilemap {
         col_spans[i] = col_spans[last];
         row_spans[i] = row_spans[last];
         cuts[i] = cuts[last];
+        elevations[i] = elevations[last];
       }
       cols.pop_back();
       rows.pop_back();
       col_spans.pop_back();
       row_spans.pop_back();
       cuts.pop_back();
+      elevations.pop_back();
     }
   };
 
