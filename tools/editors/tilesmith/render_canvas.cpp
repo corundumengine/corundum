@@ -1,5 +1,6 @@
 #include "render_canvas.hpp"
 #include "render_collision.hpp"
+#include "render_elevation.hpp"
 #include "render_portal.hpp"
 
 #include <corundum/core/math/vec.hpp>
@@ -80,6 +81,9 @@ namespace tools::tilemap {
     if (state.show_collisions) {
       render_collisions(ctx, state);
       render_collision_preview(ctx, state);
+    } else if (state.show_elevation) {
+      render_elevation_overlay(ctx, state);
+      render_elevation_preview(ctx, state);
     } else {
       render_hover_tile(ctx, state);
       render_erase_preview(ctx, state);

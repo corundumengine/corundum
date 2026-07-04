@@ -836,11 +836,11 @@ namespace corundum::render::sys {
 
       const auto &entry = *result;
       const float walk_offset = entry.walk_offset;
+      const int elev = elevation_under(state, col_f, row_f);
       const float iso_x = (col_f - row_f) * iso.half_tw + iso.x_origin;
-      const float iso_y = (col_f + row_f) * iso.half_th;
+      const float iso_y = (col_f + row_f) * iso.half_th - static_cast<float>(elev) * cfg.elevation_step_px;
       const float px = iso_x - static_cast<float>(entry.src.width) * scale * 0.5f;
       const float py = iso_y - walk_offset * static_cast<float>(entry.src.height) * scale;
-      const int elev = elevation_under(state, col_f, row_f);
       const float iso_depth = corundum::core::math::iso_depth_key(col_f, row_f, static_cast<float>(elev), iso.half_th,
                                                                   cfg.elevation_step_px);
       state.draw_list.push_back(

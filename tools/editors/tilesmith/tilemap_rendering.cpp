@@ -61,14 +61,35 @@ namespace tools::tilemap {
 
   // ── render_tilemap ────────────────────────────────────────────────────────────
 
+  namespace {
+
+    // Deferred draw for an elevated ground tile — collected so it can be depth-sorted
+    // against other elevated tiles before drawing, since a raised tile can visually
+    // overlap tiles from a different diagonal that would otherwise draw over it.
+    struct PendingTileDraw {
+      ImTextureID img_id;
+      ImVec2 p0;
+      ImVec2 p1;
+      ImVec2 uv0;
+      ImVec2 uv1;
+      float depth;
+    };
+
+  } // namespace
+
   void render_tilemap(ToolApp &app, CanvasContext ctx, const corundum::gameplay::world::tilemap::Tilemap &map,
                       const TilemapTextureStore &store, const corundum::gameplay::world::Camera &camera, int z_index,
-                      float tile_scale, float elapsed_time) {
+                      float tile_scale, float elapsed_time, float elev_step) {
     // Use diamond dimensions (world step) for isometric positioning.
     const auto iso = corundum::core::math::compute_iso_params(map.diamond_w(), map.diamond_h(), map.height, tile_scale);
 
     // Diagonal sweep (depth = col + row) for correct isometric draw order.
     const int depth_max = map.width + map.height - 2;
+
+    // Elevated ground tiles (z_index == 0) are deferred here and depth-sorted below,
+    // mirroring the engine's collect_tile_layer split — flat tiles stay on the fast
+    // immediate-draw path since their screen position already matches draw order.
+    std::vector<PendingTileDraw> pending;
 
     for (const auto &layer : map.layers) {
       if (!layer.visible || layer.z_index != z_index)
@@ -109,8 +130,12 @@ namespace tools::tilemap {
           const float scaled_tw = std::round(static_cast<float>(ts->info.frame_width) * tile_scale);
           const float scaled_th = std::round(static_cast<float>(ts->info.frame_height) * tile_scale);
 
+          const int elev = (!layer.elevation.empty() && static_cast<std::size_t>(cell_idx) < layer.elevation.size())
+                               ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
+                               : 0;
+
           const auto world =
-              corundum::core::math::tile_to_world(col, row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+              corundum::core::math::tile_to_world(col, row, elev, iso.half_tw, iso.half_th, elev_step, iso.x_origin);
           const float iso_x = world.x;
           // Anchor at the southern (bottom) vertex so the tile image fills the diamond cell.
           const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
@@ -140,9 +165,22 @@ namespace tools::tilemap {
               std::swap(uv0.y, uv1.y);
           }
 
-          ctx.dl->AddImage(img_id, p0, p1, uv0, uv1);
+          if (z_index == 0 && elev > 0) {
+            const float depth_key = corundum::core::math::iso_depth_key(
+                static_cast<float>(col), static_cast<float>(row), static_cast<float>(elev), iso.half_th, elev_step);
+            pending.push_back({img_id, p0, p1, uv0, uv1, depth_key});
+          } else {
+            ctx.dl->AddImage(img_id, p0, p1, uv0, uv1);
+          }
         }
       }
+    }
+
+    if (!pending.empty()) {
+      std::ranges::stable_sort(
+          pending, [](const PendingTileDraw &a, const PendingTileDraw &b) noexcept { return a.depth < b.depth; });
+      for (const auto &p : pending)
+        ctx.dl->AddImage(p.img_id, p.p0, p.p1, p.uv0, p.uv1);
     }
   }
 

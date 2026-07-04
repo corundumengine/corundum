@@ -66,9 +66,26 @@ namespace tools::tilemap {
     else if (state.selected_flip == corundum::gameplay::world::tilemap::k_flip_v)
       flip_label = "  [flip: V]";
 
-    const std::string text = std::format("[layer: {}]{}{}{}  [Cmd+S to save]{}  [G: grid]  [ESC or Q to quit]",
+    // Elevation readout — reads the active layer's raw value directly (not the
+    // cross-layer-resolved elevation_at()), since this should reflect what a
+    // paint stroke on the active layer will actually do.
+    std::string elevation_label;
+    if (state.show_elevation) {
+      if (hover_valid) {
+        const auto &layer = state.map.layers[static_cast<std::size_t>(state.active_layer)];
+        const int hover_elev = layer.elevation.empty()
+                                   ? 0
+                                   : layer.elevation[static_cast<std::size_t>(state.hover_tile_row * state.map.width +
+                                                                              state.hover_tile_col)];
+        elevation_label = std::format("  [elev brush:{} hover:{}]", state.selected_elevation, hover_elev);
+      } else {
+        elevation_label = std::format("  [elev brush:{}]", state.selected_elevation);
+      }
+    }
+
+    const std::string text = std::format("[layer: {}]{}{}{}{}  [Cmd+S to save]{}  [G: grid]  [ESC or Q to quit]",
                                          layer_name, tile_label.empty() ? "" : "  [" + tile_label + "]", hover_label,
-                                         flip_label, state.dirty ? "  *" : "");
+                                         flip_label, elevation_label, state.dirty ? "  *" : "");
 
     ImGui::SetCursorPosX(15.0f);
     ImGui::TextUnformatted(text.c_str());

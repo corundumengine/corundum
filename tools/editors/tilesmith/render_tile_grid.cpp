@@ -318,7 +318,8 @@ namespace tools::tilemap {
     state.palette_tile_scale =
         std::clamp(k_palette_target_px / static_cast<float>(ts.info.frame_width), 0.05f, k_palette_max_scale);
 
-    const int cell_w = std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * state.palette_tile_scale));
+    const int cell_w =
+        std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * state.palette_tile_scale));
     const int cell_h =
         std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_height) * state.palette_tile_scale));
     const int pal_cols = ts.info.columns;

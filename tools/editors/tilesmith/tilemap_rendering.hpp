@@ -54,9 +54,10 @@ namespace tools::tilemap {
 
   /// Render a single z-index layer of map into the canvas draw list.
   /// @param elapsed_time  Total elapsed seconds, used to drive tile animations.
+  /// @param elev_step     Pixels per elevation unit (GameConfig::elevation_step_px).
   void render_tilemap(ToolApp &app, CanvasContext ctx, const corundum::gameplay::world::tilemap::Tilemap &map,
                       const TilemapTextureStore &store, const corundum::gameplay::world::Camera &camera, int z_index,
-                      float tile_scale, float elapsed_time);
+                      float tile_scale, float elapsed_time, float elev_step);
 
   /// Return a sorted, deduplicated list of z-indices that are > 0 (above-entity layers).
   [[nodiscard]] std::vector<int> above_z_indices(const corundum::gameplay::world::tilemap::Tilemap &map) noexcept;

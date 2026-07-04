@@ -119,6 +119,7 @@ int main(int argc, char *argv[]) {
   corundum::core::GameConfig cfg = std::move(*cfg_result);
 
   EditorState state;
+  state.elev_step_px = cfg.elevation_step_px;
 
   if (!new_map_mode) {
     state.map_path = argv[1];
@@ -172,11 +173,12 @@ int main(int argc, char *argv[]) {
   tools::tilemap::NewMapDialogState new_map_dlg{};
 
   // Closure that renders all tilemap passes into a canvas context.
-  const MapRenderFn render_map = [&](CanvasContext ctx) {
-    tools::tilemap::render_tilemap(app, ctx, state.map, texture_store, state.camera, 0, state.tile_scale, elapsed_time);
+  const MapRenderFn render_map = [&app, &state, &texture_store, &elapsed_time](CanvasContext ctx) {
+    tools::tilemap::render_tilemap(app, ctx, state.map, texture_store, state.camera, 0, state.tile_scale, elapsed_time,
+                                   state.elev_step_px);
     for (const int z : tools::tilemap::above_z_indices(state.map))
       tools::tilemap::render_tilemap(app, ctx, state.map, texture_store, state.camera, z, state.tile_scale,
-                                     elapsed_time);
+                                     elapsed_time, state.elev_step_px);
   };
 
   app.run([&]() {

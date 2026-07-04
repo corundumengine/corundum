@@ -1,5 +1,6 @@
 #include "input.hpp"
 #include "coords.hpp"
+#include "elevation_paint.hpp"
 #include "layout.hpp"
 #include "paint.hpp"
 #include "save.hpp"
@@ -407,10 +408,21 @@ namespace tools::tilemap {
             }
           }
         }
+      } else if (state.show_elevation) {
+        const int step = io.KeyShift ? 10 : 1;
+        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket))
+          state.selected_elevation =
+              static_cast<uint8_t>(std::min(100, static_cast<int>(state.selected_elevation) + step));
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket))
+          state.selected_elevation =
+              static_cast<uint8_t>(std::max(0, static_cast<int>(state.selected_elevation) - step));
       }
 
       if (ImGui::IsKeyPressed(ImGuiKey_P))
         state.show_portals = !state.show_portals;
+
+      if (ImGui::IsKeyPressed(ImGuiKey_E))
+        state.show_elevation = !state.show_elevation;
 
       if ((ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) && state.show_portals &&
           state.selected_portal >= 0 && state.selected_portal < static_cast<int>(state.portals.size())) {
@@ -466,6 +478,9 @@ namespace tools::tilemap {
             else
               begin_collision_drag(state, mx, my);
           }
+        } else if (state.show_elevation) {
+          if (over_canvas)
+            paint_or_erase_elevation(state, mx, my, false);
         } else {
           if (over_canvas)
             paint_or_erase(state, mx, my, false);
@@ -485,7 +500,9 @@ namespace tools::tilemap {
             remove_triangle_at(state, mx, my);
           else
             remove_collision_at(state, mx, my);
-        } else
+        } else if (state.show_elevation)
+          paint_or_erase_elevation(state, mx, my, true);
+        else
           begin_erase_drag(state, mx, my);
       }
     }
@@ -536,6 +553,11 @@ namespace tools::tilemap {
       } else if (state.show_collisions) {
         if (state.collision_dragging)
           update_collision_drag(state, mx, my);
+      } else if (state.show_elevation) {
+        if (mouse.left_held && over_canvas && !popup_or_modal_open)
+          paint_or_erase_elevation(state, mx, my, false);
+        if (mouse.right_held && over_canvas)
+          paint_or_erase_elevation(state, mx, my, true);
       } else {
         if (mouse.left_held && over_canvas && !popup_or_modal_open)
           paint_or_erase(state, mx, my, false);

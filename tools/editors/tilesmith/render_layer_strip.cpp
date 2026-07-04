@@ -63,11 +63,10 @@ namespace tools::tilemap {
 
       // Visibility icon
       {
-        const ImVec2 center{win_pos.x + icon_x + text_h * 0.5f,
-                            row_top + static_cast<float>(LAYER_ROW_H) * 0.5f};
+        const ImVec2 center{win_pos.x + icon_x + text_h * 0.5f, row_top + static_cast<float>(LAYER_ROW_H) * 0.5f};
         const float r = text_h * 0.35f;
-        const ImU32 col = ImGui::ColorConvertFloat4ToU32(
-            visible ? GetTextColor(theme, TextRole::Active) : GetTextColor(theme, TextRole::Disabled));
+        const ImU32 col = ImGui::ColorConvertFloat4ToU32(visible ? GetTextColor(theme, TextRole::Active)
+                                                                 : GetTextColor(theme, TextRole::Disabled));
         if (visible)
           dl->AddCircleFilled(center, r, col);
         else

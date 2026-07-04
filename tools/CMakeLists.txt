@@ -71,6 +71,7 @@ add_executable(tilesmith
     editors/tilesmith/new_map_dialog.cpp
     editors/tilesmith/tilemap_rendering.cpp
     editors/tilesmith/paint.cpp
+    editors/tilesmith/elevation_paint.cpp
     editors/tilesmith/save.cpp
     editors/tilesmith/input.cpp
     editors/tilesmith/render_canvas.cpp
@@ -78,6 +79,7 @@ add_executable(tilesmith
     editors/tilesmith/render_tile_grid.cpp
     editors/tilesmith/render_status_bar.cpp
     editors/tilesmith/render_collision.cpp
+    editors/tilesmith/render_elevation.cpp
     editors/tilesmith/render_portal.cpp
 )
 
