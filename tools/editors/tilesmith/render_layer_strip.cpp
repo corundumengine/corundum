@@ -6,7 +6,7 @@ namespace tools::tilemap {
 
   using namespace tools::theme;
 
-  void render_layer_strip(const EditorState &state, const FontHandles &fonts, const ThemeColors &theme) {
+  void render_layer_strip(const EditorState &state, const ThemeColors &theme) {
     const int n_layers = static_cast<int>(state.map.layers.size());
     ImDrawList *dl = ImGui::GetWindowDrawList();
     const ImVec2 win_pos = ImGui::GetCursorScreenPos();
@@ -22,19 +22,23 @@ namespace tools::tilemap {
     // Add / delete layer buttons (centered vertically in title row)
     const float btn_y = win_pos.y + (static_cast<float>(LAYER_TITLE_H) - LAYER_BTN_H) * 0.5f;
 
+    const auto center_text_in_btn = [&](const ImVec2 &btn_min, const ImVec2 &btn_max, const char *text) {
+      const auto text_sz = ImGui::CalcTextSize(text);
+      ImGui::SetCursorScreenPos({btn_min.x + (btn_max.x - btn_min.x - text_sz.x) * 0.5f,
+                                 btn_min.y + (btn_max.y - btn_min.y - text_sz.y) * 0.5f});
+      ImGui::TextUnformatted(text);
+    };
     {
       const ImVec2 btn_min{win_pos.x + LAYER_BTN_ADD_X, btn_y};
       const ImVec2 btn_max{btn_min.x + LAYER_BTN_W, btn_min.y + LAYER_BTN_H};
       dl->AddRectFilled(btn_min, btn_max, IM_COL32(50, 50, 70, 255), 3.f);
-      ImGui::SetCursorScreenPos({btn_min.x + 3.f, btn_min.y + 1.f});
-      ImGui::TextUnformatted("+");
+      center_text_in_btn(btn_min, btn_max, "+");
     }
     {
       const ImVec2 btn_min{win_pos.x + LAYER_BTN_DEL_X, btn_y};
       const ImVec2 btn_max{btn_min.x + LAYER_BTN_W, btn_min.y + LAYER_BTN_H};
       dl->AddRectFilled(btn_min, btn_max, IM_COL32(50, 50, 70, 255), 3.f);
-      ImGui::SetCursorScreenPos({btn_min.x + 3.f, btn_min.y + 1.f});
-      ImGui::TextUnformatted("-");
+      center_text_in_btn(btn_min, btn_max, "-");
     }
 
     const float text_h = ImGui::GetTextLineHeight();
@@ -58,13 +62,17 @@ namespace tools::tilemap {
       ImGui::PopStyleColor();
 
       // Visibility icon
-      ImGui::SetCursorScreenPos({win_pos.x + icon_x, row_top + text_offset_y * 0.1f});
-      ImGui::PushStyleColor(ImGuiCol_Text,
-                            visible ? GetTextColor(theme, TextRole::Active) : GetTextColor(theme, TextRole::Disabled));
-      ImGui::PushFont(fonts.icons);
-      ImGui::TextUnformatted(visible ? "\xe2\x97\x8f" : "\xe2\x97\x8b");
-      ImGui::PopFont();
-      ImGui::PopStyleColor();
+      {
+        const ImVec2 center{win_pos.x + icon_x + text_h * 0.5f,
+                            row_top + static_cast<float>(LAYER_ROW_H) * 0.5f};
+        const float r = text_h * 0.35f;
+        const ImU32 col = ImGui::ColorConvertFloat4ToU32(
+            visible ? GetTextColor(theme, TextRole::Active) : GetTextColor(theme, TextRole::Disabled));
+        if (visible)
+          dl->AddCircleFilled(center, r, col);
+        else
+          dl->AddCircle(center, r, col, 0, 2.f);
+      }
     }
 
     // Advance cursor past the entire strip.

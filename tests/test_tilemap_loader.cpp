@@ -27,10 +27,10 @@ namespace {
   }
 
   constexpr std::string_view TILESET_A_JSON =
-      R"({"path":"game/assets/textures/tileset.png","tile_width":16,"tile_height":16,"columns":8,"rows":4})";
+      R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,"columns":8,"rows":4})";
 
   constexpr std::string_view TILESET_B_JSON =
-      R"({"path":"game/assets/textures/tileset2.png","tile_width":16,"tile_height":16,"columns":4,"rows":4})";
+      R"({"path":"game/assets/textures/tileset2.png","frame_width":16,"frame_height":16,"columns":4,"rows":4})";
 
   // Builds a minimal single-tileset 2×1 map using tileset A (32 tiles, GIDs 0–31).
   // extra_tiles is the comma-separated row string for the single layer row.
@@ -465,7 +465,7 @@ TEST_CASE("load_tilemap — schema_version wrong type throws") {
 TEST_CASE("load_tileset — 'material' field is loaded") {
   const auto dir = temp_dir("tileset_material");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","tile_width":16,"tile_height":16,)"
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
                       R"("columns":8,"rows":4,"material":"stone"})");
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);

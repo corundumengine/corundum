@@ -86,8 +86,8 @@ namespace tools::tilemap {
   palette_click_to_gid(int panel_local_x, int panel_local_y,
                        const corundum::gameplay::world::tilemap::TilemapTileset &ts, int scroll_row, int scroll_col,
                        float tile_scale) noexcept {
-    const int cell_w = std::max(1, static_cast<int>(static_cast<float>(ts.info.tile_width) * tile_scale));
-    const int cell_h = std::max(1, static_cast<int>(static_cast<float>(ts.info.tile_height) * tile_scale));
+    const int cell_w = std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * tile_scale));
+    const int cell_h = std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_height) * tile_scale));
 
     const int actual_col = panel_local_x / cell_w + scroll_col;
     const int actual_row = panel_local_y / cell_h + scroll_row;

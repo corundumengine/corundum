@@ -58,16 +58,16 @@ namespace corundum::gameplay::world::tilemap {
       info.path = std::move(*r);
     }
     {
-      auto r = require_pos_int("tile_width");
+      auto r = require_pos_int("frame_width");
       if (!r)
         return std::unexpected(std::move(r.error()));
-      info.tile_width = *r;
+      info.frame_width = *r;
     }
     {
-      auto r = require_pos_int("tile_height");
+      auto r = require_pos_int("frame_height");
       if (!r)
         return std::unexpected(std::move(r.error()));
-      info.tile_height = *r;
+      info.frame_height = *r;
     }
     {
       auto r = require_pos_int("columns");
@@ -81,18 +81,8 @@ namespace corundum::gameplay::world::tilemap {
         return std::unexpected(std::move(r.error()));
       info.rows = *r;
     }
-    if (j.contains("pivot_x")) {
-      try {
-        info.pivot_x = j["pivot_x"].get<float>();
-      } catch (...) {
-      }
-    }
-    if (j.contains("pivot_y")) {
-      try {
-        info.pivot_y = j["pivot_y"].get<float>();
-      } catch (...) {
-      }
-    }
+    info.pivot_x = 0.5f;
+    info.pivot_y = 0.0f;
     if (j.contains("material")) {
       try {
         info.material = j["material"].get<std::string>();

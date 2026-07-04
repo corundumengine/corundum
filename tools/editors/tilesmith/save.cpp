@@ -149,8 +149,6 @@ namespace tools::tilemap {
       } catch (const nlohmann::json::parse_error &) {
         continue;
       }
-      tj["pivot_x"] = saved_ts.info.pivot_x;
-      tj["pivot_y"] = saved_ts.info.pivot_y;
       if (!saved_ts.info.tile_footprints.empty()) {
         nlohmann::json fps_json = nlohmann::json::array();
         for (const auto &[local_id, tsfp] : saved_ts.info.tile_footprints)

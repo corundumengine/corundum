@@ -316,11 +316,11 @@ namespace tools::tilemap {
     constexpr float k_palette_target_px = 48.f;
     constexpr float k_palette_max_scale = 2.f;
     state.palette_tile_scale =
-        std::clamp(k_palette_target_px / static_cast<float>(ts.info.tile_width), 0.05f, k_palette_max_scale);
+        std::clamp(k_palette_target_px / static_cast<float>(ts.info.frame_width), 0.05f, k_palette_max_scale);
 
-    const int cell_w = std::max(1, static_cast<int>(static_cast<float>(ts.info.tile_width) * state.palette_tile_scale));
+    const int cell_w = std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * state.palette_tile_scale));
     const int cell_h =
-        std::max(1, static_cast<int>(static_cast<float>(ts.info.tile_height) * state.palette_tile_scale));
+        std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_height) * state.palette_tile_scale));
     const int pal_cols = ts.info.columns;
     const int vis_cols = std::max(1, PALETTE_W / cell_w);
     const int vis_rows = available_h / cell_h;
@@ -351,10 +351,10 @@ namespace tools::tilemap {
           done = true;
           break;
         }
-        const ImVec2 uv0{static_cast<float>(actual_col * ts.info.tile_width) / tex_w,
-                         static_cast<float>(tile_row * ts.info.tile_height) / tex_h};
-        const ImVec2 uv1{uv0.x + static_cast<float>(ts.info.tile_width) / tex_w,
-                         uv0.y + static_cast<float>(ts.info.tile_height) / tex_h};
+        const ImVec2 uv0{static_cast<float>(actual_col * ts.info.frame_width) / tex_w,
+                         static_cast<float>(tile_row * ts.info.frame_height) / tex_h};
+        const ImVec2 uv1{uv0.x + static_cast<float>(ts.info.frame_width) / tex_w,
+                         uv0.y + static_cast<float>(ts.info.frame_height) / tex_h};
         ImGui::SetCursorPos(ImVec2{static_cast<float>(vcol * cell_w), static_cast<float>(vrow * cell_h)});
         {
           const ImVec2 p = ImGui::GetCursorScreenPos();

@@ -51,8 +51,8 @@ namespace tools::sprite {
       j["columns"] = state.columns;
       j["rows"] = state.rows;
       j["path"] = state.image_path;
-      j["tile_width"] = state.frame_width;
-      j["tile_height"] = state.frame_height;
+      j["frame_width"] = state.frame_width;
+      j["frame_height"] = state.frame_height;
       if (state.offset_x)
         j["offset_x"] = state.offset_x;
       if (state.offset_y)

@@ -46,8 +46,8 @@ namespace tools::sprite {
       state.sheet_id = j.value("id", std::string{});
       try {
         state.image_path = j.at("path").get<std::string>();
-        state.frame_width = j.at("tile_width").get<int>();
-        state.frame_height = j.at("tile_height").get<int>();
+        state.frame_width = j.at("frame_width").get<int>();
+        state.frame_height = j.at("frame_height").get<int>();
         state.columns = j.at("columns").get<int>();
         state.rows = j.at("rows").get<int>();
       } catch (const nlohmann::json::exception &e) {

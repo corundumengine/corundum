@@ -11,8 +11,8 @@ namespace corundum::gameplay::world::tilemap {
   /// (loader.cpp) whenever a schema change requires upgrading old map files at load time.
   inline constexpr int k_tilemap_schema_version = 1;
 
-  /// Load a tileset from its JSON source file (path, tile_width, tile_height, columns, rows,
-  /// pivot, tile footprints, and animations).
+  /// Load a tileset from its JSON source file (path, frame_width, frame_height, columns, rows,
+  /// tile footprints, and animations). Pivot defaults to (0.5, 0.0).
   /// @param path Path to the tileset JSON (e.g. "data/sprite_sheets/objects/terrain.json").
   /// @return TilesetInfo on success, or an error string on any parse or validation failure.
   [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const std::filesystem::path &path);

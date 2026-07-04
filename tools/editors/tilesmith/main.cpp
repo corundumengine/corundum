@@ -1,7 +1,7 @@
 #include "common/ui_theme.hpp"
 #include "coords.hpp"
 #include "editor_state.hpp"
-#include "imgui_fonts.hpp"
+
 #include "input.hpp"
 #include "layout.hpp"
 #include "new_map_dialog.hpp"
@@ -28,7 +28,7 @@ using tools::theme::load_theme;
 using tools::theme::ThemeColors;
 using tools::tilemap::CanvasContext;
 using tools::tilemap::EditorState;
-using tools::tilemap::FontHandles;
+
 using tools::tilemap::load_tilemap_textures;
 using tools::tilemap::MapRenderFn;
 using tools::tilemap::MouseState;
@@ -40,16 +40,11 @@ using tools::tilemap::ToolTexture;
 // Helpers
 // ---------------------------------------------------------------------------
 
-[[nodiscard]] static FontHandles load_fonts(const corundum::core::GameConfig &cfg) {
-  static constexpr ImWchar ranges[] = {0x0020, 0xFFFF, 0};
+static void load_fonts(const corundum::core::GameConfig &cfg) {
   ImGuiIO &io = ImGui::GetIO();
   io.Fonts->Clear();
   const auto ui_path = std::format("{}/{}", cfg.paths.font_dir, cfg.paths.ui_font);
-  const auto icons_path = std::format("{}/{}", cfg.paths.font_dir, cfg.paths.icons_font);
-  FontHandles fonts;
-  fonts.ui = io.Fonts->AddFontFromFileTTF(ui_path.c_str(), 18.0f);
-  fonts.icons = io.Fonts->AddFontFromFileTTF(icons_path.c_str(), 26.0f, nullptr, ranges);
-  return fonts;
+  io.Fonts->AddFontFromFileTTF(ui_path.c_str(), 18.0f);
 }
 
 // ---------------------------------------------------------------------------
@@ -63,10 +58,10 @@ using tools::tilemap::ToolTexture;
 // Compute a canvas tile_scale that targets ~64px rendered cells so large
 // tiles (e.g. 256px isometric) don't fill the entire viewport. Small tiles
 // are capped at 2x (their historical default).
-[[nodiscard]] static float compute_tile_scale(int tile_width) noexcept {
+[[nodiscard]] static float compute_tile_scale(int frame_width) noexcept {
   constexpr float k_target_px = 64.f;
   constexpr float k_max_scale = 2.f;
-  return std::clamp(k_target_px / static_cast<float>(tile_width), 0.125f, k_max_scale);
+  return std::clamp(k_target_px / static_cast<float>(frame_width), 0.125f, k_max_scale);
 }
 
 static void center_camera(EditorState &state) noexcept {
@@ -145,7 +140,7 @@ int main(int argc, char *argv[]) {
   tools::ToolApp app{tools::tilemap::WINDOW_W, tools::tilemap::WINDOW_H, initial_title};
 
   // Fonts must be loaded after ImGui context is created (inside ToolApp ctor).
-  const FontHandles fonts = load_fonts(cfg);
+  load_fonts(cfg);
 
   ThemeColors theme;
   if (auto t = load_theme("tools/editors/common/editor_dark.json"); t)
@@ -287,7 +282,7 @@ int main(int argc, char *argv[]) {
       const ImVec2 sep = ImGui::GetCursorScreenPos();
       dl->AddRectFilled(sep, {sep.x + 1.f, sep.y + tools::tilemap::CANVAS_H}, IM_COL32(80, 80, 100, 255));
 
-      tools::tilemap::render_layer_strip(state, fonts, theme);
+      tools::tilemap::render_layer_strip(state, theme);
     }
     ImGui::End();
 

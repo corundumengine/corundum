@@ -40,8 +40,8 @@ namespace corundum::gameplay::world::tilemap {
   struct TilesetInfo {
     std::string path;
     std::string source;
-    int tile_width = 0;
-    int tile_height = 0;
+    int frame_width = 0;
+    int frame_height = 0;
     int columns = 0;
     int rows = 0;
     float pivot_x = 0.f; ///< Horizontal pivot fraction [0, 1]; 0 = left edge. Applied when drawing sprite.
@@ -144,7 +144,7 @@ namespace corundum::gameplay::world::tilemap {
     const int local_id = static_cast<int>(gid) - static_cast<int>(ts.first_gid);
     const int src_col = local_id % ts.info.columns;
     const int src_row = local_id / ts.info.columns;
-    return {src_col * ts.info.tile_width, src_row * ts.info.tile_height, ts.info.tile_width, ts.info.tile_height};
+    return {src_col * ts.info.frame_width, src_row * ts.info.frame_height, ts.info.frame_width, ts.info.frame_height};
   }
 
   /// Axis-aligned rectangle in tile-grid space.
@@ -304,17 +304,17 @@ namespace corundum::gameplay::world::tilemap {
     std::vector<TilemapTileset> tilesets; ///< Sorted ascending by first_gid.
     int width = 0;
     int height = 0;
-    int iso_diamond_w = 0; ///< Isometric world step width in pixels (diamond width). 0 = use tile_width.
+    int iso_diamond_w = 0; ///< Isometric world step width in pixels (diamond width). 0 = use frame_width.
     int iso_diamond_h = 0; ///< Isometric world step height in pixels (diamond height). 0 = iso_diamond_w / 2.
     std::vector<TilemapLayer> layers;       ///< Index 0 is the bottom-most layer.
     CollisionRects collisions;              ///< Impassable rects in Tiled pixel space; empty if absent.
     CollisionTriangles collision_triangles; ///< Diagonal half-tile collision shapes; empty if absent.
 
-    /// Effective isometric diamond width (world step), falling back to tile_width if not set.
+    /// Effective isometric diamond width (world step), falling back to frame_width if not set.
     [[nodiscard]] int diamond_w() const noexcept {
       if (iso_diamond_w > 0)
         return iso_diamond_w;
-      return tilesets.empty() ? 0 : tilesets[0].info.tile_width;
+      return tilesets.empty() ? 0 : tilesets[0].info.frame_width;
     }
 
     /// Effective isometric diamond height, falling back to diamond_w / 2 if not set.

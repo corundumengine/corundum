@@ -236,8 +236,8 @@ namespace corundum::render::sys {
     std::ranges::sort(above_z);
     above_z.erase(std::ranges::unique(above_z).begin(), above_z.end());
 
-    const float tw = static_cast<float>(tilemap.tilesets[0].info.tile_width) * cfg.tile_scale;
-    const float th = static_cast<float>(tilemap.tilesets[0].info.tile_height) * cfg.tile_scale;
+    const float tw = static_cast<float>(tilemap.tilesets[0].info.frame_width) * cfg.tile_scale;
+    const float th = static_cast<float>(tilemap.tilesets[0].info.frame_height) * cfg.tile_scale;
     const std::string stem = std::filesystem::path(tilemap_path).stem().string();
     const auto portals_file = std::format("{}/{}.json", cfg.paths.portals_dir, stem);
     auto portals = corundum::gameplay::world::load_portals(portals_file, tw, th);
@@ -358,7 +358,7 @@ namespace corundum::render::sys {
   int first_chunk_tile_px(const data::RenderState &state) noexcept {
     if (state.active_chunks.empty() || state.active_chunks[0].tilemap.tilesets.empty())
       return 0;
-    return state.active_chunks[0].tilemap.tilesets[0].info.tile_width;
+    return state.active_chunks[0].tilemap.tilesets[0].info.frame_width;
   }
 
   // ── load_chunk_entry (internal) ──────────────────────────────────────────────
@@ -560,8 +560,8 @@ namespace corundum::render::sys {
     const corundum::core::math::Vec2 world_pos = corundum::core::math::tile_to_world(
         abs_col, abs_row, elev, ctx.half_tw, ctx.half_th, ctx.elev_step, ctx.x_origin);
 
-    const float scaled_tw = static_cast<float>(ts->info.tile_width) * cfg.tile_scale;
-    const float scaled_th = static_cast<float>(ts->info.tile_height) * cfg.tile_scale;
+    const float scaled_tw = static_cast<float>(ts->info.frame_width) * cfg.tile_scale;
+    const float scaled_th = static_cast<float>(ts->info.frame_height) * cfg.tile_scale;
     const float depth = corundum::core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
                                                             static_cast<float>(elev), ctx.half_th, ctx.elev_step);
 

@@ -106,8 +106,8 @@ namespace tools::tilemap {
               corundum::gameplay::world::tilemap::find_tileset(map.tilesets, gid);
 
           // Sprite pixel dimensions — independent from the footprint (diamond step).
-          const float scaled_tw = std::round(static_cast<float>(ts->info.tile_width) * tile_scale);
-          const float scaled_th = std::round(static_cast<float>(ts->info.tile_height) * tile_scale);
+          const float scaled_tw = std::round(static_cast<float>(ts->info.frame_width) * tile_scale);
+          const float scaled_th = std::round(static_cast<float>(ts->info.frame_height) * tile_scale);
 
           const auto world =
               corundum::core::math::tile_to_world(col, row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);

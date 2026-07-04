@@ -51,8 +51,8 @@ namespace tools::tilemap {
     void commit_collision_rect(EditorState &state) noexcept {
       if (!state.collision_dragging || state.map.tilesets.empty())
         return;
-      const int tw = state.map.tilesets[0].info.tile_width;
-      const int th = state.map.tilesets[0].info.tile_height;
+      const int tw = state.map.tilesets[0].info.frame_width;
+      const int th = state.map.tilesets[0].info.frame_height;
       corundum::gameplay::world::tilemap::CollisionRect candidate;
       if (state.col_drag_sub_tile) {
         candidate =
@@ -554,7 +554,7 @@ namespace tools::tilemap {
     if (over_panel && io.MouseWheelH != 0.f && !state.map.tilesets.empty()) {
       const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
       const int cell_w =
-          std::max(1, static_cast<int>(static_cast<float>(ts.info.tile_width) * state.palette_tile_scale));
+          std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * state.palette_tile_scale));
       const int vis_cols = std::max(1, PALETTE_W / cell_w);
       state.palette_scroll_col -= static_cast<int>(io.MouseWheelH);
       state.palette_scroll_col = std::clamp(state.palette_scroll_col, 0, std::max(0, ts.info.columns - vis_cols));
