@@ -2,7 +2,10 @@
 #include <corundum/gameplay/component/collision_table.hpp>
 #include <corundum/gameplay/component/transform_table.hpp>
 #include <corundum/gameplay/entity/entity.hpp>
+#include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/input/actions.hpp>
+
+#include <vector>
 
 namespace corundum::gameplay::world {
   struct MapView;
@@ -31,6 +34,24 @@ namespace corundum::physics::sys {
    *  @performance O(n) over active entity count. Auto-vectorisable SoA layout.
    */
   void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept;
+
+  /** @brief Drive velocity toward the next waypoint in a click-to-move path.
+   *
+   * Aims at the center of path.front() (col+0.5, row+0.5). Pops the waypoint and moves
+   * on to the next one once this frame's movement would reach or pass it (uses dt to
+   * detect this robustly rather than an arbitrary distance epsilon). Zeroes velocity
+   * once the path empties.
+   *
+   *  @param[in,out] transforms  SoA table; dc/dr for @p player are modified.
+   *  @param[in]     player      EntityId of the player character.
+   *  @param[in,out] path        Remaining waypoints; front is popped on arrival.
+   *  @param[in]     speed       Movement speed in tiles/s.
+   *  @param[in]     dt          Fixed timestep in seconds.
+   *  @pre @p player must exist in @p transforms.
+   */
+  void follow_path(corundum::gameplay::component::TransformTable &transforms,
+                   corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
+                   float speed, float dt) noexcept;
 
   /** @brief Full player step: input → integrate → collision resolve → portal detect.
    *

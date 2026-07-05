@@ -81,6 +81,15 @@ namespace corundum::input {
      */
     float mouse_x{};
     float mouse_y{};
+    /**
+     * @brief True only on the frame the left mouse button was pressed.
+     *
+     * Deliberately separate from Action::Select (also bound to the mouse button for
+     * click-to-interact) — consumers that mean "the player clicked a screen point"
+     * specifically (e.g. click-to-move) must check this, not Select, since Select is
+     * also raised by keyboard/gamepad confirm presses that carry no click position.
+     */
+    bool mouse_click_pressed{};
 
     /**
      * @brief Checks if the specified action is currently held.
@@ -110,6 +119,7 @@ namespace corundum::input {
    */
   inline void clear_pressed(InputState &state) noexcept {
     state.pressed.reset();
+    state.mouse_click_pressed = false;
   }
 
   /**
@@ -127,6 +137,7 @@ namespace corundum::input {
     dst.pressed |= src.pressed;
     dst.mouse_x = src.mouse_x;
     dst.mouse_y = src.mouse_y;
+    dst.mouse_click_pressed |= src.mouse_click_pressed;
   }
 
   /**

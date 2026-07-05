@@ -121,6 +121,10 @@ namespace corundum::gameplay::sys {
       scene.dialogue_npc = eid;
       corundum::gameplay::dialogue::start(scene.dialogue, *graph, scene.flags);
       scene.mode = corundum::gameplay::world::GameMode::Dialogue;
+      // Defensive: a click that both queued a path AND was close enough to trigger
+      // interact (same frame) would otherwise leave that path to silently resume once
+      // the conversation ends, walking the player toward wherever they clicked to start it.
+      scene.path.clear();
       break;
     }
   }

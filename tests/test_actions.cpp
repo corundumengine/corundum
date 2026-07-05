@@ -2,6 +2,7 @@
 
 #include <corundum/input/actions.hpp>
 
+using corundum::input::accumulate_input;
 using corundum::input::Action;
 using corundum::input::clear_pressed;
 using corundum::input::k_action_count;
@@ -86,6 +87,36 @@ TEST_CASE("pressed_actions — ignores held-only actions") {
   state.held.set(static_cast<std::size_t>(Action::MoveDown));
   const auto result = pressed_actions(state);
   CHECK(result.empty());
+}
+
+// ── mouse_click_pressed / Action::Select separation ─────────────────────────────
+
+TEST_CASE("clear_pressed — also resets mouse_click_pressed") {
+  corundum::input::InputState state{};
+  state.mouse_click_pressed = true;
+  clear_pressed(state);
+  CHECK_FALSE(state.mouse_click_pressed);
+}
+
+TEST_CASE("accumulate_input — ORs mouse_click_pressed rather than overwriting") {
+  corundum::input::InputState dst{};
+  dst.mouse_click_pressed = true; // e.g. already raised earlier this fixed-step tick
+  corundum::input::InputState src{};
+  src.mouse_click_pressed = false;
+  accumulate_input(dst, src);
+  CHECK(dst.mouse_click_pressed); // must not be clobbered back to false
+}
+
+TEST_CASE("accumulate_input — a keyboard/gamepad Select press does not raise mouse_click_pressed") {
+  // Regression for the bug where Action::Select (shared by mouse click and keyboard/
+  // gamepad confirm) was used to gate click-to-move: pressing Enter to confirm dialogue
+  // must not look like a click.
+  corundum::input::InputState dst{};
+  corundum::input::InputState src{};
+  src.pressed.set(static_cast<std::size_t>(Action::Select)); // keyboard Enter, not a click
+  accumulate_input(dst, src);
+  CHECK(dst.is_pressed(Action::Select));
+  CHECK_FALSE(dst.mouse_click_pressed);
 }
 
 TEST_CASE("pressed_actions — range-for iteration works") {

@@ -20,6 +20,8 @@ add_executable(corundum_tests
     test_material_at.cpp
     test_walkability.cpp
     test_picking.cpp
+    test_pathfinding.cpp
+    test_follow_path.cpp
 )
 
 # Link to engine and doctest

@@ -1,4 +1,5 @@
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/sys/pathfinding.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
 #include <corundum/physics/collision.hpp>
@@ -12,6 +13,11 @@
 
 namespace corundum::physics::sys {
 
+  namespace {
+    constexpr float k_sqrt2 = 1.41421356f;
+    constexpr float k_tile_center_offset = 0.5f;
+  } // namespace
+
   void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept {
     [[assume(transforms.count <= std::remove_reference_t<decltype(transforms)>::k_max)]];
     float *pcol = std::assume_aligned<16>(transforms.col.data());
@@ -22,6 +28,40 @@ namespace corundum::physics::sys {
       pcol[i] += pdc[i] * dt;
       prow[i] += pdr[i] * dt;
     }
+  }
+
+  void follow_path(corundum::gameplay::component::TransformTable &transforms,
+                   corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
+                   float speed, float dt) noexcept {
+    if (!transforms.has(player)) [[unlikely]]
+      return;
+    const std::uint32_t slot = transforms.dense_idx(player);
+
+    if (path.empty()) {
+      transforms.dc[slot] = 0.f;
+      transforms.dr[slot] = 0.f;
+      return;
+    }
+
+    const float target_col = static_cast<float>(path.front().col) + k_tile_center_offset;
+    const float target_row = static_cast<float>(path.front().row) + k_tile_center_offset;
+    const float dc = target_col - transforms.col[slot];
+    const float dr = target_row - transforms.row[slot];
+    const float dist = std::sqrt(dc * dc + dr * dr);
+
+    if (dist <= speed * dt) {
+      // This frame's movement reaches (or would overshoot) the waypoint — snap to it
+      // exactly and move on to the next one, rather than using an arbitrary epsilon.
+      transforms.col[slot] = target_col;
+      transforms.row[slot] = target_row;
+      path.erase(path.begin());
+      follow_path(transforms, player, path, speed, dt);
+      return;
+    }
+
+    const float inv_dist = speed / dist;
+    transforms.dc[slot] = dc * inv_dist;
+    transforms.dr[slot] = dr * inv_dist;
   }
 
   void apply_input(corundum::gameplay::component::TransformTable &transforms,
@@ -91,8 +131,29 @@ namespace corundum::physics::sys {
     // For NW/SE movement: Δiso_y = (dc+dr)*half_th, where |dc|=|dr|=speed/√2.
     // Solving for speed such that Δiso_y/sec = player_speed:
     //   speed = player_speed / (√2 * half_th)
-    const float tile_speed = player_speed / (1.41421356f * map.half_th);
-    apply_input(transforms, player, input, tile_speed);
+    const float tile_speed = player_speed / (k_sqrt2 * map.half_th);
+
+    // A click queues a new path. Deliberately keyed on mouse_click_pressed, not
+    // Action::Select — Select is also raised by keyboard/gamepad confirm presses (which
+    // carry no click position), and using it here would spuriously queue a path toward
+    // wherever the mouse happens to be hovering any time the player presses Enter/Space/
+    // a gamepad button for an unrelated reason (e.g. confirming dialogue).
+    if (input.mouse_click_pressed && scene.hovered_tile && map.walkability) {
+      const corundum::gameplay::sys::TileCoord start{static_cast<int>(prev_col), static_cast<int>(prev_row)};
+      scene.path = corundum::gameplay::sys::find_path(map, start, *scene.hovered_tile);
+    }
+
+    const bool manual_move =
+        input.is_held(corundum::input::Action::MoveUp) || input.is_held(corundum::input::Action::MoveDown) ||
+        input.is_held(corundum::input::Action::MoveLeft) || input.is_held(corundum::input::Action::MoveRight);
+    if (manual_move) {
+      scene.path.clear(); // manual input always overrides/cancels an active path
+      apply_input(transforms, player, input, tile_speed);
+    } else if (!scene.path.empty()) {
+      follow_path(transforms, player, scene.path, tile_speed, dt);
+    } else {
+      apply_input(transforms, player, input, tile_speed); // zeroes dc/dr when nothing is held
+    }
     integrate(transforms, dt);
 
     const float map_w = map.world_w_px;

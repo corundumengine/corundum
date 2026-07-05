@@ -18,6 +18,8 @@ namespace corundum::gameplay::sys {
   struct TileCoord {
     int col;
     int row;
+
+    [[nodiscard]] friend bool operator==(const TileCoord &, const TileCoord &) noexcept = default;
   };
 
   /**

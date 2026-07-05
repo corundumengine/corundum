@@ -53,6 +53,13 @@ namespace corundum::platform::glfw {
         data->input.held[static_cast<std::size_t>(corundum::input::Action::Quit)] = true;
       }
     }
+
+    void mouse_button_callback(GLFWwindow *win, int button, int action, int /*mods*/) noexcept {
+      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
+      if (data) {
+        translate_mouse_button(button, action, data->input);
+      }
+    }
   } // namespace
 
   struct GLFWWindow::Impl {
@@ -94,6 +101,7 @@ namespace corundum::platform::glfw {
     if (impl_->win) {
       glfwSetWindowUserPointer(impl_->win, &impl_->data);
       glfwSetKeyCallback(impl_->win, key_callback);
+      glfwSetMouseButtonCallback(impl_->win, mouse_button_callback);
       glfwSetWindowCloseCallback(impl_->win, window_close_callback);
 
 #ifdef __APPLE__

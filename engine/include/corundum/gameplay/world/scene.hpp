@@ -39,6 +39,7 @@ namespace corundum::gameplay::world {
     std::optional<corundum::resources::AnimId> dialogue_npc_saved_anim;
     std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
     std::optional<corundum::gameplay::sys::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
+    std::vector<corundum::gameplay::sys::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
   };
 
 } // namespace corundum::gameplay::world
