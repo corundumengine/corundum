@@ -1,4 +1,5 @@
 #pragma once
+#include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/component/collision_table.hpp>
 #include <corundum/gameplay/component/transform_table.hpp>
 #include <corundum/gameplay/entity/entity.hpp>
@@ -18,14 +19,15 @@ namespace corundum::physics::sys {
    *  @param[in,out] transforms  SoA table; dx/dy for @p player are modified.
    *  @param[in]     player      EntityId of the player character.
    *  @param[in]     input       Current frame input state.
-   *  @param[in]     speed       Movement speed in px/s.
+   *  @param[in]     player_speed Movement speed in isometric pixels/s.
+   *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
    *  @pre @p player must exist in @p transforms.
    *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
    *  @performance O(1).
    */
   void apply_input(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                   float speed) noexcept;
+                   float player_speed, corundum::core::math::IsoParams iso) noexcept;
 
   /** @brief Advance positions by velocity * dt for all active transforms.
    *  @param[in,out] transforms  SoA table; x/y are advanced by dx/dy * dt.
@@ -45,13 +47,14 @@ namespace corundum::physics::sys {
    *  @param[in,out] transforms  SoA table; dc/dr for @p player are modified.
    *  @param[in]     player      EntityId of the player character.
    *  @param[in,out] path        Remaining waypoints; front is popped on arrival.
-   *  @param[in]     speed       Movement speed in tiles/s.
+   *  @param[in]     player_speed Movement speed in isometric pixels/s.
+   *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
    *  @param[in]     dt          Fixed timestep in seconds.
    *  @pre @p player must exist in @p transforms.
    */
   void follow_path(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
-                   float speed, float dt) noexcept;
+                   float player_speed, corundum::core::math::IsoParams iso, float dt) noexcept;
 
   /** @brief Full player step: input → integrate → collision resolve → portal detect.
    *

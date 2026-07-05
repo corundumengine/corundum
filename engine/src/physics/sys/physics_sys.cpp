@@ -14,8 +14,36 @@
 namespace corundum::physics::sys {
 
   namespace {
-    constexpr float k_sqrt2 = 1.41421356f;
     constexpr float k_tile_center_offset = 0.5f;
+
+    using corundum::core::math::IsoParams;
+    using corundum::core::math::Vec2;
+
+    /** @brief Convert a tile-grid offset (dc, dr) to the equivalent screen-space displacement.
+     *
+     * The isometric projection maps tile coordinates to screen via:
+     *   screen_x = (col - row) * half_tw
+     *   screen_y = (col + row) * half_th
+     *
+     * This function applies the same Jacobian to a delta vector, so that normalising
+     * in screen space produces equal perceived speed in all directions rather than
+     * equal tile-grid speed (which the isometric projection distorts).
+     */
+    [[nodiscard]] constexpr Vec2 tile_to_screen_delta(float dc, float dr, IsoParams iso) noexcept {
+      return {(dc - dr) * iso.half_tw, (dc + dr) * iso.half_th};
+    }
+
+    /** @brief Convert a screen-space velocity back to tile-grid velocity components.
+     *
+     * Inverse of the projection used by tile_to_screen_delta():
+     *   dc = (svx / half_tw + svy / half_th) / 2
+     *   dr = (svy / half_th - svx / half_tw) / 2
+     *
+     * @pre iso.half_tw > 0 and iso.half_th > 0.
+     */
+    [[nodiscard]] constexpr Vec2 screen_to_tile_delta(float svx, float svy, IsoParams iso) noexcept {
+      return {(svx / iso.half_tw + svy / iso.half_th) / 2.f, (svy / iso.half_th - svx / iso.half_tw) / 2.f};
+    }
   } // namespace
 
   void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept {
@@ -32,7 +60,7 @@ namespace corundum::physics::sys {
 
   void follow_path(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
-                   float speed, float dt) noexcept {
+                   float player_speed, corundum::core::math::IsoParams iso, float dt) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
     const std::uint32_t slot = transforms.dense_idx(player);
@@ -47,30 +75,44 @@ namespace corundum::physics::sys {
     const float target_row = static_cast<float>(path.front().row) + k_tile_center_offset;
     const float dc = target_col - transforms.col[slot];
     const float dr = target_row - transforms.row[slot];
-    const float dist = std::sqrt(dc * dc + dr * dr);
 
-    if (dist <= speed * dt) {
-      // This frame's movement reaches (or would overshoot) the waypoint — snap to it
-      // exactly and move on to the next one, rather than using an arbitrary epsilon.
-      transforms.col[slot] = target_col;
-      transforms.row[slot] = target_row;
-      path.erase(path.begin());
-      follow_path(transforms, player, path, speed, dt);
-      return;
+    if (iso.half_tw > 0.f && iso.half_th > 0.f) {
+      const auto [svx, svy] = tile_to_screen_delta(dc, dr, iso);
+      const float screen_dist = std::hypot(svx, svy);
+
+      if (screen_dist <= player_speed * dt) {
+        transforms.col[slot] = target_col;
+        transforms.row[slot] = target_row;
+        path.erase(path.begin());
+        follow_path(transforms, player, path, player_speed, iso, dt);
+        return;
+      }
+      const float scale = player_speed / screen_dist;
+      const auto [tdc, tdr] = screen_to_tile_delta(svx * scale, svy * scale, iso);
+      transforms.dc[slot] = tdc;
+      transforms.dr[slot] = tdr;
+    } else {
+      const float dist = std::hypot(dc, dr);
+      if (dist <= player_speed * dt) {
+        transforms.col[slot] = target_col;
+        transforms.row[slot] = target_row;
+        path.erase(path.begin());
+        follow_path(transforms, player, path, player_speed, iso, dt);
+        return;
+      }
+      const float inv_dist = player_speed / dist;
+      transforms.dc[slot] = dc * inv_dist;
+      transforms.dr[slot] = dr * inv_dist;
     }
-
-    const float inv_dist = speed / dist;
-    transforms.dc[slot] = dc * inv_dist;
-    transforms.dr[slot] = dr * inv_dist;
   }
 
   void apply_input(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                   float speed) noexcept {
+                   float player_speed, corundum::core::math::IsoParams iso) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
 
-    const auto slot = transforms.dense_idx(player);
+    const std::uint32_t slot = transforms.dense_idx(player);
     transforms.dc[slot] = 0.f;
     transforms.dr[slot] = 0.f;
 
@@ -99,8 +141,17 @@ namespace corundum::physics::sys {
     }
 
     const float len_sq = dc * dc + dr * dr;
-    if (len_sq > 0.f) {
-      const float inv_len = speed / std::sqrt(len_sq);
+    if (len_sq > 0.f && iso.half_tw > 0.f && iso.half_th > 0.f) {
+      // Normalise in screen space so that east/west and north/south movement
+      // feel equally fast (isometric projection distorts tile-grid distances).
+      const auto [svx, svy] = tile_to_screen_delta(dc, dr, iso);
+      const float screen_len = std::hypot(svx, svy);
+      const float scale = player_speed / screen_len;
+      const auto [tdc, tdr] = screen_to_tile_delta(svx * scale, svy * scale, iso);
+      transforms.dc[slot] = tdc;
+      transforms.dr[slot] = tdr;
+    } else if (len_sq > 0.f) {
+      const float inv_len = player_speed / std::sqrt(len_sq);
       transforms.dc[slot] = dc * inv_len;
       transforms.dr[slot] = dr * inv_len;
     }
@@ -111,10 +162,12 @@ namespace corundum::physics::sys {
                      corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
                      float player_speed, const corundum::gameplay::world::MapView &map,
                      corundum::gameplay::world::Scene &scene, float dt) noexcept {
+    using corundum::core::math::IsoParams;
+    using corundum::gameplay::component::CollisionTable;
     using corundum::gameplay::component::Position;
     using corundum::gameplay::entity::EntityId;
 
-    const auto p_slot = transforms.dense_idx(player);
+    const std::uint32_t p_slot = transforms.dense_idx(player);
     const float prev_col = transforms.col[p_slot];
     const float prev_row = transforms.row[p_slot];
 
@@ -126,12 +179,6 @@ namespace corundum::physics::sys {
                                 ? corundum::gameplay::world::tilemap::elevation_at(
                                       *map.elevation_map, static_cast<int>(prev_col), static_cast<int>(prev_row))
                                 : 0;
-
-    // Convert player_speed from isometric pixels/sec to tiles/sec.
-    // For NW/SE movement: Δiso_y = (dc+dr)*half_th, where |dc|=|dr|=speed/√2.
-    // Solving for speed such that Δiso_y/sec = player_speed:
-    //   speed = player_speed / (√2 * half_th)
-    const float tile_speed = player_speed / (k_sqrt2 * map.half_th);
 
     // A click queues a new path. Deliberately keyed on mouse_click_pressed, not
     // Action::Select — Select is also raised by keyboard/gamepad confirm presses (which
@@ -146,20 +193,21 @@ namespace corundum::physics::sys {
     const bool manual_move =
         input.is_held(corundum::input::Action::MoveUp) || input.is_held(corundum::input::Action::MoveDown) ||
         input.is_held(corundum::input::Action::MoveLeft) || input.is_held(corundum::input::Action::MoveRight);
+    const IsoParams iso{map.half_tw, map.half_th};
     if (manual_move) {
       scene.path.clear(); // manual input always overrides/cancels an active path
-      apply_input(transforms, player, input, tile_speed);
+      apply_input(transforms, player, input, player_speed, iso);
     } else if (!scene.path.empty()) {
-      follow_path(transforms, player, scene.path, tile_speed, dt);
+      follow_path(transforms, player, scene.path, player_speed, iso, dt);
     } else {
-      apply_input(transforms, player, input, tile_speed); // zeroes dc/dr when nothing is held
+      apply_input(transforms, player, input, player_speed, iso); // zeroes dc/dr when nothing is held
     }
     integrate(transforms, dt);
 
     const float map_w = map.world_w_px;
     const float map_h = map.world_h_px;
 
-    const auto &player_rect = collisions.get_rect(player);
+    const CollisionTable::Rect &player_rect = collisions.get_rect(player);
 
     Position p{transforms.col[p_slot], transforms.row[p_slot]};
     const Position prev_pos{prev_col, prev_row};
