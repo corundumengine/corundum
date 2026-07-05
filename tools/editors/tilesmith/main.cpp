@@ -224,8 +224,13 @@ int main(int argc, char *argv[]) {
       const int tw = state.map.diamond_w();
       const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
       const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
-      ImGui::SetNextWindowContentSize({static_cast<float>(state.map.width + state.map.height) * half_tw,
-                                       static_cast<float>(state.map.width + state.map.height) * half_th});
+      // +k_content_margin half-diamonds: a half-diamond margin on every side so the leftmost/
+      // topmost tiles aren't clipped by the window edge (their diamond footprint is centered on
+      // the map's logical bounds, so half of it would otherwise fall outside the scrollable area).
+      ImGui::SetNextWindowContentSize({static_cast<float>(state.map.width + state.map.height) * half_tw +
+                                           tools::tilemap::k_content_margin * half_tw,
+                                       static_cast<float>(state.map.width + state.map.height) * half_th +
+                                           tools::tilemap::k_content_margin * half_th});
     }
     ImGui::SetNextWindowPos({0.f, 0.f});
     ImGui::SetNextWindowSize(
@@ -242,12 +247,16 @@ int main(int argc, char *argv[]) {
     {
       ImDrawList *dl = ImGui::GetWindowDrawList();
       const ImVec2 origin = ImGui::GetWindowPos();
+      ImVec2 content_origin = origin;
 
       if (!state.map.tilesets.empty()) {
         const float half_tw = static_cast<float>(state.map.diamond_w()) * state.tile_scale * 0.5f;
         const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
-        const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw;
-        const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th;
+        // Matches the k_content_margin added to SetNextWindowContentSize above.
+        const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw +
+                                tools::tilemap::k_content_margin * half_tw;
+        const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th +
+                                tools::tilemap::k_content_margin * half_th;
         if (state.panning || state.camera_moved) {
           if (virtual_w > static_cast<float>(tools::tilemap::CANVAS_W))
             ImGui::SetScrollX(state.camera.x);
@@ -259,11 +268,25 @@ int main(int argc, char *argv[]) {
           if (virtual_h > static_cast<float>(tools::tilemap::CANVAS_H))
             state.camera.y = ImGui::GetScrollY();
         }
+        // Shift where content is drawn (not the clip rect, which stays at the true window
+        // bounds) so a half-diamond margin surrounds the map on every side — this must match
+        // the same subtraction screen_to_tile applies in coords.hpp.
+        //
+        // X uses the full k_content_margin (2 half-diamonds), not 1: the engine's x_origin
+        // convention already leaves a half_tw margin on the right and a half_tw *deficit*
+        // (clipping) on the left, so 2*half_tw both cancels the left deficit and adds the
+        // matching half_tw margin, while ΔW (k_content_margin * half_tw content-size growth,
+        // above) restores the same half_tw margin on the right that was there before this shift
+        // ate into it.
+        // Y has no such asymmetry (both top and bottom started flush with zero margin), so a
+        // single half_th shift there already lands symmetrically.
+        content_origin.x += tools::tilemap::k_content_margin * half_tw;
+        content_origin.y += half_th;
       }
 
       dl->PushClipRect(origin, {origin.x + tools::tilemap::CANVAS_W, origin.y + tools::tilemap::CANVAS_H}, true);
 
-      CanvasContext ctx{dl, origin};
+      CanvasContext ctx{dl, content_origin};
       tools::tilemap::render_canvas(ctx, state, render_map);
 
       dl->PopClipRect();

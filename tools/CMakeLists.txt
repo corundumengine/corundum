@@ -72,6 +72,7 @@ add_executable(tilesmith
     editors/tilesmith/tilemap_rendering.cpp
     editors/tilesmith/paint.cpp
     editors/tilesmith/elevation_paint.cpp
+    editors/tilesmith/fill.cpp
     editors/tilesmith/save.cpp
     editors/tilesmith/input.cpp
     editors/tilesmith/render_canvas.cpp

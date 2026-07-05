@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <optional>
@@ -16,6 +17,11 @@
 }
 
 namespace tools::tilemap {
+
+  // Number of half-diamonds of margin added to the computed virtual canvas
+  // extent so the outermost tile diamond footprints aren't clipped by the
+  // scroll region edge.
+  inline constexpr float k_content_margin = 2.f;
 
   /**
    * @brief Tile-grid coordinate (column, row).
@@ -49,20 +55,21 @@ namespace tools::tilemap {
       return std::nullopt;
 
     // tw is the isometric diamond_w (world step), not the sprite cell width.
-    const float half_tw = static_cast<float>(tw) * tile_scale * 0.5f;
-    const float half_th = static_cast<float>(diamond_h > 0 ? diamond_h : tw / 2) * tile_scale * 0.5f;
-    if (half_tw <= 0.f || half_th <= 0.f)
+    const auto iso =
+        corundum::core::math::compute_iso_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h, tile_scale);
+    if (iso.half_tw <= 0.f || iso.half_th <= 0.f)
       return std::nullopt;
 
-    // Isometric inverse: adj_iso_x = (col - row + map_h - 1) * half_tw
-    //                    adj_iso_y = (col + row) * half_th
-    const float world_x = static_cast<float>(px - canvas_left) + camera_x;
-    const float world_y = static_cast<float>(py - canvas_top) + camera_y;
-    const float u = world_x / half_tw; // col - row + map_h
-    const float v = world_y / half_th; // col + row
-    const float h1 = static_cast<float>(map_h - 1);
-    const int col = static_cast<int>(std::floor((u + v - h1) * 0.5f));
-    const int row = static_cast<int>(std::floor((v - u + h1) * 0.5f));
+    // Undo the origin shift the canvas renderer applies (see main.cpp's comment on the left/right
+    // asymmetry) so picking stays aligned with rendering.
+    const float origin_shift_x = k_content_margin * iso.half_tw;
+    const float origin_shift_y = iso.half_th; // Y shift uses 1 half-diamond (no asymmetry).
+    const float world_x = static_cast<float>(px - canvas_left) + camera_x - origin_shift_x;
+    const float world_y = static_cast<float>(py - canvas_top) + camera_y - origin_shift_y;
+    const corundum::core::math::Vec2 frac =
+        corundum::core::math::world_to_tile({world_x, world_y}, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+    const int col = static_cast<int>(std::floor(frac.x));
+    const int row = static_cast<int>(std::floor(frac.y));
 
     if (col < 0 || col >= map_w || row < 0 || row >= map_h)
       return std::nullopt;
@@ -172,8 +179,10 @@ namespace tools::tilemap {
                                                                       int canvas_h) noexcept {
     const float half_tw = static_cast<float>(tw) * tile_scale * 0.5f;
     const float half_th = static_cast<float>(diamond_h > 0 ? diamond_h : tw / 2) * tile_scale * 0.5f;
-    const float map_px_w = static_cast<float>(map_w + map_h) * half_tw;
-    const float map_px_h = static_cast<float>(map_w + map_h) * half_th;
+    // +k_content_margin half-diamonds: matches the margin added by the canvas renderer/content-size
+    // calc (main.cpp) — keeps scroll clamping consistent with that padding.
+    const float map_px_w = static_cast<float>(map_w + map_h) * half_tw + k_content_margin * half_tw;
+    const float map_px_h = static_cast<float>(map_w + map_h) * half_th + k_content_margin * half_th;
     const float min_x = std::min(0.f, (map_px_w - static_cast<float>(canvas_w)) * 0.5f);
     const float min_y = std::min(0.f, (map_px_h - static_cast<float>(canvas_h)) * 0.5f);
     cam.x = std::clamp(cam.x, min_x, std::max(0.f, map_px_w - static_cast<float>(canvas_w)));

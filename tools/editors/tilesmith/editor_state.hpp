@@ -75,6 +75,14 @@ namespace tools::tilemap {
     int erase_drag_cur_col = 0;    ///< Current tile column under the cursor during erase drag.
     int erase_drag_cur_row = 0;    ///< Current tile row where the cursor during erase drag.
 
+    // Canvas scrollbar drag state
+    bool scrollbar_dragging = false; ///< True from mouse-down on the canvas's own scrollbar until release.
+
+    // Fill undo state (single-action; not a general undo stack)
+    std::vector<corundum::gameplay::world::tilemap::TileId>
+        fill_undo_tiles;          ///< Pre-fill tiles snapshot, empty when nothing to undo.
+    int fill_undo_layer_idx = -1; ///< Layer index the snapshot belongs to, or -1 when nothing to undo.
+
     // Portal state
     std::vector<PortalEntry> portals; ///< Portals loaded from data/portals/{stem}.json.
     bool show_portals = false;        ///< Whether to display/edit portal rectangles.

@@ -13,8 +13,8 @@ namespace tools::tilemap {
    */
   struct NewMapDialogState {
     char id[128] = {};
-    int width = 20;
-    int height = 15;
+    int width = 60;
+    int height = 45;
     int iso_diamond_w = 128; ///< Tile footprint width in pixels.
     int iso_diamond_h = 64;  ///< Tile footprint height in pixels.
     char layer_name[64] = "ground";

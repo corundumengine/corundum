@@ -1,6 +1,7 @@
 #include "input.hpp"
 #include "coords.hpp"
 #include "elevation_paint.hpp"
+#include "fill.hpp"
 #include "layout.hpp"
 #include "paint.hpp"
 #include "save.hpp"
@@ -15,12 +16,18 @@ namespace tools::tilemap {
 
   namespace {
 
+    /// Convenience overload: fills in the EditorState-derived parameters that are
+    /// always the same (canvas at origin, CANVAS_W/H, camera/scale from state).
+    [[nodiscard]] std::optional<TileCoord> editor_screen_to_tile(int px, int py, const EditorState &state) noexcept {
+      return screen_to_tile(px, py, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y, state.tile_scale,
+                            state.map.width, state.map.height, effective_diamond_w(state.map),
+                            effective_diamond_h(state.map));
+    }
+
     void begin_collision_drag(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (!tc)
         return;
       state.collision_dragging = true;
@@ -38,9 +45,7 @@ namespace tools::tilemap {
     void update_collision_drag(EditorState &state, int win_x, int win_y) noexcept {
       if (!state.collision_dragging || state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (tc) {
         state.col_drag_cur_col = tc->col;
         state.col_drag_cur_row = tc->row;
@@ -83,9 +88,7 @@ namespace tools::tilemap {
     void place_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (!tc)
         return;
       const float col = static_cast<float>(tc->col);
@@ -107,9 +110,7 @@ namespace tools::tilemap {
     void remove_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (!tc)
         return;
       const float world_x = static_cast<float>(tc->col);
@@ -129,9 +130,7 @@ namespace tools::tilemap {
     void begin_erase_drag(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (!tc)
         return;
       state.erase_dragging = true;
@@ -144,9 +143,7 @@ namespace tools::tilemap {
     void update_erase_drag(EditorState &state, int win_x, int win_y) noexcept {
       if (!state.erase_dragging || state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (tc) {
         state.erase_drag_cur_col = tc->col;
         state.erase_drag_cur_row = tc->row;
@@ -168,9 +165,7 @@ namespace tools::tilemap {
     void begin_portal_drag(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (!tc)
         return;
       state.portal_dragging = true;
@@ -183,9 +178,7 @@ namespace tools::tilemap {
     void update_portal_drag(EditorState &state, int win_x, int win_y) noexcept {
       if (!state.portal_dragging || state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (tc) {
         state.portal_drag_cur_col = tc->col;
         state.portal_drag_cur_row = tc->row;
@@ -208,9 +201,7 @@ namespace tools::tilemap {
     void select_portal_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (!tc) {
         state.selected_portal = -1;
         return;
@@ -231,9 +222,7 @@ namespace tools::tilemap {
     void remove_collision_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                     state.tile_scale, state.map.width, state.map.height,
-                                     effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
       if (!tc)
         return;
       const float world_x = static_cast<float>(tc->col);
@@ -258,6 +247,9 @@ namespace tools::tilemap {
     // ── Validation popup state ───────────────────────────────────────────────
     bool show_validation_popup = false;         ///< True when Ctrl+S found problems to confirm.
     std::vector<std::string> validation_errors; ///< Problems found by the last validate() run.
+
+    // ── Fill-blocked popup state ─────────────────────────────────────────────
+    bool show_fill_blocked_popup = false; ///< True when F was pressed on a non-ground layer.
 
     void add_layer(EditorState &state) noexcept {
       const std::string name = std::format("Layer {}", state.map.layers.size() + 1);
@@ -342,6 +334,30 @@ namespace tools::tilemap {
     const int my = static_cast<int>(io.MousePos.y);
     const bool over_canvas = mx >= 0 && mx < CANVAS_W && my >= 0 && my < CANVAS_H;
     const bool over_panel = mx >= CANVAS_W && my >= 0 && my < CANVAS_H;
+
+    // Whether the canvas's own scrollbars are present this frame (mirrors the content-size vs.
+    // window-size check in main.cpp that decides whether ImGui draws them), and whether the
+    // cursor is currently over one of those scrollbar strips — clicking there must start a
+    // scroll drag, not a paint/erase action, even though the strip sits within CANVAS_W/H.
+    bool over_scrollbar = false;
+    if (!state.map.tilesets.empty()) {
+      const float half_tw = static_cast<float>(effective_diamond_w(state.map)) * state.tile_scale * 0.5f;
+      const float half_th = static_cast<float>(effective_diamond_h(state.map)) * state.tile_scale * 0.5f;
+      const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw;
+      const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th;
+      const bool has_h_scrollbar = virtual_w > static_cast<float>(CANVAS_W);
+      const bool has_v_scrollbar = virtual_h > static_cast<float>(CANVAS_H);
+      const float sb_size = ImGui::GetStyle().ScrollbarSize;
+      const bool over_h_strip =
+          has_h_scrollbar && static_cast<float>(my) >= static_cast<float>(CANVAS_H) - sb_size && my < CANVAS_H &&
+          mx >= 0 && static_cast<float>(mx) < static_cast<float>(CANVAS_W) - (has_v_scrollbar ? sb_size : 0.f);
+      const bool over_v_strip =
+          has_v_scrollbar && static_cast<float>(mx) >= static_cast<float>(CANVAS_W) - sb_size && mx < CANVAS_W &&
+          my >= 0 && static_cast<float>(my) < static_cast<float>(CANVAS_H) - (has_h_scrollbar ? sb_size : 0.f);
+      over_scrollbar = over_h_strip || over_v_strip;
+    }
+    if (state.scrollbar_dragging)
+      ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 
     // --- Keyboard ---
     if (!io.WantCaptureKeyboard) {
@@ -431,6 +447,18 @@ namespace tools::tilemap {
       if (ImGui::IsKeyPressed(ImGuiKey_W))
         state.show_walkability = !state.show_walkability;
 
+      if (ImGui::IsKeyPressed(ImGuiKey_F) && !io.KeyCtrl) {
+        if (!fill_ground_layer(state, state.selected_gid, state.selected_flip))
+          show_fill_blocked_popup = true;
+      }
+
+      if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z) && state.fill_undo_layer_idx >= 0) {
+        state.map.layers[static_cast<std::size_t>(state.fill_undo_layer_idx)].tiles = state.fill_undo_tiles;
+        state.fill_undo_tiles.clear();
+        state.fill_undo_layer_idx = -1;
+        state.dirty = true;
+      }
+
       if ((ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) && state.show_portals &&
           state.selected_portal >= 0 && state.selected_portal < static_cast<int>(state.portals.size())) {
         state.portals.erase(state.portals.begin() + state.selected_portal);
@@ -475,7 +503,9 @@ namespace tools::tilemap {
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
       mouse.left_held = true;
       if (!popup_or_modal_open) {
-        if (state.show_portals) {
+        if (over_scrollbar) {
+          state.scrollbar_dragging = true;
+        } else if (state.show_portals) {
           if (over_canvas)
             select_portal_at(state, mx, my);
         } else if (state.show_collisions) {
@@ -524,6 +554,7 @@ namespace tools::tilemap {
     // --- Mouse button released ---
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
       mouse.left_held = false;
+      state.scrollbar_dragging = false;
       if (!state.show_portals && state.show_collisions && !state.triangle_collision_mode && state.collision_dragging)
         commit_collision_rect(state);
     }
@@ -547,9 +578,7 @@ namespace tools::tilemap {
       }
     } else {
       if (!state.map.tilesets.empty()) {
-        const auto tc = screen_to_tile(mx, my, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y,
-                                       state.tile_scale, state.map.width, state.map.height,
-                                       effective_diamond_w(state.map), effective_diamond_h(state.map));
+        const auto tc = editor_screen_to_tile(mx, my, state);
         state.hover_tile_col = tc ? tc->col : -1;
         state.hover_tile_row = tc ? tc->row : -1;
       }
@@ -561,12 +590,12 @@ namespace tools::tilemap {
         if (state.collision_dragging)
           update_collision_drag(state, mx, my);
       } else if (state.show_elevation) {
-        if (mouse.left_held && over_canvas && !popup_or_modal_open)
+        if (mouse.left_held && over_canvas && !popup_or_modal_open && !state.scrollbar_dragging)
           paint_or_erase_elevation(state, mx, my, false);
         if (mouse.right_held && over_canvas)
           paint_or_erase_elevation(state, mx, my, true);
       } else {
-        if (mouse.left_held && over_canvas && !popup_or_modal_open)
+        if (mouse.left_held && over_canvas && !popup_or_modal_open && !state.scrollbar_dragging)
           paint_or_erase(state, mx, my, false);
         if (mouse.right_held && over_canvas)
           update_erase_drag(state, mx, my);
@@ -641,6 +670,20 @@ namespace tools::tilemap {
       }
       ImGui::SameLine();
       if (ImGui::Button("Cancel", ImVec2{120.f, 0.f}))
+        ImGui::CloseCurrentPopup();
+      ImGui::EndPopup();
+    }
+
+    // ── Fill-blocked popup ───────────────────────────────────────────────────
+    if (show_fill_blocked_popup) {
+      ImGui::OpenPopup("Fill Not Available");
+      show_fill_blocked_popup = false;
+    }
+
+    if (ImGui::BeginPopupModal("Fill Not Available", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::TextUnformatted("Fill only works on the ground layer (z_index 0).");
+      ImGui::Spacing();
+      if (ImGui::Button("OK", ImVec2{120.f, 0.f}))
         ImGui::CloseCurrentPopup();
       ImGui::EndPopup();
     }
