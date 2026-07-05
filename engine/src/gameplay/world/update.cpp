@@ -5,6 +5,7 @@
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/sys/camera_system.hpp>
 #include <corundum/gameplay/sys/dialogue_system.hpp>
+#include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/physics/sys/physics_sys.hpp>
 #include <corundum/resources/sprite.hpp>
@@ -42,6 +43,9 @@ namespace corundum::gameplay::world {
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
               const MapView &map, float dt, const quest::Registry *quests) {
     const auto actions = corundum::input::pressed_actions(input);
+
+    scene.hovered_tile =
+        corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, cfg.elevation_step_px);
 
     if (scene.mode == corundum::gameplay::world::GameMode::Dialogue) [[unlikely]] {
       corundum::gameplay::sys::update_dialogue(scene, actions, quests);

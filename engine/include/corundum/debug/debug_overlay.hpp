@@ -64,6 +64,13 @@ namespace corundum::debug {
     int collision_tris{};
     /** @brief Number of alive entities. */
     int entity_count{};
+
+    /** @brief True if pick_tile() resolved a hovered tile this frame. */
+    bool hover_valid{};
+    /** @brief Hovered tile column, valid only when hover_valid is true. */
+    int hover_col{};
+    /** @brief Hovered tile row, valid only when hover_valid is true. */
+    int hover_row{};
   };
 
   /**

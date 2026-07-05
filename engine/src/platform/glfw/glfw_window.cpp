@@ -134,6 +134,10 @@ namespace corundum::platform::glfw {
     corundum::input::clear_pressed(impl_->data.input);
     glfwPollEvents();
     poll_joystick(impl_->data.input, impl_->data.joystick_axis);
+    double mx = 0.0, my = 0.0;
+    glfwGetCursorPos(impl_->win, &mx, &my);
+    impl_->data.input.mouse_x = static_cast<float>(mx);
+    impl_->data.input.mouse_y = static_cast<float>(my);
     corundum::input::accumulate_input(input, impl_->data.input);
   }
 

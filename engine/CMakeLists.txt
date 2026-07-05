@@ -24,6 +24,7 @@ add_library(engine STATIC
     src/gameplay/world/portals/portal.cpp
     src/anim/sys/anim_sys.cpp
     src/gameplay/sys/camera_system.cpp
+    src/gameplay/sys/picking.cpp
     src/gameplay/sys/dialogue_system.cpp
     src/input/sys/input_sys.cpp
     src/physics/sys/physics_sys.cpp

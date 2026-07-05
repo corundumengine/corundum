@@ -19,6 +19,7 @@ add_executable(corundum_tests
     test_tilemap_validate.cpp
     test_material_at.cpp
     test_walkability.cpp
+    test_picking.cpp
 )
 
 # Link to engine and doctest

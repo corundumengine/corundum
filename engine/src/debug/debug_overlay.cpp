@@ -111,7 +111,7 @@ namespace corundum::debug {
   void draw_hud(platform::Renderer &r, const HudData &d) noexcept {
     const float x = d.win_w - k_box_w - k_pad;
 
-    std::array<std::string, 5> lines{
+    std::array<std::string, 6> lines{
         std::format("FPS:  sim {:3.0f} / render {:3.0f}", d.sim_fps, d.render_fps),
         std::format("Grid:  col ({:7.1f}), row ({:7.1f})", d.player_col, d.player_row),
         [&d] {
@@ -123,6 +123,8 @@ namespace corundum::debug {
         std::format("Camera:  x ({:7.1f}), y ({:7.1f})", d.camera_x, d.camera_y),
         std::format("Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}", d.active_chunks, d.collision_rects,
                     d.collision_tris, d.entity_count),
+        d.hover_valid ? std::format("Hover:  col ({}), row ({})", d.hover_col, d.hover_row)
+                      : std::string{"Hover:  none"},
     };
 
     r.draw(platform::DrawRect{
@@ -225,6 +227,11 @@ namespace corundum::debug {
     hud.collision_rects = static_cast<int>(geo.rects.size());
     hud.collision_tris = static_cast<int>(geo.tris.size());
     hud.entity_count = static_cast<int>(w.entities.alive());
+    if (scene.hovered_tile) {
+      hud.hover_valid = true;
+      hud.hover_col = scene.hovered_tile->col;
+      hud.hover_row = scene.hovered_tile->row;
+    }
     draw_hud(r, hud);
   }
 

@@ -74,6 +74,13 @@ namespace corundum::input {
      * @brief True only on the frame the key bound to an action was pressed.
      */
     std::bitset<k_action_count> pressed{};
+    /**
+     * @brief Cursor position in window pixels, updated once per poll cycle.
+     *
+     * Analog data, deliberately separate from the discrete Action bitsets above.
+     */
+    float mouse_x{};
+    float mouse_y{};
 
     /**
      * @brief Checks if the specified action is currently held.
@@ -118,6 +125,8 @@ namespace corundum::input {
   inline void accumulate_input(InputState &dst, const InputState &src) noexcept {
     dst.held = src.held;
     dst.pressed |= src.pressed;
+    dst.mouse_x = src.mouse_x;
+    dst.mouse_y = src.mouse_y;
   }
 
   /**

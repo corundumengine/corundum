@@ -3,6 +3,7 @@
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/flags.hpp>
+#include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/resources/sprite.hpp>
@@ -37,6 +38,7 @@ namespace corundum::gameplay::world {
     std::optional<corundum::gameplay::component::FacingDir> dialogue_npc_saved_facing;
     std::optional<corundum::resources::AnimId> dialogue_npc_saved_anim;
     std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
+    std::optional<corundum::gameplay::sys::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
   };
 
 } // namespace corundum::gameplay::world

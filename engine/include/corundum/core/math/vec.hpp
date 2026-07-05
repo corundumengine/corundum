@@ -139,6 +139,31 @@ namespace corundum::core::math {
   }
 
   /**
+   * @brief Convert an isometric world-space position back to fractional tile-grid
+   * coordinates, given an assumed elevation. The direct inverse of tile_to_world —
+   * distinct from cart_to_iso/iso_to_cart, which invert the legacy Cartesian-pixel
+   * convention (col*tile_w, row*tile_h) used at the physics/collision boundary and
+   * take no elevation term.
+   *
+   * @param world_pos Isometric world-space position (already camera-adjusted).
+   * @param elevation Assumed tile height — the caller supplies this per-candidate
+   *                  when resolving which of several stacked tiles a screen point hits.
+   * @param half_tw   Half the scaled diamond width.
+   * @param half_th   Half the scaled diamond height.
+   * @param elev_step Screen pixels lifted per unit of elevation.
+   * @param x_origin  The same x_origin passed to tile_to_world.
+   * @return Fractional {col, row}; floor() each component to get the containing cell.
+   */
+  [[nodiscard]] constexpr Vec2 world_to_tile(Vec2 world_pos, int elevation, float half_tw, float half_th,
+                                             float elev_step, float x_origin) noexcept {
+    const float adj_x = world_pos.x - x_origin;
+    const float adj_y = world_pos.y + static_cast<float>(elevation) * elev_step;
+    const float u = adj_x / half_tw; // tx - ty
+    const float v = adj_y / half_th; // tx + ty
+    return {(u + v) * 0.5f, (v - u) * 0.5f};
+  }
+
+  /**
    * @brief Convert a Cartesian tile-pixel position to isometric world space.
    *
    * Cartesian coordinates are the legacy internal format:

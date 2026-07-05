@@ -71,6 +71,40 @@ TEST_CASE("tile_to_world — elevation lifts tile upward") {
   CHECK(raised.y == doctest::Approx(flat.y - 20.f)); // 5 * 4.f
 }
 
+// ── world_to_tile ────────────────────────────────────────────────────────────
+
+TEST_CASE("world_to_tile — round-trips tile_to_world at elevation 0") {
+  const auto world = ccm::tile_to_world(3, 4, 0, k_half_tw, k_half_th, 4.f, k_x_origin);
+  const auto tile = ccm::world_to_tile(world, 0, k_half_tw, k_half_th, 4.f, k_x_origin);
+  CHECK(tile.x == doctest::Approx(3.f));
+  CHECK(tile.y == doctest::Approx(4.f));
+}
+
+TEST_CASE("world_to_tile — round-trips tile_to_world with elevation, assumed elevation matches") {
+  const auto world = ccm::tile_to_world(2, 5, 30, k_half_tw, k_half_th, 4.f, k_x_origin);
+  const auto tile = ccm::world_to_tile(world, 30, k_half_tw, k_half_th, 4.f, k_x_origin);
+  CHECK(tile.x == doctest::Approx(2.f));
+  CHECK(tile.y == doctest::Approx(5.f));
+}
+
+TEST_CASE("world_to_tile — round-trips with x_origin shift") {
+  constexpr int H = 10;
+  const float x_origin = static_cast<float>(H - 1) * k_half_tw;
+  const auto world = ccm::tile_to_world(0, H - 1, 0, k_half_tw, k_half_th, 4.f, x_origin);
+  const auto tile = ccm::world_to_tile(world, 0, k_half_tw, k_half_th, 4.f, x_origin);
+  CHECK(tile.x == doctest::Approx(0.f));
+  CHECK(tile.y == doctest::Approx(static_cast<float>(H - 1)));
+}
+
+TEST_CASE("world_to_tile — wrong assumed elevation misses the true cell") {
+  // A screen point over a raised tile (elevation 30) inverted assuming elevation 0
+  // should NOT land back on the same cell — the whole point of testing per-candidate
+  // elevation in pick_tile() rather than assuming a single global elevation.
+  const auto world = ccm::tile_to_world(2, 5, 30, k_half_tw, k_half_th, 4.f, k_x_origin);
+  const auto tile = ccm::world_to_tile(world, 0, k_half_tw, k_half_th, 4.f, k_x_origin);
+  CHECK_FALSE((tile.x == doctest::Approx(2.f) && tile.y == doctest::Approx(5.f)));
+}
+
 // ── iso_depth_key ────────────────────────────────────────────────────────────
 
 TEST_CASE("iso_depth_key — flat map reproduces plain tx+ty ordering") {
