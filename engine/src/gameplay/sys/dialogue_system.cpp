@@ -1,6 +1,7 @@
 #include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/dialogue/system.hpp>
 #include <corundum/gameplay/sys/dialogue_system.hpp>
+#include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/resources/sprite.hpp>
 
 #include <cmath>
@@ -83,6 +84,14 @@ namespace corundum::gameplay::sys {
     if (!input.is_pressed(corundum::input::Action::Select))
       return;
 
+    // A mouse click also raises Select (so click-to-interact can exist at all), but
+    // unlike a keyboard/gamepad press it carries a screen position — require it to
+    // actually be aimed at the NPC, not just "a click happened while nearby" (that
+    // would otherwise make every click-to-move near an NPC accidentally start
+    // dialogue). Keyboard/gamepad presses have no aim concept, so proximity alone
+    // remains the gate for them, same as before.
+    const bool via_click = input.mouse_click_pressed;
+
     World &world = scene.world;
     const std::uint32_t p_slot = world.transforms.dense_idx(scene.player);
     const float player_col = world.transforms.col[p_slot];
@@ -98,6 +107,12 @@ namespace corundum::gameplay::sys {
 
       if (distance(Position{player_col, player_row}, Position{npc_col, npc_row}) > cfg.interact_radius)
         continue;
+
+      if (via_click) {
+        const corundum::gameplay::sys::TileCoord npc_tile{static_cast<int>(npc_col), static_cast<int>(npc_row)};
+        if (!scene.hovered_tile || *scene.hovered_tile != npc_tile)
+          continue; // click landed elsewhere — not aimed at this NPC
+      }
 
       const Graph *const graph = graphs.find(world.dialogue_refs.get_graph_id(eid));
       if (!graph)
