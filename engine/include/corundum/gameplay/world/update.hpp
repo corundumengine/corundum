@@ -4,6 +4,7 @@
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/gameplay/world/tilemap/walkability.hpp>
 #include <corundum/input/actions.hpp>
 
 #include <span>
@@ -35,6 +36,9 @@ namespace corundum::gameplay::world {
     /// collision. Null in chunked/streamed World mode, where this isn't wired up yet —
     /// entities there are treated as elevation 0 (no filtering).
     const corundum::gameplay::world::tilemap::Tilemap *elevation_map = nullptr;
+    /// Walkability graph for movement gating across too-steep elevation edges. Null in
+    /// chunked/streamed World mode — same limitation as elevation_map.
+    const corundum::gameplay::world::tilemap::WalkabilityGraph *walkability = nullptr;
   };
 
   /**

@@ -3,6 +3,7 @@
 #include <corundum/gameplay/ui/dialog_box.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/gameplay/world/tilemap/walkability.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/resources/sprite.hpp>
 
@@ -88,6 +89,9 @@ namespace corundum::render::data {
     corundum::gameplay::world::tilemap::ChunkCoord last_center_chunk{};
     corundum::gameplay::world::tilemap::CollisionRects agg_collisions{};
     corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
+    /// Built once when a single map loads (load_map()); single-map mode only, same
+    /// limitation as MapView::elevation_map — World mode leaves this default-empty.
+    corundum::gameplay::world::tilemap::WalkabilityGraph map_walkability{};
     corundum::gameplay::ui::DialogBoxState dialog_box{};
     uint32_t font_id{0};
     RenderMode mode{RenderMode::None};

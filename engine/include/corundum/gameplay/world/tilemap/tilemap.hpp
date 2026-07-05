@@ -188,10 +188,10 @@ namespace corundum::gameplay::world::tilemap {
    * @see CollisionRectsView for the non-owning counterpart passed to collision functions.
    */
   struct CollisionRects {
-    std::vector<float> cols;        ///< Left edges (tile columns).
-    std::vector<float> rows;        ///< Top edges (tile rows).
-    std::vector<float> col_spans;   ///< Horizontal extents in tiles.
-    std::vector<float> row_spans;   ///< Vertical extents in tiles.
+    std::vector<float> cols;         ///< Left edges (tile columns).
+    std::vector<float> rows;         ///< Top edges (tile rows).
+    std::vector<float> col_spans;    ///< Horizontal extents in tiles.
+    std::vector<float> row_spans;    ///< Vertical extents in tiles.
     std::vector<uint8_t> elevations; ///< Per-rect elevation [0-100]; see CollisionRectsView.
 
     /// Append one collision rect in tile-grid space.
@@ -263,11 +263,11 @@ namespace corundum::gameplay::world::tilemap {
    * is identified by TriangleCut; the other half is solid.
    */
   struct CollisionTriangles {
-    std::vector<float> cols;        ///< Left edges (tile columns).
-    std::vector<float> rows;        ///< Top edges (tile rows).
-    std::vector<float> col_spans;   ///< Horizontal extents in tiles.
-    std::vector<float> row_spans;   ///< Vertical extents in tiles.
-    std::vector<TriangleCut> cuts;  ///< Which corner is empty.
+    std::vector<float> cols;         ///< Left edges (tile columns).
+    std::vector<float> rows;         ///< Top edges (tile rows).
+    std::vector<float> col_spans;    ///< Horizontal extents in tiles.
+    std::vector<float> row_spans;    ///< Vertical extents in tiles.
+    std::vector<TriangleCut> cuts;   ///< Which corner is empty.
     std::vector<uint8_t> elevations; ///< Per-triangle elevation [0-100]; see CollisionTrianglesView.
 
     /// Append one diagonal collision triangle in tile-grid space.

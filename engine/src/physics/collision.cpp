@@ -13,8 +13,8 @@ namespace corundum::physics::sys {
     // elevation_tolerance of entity_elevation — lets a raised platform's walls block only
     // entities standing on that platform, not something walking underneath/beside it.
     [[nodiscard]] bool overlaps_any(float ax, float ay, float aw, float ah,
-                                    corundum::gameplay::world::tilemap::CollisionRectsView rects,
-                                    int entity_elevation, int elevation_tolerance) noexcept {
+                                    corundum::gameplay::world::tilemap::CollisionRectsView rects, int entity_elevation,
+                                    int elevation_tolerance) noexcept {
       const float ax1 = ax + aw;
       const float ay1 = ay + ah;
       const std::size_t n = rects.size();
@@ -52,8 +52,7 @@ namespace corundum::physics::sys {
       const std::size_t n = tris.size();
       const bool filter_elevation = !tris.elevations.empty();
       for (std::size_t i = 0; i < n; ++i) {
-        if (filter_elevation &&
-            std::abs(static_cast<int>(tris.elevations[i]) - entity_elevation) > elevation_tolerance)
+        if (filter_elevation && std::abs(static_cast<int>(tris.elevations[i]) - entity_elevation) > elevation_tolerance)
           continue;
         const float tx = tris.cols[i], ty = tris.rows[i];
         const float tw = tris.col_spans[i], th = tris.row_spans[i];
@@ -105,8 +104,8 @@ namespace corundum::physics::sys {
 
   void resolve_triangle_collisions(corundum::gameplay::component::Position &pos,
                                    corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
-                                   corundum::gameplay::world::tilemap::CollisionTrianglesView triangles,
-                                   float y_offset, int entity_elevation, int elevation_tolerance) noexcept {
+                                   corundum::gameplay::world::tilemap::CollisionTrianglesView triangles, float y_offset,
+                                   int entity_elevation, int elevation_tolerance) noexcept {
     const float eff_h = entity_h - y_offset;
 
     if (overlaps_any_triangle(pos.col, prev_pos.row + y_offset, entity_w, eff_h, triangles, entity_elevation,

@@ -23,7 +23,8 @@ namespace tools::tilemap {
     void draw_iso_rect(const CanvasContext &ctx, float x, float y, float w, float h, float inv_tw, float inv_th,
                        float half_tw, float half_th, float elev, float elev_step, float x_shift, float cam_x,
                        float cam_y, ImU32 fill, ImU32 outline) noexcept {
-      const ImVec2 top = tiled_to_iso(ctx, x, y, inv_tw, inv_th, half_tw, half_th, elev, elev_step, x_shift, cam_x, cam_y);
+      const ImVec2 top =
+          tiled_to_iso(ctx, x, y, inv_tw, inv_th, half_tw, half_th, elev, elev_step, x_shift, cam_x, cam_y);
       const ImVec2 right =
           tiled_to_iso(ctx, x + w, y, inv_tw, inv_th, half_tw, half_th, elev, elev_step, x_shift, cam_x, cam_y);
       const ImVec2 bottom =
@@ -43,7 +44,8 @@ namespace tools::tilemap {
                            float cam_y, corundum::gameplay::world::tilemap::TriangleCut cut, ImU32 fill,
                            ImU32 outline) noexcept {
       using corundum::gameplay::world::tilemap::TriangleCut;
-      const ImVec2 top = tiled_to_iso(ctx, x, y, inv_tw, inv_th, half_tw, half_th, elev, elev_step, x_shift, cam_x, cam_y);
+      const ImVec2 top =
+          tiled_to_iso(ctx, x, y, inv_tw, inv_th, half_tw, half_th, elev, elev_step, x_shift, cam_x, cam_y);
       const ImVec2 right =
           tiled_to_iso(ctx, x + w, y, inv_tw, inv_th, half_tw, half_th, elev, elev_step, x_shift, cam_x, cam_y);
       const ImVec2 bottom =
@@ -114,8 +116,8 @@ namespace tools::tilemap {
       const float col = static_cast<float>(state.hover_tile_col);
       const float row = static_cast<float>(state.hover_tile_row);
       // Preview at the elevation this triangle would actually be authored at if placed now.
-      const float preview_elev = static_cast<float>(corundum::gameplay::world::tilemap::elevation_at(
-          state.map, state.hover_tile_col, state.hover_tile_row));
+      const float preview_elev = static_cast<float>(
+          corundum::gameplay::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row));
       draw_iso_triangle(ctx, col * tw, row * th, static_cast<float>(tw), static_cast<float>(th), inv_tw, inv_th,
                         iso.half_tw, iso.half_th, preview_elev, state.elev_step_px, iso.x_origin, state.camera.x,
                         state.camera.y, state.collision_tri_cut, IM_COL32(100, 255, 100, 50),

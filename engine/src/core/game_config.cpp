@@ -197,6 +197,12 @@ namespace corundum::core {
         return std::unexpected(res.error());
       cfg.elevation_step_px = *res;
     }
+    {
+      auto res = get_positive_unsigned(j, "max_step_height", cfg.max_step_height, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.max_step_height = *res;
+    }
 
     if (j.contains("framerate")) {
       unsigned fr;

@@ -81,6 +81,7 @@ add_executable(tilesmith
     editors/tilesmith/render_collision.cpp
     editors/tilesmith/render_elevation.cpp
     editors/tilesmith/render_portal.cpp
+    editors/tilesmith/render_walkability.cpp
 )
 
 target_include_directories(tilesmith

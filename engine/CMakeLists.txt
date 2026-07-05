@@ -16,6 +16,7 @@ add_library(engine STATIC
     src/gameplay/quest/system.cpp
     src/core/files.cpp
     src/physics/collision.cpp
+    src/physics/walkability.cpp
     src/core/game_config.cpp
     src/core/json_schema.cpp
     src/core/json_io.cpp
@@ -30,6 +31,7 @@ add_library(engine STATIC
     src/gameplay/world/tilemap/loader.cpp
     src/gameplay/world/tilemap/world_manifest.cpp
     src/gameplay/world/tilemap/validate.cpp
+    src/gameplay/world/tilemap/walkability.cpp
     src/gameplay/world/spawn.cpp
     src/gameplay/world/map_view.cpp
     src/gameplay/world/transition.cpp

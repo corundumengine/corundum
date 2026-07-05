@@ -2,6 +2,7 @@
 #include "render_collision.hpp"
 #include "render_elevation.hpp"
 #include "render_portal.hpp"
+#include "render_walkability.hpp"
 
 #include <corundum/core/math/vec.hpp>
 
@@ -93,6 +94,9 @@ namespace tools::tilemap {
       render_portals(ctx, state);
       render_portal_preview(ctx, state);
     }
+
+    if (state.show_walkability)
+      render_walkability_overlay(ctx, state);
   }
 
 } // namespace tools::tilemap

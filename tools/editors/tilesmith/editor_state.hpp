@@ -29,12 +29,14 @@ namespace tools::tilemap {
     float tile_scale = 2.f;                   ///< Canvas render scale factor (1 = native, 2 = 2x, etc.).
     float palette_tile_scale = 2.f; ///< Scale used to display tiles in the palette panel (independent of canvas zoom).
 
-    bool dirty = false;             ///< True when unsaved changes exist.
-    bool show_grid = true;          ///< Whether to draw the isometric grid overlay.
-    bool show_collisions = false;   ///< Whether to display/edit collision shapes.
-    bool show_elevation = false;    ///< Whether to display/edit per-tile elevation.
-    uint8_t selected_elevation = 0; ///< Brush value for the next elevation paint operation, clamped [0,100].
-    float elev_step_px = 4.f;       ///< Pixels per elevation unit, mirrored from GameConfig::elevation_step_px.
+    bool dirty = false;               ///< True when unsaved changes exist.
+    bool show_grid = true;            ///< Whether to draw the isometric grid overlay.
+    bool show_collisions = false;     ///< Whether to display/edit collision shapes.
+    bool show_elevation = false;      ///< Whether to display/edit per-tile elevation.
+    uint8_t selected_elevation = 0;   ///< Brush value for the next elevation paint operation, clamped [0,100].
+    float elev_step_px = 4.f;         ///< Pixels per elevation unit, mirrored from GameConfig::elevation_step_px.
+    bool show_walkability = false;    ///< Whether to overlay disconnected walkability edges.
+    unsigned int max_step_height = 4; ///< Mirrored from GameConfig::max_step_height; read-only in Tilesmith.
 
     /// When show_collisions is true, controls whether left-click places triangle or rect.
     bool triangle_collision_mode = false;

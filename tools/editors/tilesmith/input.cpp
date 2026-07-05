@@ -428,6 +428,9 @@ namespace tools::tilemap {
       if (ImGui::IsKeyPressed(ImGuiKey_E))
         state.show_elevation = !state.show_elevation;
 
+      if (ImGui::IsKeyPressed(ImGuiKey_W))
+        state.show_walkability = !state.show_walkability;
+
       if ((ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) && state.show_portals &&
           state.selected_portal >= 0 && state.selected_portal < static_cast<int>(state.portals.size())) {
         state.portals.erase(state.portals.begin() + state.selected_portal);

@@ -244,6 +244,8 @@ namespace corundum::render::sys {
     if (!portals)
       return std::unexpected(portals.error());
 
+    state.map_walkability =
+        corundum::gameplay::world::tilemap::build_walkability_graph(tilemap, static_cast<int>(cfg.max_step_height));
     state.map_data = {std::move(tilemap), std::move(tex_ids), std::move(above_z), std::move(*portals)};
     return {};
   }
@@ -256,6 +258,7 @@ namespace corundum::render::sys {
 
     state.mode = data::RenderMode::World;
     state.map_data = {};
+    state.map_walkability = {};
     state.above_z_cache.clear();
 
     {

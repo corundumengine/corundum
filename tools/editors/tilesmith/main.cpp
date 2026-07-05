@@ -120,6 +120,7 @@ int main(int argc, char *argv[]) {
 
   EditorState state;
   state.elev_step_px = cfg.elevation_step_px;
+  state.max_step_height = cfg.max_step_height;
 
   if (!new_map_mode) {
     state.map_path = argv[1];

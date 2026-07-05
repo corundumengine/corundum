@@ -77,6 +77,9 @@ namespace corundum::core {
     unsigned int tile_scale = 2;
     /** @brief Screen pixels a tile is lifted per unit of elevation. */
     float elevation_step_px = 4.f;
+    /** @brief Max elevation delta (same units as TilemapLayer::elevation) an entity can
+     *  step between adjacent tiles without a ramp/stair bridging them. */
+    unsigned int max_step_height = 4;
 
     /** @brief Grouped resource file paths for memory locality. */
     ResourcePaths paths{};

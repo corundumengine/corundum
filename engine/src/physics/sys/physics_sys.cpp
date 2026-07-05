@@ -3,6 +3,7 @@
 #include <corundum/gameplay/world/update.hpp>
 #include <corundum/physics/collision.hpp>
 #include <corundum/physics/sys/physics_sys.hpp>
+#include <corundum/physics/walkability.hpp>
 
 #include <algorithm>
 #include <array>
@@ -81,10 +82,10 @@ namespace corundum::physics::sys {
     // pre-move position so collision resolution doesn't depend on its own not-yet-resolved
     // result. Null elevation_map (chunked World mode) means "no elevation data": treat as 0.
     constexpr int k_elevation_tolerance = 0;
-    const int player_elev = map.elevation_map ? corundum::gameplay::world::tilemap::elevation_at(
-                                                    *map.elevation_map, static_cast<int>(prev_col),
-                                                    static_cast<int>(prev_row))
-                                              : 0;
+    const int player_elev = map.elevation_map
+                                ? corundum::gameplay::world::tilemap::elevation_at(
+                                      *map.elevation_map, static_cast<int>(prev_col), static_cast<int>(prev_row))
+                                : 0;
 
     // Convert player_speed from isometric pixels/sec to tiles/sec.
     // For NW/SE movement: Δiso_y = (dc+dr)*half_th, where |dc|=|dr|=speed/√2.
@@ -108,12 +109,13 @@ namespace corundum::physics::sys {
       Position pc{p.col - half_cs, p.row - player_rect.row_span};
       const Position pcp{prev_pos.col - half_cs, prev_pos.row - player_rect.row_span};
       resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f, player_elev,
-                        k_elevation_tolerance);
+                         k_elevation_tolerance);
       resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f,
                                   player_elev, k_elevation_tolerance);
       // Convert AABB top-left back to feet position.
       p.col = pc.col + half_cs;
       p.row = pc.row + player_rect.row_span;
+      resolve_walkability(p, prev_pos, map.walkability);
     }
 
     std::array<float, corundum::gameplay::entity::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
