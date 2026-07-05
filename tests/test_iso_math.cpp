@@ -228,15 +228,17 @@ TEST_CASE("chunk_at_iso — clamped at negative iso position") {
 
 // ── world_bounds_iso ─────────────────────────────────────────────────────────
 
-TEST_CASE("world_bounds_iso — width equals height") {
+TEST_CASE("world_bounds_iso — width and height use their own scale factor") {
   using namespace corundum::gameplay::world::tilemap;
   const auto dir = temp_dir("iso_bounds_sym");
   write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
   auto manifest_result = load_world_manifest(dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
-  const auto [w, h] = world_bounds_iso(m, k_half_tw);
-  CHECK(w == doctest::Approx(h));
+  const auto [w, h] = world_bounds_iso(m, k_half_tw, k_half_th);
+  // half_th = half_tw / 2 here (the classic 2:1 diamond ratio), so height should come
+  // out to exactly half of width — not equal to it (that was the bug being fixed).
+  CHECK(w == doctest::Approx(h * 2.f));
 }
 
 TEST_CASE("world_bounds_iso — spawn position within bounds") {
@@ -246,7 +248,7 @@ TEST_CASE("world_bounds_iso — spawn position within bounds") {
   auto manifest_result = load_world_manifest(dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
-  const auto [ww, wh] = world_bounds_iso(m, k_half_tw);
+  const auto [ww, wh] = world_bounds_iso(m, k_half_tw, k_half_th);
 
   // Center spawn in isometric world space
   const int center_col = m.chunks_wide * m.chunk_size / 2;

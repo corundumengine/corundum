@@ -87,12 +87,14 @@ namespace corundum::debug {
    * @param[in]     rects    Collision rectangles in Cartesian (Tiled pixel) space.
    * @param[in]     tris     Diagonal collision triangles in Cartesian (Tiled pixel) space.
    * @param[in]     iso      Isometric projection parameters; ignored when half_tw or half_th is zero.
+   * @param[in]     zoom     Current Camera::zoom, forwarded to Renderer::set_world_view.
    * @pre begin_frame() must have been called before this function.
    * @post platform::Renderer is left in screen-space view.
    */
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso) noexcept;
+                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso,
+                      float zoom) noexcept;
 
   /**
    * @brief Draw the debug HUD text overlay in the top-left corner of the screen.

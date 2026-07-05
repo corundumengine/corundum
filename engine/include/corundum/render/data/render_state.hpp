@@ -110,6 +110,8 @@ namespace corundum::render::data {
     float prev_cam_x{0.f};
     /** @brief Previous-frame camera y for render interpolation. */
     float prev_cam_y{0.f};
+    /** @brief Previous-frame camera zoom for render interpolation. */
+    float prev_zoom{1.f};
   };
 
   /** @brief Combined collision views for debug rendering and collision queries.

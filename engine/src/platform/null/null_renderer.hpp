@@ -15,7 +15,7 @@ namespace corundum::platform::null {
       return 1u;
     }
 
-    void set_world_view(core::math::Vec2, core::math::Vec2) override {}
+    void set_world_view(core::math::Vec2, core::math::Vec2, float) override {}
 
     void reset_screen_view() override {}
 

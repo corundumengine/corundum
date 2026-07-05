@@ -164,12 +164,15 @@ TEST_CASE("world_bounds_iso for 16×8 manifest") {
   const auto &m = *manifest_result;
 
   // 16*128 + 8*128 = 3072 tiles total; (3072 - 1) * half_tw * 2
-  // half_tw = 16 * 2.f * 0.5f = 16
+  // half_tw = 16 * 2.f * 0.5f = 16; half_th is half of that (classic 2:1 diamond ratio).
   const float half_tw = 16.f * 2.f * 0.5f;
-  auto [w, h] = world_bounds_iso(m, half_tw);
+  const float half_th = half_tw * 0.5f;
+  auto [w, h] = world_bounds_iso(m, half_tw, half_th);
   // (tiles_wide + tiles_tall - 1) * half_tw * 2 = (2048 + 1024 - 1) * 16 * 2 = 3071 * 32
-  CHECK(w == doctest::Approx(static_cast<float>((16 * 128 + 8 * 128 - 1)) * half_tw * 2.f));
-  CHECK(w == h); // isometric diamond: w == h
+  const float steps = static_cast<float>(16 * 128 + 8 * 128 - 1);
+  CHECK(w == doctest::Approx(steps * half_tw * 2.f));
+  CHECK(h == doctest::Approx(steps * half_th * 2.f));
+  CHECK(w == doctest::Approx(h * 2.f)); // half_th = half_tw / 2, so height is half of width
 }
 
 TEST_CASE("active_chunk_coords — center of world, radius=1") {

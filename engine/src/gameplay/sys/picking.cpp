@@ -9,11 +9,12 @@
 namespace corundum::gameplay::sys {
 
   std::optional<TileCoord> pick_tile(float mouse_x, float mouse_y, const corundum::gameplay::world::Camera &camera,
-                                     const corundum::gameplay::world::MapView &map, float elev_step) noexcept {
+                                     const corundum::gameplay::world::MapView &map, float elev_step,
+                                     float zoom) noexcept {
     if (!map.elevation_map)
       return std::nullopt;
 
-    const corundum::core::math::Vec2 world{mouse_x + camera.x, mouse_y + camera.y};
+    const corundum::core::math::Vec2 world{mouse_x / zoom + camera.x, mouse_y / zoom + camera.y};
 
     std::optional<TileCoord> best;
     float best_depth = -std::numeric_limits<float>::infinity();

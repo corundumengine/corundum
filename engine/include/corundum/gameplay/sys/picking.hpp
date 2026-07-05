@@ -44,12 +44,14 @@ namespace corundum::gameplay::sys {
    * @param camera   Current camera (world-space top-left of the viewport).
    * @param map      Current map view.
    * @param elev_step Screen pixels lifted per unit of elevation (GameConfig::elevation_step_px).
+   * @param zoom     Current Camera::zoom; screen-to-world conversion divides by this
+   *                 (matching the renderer's `screen = (world - camera) * zoom` convention).
    * @return The topmost tile under the cursor, or nullopt if none (out of bounds,
    *         empty space, or World/chunked mode).
    */
   [[nodiscard]] std::optional<TileCoord> pick_tile(float mouse_x, float mouse_y,
                                                    const corundum::gameplay::world::Camera &camera,
-                                                   const corundum::gameplay::world::MapView &map,
-                                                   float elev_step) noexcept;
+                                                   const corundum::gameplay::world::MapView &map, float elev_step,
+                                                   float zoom) noexcept;
 
 } // namespace corundum::gameplay::sys

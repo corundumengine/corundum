@@ -60,6 +60,13 @@ namespace corundum::platform::glfw {
         translate_mouse_button(button, action, data->input);
       }
     }
+
+    void scroll_callback(GLFWwindow *win, double /*xoffset*/, double yoffset) noexcept {
+      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
+      if (data) {
+        translate_scroll(yoffset, data->input);
+      }
+    }
   } // namespace
 
   struct GLFWWindow::Impl {
@@ -102,6 +109,7 @@ namespace corundum::platform::glfw {
       glfwSetWindowUserPointer(impl_->win, &impl_->data);
       glfwSetKeyCallback(impl_->win, key_callback);
       glfwSetMouseButtonCallback(impl_->win, mouse_button_callback);
+      glfwSetScrollCallback(impl_->win, scroll_callback);
       glfwSetWindowCloseCallback(impl_->win, window_close_callback);
 
 #ifdef __APPLE__

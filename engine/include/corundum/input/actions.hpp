@@ -9,7 +9,7 @@ namespace corundum::input {
   /**
    * @brief Game input actions supported by the engine.
    */
-  enum class Action : uint8_t { MoveUp, MoveDown, MoveLeft, MoveRight, Select, Cancel, Quit, Count };
+  enum class Action : uint8_t { MoveUp, MoveDown, MoveLeft, MoveRight, Select, Cancel, Quit, ZoomIn, ZoomOut, Count };
 
   /**
    * @brief Total number of input actions.
@@ -90,6 +90,13 @@ namespace corundum::input {
      * also raised by keyboard/gamepad confirm presses that carry no click position.
      */
     bool mouse_click_pressed{};
+    /**
+     * @brief Accumulated scroll wheel delta this poll cycle (positive = away from user).
+     *
+     * Analog and transient like mouse_click_pressed — reset each cycle, not a discrete
+     * Action, since "how much" matters, not just "did it happen".
+     */
+    float scroll_delta_y{};
 
     /**
      * @brief Checks if the specified action is currently held.
@@ -120,6 +127,7 @@ namespace corundum::input {
   inline void clear_pressed(InputState &state) noexcept {
     state.pressed.reset();
     state.mouse_click_pressed = false;
+    state.scroll_delta_y = 0.f;
   }
 
   /**
@@ -138,6 +146,7 @@ namespace corundum::input {
     dst.mouse_x = src.mouse_x;
     dst.mouse_y = src.mouse_y;
     dst.mouse_click_pressed |= src.mouse_click_pressed;
+    dst.scroll_delta_y += src.scroll_delta_y;
   }
 
   /**

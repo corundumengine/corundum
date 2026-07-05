@@ -57,7 +57,7 @@ namespace corundum::platform {
 
     [[nodiscard]] virtual std::expected<uint32_t, std::string> load_font(std::string_view path) = 0;
 
-    virtual void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size) = 0;
+    virtual void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) = 0;
 
     virtual void reset_screen_view() = 0;
 

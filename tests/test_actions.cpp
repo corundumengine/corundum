@@ -131,3 +131,38 @@ TEST_CASE("pressed_actions — range-for iteration works") {
   }
   CHECK(count == 2);
 }
+
+// ── scroll_delta_y ───────────────────────────────────────────────────────────
+
+TEST_CASE("clear_pressed — resets scroll_delta_y") {
+  corundum::input::InputState state{};
+  state.scroll_delta_y = 3.5f;
+  clear_pressed(state);
+  CHECK(state.scroll_delta_y == 0.f);
+}
+
+TEST_CASE("accumulate_input — sums scroll_delta_y rather than overwriting") {
+  corundum::input::InputState dst{};
+  dst.scroll_delta_y = 1.f; // wheel notch already accumulated earlier this tick
+  corundum::input::InputState src{};
+  src.scroll_delta_y = 2.f; // another notch from this poll cycle
+  accumulate_input(dst, src);
+  CHECK(dst.scroll_delta_y == doctest::Approx(3.f));
+}
+
+// ── ZoomIn / ZoomOut — ordinary held actions, no special-casing ─────────────────
+
+TEST_CASE("ZoomIn/ZoomOut — behave like any other held action") {
+  corundum::input::InputState state{};
+  state.held.set(static_cast<std::size_t>(Action::ZoomIn));
+  CHECK(state.is_held(Action::ZoomIn));
+  CHECK_FALSE(state.is_held(Action::ZoomOut));
+}
+
+TEST_CASE("ZoomIn/ZoomOut — participate in pressed_actions like any other action") {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(Action::ZoomOut));
+  const auto result = pressed_actions(state);
+  CHECK(result.size() == 1);
+  CHECK(result.actions[0] == Action::ZoomOut);
+}

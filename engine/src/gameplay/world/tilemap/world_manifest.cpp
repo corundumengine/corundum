@@ -84,11 +84,11 @@ namespace corundum::gameplay::world::tilemap {
     return {static_cast<float>(c.x) * chunk_px, static_cast<float>(c.y) * chunk_px};
   }
 
-  std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw) noexcept {
+  std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept {
     const int tw = m.tiles_wide > 0 ? m.tiles_wide : m.chunks_wide * m.chunk_size;
     const int th = m.tiles_tall > 0 ? m.tiles_tall : m.chunks_tall * m.chunk_size;
-    const float extent = static_cast<float>(tw + th - 1) * half_tw * 2.f;
-    return {extent, extent};
+    const float steps = static_cast<float>(tw + th - 1);
+    return {steps * half_tw * 2.f, steps * half_th * 2.f};
   }
 
   std::vector<ChunkCoord> active_chunk_coords(ChunkCoord center, int radius, const WorldManifest &m) {

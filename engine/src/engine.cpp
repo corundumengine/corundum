@@ -31,7 +31,8 @@ namespace corundum {
       if (!scene_result)
         return std::unexpected(scene_result.error());
       engine.scene = std::move(*scene_result);
-      const auto [ww, wh] = gameplay::world::tilemap::world_bounds_iso(engine.render.manifest, info.half_tw);
+      const auto [ww, wh] =
+          gameplay::world::tilemap::world_bounds_iso(engine.render.manifest, info.half_tw, info.half_th);
       // Convert tile-grid spawn position to isometric for camera tracking.
       const float iso_spawn_x = (spawn_pos.col - spawn_pos.row) * info.half_tw + info.x_origin;
       const float iso_spawn_y = (spawn_pos.col + spawn_pos.row) * info.half_th;
@@ -191,6 +192,7 @@ namespace corundum {
       }
       engine.render.prev_cam_x = engine.scene.camera.x;
       engine.render.prev_cam_y = engine.scene.camera.y;
+      engine.render.prev_zoom = engine.scene.camera.zoom;
 
       engine.timer.tick();
 

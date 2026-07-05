@@ -95,16 +95,35 @@ wrong from memory.
 - **Effect**: exits the game. All three sources are equivalent — they set
   the same underlying signal, checked once per frame in the main loop.
 
+### Zoom
+
+- **Bindings**: mouse scroll wheel (one wheel notch per step); `=`/`-`
+  (keyboard, held, continuous); gamepad L2/R2 analog triggers (held,
+  continuous — half-press or further counts as held).
+- **Effect**: adjusts the camera's zoom level between `min_zoom` and
+  `max_zoom` (`GameConfig`, default 0.5–3.0). Scroll up / `=` / R2 zooms
+  in; scroll down / `-` / L2 zooms out.
+- **Anchor point — different for mouse vs. keyboard/gamepad,
+  deliberately**: scroll-wheel zoom keeps the world point *under the
+  mouse cursor* visually fixed (zooming toward/away from whatever you're
+  pointing at). Keyboard/gamepad zoom has no cursor to aim with, so it
+  anchors on the screen center instead.
+- **Note**: zoom is a pure camera-level transform — it does not change
+  tile size, collision geometry, or walkability; only what fraction of
+  the world is visible on screen.
+
 ## Part 2 — Technical Appendix (for future rebinding work)
 
 Everything funnels through `corundum::input::InputState`
 (`engine/include/corundum/input/actions.hpp`): a `held`/`pressed` bitset
 pair over the `Action` enum (`MoveUp`, `MoveDown`, `MoveLeft`,
-`MoveRight`, `Select`, `Cancel`, `Quit`), plus two signals that
-deliberately sit *outside* the `Action` enum because they carry
-information no discrete action has: `mouse_x`/`mouse_y` (continuous
-cursor position) and `mouse_click_pressed` (a one-shot "the player
-clicked a screen point" flag, distinct from `Select`).
+`MoveRight`, `Select`, `Cancel`, `Quit`, `ZoomIn`, `ZoomOut`), plus three
+signals that deliberately sit *outside* the `Action` enum because they
+carry information no discrete action has: `mouse_x`/`mouse_y`
+(continuous cursor position), `mouse_click_pressed` (a one-shot "the
+player clicked a screen point" flag, distinct from `Select`), and
+`scroll_delta_y` (accumulated wheel delta this poll cycle — "how much",
+not just "did it happen", so it can't be a discrete `Action` either).
 
 ### Binding tables (where defaults are declared)
 
@@ -112,15 +131,35 @@ All in `engine/src/platform/glfw/input_translator.cpp`:
 
 | Table | Maps | Entries |
 |---|---|---|
-| `k_default_bindings` | GLFW key → `Action` | WASD/arrows → Move*; Enter/Space → Select; Escape → Cancel; Q → Quit |
-| `k_button_bindings` | gamepad button → `Action` | 0 → Select; 1 → Cancel; 7 → Quit |
+| `k_default_bindings` | GLFW key → `Action` | WASD/arrows → Move*; Enter/Space → Select; Escape → Cancel; Q → Quit; `=` → ZoomIn; `-` → ZoomOut |
+| `k_button_bindings` | mapped gamepad button (`GLFW_GAMEPAD_BUTTON_*`) → `Action` | A → Select; B → Cancel; Start → Quit |
 | `k_mouse_bindings` | mouse button → `Action` | Left click → Select |
-| (inline in `poll_joystick`) | stick/d-pad axes → `Action` | left stick + d-pad → Move*, deadzone 0.5 |
+| (inline in `poll_joystick`) | stick/d-pad/trigger axes → `Action` | left stick + d-pad → Move*, deadzone 0.5; L2 trigger → ZoomOut, R2 trigger → ZoomIn, threshold 0.0 |
+
+Zoom is bound to the analog triggers (L2/R2), not the shoulder bumpers —
+GLFW's mapped gamepad API reports triggers as axes
+(`GLFW_GAMEPAD_AXIS_LEFT_TRIGGER`/`RIGHT_TRIGGER`, resting at -1.0 and
+reading +1.0 fully pressed), not buttons, so they're handled alongside
+the stick/d-pad axis logic in `poll_joystick()` rather than in
+`k_button_bindings`.
 
 `mouse_click_pressed` is **not** in a binding table — it's raised
 directly in `translate_mouse_button()` (`input_translator.cpp`) whenever
 the left button transitions to pressed, independent of the `Select`
 binding above (both fire from the same physical click, deliberately).
+`scroll_delta_y` similarly bypasses the binding tables — it's raised in
+`translate_scroll()` from GLFW's scroll callback, since a continuous
+signed magnitude has no discrete `Action` to bind to.
+
+`poll_joystick()` uses GLFW's *mapped* gamepad API
+(`glfwJoystickIsGamepad()` + `glfwGetGamepadState()`), not raw
+`glfwGetJoystickButtons()`/`glfwGetJoystickAxes()` indices. Raw button
+order varies per controller/platform (one tested controller reported its
+Y button at raw index 4 and R1 at raw index 7 — nothing like the
+originally-assumed Xbox layout), whereas `GLFW_GAMEPAD_BUTTON_*`
+constants are normalized against the SDL gamepad database and stay
+correct across devices. A controller with no SDL gamepad-DB entry is
+silently ignored rather than bound to guessed raw indices.
 
 A future rebinding system's most natural first step: replace these four
 compile-time tables with the same shape loaded from a config file (the
@@ -141,6 +180,8 @@ just a loader. **Not built as part of this doc.**
 | `Action::Select` | `dialogue/system.cpp::system()` (`NodeType::Choice`) | Confirms the highlighted choice |
 | `Action::Cancel` | `dialogue/system.cpp::system()` (`Talk` and `Choice`) | Hard-closes dialogue (`state.reset()`) |
 | `Action::Quit` | `engine.cpp`'s main loop | Sets `engine.quit` and closes the window |
+| `scroll_delta_y` | `world/update.cpp::update_zoom()` | `apply_zoom()`, anchored on the mouse cursor |
+| `Action::ZoomIn/ZoomOut` (held) | `world/update.cpp::update_zoom()` | `apply_zoom()`, anchored on the screen center, rate-limited by `k_zoom_rate_per_sec` and `dt` |
 
 `Action::Quit`'s three sources (Q key, gamepad Start, OS window-close
 button) all write the *same* `InputState::held` bit — the window-close
@@ -149,5 +190,7 @@ there's no separate immediate-exit path for player input. (A *different*,
 non-input-triggered exit path exists for unrecoverable map-load failures
 in `transition.cpp`, unrelated to any of the above.)
 
-No camera control, inventory, or pause-menu input exists yet — those
-aren't gaps in this doc, they're gaps in the game.
+No manual camera pan, inventory, or pause-menu input exists yet — those
+aren't gaps in this doc, they're gaps in the game. Camera zoom (above)
+is the one exception: the camera itself is still a pure follow-cam with
+no player-controlled panning.

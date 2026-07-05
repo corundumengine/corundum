@@ -80,6 +80,10 @@ namespace corundum::core {
     /** @brief Max elevation delta (same units as TilemapLayer::elevation) an entity can
      *  step between adjacent tiles without a ramp/stair bridging them. */
     unsigned int max_step_height = 4;
+    /** @brief Minimum allowed Camera::zoom (most zoomed out). */
+    float min_zoom = 0.5f;
+    /** @brief Maximum allowed Camera::zoom (most zoomed in). */
+    float max_zoom = 3.f;
 
     /** @brief Grouped resource file paths for memory locality. */
     ResourcePaths paths{};

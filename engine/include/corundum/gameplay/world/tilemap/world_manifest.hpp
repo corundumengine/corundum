@@ -64,9 +64,13 @@ namespace corundum::gameplay::world::tilemap {
                                                         float tile_scale) noexcept;
 
   /// Total isometric world extent in display pixels (width, height).
-  /// Width = height = (tiles_wide + tiles_tall - 1) * half_tw * 2.
-  /// @pre half_tw > 0.
-  [[nodiscard]] std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw) noexcept;
+  /// Width  = (tiles_wide + tiles_tall - 1) * half_tw * 2.
+  /// Height = (tiles_wide + tiles_tall - 1) * half_th * 2.
+  /// Not generally equal — a diamond tile's screen height is typically half its
+  /// screen width (the classic 2:1 isometric ratio), so this uses each axis's own
+  /// scale factor rather than assuming a square bounding box.
+  /// @pre half_tw > 0 and half_th > 0.
+  [[nodiscard]] std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept;
 
   /// Returns all valid ChunkCoords within @p radius chunks of @p center,
   /// clamped to the world bounds. radius=1 yields up to a 3×3 neighbourhood.

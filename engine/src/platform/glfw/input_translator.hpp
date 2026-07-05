@@ -25,6 +25,9 @@ namespace corundum::platform::glfw {
   /// reused (not a parallel concept) so click-to-move and NPC interaction share one signal.
   void translate_mouse_button(int button, int action, corundum::input::InputState &state) noexcept;
 
+  /// Accumulate a GLFW scroll event into InputState::scroll_delta_y.
+  void translate_scroll(double yoffset, corundum::input::InputState &state) noexcept;
+
   /// Poll the first available GLFW joystick and update @p state with axis/button input.
   /// Call once per frame after glfwPollEvents().
   void poll_joystick(corundum::input::InputState &state, JoystickAxisState &axis) noexcept;

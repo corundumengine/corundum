@@ -35,6 +35,29 @@ namespace {
     corundum::gameplay::sys::follow_player(scene.camera, iso_x, iso_y, map, cfg.win_w, cfg.win_h);
   }
 
+  // Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel
+  // constant, not a GameConfig field, same rationale as follow_player's margins.
+  constexpr float k_zoom_rate_per_sec = 3.f;
+
+  void update_zoom(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
+                   const corundum::core::GameConfig &cfg, float dt) {
+    using corundum::input::Action;
+
+    if (input.scroll_delta_y != 0.f) {
+      corundum::gameplay::sys::apply_zoom(scene.camera, input.scroll_delta_y, input.mouse_x, input.mouse_y,
+                                          cfg.min_zoom, cfg.max_zoom);
+    }
+
+    const float button_zoom =
+        (input.is_held(Action::ZoomIn) ? 1.f : 0.f) - (input.is_held(Action::ZoomOut) ? 1.f : 0.f);
+    if (button_zoom != 0.f) {
+      const float center_x = cfg.win_w * 0.5f;
+      const float center_y = cfg.win_h * 0.5f;
+      corundum::gameplay::sys::apply_zoom(scene.camera, button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y,
+                                          cfg.min_zoom, cfg.max_zoom);
+    }
+  }
+
 } // namespace
 
 namespace corundum::gameplay::world {
@@ -44,8 +67,10 @@ namespace corundum::gameplay::world {
               const MapView &map, float dt, const quest::Registry *quests) {
     const auto actions = corundum::input::pressed_actions(input);
 
-    scene.hovered_tile =
-        corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, cfg.elevation_step_px);
+    update_zoom(scene, input, cfg, dt);
+
+    scene.hovered_tile = corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map,
+                                                            cfg.elevation_step_px, scene.camera.zoom);
 
     if (scene.mode == corundum::gameplay::world::GameMode::Dialogue) [[unlikely]] {
       corundum::gameplay::sys::update_dialogue(scene, actions, quests);

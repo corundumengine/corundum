@@ -321,11 +321,12 @@ namespace corundum::render::sys {
     const corundum::core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
     const float cam_x = state.prev_cam_x + (scene.camera.x - state.prev_cam_x) * alpha;
     const float cam_y = state.prev_cam_y + (scene.camera.y - state.prev_cam_y) * alpha;
+    const float zoom = state.prev_zoom + (scene.camera.zoom - state.prev_zoom) * alpha;
 
     if (state.mode == data::RenderMode::World) {
       sync_active_chunks(r, state, cfg, scene);
 
-      r.set_world_view({cam_x, cam_y}, viewport);
+      r.set_world_view({cam_x, cam_y}, viewport, zoom);
       render_ground_layer(r, state, cfg, scene, alpha);
 
       if (state.chunks_dirty) {
@@ -339,16 +340,16 @@ namespace corundum::render::sys {
       }
 
       for (const int z : state.above_z_cache) {
-        r.set_world_view({cam_x, cam_y}, viewport);
+        r.set_world_view({cam_x, cam_y}, viewport, zoom);
         for (const auto &chunk : state.active_chunks)
           render_chunk(r, state, chunk, z, cfg, scene);
       }
     } else {
-      r.set_world_view({cam_x, cam_y}, viewport);
+      r.set_world_view({cam_x, cam_y}, viewport, zoom);
       render_ground_layer(r, state, cfg, scene, alpha);
 
       for (const int z : state.map_data.above_z) {
-        r.set_world_view({cam_x, cam_y}, viewport);
+        r.set_world_view({cam_x, cam_y}, viewport, zoom);
         render_tilemap(r, state, z, cfg, scene);
       }
     }

@@ -53,8 +53,9 @@ namespace corundum::debug {
 
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso) noexcept {
-    r.set_world_view(camera, viewport);
+                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso,
+                      float zoom) noexcept {
+    r.set_world_view(camera, viewport, zoom);
 
     if (iso.half_tw > 0.f && iso.half_th > 0.f) {
       constexpr float k_line_thickness = 2.f;
@@ -165,13 +166,13 @@ namespace corundum::debug {
       iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
     }
     const render::data::CollisionGeometry geo = render::data::current_collisions(render);
-    draw_collision(r, camera, viewport, geo.rects, geo.tris, iso);
+    draw_collision(r, camera, viewport, geo.rects, geo.tris, iso, scene.camera.zoom);
 
     // Draw player collision bounding box in isometric space
     const gameplay::entity::World &w = scene.world;
     const gameplay::entity::EntityId p = scene.player;
     if (iso.half_tw > 0.f && iso.half_th > 0.f && w.transforms.has(p) && w.collisions.has(p)) {
-      r.set_world_view(camera, viewport);
+      r.set_world_view(camera, viewport, scene.camera.zoom);
       const std::uint32_t slot = w.transforms.dense_idx(p);
       const float col = w.transforms.col[slot];
       const float row = w.transforms.row[slot];

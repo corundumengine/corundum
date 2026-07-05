@@ -179,7 +179,7 @@ void main() {
 
     std::expected<uint32_t, std::string> load_texture(std::string_view path) override;
     std::expected<uint32_t, std::string> load_font(std::string_view path) override;
-    void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size) override;
+    void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
     void reset_screen_view() override;
     void begin_frame(core::math::Colour clear_colour) override;
     void end_frame() override;
@@ -216,7 +216,7 @@ void main() {
 #endif
 
     std::array<float, 16> proj_{};
-    float cam_x_{0}, cam_y_{0}, vp_w_{0}, vp_h_{0};
+    float cam_x_{0}, cam_y_{0}, vp_w_{0}, vp_h_{0}, zoom_{1.f};
     bool world_view_active_{false};
     bool pass_active_{false};
 
@@ -367,7 +367,7 @@ void main() {
 
   void SokolRenderer::rebuild_proj() noexcept {
     if (world_view_active_) {
-      proj_ = make_ortho(cam_x_, cam_x_ + vp_w_, cam_y_, cam_y_ + vp_h_);
+      proj_ = make_ortho(cam_x_, cam_x_ + vp_w_ / zoom_, cam_y_, cam_y_ + vp_h_ / zoom_);
     } else {
       proj_ = make_ortho(0.f, static_cast<float>(win_w_), 0.f, static_cast<float>(win_h_));
     }
@@ -422,11 +422,12 @@ void main() {
     return id;
   }
 
-  void SokolRenderer::set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size) {
+  void SokolRenderer::set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) {
     cam_x_ = top_left.x;
     cam_y_ = top_left.y;
     vp_w_ = viewport_size.x;
     vp_h_ = viewport_size.y;
+    zoom_ = zoom;
     world_view_active_ = true;
     rebuild_proj();
   }

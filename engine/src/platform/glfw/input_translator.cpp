@@ -15,7 +15,7 @@ namespace corundum::platform::glfw {
       Action action;
     };
 
-    constexpr std::array<KeyBinding, 12> k_default_bindings{{
+    constexpr std::array<KeyBinding, 14> k_default_bindings{{
         {GLFW_KEY_W, Action::MoveUp},
         {GLFW_KEY_S, Action::MoveDown},
         {GLFW_KEY_A, Action::MoveLeft},
@@ -28,6 +28,8 @@ namespace corundum::platform::glfw {
         {GLFW_KEY_SPACE, Action::Select},
         {GLFW_KEY_ESCAPE, Action::Cancel},
         {GLFW_KEY_Q, Action::Quit},
+        {GLFW_KEY_EQUAL, Action::ZoomIn}, // '=' doubles as '+' without needing Shift
+        {GLFW_KEY_MINUS, Action::ZoomOut},
     }};
 
     struct ButtonBinding {
@@ -35,11 +37,19 @@ namespace corundum::platform::glfw {
       Action action;
     };
 
-    // Standard Xbox/PlayStation layout: A/Cross=0, B/Circle=1, Start=7
+    // GLFW_GAMEPAD_BUTTON_* indices into GLFWgamepadstate::buttons — these are SDL
+    // gamepad-DB-mapped positions (A/B/X/Y, bumpers, Start, ...), not raw HID report
+    // indices, so they stay correct across different controllers/platforms. Raw
+    // glfwGetJoystickButtons() indices vary by device (e.g. one controller reported Y at
+    // raw index 4 and R1 at raw index 7 — nothing like the assumed Xbox layout), so
+    // binding directly to those was unreliable.
+    // Zoom is bound to the analog triggers (L2/R2), not the bumpers — those are reported
+    // as axes, not buttons, in the mapped gamepad API, so they're handled alongside the
+    // stick/d-pad axis logic in poll_joystick(), not in this table.
     constexpr std::array<ButtonBinding, 3> k_button_bindings{{
-        {0, Action::Select},
-        {1, Action::Cancel},
-        {7, Action::Quit},
+        {GLFW_GAMEPAD_BUTTON_A, Action::Select},
+        {GLFW_GAMEPAD_BUTTON_B, Action::Cancel},
+        {GLFW_GAMEPAD_BUTTON_START, Action::Quit},
     }};
 
     struct MouseBinding {
@@ -53,6 +63,10 @@ namespace corundum::platform::glfw {
 
     // GLFW axis range is -1.0 to +1.0.
     inline constexpr float k_axis_deadzone = 0.5f;
+
+    // GLFW_GAMEPAD_AXIS_LEFT_TRIGGER/RIGHT_TRIGGER rest at -1.0 (released) and read +1.0
+    // fully pressed; 0.0 is roughly a half-press, used as the "activated" threshold.
+    inline constexpr float k_trigger_threshold = 0.f;
 
   } // namespace
 
@@ -95,9 +109,23 @@ namespace corundum::platform::glfw {
       state.mouse_click_pressed = true;
   }
 
+  void translate_scroll(double yoffset, corundum::input::InputState &state) noexcept {
+    state.scroll_delta_y += static_cast<float>(yoffset);
+  }
+
   void poll_joystick(corundum::input::InputState &state, JoystickAxisState &axis) noexcept {
     constexpr int k_joy = GLFW_JOYSTICK_1;
     if (!glfwJoystickPresent(k_joy))
+      return;
+
+    // Only mapped gamepads (an SDL gamepad-DB entry exists for this device) are
+    // supported — that mapping is exactly what makes GLFW_GAMEPAD_BUTTON_* portable
+    // across controllers. An unmapped joystick has no reliable button semantics to bind.
+    if (!glfwJoystickIsGamepad(k_joy))
+      return;
+
+    GLFWgamepadstate gp;
+    if (!glfwGetGamepadState(k_joy, &gp))
       return;
 
     // Buttons. Several actions here (Select, Cancel, Quit) are also keyboard-bound —
@@ -105,50 +133,49 @@ namespace corundum::platform::glfw {
     // recently drove it, mirroring the axis handling below. Unconditionally writing
     // `state.held[idx] = down` here would clobber a concurrent keyboard press of the
     // same action back to false every poll (e.g. pressing Q to quit would immediately
-    // un-set itself as soon as a gamepad is connected, since R1/button 7 isn't held).
-    int button_count = 0;
-    const unsigned char *buttons = glfwGetJoystickButtons(k_joy, &button_count);
-    if (buttons) {
-      for (const auto &[button, act] : k_button_bindings) {
-        if (button >= button_count)
-          continue;
-        const auto idx = static_cast<std::size_t>(act);
-        const bool down = (buttons[button] == GLFW_PRESS);
-        if (down) {
-          if (!state.held[idx])
-            state.pressed[idx] = true;
-          state.held[idx] = true;
-        } else if (axis.button_active[idx]) {
-          state.held[idx] = false;
-        }
-        axis.button_active[idx] = down;
+    // un-set itself as soon as a gamepad is connected, since Start isn't held).
+    for (const auto &[button, act] : k_button_bindings) {
+      const auto idx = static_cast<std::size_t>(act);
+      const bool down = (gp.buttons[button] == GLFW_PRESS);
+      if (down) {
+        if (!state.held[idx])
+          state.pressed[idx] = true;
+        state.held[idx] = true;
+      } else if (axis.button_active[idx]) {
+        state.held[idx] = false;
       }
+      axis.button_active[idx] = down;
     }
 
-    // Axes (left stick: axis 0=X, axis 1=Y; D-pad: axis 6=X, axis 7=Y on many controllers)
-    int axis_count = 0;
-    const float *axes = glfwGetJoystickAxes(k_joy, &axis_count);
-    if (!axes)
-      return;
-
-    const float lx = axis_count > 0 ? axes[0] : 0.f;
-    const float ly = axis_count > 1 ? axes[1] : 0.f;
-    const float dpx = axis_count > 6 ? axes[6] : 0.f;
-    const float dpy = axis_count > 7 ? axes[7] : 0.f;
+    // Left stick + D-pad (D-pad is reported as digital buttons in the mapped gamepad
+    // API, not axes — no deadzone needed for it).
+    const float lx = gp.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+    const float ly = gp.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+    const bool dpad_up = gp.buttons[GLFW_GAMEPAD_BUTTON_DPAD_UP] == GLFW_PRESS;
+    const bool dpad_down = gp.buttons[GLFW_GAMEPAD_BUTTON_DPAD_DOWN] == GLFW_PRESS;
+    const bool dpad_left = gp.buttons[GLFW_GAMEPAD_BUTTON_DPAD_LEFT] == GLFW_PRESS;
+    const bool dpad_right = gp.buttons[GLFW_GAMEPAD_BUTTON_DPAD_RIGHT] == GLFW_PRESS;
+    const float lt = gp.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+    const float rt = gp.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
 
     using Act = corundum::input::Action;
-    constexpr std::array<Act, 4> k_axis_actions{Act::MoveUp, Act::MoveDown, Act::MoveLeft, Act::MoveRight};
+    constexpr std::array<Act, 6> k_axis_actions{Act::MoveUp,    Act::MoveDown, Act::MoveLeft,
+                                                Act::MoveRight, Act::ZoomIn,   Act::ZoomOut};
 
-    auto is_active = [ly, lx, dpx, dpy](Act act) noexcept -> bool {
+    auto is_active = [ly, lx, dpad_up, dpad_down, dpad_left, dpad_right, lt, rt](Act act) noexcept -> bool {
       switch (act) {
       case Act::MoveUp:
-        return ly < -k_axis_deadzone || dpy > k_axis_deadzone;
+        return ly < -k_axis_deadzone || dpad_up;
       case Act::MoveDown:
-        return ly > k_axis_deadzone || dpy < -k_axis_deadzone;
+        return ly > k_axis_deadzone || dpad_down;
       case Act::MoveLeft:
-        return lx < -k_axis_deadzone || dpx < -k_axis_deadzone;
+        return lx < -k_axis_deadzone || dpad_left;
       case Act::MoveRight:
-        return lx > k_axis_deadzone || dpx > k_axis_deadzone;
+        return lx > k_axis_deadzone || dpad_right;
+      case Act::ZoomIn:
+        return rt > k_trigger_threshold; // R2
+      case Act::ZoomOut:
+        return lt > k_trigger_threshold; // L2
       default:
         return false;
       }
