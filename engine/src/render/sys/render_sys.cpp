@@ -567,7 +567,12 @@ namespace corundum::render::sys {
         abs_col, abs_row, elev, ctx.half_tw, ctx.half_th, ctx.elev_step, ctx.x_origin);
 
     const float scaled_tw = static_cast<float>(ts->info.frame_width) * cfg.tile_scale;
-    const float scaled_th = static_cast<float>(ts->info.frame_height) * cfg.tile_scale;
+    // Anchor at the sprite's actual visible content height, not the raw frame height, so a sprite
+    // top-anchored within a uniform grid cell sized for a taller sibling sprite still lands on the
+    // diamond's true vertex (see TilesetInfo::content_heights).
+    const float content_th = static_cast<float>(corundum::gameplay::world::tilemap::tile_content_height(
+                                 ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid))) *
+                             cfg.tile_scale;
     const float depth = corundum::core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
                                                             static_cast<float>(elev), ctx.half_th, ctx.elev_step);
 
@@ -576,7 +581,7 @@ namespace corundum::render::sys {
         .src = src,
         // Anchor at the southern (bottom) vertex so the tile fills the diamond cell.
         .position = {world_pos.x - ts->info.pivot_x * scaled_tw,
-                     world_pos.y + core::math::diamond_cell_height(ctx.half_th) - (1.f - ts->info.pivot_y) * scaled_th},
+                     world_pos.y + core::math::diamond_cell_height(ctx.half_th) - (1.f - ts->info.pivot_y) * content_th},
         .scale = static_cast<float>(cfg.tile_scale),
         .flip_x = flip_x,
         .flip_y = flip_y,
@@ -756,13 +761,18 @@ namespace corundum::render::sys {
 
   /// Elevation of the tile under (col_f, row_f), resolving world-mode chunk ownership as needed.
   /// Returns 0 if no tilemap is loaded there (e.g. entity outside the loaded chunk radius).
-  static int elevation_under(const data::RenderState &state, float col_f, float row_f) {
+  ///
+  /// Single-map mode interpolates smoothly across a ramp cell (via interpolated_elevation_at)
+  /// so crossing one doesn't pop; chunked/streamed World mode keeps the discrete elevation_at()
+  /// lift for now — wiring ramp smoothing into chunked mode is a separate follow-up.
+  static float elevation_under(const data::RenderState &state, float col_f, float row_f) {
     using corundum::gameplay::world::tilemap::elevation_at;
+    using corundum::gameplay::world::tilemap::interpolated_elevation_at;
 
     if (!state.active_chunks.empty()) {
       const int chunk_size = state.manifest.chunk_size;
       if (chunk_size <= 0)
-        return 0;
+        return 0.f;
       const int col = static_cast<int>(col_f);
       const int row = static_cast<int>(row_f);
       const corundum::gameplay::world::tilemap::ChunkCoord owner{
@@ -771,14 +781,14 @@ namespace corundum::render::sys {
       const auto it =
           std::ranges::find_if(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == owner; });
       if (it == state.active_chunks.end())
-        return 0;
-      return elevation_at(it->tilemap, col - owner.x * chunk_size, row - owner.y * chunk_size);
+        return 0.f;
+      return static_cast<float>(elevation_at(it->tilemap, col - owner.x * chunk_size, row - owner.y * chunk_size));
     }
 
     if (!state.map_data.tilemap.tilesets.empty())
-      return elevation_at(state.map_data.tilemap, static_cast<int>(col_f), static_cast<int>(row_f));
+      return interpolated_elevation_at(state.map_data.tilemap, col_f, row_f);
 
-    return 0;
+    return 0.f;
   }
 
   // ── render_ground_layer (internal) ───────────────────────────────────────────
@@ -842,13 +852,13 @@ namespace corundum::render::sys {
 
       const auto &entry = *result;
       const float walk_offset = entry.walk_offset;
-      const int elev = elevation_under(state, col_f, row_f);
+      const float elev = elevation_under(state, col_f, row_f);
       const float iso_x = (col_f - row_f) * iso.half_tw + iso.x_origin;
-      const float iso_y = (col_f + row_f) * iso.half_th - static_cast<float>(elev) * cfg.elevation_step_px;
+      const float iso_y = (col_f + row_f) * iso.half_th - elev * cfg.elevation_step_px;
       const float px = iso_x - static_cast<float>(entry.src.width) * scale * 0.5f;
       const float py = iso_y - walk_offset * static_cast<float>(entry.src.height) * scale;
-      const float iso_depth = corundum::core::math::iso_depth_key(col_f, row_f, static_cast<float>(elev), iso.half_th,
-                                                                  cfg.elevation_step_px);
+      const float iso_depth =
+          corundum::core::math::iso_depth_key(col_f, row_f, elev, iso.half_th, cfg.elevation_step_px);
       state.draw_list.push_back(
           {.tex_id = entry.tex_id, .src = entry.src, .x = px, .y = py, .depth = iso_depth, .scale = scale});
     }

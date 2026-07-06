@@ -4,6 +4,7 @@
 #include "fill.hpp"
 #include "layout.hpp"
 #include "paint.hpp"
+#include "ramp_paint.hpp"
 #include "save.hpp"
 #include <algorithm>
 #include <array>
@@ -436,6 +437,12 @@ namespace tools::tilemap {
         if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket))
           state.selected_elevation =
               static_cast<uint8_t>(std::max(0, static_cast<int>(state.selected_elevation) - step));
+      } else if (state.show_ramps) {
+        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
+          using corundum::gameplay::world::tilemap::RampAxis;
+          state.selected_ramp_axis =
+              state.selected_ramp_axis == RampAxis::NORTH_SOUTH ? RampAxis::EAST_WEST : RampAxis::NORTH_SOUTH;
+        }
       }
 
       if (ImGui::IsKeyPressed(ImGuiKey_P))
@@ -443,6 +450,9 @@ namespace tools::tilemap {
 
       if (ImGui::IsKeyPressed(ImGuiKey_E))
         state.show_elevation = !state.show_elevation;
+
+      if (ImGui::IsKeyPressed(ImGuiKey_R))
+        state.show_ramps = !state.show_ramps;
 
       if (ImGui::IsKeyPressed(ImGuiKey_W))
         state.show_walkability = !state.show_walkability;
@@ -518,6 +528,9 @@ namespace tools::tilemap {
         } else if (state.show_elevation) {
           if (over_canvas)
             paint_or_erase_elevation(state, mx, my, false);
+        } else if (state.show_ramps) {
+          if (over_canvas)
+            paint_or_erase_ramp(state, mx, my, false);
         } else {
           if (over_canvas)
             paint_or_erase(state, mx, my, false);
@@ -539,6 +552,8 @@ namespace tools::tilemap {
             remove_collision_at(state, mx, my);
         } else if (state.show_elevation)
           paint_or_erase_elevation(state, mx, my, true);
+        else if (state.show_ramps)
+          paint_or_erase_ramp(state, mx, my, true);
         else
           begin_erase_drag(state, mx, my);
       }
@@ -594,6 +609,11 @@ namespace tools::tilemap {
           paint_or_erase_elevation(state, mx, my, false);
         if (mouse.right_held && over_canvas)
           paint_or_erase_elevation(state, mx, my, true);
+      } else if (state.show_ramps) {
+        if (mouse.left_held && over_canvas && !popup_or_modal_open && !state.scrollbar_dragging)
+          paint_or_erase_ramp(state, mx, my, false);
+        if (mouse.right_held && over_canvas)
+          paint_or_erase_ramp(state, mx, my, true);
       } else {
         if (mouse.left_held && over_canvas && !popup_or_modal_open && !state.scrollbar_dragging)
           paint_or_erase(state, mx, my, false);

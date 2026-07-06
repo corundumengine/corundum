@@ -63,10 +63,15 @@ namespace corundum::gameplay::world::tilemap {
   /**
    * @brief Build a WalkabilityGraph for @p tm.
    *
-   * Every cell starts fully connected (all 8 directions); an edge is cleared
-   * whenever the two endpoints' elevation_at() differ by more than
-   * @p max_step_height. Visiting every cell x direction pair produces
-   * symmetric disconnection without extra bookkeeping.
+   * Two passes. First: every cell starts fully connected (all 8 directions);
+   * an edge is cleared whenever the two endpoints' elevation_at() differ by
+   * more than @p max_step_height. Visiting every cell x direction pair
+   * produces symmetric disconnection without extra bookkeeping. Second: any
+   * cell with a ramp_axis_at() forces both directions along its axis back
+   * open (N+S for RampAxis::NORTH_SOUTH, E+W for RampAxis::EAST_WEST),
+   * regardless of the elevation delta — the ramp's own two axis-neighbors
+   * are the intended bridge endpoints. The other axis and all four
+   * diagonals are untouched by this second pass.
    */
   [[nodiscard]] WalkabilityGraph build_walkability_graph(const Tilemap &tm, int max_step_height) noexcept;
 

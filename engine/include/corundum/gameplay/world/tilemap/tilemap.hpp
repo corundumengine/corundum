@@ -1,9 +1,11 @@
 #pragma once
+#include <cmath>
 #include <corundum/core/math/vec.hpp>
 #include <cstdint>
 #include <flat_map>
 #include <limits>
 #include <mdspan>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -49,12 +51,21 @@ namespace corundum::gameplay::world::tilemap {
     std::flat_map<std::string, TileAnimation> animations; ///< name → animation
     std::flat_map<int, TileFootprint> tile_footprints;    ///< local_id → footprint; absent = 1×1.
     std::string material; ///< Default terrain-material tag (footstep/ambient audio selection); empty == none.
+    std::flat_map<int, int> content_heights; ///< local_id → visible content height in raw (unscaled) pixels,
+                                             ///< for sprites shorter than frame_height that were top-anchored
+                                             ///< within a uniform grid cell sized for a taller sprite (see
+                                             ///< spritepacker's blit_sprite); absent == frame_height (the
+                                             ///< whole frame is visible content, the common case).
   };
 
   /// Bitmask for horizontal flip. Set in TilemapLayer::flip_flags.
   inline constexpr uint8_t k_flip_h = 0x01;
   /// Bitmask for vertical flip. Set in TilemapLayer::flip_flags.
   inline constexpr uint8_t k_flip_v = 0x02;
+
+  /// Axis a ramp/stair tile bridges. Set in TilemapLayer::ramps. Bidirectional along its axis
+  /// (walkable both up and down); does nothing for the other axis or the four diagonals.
+  enum class RampAxis : uint8_t { NORTH_SOUTH, EAST_WEST };
 
   /// One layer of tiles. Layers are drawn bottom-to-top; k_empty_tile is transparent.
   /// z_index controls depth relative to entities: 0 = below entities (default), 1+ = above.
@@ -71,6 +82,9 @@ namespace corundum::gameplay::world::tilemap {
                                                         ///< that one cell (e.g. a snow-dusted patch of an
                                                         ///< otherwise-stone floor); absent == use the tileset
                                                         ///< default.
+    std::flat_map<int, RampAxis> ramps; ///< cell_index → axis this ramp tile bridges; absent == not a ramp.
+                                        ///< The elevation delta it bridges is inferred from its two
+                                        ///< axis-neighbors' elevation_at() values, never stored directly.
 
     /// 2D mdspan view over the tile grid — rows × cols layout.
     /// @pre tiles.size() == width * height
@@ -133,6 +147,16 @@ namespace corundum::gameplay::world::tilemap {
     if (!ts)
       return {};
     return get_tile_footprint(ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid));
+  }
+
+  /// Returns the visible content height (raw, unscaled pixels) for @p local_id in @p info, defaulting to
+  /// frame_height when absent (the sprite fills its whole frame — the common case). Use this instead of
+  /// frame_height directly when computing the bottom-anchor pivot offset, so a sprite that was top-anchored
+  /// within a uniform grid cell sized for a taller sibling sprite still lands on the diamond's true vertex.
+  [[nodiscard]] inline int tile_content_height(const TilesetInfo &info, int local_id) noexcept {
+    if (auto it = info.content_heights.find(local_id); it != info.content_heights.end())
+      return it->second;
+    return info.frame_height;
   }
 
   /// Returns the source rect in the tileset texture for @p gid.
@@ -368,6 +392,68 @@ namespace corundum::gameplay::world::tilemap {
       result = layer.elevation[uidx];
     }
     return result;
+  }
+
+  /**
+   * @brief Ramp axis of the tile at (col, row), if it's a ramp.
+   *
+   * Same topmost-z_index==0-layer-with-a-tile resolution convention as elevation_at().
+   *
+   * @param tm  The tilemap to query.
+   * @param col Column index (0-based).
+   * @param row Row index (0-based).
+   * @return The axis this cell bridges, or std::nullopt if out of bounds, no z_index==0 layer
+   *         has a tile there, or the cell isn't a ramp.
+   */
+  [[nodiscard]] inline std::optional<RampAxis> ramp_axis_at(const Tilemap &tm, int col, int row) noexcept {
+    if (col < 0 || row < 0 || col >= tm.width || row >= tm.height)
+      return std::nullopt;
+    const std::size_t uidx =
+        static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
+    std::optional<RampAxis> result;
+    for (const auto &layer : tm.layers) {
+      if (layer.z_index != 0 || !layer.visible)
+        continue;
+      const int idx = static_cast<int>(uidx);
+      const bool has_tile =
+          layer.animated_cells.contains(idx) || (uidx < layer.tiles.size() && layer.tiles[uidx] != k_empty_tile);
+      if (!has_tile)
+        continue;
+      if (auto it = layer.ramps.find(idx); it != layer.ramps.end())
+        result = it->second;
+      else
+        result = std::nullopt;
+    }
+    return result;
+  }
+
+  /**
+   * @brief Smoothly-interpolated elevation at a fractional world position — used for the
+   * entity height lift so crossing a ramp doesn't pop between its two flanking elevations.
+   *
+   * Falls back to plain elevation_at() (floored) for any non-ramp cell, so behavior for the
+   * rest of the map is unchanged. Single-map mode only — chunked/streamed World mode has no
+   * caller for this yet and keeps the discrete per-tile elevation_at() lift.
+   *
+   * @param tm    The tilemap to query.
+   * @param col_f Fractional column (e.g. an entity's world position in tile-grid units).
+   * @param row_f Fractional row.
+   * @return Elevation, linearly interpolated across a ramp cell along its axis.
+   */
+  [[nodiscard]] inline float interpolated_elevation_at(const Tilemap &tm, float col_f, float row_f) noexcept {
+    const int col = static_cast<int>(std::floor(col_f));
+    const int row = static_cast<int>(std::floor(row_f));
+    const std::optional<RampAxis> axis = ramp_axis_at(tm, col, row);
+    if (!axis)
+      return static_cast<float>(elevation_at(tm, col, row));
+    if (*axis == RampAxis::NORTH_SOUTH) {
+      const float t = row_f - static_cast<float>(row); // 0 at the north edge, 1 at the south edge
+      return std::lerp(static_cast<float>(elevation_at(tm, col, row - 1)),
+                       static_cast<float>(elevation_at(tm, col, row + 1)), t);
+    }
+    const float t = col_f - static_cast<float>(col); // 0 at the west edge, 1 at the east edge
+    return std::lerp(static_cast<float>(elevation_at(tm, col - 1, row)),
+                     static_cast<float>(elevation_at(tm, col + 1, row)), t);
   }
 
   /**

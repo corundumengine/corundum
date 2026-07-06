@@ -2,6 +2,7 @@
 #include "render_collision.hpp"
 #include "render_elevation.hpp"
 #include "render_portal.hpp"
+#include "render_ramps.hpp"
 #include "render_walkability.hpp"
 
 #include <corundum/core/math/vec.hpp>
@@ -85,6 +86,9 @@ namespace tools::tilemap {
     } else if (state.show_elevation) {
       render_elevation_overlay(ctx, state);
       render_elevation_preview(ctx, state);
+    } else if (state.show_ramps) {
+      render_ramps_overlay(ctx, state);
+      render_ramp_preview(ctx, state);
     } else {
       render_hover_tile(ctx, state);
       render_erase_preview(ctx, state);

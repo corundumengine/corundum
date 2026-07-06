@@ -3,9 +3,12 @@
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/tilemap/walkability.hpp>
 #include <corundum/physics/walkability.hpp>
+#include <optional>
+#include <utility>
 
 using corundum::gameplay::component::Position;
 using corundum::gameplay::world::tilemap::build_walkability_graph;
+using corundum::gameplay::world::tilemap::RampAxis;
 using corundum::gameplay::world::tilemap::Tilemap;
 using corundum::gameplay::world::tilemap::TilemapLayer;
 using corundum::gameplay::world::tilemap::WalkabilityGraph;
@@ -14,8 +17,10 @@ using corundum::physics::sys::resolve_walkability;
 namespace {
 
   // A 3x3 flat map (elevation 0 everywhere) with one raised tile at the caller-chosen
-  // (raised_col, raised_row) with elevation raised_elev.
-  Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev) {
+  // (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
+  Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev,
+                        std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
+                        RampAxis ramp_axis = RampAxis::NORTH_SOUTH) {
     Tilemap tm;
     tm.width = 3;
     tm.height = 3;
@@ -27,6 +32,10 @@ namespace {
     layer.tiles.assign(9, 1); // non-empty tile everywhere so elevation_at() sees a tile present
     layer.elevation.assign(9, 0);
     layer.elevation[static_cast<std::size_t>(raised_row * tm.width + raised_col)] = raised_elev;
+    if (ramp_cell) {
+      const auto [rcol, rrow] = *ramp_cell;
+      layer.ramps[rrow * tm.width + rcol] = ramp_axis;
+    }
     tm.layers.push_back(std::move(layer));
     return tm;
   }
@@ -105,4 +114,51 @@ TEST_CASE("resolve_walkability — leaves position alone when crossing a connect
   resolve_walkability(pos, prev, &g);
   CHECK(pos.col == doctest::Approx(1.5f));
   CHECK(pos.row == doctest::Approx(1.5f));
+}
+
+// ── ramps ─────────────────────────────────────────────────────────────────────
+
+TEST_CASE("build_walkability_graph — a ramp reconnects its axis across a large elevation delta") {
+  // (1,1) is raised 50 (far beyond max_step_height=4) and marked as a north-south ramp.
+  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NORTH_SOUTH);
+  const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
+
+  // North-south (the ramp's axis) is reconnected both ways despite the elevation delta.
+  CHECK(g.can_move(1, 1, 1, 0));
+  CHECK(g.can_move(1, 0, 1, 1));
+  CHECK(g.can_move(1, 1, 1, 2));
+  CHECK(g.can_move(1, 2, 1, 1));
+
+  // East-west (not the ramp's axis) is still disconnected, same as without a ramp.
+  CHECK_FALSE(g.can_move(1, 1, 0, 1));
+  CHECK_FALSE(g.can_move(0, 1, 1, 1));
+  CHECK_FALSE(g.can_move(1, 1, 2, 1));
+  CHECK_FALSE(g.can_move(2, 1, 1, 1));
+}
+
+TEST_CASE("build_walkability_graph — an east-west ramp reconnects only its own axis") {
+  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::EAST_WEST);
+  const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
+
+  CHECK(g.can_move(1, 1, 0, 1));
+  CHECK(g.can_move(1, 1, 2, 1));
+  CHECK_FALSE(g.can_move(1, 1, 1, 0));
+  CHECK_FALSE(g.can_move(1, 1, 1, 2));
+}
+
+TEST_CASE("resolve_walkability — an entity can cross a ramp cell in both directions") {
+  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NORTH_SOUTH);
+  const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
+
+  // Uphill: from flat (1,0) into the ramp/raised cell (1,1).
+  Position pos{1.5f, 1.5f};
+  const Position prev{1.5f, 0.5f};
+  resolve_walkability(pos, prev, &g);
+  CHECK(pos.row == doctest::Approx(1.5f));
+
+  // Downhill: from the ramp cell (1,1) back down into flat (1,0).
+  Position pos2{1.5f, 0.5f};
+  const Position prev2{1.5f, 1.5f};
+  resolve_walkability(pos2, prev2, &g);
+  CHECK(pos2.row == doctest::Approx(0.5f));
 }

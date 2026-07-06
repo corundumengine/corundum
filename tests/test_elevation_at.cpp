@@ -84,3 +84,53 @@ TEST_CASE("elevation_at — out-of-bounds col/row returns 0, not UB") {
   CHECK(ctt::elevation_at(tm, 2, 0) == 0);
   CHECK(ctt::elevation_at(tm, 0, 2) == 0);
 }
+
+// ── ramp_axis_at / interpolated_elevation_at ─────────────────────────────────
+
+TEST_CASE("ramp_axis_at — resolves a marked cell, nullopt elsewhere") {
+  auto tm = make_2x2_map();
+  ctt::TilemapLayer layer;
+  layer.z_index = 0;
+  layer.tiles = {0, 0, 0, 0};
+  layer.ramps[0] = ctt::RampAxis::NORTH_SOUTH; // cell (0,0)
+  tm.layers.push_back(layer);
+
+  REQUIRE(ctt::ramp_axis_at(tm, 0, 0).has_value());
+  CHECK(*ctt::ramp_axis_at(tm, 0, 0) == ctt::RampAxis::NORTH_SOUTH);
+  CHECK_FALSE(ctt::ramp_axis_at(tm, 1, 0).has_value());
+  CHECK_FALSE(ctt::ramp_axis_at(tm, -1, 0).has_value());
+}
+
+TEST_CASE("interpolated_elevation_at — non-ramp cell falls back to the discrete elevation") {
+  auto tm = make_2x2_map();
+  ctt::TilemapLayer layer;
+  layer.z_index = 0;
+  layer.tiles = {0, 0, 0, 0};
+  layer.elevation = {5, 10, 0, 3};
+  tm.layers.push_back(layer);
+
+  CHECK(ctt::interpolated_elevation_at(tm, 0.5f, 0.5f) == doctest::Approx(5.f));
+  CHECK(ctt::interpolated_elevation_at(tm, 1.5f, 0.5f) == doctest::Approx(10.f));
+}
+
+TEST_CASE("interpolated_elevation_at — a north-south ramp blends between its neighbors") {
+  // 1x3 column: (0,0) high, (0,1) is the ramp, (0,2) low.
+  ctt::Tilemap tm;
+  tm.width = 1;
+  tm.height = 3;
+  ctt::TilemapLayer layer;
+  layer.z_index = 0;
+  layer.tiles = {0, 0, 0};
+  layer.elevation = {10, 5, 0};
+  layer.ramps[1] = ctt::RampAxis::NORTH_SOUTH; // cell (0,1)
+  tm.layers.push_back(layer);
+
+  // At the north edge of the ramp cell (row_f == 1.0): matches the north neighbor's elevation.
+  CHECK(ctt::interpolated_elevation_at(tm, 0.5f, 1.0f) == doctest::Approx(10.f));
+  // A quarter of the way across: 3/4 of the way from the north neighbor to the south neighbor.
+  CHECK(ctt::interpolated_elevation_at(tm, 0.5f, 1.25f) == doctest::Approx(7.5f));
+  // Midway across the ramp cell: halfway between the two neighbors.
+  CHECK(ctt::interpolated_elevation_at(tm, 0.5f, 1.5f) == doctest::Approx(5.f));
+  // Just short of the south edge: nearly the south neighbor's elevation.
+  CHECK(ctt::interpolated_elevation_at(tm, 0.5f, 1.9f) == doctest::Approx(1.f));
+}

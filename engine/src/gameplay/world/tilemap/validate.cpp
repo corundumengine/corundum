@@ -55,6 +55,23 @@ namespace corundum::gameplay::world::tilemap {
              row + row_span > static_cast<float>(tm.height);
     }
 
+    void check_ramp_bounds(const Tilemap &tm, std::vector<std::string> &errors) {
+      for (const auto &layer : tm.layers) {
+        for (const auto &[idx, axis] : layer.ramps) {
+          const int col = idx % tm.width;
+          const int row = idx / tm.width;
+          const auto [dc, dr] = axis == RampAxis::NORTH_SOUTH ? std::pair{0, -1} : std::pair{1, 0};
+          const int col_a = col + dc, row_a = row + dr;
+          const int col_b = col - dc, row_b = row - dr;
+          if (col_a < 0 || row_a < 0 || col_a >= tm.width || row_a >= tm.height || col_b < 0 || row_b < 0 ||
+              col_b >= tm.width || row_b >= tm.height)
+            errors.push_back(std::format("layer \"{}\" ramp at (col={}, row={}) has an axis-neighbor outside the "
+                                         "{}x{} map",
+                                         layer.name, col, row, tm.width, tm.height));
+        }
+      }
+    }
+
     void check_collision_bounds(const Tilemap &tm, std::vector<std::string> &errors) {
       const auto &cr = tm.collisions;
       for (std::size_t i = 0; i < cr.size(); ++i) {
@@ -78,6 +95,7 @@ namespace corundum::gameplay::world::tilemap {
     check_orphaned_gids(tm, errors);
     check_duplicate_layer_names(tm, errors);
     check_collision_bounds(tm, errors);
+    check_ramp_bounds(tm, errors);
     return errors;
   }
 

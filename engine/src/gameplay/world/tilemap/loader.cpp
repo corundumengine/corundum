@@ -122,6 +122,32 @@ namespace corundum::gameplay::world::tilemap {
       }
     }
 
+    if (j.contains("content_heights") && j["content_heights"].is_array()) {
+      const auto &ch_json = j["content_heights"];
+      for (std::size_t ci = 0; ci < ch_json.size(); ++ci) {
+        const auto &entry = ch_json[ci];
+        if (!entry.is_object())
+          continue;
+        int col = 0, row = 0, height = 0;
+        try {
+          col = entry.at("col").get<int>();
+          row = entry.at("row").get<int>();
+          height = entry.at("height").get<int>();
+        } catch (...) {
+          return std::unexpected(
+              std::format("Tileset '{}' content_heights[{}] missing 'col', 'row', or 'height'", tileset_path.string(), ci));
+        }
+        if (col < 0 || col >= info.columns || row < 0 || row >= info.rows)
+          return std::unexpected(
+              std::format("Tileset '{}' content_heights[{}] col/row out of range", tileset_path.string(), ci));
+        if (height <= 0 || height > info.frame_height)
+          return std::unexpected(
+              std::format("Tileset '{}' content_heights[{}] height {} out of range for frame_height {}",
+                         tileset_path.string(), ci, height, info.frame_height));
+        info.content_heights[row * info.columns + col] = height;
+      }
+    }
+
     if (j.contains("animations")) {
       const auto &anim_obj = j["animations"];
       if (!anim_obj.is_object())
@@ -766,8 +792,49 @@ namespace corundum::gameplay::world::tilemap {
         }
       }
 
+      // Optional per-cell ramps: [{"col":x,"row":y,"axis":"ns"|"ew"}], sparse.
+      std::flat_map<int, RampAxis> ramps;
+      if (layer_json.contains("ramps") && layer_json["ramps"].is_array()) {
+        const auto &ramps_json = layer_json["ramps"];
+        for (std::size_t ri = 0; ri < ramps_json.size(); ++ri) {
+          const auto &entry = ramps_json[ri];
+          if (!entry.is_object())
+            return std::unexpected(
+                std::format("Tilemap '{}' layer '{}' ramps[{}] must be an object", id, layer_name, ri));
+          int rcol;
+          int rrow;
+          std::string axis_str;
+          try {
+            rcol = entry.at("col").get<int>();
+            rrow = entry.at("row").get<int>();
+            axis_str = entry.at("axis").get<std::string>();
+          } catch (const nlohmann::json::exception &) {
+            return std::unexpected(std::format(
+                "Tilemap '{}' layer '{}' ramps[{}] missing or invalid 'col', 'row', or 'axis'", id, layer_name, ri));
+          }
+          if (rcol < 0 || rcol >= width || rrow < 0 || rrow >= height)
+            return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] position ({}, {}) out of bounds", id,
+                                               layer_name, ri, rcol, rrow));
+          RampAxis axis;
+          if (axis_str == "ns")
+             axis = RampAxis::NORTH_SOUTH;
+           else if (axis_str == "ew")
+             axis = RampAxis::EAST_WEST;
+          else
+            return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] axis '{}' must be \"ns\" or \"ew\"",
+                                               id, layer_name, ri, axis_str));
+          const std::size_t flat_idx =
+              static_cast<std::size_t>(rrow) * static_cast<std::size_t>(width) + static_cast<std::size_t>(rcol);
+          if (flat_idx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] index {} exceeds int maximum", id,
+                                               layer_name, ri, flat_idx));
+          ramps[static_cast<int>(flat_idx)] = axis;
+        }
+      }
+
       layers.push_back(TilemapLayer{layer_name, z_index, true, std::move(tiles), std::move(animated_cells),
-                                    std::move(flip_flags), std::move(elevation), std::move(material_overrides)});
+                                    std::move(flip_flags), std::move(elevation), std::move(material_overrides),
+                                    std::move(ramps)});
     }
 
     return Tilemap{path.string(),

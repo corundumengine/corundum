@@ -81,6 +81,15 @@ namespace tools::tilemap {
         lj["material_overrides"] = std::move(mat_overrides);
       }
 
+      if (!layer.ramps.empty()) {
+        nlohmann::json ramps_json = nlohmann::json::array();
+        for (const auto &[idx, axis] : layer.ramps) {
+          const char *axis_str = axis == corundum::gameplay::world::tilemap::RampAxis::NORTH_SOUTH ? "ns" : "ew";
+          ramps_json.push_back({{"col", idx % state.map.width}, {"row", idx / state.map.width}, {"axis", axis_str}});
+        }
+        lj["ramps"] = std::move(ramps_json);
+      }
+
       layers_json.push_back(std::move(lj));
     }
     j["layers"] = std::move(layers_json);

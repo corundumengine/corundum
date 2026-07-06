@@ -86,9 +86,16 @@ namespace tools::tilemap {
     const std::string walkability_label =
         state.show_walkability ? std::format("  [walkability: max_step {}]", state.max_step_height) : "";
 
-    const std::string text = std::format("[layer: {}]{}{}{}{}{}  [Cmd+S to save]{}  [G: grid]  [ESC or Q to quit]",
-                                         layer_name, tile_label.empty() ? "" : "  [" + tile_label + "]", hover_label,
-                                         flip_label, elevation_label, walkability_label, state.dirty ? "  *" : "");
+    using corundum::gameplay::world::tilemap::RampAxis;
+    const std::string ramp_label =
+        state.show_ramps
+            ? std::format("  [ramp axis: {}]", state.selected_ramp_axis == RampAxis::NORTH_SOUTH ? "N-S" : "E-W")
+            : "";
+
+    const std::string text =
+        std::format("[layer: {}]{}{}{}{}{}{}  [Cmd+S to save]{}  [G: grid]  [ESC or Q to quit]", layer_name,
+                    tile_label.empty() ? "" : "  [" + tile_label + "]", hover_label, flip_label, elevation_label,
+                    ramp_label, walkability_label, state.dirty ? "  *" : "");
 
     ImGui::SetCursorPosX(15.0f);
     ImGui::TextUnformatted(text.c_str());

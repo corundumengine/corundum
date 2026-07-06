@@ -89,6 +89,21 @@ namespace corundum::gameplay::world::tilemap {
       }
     }
 
+    // Ramp pass: force-reconnect both directions along a ramp cell's axis, overriding the
+    // max_step_height disconnect above for exactly those two directions — the ramp's height
+    // delta is inferred from its two axis-neighbors' elevation_at() values, never stored
+    // directly. Diagonals and the other axis are untouched and still governed normally.
+    for (int row = 0; row < tm.height; ++row) {
+      for (int col = 0; col < tm.width; ++col) {
+        const std::optional<RampAxis> axis = ramp_axis_at(tm, col, row);
+        if (!axis)
+          continue;
+        const auto [dc0, dr0] = axis == RampAxis::NORTH_SOUTH ? std::pair{0, -1} : std::pair{1, 0};
+        g.set_passable(col, row, col + dc0, row + dr0, true);
+        g.set_passable(col, row, col - dc0, row - dr0, true);
+      }
+    }
+
     return g;
   }
 

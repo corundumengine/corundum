@@ -139,9 +139,17 @@ namespace tools::tilemap {
           const float iso_x = world.x;
           // Anchor at the southern (bottom) vertex so the tile image fills the diamond cell.
           const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
-          // Pivot offset: shift image so the pivot point aligns with the world anchor.
+          // Pivot offset: shift image so the pivot point aligns with the world anchor. Anchors at the
+          // sprite's actual visible content height, not the raw frame height, so a sprite top-anchored
+          // within a uniform grid cell sized for a taller sibling sprite still lands on the diamond's
+          // true vertex (see TilesetInfo::content_heights).
+          const float content_th =
+              ts ? std::round(static_cast<float>(corundum::gameplay::world::tilemap::tile_content_height(
+                                 ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid))) *
+                             tile_scale)
+                 : 0.f;
           const float pivot_x_px = ts ? (ts->info.pivot_x * scaled_tw) : 0.f;
-          const float pivot_y_px = ts ? ((1.f - ts->info.pivot_y) * scaled_th) : 0.f;
+          const float pivot_y_px = ts ? ((1.f - ts->info.pivot_y) * content_th) : 0.f;
           const float dst_x = ctx.origin.x + iso_x - pivot_x_px - camera.x;
           const float dst_y = ctx.origin.y + iso_y - pivot_y_px - camera.y;
           const ImVec2 p0 = {dst_x, dst_y};

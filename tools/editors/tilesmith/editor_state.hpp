@@ -37,6 +37,9 @@ namespace tools::tilemap {
     float elev_step_px = 4.f;         ///< Pixels per elevation unit, mirrored from GameConfig::elevation_step_px.
     bool show_walkability = false;    ///< Whether to overlay disconnected walkability edges.
     unsigned int max_step_height = 4; ///< Mirrored from GameConfig::max_step_height; read-only in Tilesmith.
+    bool show_ramps = false;          ///< Whether to display/edit ramp tiles.
+    corundum::gameplay::world::tilemap::RampAxis selected_ramp_axis =
+        corundum::gameplay::world::tilemap::RampAxis::NORTH_SOUTH; ///< Axis for the next ramp paint operation.
 
     /// When show_collisions is true, controls whether left-click places triangle or rect.
     bool triangle_collision_mode = false;
