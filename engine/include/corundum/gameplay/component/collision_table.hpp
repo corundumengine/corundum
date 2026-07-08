@@ -20,19 +20,21 @@ namespace corundum::gameplay::component {
 
     static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
 
-    // ── Sparse index ───────────────────────────────────────────────
-    std::array<std::uint32_t, k_max> sparse{};
-
-    // ── Dense entity tracking ──────────────────────────────────────
-    std::array<EntityId, k_max> entities{};
-
-    // ── Collision data (always loaded as a unit) ───────────────────
+    // ── Collision data (always loaded as a unit). Front-loaded so the cold sparse/
+    // entities data below never shares a cache line with — or sits immediately
+    // before — hot data. ────────────────────────────────────────────
     struct Rect {
       float col_span = 0.f;
       float row_span = 0.f;
     };
 
-    alignas(16) std::array<Rect, k_max> rects{};
+    alignas(k_cache_line) std::array<Rect, k_max> rects{};
+
+    // ── Sparse index ───────────────────────────────────────────────
+    std::array<std::uint32_t, k_max> sparse{};
+
+    // ── Dense entity tracking ──────────────────────────────────────
+    std::array<EntityId, k_max> entities{};
 
     std::uint32_t count = 0;
 

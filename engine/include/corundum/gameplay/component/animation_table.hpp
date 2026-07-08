@@ -23,15 +23,16 @@ namespace corundum::gameplay::component {
 
     static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
 
+    // ── Hot: timer / frame_duration tick every frame. Front-loaded so the cold data
+    // below never shares a cache line with — or sits immediately before — hot data. ──
+    alignas(k_cache_line) std::array<float, k_max> timer{};
+    alignas(k_cache_line) std::array<float, k_max> frame_duration{};
+
     // ── Sparse index ───────────────────────────────────────────────
     std::array<std::uint32_t, k_max> sparse{};
 
     // ── Dense entity tracking ──────────────────────────────────────
     std::array<EntityId, k_max> entities{};
-
-    // ── Hot: timer / frame_duration tick every frame ───────────────
-    alignas(16) std::array<float, k_max> timer{};
-    alignas(16) std::array<float, k_max> frame_duration{};
 
     // ── Lukewarm: frame_counts[entity_idx * k_num_anim_ids + anim_id] ──
     // Read on animation transition; cached at spawn from character registry.

@@ -1,4 +1,6 @@
 #pragma once
+#include <array>
+#include <cassert>
 #include <corundum/gameplay/component/animation_table.hpp>
 #include <corundum/gameplay/component/collision_table.hpp>
 #include <corundum/gameplay/component/components.hpp>
@@ -9,7 +11,6 @@
 #include <corundum/gameplay/component/transform_name_table.hpp>
 #include <corundum/gameplay/component/transform_table.hpp>
 #include <corundum/gameplay/entity/entity.hpp>
-#include <vector>
 
 namespace corundum::gameplay::entity {
 
@@ -42,7 +43,9 @@ namespace corundum::gameplay::entity {
     MotionSpriteTable motion_sprites;
 
     /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
-    std::vector<EntityId> pending_deletions;
+    /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
+    std::array<EntityId, k_max_entities> pending_deletions{};
+    std::uint32_t pending_deletion_count = 0;
   };
 
   /// Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
@@ -100,7 +103,8 @@ namespace corundum::gameplay::entity {
    * @pre @p e must be live (returned by EntityManager::create() and not destroyed).
    */
   inline void mark_for_deletion(World &w, EntityId e) {
-    w.pending_deletions.push_back(e);
+    assert(w.pending_deletion_count < k_max_entities && "pending_deletions full");
+    w.pending_deletions[w.pending_deletion_count++] = e;
   }
 
   /** @brief Despawn all entities queued via mark_for_deletion() and clear the queue.
@@ -110,9 +114,9 @@ namespace corundum::gameplay::entity {
    * @param[in,out] w World whose pending_deletions to drain.
    */
   inline void flush_deletions(World &w) {
-    for (const EntityId e : w.pending_deletions)
-      despawn(w, e);
-    w.pending_deletions.clear();
+    for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
+      despawn(w, w.pending_deletions[i]);
+    w.pending_deletion_count = 0;
   }
 
 } // namespace corundum::gameplay::entity

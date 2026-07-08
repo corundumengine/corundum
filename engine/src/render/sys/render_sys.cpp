@@ -248,6 +248,11 @@ namespace corundum::render::sys {
     state.map_walkability =
         corundum::gameplay::world::tilemap::build_walkability_graph(tilemap, static_cast<int>(cfg.max_step_height));
     state.map_data = {std::move(tilemap), std::move(tex_ids), std::move(above_z), std::move(*portals)};
+
+    // Upper bound is known at load time (map dims + entity cap), so this is the only
+    // reserve draw_list ever needs — steady-state rendering never reallocates it.
+    state.draw_list.reserve(static_cast<std::size_t>(state.map_data.tilemap.width) * state.map_data.tilemap.height +
+                            corundum::gameplay::entity::k_max_entities);
     return {};
   }
 
@@ -270,6 +275,13 @@ namespace corundum::render::sys {
     }
     std::println("[keystone] World manifest: {}×{} chunks of {}×{} tiles", state.manifest.chunks_wide,
                  state.manifest.chunks_tall, state.manifest.chunk_size, state.manifest.chunk_size);
+
+    // Chunk streaming keeps a fixed 3×3 window (radius 1, see sync_active_chunks), so this
+    // bound holds for the life of the world regardless of which chunks are currently active.
+    constexpr std::size_t k_max_active_chunks = 9;
+    state.draw_list.reserve(k_max_active_chunks * static_cast<std::size_t>(state.manifest.chunk_size) *
+                                state.manifest.chunk_size +
+                            corundum::gameplay::entity::k_max_entities);
 
     const ChunkCoord center{state.manifest.chunks_wide / 2, state.manifest.chunks_tall / 2};
     state.last_center_chunk = center;
@@ -849,7 +861,7 @@ namespace corundum::render::sys {
       float col_f = transforms.col[tr_slot];
       float row_f = transforms.row[tr_slot];
 
-      if (alpha > 0.f && alpha < 1.f && tr_slot < state.prev_col.size()) {
+      if (alpha > 0.f && alpha < 1.f && tr_slot < state.prev_count) {
         col_f = state.prev_col[tr_slot] + (col_f - state.prev_col[tr_slot]) * alpha;
         row_f = state.prev_row[tr_slot] + (row_f - state.prev_row[tr_slot]) * alpha;
       }

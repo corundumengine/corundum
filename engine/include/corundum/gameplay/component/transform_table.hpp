@@ -25,17 +25,18 @@ namespace corundum::gameplay::component {
 
     static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
 
+    // ── Hot: accessed every frame (SoA). Front-loaded so cold sparse/entities data
+    // below never shares a cache line with — or sits immediately before — hot data. ──
+    alignas(k_cache_line) std::array<float, k_max> col{};
+    alignas(k_cache_line) std::array<float, k_max> row{};
+    alignas(k_cache_line) std::array<float, k_max> dc{};
+    alignas(k_cache_line) std::array<float, k_max> dr{};
+
     // ── Sparse index: EntityId → dense row ─────────────────────────
     std::array<std::uint32_t, k_max> sparse{};
 
     // ── Dense entity tracking ──────────────────────────────────────
     std::array<EntityId, k_max> entities{};
-
-    // ── Hot: accessed every frame (SoA) ────────────────────────────
-    alignas(16) std::array<float, k_max> col{};
-    alignas(16) std::array<float, k_max> row{};
-    alignas(16) std::array<float, k_max> dc{};
-    alignas(16) std::array<float, k_max> dr{};
 
     std::uint32_t count = 0;
 

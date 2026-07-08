@@ -8,6 +8,7 @@ namespace corundum::gameplay::component {
 
   // Tables use EntityId and k_max_entities ubiquitously.
   using corundum::gameplay::entity::EntityId;
+  using corundum::gameplay::entity::k_cache_line;
   using corundum::gameplay::entity::k_max_entities;
 
   /** @brief A valid game table is trivially copyable, exposes an integer count,

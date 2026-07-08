@@ -1,5 +1,6 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/entity/entity.hpp>
 #include <corundum/gameplay/ui/dialog_box.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
@@ -7,6 +8,7 @@
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/resources/sprite.hpp>
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -105,10 +107,15 @@ namespace corundum::render::data {
 
     /** @brief Interpolation alpha for render smoothing (0 = no interpolation). */
     float interpolation_alpha{0.f};
-    /** @brief Previous-frame entity tile columns for render interpolation. */
-    std::vector<float> prev_col{};
-    /** @brief Previous-frame entity tile rows for render interpolation. */
-    std::vector<float> prev_row{};
+    /** @brief Previous-frame entity tile columns for render interpolation. Fixed-size:
+     *  bounded by k_max_entities, so no heap growth mid-frame. Only the first
+     *  prev_count entries hold a valid snapshot from before this frame. */
+    std::array<float, corundum::gameplay::entity::k_max_entities> prev_col{};
+    /** @brief Previous-frame entity tile rows for render interpolation. See prev_col. */
+    std::array<float, corundum::gameplay::entity::k_max_entities> prev_row{};
+    /** @brief Number of valid entries in prev_col/prev_row (entities that existed at the
+     *  start of this frame, before any mid-frame spawns). */
+    std::uint32_t prev_count{0};
     /** @brief Previous-frame camera x for render interpolation. */
     float prev_cam_x{0.f};
     /** @brief Previous-frame camera y for render interpolation. */

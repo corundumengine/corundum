@@ -10,6 +10,12 @@ namespace corundum::gameplay::entity {
 
   inline constexpr std::uint32_t k_max_entities = 256;
 
+  /// Portable L1 cache line size in bytes (correct for x86-64 and most ARM parts; still a
+  /// valid, if not maximal, alignment on targets with wider lines such as Apple Silicon's
+  /// 128-byte L1). Hot SoA component arrays should align to this, not the SSE-era 16-byte
+  /// constant.
+  inline constexpr std::size_t k_cache_line = 64;
+
   /** @brief Strongly-typed entity handle.
    *
    * All array index conversions must use `std::to_underlying(id)`.

@@ -182,14 +182,11 @@ namespace corundum {
     while (engine.window->is_open() && !engine.quit) {
       const auto &transforms = engine.scene.world.transforms;
       const auto n = transforms.count;
-      if (engine.render.prev_col.size() < n) {
-        engine.render.prev_col.resize(n);
-        engine.render.prev_row.resize(n);
-      }
       for (std::uint32_t i = 0; i < n; ++i) {
         engine.render.prev_col[i] = transforms.col[i];
         engine.render.prev_row[i] = transforms.row[i];
       }
+      engine.render.prev_count = n;
       engine.render.prev_cam_x = engine.scene.camera.x;
       engine.render.prev_cam_y = engine.scene.camera.y;
       engine.render.prev_zoom = engine.scene.camera.zoom;
@@ -220,7 +217,7 @@ namespace corundum {
         // reassigns slots via swap-and-pop, so a slot interpolated below could now belong to a
         // different entity than the one the snapshot captured. Detect it here and force alpha to 0
         // below rather than interpolate against a stale/mismatched slot.
-        deleted_this_frame = deleted_this_frame || !engine.scene.world.pending_deletions.empty();
+        deleted_this_frame = deleted_this_frame || engine.scene.world.pending_deletion_count > 0;
         gameplay::entity::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
