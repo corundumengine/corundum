@@ -99,6 +99,9 @@ namespace corundum::render::data {
     std::vector<int> above_z_cache{};
     bool chunks_dirty{true};
     std::vector<DepthEntry> draw_list{};
+    /** @brief Indices into draw_list, sorted by depth each frame. Reused across frames
+     *  (resized, never freed) so the depth sort touches no per-frame heap allocation. */
+    std::vector<uint32_t> draw_order{};
 
     /** @brief Interpolation alpha for render smoothing (0 = no interpolation). */
     float interpolation_alpha{0.f};

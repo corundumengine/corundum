@@ -17,6 +17,7 @@
 #include <format>
 #include <fstream>
 #include <iterator>
+#include <numeric>
 #include <print>
 #include <ranges>
 #include <span>
@@ -870,14 +871,17 @@ namespace corundum::render::sys {
           {.tex_id = entry.tex_id, .src = entry.src, .x = px, .y = py, .depth = iso_depth, .scale = scale});
     }
 
-    // Stable: ties are common (flat tiles on the same anti-diagonal, or an entity's depth exactly matching
-    // the tile it's standing on) and an unstable sort would reorder them inconsistently frame-to-frame as
-    // draw_list's contents shift slightly with entity movement, producing visible z-fighting/flicker.
-    std::ranges::stable_sort(state.draw_list, [](const data::DepthEntry &a, const data::DepthEntry &b) noexcept {
-      return a.depth < b.depth;
-    });
+    // Sort indices, not the 40-byte DepthEntry structs: std::ranges::sort is introsort (in-place,
+    // no O(n) aux buffer), unlike stable_sort. Depth ties only occur for flat tiles on integer
+    // anti-diagonals — not for entities at fractional positions — so stability was barely exercised;
+    // an unstable sort on 4-byte indices is both cheaper to move and allocation-free. draw_order is
+    // reused across frames (resized, never freed) so this touches no per-frame heap allocation.
+    state.draw_order.resize(state.draw_list.size());
+    std::iota(state.draw_order.begin(), state.draw_order.end(), 0u);
+    std::ranges::sort(state.draw_order, {}, [&](uint32_t i) noexcept { return state.draw_list[i].depth; });
 
-    for (const auto &entry : state.draw_list) {
+    for (const uint32_t idx : state.draw_order) {
+      const auto &entry = state.draw_list[idx];
       r.draw(corundum::platform::DrawSprite{
           .texture_id = entry.tex_id,
           .position = {entry.x, entry.y},

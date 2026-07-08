@@ -203,6 +203,7 @@ namespace corundum {
       }
 
       int steps_run = 0;
+      bool deleted_this_frame = false;
       while (engine.timer.step()) {
         ++steps_run;
         engine.scene.elapsed_time += engine.timer.target_dt;
@@ -215,6 +216,11 @@ namespace corundum {
 
         process_dialogue_events(engine);
 
+        // prev_col/prev_row were snapshotted by dense slot before this loop started. flush_deletions
+        // reassigns slots via swap-and-pop, so a slot interpolated below could now belong to a
+        // different entity than the one the snapshot captured. Detect it here and force alpha to 0
+        // below rather than interpolate against a stale/mismatched slot.
+        deleted_this_frame = deleted_this_frame || !engine.scene.world.pending_deletions.empty();
         gameplay::entity::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
@@ -223,7 +229,7 @@ namespace corundum {
       if (engine.render.mode != render::data::RenderMode::World)
         gameplay::world::handle_map_transition(engine);
 
-      engine.render.interpolation_alpha = (steps_run == 1) ? engine.timer.alpha() : 0.f;
+      engine.render.interpolation_alpha = (steps_run == 1 && !deleted_this_frame) ? engine.timer.alpha() : 0.f;
 
       engine.renderer->begin_frame(engine.clear_colour);
       render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.render.interpolation_alpha);
