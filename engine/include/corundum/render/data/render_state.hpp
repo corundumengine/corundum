@@ -89,6 +89,12 @@ namespace corundum::render::data {
     corundum::gameplay::world::tilemap::WorldManifest manifest{};
     std::vector<ChunkEntry> active_chunks{};
     corundum::gameplay::world::tilemap::ChunkCoord last_center_chunk{};
+    /// O(1) lookup from a chunk coord's offset relative to last_center_chunk (the fixed 3×3
+    /// streaming window — see sync_active_chunks) to its index in active_chunks, or -1 if that
+    /// slot isn't loaded. Indexed by (dy+1)*3+(dx+1) for dx,dy in [-1,1]. Rebuilt by
+    /// sync_active_chunks each time active_chunks or last_center_chunk changes; used by
+    /// elevation_under() to avoid a linear find_if over active_chunks per entity per frame.
+    std::array<int32_t, 9> chunk_slot_by_offset{-1, -1, -1, -1, -1, -1, -1, -1, -1};
     corundum::gameplay::world::tilemap::CollisionRects agg_collisions{};
     corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
     /// Built once when a single map loads (load_map()); single-map mode only, same

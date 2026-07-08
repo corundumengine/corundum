@@ -494,6 +494,15 @@ namespace corundum::render::sys {
       }
     }
 
+    state.chunk_slot_by_offset.fill(-1);
+    for (std::size_t i = 0; i < state.active_chunks.size(); ++i) {
+      const auto &e = state.active_chunks[i];
+      const int dx = e.coord.x - state.last_center_chunk.x;
+      const int dy = e.coord.y - state.last_center_chunk.y;
+      if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
+        state.chunk_slot_by_offset[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))] = static_cast<int32_t>(i);
+    }
+
     if (any_stale || any_new) {
       state.chunks_dirty = true;
       rebuild_collision(state, cfg);
@@ -795,11 +804,15 @@ namespace corundum::render::sys {
       const corundum::gameplay::world::tilemap::ChunkCoord owner{
           static_cast<int>(std::floor(static_cast<float>(col) / static_cast<float>(chunk_size))),
           static_cast<int>(std::floor(static_cast<float>(row) / static_cast<float>(chunk_size)))};
-      const auto it =
-          std::ranges::find_if(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == owner; });
-      if (it == state.active_chunks.end())
+      const int dx = owner.x - state.last_center_chunk.x;
+      const int dy = owner.y - state.last_center_chunk.y;
+      if (dx < -1 || dx > 1 || dy < -1 || dy > 1)
         return 0.f;
-      return static_cast<float>(elevation_at(it->tilemap, col - owner.x * chunk_size, row - owner.y * chunk_size));
+      const int32_t slot = state.chunk_slot_by_offset[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))];
+      if (slot < 0)
+        return 0.f;
+      const auto &entry = state.active_chunks[static_cast<std::size_t>(slot)];
+      return static_cast<float>(elevation_at(entry.tilemap, col - owner.x * chunk_size, row - owner.y * chunk_size));
     }
 
     if (!state.map_data.tilemap.tilesets.empty())
