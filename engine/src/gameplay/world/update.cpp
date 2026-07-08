@@ -30,8 +30,15 @@ namespace {
     const auto p_slot = world.transforms.dense_idx(player);
     const float pc = world.transforms.col[p_slot];
     const float pr = world.transforms.row[p_slot];
+    // Elevation term matches the renderer's entity path (render_sys.cpp) so the camera tracks
+    // the player's actual screen position — omitting it made the camera jitter relative to the
+    // sprite while crossing a ramp. Null elevation_map (chunked/streamed World mode) isn't wired
+    // up for elevation yet, so it falls back to 0, same as elsewhere in MapView consumers.
+    const float elev = map.elevation_map
+                           ? corundum::gameplay::world::tilemap::interpolated_elevation_at(*map.elevation_map, pc, pr)
+                           : 0.f;
     const float iso_x = (pc - pr) * map.half_tw + map.x_origin;
-    const float iso_y = (pc + pr) * map.half_th;
+    const float iso_y = (pc + pr) * map.half_th - elev * cfg.elevation_step_px;
     corundum::gameplay::sys::follow_player(scene.camera, iso_x, iso_y, map, cfg.win_w, cfg.win_h);
   }
 
