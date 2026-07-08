@@ -83,6 +83,24 @@ namespace corundum::gameplay::world::tilemap {
     }
     info.pivot_x = 0.5f;
     info.pivot_y = 0.0f;
+    if (j.contains("pivot_x")) {
+      try {
+        info.pivot_x = j["pivot_x"].get<float>();
+      } catch (...) {
+        return std::unexpected(std::format("Tileset '{}' field 'pivot_x' has wrong type", tileset_path.string()));
+      }
+      if (info.pivot_x < 0.f || info.pivot_x > 1.f)
+        return std::unexpected(std::format("Tileset '{}' 'pivot_x' must be in [0,1]", tileset_path.string()));
+    }
+    if (j.contains("pivot_y")) {
+      try {
+        info.pivot_y = j["pivot_y"].get<float>();
+      } catch (...) {
+        return std::unexpected(std::format("Tileset '{}' field 'pivot_y' has wrong type", tileset_path.string()));
+      }
+      if (info.pivot_y < 0.f || info.pivot_y > 1.f)
+        return std::unexpected(std::format("Tileset '{}' 'pivot_y' must be in [0,1]", tileset_path.string()));
+    }
     if (j.contains("material")) {
       try {
         info.material = j["material"].get<std::string>();
@@ -122,29 +140,58 @@ namespace corundum::gameplay::world::tilemap {
       }
     }
 
-    if (j.contains("content_heights") && j["content_heights"].is_array()) {
-      const auto &ch_json = j["content_heights"];
-      for (std::size_t ci = 0; ci < ch_json.size(); ++ci) {
-        const auto &entry = ch_json[ci];
+    if (j.contains("trims") && j["trims"].is_array()) {
+      const auto &trims_json = j["trims"];
+      for (std::size_t ti = 0; ti < trims_json.size(); ++ti) {
+        const auto &entry = trims_json[ti];
         if (!entry.is_object())
           continue;
-        int col = 0, row = 0, height = 0;
+        int col = 0, row = 0, x = 0, y = 0, w = 0, h = 0;
         try {
           col = entry.at("col").get<int>();
           row = entry.at("row").get<int>();
-          height = entry.at("height").get<int>();
+          x = entry.at("x").get<int>();
+          y = entry.at("y").get<int>();
+          w = entry.at("w").get<int>();
+          h = entry.at("h").get<int>();
         } catch (...) {
-          return std::unexpected(
-              std::format("Tileset '{}' content_heights[{}] missing 'col', 'row', or 'height'", tileset_path.string(), ci));
+          return std::unexpected(std::format("Tileset '{}' trims[{}] missing 'col', 'row', 'x', 'y', 'w', or 'h'",
+                                             tileset_path.string(), ti));
+        }
+        if (col < 0 || col >= info.columns || row < 0 || row >= info.rows)
+          return std::unexpected(std::format("Tileset '{}' trims[{}] col/row out of range", tileset_path.string(), ti));
+        if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > info.frame_width || y + h > info.frame_height)
+          return std::unexpected(std::format("Tileset '{}' trims[{}] rect ({},{},{},{}) out of range for frame {}x{}",
+                                             tileset_path.string(), ti, x, y, w, h, info.frame_width,
+                                             info.frame_height));
+        info.trims[row * info.columns + col] = {x, y, w, h};
+      }
+    }
+
+    if (j.contains("pivot_overrides") && j["pivot_overrides"].is_array()) {
+      const auto &pivots_json = j["pivot_overrides"];
+      for (std::size_t pi = 0; pi < pivots_json.size(); ++pi) {
+        const auto &entry = pivots_json[pi];
+        if (!entry.is_object())
+          continue;
+        int col = 0, row = 0;
+        float px = 0.f, py = 0.f;
+        try {
+          col = entry.at("col").get<int>();
+          row = entry.at("row").get<int>();
+          px = entry.at("x").get<float>();
+          py = entry.at("y").get<float>();
+        } catch (...) {
+          return std::unexpected(std::format("Tileset '{}' pivot_overrides[{}] missing 'col', 'row', 'x', or 'y'",
+                                             tileset_path.string(), pi));
         }
         if (col < 0 || col >= info.columns || row < 0 || row >= info.rows)
           return std::unexpected(
-              std::format("Tileset '{}' content_heights[{}] col/row out of range", tileset_path.string(), ci));
-        if (height <= 0 || height > info.frame_height)
+              std::format("Tileset '{}' pivot_overrides[{}] col/row out of range", tileset_path.string(), pi));
+        if (px < 0.f || px > 1.f || py < 0.f || py > 1.f)
           return std::unexpected(
-              std::format("Tileset '{}' content_heights[{}] height {} out of range for frame_height {}",
-                         tileset_path.string(), ci, height, info.frame_height));
-        info.content_heights[row * info.columns + col] = height;
+              std::format("Tileset '{}' pivot_overrides[{}] x/y must be in [0,1]", tileset_path.string(), pi));
+        info.pivot_overrides[row * info.columns + col] = {px, py};
       }
     }
 
@@ -817,9 +864,9 @@ namespace corundum::gameplay::world::tilemap {
                                                layer_name, ri, rcol, rrow));
           RampAxis axis;
           if (axis_str == "ns")
-             axis = RampAxis::NORTH_SOUTH;
-           else if (axis_str == "ew")
-             axis = RampAxis::EAST_WEST;
+            axis = RampAxis::NORTH_SOUTH;
+          else if (axis_str == "ew")
+            axis = RampAxis::EAST_WEST;
           else
             return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] axis '{}' must be \"ns\" or \"ew\"",
                                                id, layer_name, ri, axis_str));

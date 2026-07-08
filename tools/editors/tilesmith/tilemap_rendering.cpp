@@ -126,7 +126,10 @@ namespace tools::tilemap {
           const corundum::gameplay::world::tilemap::TilemapTileset *ts =
               corundum::gameplay::world::tilemap::find_tileset(map.tilesets, gid);
 
-          // Sprite pixel dimensions — independent from the footprint (diamond step).
+          // Full-frame pixel dimensions — independent from the footprint (diamond step). The pivot is
+          // always measured against these, not the trimmed size, so sprites sharing one canvas
+          // convention (e.g. a wall body and its separately-authored topper) stay aligned to each
+          // other regardless of how much padding either one had trimmed away.
           const float scaled_tw = std::round(static_cast<float>(ts->info.frame_width) * tile_scale);
           const float scaled_th = std::round(static_cast<float>(ts->info.frame_height) * tile_scale);
 
@@ -139,21 +142,25 @@ namespace tools::tilemap {
           const float iso_x = world.x;
           // Anchor at the southern (bottom) vertex so the tile image fills the diamond cell.
           const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
-          // Pivot offset: shift image so the pivot point aligns with the world anchor. Anchors at the
-          // sprite's actual visible content height, not the raw frame height, so a sprite top-anchored
-          // within a uniform grid cell sized for a taller sibling sprite still lands on the diamond's
-          // true vertex (see TilesetInfo::content_heights).
-          const float content_th =
-              ts ? std::round(static_cast<float>(corundum::gameplay::world::tilemap::tile_content_height(
-                                 ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid))) *
-                             tile_scale)
-                 : 0.f;
-          const float pivot_x_px = ts ? (ts->info.pivot_x * scaled_tw) : 0.f;
-          const float pivot_y_px = ts ? ((1.f - ts->info.pivot_y) * content_th) : 0.f;
-          const float dst_x = ctx.origin.x + iso_x - pivot_x_px - camera.x;
-          const float dst_y = ctx.origin.y + iso_y - pivot_y_px - camera.y;
+          // Pivot offset (against the full frame), then shift by the trim rect's own offset within
+          // that frame — only the trimmed region is actually drawn (see TilesetInfo::trims). Pivot
+          // is per-tile (TilesetInfo::pivot_overrides) since some tiles (e.g. cliffs) need a
+          // different ground-contact point than the tileset default to blend with neighbors.
+          const int local_id = ts ? static_cast<int>(gid) - static_cast<int>(ts->first_gid) : 0;
+          const auto trim = ts ? corundum::gameplay::world::tilemap::get_sprite_trim(ts->info, local_id)
+                               : corundum::gameplay::world::tilemap::SpriteTrim{};
+          const auto pivot = ts ? corundum::gameplay::world::tilemap::get_tile_pivot(ts->info, local_id)
+                                : corundum::gameplay::world::tilemap::TilePivot{};
+          const float trim_x_px = std::round(static_cast<float>(trim.x) * tile_scale);
+          const float trim_y_px = std::round(static_cast<float>(trim.y) * tile_scale);
+          const float drawn_w = std::round(static_cast<float>(trim.w) * tile_scale);
+          const float drawn_h = std::round(static_cast<float>(trim.h) * tile_scale);
+          const float pivot_x_px = pivot.x * scaled_tw;
+          const float pivot_y_px = (1.f - pivot.y) * scaled_th;
+          const float dst_x = ctx.origin.x + iso_x - pivot_x_px + trim_x_px - camera.x;
+          const float dst_y = ctx.origin.y + iso_y - pivot_y_px + trim_y_px - camera.y;
           const ImVec2 p0 = {dst_x, dst_y};
-          const ImVec2 p1 = {dst_x + scaled_tw, dst_y + scaled_th};
+          const ImVec2 p1 = {dst_x + drawn_w, dst_y + drawn_h};
 
           // Cull tiles outside the canvas
           if (p1.x < ctx.origin.x || p0.x > ctx.origin.x + CANVAS_W || p1.y < ctx.origin.y ||

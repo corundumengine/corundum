@@ -483,6 +483,142 @@ TEST_CASE("load_tileset — absent 'material' field defaults to empty string") {
   CHECK(result->material.empty());
 }
 
+// ── configurable pivot ────────────────────────────────────────────────────────
+
+TEST_CASE("load_tileset — 'pivot_x'/'pivot_y' fields are loaded") {
+  const auto dir = temp_dir("tileset_pivot");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":128,"frame_height":256,)"
+                      R"("columns":8,"rows":4,"pivot_x":0.5,"pivot_y":0.18})");
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  CHECK(result->pivot_x == doctest::Approx(0.5));
+  CHECK(result->pivot_y == doctest::Approx(0.18));
+}
+
+TEST_CASE("load_tileset — absent pivot fields default to 0.5/0.0") {
+  const auto dir = temp_dir("tileset_pivot_absent");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, TILESET_A_JSON);
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  CHECK(result->pivot_x == doctest::Approx(0.5));
+  CHECK(result->pivot_y == doctest::Approx(0.0));
+}
+
+TEST_CASE("load_tileset — 'pivot_y' out of range throws") {
+  const auto dir = temp_dir("tileset_pivot_oob");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
+                      R"("columns":8,"rows":4,"pivot_y":1.5})");
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_tileset — 'pivot_overrides' is loaded and resolved via get_tile_pivot") {
+  const auto dir = temp_dir("tileset_pivot_overrides");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":128,"frame_height":256,)"
+                      R"("columns":8,"rows":4,"pivot_y":0.18,)"
+                      R"("pivot_overrides":[{"col":2,"row":0,"x":0.5,"y":0.43}]})");
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  const int cliff_local_id = 0 * result->columns + 2; // row 0, col 2 — the overridden cliff tile
+  const auto cliff_pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, cliff_local_id);
+  CHECK(cliff_pivot.x == doctest::Approx(0.5));
+  CHECK(cliff_pivot.y == doctest::Approx(0.43));
+
+  // A tile with no override still resolves to the tileset default.
+  const auto default_pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 0);
+  CHECK(default_pivot.x == doctest::Approx(0.5));
+  CHECK(default_pivot.y == doctest::Approx(0.18));
+}
+
+TEST_CASE("load_tileset — 'pivot_overrides' with out-of-range x/y throws") {
+  const auto dir = temp_dir("tileset_pivot_overrides_oob");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
+                      R"("columns":8,"rows":4,)"
+                      R"("pivot_overrides":[{"col":0,"row":0,"x":0.5,"y":-0.1}]})");
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  CHECK(!result.has_value());
+}
+
+// ── sprite trim ───────────────────────────────────────────────────────────────
+
+TEST_CASE("load_tileset — 'trims' field is loaded and resolved via get_sprite_trim") {
+  const auto dir = temp_dir("tileset_trims");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":256,"frame_height":256,)"
+                      R"("columns":8,"rows":4,)"
+                      R"("trims":[{"col":1,"row":0,"x":62,"y":93,"w":132,"h":71}]})");
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  const int local_id = 0 * result->columns + 1; // row 0, col 1
+  const auto trim = corundum::gameplay::world::tilemap::get_sprite_trim(*result, local_id);
+  CHECK(trim.x == 62);
+  CHECK(trim.y == 93);
+  CHECK(trim.w == 132);
+  CHECK(trim.h == 71);
+}
+
+TEST_CASE("load_tileset — absent 'trims' field defaults to the full frame via get_sprite_trim") {
+  const auto dir = temp_dir("tileset_trims_absent");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, TILESET_A_JSON);
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  const auto trim = corundum::gameplay::world::tilemap::get_sprite_trim(*result, 0);
+  CHECK(trim.x == 0);
+  CHECK(trim.y == 0);
+  CHECK(trim.w == result->frame_width);
+  CHECK(trim.h == result->frame_height);
+}
+
+TEST_CASE("load_tileset — 'trims' rect extending outside the frame throws") {
+  const auto dir = temp_dir("tileset_trims_oob");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
+                      R"("columns":8,"rows":4,)"
+                      R"("trims":[{"col":0,"row":0,"x":10,"y":0,"w":10,"h":16}]})");
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("tile_source_rect — reflects the trimmed rect when present, offset by the tile's cell") {
+  const auto dir = temp_dir("tileset_trims_source_rect");
+  const auto ts_path = dir / "tileset_a.json";
+  const auto map_path = dir / "map.json";
+  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":256,"frame_height":256,)"
+                      R"("columns":8,"rows":4,)"
+                      R"("trims":[{"col":1,"row":0,"x":62,"y":93,"w":132,"h":71}]})");
+
+  std::string content;
+  content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
+  content += ts_path.string();
+  content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,1"]}]})";
+  write_file(map_path, content);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  REQUIRE(result.has_value());
+  const auto *ts = corundum::gameplay::world::tilemap::find_tileset(result->tilesets, 1);
+  REQUIRE(ts != nullptr);
+  const auto rect = corundum::gameplay::world::tilemap::tile_source_rect(*ts, 1);
+  // Tile GID 1 is local_id 1 -> col 1, row 0 -> cell origin (256, 0), plus the trim's own offset.
+  CHECK(rect.x == 256 + 62);
+  CHECK(rect.y == 0 + 93);
+  CHECK(rect.width == 132);
+  CHECK(rect.height == 71);
+}
+
 TEST_CASE("load_tilemap — layer 'material_overrides' is loaded") {
   const auto dir = temp_dir("material_overrides");
   const auto ts_path = dir / "tileset_a.json";

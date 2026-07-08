@@ -566,22 +566,29 @@ namespace corundum::render::sys {
     const corundum::core::math::Vec2 world_pos = corundum::core::math::tile_to_world(
         abs_col, abs_row, elev, ctx.half_tw, ctx.half_th, ctx.elev_step, ctx.x_origin);
 
+    // Pivot is always measured against the full frame, not the trimmed size, so sprites sharing one
+    // canvas convention (e.g. a wall body and its separately-authored topper) stay aligned to each
+    // other regardless of how much padding either one had trimmed away (see TilesetInfo::trims).
+    // Pivot is per-tile (TilesetInfo::pivot_overrides) since some tiles (e.g. cliffs) need a
+    // different ground-contact point than the tileset default to blend with neighbors.
     const float scaled_tw = static_cast<float>(ts->info.frame_width) * cfg.tile_scale;
-    // Anchor at the sprite's actual visible content height, not the raw frame height, so a sprite
-    // top-anchored within a uniform grid cell sized for a taller sibling sprite still lands on the
-    // diamond's true vertex (see TilesetInfo::content_heights).
-    const float content_th = static_cast<float>(corundum::gameplay::world::tilemap::tile_content_height(
-                                 ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid))) *
-                             cfg.tile_scale;
+    const float scaled_th = static_cast<float>(ts->info.frame_height) * cfg.tile_scale;
+    const int local_id = static_cast<int>(gid) - static_cast<int>(ts->first_gid);
+    const auto trim = corundum::gameplay::world::tilemap::get_sprite_trim(ts->info, local_id);
+    const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(ts->info, local_id);
+    const float trim_x_px = static_cast<float>(trim.x) * cfg.tile_scale;
+    const float trim_y_px = static_cast<float>(trim.y) * cfg.tile_scale;
     const float depth = corundum::core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
                                                             static_cast<float>(elev), ctx.half_th, ctx.elev_step);
 
     return ResolvedTile{
         .tex_id = tex_id,
         .src = src,
-        // Anchor at the southern (bottom) vertex so the tile fills the diamond cell.
-        .position = {world_pos.x - ts->info.pivot_x * scaled_tw,
-                     world_pos.y + core::math::diamond_cell_height(ctx.half_th) - (1.f - ts->info.pivot_y) * content_th},
+        // Anchor at the southern (bottom) vertex so the tile fills the diamond cell, then shift by
+        // the trim rect's own offset within the full frame — only the trimmed region is drawn.
+        .position = {world_pos.x - pivot.x * scaled_tw + trim_x_px, world_pos.y +
+                                                                        core::math::diamond_cell_height(ctx.half_th) -
+                                                                        (1.f - pivot.y) * scaled_th + trim_y_px},
         .scale = static_cast<float>(cfg.tile_scale),
         .flip_x = flip_x,
         .flip_y = flip_y,
