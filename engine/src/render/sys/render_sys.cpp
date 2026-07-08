@@ -237,11 +237,9 @@ namespace corundum::render::sys {
     std::ranges::sort(above_z);
     above_z.erase(std::ranges::unique(above_z).begin(), above_z.end());
 
-    const float tw = static_cast<float>(tilemap.tilesets[0].info.frame_width) * cfg.tile_scale;
-    const float th = static_cast<float>(tilemap.tilesets[0].info.frame_height) * cfg.tile_scale;
     const std::string stem = std::filesystem::path(tilemap_path).stem().string();
     const auto portals_file = std::format("{}/{}.json", cfg.paths.portals_dir, stem);
-    auto portals = corundum::gameplay::world::load_portals(portals_file, tw, th);
+    auto portals = corundum::gameplay::world::load_portals(portals_file);
     if (!portals)
       return std::unexpected(portals.error());
 

@@ -264,17 +264,16 @@ namespace corundum::physics::sys {
     transforms.col[p_slot] = p.col;
     transforms.row[p_slot] = p.row;
 
-    if (map.half_tw > 0.f && map.half_th > 0.f && !map.portals.empty()) {
-      const float tile_w = map.half_tw * 2.f;
-      const float px = (p.col - p.row) * map.half_tw + map.x_origin;
-      const float py = (p.col + p.row) * map.half_th;
-      const auto p_cart = corundum::core::math::iso_to_cart({px, py}, map.half_tw, map.half_th, map.x_origin);
-      const float px0 = p_cart.x - player_rect.col_span * tile_w / 2.f;
-      const float py0 = p_cart.y;
-      const float px1 = p_cart.x + player_rect.col_span * tile_w / 2.f;
-      const float py1 = p_cart.y + player_rect.row_span * tile_w;
+    if (!map.portals.empty()) {
+      // Player AABB in tile-grid space (same convention as collision rects), tested directly
+      // against portal rects — both already live in tile-grid units, so no iso<->cart conversion.
+      const float half_cs = player_rect.col_span / 2.f;
+      const float col0 = p.col - half_cs;
+      const float col1 = p.col + half_cs;
+      const float row0 = p.row;
+      const float row1 = p.row + player_rect.row_span;
       for (const auto &portal : map.portals) {
-        if (px1 > portal.x && px0 < portal.x + portal.w && py1 > portal.y && py0 < portal.y + portal.h) {
+        if (col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h) {
           scene.pending_transition = {portal.target_map, portal.spawn_col, portal.spawn_row};
           return;
         }

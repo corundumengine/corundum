@@ -7,7 +7,7 @@ using json = nlohmann::json;
 
 namespace corundum::gameplay::world {
 
-  std::expected<std::vector<Portal>, std::string> load_portals(const std::string &path, float tile_w, float tile_h) {
+  std::expected<std::vector<Portal>, std::string> load_portals(const std::string &path) {
     std::ifstream f(path);
     if (!f)
       return {};
@@ -70,10 +70,10 @@ namespace corundum::gameplay::world {
         return std::unexpected(std::format("Portals '{}' portals[{}] 'spawn_col'/'spawn_row' must be >= 0", path, i));
 
       result.push_back(Portal{
-          static_cast<float>(col) * tile_w,
-          static_cast<float>(row) * tile_h,
-          static_cast<float>(w) * tile_w,
-          static_cast<float>(h) * tile_h,
+          static_cast<float>(col),
+          static_cast<float>(row),
+          static_cast<float>(w),
+          static_cast<float>(h),
           std::move(target_map),
           spawn_col,
           spawn_row,

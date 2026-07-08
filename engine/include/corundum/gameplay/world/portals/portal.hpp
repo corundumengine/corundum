@@ -6,17 +6,22 @@
 namespace corundum::gameplay::world {
 
   /**
-   * @brief A one-way map transition trigger in world-pixel space.
+   * @brief A one-way map transition trigger in tile-grid space.
    *
    * Defines a rectangular region on the current map that, when overlapped by the
    * player, initiates a transition to @p target_map, spawning the player at the
    * tile coordinate (@p spawn_col, @p spawn_row) in that map.
+   *
+   * Stored in the same tile-grid units as collision rects (see
+   * corundum::gameplay::world::tilemap::CollisionRect) rather than world pixels, so
+   * the physics system can test the player's AABB against it directly — no
+   * per-frame cart_to_iso/iso_to_cart round trip needed.
    */
   struct Portal {
-    float x = 0.f;          ///< Left edge of trigger rect in world pixels.
-    float y = 0.f;          ///< Top edge of trigger rect in world pixels.
-    float w = 0.f;          ///< Width of trigger rect in world pixels.
-    float h = 0.f;          ///< Height of trigger rect in world pixels.
+    float col = 0.f;        ///< Left tile column of the trigger rect.
+    float row = 0.f;        ///< Top tile row of the trigger rect.
+    float w = 0.f;          ///< Width of trigger rect in tiles.
+    float h = 0.f;          ///< Height of trigger rect in tiles.
     std::string target_map; ///< Path to the target tilemap JSON.
     int spawn_col = 0;      ///< Tile column for player spawn in the target map.
     int spawn_row = 0;      ///< Tile row for player spawn in the target map.
@@ -37,17 +42,15 @@ namespace corundum::gameplay::world {
   /**
    * @brief Load portals from a portal JSON file.
    *
-   * Expects an object with a "portals" array. Each entry uses tile coordinates
-   * (col, row, w, h) which are converted to world pixels via @p tile_w and
-   * @p tile_h. Returns an empty vector if the file does not exist.
+   * Expects an object with a "portals" array, each entry giving a tile-grid rect
+   * (col, row, w, h) — the same coordinate space tilesmith authors and saves them
+   * in, so no conversion happens at load time. Returns an empty vector if the
+   * file does not exist.
    *
-   * @param path   Path to the portals JSON (e.g. "data/portals/world.json").
-   * @param tile_w Tile width in world pixels (tile_width_px * tile_scale).
-   * @param tile_h Tile height in world pixels (tile_height_px * tile_scale).
-   * @return Loaded portals with world-pixel rects, empty if file is absent,
-   *         or std::unexpected with an error description on schema/parse failure.
+   * @param path Path to the portals JSON (e.g. "data/portals/world.json").
+   * @return Loaded portals in tile-grid space, empty if file is absent, or
+   *         std::unexpected with an error description on schema/parse failure.
    */
-  [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const std::string &path, float tile_w,
-                                                                             float tile_h);
+  [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const std::string &path);
 
 } // namespace corundum::gameplay::world
