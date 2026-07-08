@@ -50,7 +50,7 @@ namespace tools::tilemap {
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
     const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
-    const auto tiles = layer.view(state.map.width, state.map.height);
+    const auto tiles = state.map.layer_view(layer);
 
     for (int row = 0; row < state.map.height; ++row) {
       for (int col = 0; col < state.map.width; ++col) {

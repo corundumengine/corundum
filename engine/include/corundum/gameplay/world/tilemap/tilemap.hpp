@@ -110,20 +110,48 @@ namespace corundum::gameplay::world::tilemap {
                                         ///< The elevation delta it bridges is inferred from its two
                                         ///< axis-neighbors' elevation_at() values, never stored directly.
 
-    /// 2D mdspan view over the tile grid — rows × cols layout.
-    /// @pre tiles.size() == width * height
-    [[nodiscard]] auto view(int width, int height) noexcept {
-      return std::mdspan<TileId, std::dextents<int, 2>>(tiles.data(), height, width);
-    }
+    /// Sentinel for baked_animation_index meaning "this cell isn't animated".
+    static constexpr uint32_t k_no_animation = std::numeric_limits<uint32_t>::max();
 
-    /// Const overload of view().
-    [[nodiscard]] auto view(int width, int height) const noexcept {
-      return std::mdspan<const TileId, std::dextents<int, 2>>(tiles.data(), height, width);
-    }
+    /// Baked render cache: cell_index → flip bitmask (0 = none). Populated by bake_render_cache();
+    /// empty until baked. Lets the per-tile-per-frame render path do a flat array read instead of
+    /// a flip_flags.find() (sorted-vector binary search via std::flat_map) every tile every frame.
+    std::vector<uint8_t> baked_flip_flags;
+
+    /// Baked render cache: cell_index → index into baked_animations, or k_no_animation. The sparse
+    /// animated_cells map is compacted into dense storage at bake time so per-frame lookup is a
+    /// flat array read instead of a std::flat_map probe. Populated by bake_render_cache().
+    std::vector<uint32_t> baked_animation_index;
+    std::vector<AnimatedCell> baked_animations; ///< Dense storage indexed by baked_animation_index.
 
     /// Tile GID at (col, row); undefined behaviour if out of bounds.
     [[nodiscard]] TileId at(int col, int row, int width) const noexcept {
       return tiles[static_cast<std::size_t>(row * width + col)];
+    }
+
+    /// Populates baked_flip_flags / baked_animation_index / baked_animations from flip_flags and
+    /// animated_cells. Call once after this layer's tiles/flip_flags/animated_cells are finalized
+    /// (see load_tilemap()) — the render hot path (resolve_tile_cell) reads only the baked arrays.
+    /// @note The tilesmith editor mutates flip_flags/animated_cells directly and never calls this,
+    /// so it reads the flat_maps themselves; re-run this if a loaded Tilemap's layers are ever
+    /// mutated and then handed to the game renderer.
+    void bake_render_cache(int width, int height) {
+      const auto n = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+
+      baked_flip_flags.assign(n, uint8_t{0});
+      for (const auto &[idx, flags] : flip_flags)
+        if (idx >= 0 && static_cast<std::size_t>(idx) < n)
+          baked_flip_flags[static_cast<std::size_t>(idx)] = flags;
+
+      baked_animation_index.assign(n, k_no_animation);
+      baked_animations.clear();
+      baked_animations.reserve(animated_cells.size());
+      for (const auto &[idx, anim] : animated_cells) {
+        if (idx < 0 || static_cast<std::size_t>(idx) >= n)
+          continue;
+        baked_animation_index[static_cast<std::size_t>(idx)] = static_cast<uint32_t>(baked_animations.size());
+        baked_animations.push_back(anim);
+      }
     }
   };
 
@@ -395,6 +423,20 @@ namespace corundum::gameplay::world::tilemap {
       if (iso_diamond_h > 0)
         return iso_diamond_h;
       return diamond_w() / 2;
+    }
+
+    /// 2D mdspan view over @p layer's tile grid — rows × cols layout. Lives on Tilemap
+    /// (not TilemapLayer) since width/height are Tilemap-owned; layer doesn't self-construct.
+    /// @pre &layer must belong to this Tilemap's layers, and layer.tiles.size() == width * height.
+    [[nodiscard]] auto layer_view(TilemapLayer &layer) noexcept {
+      return std::mdspan<TileId, std::dextents<std::size_t, 2>>(layer.tiles.data(), static_cast<std::size_t>(height),
+                                                                static_cast<std::size_t>(width));
+    }
+
+    /// Const overload of layer_view().
+    [[nodiscard]] auto layer_view(const TilemapLayer &layer) const noexcept {
+      return std::mdspan<const TileId, std::dextents<std::size_t, 2>>(
+          layer.tiles.data(), static_cast<std::size_t>(height), static_cast<std::size_t>(width));
     }
   };
 

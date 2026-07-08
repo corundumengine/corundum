@@ -95,7 +95,7 @@ namespace tools::tilemap {
       if (!layer.visible || layer.z_index != z_index)
         continue;
 
-      const auto tiles = layer.view(map.width, map.height);
+      const auto tiles = map.layer_view(layer);
 
       for (int depth = 0; depth <= depth_max; ++depth) {
         const int col_lo = std::max(0, depth - (map.height - 1));

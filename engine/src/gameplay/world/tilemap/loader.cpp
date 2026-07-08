@@ -879,9 +879,18 @@ namespace corundum::gameplay::world::tilemap {
         }
       }
 
-      layers.push_back(TilemapLayer{layer_name, z_index, true, std::move(tiles), std::move(animated_cells),
-                                    std::move(flip_flags), std::move(elevation), std::move(material_overrides),
-                                    std::move(ramps)});
+      layers.push_back(TilemapLayer{
+          .name = layer_name,
+          .z_index = z_index,
+          .visible = true,
+          .tiles = std::move(tiles),
+          .animated_cells = std::move(animated_cells),
+          .flip_flags = std::move(flip_flags),
+          .elevation = std::move(elevation),
+          .material_overrides = std::move(material_overrides),
+          .ramps = std::move(ramps),
+      });
+      layers.back().bake_render_cache(width, height);
     }
 
     return Tilemap{path.string(),

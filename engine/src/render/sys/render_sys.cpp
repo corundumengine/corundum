@@ -534,10 +534,12 @@ namespace corundum::render::sys {
                                                        int col, int row, const corundum::core::GameConfig &cfg,
                                                        const corundum::gameplay::world::Scene &scene) {
     const int cell_idx = row * tilemap.width + col;
+    const auto cell_uidx = static_cast<std::size_t>(cell_idx);
 
     corundum::gameplay::world::tilemap::TileId gid;
-    if (auto it = layer.animated_cells.find(cell_idx); it != layer.animated_cells.end()) {
-      const auto &anim = it->second;
+    const uint32_t anim_idx = layer.baked_animation_index[cell_uidx];
+    if (anim_idx != corundum::gameplay::world::tilemap::TilemapLayer::k_no_animation) {
+      const auto &anim = layer.baked_animations[anim_idx];
       if (anim.frame_gids.empty()) [[unlikely]]
         return std::nullopt;
       const auto n = anim.frame_gids.size();
@@ -561,14 +563,9 @@ namespace corundum::render::sys {
 
     const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
 
-    bool flip_x = false;
-    bool flip_y = false;
-    if (auto fit = layer.flip_flags.find(cell_idx); fit != layer.flip_flags.end()) {
-      if (fit->second & corundum::gameplay::world::tilemap::k_flip_h)
-        flip_x = true;
-      if (fit->second & corundum::gameplay::world::tilemap::k_flip_v)
-        flip_y = true;
-    }
+    const uint8_t flags = layer.baked_flip_flags[cell_uidx];
+    const bool flip_x = (flags & corundum::gameplay::world::tilemap::k_flip_h) != 0;
+    const bool flip_y = (flags & corundum::gameplay::world::tilemap::k_flip_v) != 0;
 
     const int elev = (!layer.elevation.empty() && cell_idx < static_cast<int>(layer.elevation.size()))
                          ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])

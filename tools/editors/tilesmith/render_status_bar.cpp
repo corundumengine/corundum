@@ -40,7 +40,7 @@ namespace tools::tilemap {
                              state.active_layer < static_cast<int>(state.map.layers.size());
     if (hover_valid) {
       const auto &layer = state.map.layers[static_cast<std::size_t>(state.active_layer)];
-      const auto hover_gid = layer.view(state.map.width, state.map.height)[state.hover_tile_row, state.hover_tile_col];
+      const auto hover_gid = state.map.layer_view(layer)[state.hover_tile_row, state.hover_tile_col];
       if (hover_gid == corundum::gameplay::world::tilemap::k_empty_tile) {
         hover_label = std::format("  [hover ({},{}): empty]", state.hover_tile_col, state.hover_tile_row);
       } else {
