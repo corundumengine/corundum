@@ -622,9 +622,15 @@ namespace tools::tilemap {
       }
     }
 
-    // --- Mouse wheel (only over palette panel; the flow layout has no columns, so only vertical
-    // scroll applies) ---
-    if (over_panel && io.MouseWheel != 0.f && !state.map.tilesets.empty()) {
+    // --- Mouse wheel over the palette panel: Ctrl+scroll zooms (palette_tile_scale is user-
+    // controlled, not auto-fit — see render_tile_grid.cpp), plain scroll pans vertically (the flow
+    // layout has no columns, so only vertical scroll applies). ---
+    const bool wheel_over_palette = over_panel && io.MouseWheel != 0.f && !state.map.tilesets.empty();
+    if (wheel_over_palette && io.KeyCtrl) {
+      constexpr float k_zoom_step = 0.1f;
+      state.palette_tile_scale =
+          std::clamp(state.palette_tile_scale + io.MouseWheel * k_zoom_step, k_palette_min_scale, k_palette_max_scale);
+    } else if (wheel_over_palette) {
       const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
       const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
       int content_h = 0;

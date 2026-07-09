@@ -9,7 +9,6 @@
 #include <format>
 #include <imgui.h>
 #include <print>
-#include <ranges>
 #include <string>
 
 namespace tools::tilemap {
@@ -310,16 +309,9 @@ namespace tools::tilemap {
     const float tex_h = static_cast<float>(view.tex_h);
     const ImTextureID tex_id = view.tex_id;
 
-    // Target ~48px display cells for the tileset's largest tile, so nothing overflows a cell; small
-    // tiles are drawn smaller in proportion rather than padded up to match, since there's no longer
-    // a uniform frame size to normalize against.
-    constexpr float k_palette_target_px = 48.f;
-    constexpr float k_palette_max_scale = 2.f;
-    const int max_tile_w =
-        std::ranges::max(ts.info.tile_rects | std::views::transform(&corundum::core::math::IntRect::width));
-    state.palette_tile_scale =
-        std::clamp(k_palette_target_px / static_cast<float>(max_tile_w), 0.05f, k_palette_max_scale);
-
+    // palette_tile_scale is user-controlled (Ctrl+scroll, see input.cpp), not auto-fit to any one
+    // tile — a packed tileset can mix wildly different native sizes, so there's no single "target"
+    // tile size that would display everything else at a readable scale.
     const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.f, 0.f});

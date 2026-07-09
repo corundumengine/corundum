@@ -90,6 +90,10 @@ namespace tools::tilemap {
   /// Padding in pixels between adjacent palette cells, both horizontally and between rows.
   inline constexpr int k_palette_cell_padding = 2;
 
+  /// Clamp range for EditorState::palette_tile_scale (user zoom via Ctrl+scroll; see input.cpp).
+  inline constexpr float k_palette_min_scale = 0.25f;
+  inline constexpr float k_palette_max_scale = 4.f;
+
   /**
    * @brief Lays out every tile in @p ts as a left-to-right, top-to-bottom flow (wrapping to a new
    * row when a tile would exceed @p available_w), since a MaxRects-packed tileset has no uniform

@@ -28,7 +28,12 @@ namespace tools::tilemap {
 
     corundum::gameplay::world::Camera camera; ///< Viewport scroll position in world pixels.
     float tile_scale = 2.f;                   ///< Canvas render scale factor (1 = native, 2 = 2x, etc.).
-    float palette_tile_scale = 2.f; ///< Scale used to display tiles in the palette panel (independent of canvas zoom).
+    /// User-controlled zoom for the palette panel (independent of canvas zoom); 1 = native pixel
+    /// size. Not auto-fit to any particular tile — packed tilesets can mix wildly different native
+    /// sizes, so picking one "target" tile to fit would shrink or blow up everything else. Adjust
+    /// with Ctrl+scroll over the palette (see input.cpp); clamped to [k_palette_min_scale,
+    /// k_palette_max_scale].
+    float palette_tile_scale = 1.f;
 
     bool dirty = false;               ///< True when unsaved changes exist.
     bool show_grid = true;            ///< Whether to draw the isometric grid overlay.
