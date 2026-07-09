@@ -12,13 +12,13 @@
 
 namespace corundum::gameplay::world::tilemap {
 
-  // Zero-based index into the tileset grid (col = id % columns, row = id / columns).
+  // Zero-based index into a tileset's flat per-tile arrays (TilesetInfo::tile_rects etc.).
   // 0xFFFF is reserved as "empty / transparent" — renderer skips it.
   using TileId = uint16_t;
   inline constexpr TileId k_empty_tile = 0xFFFF;
 
-  /// Named animation clip defined in a tileset JSON.
-  /// frames are local tile IDs (column-major index within the tileset PNG grid).
+  /// Named animation clip defined in a tileset JSON. frames are local tile IDs (indices into the
+  /// owning tileset's per-tile arrays).
   struct TileAnimation {
     std::vector<int> frames;
     float fps = 5.f;
@@ -38,48 +38,39 @@ namespace corundum::gameplay::world::tilemap {
     int h = 1; ///< Height in tiles (>= 1).
   };
 
-  /// The visible (non-transparent) content region of a sprite within its frame, in raw (unscaled)
-  /// pixels, relative to the frame's own top-left corner. Set in TilesetInfo::trims when spritepacker
-  /// auto-detects that a sprite's real content doesn't fill its whole frame (see spritepacker's
-  /// alpha-channel bounding-box scan) — e.g. mixed-size source art packed into a uniform grid sized
-  /// for the largest sprite. Absent == the whole frame is content (x=0, y=0, w=frame_width,
-  /// h=frame_height), the common case.
-  struct SpriteTrim {
-    int x = 0;
-    int y = 0;
-    int w = 0;
-    int h = 0;
-  };
-
-  /// A sprite's anchor point, as a fraction of its *full* frame (not the trimmed content — see
-  /// SpriteTrim). Horizontal is measured from the left edge (0 = left); vertical is measured from
-  /// the bottom edge (0 = bottom), matching the Unity convention most asset packs document their
-  /// pivot in. This is asset-pack-specific data (e.g. a pack's "ground contact point" convention)
-  /// that can't be derived from pixels the way SpriteTrim can — it has to come from the pack's own
-  /// documentation or authoring tool.
-  struct TilePivot {
-    float x = 0.5f;
-    float y = 0.f;
-  };
-
-  /// Metadata about the tileset PNG — owned by core, used by platform.
+  /// Metadata about the tileset PNG — owned by core, used by platform. Loaded directly from a
+  /// spritepacker atlas JSON (schema_version 2): local_id is the tile's index into the atlas's
+  /// `sprites[]` array, and every per-tile field below is dense (one entry per local_id, size ==
+  /// tile_count) rather than a sparse override on a tileset-wide default — spritepacker already
+  /// computes trim and pivot per sprite, so there's no shared default left to override.
   struct TilesetInfo {
     std::string path;
     std::string source;
-    int frame_width = 0;
-    int frame_height = 0;
-    int columns = 0;
-    int rows = 0;
-    float pivot_x = 0.5f; ///< Default pivot for tiles with no per-tile override (see pivot_overrides).
-    float pivot_y = 0.f;  ///< Same convention as TilePivot::y.
+    int tile_count = 0;
+
+    // Per-tile data, parallel arrays indexed by local_id (size == tile_count).
+    std::vector<corundum::core::math::IntRect> tile_rects; ///< Sampled (already-trimmed) rect in the
+                                                           ///< atlas texture — ready to use directly
+                                                           ///< as a texture source rect.
+    std::vector<int> tile_full_width;                      ///< Original (untrimmed) sprite canvas width, from
+                                                           ///< spritepacker's source_width. Used to scale pivot into
+                                                           ///< pixels, since the trimmed rect alone can't recover it.
+    std::vector<int> tile_full_height;                     ///< Same, for source_height.
+    std::vector<int> tile_trim_x;                          ///< Offset from the untrimmed canvas's top-left corner to
+                                                           ///< tile_rects' content, from spritepacker's trim_x.
+    std::vector<int> tile_trim_y;                          ///< Same, for trim_y.
+    std::vector<float> tile_pivot_x;                       ///< Anchor point as a fraction of the *full* (untrimmed)
+                                                           ///< frame, left = 0. From spritepacker's pivot_x, converted
+                                                           ///< from the trimmed-box basis it's authored in.
+    std::vector<float> tile_pivot_y;                       ///< Same, for the vertical anchor, bottom = 0 (matching the
+                                     ///< isometric ground-contact convention used elsewhere in this
+                                     ///< codebase) — inverted from spritepacker's pivot_y, which
+                                     ///< measures from the top in raster (image-row) convention.
+    std::vector<std::string> tile_names; ///< Sprite name from the atlas; used by tilesmith's palette.
+
     std::flat_map<std::string, TileAnimation> animations; ///< name → animation
     std::flat_map<int, TileFootprint> tile_footprints;    ///< local_id → footprint; absent = 1×1.
     std::string material; ///< Default terrain-material tag (footstep/ambient audio selection); empty == none.
-    std::flat_map<int, SpriteTrim> trims;          ///< local_id → visible content region; absent == full frame.
-    std::flat_map<int, TilePivot> pivot_overrides; ///< local_id → pivot override (e.g. a cliff tile that
-                                                   ///< needs a different ground-contact point than the
-                                                   ///< tileset default to blend with neighbors); absent
-                                                   ///< == use pivot_x/pivot_y above.
   };
 
   /// Bitmask for horizontal flip. Set in TilemapLayer::flip_flags.
@@ -156,7 +147,7 @@ namespace corundum::gameplay::world::tilemap {
   };
 
   /// One tileset entry in a map's tileset table.
-  /// first_gid is the GID assigned to local tile 0; tile_count = columns * rows.
+  /// first_gid is the GID assigned to local tile 0; tile_count == info.tile_count.
   struct TilemapTileset {
     TilesetInfo info;
     TileId first_gid = 0;
@@ -201,38 +192,53 @@ namespace corundum::gameplay::world::tilemap {
     return get_tile_footprint(ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid));
   }
 
-  /// Returns the visible-content trim rect for @p local_id in @p info, defaulting to the full frame
-  /// (x=0, y=0, w=frame_width, h=frame_height) when absent. The pivot (TilesetInfo::pivot_x/pivot_y)
-  /// is always measured against the *full* frame, not the trimmed rect — that's what keeps sprites
-  /// sharing one canvas convention (e.g. a wall body and its separately-authored topper decoration)
-  /// correctly aligned to each other, regardless of how much padding either one had trimmed away.
-  [[nodiscard]] inline SpriteTrim get_sprite_trim(const TilesetInfo &info, int local_id) noexcept {
-    if (auto it = info.trims.find(local_id); it != info.trims.end())
-      return it->second;
-    return {0, 0, info.frame_width, info.frame_height};
-  }
+  /// A tile's anchor point, as a fraction of its *full* (untrimmed) frame — horizontal measured from
+  /// the left edge (0 = left), vertical from the bottom edge (0 = bottom). Sourced from
+  /// TilesetInfo::tile_pivot_x/y, which the loader converts from spritepacker's trimmed-box, raster
+  /// (top=0) convention into this full-frame, bottom-origin one.
+  struct TilePivot {
+    float x = 0.5f;
+    float y = 0.f;
+  };
 
-  /// Returns the pivot for @p local_id in @p info: the per-tile override if one was recorded (e.g.
-  /// a cliff tile needing a different ground-contact point to blend with neighbors), otherwise the
-  /// tileset's own default (pivot_x/pivot_y).
+  /// Returns the pivot for @p local_id in @p info; {0.5, 0} if local_id is out of range.
   [[nodiscard]] inline TilePivot get_tile_pivot(const TilesetInfo &info, int local_id) noexcept {
-    if (auto it = info.pivot_overrides.find(local_id); it != info.pivot_overrides.end())
-      return it->second;
-    return {info.pivot_x, info.pivot_y};
+    if (local_id < 0 || static_cast<std::size_t>(local_id) >= info.tile_pivot_x.size())
+      return {};
+    const auto i = static_cast<std::size_t>(local_id);
+    return {info.tile_pivot_x[i], info.tile_pivot_y[i]};
   }
 
-  /// Returns the source rect in the tileset texture for @p gid — the trimmed visible-content region
-  /// (see get_sprite_trim()) if one was recorded, otherwise the full frame cell.
+  /// A tile's placement data relative to its own full (untrimmed) frame: how far the sampled,
+  /// already-trimmed tile_rects entry is offset from that frame's top-left corner (trim_x/trim_y),
+  /// and the frame's own size (full_width/full_height) — needed to scale TilePivot into pixels,
+  /// since the trimmed rect alone can't recover the original canvas size.
+  struct TileFrameOffset {
+    int trim_x = 0;
+    int trim_y = 0;
+    int full_width = 0;
+    int full_height = 0;
+  };
+
+  /// Returns the frame offset/size for @p local_id in @p info; all-zero if local_id is out of range.
+  [[nodiscard]] inline TileFrameOffset get_tile_frame_offset(const TilesetInfo &info, int local_id) noexcept {
+    if (local_id < 0 || static_cast<std::size_t>(local_id) >= info.tile_trim_x.size())
+      return {};
+    const auto i = static_cast<std::size_t>(local_id);
+    return {info.tile_trim_x[i], info.tile_trim_y[i], info.tile_full_width[i], info.tile_full_height[i]};
+  }
+
+  /// Returns the source rect in the tileset texture for @p gid — spritepacker already trims and
+  /// packs tightly, so this is a direct array read, not a computed grid cell.
   /// @param ts Tileset entry that owns gid (caller must use find_tileset first).
   /// @param gid Global tile ID.
-  /// @return Source rectangle, in pixels, within the tileset texture for this tile.
-  /// @pre ts.info.columns > 0
+  /// @return Source rectangle, in pixels, within the tileset texture for this tile; all-zero if gid
+  ///         resolves to a local_id outside the tileset's range.
   [[nodiscard]] inline corundum::core::math::IntRect tile_source_rect(const TilemapTileset &ts, TileId gid) noexcept {
     const int local_id = static_cast<int>(gid) - static_cast<int>(ts.first_gid);
-    const int src_col = local_id % ts.info.columns;
-    const int src_row = local_id / ts.info.columns;
-    const SpriteTrim trim = get_sprite_trim(ts.info, local_id);
-    return {src_col * ts.info.frame_width + trim.x, src_row * ts.info.frame_height + trim.y, trim.w, trim.h};
+    if (local_id < 0 || static_cast<std::size_t>(local_id) >= ts.info.tile_rects.size())
+      return {};
+    return ts.info.tile_rects[static_cast<std::size_t>(local_id)];
   }
 
   /// Axis-aligned rectangle in tile-grid space.
@@ -411,11 +417,14 @@ namespace corundum::gameplay::world::tilemap {
     CollisionRects collisions;              ///< Impassable rects in Tiled pixel space; empty if absent.
     CollisionTriangles collision_triangles; ///< Diagonal half-tile collision shapes; empty if absent.
 
-    /// Effective isometric diamond width (world step), falling back to frame_width if not set.
+    /// Effective isometric diamond width (world step), falling back to the first tileset's first
+    /// tile's full frame width if not set.
     [[nodiscard]] int diamond_w() const noexcept {
       if (iso_diamond_w > 0)
         return iso_diamond_w;
-      return tilesets.empty() ? 0 : tilesets[0].info.frame_width;
+      if (tilesets.empty() || tilesets[0].info.tile_full_width.empty())
+        return 0;
+      return tilesets[0].info.tile_full_width[0];
     }
 
     /// Effective isometric diamond height, falling back to diamond_w / 2 if not set.

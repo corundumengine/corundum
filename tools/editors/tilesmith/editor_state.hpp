@@ -19,11 +19,12 @@ namespace tools::tilemap {
 
     int active_layer = 0;                                        ///< Index of the currently selected layer.
     corundum::gameplay::world::tilemap::TileId selected_gid = 0; ///< GID of the tile selected in the palette.
-    uint8_t selected_flip = 0;   ///< k_flip_h | k_flip_v bitmask for the next paint operation.
-    int palette_tileset_idx = 0; ///< Index of the active tileset tab.
-    int palette_scroll_row = 0;  ///< First visible row in the palette tile grid.
-    int palette_scroll_col = 0;  ///< First visible column in the palette tile grid.
-    int palette_tabbar_h = 28;   ///< Measured ImGui tab bar height (updated each frame).
+    uint8_t selected_flip = 0;    ///< k_flip_h | k_flip_v bitmask for the next paint operation.
+    int palette_tileset_idx = 0;  ///< Index of the active tileset tab.
+    float palette_scroll_y = 0.f; ///< Vertical scroll offset in pixels within the palette's flow
+                                  ///< layout (tiles have no uniform size, so there's no fixed row
+                                  ///< height to scroll by — see compute_palette_layout()).
+    int palette_tabbar_h = 28;    ///< Measured ImGui tab bar height (updated each frame).
 
     corundum::gameplay::world::Camera camera; ///< Viewport scroll position in world pixels.
     float tile_scale = 2.f;                   ///< Canvas render scale factor (1 = native, 2 = 2x, etc.).

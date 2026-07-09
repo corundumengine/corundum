@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <string>
 
 namespace fs = std::filesystem;
@@ -26,18 +27,38 @@ namespace {
     return p;
   }
 
-  constexpr std::string_view TILESET_A_JSON =
-      R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,"columns":8,"rows":4})";
+  // Builds a spritepacker atlas JSON (schema_version 2) with `count` sprites named "tile_0".."tile_
+  // {count-1}", each tile_w x tile_h, laid out in a single non-overlapping row — geometry doesn't
+  // need to be visually valid, just structurally valid for the loader. No trim, bottom-center pivot
+  // (spritepacker's default), matching what a real pack run would emit for untrimmed square tiles.
+  std::string make_atlas_json(const std::string &path, int count, int tile_w, int tile_h) {
+    std::string sprites;
+    for (int i = 0; i < count; ++i) {
+      if (i > 0)
+        sprites += ",";
+      sprites += std::format(R"({{"name":"tile_{}","x":{},"y":0,"w":{},"h":{},)"
+                             R"("trim_x":0,"trim_y":0,"source_width":{},"source_height":{},)"
+                             R"("pivot_x":0.5,"pivot_y":1.0}})",
+                             i, i * tile_w, tile_w, tile_h, tile_w, tile_h);
+    }
+    return std::format(R"({{"schema_version":2,"path":"{}","width":{},"height":{},"sprites":[{}]}})", path,
+                       count * tile_w, tile_h, sprites);
+  }
 
-  constexpr std::string_view TILESET_B_JSON =
-      R"({"path":"game/assets/textures/tileset2.png","frame_width":16,"frame_height":16,"columns":4,"rows":4})";
+  std::string tileset_a_json() {
+    return make_atlas_json("game/assets/textures/tileset.png", 32, 16, 16);
+  }
+
+  std::string tileset_b_json() {
+    return make_atlas_json("game/assets/textures/tileset2.png", 16, 16, 16);
+  }
 
   // Builds a minimal single-tileset 2×1 map using tileset A (32 tiles, GIDs 0–31).
   // extra_tiles is the comma-separated row string for the single layer row.
   fs::path make_single_tileset_map(const fs::path &dir, std::string_view extra_tiles = "0,0") {
     const auto ts_path = dir / "tileset_a.json";
     const auto map_path = dir / "map.json";
-    write_file(ts_path, TILESET_A_JSON);
+    write_file(ts_path, tileset_a_json());
 
     std::string content;
     content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
@@ -53,7 +74,7 @@ namespace {
   fs::path make_schema_map(const fs::path &dir, int version) {
     const auto ts_path = dir / "tileset_a.json";
     const auto map_path = dir / "map.json";
-    write_file(ts_path, TILESET_A_JSON);
+    write_file(ts_path, tileset_a_json());
 
     std::string content;
     content += std::format(R"({{"id":"test","schema_version":{},"tilesets":[{{"first_gid":0,"source":")", version);
@@ -112,7 +133,6 @@ TEST_CASE("load_tilemap — single tileset map") {
   REQUIRE(m.tilesets.size() == 1);
   CHECK(m.tilesets[0].first_gid == 0);
   CHECK(m.tilesets[0].tile_count == 32);
-  CHECK(m.tilesets[0].info.columns == 8);
   REQUIRE(m.layers.size() == 1);
   CHECK(m.layers[0].name == "ground");
   CHECK(m.layers[0].tiles[0] == 0);
@@ -125,8 +145,8 @@ TEST_CASE("load_tilemap — two tilesets, correct first_gid and tile_count") {
   const auto dir = temp_dir("multi");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
-  write_file(ts_a, TILESET_A_JSON); // 8×4 = 32 tiles
-  write_file(ts_b, TILESET_B_JSON); // 4×4 = 16 tiles
+  write_file(ts_a, tileset_a_json()); // 8×4 = 32 tiles
+  write_file(ts_b, tileset_b_json()); // 4×4 = 16 tiles
 
   std::string content;
   content += R"({"id":"multi","tilesets":[{"first_gid":0,"source":")";
@@ -153,8 +173,8 @@ TEST_CASE("load_tilemap — tilesets are sorted by first_gid even if JSON is uno
   const auto dir = temp_dir("sort");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
-  write_file(ts_a, TILESET_A_JSON);
-  write_file(ts_b, TILESET_B_JSON);
+  write_file(ts_a, tileset_a_json());
+  write_file(ts_b, tileset_b_json());
 
   // Provide tilesets in reverse order in JSON
   std::string content;
@@ -191,7 +211,7 @@ TEST_CASE("load_tilemap — old 'tileset' string key throws") {
   const auto dir = temp_dir("old_format");
   const auto ts_path = dir / "ts.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"old","tileset":")";
@@ -209,7 +229,7 @@ TEST_CASE("load_tilemap — first_gid not starting at 0 throws") {
   const auto dir = temp_dir("no_zero");
   const auto ts_path = dir / "ts.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"nozero","tilesets":[{"first_gid":10,"source":")";
@@ -227,8 +247,8 @@ TEST_CASE("load_tilemap — gap between tilesets throws") {
   const auto dir = temp_dir("gap");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
-  write_file(ts_a, TILESET_A_JSON); // 32 tiles
-  write_file(ts_b, TILESET_B_JSON);
+  write_file(ts_a, tileset_a_json()); // 32 tiles
+  write_file(ts_b, tileset_b_json());
 
   // first_gid=33 leaves a one-tile gap after tileset A (which covers GIDs 0–31)
   std::string content;
@@ -250,8 +270,8 @@ TEST_CASE("load_tilemap — duplicate first_gid throws") {
   const auto dir = temp_dir("dup");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
-  write_file(ts_a, TILESET_A_JSON);
-  write_file(ts_b, TILESET_B_JSON);
+  write_file(ts_a, tileset_a_json());
+  write_file(ts_b, tileset_b_json());
 
   std::string content;
   content += R"({"id":"dup","tilesets":[{"first_gid":0,"source":")";
@@ -291,7 +311,7 @@ TEST_CASE("load_tilemap — collisions array loads correctly") {
   const auto dir = temp_dir("col_load");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
@@ -316,7 +336,7 @@ TEST_CASE("load_tilemap — collision with zero width throws") {
   const auto dir = temp_dir("col_zero_w");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
@@ -333,7 +353,7 @@ TEST_CASE("load_tilemap — collision with zero height throws") {
   const auto dir = temp_dir("col_zero_h");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
@@ -361,7 +381,7 @@ TEST_CASE("load_tilemap — z_index is loaded when present") {
   const auto dir = temp_dir("zidx_present");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
@@ -383,7 +403,7 @@ TEST_CASE("load_tilemap — negative z_index is clamped to 0") {
   const auto dir = temp_dir("zidx_neg");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
@@ -401,7 +421,7 @@ TEST_CASE("load_tilemap — collision element missing field throws") {
   const auto dir = temp_dir("col_missing");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
@@ -448,7 +468,7 @@ TEST_CASE("load_tilemap — schema_version wrong type throws") {
   const auto dir = temp_dir("schema_wrong_type");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"test","schema_version":"1","tilesets":[{"first_gid":0,"source":")";
@@ -465,8 +485,13 @@ TEST_CASE("load_tilemap — schema_version wrong type throws") {
 TEST_CASE("load_tileset — 'material' field is loaded") {
   const auto dir = temp_dir("tileset_material");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
-                      R"("columns":8,"rows":4,"material":"stone"})");
+  const auto atlas = R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":16,"height":16,)"
+                     R"("sprites":[{"name":"tile_0","x":0,"y":0,"w":16,"h":16}]})";
+  write_file(ts_path, atlas);
+  std::ifstream f(ts_path);
+  nlohmann::json j = nlohmann::json::parse(f);
+  j["material"] = "stone";
+  write_file(ts_path, j.dump());
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
@@ -476,130 +501,100 @@ TEST_CASE("load_tileset — 'material' field is loaded") {
 TEST_CASE("load_tileset — absent 'material' field defaults to empty string") {
   const auto dir = temp_dir("tileset_material_absent");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
   CHECK(result->material.empty());
 }
 
-// ── configurable pivot ────────────────────────────────────────────────────────
+// ── per-tile pivot (sourced from spritepacker's own pivot_x/pivot_y per sprite) ────────────────
 
-TEST_CASE("load_tileset — 'pivot_x'/'pivot_y' fields are loaded") {
+TEST_CASE("load_tileset — per-tile pivot is converted from spritepacker's trimmed-box, raster-y "
+          "convention into full-frame, bottom-origin") {
   const auto dir = temp_dir("tileset_pivot");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":128,"frame_height":256,)"
-                      R"("columns":8,"rows":4,"pivot_x":0.5,"pivot_y":0.18})");
+  // No trim (trim_x/trim_y=0, source == trimmed size), so the conversion collapses to just
+  // pivot_x unchanged and pivot_y inverted (spritepacker: 1.0 = bottom; this engine: 0.0 = bottom).
+  write_file(ts_path, R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":128,"height":256,)"
+                      R"("sprites":[{"name":"cliff","x":0,"y":0,"w":128,"h":256,)"
+                      R"("trim_x":0,"trim_y":0,"source_width":128,"source_height":256,)"
+                      R"("pivot_x":0.5,"pivot_y":0.57}]})");
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  CHECK(result->pivot_x == doctest::Approx(0.5));
-  CHECK(result->pivot_y == doctest::Approx(0.18));
+  const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 0);
+  CHECK(pivot.x == doctest::Approx(0.5));
+  CHECK(pivot.y == doctest::Approx(0.43));
 }
 
-TEST_CASE("load_tileset — absent pivot fields default to 0.5/0.0") {
-  const auto dir = temp_dir("tileset_pivot_absent");
+TEST_CASE("load_tileset — spritepacker's default bottom-center pivot (0.5, 1.0) converts to (0.5, 0.0)") {
+  const auto dir = temp_dir("tileset_pivot_default");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json()); // fixture sprites all use pivot_x=0.5, pivot_y=1.0
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  CHECK(result->pivot_x == doctest::Approx(0.5));
-  CHECK(result->pivot_y == doctest::Approx(0.0));
+  const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 0);
+  CHECK(pivot.x == doctest::Approx(0.5));
+  CHECK(pivot.y == doctest::Approx(0.0));
 }
 
-TEST_CASE("load_tileset — 'pivot_y' out of range throws") {
-  const auto dir = temp_dir("tileset_pivot_oob");
+TEST_CASE("load_tileset — get_tile_pivot on an out-of-range local_id returns the {0.5,0} default") {
+  const auto dir = temp_dir("tileset_pivot_oob_lookup");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
-                      R"("columns":8,"rows":4,"pivot_y":1.5})");
-
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
-  CHECK(!result.has_value());
-}
-
-TEST_CASE("load_tileset — 'pivot_overrides' is loaded and resolved via get_tile_pivot") {
-  const auto dir = temp_dir("tileset_pivot_overrides");
-  const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":128,"frame_height":256,)"
-                      R"("columns":8,"rows":4,"pivot_y":0.18,)"
-                      R"("pivot_overrides":[{"col":2,"row":0,"x":0.5,"y":0.43}]})");
+  write_file(ts_path, tileset_a_json());
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const int cliff_local_id = 0 * result->columns + 2; // row 0, col 2 — the overridden cliff tile
-  const auto cliff_pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, cliff_local_id);
-  CHECK(cliff_pivot.x == doctest::Approx(0.5));
-  CHECK(cliff_pivot.y == doctest::Approx(0.43));
-
-  // A tile with no override still resolves to the tileset default.
-  const auto default_pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 0);
-  CHECK(default_pivot.x == doctest::Approx(0.5));
-  CHECK(default_pivot.y == doctest::Approx(0.18));
+  const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 9999);
+  CHECK(pivot.x == doctest::Approx(0.5));
+  CHECK(pivot.y == doctest::Approx(0.0));
 }
 
-TEST_CASE("load_tileset — 'pivot_overrides' with out-of-range x/y throws") {
-  const auto dir = temp_dir("tileset_pivot_overrides_oob");
-  const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
-                      R"("columns":8,"rows":4,)"
-                      R"("pivot_overrides":[{"col":0,"row":0,"x":0.5,"y":-0.1}]})");
+// ── per-tile trim/frame offset ──────────────────────────────────────────────────────────────
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
-  CHECK(!result.has_value());
-}
-
-// ── sprite trim ───────────────────────────────────────────────────────────────
-
-TEST_CASE("load_tileset — 'trims' field is loaded and resolved via get_sprite_trim") {
+TEST_CASE("load_tileset — trim_x/trim_y/source_width/source_height are loaded and resolved via "
+          "get_tile_frame_offset") {
   const auto dir = temp_dir("tileset_trims");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":256,"frame_height":256,)"
-                      R"("columns":8,"rows":4,)"
-                      R"("trims":[{"col":1,"row":0,"x":62,"y":93,"w":132,"h":71}]})");
+  write_file(ts_path, R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":132,"height":71,)"
+                      R"("sprites":[{"name":"a","x":0,"y":0,"w":132,"h":71,)"
+                      R"("trim_x":62,"trim_y":93,"source_width":256,"source_height":256}]})");
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const int local_id = 0 * result->columns + 1; // row 0, col 1
-  const auto trim = corundum::gameplay::world::tilemap::get_sprite_trim(*result, local_id);
-  CHECK(trim.x == 62);
-  CHECK(trim.y == 93);
-  CHECK(trim.w == 132);
-  CHECK(trim.h == 71);
+  const auto frame = corundum::gameplay::world::tilemap::get_tile_frame_offset(*result, 0);
+  CHECK(frame.trim_x == 62);
+  CHECK(frame.trim_y == 93);
+  CHECK(frame.full_width == 256);
+  CHECK(frame.full_height == 256);
 }
 
-TEST_CASE("load_tileset — absent 'trims' field defaults to the full frame via get_sprite_trim") {
+TEST_CASE("load_tileset — sprite omitting trim_x/trim_y/source_width/source_height defaults sensibly") {
   const auto dir = temp_dir("tileset_trims_absent");
   const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":16,"height":16,)"
+                      R"("sprites":[{"name":"a","x":0,"y":0,"w":16,"h":16}]})");
 
   auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const auto trim = corundum::gameplay::world::tilemap::get_sprite_trim(*result, 0);
-  CHECK(trim.x == 0);
-  CHECK(trim.y == 0);
-  CHECK(trim.w == result->frame_width);
-  CHECK(trim.h == result->frame_height);
+  const auto frame = corundum::gameplay::world::tilemap::get_tile_frame_offset(*result, 0);
+  CHECK(frame.trim_x == 0);
+  CHECK(frame.trim_y == 0);
+  CHECK(frame.full_width == 16); // defaults to w/h when source_width/height are absent
+  CHECK(frame.full_height == 16);
 }
 
-TEST_CASE("load_tileset — 'trims' rect extending outside the frame throws") {
-  const auto dir = temp_dir("tileset_trims_oob");
-  const auto ts_path = dir / "tileset_a.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":16,"frame_height":16,)"
-                      R"("columns":8,"rows":4,)"
-                      R"("trims":[{"col":0,"row":0,"x":10,"y":0,"w":10,"h":16}]})");
-
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
-  CHECK(!result.has_value());
-}
-
-TEST_CASE("tile_source_rect — reflects the trimmed rect when present, offset by the tile's cell") {
-  const auto dir = temp_dir("tileset_trims_source_rect");
+TEST_CASE("tile_source_rect — returns the atlas rect directly (already trimmed and packed, no grid "
+          "cell math)") {
+  const auto dir = temp_dir("tileset_source_rect");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, R"({"path":"game/assets/textures/tileset.png","frame_width":256,"frame_height":256,)"
-                      R"("columns":8,"rows":4,)"
-                      R"("trims":[{"col":1,"row":0,"x":62,"y":93,"w":132,"h":71}]})");
+  write_file(ts_path, R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":512,"height":256,)"
+                      R"("sprites":[)"
+                      R"({"name":"tile_0","x":0,"y":0,"w":16,"h":16},)"
+                      R"({"name":"tile_1","x":318,"y":93,"w":132,"h":71}]})");
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
@@ -612,9 +607,8 @@ TEST_CASE("tile_source_rect — reflects the trimmed rect when present, offset b
   const auto *ts = corundum::gameplay::world::tilemap::find_tileset(result->tilesets, 1);
   REQUIRE(ts != nullptr);
   const auto rect = corundum::gameplay::world::tilemap::tile_source_rect(*ts, 1);
-  // Tile GID 1 is local_id 1 -> col 1, row 0 -> cell origin (256, 0), plus the trim's own offset.
-  CHECK(rect.x == 256 + 62);
-  CHECK(rect.y == 0 + 93);
+  CHECK(rect.x == 318);
+  CHECK(rect.y == 93);
   CHECK(rect.width == 132);
   CHECK(rect.height == 71);
 }
@@ -623,7 +617,7 @@ TEST_CASE("load_tilemap — layer 'material_overrides' is loaded") {
   const auto dir = temp_dir("material_overrides");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
@@ -652,7 +646,7 @@ TEST_CASE("load_tilemap — material_overrides entry out of bounds throws") {
   const auto dir = temp_dir("material_overrides_oob");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
@@ -669,7 +663,7 @@ TEST_CASE("load_tilemap — material_overrides entry missing 'material' throws")
   const auto dir = temp_dir("material_overrides_missing_field");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
-  write_file(ts_path, TILESET_A_JSON);
+  write_file(ts_path, tileset_a_json());
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";

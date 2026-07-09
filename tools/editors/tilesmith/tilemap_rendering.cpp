@@ -126,13 +126,6 @@ namespace tools::tilemap {
           const corundum::gameplay::world::tilemap::TilemapTileset *ts =
               corundum::gameplay::world::tilemap::find_tileset(map.tilesets, gid);
 
-          // Full-frame pixel dimensions — independent from the footprint (diamond step). The pivot is
-          // always measured against these, not the trimmed size, so sprites sharing one canvas
-          // convention (e.g. a wall body and its separately-authored topper) stay aligned to each
-          // other regardless of how much padding either one had trimmed away.
-          const float scaled_tw = std::round(static_cast<float>(ts->info.frame_width) * tile_scale);
-          const float scaled_th = std::round(static_cast<float>(ts->info.frame_height) * tile_scale);
-
           const int elev = (!layer.elevation.empty() && static_cast<std::size_t>(cell_idx) < layer.elevation.size())
                                ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
                                : 0;
@@ -142,19 +135,24 @@ namespace tools::tilemap {
           const float iso_x = world.x;
           // Anchor at the southern (bottom) vertex so the tile image fills the diamond cell.
           const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
-          // Pivot offset (against the full frame), then shift by the trim rect's own offset within
-          // that frame — only the trimmed region is actually drawn (see TilesetInfo::trims). Pivot
-          // is per-tile (TilesetInfo::pivot_overrides) since some tiles (e.g. cliffs) need a
-          // different ground-contact point than the tileset default to blend with neighbors.
+          // Pivot and frame size are per-tile (TilesetInfo::tile_pivot_*/tile_full_*), since
+          // spritepacker computes them per sprite — there's no tileset-wide default to fall back to.
+          // Pivot is always measured against the full (untrimmed) frame, not the trimmed size, so
+          // sprites sharing one canvas convention (e.g. a wall body and its separately-authored
+          // topper) stay aligned to each other regardless of how much padding either one had
+          // trimmed away — then shift by the trim offset within that frame; only the trimmed
+          // region (src, already the packed atlas rect) is actually drawn.
           const int local_id = ts ? static_cast<int>(gid) - static_cast<int>(ts->first_gid) : 0;
-          const auto trim = ts ? corundum::gameplay::world::tilemap::get_sprite_trim(ts->info, local_id)
-                               : corundum::gameplay::world::tilemap::SpriteTrim{};
+          const auto frame = ts ? corundum::gameplay::world::tilemap::get_tile_frame_offset(ts->info, local_id)
+                                : corundum::gameplay::world::tilemap::TileFrameOffset{};
           const auto pivot = ts ? corundum::gameplay::world::tilemap::get_tile_pivot(ts->info, local_id)
                                 : corundum::gameplay::world::tilemap::TilePivot{};
-          const float trim_x_px = std::round(static_cast<float>(trim.x) * tile_scale);
-          const float trim_y_px = std::round(static_cast<float>(trim.y) * tile_scale);
-          const float drawn_w = std::round(static_cast<float>(trim.w) * tile_scale);
-          const float drawn_h = std::round(static_cast<float>(trim.h) * tile_scale);
+          const float scaled_tw = std::round(static_cast<float>(frame.full_width) * tile_scale);
+          const float scaled_th = std::round(static_cast<float>(frame.full_height) * tile_scale);
+          const float trim_x_px = std::round(static_cast<float>(frame.trim_x) * tile_scale);
+          const float trim_y_px = std::round(static_cast<float>(frame.trim_y) * tile_scale);
+          const float drawn_w = std::round(static_cast<float>(src.width) * tile_scale);
+          const float drawn_h = std::round(static_cast<float>(src.height) * tile_scale);
           const float pivot_x_px = pivot.x * scaled_tw;
           const float pivot_y_px = (1.f - pivot.y) * scaled_th;
           const float dst_x = ctx.origin.x + iso_x - pivot_x_px + trim_x_px - camera.x;

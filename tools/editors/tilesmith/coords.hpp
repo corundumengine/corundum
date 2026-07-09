@@ -5,6 +5,7 @@
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <optional>
+#include <span>
 
 // Pure coordinate math — no GLFW, no I/O, no rendering.
 // Returns effective isometric world-step width (diamond_w) for a tilemap.
@@ -77,36 +78,77 @@ namespace tools::tilemap {
   }
 
   /**
-   * @brief Convert a palette tile-grid click to an absolute tile GID.
+   * @brief One tile's placement within the palette panel's flow layout, in unscrolled panel-local
+   * pixels (top-left origin at the panel's top-left, before palette_scroll_y is subtracted).
+   */
+  struct PaletteCell {
+    int local_id;
+    int x, y;
+    int w, h;
+  };
+
+  /// Padding in pixels between adjacent palette cells, both horizontally and between rows.
+  inline constexpr int k_palette_cell_padding = 2;
+
+  /**
+   * @brief Lays out every tile in @p ts as a left-to-right, top-to-bottom flow (wrapping to a new
+   * row when a tile would exceed @p available_w), since a MaxRects-packed tileset has no uniform
+   * cell size or column count to lay out as a fixed grid. Each row's height is its tallest tile.
    *
-   * The palette grid mirrors the tileset image directly: column @p scroll_col is
-   * the left-most visible column and @p scroll_row is the top-most visible row.
+   * Shared between rendering (render_tile_grid.cpp) and click hit-testing (this function's
+   * palette_click_to_gid below), so the two can never drift out of sync with each other.
    *
-   * @param panel_local_x, panel_local_y  Position relative to the top-left of the tile grid.
-   * @param ts          Tileset whose tiles are displayed in the grid.
-   * @param scroll_row  First visible row in the tile grid.
-   * @param scroll_col  First visible column in the tile grid.
+   * @param ts          Tileset whose tiles are displayed in the palette.
+   * @param available_w Panel width in pixels to wrap within.
    * @param tile_scale  Display scale factor.
-   * @return Absolute GID, or nullopt if the click is out of bounds.
+   * @return One PaletteCell per tile, in local_id order.
+   */
+  [[nodiscard]] inline std::vector<PaletteCell>
+  compute_palette_layout(const corundum::gameplay::world::tilemap::TilemapTileset &ts, int available_w,
+                         float tile_scale) {
+    std::vector<PaletteCell> cells;
+    cells.reserve(static_cast<std::size_t>(std::max(0, ts.tile_count)));
+    int cursor_x = 0, cursor_y = 0, row_h = 0;
+    for (int i = 0; i < ts.tile_count; ++i) {
+      const auto &rect = ts.info.tile_rects[static_cast<std::size_t>(i)];
+      const int w = std::max(1, static_cast<int>(static_cast<float>(rect.width) * tile_scale));
+      const int h = std::max(1, static_cast<int>(static_cast<float>(rect.height) * tile_scale));
+      if (cursor_x > 0 && cursor_x + w > available_w) {
+        cursor_x = 0;
+        cursor_y += row_h + k_palette_cell_padding;
+        row_h = 0;
+      }
+      cells.push_back({i, cursor_x, cursor_y, w, h});
+      cursor_x += w + k_palette_cell_padding;
+      row_h = std::max(row_h, h);
+    }
+    return cells;
+  }
+
+  /**
+   * @brief Convert a palette panel click to an absolute tile GID, using the same flow layout
+   * compute_palette_layout() produces (and render_tile_grid.cpp draws).
+   *
+   * Callers should compute the layout once (via compute_palette_layout()) and pass it in via @p cells
+   * rather than recomputing on every click.
+   *
+   * @param panel_local_x, panel_local_y  Position relative to the top-left of the palette panel.
+   * @param ts            Tileset whose tiles are displayed in the panel.
+   * @param scroll_y      Vertical scroll offset in pixels (EditorState::palette_scroll_y).
+   * @param cells         Precomputed palette layout — see compute_palette_layout().
+   * @return Absolute GID, or nullopt if the click doesn't land on a tile.
    */
   [[nodiscard]] inline std::optional<corundum::gameplay::world::tilemap::TileId>
   palette_click_to_gid(int panel_local_x, int panel_local_y,
-                       const corundum::gameplay::world::tilemap::TilemapTileset &ts, int scroll_row, int scroll_col,
-                       float tile_scale) noexcept {
-    const int cell_w = std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * tile_scale));
-    const int cell_h = std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_height) * tile_scale));
-
-    const int actual_col = panel_local_x / cell_w + scroll_col;
-    const int actual_row = panel_local_y / cell_h + scroll_row;
-
-    if (actual_col < 0 || actual_col >= ts.info.columns || actual_row < 0)
-      return std::nullopt;
-
-    const int local_id = actual_row * ts.info.columns + actual_col;
-    if (local_id < 0 || local_id >= ts.tile_count)
-      return std::nullopt;
-
-    return static_cast<corundum::gameplay::world::tilemap::TileId>(static_cast<int>(ts.first_gid) + local_id);
+                       const corundum::gameplay::world::tilemap::TilemapTileset &ts, float scroll_y,
+                       std::span<const PaletteCell> cells) noexcept {
+    const int content_y = panel_local_y + static_cast<int>(scroll_y);
+    for (const auto &cell : cells) {
+      if (panel_local_x >= cell.x && panel_local_x < cell.x + cell.w && content_y >= cell.y &&
+          content_y < cell.y + cell.h)
+        return static_cast<corundum::gameplay::world::tilemap::TileId>(static_cast<int>(ts.first_gid) + cell.local_id);
+    }
+    return std::nullopt;
   }
 
   /**

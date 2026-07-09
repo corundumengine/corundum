@@ -1,5 +1,6 @@
 #include "render_tile_grid.hpp"
 #include "common/tool_texture.hpp"
+#include "coords.hpp"
 #include "layout.hpp"
 #include <algorithm>
 #include <cmath>
@@ -8,6 +9,7 @@
 #include <format>
 #include <imgui.h>
 #include <print>
+#include <ranges>
 #include <string>
 
 namespace tools::tilemap {
@@ -76,7 +78,7 @@ namespace tools::tilemap {
       TilemapTileset ts;
       ts.info = std::move(info);
       ts.first_gid = first_gid;
-      ts.tile_count = ts.info.columns * ts.info.rows;
+      ts.tile_count = ts.info.tile_count;
 
       state.map.tilesets.push_back(std::move(ts));
 
@@ -91,8 +93,7 @@ namespace tools::tilemap {
 
       tileset_views = rebuild_tileset_views(app, state.map, texture_store);
       state.palette_tileset_idx = static_cast<int>(tileset_views.size()) - 1;
-      state.palette_scroll_row = 0;
-      state.palette_scroll_col = 0;
+      state.palette_scroll_y = 0.f;
       state.dirty = true;
     }
 
@@ -125,8 +126,7 @@ namespace tools::tilemap {
 
       if (state.palette_tileset_idx >= static_cast<int>(tileset_views.size()))
         state.palette_tileset_idx = std::max(0, static_cast<int>(tileset_views.size()) - 1);
-      state.palette_scroll_row = 0;
-      state.palette_scroll_col = 0;
+      state.palette_scroll_y = 0.f;
       state.dirty = true;
     }
 
@@ -173,8 +173,7 @@ namespace tools::tilemap {
         bool keep = true;
         if (ImGui::BeginTabItem(label.c_str(), &keep)) {
           if (state.palette_tileset_idx != i) {
-            state.palette_scroll_row = 0;
-            state.palette_scroll_col = 0;
+            state.palette_scroll_y = 0.f;
           }
           state.palette_tileset_idx = i;
           ImGui::EndTabItem();
@@ -311,20 +310,17 @@ namespace tools::tilemap {
     const float tex_h = static_cast<float>(view.tex_h);
     const ImTextureID tex_id = view.tex_id;
 
-    // Target ~48px display cells for large tiles; cap at 2x so small tiles
-    // (e.g. 16px) stay at their current 32px display size and don't blow up.
+    // Target ~48px display cells for the tileset's largest tile, so nothing overflows a cell; small
+    // tiles are drawn smaller in proportion rather than padded up to match, since there's no longer
+    // a uniform frame size to normalize against.
     constexpr float k_palette_target_px = 48.f;
     constexpr float k_palette_max_scale = 2.f;
+    const int max_tile_w =
+        std::ranges::max(ts.info.tile_rects | std::views::transform(&corundum::core::math::IntRect::width));
     state.palette_tile_scale =
-        std::clamp(k_palette_target_px / static_cast<float>(ts.info.frame_width), 0.05f, k_palette_max_scale);
+        std::clamp(k_palette_target_px / static_cast<float>(max_tile_w), 0.05f, k_palette_max_scale);
 
-    const int cell_w =
-        std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * state.palette_tile_scale));
-    const int cell_h =
-        std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_height) * state.palette_tile_scale));
-    const int pal_cols = ts.info.columns;
-    const int vis_cols = std::max(1, PALETTE_W / cell_w);
-    const int vis_rows = available_h / cell_h;
+    const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0.f, 0.f});
@@ -340,59 +336,58 @@ namespace tools::tilemap {
     ImGui::PopStyleColor();
     ImGui::PopStyleVar(3);
 
-    bool done = false;
-    for (int vrow = 0; vrow < vis_rows && !done; ++vrow) {
-      const int tile_row = vrow + state.palette_scroll_row;
-      for (int vcol = 0; vcol < vis_cols; ++vcol) {
-        const int actual_col = vcol + state.palette_scroll_col;
-        if (actual_col >= pal_cols)
-          break; // end of columns for this row — continue to next row, don't exit outer loop
-        const int local_id = tile_row * pal_cols + actual_col;
-        if (local_id >= ts.tile_count) {
-          done = true;
-          break;
+    // Checkerboard the whole panel background (not just per-tile) so transparency reads clearly
+    // everywhere, including the empty space around and between variable-sized packed tiles.
+    {
+      constexpr float k_checker_size = 8.f;
+      constexpr ImU32 CHECKER_LIGHT = IM_COL32(180, 180, 180, 255);
+      constexpr ImU32 CHECKER_DARK = IM_COL32(155, 155, 155, 255);
+      const ImVec2 origin = ImGui::GetWindowPos();
+      auto *dl = ImGui::GetWindowDrawList();
+      const int cols = static_cast<int>(std::ceil(static_cast<float>(PALETTE_W) / k_checker_size));
+      const int rows = static_cast<int>(std::ceil(static_cast<float>(available_h) / k_checker_size));
+      for (int cy = 0; cy < rows; ++cy) {
+        for (int cx = 0; cx < cols; ++cx) {
+          const ImVec2 p_min{origin.x + static_cast<float>(cx) * k_checker_size,
+                             origin.y + static_cast<float>(cy) * k_checker_size};
+          const ImVec2 p_max{p_min.x + k_checker_size, p_min.y + k_checker_size};
+          dl->AddRectFilled(p_min, p_max, ((cx + cy) % 2 == 0) ? CHECKER_LIGHT : CHECKER_DARK);
         }
-        const ImVec2 uv0{static_cast<float>(actual_col * ts.info.frame_width) / tex_w,
-                         static_cast<float>(tile_row * ts.info.frame_height) / tex_h};
-        const ImVec2 uv1{uv0.x + static_cast<float>(ts.info.frame_width) / tex_w,
-                         uv0.y + static_cast<float>(ts.info.frame_height) / tex_h};
-        ImGui::SetCursorPos(ImVec2{static_cast<float>(vcol * cell_w), static_cast<float>(vrow * cell_h)});
-        {
-          const ImVec2 p = ImGui::GetCursorScreenPos();
-          const float hw = static_cast<float>(cell_w) * 0.5f;
-          const float hh = static_cast<float>(cell_h) * 0.5f;
-          constexpr ImU32 CHECKER_LIGHT = IM_COL32(180, 180, 180, 255);
-          constexpr ImU32 CHECKER_DARK = IM_COL32(155, 155, 155, 255);
-          auto *dl = ImGui::GetWindowDrawList();
-          for (int cy = 0; cy < 2; ++cy)
-            for (int cx = 0; cx < 2; ++cx)
-              dl->AddRectFilled({p.x + cx * hw, p.y + cy * hh}, {p.x + (cx + 1) * hw, p.y + (cy + 1) * hh},
-                                ((cx + cy) % 2 == 0) ? CHECKER_LIGHT : CHECKER_DARK);
-        }
-        ImGui::Image(tex_id, ImVec2{static_cast<float>(cell_w), static_cast<float>(cell_h)}, uv0, uv1);
       }
+    }
+
+    for (const auto &cell : layout) {
+      const float draw_y = static_cast<float>(cell.y) - state.palette_scroll_y;
+      if (draw_y + static_cast<float>(cell.h) < 0.f || draw_y > static_cast<float>(available_h))
+        continue; // outside the visible scroll range
+      const auto &rect = ts.info.tile_rects[static_cast<std::size_t>(cell.local_id)];
+      const ImVec2 uv0{static_cast<float>(rect.x) / tex_w, static_cast<float>(rect.y) / tex_h};
+      const ImVec2 uv1{static_cast<float>(rect.x + rect.width) / tex_w,
+                       static_cast<float>(rect.y + rect.height) / tex_h};
+      ImGui::SetCursorPos(ImVec2{static_cast<float>(cell.x), draw_y});
+      ImGui::Image(tex_id, ImVec2{static_cast<float>(cell.w), static_cast<float>(cell.h)}, uv0, uv1);
     }
     ImGui::End();
 
     // Selected tile highlight (foreground draw list, on top of tile images)
+    corundum::gameplay::world::tilemap::TilemapTileset &active_ts =
+        state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
     const int sel_local_id = static_cast<int>(state.selected_gid) - static_cast<int>(ts.first_gid);
-    if (sel_local_id >= 0 && sel_local_id < ts.tile_count) {
-      const int sel_col = sel_local_id % ts.info.columns;
-      const int sel_row = sel_local_id / ts.info.columns;
-      const int vis_col_idx = sel_col - state.palette_scroll_col;
-      const int vis_row_idx = sel_row - state.palette_scroll_row;
-      if (vis_col_idx >= 0 && vis_col_idx < vis_cols && vis_row_idx >= 0 && vis_row_idx < vis_rows) {
-        const ImVec2 p_min{static_cast<float>(CANVAS_W + vis_col_idx * cell_w),
-                           static_cast<float>(layer_strip_h + tab_h + vis_row_idx * cell_h)};
-        const ImVec2 p_max{p_min.x + static_cast<float>(cell_w), p_min.y + static_cast<float>(cell_h)};
+    const bool sel_valid = sel_local_id >= 0 && sel_local_id < ts.tile_count;
+    if (sel_valid) {
+      const auto &cell = layout[static_cast<std::size_t>(sel_local_id)];
+      const float draw_y = static_cast<float>(cell.y) - state.palette_scroll_y;
+      if (draw_y + static_cast<float>(cell.h) >= 0.f && draw_y <= static_cast<float>(available_h)) {
+        const ImVec2 p_min{static_cast<float>(CANVAS_W + cell.x), static_cast<float>(layer_strip_h + tab_h) + draw_y};
+        const ImVec2 p_max{p_min.x + static_cast<float>(cell.w), p_min.y + static_cast<float>(cell.h)};
         ImGui::GetForegroundDrawList()->AddRect(p_min, p_max, IM_COL32(255, 200, 0, 255), 0.f, 0, 2.f);
       }
     }
 
-    // ── Origin (pivot) editor ─────────────────────────────────────────────────
-    auto &active_ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
-    float pivot_x = active_ts.info.pivot_x;
-    float pivot_y = active_ts.info.pivot_y;
+    // ── Origin (pivot) editor (edits the selected tile's own pivot — spritepacker computes one per
+    // tile, so there's no tileset-wide default left to edit) ─────────────────────────────────────
+    float pivot_x = sel_valid ? active_ts.info.tile_pivot_x[static_cast<std::size_t>(sel_local_id)] : 0.5f;
+    float pivot_y = sel_valid ? active_ts.info.tile_pivot_y[static_cast<std::size_t>(sel_local_id)] : 0.f;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{6.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
@@ -424,18 +419,18 @@ namespace tools::tilemap {
     if (ImGui::IsItemHovered())
       ImGui::SetTooltip("Vertical pivot\n0 = bottom edge, 1 = top edge");
 
-    if (x_changed || y_changed) {
-      active_ts.info.pivot_x = std::clamp(pivot_x, 0.f, 1.f);
-      active_ts.info.pivot_y = std::clamp(pivot_y, 0.f, 1.f);
+    if (sel_valid && (x_changed || y_changed)) {
+      active_ts.info.tile_pivot_x[static_cast<std::size_t>(sel_local_id)] = std::clamp(pivot_x, 0.f, 1.f);
+      active_ts.info.tile_pivot_y[static_cast<std::size_t>(sel_local_id)] = std::clamp(pivot_y, 0.f, 1.f);
       state.dirty = true;
     }
 
     // ── Footprint editor (per selected tile) ─────────────────────────────────
     ImGui::Spacing();
-    const int fp_local_id = static_cast<int>(state.selected_gid) - static_cast<int>(active_ts.first_gid);
-    const bool fp_sel_valid = fp_local_id >= 0 && fp_local_id < active_ts.tile_count;
-    auto fp = fp_sel_valid ? corundum::gameplay::world::tilemap::get_tile_footprint(active_ts.info, fp_local_id)
-                           : corundum::gameplay::world::tilemap::TileFootprint{};
+    const bool fp_sel_valid = sel_valid;
+    corundum::gameplay::world::tilemap::TileFootprint fp =
+        fp_sel_valid ? corundum::gameplay::world::tilemap::get_tile_footprint(active_ts.info, sel_local_id)
+                     : corundum::gameplay::world::tilemap::TileFootprint{};
     int fp_w = fp.w;
     int fp_h = fp.h;
 
@@ -457,9 +452,9 @@ namespace tools::tilemap {
       fp_w = std::max(1, fp_w);
       fp_h = std::max(1, fp_h);
       if (fp_w == 1 && fp_h == 1)
-        active_ts.info.tile_footprints.erase(fp_local_id);
+        active_ts.info.tile_footprints.erase(sel_local_id);
       else
-        active_ts.info.tile_footprints[fp_local_id] = {fp_w, fp_h};
+        active_ts.info.tile_footprints[sel_local_id] = {fp_w, fp_h};
       state.dirty = true;
     }
 

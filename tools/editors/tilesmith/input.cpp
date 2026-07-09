@@ -58,8 +58,8 @@ namespace tools::tilemap {
     void commit_collision_rect(EditorState &state) noexcept {
       if (!state.collision_dragging || state.map.tilesets.empty())
         return;
-      const int tw = state.map.tilesets[0].info.frame_width;
-      const int th = state.map.tilesets[0].info.frame_height;
+      const int tw = state.map.diamond_w();
+      const int th = state.map.diamond_h();
       corundum::gameplay::world::tilemap::CollisionRect candidate;
       if (state.col_drag_sub_tile) {
         candidate =
@@ -321,8 +321,8 @@ namespace tools::tilemap {
       if (grid_y < 0)
         return;
       const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
-      const auto gid = palette_click_to_gid(grid_x, grid_y, ts, state.palette_scroll_row, state.palette_scroll_col,
-                                            state.palette_tile_scale);
+      const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
+      const auto gid = palette_click_to_gid(grid_x, grid_y, ts, state.palette_scroll_y, layout);
       if (gid)
         state.selected_gid = *gid;
     }
@@ -622,20 +622,17 @@ namespace tools::tilemap {
       }
     }
 
-    // --- Mouse wheel (only over palette panel) ---
+    // --- Mouse wheel (only over palette panel; the flow layout has no columns, so only vertical
+    // scroll applies) ---
     if (over_panel && io.MouseWheel != 0.f && !state.map.tilesets.empty()) {
       const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
-      const int total_rows = (ts.tile_count + ts.info.columns - 1) / ts.info.columns;
-      state.palette_scroll_row -= static_cast<int>(io.MouseWheel);
-      state.palette_scroll_row = std::clamp(state.palette_scroll_row, 0, std::max(0, total_rows - 1));
-    }
-    if (over_panel && io.MouseWheelH != 0.f && !state.map.tilesets.empty()) {
-      const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
-      const int cell_w =
-          std::max(1, static_cast<int>(static_cast<float>(ts.info.frame_width) * state.palette_tile_scale));
-      const int vis_cols = std::max(1, PALETTE_W / cell_w);
-      state.palette_scroll_col -= static_cast<int>(io.MouseWheelH);
-      state.palette_scroll_col = std::clamp(state.palette_scroll_col, 0, std::max(0, ts.info.columns - vis_cols));
+      const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
+      int content_h = 0;
+      for (const auto &cell : layout)
+        content_h = std::max(content_h, cell.y + cell.h);
+      constexpr float k_wheel_scroll_px = 60.f;
+      state.palette_scroll_y -= io.MouseWheel * k_wheel_scroll_px;
+      state.palette_scroll_y = std::clamp(state.palette_scroll_y, 0.f, static_cast<float>(std::max(0, content_h)));
     }
 
     // ── Layer rename popup ──────────────────────────────────────────────────

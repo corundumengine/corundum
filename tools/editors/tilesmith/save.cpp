@@ -147,7 +147,13 @@ namespace tools::tilemap {
         return std::unexpected(res.error());
     }
 
-    // Write updated pivot values back to each tileset source JSON.
+    // Write updated tile_footprints and per-tile pivot back to each tileset source JSON.
+    // tile_footprints are keyed by sprite name (matching load_tileset's on-disk shape). Pivot is
+    // written directly into each tile's own sprites[] entry, converted from this engine's
+    // full-frame/bottom-origin basis back to spritepacker's trimmed-box/top-origin basis — the
+    // exact inverse of the conversion load_tileset() applies at load time:
+    //   full_px = tile_pivot_x * source_width;  full_py = (1 - tile_pivot_y) * source_height
+    //   pivot_x = (full_px - trim_x) / w;       pivot_y = (full_py - trim_y) / h
     for (const auto &saved_ts : state.map.tilesets) {
       if (saved_ts.info.source.empty())
         continue;
@@ -162,15 +168,43 @@ namespace tools::tilemap {
       }
       if (!saved_ts.info.tile_footprints.empty()) {
         nlohmann::json fps_json = nlohmann::json::array();
-        for (const auto &[local_id, tsfp] : saved_ts.info.tile_footprints)
-          fps_json.push_back({{"col", local_id % saved_ts.info.columns},
-                              {"row", local_id / saved_ts.info.columns},
-                              {"w", tsfp.w},
-                              {"h", tsfp.h}});
+        for (const auto &[local_id, tsfp] : saved_ts.info.tile_footprints) {
+          if (local_id < 0 || static_cast<std::size_t>(local_id) >= saved_ts.info.tile_names.size())
+            continue;
+          fps_json.push_back(
+              {{"name", saved_ts.info.tile_names[static_cast<std::size_t>(local_id)]}, {"w", tsfp.w}, {"h", tsfp.h}});
+        }
         tj["tile_footprints"] = std::move(fps_json);
       } else {
         tj.erase("tile_footprints");
       }
+
+      if (tj.contains("sprites") && tj["sprites"].is_array()) {
+        auto &sprites_json = tj["sprites"];
+        const auto &info = saved_ts.info;
+        for (int local_id = 0; local_id < info.tile_count; ++local_id) {
+          const auto i = static_cast<std::size_t>(local_id);
+          if (i >= sprites_json.size() || !sprites_json[i].is_object())
+            continue;
+          // Defensive: only patch the entry if it's still the same sprite we loaded — guards
+          // against the on-disk file having been reordered or hand-edited since load.
+          if (sprites_json[i].value("name", std::string{}) != info.tile_names[i])
+            continue;
+
+          const float full_px = info.tile_pivot_x[i] * static_cast<float>(info.tile_full_width[i]);
+          const float full_py = (1.f - info.tile_pivot_y[i]) * static_cast<float>(info.tile_full_height[i]);
+          const int w = info.tile_rects[i].width;
+          const int h = info.tile_rects[i].height;
+          const float pivot_x =
+              w > 0 ? (full_px - static_cast<float>(info.tile_trim_x[i])) / static_cast<float>(w) : 0.5f;
+          const float pivot_y =
+              h > 0 ? (full_py - static_cast<float>(info.tile_trim_y[i])) / static_cast<float>(h) : 1.f;
+
+          sprites_json[i]["pivot_x"] = pivot_x;
+          sprites_json[i]["pivot_y"] = pivot_y;
+        }
+      }
+
       {
         auto res = corundum::core::write_json(saved_ts.info.source, tj);
         if (!res)

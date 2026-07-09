@@ -25,12 +25,14 @@ namespace tools::tilemap {
 
     // Selected palette tile label.
     std::string tile_label;
-    const auto *ts = corundum::gameplay::world::tilemap::find_tileset(state.map.tilesets, state.selected_gid);
+    const corundum::gameplay::world::tilemap::TilemapTileset *ts =
+        corundum::gameplay::world::tilemap::find_tileset(state.map.tilesets, state.selected_gid);
     if (ts) {
       const int local_id = static_cast<int>(state.selected_gid) - static_cast<int>(ts->first_gid);
-      const int col = local_id % ts->info.columns;
-      const int row = local_id / ts->info.columns;
-      tile_label = std::format("col: {}, row: {}", col, row);
+      const std::string &name = (local_id >= 0 && static_cast<std::size_t>(local_id) < ts->info.tile_names.size())
+                                    ? ts->info.tile_names[static_cast<std::size_t>(local_id)]
+                                    : std::string{};
+      tile_label = name.empty() ? std::format("id: {}", local_id) : std::format("{}", name);
     }
 
     // Hovered tile GID — shows the actual GID stored at the cursor position on the active layer.
@@ -44,12 +46,16 @@ namespace tools::tilemap {
       if (hover_gid == corundum::gameplay::world::tilemap::k_empty_tile) {
         hover_label = std::format("  [hover ({},{}): empty]", state.hover_tile_col, state.hover_tile_row);
       } else {
-        const auto *hover_ts = corundum::gameplay::world::tilemap::find_tileset(state.map.tilesets, hover_gid);
+        const corundum::gameplay::world::tilemap::TilemapTileset *hover_ts =
+            corundum::gameplay::world::tilemap::find_tileset(state.map.tilesets, hover_gid);
         if (hover_ts) {
           const int local_id = static_cast<int>(hover_gid) - static_cast<int>(hover_ts->first_gid);
-          hover_label = std::format("  [hover ({},{}): GID {} local_id {} (sheet col {}, row {})]",
-                                    state.hover_tile_col, state.hover_tile_row, hover_gid, local_id,
-                                    local_id % hover_ts->info.columns, local_id / hover_ts->info.columns);
+          const std::string &name =
+              (local_id >= 0 && static_cast<std::size_t>(local_id) < hover_ts->info.tile_names.size())
+                  ? hover_ts->info.tile_names[static_cast<std::size_t>(local_id)]
+                  : std::string{};
+          hover_label = std::format("  [hover ({},{}): GID {} local_id {} ({})]", state.hover_tile_col,
+                                    state.hover_tile_row, hover_gid, local_id, name.empty() ? "?" : name);
         } else {
           hover_label = std::format("  [hover ({},{}): GID {} (no tileset)]", state.hover_tile_col,
                                     state.hover_tile_row, hover_gid);

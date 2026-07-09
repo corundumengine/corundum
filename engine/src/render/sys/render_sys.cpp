@@ -370,10 +370,15 @@ namespace corundum::render::sys {
     corundum::gameplay::ui::dialog_box_render(state.dialog_box, r);
   }
 
+  /// Returns the full (untrimmed) frame width of the first tile in the active chunk's first
+  /// tileset, in pixels. Used as the isometric diamond width fallback when the tilemap has no
+  /// explicit @c iso_diamond_w. Returns 0 when no geometry is available — callers must treat 0 as
+  /// "invalid / not yet loaded" and not divide by this value.
   int first_chunk_tile_px(const data::RenderState &state) noexcept {
     if (state.active_chunks.empty() || state.active_chunks[0].tilemap.tilesets.empty())
       return 0;
-    return state.active_chunks[0].tilemap.tilesets[0].info.frame_width;
+    const auto &info = state.active_chunks[0].tilemap.tilesets[0].info;
+    return info.tile_full_width.empty() ? 0 : info.tile_full_width[0];
   }
 
   // ── load_chunk_entry (internal) ──────────────────────────────────────────────
@@ -583,18 +588,18 @@ namespace corundum::render::sys {
     const corundum::core::math::Vec2 world_pos = corundum::core::math::tile_to_world(
         abs_col, abs_row, elev, ctx.half_tw, ctx.half_th, ctx.elev_step, ctx.x_origin);
 
-    // Pivot is always measured against the full frame, not the trimmed size, so sprites sharing one
-    // canvas convention (e.g. a wall body and its separately-authored topper) stay aligned to each
-    // other regardless of how much padding either one had trimmed away (see TilesetInfo::trims).
-    // Pivot is per-tile (TilesetInfo::pivot_overrides) since some tiles (e.g. cliffs) need a
-    // different ground-contact point than the tileset default to blend with neighbors.
-    const float scaled_tw = static_cast<float>(ts->info.frame_width) * cfg.tile_scale;
-    const float scaled_th = static_cast<float>(ts->info.frame_height) * cfg.tile_scale;
+    // Pivot is always measured against the full (untrimmed) frame, not the trimmed size, so sprites
+    // sharing one canvas convention (e.g. a wall body and its separately-authored topper) stay
+    // aligned to each other regardless of how much padding either one had trimmed away. Both pivot
+    // and frame size are per-tile (TilesetInfo::tile_pivot_*/tile_full_*) since spritepacker computes
+    // them per sprite — there's no tileset-wide default to fall back to.
     const int local_id = static_cast<int>(gid) - static_cast<int>(ts->first_gid);
-    const auto trim = corundum::gameplay::world::tilemap::get_sprite_trim(ts->info, local_id);
+    const auto frame = corundum::gameplay::world::tilemap::get_tile_frame_offset(ts->info, local_id);
     const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(ts->info, local_id);
-    const float trim_x_px = static_cast<float>(trim.x) * cfg.tile_scale;
-    const float trim_y_px = static_cast<float>(trim.y) * cfg.tile_scale;
+    const float scaled_tw = static_cast<float>(frame.full_width) * cfg.tile_scale;
+    const float scaled_th = static_cast<float>(frame.full_height) * cfg.tile_scale;
+    const float trim_x_px = static_cast<float>(frame.trim_x) * cfg.tile_scale;
+    const float trim_y_px = static_cast<float>(frame.trim_y) * cfg.tile_scale;
     const float depth = corundum::core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
                                                             static_cast<float>(elev), ctx.half_th, ctx.elev_step);
 

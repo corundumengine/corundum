@@ -10,8 +10,7 @@ namespace {
     ctt::TilemapTileset ts;
     ts.first_gid = first_gid;
     ts.tile_count = tile_count;
-    ts.info.columns = tile_count;
-    ts.info.rows = 1;
+    ts.info.tile_count = tile_count;
     return ts;
   }
 

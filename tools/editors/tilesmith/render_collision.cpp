@@ -90,8 +90,8 @@ namespace tools::tilemap {
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
     const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
-    const int tw = state.map.tilesets[0].info.frame_width;
-    const int th = state.map.tilesets[0].info.frame_height;
+    const int tw = state.map.diamond_w();
+    const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
     const float inv_th = 1.f / static_cast<float>(th);
 
@@ -131,8 +131,8 @@ namespace tools::tilemap {
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
     const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
-    const int tw = state.map.tilesets[0].info.frame_width;
-    const int th = state.map.tilesets[0].info.frame_height;
+    const int tw = state.map.diamond_w();
+    const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
     const float inv_th = 1.f / static_cast<float>(th);
 
@@ -159,8 +159,8 @@ namespace tools::tilemap {
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
     const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
-    const int tw = state.map.tilesets[0].info.frame_width;
-    const int th = state.map.tilesets[0].info.frame_height;
+    const int tw = state.map.diamond_w();
+    const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
     const float inv_th = 1.f / static_cast<float>(th);
 

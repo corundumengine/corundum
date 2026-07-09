@@ -4,6 +4,7 @@ add_library(engine STATIC
     src/engine_factory.cpp
     src/resources/character_registry.cpp
     src/resources/character_sheet_loader.cpp
+    src/resources/sprite_atlas_loader.cpp
     src/gameplay/dialogue/action.cpp
     src/gameplay/dialogue/expr.cpp
     src/gameplay/dialogue/loader.cpp
