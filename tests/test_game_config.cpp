@@ -55,7 +55,7 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   write_file(p, R"({
         "win_w": 1280.0, "win_h": 720.0, "framerate": 30,
         "interact_radius": 64.0, "player_speed": 150.0,
-        "sprite_scale": 3, "tile_scale": 4, "elevation_step_px": 6.0,
+        "character_scale": 3, "tile_scale": 4, "elevation_step_px": 6.0,
         "font_dir": "game/assets/fonts", "game_font": "MyFont.ttf",
         "tilemap_path": "data/tilemaps/dungeon.json",
         "sprites_dir": "data/sprite_sheets/dungeon.json",
@@ -73,8 +73,8 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   CHECK(cfg.framerate == 30u);
   CHECK(cfg.interact_radius == doctest::Approx(64.f));
   CHECK(cfg.player_speed == doctest::Approx(150.f));
-  CHECK(cfg.sprite_scale == 3u);
-  CHECK(cfg.tile_scale == 4u);
+  CHECK(cfg.character_scale == doctest::Approx(3.f));
+  CHECK(cfg.tile_scale == doctest::Approx(4.f));
   CHECK(cfg.elevation_step_px == doctest::Approx(6.f));
   CHECK(cfg.paths.font_dir == "game/assets/fonts");
   CHECK(cfg.paths.game_font == "MyFont.ttf");
@@ -101,7 +101,7 @@ TEST_CASE("load_game_config — partial JSON overrides only specified fields") {
   CHECK(cfg.win_w == doctest::Approx(1024.f));
   CHECK(cfg.win_h == doctest::Approx(600.f)); // default
   CHECK(cfg.player_speed == doctest::Approx(300.f));
-  CHECK(cfg.sprite_scale == 2u);                        // default
+  CHECK(cfg.character_scale == doctest::Approx(2.f));   // default
   CHECK(cfg.elevation_step_px == doctest::Approx(4.f)); // default
 }
 
@@ -139,10 +139,10 @@ TEST_CASE("load_game_config — player_speed <= 0 throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_game_config — sprite_scale == 0 throws") {
-  const auto dir = temp_dir("sprite_scale_zero");
+TEST_CASE("load_game_config — character_scale == 0 throws") {
+  const auto dir = temp_dir("character_scale_zero");
   const auto p = dir / "game.json";
-  write_file(p, R"({"sprite_scale": 0})");
+  write_file(p, R"({"character_scale": 0})");
   auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
@@ -155,10 +155,10 @@ TEST_CASE("load_game_config — tile_scale == 0 throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_game_config — sprite_scale negative throws") {
-  const auto dir = temp_dir("sprite_scale_neg");
+TEST_CASE("load_game_config — character_scale negative throws") {
+  const auto dir = temp_dir("character_scale_neg");
   const auto p = dir / "game.json";
-  write_file(p, R"({"sprite_scale": -1})");
+  write_file(p, R"({"character_scale": -1})");
   auto result = load_game_config(p);
   CHECK(!result.has_value());
 }

@@ -180,13 +180,13 @@ namespace corundum::core {
       cfg.player_speed = *res;
     }
     {
-      auto res = get_positive_unsigned(j, "sprite_scale", cfg.sprite_scale, path);
+      auto res = get_positive_float(j, "character_scale", cfg.character_scale, path);
       if (!res)
         return std::unexpected(res.error());
-      cfg.sprite_scale = *res;
+      cfg.character_scale = *res;
     }
     {
-      auto res = get_positive_unsigned(j, "tile_scale", cfg.tile_scale, path);
+      auto res = get_positive_float(j, "tile_scale", cfg.tile_scale, path);
       if (!res)
         return std::unexpected(res.error());
       cfg.tile_scale = *res;

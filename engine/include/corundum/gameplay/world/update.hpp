@@ -24,13 +24,13 @@ namespace corundum::gameplay::world {
   struct MapView {
     corundum::gameplay::world::tilemap::CollisionRectsView collisions;
     corundum::gameplay::world::tilemap::CollisionTrianglesView collision_triangles;
-    float world_w_px = 0.f;   ///< Total isometric world width in display pixels.
-    float world_h_px = 0.f;   ///< Total isometric world height in display pixels.
-    float half_tw = 0.f;      ///< Half the scaled diamond width; used for iso↔cart conversion.
-    float half_th = 0.f;      ///< Half the scaled diamond height; used for iso↔cart conversion.
-    float x_origin = 0.f;     ///< Isometric x-shift so the leftmost tile lands at x = 0.
-    float sprite_scale = 1.f; ///< Sprite render scale.
-    float tile_scale = 1.f;   ///< Tile render scale.
+    float world_w_px = 0.f;      ///< Total isometric world width in display pixels.
+    float world_h_px = 0.f;      ///< Total isometric world height in display pixels.
+    float half_tw = 0.f;         ///< Half the scaled diamond width; used for iso↔cart conversion.
+    float half_th = 0.f;         ///< Half the scaled diamond height; used for iso↔cart conversion.
+    float x_origin = 0.f;        ///< Isometric x-shift so the leftmost tile lands at x = 0.
+    float character_scale = 1.f; ///< Character/entity sprite render scale.
+    float tile_scale = 1.f;      ///< Tile render scale.
     std::span<const corundum::gameplay::world::Portal> portals;
     /// Single-map tilemap, used to look up an entity's own elevation for elevation-aware
     /// collision. Null in chunked/streamed World mode, where this isn't wired up yet —

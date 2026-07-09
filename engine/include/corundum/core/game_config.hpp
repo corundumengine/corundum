@@ -71,10 +71,10 @@ namespace corundum::core {
     /** @brief Base movement speed of the player character. */
     float player_speed = 200.f;
 
-    /** @brief Scaling factor applied to all in-game sprites. */
-    unsigned int sprite_scale = 2;
+    /** @brief Scaling factor applied to all character/entity sprites. */
+    float character_scale = 2.f;
     /** @brief Scaling factor applied to all tilemap assets. */
-    unsigned int tile_scale = 2;
+    float tile_scale = 2.f;
     /** @brief Screen pixels a tile is lifted per unit of elevation. */
     float elevation_step_px = 4.f;
     /** @brief Max elevation delta (same units as TilemapLayer::elevation) an entity can

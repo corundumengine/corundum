@@ -20,8 +20,8 @@ namespace corundum::gameplay::world {
               .half_tw = iso.half_tw,
               .half_th = iso.half_th,
               .x_origin = iso.x_origin,
-              .sprite_scale = static_cast<float>(cfg.sprite_scale),
-              .tile_scale = static_cast<float>(cfg.tile_scale),
+              .character_scale = cfg.character_scale,
+              .tile_scale = cfg.tile_scale,
               .portals = {}};
     }
 
@@ -35,8 +35,8 @@ namespace corundum::gameplay::world {
             .half_tw = iso.half_tw,
             .half_th = iso.half_th,
             .x_origin = iso.x_origin,
-            .sprite_scale = static_cast<float>(cfg.sprite_scale),
-            .tile_scale = static_cast<float>(cfg.tile_scale),
+            .character_scale = cfg.character_scale,
+            .tile_scale = cfg.tile_scale,
             .portals = render.map_data.portals,
             .elevation_map = &tm,
             .walkability = &render.map_walkability};

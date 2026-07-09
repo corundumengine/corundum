@@ -838,7 +838,7 @@ namespace corundum::render::sys {
   static void render_ground_layer(corundum::platform::Renderer &r, data::RenderState &state,
                                   const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
                                   float alpha) {
-    const float scale = static_cast<float>(cfg.sprite_scale);
+    const float scale = cfg.character_scale;
 
     core::math::IsoParams iso{};
     if (!state.active_chunks.empty() && !state.active_chunks[0].tilemap.tilesets.empty()) {
