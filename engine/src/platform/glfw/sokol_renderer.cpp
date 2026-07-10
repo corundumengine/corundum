@@ -205,7 +205,9 @@ void main() {
     [[nodiscard]] uint64_t font_size_key(uint32_t font_id, uint32_t char_size) const noexcept;
     void ensure_baked(uint32_t font_id, uint32_t char_size) const;
     void rebuild_proj() noexcept;
-    void apply_draw(sg_view view, int byte_offset);
+    [[nodiscard]] bool has_quad_space();
+    void add_to_batch(sg_view view, int offset);
+    void flush_batch();
 
     ::GLFWwindow *window_{nullptr};
     int win_w_{1920};
@@ -219,6 +221,12 @@ void main() {
     float cam_x_{0}, cam_y_{0}, vp_w_{0}, vp_h_{0}, zoom_{1.f};
     bool world_view_active_{false};
     bool pass_active_{false};
+
+    // ── Batch state ──────────────────────────────────────────────────
+    sg_view batch_view_{};
+    int batch_start_offset_{0};
+    int batch_count_{0};
+    int quad_count_{0};
 
     sg_shader pipeline_shader_{};
     sg_pipeline pipeline_{};
@@ -373,16 +381,40 @@ void main() {
     }
   }
 
-  void SokolRenderer::apply_draw(sg_view view, int byte_offset) {
+  void SokolRenderer::flush_batch() {
+    if (batch_count_ == 0)
+      return;
     bindings_.vertex_buffers[0] = vertex_buf_;
-    bindings_.vertex_buffer_offsets[0] = byte_offset;
-    bindings_.views[0] = view;
+    bindings_.vertex_buffer_offsets[0] = batch_start_offset_;
+    bindings_.views[0] = batch_view_;
     sg_apply_bindings(&bindings_);
 
     const sg_range ub{.ptr = proj_.data(), .size = sizeof(proj_)};
     sg_apply_uniforms(0, &ub);
 
-    sg_draw(0, 6, 1);
+    sg_draw(0, 6 * batch_count_, 1);
+    batch_count_ = 0;
+  }
+
+  bool SokolRenderer::has_quad_space() {
+    if (quad_count_ >= k_max_quads) {
+      static bool overflow_warned = false;
+      if (!overflow_warned) {
+        std::println(stderr, "[sokol] quad buffer overflow (cap={})", k_max_quads);
+        overflow_warned = true;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  void SokolRenderer::add_to_batch(sg_view view, int offset) {
+    if (batch_count_ == 0) {
+      batch_view_ = view;
+      batch_start_offset_ = offset;
+    }
+    ++batch_count_;
+    ++quad_count_;
   }
 
   // ── Renderer interface ──────────────────────────────────────────────────────
@@ -423,6 +455,7 @@ void main() {
   }
 
   void SokolRenderer::set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) {
+    flush_batch();
     cam_x_ = top_left.x;
     cam_y_ = top_left.y;
     vp_w_ = viewport_size.x;
@@ -433,11 +466,15 @@ void main() {
   }
 
   void SokolRenderer::reset_screen_view() {
+    flush_batch();
     world_view_active_ = false;
     rebuild_proj();
   }
 
   void SokolRenderer::begin_frame(core::math::Colour clear_colour) {
+    quad_count_ = 0;
+    batch_count_ = 0;
+
     int log_w{}, log_h{};
     glfwGetWindowSize(window_, &log_w, &log_h);
     if (log_w != win_w_ || log_h != win_h_) {
@@ -485,6 +522,7 @@ void main() {
   void SokolRenderer::end_frame() {
     if (!pass_active_)
       return;
+    flush_batch();
     pass_active_ = false;
     sg_end_pass();
     sg_commit();
@@ -494,6 +532,8 @@ void main() {
   }
 
   void SokolRenderer::draw(const DrawSprite &cmd) {
+    if (!has_quad_space())
+      return;
     if (cmd.texture_id >= textures_.size())
       return;
 
@@ -521,9 +561,13 @@ void main() {
     const float pw = static_cast<float>(cmd.source.width) * cmd.scale.x;
     const float ph = static_cast<float>(cmd.source.height) * cmd.scale.y;
 
+    if (batch_count_ > 0 && batch_view_.id != tex.view.id)
+      flush_batch();
+
     const int offset =
         emit_quad(vertex_buf_, cmd.position.x, cmd.position.y, pw, ph, u0, v0, u1, v1, 1.f, 1.f, 1.f, 1.f);
-    apply_draw(tex.view, offset);
+
+    add_to_batch(tex.view, offset);
   }
 
   void SokolRenderer::draw(const DrawText &cmd) {
@@ -550,6 +594,9 @@ void main() {
     const float pen_y = cmd.position.y;
 
     for (const char ch : cmd.text) {
+      if (!has_quad_space())
+        return;
+
       const unsigned char c = static_cast<unsigned char>(ch);
       if (c < 32 || c >= 128)
         continue;
@@ -558,6 +605,9 @@ void main() {
         pen_x += g.advance_x;
         continue;
       }
+
+      if (batch_count_ > 0 && batch_view_.id != baked.view.id)
+        flush_batch();
 
       const float gx = pen_x + static_cast<float>(g.bearing_x);
       const float gy = pen_y + static_cast<float>(cmd.char_size) - static_cast<float>(g.bearing_y);
@@ -569,23 +619,33 @@ void main() {
       const float v1 = static_cast<float>(g.atlas_y + g.height) / atlas_h;
 
       const int offset = emit_quad(vertex_buf_, gx, gy, gw, gh, u0, v0, u1, v1, cr, cg, cb, ca);
-      apply_draw(baked.view, offset);
+
+      add_to_batch(baked.view, offset);
 
       pen_x += g.advance_x;
     }
   }
 
   void SokolRenderer::draw(const DrawRect &cmd) {
+    if (!has_quad_space())
+      return;
     const float cr = cmd.colour.r / 255.f;
     const float cg = cmd.colour.g / 255.f;
     const float cb = cmd.colour.b / 255.f;
     const float ca = cmd.colour.a / 255.f;
+
+    if (batch_count_ > 0 && batch_view_.id != white_view_.id)
+      flush_batch();
+
     const int offset = emit_quad(vertex_buf_, cmd.position.x, cmd.position.y, cmd.size.x, cmd.size.y, 0.f, 0.f, 1.f,
                                  1.f, cr, cg, cb, ca);
-    apply_draw(white_view_, offset);
+
+    add_to_batch(white_view_, offset);
   }
 
   void SokolRenderer::draw(const DrawLine &cmd) {
+    if (!has_quad_space())
+      return;
     const float cr = cmd.colour.r / 255.f;
     const float cg = cmd.colour.g / 255.f;
     const float cb = cmd.colour.b / 255.f;
@@ -600,10 +660,15 @@ void main() {
     const float ny = dy / len;
     const float px = -ny * hw;
     const float py = nx * hw;
+
+    if (batch_count_ > 0 && batch_view_.id != white_view_.id)
+      flush_batch();
+
     const int offset =
         emit_quad_verts(vertex_buf_, {cmd.start.x + px, cmd.start.y + py}, {cmd.start.x - px, cmd.start.y - py},
                         {cmd.end.x - px, cmd.end.y - py}, {cmd.end.x + px, cmd.end.y + py}, cr, cg, cb, ca);
-    apply_draw(white_view_, offset);
+
+    add_to_batch(white_view_, offset);
   }
 
   float SokolRenderer::measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const {

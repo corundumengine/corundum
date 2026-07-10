@@ -84,15 +84,16 @@ namespace corundum::render::sys {
                                  const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene);
 
   static void render_tilemap(corundum::platform::Renderer &r, const data::RenderState &state, int z_index,
-                             const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene);
+                             const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                             float cam_x, float cam_y, float zoom);
 
   static void render_chunk(corundum::platform::Renderer &r, const data::RenderState &state,
                            const data::ChunkEntry &chunk, int z_index, const corundum::core::GameConfig &cfg,
-                           const corundum::gameplay::world::Scene &scene);
+                           const corundum::gameplay::world::Scene &scene, float cam_x, float cam_y, float zoom);
 
   static void render_ground_layer(corundum::platform::Renderer &r, data::RenderState &state,
                                   const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                                  float alpha);
+                                  float alpha, float cam_x, float cam_y, float zoom);
 
   // ── load_sprite_index ────────────────────────────────────────────────────────
 
@@ -338,7 +339,7 @@ namespace corundum::render::sys {
       sync_active_chunks(r, state, cfg, scene);
 
       r.set_world_view({cam_x, cam_y}, viewport, zoom);
-      render_ground_layer(r, state, cfg, scene, alpha);
+      render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom);
 
       if (state.chunks_dirty) {
         state.above_z_cache.clear();
@@ -353,15 +354,15 @@ namespace corundum::render::sys {
       for (const int z : state.above_z_cache) {
         r.set_world_view({cam_x, cam_y}, viewport, zoom);
         for (const auto &chunk : state.active_chunks)
-          render_chunk(r, state, chunk, z, cfg, scene);
+          render_chunk(r, state, chunk, z, cfg, scene, cam_x, cam_y, zoom);
       }
     } else {
       r.set_world_view({cam_x, cam_y}, viewport, zoom);
-      render_ground_layer(r, state, cfg, scene, alpha);
+      render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom);
 
       for (const int z : state.map_data.above_z) {
         r.set_world_view({cam_x, cam_y}, viewport, zoom);
-        render_tilemap(r, state, z, cfg, scene);
+        render_tilemap(r, state, z, cfg, scene, cam_x, cam_y, zoom);
       }
     }
 
@@ -522,6 +523,9 @@ namespace corundum::render::sys {
     float half_th;
     float elev_step;
     float x_origin;
+    float cam_x; ///< Camera top-left x in world pixels (interpolated).
+    float cam_y; ///< Camera top-left y in world pixels (interpolated).
+    float zoom;  ///< Camera zoom factor (interpolated).
     int chunk_offset_col;
     int chunk_offset_row;
   };
@@ -714,16 +718,24 @@ namespace corundum::render::sys {
   static void collect_ground_tiles_map(corundum::platform::Renderer &r, const data::RenderState &state,
                                        const corundum::core::GameConfig &cfg,
                                        const corundum::gameplay::world::Scene &scene,
-                                       std::vector<data::DepthEntry> &out) {
+                                       std::vector<data::DepthEntry> &out, float cam_x, float cam_y, float zoom) {
     const auto &tilemap = state.map_data.tilemap;
     if (tilemap.tilesets.empty())
       return;
 
     const auto iso =
         core::math::compute_iso_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height, cfg.tile_scale);
-    const TileLayerCtx ctx{
-        &tilemap, &state.map_data.tileset_texture_ids, iso.half_tw, iso.half_th, cfg.elevation_step_px, iso.x_origin, 0,
-        0};
+    const TileLayerCtx ctx{&tilemap,
+                           &state.map_data.tileset_texture_ids,
+                           iso.half_tw,
+                           iso.half_th,
+                           cfg.elevation_step_px,
+                           iso.x_origin,
+                           cam_x,
+                           cam_y,
+                           zoom,
+                           0,
+                           0};
     collect_tile_layer(r, ctx, 0, cfg, scene, out);
   }
 
@@ -731,7 +743,7 @@ namespace corundum::render::sys {
   static void collect_ground_tiles_chunks(corundum::platform::Renderer &r, const data::RenderState &state,
                                           const corundum::core::GameConfig &cfg,
                                           const corundum::gameplay::world::Scene &scene,
-                                          std::vector<data::DepthEntry> &out) {
+                                          std::vector<data::DepthEntry> &out, float cam_x, float cam_y, float zoom) {
     for (const auto &chunk : state.active_chunks) {
       const auto &tilemap = chunk.tilemap;
       if (tilemap.tilesets.empty())
@@ -747,6 +759,9 @@ namespace corundum::render::sys {
                              iso.half_th,
                              cfg.elevation_step_px,
                              iso.x_origin,
+                             cam_x,
+                             cam_y,
+                             zoom,
                              chunk.coord.x * state.manifest.chunk_size,
                              chunk.coord.y * state.manifest.chunk_size};
       collect_tile_layer(r, ctx, 0, cfg, scene, out);
@@ -754,22 +769,31 @@ namespace corundum::render::sys {
   }
 
   static void render_tilemap(corundum::platform::Renderer &r, const data::RenderState &state, int z_index,
-                             const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene) {
+                             const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                             float cam_x, float cam_y, float zoom) {
     const auto &tilemap = state.map_data.tilemap;
     if (tilemap.tilesets.empty())
       return;
 
     const auto iso =
         core::math::compute_iso_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height, cfg.tile_scale);
-    const TileLayerCtx ctx{
-        &tilemap, &state.map_data.tileset_texture_ids, iso.half_tw, iso.half_th, cfg.elevation_step_px, iso.x_origin, 0,
-        0};
+    const TileLayerCtx ctx{&tilemap,
+                           &state.map_data.tileset_texture_ids,
+                           iso.half_tw,
+                           iso.half_th,
+                           cfg.elevation_step_px,
+                           iso.x_origin,
+                           cam_x,
+                           cam_y,
+                           zoom,
+                           0,
+                           0};
     render_tile_layer(r, ctx, z_index, cfg, scene);
   }
 
   static void render_chunk(corundum::platform::Renderer &r, const data::RenderState &state,
                            const data::ChunkEntry &chunk, int z_index, const corundum::core::GameConfig &cfg,
-                           const corundum::gameplay::world::Scene &scene) {
+                           const corundum::gameplay::world::Scene &scene, float cam_x, float cam_y, float zoom) {
     const auto &tilemap = chunk.tilemap;
     if (tilemap.tilesets.empty())
       return;
@@ -783,6 +807,9 @@ namespace corundum::render::sys {
                            iso.half_th,
                            cfg.elevation_step_px,
                            iso.x_origin,
+                           cam_x,
+                           cam_y,
+                           zoom,
                            chunk.coord.x * state.manifest.chunk_size,
                            chunk.coord.y * state.manifest.chunk_size};
     render_tile_layer(r, ctx, z_index, cfg, scene);
@@ -837,7 +864,7 @@ namespace corundum::render::sys {
   /// z_index>0 layers remain a separate, subsequent immediate-draw pass (always above entities).
   static void render_ground_layer(corundum::platform::Renderer &r, data::RenderState &state,
                                   const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                                  float alpha) {
+                                  float alpha, float cam_x, float cam_y, float zoom) {
     const float scale = cfg.character_scale;
 
     core::math::IsoParams iso{};
@@ -856,13 +883,16 @@ namespace corundum::render::sys {
     state.draw_list.clear();
 
     if (!state.active_chunks.empty())
-      collect_ground_tiles_chunks(r, state, cfg, scene, state.draw_list);
+      collect_ground_tiles_chunks(r, state, cfg, scene, state.draw_list, cam_x, cam_y, zoom);
     else
-      collect_ground_tiles_map(r, state, cfg, scene, state.draw_list);
+      collect_ground_tiles_map(r, state, cfg, scene, state.draw_list, cam_x, cam_y, zoom);
 
     const auto &transforms = scene.world.transforms;
     const auto &sprites = scene.world.sprites;
     const auto ents = sprites.active_entities();
+
+    const float vp_r = cam_x + cfg.win_w / zoom;
+    const float vp_b = cam_y + cfg.win_h / zoom;
 
     [[assume(sprites.count <= std::remove_reference_t<decltype(sprites)>::k_max)]];
     for (uint16_t i = 0; i < sprites.count; ++i) {
@@ -890,6 +920,13 @@ namespace corundum::render::sys {
       const float iso_y = (col_f + row_f) * iso.half_th - elev * cfg.elevation_step_px;
       const float px = iso_x - static_cast<float>(entry.src.width) * scale * 0.5f;
       const float py = iso_y - walk_offset * static_cast<float>(entry.src.height) * scale;
+
+      // AABB cull — skip entities entirely outside the visible viewport
+      const float sw = static_cast<float>(entry.src.width) * scale;
+      const float sh = static_cast<float>(entry.src.height) * scale;
+      if (px + sw < cam_x || px > vp_r || py + sh < cam_y || py > vp_b)
+        continue;
+
       const float iso_depth =
           corundum::core::math::iso_depth_key(col_f, row_f, elev, iso.half_th, cfg.elevation_step_px);
       state.draw_list.push_back(
