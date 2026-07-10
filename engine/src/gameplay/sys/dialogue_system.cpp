@@ -49,11 +49,11 @@ namespace corundum::gameplay::sys {
   } // namespace
 
   void update_dialogue(corundum::gameplay::world::Scene &scene, const corundum::input::PressedActions &actions,
-                       const quest::Registry *quests) noexcept {
+                       corundum::gameplay::FlagStore &flags, const quest::Registry *quests) noexcept {
     using corundum::gameplay::entity::EntityId;
     using corundum::gameplay::entity::World;
 
-    scene.pending_dialogue_events = corundum::gameplay::dialogue::system(scene.dialogue, actions, scene.flags, quests);
+    scene.pending_dialogue_events = corundum::gameplay::dialogue::system(scene.dialogue, actions, flags, quests);
     if (!scene.dialogue.active) {
       if (scene.dialogue_npc) {
         World &world = scene.world;
@@ -73,8 +73,8 @@ namespace corundum::gameplay::sys {
   }
 
   void try_interact(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
-                    const corundum::core::GameConfig &cfg,
-                    const corundum::gameplay::dialogue::Registry &graphs) noexcept {
+                    const corundum::core::GameConfig &cfg, const corundum::gameplay::dialogue::Registry &graphs,
+                    corundum::gameplay::FlagStore &flags) noexcept {
     using corundum::gameplay::component::distance;
     using corundum::gameplay::component::Position;
     using corundum::gameplay::dialogue::Graph;
@@ -134,7 +134,7 @@ namespace corundum::gameplay::sys {
       }
 
       scene.dialogue_npc = eid;
-      corundum::gameplay::dialogue::start(scene.dialogue, *graph, scene.flags);
+      corundum::gameplay::dialogue::start(scene.dialogue, *graph, flags);
       scene.mode = corundum::gameplay::world::GameMode::Dialogue;
       // Defensive: a click that both queued a path AND was close enough to trigger
       // interact (same frame) would otherwise leave that path to silently resume once

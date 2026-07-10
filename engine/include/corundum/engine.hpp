@@ -4,6 +4,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/gameplay/dialogue/registry.hpp>
+#include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/input/actions.hpp>
@@ -41,6 +42,7 @@ namespace corundum {
     gameplay::quest::Registry quests;
     core::GameConfig cfg;
     gameplay::world::Scene scene;
+    gameplay::FlagStore flags;
 
     core::time::LoopTimer timer{60.f};
     core::math::Colour clear_colour{30, 30, 35, 255};

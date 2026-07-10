@@ -2,7 +2,6 @@
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/entity/world.hpp>
-#include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
@@ -31,7 +30,6 @@ namespace corundum::gameplay::world {
     GameMode mode = GameMode::Exploring;
     Camera camera;
     corundum::gameplay::dialogue::State dialogue;
-    corundum::gameplay::FlagStore flags;
     float elapsed_time = 0.f;
     std::optional<MapTransition> pending_transition;
     std::optional<corundum::gameplay::entity::EntityId> dialogue_npc;

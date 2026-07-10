@@ -73,11 +73,11 @@ namespace corundum {
         }
         if (ev.name == "quest_start" && !ev.args.empty()) {
           if (const auto *q = engine.quests.find(ev.args[0]))
-            gameplay::quest::start(*q, engine.scene.flags);
+            gameplay::quest::start(*q, engine.flags);
         }
         if (ev.name == "quest_advance" && ev.args.size() >= 2) {
           if (const auto *q = engine.quests.find(ev.args[0]))
-            gameplay::quest::advance(*q, ev.args[1], engine.scene.flags);
+            gameplay::quest::advance(*q, ev.args[1], engine.flags);
         }
       }
       engine.scene.pending_dialogue_events.clear();
@@ -209,7 +209,7 @@ namespace corundum {
 
         const auto mv = gameplay::world::build_map_view(engine.render, engine.cfg);
         gameplay::world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
-                                &engine.quests);
+                                engine.flags, &engine.quests);
 
         process_dialogue_events(engine);
 
@@ -229,7 +229,8 @@ namespace corundum {
       engine.render.interpolation_alpha = (steps_run == 1 && !deleted_this_frame) ? engine.timer.alpha() : 0.f;
 
       engine.renderer->begin_frame(engine.clear_colour);
-      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.render.interpolation_alpha);
+      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags,
+                          engine.render.interpolation_alpha);
 
       if (engine.show_debug_hud) {
         const debug::OverlayInput hud_input{

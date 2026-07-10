@@ -71,7 +71,7 @@ namespace corundum::gameplay::world {
 
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt, const quest::Registry *quests) {
+              const MapView &map, float dt, corundum::gameplay::FlagStore &flags, const quest::Registry *quests) {
     const auto actions = corundum::input::pressed_actions(input);
 
     update_zoom(scene, input, cfg, dt);
@@ -80,10 +80,10 @@ namespace corundum::gameplay::world {
                                                             cfg.elevation_step_px, scene.camera.zoom);
 
     if (scene.mode == corundum::gameplay::world::GameMode::Dialogue) [[unlikely]] {
-      corundum::gameplay::sys::update_dialogue(scene, actions, quests);
+      corundum::gameplay::sys::update_dialogue(scene, actions, flags, quests);
     } else [[likely]] {
       update_exploring(scene, input, map, cfg, dt);
-      corundum::gameplay::sys::try_interact(scene, input, cfg, graphs);
+      corundum::gameplay::sys::try_interact(scene, input, cfg, graphs, flags);
     }
   }
 

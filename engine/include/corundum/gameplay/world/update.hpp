@@ -53,9 +53,11 @@ namespace corundum::gameplay::world {
    * @param input       Current frame input state.
    * @param map         Non-owning view of the current map's tilemap and portals.
    * @param dt          Fixed timestep in seconds.
+   * @param flags       Persistent game flags (quest progress, dialogue visit counts).
    */
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt, const quest::Registry *quests = nullptr);
+              const MapView &map, float dt, corundum::gameplay::FlagStore &flags,
+              const quest::Registry *quests = nullptr);
 
 } // namespace corundum::gameplay::world
