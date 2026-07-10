@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <limits>
 #include <span>
-#include <utility>
 
 namespace corundum::gameplay::component {
 
@@ -65,8 +64,11 @@ namespace corundum::gameplay::component {
      *  @param[in] e Entity to query.
      */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto idx = std::to_underlying(e);
-      return idx < k_max && sparse[idx] != k_invalid;
+      const auto i = e.index;
+      if (i >= k_max)
+        return false;
+      const auto s = sparse[i];
+      return s != k_invalid && entities[s] == e;
     }
 
     /** @brief Add an animation row for @p e with default 0.15 s frame duration.
@@ -74,7 +76,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(!has(e));
+      const auto idx = e.index;
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
@@ -91,12 +94,13 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(has(e));
+      const auto idx = e.index;
       const auto slot = sparse[idx];
       const auto last = count - 1;
       if (slot != last) {
         const EntityId last_e = entities[last];
-        sparse[std::to_underlying(last_e)] = slot;
+        sparse[last_e.index] = slot;
         entities[slot] = last_e;
         timer[slot] = timer[last];
         frame_duration[slot] = frame_duration[last];
@@ -111,12 +115,14 @@ namespace corundum::gameplay::component {
 
     /** @brief Mutable playback timer reference for @p e. @pre has(e). */
     [[nodiscard]] float &timer_ref(EntityId e) noexcept {
-      return timer[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return timer[sparse[e.index]];
     }
 
     /** @brief Mutable frame duration reference for @p e. @pre has(e). */
     [[nodiscard]] float &frame_duration_ref(EntityId e) noexcept {
-      return frame_duration[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return frame_duration[sparse[e.index]];
     }
 
     /** @brief Number of frames in @p aid for entity @p e; 0 if the clip is absent.
@@ -125,7 +131,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     [[nodiscard]] uint8_t frame_count(EntityId e, corundum::resources::AnimId aid) const noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       return frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids +
                           static_cast<uint8_t>(aid)];
     }
@@ -136,7 +143,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     void set_frame_counts(EntityId e, const std::array<uint8_t, corundum::resources::k_num_anim_ids> &counts) noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
       std::copy_n(counts.data(), corundum::resources::k_num_anim_ids, dst);
     }

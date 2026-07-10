@@ -76,6 +76,7 @@ namespace corundum::gameplay::entity {
   /// Safe to call between update frames. During an update, prefer mark_for_deletion().
   /// @pre e must be a live entity.
   inline void despawn(World &w, EntityId e) {
+    assert(w.entities.is_live(e) && "despawn: not a live entity");
     if (w.transforms.has(e))
       w.transforms.remove(e);
     if (w.transform_names.has(e))
@@ -103,6 +104,7 @@ namespace corundum::gameplay::entity {
    * @pre @p e must be live (returned by EntityManager::create() and not destroyed).
    */
   inline void mark_for_deletion(World &w, EntityId e) {
+    assert(w.entities.is_live(e) && "mark_for_deletion: not a live entity");
     assert(w.pending_deletion_count < k_max_entities && "pending_deletions full");
     w.pending_deletions[w.pending_deletion_count++] = e;
   }

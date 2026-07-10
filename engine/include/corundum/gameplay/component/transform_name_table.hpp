@@ -40,15 +40,19 @@ namespace corundum::gameplay::component {
 
     /** @brief True if @p e has a name entry. @param[in] e Entity to query. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto idx = std::to_underlying(e);
-      return idx < k_max && sparse[idx] != k_invalid;
+      const auto i = e.index;
+      if (i >= k_max)
+        return false;
+      const auto s = sparse[i];
+      return s != k_invalid && entities[s] == e;
     }
 
     /** @brief Add an empty name row for @p e.
      *  @param[in] e Entity (must not already be present). @pre has(e) must be false.
      */
     void insert(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(!has(e));
+      const auto idx = e.index;
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
@@ -61,12 +65,13 @@ namespace corundum::gameplay::component {
      *  @param[in] e Entity to remove. @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(has(e));
+      const auto idx = e.index;
       const auto slot = sparse[idx];
       const auto last = count - 1;
       if (slot != last) {
         const EntityId last_e = entities[last];
-        sparse[std::to_underlying(last_e)] = slot;
+        sparse[last_e.index] = slot;
         entities[slot] = last_e;
         name[slot] = name[last];
         name_len[slot] = name_len[last];
@@ -80,7 +85,8 @@ namespace corundum::gameplay::component {
      *  @param[in] n Label string.
      */
     void set(EntityId e, std::string_view n) noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       const auto len = std::min(n.size(), std::size_t{63});
       std::copy_n(n.data(), len, name[slot].data());
       name[slot][len] = '\0';
@@ -92,7 +98,8 @@ namespace corundum::gameplay::component {
      *  @return Non-owning view valid until the next insert/remove.
      */
     [[nodiscard]] std::string_view get(EntityId e) const noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       return std::string_view(name[slot].data(), name_len[slot]);
     }
   };

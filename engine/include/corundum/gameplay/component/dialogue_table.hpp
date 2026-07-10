@@ -7,7 +7,6 @@
 #include <limits>
 #include <span>
 #include <string_view>
-#include <utility>
 
 namespace corundum::gameplay::component {
 
@@ -51,8 +50,11 @@ namespace corundum::gameplay::component {
 
     /** @brief True if @p e has a dialogue ref. @param[in] e Entity to query. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto idx = std::to_underlying(e);
-      return idx < k_max && sparse[idx] != k_invalid;
+      const auto i = e.index;
+      if (i >= k_max)
+        return false;
+      const auto s = sparse[i];
+      return s != k_invalid && entities[s] == e;
     }
 
     /** @brief Add a dialogue ref for @p e.
@@ -61,7 +63,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, std::string_view id) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(!has(e));
+      const auto idx = e.index;
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
@@ -73,12 +76,13 @@ namespace corundum::gameplay::component {
      *  @param[in] e Entity to remove. @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(has(e));
+      const auto idx = e.index;
       const auto slot = sparse[idx];
       const auto last = count - 1;
       if (slot != last) {
         const EntityId last_e = entities[last];
-        sparse[std::to_underlying(last_e)] = slot;
+        sparse[last_e.index] = slot;
         entities[slot] = last_e;
         graph_id[slot] = graph_id[last];
         graph_id_len[slot] = graph_id_len[last];
@@ -92,7 +96,8 @@ namespace corundum::gameplay::component {
      *  @param[in] id New graph identifier (truncated to k_max_id_len-1 if longer).
      */
     void set_graph_id(EntityId e, std::string_view id) noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       set_id(slot, id);
     }
 
@@ -101,7 +106,8 @@ namespace corundum::gameplay::component {
      *  @return Non-owning string_view valid until the next insert/remove.
      */
     [[nodiscard]] std::string_view get_graph_id(EntityId e) const noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       return std::string_view(graph_id[slot].data(), graph_id_len[slot]);
     }
 

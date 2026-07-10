@@ -2,9 +2,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
-#include <limits>
 #include <numeric>
-#include <utility>
 
 namespace corundum::gameplay::entity {
 
@@ -16,23 +14,40 @@ namespace corundum::gameplay::entity {
   /// constant.
   inline constexpr std::size_t k_cache_line = 64;
 
-  /** @brief Strongly-typed entity handle.
+  /** @brief Generational entity handle.
    *
-   * All array index conversions must use `std::to_underlying(id)`.
-   * This prevents accidental arithmetic and makes the conversion visible.
+   * A non-zero generation distinguishes a live handle from a default-constructed
+   * (invalid) one.  After an entity is destroyed its generation increments so that
+   * all outstanding handles become stale — detectable via `EntityManager::is_live()`
+   * or by a generation-aware `Table::has()`.
    */
-  enum class EntityId : std::uint32_t { Invalid = std::numeric_limits<std::uint32_t>::max() };
+  struct EntityId {
+    std::uint32_t index{};
+    std::uint32_t generation{};
+
+    [[nodiscard]] constexpr bool valid() const noexcept {
+      return generation != 0;
+    }
+
+    bool operator==(const EntityId &) const = default;
+
+    [[nodiscard]] static constexpr EntityId invalid() noexcept {
+      return {};
+    }
+  };
 
   /** @brief Free-list pool for entity IDs; O(1) create and destroy.
    *
-   * Maintains a stack-based free list of recycled IDs. allocate() pops from
-   * the top and destroy() pushes back. No heap allocation — the free list is
-   * a fixed-size std::array.
+   * Maintains a stack-based free list of recycled IDs.  Each slot has an associated
+   * generation counter that increments on every `destroy()` call, so handles that
+   * outlive their entity are rejectable.
    */
   struct EntityManager {
-    /** @brief Internal free list stores raw indices; converted to/from EntityId
-     *         at the API boundary. */
+    /** @brief Free list stores raw indices. */
     std::array<std::uint32_t, k_max_entities> free_list_raw;
+
+    /** @brief Per-slot generation counter; incremented on each destroy(). */
+    std::array<std::uint32_t, k_max_entities> generations{};
 
     /** @brief Number of available (free) slots. */
     std::uint32_t free_count = k_max_entities;
@@ -40,26 +55,40 @@ namespace corundum::gameplay::entity {
     /** @brief Initialises the pool so create() hands out IDs 0, 1, 2, … */
     EntityManager() noexcept {
       std::iota(free_list_raw.rbegin(), free_list_raw.rend(), std::uint32_t{0});
+      generations.fill(1);
     }
 
     /** @brief Allocate a fresh entity ID.
      *  @pre Pool must not be full — check full() first.
-     *  @return A live entity ID; recycles IDs returned by destroy().
+     *  @return A live entity ID with the current generation for the recyclable slot.
      */
     [[nodiscard]] EntityId create() noexcept {
       assert(free_count > 0 && "Entity pool exhausted");
-      return static_cast<EntityId>(free_list_raw[--free_count]);
+      const std::uint32_t idx = free_list_raw[--free_count];
+      return {idx, generations[idx]};
     }
 
     /** @brief Return id to the free list for reuse.
-     *  @param[in] id A live entity (returned by create() and not yet destroyed).
-     *  @pre id must be a live entity.
+     *
+     *  If id's generation does not match the current generation for its slot the
+     *  call is a no-op (the entity was already destroyed or the handle is stale).
+     *  This makes double-destroy safe at the cost of a generation check.
+     *
+     *  @param[in] id Entity handle returned by create().
      */
     void destroy(EntityId id) noexcept {
-      const auto idx = std::to_underlying(id);
-      assert(idx < k_max_entities && "Entity ID out of range");
+      assert(id.index < k_max_entities && "Entity ID out of range");
+      if (id.generation != generations[id.index])
+        return; // Already destroyed or stale handle — no-op.
       assert(free_count < k_max_entities && "Double-destroy detected");
-      free_list_raw[free_count++] = idx;
+      ++generations[id.index];
+      free_list_raw[free_count++] = id.index;
+    }
+
+    /** @brief True if @p id refers to the current occupant of its slot.
+     *  @param[in] id Entity handle to query. */
+    [[nodiscard]] bool is_live(EntityId id) const noexcept {
+      return id.valid() && id.index < k_max_entities && id.generation == generations[id.index];
     }
 
     /** @brief True when the pool is exhausted and create() would assert. */

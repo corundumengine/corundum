@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <limits>
 #include <span>
-#include <utility>
 
 namespace corundum::gameplay::component {
 
@@ -54,8 +53,11 @@ namespace corundum::gameplay::component {
 
     /** @brief True if @p e has a facing entry. @param[in] e Entity to query. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto idx = std::to_underlying(e);
-      return idx < k_max && sparse[idx] != k_invalid;
+      const auto i = e.index;
+      if (i >= k_max)
+        return false;
+      const auto s = sparse[i];
+      return s != k_invalid && entities[s] == e;
     }
 
     /** @brief Add a facing row for @p e.
@@ -64,7 +66,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, FacingDir d) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(!has(e));
+      const auto idx = e.index;
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
@@ -76,12 +79,13 @@ namespace corundum::gameplay::component {
      *  @param[in] e Entity to remove. @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(has(e));
+      const auto idx = e.index;
       const auto slot = sparse[idx];
       const auto last = count - 1;
       if (slot != last) {
         const EntityId last_e = entities[last];
-        sparse[std::to_underlying(last_e)] = slot;
+        sparse[last_e.index] = slot;
         entities[slot] = last_e;
         dir[slot] = dir[last];
       }
@@ -91,12 +95,14 @@ namespace corundum::gameplay::component {
 
     /** @brief Mutable facing direction reference for @p e. @pre has(e). */
     [[nodiscard]] FacingDir &dir_ref(EntityId e) noexcept {
-      return dir[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return dir[sparse[e.index]];
     }
 
     /** @brief Facing direction of @p e. @pre has(e). */
     [[nodiscard]] FacingDir dir_of(EntityId e) const noexcept {
-      return dir[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return dir[sparse[e.index]];
     }
   };
 

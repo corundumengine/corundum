@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <limits>
 #include <span>
-#include <utility>
 
 namespace corundum::gameplay::component {
 
@@ -66,8 +65,11 @@ namespace corundum::gameplay::component {
      *  @param[in] e Entity to query.
      */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto idx = std::to_underlying(e);
-      return idx < k_max && sparse[idx] != k_invalid;
+      const auto i = e.index;
+      if (i >= k_max)
+        return false;
+      const auto s = sparse[i];
+      return s != k_invalid && entities[s] == e;
     }
 
     /** @brief Add a sprite row for @p e.
@@ -78,7 +80,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, corundum::resources::SpriteId sid, corundum::resources::AnimId aid, uint8_t fi) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(!has(e));
+      const auto idx = e.index;
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
@@ -93,12 +96,13 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(has(e));
+      const auto idx = e.index;
       const auto slot = sparse[idx];
       const auto last = count - 1;
       if (slot != last) {
         const EntityId last_e = entities[last];
-        sparse[std::to_underlying(last_e)] = slot;
+        sparse[last_e.index] = slot;
         entities[slot] = last_e;
         sprite_id[slot] = sprite_id[last];
         anim_id[slot] = anim_id[last];
@@ -112,22 +116,26 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     [[nodiscard]] std::uint32_t dense_idx(EntityId e) const noexcept {
-      return sparse[std::to_underlying(e)];
+      assert(has(e));
+      return sparse[e.index];
     }
 
     /** @brief Mutable reference to the sprite ID for @p e. @pre has(e). */
     [[nodiscard]] corundum::resources::SpriteId &sprite_id_ref(EntityId e) noexcept {
-      return sprite_id[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return sprite_id[sparse[e.index]];
     }
 
     /** @brief Mutable reference to the animation ID for @p e. @pre has(e). */
     [[nodiscard]] corundum::resources::AnimId &anim_id_ref(EntityId e) noexcept {
-      return anim_id[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return anim_id[sparse[e.index]];
     }
 
     /** @brief Mutable reference to the frame index for @p e. @pre has(e). */
     [[nodiscard]] uint8_t &frame_index_ref(EntityId e) noexcept {
-      return frame_index[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return frame_index[sparse[e.index]];
     }
   };
 

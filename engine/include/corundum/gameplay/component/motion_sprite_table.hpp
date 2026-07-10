@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <limits>
 #include <span>
-#include <utility>
 
 namespace corundum::gameplay::component {
 
@@ -67,42 +66,51 @@ namespace corundum::gameplay::component {
 
     /** @brief True if @p e has a motion-sprite entry. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto idx = std::to_underlying(e);
-      return idx < k_max && sparse[idx] != k_invalid;
+      const auto i = e.index;
+      if (i >= k_max)
+        return false;
+      const auto s = sparse[i];
+      return s != k_invalid && entities[s] == e;
     }
 
     /** @brief Walk SpriteId for @p e. @pre has(e). */
     [[nodiscard]] corundum::resources::SpriteId walk_sprite(EntityId e) const noexcept {
-      return walk_id[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return walk_id[sparse[e.index]];
     }
 
     /** @brief Idle SpriteId for @p e. @pre has(e). */
     [[nodiscard]] corundum::resources::SpriteId idle_sprite(EntityId e) const noexcept {
-      return idle_id[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return idle_id[sparse[e.index]];
     }
 
     /** @brief Configured delay (seconds) for the transition to @p target_sid. @pre has(e). */
     [[nodiscard]] float delay_for(EntityId e, corundum::resources::SpriteId target_sid) const noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       return (target_sid == walk_id[slot]) ? idle_to_walk_delay[slot] : walk_to_idle_delay[slot];
     }
 
     /** @brief Frame duration override (seconds/frame) for @p target_sid; 0 means use AnimationTable default. @pre
      * has(e). */
     [[nodiscard]] float frame_duration_for(EntityId e, corundum::resources::SpriteId target_sid) const noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       return (target_sid == walk_id[slot]) ? walk_frame_duration[slot] : idle_frame_duration[slot];
     }
 
     /** @brief SpriteId currently pending transition, or k_null_sprite_id if none. @pre has(e). */
     [[nodiscard]] corundum::resources::SpriteId pending_sprite(EntityId e) const noexcept {
-      return pending_sid[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return pending_sid[sparse[e.index]];
     }
 
     /** @brief Walk frame counts for @p e, suitable for AnimationTable::set_frame_counts. @pre has(e). */
     [[nodiscard]] std::array<uint8_t, corundum::resources::k_num_anim_ids>
     walk_frame_counts(EntityId e) const noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       std::array<uint8_t, corundum::resources::k_num_anim_ids> out;
       std::copy_n(&walk_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids],
                   corundum::resources::k_num_anim_ids, out.data());
@@ -112,7 +120,8 @@ namespace corundum::gameplay::component {
     /** @brief Idle frame counts for @p e, suitable for AnimationTable::set_frame_counts. @pre has(e). */
     [[nodiscard]] std::array<uint8_t, corundum::resources::k_num_anim_ids>
     idle_frame_counts(EntityId e) const noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       std::array<uint8_t, corundum::resources::k_num_anim_ids> out;
       std::copy_n(&idle_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids],
                   corundum::resources::k_num_anim_ids, out.data());
@@ -126,7 +135,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e).
      */
     void set_pending(EntityId e, corundum::resources::SpriteId target) noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       pending_sid[slot] = target;
       transition_timer[slot] = 0.f;
     }
@@ -135,14 +145,16 @@ namespace corundum::gameplay::component {
      *  @pre has(e).
      */
     float tick_transition(EntityId e, float dt) noexcept {
-      auto &t = transition_timer[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      auto &t = transition_timer[sparse[e.index]];
       t += dt;
       return t;
     }
 
     /** @brief Cancel any pending transition, resetting the timer to zero. @pre has(e). */
     void cancel_transition(EntityId e) noexcept {
-      const auto slot = sparse[std::to_underlying(e)];
+      assert(has(e));
+      const auto slot = sparse[e.index];
       pending_sid[slot] = corundum::resources::k_null_sprite_id;
       transition_timer[slot] = 0.f;
     }
@@ -164,7 +176,8 @@ namespace corundum::gameplay::component {
                 const std::array<uint8_t, corundum::resources::k_num_anim_ids> &wc,
                 const std::array<uint8_t, corundum::resources::k_num_anim_ids> &ic, float itw_delay = 0.f,
                 float wti_delay = 0.f, float walk_fd = 0.f, float idle_fd = 0.f) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(!has(e));
+      const auto idx = e.index;
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
@@ -185,12 +198,13 @@ namespace corundum::gameplay::component {
 
     /** @brief Remove @p e's entry via swap-and-pop. @pre has(e). */
     void remove(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(has(e));
+      const auto idx = e.index;
       const auto slot = sparse[idx];
       const auto last = count - 1;
       if (slot != last) {
         const EntityId last_e = entities[last];
-        sparse[std::to_underlying(last_e)] = slot;
+        sparse[last_e.index] = slot;
         entities[slot] = last_e;
         walk_id[slot] = walk_id[last];
         idle_id[slot] = idle_id[last];

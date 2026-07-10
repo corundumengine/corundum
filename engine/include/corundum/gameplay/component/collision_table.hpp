@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <limits>
 #include <span>
-#include <utility>
 
 namespace corundum::gameplay::component {
 
@@ -59,8 +58,11 @@ namespace corundum::gameplay::component {
 
     /** @brief True if @p e has a collision rect. @param[in] e Entity to query. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto idx = std::to_underlying(e);
-      return idx < k_max && sparse[idx] != k_invalid;
+      const auto i = e.index;
+      if (i >= k_max)
+        return false;
+      const auto s = sparse[i];
+      return s != k_invalid && entities[s] == e;
     }
 
     /** @brief Add a collision rect for @p e.
@@ -70,7 +72,8 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, float col_span, float row_span) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(!has(e));
+      const auto idx = e.index;
       const auto slot = count;
       sparse[idx] = slot;
       entities[slot] = e;
@@ -82,12 +85,13 @@ namespace corundum::gameplay::component {
      *  @param[in] e Entity to remove. @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      const auto idx = std::to_underlying(e);
+      assert(has(e));
+      const auto idx = e.index;
       const auto slot = sparse[idx];
       const auto last = count - 1;
       if (slot != last) {
         const EntityId last_e = entities[last];
-        sparse[std::to_underlying(last_e)] = slot;
+        sparse[last_e.index] = slot;
         entities[slot] = last_e;
         rects[slot] = rects[last];
       }
@@ -97,22 +101,26 @@ namespace corundum::gameplay::component {
 
     /** @brief Const collision rect for @p e. @pre has(e). */
     [[nodiscard]] const Rect &get_rect(EntityId e) const noexcept {
-      return rects[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return rects[sparse[e.index]];
     }
 
     /** @brief Mutable collision rect for @p e. @pre has(e). */
     [[nodiscard]] Rect &get_rect(EntityId e) noexcept {
-      return rects[sparse[std::to_underlying(e)]];
+      assert(has(e));
+      return rects[sparse[e.index]];
     }
 
     /** @brief col_span of @p e's collision rect. @pre has(e). */
     [[nodiscard]] float col_span(EntityId e) const noexcept {
-      return rects[sparse[std::to_underlying(e)]].col_span;
+      assert(has(e));
+      return rects[sparse[e.index]].col_span;
     }
 
     /** @brief row_span of @p e's collision rect. @pre has(e). */
     [[nodiscard]] float row_span(EntityId e) const noexcept {
-      return rects[sparse[std::to_underlying(e)]].row_span;
+      assert(has(e));
+      return rects[sparse[e.index]].row_span;
     }
   };
 
