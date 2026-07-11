@@ -1,10 +1,8 @@
 #pragma once
 #include <array>
+#include <corundum/gameplay/component/sparse_index.hpp>
 #include <corundum/gameplay/component/table_concepts.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
 #include <corundum/resources/sprite.hpp>
-#include <cstdint>
-#include <limits>
 #include <span>
 
 namespace corundum::gameplay::component {
@@ -17,13 +15,8 @@ namespace corundum::gameplay::component {
   struct SpriteTable {
     static constexpr auto k_max = k_max_entities;
 
-    static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
-
     // ── Sparse index ───────────────────────────────────────────────
-    std::array<std::uint32_t, k_max> sparse{};
-
-    // ── Dense entity tracking ──────────────────────────────────────
-    std::array<EntityId, k_max> entities{};
+    SparseIndex<k_max> idx;
 
     // ── SoA fields (all hot — read every frame by the renderer) ────
     std::array<corundum::resources::SpriteId, k_max> sprite_id{};
@@ -31,10 +24,6 @@ namespace corundum::gameplay::component {
     std::array<uint8_t, k_max> frame_index{};
 
     std::uint32_t count = 0;
-
-    SpriteTable() noexcept {
-      sparse.fill(k_invalid);
-    }
 
     /** @brief Contiguous span of sprite IDs for all live entities. */
     [[nodiscard]] auto active_sprite_id(this auto &self) noexcept {
@@ -58,18 +47,14 @@ namespace corundum::gameplay::component {
 
     /** @brief Contiguous span of EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return std::span(self.entities).first(self.count);
+      return self.idx.active_entities(self.count);
     }
 
     /** @brief True if @p e has a sprite row.
      *  @param[in] e Entity to query.
      */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto i = e.index;
-      if (i >= k_max)
-        return false;
-      const auto s = sparse[i];
-      return s != k_invalid && entities[s] == e;
+      return idx.has(e);
     }
 
     /** @brief Add a sprite row for @p e.
@@ -80,15 +65,11 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, corundum::resources::SpriteId sid, corundum::resources::AnimId aid, uint8_t fi) noexcept {
-      assert(!has(e));
-      const auto idx = e.index;
-      const auto slot = count;
-      sparse[idx] = slot;
-      entities[slot] = e;
-      sprite_id[slot] = sid;
-      anim_id[slot] = aid;
-      frame_index[slot] = fi;
-      ++count;
+      idx.insert(e, count, [&](auto slot) {
+        sprite_id[slot] = sid;
+        anim_id[slot] = aid;
+        frame_index[slot] = fi;
+      });
     }
 
     /** @brief Remove @p e's sprite row via swap-and-pop.
@@ -96,46 +77,36 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      assert(has(e));
-      const auto idx = e.index;
-      const auto slot = sparse[idx];
-      const auto last = count - 1;
-      if (slot != last) {
-        const EntityId last_e = entities[last];
-        sparse[last_e.index] = slot;
-        entities[slot] = last_e;
+      idx.remove(e, count, [&](auto slot, auto last) {
         sprite_id[slot] = sprite_id[last];
         anim_id[slot] = anim_id[last];
         frame_index[slot] = frame_index[last];
-      }
-      sparse[idx] = k_invalid;
-      --count;
+      });
     }
 
     /** @brief Dense row index for @p e; use to subscript SoA arrays directly.
      *  @pre has(e) must be true.
      */
     [[nodiscard]] std::uint32_t dense_idx(EntityId e) const noexcept {
-      assert(has(e));
-      return sparse[e.index];
+      return idx.dense_idx(e);
     }
 
     /** @brief Mutable reference to the sprite ID for @p e. @pre has(e). */
     [[nodiscard]] corundum::resources::SpriteId &sprite_id_ref(EntityId e) noexcept {
       assert(has(e));
-      return sprite_id[sparse[e.index]];
+      return sprite_id[idx.dense_idx(e)];
     }
 
     /** @brief Mutable reference to the animation ID for @p e. @pre has(e). */
     [[nodiscard]] corundum::resources::AnimId &anim_id_ref(EntityId e) noexcept {
       assert(has(e));
-      return anim_id[sparse[e.index]];
+      return anim_id[idx.dense_idx(e)];
     }
 
     /** @brief Mutable reference to the frame index for @p e. @pre has(e). */
     [[nodiscard]] uint8_t &frame_index_ref(EntityId e) noexcept {
       assert(has(e));
-      return frame_index[sparse[e.index]];
+      return frame_index[idx.dense_idx(e)];
     }
   };
 

@@ -220,8 +220,7 @@ namespace corundum::gameplay::world::tilemap {
           try {
             default_fps = anim_obj["fps"].get<float>();
           } catch (...) {
-            return std::unexpected(
-                std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
+            return std::unexpected(std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
           }
           if (default_fps <= 0.f)
             return std::unexpected(
@@ -229,8 +228,7 @@ namespace corundum::gameplay::world::tilemap {
         }
 
         if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
-          return std::unexpected(
-              std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
+          return std::unexpected(std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
 
         const auto &clips = anim_obj["clips"];
         for (std::size_t ci = 0; ci < clips.size(); ++ci) {

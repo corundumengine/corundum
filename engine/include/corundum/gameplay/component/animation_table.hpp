@@ -1,11 +1,9 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <corundum/gameplay/component/sparse_index.hpp>
 #include <corundum/gameplay/component/table_concepts.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
 #include <corundum/resources/sprite.hpp>
-#include <cstdint>
-#include <limits>
 #include <span>
 
 namespace corundum::gameplay::component {
@@ -20,30 +18,19 @@ namespace corundum::gameplay::component {
   struct AnimationTable {
     static constexpr auto k_max = k_max_entities;
 
-    static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
-
     // ── Hot: timer / frame_duration tick every frame. Front-loaded so the cold data
     // below never shares a cache line with — or sits immediately before — hot data. ──
     alignas(k_cache_line) std::array<float, k_max> timer{};
     alignas(k_cache_line) std::array<float, k_max> frame_duration{};
 
     // ── Sparse index ───────────────────────────────────────────────
-    std::array<std::uint32_t, k_max> sparse{};
-
-    // ── Dense entity tracking ──────────────────────────────────────
-    std::array<EntityId, k_max> entities{};
+    SparseIndex<k_max> idx;
 
     // ── Lukewarm: frame_counts[entity_idx * k_num_anim_ids + anim_id] ──
     // Read on animation transition; cached at spawn from character registry.
     std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::resources::k_num_anim_ids> frame_counts{};
 
     std::uint32_t count = 0;
-
-    AnimationTable() noexcept {
-      sparse.fill(k_invalid);
-      // Default frame_duration
-      std::fill(frame_duration.begin(), frame_duration.end(), 0.15f);
-    }
 
     /** @brief Contiguous span over playback timers for all live entities. */
     [[nodiscard]] auto active_timer(this auto &self) noexcept {
@@ -57,18 +44,14 @@ namespace corundum::gameplay::component {
 
     /** @brief Contiguous span of EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return std::span(self.entities).first(self.count);
+      return self.idx.active_entities(self.count);
     }
 
     /** @brief True if @p e has an animation row.
      *  @param[in] e Entity to query.
      */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto i = e.index;
-      if (i >= k_max)
-        return false;
-      const auto s = sparse[i];
-      return s != k_invalid && entities[s] == e;
+      return idx.has(e);
     }
 
     /** @brief Add an animation row for @p e with default 0.15 s frame duration.
@@ -76,17 +59,12 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e) noexcept {
-      assert(!has(e));
-      const auto idx = e.index;
-      const auto slot = count;
-      sparse[idx] = slot;
-      entities[slot] = e;
-      timer[slot] = 0.f;
-      frame_duration[slot] = 0.15f;
-      // Zero the frame_counts row
-      auto *fc = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
-      std::fill_n(fc, corundum::resources::k_num_anim_ids, uint8_t{0});
-      ++count;
+      idx.insert(e, count, [&](auto slot) {
+        timer[slot] = 0.f;
+        frame_duration[slot] = 0.15f;
+        auto *fc = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
+        std::fill_n(fc, corundum::resources::k_num_anim_ids, uint8_t{0});
+      });
     }
 
     /** @brief Remove @p e's animation row via swap-and-pop.
@@ -94,35 +72,25 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      assert(has(e));
-      const auto idx = e.index;
-      const auto slot = sparse[idx];
-      const auto last = count - 1;
-      if (slot != last) {
-        const EntityId last_e = entities[last];
-        sparse[last_e.index] = slot;
-        entities[slot] = last_e;
+      idx.remove(e, count, [&](auto slot, auto last) {
         timer[slot] = timer[last];
         frame_duration[slot] = frame_duration[last];
-        // Copy the frame_counts row
         auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
         const auto *src = &frame_counts[static_cast<std::size_t>(last) * corundum::resources::k_num_anim_ids];
         std::copy_n(src, corundum::resources::k_num_anim_ids, dst);
-      }
-      sparse[idx] = k_invalid;
-      --count;
+      });
     }
 
     /** @brief Mutable playback timer reference for @p e. @pre has(e). */
     [[nodiscard]] float &timer_ref(EntityId e) noexcept {
       assert(has(e));
-      return timer[sparse[e.index]];
+      return timer[idx.dense_idx(e)];
     }
 
     /** @brief Mutable frame duration reference for @p e. @pre has(e). */
     [[nodiscard]] float &frame_duration_ref(EntityId e) noexcept {
       assert(has(e));
-      return frame_duration[sparse[e.index]];
+      return frame_duration[idx.dense_idx(e)];
     }
 
     /** @brief Number of frames in @p aid for entity @p e; 0 if the clip is absent.
@@ -132,7 +100,7 @@ namespace corundum::gameplay::component {
      */
     [[nodiscard]] uint8_t frame_count(EntityId e, corundum::resources::AnimId aid) const noexcept {
       assert(has(e));
-      const auto slot = sparse[e.index];
+      const auto slot = idx.dense_idx(e);
       return frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids +
                           static_cast<uint8_t>(aid)];
     }
@@ -144,7 +112,7 @@ namespace corundum::gameplay::component {
      */
     void set_frame_counts(EntityId e, const std::array<uint8_t, corundum::resources::k_num_anim_ids> &counts) noexcept {
       assert(has(e));
-      const auto slot = sparse[e.index];
+      const auto slot = idx.dense_idx(e);
       auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
       std::copy_n(counts.data(), corundum::resources::k_num_anim_ids, dst);
     }

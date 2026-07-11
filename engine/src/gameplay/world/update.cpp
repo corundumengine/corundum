@@ -15,8 +15,8 @@
 namespace {
 
   void update_exploring(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
-                        const corundum::gameplay::world::MapView &map, const corundum::core::GameConfig &cfg,
-                        float dt, float win_w, float win_h) {
+                        const corundum::gameplay::world::MapView &map, const corundum::core::GameConfig &cfg, float dt,
+                        float win_w, float win_h) {
     using corundum::gameplay::entity::EntityId;
 
     auto &world = scene.world;
@@ -71,8 +71,8 @@ namespace corundum::gameplay::world {
 
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt, float win_w, float win_h,
-              corundum::gameplay::FlagStore &flags, const quest::Registry *quests) {
+              const MapView &map, float dt, float win_w, float win_h, corundum::gameplay::FlagStore &flags,
+              const quest::Registry *quests) {
     const auto actions = corundum::input::pressed_actions(input);
 
     update_zoom(scene, input, cfg, dt, win_w, win_h);

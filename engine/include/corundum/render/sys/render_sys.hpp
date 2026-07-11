@@ -115,8 +115,8 @@ namespace corundum::render::sys {
    * @param[in]     win_h  Live window height in screen pixels.
    */
   void render(corundum::platform::Renderer &r, data::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags,
-              float alpha, int win_w, int win_h);
+              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags, float alpha,
+              int win_w, int win_h);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

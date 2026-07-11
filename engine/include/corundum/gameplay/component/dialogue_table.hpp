@@ -1,11 +1,8 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <corundum/gameplay/component/sparse_index.hpp>
 #include <corundum/gameplay/component/table_concepts.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
-#include <cstdint>
-#include <limits>
-#include <span>
 #include <string_view>
 
 namespace corundum::gameplay::component {
@@ -20,23 +17,14 @@ namespace corundum::gameplay::component {
     static constexpr auto k_max = k_max_entities;
     static constexpr std::size_t k_max_id_len = 128;
 
-    static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
-
     // ── Sparse index ───────────────────────────────────────────────
-    std::array<std::uint32_t, k_max> sparse{};
-
-    // ── Dense entity tracking ──────────────────────────────────────
-    std::array<EntityId, k_max> entities{};
+    SparseIndex<k_max> idx;
 
     // ── Graph identifier (cold — read only on dialogue trigger) ────
     std::array<std::array<char, k_max_id_len>, k_max> graph_id{};
     std::array<std::size_t, k_max> graph_id_len{};
 
     std::uint32_t count = 0;
-
-    DialogueTable() noexcept {
-      sparse.fill(k_invalid);
-    }
 
     /** @brief Span over graph_id buffers (alias for GameTable concept compliance). */
     [[nodiscard]] auto active_span(this auto &self) noexcept {
@@ -45,16 +33,12 @@ namespace corundum::gameplay::component {
 
     /** @brief Contiguous span of EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return std::span(self.entities).first(self.count);
+      return self.idx.active_entities(self.count);
     }
 
     /** @brief True if @p e has a dialogue ref. @param[in] e Entity to query. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto i = e.index;
-      if (i >= k_max)
-        return false;
-      const auto s = sparse[i];
-      return s != k_invalid && entities[s] == e;
+      return idx.has(e);
     }
 
     /** @brief Add a dialogue ref for @p e.
@@ -63,32 +47,17 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, std::string_view id) noexcept {
-      assert(!has(e));
-      const auto idx = e.index;
-      const auto slot = count;
-      sparse[idx] = slot;
-      entities[slot] = e;
-      set_id(slot, id);
-      ++count;
+      idx.insert(e, count, [&](auto slot) { set_id(slot, id); });
     }
 
     /** @brief Remove @p e's dialogue ref via swap-and-pop.
      *  @param[in] e Entity to remove. @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      assert(has(e));
-      const auto idx = e.index;
-      const auto slot = sparse[idx];
-      const auto last = count - 1;
-      if (slot != last) {
-        const EntityId last_e = entities[last];
-        sparse[last_e.index] = slot;
-        entities[slot] = last_e;
+      idx.remove(e, count, [&](auto slot, auto last) {
         graph_id[slot] = graph_id[last];
         graph_id_len[slot] = graph_id_len[last];
-      }
-      sparse[idx] = k_invalid;
-      --count;
+      });
     }
 
     /** @brief Set (or replace) the graph ID for @p e.
@@ -97,8 +66,7 @@ namespace corundum::gameplay::component {
      */
     void set_graph_id(EntityId e, std::string_view id) noexcept {
       assert(has(e));
-      const auto slot = sparse[e.index];
-      set_id(slot, id);
+      set_id(idx.dense_idx(e), id);
     }
 
     /** @brief Graph ID string for @p e as a non-owning view.
@@ -107,7 +75,7 @@ namespace corundum::gameplay::component {
      */
     [[nodiscard]] std::string_view get_graph_id(EntityId e) const noexcept {
       assert(has(e));
-      const auto slot = sparse[e.index];
+      const auto slot = idx.dense_idx(e);
       return std::string_view(graph_id[slot].data(), graph_id_len[slot]);
     }
 

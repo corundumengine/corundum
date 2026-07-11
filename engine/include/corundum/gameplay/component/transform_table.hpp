@@ -1,9 +1,7 @@
 #pragma once
 #include <array>
+#include <corundum/gameplay/component/sparse_index.hpp>
 #include <corundum/gameplay/component/table_concepts.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
-#include <cstdint>
-#include <limits>
 #include <span>
 
 namespace corundum::gameplay::component {
@@ -22,8 +20,6 @@ namespace corundum::gameplay::component {
   struct TransformTable {
     static constexpr auto k_max = k_max_entities;
 
-    static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
-
     // ── Hot: accessed every frame (SoA). Front-loaded so cold sparse/entities data
     // below never shares a cache line with — or sits immediately before — hot data. ──
     alignas(k_cache_line) std::array<float, k_max> col{};
@@ -32,16 +28,9 @@ namespace corundum::gameplay::component {
     alignas(k_cache_line) std::array<float, k_max> dr{};
 
     // ── Sparse index: EntityId → dense row ─────────────────────────
-    std::array<std::uint32_t, k_max> sparse{};
-
-    // ── Dense entity tracking ──────────────────────────────────────
-    std::array<EntityId, k_max> entities{};
+    SparseIndex<k_max> idx;
 
     std::uint32_t count = 0;
-
-    TransformTable() noexcept {
-      sparse.fill(k_invalid);
-    }
 
     /** @brief Contiguous span over the tile columns of all live entities. */
     [[nodiscard]] auto active_cols(this auto &self) noexcept {
@@ -70,18 +59,14 @@ namespace corundum::gameplay::component {
 
     /** @brief Contiguous span of the EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return std::span(self.entities).first(self.count);
+      return self.idx.active_entities(self.count);
     }
 
     /** @brief True if @p e has a row in this table.
      *  @param[in] e Entity to query.
      */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      const auto i = e.index;
-      if (i >= k_max)
-        return false;
-      const auto s = sparse[i];
-      return s != k_invalid && entities[s] == e;
+      return idx.has(e);
     }
 
     /** @brief Add a transform row for @p e.
@@ -93,16 +78,12 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, float pc, float pr, float vc, float vr) noexcept {
-      assert(!has(e));
-      const auto idx = e.index;
-      const auto slot = count;
-      sparse[idx] = slot;
-      entities[slot] = e;
-      col[slot] = pc;
-      row[slot] = pr;
-      dc[slot] = vc;
-      dr[slot] = vr;
-      ++count;
+      idx.insert(e, count, [&](auto slot) {
+        col[slot] = pc;
+        row[slot] = pr;
+        dc[slot] = vc;
+        dr[slot] = vr;
+      });
     }
 
     /** @brief Remove @p e's transform row via swap-and-pop.
@@ -110,45 +91,36 @@ namespace corundum::gameplay::component {
      *  @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      assert(has(e));
-      const auto idx = e.index;
-      const auto slot = sparse[idx];
-      const auto last = count - 1;
-      if (slot != last) {
-        const EntityId last_e = entities[last];
-        sparse[last_e.index] = slot;
-        entities[slot] = last_e;
+      idx.remove(e, count, [&](auto slot, auto last) {
         col[slot] = col[last];
         row[slot] = row[last];
         dc[slot] = dc[last];
         dr[slot] = dr[last];
-      }
-      sparse[idx] = k_invalid;
-      --count;
+      });
     }
 
     /** @brief Tile column of @p e. @pre has(e). */
     [[nodiscard]] float pos_col(EntityId e) const noexcept {
       assert(has(e));
-      return col[sparse[e.index]];
+      return col[idx.dense_idx(e)];
     }
 
     /** @brief Tile row of @p e. @pre has(e). */
     [[nodiscard]] float pos_row(EntityId e) const noexcept {
       assert(has(e));
-      return row[sparse[e.index]];
+      return row[idx.dense_idx(e)];
     }
 
     /** @brief Mutable tile column of @p e. @pre has(e). */
     [[nodiscard]] float &pos_col(EntityId e) noexcept {
       assert(has(e));
-      return col[sparse[e.index]];
+      return col[idx.dense_idx(e)];
     }
 
     /** @brief Mutable tile row of @p e. @pre has(e). */
     [[nodiscard]] float &pos_row(EntityId e) noexcept {
       assert(has(e));
-      return row[sparse[e.index]];
+      return row[idx.dense_idx(e)];
     }
 
     /** @brief Dense row index for @p e; use for direct SoA array subscript on hot paths.
@@ -156,8 +128,7 @@ namespace corundum::gameplay::component {
      *  @return Index into x/y/dx/dy arrays.
      */
     [[nodiscard]] std::uint32_t dense_idx(EntityId e) const noexcept {
-      assert(has(e));
-      return sparse[e.index];
+      return idx.dense_idx(e);
     }
   };
 

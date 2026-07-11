@@ -230,7 +230,7 @@ namespace corundum::physics::sys {
     std::array<float, corundum::gameplay::entity::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
     uint16_t npc_count = 0;
     for (uint16_t i = 0; i < collisions.count; ++i) {
-      const EntityId eid = collisions.entities[i];
+      const EntityId eid = collisions.idx.entities[i];
       if (eid == player)
         continue;
       if (!transforms.has(eid))

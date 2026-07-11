@@ -61,7 +61,7 @@ namespace corundum::gameplay::world {
    */
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt, float win_w, float win_h,
-              corundum::gameplay::FlagStore &flags, const quest::Registry *quests = nullptr);
+              const MapView &map, float dt, float win_w, float win_h, corundum::gameplay::FlagStore &flags,
+              const quest::Registry *quests = nullptr);
 
 } // namespace corundum::gameplay::world

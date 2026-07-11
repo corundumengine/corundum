@@ -11,6 +11,7 @@
 #include <corundum/gameplay/component/transform_name_table.hpp>
 #include <corundum/gameplay/component/transform_table.hpp>
 #include <corundum/gameplay/entity/entity.hpp>
+#include <tuple>
 
 namespace corundum::gameplay::entity {
 
@@ -72,27 +73,20 @@ namespace corundum::gameplay::entity {
     return e;
   }
 
+  /// @brief Tie all component tables into a tuple for fold-expression iteration.
+  /// Adding a new table means adding one member to World and one entry in this tie;
+  /// despawn marks/deletion and any future cross-table operations update automatically.
+  [[nodiscard]] static auto all_tables(World &w) noexcept {
+    return std::tie(w.transforms, w.transform_names, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.facings,
+                    w.motion_sprites);
+  }
+
   /// Remove e and all of its components from the world immediately.
   /// Safe to call between update frames. During an update, prefer mark_for_deletion().
   /// @pre e must be a live entity.
   inline void despawn(World &w, EntityId e) {
     assert(w.entities.is_live(e) && "despawn: not a live entity");
-    if (w.transforms.has(e))
-      w.transforms.remove(e);
-    if (w.transform_names.has(e))
-      w.transform_names.remove(e);
-    if (w.sprites.has(e))
-      w.sprites.remove(e);
-    if (w.animations.has(e))
-      w.animations.remove(e);
-    if (w.collisions.has(e))
-      w.collisions.remove(e);
-    if (w.dialogue_refs.has(e))
-      w.dialogue_refs.remove(e);
-    if (w.facings.has(e))
-      w.facings.remove(e);
-    if (w.motion_sprites.has(e))
-      w.motion_sprites.remove(e);
+    std::apply([e](auto &...tables) { ((tables.has(e) ? (tables.remove(e), 0) : 0), ...); }, all_tables(w));
     w.entities.destroy(e);
   }
 

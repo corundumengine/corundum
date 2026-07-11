@@ -65,7 +65,7 @@ namespace corundum::anim::sys {
     float *timers = std::assume_aligned<16>(animations.timer.data());
     const float *frame_durations = std::assume_aligned<16>(animations.frame_duration.data());
     for (uint16_t i = 0; i < animations.count; ++i) {
-      const corundum::gameplay::entity::EntityId e = animations.entities[i];
+      const corundum::gameplay::entity::EntityId e = animations.idx.entities[i];
       if (!sprites.has(e) || !transforms.has(e)) [[unlikely]]
         continue;
 
