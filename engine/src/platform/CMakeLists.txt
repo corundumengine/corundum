@@ -44,8 +44,6 @@ if(APPLE)
   target_link_libraries(engine_platform_glfw
         PRIVATE "-framework Metal" "-framework QuartzCore" "-framework AudioToolbox" "-framework CoreAudio"
     )
-elseif(WIN32)
-  target_compile_definitions(engine_platform_glfw PRIVATE SOKOL_D3D11)
 else()
   target_compile_definitions(engine_platform_glfw PRIVATE SOKOL_GLCORE)
   find_package(OpenGL REQUIRED)
