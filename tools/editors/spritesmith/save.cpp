@@ -33,6 +33,8 @@ namespace tools::sprite {
         if (sp.collision_h > 0)
           sj["collision_h"] = sp.collision_h;
         sj["walk_around_offset"] = sp.walk_around_offset;
+        if (sp.fps > 0.f)
+          sj["fps"] = sp.fps;
         for (uint8_t i = 0; i < k_num_anim_ids; ++i) {
           if (sp.anim_frames[i].empty())
             continue;

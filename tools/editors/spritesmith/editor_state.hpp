@@ -25,6 +25,7 @@ namespace tools::sprite {
     int collision_w = 0;             ///< Collision width in sprite pixels; 0 = full frame width.
     int collision_h = 0;             ///< Collision height in sprite pixels; 0 = full frame height.
     float walk_around_offset = 0.6f; ///< Fractional Y offset defining the feet anchor.
+    float fps = 0.f;                 ///< Playback rate override; 0 = use engine default.
     /// Per-animation frame sequences, indexed by AnimId.
     std::array<std::vector<corundum::resources::FrameCoord>, corundum::resources::k_num_anim_ids> anim_frames;
   };

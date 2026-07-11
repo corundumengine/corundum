@@ -36,6 +36,7 @@ namespace tools::sprite {
         sp.collision_w = entry.collision_w;
         sp.collision_h = entry.collision_h;
         sp.walk_around_offset = entry.walk_around_offset;
+        sp.fps = entry.fps;
         sp.anim_frames = entry.anim_frames;
         state.sprites.push_back(std::move(sp));
       }
