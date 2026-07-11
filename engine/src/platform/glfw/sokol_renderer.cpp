@@ -532,6 +532,8 @@ void main() {
   }
 
   void SokolRenderer::draw(const DrawSprite &cmd) {
+    if (!pass_active_)
+      return;
     if (!has_quad_space())
       return;
     if (cmd.texture_id >= textures_.size())
@@ -571,6 +573,8 @@ void main() {
   }
 
   void SokolRenderer::draw(const DrawText &cmd) {
+    if (!pass_active_)
+      return;
     if (cmd.text.empty())
       return;
 
@@ -627,6 +631,8 @@ void main() {
   }
 
   void SokolRenderer::draw(const DrawRect &cmd) {
+    if (!pass_active_)
+      return;
     if (!has_quad_space())
       return;
     const float cr = cmd.colour.r / 255.f;
@@ -644,6 +650,8 @@ void main() {
   }
 
   void SokolRenderer::draw(const DrawLine &cmd) {
+    if (!pass_active_)
+      return;
     if (!has_quad_space())
       return;
     const float cr = cmd.colour.r / 255.f;
