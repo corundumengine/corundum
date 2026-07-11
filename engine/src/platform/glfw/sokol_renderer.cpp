@@ -194,6 +194,8 @@ void main() {
       std::string path;
       sg_image image;
       sg_view view;
+      int width = 0;
+      int height = 0;
     };
 
     struct BakedAtlas {
@@ -435,7 +437,7 @@ void main() {
 
     const uint32_t id = static_cast<uint32_t>(textures_.size());
     path_to_id_[std::string{path}] = id;
-    textures_.push_back({std::string{path}, img, view});
+    textures_.push_back({std::string{path}, img, view, w, h});
     return id;
   }
 
@@ -543,12 +545,11 @@ void main() {
     if (tex.image.id == 0)
       return;
 
-    const sg_image_desc info = sg_query_image_desc(tex.image);
-    if (info.width == 0)
+    if (tex.width == 0)
       return;
 
-    const float tex_w = static_cast<float>(info.width);
-    const float tex_h = static_cast<float>(info.height);
+    const float tex_w = static_cast<float>(tex.width);
+    const float tex_h = static_cast<float>(tex.height);
 
     float u0 = static_cast<float>(cmd.source.x) / tex_w;
     float v0 = static_cast<float>(cmd.source.y) / tex_h;
