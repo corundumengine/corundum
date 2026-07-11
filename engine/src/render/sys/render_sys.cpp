@@ -1,6 +1,7 @@
 #include <corundum/render/sys/render_sys.hpp>
 
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/component/transform_table.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/scene.hpp>
@@ -15,7 +16,6 @@
 #include <array>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <iterator>
 #include <numeric>
 #include <print>
@@ -168,16 +168,23 @@ namespace corundum::render::sys {
 
   std::expected<void, std::string> load_ui_assets(corundum::platform::Renderer &r, data::RenderState &state) {
     constexpr std::string_view k_path = "data/sprite_sheets/ui/borders.json";
-    std::ifstream f{std::string{k_path}};
-    if (!f.is_open()) {
-      std::println(stderr, "[renderer] WARNING: could not open '{}'", k_path);
+
+    auto j_result = corundum::core::read_json(k_path);
+    if (!j_result) {
+      std::println(stderr, "[renderer] WARNING: could not load '{}': {}", k_path, j_result.error());
       return {};
     }
+    const nlohmann::json &j = *j_result;
 
-    const nlohmann::json j = nlohmann::json::parse(f);
-    const int fw = j.at("frame_width").get<int>();
-    const int fh = j.at("frame_height").get<int>();
-    const std::string tex_path = j.at("path").get<std::string>();
+    int fw, fh;
+    std::string tex_path;
+    try {
+      fw = j.at("frame_width").get<int>();
+      fh = j.at("frame_height").get<int>();
+      tex_path = j.at("path").get<std::string>();
+    } catch (const nlohmann::json::exception &e) {
+      return std::unexpected(std::format("[renderer] malformed UI assets '{}': {}", k_path, e.what()));
+    }
 
     auto make_rect = [&](std::string_view name) -> IntRect {
       const auto &fr = j.at("frames").at(std::string{name});
