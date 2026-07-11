@@ -1,4 +1,3 @@
-#include <corundum/core/math/vec.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/world/spawn.hpp>
@@ -24,11 +23,7 @@ namespace corundum::gameplay::world {
     }
 
     const auto &new_tm = engine.render.map_data.tilemap;
-    const auto iso =
-        core::math::compute_iso_params(new_tm.diamond_w(), new_tm.diamond_h(), new_tm.height, engine.cfg.tile_scale);
-    const auto spawn_pos =
-        core::math::tile_to_world(t.spawn_col, t.spawn_row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
-    const gameplay::component::Position spawn{spawn_pos.x, spawn_pos.y};
+    const gameplay::component::Position spawn{static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row)};
     auto scene_result = gameplay::world::spawn_world(engine.cfg, engine.characters, new_tm, spawn);
     if (!scene_result) {
       std::println(stderr, "[engine] map transition failed: {}", scene_result.error());

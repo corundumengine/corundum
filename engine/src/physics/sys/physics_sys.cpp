@@ -204,8 +204,8 @@ namespace corundum::physics::sys {
     }
     integrate(transforms, dt);
 
-    const float map_w = map.world_w_px;
-    const float map_h = map.world_h_px;
+    const float map_w = map.world_w_tiles;
+    const float map_h = map.world_h_tiles;
 
     const CollisionTable::Rect &player_rect = collisions.get_rect(player);
 

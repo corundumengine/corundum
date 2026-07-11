@@ -17,7 +17,7 @@ namespace corundum::gameplay::world {
    * @param cfg        Game configuration (tile scale, sprite scale).
    * @param registry   Character registry for sprite ID lookups.
    * @param tilemap    Loaded tilemap (used for tile dimensions and map stem).
-   * @param player_pos World-pixel position for the player. When absent the player
+   * @param player_pos Tile-grid position for the player (col, row). When absent the player
    *                  is placed at tile (8, 8) of the new map.
    * @return Scene containing the populated world and player EntityId,
    *         or std::unexpected with an error description on failure.

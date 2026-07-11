@@ -26,6 +26,8 @@ namespace corundum::gameplay::world {
     corundum::gameplay::world::tilemap::CollisionTrianglesView collision_triangles;
     float world_w_px = 0.f;      ///< Total isometric world width in display pixels.
     float world_h_px = 0.f;      ///< Total isometric world height in display pixels.
+    float world_w_tiles = 0.f;   ///< Total map width in tile-grid columns.
+    float world_h_tiles = 0.f;   ///< Total map height in tile-grid rows.
     float half_tw = 0.f;         ///< Half the scaled diamond width; used for iso↔cart conversion.
     float half_th = 0.f;         ///< Half the scaled diamond height; used for iso↔cart conversion.
     float x_origin = 0.f;        ///< Isometric x-shift so the leftmost tile lands at x = 0.
