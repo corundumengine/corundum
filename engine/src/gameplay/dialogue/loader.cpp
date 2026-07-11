@@ -6,6 +6,7 @@
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <vector>
 
 using json = nlohmann::json;
 
@@ -137,6 +138,27 @@ namespace corundum::gameplay::dialogue {
       if (node.type == NodeType::Choice)
         for (std::size_t i = 0; i < node.choices.size(); ++i)
           check(node.choices[i].target_id, std::format("{}:choice[{}]", node.id, i));
+    }
+
+    // Event-node cycle detection: follow every Event's next_id chain and abort
+    // when the same Event node is visited twice — a cycle would cause an
+    // infinite loop at runtime via flush_events().
+    for (const auto &start : graph.nodes) {
+      if (start.type != NodeType::Event)
+        continue;
+      if (start.next_id == ending_node)
+        continue;
+      std::vector<std::string_view> visited;
+      const Node *cur = &start;
+      while (cur && cur->type == NodeType::Event && cur->next_id != ending_node) {
+        for (const auto &v : visited)
+          if (v == cur->id)
+            throw LoadError(std::format("[{}] event-node cycle detected: '{}' is reachable from itself "
+                                        "through a chain of Event nodes",
+                                        graph.graph_id, start.id));
+        visited.push_back(cur->id);
+        cur = graph.find(cur->next_id);
+      }
     }
   }
 

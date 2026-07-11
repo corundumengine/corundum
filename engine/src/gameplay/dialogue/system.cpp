@@ -28,7 +28,15 @@ namespace corundum::gameplay::dialogue {
   // Flush any Event nodes we just landed on, collecting their emitted actions.
   // Returns immediately once the current node is not an Event.
   static void flush_events(State &state, corundum::gameplay::FlagStore &flags, std::vector<EventAction> &pending) {
+    constexpr int k_max_event_hops = 1000;
+    int hops = 0;
     while (state.active && state.graph) {
+      if (++hops > k_max_event_hops) {
+        std::println(stderr, "[dialogue] event chain exceeds {} hops in '{}' — cycle detected, aborting",
+                     k_max_event_hops, state.graph->graph_id);
+        state.reset();
+        return;
+      }
       const Node *cur = state.graph->find(state.current_id);
       if (!cur || cur->type != NodeType::Event)
         break;
