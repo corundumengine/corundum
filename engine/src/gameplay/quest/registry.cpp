@@ -8,6 +8,9 @@ namespace corundum::gameplay::quest {
   int Registry::load_all(const std::filesystem::path &dir) {
     int loaded = 0;
 
+    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir))
+      return loaded;
+
     for (const auto &entry : std::filesystem::directory_iterator(dir)) {
       if (entry.path().extension() != ".json")
         continue;

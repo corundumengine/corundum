@@ -167,8 +167,10 @@ namespace corundum {
 
     render::sys::configure_dialog_style(engine.render, engine.cfg);
 
-    const auto loaded = engine.graphs.load_all(engine.cfg.paths.dialogue_dir);
-    std::println("[engine] Loaded {} dialogue graphs", loaded);
+    int dialogue_loaded = 0;
+    if (!engine.cfg.paths.dialogue_dir.empty())
+      dialogue_loaded = engine.graphs.load_all(engine.cfg.paths.dialogue_dir);
+    std::println("[engine] Loaded {} dialogue graphs", dialogue_loaded);
 
     if (!engine.cfg.paths.quests_dir.empty()) {
       const auto quest_loaded = engine.quests.load_all(engine.cfg.paths.quests_dir);
