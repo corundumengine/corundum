@@ -10,8 +10,10 @@ add_library(engine STATIC
     src/gameplay/dialogue/loader.cpp
     src/gameplay/dialogue/query.cpp
     src/gameplay/dialogue/registry.cpp
+    src/gameplay/dialogue/serialize.cpp
     src/gameplay/dialogue/system.cpp
     src/gameplay/quest/loader.cpp
+    src/gameplay/quest/serialize.cpp
     src/gameplay/quest/validate.cpp
     src/gameplay/quest/registry.cpp
     src/gameplay/quest/system.cpp

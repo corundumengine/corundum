@@ -1,8 +1,10 @@
 #include <doctest/doctest.h>
 
+#include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/quest/loader.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/serialize.hpp>
 #include <corundum/gameplay/quest/system.hpp>
 
 #include <filesystem>
@@ -460,4 +462,40 @@ TEST_CASE("quest_flag_key formats correctly") {
   CHECK(quest::quest_flag_key("find_sword") == "quest.find_sword");
   CHECK(quest::quest_flag_key("escort_merchant") == "quest.escort_merchant");
   CHECK(quest::quest_flag_key("") == "quest.");
+}
+
+// ── Round-trip ────────────────────────────────────────────────────────────────
+
+TEST_CASE("serialize_quest round-trips through load_quest") {
+  const auto result = quest::load_quest("tests/fixtures/find_sword.json");
+  REQUIRE(result.has_value());
+  const auto &q = *result;
+
+  const auto j = quest::serialize_quest(q);
+
+  const auto tmp = std::filesystem::path("tests/fixtures/tmp_find_sword.json");
+  auto write_result = corundum::core::write_json(tmp, j);
+  REQUIRE(write_result.has_value());
+
+  const auto reloaded = quest::load_quest(tmp.string());
+  REQUIRE(reloaded.has_value());
+  const auto &q2 = *reloaded;
+
+  CHECK(q2.quest_id == q.quest_id);
+  CHECK(q2.name == q.name);
+  CHECK(q2.description == q.description);
+  REQUIRE(q2.stages.size() == q.stages.size());
+
+  for (std::size_t i = 0; i < q.stages.size(); ++i) {
+    CHECK(q2.stages[i].name == q.stages[i].name);
+    CHECK(q2.stages[i].sequence == q.stages[i].sequence);
+    CHECK(q2.stages[i].resolved == q.stages[i].resolved);
+    CHECK(q2.stages[i].failed == q.stages[i].failed);
+    REQUIRE(q2.stages[i].objectives.size() == q.stages[i].objectives.size());
+    for (std::size_t j = 0; j < q.stages[i].objectives.size(); ++j) {
+      CHECK(q2.stages[i].objectives[j].text == q.stages[i].objectives[j].text);
+    }
+  }
+
+  std::filesystem::remove(tmp);
 }

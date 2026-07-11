@@ -1,10 +1,14 @@
 #include <doctest/doctest.h>
 
+#include <filesystem>
+
+#include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/dialogue/expr.hpp>
 #include <corundum/gameplay/dialogue/loader.hpp>
 #include <corundum/gameplay/dialogue/query.hpp>
+#include <corundum/gameplay/dialogue/serialize.hpp>
 #include <corundum/gameplay/dialogue/system.hpp>
 #include <corundum/gameplay/flags.hpp>
 
@@ -539,4 +543,48 @@ TEST_CASE("load_graph returns error for missing file") {
   const auto result = corundum::gameplay::dialogue::load_graph("no_such_file.json");
   CHECK_FALSE(result.has_value());
   CHECK_FALSE(result.error().empty());
+}
+
+// ── Round-trip ────────────────────────────────────────────────────────────────
+
+TEST_CASE("serialize_graph round-trips through load_graph") {
+  const auto result = corundum::gameplay::dialogue::load_graph("tests/fixtures/innkeeper.json");
+  REQUIRE(result.has_value());
+  const auto &g = *result;
+
+  const auto j = corundum::gameplay::dialogue::serialize_graph(g);
+
+  const auto tmp = std::filesystem::path("tests/fixtures/tmp_innkeeper.json");
+  auto write_result = corundum::core::write_json(tmp, j);
+  REQUIRE(write_result.has_value());
+
+  const auto reloaded = corundum::gameplay::dialogue::load_graph(tmp.string());
+  REQUIRE(reloaded.has_value());
+  const auto &g2 = *reloaded;
+
+  CHECK(g2.graph_id == g.graph_id);
+  CHECK(g2.speaker == g.speaker);
+  CHECK(g2.nodes.size() == g.nodes.size());
+  CHECK(g2.variables == g.variables);
+
+  const auto *n0 = corundum::gameplay::dialogue::find_node(g2, "n0");
+  REQUIRE(n0 != nullptr);
+  CHECK(n0->type == corundum::gameplay::dialogue::NodeType::Talk);
+  CHECK(n0->next_id == "n1");
+
+  const auto *n1 = corundum::gameplay::dialogue::find_node(g2, "n1");
+  REQUIRE(n1 != nullptr);
+  CHECK(n1->type == corundum::gameplay::dialogue::NodeType::Choice);
+  CHECK(n1->choices.size() == 3);
+  CHECK(n1->choices[0].condition == "gold >= 5 && !paid_innkeeper");
+  CHECK(n1->choices[0].actions[0] == "gold -= 5");
+  CHECK(n1->choices[0].sequence == corundum::gameplay::dialogue::SequenceMode::Once);
+
+  const auto *n_pay = corundum::gameplay::dialogue::find_node(g2, "n_pay");
+  REQUIRE(n_pay != nullptr);
+  CHECK(n_pay->type == corundum::gameplay::dialogue::NodeType::Event);
+  CHECK(n_pay->actions[0] == "play_sound('coin')");
+  CHECK(n_pay->next_id == "n2");
+
+  std::filesystem::remove(tmp);
 }

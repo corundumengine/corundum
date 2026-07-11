@@ -3,7 +3,9 @@
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/dialogue/loader.hpp>
+#include <corundum/gameplay/dialogue/serialize.hpp>
 #include <corundum/gameplay/quest/loader.hpp>
+#include <corundum/gameplay/quest/serialize.hpp>
 
 #include <format>
 #include <fstream>
@@ -26,91 +28,7 @@ namespace tools::talesmith {
   std::expected<void, std::string> save_graph(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
-
-    json j;
-    j["type"] = "graph";
-    j["id"] = state.graph.graph_id;
-
-    if (!state.graph.speaker.empty())
-      j["speaker"] = state.graph.speaker;
-
-    if (!state.graph.variables.empty()) {
-      json vars = json::object();
-      for (const auto &[k, v] : state.graph.variables)
-        vars[k] = v;
-      j["variables"] = vars;
-    }
-
-    json nodes_arr = json::array();
-    for (const auto &node : state.graph.nodes) {
-      json nj;
-      nj["id"] = node.id;
-
-      switch (node.type) {
-      case corundum::gameplay::dialogue::NodeType::Talk:
-        nj["type"] = "talk";
-        nj["text"] = node.text;
-        if (!node.next_id.empty())
-          nj["next"] = node.next_id;
-        break;
-      case corundum::gameplay::dialogue::NodeType::Choice:
-        nj["type"] = "choice";
-        {
-          json choices = json::array();
-          for (const auto &ch : node.choices) {
-            json cj;
-            cj["label"] = ch.label;
-            cj["target"] = ch.target_id;
-            if (ch.condition)
-              cj["condition"] = *ch.condition;
-            if (!ch.actions.empty())
-              cj["actions"] = ch.actions;
-            if (ch.sequence != corundum::gameplay::dialogue::SequenceMode::None) {
-              if (ch.sequence == corundum::gameplay::dialogue::SequenceMode::Once)
-                cj["sequence"] = "once";
-              else if (ch.sequence == corundum::gameplay::dialogue::SequenceMode::Cycle)
-                cj["sequence"] = "cycle";
-              else if (ch.sequence == corundum::gameplay::dialogue::SequenceMode::Random)
-                cj["sequence"] = "random";
-            }
-            if (ch.min_visits)
-              cj["min_visits"] = *ch.min_visits;
-            choices.push_back(cj);
-          }
-          nj["choices"] = choices;
-        }
-        break;
-      case corundum::gameplay::dialogue::NodeType::Event:
-        nj["type"] = "event";
-        if (!node.actions.empty())
-          nj["actions"] = node.actions;
-        if (!node.next_id.empty())
-          nj["next"] = node.next_id;
-        break;
-      case corundum::gameplay::dialogue::NodeType::End:
-        nj["type"] = "end";
-        break;
-      default:
-        break;
-      }
-
-      if (!node.metadata.empty()) {
-        json meta = json::object();
-        for (const auto &[k, v] : node.metadata)
-          meta[k] = v;
-        nj["metadata"] = meta;
-      }
-
-      nodes_arr.push_back(nj);
-    }
-    j["nodes"] = nodes_arr;
-
-    {
-      auto res = corundum::core::write_json(state.file_path, j);
-      if (!res)
-        return std::unexpected(res.error());
-    }
-    return {};
+    return corundum::core::write_json(state.file_path, corundum::gameplay::dialogue::serialize_graph(state.graph));
   }
 
   std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path) {
@@ -137,43 +55,7 @@ namespace tools::talesmith {
   std::expected<void, std::string> save_quest_file(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
-
-    json j;
-    j["type"] = "quest";
-    j["id"] = state.quest_doc_.quest_id;
-    j["name"] = state.quest_doc_.name;
-    j["description"] = state.quest_doc_.description;
-
-    json stages_arr = json::array();
-    for (const auto &s : state.quest_doc_.stages) {
-      json sj;
-      sj["name"] = s.name;
-      sj["sequence"] = s.sequence;
-      if (s.resolved)
-        sj["resolved"] = true;
-      if (s.failed)
-        sj["failed"] = true;
-      if (!s.objectives.empty()) {
-        json objs = json::array();
-        for (const auto &obj : s.objectives) {
-          json oj;
-          oj["text"] = obj.text;
-          if (obj.done_condition)
-            oj["done_condition"] = *obj.done_condition;
-          objs.push_back(oj);
-        }
-        sj["objectives"] = objs;
-      }
-      stages_arr.push_back(sj);
-    }
-    j["stages"] = stages_arr;
-
-    {
-      auto res = corundum::core::write_json(state.file_path, j);
-      if (!res)
-        return std::unexpected(res.error());
-    }
-    return {};
+    return corundum::core::write_json(state.file_path, corundum::gameplay::quest::serialize_quest(state.quest_doc_));
   }
 
   std::expected<void, std::string> load_quest_file(EditorState &state, const std::string &path) {
