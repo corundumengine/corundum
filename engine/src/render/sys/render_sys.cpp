@@ -93,7 +93,7 @@ namespace corundum::render::sys {
 
   static void render_ground_layer(corundum::platform::Renderer &r, data::RenderState &state,
                                   const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                                  float alpha, float cam_x, float cam_y, float zoom);
+                                  float alpha, float cam_x, float cam_y, float zoom, int win_w, int win_h);
 
   // ── load_sprite_index ────────────────────────────────────────────────────────
 
@@ -329,8 +329,9 @@ namespace corundum::render::sys {
   // ── render ───────────────────────────────────────────────────────────────────
 
   void render(corundum::platform::Renderer &r, data::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags, float alpha) {
-    const corundum::core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
+              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags, float alpha,
+              int win_w, int win_h) {
+    const corundum::core::math::Vec2 viewport{static_cast<float>(win_w), static_cast<float>(win_h)};
     const float cam_x = state.prev_cam_x + (scene.camera.x - state.prev_cam_x) * alpha;
     const float cam_y = state.prev_cam_y + (scene.camera.y - state.prev_cam_y) * alpha;
     const float zoom = state.prev_zoom + (scene.camera.zoom - state.prev_zoom) * alpha;
@@ -339,7 +340,7 @@ namespace corundum::render::sys {
       sync_active_chunks(r, state, cfg, scene);
 
       r.set_world_view({cam_x, cam_y}, viewport, zoom);
-      render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom);
+      render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom, win_w, win_h);
 
       if (state.chunks_dirty) {
         state.above_z_cache.clear();
@@ -358,7 +359,7 @@ namespace corundum::render::sys {
       }
     } else {
       r.set_world_view({cam_x, cam_y}, viewport, zoom);
-      render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom);
+      render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom, win_w, win_h);
 
       for (const int z : state.map_data.above_z) {
         r.set_world_view({cam_x, cam_y}, viewport, zoom);
@@ -864,7 +865,7 @@ namespace corundum::render::sys {
   /// z_index>0 layers remain a separate, subsequent immediate-draw pass (always above entities).
   static void render_ground_layer(corundum::platform::Renderer &r, data::RenderState &state,
                                   const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                                  float alpha, float cam_x, float cam_y, float zoom) {
+                                  float alpha, float cam_x, float cam_y, float zoom, int win_w, int win_h) {
     const float scale = cfg.character_scale;
 
     core::math::IsoParams iso{};
@@ -891,8 +892,8 @@ namespace corundum::render::sys {
     const auto &sprites = scene.world.sprites;
     const auto ents = sprites.active_entities();
 
-    const float vp_r = cam_x + cfg.win_w / zoom;
-    const float vp_b = cam_y + cfg.win_h / zoom;
+    const float vp_r = cam_x + static_cast<float>(win_w) / zoom;
+    const float vp_b = cam_y + static_cast<float>(win_h) / zoom;
 
     [[assume(sprites.count <= std::remove_reference_t<decltype(sprites)>::k_max)]];
     for (uint16_t i = 0; i < sprites.count; ++i) {

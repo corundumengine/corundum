@@ -29,6 +29,7 @@ namespace corundum::platform::glfw {
     void close() override;
     void poll_game_input(corundum::input::InputState &input) override;
     void resize(unsigned width, unsigned height) override;
+    [[nodiscard]] std::pair<int, int> size() const override;
     void set_vsync(bool enabled) override;
 
     [[nodiscard]] ::GLFWwindow *glfw_window() const noexcept;

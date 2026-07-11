@@ -16,7 +16,7 @@ namespace {
 
   void update_exploring(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
                         const corundum::gameplay::world::MapView &map, const corundum::core::GameConfig &cfg,
-                        float dt) {
+                        float dt, float win_w, float win_h) {
     using corundum::gameplay::entity::EntityId;
 
     auto &world = scene.world;
@@ -39,7 +39,7 @@ namespace {
                            : 0.f;
     const float iso_x = (pc - pr) * map.half_tw + map.x_origin;
     const float iso_y = (pc + pr) * map.half_th - elev * cfg.elevation_step_px;
-    corundum::gameplay::sys::follow_player(scene.camera, iso_x, iso_y, map, cfg.win_w, cfg.win_h);
+    corundum::gameplay::sys::follow_player(scene.camera, iso_x, iso_y, map, win_w, win_h);
   }
 
   // Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel
@@ -47,7 +47,7 @@ namespace {
   constexpr float k_zoom_rate_per_sec = 3.f;
 
   void update_zoom(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
-                   const corundum::core::GameConfig &cfg, float dt) {
+                   const corundum::core::GameConfig &cfg, float dt, float win_w, float win_h) {
     using corundum::input::Action;
 
     if (input.scroll_delta_y != 0.f) {
@@ -58,8 +58,8 @@ namespace {
     const float button_zoom =
         (input.is_held(Action::ZoomIn) ? 1.f : 0.f) - (input.is_held(Action::ZoomOut) ? 1.f : 0.f);
     if (button_zoom != 0.f) {
-      const float center_x = cfg.win_w * 0.5f;
-      const float center_y = cfg.win_h * 0.5f;
+      const float center_x = win_w * 0.5f;
+      const float center_y = win_h * 0.5f;
       corundum::gameplay::sys::apply_zoom(scene.camera, button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y,
                                           cfg.min_zoom, cfg.max_zoom);
     }
@@ -71,10 +71,11 @@ namespace corundum::gameplay::world {
 
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt, corundum::gameplay::FlagStore &flags, const quest::Registry *quests) {
+              const MapView &map, float dt, float win_w, float win_h,
+              corundum::gameplay::FlagStore &flags, const quest::Registry *quests) {
     const auto actions = corundum::input::pressed_actions(input);
 
-    update_zoom(scene, input, cfg, dt);
+    update_zoom(scene, input, cfg, dt, win_w, win_h);
 
     scene.hovered_tile = corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map,
                                                             cfg.elevation_step_px, scene.camera.zoom);
@@ -82,7 +83,7 @@ namespace corundum::gameplay::world {
     if (scene.mode == corundum::gameplay::world::GameMode::Dialogue) [[unlikely]] {
       corundum::gameplay::sys::update_dialogue(scene, actions, flags, quests);
     } else [[likely]] {
-      update_exploring(scene, input, map, cfg, dt);
+      update_exploring(scene, input, map, cfg, dt, win_w, win_h);
       corundum::gameplay::sys::try_interact(scene, input, cfg, graphs, flags);
     }
   }

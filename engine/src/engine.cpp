@@ -182,6 +182,8 @@ namespace corundum {
 
   void update(Engine &engine) noexcept {
     while (engine.window->is_open() && !engine.quit) {
+      std::tie(engine.win_w, engine.win_h) = engine.window->size();
+
       const auto &transforms = engine.scene.world.transforms;
       const auto n = transforms.count;
       for (std::uint32_t i = 0; i < n; ++i) {
@@ -211,7 +213,8 @@ namespace corundum {
 
         const auto mv = gameplay::world::build_map_view(engine.render, engine.cfg);
         gameplay::world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
-                                engine.flags, &engine.quests);
+                                static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
+                                &engine.quests);
 
         process_dialogue_events(engine);
 
@@ -232,7 +235,7 @@ namespace corundum {
 
       engine.renderer->begin_frame(engine.clear_colour);
       render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags,
-                          engine.render.interpolation_alpha);
+                          engine.render.interpolation_alpha, engine.win_w, engine.win_h);
 
       if (engine.show_debug_hud) {
         const debug::OverlayInput hud_input{

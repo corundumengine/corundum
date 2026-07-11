@@ -1,6 +1,8 @@
 #pragma once
 #include <corundum/input/actions.hpp>
 
+#include <utility>
+
 namespace corundum::platform {
 
   /// @brief Abstract OS window. Concrete implementations live in the platform layer.
@@ -20,6 +22,10 @@ namespace corundum::platform {
 
     /// Resize the OS window to the given dimensions in pixels.
     virtual void resize(unsigned width, unsigned height) = 0;
+
+    /// @brief Query the current OS window dimensions in screen pixels.
+    /// @return {width, height} in pixels.
+    [[nodiscard]] virtual std::pair<int, int> size() const = 0;
 
     /// Enable or disable vertical synchronisation.
     virtual void set_vsync(bool enabled) = 0;

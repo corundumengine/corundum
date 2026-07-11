@@ -162,6 +162,14 @@ namespace corundum::platform::glfw {
       glfwSetWindowSize(impl_->win, static_cast<int>(width), static_cast<int>(height));
   }
 
+  std::pair<int, int> GLFWWindow::size() const {
+    if (!impl_ || !impl_->win)
+      return {0, 0};
+    int w = 0, h = 0;
+    glfwGetWindowSize(impl_->win, &w, &h);
+    return {w, h};
+  }
+
   void GLFWWindow::set_vsync(bool enabled) {
     if (!impl_ || !impl_->win)
       return;

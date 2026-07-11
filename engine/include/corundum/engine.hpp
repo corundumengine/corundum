@@ -44,6 +44,9 @@ namespace corundum {
     gameplay::world::Scene scene;
     gameplay::FlagStore flags;
 
+    int win_w = 0;  ///< Live window width in screen pixels, updated each frame.
+    int win_h = 0;  ///< Live window height in screen pixels, updated each frame.
+
     core::time::LoopTimer timer{60.f};
     core::math::Colour clear_colour{30, 30, 35, 255};
     bool quit = false;
