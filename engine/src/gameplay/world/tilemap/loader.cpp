@@ -16,9 +16,32 @@ using json = nlohmann::json;
 namespace corundum::gameplay::world::tilemap {
 
   /// A tileset JSON *is* a spritepacker atlas JSON (schema_version 2), plus these optional
-  /// tileset-only authoring fields layered on top: material, tile_footprints, animations. Sprites
-  /// are referenced by name rather than by local_id/col-row, since MaxRects packing gives no stable
-  /// grid position and array order isn't something an author should have to track across repacks.
+  /// tileset-only authoring fields layered on top: material, tile_footprints, animations.
+  /// Sprites are referenced by name rather than by local_id/col-row, since MaxRects packing
+  /// gives no stable grid position and array order isn't something an author should have to
+  /// track across repacks.
+  ///
+  /// When a sidecar file @c {tileset_path.stem()}.tiledata.json exists alongside the atlas
+  /// JSON, its fields override the atlas-sourced authoring data (material, tile_footprints,
+  /// pivots, animations).  The sidecar stores pivots in the engine's full-frame/bottom-origin
+  /// convention directly, avoiding the need for any conversion round the pivot does NOT go
+  /// through.  This sidecar is the canonical home for authoring data — the atlas JSON stays
+  /// a pure spritepacker artefact that can be freely regenerated without data loss.
+  static std::optional<json> read_sidecar(const fs::path &atlas_path) {
+    const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
+    std::ifstream f(sidecar);
+    if (!f)
+      return std::nullopt;
+    try {
+      auto sc = json::parse(f);
+      if (!sc.is_object())
+        return std::nullopt;
+      return sc;
+    } catch (const json::exception &) {
+      return std::nullopt;
+    }
+  }
+
   std::expected<TilesetInfo, std::string> load_tileset(const fs::path &tileset_path) {
     auto atlas_result = corundum::resources::load_sprite_atlas(tileset_path);
     if (!atlas_result)
@@ -63,7 +86,8 @@ namespace corundum::gameplay::world::tilemap {
       // Convert spritepacker's pivot (fraction of the *trimmed* box, raster convention: y=0 top,
       // y=1 bottom) into this engine's pivot convention (fraction of the *full* untrimmed frame,
       // y=0 bottom) — see docs/isometric-fundamentals.md §7 for why pivot must stay full-frame
-      // relative rather than trimmed-box relative.
+      // relative rather than trimmed-box relative.  These get overridden if a sidecar carries
+      // per-sprite pivots (which are already in engine convention).
       const float px_in_trimmed = sprite.pivot_x * static_cast<float>(sprite.w);
       const float py_in_trimmed = sprite.pivot_y * static_cast<float>(sprite.h);
       const float full_px = static_cast<float>(sprite.trim_x) + px_in_trimmed;
@@ -78,6 +102,13 @@ namespace corundum::gameplay::world::tilemap {
       name_to_local_id.emplace(sprite.name, static_cast<int>(i));
     }
 
+    // ── Sidecar override (optional) ──────────────────────────────────────
+    // The sidecar may carry tile_footprints, pivots, animations, and material —
+    // all in engine convention.  When present these override the atlas-sourced
+    // defaults.  The atlas JSON becomes a pure spritepacker artefact; authoring
+    // data lives safely adjacent to it.
+    const std::optional<json> sidecar = read_sidecar(tileset_path);
+
     auto resolve_name = [&name_to_local_id](const std::string &name) -> std::optional<int> {
       auto it = name_to_local_id.find(name);
       if (it == name_to_local_id.end())
@@ -85,118 +116,176 @@ namespace corundum::gameplay::world::tilemap {
       return it->second;
     };
 
-    if (j.contains("material")) {
+    // ── material ─────────────────────────────────────────────────────────
+
+    const json *material_src = &j;
+    if (sidecar && sidecar->contains("material") && (*sidecar)["material"].is_string())
+      material_src = &*sidecar;
+
+    if (material_src->contains("material")) {
       try {
-        info.material = j["material"].get<std::string>();
+        info.material = (*material_src)["material"].get<std::string>();
       } catch (const nlohmann::json::exception &) {
       }
     }
 
-    if (j.contains("tile_footprints") && j["tile_footprints"].is_array()) {
-      const auto &fps_json = j["tile_footprints"];
-      for (std::size_t fi = 0; fi < fps_json.size(); ++fi) {
-        const auto &entry = fps_json[fi];
-        if (!entry.is_object())
-          continue;
-        std::string name;
-        int w = 1, h = 1;
-        try {
-          name = entry.at("name").get<std::string>();
-        } catch (...) {
-          return std::unexpected(
-              std::format("Tileset '{}' tile_footprints[{}] missing 'name'", tileset_path.string(), fi));
-        }
-        const auto local_id = resolve_name(name);
-        if (!local_id)
-          return std::unexpected(std::format("Tileset '{}' tile_footprints[{}] unknown sprite name '{}'",
-                                             tileset_path.string(), fi, name));
-        if (entry.contains("w")) {
+    // ── tile_footprints ──────────────────────────────────────────────────
+
+    {
+      const json *fp_src = &j;
+      if (sidecar && sidecar->contains("tile_footprints") && (*sidecar)["tile_footprints"].is_array())
+        fp_src = &*sidecar;
+
+      if (fp_src->contains("tile_footprints") && (*fp_src)["tile_footprints"].is_array()) {
+        const auto &fps_json = (*fp_src)["tile_footprints"];
+        for (std::size_t fi = 0; fi < fps_json.size(); ++fi) {
+          const auto &entry = fps_json[fi];
+          if (!entry.is_object())
+            continue;
+          std::string name;
+          int w = 1, h = 1;
           try {
-            w = entry["w"].get<int>();
-          } catch (const nlohmann::json::exception &) {
+            name = entry.at("name").get<std::string>();
+          } catch (...) {
+            return std::unexpected(
+                std::format("Tileset '{}' tile_footprints[{}] missing 'name'", tileset_path.string(), fi));
           }
-        }
-        if (entry.contains("h")) {
-          try {
-            h = entry["h"].get<int>();
-          } catch (const nlohmann::json::exception &) {
+          const auto local_id = resolve_name(name);
+          if (!local_id)
+            return std::unexpected(std::format("Tileset '{}' tile_footprints[{}] unknown sprite name '{}'",
+                                               tileset_path.string(), fi, name));
+          if (entry.contains("w")) {
+            try {
+              w = entry["w"].get<int>();
+            } catch (const nlohmann::json::exception &) {
+            }
           }
+          if (entry.contains("h")) {
+            try {
+              h = entry["h"].get<int>();
+            } catch (const nlohmann::json::exception &) {
+            }
+          }
+          info.tile_footprints[*local_id] = {std::max(1, w), std::max(1, h)};
         }
-        info.tile_footprints[*local_id] = {std::max(1, w), std::max(1, h)};
       }
     }
 
-    if (j.contains("animations")) {
-      const auto &anim_obj = j["animations"];
-      if (!anim_obj.is_object())
-        return std::unexpected(std::format("Tileset '{}' field 'animations' must be an object", tileset_path.string()));
+    // ── pivots (sidecar only — engine convention, no conversion) ────────
 
-      float default_fps = 5.f;
-      if (anim_obj.contains("fps")) {
-        try {
-          default_fps = anim_obj["fps"].get<float>();
-        } catch (...) {
-          return std::unexpected(std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
-        }
-        if (default_fps <= 0.f)
-          return std::unexpected(std::format("Tileset '{}' animations 'fps' must be positive", tileset_path.string()));
-      }
-
-      if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
-        return std::unexpected(std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
-
-      const auto &clips = anim_obj["clips"];
-      for (std::size_t ci = 0; ci < clips.size(); ++ci) {
-        const auto &clip = clips[ci];
-        if (!clip.is_object())
-          return std::unexpected(
-              std::format("Tileset '{}' animations.clips[{}] must be an object", tileset_path.string(), ci));
-
+    if (sidecar && sidecar->contains("pivots") && (*sidecar)["pivots"].is_array()) {
+      for (const auto &pe : (*sidecar)["pivots"]) {
+        if (!pe.is_object())
+          continue;
         std::string name;
         try {
-          name = clip.at("name").get<std::string>();
+          name = pe.at("name").get<std::string>();
         } catch (...) {
-          return std::unexpected(
-              std::format("Tileset '{}' animations.clips[{}] missing or invalid 'name'", tileset_path.string(), ci));
+          continue;
         }
-        if (name.empty())
-          return std::unexpected(
-              std::format("Tileset '{}' animations.clips[{}] 'name' must not be empty", tileset_path.string(), ci));
-
-        if (!clip.contains("frames") || !clip["frames"].is_array())
-          return std::unexpected(
-              std::format("Tileset '{}' animations.clips[{}] missing 'frames' array", tileset_path.string(), ci));
-
-        TileAnimation anim;
-        anim.fps = default_fps;
-        if (clip.contains("fps")) {
+        const auto local_id = resolve_name(name);
+        if (!local_id)
+          continue;
+        const auto idx = static_cast<std::size_t>(*local_id);
+        if (pe.contains("pivot_x")) {
           try {
-            anim.fps = clip["fps"].get<float>();
+            info.tile_pivot_x[idx] = pe["pivot_x"].get<float>();
+          } catch (const nlohmann::json::exception &) {
+          }
+        }
+        if (pe.contains("pivot_y")) {
+          try {
+            info.tile_pivot_y[idx] = pe["pivot_y"].get<float>();
+          } catch (const nlohmann::json::exception &) {
+          }
+        }
+      }
+    }
+
+    // ── animations ───────────────────────────────────────────────────────
+
+    {
+      const json *anim_src = &j;
+      if (sidecar && sidecar->contains("animations") && (*sidecar)["animations"].is_object())
+        anim_src = &*sidecar;
+
+      if (anim_src->contains("animations")) {
+        const auto &anim_obj = (*anim_src)["animations"];
+        if (!anim_obj.is_object())
+          return std::unexpected(
+              std::format("Tileset '{}' field 'animations' must be an object", tileset_path.string()));
+
+        float default_fps = 5.f;
+        if (anim_obj.contains("fps")) {
+          try {
+            default_fps = anim_obj["fps"].get<float>();
           } catch (...) {
             return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] 'fps' has wrong type", tileset_path.string(), ci));
+                std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
           }
-          if (anim.fps <= 0.f)
+          if (default_fps <= 0.f)
             return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] 'fps' must be positive", tileset_path.string(), ci));
+                std::format("Tileset '{}' animations 'fps' must be positive", tileset_path.string()));
         }
 
-        for (std::size_t fi = 0; fi < clip["frames"].size(); ++fi) {
-          const auto &frame = clip["frames"][fi];
-          std::string frame_name;
+        if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
+          return std::unexpected(
+              std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
+
+        const auto &clips = anim_obj["clips"];
+        for (std::size_t ci = 0; ci < clips.size(); ++ci) {
+          const auto &clip = clips[ci];
+          if (!clip.is_object())
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] must be an object", tileset_path.string(), ci));
+
+          std::string name;
           try {
-            frame_name = frame.get<std::string>();
+            name = clip.at("name").get<std::string>();
           } catch (...) {
-            return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] must be a sprite name",
-                                               tileset_path.string(), ci, fi));
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] missing or invalid 'name'", tileset_path.string(), ci));
           }
-          const auto local_id = resolve_name(frame_name);
-          if (!local_id)
-            return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] unknown sprite name '{}'",
-                                               tileset_path.string(), ci, fi, frame_name));
-          anim.frames.push_back(*local_id);
+          if (name.empty())
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] 'name' must not be empty", tileset_path.string(), ci));
+
+          if (!clip.contains("frames") || !clip["frames"].is_array())
+            return std::unexpected(
+                std::format("Tileset '{}' animations.clips[{}] missing 'frames' array", tileset_path.string(), ci));
+
+          TileAnimation anim;
+          anim.fps = default_fps;
+          if (clip.contains("fps")) {
+            try {
+              anim.fps = clip["fps"].get<float>();
+            } catch (...) {
+              return std::unexpected(
+                  std::format("Tileset '{}' animations.clips[{}] 'fps' has wrong type", tileset_path.string(), ci));
+            }
+            if (anim.fps <= 0.f)
+              return std::unexpected(
+                  std::format("Tileset '{}' animations.clips[{}] 'fps' must be positive", tileset_path.string(), ci));
+          }
+
+          for (std::size_t fi = 0; fi < clip["frames"].size(); ++fi) {
+            const auto &frame = clip["frames"][fi];
+            std::string frame_name;
+            try {
+              frame_name = frame.get<std::string>();
+            } catch (...) {
+              return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] must be a sprite name",
+                                                 tileset_path.string(), ci, fi));
+            }
+            const auto local_id = resolve_name(frame_name);
+            if (!local_id)
+              return std::unexpected(
+                  std::format("Tileset '{}' animations.clips[{}] frames[{}] unknown sprite name '{}'",
+                              tileset_path.string(), ci, fi, frame_name));
+            anim.frames.push_back(*local_id);
+          }
+          info.animations[name] = std::move(anim);
         }
-        info.animations[name] = std::move(anim);
       }
     }
 

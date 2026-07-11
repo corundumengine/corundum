@@ -675,3 +675,70 @@ TEST_CASE("load_tilemap — material_overrides entry missing 'material' throws")
   auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
+
+// ── Sidecar ────────────────────────────────────────────────────────────────────
+
+TEST_CASE("load_tileset — sidecar overrides material, footprints, pivots") {
+  const auto dir = temp_dir("tileset_sidecar");
+  const auto ts_path = dir / "tileset_a.json";
+  write_file(ts_path, tileset_a_json()); // atlas uses pivot (0.5, 1.0), no material, no footprints
+
+  // Build a sidecar with authoring overrides
+  const auto sidecar_path = ts_path.parent_path() / (ts_path.stem().string() + ".tiledata.json");
+  const std::string sidecar = R"({
+    "schema_version": 1,
+    "material": "stone",
+    "tile_footprints": [
+      {"name": "tile_0", "w": 2, "h": 3},
+      {"name": "tile_1", "w": 1, "h": 1}
+    ],
+    "pivots": [
+      {"name": "tile_0", "pivot_x": 0.3, "pivot_y": 0.2}
+    ]
+  })";
+  write_file(sidecar_path, sidecar);
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  const auto &info = *result;
+
+  CHECK(info.material == "stone");
+
+  const auto fp0 = info.tile_footprints.find(0);
+  REQUIRE(fp0 != info.tile_footprints.end());
+  CHECK(fp0->second.w == 2);
+  CHECK(fp0->second.h == 3);
+
+  const auto fp1 = info.tile_footprints.find(1);
+  REQUIRE(fp1 != info.tile_footprints.end());
+  CHECK(fp1->second.w == 1);
+  CHECK(fp1->second.h == 1);
+
+  CHECK(info.tile_pivot_x[0] == doctest::Approx(0.3f));
+  CHECK(info.tile_pivot_y[0] == doctest::Approx(0.2f));
+
+  // tile_1 pivot was not overridden — stays at the atlas default (0.5, 0.0 after conversion)
+  CHECK(info.tile_pivot_x[1] == doctest::Approx(0.5f));
+  CHECK(info.tile_pivot_y[1] == doctest::Approx(0.0f));
+
+  // Unknown sprite names in sidecar are silently skipped — no error, just ignored
+  CHECK(info.tile_footprints.find(31) == info.tile_footprints.end()); // not in sidecar
+}
+
+TEST_CASE("load_tileset — absent sidecar falls back to atlas fields") {
+  const auto dir = temp_dir("tileset_no_sidecar");
+  const auto ts_path = dir / "tileset_a.json";
+  // Write atlas WITH material baked into it (old convention — no sidecar)
+  auto atlas = nlohmann::json::parse(tileset_a_json());
+  atlas["material"] = "dirt";
+  write_file(ts_path, atlas.dump());
+
+  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  REQUIRE(result.has_value());
+  CHECK(result->material == "dirt");
+  CHECK(result->tile_footprints.empty());
+
+  // Pivots come from atlas (spritepacker convention → converted to engine convention)
+  CHECK(result->tile_pivot_x[0] == doctest::Approx(0.5f));
+  CHECK(result->tile_pivot_y[0] == doctest::Approx(0.0f));
+}
