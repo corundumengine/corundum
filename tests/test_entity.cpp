@@ -189,3 +189,31 @@ TEST_CASE("World mark_for_deletion and flush_deletions") {
   CHECK_FALSE(w.entities.is_live(e2));
   CHECK(w.pending_deletion_count == 0);
 }
+
+TEST_CASE("World mark_for_deletion deduplicates double marks") {
+  World w;
+  const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
+                           Sprite{corundum::resources::SpriteId{2}, corundum::resources::AnimId::Default, 0});
+  CHECK(w.entities.is_live(e));
+
+  mark_for_deletion(w, e);
+  CHECK(w.pending_deletion_count == 1);
+  mark_for_deletion(w, e);
+  CHECK(w.pending_deletion_count == 1);
+
+  flush_deletions(w);
+  CHECK_FALSE(w.entities.is_live(e));
+  CHECK(w.pending_deletion_count == 0);
+}
+
+TEST_CASE("EntityManager create pool full on fresh World with k_max_entities spawns") {
+  World w;
+  std::uint32_t spawned = 0;
+  for (; spawned < k_max_entities; ++spawned) {
+    const EntityId e = spawn(w, Position{0.f, 0.f}, Velocity{},
+                             Sprite{corundum::resources::SpriteId{1}, corundum::resources::AnimId::Default, 0});
+    CHECK(e.valid());
+  }
+  CHECK(w.entities.full());
+  CHECK(spawned == k_max_entities);
+}

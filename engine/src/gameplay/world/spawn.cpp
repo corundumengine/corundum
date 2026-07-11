@@ -90,6 +90,10 @@ namespace corundum::gameplay::world {
       return std::unexpected(actors_result.error());
     const auto &actors = *actors_result;
 
+    if (static_cast<std::size_t>(1) + actors.size() > corundum::gameplay::entity::k_max_entities)
+      return std::unexpected(std::format("[crpg] too many entities for '{}': {} actors + 1 player exceeds limit of {}",
+                                         map_stem, actors.size(), corundum::gameplay::entity::k_max_entities));
+
     for (const auto &a : actors) {
       const float col = static_cast<float>(a.col);
       const float row_f = static_cast<float>(a.row);

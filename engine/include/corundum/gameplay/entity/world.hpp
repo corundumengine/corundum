@@ -106,6 +106,9 @@ namespace corundum::gameplay::entity {
   inline void mark_for_deletion(World &w, EntityId e) {
     assert(w.entities.is_live(e) && "mark_for_deletion: not a live entity");
     assert(w.pending_deletion_count < k_max_entities && "pending_deletions full");
+    for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
+      if (w.pending_deletions[i] == e)
+        return;
     w.pending_deletions[w.pending_deletion_count++] = e;
   }
 
