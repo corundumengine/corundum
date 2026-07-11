@@ -29,13 +29,15 @@ namespace corundum::physics::sys {
                    corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
                    float player_speed, corundum::core::math::IsoParams iso) noexcept;
 
-  /** @brief Advance positions by velocity * dt for all active transforms.
-   *  @param[in,out] transforms  SoA table; x/y are advanced by dx/dy * dt.
+  /** @brief Advance @p e's position by velocity * dt.
+   *  @param[in,out] transforms  SoA table; col/row for @p e are advanced.
+   *  @param[in]     e           Entity to integrate.
    *  @param[in]     dt          Fixed timestep in seconds.
-   *  @post All entity positions updated by velocity * dt.
-   *  @performance O(n) over active entity count. Auto-vectorisable SoA layout.
+   *  @pre @p e must exist in @p transforms.
+   *  @post Entity position updated by velocity * dt.
    */
-  void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept;
+  void integrate(corundum::gameplay::component::TransformTable &transforms, corundum::gameplay::entity::EntityId e,
+                 float dt) noexcept;
 
   /** @brief Drive velocity toward the next waypoint in a click-to-move path.
    *

@@ -46,16 +46,11 @@ namespace corundum::physics::sys {
     }
   } // namespace
 
-  void integrate(corundum::gameplay::component::TransformTable &transforms, float dt) noexcept {
-    [[assume(transforms.count <= std::remove_reference_t<decltype(transforms)>::k_max)]];
-    float *pcol = std::assume_aligned<16>(transforms.col.data());
-    float *prow = std::assume_aligned<16>(transforms.row.data());
-    const float *pdc = std::assume_aligned<16>(transforms.dc.data());
-    const float *pdr = std::assume_aligned<16>(transforms.dr.data());
-    for (uint16_t i = 0; i < transforms.count; ++i) {
-      pcol[i] += pdc[i] * dt;
-      prow[i] += pdr[i] * dt;
-    }
+  void integrate(corundum::gameplay::component::TransformTable &transforms, corundum::gameplay::entity::EntityId e,
+                 float dt) noexcept {
+    const auto slot = transforms.dense_idx(e);
+    transforms.col[slot] += transforms.dc[slot] * dt;
+    transforms.row[slot] += transforms.dr[slot] * dt;
   }
 
   void follow_path(corundum::gameplay::component::TransformTable &transforms,
@@ -202,7 +197,7 @@ namespace corundum::physics::sys {
     } else {
       apply_input(transforms, player, input, player_speed, iso); // zeroes dc/dr when nothing is held
     }
-    integrate(transforms, dt);
+    integrate(transforms, player, dt);
 
     const float map_w = map.world_w_tiles;
     const float map_h = map.world_h_tiles;

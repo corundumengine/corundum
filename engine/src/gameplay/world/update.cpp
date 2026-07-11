@@ -24,6 +24,16 @@ namespace {
 
     corundum::physics::sys::update_player(world.transforms, world.collisions, player, input, cfg.player_speed, map,
                                           scene, dt);
+
+    // Integrate all NPCs (player was already integrated inside update_player).
+    // NPC velocities are zero today, but when AI gives them motion this establishes
+    // a clear integration step separate from the player update.
+    for (uint16_t i = 0; i < world.transforms.count; ++i) {
+      const EntityId e = world.transforms.idx.entities[i];
+      if (e != player)
+        corundum::physics::sys::integrate(world.transforms, e, dt);
+    }
+
     corundum::anim::sys::animate(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
                                  dt);
 
