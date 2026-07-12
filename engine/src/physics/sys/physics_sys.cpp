@@ -179,7 +179,7 @@ namespace corundum::physics::sys {
     // a gamepad button for an unrelated reason (e.g. confirming dialogue).
     if (input.mouse_click_pressed && scene.hovered_tile && map.walkability) {
       const corundum::gameplay::sys::TileCoord start{static_cast<int>(prev_col), static_cast<int>(prev_row)};
-      scene.path = corundum::gameplay::sys::find_path(map, start, *scene.hovered_tile);
+      scene.path = corundum::gameplay::sys::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
     }
 
     const bool manual_move =

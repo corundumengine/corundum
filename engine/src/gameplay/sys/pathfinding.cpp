@@ -1,3 +1,5 @@
+#include <corundum/gameplay/component/collision_table.hpp>
+#include <corundum/gameplay/component/transform_table.hpp>
 #include <corundum/gameplay/sys/pathfinding.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
@@ -18,9 +20,11 @@ namespace corundum::gameplay::sys {
     constexpr int k_elevation_tolerance = 0;
     constexpr float k_sqrt2 = 1.41421356f;
 
-    [[nodiscard]] bool cell_blocked_by_collision(int col, int row,
-                                                 const corundum::gameplay::world::tilemap::Tilemap &tm,
-                                                 const corundum::gameplay::world::MapView &map) noexcept {
+    [[nodiscard]] bool
+    cell_blocked_by_collision(int col, int row, const corundum::gameplay::world::tilemap::Tilemap &tm,
+                              const corundum::gameplay::world::MapView &map,
+                              const corundum::gameplay::component::CollisionTable *npc_collisions,
+                              const corundum::gameplay::component::TransformTable *npc_transforms) noexcept {
       using corundum::gameplay::world::tilemap::elevation_at;
       const int cell_elev = elevation_at(tm, col, row);
       const float c0 = static_cast<float>(col), c1 = c0 + 1.f;
@@ -41,11 +45,26 @@ namespace corundum::gameplay::sys {
         if (!tris.elevations.empty() &&
             std::abs(static_cast<int>(tris.elevations[i]) - cell_elev) > k_elevation_tolerance)
           continue;
-        // Conservative: bounding-box overlap, not the exact diagonal half. Worst case a
-        // path avoids a technically-open corner rather than routing through a wall.
         if (c0 < tris.cols[i] + tris.col_spans[i] && c1 > tris.cols[i] && r0 < tris.rows[i] + tris.row_spans[i] &&
             r1 > tris.rows[i])
           return true;
+      }
+
+      if (npc_collisions && npc_transforms) {
+        for (uint16_t i = 0; i < npc_collisions->count; ++i) {
+          const auto &rect = npc_collisions->rects[i];
+          const auto eid = npc_collisions->idx.entities[i];
+          const auto tslot = npc_transforms->dense_idx(eid);
+          const float npc_col = npc_transforms->col[tslot];
+          const float npc_row = npc_transforms->row[tslot];
+          const float half_cs = rect.col_span / 2.f;
+          const float n0 = npc_col - half_cs;
+          const float n2 = npc_col + half_cs;
+          const float n1 = npc_row;
+          const float n3 = npc_row + rect.row_span;
+          if (c0 < n2 && c1 > n0 && r0 < n3 && r1 > n1)
+            return true;
+        }
       }
 
       return false;
@@ -70,8 +89,9 @@ namespace corundum::gameplay::sys {
 
   } // namespace
 
-  std::vector<TileCoord> find_path(const corundum::gameplay::world::MapView &map, TileCoord start,
-                                   TileCoord goal) noexcept {
+  std::vector<TileCoord> find_path(const corundum::gameplay::world::MapView &map, TileCoord start, TileCoord goal,
+                                   const corundum::gameplay::component::CollisionTable *npc_collisions,
+                                   const corundum::gameplay::component::TransformTable *npc_transforms) noexcept {
     if (!map.walkability || !map.elevation_map)
       return {};
     const corundum::gameplay::world::tilemap::WalkabilityGraph &graph = *map.walkability;
@@ -131,7 +151,7 @@ namespace corundum::gameplay::sys {
               !graph.can_move(cur.col, cur.row, cur.col, cur.row + dr))
             continue;
         }
-        if (cell_blocked_by_collision(next.col, next.row, tm, map))
+        if (cell_blocked_by_collision(next.col, next.row, tm, map, npc_collisions, npc_transforms))
           continue;
 
         const float step_cost = (dc != 0 && dr != 0) ? k_sqrt2 : 1.f;
