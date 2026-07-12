@@ -253,6 +253,11 @@ namespace corundum {
       }
 
       engine.renderer->end_frame();
+
+      // Load one pending chunk per frame — queues I/O between frames so
+      // chunk-boundary loads don't hitch the render pass.
+      if (engine.render.mode == render::data::RenderMode::World)
+        render::sys::load_one_pending_chunk(*engine.renderer, engine.render, engine.cfg);
     }
   }
 

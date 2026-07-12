@@ -81,8 +81,8 @@ namespace corundum::render::sys {
 
   static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg);
 
-  static void sync_active_chunks(corundum::platform::Renderer &r, data::RenderState &state,
-                                 const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene);
+  static void sync_active_chunks(data::RenderState &state, const corundum::core::GameConfig &cfg,
+                                 const corundum::gameplay::world::Scene &scene);
 
   static void render_tilemap(corundum::platform::Renderer &r, const data::RenderState &state, int z_index,
                              const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
@@ -345,7 +345,7 @@ namespace corundum::render::sys {
     const float zoom = state.prev_zoom + (scene.camera.zoom - state.prev_zoom) * alpha;
 
     if (state.mode == data::RenderMode::World) {
-      sync_active_chunks(r, state, cfg, scene);
+      sync_active_chunks(state, cfg, scene);
 
       r.set_world_view({cam_x, cam_y}, viewport, zoom);
       render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom, win_w, win_h);
@@ -455,8 +455,8 @@ namespace corundum::render::sys {
 
   // ── sync_active_chunks (internal) ────────────────────────────────────────────
 
-  static void sync_active_chunks(corundum::platform::Renderer &r, data::RenderState &state,
-                                 const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene) {
+  static void sync_active_chunks(data::RenderState &state, const corundum::core::GameConfig &cfg,
+                                 const corundum::gameplay::world::Scene &scene) {
     using namespace corundum::gameplay::world::tilemap;
     if (state.active_chunks.empty())
       return;
@@ -508,12 +508,9 @@ namespace corundum::render::sys {
 
     bool any_new = false;
     for (const ChunkCoord c : desired_span) {
-      if (!std::ranges::any_of(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == c; })) {
-        if (auto entry = load_chunk_entry(r, state, c, cfg)) {
-          std::println("[keystone] Loading chunk ({}, {})", c.x, c.y);
-          state.active_chunks.push_back(std::move(*entry));
-          any_new = true;
-        }
+      if (!std::ranges::any_of(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == c; }) &&
+          !std::ranges::contains(state.pending_chunks, c)) {
+        state.pending_chunks.push_back(c);
       }
     }
 
@@ -840,6 +837,20 @@ namespace corundum::render::sys {
   /// Single-map mode interpolates smoothly across a ramp cell (via interpolated_elevation_at)
   /// so crossing one doesn't pop; chunked/streamed World mode keeps the discrete elevation_at()
   /// lift for now — wiring ramp smoothing into chunked mode is a separate follow-up.
+  bool load_one_pending_chunk(corundum::platform::Renderer &r, data::RenderState &state,
+                              const corundum::core::GameConfig &cfg) {
+    if (state.pending_chunks.empty())
+      return false;
+    const auto c = state.pending_chunks.front();
+    state.pending_chunks.erase(state.pending_chunks.begin());
+    if (auto entry = load_chunk_entry(r, state, c, cfg)) {
+      std::println("[keystone] Loading chunk ({}, {})", c.x, c.y);
+      state.active_chunks.push_back(std::move(*entry));
+      return true;
+    }
+    return false;
+  }
+
   float elevation_under(const data::RenderState &state, float col_f, float row_f) noexcept {
     using corundum::gameplay::world::tilemap::elevation_at;
     using corundum::gameplay::world::tilemap::interpolated_elevation_at;

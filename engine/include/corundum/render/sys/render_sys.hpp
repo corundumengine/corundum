@@ -124,6 +124,20 @@ namespace corundum::render::sys {
    */
   [[nodiscard]] int first_chunk_tile_px(const data::RenderState &state) noexcept;
 
+  /** @brief Load one pending chunk from state.pending_chunks into state.active_chunks.
+   *
+   * Removes and loads the first entry from the pending-chunks queue. Called
+   * between frames so the I/O does not hitch the render pass. Returns true
+   * if a chunk was loaded, false if the queue is empty.
+   *
+   * @param[in,out] r      Renderer for texture uploads.
+   * @param[in,out] state  Render state with pending_chunks queue.
+   * @param[in]     cfg    Game config for portal path resolution.
+   * @return True if a chunk was loaded, false if nothing to do.
+   */
+  bool load_one_pending_chunk(corundum::platform::Renderer &r, data::RenderState &state,
+                              const corundum::core::GameConfig &cfg);
+
   /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
    *
    * In world mode looks up the owning chunk via the active-chunk window and returns

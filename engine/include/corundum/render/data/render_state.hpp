@@ -89,6 +89,9 @@ namespace corundum::render::data {
     MapData map_data{};
     corundum::gameplay::world::tilemap::WorldManifest manifest{};
     std::vector<ChunkEntry> active_chunks{};
+    /// Chunks discovered by sync_active_chunks that need loading; drained between frames
+    /// so the I/O does not hitch the render pass.
+    std::vector<corundum::gameplay::world::tilemap::ChunkCoord> pending_chunks{};
     corundum::gameplay::world::tilemap::ChunkCoord last_center_chunk{};
     /// O(1) lookup from a chunk coord's offset relative to last_center_chunk (the fixed 3×3
     /// streaming window — see sync_active_chunks) to its index in active_chunks, or -1 if that
