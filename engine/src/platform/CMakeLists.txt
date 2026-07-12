@@ -4,10 +4,12 @@ add_library(engine_platform_glfw STATIC
     glfw/platform_factory.cpp
     sokol/sokol_impl.cpp
     glfw/sokol_renderer.cpp
+    glfw/stb_impl.cpp
     sokol/sokol_audio_impl.cpp
     sokol/sokol_audio_backend.cpp
     glfw/font_atlas.cpp
     glfw/input_translator.cpp
+    glfw/texture_cache.cpp
 )
 
 if(APPLE)
@@ -40,6 +42,7 @@ if(APPLE)
         glfw/sokol_renderer.cpp
         sokol/sokol_audio_impl.cpp
         sokol/sokol_audio_backend.cpp
+        glfw/texture_cache.cpp
         PROPERTIES LANGUAGE OBJCXX
     )
   target_compile_definitions(engine_platform_glfw PRIVATE SOKOL_METAL)
