@@ -6,7 +6,7 @@
 
 namespace corundum::gameplay::entity {
 
-  inline constexpr std::uint32_t k_max_entities = 256;
+  inline constexpr std::uint32_t k_max_entities = 1024;
 
   /// Portable L1 cache line size in bytes (correct for x86-64 and most ARM parts; still a
   /// valid, if not maximal, alignment on targets with wider lines such as Apple Silicon's
