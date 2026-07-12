@@ -73,9 +73,14 @@ namespace corundum {
         } else if (ev.name == "quest_start" && !ev.args.empty()) {
           if (const auto *q = engine.quests.find(ev.args[0]))
             gameplay::quest::start(*q, engine.flags);
+          else
+            std::println(stderr, "[engine] WARN: quest_start(\"{}\") references unknown quest", ev.args[0]);
         } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
           if (const auto *q = engine.quests.find(ev.args[0]))
             gameplay::quest::advance(*q, ev.args[1], engine.flags);
+          else
+            std::println(stderr, "[engine] WARN: quest_advance(\"{}\", \"{}\") references unknown quest", ev.args[0],
+                         ev.args[1]);
         } else {
           std::println(stderr, "[engine] WARN: unknown dialogue event '{}'", ev.name);
         }

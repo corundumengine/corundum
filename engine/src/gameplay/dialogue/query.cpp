@@ -99,10 +99,16 @@ namespace corundum::gameplay::dialogue {
       }
 
       // ── Condition expression ─────────────────────────────────────────────────
-      // C++23: monadic optional — absent condition → true; non-empty → eval; empty string → true
       if (!edge.condition
                .transform([&](const std::string &cond) -> bool {
-                 return cond.empty() || eval_condition(cond, flags, quests).value_or(false);
+                 if (cond.empty())
+                   return true;
+                 auto r = eval_condition(cond, flags, quests);
+                 if (!r.has_value()) {
+                   std::println(stderr, "[dialogue] condition eval failed '{}': {}", cond, r.error().message);
+                   return false;
+                 }
+                 return *r;
                })
                .value_or(true))
         continue;

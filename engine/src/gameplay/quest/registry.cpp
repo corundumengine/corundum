@@ -22,7 +22,11 @@ namespace corundum::gameplay::quest {
       }
 
       const std::string id = result->quest_id;
-      quests_.emplace(id, std::move(*result));
+      if (quests_.contains(id))
+        std::println(stderr, "[quest] duplicate quest id '{}' — '{}' is shadowed", id,
+                     entry.path().filename().string());
+      else
+        quests_.emplace(id, std::move(*result));
       ++loaded;
     }
 

@@ -22,7 +22,11 @@ namespace corundum::gameplay::dialogue {
       }
 
       const std::string id = result->graph_id;
-      graphs_.emplace(id, std::move(*result));
+      if (graphs_.contains(id))
+        std::println(stderr, "[dialogue] duplicate graph id '{}' — '{}' is shadowed", id,
+                     entry.path().filename().string());
+      else
+        graphs_.emplace(id, std::move(*result));
       ++loaded;
     }
 
