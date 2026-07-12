@@ -11,6 +11,7 @@
 #include "validate_quest_refs.hpp"
 
 #include <corundum/core/game_config.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <format>
 #include <imgui.h>
 #include <print>
@@ -73,14 +74,25 @@ static void action_save(EditorState &state, tools::ToolApp &app) {
     std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
                 std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
     state.popups.show_save_as = true;
-  } else {
-    auto result = save_file(state);
-    if (result) {
-      state.dirty = false;
-      app.set_title(app_title(state));
-    } else {
-      state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+    return;
+  }
+
+  // Validate dialogue graphs before saving — show modal on errors
+  if (state.doc_type_ == DocumentType::Dialogue) {
+    auto errors = corundum::gameplay::dialogue::validate_graph(state.graph);
+    if (!errors.empty()) {
+      state.validation_errors_ = std::move(errors);
+      state.show_validation_modal_ = true;
+      return;
     }
+  }
+
+  auto result = save_file(state);
+  if (result) {
+    state.dirty = false;
+    app.set_title(app_title(state));
+  } else {
+    state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
   }
 }
 
@@ -296,6 +308,36 @@ int main(int argc, char *argv[]) {
       }
       ImGui::SameLine();
       if (ImGui::Button("Cancel")) {
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+    }
+
+    // ── Validation error modal ─────────────────────────────────────────────
+    if (state.show_validation_modal_) {
+      ImGui::OpenPopup("Validation Errors");
+      state.show_validation_modal_ = false;
+    }
+    if (ImGui::BeginPopupModal("Validation Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::Text("The graph has the following issues:");
+      ImGui::Separator();
+      for (const auto &err : state.validation_errors_)
+        ImGui::BulletText("%s", err.c_str());
+      ImGui::Separator();
+      if (ImGui::Button("Save Anyway")) {
+        auto result = save_file(state);
+        if (result) {
+          state.dirty = false;
+          app.set_title(app_title(state));
+          ImGui::CloseCurrentPopup();
+        } else {
+          state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+        }
+        state.validation_errors_.clear();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel")) {
+        state.validation_errors_.clear();
         ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();

@@ -6,21 +6,21 @@
 
 namespace tools::tilemap {
 
-  /**
-   * @brief Serialize state.map back to state.map_path.
+  /** @brief Serialize state.map to state.map_path using engine serializers.
    *
-   * Reads the original JSON to preserve id/tilesets/placements verbatim.
-   * Rebuilds the layers array using the sparse/dense encoding heuristic.
-   * Also writes state.portals to data/portals/{stem}.json.
-   * Sets state.dirty = false only after both files are written successfully.
+   * Reads the original JSON for base-merge (preserves unknown keys), then
+   * calls serialize_tilemap() + serialize_tiledata() for tilesets and
+   * serialize_portals() for the portal file. All engine-managed fields are
+   * overwritten; unknown keys in the source JSON survive unchanged.
+   *
+   * Sets state.dirty = false on success.
    *
    * @param state Editor state to save.
    * @return An empty expected on success, or an error message string on failure.
    */
   [[nodiscard]] std::expected<void, std::string> save_tilemap(EditorState &state);
 
-  /**
-   * @brief Derive the portals file path from a tilemap path.
+  /** @brief Derive the portals file path from a tilemap path.
    *
    * e.g. "data/tilemaps/cave.json" → "data/portals/cave.json"
    *
@@ -29,8 +29,7 @@ namespace tools::tilemap {
    */
   [[nodiscard]] std::filesystem::path portals_path(const std::filesystem::path &map_path);
 
-  /**
-   * @brief Load portals from data/portals/{stem}.json into state.portals.
+  /** @brief Load portals via the engine loader into state.portals.
    *
    * Silently succeeds with an empty vector if the file does not exist.
    *

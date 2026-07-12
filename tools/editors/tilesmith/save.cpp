@@ -1,195 +1,59 @@
 #include "save.hpp"
-#include "tilemap_encoding.hpp"
+#include "portal_entry.hpp"
+
 #include <corundum/core/json_io.hpp>
-#include <corundum/gameplay/world/tilemap/loader.hpp>
+#include <corundum/gameplay/world/portals/portal.hpp>
+#include <corundum/gameplay/world/tilemap/serialize.hpp>
+
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <ranges>
-#include <utility>
 
 namespace tools::tilemap {
 
   std::expected<void, std::string> save_tilemap(EditorState &state) {
+    // 1. Read existing JSON for base-merge (preserves unknown keys)
     std::ifstream in(state.map_path);
     if (!in)
       return std::unexpected("Cannot open: " + state.map_path.string());
-    nlohmann::json j = nlohmann::json::parse(in);
+    nlohmann::json base = nlohmann::json::parse(in);
 
-    // Stamp the current schema version so re-saving an old (unversioned) map upgrades it going forward.
-    j["schema_version"] = corundum::gameplay::world::tilemap::k_tilemap_schema_version;
+    // 2. Serialize tilemap onto base
+    nlohmann::json j = corundum::gameplay::world::tilemap::serialize_tilemap(state.map, &base);
 
-    // Serialize tilesets from in-memory state.
-    nlohmann::json tilesets_json = nlohmann::json::array();
-    for (const auto &ts : state.map.tilesets)
-      tilesets_json.push_back({{"first_gid", ts.first_gid}, {"source", ts.info.source}});
-    j["tilesets"] = std::move(tilesets_json);
-
-    if (state.map.iso_diamond_w > 0)
-      j["iso_diamond_w"] = state.map.iso_diamond_w;
-    if (state.map.iso_diamond_h > 0)
-      j["iso_diamond_h"] = state.map.iso_diamond_h;
-
-    nlohmann::json layers_json = nlohmann::json::array();
-    for (const auto &layer : state.map.layers) {
-      std::vector<int> project_gids;
-      project_gids.reserve(layer.tiles.size());
-      for (corundum::gameplay::world::tilemap::TileId tid : layer.tiles)
-        project_gids.push_back(static_cast<int>(tid));
-
-      nlohmann::json lj;
-      lj["name"] = layer.name;
-      if (layer.z_index != 0)
-        lj["z_index"] = layer.z_index;
-
-      if (should_use_sparse(project_gids, DEFAULT_SPARSE_THRESHOLD) || !layer.animated_cells.empty() ||
-          !layer.flip_flags.empty()) {
-        nlohmann::json objects = convert_layer_sparse(project_gids, state.map.width, state.map.height);
-        // Annotate flipped tiles
-        for (auto &obj : objects) {
-          const int col = obj["col"].get<int>();
-          const int row = obj["row"].get<int>();
-          const int idx = row * state.map.width + col;
-          if (auto it = layer.flip_flags.find(idx); it != layer.flip_flags.end()) {
-            const uint8_t f = it->second;
-            if (f == (corundum::gameplay::world::tilemap::k_flip_h | corundum::gameplay::world::tilemap::k_flip_v))
-              obj["flip"] = "HV";
-            else if (f == corundum::gameplay::world::tilemap::k_flip_h)
-              obj["flip"] = "H";
-            else if (f == corundum::gameplay::world::tilemap::k_flip_v)
-              obj["flip"] = "V";
-          }
-        }
-        for (const auto &[idx, cell] : layer.animated_cells) {
-          objects.push_back({{"col", idx % state.map.width}, {"row", idx / state.map.width}, {"anim", cell.anim_name}});
-        }
-        lj["objects"] = std::move(objects);
-      } else {
-        lj["tiles"] = convert_layer_dense(project_gids, state.map.width, state.map.height);
-      }
-
-      if (!layer.elevation.empty()) {
-        const std::vector<int> elev_ints(layer.elevation.begin(), layer.elevation.end());
-        lj["elevation"] = convert_layer_dense(elev_ints, state.map.width, state.map.height);
-      }
-
-      if (!layer.material_overrides.empty()) {
-        nlohmann::json mat_overrides = nlohmann::json::array();
-        for (const auto &[idx, material] : layer.material_overrides)
-          mat_overrides.push_back(
-              {{"col", idx % state.map.width}, {"row", idx / state.map.width}, {"material", material}});
-        lj["material_overrides"] = std::move(mat_overrides);
-      }
-
-      if (!layer.ramps.empty()) {
-        nlohmann::json ramps_json = nlohmann::json::array();
-        for (const auto &[idx, axis] : layer.ramps) {
-          const char *axis_str = axis == corundum::gameplay::world::tilemap::RampAxis::NORTH_SOUTH ? "ns" : "ew";
-          ramps_json.push_back({{"col", idx % state.map.width}, {"row", idx / state.map.width}, {"axis", axis_str}});
-        }
-        lj["ramps"] = std::move(ramps_json);
-      }
-
-      layers_json.push_back(std::move(lj));
-    }
-    j["layers"] = std::move(layers_json);
-
-    nlohmann::json collisions_json = nlohmann::json::array();
-    const auto &cols = state.map.collisions;
-    for (auto &&[x, y, w, h, elev] :
-         std::views::zip(cols.cols, cols.rows, cols.col_spans, cols.row_spans, cols.elevations))
-      collisions_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}, {"elevation", elev}});
-    j["collisions"] = std::move(collisions_json);
-
-    using Cut = corundum::gameplay::world::tilemap::TriangleCut;
-    static constexpr auto cut_to_str = [](Cut c) -> const char * {
-      switch (c) {
-      case Cut::NW:
-        return "NW";
-      case Cut::NE:
-        return "NE";
-      case Cut::SW:
-        return "SW";
-      case Cut::SE:
-        return "SE";
-      }
-      std::unreachable();
-    };
-    nlohmann::json tris_json = nlohmann::json::array();
-    const auto &tris = state.map.collision_triangles;
-    for (auto &&[x, y, w, h, cut, elev] :
-         std::views::zip(tris.cols, tris.rows, tris.col_spans, tris.row_spans, tris.cuts, tris.elevations))
-      tris_json.push_back({{"x", x}, {"y", y}, {"w", w}, {"h", h}, {"cut", cut_to_str(cut)}, {"elevation", elev}});
-    j["collision_triangles"] = std::move(tris_json);
-
+    // 3. Write tilemap
     {
       auto res = corundum::core::write_json(state.map_path, j);
       if (!res)
         return std::unexpected(res.error());
     }
 
-    // Save portals alongside the tilemap.
-    nlohmann::json portals_json;
-    portals_json["portals"] = nlohmann::json::array();
-    for (const auto &p : state.portals)
-      portals_json["portals"].push_back({{"col", p.col},
-                                         {"row", p.row},
-                                         {"w", p.w},
-                                         {"h", p.h},
-                                         {"target_map", p.target_map},
-                                         {"spawn_col", p.spawn_col},
-                                         {"spawn_row", p.spawn_row}});
-    const auto ppath = portals_path(state.map_path);
-    std::filesystem::create_directories(ppath.parent_path());
+    // 4. Save portals via engine serializer
     {
+      std::vector<corundum::gameplay::world::Portal> engine_portals;
+      engine_portals.reserve(state.portals.size());
+      for (const auto &pe : state.portals)
+        engine_portals.push_back({static_cast<float>(pe.col), static_cast<float>(pe.row), static_cast<float>(pe.w),
+                                  static_cast<float>(pe.h), pe.target_map, pe.spawn_col, pe.spawn_row});
+
+      nlohmann::json portals_json = corundum::gameplay::world::serialize_portals(engine_portals);
+      const auto ppath = portals_path(state.map_path);
+      std::filesystem::create_directories(ppath.parent_path());
       auto res = corundum::core::write_json(ppath, portals_json);
       if (!res)
         return std::unexpected(res.error());
     }
 
-    // Write authoring data (tile_footprints, per-tile pivots) to a sidecar file
-    // alongside each tileset's source atlas JSON.  The atlas JSON stays read-only
-    // from tilesmith's perspective — spritepacker can freely regenerate it without
-    // losing any authoring data.  The sidecar stores pivots in the engine's own
-    // full-frame/bottom-origin convention (same as TilesetInfo::tile_pivot_x/y),
-    // so no conversion is needed on either save or load.
+    // 5. Save tiledata sidecars via engine serializer
     for (const auto &saved_ts : state.map.tilesets) {
       if (saved_ts.info.source.empty())
         continue;
+      nlohmann::json sc = corundum::gameplay::world::tilemap::serialize_tiledata(saved_ts.info);
       const std::filesystem::path source = saved_ts.info.source;
       const std::filesystem::path sidecar_path = source.parent_path() / (source.stem().string() + ".tiledata.json");
-
-      nlohmann::json sc;
-      sc["schema_version"] = 1;
-
-      if (!saved_ts.info.tile_footprints.empty()) {
-        nlohmann::json fps_json = nlohmann::json::array();
-        for (const auto &[local_id, tsfp] : saved_ts.info.tile_footprints) {
-          if (local_id < 0 || static_cast<std::size_t>(local_id) >= saved_ts.info.tile_names.size())
-            continue;
-          fps_json.push_back(
-              {{"name", saved_ts.info.tile_names[static_cast<std::size_t>(local_id)]}, {"w", tsfp.w}, {"h", tsfp.h}});
-        }
-        sc["tile_footprints"] = std::move(fps_json);
-      }
-
-      {
-        nlohmann::json pivots = nlohmann::json::array();
-        for (std::size_t i = 0; i < saved_ts.info.tile_names.size(); ++i) {
-          nlohmann::json pe;
-          pe["name"] = saved_ts.info.tile_names[i];
-          pe["pivot_x"] = saved_ts.info.tile_pivot_x[i];
-          pe["pivot_y"] = saved_ts.info.tile_pivot_y[i];
-          pivots.push_back(pe);
-        }
-        sc["pivots"] = std::move(pivots);
-      }
-
-      {
-        auto res = corundum::core::write_json(sidecar_path, sc);
-        if (!res)
-          return std::unexpected(res.error());
-      }
+      auto res = corundum::core::write_json(sidecar_path, sc);
+      if (!res)
+        return std::unexpected(res.error());
     }
 
     state.dirty = false;
@@ -201,31 +65,22 @@ namespace tools::tilemap {
   }
 
   std::expected<void, std::string> load_portals(EditorState &state) {
-    const auto ppath = portals_path(state.map_path);
-    std::ifstream in(ppath);
-    if (!in) {
-      state.portals.clear();
-      return {};
-    }
-
-    nlohmann::json j;
-    try {
-      j = nlohmann::json::parse(in);
-    } catch (const nlohmann::json::parse_error &e) {
-      return std::unexpected("Parse error in " + ppath.string() + ": " + e.what());
-    }
-    if (!j.contains("portals") || !j["portals"].is_array())
-      return std::unexpected("portals JSON missing 'portals' array: " + ppath.string());
-
+    // load_portals returns {} (empty vector) when the file is absent — not an error.
+    auto result = corundum::gameplay::world::load_portals(portals_path(state.map_path).string());
+    if (!result)
+      return std::unexpected(result.error());
     state.portals.clear();
-    for (const auto &pj : j["portals"])
-      state.portals.push_back({.col = pj.at("col").get<int>(),
-                               .row = pj.at("row").get<int>(),
-                               .w = pj.at("w").get<int>(),
-                               .h = pj.at("h").get<int>(),
-                               .target_map = pj.at("target_map").get<std::string>(),
-                               .spawn_col = pj.at("spawn_col").get<int>(),
-                               .spawn_row = pj.at("spawn_row").get<int>()});
+    for (const auto &p : *result) {
+      PortalEntry e;
+      e.col = static_cast<int>(p.col);
+      e.row = static_cast<int>(p.row);
+      e.w = static_cast<int>(p.w);
+      e.h = static_cast<int>(p.h);
+      e.target_map = p.target_map;
+      e.spawn_col = p.spawn_col;
+      e.spawn_row = p.spawn_row;
+      state.portals.push_back(std::move(e));
+    }
     return {};
   }
 

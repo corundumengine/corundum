@@ -1,84 +1,56 @@
 #include "save.hpp"
 #include <corundum/core/json_io.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/resources/character_sheet_serializer.hpp>
+#include <corundum/resources/sprite_sheet_clips_serializer.hpp>
 #include <nlohmann/json.hpp>
 
 namespace tools::sprite {
 
   namespace {
 
-    nlohmann::json build_character_json(const EditorState &state) {
+    [[nodiscard]] corundum::resources::CharacterSheetData to_character_sheet(const EditorState &state) {
       using namespace corundum::resources;
-      nlohmann::json j;
-      j["id"] = state.sheet_id;
-      j["path"] = state.image_path;
-      j["frame_width"] = state.frame_width;
-      j["frame_height"] = state.frame_height;
-      if (state.offset_x)
-        j["offset_x"] = state.offset_x;
-      if (state.offset_y)
-        j["offset_y"] = state.offset_y;
-      if (state.spacing_x)
-        j["spacing_x"] = state.spacing_x;
-      if (state.spacing_y)
-        j["spacing_y"] = state.spacing_y;
-
-      j["frames"] = nlohmann::json::object();
+      CharacterSheetData data;
+      data.id = state.sheet_id;
+      data.path = state.image_path;
+      data.frame_width = state.frame_width;
+      data.frame_height = state.frame_height;
+      data.offset_x = state.offset_x;
+      data.offset_y = state.offset_y;
+      data.spacing_x = state.spacing_x;
+      data.spacing_y = state.spacing_y;
       for (const auto &sp : state.sprites) {
-        nlohmann::json sj;
-        sj["col_span"] = sp.col_span;
-        sj["row_span"] = sp.row_span;
-        if (sp.collision_w > 0)
-          sj["collision_w"] = sp.collision_w;
-        if (sp.collision_h > 0)
-          sj["collision_h"] = sp.collision_h;
-        sj["walk_around_offset"] = sp.walk_around_offset;
-        if (sp.fps > 0.f)
-          sj["fps"] = sp.fps;
-        for (uint8_t i = 0; i < k_num_anim_ids; ++i) {
-          if (sp.anim_frames[i].empty())
-            continue;
-          auto &arr = sj[std::string(k_anim_names[i])] = nlohmann::json::array();
-          for (const auto &fc : sp.anim_frames[i])
-            arr.push_back({{"col", fc.col}, {"row", fc.row}});
-        }
-        j["frames"][sp.name] = sj;
+        CharacterSpriteEntry entry;
+        entry.name = sp.name;
+        entry.col_span = sp.col_span;
+        entry.row_span = sp.row_span;
+        entry.collision_w = sp.collision_w;
+        entry.collision_h = sp.collision_h;
+        entry.walk_around_offset = sp.walk_around_offset;
+        entry.fps = sp.fps;
+        entry.anim_frames = sp.anim_frames;
+        data.sprites.push_back(std::move(entry));
       }
-      return j;
+      return data;
     }
 
-    nlohmann::json build_sprite_sheet_json(const EditorState &state) {
-      nlohmann::json j;
-      j["id"] = state.sheet_id;
-      j["columns"] = state.columns;
-      j["rows"] = state.rows;
-      j["path"] = state.image_path;
-      j["frame_width"] = state.frame_width;
-      j["frame_height"] = state.frame_height;
-      if (state.offset_x)
-        j["offset_x"] = state.offset_x;
-      if (state.offset_y)
-        j["offset_y"] = state.offset_y;
-      if (state.spacing_x)
-        j["spacing_x"] = state.spacing_x;
-      if (state.spacing_y)
-        j["spacing_y"] = state.spacing_y;
-
-      if (!state.anim_clips.empty()) {
-        nlohmann::json aj;
-        aj["fps"] = state.anim_fps;
-        aj["clips"] = nlohmann::json::array();
-        for (const auto &clip : state.anim_clips) {
-          nlohmann::json cj;
-          cj["name"] = clip.name;
-          cj["frames"] = nlohmann::json::array();
-          for (const auto &fc : clip.frames)
-            cj["frames"].push_back({{"col", fc.col}, {"row", fc.row}});
-          aj["clips"].push_back(cj);
-        }
-        j["animations"] = aj;
-      }
-      return j;
+    [[nodiscard]] corundum::resources::SpriteSheetClips to_sprite_sheet_clips(const EditorState &state) {
+      using namespace corundum::resources;
+      SpriteSheetClips data;
+      data.id = state.sheet_id;
+      data.path = state.image_path;
+      data.columns = state.columns;
+      data.rows = state.rows;
+      data.frame_width = state.frame_width;
+      data.frame_height = state.frame_height;
+      data.offset_x = state.offset_x;
+      data.offset_y = state.offset_y;
+      data.spacing_x = state.spacing_x;
+      data.spacing_y = state.spacing_y;
+      data.anim_fps = state.anim_fps;
+      for (const auto &clip : state.anim_clips)
+        data.clips.push_back({clip.name, clip.frames});
+      return data;
     }
 
   } // namespace
@@ -87,8 +59,9 @@ namespace tools::sprite {
     if (state.json_path.empty())
       return std::unexpected("No save path set — enter a path in the Properties panel.");
 
-    const nlohmann::json j =
-        (state.mode == SheetMode::Character) ? build_character_json(state) : build_sprite_sheet_json(state);
+    const nlohmann::json j = (state.mode == SheetMode::Character)
+                                 ? corundum::resources::serialize_character_sheet(to_character_sheet(state))
+                                 : corundum::resources::serialize_sprite_sheet_clips(to_sprite_sheet_clips(state));
     {
       auto res = corundum::core::write_json(state.json_path, j);
       if (!res)

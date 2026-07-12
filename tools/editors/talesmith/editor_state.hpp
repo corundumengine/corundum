@@ -161,6 +161,9 @@ namespace tools::talesmith {
 
     float node_list_width_ = 260.f;
     float inspector_width_ = 380.f;
+    bool show_validation_modal_ = false;
+    std::vector<std::string> validation_errors_;
+
     float graph_width_ = 1340.f;
 
     void push_undo_snapshot() {

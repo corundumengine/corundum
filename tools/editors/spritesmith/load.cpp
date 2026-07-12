@@ -1,6 +1,6 @@
 #include "load.hpp"
 #include <corundum/resources/character_sheet_loader.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/resources/sprite_sheet_clips_loader.hpp>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -42,36 +42,26 @@ namespace tools::sprite {
       }
     }
 
-    void load_sprite_sheet(EditorState &state, const nlohmann::json &j) {
+    void load_sprite_sheet_mode(EditorState &state, const std::filesystem::path &path) {
+      auto result = corundum::resources::load_sprite_sheet_clips(path);
+      if (!result)
+        throw SheetLoadError(result.error());
+      const auto &data = *result;
       state.mode = SheetMode::SpriteSheet;
-      state.sheet_id = j.value("id", std::string{});
-      try {
-        state.image_path = j.at("path").get<std::string>();
-        state.frame_width = j.at("frame_width").get<int>();
-        state.frame_height = j.at("frame_height").get<int>();
-        state.columns = j.at("columns").get<int>();
-        state.rows = j.at("rows").get<int>();
-      } catch (const nlohmann::json::exception &e) {
-        throw SheetLoadError(std::string("sprite sheet missing required field: ") + e.what());
-      }
-      state.offset_x = j.value("offset_x", 0);
-      state.offset_y = j.value("offset_y", 0);
-      state.spacing_x = j.value("spacing_x", 0);
-      state.spacing_y = j.value("spacing_y", 0);
-
+      state.sheet_id = data.id;
+      state.image_path = data.path;
+      state.frame_width = data.frame_width;
+      state.frame_height = data.frame_height;
+      state.columns = data.columns;
+      state.rows = data.rows;
+      state.offset_x = data.offset_x;
+      state.offset_y = data.offset_y;
+      state.spacing_x = data.spacing_x;
+      state.spacing_y = data.spacing_y;
+      state.anim_fps = data.anim_fps;
       state.anim_clips.clear();
-      state.anim_fps = 2;
-      if (!j.contains("animations"))
-        return;
-      const auto &aj = j.at("animations");
-      state.anim_fps = aj.value("fps", 2);
-      for (const auto &cj : aj.at("clips")) {
-        AnimClip clip;
-        clip.name = cj.at("name").get<std::string>();
-        for (const auto &fc : cj.at("frames"))
-          clip.frames.push_back({fc.at("col").get<int>(), fc.at("row").get<int>()});
-        state.anim_clips.push_back(std::move(clip));
-      }
+      for (const auto &clip : data.clips)
+        state.anim_clips.push_back({clip.name, clip.frames});
     }
 
   } // namespace
@@ -93,7 +83,7 @@ namespace tools::sprite {
         throw SheetLoadError(result.error());
       load_character(state, *result);
     } else {
-      load_sprite_sheet(state, j);
+      load_sprite_sheet_mode(state, path);
     }
   }
 
