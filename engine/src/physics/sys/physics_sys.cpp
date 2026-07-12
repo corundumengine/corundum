@@ -170,10 +170,7 @@ namespace corundum::physics::sys {
     // pre-move position so collision resolution doesn't depend on its own not-yet-resolved
     // result. Null elevation_map (chunked World mode) means "no elevation data": treat as 0.
     constexpr int k_elevation_tolerance = 0;
-    const int player_elev = map.elevation_map
-                                ? corundum::gameplay::world::tilemap::elevation_at(
-                                      *map.elevation_map, static_cast<int>(prev_col), static_cast<int>(prev_row))
-                                : 0;
+    const int player_elev = static_cast<int>(corundum::gameplay::world::elevation_at_tile(map, prev_col, prev_row));
 
     // A click queues a new path. Deliberately keyed on mouse_click_pressed, not
     // Action::Select — Select is also raised by keyboard/gamepad confirm presses (which

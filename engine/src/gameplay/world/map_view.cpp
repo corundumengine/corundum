@@ -26,7 +26,8 @@ namespace corundum::gameplay::world {
               .x_origin = iso.x_origin,
               .character_scale = cfg.character_scale,
               .tile_scale = cfg.tile_scale,
-              .portals = {}};
+              .portals = {},
+              .world_render = &render};
     }
 
     const auto &tm = render.map_data.tilemap;
@@ -46,6 +47,14 @@ namespace corundum::gameplay::world {
             .portals = render.map_data.portals,
             .elevation_map = &tm,
             .walkability = &render.map_walkability};
+  }
+
+  float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept {
+    if (map.world_render)
+      return render::sys::elevation_under(*map.world_render, col_f, row_f);
+    if (map.elevation_map)
+      return corundum::gameplay::world::tilemap::interpolated_elevation_at(*map.elevation_map, col_f, row_f);
+    return 0.f;
   }
 
 } // namespace corundum::gameplay::world

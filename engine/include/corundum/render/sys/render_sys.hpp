@@ -124,4 +124,17 @@ namespace corundum::render::sys {
    */
   [[nodiscard]] int first_chunk_tile_px(const data::RenderState &state) noexcept;
 
+  /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
+   *
+   * In world mode looks up the owning chunk via the active-chunk window and returns
+   * discrete elevation. In single-map mode delegates to interpolated_elevation_at().
+   * Returns 0 if no tilemap is loaded at the given coordinates.
+   *
+   * @param[in] state Render state carrying active-chunk data or single-tilemap data.
+   * @param[in] col_f Fractional tile column.
+   * @param[in] row_f Fractional tile row.
+   * @return Tile elevation (≥0) at the queried position; 0 when out of bounds.
+   */
+  [[nodiscard]] float elevation_under(const data::RenderState &state, float col_f, float row_f) noexcept;
+
 } // namespace corundum::render::sys

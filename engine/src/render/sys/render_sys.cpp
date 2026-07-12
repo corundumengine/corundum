@@ -829,7 +829,7 @@ namespace corundum::render::sys {
   /// Single-map mode interpolates smoothly across a ramp cell (via interpolated_elevation_at)
   /// so crossing one doesn't pop; chunked/streamed World mode keeps the discrete elevation_at()
   /// lift for now — wiring ramp smoothing into chunked mode is a separate follow-up.
-  static float elevation_under(const data::RenderState &state, float col_f, float row_f) {
+  float elevation_under(const data::RenderState &state, float col_f, float row_f) noexcept {
     using corundum::gameplay::world::tilemap::elevation_at;
     using corundum::gameplay::world::tilemap::interpolated_elevation_at;
 

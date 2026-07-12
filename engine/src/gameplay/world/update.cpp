@@ -44,9 +44,7 @@ namespace {
     // the player's actual screen position — omitting it made the camera jitter relative to the
     // sprite while crossing a ramp. Null elevation_map (chunked/streamed World mode) isn't wired
     // up for elevation yet, so it falls back to 0, same as elsewhere in MapView consumers.
-    const float elev = map.elevation_map
-                           ? corundum::gameplay::world::tilemap::interpolated_elevation_at(*map.elevation_map, pc, pr)
-                           : 0.f;
+    const float elev = corundum::gameplay::world::elevation_at_tile(map, pc, pr);
     const float iso_x = (pc - pr) * map.half_tw + map.x_origin;
     const float iso_y = (pc + pr) * map.half_th - elev * cfg.elevation_step_px;
     corundum::gameplay::sys::follow_player(scene.camera, iso_x, iso_y, map, win_w, win_h);
