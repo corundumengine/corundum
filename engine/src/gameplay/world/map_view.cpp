@@ -5,7 +5,7 @@
 
 namespace corundum::gameplay::world {
 
-  [[nodiscard]] MapView build_map_view(const render::data::RenderState &render, const core::GameConfig &cfg) noexcept {
+  [[nodiscard]] MapView build_map_view(render::data::RenderState &render, const core::GameConfig &cfg) noexcept {
     if (render.mode == render::data::RenderMode::World) {
       const auto &first_tm = render.active_chunks[0].tilemap;
       const auto &manifest = render.manifest;
@@ -15,6 +15,23 @@ namespace corundum::gameplay::world {
       const auto [iso_w, iso_h] = gameplay::world::tilemap::world_bounds_iso(manifest, iso.half_tw, iso.half_th);
       const float total_w = manifest.tiles_wide > 0 ? static_cast<float>(manifest.tiles_wide)
                                                     : static_cast<float>(manifest.chunks_wide * manifest.chunk_size);
+
+      render.agg_portals.clear();
+      for (const auto &chunk : render.active_chunks) {
+        const int ox = chunk.coord.x * manifest.chunk_size;
+        const int oy = chunk.coord.y * manifest.chunk_size;
+        for (const auto &p : chunk.portals) {
+          render.agg_portals.push_back(p);
+          auto &agg = render.agg_portals.back();
+          agg.col += static_cast<float>(ox);
+          agg.row += static_cast<float>(oy);
+          if (agg.target_chunk_x >= 0) {
+            agg.spawn_col += agg.target_chunk_x * manifest.chunk_size;
+            agg.spawn_row += agg.target_chunk_y * manifest.chunk_size;
+          }
+        }
+      }
+
       return {.collisions = render.agg_collisions.view(),
               .collision_triangles = render.agg_triangles.view(),
               .world_w_px = iso_w,
@@ -26,7 +43,7 @@ namespace corundum::gameplay::world {
               .x_origin = iso.x_origin,
               .character_scale = cfg.character_scale,
               .tile_scale = cfg.tile_scale,
-              .portals = {},
+              .portals = std::span{render.agg_portals},
               .world_render = &render};
     }
 

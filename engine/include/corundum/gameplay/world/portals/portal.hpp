@@ -18,13 +18,15 @@ namespace corundum::gameplay::world {
    * per-frame cart_to_iso/iso_to_cart round trip needed.
    */
   struct Portal {
-    float col = 0.f;        ///< Left tile column of the trigger rect.
-    float row = 0.f;        ///< Top tile row of the trigger rect.
-    float w = 0.f;          ///< Width of trigger rect in tiles.
-    float h = 0.f;          ///< Height of trigger rect in tiles.
-    std::string target_map; ///< Path to the target tilemap JSON.
-    int spawn_col = 0;      ///< Tile column for player spawn in the target map.
-    int spawn_row = 0;      ///< Tile row for player spawn in the target map.
+    float col = 0.f;         ///< Left tile column of the trigger rect.
+    float row = 0.f;         ///< Top tile row of the trigger rect.
+    float w = 0.f;           ///< Width of trigger rect in tiles.
+    float h = 0.f;           ///< Height of trigger rect in tiles.
+    std::string target_map;  ///< Path to the target tilemap JSON (empty for chunk-to-chunk portals).
+    int spawn_col = 0;       ///< Tile column for player spawn in the target map or chunk.
+    int spawn_row = 0;       ///< Tile row for player spawn in the target map or chunk.
+    int target_chunk_x = -1; ///< World-mode target chunk column (-1 = single-map portal).
+    int target_chunk_y = -1; ///< World-mode target chunk row.
   };
 
   /**

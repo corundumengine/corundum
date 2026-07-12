@@ -76,7 +76,8 @@ namespace corundum::render::sys {
   // ── Internal helpers (forward decls) ─────────────────────────────────────────
 
   static std::optional<data::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r, data::RenderState &state,
-                                                          corundum::gameplay::world::tilemap::ChunkCoord c);
+                                                          corundum::gameplay::world::tilemap::ChunkCoord c,
+                                                          const corundum::core::GameConfig &cfg);
 
   static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg);
 
@@ -292,7 +293,7 @@ namespace corundum::render::sys {
     const ChunkCoord center{state.manifest.chunks_wide / 2, state.manifest.chunks_tall / 2};
     state.last_center_chunk = center;
     for (const ChunkCoord c : active_chunk_coords(center, 1, state.manifest)) {
-      if (auto entry = load_chunk_entry(r, state, c))
+      if (auto entry = load_chunk_entry(r, state, c, cfg))
         state.active_chunks.push_back(std::move(*entry));
     }
     rebuild_collision(state, cfg);
@@ -393,7 +394,8 @@ namespace corundum::render::sys {
   // ── load_chunk_entry (internal) ──────────────────────────────────────────────
 
   static std::optional<data::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r, data::RenderState &state,
-                                                          corundum::gameplay::world::tilemap::ChunkCoord c) {
+                                                          corundum::gameplay::world::tilemap::ChunkCoord c,
+                                                          const corundum::core::GameConfig &cfg) {
     auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(state.manifest.chunk_path(c));
     if (!tm_result)
       return std::nullopt;
@@ -418,7 +420,16 @@ namespace corundum::render::sys {
     std::ranges::sort(above_z);
     above_z.erase(std::ranges::unique(above_z).begin(), above_z.end());
 
-    return data::ChunkEntry{c, std::move(tilemap), std::move(tex_ids), std::move(above_z)};
+    std::vector<corundum::gameplay::world::Portal> portals;
+    {
+      const std::string stem = state.manifest.chunk_path(c).stem().string();
+      const auto portals_path = std::filesystem::path(cfg.paths.portals_dir) / (stem + ".json");
+      auto result = corundum::gameplay::world::load_portals(portals_path.string());
+      if (result.has_value())
+        portals = std::move(*result);
+    }
+
+    return data::ChunkEntry{c, std::move(tilemap), std::move(tex_ids), std::move(above_z), std::move(portals)};
   }
 
   static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg) {
@@ -498,7 +509,7 @@ namespace corundum::render::sys {
     bool any_new = false;
     for (const ChunkCoord c : desired_span) {
       if (!std::ranges::any_of(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == c; })) {
-        if (auto entry = load_chunk_entry(r, state, c)) {
+        if (auto entry = load_chunk_entry(r, state, c, cfg)) {
           std::println("[keystone] Loading chunk ({}, {})", c.x, c.y);
           state.active_chunks.push_back(std::move(*entry));
           any_new = true;

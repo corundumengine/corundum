@@ -64,6 +64,7 @@ namespace corundum::render::data {
     corundum::gameplay::world::tilemap::Tilemap tilemap{};
     std::vector<uint32_t> tileset_texture_ids{};
     std::vector<int> above_z{};
+    std::vector<corundum::gameplay::world::Portal> portals{};
   };
 
   /** @brief Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
@@ -97,6 +98,9 @@ namespace corundum::render::data {
     std::array<int32_t, 9> chunk_slot_by_offset{-1, -1, -1, -1, -1, -1, -1, -1, -1};
     corundum::gameplay::world::tilemap::CollisionRects agg_collisions{};
     corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
+    /// Aggregated portal buffer for world mode — cleared and repopulated by build_map_view
+    /// then returned as a span via MapView. Single-map mode passes map_data.portals directly.
+    std::vector<corundum::gameplay::world::Portal> agg_portals{};
     /// Built once when a single map loads (load_map()); single-map mode only, same
     /// limitation as MapView::elevation_map — World mode leaves this default-empty.
     corundum::gameplay::world::tilemap::WalkabilityGraph map_walkability{};

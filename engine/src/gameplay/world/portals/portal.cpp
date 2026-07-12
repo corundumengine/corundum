@@ -49,14 +49,32 @@ namespace corundum::gameplay::world {
         return std::unexpected(
             std::format("Portals '{}' portals[{}] 'col'/'row' must be >= 0 and 'w'/'h' must be > 0", path, i));
 
-      std::string target_map;
-      try {
-        target_map = entry.at("target_map").get<std::string>();
-      } catch (...) {
-        return std::unexpected(std::format("Portals '{}' portals[{}] missing or invalid 'target_map'", path, i));
+      int target_chunk_x = -1;
+      int target_chunk_y = -1;
+      if (entry.contains("target_chunk_x")) {
+        try {
+          target_chunk_x = entry.at("target_chunk_x").get<int>();
+          target_chunk_y = entry.at("target_chunk_y").get<int>();
+        } catch (...) {
+          return std::unexpected(
+              std::format("Portals '{}' portals[{}] invalid 'target_chunk_x'/'target_chunk_y'", path, i));
+        }
+        if (target_chunk_x < 0 || target_chunk_y < 0)
+          return std::unexpected(
+              std::format("Portals '{}' portals[{}] 'target_chunk_x'/'target_chunk_y' must be >= 0", path, i));
       }
-      if (target_map.empty())
-        return std::unexpected(std::format("Portals '{}' portals[{}] 'target_map' must not be empty", path, i));
+
+      std::string target_map;
+      if (entry.contains("target_map")) {
+        try {
+          target_map = entry.at("target_map").get<std::string>();
+        } catch (...) {
+          return std::unexpected(std::format("Portals '{}' portals[{}] invalid 'target_map'", path, i));
+        }
+      }
+      if (target_chunk_x < 0 && target_map.empty())
+        return std::unexpected(std::format(
+            "Portals '{}' portals[{}] must have 'target_map' or 'target_chunk_x'/'target_chunk_y'", path, i));
 
       int spawn_col, spawn_row;
       try {
@@ -77,6 +95,8 @@ namespace corundum::gameplay::world {
           std::move(target_map),
           spawn_col,
           spawn_row,
+          target_chunk_x,
+          target_chunk_y,
       });
     }
 
