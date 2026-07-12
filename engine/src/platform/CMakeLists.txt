@@ -1,5 +1,6 @@
 add_library(engine_platform_glfw STATIC
     glfw/glfw_window.cpp
+    glfw/gpu_context.cpp
     glfw/platform_factory.cpp
     sokol/sokol_impl.cpp
     glfw/sokol_renderer.cpp
@@ -35,6 +36,7 @@ if(APPLE)
   # that include it must be compiled as Objective-C++.
   set_source_files_properties(
         sokol/sokol_impl.cpp
+        glfw/gpu_context.cpp
         glfw/sokol_renderer.cpp
         sokol/sokol_audio_impl.cpp
         sokol/sokol_audio_backend.cpp

@@ -1,13 +1,9 @@
 #include "sokol_renderer.hpp"
 #include "font_atlas.hpp"
 
+#include <corundum/platform/gpu_context.hpp>
+
 #include <sokol_gfx.h>
-
-#ifdef SOKOL_METAL
-#include "glfw_window_metal.h"
-#endif
-
-#include <GLFW/glfw3.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -174,8 +170,8 @@ void main() {
 
   class SokolRenderer final : public corundum::platform::Renderer {
   public:
-    explicit SokolRenderer(::GLFWwindow *window);
-    ~SokolRenderer() override;
+    explicit SokolRenderer(corundum::platform::GpuContext &gpu_ctx);
+    ~SokolRenderer() override = default;
 
     std::expected<uint32_t, std::string> load_texture(std::string_view path) override;
     std::expected<uint32_t, std::string> load_font(std::string_view path) override;
@@ -211,13 +207,7 @@ void main() {
     void add_to_batch(sg_view view, int offset);
     void flush_batch();
 
-    ::GLFWwindow *window_{nullptr};
-    int win_w_{1920};
-    int win_h_{1080};
-
-#ifdef SOKOL_METAL
-    void *metal_layer_{nullptr};
-#endif
+    corundum::platform::GpuContext &gpu_ctx_;
 
     std::array<float, 16> proj_{};
     float cam_x_{0}, cam_y_{0}, vp_w_{0}, vp_h_{0}, zoom_{1.f};
@@ -249,29 +239,7 @@ void main() {
 
   // (LoadedTexture and BakedAtlas are POD aggregates; no explicit ctors needed.)
 
-  SokolRenderer::SokolRenderer(::GLFWwindow *window) : window_(window) {
-    int log_w{}, log_h{};
-    glfwGetWindowSize(window, &log_w, &log_h);
-    win_w_ = log_w;
-    win_h_ = log_h;
-
-#ifdef SOKOL_METAL
-    metal_layer_ = metal_get_layer(window);
-#endif
-
-    sg_desc sdesc{};
-#ifdef SOKOL_METAL
-    sdesc.environment.metal.device = metal_device(metal_layer_);
-#else
-    sdesc.environment.gl.default_framebuffer = 0;
-#endif
-    sdesc.logger.func = [](const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
-                           const char *file, void *) {
-      if (level < 2)
-        std::println(stderr, "[{}] item={} ({}:{}) {}", tag ? tag : "sg", item_id, file ? file : "?", line,
-                     msg ? msg : "");
-    };
-    sg_setup(&sdesc);
+  SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx) : gpu_ctx_(gpu_ctx) {
 
     // ── Shader ──────────────────────────────────────────────────────────────
     sg_shader_desc shdesc{};
@@ -351,11 +319,6 @@ void main() {
     rebuild_proj();
   }
 
-  SokolRenderer::~SokolRenderer() {
-    if (sg_isvalid())
-      sg_shutdown();
-  }
-
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   uint64_t SokolRenderer::font_size_key(uint32_t font_id, uint32_t char_size) const noexcept {
@@ -379,7 +342,8 @@ void main() {
     if (world_view_active_) {
       proj_ = make_ortho(cam_x_, cam_x_ + vp_w_ / zoom_, cam_y_, cam_y_ + vp_h_ / zoom_);
     } else {
-      proj_ = make_ortho(0.f, static_cast<float>(win_w_), 0.f, static_cast<float>(win_h_));
+      auto [w, h] = gpu_ctx_.window_size();
+      proj_ = make_ortho(0.f, static_cast<float>(w), 0.f, static_cast<float>(h));
     }
   }
 
@@ -477,48 +441,14 @@ void main() {
     quad_count_ = 0;
     batch_count_ = 0;
 
-    int log_w{}, log_h{};
-    glfwGetWindowSize(window_, &log_w, &log_h);
-    if (log_w != win_w_ || log_h != win_h_) {
-      win_w_ = log_w;
-      win_h_ = log_h;
-      if (!world_view_active_)
-        rebuild_proj();
-    }
-
-    int fb_w{}, fb_h{};
-    glfwGetFramebufferSize(window_, &fb_w, &fb_h);
-
-    sg_pass_action action{};
-    action.colors[0].load_action = SG_LOADACTION_CLEAR;
-    action.colors[0].clear_value = {
-        clear_colour.r / 255.f,
-        clear_colour.g / 255.f,
-        clear_colour.b / 255.f,
-        clear_colour.a / 255.f,
-    };
-
-    sg_swapchain swapchain{};
-    swapchain.width = fb_w;
-    swapchain.height = fb_h;
-    swapchain.sample_count = 1;
-    swapchain.depth_format = SG_PIXELFORMAT_NONE;
-
-#ifdef SOKOL_METAL
-    swapchain.color_format = SG_PIXELFORMAT_BGRA8;
-    swapchain.metal.current_drawable = metal_next_drawable(metal_layer_);
-    if (!swapchain.metal.current_drawable)
+    if (!gpu_ctx_.begin_default_pass(clear_colour))
       return;
-#else
-    swapchain.color_format = SG_PIXELFORMAT_RGBA8;
-#endif
 
-    sg_pass pass{};
-    pass.action = action;
-    pass.swapchain = swapchain;
-    sg_begin_pass(&pass);
     sg_apply_pipeline(pipeline_);
     pass_active_ = true;
+
+    if (!world_view_active_)
+      rebuild_proj();
   }
 
   void SokolRenderer::end_frame() {
@@ -526,11 +456,7 @@ void main() {
       return;
     flush_batch();
     pass_active_ = false;
-    sg_end_pass();
-    sg_commit();
-#ifndef SOKOL_METAL
-    glfwSwapBuffers(window_);
-#endif
+    gpu_ctx_.end_frame();
   }
 
   void SokolRenderer::draw(const DrawSprite &cmd) {
@@ -701,8 +627,8 @@ void main() {
 
   // ── Factory ─────────────────────────────────────────────────────────────────
 
-  std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(::GLFWwindow *window) {
-    return std::make_unique<SokolRenderer>(window);
+  std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx) {
+    return std::make_unique<SokolRenderer>(gpu_ctx);
   }
 
 } // namespace corundum::platform::glfw

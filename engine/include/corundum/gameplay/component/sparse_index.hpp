@@ -14,8 +14,7 @@ namespace corundum::gameplay::component {
   /// logic is extracted here once; payload-specific reads and writes are
   /// supplied via lambdas at the call site.  Each table retains its own
   /// uint32_t count member (GameTable concept requires t.count).
-  template <std::uint32_t KMax = k_max_entities>
-  struct SparseIndex {
+  template <std::uint32_t KMax = k_max_entities> struct SparseIndex {
     static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
 
     std::array<std::uint32_t, KMax> sparse{};
@@ -45,8 +44,7 @@ namespace corundum::gameplay::component {
     /// Insert spine: allocates a dense slot, links the sparse index, then
     /// calls @p write(slot) to let the table initialise its payload.
     /// @p count is the table's own count member (incremented after the write).
-    template <typename Fn>
-    void insert(EntityId e, std::uint32_t &count, Fn &&write) noexcept {
+    template <typename Fn> void insert(EntityId e, std::uint32_t &count, Fn &&write) noexcept {
       assert(!has(e));
       const auto i = e.index;
       const auto slot = count;
@@ -59,8 +57,7 @@ namespace corundum::gameplay::component {
     /// Remove spine: swap-and-pop. Calls @p swap(slot, last) so the table
     /// can copy its own payload arrays, then invalidates the removed slot.
     /// @p count is the table's own count member (decremented after the swap).
-    template <typename Fn>
-    void remove(EntityId e, std::uint32_t &count, Fn &&swap) noexcept {
+    template <typename Fn> void remove(EntityId e, std::uint32_t &count, Fn &&swap) noexcept {
       assert(has(e));
       const auto i = e.index;
       const auto slot = sparse[i];

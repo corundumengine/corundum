@@ -8,6 +8,7 @@
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/render/data/render_state.hpp>
@@ -31,6 +32,7 @@ namespace corundum {
    */
   struct Engine {
     std::unique_ptr<platform::Window> window;
+    std::unique_ptr<platform::GpuContext> gpu;
     std::unique_ptr<platform::Renderer> renderer;
 
     audio::sys::AudioState audio;

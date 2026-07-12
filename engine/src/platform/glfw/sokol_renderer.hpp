@@ -3,21 +3,24 @@
 
 #include <memory>
 
-struct GLFWwindow;
+namespace corundum::platform {
+
+  class GpuContext;
+
+} // namespace corundum::platform
 
 namespace corundum::platform::glfw {
 
-  /** @brief Create a sokol_gfx-backed Renderer attached to the given GLFW window.
+  /** @brief Create a sokol_gfx-backed Renderer attached to the given GPU context.
    *
-   * On macOS uses the Metal backend; on other platforms uses the OpenGL Core backend.
+   * The GPU context owns the sokol device and per-frame render pass; the
+   * renderer owns shaders, pipelines, vertex buffers, samplers and texture
+   * resources.
    *
-   * @param[in] window  An initialised GLFW window with active context or CAMetalLayer.
-   *
-   * @pre On macOS @p window must already have a CAMetalLayer attached.
-   * @pre On non-macOS @p window must have an active OpenGL context.
+   * @param[in] gpu_ctx  A fully-initialised GpuContext with an active sokol device.
    *
    * @return Owning pointer to the initialised Renderer.
    */
-  [[nodiscard]] std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(::GLFWwindow *window);
+  [[nodiscard]] std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx);
 
 } // namespace corundum::platform::glfw
