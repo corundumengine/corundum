@@ -70,14 +70,14 @@ namespace corundum {
           std::expected<void, std::string> result = audio::sys::play_sound(engine.audio, ev.args[0]);
           if (!result)
             std::println("[engine] {}", result.error());
-        }
-        if (ev.name == "quest_start" && !ev.args.empty()) {
+        } else if (ev.name == "quest_start" && !ev.args.empty()) {
           if (const auto *q = engine.quests.find(ev.args[0]))
             gameplay::quest::start(*q, engine.flags);
-        }
-        if (ev.name == "quest_advance" && ev.args.size() >= 2) {
+        } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
           if (const auto *q = engine.quests.find(ev.args[0]))
             gameplay::quest::advance(*q, ev.args[1], engine.flags);
+        } else {
+          std::println(stderr, "[engine] WARN: unknown dialogue event '{}'", ev.name);
         }
       }
       engine.scene.pending_dialogue_events.clear();
