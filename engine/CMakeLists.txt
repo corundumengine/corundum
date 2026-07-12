@@ -4,10 +4,14 @@ add_library(engine STATIC
     src/engine_factory.cpp
     src/resources/character_registry.cpp
     src/resources/character_sheet_loader.cpp
+    src/resources/character_sheet_serializer.cpp
     src/resources/sprite_atlas_loader.cpp
+    src/resources/sprite_sheet_clips_loader.cpp
+    src/resources/sprite_sheet_clips_serializer.cpp
     src/gameplay/dialogue/action.cpp
     src/gameplay/dialogue/expr.cpp
     src/gameplay/dialogue/loader.cpp
+    src/gameplay/dialogue/validate.cpp
     src/gameplay/dialogue/query.cpp
     src/gameplay/dialogue/registry.cpp
     src/gameplay/dialogue/serialize.cpp
@@ -34,6 +38,7 @@ add_library(engine STATIC
     src/physics/sys/physics_sys.cpp
     src/render/sys/render_sys.cpp
     src/gameplay/world/tilemap/loader.cpp
+    src/gameplay/world/tilemap/serialize.cpp
     src/gameplay/world/tilemap/world_manifest.cpp
     src/gameplay/world/tilemap/validate.cpp
     src/gameplay/world/tilemap/walkability.cpp

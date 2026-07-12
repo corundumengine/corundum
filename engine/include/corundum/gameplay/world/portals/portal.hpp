@@ -1,5 +1,6 @@
 #pragma once
 #include <expected>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
 #include <vector>
 
@@ -54,5 +55,12 @@ namespace corundum::gameplay::world {
    *         std::unexpected with an error description on schema/parse failure.
    */
   [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const std::string &path);
+
+  /** @brief Serialize a list of portals to JSON matching the portals file format.
+   *
+   * @param[in] portals  The portals to serialize.
+   * @return JSON object with a "portals" array, suitable for write_json().
+   */
+  [[nodiscard]] nlohmann::json serialize_portals(const std::vector<Portal> &portals);
 
 } // namespace corundum::gameplay::world

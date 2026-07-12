@@ -1,5 +1,6 @@
 #include <corundum/core/json_schema.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/dialogue/loader.hpp>
 
 #include <algorithm>
@@ -122,46 +123,6 @@ namespace corundum::gameplay::dialogue {
     return node;
   }
 
-  static void validate_edges(const Graph &graph) {
-    for (const auto &node : graph.nodes) {
-      auto check = [&graph](const std::string &target, const std::string &ctx) {
-        if (target == ending_node)
-          return;
-        if (!graph.id_to_index.contains(target))
-          throw LoadError(
-              std::format(R"([{}] edge target "{}" does not exist in graph "{}")", ctx, target, graph.graph_id));
-      };
-
-      if (node.type == NodeType::Talk || node.type == NodeType::Event)
-        check(node.next_id, node.id);
-
-      if (node.type == NodeType::Choice)
-        for (std::size_t i = 0; i < node.choices.size(); ++i)
-          check(node.choices[i].target_id, std::format("{}:choice[{}]", node.id, i));
-    }
-
-    // Event-node cycle detection: follow every Event's next_id chain and abort
-    // when the same Event node is visited twice — a cycle would cause an
-    // infinite loop at runtime via flush_events().
-    for (const auto &start : graph.nodes) {
-      if (start.type != NodeType::Event)
-        continue;
-      if (start.next_id == ending_node)
-        continue;
-      std::vector<std::string_view> visited;
-      const Node *cur = &start;
-      while (cur && cur->type == NodeType::Event && cur->next_id != ending_node) {
-        for (const auto &v : visited)
-          if (v == cur->id)
-            throw LoadError(std::format("[{}] event-node cycle detected: '{}' is reachable from itself "
-                                        "through a chain of Event nodes",
-                                        graph.graph_id, start.id));
-        visited.push_back(cur->id);
-        cur = graph.find(cur->next_id);
-      }
-    }
-  }
-
   static Graph load_graph_impl(const std::string &path) {
     std::ifstream file(path);
     if (!file)
@@ -225,7 +186,11 @@ namespace corundum::gameplay::dialogue {
       }
     }
 
-    validate_edges(graph);
+    {
+      auto errors = validate_graph(graph);
+      if (!errors.empty())
+        throw LoadError(errors[0]);
+    }
     return graph;
   }
 

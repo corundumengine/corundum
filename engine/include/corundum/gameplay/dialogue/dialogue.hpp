@@ -130,4 +130,16 @@ namespace corundum::gameplay::dialogue {
     }
   };
 
+  /** @brief Validate semantic correctness of a loaded dialogue graph.
+   *
+   * Checks that all edge targets (next_id, choice target_id) refer to nodes
+   * that exist in the graph, and that there are no event-node cycles (which
+   * would cause infinite loops at runtime). The special "end" target is always
+   * valid.
+   *
+   * @param[in] graph  A fully-loaded dialogue graph.
+   * @return A list of error messages; empty if the graph is valid.
+   */
+  [[nodiscard]] std::vector<std::string> validate_graph(const Graph &graph);
+
 } // namespace corundum::gameplay::dialogue

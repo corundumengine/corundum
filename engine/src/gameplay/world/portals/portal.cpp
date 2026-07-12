@@ -103,4 +103,25 @@ namespace corundum::gameplay::world {
     return result;
   }
 
+  nlohmann::json serialize_portals(const std::vector<Portal> &portals) {
+    nlohmann::json j;
+    j["portals"] = nlohmann::json::array();
+    for (const auto &p : portals) {
+      nlohmann::json pj;
+      pj["col"] = static_cast<int>(p.col);
+      pj["row"] = static_cast<int>(p.row);
+      pj["w"] = static_cast<int>(p.w);
+      pj["h"] = static_cast<int>(p.h);
+      pj["target_map"] = p.target_map;
+      pj["spawn_col"] = p.spawn_col;
+      pj["spawn_row"] = p.spawn_row;
+      if (p.target_chunk_x >= 0) {
+        pj["target_chunk_x"] = p.target_chunk_x;
+        pj["target_chunk_y"] = p.target_chunk_y;
+      }
+      j["portals"].push_back(std::move(pj));
+    }
+    return j;
+  }
+
 } // namespace corundum::gameplay::world
