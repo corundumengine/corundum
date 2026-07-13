@@ -1,50 +1,21 @@
-# ── Shared ImGui + sokol_imgui backend ─────────────────────────────────────────
-# Compiles ImGui core, the GLFW input backend, and the sokol_imgui render backend
-# into a single static library that both tools link against.
+# ── ToolApp bridge (legacy — replaced by ToolHost in B2) ──────────────────
+# ImGui, sokol_imgui, and the GLFW backend are compiled by corundum_tool_host.
+# This target only holds tool_app.cpp which links against corundum_tool_host
+# to get all ImGui/sokol includes transitively.
 
 add_library(tools_imgui_backend STATIC
-    # ImGui core
-    ${imgui_SOURCE_DIR}/imgui.cpp
-    ${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    # GLFW input backend
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-    # sokol_imgui rendering backend (one SOKOL_IMGUI_IMPL per link unit)
-    platform/simgui_impl.cpp
-    # ToolApp window + frame lifecycle
     platform/tool_app.cpp
 )
 
 target_include_directories(tools_imgui_backend
     PUBLIC
-        ${imgui_SOURCE_DIR}
-        ${imgui_SOURCE_DIR}/backends
-        ${sokol_SOURCE_DIR}
-        ${sokol_SOURCE_DIR}/util
-        ${stb_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/platform
 )
 
 target_link_libraries(tools_imgui_backend
-    PUBLIC  engine_platform_glfw glfw
+    PUBLIC
+        corundum::tool_host
 )
-
-# sokol_imgui.h is used without sokol_app.h (GLFW handles windowing instead).
-target_compile_definitions(tools_imgui_backend PUBLIC SOKOL_IMGUI_NO_SOKOL_APP)
-
-# ImGui sources are not warning-clean; exempt from warnings-as-errors
-target_compile_options(tools_imgui_backend PRIVATE -Wno-all -Wno-extra)
-
-if(APPLE)
-  set_source_files_properties(platform/simgui_impl.cpp PROPERTIES LANGUAGE OBJCXX)
-  target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_METAL)
-  target_link_libraries(tools_imgui_backend PRIVATE "-framework Metal" "-framework QuartzCore")
-elseif(WIN32)
-  target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_D3D11)
-else()
-  target_compile_definitions(tools_imgui_backend PRIVATE SOKOL_GLCORE)
-endif()
 
 # ── Common tools library ────────────────────────────────────────────────────────
 add_library(tools_common STATIC

@@ -21,6 +21,7 @@ set(FETCHCONTENT_QUIET FALSE)
 include(FetchContent)
 
 # ── Options for consumer projects ──────────────────────────────────────────────
+option(CORUNDUM_BUILD_TOOL_HOST "Build the ImGui+sokol host library for editor tools" ON)
 option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ON)
 option(CORUNDUM_BUILD_TESTS "Build unit tests" ON)
 option(CORUNDUM_UNITY_BUILD "Enable Unity/Jumbo builds for faster compilation" ON)
@@ -110,16 +111,21 @@ if(CORUNDUM_UNITY_BUILD)
 endif()
 
 add_subdirectory(engine)
+if(CORUNDUM_BUILD_TOOL_HOST)
+  add_subdirectory(tool_host)
+endif()
 if(CORUNDUM_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 
 # ── Formatting ─────────────────────────────────────────────────────────────────
 if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
-  file(GLOB_RECURSE FORMAT_SOURCES
+    file(GLOB_RECURSE FORMAT_SOURCES
         "engine/src/**/*.cpp"
         "engine/include/corundum/**/*.hpp"
         "tests/*.cpp"
+        "tool_host/**/*.cpp"
+        "tool_host/**/*.hpp"
         "tools/editors/**/*.cpp"
         "tools/editors/**/*.hpp"
         "tools/platform/**/*.cpp"
