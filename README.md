@@ -16,6 +16,7 @@ Forging tools for 2D RPGs. A data-oriented engine, editor toolset, and asset pip
 ```sh
 cmake --preset debug && cmake --build --preset build
 cmake --build --preset format     # clang-format all sources
+cmake --build --preset docs       # Doxygen API docs → build/docs/html
 ```
 
 Requires CMake 3.28+ and a C++23 compiler. Dependencies (nlohmann/json, ImGui, GLFW, sokol, stb, FreeType, doctest) are fetched automatically via FetchContent.

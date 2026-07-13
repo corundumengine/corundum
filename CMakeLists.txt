@@ -158,6 +158,37 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
   endif()
 endif()
 
+# ── Documentation ────────────────────────────────────────────────────────────
+find_program(DOXYGEN_EXECUTABLE doxygen)
+if(DOXYGEN_EXECUTABLE)
+  FetchContent_Declare(
+      doxygen_awesome_css
+      GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css.git
+      GIT_TAG        v2.4.2
+      GIT_SHALLOW    TRUE
+      GIT_PROGRESS   TRUE
+  )
+  FetchContent_MakeAvailable(doxygen_awesome_css)
+
+  set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
+  configure_file(${CMAKE_SOURCE_DIR}/cmake/Doxyfile.in ${DOXYGEN_OUT} @ONLY)
+  add_custom_target(build_docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+        # README.md is the main page and references misc/logo.png relatively.
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/misc/logo.png
+            ${CMAKE_BINARY_DIR}/docs/html/misc/logo.png
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating Doxygen API documentation for engine/"
+        VERBATIM
+    )
+else()
+  add_custom_target(build_docs
+        COMMAND ${CMAKE_COMMAND} -E echo
+            "doxygen not found — install it to use this target"
+    )
+endif()
+
 # ── Tests ─────────────────────────────────────────────────────────────────────
 include(CTest)
 if(CORUNDUM_BUILD_TESTS)

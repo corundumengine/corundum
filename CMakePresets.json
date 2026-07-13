@@ -77,6 +77,11 @@
       "name": "format",
       "configurePreset": "debug",
       "targets": ["format_code"]
+    },
+    {
+      "name": "docs",
+      "configurePreset": "debug",
+      "targets": ["build_docs"]
     }
   ],
 

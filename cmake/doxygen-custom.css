@@ -1,0 +1,56 @@
+/* Corundum Engine brand palette (official logo colors):
+ *   red        #ad384c
+ *   dark blue  #0f3a60
+ *   light blue #3f6180
+ *
+ * Overrides follow doxygen-awesome's customization pattern: variables are
+ * redefined per mode in the same selector scopes the theme uses, so this
+ * stylesheet wins purely by cascade order. The dark-mode block is duplicated
+ * for `html.dark-mode` to keep the optional JS toggle working, mirroring the
+ * theme's own structure. */
+
+html {
+  /* Light mode: theme's light neutrals, brand accents. */
+  --primary-color: #0f3a60;
+  --primary-dark-color: #ad384c;
+  --primary-light-color: #3f6180;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(.light-mode) {
+    color-scheme: dark;
+
+    /* Dark mode: navy-tinted backgrounds, lightened brand accents. The
+     * theme's dark foreground, syntax-token, and admonition colors are kept
+     * as-is — they stay readable on the navy tint. */
+    --primary-color: #d9808f;
+    --primary-dark-color: #ad384c;
+    --primary-light-color: #8fa9c4;
+
+    --page-background-color: #0a2136;
+    --side-nav-background: #0d2b49;
+    --toc-background: #0d2b49;
+    --separator-color: #1c4c76;
+    --code-background: #123152;
+    --fragment-background: #0d2740;
+    --tablehead-background: #123152;
+    --blockquote-background: #0d2b49;
+  }
+}
+
+html.dark-mode {
+  color-scheme: dark;
+
+  --primary-color: #d9808f;
+  --primary-dark-color: #ad384c;
+  --primary-light-color: #8fa9c4;
+
+  --page-background-color: #0a2136;
+  --side-nav-background: #0d2b49;
+  --toc-background: #0d2b49;
+  --separator-color: #1c4c76;
+  --code-background: #123152;
+  --fragment-background: #0d2740;
+  --tablehead-background: #123152;
+  --blockquote-background: #0d2b49;
+}
