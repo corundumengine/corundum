@@ -1,6 +1,4 @@
-#include "common/ui_theme.hpp"
 #include "editor_state.hpp"
-#include "imgui_fonts.hpp"
 #include "input.hpp"
 #include "layout.hpp"
 #include "load.hpp"
@@ -8,35 +6,24 @@
 #include "render_preview_panel.hpp"
 #include "render_side_panel.hpp"
 #include "render_status_bar.hpp"
-#include <corundum/core/game_config.hpp>
+#include <corundum/tool_host/fonts.hpp>
+#include <corundum/tool_host/tool_config.hpp>
 #include <corundum/tool_host/tool_host.hpp>
+#include <corundum/tool_host/ui_theme.hpp>
 #include <imgui.h>
 #include <print>
 #include <string>
 
+using corundum::tool_host::ApplyEditorThemeRefined;
+using corundum::tool_host::load_theme;
+using corundum::tool_host::ThemeColors;
 using tools::sprite::CanvasContext;
 using tools::sprite::EditorState;
-using tools::sprite::FontHandles;
 using tools::sprite::MouseState;
-using tools::theme::ApplyEditorThemeRefined;
-using tools::theme::load_theme;
-using tools::theme::ThemeColors;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-[[nodiscard]] static FontHandles load_fonts(const corundum::core::GameConfig &cfg) {
-  static constexpr ImWchar ranges[] = {0x0020, 0xFFFF, 0};
-  ImGuiIO &io = ImGui::GetIO();
-  io.Fonts->Clear();
-  const auto ui_path = std::format("{}/{}", cfg.paths.font_dir, cfg.paths.ui_font);
-  const auto icons_path = std::format("{}/{}", cfg.paths.font_dir, cfg.paths.icons_font);
-  FontHandles fonts;
-  fonts.ui = io.Fonts->AddFontFromFileTTF(ui_path.c_str(), 18.0f);
-  fonts.icons = io.Fonts->AddFontFromFileTTF(icons_path.c_str(), 26.0f, nullptr, ranges);
-  return fonts;
-}
 
 static void try_load_texture(corundum::tool_host::ToolHost &host, EditorState &state,
                              corundum::platform::TextureInfo &texture, std::string &loaded_path) {
@@ -79,12 +66,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto cfg_result = corundum::core::load_game_config("tools/tools.json");
+  auto cfg_result = corundum::tool_host::load_tool_config(argc, argv);
   if (!cfg_result) {
     std::println(stderr, "[Spritesmith] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::core::GameConfig cfg = std::move(*cfg_result);
+  corundum::tool_host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
   if (argc == 2) {
@@ -107,15 +94,13 @@ int main(int argc, char *argv[]) {
   }
   auto host = std::move(*host_result);
 
-  // Fonts must be loaded after ImGui context is created (inside ToolHost ctor).
-  const FontHandles fonts = load_fonts(cfg);
-
-  ThemeColors theme;
-  if (auto t = load_theme("tools/editors/common/editor_dark.json"); t)
-    theme = *t;
-  else {
-    std::println(stderr, "[Spritesmith] Theme load failed: {} — using fallback", t.error());
-    theme = ApplyEditorThemeRefined();
+  const corundum::tool_host::FontHandles fonts = load_tool_fonts(cfg);
+  ThemeColors theme = ApplyEditorThemeRefined();
+  if (!cfg.theme_path.empty()) {
+    if (auto t = load_theme(cfg.theme_path.string()))
+      theme = *t;
+    else
+      std::println(stderr, "[Spritesmith] Theme load failed: {} — using fallback", t.error());
   }
 
   corundum::platform::TextureInfo checkerboard = host->make_checkerboard(

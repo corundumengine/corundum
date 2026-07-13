@@ -7,7 +7,6 @@
 #include <imgui.h>
 
 namespace tools::tilemap {
-  using namespace tools::common;
 
   namespace {
 

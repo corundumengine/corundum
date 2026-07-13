@@ -3,7 +3,6 @@
 #include <algorithm>
 
 namespace tools::tilemap {
-  using namespace tools::common;
 
   namespace {
 

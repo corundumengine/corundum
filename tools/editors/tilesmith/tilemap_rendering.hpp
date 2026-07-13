@@ -1,10 +1,10 @@
 #pragma once
-#include "common/canvas_context.hpp"
 #include "tileset_view.hpp"
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/platform/texture_cache.hpp>
+#include <corundum/tool_host/canvas_controller.hpp>
 #include <vector>
 
 namespace corundum::tool_host {
@@ -13,7 +13,7 @@ namespace corundum::tool_host {
 
 namespace tools::tilemap {
 
-  using CanvasContext = tools::common::CanvasContext;
+  using CanvasContext = corundum::tool_host::CanvasContext;
 
   /// Owns a texture ID for each tileset in a Tilemap, parallel to Tilemap::tilesets.
   struct TilemapTextureStore {

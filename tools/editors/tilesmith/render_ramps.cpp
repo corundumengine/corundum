@@ -2,7 +2,6 @@
 #include "coords.hpp"
 
 namespace tools::tilemap {
-  using namespace tools::common;
 
   namespace {
 

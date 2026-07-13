@@ -1,11 +1,11 @@
 #pragma once
-#include "common/canvas_context.hpp"
 #include "editor_state.hpp"
+#include <corundum/tool_host/canvas_controller.hpp>
 #include <functional>
 
 namespace tools::tilemap {
 
-  using CanvasContext = tools::common::CanvasContext;
+  using CanvasContext = corundum::tool_host::CanvasContext;
 
   /// Injected callback that renders all tilemap passes into the canvas.
   /// Constructed in main.cpp, which owns TilemapTextureStore.

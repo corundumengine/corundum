@@ -1,23 +1,16 @@
-# ── Common tools library —──────────────────────────────────────────────────
-# ToolHost, ImGui, and sokol_imgui are provided by corundum_tool_host.
-add_library(tools_common STATIC
-    editors/common/ui_theme.cpp
-)
+add_library(tools_common INTERFACE)
 
 target_include_directories(tools_common
-    PUBLIC
+    INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/editors
 )
 
 target_link_libraries(tools_common
-    PUBLIC
+    INTERFACE
         corundum::tool_host
         nlohmann_json::nlohmann_json
 )
 
-target_compile_options(tools_common PRIVATE -Wall -Wextra -Wpedantic)
-
-# ── Tilesmith Editor ────────────────────────────────────────────────────────────
 add_executable(tilesmith
     editors/tilesmith/main.cpp
     editors/tilesmith/new_map_dialog.cpp
@@ -51,7 +44,6 @@ target_link_libraries(tilesmith
 
 target_compile_options(tilesmith PRIVATE -Wall -Wextra -Wpedantic)
 
-# ── Spritesmith Editor ──────────────────────────────────────────────────────────
 add_executable(spritesmith
     editors/spritesmith/main.cpp
     editors/spritesmith/load.cpp
@@ -76,10 +68,8 @@ target_link_libraries(spritesmith
 
 target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic)
 
-# Anonymous namespace helpers (sheet_cols, sheet_rows) collide with Unity builds
 set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
-# ── Talesmith Editor ─────────────────────────────────────────────────────────────
 add_executable(talesmith
     editors/talesmith/main.cpp
     editors/talesmith/file_io.cpp

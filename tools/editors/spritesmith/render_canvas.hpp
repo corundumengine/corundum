@@ -1,11 +1,11 @@
 #pragma once
-#include "common/canvas_context.hpp"
 #include "editor_state.hpp"
+#include <corundum/tool_host/canvas_controller.hpp>
 #include <imgui.h>
 
 namespace tools::sprite {
 
-  using CanvasContext = tools::common::CanvasContext;
+  using CanvasContext = corundum::tool_host::CanvasContext;
 
   /**
    * @brief Render the sprite sheet canvas with grid overlay.

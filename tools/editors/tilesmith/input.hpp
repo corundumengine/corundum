@@ -1,10 +1,10 @@
 #pragma once
-#include "common/input.hpp"
 #include "editor_state.hpp"
+#include <corundum/tool_host/canvas_controller.hpp>
 
 namespace tools::tilemap {
 
-  using MouseState = tools::common::MouseState;
+  using MouseState = corundum::tool_host::MouseState;
 
   /**
    * @brief Process all editor input for one frame using ImGui IO.

@@ -1,4 +1,3 @@
-#include "common/ui_theme.hpp"
 #include "editor_state.hpp"
 #include "file_io.hpp"
 #include "layout.hpp"
@@ -9,23 +8,25 @@
 #include "shortcuts.hpp"
 #include "validate_quest_refs.hpp"
 
-#include <corundum/core/game_config.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/tool_host/fonts.hpp>
+#include <corundum/tool_host/tool_config.hpp>
 #include <corundum/tool_host/tool_host.hpp>
+#include <corundum/tool_host/ui_theme.hpp>
 #include <format>
 #include <imgui.h>
 #include <print>
 #include <string>
 
+using corundum::tool_host::ApplyEditorThemeRefined;
+using corundum::tool_host::load_theme;
+using corundum::tool_host::ThemeColors;
 using tools::talesmith::DocumentType;
 using tools::talesmith::EditorState;
 using tools::talesmith::k_default_window_h;
 using tools::talesmith::k_default_window_w;
 using tools::talesmith::process_shortcuts;
 using tools::talesmith::ShortcutMap;
-using tools::theme::ApplyEditorThemeRefined;
-using tools::theme::load_theme;
-using tools::theme::ThemeColors;
 
 static void new_dialogue(EditorState &state) {
   state.doc_type_ = DocumentType::Dialogue;
@@ -114,17 +115,17 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto cfg_result = corundum::core::load_game_config("tools/tools.json");
+  auto cfg_result = corundum::tool_host::load_tool_config(argc, argv);
   if (!cfg_result) {
     std::println(stderr, "[Talesmith] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::core::GameConfig cfg = std::move(*cfg_result);
+  corundum::tool_host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
 
-  if (!cfg.paths.quests_dir.empty() && std::filesystem::is_directory(cfg.paths.quests_dir)) {
-    [[maybe_unused]] auto quest_count = state.quest_registry.load_all(cfg.paths.quests_dir);
+  if (!cfg.quests_dir.empty() && std::filesystem::is_directory(cfg.quests_dir)) {
+    [[maybe_unused]] auto quest_count = state.quest_registry.load_all(cfg.quests_dir.string());
     state.quests_loaded_ = true;
   }
 
@@ -155,17 +156,14 @@ int main(int argc, char *argv[]) {
   }
   auto host = std::move(*host_result);
 
-  ImGuiIO &io = ImGui::GetIO();
-  io.Fonts->Clear();
-  const auto ui_path = std::format("{}/{}", cfg.paths.font_dir, cfg.paths.ui_font);
-  io.Fonts->AddFontFromFileTTF(ui_path.c_str(), 18.0f);
+  [[maybe_unused]] auto _ = load_tool_fonts(cfg);
 
-  ThemeColors theme;
-  if (auto t = load_theme("tools/editors/common/editor_dark.json"); t)
-    theme = *t;
-  else {
-    state.toast.show(std::format("[Talesmith] Theme load failed: {} — using fallback", t.error()));
-    theme = ApplyEditorThemeRefined();
+  ThemeColors theme = ApplyEditorThemeRefined();
+  if (!cfg.theme_path.empty()) {
+    if (auto t = load_theme(cfg.theme_path.string()))
+      theme = *t;
+    else
+      state.toast.show(std::format("[Talesmith] Theme load failed: {} — using fallback", t.error()));
   }
 
   bool running = true;

@@ -4,7 +4,6 @@
 #include <corundum/gameplay/world/tilemap/walkability.hpp>
 
 namespace tools::tilemap {
-  using namespace tools::common;
 
   namespace {
 

@@ -4,7 +4,7 @@
 
 namespace tools::tilemap {
 
-  using namespace tools::theme;
+  using namespace corundum::tool_host;
 
   void render_layer_strip(const EditorState &state, const ThemeColors &theme) {
     const int n_layers = static_cast<int>(state.map.layers.size());

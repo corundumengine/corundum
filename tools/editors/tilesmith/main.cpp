@@ -1,6 +1,6 @@
-#include "common/ui_theme.hpp"
 #include "coords.hpp"
 #include "editor_state.hpp"
+#include <corundum/tool_host/ui_theme.hpp>
 
 #include "input.hpp"
 #include "layout.hpp"
@@ -14,8 +14,9 @@
 #include "tilemap_rendering.hpp"
 #include "tileset_view.hpp"
 #include <algorithm>
-#include <corundum/core/game_config.hpp>
 #include <corundum/gameplay/world/tilemap/loader.hpp>
+#include <corundum/tool_host/fonts.hpp>
+#include <corundum/tool_host/tool_config.hpp>
 #include <corundum/tool_host/tool_host.hpp>
 #include <cstdio>
 #include <imgui.h>
@@ -23,9 +24,9 @@
 #include <string>
 #include <vector>
 
-using tools::theme::ApplyEditorThemeRefined;
-using tools::theme::load_theme;
-using tools::theme::ThemeColors;
+using corundum::tool_host::ApplyEditorThemeRefined;
+using corundum::tool_host::load_theme;
+using corundum::tool_host::ThemeColors;
 using tools::tilemap::CanvasContext;
 using tools::tilemap::EditorState;
 
@@ -39,12 +40,7 @@ using tools::tilemap::TilesetView;
 // Helpers
 // ---------------------------------------------------------------------------
 
-static void load_fonts(const corundum::core::GameConfig &cfg) {
-  ImGuiIO &io = ImGui::GetIO();
-  io.Fonts->Clear();
-  const auto ui_path = std::format("{}/{}", cfg.paths.font_dir, cfg.paths.ui_font);
-  io.Fonts->AddFontFromFileTTF(ui_path.c_str(), 18.0f);
-}
+// load_fonts replaced by corundum::tool_host::load_tool_fonts(config)
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -110,12 +106,12 @@ int main(int argc, char *argv[]) {
   }
   const bool new_map_mode = (argc == 1);
 
-  auto cfg_result = corundum::core::load_game_config("tools/tools.json");
+  auto cfg_result = corundum::tool_host::load_tool_config(argc, argv);
   if (!cfg_result) {
     std::println(stderr, "[Tilesmith] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::core::GameConfig cfg = std::move(*cfg_result);
+  corundum::tool_host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
   state.elev_step_px = cfg.elevation_step_px;
@@ -147,13 +143,18 @@ int main(int argc, char *argv[]) {
   auto host = std::move(*host_result);
 
   // Fonts must be loaded after ImGui context is created (inside ToolHost ctor).
-  load_fonts(cfg);
+  [[maybe_unused]] corundum::tool_host::FontHandles fonts = load_tool_fonts(cfg);
 
   ThemeColors theme;
-  if (auto t = load_theme("tools/editors/common/editor_dark.json"); t)
-    theme = *t;
-  else {
-    std::println(stderr, "[Tilesmith] Theme load failed: {} — using fallback", t.error());
+  if (!cfg.theme_path.empty()) {
+    auto t = load_theme(cfg.theme_path.string());
+    if (t)
+      theme = *t;
+    else {
+      std::println(stderr, "[Tilesmith] Theme load failed: {} — using fallback", t.error());
+      theme = ApplyEditorThemeRefined();
+    }
+  } else {
     theme = ApplyEditorThemeRefined();
   }
 

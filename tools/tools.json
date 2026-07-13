@@ -1,7 +1,9 @@
 {
-  "font_dir": "tools/editors/fonts",
-  "ui_font": "NotoSans.ttf",
-  "icons_font": "NotoSans.ttf",
-  "dialogue_dir": "data/dialogue",
-  "quests_dir": "data/quests"
+    "font_path": "../tool_host/assets/NotoSans.ttf",
+    "icons_font_path": "../tool_host/assets/NotoSans.ttf",
+    "theme_path": "../tool_host/assets/editor_dark.json",
+    "quests_dir": "../keystone/data/quests",
+    "dialogue_dir": "../keystone/data/dialogue",
+    "elevation_step_px": 4,
+    "max_step_height": 4
 }

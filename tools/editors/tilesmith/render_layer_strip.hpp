@@ -1,19 +1,9 @@
 #pragma once
-#include "common/ui_theme.hpp"
 #include "editor_state.hpp"
+#include <corundum/tool_host/ui_theme.hpp>
 
 namespace tools::tilemap {
 
-  /**
-   * @brief Render the layer strip inside the current ImGui window.
-   *
-   * Draws a title row and one row per layer using the window draw list for
-   * background fills and ImGui text for layer names and visibility icons.
-   * Call from within the panel child window before other panel content.
-   *
-   * @param state  Current editor state.
-   * @param theme  Theme colors for semantic icon coloring.
-   */
-  void render_layer_strip(const EditorState &state, const tools::theme::ThemeColors &theme);
+  void render_layer_strip(const EditorState &state, const corundum::tool_host::ThemeColors &theme);
 
 } // namespace tools::tilemap

@@ -1,7 +1,7 @@
 #pragma once
-#include "common/ui_theme.hpp"
 #include "editor_state.hpp"
-#include "imgui_fonts.hpp"
+#include <corundum/tool_host/fonts.hpp>
+#include <corundum/tool_host/ui_theme.hpp>
 
 namespace tools::sprite {
 
@@ -15,6 +15,7 @@ namespace tools::sprite {
    * @param fonts  Loaded ImGui font handles.
    * @param theme  Semantic color theme.
    */
-  void render_side_panel(EditorState &state, const FontHandles &fonts, const tools::theme::ThemeColors &theme);
+  void render_side_panel(EditorState &state, const corundum::tool_host::FontHandles &fonts,
+                         const corundum::tool_host::ThemeColors &theme);
 
 } // namespace tools::sprite
