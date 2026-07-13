@@ -1,16 +1,4 @@
-add_library(tools_common INTERFACE)
-
-target_include_directories(tools_common
-    INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/editors
-)
-
-target_link_libraries(tools_common
-    INTERFACE
-        corundum::tool_host
-        nlohmann_json::nlohmann_json
-)
-
+# ── Tilesmith Editor ────────────────────────────────────────────────────────────
 add_executable(tilesmith
     editors/tilesmith/main.cpp
     editors/tilesmith/new_map_dialog.cpp
@@ -39,11 +27,12 @@ target_include_directories(tilesmith
 
 target_link_libraries(tilesmith
     PRIVATE
-        tools_common
+        corundum::tool_host
 )
 
 target_compile_options(tilesmith PRIVATE -Wall -Wextra -Wpedantic)
 
+# ── Spritesmith Editor ──────────────────────────────────────────────────────────
 add_executable(spritesmith
     editors/spritesmith/main.cpp
     editors/spritesmith/load.cpp
@@ -63,13 +52,14 @@ target_include_directories(spritesmith
 
 target_link_libraries(spritesmith
     PRIVATE
-        tools_common
+        corundum::tool_host
 )
 
 target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic)
 
 set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
+# ── Talesmith Editor ─────────────────────────────────────────────────────────────
 add_executable(talesmith
     editors/talesmith/main.cpp
     editors/talesmith/file_io.cpp
@@ -87,7 +77,7 @@ target_include_directories(talesmith
 
 target_link_libraries(talesmith
     PRIVATE
-        tools_common
+        corundum::tool_host
 )
 
 target_compile_options(talesmith PRIVATE -Wall -Wextra -Wpedantic)
