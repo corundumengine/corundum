@@ -3,6 +3,7 @@
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/tool_host/canvas_controller.hpp>
 
 #include <cstddef>
 #include <cstring>
@@ -14,14 +15,8 @@ namespace tools::talesmith {
 
   enum class DocumentType : uint8_t { Dialogue, Quest };
 
-  struct CanvasTransform {
-    float offset_x = 0.f;
-    float offset_y = 0.f;
-    float scale = 1.f;
-
-    static constexpr float k_min_scale = 0.25f;
-    static constexpr float k_max_scale = 2.0f;
-  };
+  inline constexpr float k_min_scale = 0.25f;
+  inline constexpr float k_max_scale = 2.0f;
 
   struct NodeLayout {
     int layer = 0;
@@ -151,7 +146,7 @@ namespace tools::talesmith {
     std::vector<NodeLayout> layout;
     char graph_speaker_buf_[256]{};
     char graph_id_buf_[128]{};
-    CanvasTransform canvas;
+    corundum::tool_host::CanvasController canvas;
     corundum::gameplay::quest::Registry quest_registry;
     bool quests_loaded_ = false;
     PopupState popups;

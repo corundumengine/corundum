@@ -62,16 +62,18 @@ using tools::tilemap::TilesetView;
 static void center_camera(EditorState &state) noexcept {
   if (state.map.tilesets.empty())
     return;
-  state.tile_scale = compute_tile_scale(state.map.diamond_w());
-  const float half_tw = static_cast<float>(state.map.diamond_w()) * state.tile_scale * 0.5f;
-  const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
+  state.canvas.scale = compute_tile_scale(state.map.diamond_w());
+  const float half_tw = static_cast<float>(state.map.diamond_w()) * state.canvas.scale * 0.5f;
+  const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
   const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw;
   const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th;
-  state.camera.x = (virtual_w - static_cast<float>(tools::tilemap::CANVAS_W)) * 0.5f;
-  state.camera.y = (virtual_h - static_cast<float>(tools::tilemap::CANVAS_H)) * 0.5f;
-  state.camera = tools::tilemap::clamp_camera(state.camera, state.tile_scale, state.map.width, state.map.height,
-                                              state.map.diamond_w(), state.map.diamond_h(), tools::tilemap::CANVAS_W,
-                                              tools::tilemap::CANVAS_H);
+  state.canvas.offset_x = (virtual_w - static_cast<float>(tools::tilemap::CANVAS_W)) * 0.5f;
+  state.canvas.offset_y = (virtual_h - static_cast<float>(tools::tilemap::CANVAS_H)) * 0.5f;
+  auto [cx, cy] = tools::tilemap::clamp_camera(
+      state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width, state.map.height,
+      state.map.diamond_w(), state.map.diamond_h(), tools::tilemap::CANVAS_W, tools::tilemap::CANVAS_H);
+  state.canvas.offset_x = cx;
+  state.canvas.offset_y = cy;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,11 +183,11 @@ int main(int argc, char *argv[]) {
 
   // Closure that renders all tilemap passes into a canvas context.
   const MapRenderFn render_map = [&host, &state, &texture_store, &elapsed_time](CanvasContext ctx) {
-    tools::tilemap::render_tilemap(*host, ctx, state.map, texture_store, state.camera, 0, state.tile_scale,
-                                   elapsed_time, state.elev_step_px);
+    tools::tilemap::render_tilemap(*host, ctx, state.map, texture_store, state.canvas.offset_x, state.canvas.offset_y,
+                                   0, state.canvas.scale, elapsed_time, state.elev_step_px);
     for (const int z : tools::tilemap::above_z_indices(state.map))
-      tools::tilemap::render_tilemap(*host, ctx, state.map, texture_store, state.camera, z, state.tile_scale,
-                                     elapsed_time, state.elev_step_px);
+      tools::tilemap::render_tilemap(*host, ctx, state.map, texture_store, state.canvas.offset_x, state.canvas.offset_y,
+                                     z, state.canvas.scale, elapsed_time, state.elev_step_px);
   };
 
   host->run([&]() {
@@ -228,8 +230,8 @@ int main(int argc, char *argv[]) {
 
     if (!state.map.tilesets.empty()) {
       const int tw = state.map.diamond_w();
-      const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
-      const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
+      const float half_tw = static_cast<float>(tw) * state.canvas.scale * 0.5f;
+      const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
       ImGui::SetNextWindowContentSize({static_cast<float>(state.map.width + state.map.height) * half_tw +
                                            tools::tilemap::k_content_margin * half_tw,
                                        static_cast<float>(state.map.width + state.map.height) * half_th +
@@ -252,22 +254,22 @@ int main(int argc, char *argv[]) {
       ImVec2 content_origin = origin;
 
       if (!state.map.tilesets.empty()) {
-        const float half_tw = static_cast<float>(state.map.diamond_w()) * state.tile_scale * 0.5f;
-        const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
+        const float half_tw = static_cast<float>(state.map.diamond_w()) * state.canvas.scale * 0.5f;
+        const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
         const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw +
                                 tools::tilemap::k_content_margin * half_tw;
         const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th +
                                 tools::tilemap::k_content_margin * half_th;
-        if (state.panning || state.camera_moved) {
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
           if (virtual_w > static_cast<float>(tools::tilemap::CANVAS_W))
-            ImGui::SetScrollX(state.camera.x);
+            ImGui::SetScrollX(state.canvas.offset_x);
           if (virtual_h > static_cast<float>(tools::tilemap::CANVAS_H))
-            ImGui::SetScrollY(state.camera.y);
+            ImGui::SetScrollY(state.canvas.offset_y);
         } else {
           if (virtual_w > static_cast<float>(tools::tilemap::CANVAS_W))
-            state.camera.x = ImGui::GetScrollX();
+            state.canvas.offset_x = ImGui::GetScrollX();
           if (virtual_h > static_cast<float>(tools::tilemap::CANVAS_H))
-            state.camera.y = ImGui::GetScrollY();
+            state.canvas.offset_y = ImGui::GetScrollY();
         }
         content_origin.x += tools::tilemap::k_content_margin * half_tw;
         content_origin.y += half_th;

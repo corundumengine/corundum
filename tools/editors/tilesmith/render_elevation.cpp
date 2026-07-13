@@ -48,7 +48,7 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
     const auto tiles = state.map.layer_view(layer);
 
     for (int row = 0; row < state.map.height; ++row) {
@@ -64,7 +64,7 @@ namespace tools::tilemap {
         if (!has_tile)
           continue;
         draw_iso_cell(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(v), iso.half_tw,
-                      iso.half_th, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y,
+                      iso.half_th, state.elev_step_px, iso.x_origin, state.canvas.offset_x, state.canvas.offset_y,
                       elevation_fill_color(v), 0);
       }
     }
@@ -75,11 +75,11 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
     draw_iso_cell(ctx, static_cast<float>(state.hover_tile_col), static_cast<float>(state.hover_tile_row),
                   static_cast<float>(state.selected_elevation), iso.half_tw, iso.half_th, state.elev_step_px,
-                  iso.x_origin, state.camera.x, state.camera.y, elevation_fill_color(state.selected_elevation),
-                  IM_COL32(255, 220, 80, 220));
+                  iso.x_origin, state.canvas.offset_x, state.canvas.offset_y,
+                  elevation_fill_color(state.selected_elevation), IM_COL32(255, 220, 80, 220));
   }
 
 } // namespace tools::tilemap

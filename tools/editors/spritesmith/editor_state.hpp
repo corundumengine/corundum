@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <corundum/resources/sprite.hpp>
+#include <corundum/tool_host/canvas_controller.hpp>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -85,20 +86,11 @@ namespace tools::sprite {
     bool show_collision_box = false; ///< Draw collision rect overlay in the animation preview.
 
     // ---- Canvas view --------------------------------------------------------
-    float zoom = 2.0f;     ///< Display scale factor (1 = native pixel size).
-    float camera_x = 0.0f; ///< Horizontal scroll offset in screen pixels.
-    float camera_y = 0.0f; ///< Vertical scroll offset in screen pixels.
+    corundum::tool_host::CanvasController canvas;
 
     // ---- Hover state (updated on every mouse move) --------------------------
     int hover_col = -1; ///< Frame column under the cursor, or -1.
     int hover_row = -1; ///< Frame row under the cursor, or -1.
-
-    // ---- Middle-mouse pan state ---------------------------------------------
-    bool panning = false;        ///< True while a middle-mouse pan is active.
-    int pan_anchor_x = 0;        ///< Window-space X at pan start.
-    int pan_anchor_y = 0;        ///< Window-space Y at pan start.
-    float pan_start_cam_x = 0.f; ///< camera_x at pan start.
-    float pan_start_cam_y = 0.f; ///< camera_y at pan start.
   };
 
 } // namespace tools::sprite

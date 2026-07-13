@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cmath>
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <optional>
 #include <span>
@@ -219,21 +218,17 @@ namespace tools::tilemap {
    * @param canvas_h   Canvas height in pixels.
    * @return Clamped camera.
    */
-  [[nodiscard]] inline corundum::gameplay::world::Camera clamp_camera(corundum::gameplay::world::Camera cam,
-                                                                      float tile_scale, int map_w, int map_h, int tw,
-                                                                      int diamond_h, int canvas_w,
-                                                                      int canvas_h) noexcept {
+  [[nodiscard]] inline std::pair<float, float> clamp_camera(float offset_x, float offset_y, float tile_scale, int map_w,
+                                                            int map_h, int tw, int diamond_h, int canvas_w,
+                                                            int canvas_h) noexcept {
     const float half_tw = static_cast<float>(tw) * tile_scale * 0.5f;
     const float half_th = static_cast<float>(diamond_h > 0 ? diamond_h : tw / 2) * tile_scale * 0.5f;
-    // +k_content_margin half-diamonds: matches the margin added by the canvas renderer/content-size
-    // calc (main.cpp) — keeps scroll clamping consistent with that padding.
     const float map_px_w = static_cast<float>(map_w + map_h) * half_tw + k_content_margin * half_tw;
     const float map_px_h = static_cast<float>(map_w + map_h) * half_th + k_content_margin * half_th;
     const float min_x = std::min(0.f, (map_px_w - static_cast<float>(canvas_w)) * 0.5f);
     const float min_y = std::min(0.f, (map_px_h - static_cast<float>(canvas_h)) * 0.5f);
-    cam.x = std::clamp(cam.x, min_x, std::max(0.f, map_px_w - static_cast<float>(canvas_w)));
-    cam.y = std::clamp(cam.y, min_y, std::max(0.f, map_px_h - static_cast<float>(canvas_h)));
-    return cam;
+    return {std::clamp(offset_x, min_x, std::max(0.f, map_px_w - static_cast<float>(canvas_w))),
+            std::clamp(offset_y, min_y, std::max(0.f, map_px_h - static_cast<float>(canvas_h)))};
   }
 
 } // namespace tools::tilemap

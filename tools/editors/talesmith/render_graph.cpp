@@ -44,26 +44,8 @@ namespace tools::talesmith {
     dl->PushClipRect(canvas_origin, {canvas_origin.x + canvas_size.x, canvas_origin.y + canvas_size.y}, true);
 
     // ── Canvas pan/zoom ──
-    if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered()) {
-      if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
-        auto delta = ImGui::GetIO().MouseDelta;
-        state.canvas.offset_x += delta.x;
-        state.canvas.offset_y += delta.y;
-      }
-      float wheel = ImGui::GetIO().MouseWheel;
-      if (wheel != 0.f) {
-        float old_scale = state.canvas.scale;
-        state.canvas.scale = std::clamp(state.canvas.scale * (1.f + wheel * 0.1f), CanvasTransform::k_min_scale,
-                                        CanvasTransform::k_max_scale);
-        ImVec2 mouse_pos = ImGui::GetMousePos();
-        state.canvas.offset_x =
-            mouse_pos.x - canvas_origin.x -
-            (mouse_pos.x - canvas_origin.x - state.canvas.offset_x) * (state.canvas.scale / old_scale);
-        state.canvas.offset_y =
-            mouse_pos.y - canvas_origin.y -
-            (mouse_pos.y - canvas_origin.y - state.canvas.offset_y) * (state.canvas.scale / old_scale);
-      }
-    }
+    if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
+      state.canvas.update(canvas_origin, canvas_size, /*zoom_to_cursor=*/true, k_min_scale, k_max_scale);
 
     const auto n = static_cast<int>(state.graph.nodes.size());
     if (n == 0) {

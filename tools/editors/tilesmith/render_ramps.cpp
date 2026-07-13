@@ -20,12 +20,12 @@ namespace tools::tilemap {
                         const corundum::core::math::IsoParams &iso, ImU32 color) {
       const float elev = static_cast<float>(elevation_at(state.map, col, row));
       const auto [dc, dr] = axis == RampAxis::NORTH_SOUTH ? std::pair{0.f, -0.5f} : std::pair{0.5f, 0.f};
-      const ImVec2 p0 =
-          ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f - dc, static_cast<float>(row) + 0.5f - dr, elev,
-                           iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y);
-      const ImVec2 p1 =
-          ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f + dc, static_cast<float>(row) + 0.5f + dr, elev,
-                           iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y);
+      const ImVec2 p0 = ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f - dc, static_cast<float>(row) + 0.5f - dr,
+                                         elev, iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+                                         state.canvas.offset_x, state.canvas.offset_y);
+      const ImVec2 p1 = ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f + dc, static_cast<float>(row) + 0.5f + dr,
+                                         elev, iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+                                         state.canvas.offset_x, state.canvas.offset_y);
       ctx.dl->AddLine(p0, p1, color, 3.f);
       ctx.dl->AddCircleFilled(p1, 4.f, color);
     }
@@ -41,7 +41,7 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
 
     constexpr ImU32 k_color = IM_COL32(120, 255, 120, 230);
     for (const auto &[idx, axis] : layer.ramps)
@@ -53,7 +53,7 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
     constexpr ImU32 k_color = IM_COL32(255, 220, 80, 220);
     draw_ramp_line(ctx, state, state.hover_tile_col, state.hover_tile_row, state.selected_ramp_axis, iso, k_color);
   }

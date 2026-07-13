@@ -20,8 +20,8 @@ namespace tools::tilemap {
     /// Convenience overload: fills in the EditorState-derived parameters that are
     /// always the same (canvas at origin, CANVAS_W/H, camera/scale from state).
     [[nodiscard]] std::optional<TileCoord> editor_screen_to_tile(int px, int py, const EditorState &state) noexcept {
-      return screen_to_tile(px, py, 0, 0, CANVAS_W, CANVAS_H, state.camera.x, state.camera.y, state.tile_scale,
-                            state.map.width, state.map.height, effective_diamond_w(state.map),
+      return screen_to_tile(px, py, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
+                            state.canvas.scale, state.map.width, state.map.height, effective_diamond_w(state.map),
                             effective_diamond_h(state.map));
     }
 
@@ -64,8 +64,8 @@ namespace tools::tilemap {
       if (state.col_drag_sub_tile) {
         candidate =
             pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
-                                state.col_drag_cur_win_y, state.camera.x, state.camera.y, state.tile_scale,
-                                static_cast<float>(tw), static_cast<float>(th));
+                                state.col_drag_cur_win_y, state.canvas.offset_x, state.canvas.offset_y,
+                                state.canvas.scale, static_cast<float>(tw), static_cast<float>(th));
       } else {
         candidate = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
                                       state.col_drag_cur_row);
@@ -338,27 +338,8 @@ namespace tools::tilemap {
 
     // Whether the canvas's own scrollbars are present this frame (mirrors the content-size vs.
     // window-size check in main.cpp that decides whether ImGui draws them), and whether the
-    // cursor is currently over one of those scrollbar strips — clicking there must start a
-    // scroll drag, not a paint/erase action, even though the strip sits within CANVAS_W/H.
-    bool over_scrollbar = false;
-    if (!state.map.tilesets.empty()) {
-      const float half_tw = static_cast<float>(effective_diamond_w(state.map)) * state.tile_scale * 0.5f;
-      const float half_th = static_cast<float>(effective_diamond_h(state.map)) * state.tile_scale * 0.5f;
-      const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw;
-      const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th;
-      const bool has_h_scrollbar = virtual_w > static_cast<float>(CANVAS_W);
-      const bool has_v_scrollbar = virtual_h > static_cast<float>(CANVAS_H);
-      const float sb_size = ImGui::GetStyle().ScrollbarSize;
-      const bool over_h_strip =
-          has_h_scrollbar && static_cast<float>(my) >= static_cast<float>(CANVAS_H) - sb_size && my < CANVAS_H &&
-          mx >= 0 && static_cast<float>(mx) < static_cast<float>(CANVAS_W) - (has_v_scrollbar ? sb_size : 0.f);
-      const bool over_v_strip =
-          has_v_scrollbar && static_cast<float>(mx) >= static_cast<float>(CANVAS_W) - sb_size && mx < CANVAS_W &&
-          my >= 0 && static_cast<float>(my) < static_cast<float>(CANVAS_H) - (has_h_scrollbar ? sb_size : 0.f);
-      over_scrollbar = over_h_strip || over_v_strip;
-    }
-    if (state.scrollbar_dragging)
-      ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+    // --- Canvas pan/zoom ---
+    state.canvas.update({0.f, 0.f}, {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)});
 
     // --- Keyboard ---
     if (!io.WantCaptureKeyboard) {
@@ -367,34 +348,41 @@ namespace tools::tilemap {
         return;
       }
 
-      state.camera_moved = false;
       if (!state.map.tilesets.empty()) {
         const int dw = effective_diamond_w(state.map);
-        const float step_px = static_cast<float>(dw) * state.tile_scale * 0.5f; // half diamond width per arrow key
-        const float step_py = static_cast<float>(dw) * state.tile_scale * 0.25f;
+        const float step_px = static_cast<float>(dw) * state.canvas.scale * 0.5f;
+        const float step_py = static_cast<float>(dw) * state.canvas.scale * 0.25f;
         if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) {
-          state.camera.x -= step_px;
-          state.camera = clamp_camera(state.camera, state.tile_scale, state.map.width, state.map.height, dw,
-                                      effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.camera_moved = true;
+          state.canvas.offset_x -= step_px;
+          auto [cx, cy] =
+              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
+                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
+          state.canvas.offset_x = cx;
+          state.canvas.offset_y = cy;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) {
-          state.camera.x += step_px;
-          state.camera = clamp_camera(state.camera, state.tile_scale, state.map.width, state.map.height, dw,
-                                      effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.camera_moved = true;
+          state.canvas.offset_x += step_px;
+          auto [cx, cy] =
+              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
+                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
+          state.canvas.offset_x = cx;
+          state.canvas.offset_y = cy;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
-          state.camera.y -= step_py;
-          state.camera = clamp_camera(state.camera, state.tile_scale, state.map.width, state.map.height, dw,
-                                      effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.camera_moved = true;
+          state.canvas.offset_y -= step_py;
+          auto [cx, cy] =
+              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
+                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
+          state.canvas.offset_x = cx;
+          state.canvas.offset_y = cy;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-          state.camera.y += step_py;
-          state.camera = clamp_camera(state.camera, state.tile_scale, state.map.width, state.map.height, dw,
-                                      effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.camera_moved = true;
+          state.canvas.offset_y += step_py;
+          auto [cx, cy] =
+              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
+                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
+          state.canvas.offset_x = cx;
+          state.canvas.offset_y = cy;
         }
       }
 
@@ -513,9 +501,7 @@ namespace tools::tilemap {
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
       mouse.left_held = true;
       if (!popup_or_modal_open) {
-        if (over_scrollbar) {
-          state.scrollbar_dragging = true;
-        } else if (state.show_portals) {
+        if (state.show_portals) {
           if (over_canvas)
             select_portal_at(state, mx, my);
         } else if (state.show_collisions) {
@@ -559,17 +545,9 @@ namespace tools::tilemap {
       }
     }
 
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && !popup_or_modal_open) {
-      state.panning = true;
-      state.pan_anchor_x = mx;
-      state.pan_anchor_y = my;
-      state.pan_start_camera = state.camera;
-    }
-
     // --- Mouse button released ---
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
       mouse.left_held = false;
-      state.scrollbar_dragging = false;
       if (!state.show_portals && state.show_collisions && !state.triangle_collision_mode && state.collision_dragging)
         commit_collision_rect(state);
     }
@@ -580,46 +558,35 @@ namespace tools::tilemap {
       else if (state.erase_dragging)
         commit_erase_rect(state);
     }
-    if (ImGui::IsMouseReleased(ImGuiMouseButton_Middle))
-      state.panning = false;
 
     // --- Mouse moved (continuous) ---
-    if (state.panning) {
-      state.camera.x = state.pan_start_camera.x - static_cast<float>(mx - state.pan_anchor_x);
-      state.camera.y = state.pan_start_camera.y - static_cast<float>(my - state.pan_anchor_y);
-      if (!state.map.tilesets.empty()) {
-        state.camera = clamp_camera(state.camera, state.tile_scale, state.map.width, state.map.height,
-                                    effective_diamond_w(state.map), effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-      }
-    } else {
-      if (!state.map.tilesets.empty()) {
-        const auto tc = editor_screen_to_tile(mx, my, state);
-        state.hover_tile_col = tc ? tc->col : -1;
-        state.hover_tile_row = tc ? tc->row : -1;
-      }
+    {
+      const auto tc = editor_screen_to_tile(mx, my, state);
+      state.hover_tile_col = tc ? tc->col : -1;
+      state.hover_tile_row = tc ? tc->row : -1;
+    }
 
-      if (state.show_portals) {
-        if (state.portal_dragging)
-          update_portal_drag(state, mx, my);
-      } else if (state.show_collisions) {
-        if (state.collision_dragging)
-          update_collision_drag(state, mx, my);
-      } else if (state.show_elevation) {
-        if (mouse.left_held && over_canvas && !popup_or_modal_open && !state.scrollbar_dragging)
-          paint_or_erase_elevation(state, mx, my, false);
-        if (mouse.right_held && over_canvas)
-          paint_or_erase_elevation(state, mx, my, true);
-      } else if (state.show_ramps) {
-        if (mouse.left_held && over_canvas && !popup_or_modal_open && !state.scrollbar_dragging)
-          paint_or_erase_ramp(state, mx, my, false);
-        if (mouse.right_held && over_canvas)
-          paint_or_erase_ramp(state, mx, my, true);
-      } else {
-        if (mouse.left_held && over_canvas && !popup_or_modal_open && !state.scrollbar_dragging)
-          paint_or_erase(state, mx, my, false);
-        if (mouse.right_held && over_canvas)
-          update_erase_drag(state, mx, my);
-      }
+    if (state.show_portals) {
+      if (state.portal_dragging)
+        update_portal_drag(state, mx, my);
+    } else if (state.show_collisions) {
+      if (state.collision_dragging)
+        update_collision_drag(state, mx, my);
+    } else if (state.show_elevation) {
+      if (mouse.left_held && over_canvas && !popup_or_modal_open)
+        paint_or_erase_elevation(state, mx, my, false);
+      if (mouse.right_held && over_canvas)
+        paint_or_erase_elevation(state, mx, my, true);
+    } else if (state.show_ramps) {
+      if (mouse.left_held && over_canvas && !popup_or_modal_open)
+        paint_or_erase_ramp(state, mx, my, false);
+      if (mouse.right_held && over_canvas)
+        paint_or_erase_ramp(state, mx, my, true);
+    } else {
+      if (mouse.left_held && over_canvas && !popup_or_modal_open)
+        paint_or_erase(state, mx, my, false);
+      if (mouse.right_held && over_canvas)
+        update_erase_drag(state, mx, my);
     }
 
     // --- Mouse wheel over the palette panel: Ctrl+scroll zooms (palette_tile_scale is user-

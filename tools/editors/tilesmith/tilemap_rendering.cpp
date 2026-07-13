@@ -81,8 +81,8 @@ namespace tools::tilemap {
 
   void render_tilemap(corundum::tool_host::ToolHost &host, CanvasContext ctx,
                       const corundum::gameplay::world::tilemap::Tilemap &map, const TilemapTextureStore &store,
-                      const corundum::gameplay::world::Camera &camera, int z_index, float tile_scale,
-                      float elapsed_time, float elev_step) {
+                      float camera_x, float camera_y, int z_index, float tile_scale, float elapsed_time,
+                      float elev_step) {
     const auto iso = corundum::core::math::compute_iso_params(map.diamond_w(), map.diamond_h(), map.height, tile_scale);
 
     const int depth_max = map.width + map.height - 2;
@@ -146,8 +146,8 @@ namespace tools::tilemap {
           const float drawn_h = std::round(static_cast<float>(src.height) * tile_scale);
           const float pivot_x_px = pivot.x * scaled_tw;
           const float pivot_y_px = (1.f - pivot.y) * scaled_th;
-          const float dst_x = ctx.origin.x + iso_x - pivot_x_px + trim_x_px - camera.x;
-          const float dst_y = ctx.origin.y + iso_y - pivot_y_px + trim_y_px - camera.y;
+          const float dst_x = ctx.origin.x + iso_x - pivot_x_px + trim_x_px - camera_x;
+          const float dst_y = ctx.origin.y + iso_y - pivot_y_px + trim_y_px - camera_y;
           const ImVec2 p0 = {dst_x, dst_y};
           const ImVec2 p1 = {dst_x + drawn_w, dst_y + drawn_h};
 

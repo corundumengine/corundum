@@ -1,7 +1,7 @@
 #pragma once
 #include "portal_entry.hpp"
-#include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/tool_host/canvas_controller.hpp>
 #include <filesystem>
 #include <vector>
 
@@ -26,8 +26,7 @@ namespace tools::tilemap {
                                   ///< height to scroll by — see compute_palette_layout()).
     int palette_tabbar_h = 28;    ///< Measured ImGui tab bar height (updated each frame).
 
-    corundum::gameplay::world::Camera camera; ///< Viewport scroll position in world pixels.
-    float tile_scale = 2.f;                   ///< Canvas render scale factor (1 = native, 2 = 2x, etc.).
+    corundum::tool_host::CanvasController canvas;
     /// User-controlled zoom for the palette panel (independent of canvas zoom); 1 = native pixel
     /// size. Not auto-fit to any particular tile — packed tilesets can mix wildly different native
     /// sizes, so picking one "target" tile to fit would shrink or blow up everything else. Adjust
@@ -53,14 +52,6 @@ namespace tools::tilemap {
     corundum::gameplay::world::tilemap::TriangleCut collision_tri_cut =
         corundum::gameplay::world::tilemap::TriangleCut::NW;
 
-    bool camera_moved = false; ///< True for one frame after keyboard navigation moves the camera.
-
-    // Middle-mouse pan state
-    bool panning = false;                               ///< True while middle-mouse pan is active.
-    int pan_anchor_x = 0;                               ///< Window-space pan start X.
-    int pan_anchor_y = 0;                               ///< Window-space pan start Y.
-    corundum::gameplay::world::Camera pan_start_camera; ///< Camera position at pan start.
-
     // Collision drag state
     bool collision_dragging = false; ///< True while a collision rect drag is in progress.
     int col_drag_anchor_col = 0;     ///< Tile column where the drag began.
@@ -83,9 +74,6 @@ namespace tools::tilemap {
     int erase_drag_anchor_row = 0; ///< Tile row where the erase drag began.
     int erase_drag_cur_col = 0;    ///< Current tile column under the cursor during erase drag.
     int erase_drag_cur_row = 0;    ///< Current tile row where the cursor during erase drag.
-
-    // Canvas scrollbar drag state
-    bool scrollbar_dragging = false; ///< True from mouse-down on the canvas's own scrollbar until release.
 
     // Fill undo state (single-action; not a general undo stack)
     std::vector<corundum::gameplay::world::tilemap::TileId>

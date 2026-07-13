@@ -25,7 +25,7 @@ namespace corundum::tool_host {
   // ── Fallback: check if a file exists; return the path or a default ────────────
 
   static std::filesystem::path resolve_with_fallback(const std::filesystem::path &candidate,
-                                                      const std::string &fallback_name) {
+                                                     const std::string &fallback_name) {
     if (!candidate.empty() && std::filesystem::exists(candidate))
       return candidate;
     // Fallback relative to tool_host/assets/ (searched relative to CWD)

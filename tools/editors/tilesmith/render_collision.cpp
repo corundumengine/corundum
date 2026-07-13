@@ -88,7 +88,7 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
     const int tw = state.map.diamond_w();
     const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
@@ -98,7 +98,7 @@ namespace tools::tilemap {
     for (std::size_t i = 0; i < cols.size(); ++i) {
       draw_iso_rect(ctx, cols.cols[i] * tw, cols.rows[i] * th, cols.col_spans[i] * tw, cols.row_spans[i] * th, inv_tw,
                     inv_th, iso.half_tw, iso.half_th, static_cast<float>(cols.elevations[i]), state.elev_step_px,
-                    iso.x_origin, state.camera.x, state.camera.y, IM_COL32(255, 80, 80, 60),
+                    iso.x_origin, state.canvas.offset_x, state.canvas.offset_y, IM_COL32(255, 80, 80, 60),
                     IM_COL32(255, 80, 80, 200));
     }
 
@@ -106,7 +106,7 @@ namespace tools::tilemap {
     for (std::size_t i = 0; i < tris.size(); ++i) {
       draw_iso_triangle(ctx, tris.cols[i] * tw, tris.rows[i] * th, tris.col_spans[i] * tw, tris.row_spans[i] * th,
                         inv_tw, inv_th, iso.half_tw, iso.half_th, static_cast<float>(tris.elevations[i]),
-                        state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y, tris.cuts[i],
+                        state.elev_step_px, iso.x_origin, state.canvas.offset_x, state.canvas.offset_y, tris.cuts[i],
                         IM_COL32(255, 140, 60, 70), IM_COL32(255, 140, 60, 210));
     }
 
@@ -118,8 +118,8 @@ namespace tools::tilemap {
       const float preview_elev = static_cast<float>(
           corundum::gameplay::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row));
       draw_iso_triangle(ctx, col * tw, row * th, static_cast<float>(tw), static_cast<float>(th), inv_tw, inv_th,
-                        iso.half_tw, iso.half_th, preview_elev, state.elev_step_px, iso.x_origin, state.camera.x,
-                        state.camera.y, state.collision_tri_cut, IM_COL32(100, 255, 100, 50),
+                        iso.half_tw, iso.half_th, preview_elev, state.elev_step_px, iso.x_origin, state.canvas.offset_x,
+                        state.canvas.offset_y, state.collision_tri_cut, IM_COL32(100, 255, 100, 50),
                         IM_COL32(100, 255, 100, 220));
     }
   }
@@ -129,7 +129,7 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
     const int tw = state.map.diamond_w();
     const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
@@ -138,8 +138,8 @@ namespace tools::tilemap {
     corundum::gameplay::world::tilemap::CollisionRect cr;
     if (state.col_drag_sub_tile) {
       cr = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
-                               state.col_drag_cur_win_y, state.camera.x, state.camera.y, state.tile_scale,
-                               static_cast<float>(tw), static_cast<float>(th));
+                               state.col_drag_cur_win_y, state.canvas.offset_x, state.canvas.offset_y,
+                               state.canvas.scale, static_cast<float>(tw), static_cast<float>(th));
     } else {
       cr = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
                              state.col_drag_cur_row);
@@ -148,8 +148,8 @@ namespace tools::tilemap {
     const float preview_elev = static_cast<float>(corundum::gameplay::world::tilemap::elevation_at(
         state.map, static_cast<int>(cr.col), static_cast<int>(cr.row)));
     draw_iso_rect(ctx, cr.col * tw, cr.row * th, cr.col_span * tw, cr.row_span * th, inv_tw, inv_th, iso.half_tw,
-                  iso.half_th, preview_elev, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y,
-                  IM_COL32(100, 255, 100, 40), IM_COL32(100, 255, 100, 230));
+                  iso.half_th, preview_elev, state.elev_step_px, iso.x_origin, state.canvas.offset_x,
+                  state.canvas.offset_y, IM_COL32(100, 255, 100, 40), IM_COL32(100, 255, 100, 230));
   }
 
   void render_erase_preview(CanvasContext ctx, const EditorState &state) {
@@ -157,7 +157,7 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
     const int tw = state.map.diamond_w();
     const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
@@ -166,8 +166,8 @@ namespace tools::tilemap {
     const auto cr = snap_to_tile_rect(state.erase_drag_anchor_col, state.erase_drag_anchor_row,
                                       state.erase_drag_cur_col, state.erase_drag_cur_row);
     draw_iso_rect(ctx, cr.col * tw, cr.row * th, cr.col_span * tw, cr.row_span * th, inv_tw, inv_th, iso.half_tw,
-                  iso.half_th, 0.f, 0.f, iso.x_origin, state.camera.x, state.camera.y, IM_COL32(255, 100, 60, 50),
-                  IM_COL32(255, 100, 60, 220));
+                  iso.half_th, 0.f, 0.f, iso.x_origin, state.canvas.offset_x, state.canvas.offset_y,
+                  IM_COL32(255, 100, 60, 50), IM_COL32(255, 100, 60, 220));
   }
 
 } // namespace tools::tilemap

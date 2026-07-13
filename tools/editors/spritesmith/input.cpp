@@ -55,6 +55,10 @@ namespace tools::sprite {
     const int my = static_cast<int>(io.MousePos.y);
     const bool over_canvas = mx >= 0 && mx < CANVAS_W && my >= 0 && my < CANVAS_H;
 
+    // Camera pan/zoom via CanvasController
+    state.canvas.update({0.f, 0.f}, {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
+                        /*zoom_to_cursor=*/true, 0.25f, 16.f);
+
     // --- Keyboard ---
     if (!io.WantCaptureKeyboard) {
       if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
@@ -77,29 +81,19 @@ namespace tools::sprite {
           std::println("[Spritesmith] Saved: {}", state.json_path.string());
       }
       if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd))
-        state.zoom = std::min(state.zoom * 1.25f, 16.f);
+        state.canvas.scale = std::min(state.canvas.scale * 1.25f, 16.f);
       if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract))
-        state.zoom = std::max(state.zoom / 1.25f, 0.25f);
+        state.canvas.scale = std::max(state.canvas.scale / 1.25f, 0.25f);
     }
-
-    // --- Middle mouse: pan ---
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
-      state.panning = true;
-      state.pan_anchor_x = mx;
-      state.pan_anchor_y = my;
-      state.pan_start_cam_x = state.camera_x;
-      state.pan_start_cam_y = state.camera_y;
-    }
-    if (ImGui::IsMouseReleased(ImGuiMouseButton_Middle))
-      state.panning = false;
 
     // --- Left mouse: frame recording ---
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
       mouse.left_held = true;
       if (over_canvas && is_recording(state) && state.image_pixel_w > 0 && !ImGui::IsAnyItemActive()) {
-        auto fc = screen_to_frame(mx, my, CANVAS_W, CANVAS_H, state.camera_x, state.camera_y, state.zoom,
-                                  state.frame_width, state.frame_height, state.offset_x, state.offset_y,
-                                  state.spacing_x, state.spacing_y, sheet_cols(state), sheet_rows(state));
+        auto fc =
+            screen_to_frame(mx, my, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
+                            state.canvas.scale, state.frame_width, state.frame_height, state.offset_x, state.offset_y,
+                            state.spacing_x, state.spacing_y, sheet_cols(state), sheet_rows(state));
         if (fc)
           add_frame(state, *fc);
       }
@@ -107,35 +101,17 @@ namespace tools::sprite {
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
       mouse.left_held = false;
 
-    // --- Panning (continuous) ---
-    if (state.panning) {
-      state.camera_x = state.pan_start_cam_x - static_cast<float>(mx - state.pan_anchor_x);
-      state.camera_y = state.pan_start_cam_y - static_cast<float>(my - state.pan_anchor_y);
-      if (state.image_pixel_w > 0 && state.image_pixel_h > 0) {
-        auto [cx, cy] = clamp_camera(state.camera_x, state.camera_y, state.zoom, state.image_pixel_w,
-                                     state.image_pixel_h, CANVAS_W, CANVAS_H);
-        state.camera_x = cx;
-        state.camera_y = cy;
-      }
-    }
-
     // --- Hover frame coordinate ---
     state.hover_col = -1;
     state.hover_row = -1;
     if (over_canvas && state.image_pixel_w > 0) {
-      auto fc = screen_to_frame(mx, my, CANVAS_W, CANVAS_H, state.camera_x, state.camera_y, state.zoom,
-                                state.frame_width, state.frame_height, state.offset_x, state.offset_y, state.spacing_x,
-                                state.spacing_y, sheet_cols(state), sheet_rows(state));
+      auto fc = screen_to_frame(mx, my, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
+                                state.canvas.scale, state.frame_width, state.frame_height, state.offset_x,
+                                state.offset_y, state.spacing_x, state.spacing_y, sheet_cols(state), sheet_rows(state));
       if (fc) {
         state.hover_col = fc->col;
         state.hover_row = fc->row;
       }
-    }
-
-    // --- Mouse wheel: zoom over canvas ---
-    if (over_canvas && io.MouseWheel != 0.f) {
-      const float factor = (io.MouseWheel > 0.f) ? 1.15f : (1.f / 1.15f);
-      state.zoom = std::clamp(state.zoom * factor, 0.25f, 16.f);
     }
   }
 

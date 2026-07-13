@@ -29,7 +29,7 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.tile_scale);
+    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
 
     constexpr ImU32 k_color = IM_COL32(255, 0, 200, 220);
 
@@ -39,12 +39,12 @@ namespace tools::tilemap {
         if (col + 1 < state.map.width && !graph.can_move(col, row, col + 1, row)) {
           const float elev =
               static_cast<float>(std::max(elevation_at(state.map, col, row), elevation_at(state.map, col + 1, row)));
-          const ImVec2 p0 =
-              walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row), elev, iso.half_tw,
-                               iso.half_th, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y);
-          const ImVec2 p1 =
-              walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev, iso.half_tw,
-                               iso.half_th, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y);
+          const ImVec2 p0 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row), elev,
+                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+                                             state.canvas.offset_x, state.canvas.offset_y);
+          const ImVec2 p1 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev,
+                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+                                             state.canvas.offset_x, state.canvas.offset_y);
           ctx.dl->AddLine(p0, p1, k_color, 3.f);
         }
 
@@ -52,12 +52,12 @@ namespace tools::tilemap {
         if (row + 1 < state.map.height && !graph.can_move(col, row, col, row + 1)) {
           const float elev =
               static_cast<float>(std::max(elevation_at(state.map, col, row), elevation_at(state.map, col, row + 1)));
-          const ImVec2 p0 =
-              walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev, iso.half_tw,
-                               iso.half_th, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y);
-          const ImVec2 p1 =
-              walk_tile_to_iso(ctx, static_cast<float>(col), static_cast<float>(row + 1), elev, iso.half_tw,
-                               iso.half_th, state.elev_step_px, iso.x_origin, state.camera.x, state.camera.y);
+          const ImVec2 p0 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev,
+                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+                                             state.canvas.offset_x, state.canvas.offset_y);
+          const ImVec2 p1 = walk_tile_to_iso(ctx, static_cast<float>(col), static_cast<float>(row + 1), elev,
+                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+                                             state.canvas.offset_x, state.canvas.offset_y);
           ctx.dl->AddLine(p0, p1, k_color, 3.f);
         }
       }

@@ -16,10 +16,10 @@
 
 using corundum::tool_host::ApplyEditorThemeRefined;
 using corundum::tool_host::load_theme;
+using corundum::tool_host::MouseState;
 using corundum::tool_host::ThemeColors;
 using tools::sprite::CanvasContext;
 using tools::sprite::EditorState;
-using tools::sprite::MouseState;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,10 +115,10 @@ int main(int argc, char *argv[]) {
     has_texture = sprite_texture.width > 0;
 
     if (has_texture) {
-      state.camera_x = std::max(0.f, static_cast<float>(state.image_pixel_w) * state.zoom * 0.5f -
-                                         static_cast<float>(tools::sprite::CANVAS_W) * 0.5f);
-      state.camera_y = std::max(0.f, static_cast<float>(state.image_pixel_h) * state.zoom * 0.5f -
-                                         static_cast<float>(tools::sprite::CANVAS_H) * 0.5f);
+      state.canvas.offset_x = std::max(0.f, static_cast<float>(state.image_pixel_w) * state.canvas.scale * 0.5f -
+                                                static_cast<float>(tools::sprite::CANVAS_W) * 0.5f);
+      state.canvas.offset_y = std::max(0.f, static_cast<float>(state.image_pixel_h) * state.canvas.scale * 0.5f -
+                                                static_cast<float>(tools::sprite::CANVAS_H) * 0.5f);
     }
   }
 
@@ -151,8 +151,8 @@ int main(int argc, char *argv[]) {
     ImGui::PopStyleVar(2);
 
     if (has_texture) {
-      ImGui::SetNextWindowContentSize(
-          {static_cast<float>(state.image_pixel_w) * state.zoom, static_cast<float>(state.image_pixel_h) * state.zoom});
+      ImGui::SetNextWindowContentSize({static_cast<float>(state.image_pixel_w) * state.canvas.scale,
+                                       static_cast<float>(state.image_pixel_h) * state.canvas.scale});
     }
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
     ImGui::BeginChild("##canvas",
@@ -162,12 +162,13 @@ int main(int argc, char *argv[]) {
       ImDrawList *dl = ImGui::GetWindowDrawList();
       const ImVec2 origin = ImGui::GetWindowPos();
 
-      if (state.panning) {
-        ImGui::SetScrollX(state.camera_x);
-        ImGui::SetScrollY(state.camera_y);
+      // Sync ImGui scrollbar with CanvasController
+      if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+        ImGui::SetScrollX(state.canvas.offset_x);
+        ImGui::SetScrollY(state.canvas.offset_y);
       } else {
-        state.camera_x = ImGui::GetScrollX();
-        state.camera_y = ImGui::GetScrollY();
+        state.canvas.offset_x = ImGui::GetScrollX();
+        state.canvas.offset_y = ImGui::GetScrollY();
       }
 
       dl->PushClipRect(origin, {origin.x + tools::sprite::CANVAS_W, origin.y + tools::sprite::CANVAS_H}, true);

@@ -18,9 +18,9 @@ namespace tools::tilemap {
         return;
 
       const auto iso = corundum::core::math::compute_iso_params(state.map.diamond_w(), state.map.diamond_h(),
-                                                                state.map.height, state.tile_scale);
-      const float ox = ctx.origin.x - state.camera.x;
-      const float oy = ctx.origin.y - state.camera.y;
+                                                                state.map.height, state.canvas.scale);
+      const float ox = ctx.origin.x - state.canvas.offset_x;
+      const float oy = ctx.origin.y - state.canvas.offset_y;
       const int col = state.hover_tile_col;
       const int row = state.hover_tile_row;
 
@@ -50,9 +50,9 @@ namespace tools::tilemap {
       if (state.map.tilesets.empty())
         return;
       const auto iso = corundum::core::math::compute_iso_params(state.map.diamond_w(), state.map.diamond_h(),
-                                                                state.map.height, state.tile_scale);
-      const float ox = ctx.origin.x - state.camera.x;
-      const float oy = ctx.origin.y - state.camera.y;
+                                                                state.map.height, state.canvas.scale);
+      const float ox = ctx.origin.x - state.canvas.offset_x;
+      const float oy = ctx.origin.y - state.canvas.offset_y;
       const int W = state.map.width;
       const int H = state.map.height;
       constexpr ImU32 k_color = IM_COL32(255, 255, 255, 40);

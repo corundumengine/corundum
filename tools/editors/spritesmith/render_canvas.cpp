@@ -57,9 +57,9 @@ namespace tools::sprite {
 
       for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < cols; ++c) {
-          const auto rect = frame_to_canvas_rect(c, r, state.camera_x, state.camera_y, state.zoom, state.frame_width,
-                                                 state.frame_height, state.offset_x, state.offset_y, state.spacing_x,
-                                                 state.spacing_y);
+          const auto rect = frame_to_canvas_rect(c, r, state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
+                                                 state.frame_width, state.frame_height, state.offset_x, state.offset_y,
+                                                 state.spacing_x, state.spacing_y);
 
           if (rect.x + rect.w < 0.f || rect.x > static_cast<float>(CANVAS_W) || rect.y + rect.h < 0.f ||
               rect.y > static_cast<float>(CANVAS_H))
@@ -93,9 +93,9 @@ namespace tools::sprite {
       return;
 
     // Draw sprite sheet scaled + panned
-    const float img_w = static_cast<float>(state.image_pixel_w) * state.zoom;
-    const float img_h = static_cast<float>(state.image_pixel_h) * state.zoom;
-    const ImVec2 p0 = {ctx.origin.x - state.camera_x, ctx.origin.y - state.camera_y};
+    const float img_w = static_cast<float>(state.image_pixel_w) * state.canvas.scale;
+    const float img_h = static_cast<float>(state.image_pixel_h) * state.canvas.scale;
+    const ImVec2 p0 = {ctx.origin.x - state.canvas.offset_x, ctx.origin.y - state.canvas.offset_y};
     const ImVec2 p1 = {p0.x + img_w, p0.y + img_h};
     ctx.dl->AddImage(tex, p0, p1);
 
