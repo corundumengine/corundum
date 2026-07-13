@@ -4,7 +4,7 @@
 #include "file_io.hpp"
 #include "graph_layout.hpp"
 
-#include "../../platform/tool_app.hpp"
+#include <corundum/tool_host/tool_host.hpp>
 
 #include <flat_map>
 #include <format>
@@ -16,7 +16,8 @@ namespace tools::talesmith {
   using ShortcutAction = std::function<void()>;
   using ShortcutMap = std::flat_map<ImGuiKeyChord, ShortcutAction>;
 
-  inline void build_shortcuts(ShortcutMap &map, EditorState &state, tools::ToolApp &app, bool &running) {
+  inline void build_shortcuts(ShortcutMap &map, EditorState &state, corundum::tool_host::ToolHost &host,
+                              bool &running) {
     map.clear();
 
     auto apply_undo = [&](const GraphSnapshot &snap) {
@@ -43,7 +44,7 @@ namespace tools::talesmith {
       state.inspector_open = false;
       state.dirty = false;
       state.undo_stack.clear();
-      app.set_title("Talesmith :: Untitled Dialogue");
+      host.set_title("Talesmith :: Untitled Dialogue");
     };
 
     map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N] = [&]() {
@@ -58,7 +59,7 @@ namespace tools::talesmith {
       state.inspector_open = false;
       state.dirty = false;
       state.undo_stack.clear();
-      app.set_title("Talesmith :: Untitled Quest");
+      host.set_title("Talesmith :: Untitled Quest");
     };
 
     map[ImGuiMod_Ctrl | ImGuiKey_O] = [&]() { state.popups.show_open = true; };
@@ -73,7 +74,7 @@ namespace tools::talesmith {
         auto result = save_file(state);
         if (result) {
           state.dirty = false;
-          app.set_title("Talesmith :: " + state.file_path.filename().string());
+          host.set_title("Talesmith :: " + state.file_path.filename().string());
         } else {
           state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
         }

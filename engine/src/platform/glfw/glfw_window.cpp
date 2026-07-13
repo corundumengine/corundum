@@ -182,6 +182,10 @@ namespace corundum::platform::glfw {
 #endif
   }
 
+  void *GLFWWindow::native_handle() const noexcept {
+    return impl_ ? impl_->win : nullptr;
+  }
+
   ::GLFWwindow *GLFWWindow::glfw_window() const noexcept {
     return impl_ ? impl_->win : nullptr;
   }

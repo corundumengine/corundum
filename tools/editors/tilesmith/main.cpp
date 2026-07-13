@@ -13,10 +13,10 @@
 #include "save.hpp"
 #include "tilemap_rendering.hpp"
 #include "tileset_view.hpp"
-#include "tool_app.hpp"
 #include <algorithm>
 #include <corundum/core/game_config.hpp>
 #include <corundum/gameplay/world/tilemap/loader.hpp>
+#include <corundum/tool_host/tool_host.hpp>
 #include <cstdio>
 #include <imgui.h>
 #include <print>
@@ -34,7 +34,6 @@ using tools::tilemap::MapRenderFn;
 using tools::tilemap::MouseState;
 using tools::tilemap::TilemapTextureStore;
 using tools::tilemap::TilesetView;
-using tools::tilemap::ToolTexture;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -84,7 +83,7 @@ static void center_camera(EditorState &state) noexcept {
 // Called once from inside the frame loop after JSON is written.
 // ---------------------------------------------------------------------------
 
-static void finish_map_load(tools::ToolApp &app, EditorState &state, TilemapTextureStore &texture_store,
+static void finish_map_load(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                             std::vector<TilesetView> &tileset_views) {
   auto tilemap_result = corundum::gameplay::world::tilemap::load_tilemap(state.map_path.string());
   if (!tilemap_result)
@@ -93,8 +92,8 @@ static void finish_map_load(tools::ToolApp &app, EditorState &state, TilemapText
   auto portals_result = tools::tilemap::load_portals(state);
   if (!portals_result)
     throw std::runtime_error(portals_result.error());
-  texture_store = tools::tilemap::load_tilemap_textures(app, state.map);
-  tileset_views = tools::tilemap::rebuild_tileset_views(app, state.map, texture_store);
+  texture_store = tools::tilemap::load_tilemap_textures(host, state.map);
+  tileset_views = tools::tilemap::rebuild_tileset_views(host, state.map, texture_store);
   center_camera(state);
 }
 
@@ -139,9 +138,15 @@ int main(int argc, char *argv[]) {
   }
 
   const std::string initial_title = new_map_mode ? "Tilesmith" : ("Tilesmith :: " + state.map_path.filename().string());
-  tools::ToolApp app{tools::tilemap::WINDOW_W, tools::tilemap::WINDOW_H, initial_title};
+  auto host_result =
+      corundum::tool_host::ToolHost::create({tools::tilemap::WINDOW_W, tools::tilemap::WINDOW_H, initial_title});
+  if (!host_result) {
+    std::println(stderr, "[Tilesmith] FATAL: {}", host_result.error());
+    return 1;
+  }
+  auto host = std::move(*host_result);
 
-  // Fonts must be loaded after ImGui context is created (inside ToolApp ctor).
+  // Fonts must be loaded after ImGui context is created (inside ToolHost ctor).
   load_fonts(cfg);
 
   ThemeColors theme;
@@ -157,13 +162,13 @@ int main(int argc, char *argv[]) {
 
   if (!new_map_mode) {
     try {
-      texture_store = load_tilemap_textures(app, state.map);
+      texture_store = load_tilemap_textures(*host, state.map);
     } catch (const std::runtime_error &e) {
       std::println(stderr, "[Tilesmith] FATAL: {}", e.what());
       return 1;
     }
 
-    tileset_views = rebuild_tileset_views(app, state.map, texture_store);
+    tileset_views = rebuild_tileset_views(*host, state.map, texture_store);
     center_camera(state);
   }
 
@@ -174,21 +179,21 @@ int main(int argc, char *argv[]) {
   tools::tilemap::NewMapDialogState new_map_dlg{};
 
   // Closure that renders all tilemap passes into a canvas context.
-  const MapRenderFn render_map = [&app, &state, &texture_store, &elapsed_time](CanvasContext ctx) {
-    tools::tilemap::render_tilemap(app, ctx, state.map, texture_store, state.camera, 0, state.tile_scale, elapsed_time,
-                                   state.elev_step_px);
+  const MapRenderFn render_map = [&host, &state, &texture_store, &elapsed_time](CanvasContext ctx) {
+    tools::tilemap::render_tilemap(*host, ctx, state.map, texture_store, state.camera, 0, state.tile_scale,
+                                   elapsed_time, state.elev_step_px);
     for (const int z : tools::tilemap::above_z_indices(state.map))
-      tools::tilemap::render_tilemap(app, ctx, state.map, texture_store, state.camera, z, state.tile_scale,
+      tools::tilemap::render_tilemap(*host, ctx, state.map, texture_store, state.camera, z, state.tile_scale,
                                      elapsed_time, state.elev_step_px);
   };
 
-  app.run([&]() {
+  host->run([&]() {
     // ── New-map dialog (shown before the editor when launched with no args) ──
     if (!map_ready) {
       tools::tilemap::render_new_map_dialog(new_map_dlg);
       if (new_map_dlg.cancelled) {
         running = false;
-        app.close();
+        host->request_close();
         return;
       }
       if (new_map_dlg.confirmed) {
@@ -200,8 +205,8 @@ int main(int argc, char *argv[]) {
         }
         state.map_path = *write_result;
         try {
-          finish_map_load(app, state, texture_store, tileset_views);
-          app.set_title("Tilesmith :: " + state.map_path.filename().string());
+          finish_map_load(*host, state, texture_store, tileset_views);
+          host->set_title("Tilesmith :: " + state.map_path.filename().string());
         } catch (const std::exception &e) {
           new_map_dlg.error_msg = e.what();
           new_map_dlg.confirmed = false;
@@ -213,7 +218,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!running) {
-      app.close();
+      host->request_close();
       return;
     }
 
@@ -224,9 +229,6 @@ int main(int argc, char *argv[]) {
       const int tw = state.map.diamond_w();
       const float half_tw = static_cast<float>(tw) * state.tile_scale * 0.5f;
       const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
-      // +k_content_margin half-diamonds: a half-diamond margin on every side so the leftmost/
-      // topmost tiles aren't clipped by the window edge (their diamond footprint is centered on
-      // the map's logical bounds, so half of it would otherwise fall outside the scrollable area).
       ImGui::SetNextWindowContentSize({static_cast<float>(state.map.width + state.map.height) * half_tw +
                                            tools::tilemap::k_content_margin * half_tw,
                                        static_cast<float>(state.map.width + state.map.height) * half_th +
@@ -237,7 +239,6 @@ int main(int argc, char *argv[]) {
         {static_cast<float>(tools::tilemap::CANVAS_W), static_cast<float>(tools::tilemap::CANVAS_H)});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    // NoDecoration = NoTitleBar | NoResize | NoScrollbar | NoCollapse — we omit NoScrollbar to allow scrollbars
     ImGui::Begin("##canvas", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings |
@@ -252,7 +253,6 @@ int main(int argc, char *argv[]) {
       if (!state.map.tilesets.empty()) {
         const float half_tw = static_cast<float>(state.map.diamond_w()) * state.tile_scale * 0.5f;
         const float half_th = static_cast<float>(state.map.diamond_h()) * state.tile_scale * 0.5f;
-        // Matches the k_content_margin added to SetNextWindowContentSize above.
         const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw +
                                 tools::tilemap::k_content_margin * half_tw;
         const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th +
@@ -268,18 +268,6 @@ int main(int argc, char *argv[]) {
           if (virtual_h > static_cast<float>(tools::tilemap::CANVAS_H))
             state.camera.y = ImGui::GetScrollY();
         }
-        // Shift where content is drawn (not the clip rect, which stays at the true window
-        // bounds) so a half-diamond margin surrounds the map on every side — this must match
-        // the same subtraction screen_to_tile applies in coords.hpp.
-        //
-        // X uses the full k_content_margin (2 half-diamonds), not 1: the engine's x_origin
-        // convention already leaves a half_tw margin on the right and a half_tw *deficit*
-        // (clipping) on the left, so 2*half_tw both cancels the left deficit and adds the
-        // matching half_tw margin, while ΔW (k_content_margin * half_tw content-size growth,
-        // above) restores the same half_tw margin on the right that was there before this shift
-        // ate into it.
-        // Y has no such asymmetry (both top and bottom started flush with zero margin), so a
-        // single half_th shift there already lands symmetrically.
         content_origin.x += tools::tilemap::k_content_margin * half_tw;
         content_origin.y += half_th;
       }
@@ -312,7 +300,7 @@ int main(int argc, char *argv[]) {
     }
     ImGui::End();
 
-    tools::tilemap::render_tile_grid(app, state, texture_store, tileset_views);
+    tools::tilemap::render_tile_grid(*host, state, texture_store, tileset_views);
     tools::tilemap::render_status_bar(state);
     tools::tilemap::render_portal_panel(state);
 

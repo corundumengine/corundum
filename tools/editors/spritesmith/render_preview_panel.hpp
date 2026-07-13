@@ -1,17 +1,15 @@
 #pragma once
-#include "common/tool_texture.hpp"
 #include "editor_state.hpp"
+#include <corundum/platform/texture_cache.hpp>
 
-namespace tools {
-  struct ToolApp;
+namespace corundum::tool_host {
+  class ToolHost;
 }
 
 namespace tools::sprite {
 
-  using ToolTexture = tools::common::ToolTexture;
-
   /// Render the permanent "Preview" section in the side panel.
-  /// Always visible; shows a placeholder until a sprite and animation are selected.
-  void render_preview_panel(ToolApp &app, const EditorState &state, const ToolTexture &tex, float dt_seconds);
+  void render_preview_panel(corundum::tool_host::ToolHost &host, const EditorState &state,
+                            const corundum::platform::TextureInfo &tex, float dt_seconds);
 
 } // namespace tools::sprite

@@ -7,39 +7,44 @@
 #include <vector>
 
 namespace tools::tilemap {
-  using namespace tools::common;
 
   // ── TilemapTextureStore ───────────────────────────────────────────────────────
 
   TilemapTextureStore::~TilemapTextureStore() {
     for (auto &t : textures)
-      destroy_tool_texture(*app, t);
+      host->textures().destroy(t.id);
   }
 
   TilemapTextureStore::TilemapTextureStore(TilemapTextureStore &&) noexcept = default;
   TilemapTextureStore &TilemapTextureStore::operator=(TilemapTextureStore &&) noexcept = default;
 
-  TilemapTextureStore load_tilemap_textures(ToolApp &app, const corundum::gameplay::world::tilemap::Tilemap &map) {
+  TilemapTextureStore load_tilemap_textures(corundum::tool_host::ToolHost &host,
+                                            const corundum::gameplay::world::tilemap::Tilemap &map) {
     TilemapTextureStore store;
-    store.app = &app;
+    store.host = &host;
     store.textures.reserve(map.tilesets.size());
-    for (const auto &ts : map.tilesets)
-      store.textures.push_back(load_tool_texture(app, ts.info.path));
+    for (const auto &ts : map.tilesets) {
+      auto tex = host.textures().load(ts.info.path);
+      if (!tex)
+        throw std::runtime_error(tex.error());
+      store.textures.push_back(*tex);
+    }
     return store;
   }
 
-  std::vector<TilesetView> rebuild_tileset_views(ToolApp &app, const corundum::gameplay::world::tilemap::Tilemap &map,
+  std::vector<TilesetView> rebuild_tileset_views(corundum::tool_host::ToolHost &host,
+                                                 const corundum::gameplay::world::tilemap::Tilemap &map,
                                                  const TilemapTextureStore &store) {
     std::vector<TilesetView> views;
     views.reserve(map.tilesets.size());
     for (std::size_t i = 0; i < map.tilesets.size(); ++i) {
-      const ToolTexture &t = store.textures[i];
-      views.push_back({&map.tilesets[i], tex_id(app, t), t.w, t.h});
+      const auto &t = store.textures[i];
+      views.push_back({&map.tilesets[i], host.imgui_id(t.id), t.width, t.height});
     }
     return views;
   }
 
-  TileTextureView get_tile_texture(ToolApp &app, const TilemapTextureStore &store,
+  TileTextureView get_tile_texture(corundum::tool_host::ToolHost &host, const TilemapTextureStore &store,
                                    const corundum::gameplay::world::tilemap::Tilemap &map,
                                    corundum::gameplay::world::tilemap::TileId gid) noexcept {
     const corundum::gameplay::world::tilemap::TilemapTileset *ts =
@@ -50,11 +55,11 @@ namespace tools::tilemap {
     const std::ptrdiff_t idx = ts - map.tilesets.data();
     const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
 
-    const ToolTexture &tex = store.textures[static_cast<std::size_t>(idx)];
+    const auto &tex = store.textures[static_cast<std::size_t>(idx)];
     return {
-        tex_id(app, tex),
-        tex.w,
-        tex.h,
+        host.imgui_id(tex.id),
+        tex.width,
+        tex.height,
         src,
     };
   }
@@ -63,9 +68,6 @@ namespace tools::tilemap {
 
   namespace {
 
-    // Deferred draw for an elevated ground tile — collected so it can be depth-sorted
-    // against other elevated tiles before drawing, since a raised tile can visually
-    // overlap tiles from a different diagonal that would otherwise draw over it.
     struct PendingTileDraw {
       ImTextureID img_id;
       ImVec2 p0;
@@ -77,18 +79,14 @@ namespace tools::tilemap {
 
   } // namespace
 
-  void render_tilemap(ToolApp &app, CanvasContext ctx, const corundum::gameplay::world::tilemap::Tilemap &map,
-                      const TilemapTextureStore &store, const corundum::gameplay::world::Camera &camera, int z_index,
-                      float tile_scale, float elapsed_time, float elev_step) {
-    // Use diamond dimensions (world step) for isometric positioning.
+  void render_tilemap(corundum::tool_host::ToolHost &host, CanvasContext ctx,
+                      const corundum::gameplay::world::tilemap::Tilemap &map, const TilemapTextureStore &store,
+                      const corundum::gameplay::world::Camera &camera, int z_index, float tile_scale,
+                      float elapsed_time, float elev_step) {
     const auto iso = corundum::core::math::compute_iso_params(map.diamond_w(), map.diamond_h(), map.height, tile_scale);
 
-    // Diagonal sweep (depth = col + row) for correct isometric draw order.
     const int depth_max = map.width + map.height - 2;
 
-    // Elevated ground tiles (z_index == 0) are deferred here and depth-sorted below,
-    // mirroring the engine's collect_tile_layer split — flat tiles stay on the fast
-    // immediate-draw path since their screen position already matches draw order.
     std::vector<PendingTileDraw> pending;
 
     for (const auto &layer : map.layers) {
@@ -119,7 +117,7 @@ namespace tools::tilemap {
               continue;
           }
 
-          const auto [img_id, tex_w, tex_h, src] = get_tile_texture(app, store, map, gid);
+          const auto [img_id, tex_w, tex_h, src] = get_tile_texture(host, store, map, gid);
           if (!img_id) [[unlikely]]
             continue;
 
@@ -133,15 +131,8 @@ namespace tools::tilemap {
           const auto world =
               corundum::core::math::tile_to_world(col, row, elev, iso.half_tw, iso.half_th, elev_step, iso.x_origin);
           const float iso_x = world.x;
-          // Anchor at the southern (bottom) vertex so the tile image fills the diamond cell.
           const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
-          // Pivot and frame size are per-tile (TilesetInfo::tile_pivot_*/tile_full_*), since
-          // spritepacker computes them per sprite — there's no tileset-wide default to fall back to.
-          // Pivot is always measured against the full (untrimmed) frame, not the trimmed size, so
-          // sprites sharing one canvas convention (e.g. a wall body and its separately-authored
-          // topper) stay aligned to each other regardless of how much padding either one had
-          // trimmed away — then shift by the trim offset within that frame; only the trimmed
-          // region (src, already the packed atlas rect) is actually drawn.
+
           const int local_id = ts ? static_cast<int>(gid) - static_cast<int>(ts->first_gid) : 0;
           const auto frame = ts ? corundum::gameplay::world::tilemap::get_tile_frame_offset(ts->info, local_id)
                                 : corundum::gameplay::world::tilemap::TileFrameOffset{};
@@ -160,7 +151,6 @@ namespace tools::tilemap {
           const ImVec2 p0 = {dst_x, dst_y};
           const ImVec2 p1 = {dst_x + drawn_w, dst_y + drawn_h};
 
-          // Cull tiles outside the canvas
           if (p1.x < ctx.origin.x || p0.x > ctx.origin.x + CANVAS_W || p1.y < ctx.origin.y ||
               p0.y > ctx.origin.y + CANVAS_H)
             continue;
@@ -196,8 +186,6 @@ namespace tools::tilemap {
         ctx.dl->AddImage(p.img_id, p.p0, p.p1, p.uv0, p.uv1);
     }
   }
-
-  // ── above_z_indices ───────────────────────────────────────────────────────────
 
   std::vector<int> above_z_indices(const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
     std::vector<int> result;

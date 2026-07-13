@@ -1,8 +1,9 @@
 # ── corundum_tool_host: ImGui + sokol_imgui host library ──────────────────
-# Compiles ImGui core, the GLFW input backend, and the sokol_imgui render
-# backend into a single static library. Owns the imgui/sokol/stb include
-# dirs as PUBLIC usage requirements so external tool repos can consume this
-# target via FetchContent without repeating the include-path plumbing.
+# Compiles ImGui core, the GLFW input backend, the sokol_imgui render
+# backend, and the ToolHost class into a single static library. Owns the
+# imgui/sokol/stb include dirs as PUBLIC usage requirements so external
+# tool repos can consume this target via FetchContent without repeating the
+# include-path plumbing.
 
 add_library(corundum_tool_host STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -11,6 +12,7 @@ add_library(corundum_tool_host STATIC
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
     simgui_impl.cpp
+    src/tool_host.cpp
 )
 
 add_library(corundum::tool_host ALIAS corundum_tool_host)
@@ -22,6 +24,7 @@ target_include_directories(corundum_tool_host
         ${sokol_SOURCE_DIR}
         ${sokol_SOURCE_DIR}/util
         ${stb_SOURCE_DIR}
+        include
 )
 
 target_link_libraries(corundum_tool_host

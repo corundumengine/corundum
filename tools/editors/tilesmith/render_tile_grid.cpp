@@ -1,10 +1,10 @@
 #include "render_tile_grid.hpp"
-#include "common/tool_texture.hpp"
 #include "coords.hpp"
 #include "layout.hpp"
 #include <algorithm>
 #include <cmath>
 #include <corundum/gameplay/world/tilemap/loader.hpp>
+#include <corundum/tool_host/tool_host.hpp>
 #include <filesystem>
 #include <format>
 #include <imgui.h>
@@ -56,7 +56,7 @@ namespace tools::tilemap {
       return false;
     }
 
-    void do_add_tileset(tools::ToolApp &app, EditorState &state, TilemapTextureStore &texture_store,
+    void do_add_tileset(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                         std::vector<TilesetView> &tileset_views, const std::string &source_path) {
       using corundum::gameplay::world::tilemap::TileId;
       using corundum::gameplay::world::tilemap::TilemapTileset;
@@ -81,22 +81,20 @@ namespace tools::tilemap {
 
       state.map.tilesets.push_back(std::move(ts));
 
-      tools::common::ToolTexture tex;
-      try {
-        tex = tools::common::load_tool_texture(app, state.map.tilesets.back().info.path);
-      } catch (...) {
+      auto tex_result = host.textures().load(state.map.tilesets.back().info.path);
+      if (!tex_result) {
         state.map.tilesets.pop_back();
-        throw;
+        throw std::runtime_error(tex_result.error());
       }
-      texture_store.textures.push_back(std::move(tex));
+      texture_store.textures.push_back(*tex_result);
 
-      tileset_views = rebuild_tileset_views(app, state.map, texture_store);
+      tileset_views = rebuild_tileset_views(host, state.map, texture_store);
       state.palette_tileset_idx = static_cast<int>(tileset_views.size()) - 1;
       state.palette_scroll_y = 0.f;
       state.dirty = true;
     }
 
-    void do_remove_tileset(tools::ToolApp &app, EditorState &state, TilemapTextureStore &texture_store,
+    void do_remove_tileset(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                            std::vector<TilesetView> &tileset_views, int idx) {
       using corundum::gameplay::world::tilemap::TileId;
 
@@ -108,7 +106,7 @@ namespace tools::tilemap {
       const int removed_count = removed_ts.tile_count;
 
       // Destroy the GPU texture for this tileset
-      tools::common::destroy_tool_texture(app, texture_store.textures[static_cast<std::size_t>(idx)]);
+      host.textures().destroy(texture_store.textures[static_cast<std::size_t>(idx)].id);
       texture_store.textures.erase(texture_store.textures.begin() + idx);
 
       state.map.tilesets.erase(state.map.tilesets.begin() + idx);
@@ -121,7 +119,7 @@ namespace tools::tilemap {
       // Adjust existing tile GIDs so they still point to the correct tiles.
       fix_gids_after_removal(state, removed_first_gid, removed_count);
 
-      tileset_views = rebuild_tileset_views(app, state.map, texture_store);
+      tileset_views = rebuild_tileset_views(host, state.map, texture_store);
 
       if (state.palette_tileset_idx >= static_cast<int>(tileset_views.size()))
         state.palette_tileset_idx = std::max(0, static_cast<int>(tileset_views.size()) - 1);
@@ -131,7 +129,7 @@ namespace tools::tilemap {
 
   } // namespace
 
-  void render_tile_grid(tools::ToolApp &app, EditorState &state, TilemapTextureStore &texture_store,
+  void render_tile_grid(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                         std::vector<TilesetView> &tileset_views) {
     // Measure and render the tileset tab bar
     const float frame_h = ImGui::GetFrameHeight();
@@ -200,7 +198,7 @@ namespace tools::tilemap {
           if (remove_idx < n_tilesets - 1)
             show_remove_warning = true;
           else
-            do_remove_tileset(app, state, texture_store, tileset_views, remove_idx);
+            do_remove_tileset(host, state, texture_store, tileset_views, remove_idx);
         }
       }
       // If somehow multiple close requests in one frame, just handle the first.
@@ -247,7 +245,7 @@ namespace tools::tilemap {
       ImGui::Spacing();
 
       if (ImGui::Button("Remove", ImVec2{120.f, 0.f})) {
-        do_remove_tileset(app, state, texture_store, tileset_views, remove_idx);
+        do_remove_tileset(host, state, texture_store, tileset_views, remove_idx);
         remove_idx = -1;
         ImGui::CloseCurrentPopup();
       }
@@ -280,7 +278,7 @@ namespace tools::tilemap {
           path_str = path_str.substr(1, path_str.size() - 2);
         if (!path_str.empty()) {
           try {
-            do_add_tileset(app, state, texture_store, tileset_views, path_str);
+            do_add_tileset(host, state, texture_store, tileset_views, path_str);
             added = true;
           } catch (const std::runtime_error &e) {
             std::println(stderr, "[Tilesmith] Failed to add sprite sheet: {}", e.what());

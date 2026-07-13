@@ -1,25 +1,6 @@
-# ── ToolApp bridge (legacy — replaced by ToolHost in B2) ──────────────────
-# ImGui, sokol_imgui, and the GLFW backend are compiled by corundum_tool_host.
-# This target only holds tool_app.cpp which links against corundum_tool_host
-# to get all ImGui/sokol includes transitively.
-
-add_library(tools_imgui_backend STATIC
-    platform/tool_app.cpp
-)
-
-target_include_directories(tools_imgui_backend
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/platform
-)
-
-target_link_libraries(tools_imgui_backend
-    PUBLIC
-        corundum::tool_host
-)
-
-# ── Common tools library ────────────────────────────────────────────────────────
+# ── Common tools library —──────────────────────────────────────────────────
+# ToolHost, ImGui, and sokol_imgui are provided by corundum_tool_host.
 add_library(tools_common STATIC
-    editors/common/tool_texture.cpp
     editors/common/ui_theme.cpp
 )
 
@@ -30,7 +11,7 @@ target_include_directories(tools_common
 
 target_link_libraries(tools_common
     PUBLIC
-        tools_imgui_backend
+        corundum::tool_host
         nlohmann_json::nlohmann_json
 )
 

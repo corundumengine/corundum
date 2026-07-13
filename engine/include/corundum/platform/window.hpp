@@ -29,6 +29,10 @@ namespace corundum::platform {
 
     /// Enable or disable vertical synchronisation.
     virtual void set_vsync(bool enabled) = 0;
+
+    /// @brief Return the platform-native window handle (e.g. GLFWwindow*).
+    /// The caller is responsible for correct interpretation of the void*.
+    [[nodiscard]] virtual void *native_handle() const = 0;
   };
 
 } // namespace corundum::platform

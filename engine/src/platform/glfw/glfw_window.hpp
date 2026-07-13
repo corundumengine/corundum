@@ -32,6 +32,8 @@ namespace corundum::platform::glfw {
     [[nodiscard]] std::pair<int, int> size() const override;
     void set_vsync(bool enabled) override;
 
+    [[nodiscard]] void *native_handle() const noexcept override;
+
     [[nodiscard]] ::GLFWwindow *glfw_window() const noexcept;
 
   private:

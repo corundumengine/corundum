@@ -1,5 +1,3 @@
-#include "../../platform/tool_app.hpp"
-#include "common/tool_texture.hpp"
 #include "common/ui_theme.hpp"
 #include "editor_state.hpp"
 #include "imgui_fonts.hpp"
@@ -11,19 +9,15 @@
 #include "render_side_panel.hpp"
 #include "render_status_bar.hpp"
 #include <corundum/core/game_config.hpp>
+#include <corundum/tool_host/tool_host.hpp>
 #include <imgui.h>
 #include <print>
 #include <string>
 
-using tools::common::destroy_tool_texture;
-using tools::common::load_tool_texture;
-using tools::common::make_checkerboard;
-using tools::common::tex_id;
 using tools::sprite::CanvasContext;
 using tools::sprite::EditorState;
 using tools::sprite::FontHandles;
 using tools::sprite::MouseState;
-using tools::sprite::ToolTexture;
 using tools::theme::ApplyEditorThemeRefined;
 using tools::theme::load_theme;
 using tools::theme::ThemeColors;
@@ -44,20 +38,27 @@ using tools::theme::ThemeColors;
   return fonts;
 }
 
-static void try_load_texture(tools::ToolApp &app, EditorState &state, ToolTexture &texture, std::string &loaded_path) {
+static void try_load_texture(corundum::tool_host::ToolHost &host, EditorState &state,
+                             corundum::platform::TextureInfo &texture, std::string &loaded_path) {
   if (state.image_path.empty())
     return;
   if (!loaded_path.empty())
-    destroy_tool_texture(app, texture);
-  texture = load_tool_texture(app, state.image_path);
-  if (texture.w == 0) {
+    host.textures().destroy(texture.id);
+  auto result = host.textures().load(state.image_path);
+  if (!result) {
+    std::println(stderr, "[Spritesmith] Cannot load image: {}", result.error());
+    loaded_path.clear();
+    return;
+  }
+  texture = *result;
+  if (texture.width == 0) {
     std::println(stderr, "[Spritesmith] Cannot load image: {}", state.image_path);
     loaded_path.clear();
     return;
   }
   loaded_path = state.image_path;
-  state.image_pixel_w = static_cast<int>(texture.w);
-  state.image_pixel_h = static_cast<int>(texture.h);
+  state.image_pixel_w = static_cast<int>(texture.width);
+  state.image_pixel_h = static_cast<int>(texture.height);
 
   if (state.mode == tools::sprite::SheetMode::SpriteSheet && state.columns == 0 && state.frame_width > 0) {
     const int step_x = state.frame_width + state.spacing_x;
@@ -99,9 +100,14 @@ int main(int argc, char *argv[]) {
                                 ? std::string("Spritesmith :: ") + std::filesystem::path(argv[1]).filename().string()
                                 : "Spritesmith :: Untitled";
 
-  tools::ToolApp app{tools::sprite::WINDOW_W, tools::sprite::WINDOW_H, title};
+  auto host_result = corundum::tool_host::ToolHost::create({tools::sprite::WINDOW_W, tools::sprite::WINDOW_H, title});
+  if (!host_result) {
+    std::println(stderr, "[Spritesmith] FATAL: {}", host_result.error());
+    return 1;
+  }
+  auto host = std::move(*host_result);
 
-  // Fonts must be loaded after ImGui context is created (inside ToolApp ctor).
+  // Fonts must be loaded after ImGui context is created (inside ToolHost ctor).
   const FontHandles fonts = load_fonts(cfg);
 
   ThemeColors theme;
@@ -112,16 +118,16 @@ int main(int argc, char *argv[]) {
     theme = ApplyEditorThemeRefined();
   }
 
-  ToolTexture checkerboard = make_checkerboard(app, static_cast<unsigned>(tools::sprite::CANVAS_W),
-                                               static_cast<unsigned>(tools::sprite::CANVAS_H), 8);
+  corundum::platform::TextureInfo checkerboard = host->make_checkerboard(
+      static_cast<unsigned>(tools::sprite::CANVAS_W), static_cast<unsigned>(tools::sprite::CANVAS_H), 8);
 
-  ToolTexture sprite_texture;
+  corundum::platform::TextureInfo sprite_texture;
   std::string loaded_path;
   bool has_texture = false;
 
   if (!state.image_path.empty()) {
-    try_load_texture(app, state, sprite_texture, loaded_path);
-    has_texture = sprite_texture.w > 0;
+    try_load_texture(*host, state, sprite_texture, loaded_path);
+    has_texture = sprite_texture.width > 0;
 
     if (has_texture) {
       state.camera_x = std::max(0.f, static_cast<float>(state.image_pixel_w) * state.zoom * 0.5f -
@@ -134,9 +140,9 @@ int main(int argc, char *argv[]) {
   MouseState mouse;
   bool running = true;
 
-  app.run([&]() {
+  host->run([&]() {
     if (!running) {
-      app.close();
+      host->request_close();
       return;
     }
 
@@ -144,13 +150,12 @@ int main(int argc, char *argv[]) {
 
     // Reload texture when the image path changes.
     if (state.image_path != loaded_path) {
-      try_load_texture(app, state, sprite_texture, loaded_path);
-      has_texture = sprite_texture.w > 0;
+      try_load_texture(*host, state, sprite_texture, loaded_path);
+      has_texture = sprite_texture.width > 0;
     }
 
     handle_input(state, mouse, running);
 
-    // Full-screen ImGui window containing canvas + panel side by side.
     ImGui::SetNextWindowPos({0.f, 0.f});
     ImGui::SetNextWindowSize(io.DisplaySize);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
@@ -160,7 +165,6 @@ int main(int argc, char *argv[]) {
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(2);
 
-    // Canvas child window
     if (has_texture) {
       ImGui::SetNextWindowContentSize(
           {static_cast<float>(state.image_pixel_w) * state.zoom, static_cast<float>(state.image_pixel_h) * state.zoom});
@@ -183,11 +187,11 @@ int main(int argc, char *argv[]) {
 
       dl->PushClipRect(origin, {origin.x + tools::sprite::CANVAS_W, origin.y + tools::sprite::CANVAS_H}, true);
 
-      dl->AddImage(tex_id(app, checkerboard), origin,
+      dl->AddImage(host->imgui_id(checkerboard.id), origin,
                    {origin.x + tools::sprite::CANVAS_W, origin.y + tools::sprite::CANVAS_H});
 
       CanvasContext ctx{dl, origin};
-      tools::sprite::render_canvas(ctx, state, tex_id(app, sprite_texture), has_texture);
+      tools::sprite::render_canvas(ctx, state, host->imgui_id(sprite_texture.id), has_texture);
 
       dl->PopClipRect();
     }
@@ -196,7 +200,6 @@ int main(int argc, char *argv[]) {
 
     ImGui::SameLine(0.f, 0.f);
 
-    // Panel child window
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
     ImGui::BeginChild("##panel",
                       {static_cast<float>(tools::sprite::PANEL_W), static_cast<float>(tools::sprite::CANVAS_H)}, false,
@@ -208,7 +211,7 @@ int main(int argc, char *argv[]) {
                         IM_COL32(80, 80, 100, 255));
 
       tools::sprite::render_side_panel(state, fonts, theme);
-      tools::sprite::render_preview_panel(app, state, sprite_texture, io.DeltaTime);
+      tools::sprite::render_preview_panel(*host, state, sprite_texture, io.DeltaTime);
     }
     ImGui::EndChild();
     ImGui::PopStyleVar();
@@ -218,7 +221,7 @@ int main(int argc, char *argv[]) {
     ImGui::End();
   });
 
-  destroy_tool_texture(app, sprite_texture);
-  destroy_tool_texture(app, checkerboard);
+  host->textures().destroy(sprite_texture.id);
+  host->textures().destroy(checkerboard.id);
   return 0;
 }

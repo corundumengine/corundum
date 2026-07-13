@@ -1,4 +1,3 @@
-#include "../../platform/tool_app.hpp"
 #include "common/ui_theme.hpp"
 #include "editor_state.hpp"
 #include "file_io.hpp"
@@ -12,6 +11,7 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/tool_host/tool_host.hpp>
 #include <format>
 #include <imgui.h>
 #include <print>
@@ -68,7 +68,7 @@ static std::string app_title(const EditorState &state) {
   return t;
 }
 
-static void action_save(EditorState &state, tools::ToolApp &app) {
+static void action_save(EditorState &state, corundum::tool_host::ToolHost &host) {
   if (state.file_path.empty()) {
     auto default_name = default_doc_name(state);
     std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
@@ -90,7 +90,7 @@ static void action_save(EditorState &state, tools::ToolApp &app) {
   auto result = save_file(state);
   if (result) {
     state.dirty = false;
-    app.set_title(app_title(state));
+    host.set_title(app_title(state));
   } else {
     state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
   }
@@ -147,7 +147,13 @@ int main(int argc, char *argv[]) {
 
   const std::string title = app_title(state);
 
-  tools::ToolApp app{static_cast<int>(k_default_window_w), static_cast<int>(k_default_window_h), title};
+  auto host_result = corundum::tool_host::ToolHost::create(
+      {static_cast<int>(k_default_window_w), static_cast<int>(k_default_window_h), title});
+  if (!host_result) {
+    std::println(stderr, "[Talesmith] FATAL: {}", host_result.error());
+    return 1;
+  }
+  auto host = std::move(*host_result);
 
   ImGuiIO &io = ImGui::GetIO();
   io.Fonts->Clear();
@@ -165,11 +171,11 @@ int main(int argc, char *argv[]) {
   bool running = true;
 
   ShortcutMap shortcuts;
-  build_shortcuts(shortcuts, state, app, running);
+  build_shortcuts(shortcuts, state, *host, running);
 
-  app.run([&]() {
+  host->run([&]() {
     if (!running) {
-      app.close();
+      host->request_close();
       return;
     }
 
@@ -192,11 +198,11 @@ int main(int argc, char *argv[]) {
         if (ImGui::BeginMenu("New")) {
           if (ImGui::MenuItem("Dialogue Graph", "Ctrl+N")) {
             new_dialogue(state);
-            app.set_title(app_title(state));
+            host->set_title(app_title(state));
           }
           if (ImGui::MenuItem("Quest", "Ctrl+Shift+N")) {
             new_quest(state);
-            app.set_title(app_title(state));
+            host->set_title(app_title(state));
           }
           ImGui::EndMenu();
         }
@@ -205,7 +211,7 @@ int main(int argc, char *argv[]) {
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Save", "Ctrl+S", false, !state.file_path.empty() || state.dirty)) {
-          action_save(state, app);
+          action_save(state, *host);
         }
         if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
           action_save_as(state);
@@ -243,7 +249,7 @@ int main(int argc, char *argv[]) {
         auto result = save_file(state);
         if (result) {
           state.dirty = false;
-          app.set_title(app_title(state));
+          host->set_title(app_title(state));
           ImGui::CloseCurrentPopup();
         } else {
           state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
@@ -269,7 +275,7 @@ int main(int argc, char *argv[]) {
         std::string path(state.popups.open_path_buf);
         auto result = load_file(state, path);
         if (result) {
-          app.set_title(app_title(state));
+          host->set_title(app_title(state));
           std::memset(state.popups.open_path_buf, 0, sizeof(state.popups.open_path_buf));
           ImGui::CloseCurrentPopup();
         } else {
@@ -328,7 +334,7 @@ int main(int argc, char *argv[]) {
         auto result = save_file(state);
         if (result) {
           state.dirty = false;
-          app.set_title(app_title(state));
+          host->set_title(app_title(state));
           ImGui::CloseCurrentPopup();
         } else {
           state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
