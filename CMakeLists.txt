@@ -24,6 +24,7 @@ include(FetchContent)
 option(CORUNDUM_BUILD_TOOL_HOST "Build the ImGui+sokol host library for editor tools" ON)
 option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ON)
 option(CORUNDUM_BUILD_TESTS "Build unit tests" ON)
+option(CORUNDUM_BUILD_DOCS "Build Doxygen documentation" OFF)
 option(CORUNDUM_UNITY_BUILD "Enable Unity/Jumbo builds for faster compilation" ON)
 
 # ── Dependencies ───────────────────────────────────────────────────────────────
@@ -159,34 +160,35 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
 endif()
 
 # ── Documentation ────────────────────────────────────────────────────────────
-find_program(DOXYGEN_EXECUTABLE doxygen)
-if(DOXYGEN_EXECUTABLE)
-  FetchContent_Declare(
-      doxygen_awesome_css
-      GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css.git
-      GIT_TAG        v2.4.2
-      GIT_SHALLOW    TRUE
-      GIT_PROGRESS   TRUE
-  )
-  FetchContent_MakeAvailable(doxygen_awesome_css)
+if(CORUNDUM_BUILD_DOCS)
+  find_program(DOXYGEN_EXECUTABLE doxygen)
+  if(DOXYGEN_EXECUTABLE)
+    FetchContent_Declare(
+        doxygen_awesome_css
+        GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css.git
+        GIT_TAG        v2.4.2
+        GIT_SHALLOW    TRUE
+        GIT_PROGRESS   TRUE
+    )
+    FetchContent_MakeAvailable(doxygen_awesome_css)
 
-  set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
-  configure_file(${CMAKE_SOURCE_DIR}/cmake/Doxyfile.in ${DOXYGEN_OUT} @ONLY)
-  add_custom_target(build_docs
-        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-        # README.md is the main page and references misc/logo.png relatively.
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/misc/logo.png
-            ${CMAKE_BINARY_DIR}/docs/html/misc/logo.png
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Generating Doxygen API documentation for engine/"
-        VERBATIM
-    )
-else()
-  add_custom_target(build_docs
-        COMMAND ${CMAKE_COMMAND} -E echo
-            "doxygen not found — install it to use this target"
-    )
+    set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Doxyfile.in ${DOXYGEN_OUT} @ONLY)
+    add_custom_target(build_docs
+          COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              ${CMAKE_CURRENT_SOURCE_DIR}/misc/logo.png
+              ${CMAKE_BINARY_DIR}/docs/html/misc/logo.png
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+          COMMENT "Generating Doxygen API documentation for engine/"
+          VERBATIM
+      )
+  else()
+    add_custom_target(build_docs
+          COMMAND ${CMAKE_COMMAND} -E echo
+              "doxygen not found — install it to use this target"
+      )
+  endif()
 endif()
 
 # ── Tests ─────────────────────────────────────────────────────────────────────

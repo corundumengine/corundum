@@ -52,6 +52,17 @@
         "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined",
         "CMAKE_MODULE_LINKER_FLAGS": "-fsanitize=address,undefined"
       }
+    },
+    {
+      "name": "docs",
+      "displayName": "Debug + Doxygen docs",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+        "CORUNDUM_BUILD_DOCS": "ON"
+      }
     }
   ],
 
@@ -80,7 +91,7 @@
     },
     {
       "name": "docs",
-      "configurePreset": "debug",
+      "configurePreset": "docs",
       "targets": ["build_docs"]
     }
   ],
