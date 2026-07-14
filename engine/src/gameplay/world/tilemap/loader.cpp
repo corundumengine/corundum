@@ -33,7 +33,7 @@ namespace corundum::gameplay::world::tilemap {
     if (!f)
       return std::nullopt;
     try {
-      auto sc = json::parse(f);
+      auto sc = json::parse(f, nullptr, true, true);
       if (!sc.is_object())
         return std::nullopt;
       return sc;
@@ -53,7 +53,7 @@ namespace corundum::gameplay::world::tilemap {
       return std::unexpected(std::format("Cannot open tileset: {}", tileset_path.string()));
     json j;
     try {
-      j = json::parse(f);
+      j = json::parse(f, nullptr, true, true);
     } catch (const json::exception &e) {
       return std::unexpected(std::format("Malformed tileset {}: {}", tileset_path.string(), e.what()));
     }
@@ -319,7 +319,7 @@ namespace corundum::gameplay::world::tilemap {
 
     json j;
     try {
-      j = json::parse(f);
+      j = json::parse(f, nullptr, true, true);
     } catch (const json::exception &e) {
       return std::unexpected(std::format("Malformed tilemap {}: {}", path.string(), e.what()));
     }

@@ -84,7 +84,7 @@ namespace tools::talesmith {
       return std::unexpected(std::format("Cannot open {}", path));
     json j;
     try {
-      f >> j;
+      j = json::parse(f, nullptr, true, true);
     } catch (const json::parse_error &e) {
       return std::unexpected(std::format("JSON parse error in {}: {}", path, e.what()));
     }

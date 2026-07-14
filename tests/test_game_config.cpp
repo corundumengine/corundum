@@ -23,7 +23,6 @@ namespace {
 
 } // namespace
 
-using corundum::core::GameConfig;
 using corundum::core::load_game_config;
 
 // ── File errors ──────────────────────────────────────────────────────────────
@@ -39,6 +38,20 @@ TEST_CASE("load_game_config — malformed JSON throws GameConfigLoadError") {
   write_file(p, "{bad json");
   auto result = load_game_config(p);
   CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — // and /* */ comments are ignored") {
+  const auto dir = temp_dir("comments");
+  const auto p = dir / "game.json";
+  write_file(p, R"({
+    // window setup
+    "window_title": "Commented", /* inline */
+    "framerate": 30
+  })");
+  auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->window_title == "Commented");
+  CHECK(result->framerate == 30);
 }
 
 TEST_CASE("load_game_config — JSON array (not object) throws GameConfigLoadError") {

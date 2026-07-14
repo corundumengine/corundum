@@ -47,7 +47,7 @@ namespace corundum::audio::sys {
 
     nlohmann::json j;
     try {
-      j = nlohmann::json::parse(file);
+      j = nlohmann::json::parse(file, nullptr, true, true);
     } catch (const nlohmann::json::exception &e) {
       std::println("[audio] WARN: Malformed sound catalog {} - {}", catalog_path, e.what());
       return;

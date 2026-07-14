@@ -17,7 +17,7 @@ namespace corundum::resources {
 
     json j;
     try {
-      j = json::parse(f);
+      j = json::parse(f, nullptr, true, true);
     } catch (const json::exception &e) {
       return std::unexpected(std::format("Malformed sprite atlas {}: {}", path.string(), e.what()));
     }

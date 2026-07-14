@@ -54,7 +54,7 @@ namespace corundum::core {
     if (!f)
       return std::unexpected(std::format("cannot open: {}", path.string()));
     try {
-      return nlohmann::json::parse(f);
+      return nlohmann::json::parse(f, nullptr, true, true);
     } catch (const nlohmann::json::exception &e) {
       return std::unexpected(std::format("malformed JSON in {}: {}", path.string(), e.what()));
     }

@@ -14,7 +14,7 @@ namespace corundum::gameplay::world {
 
     json j;
     try {
-      j = json::parse(f);
+      j = json::parse(f, nullptr, true, true);
     } catch (const json::exception &e) {
       return std::unexpected(std::format("Malformed spawn points {}: {}", path, e.what()));
     }

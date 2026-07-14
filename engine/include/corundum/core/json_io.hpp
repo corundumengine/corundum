@@ -12,6 +12,9 @@ namespace corundum::core {
 
   /// Read and parse a JSON file at @p path.
   /// Catches parse errors internally and returns them via std::expected.
+  /// @note `//` and `/* */` comments are permitted and ignored. Comments are
+  ///       not preserved: write_json() emits plain JSON, so any tool that
+  ///       round-trips a file drops hand-written comments.
   /// @returns The parsed JSON on success, or an error message on failure.
   [[nodiscard]] std::expected<nlohmann::json, std::string> read_json(const std::filesystem::path &path);
 

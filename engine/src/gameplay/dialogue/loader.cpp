@@ -130,7 +130,7 @@ namespace corundum::gameplay::dialogue {
 
     const json root = [&] {
       try {
-        return json::parse(file);
+        return json::parse(file, nullptr, true, true);
       } catch (const json::parse_error &e) {
         throw LoadError(std::format("malformed JSON in {}: {}", path, e.what()));
       }

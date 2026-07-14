@@ -59,7 +59,7 @@ namespace corundum::gameplay::quest {
 
       const json root = [&] {
         try {
-          return json::parse(f);
+          return json::parse(f, nullptr, true, true);
         } catch (const json::exception &e) {
           throw LoadError(std::format("malformed quest JSON: {}", e.what()));
         }

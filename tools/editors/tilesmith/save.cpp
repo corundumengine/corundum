@@ -16,7 +16,7 @@ namespace tools::tilemap {
     std::ifstream in(state.map_path);
     if (!in)
       return std::unexpected("Cannot open: " + state.map_path.string());
-    nlohmann::json base = nlohmann::json::parse(in);
+    nlohmann::json base = nlohmann::json::parse(in, nullptr, true, true);
 
     // 2. Serialize tilemap onto base
     nlohmann::json j = corundum::gameplay::world::tilemap::serialize_tilemap(state.map, &base);

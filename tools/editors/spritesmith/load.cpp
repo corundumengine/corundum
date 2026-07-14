@@ -72,7 +72,7 @@ namespace tools::sprite {
       throw std::runtime_error("Cannot open: " + path.string());
     nlohmann::json j;
     try {
-      j = nlohmann::json::parse(f);
+      j = nlohmann::json::parse(f, nullptr, true, true);
     } catch (const nlohmann::json::parse_error &e) {
       throw SheetLoadError(std::string("JSON parse error: ") + e.what());
     }
