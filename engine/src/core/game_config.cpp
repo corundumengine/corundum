@@ -136,6 +136,72 @@ namespace corundum::core {
       return dr;
     }
 
+    std::expected<PlayerConfig, std::string> parse_player(const json &j, const fs::path &path) {
+      PlayerConfig pc;
+      if (!j.contains("player"))
+        return pc;
+
+      const auto &sub = j.at("player");
+      if (!sub.is_object())
+        return std::unexpected(std::format("game.json 'player' must be an object: {}", path.string()));
+
+      auto get_str = [&](const std::string &key,
+                         const std::string &default_val) -> std::expected<std::string, std::string> {
+        if (!sub.contains(key))
+          return default_val;
+        std::string v;
+        try {
+          v = sub.at(key).get<std::string>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'player.{}' has wrong type: {}", key, path.string()));
+        }
+        if (v.empty())
+          return std::unexpected(std::format("game.json 'player.{}' must not be empty: {}", key, path.string()));
+        return v;
+      };
+
+      auto get_non_neg_float = [&](const std::string &key, float default_val) -> std::expected<float, std::string> {
+        if (!sub.contains(key))
+          return default_val;
+        float v;
+        try {
+          v = sub.at(key).get<float>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'player.{}' has wrong type: {}", key, path.string()));
+        }
+        if (v < 0.f)
+          return std::unexpected(std::format("game.json 'player.{}' must be >= 0: {}", key, path.string()));
+        return v;
+      };
+
+      {
+        auto res = get_str("walk_sprite", pc.walk_sprite);
+        if (!res)
+          return std::unexpected(res.error());
+        pc.walk_sprite = std::move(*res);
+      }
+      {
+        auto res = get_str("idle_sprite", pc.idle_sprite);
+        if (!res)
+          return std::unexpected(res.error());
+        pc.idle_sprite = std::move(*res);
+      }
+      {
+        auto res = get_non_neg_float("col", pc.col);
+        if (!res)
+          return std::unexpected(res.error());
+        pc.col = *res;
+      }
+      {
+        auto res = get_non_neg_float("row", pc.row);
+        if (!res)
+          return std::unexpected(res.error());
+        pc.row = *res;
+      }
+
+      return pc;
+    }
+
   } // namespace
 
   std::expected<GameConfig, std::string> load_game_config(const fs::path &path) {
@@ -332,6 +398,13 @@ namespace corundum::core {
       if (!res)
         return std::unexpected(res.error());
       cfg.dialogue_render = std::move(*res);
+    }
+
+    {
+      auto res = parse_player(j, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.player = std::move(*res);
     }
 
     return cfg;

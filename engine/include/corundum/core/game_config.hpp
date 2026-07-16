@@ -52,6 +52,18 @@ namespace corundum::core {
     std::string world_manifest_path{};
   };
 
+  /// Player identity and default placement, configurable via game.json "player" block.
+  struct PlayerConfig {
+    /** @brief Sprite name for the player's walk animation. */
+    std::string walk_sprite{"player_walk"};
+    /** @brief Sprite name for the player's idle animation. */
+    std::string idle_sprite{"player_idle"};
+    /** @brief Default spawn tile column (fractional tile-grid units). */
+    float col = 8.f;
+    /** @brief Default spawn tile row (fractional tile-grid units). */
+    float row = 8.f;
+  };
+
   /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
   /// data together.
   struct GameConfig {
@@ -87,6 +99,8 @@ namespace corundum::core {
 
     /** @brief Grouped resource file paths for memory locality. */
     ResourcePaths paths{};
+    /** @brief Player identity and default placement. */
+    PlayerConfig player{};
     /** @brief Rendering configuration specific to the dialogue system. */
     DialogueRenderConfig dialogue_render;
   };

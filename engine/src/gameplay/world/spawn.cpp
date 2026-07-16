@@ -31,22 +31,37 @@ namespace corundum::gameplay::world {
 
     World world;
 
-    const SpriteId walk_sid = registry.get_sprite_id("player_walk");
-    if (walk_sid == corundum::resources::k_null_sprite_id)
-      return std::unexpected(std::string{"[crpg] unknown sprite 'player_walk'"});
+    const float dw = static_cast<float>(tilemap.diamond_w());
+    const float dh = static_cast<float>(tilemap.diamond_h());
 
-    const SpriteId idle_sid = registry.get_sprite_id("player_idle");
+    const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
+    const std::string actors_path = std::format("{}/{}.json", cfg.paths.spawn_points_dir, map_stem);
+
+    auto spawn_points_result = corundum::gameplay::world::load_spawn_points(actors_path);
+    if (!spawn_points_result)
+      return std::unexpected(spawn_points_result.error());
+    const auto &spawn_points = *spawn_points_result;
+
+    // Spawn position precedence: explicit arg > per-map spawn_points > game.json > built-in (8,8).
+    const Position spawn_pos =
+        player_pos.value_or(spawn_points.player ? Position{spawn_points.player->col, spawn_points.player->row}
+                                                : Position{cfg.player.col, cfg.player.row});
+
+    const SpriteId walk_sid = registry.get_sprite_id(cfg.player.walk_sprite);
+    if (walk_sid == corundum::resources::k_null_sprite_id)
+      return std::unexpected(std::format("[corundum] unknown player walk sprite '{}' (game.json player.walk_sprite)",
+                                         cfg.player.walk_sprite));
+
+    const SpriteId idle_sid = registry.get_sprite_id(cfg.player.idle_sprite);
     if (idle_sid == corundum::resources::k_null_sprite_id)
-      return std::unexpected(std::string{"[crpg] unknown sprite 'player_idle'"});
+      return std::unexpected(std::format("[corundum] unknown player idle sprite '{}' (game.json player.idle_sprite)",
+                                         cfg.player.idle_sprite));
 
     std::array<uint8_t, corundum::resources::k_num_anim_ids> walk_counts{};
     std::array<uint8_t, corundum::resources::k_num_anim_ids> idle_counts{};
     corundum::gameplay::component::BoundingBox player_bb{};
     float walk_fd = 0.f;
     float idle_fd = 0.f;
-
-    const float dw = static_cast<float>(tilemap.diamond_w());
-    const float dh = static_cast<float>(tilemap.diamond_h());
 
     if (const auto *sd = registry.get_sprite_by_id(walk_sid)) {
       for (uint8_t i = 0; i < corundum::resources::k_num_anim_ids; ++i)
@@ -73,8 +88,6 @@ namespace corundum::gameplay::world {
     Animation player_anim{};
     player_anim.frame_counts = idle_counts;
 
-    // Default spawn at tile (8,8). Position stores feet coordinates.
-    const Position spawn_pos = player_pos.value_or(Position{8.f, 8.f});
     auto player = spawn(world, spawn_pos, Velocity{0.f, 0.f}, Sprite{idle_sid, AnimId::Default, 0}, player_anim);
     world.collisions.insert(player, player_bb.col_span, player_bb.row_span);
     world.facings.insert(player, corundum::gameplay::component::FacingDir::South);
@@ -82,19 +95,12 @@ namespace corundum::gameplay::world {
       world.animations.frame_duration_ref(player) = idle_fd;
     world.motion_sprites.insert(player, walk_sid, idle_sid, walk_counts, idle_counts, 0.05f, 0.12f, walk_fd, idle_fd);
 
-    const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
-    const std::string actors_path = std::format("{}/{}.json", cfg.paths.spawn_points_dir, map_stem);
-
-    auto actors_result = corundum::gameplay::world::load_actors(actors_path);
-    if (!actors_result)
-      return std::unexpected(actors_result.error());
-    const auto &actors = *actors_result;
-
-    if (static_cast<std::size_t>(1) + actors.size() > corundum::gameplay::entity::k_max_entities)
+    if (static_cast<std::size_t>(1) + spawn_points.actors.size() > corundum::gameplay::entity::k_max_entities)
       return std::unexpected(std::format("[crpg] too many entities for '{}': {} actors + 1 player exceeds limit of {}",
-                                         map_stem, actors.size(), corundum::gameplay::entity::k_max_entities));
+                                         map_stem, spawn_points.actors.size(),
+                                         corundum::gameplay::entity::k_max_entities));
 
-    for (const auto &a : actors) {
+    for (const auto &a : spawn_points.actors) {
       const float col = static_cast<float>(a.col);
       const float row_f = static_cast<float>(a.row);
       const SpriteId sid = registry.get_sprite_id(a.sprite_name);

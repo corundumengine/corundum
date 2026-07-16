@@ -304,3 +304,101 @@ TEST_CASE("load_game_config — unknown top-level key is silently ignored") {
   const auto &cfg = *result;
   CHECK(cfg.win_w == doctest::Approx(1024.f));
 }
+
+// ── Player block ──────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — absent player block uses defaults") {
+  const auto dir = temp_dir("no_player");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  const auto &cfg = *result;
+  CHECK(cfg.player.walk_sprite == "player_walk");
+  CHECK(cfg.player.idle_sprite == "player_idle");
+  CHECK(cfg.player.col == doctest::Approx(8.f));
+  CHECK(cfg.player.row == doctest::Approx(8.f));
+}
+
+TEST_CASE("load_game_config — full player block parsed") {
+  const auto dir = temp_dir("full_player");
+  const auto p = dir / "game.json";
+  write_file(p, R"({
+    "player": {
+      "walk_sprite": "hero_walk",
+      "idle_sprite": "hero_idle",
+      "col": 12.5,
+      "row": 3.0
+    }
+  })");
+  auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  const auto &cfg = *result;
+  CHECK(cfg.player.walk_sprite == "hero_walk");
+  CHECK(cfg.player.idle_sprite == "hero_idle");
+  CHECK(cfg.player.col == doctest::Approx(12.5f));
+  CHECK(cfg.player.row == doctest::Approx(3.f));
+}
+
+TEST_CASE("load_game_config — partial player block merges with defaults") {
+  const auto dir = temp_dir("partial_player");
+  const auto p = dir / "game.json";
+  write_file(p, R"({
+    "player": { "walk_sprite": "hero_walk" }
+  })");
+  auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  const auto &cfg = *result;
+  CHECK(cfg.player.walk_sprite == "hero_walk");
+  CHECK(cfg.player.idle_sprite == "player_idle"); // default
+  CHECK(cfg.player.col == doctest::Approx(8.f));  // default
+  CHECK(cfg.player.row == doctest::Approx(8.f));  // default
+}
+
+TEST_CASE("load_game_config — player not an object throws") {
+  const auto dir = temp_dir("player_not_obj");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"player": 42})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — player empty walk_sprite throws") {
+  const auto dir = temp_dir("player_empty_walk");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"player": {"walk_sprite": ""}})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — player empty idle_sprite throws") {
+  const auto dir = temp_dir("player_empty_idle");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"player": {"idle_sprite": ""}})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — player negative col throws") {
+  const auto dir = temp_dir("player_neg_col");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"player": {"col": -1.0}})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — player negative row throws") {
+  const auto dir = temp_dir("player_neg_row");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"player": {"row": -0.5}})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — player col wrong type throws") {
+  const auto dir = temp_dir("player_col_type");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"player": {"col": "abc"}})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
