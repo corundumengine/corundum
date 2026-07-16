@@ -286,27 +286,27 @@ namespace corundum::gameplay::dialogue {
         advance(); // consume (
         const auto quest_id = expect_ident("for quest id in quest helper");
 
-        if (name == "quest_started") {
+        if (name == "quest_is_started") {
           expect_rparen();
           const auto key = corundum::gameplay::quest::quest_flag_key(quest_id);
           return corundum::gameplay::visit_count(vars_, key) > 0 ? 1 : 0;
         }
 
-        if (name == "quest_resolved") {
+        if (name == "quest_is_resolved") {
           expect_rparen();
           const auto *q = quests_->find(quest_id);
           return (q && corundum::gameplay::quest::is_complete(*q, vars_)) ? 1 : 0;
         }
 
-        if (name == "quest_failed") {
+        if (name == "quest_is_failed") {
           expect_rparen();
           const auto *q = quests_->find(quest_id);
           return (q && corundum::gameplay::quest::is_failed(*q, vars_)) ? 1 : 0;
         }
 
-        if (name == "quest_at") {
+        if (name == "quest_is_at") {
           advance(); // consume comma
-          const auto stage_name = expect_ident("for stage name in quest_at");
+          const auto stage_name = expect_ident("for stage name in quest_is_at");
           expect_rparen();
           const auto *q = quests_->find(quest_id);
           if (!q)

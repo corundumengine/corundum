@@ -149,7 +149,7 @@ Conditions control whether a choice edge is visible. They are evaluated against 
 { "condition": "gold >= 5" }
 { "condition": "!paid_innkeeper" }
 { "condition": "level >= 3 && sword_equipped" }
-{ "condition": "quest_started(find_sword)" }
+{ "condition": "quest_is_started(find_sword)" }
 ```
 
 An absent or empty condition means the edge is always visible.
@@ -173,15 +173,17 @@ An absent or empty condition means the edge is always visible.
 Quest state can be checked with named helpers instead of raw flag values:
 
 | Helper | Meaning |
-|---|---|
-| `quest_started(quest_id)` | Quest has been started |
-| `quest_resolved(quest_id)` | Quest is over (any ending) |
-| `quest_failed(quest_id)` | Quest ended in failure |
-| `quest_at(quest_id, stage_name)` | Quest is at a specific named stage |
+|---|---|---|
+| `quest_is_started(quest_id)` | Quest has been started |
+| `quest_is_resolved(quest_id)` | Quest is over (any ending) |
+| `quest_is_failed(quest_id)` | Quest ended in failure |
+| `quest_is_at(quest_id, stage_name)` | Quest is at a specific named stage |
+
+Conditions use the `quest_is_*` naming family to distinguish them from actions (which use `quest_<verb>`).
 
 ```json
-{ "condition": "quest_at(find_sword, complete_helped)" }
-{ "condition": "quest_failed(escort_merchant)" }
+{ "condition": "quest_is_at(find_sword, complete_helped)" }
+{ "condition": "quest_is_failed(escort_merchant)" }
 ```
 
 Prefer these over raw flag comparisons — they stay correct even if stage sequences are renumbered.
@@ -405,10 +407,10 @@ Flag actions:   flag = value  |  flag += value  |  flag -= value
 Quest actions:  quest_start("quest_id")
                 quest_advance("quest_id", "stage_name")
 
-Quest checks:   quest_started(quest_id)
-                quest_resolved(quest_id)
-                quest_failed(quest_id)
-                quest_at(quest_id, stage_name)
+Quest checks:   quest_is_started(quest_id)
+                quest_is_resolved(quest_id)
+                quest_is_failed(quest_id)
+                quest_is_at(quest_id, stage_name)
 
 Sequencing:     none  once  cycle  random
 

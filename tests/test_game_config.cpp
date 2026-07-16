@@ -293,6 +293,18 @@ TEST_CASE("load_game_config — dialogue_render not an object throws") {
   CHECK(!result.has_value());
 }
 
+// ── Default paths ──────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — quests_dir defaults to data/quests when absent") {
+  const auto dir = temp_dir("default_quests");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  const auto &cfg = *result;
+  CHECK(cfg.paths.quests_dir == "data/quests");
+}
+
 // ── Forward compatibility ─────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config — unknown top-level key is silently ignored") {

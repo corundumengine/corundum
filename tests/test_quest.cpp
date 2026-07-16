@@ -376,6 +376,27 @@ TEST_CASE("active_quests returns only quests with stage > 0") {
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
+TEST_CASE("registry load_all count matches size with duplicate ids") {
+  const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_dup_count";
+  std::filesystem::create_directories(tmp_dir);
+  {
+    std::ofstream f(tmp_dir / "a.json");
+    f << R"({"type":"quest","id":"dup","name":"A","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
+  }
+  {
+    std::ofstream f(tmp_dir / "b.json");
+    f << R"({"type":"quest","id":"dup","name":"B","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
+  }
+
+  quest::Registry reg;
+  int loaded = reg.load_all(tmp_dir);
+  CHECK(loaded == 1);
+  CHECK(reg.size() == 1);
+  std::filesystem::remove_all(tmp_dir);
+}
+
+// ── Registry ──────────────────────────────────────────────────────────────────
+
 TEST_CASE("registry load_all loads valid files, skips bad ones") {
   // Create temp dir with mixed files
   const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_registry";

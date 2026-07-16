@@ -1,6 +1,6 @@
 # Writing Quests
 
-Quests are defined as JSON files in the `data/quests/` directory. The engine loads them all at startup. This guide covers everything you need to write and wire up a quest, from a simple fetch task to a multi-ending moral choice.
+Quests are defined as JSON files in the `data/quests/` directory (or wherever `quests_dir` points in `game.json` — it defaults to `data/quests`). The engine loads them all at startup. This guide covers everything you need to write and wire up a quest, from a simple fetch task to a multi-ending moral choice.
 
 ---
 
@@ -121,19 +121,19 @@ This sets `quest.find_sword` to the sequence of the stage with `"name": "return"
 Use named condition helpers on dialogue edges to gate choices or node visibility:
 
 ```json
-{ "condition": "quest_started(find_sword)" }
-{ "condition": "quest_resolved(find_sword)" }
-{ "condition": "quest_at(find_sword, complete_helped)" }
+{ "condition": "quest_is_started(find_sword)" }
+{ "condition": "quest_is_resolved(find_sword)" }
+{ "condition": "quest_is_at(find_sword, complete_helped)" }
 ```
 
-| Helper                           | Meaning                            |
-| -------------------------------- | ---------------------------------- |
-| `quest_started(quest_id)`        | Quest has been started (any stage) |
-| `quest_resolved(quest_id)`       | Quest is over (any ending)         |
-| `quest_failed(quest_id)`         | Quest ended in failure             |
-| `quest_at(quest_id, stage_name)` | Quest is at a specific named stage |
+| Helper                                | Meaning                            |
+| ------------------------------------- | ---------------------------------- |
+| `quest_is_started(quest_id)`          | Quest has been started (any stage) |
+| `quest_is_resolved(quest_id)`         | Quest is over (any ending)         |
+| `quest_is_failed(quest_id)`           | Quest ended in failure             |
+| `quest_is_at(quest_id, stage_name)`   | Quest is at a specific named stage |
 
-`quest_at` is the preferred way to check a specific outcome — it uses stage names rather than sequence numbers, so your dialogue stays readable even if stages are renumbered.
+Conditions use the `quest_is_*` naming family to distinguish them from actions (which use `quest_<verb>`). `quest_is_at` is the preferred way to check a specific outcome — it uses stage names rather than sequence numbers, so your dialogue stays readable even if stages are renumbered.
 
 Raw flag conditions still work and are useful for range checks:
 
@@ -237,8 +237,8 @@ When a quest can end different ways, give each ending its own resolved stage:
 Both `complete_helped` and `complete_betrayed` end the quest. Downstream dialogue distinguishes them by name:
 
 ```json
-{ "condition": "quest_at(find_sword, complete_helped)" }
-{ "condition": "quest_at(find_sword, complete_betrayed)" }
+{ "condition": "quest_is_at(find_sword, complete_helped)" }
+{ "condition": "quest_is_at(find_sword, complete_betrayed)" }
 ```
 
 The ending stage's name is the outcome record. No separate outcome field is needed.
@@ -273,7 +273,7 @@ A failed quest is a resolved stage marked with `"failed": true`. You do not need
 Wire it to whatever event causes failure — a death trigger, a timer expiring, a dialogue choice. The journal can display failed quests differently from completed ones, and NPCs can react to failure specifically:
 
 ```json
-{ "condition": "quest_failed(escort_merchant)" }
+{ "condition": "quest_is_failed(escort_merchant)" }
 ```
 
 ---
@@ -307,9 +307,11 @@ The loader rejects quests that violate any of these rules and prints a warning t
 Start a quest:       quest_start("quest_id")
 Advance a quest:     quest_advance("quest_id", "stage_name")
 
-Check started:       quest_started(quest_id)
-Check resolved:      quest_resolved(quest_id)
-Check failed:        quest_failed(quest_id)
-Check named stage:   quest_at(quest_id, stage_name)
+Check started:       quest_is_started(quest_id)
+Check resolved:      quest_is_resolved(quest_id)
+Check failed:        quest_is_failed(quest_id)
+Check named stage:   quest_is_at(quest_id, stage_name)
 Check progress:      quest.quest_id >= sequence   (raw flag condition)
+
+Naming rule: actions use `quest_<verb>` (e.g. `quest_start`, `quest_advance`); conditions use `quest_is_*` (e.g. `quest_is_started`, `quest_is_resolved`).
 ```

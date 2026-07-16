@@ -8,8 +8,10 @@ namespace corundum::gameplay::dialogue {
   int Registry::load_all(const std::filesystem::path &dir) {
     int loaded = 0;
 
-    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir))
+    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
+      std::println("[dialogue] no dialogue directory at '{}'", dir.string());
       return loaded;
+    }
 
     for (const auto &entry : std::filesystem::directory_iterator(dir)) {
       if (entry.path().extension() != ".json")
@@ -25,9 +27,10 @@ namespace corundum::gameplay::dialogue {
       if (graphs_.contains(id))
         std::println(stderr, "[dialogue] duplicate graph id '{}' — '{}' is shadowed", id,
                      entry.path().filename().string());
-      else
+      else {
         graphs_.emplace(id, std::move(*result));
-      ++loaded;
+        ++loaded;
+      }
     }
 
     return loaded;

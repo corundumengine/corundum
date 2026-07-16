@@ -111,7 +111,7 @@ namespace tools::talesmith {
       }
 
       ImGui::SameLine();
-      const char *cond_types[] = {"quest_started", "quest_resolved", "quest_failed", "quest_at"};
+      const char *cond_types[] = {"quest_is_started", "quest_is_resolved", "quest_is_failed", "quest_is_at"};
       ImGui::Combo("##qac_cond", &q.quick_cond_type, cond_types, 4);
 
       if (q.quick_cond_type == 3) {
@@ -136,15 +136,15 @@ namespace tools::talesmith {
         const auto &quest_id = quest_ids[q.quick_quest_idx];
         std::string cond_str;
         if (q.quick_cond_type == 0)
-          cond_str = std::format("quest_started({})", quest_id);
+          cond_str = std::format("quest_is_started({})", quest_id);
         else if (q.quick_cond_type == 1)
-          cond_str = std::format("quest_resolved({})", quest_id);
+          cond_str = std::format("quest_is_resolved({})", quest_id);
         else if (q.quick_cond_type == 2)
-          cond_str = std::format("quest_failed({})", quest_id);
+          cond_str = std::format("quest_is_failed({})", quest_id);
         else {
           const auto *quest = state.quest_registry.find(quest_id);
           if (quest && q.quick_cond_stage_idx < static_cast<int>(quest->stages.size()))
-            cond_str = std::format("quest_at({}, {})", quest_id, quest->stages[q.quick_cond_stage_idx].name);
+            cond_str = std::format("quest_is_at({}, {})", quest_id, quest->stages[q.quick_cond_stage_idx].name);
         }
         if (!cond_str.empty()) {
           std::memset(cond_buf, 0, static_cast<std::size_t>(cond_buf_size));

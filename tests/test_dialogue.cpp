@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 #include <filesystem>
+#include <fstream>
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
@@ -8,9 +9,12 @@
 #include <corundum/gameplay/dialogue/expr.hpp>
 #include <corundum/gameplay/dialogue/loader.hpp>
 #include <corundum/gameplay/dialogue/query.hpp>
+#include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/gameplay/dialogue/serialize.hpp>
 #include <corundum/gameplay/dialogue/system.hpp>
 #include <corundum/gameplay/flags.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -504,6 +508,80 @@ TEST_CASE("is_terminal true only for End nodes") {
   corundum::gameplay::dialogue::Node end_node;
   end_node.type = corundum::gameplay::dialogue::NodeType::End;
   CHECK(corundum::gameplay::dialogue::is_terminal(end_node));
+}
+
+// ── Registry ─────────────────────────────────────────────────────────────────
+
+TEST_CASE("registry load_all count matches size with duplicate ids") {
+  const auto tmp_dir = std::filesystem::temp_directory_path() / "dialogue_test_dup_count";
+  std::filesystem::create_directories(tmp_dir);
+  {
+    std::ofstream f(tmp_dir / "a.json");
+    f << R"({"type":"graph","id":"dup","nodes":[{"id":"n0","type":"talk","text":"A","next":"end"}]})";
+  }
+  {
+    std::ofstream f(tmp_dir / "b.json");
+    f << R"({"type":"graph","id":"dup","nodes":[{"id":"n0","type":"talk","text":"B","next":"end"}]})";
+  }
+
+  corundum::gameplay::dialogue::Registry reg;
+  int loaded = reg.load_all(tmp_dir);
+  CHECK(loaded == 1);
+  CHECK(reg.size() == 1);
+  std::filesystem::remove_all(tmp_dir);
+}
+
+TEST_CASE("eval_condition: quest helper quest_is_started works") {
+  corundum::gameplay::FlagStore flags;
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "tq";
+  q.name = "TQ";
+  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({"complete", 2, true, false, {}});
+  quests.add(std::move(q));
+
+  CHECK_FALSE(*corundum::gameplay::dialogue::eval_condition("quest_is_started(tq)", flags, &quests));
+  flags["quest.tq"] = 1;
+  CHECK(*corundum::gameplay::dialogue::eval_condition("quest_is_started(tq)", flags, &quests));
+}
+
+TEST_CASE("eval_condition: quest helper quest_is_at works") {
+  corundum::gameplay::FlagStore flags;
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "tq";
+  q.name = "TQ";
+  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({"complete", 2, true, false, {}});
+  quests.add(std::move(q));
+
+  flags["quest.tq"] = 1;
+  CHECK(*corundum::gameplay::dialogue::eval_condition("quest_is_at(tq, start)", flags, &quests));
+  CHECK_FALSE(*corundum::gameplay::dialogue::eval_condition("quest_is_at(tq, complete)", flags, &quests));
+}
+
+TEST_CASE("eval_condition: quest helper quest_is_resolved works") {
+  corundum::gameplay::FlagStore flags;
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "tq";
+  q.name = "TQ";
+  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({"complete", 2, true, false, {}});
+  quests.add(std::move(q));
+
+  flags["quest.tq"] = 2;
+  CHECK(*corundum::gameplay::dialogue::eval_condition("quest_is_resolved(tq)", flags, &quests));
+  CHECK_FALSE(*corundum::gameplay::dialogue::eval_condition("quest_is_resolved(unknown)", flags, &quests));
+}
+
+TEST_CASE("eval_condition: old quest helper names error") {
+  corundum::gameplay::FlagStore flags;
+  corundum::gameplay::quest::Registry quests;
+  auto res = corundum::gameplay::dialogue::eval_condition("quest_started(tq)", flags, &quests);
+  CHECK_FALSE(res.has_value());
+  CHECK(res.error().message.find("unknown quest helper") != std::string::npos);
 }
 
 // ── Loader ────────────────────────────────────────────────────────────────────
