@@ -1,0 +1,7 @@
+{
+  "type": "dialogue",
+  "id": "alias_test",
+  "nodes": [
+    { "id": "n0", "type": "talk", "text": "Hello.", "next": "end" }
+  ]
+}

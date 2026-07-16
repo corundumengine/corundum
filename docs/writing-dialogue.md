@@ -1,6 +1,6 @@
 # Writing Dialogue
 
-Dialogues are defined as JSON files in the `data/dialogues/` directory. The engine loads them all at startup. This guide covers everything you need to write and wire up dialogue, from a simple NPC greeting to a branching conversation that starts quests and tracks state.
+Dialogues are defined as JSON files in the `data/dialogue/` directory (configurable via the `dialogue_dir` key in `game.json`). The engine loads them all at startup. This guide covers everything you need to write and wire up dialogue, from a simple NPC greeting to a branching conversation that starts quests and tracks state.
 
 ---
 
@@ -14,7 +14,7 @@ A dialogue is a **graph** of nodes connected by edges. The engine tracks a curre
 
 ```json
 {
-  "type": "dialogue",
+  "type": "graph",
   "id": "innkeeper_greet",
   "speaker": "Innkeeper",
   "nodes": [
@@ -32,7 +32,7 @@ Top-level fields:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `type` | string | yes | Must be `"dialogue"`. Identifies the file to tools and the engine loader. |
+| `type` | string | no | `"graph"` (`"dialogue"` is accepted as an alias). Identifies the file to tools and the engine loader; may be omitted since the directory provides the context. |
 | `id` | string | yes | Unique identifier for this dialogue graph. Snake_case. |
 | `speaker` | string | no | Character name shown in the UI. Not used by core logic. |
 | `variables` | object | no | Default flag values applied when dialogue starts (only if the flag is not already set). |
@@ -296,7 +296,7 @@ Use this to initialise flags that the graph's own conditions and actions depend 
 
 ```json
 {
-  "type": "dialogue",
+  "type": "graph",
   "id": "innkeeper_intro",
   "speaker": "Innkeeper",
   "nodes": [
@@ -381,7 +381,7 @@ Use this to initialise flags that the graph's own conditions and actions depend 
 
 The loader rejects graphs that violate any of these rules and prints a warning to stderr. The rest of the graphs still load.
 
-- `type` must be present and equal to `"dialogue"`
+- `type`, if present, should be `"graph"` (or the alias `"dialogue"`) — anything else prints a warning but the file still loads
 - `id` must be non-empty
 - All node `id` values must be unique within the graph
 - All `next` and `target` values must point to an existing node or `"end"`

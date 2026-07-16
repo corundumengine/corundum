@@ -45,7 +45,7 @@ namespace corundum::gameplay::dialogue {
 
   static void validate_actions(const json &arr, const std::string &ctx) {
     for (std::size_t i = 0; i < arr.size(); ++i) {
-      const auto src = arr[i].get<std::string>();
+      const std::string src = arr[i].get<std::string>();
       const auto result = parse_action(src);
       if (!result.has_value())
         throw LoadError(std::format("[{}] action[{}] invalid: {}", ctx, i, result.error().message));
@@ -90,7 +90,7 @@ namespace corundum::gameplay::dialogue {
         edge.target_id = arr[i]["target"].get<std::string>();
 
         if (arr[i].contains("condition")) {
-          const auto cond = arr[i]["condition"].get<std::string>();
+          const std::string cond = arr[i]["condition"].get<std::string>();
           if (cond.empty())
             throw LoadError(std::format("[{}] \"condition\" must not be empty if present", edge_ctx));
           edge.condition = cond;
@@ -128,7 +128,7 @@ namespace corundum::gameplay::dialogue {
     if (!file)
       throw LoadError(std::format("cannot open dialogue file: {}", path));
 
-    const json root = [&] {
+    const json root = [&file, &path] {
       try {
         return json::parse(file, nullptr, true, true);
       } catch (const json::parse_error &e) {
@@ -144,7 +144,7 @@ namespace corundum::gameplay::dialogue {
     }
 
     // ── Type field (optional — directory context tells us the type) ──────────
-    if (root.contains("type") && root["type"].is_string() && root["type"] != "graph")
+    if (root.contains("type") && root["type"].is_string() && root["type"] != "graph" && root["type"] != "dialogue")
       std::println(stderr, "[warning] dialogue file {} has type \"{}\" instead of \"graph\"", path,
                    root["type"].get<std::string>());
 
@@ -187,7 +187,7 @@ namespace corundum::gameplay::dialogue {
     }
 
     {
-      auto errors = validate_graph(graph);
+      const std::vector<std::string> errors = validate_graph(graph);
       if (!errors.empty())
         throw LoadError(errors[0]);
     }

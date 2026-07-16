@@ -33,7 +33,7 @@ static corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
   g.speaker = "Innkeeper";
   g.variables = {{"gold", 10}};
 
-  auto push = [&](Node n) {
+  auto push = [&g](Node n) {
     g.id_to_index[n.id] = g.nodes.size();
     g.nodes.push_back(std::move(n));
   };
@@ -537,6 +537,13 @@ TEST_CASE("load_graph parses innkeeper.json correctly") {
   CHECK(n_pay->type == corundum::gameplay::dialogue::NodeType::Event);
   CHECK(n_pay->actions[0] == "play_sound('coin')");
   CHECK(n_pay->next_id == "n2");
+}
+
+TEST_CASE("load_graph accepts type \"dialogue\" as an alias for \"graph\"") {
+  const auto result = corundum::gameplay::dialogue::load_graph("tests/fixtures/type_alias.json");
+  REQUIRE(result.has_value());
+  CHECK(result->graph_id == "alias_test");
+  CHECK(result->nodes.size() == 1);
 }
 
 TEST_CASE("load_graph returns error for missing file") {
