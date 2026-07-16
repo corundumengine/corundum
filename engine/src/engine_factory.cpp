@@ -4,6 +4,15 @@
 #include <format>
 #include <string_view>
 
+namespace {
+
+  template <typename DestUPtr, typename T>
+  void adopt_unique(DestUPtr &dest, std::unique_ptr<T> src) {
+    dest = DestUPtr(src.release());
+  }
+
+} // namespace
+
 namespace corundum {
 
   EngineConfig parse_engine_args(int argc, char *argv[]) noexcept {
@@ -27,9 +36,9 @@ namespace corundum {
       return std::unexpected(platform.error());
 
     Engine engine{};
-    engine.window = std::move(platform->window);
-    engine.gpu = std::move(platform->gpu);
-    engine.renderer = std::move(platform->renderer);
+    adopt_unique(engine.window, std::move(platform->window));
+    adopt_unique(engine.gpu, std::move(platform->gpu));
+    adopt_unique(engine.renderer, std::move(platform->renderer));
     engine.audio.backend = std::move(platform->audio_backend);
     engine.show_debug_hud = config.show_debug_hud;
 

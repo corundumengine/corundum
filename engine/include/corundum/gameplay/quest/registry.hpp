@@ -38,6 +38,15 @@ namespace corundum::gameplay::quest {
       return quests_.size();
     }
 
+    /** @brief Register a quest directly.
+     *
+     *  @param quest The quest to register (moved into the registry, keyed
+     *               by quest_id). Useful for tests.
+     */
+    void add(Quest quest) {
+      quests_.emplace(quest.quest_id, std::move(quest));
+    }
+
     /** @brief Range-for support for iterating all loaded quests (id, quest) pairs. */
     [[nodiscard]] auto begin() const noexcept {
       return quests_.begin();

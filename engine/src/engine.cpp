@@ -64,30 +64,6 @@ namespace corundum {
       return {};
     }
 
-    void process_dialogue_events(Engine &engine) {
-      for (const auto &ev : engine.scene.pending_dialogue_events) {
-        if (ev.name == "play_sound" && !ev.args.empty()) {
-          std::expected<void, std::string> result = audio::sys::play_sound(engine.audio, ev.args[0]);
-          if (!result)
-            std::println("[engine] {}", result.error());
-        } else if (ev.name == "quest_start" && !ev.args.empty()) {
-          if (const auto *q = engine.quests.find(ev.args[0]))
-            gameplay::quest::start(*q, engine.flags);
-          else
-            std::println(stderr, "[engine] WARN: quest_start(\"{}\") references unknown quest", ev.args[0]);
-        } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
-          if (const auto *q = engine.quests.find(ev.args[0]))
-            gameplay::quest::advance(*q, ev.args[1], engine.flags);
-          else
-            std::println(stderr, "[engine] WARN: quest_advance(\"{}\", \"{}\") references unknown quest", ev.args[0],
-                         ev.args[1]);
-        } else {
-          std::println(stderr, "[engine] WARN: unknown dialogue event '{}'", ev.name);
-        }
-      }
-      engine.scene.pending_dialogue_events.clear();
-    }
-
     void validate_quest_references(const corundum::gameplay::dialogue::Registry &graphs,
                                    const corundum::gameplay::quest::Registry &quests) {
       for (const auto &[id, graph] : graphs) {
@@ -124,6 +100,34 @@ namespace corundum {
     }
 
   } // namespace
+
+  void process_dialogue_events(Engine &engine) noexcept {
+    for (const auto &ev : engine.scene.pending_dialogue_events) {
+      if (ev.name == "play_sound" && !ev.args.empty()) {
+        const auto result = audio::sys::play_sound(engine.audio, ev.args[0]);
+        if (!result)
+          std::println("[engine] {}", result.error());
+      } else if (ev.name == "quest_start" && !ev.args.empty()) {
+        if (const auto *q = engine.quests.find(ev.args[0]))
+          gameplay::quest::start(*q, engine.flags);
+        else
+          std::println(stderr, "[engine] WARN: quest_start(\"{}\") references unknown quest", ev.args[0]);
+      } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
+        if (const auto *q = engine.quests.find(ev.args[0]))
+          gameplay::quest::advance(*q, ev.args[1], engine.flags);
+        else
+          std::println(stderr, "[engine] WARN: quest_advance(\"{}\", \"{}\") references unknown quest", ev.args[0],
+                       ev.args[1]);
+      } else {
+        bool handled = false;
+        if (engine.on_event)
+          handled = engine.on_event(engine, ev);
+        if (!handled)
+          std::println(stderr, "[engine] WARN: unknown dialogue event '{}'", ev.name);
+      }
+    }
+    engine.scene.pending_dialogue_events.clear();
+  }
 
   std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg) {
     engine.cfg = std::move(cfg);
@@ -222,6 +226,9 @@ namespace corundum {
                                 &engine.quests);
 
         process_dialogue_events(engine);
+
+        if (engine.on_fixed_update)
+          engine.on_fixed_update(engine, engine.timer.target_dt);
 
         // prev_col/prev_row were snapshotted by dense slot before this loop started. flush_deletions
         // reassigns slots via swap-and-pop, so a slot interpolated below could now belong to a

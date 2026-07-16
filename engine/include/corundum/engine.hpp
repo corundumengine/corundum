@@ -15,10 +15,25 @@
 #include <corundum/resources/character_registry.hpp>
 
 #include <expected>
+#include <functional>
 #include <memory>
 #include <string>
 
 namespace corundum {
+
+  namespace detail {
+    /** @brief No-op deleter for platform objects whose destructors live in the platform library.
+     *
+     *  Engine holds platform resources through unique_ptr with this deleter so the
+     *  engine library itself never needs the platform destructors — tests can link
+     *  engine without linking the GLFW/sokol backend. Platform teardown is handled
+     *  by cleanup() (window close, audio shutdown); OS reclaims the memory at exit.
+     */
+    struct PlatformDeleter {
+      template<typename T>
+      void operator()(T *) const noexcept { /* no-op */ }
+    };
+  } // namespace detail
 
   /** @brief Game engine instance owning all system-level resources and game state.
    *
@@ -31,9 +46,9 @@ namespace corundum {
    * @see cleanup     Resource teardown after the main loop.
    */
   struct Engine {
-    std::unique_ptr<platform::Window> window;
-    std::unique_ptr<platform::GpuContext> gpu;
-    std::unique_ptr<platform::Renderer> renderer;
+    std::unique_ptr<platform::Window, detail::PlatformDeleter> window;
+    std::unique_ptr<platform::GpuContext, detail::PlatformDeleter> gpu;
+    std::unique_ptr<platform::Renderer, detail::PlatformDeleter> renderer;
 
     audio::sys::AudioState audio;
     input::InputState input_state;
@@ -54,6 +69,23 @@ namespace corundum {
     bool quit = false;
     bool show_debug_hud = false;
     float smoothed_fps = 0.f;
+
+    /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
+     *
+     *  Called for every EventAction in the pending queue. Return @c true to
+     *  mark the event as handled (suppresses the unknown-event WARN).
+     *  Default-empty; existing games are unaffected.
+     */
+    std::function<bool(Engine &, const gameplay::dialogue::EventAction &)> on_event;
+
+    /** @brief Hook called once per fixed step after world / dialogue-event processing.
+     *
+     *  Invoked inside the fixed-timestep loop, after process_dialogue_events()
+     *  and before entity deletions are flushed. @p dt is the fixed timestep
+     *  (timer.target_dt). Entities marked for deletion here are drained the
+     *  same frame.
+     */
+    std::function<void(Engine &, float dt)> on_fixed_update;
   };
 
   /** @brief Initialise all systems and load game assets.
@@ -76,6 +108,19 @@ namespace corundum {
    *  @pre update() must have returned.
    */
   void cleanup(Engine &engine) noexcept;
+
+  /** @brief Process all pending dialogue EventActions (built-in dispatch + on_event hook).
+   *
+   *  Walks engine.scene.pending_dialogue_events and dispatches built-in events
+   *  (play_sound, quest_start, quest_advance). For events not matched by built-in
+   *  dispatch, calls engine.on_event if set. Unhandled events print a WARN.
+   *  Clears the pending list after processing.
+   *
+   *  Exposed for testability — game code normally does not call this directly.
+   *
+   *  @param[in,out] engine  Initialised Engine whose pending events are processed.
+   */
+  void process_dialogue_events(Engine &engine) noexcept;
 
   /** @brief Request a graceful shutdown of the engine.
    *
