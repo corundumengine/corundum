@@ -87,7 +87,7 @@ TEST_CASE("load_spawn_points — player.col zero is valid") {
   CHECK(result->player->row == doctest::Approx(0.f));
 }
 
-TEST_CASE("load_spawn_points — player not an object throws") {
+TEST_CASE("load_spawn_points — player not an object returns error") {
   const auto dir = temp_dir("player_not_obj");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": 42, "actors": [] })");
@@ -95,7 +95,7 @@ TEST_CASE("load_spawn_points — player not an object throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_spawn_points — player missing col throws") {
+TEST_CASE("load_spawn_points — player missing col returns error") {
   const auto dir = temp_dir("player_no_col");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "row": 5.0 }, "actors": [] })");
@@ -103,7 +103,7 @@ TEST_CASE("load_spawn_points — player missing col throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_spawn_points — player negative col throws") {
+TEST_CASE("load_spawn_points — player negative col returns error") {
   const auto dir = temp_dir("player_neg_col");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "col": -1.0, "row": 5.0 }, "actors": [] })");
@@ -111,7 +111,7 @@ TEST_CASE("load_spawn_points — player negative col throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_spawn_points — malformed JSON throws") {
+TEST_CASE("load_spawn_points — malformed JSON returns error") {
   const auto dir = temp_dir("malformed");
   const auto p = dir / "spawn.json";
   write_file(p, "{bad json");
@@ -119,7 +119,7 @@ TEST_CASE("load_spawn_points — malformed JSON throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_spawn_points — not an object throws") {
+TEST_CASE("load_spawn_points — not an object returns error") {
   const auto dir = temp_dir("array");
   const auto p = dir / "spawn.json";
   write_file(p, "[]");

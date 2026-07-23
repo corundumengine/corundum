@@ -55,12 +55,12 @@ namespace corundum::gameplay::world {
 
     const SpriteId walk_sid = registry.get_sprite_id(cfg.player.walk_sprite);
     if (walk_sid == corundum::resources::k_null_sprite_id)
-      return std::unexpected(std::format("[corundum] unknown player walk sprite '{}' (game.json player.walk_sprite)",
+      return std::unexpected(std::format("[engine] unknown player walk sprite '{}' (game.json player.walk_sprite)",
                                          cfg.player.walk_sprite));
 
     const SpriteId idle_sid = registry.get_sprite_id(cfg.player.idle_sprite);
     if (idle_sid == corundum::resources::k_null_sprite_id)
-      return std::unexpected(std::format("[corundum] unknown player idle sprite '{}' (game.json player.idle_sprite)",
+      return std::unexpected(std::format("[engine] unknown player idle sprite '{}' (game.json player.idle_sprite)",
                                          cfg.player.idle_sprite));
 
     std::array<uint8_t, corundum::resources::k_num_anim_ids> walk_counts{};
@@ -102,16 +102,16 @@ namespace corundum::gameplay::world {
     world.motion_sprites.insert(player, walk_sid, idle_sid, walk_counts, idle_counts, 0.05f, 0.12f, walk_fd, idle_fd);
 
     if (static_cast<std::size_t>(1) + spawn_points.actors.size() > corundum::gameplay::entity::k_max_entities)
-      return std::unexpected(std::format("[crpg] too many entities for '{}': {} actors + 1 player exceeds limit of {}",
-                                         map_stem, spawn_points.actors.size(),
-                                         corundum::gameplay::entity::k_max_entities));
+      return std::unexpected(
+          std::format("[engine] too many entities for '{}': {} actors + 1 player exceeds limit of {}", map_stem,
+                      spawn_points.actors.size(), corundum::gameplay::entity::k_max_entities));
 
     for (const auto &a : spawn_points.actors) {
       const float col = static_cast<float>(a.col);
       const float row_f = static_cast<float>(a.row);
       const SpriteId sid = registry.get_sprite_id(a.sprite_name);
       if (sid == corundum::resources::k_null_sprite_id) {
-        return std::unexpected(std::format("[crpg] unknown sprite '{}'", a.sprite_name));
+        return std::unexpected(std::format("[engine] unknown sprite '{}'", a.sprite_name));
       }
 
       corundum::gameplay::component::BoundingBox bb{};

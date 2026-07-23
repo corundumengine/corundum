@@ -15,15 +15,15 @@ namespace corundum::gameplay::world::tilemap {
    * physics_sys.cpp's apply_input), so these compass names describe the
    * (col,row) grid, not the rendered screen.
    */
-  enum WalkDir : uint8_t {
-    DirN = 0x01,  ///< row - 1
-    DirNE = 0x02, ///< col + 1, row - 1
-    DirE = 0x04,  ///< col + 1
-    DirSE = 0x08, ///< col + 1, row + 1
-    DirS = 0x10,  ///< row + 1
-    DirSW = 0x20, ///< col - 1, row + 1
-    DirW = 0x40,  ///< col - 1
-    DirNW = 0x80, ///< col - 1, row - 1
+  enum class WalkDir : uint8_t {
+    N = 0x01,  ///< row - 1
+    NE = 0x02, ///< col + 1, row - 1
+    E = 0x04,  ///< col + 1
+    SE = 0x08, ///< col + 1, row + 1
+    S = 0x10,  ///< row + 1
+    SW = 0x20, ///< col - 1, row + 1
+    W = 0x40,  ///< col - 1
+    NW = 0x80, ///< col - 1, row - 1
   };
 
   /**

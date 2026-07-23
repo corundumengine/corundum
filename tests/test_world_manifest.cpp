@@ -46,12 +46,12 @@ TEST_CASE("load_world_manifest parses valid JSON") {
   CHECK(m.base_dir == dir);
 }
 
-TEST_CASE("load_world_manifest throws on missing file") {
+TEST_CASE("load_world_manifest returns error on missing file") {
   auto result = corundum::gameplay::world::tilemap::load_world_manifest("/nonexistent/path/manifest.json");
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_world_manifest throws on missing field") {
+TEST_CASE("load_world_manifest returns error on missing field") {
   const auto dir = temp_dir("missing");
   const auto path = dir / "manifest.json";
   write_file(path, R"({"chunk_size": 128, "chunks_wide": 16})"); // missing chunks_tall

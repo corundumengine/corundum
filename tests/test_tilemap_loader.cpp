@@ -207,7 +207,7 @@ TEST_CASE("load_tilemap — k_empty_tile (65535) in dense layer is accepted") {
 
 // ── Error: old "tileset" string key rejected ─────────────────────────────────
 
-TEST_CASE("load_tilemap — old 'tileset' string key throws") {
+TEST_CASE("load_tilemap — old 'tileset' string key returns error") {
   const auto dir = temp_dir("old_format");
   const auto ts_path = dir / "ts.json";
   const auto map_path = dir / "map.json";
@@ -225,7 +225,7 @@ TEST_CASE("load_tilemap — old 'tileset' string key throws") {
 
 // ── Error: first_gid not 0 ────────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — first_gid not starting at 0 throws") {
+TEST_CASE("load_tilemap — first_gid not starting at 0 returns error") {
   const auto dir = temp_dir("no_zero");
   const auto ts_path = dir / "ts.json";
   const auto map_path = dir / "map.json";
@@ -243,7 +243,7 @@ TEST_CASE("load_tilemap — first_gid not starting at 0 throws") {
 
 // ── Error: gap between tilesets ───────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — gap between tilesets throws") {
+TEST_CASE("load_tilemap — gap between tilesets returns error") {
   const auto dir = temp_dir("gap");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
@@ -266,7 +266,7 @@ TEST_CASE("load_tilemap — gap between tilesets throws") {
 
 // ── Error: duplicate first_gid ────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — duplicate first_gid throws") {
+TEST_CASE("load_tilemap — duplicate first_gid returns error") {
   const auto dir = temp_dir("dup");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
@@ -288,7 +288,7 @@ TEST_CASE("load_tilemap — duplicate first_gid throws") {
 
 // ── Error: GID in layer not covered by any tileset ───────────────────────────
 
-TEST_CASE("load_tilemap — GID in layer beyond tileset range throws") {
+TEST_CASE("load_tilemap — GID in layer beyond tileset range returns error") {
   const auto dir = temp_dir("gid_range");
   // TILESET_A has 32 tiles (GIDs 0–31); GID 32 is out of range
   const auto map_path = make_single_tileset_map(dir, "0,32");
@@ -332,7 +332,7 @@ TEST_CASE("load_tilemap — collisions array loads correctly") {
   CHECK(m.collisions.rows[1] == doctest::Approx(2.5f));
 }
 
-TEST_CASE("load_tilemap — collision with zero width throws") {
+TEST_CASE("load_tilemap — collision with zero width returns error") {
   const auto dir = temp_dir("col_zero_w");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -349,7 +349,7 @@ TEST_CASE("load_tilemap — collision with zero width throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_tilemap — collision with zero height throws") {
+TEST_CASE("load_tilemap — collision with zero height returns error") {
   const auto dir = temp_dir("col_zero_h");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -417,7 +417,7 @@ TEST_CASE("load_tilemap — negative z_index is clamped to 0") {
   CHECK(m.layers[0].z_index == 0);
 }
 
-TEST_CASE("load_tilemap — collision element missing field throws") {
+TEST_CASE("load_tilemap — collision element missing field returns error") {
   const auto dir = temp_dir("col_missing");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -451,20 +451,20 @@ TEST_CASE("load_tilemap — explicit current schema_version loads fine") {
   CHECK(result.has_value());
 }
 
-TEST_CASE("load_tilemap — schema_version newer than supported throws") {
+TEST_CASE("load_tilemap — schema_version newer than supported returns error") {
   const auto map_path =
       make_schema_map(temp_dir("schema_future"), corundum::gameplay::world::tilemap::k_tilemap_schema_version + 1);
   auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_tilemap — schema_version zero (invalid) throws") {
+TEST_CASE("load_tilemap — schema_version zero (invalid) returns error") {
   const auto map_path = make_schema_map(temp_dir("schema_zero"), 0);
   auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_tilemap — schema_version wrong type throws") {
+TEST_CASE("load_tilemap — schema_version wrong type returns error") {
   const auto dir = temp_dir("schema_wrong_type");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -642,7 +642,7 @@ TEST_CASE("load_tilemap — absent 'material_overrides' produces an empty map") 
   CHECK(result->layers[0].material_overrides.empty());
 }
 
-TEST_CASE("load_tilemap — material_overrides entry out of bounds throws") {
+TEST_CASE("load_tilemap — material_overrides entry out of bounds returns error") {
   const auto dir = temp_dir("material_overrides_oob");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -659,7 +659,7 @@ TEST_CASE("load_tilemap — material_overrides entry out of bounds throws") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_tilemap — material_overrides entry missing 'material' throws") {
+TEST_CASE("load_tilemap — material_overrides entry missing 'material' returns error") {
   const auto dir = temp_dir("material_overrides_missing_field");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";

@@ -8,12 +8,23 @@ namespace corundum::gameplay::world::tilemap {
 
   namespace {
 
-    constexpr uint8_t k_all_dirs = DirN | DirNE | DirE | DirSE | DirS | DirSW | DirW | DirNW;
+    constexpr uint8_t k_all_dirs = std::to_underlying(WalkDir::N) | std::to_underlying(WalkDir::NE) |
+                                   std::to_underlying(WalkDir::E) | std::to_underlying(WalkDir::SE) |
+                                   std::to_underlying(WalkDir::S) | std::to_underlying(WalkDir::SW) |
+                                   std::to_underlying(WalkDir::W) | std::to_underlying(WalkDir::NW);
 
     // Maps a (dc,dr) delta in {-1,0,1}^2 to its WalkDir bit via a constexpr lookup
     // table. Returns 0 for any delta outside that set (not a single-step grid-adjacent move).
     [[nodiscard]] constexpr uint8_t dir_for_delta(int dc, int dr) noexcept {
-      constexpr std::array<uint8_t, 9> k_lookup = {DirNW, DirN, DirNE, DirW, 0, DirE, DirSW, DirS, DirSE};
+      constexpr std::array<uint8_t, 9> k_lookup = {std::to_underlying(WalkDir::NW),
+                                                   std::to_underlying(WalkDir::N),
+                                                   std::to_underlying(WalkDir::NE),
+                                                   std::to_underlying(WalkDir::W),
+                                                   0,
+                                                   std::to_underlying(WalkDir::E),
+                                                   std::to_underlying(WalkDir::SW),
+                                                   std::to_underlying(WalkDir::S),
+                                                   std::to_underlying(WalkDir::SE)};
       if (dc < -1 || dc > 1 || dr < -1 || dr > 1)
         return 0;
       return k_lookup[static_cast<std::size_t>((dr + 1) * 3 + (dc + 1))];

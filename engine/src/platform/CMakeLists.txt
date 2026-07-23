@@ -55,6 +55,8 @@ else()
   target_link_libraries(engine_platform_glfw PRIVATE OpenGL::GL)
 endif()
 
+add_library(corundum::engine ALIAS engine_platform_glfw)
+
 target_compile_options(engine_platform_glfw PRIVATE -Wall -Wextra -Wpedantic)
 
 # sokol_gfx.h lacks include guards — double-inclusion in a Unity batch

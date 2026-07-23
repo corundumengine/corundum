@@ -43,7 +43,10 @@ namespace corundum::gameplay::quest {
     /**
      * @brief Look up a stage by name.
      * @param stage_name The name field of the desired stage.
-     * @return Pointer to the matching stage, or nullptr if not found. O(n).
+     * @return Pointer to the matching stage, or nullptr if not found.
+     * @note Linear scan is intentional — stage counts are single-digit in
+     *       typical usage. See dialogue::Graph::find for the indexed pattern
+     *       used where N is larger.
      */
     [[nodiscard]] const Stage *find_stage(std::string_view stage_name) const noexcept {
       for (const auto &stage : stages) {
