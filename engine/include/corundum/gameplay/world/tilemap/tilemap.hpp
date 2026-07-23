@@ -450,6 +450,16 @@ namespace corundum::gameplay::world::tilemap {
   };
 
   /**
+   * @brief Check whether (col, row) is a valid tile index for @p tm.
+   *
+   * @return true if col and row are both non-negative and less than the map's
+   *         width/height respectively.
+   */
+  [[nodiscard]] inline bool in_bounds(const Tilemap &tm, int col, int row) noexcept {
+    return col >= 0 && row >= 0 && col < tm.width && row < tm.height;
+  }
+
+  /**
    * @brief Elevation of the tile at (col, row), for entities standing on it.
    *
    * A cell can carry independent elevation data on more than one z_index==0
@@ -457,11 +467,18 @@ namespace corundum::gameplay::world::tilemap {
    * tile present at the cell — a deliberate convention, since no single
    * canonical "ground layer" is otherwise designated.
    *
-   * @return Elevation [0-255], or 0 if out of bounds, no z_index==0 layer has
-   *         a tile there, or the layer has no elevation data.
+   * @return Elevation [0–255], or 0 if out of bounds (use in_bounds() to
+   *         disambiguate a legitimate zero elevation from the OOB sentinel),
+   *         no z_index==0 layer has a tile there, or the layer has no
+   *         elevation data.
+   *
+   * @note Out-of-bounds → 0 is the intentional sentinel: the downstream
+   *       WalkabilityGraph allows movement at map edges (can_move returns
+   *       true for OOB cells), and interpolated_elevation_at relies on the 0
+   *       fallback when sampling outside the map during interpolation.
    */
   [[nodiscard]] inline int elevation_at(const Tilemap &tm, int col, int row) noexcept {
-    if (col < 0 || row < 0 || col >= tm.width || row >= tm.height)
+    if (!in_bounds(tm, col, row))
       return 0;
     const auto uidx =
         static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
@@ -493,7 +510,7 @@ namespace corundum::gameplay::world::tilemap {
    *         has a tile there, or the cell isn't a ramp.
    */
   [[nodiscard]] inline std::optional<RampAxis> ramp_axis_at(const Tilemap &tm, int col, int row) noexcept {
-    if (col < 0 || row < 0 || col >= tm.width || row >= tm.height)
+    if (!in_bounds(tm, col, row))
       return std::nullopt;
     const std::size_t uidx =
         static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
@@ -556,11 +573,15 @@ namespace corundum::gameplay::world::tilemap {
    * @param tm  The tilemap to query.
    * @param col Column index (0-based, left to right).
    * @param row Row index (0-based, top to bottom).
-   * @return The resolved material tag, or an empty string if out of bounds, no z_index==0 layer has
-   *         a tile there, or neither an override nor a tileset default is set.
+   * @return The resolved material tag, or an empty string if out of bounds (use in_bounds() to
+   *         disambiguate a legitimate empty material from the OOB sentinel), no z_index==0 layer
+   *         has a tile there, or neither an override nor a tileset default is set.
+   *
+   * @note Out-of-bounds → empty string is the intentional sentinel — see elevation_at() for the
+   *       rationale that applies equally to material resolution.
    */
   [[nodiscard]] inline std::string material_at(const Tilemap &tm, int col, int row) {
-    if (col < 0 || row < 0 || col >= tm.width || row >= tm.height)
+    if (!in_bounds(tm, col, row))
       return {};
     const std::size_t uidx =
         static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);

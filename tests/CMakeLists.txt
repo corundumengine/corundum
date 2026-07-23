@@ -8,6 +8,7 @@ add_executable(corundum_tests
     test_dialogue.cpp
     test_quest.cpp
     test_spawn_points.cpp
+    test_portals.cpp
     test_sprite.cpp
     test_game_config.cpp
     test_handle_pool.cpp

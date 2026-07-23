@@ -66,7 +66,7 @@ namespace tools::tilemap {
 
   std::expected<void, std::string> load_portals(EditorState &state) {
     // load_portals returns {} (empty vector) when the file is absent — not an error.
-    auto result = corundum::gameplay::world::load_portals(portals_path(state.map_path).string());
+    auto result = corundum::gameplay::world::load_portals(portals_path(state.map_path));
     if (!result)
       return std::unexpected(result.error());
     state.portals.clear();

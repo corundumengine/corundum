@@ -2,6 +2,7 @@
 
 #include <corundum/gameplay/quest/quest.hpp>
 #include <expected>
+#include <filesystem>
 #include <string>
 
 namespace corundum::gameplay::quest {
@@ -15,6 +16,6 @@ namespace corundum::gameplay::quest {
    * @param path Filesystem path to the quest JSON file.
    * @return The parsed Quest on success, or an error message on failure.
    */
-  [[nodiscard]] std::expected<Quest, std::string> load_quest(const std::string &path);
+  [[nodiscard]] std::expected<Quest, std::string> load_quest(const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::quest

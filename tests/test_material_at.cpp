@@ -113,3 +113,26 @@ TEST_CASE("material_at — out-of-bounds col/row returns empty string, not UB") 
   CHECK(ctt::material_at(tm, 2, 0) == "");
   CHECK(ctt::material_at(tm, 0, 2) == "");
 }
+
+// ── in_bounds ─────────────────────────────────────────────────────────────────
+
+TEST_CASE("in_bounds — material_at disambiguates OOB from empty default") {
+  ctt::Tilemap tm;
+  tm.width = 2;
+  tm.height = 2;
+  ctt::TilemapTileset ts;
+  ts.first_gid = 0;
+  ts.tile_count = 4;
+  ts.info.tile_count = 4;
+  ts.info.material = "";
+  tm.tilesets.push_back(ts);
+  ctt::TilemapLayer layer;
+  layer.z_index = 0;
+  layer.tiles = {0, 0, 0, 0};
+  tm.layers.push_back(layer);
+
+  CHECK(ctt::material_at(tm, 0, 0) == "");
+  CHECK(ctt::material_at(tm, -1, 0) == "");
+  CHECK(ctt::in_bounds(tm, 0, 0));
+  CHECK_FALSE(ctt::in_bounds(tm, -1, 0));
+}

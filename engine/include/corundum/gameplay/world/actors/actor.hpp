@@ -1,5 +1,6 @@
 #pragma once
 #include <expected>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -40,7 +41,7 @@ namespace corundum::gameplay::world {
    * @param path Path to the spawn points JSON (e.g. "data/spawn_points/world.json").
    * @return Loaded spawn points, or std::unexpected with an error description on failure.
    */
-  [[nodiscard]] std::expected<SpawnPoints, std::string> load_spawn_points(const std::string &path);
+  [[nodiscard]] std::expected<SpawnPoints, std::string> load_spawn_points(const std::filesystem::path &path);
 
   /**
    * @brief Load actors from a spawn points JSON file.
@@ -55,6 +56,6 @@ namespace corundum::gameplay::world {
    * @return Loaded actors, empty if file is absent, or std::unexpected with an
    *         error description on schema/parse failure.
    */
-  [[nodiscard]] std::expected<std::vector<Actor>, std::string> load_actors(const std::string &path);
+  [[nodiscard]] std::expected<std::vector<Actor>, std::string> load_actors(const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::world

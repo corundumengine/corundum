@@ -11,6 +11,7 @@
 #include <array>
 #include <filesystem>
 #include <format>
+#include <print>
 #include <string_view>
 #include <utility>
 
@@ -35,12 +36,17 @@ namespace corundum::gameplay::world {
     const float dh = static_cast<float>(tilemap.diamond_h());
 
     const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
-    const std::string actors_path = std::format("{}/{}.json", cfg.paths.spawn_points_dir, map_stem);
+    const auto actors_path = std::filesystem::path(cfg.paths.spawn_points_dir) / (map_stem + ".json");
 
     auto spawn_points_result = corundum::gameplay::world::load_spawn_points(actors_path);
     if (!spawn_points_result)
       return std::unexpected(spawn_points_result.error());
     const auto &spawn_points = *spawn_points_result;
+
+    if (!std::filesystem::exists(actors_path))
+      std::println("[engine] 0 actors (no spawn points file at '{}')", actors_path.string());
+    else
+      std::println("[engine] Loaded {} actors from '{}'", spawn_points.actors.size(), actors_path.string());
 
     // Spawn position precedence: explicit arg > per-map spawn_points > game.json > built-in (8,8).
     const Position spawn_pos =

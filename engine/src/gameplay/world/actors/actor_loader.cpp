@@ -89,7 +89,7 @@ namespace corundum::gameplay::world {
 
   } // namespace
 
-  std::expected<SpawnPoints, std::string> load_spawn_points(const std::string &path) {
+  std::expected<SpawnPoints, std::string> load_spawn_points(const std::filesystem::path &path) {
     std::ifstream f(path);
     if (!f)
       return SpawnPoints{};
@@ -98,23 +98,23 @@ namespace corundum::gameplay::world {
     try {
       j = json::parse(f, nullptr, true, true);
     } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed spawn points {}: {}", path, e.what()));
+      return std::unexpected(std::format("Malformed spawn points {}: {}", path.string(), e.what()));
     }
 
     if (!j.is_object())
-      return std::unexpected(std::format("Spawn points '{}' must be a JSON object", path));
+      return std::unexpected(std::format("Spawn points '{}' must be a JSON object", path.string()));
 
     SpawnPoints result;
 
     {
-      auto actors_res = parse_actors(j, path);
+      auto actors_res = parse_actors(j, path.string());
       if (!actors_res)
         return std::unexpected(actors_res.error());
       result.actors = std::move(*actors_res);
     }
 
     {
-      auto player_res = parse_player_spawn(j, path);
+      auto player_res = parse_player_spawn(j, path.string());
       if (!player_res)
         return std::unexpected(player_res.error());
       result.player = std::move(*player_res);
@@ -123,7 +123,7 @@ namespace corundum::gameplay::world {
     return result;
   }
 
-  std::expected<std::vector<Actor>, std::string> load_actors(const std::string &path) {
+  std::expected<std::vector<Actor>, std::string> load_actors(const std::filesystem::path &path) {
     auto res = load_spawn_points(path);
     if (!res)
       return std::unexpected(res.error());

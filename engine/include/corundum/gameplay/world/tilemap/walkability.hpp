@@ -48,6 +48,11 @@ namespace corundum::gameplay::world::tilemap {
      * same, or the cells aren't grid-adjacent (delta > 1 on either axis) — mirroring
      * how the existing collision system also doesn't handle multi-cell-per-frame
      * tunneling; not a new limitation introduced here.
+     *
+     * @note Out-of-bounds → true is intentional: it means no gating at map edges,
+     *       so entities can walk across chunk/map boundaries and movement at the
+     *       border isn't prematurely blocked. Callers wanting strict edge enforcement
+     *       should check in_bounds() first.
      */
     [[nodiscard]] bool can_move(int from_col, int from_row, int to_col, int to_row) const noexcept;
 

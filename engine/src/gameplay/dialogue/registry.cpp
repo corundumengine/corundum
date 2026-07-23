@@ -17,7 +17,7 @@ namespace corundum::gameplay::dialogue {
       if (entry.path().extension() != ".json")
         continue;
 
-      auto result = load_graph(entry.path().string());
+      auto result = load_graph(entry.path());
       if (!result) {
         std::println(stderr, "[dialogue] skipping '{}': {}", entry.path().filename().string(), result.error());
         continue;

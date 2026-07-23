@@ -17,7 +17,7 @@ namespace corundum::gameplay::quest {
       if (entry.path().extension() != ".json")
         continue;
 
-      auto result = load_quest(entry.path().string());
+      auto result = load_quest(entry.path());
       if (!result) {
         std::println(stderr, "[quest] skipping '{}': {}", entry.path().filename().string(), result.error());
         continue;

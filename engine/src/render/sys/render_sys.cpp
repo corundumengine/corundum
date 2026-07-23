@@ -251,6 +251,10 @@ namespace corundum::render::sys {
     auto portals = corundum::gameplay::world::load_portals(portals_file);
     if (!portals)
       return std::unexpected(portals.error());
+    if (!std::filesystem::exists(portals_file))
+      std::println("[engine] 0 portals (no portals file at '{}')", portals_file);
+    else
+      std::println("[engine] Loaded {} portals from '{}'", portals->size(), portals_file);
 
     state.map_walkability =
         corundum::gameplay::world::tilemap::build_walkability_graph(tilemap, static_cast<int>(cfg.max_step_height));
@@ -424,9 +428,11 @@ namespace corundum::render::sys {
     {
       const std::string stem = state.manifest.chunk_path(c).stem().string();
       const auto portals_path = std::filesystem::path(cfg.paths.portals_dir) / (stem + ".json");
-      auto result = corundum::gameplay::world::load_portals(portals_path.string());
+      auto result = corundum::gameplay::world::load_portals(portals_path);
       if (result.has_value())
         portals = std::move(*result);
+      else
+        std::println(stderr, "[engine] WARN: portals for chunk {} skipped: {}", stem, result.error());
     }
 
     return data::ChunkEntry{c, std::move(tilemap), std::move(tex_ids), std::move(above_z), std::move(portals)};

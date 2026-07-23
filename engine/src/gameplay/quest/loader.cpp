@@ -61,7 +61,7 @@ namespace corundum::gameplay::quest {
         try {
           return json::parse(f, nullptr, true, true);
         } catch (const json::exception &e) {
-          throw LoadError(std::format("malformed quest JSON: {}", e.what()));
+          throw LoadError(std::format("malformed quest JSON in {}: {}", path, e.what()));
         }
       }();
 
@@ -69,7 +69,7 @@ namespace corundum::gameplay::quest {
       {
         auto sv = core::quest_schema().validate(root);
         if (!sv)
-          throw LoadError(std::format("[schema] {}", sv.error()));
+          throw LoadError(std::format("[schema] {}: {}", path, sv.error()));
       }
 
       // ── Type field (optional — directory context tells us the type) ────────
@@ -96,9 +96,9 @@ namespace corundum::gameplay::quest {
 
   } // namespace
 
-  std::expected<Quest, std::string> load_quest(const std::string &path) {
+  std::expected<Quest, std::string> load_quest(const std::filesystem::path &path) {
     try {
-      return load_quest_impl(path);
+      return load_quest_impl(path.string());
     } catch (const std::exception &e) {
       return std::unexpected(std::string(e.what()));
     }

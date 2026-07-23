@@ -166,6 +166,8 @@ TEST_CASE("quest loader: invalid JSON returns error") {
   }
   auto result = quest::load_quest(tmp);
   CHECK_FALSE(result.has_value());
+  CHECK(result.error().find("malformed quest JSON") != std::string::npos);
+  CHECK(result.error().find(tmp) != std::string::npos);
   std::filesystem::remove(tmp);
 }
 

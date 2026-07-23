@@ -131,7 +131,7 @@ namespace corundum::gameplay::dialogue {
     const json root = [&file, &path] {
       try {
         return json::parse(file, nullptr, true, true);
-      } catch (const json::parse_error &e) {
+      } catch (const json::exception &e) {
         throw LoadError(std::format("malformed JSON in {}: {}", path, e.what()));
       }
     }();
@@ -140,7 +140,7 @@ namespace corundum::gameplay::dialogue {
     {
       auto sv = core::dialogue_graph_schema().validate(root);
       if (!sv)
-        throw LoadError(std::format("[schema] {}", sv.error()));
+        throw LoadError(std::format("[schema] {}: {}", path, sv.error()));
     }
 
     // ── Type field (optional — directory context tells us the type) ──────────
@@ -196,9 +196,9 @@ namespace corundum::gameplay::dialogue {
 
   // ── Public API ────────────────────────────────────────────────────────────────
 
-  std::expected<Graph, std::string> load_graph(const std::string &path) {
+  std::expected<Graph, std::string> load_graph(const std::filesystem::path &path) {
     try {
-      return load_graph_impl(path);
+      return load_graph_impl(path.string());
     } catch (const std::exception &e) {
       return std::unexpected(std::string(e.what()));
     }

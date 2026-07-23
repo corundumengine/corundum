@@ -134,3 +134,40 @@ TEST_CASE("interpolated_elevation_at — a north-south ramp blends between its n
   // Just short of the south edge: nearly the south neighbor's elevation.
   CHECK(ctt::interpolated_elevation_at(tm, 0.5f, 1.9f) == doctest::Approx(1.f));
 }
+
+// ── in_bounds ─────────────────────────────────────────────────────────────────
+
+TEST_CASE("in_bounds — returns true for valid indices") {
+  ctt::Tilemap tm;
+  tm.width = 3;
+  tm.height = 4;
+  CHECK(ctt::in_bounds(tm, 0, 0));
+  CHECK(ctt::in_bounds(tm, 2, 3));
+  CHECK(ctt::in_bounds(tm, 1, 2));
+}
+
+TEST_CASE("in_bounds — returns false for negative and overflow indices") {
+  ctt::Tilemap tm;
+  tm.width = 3;
+  tm.height = 4;
+  CHECK_FALSE(ctt::in_bounds(tm, -1, 0));
+  CHECK_FALSE(ctt::in_bounds(tm, 0, -1));
+  CHECK_FALSE(ctt::in_bounds(tm, 3, 0));
+  CHECK_FALSE(ctt::in_bounds(tm, 0, 4));
+}
+
+TEST_CASE("in_bounds — disambiguates OOB sentinel from legitimate zero elevation") {
+  ctt::Tilemap tm;
+  tm.width = 2;
+  tm.height = 2;
+  ctt::TilemapLayer layer;
+  layer.z_index = 0;
+  layer.tiles = {0, 0, 0, 0};
+  layer.elevation = {0, 0, 0, 0};
+  tm.layers.push_back(layer);
+
+  CHECK(ctt::elevation_at(tm, 0, 0) == 0);
+  CHECK(ctt::elevation_at(tm, -1, 0) == 0);
+  CHECK(ctt::in_bounds(tm, 0, 0));
+  CHECK_FALSE(ctt::in_bounds(tm, -1, 0));
+}

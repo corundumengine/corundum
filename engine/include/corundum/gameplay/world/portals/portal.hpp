@@ -1,5 +1,6 @@
 #pragma once
 #include <expected>
+#include <filesystem>
 #include <nlohmann/json_fwd.hpp>
 #include <string>
 #include <vector>
@@ -54,7 +55,7 @@ namespace corundum::gameplay::world {
    * @return Loaded portals in tile-grid space, empty if file is absent, or
    *         std::unexpected with an error description on schema/parse failure.
    */
-  [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const std::string &path);
+  [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const std::filesystem::path &path);
 
   /** @brief Serialize a list of portals to JSON matching the portals file format.
    *
