@@ -131,4 +131,12 @@ namespace corundum {
    */
   void request_quit(Engine &engine) noexcept;
 
+  /** @brief The single loaded tilemap, if the engine is in single-map mode.
+   *  @param[in] engine Initialised Engine.
+   *  @return Pointer to the active tilemap, or nullptr in World mode or before load.
+   *  @see render::data::active_tilemap() for the RenderState-level accessor. */
+  inline const gameplay::world::tilemap::Tilemap *active_tilemap(const Engine &engine) noexcept {
+    return corundum::render::data::active_tilemap(engine.render);
+  }
+
 } // namespace corundum

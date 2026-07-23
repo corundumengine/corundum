@@ -28,6 +28,7 @@ add_executable(corundum_tests
     test_camera_system.cpp
     test_entity.cpp
     test_engine_events.cpp
+    test_render_state.cpp
 )
 
 # Link to engine and doctest

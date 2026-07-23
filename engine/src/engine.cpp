@@ -45,13 +45,13 @@ namespace corundum {
       auto map_result = render::sys::load_map(*engine.renderer, engine.render, cfg.paths.tilemap_path, cfg);
       if (!map_result)
         return std::unexpected(map_result.error());
-      auto scene_result = gameplay::world::spawn_world(cfg, engine.characters, engine.render.map_data.tilemap);
+      auto scene_result = gameplay::world::spawn_world(cfg, engine.characters, *active_tilemap(engine));
       if (!scene_result)
         return std::unexpected(scene_result.error());
       engine.scene = std::move(*scene_result);
 
       // Initialize camera centered on the player.
-      const auto &tm = engine.render.map_data.tilemap;
+      const auto &tm = *active_tilemap(engine);
       const auto iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
       const auto p_slot = engine.scene.world.transforms.dense_idx(engine.scene.player);
       const float pc = engine.scene.world.transforms.col[p_slot];

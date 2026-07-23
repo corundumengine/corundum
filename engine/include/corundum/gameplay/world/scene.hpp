@@ -21,6 +21,10 @@ namespace corundum::gameplay::world {
    * container. Systems receive Scene& and operate on its tables via std::span views.
    * The Scene has no update logic — it is pure data.
    *
+   * @note Scene does not own the tilemap. Use active_tilemap(engine) for map
+   *       queries. See the render layer (RenderState::map_data, RenderState::active_chunks)
+   *       for tilemap ownership.
+   *
    * @see Engine  For the owning engine struct.
    */
   struct Scene {

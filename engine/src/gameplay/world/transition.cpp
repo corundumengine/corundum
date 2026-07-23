@@ -22,7 +22,7 @@ namespace corundum::gameplay::world {
       return;
     }
 
-    const auto &new_tm = engine.render.map_data.tilemap;
+    const auto &new_tm = *active_tilemap(engine);
     const gameplay::component::Position spawn{static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row)};
     auto scene_result = gameplay::world::spawn_world(engine.cfg, engine.characters, new_tm, spawn);
     if (!scene_result) {

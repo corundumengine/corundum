@@ -161,4 +161,12 @@ namespace corundum::render::data {
     return {};
   }
 
+  /** @brief The single loaded tilemap, if the engine is in single-map mode.
+   *  @param[in] state  Initialised render state.
+   *  @return Pointer to the active tilemap, or nullptr in World mode (which streams
+   *          one tilemap per chunk — see RenderState::active_chunks) and before load. */
+  [[nodiscard]] inline const gameplay::world::tilemap::Tilemap *active_tilemap(const RenderState &state) noexcept {
+    return state.mode == RenderMode::SingleMap ? &state.map_data.tilemap : nullptr;
+  }
+
 } // namespace corundum::render::data
