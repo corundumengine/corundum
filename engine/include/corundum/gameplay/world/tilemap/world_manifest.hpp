@@ -11,12 +11,12 @@ namespace corundum::gameplay::world::tilemap {
 
   /// Grid coordinate identifying a single chunk in the world map (column, row).
   struct ChunkCoord {
-    int x = 0; ///< Column (west→east).
-    int y = 0; ///< Row (north→south).
+    int col = 0; ///< Column (west→east).
+    int row = 0; ///< Row (north→south).
   };
 
   [[nodiscard]] inline bool operator==(ChunkCoord a, ChunkCoord b) noexcept {
-    return a.x == b.x && a.y == b.y;
+    return a.col == b.col && a.row == b.row;
   }
 
   /// Parsed world manifest — describes the chunk grid layout.
@@ -35,7 +35,7 @@ namespace corundum::gameplay::world::tilemap {
 
     /// Returns true if @p c is within [0, chunks_wide) × [0, chunks_tall).
     [[nodiscard]] bool in_bounds(ChunkCoord c) const noexcept {
-      return c.x >= 0 && c.x < chunks_wide && c.y >= 0 && c.y < chunks_tall;
+      return c.col >= 0 && c.col < chunks_wide && c.row >= 0 && c.row < chunks_tall;
     }
 
     /// Path to the JSON file for chunk @p c.

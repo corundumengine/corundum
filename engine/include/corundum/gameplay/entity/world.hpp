@@ -34,7 +34,7 @@ namespace corundum::gameplay::entity {
   /// @note Not thread-safe.
   struct World {
     EntityManager entities;
-    TransformTable transforms;          ///< Hot: x, y, dx, dy — updated every frame.
+    TransformTable transforms;          ///< Hot: col, row, dc, dr — updated every frame.
     TransformNameTable transform_names; ///< Cold: debug labels — never read in update loops.
     SpriteTable sprites;
     AnimationTable animations;

@@ -11,7 +11,7 @@ using json = nlohmann::json;
 namespace corundum::gameplay::world::tilemap {
 
   std::filesystem::path WorldManifest::chunk_path(ChunkCoord c) const {
-    return base_dir / std::format("chunk_{}_{}.json", c.x, c.y);
+    return base_dir / std::format("chunk_{}_{}.json", c.col, c.row);
   }
 
   std::expected<WorldManifest, std::string> load_world_manifest(const fs::path &path) {
@@ -81,7 +81,7 @@ namespace corundum::gameplay::world::tilemap {
   std::pair<float, float> chunk_origin_px(ChunkCoord c, const WorldManifest &m, int tile_px,
                                           float tile_scale) noexcept {
     const float chunk_px = static_cast<float>(m.chunk_size * tile_px) * tile_scale;
-    return {static_cast<float>(c.x) * chunk_px, static_cast<float>(c.y) * chunk_px};
+    return {static_cast<float>(c.col) * chunk_px, static_cast<float>(c.row) * chunk_px};
   }
 
   std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept {
@@ -95,7 +95,7 @@ namespace corundum::gameplay::world::tilemap {
     std::vector<ChunkCoord> result;
     for (int dy = -radius; dy <= radius; ++dy) {
       for (int dx = -radius; dx <= radius; ++dx) {
-        ChunkCoord c{center.x + dx, center.y + dy};
+        ChunkCoord c{center.col + dx, center.row + dy};
         if (m.in_bounds(c))
           result.push_back(c);
       }

@@ -51,7 +51,7 @@ namespace corundum::core::math {
   /**
    * @brief Packed isometric projection parameters for a tilemap at a given scale.
    *
-   * Pass this to tile_to_world / cart_to_iso to avoid computing half_tw, half_th,
+   * Pass this to tile_to_world / world_to_tile to avoid computing half_tw, half_th,
    * and x_origin separately at every call site.
    */
   struct IsoParams {
@@ -140,10 +140,7 @@ namespace corundum::core::math {
 
   /**
    * @brief Convert an isometric world-space position back to fractional tile-grid
-   * coordinates, given an assumed elevation. The direct inverse of tile_to_world —
-   * distinct from cart_to_iso/iso_to_cart, which invert the legacy Cartesian-pixel
-   * convention (col*tile_w, row*tile_h) used at the physics/collision boundary and
-   * take no elevation term.
+   * coordinates, given an assumed elevation. The direct inverse of tile_to_world.
    *
    * @param world_pos Isometric world-space position (already camera-adjusted).
    * @param elevation Assumed tile height — the caller supplies this per-candidate
@@ -164,44 +161,42 @@ namespace corundum::core::math {
   }
 
   /**
-   * @brief Convert a Cartesian tile-pixel position to isometric world space.
+   * @brief Convert a fractional tile grid position and elevation to an isometric
+   * world-space position using a packed IsoParams struct.
    *
-   * Cartesian coordinates are the legacy internal format:
-   *   cart.x = col * tile_w,  cart.y = row * tile_h  (tile_w == tile_h).
-   * Used at physics/collision boundaries where rects remain in Cartesian space.
+   * Overload for callers that already hold an IsoParams. Fractional col/row lets
+   * camera-centering and interpolated entity positions call this directly without
+   * re-inlining the projection.
    *
-   * @param cart     Cartesian tile-pixel position.
-   * @param half_tw  Half the scaled diamond width (= tile_w / 2 when diamond_w == tile_px).
-   * @param half_th  Half the scaled diamond height (= tile_w / 4 for 2:1 isometric).
-   * @param x_origin Horizontal shift from tile_to_world (pass 0 if not using origin shift).
+   * @param col       Tile column (fractional).
+   * @param row       Tile row (fractional).
+   * @param elevation Tile height [0–255]; 0 is flat ground level.
+   * @param iso       Packed projection parameters from compute_iso_params().
+   * @param elev_step Screen pixels lifted per unit of elevation.
    * @return Isometric world-space position.
    */
-  [[nodiscard]] constexpr Vec2 cart_to_iso(Vec2 cart, float half_tw, float half_th, float x_origin = 0.f) noexcept {
-    const float tile_w = half_tw * 2.f;
+  [[nodiscard]] constexpr Vec2 tile_to_world(float col, float row, int elevation, const IsoParams &iso,
+                                             float elev_step) noexcept {
     return {
-        (cart.x - cart.y) * half_tw / tile_w + x_origin,
-        (cart.x + cart.y) * half_th / tile_w,
+        (col - row) * iso.half_tw + iso.x_origin,
+        (col + row) * iso.half_th - static_cast<float>(elevation) * elev_step,
     };
   }
 
   /**
-   * @brief Convert an isometric world-space position back to Cartesian tile-pixel space.
+   * @brief Convert an isometric world-space position back to fractional tile-grid
+   * coordinates using a packed IsoParams struct. Overload for callers that already
+   * hold an IsoParams.
    *
-   * Inverse of cart_to_iso. Used in the physics system to check entity positions
-   * against Cartesian collision rects.
-   *
-   * @param iso      Isometric world-space position.
-   * @param half_tw  Half the scaled diamond width.
-   * @param half_th  Half the scaled diamond height.
-   * @param x_origin The same x_origin passed to cart_to_iso (subtracted before inversion).
-   * @return Cartesian tile-pixel position (col * tile_w, row * tile_h).
+   * @param world_pos Isometric world-space position (already camera-adjusted).
+   * @param elevation Assumed tile height.
+   * @param iso       Packed projection parameters from compute_iso_params().
+   * @param elev_step Screen pixels lifted per unit of elevation.
+   * @return Fractional {col, row}; floor() each component to get the containing cell.
    */
-  [[nodiscard]] constexpr Vec2 iso_to_cart(Vec2 iso, float half_tw, float half_th, float x_origin = 0.f) noexcept {
-    const float tile_w = half_tw * 2.f;
-    const float adj_x = iso.x - x_origin;
-    const float col_f = (adj_x / half_tw + iso.y / half_th) * 0.5f;
-    const float row_f = (iso.y / half_th - adj_x / half_tw) * 0.5f;
-    return {col_f * tile_w, row_f * tile_w};
+  [[nodiscard]] constexpr Vec2 world_to_tile(Vec2 world_pos, int elevation, const IsoParams &iso,
+                                             float elev_step) noexcept {
+    return world_to_tile(world_pos, elevation, iso.half_tw, iso.half_th, elev_step, iso.x_origin);
   }
 
   /**

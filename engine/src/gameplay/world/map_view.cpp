@@ -18,16 +18,16 @@ namespace corundum::gameplay::world {
 
       render.agg_portals.clear();
       for (const auto &chunk : render.active_chunks) {
-        const int ox = chunk.coord.x * manifest.chunk_size;
-        const int oy = chunk.coord.y * manifest.chunk_size;
+        const int ox = chunk.coord.col * manifest.chunk_size;
+        const int oy = chunk.coord.row * manifest.chunk_size;
         for (const auto &p : chunk.portals) {
           render.agg_portals.push_back(p);
           auto &agg = render.agg_portals.back();
           agg.col += static_cast<float>(ox);
           agg.row += static_cast<float>(oy);
-          if (agg.target_chunk_x >= 0) {
-            agg.spawn_col += agg.target_chunk_x * manifest.chunk_size;
-            agg.spawn_row += agg.target_chunk_y * manifest.chunk_size;
+          if (agg.target_chunk_col >= 0) {
+            agg.spawn_col += agg.target_chunk_col * manifest.chunk_size;
+            agg.spawn_row += agg.target_chunk_row * manifest.chunk_size;
           }
         }
       }

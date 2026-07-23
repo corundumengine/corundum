@@ -26,8 +26,7 @@ namespace tools::tilemap {
 
       // Top vertex of the diamond in world space, then shift to the southern vertex
       // (the footprint diamond extends downward from the top vertex).
-      const auto top_world =
-          corundum::core::math::tile_to_world(col, row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+      const auto top_world = corundum::core::math::tile_to_world(col, row, 0, iso, 0.f);
       const float anchor_x = ox + top_world.x;
       const float anchor_y = oy + top_world.y + corundum::core::math::diamond_cell_height(iso.half_th);
 
@@ -59,15 +58,15 @@ namespace tools::tilemap {
 
       // Column lines (k = 0..W): connect top vertices of (k, 0) and (k, H).
       for (int k = 0; k <= W; ++k) {
-        const auto p0_world = corundum::core::math::tile_to_world(k, 0, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
-        const auto p1_world = corundum::core::math::tile_to_world(k, H, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+        const auto p0_world = corundum::core::math::tile_to_world(k, 0, 0, iso, 0.f);
+        const auto p1_world = corundum::core::math::tile_to_world(k, H, 0, iso, 0.f);
         ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
       }
 
       // Row lines (k = 0..H): connect top vertices of (0, k) and (W, k).
       for (int k = 0; k <= H; ++k) {
-        const auto p0_world = corundum::core::math::tile_to_world(0, k, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
-        const auto p1_world = corundum::core::math::tile_to_world(W, k, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+        const auto p0_world = corundum::core::math::tile_to_world(0, k, 0, iso, 0.f);
+        const auto p1_world = corundum::core::math::tile_to_world(W, k, 0, iso, 0.f);
         ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
       }
     }

@@ -128,8 +128,7 @@ namespace tools::tilemap {
                                ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
                                : 0;
 
-          const auto world =
-              corundum::core::math::tile_to_world(col, row, elev, iso.half_tw, iso.half_th, elev_step, iso.x_origin);
+          const auto world = corundum::core::math::tile_to_world(col, row, elev, iso, elev_step);
           const float iso_x = world.x;
           const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
 

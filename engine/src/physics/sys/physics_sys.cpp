@@ -266,7 +266,7 @@ namespace corundum::physics::sys {
       const float row1 = p.row + player_rect.row_span;
       for (const auto &portal : map.portals) {
         if (col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h) {
-          if (portal.target_chunk_x >= 0) {
+          if (portal.target_chunk_col >= 0) {
             p.col = static_cast<float>(portal.spawn_col);
             p.row = static_cast<float>(portal.spawn_row);
             transforms.col[p_slot] = p.col;

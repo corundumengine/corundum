@@ -143,45 +143,6 @@ TEST_CASE("iso_depth_key — guards against division by zero half_th") {
   CHECK(ccm::iso_depth_key(1.f, 2.f, 5.f, 0.f, 4.f) == doctest::Approx(3.f));
 }
 
-// ── cart_to_iso / iso_to_cart round-trips ─────────────────────────────────────
-
-TEST_CASE("cart_to_iso — tile origin") {
-  // Cartesian (0,0) → iso (x_origin, 0)
-  const auto iso = ccm::cart_to_iso({0.f, 0.f}, k_half_tw, k_half_th);
-  CHECK(iso.x == doctest::Approx(0.f));
-  CHECK(iso.y == doctest::Approx(0.f));
-}
-
-TEST_CASE("cart_to_iso matches tile_to_world for integer tile positions") {
-  // cart position of tile (col, row) = (col * tile_w, row * tile_w), tile_w = 2*half_tw
-  const float tile_w = k_half_tw * 2.f;
-  constexpr int col = 3, row = 2;
-  const ccm::Vec2 cart{static_cast<float>(col) * tile_w, static_cast<float>(row) * tile_w};
-  const auto iso = ccm::cart_to_iso(cart, k_half_tw, k_half_th);
-  const auto expected = ccm::tile_to_world(col, row, 0, k_half_tw, k_half_th, 0.f, 0.f);
-  CHECK(iso.x == doctest::Approx(expected.x));
-  CHECK(iso.y == doctest::Approx(expected.y));
-}
-
-TEST_CASE("iso_to_cart round-trips through cart_to_iso") {
-  const ccm::Vec2 original{128.f, 256.f};
-  const auto iso = ccm::cart_to_iso(original, k_half_tw, k_half_th);
-  const auto recovered = ccm::iso_to_cart(iso, k_half_tw, k_half_th);
-  CHECK(recovered.x == doctest::Approx(original.x).epsilon(0.01f));
-  CHECK(recovered.y == doctest::Approx(original.y).epsilon(0.01f));
-}
-
-TEST_CASE("cart_to_iso with x_origin matches tile_to_world with x_origin") {
-  const float tile_w = k_half_tw * 2.f;
-  const float x_origin = 7.f * k_half_tw;
-  constexpr int col = 4, row = 7;
-  const ccm::Vec2 cart{static_cast<float>(col) * tile_w, static_cast<float>(row) * tile_w};
-  const auto iso = ccm::cart_to_iso(cart, k_half_tw, k_half_th, x_origin);
-  const auto expected = ccm::tile_to_world(col, row, 0, k_half_tw, k_half_th, 0.f, x_origin);
-  CHECK(iso.x == doctest::Approx(expected.x));
-  CHECK(iso.y == doctest::Approx(expected.y));
-}
-
 // ── chunk_at_iso ─────────────────────────────────────────────────────────────
 
 TEST_CASE("chunk_at_iso — player at world origin maps to chunk (0,0)") {
@@ -204,15 +165,12 @@ TEST_CASE("chunk_at_iso — player at center of world maps to center chunk") {
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
-  // Center tile = (8*128, 4*128) = (1024, 512); iso pos via tile_to_world
-  const float tile_w = k_half_tw * 2.f;
   const int center_col = 8 * 128;
   const int center_row = 4 * 128;
-  const ccm::Vec2 cart{static_cast<float>(center_col) * tile_w, static_cast<float>(center_row) * tile_w};
-  const auto iso = ccm::cart_to_iso(cart, k_half_tw, k_half_th);
+  const auto iso = ccm::tile_to_world(center_col, center_row, 0, k_half_tw, k_half_th, 0.f, 0.f);
   const ChunkCoord c = chunk_at_iso(iso.x, iso.y, m, k_half_tw, k_half_th);
-  CHECK(c.x == 8);
-  CHECK(c.y == 4);
+  CHECK(c.col == 8);
+  CHECK(c.row == 4);
 }
 
 TEST_CASE("chunk_at_iso — clamped at negative iso position") {
@@ -224,6 +182,52 @@ TEST_CASE("chunk_at_iso — clamped at negative iso position") {
   const auto &m = *manifest_result;
   // Deeply negative iso position → clamped to (0,0)
   CHECK(chunk_at_iso(-999999.f, -999999.f, m, k_half_tw, k_half_th) == ChunkCoord{0, 0});
+}
+
+// ── IsoParams overloads ──────────────────────────────────────────────────────
+
+TEST_CASE("IsoParams tile_to_world agrees with scalar form (zero elevation, zero x_origin)") {
+  const ccm::IsoParams iso{k_half_tw, k_half_th, 0.f};
+  const auto p = ccm::tile_to_world(3.f, 4.f, 0, iso, 4.f);
+  const auto expected = ccm::tile_to_world(3, 4, 0, k_half_tw, k_half_th, 4.f, 0.f);
+  CHECK(p.x == doctest::Approx(expected.x));
+  CHECK(p.y == doctest::Approx(expected.y));
+}
+
+TEST_CASE("IsoParams tile_to_world agrees with scalar form (nonzero elevation, nonzero x_origin)") {
+  constexpr float xo = 7.f * k_half_tw;
+  const ccm::IsoParams iso{k_half_tw, k_half_th, xo};
+  const auto p = ccm::tile_to_world(2.f, 5.f, 30, iso, 4.f);
+  const auto expected = ccm::tile_to_world(2, 5, 30, k_half_tw, k_half_th, 4.f, xo);
+  CHECK(p.x == doctest::Approx(expected.x));
+  CHECK(p.y == doctest::Approx(expected.y));
+}
+
+TEST_CASE("IsoParams tile_to_world with fractional input") {
+  const ccm::IsoParams iso{k_half_tw, k_half_th, 0.f};
+  const auto p = ccm::tile_to_world(3.7f, 4.2f, 0, iso, 0.f);
+  const float expected_x = (3.7f - 4.2f) * k_half_tw;
+  const float expected_y = (3.7f + 4.2f) * k_half_th;
+  CHECK(p.x == doctest::Approx(expected_x));
+  CHECK(p.y == doctest::Approx(expected_y));
+}
+
+TEST_CASE("IsoParams world_to_tile agrees with scalar form") {
+  constexpr float xo = 7.f * k_half_tw;
+  const ccm::IsoParams iso{k_half_tw, k_half_th, xo};
+  const ccm::Vec2 world{100.f, 200.f};
+  const auto t = ccm::world_to_tile(world, 0, iso, 4.f);
+  const auto expected = ccm::world_to_tile(world, 0, k_half_tw, k_half_th, 4.f, xo);
+  CHECK(t.x == doctest::Approx(expected.x));
+  CHECK(t.y == doctest::Approx(expected.y));
+}
+
+TEST_CASE("IsoParams world_to_tile tile_to_world round-trip") {
+  const ccm::IsoParams iso{k_half_tw, k_half_th, 0.f};
+  const auto world = ccm::tile_to_world(3.f, 4.f, 0, iso, 4.f);
+  const auto tile = ccm::world_to_tile(world, 0, iso, 4.f);
+  CHECK(tile.x == doctest::Approx(3.f));
+  CHECK(tile.y == doctest::Approx(4.f));
 }
 
 // ── world_bounds_iso ─────────────────────────────────────────────────────────

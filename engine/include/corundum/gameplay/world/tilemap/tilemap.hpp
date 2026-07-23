@@ -91,7 +91,7 @@ namespace corundum::gameplay::world::tilemap {
     std::vector<TileId> tiles; ///< Row-major, size == map width * height; k_empty_tile for animated cells.
     std::flat_map<int, AnimatedCell> animated_cells; ///< cell_index (row*width+col) → resolved animation.
     std::flat_map<int, uint8_t> flip_flags;          ///< cell_index → k_flip_h | k_flip_v; absent == no flip.
-    std::vector<uint8_t> elevation; ///< Per-tile elevation [0–100]; empty == all flat (optional for isometric).
+    std::vector<uint8_t> elevation; ///< Per-tile elevation [0–255]; empty == all flat (optional for isometric).
     std::flat_map<int, std::string> material_overrides; ///< cell_index → terrain-material tag, overriding the
                                                         ///< owning tileset's default TilesetInfo::material for
                                                         ///< that one cell (e.g. a snow-dusted patch of an

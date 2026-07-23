@@ -477,12 +477,12 @@ namespace corundum::render::sys {
       constexpr float k_margin_tiles = 0.02f * 128.f;
       const float col_f = pc;
       const float row_f = pr;
-      const float local_col = col_f - static_cast<float>(center.x * state.manifest.chunk_size);
-      const float local_row = row_f - static_cast<float>(center.y * state.manifest.chunk_size);
+      const float local_col = col_f - static_cast<float>(center.col * state.manifest.chunk_size);
+      const float local_row = row_f - static_cast<float>(center.row * state.manifest.chunk_size);
       const float chunk_tiles = static_cast<float>(state.manifest.chunk_size);
-      const bool x_ok = (center.x == state.last_center_chunk.x) ||
+      const bool x_ok = (center.col == state.last_center_chunk.col) ||
                         (local_col >= k_margin_tiles && local_col <= chunk_tiles - k_margin_tiles);
-      const bool y_ok = (center.y == state.last_center_chunk.y) ||
+      const bool y_ok = (center.row == state.last_center_chunk.row) ||
                         (local_row >= k_margin_tiles && local_row <= chunk_tiles - k_margin_tiles);
       if (x_ok && y_ok)
         state.last_center_chunk = center;
@@ -492,7 +492,7 @@ namespace corundum::render::sys {
     int desired_count = 0;
     for (int dy = -1; dy <= 1; ++dy) {
       for (int dx = -1; dx <= 1; ++dx) {
-        const ChunkCoord c{state.last_center_chunk.x + dx, state.last_center_chunk.y + dy};
+        const ChunkCoord c{state.last_center_chunk.col + dx, state.last_center_chunk.row + dy};
         if (state.manifest.in_bounds(c))
           desired[desired_count++] = c;
       }
@@ -517,8 +517,8 @@ namespace corundum::render::sys {
     state.chunk_slot_by_offset.fill(-1);
     for (std::size_t i = 0; i < state.active_chunks.size(); ++i) {
       const auto &e = state.active_chunks[i];
-      const int dx = e.coord.x - state.last_center_chunk.x;
-      const int dy = e.coord.y - state.last_center_chunk.y;
+      const int dx = e.coord.col - state.last_center_chunk.col;
+      const int dy = e.coord.row - state.last_center_chunk.row;
       if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
         state.chunk_slot_by_offset[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))] = static_cast<int32_t>(i);
     }
@@ -778,8 +778,8 @@ namespace corundum::render::sys {
                              cam_x,
                              cam_y,
                              zoom,
-                             chunk.coord.x * state.manifest.chunk_size,
-                             chunk.coord.y * state.manifest.chunk_size};
+                             chunk.coord.col * state.manifest.chunk_size,
+                             chunk.coord.row * state.manifest.chunk_size};
       collect_tile_layer(r, ctx, 0, cfg, scene, out);
     }
   }
@@ -826,8 +826,8 @@ namespace corundum::render::sys {
                            cam_x,
                            cam_y,
                            zoom,
-                           chunk.coord.x * state.manifest.chunk_size,
-                           chunk.coord.y * state.manifest.chunk_size};
+                           chunk.coord.col * state.manifest.chunk_size,
+                           chunk.coord.row * state.manifest.chunk_size};
     render_tile_layer(r, ctx, z_index, cfg, scene);
   }
 
@@ -844,7 +844,7 @@ namespace corundum::render::sys {
     const auto c = state.pending_chunks.front();
     state.pending_chunks.erase(state.pending_chunks.begin());
     if (auto entry = load_chunk_entry(r, state, c, cfg)) {
-      std::println("[keystone] Loading chunk ({}, {})", c.x, c.y);
+      std::println("[keystone] Loading chunk ({}, {})", c.col, c.row);
       state.active_chunks.push_back(std::move(*entry));
       return true;
     }
@@ -864,15 +864,16 @@ namespace corundum::render::sys {
       const corundum::gameplay::world::tilemap::ChunkCoord owner{
           static_cast<int>(std::floor(static_cast<float>(col) / static_cast<float>(chunk_size))),
           static_cast<int>(std::floor(static_cast<float>(row) / static_cast<float>(chunk_size)))};
-      const int dx = owner.x - state.last_center_chunk.x;
-      const int dy = owner.y - state.last_center_chunk.y;
+      const int dx = owner.col - state.last_center_chunk.col;
+      const int dy = owner.row - state.last_center_chunk.row;
       if (dx < -1 || dx > 1 || dy < -1 || dy > 1)
         return 0.f;
       const int32_t slot = state.chunk_slot_by_offset[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))];
       if (slot < 0)
         return 0.f;
       const auto &entry = state.active_chunks[static_cast<std::size_t>(slot)];
-      return static_cast<float>(elevation_at(entry.tilemap, col - owner.x * chunk_size, row - owner.y * chunk_size));
+      return static_cast<float>(
+          elevation_at(entry.tilemap, col - owner.col * chunk_size, row - owner.row * chunk_size));
     }
 
     if (!state.map_data.tilemap.tilesets.empty())

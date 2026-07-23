@@ -66,8 +66,7 @@ namespace tools::tilemap {
     const float origin_shift_y = iso.half_th; // Y shift uses 1 half-diamond (no asymmetry).
     const float world_x = static_cast<float>(px - canvas_left) + camera_x - origin_shift_x;
     const float world_y = static_cast<float>(py - canvas_top) + camera_y - origin_shift_y;
-    const corundum::core::math::Vec2 frac =
-        corundum::core::math::world_to_tile({world_x, world_y}, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+    const corundum::core::math::Vec2 frac = corundum::core::math::world_to_tile({world_x, world_y}, 0, iso, 0.f);
     const int col = static_cast<int>(std::floor(frac.x));
     const int row = static_cast<int>(std::floor(frac.y));
 

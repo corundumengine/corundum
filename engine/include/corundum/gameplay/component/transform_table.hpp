@@ -125,7 +125,7 @@ namespace corundum::gameplay::component {
 
     /** @brief Dense row index for @p e; use for direct SoA array subscript on hot paths.
      *  @pre has(e) must be true.
-     *  @return Index into x/y/dx/dy arrays.
+     *  @return Index into col/row/dc/dr arrays.
      */
     [[nodiscard]] std::uint32_t dense_idx(EntityId e) const noexcept {
       return idx.dense_idx(e);

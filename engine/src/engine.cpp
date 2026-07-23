@@ -56,8 +56,9 @@ namespace corundum {
       const auto p_slot = engine.scene.world.transforms.dense_idx(engine.scene.player);
       const float pc = engine.scene.world.transforms.col[p_slot];
       const float pr = engine.scene.world.transforms.row[p_slot];
-      const float iso_x = (pc - pr) * iso.half_tw + iso.x_origin;
-      const float iso_y = (pc + pr) * iso.half_th;
+      const auto iso_pos = core::math::tile_to_world(pc, pr, 0, iso, 0.f);
+      const float iso_x = iso_pos.x;
+      const float iso_y = iso_pos.y;
       const float extent = static_cast<float>(tm.width + tm.height - 1) * iso.half_tw * 2.f;
       engine.scene.camera.x = std::clamp(iso_x - cfg.win_w * 0.5f, 0.f, extent - cfg.win_w);
       engine.scene.camera.y = std::clamp(iso_y - cfg.win_h * 0.5f, 0.f, extent - cfg.win_h);
