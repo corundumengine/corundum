@@ -1,17 +1,20 @@
 #pragma once
 #include <array>
 #include <corundum/resources/sprite.hpp>
+#include <corundum/resources/sprite_atlas.hpp>
 #include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/tool_host/undo.hpp>
 #include <filesystem>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace tools::sprite {
 
   /**
-   * @brief Selects between character animation sheet and flat sprite sheet.
+   * @brief Selects between character animation sheet, flat sprite sheet, and read-only atlas.
    */
-  enum class SheetMode { Character, SpriteSheet };
+  enum class SheetMode { Character, SpriteSheet, Atlas };
 
   /**
    * @brief A named sprite entry within a character sheet.
@@ -37,6 +40,27 @@ namespace tools::sprite {
   struct AnimClip {
     std::string name;                                    ///< Clip name.
     std::vector<corundum::resources::FrameCoord> frames; ///< Ordered frame coordinates.
+  };
+
+  /**
+   * @brief A named animation clip within an atlas, referencing frames by atlas sprite name.
+   *
+   * Names (not rects/indices) survive spritepacker repacks; see atlas_clips.hpp.
+   */
+  struct AtlasAnimClip {
+    std::string name;                ///< Clip name.
+    int fps = 8;                     ///< Playback rate for this clip.
+    std::vector<std::string> frames; ///< Ordered atlas sprite names; may contain dangling names.
+  };
+
+  /**
+   * @brief Undo-stack snapshot for atlas mode: the authored clip data only.
+   *
+   * Atlas geometry (atlas_sprites) is read-only and never mutated, so it is excluded.
+   */
+  struct AtlasClipDoc {
+    std::vector<AtlasAnimClip> clips;
+    int selected_clip = -1;
   };
 
   /**
@@ -81,6 +105,16 @@ namespace tools::sprite {
     std::vector<AnimClip> anim_clips; ///< All animation clips in the sprite sheet.
     int selected_clip = -1;           ///< Index of the active clip, or -1.
     bool clip_recording = false;      ///< True while recording frames into selected_clip.
+
+    // ---- Atlas mode (read-only geometry, sidecar-backed clips) --------------
+    std::vector<corundum::resources::AtlasSprite> atlas_sprites; ///< Read-only, from the atlas JSON.
+    std::unordered_map<std::string, int> atlas_name_to_index;    ///< Sprite name -> atlas_sprites index.
+    std::vector<AtlasAnimClip> atlas_clips;                      ///< Authored clips (sidecar-backed).
+    int selected_atlas_clip = -1;                                ///< Index of the active clip, or -1.
+    bool atlas_clip_recording = false;                       ///< True while recording frames into selected_atlas_clip.
+    int hover_sprite = -1;                                   ///< atlas_sprites index under the cursor, or -1.
+    int selected_atlas_sprite = -1;                          ///< Focused entry in the sprite list panel, or -1.
+    corundum::tool_host::UndoStack<AtlasClipDoc> atlas_undo; ///< Undo/redo for atlas_clips edits.
 
     // ---- Preview overlays ---------------------------------------------------
     bool show_collision_box = false; ///< Draw collision rect overlay in the animation preview.

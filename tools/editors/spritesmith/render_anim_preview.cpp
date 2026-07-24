@@ -9,7 +9,8 @@ namespace tools::sprite {
 
     using corundum::resources::FrameCoord;
 
-    // Retrieve the active frame sequence (character or sprite sheet mode).
+    // Retrieve the active frame sequence (character or sprite sheet mode). Atlas mode is
+    // handled separately since its frames are names, not grid coordinates.
     std::span<const FrameCoord> active_frames(const EditorState &state) {
       if (state.mode == SheetMode::Character) {
         if (state.selected_sprite < 0 || state.selected_sprite >= static_cast<int>(state.sprites.size()))
@@ -23,8 +24,29 @@ namespace tools::sprite {
     }
 
     float frame_duration(const EditorState &state) {
+      if (state.mode == SheetMode::Atlas) {
+        if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
+          return 1.f / 8.f;
+        return 1.f / static_cast<float>(
+                         std::max(1, state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)].fps));
+      }
       const int fps = (state.mode == SheetMode::SpriteSheet) ? state.anim_fps : 8;
       return 1.f / static_cast<float>(std::max(1, fps));
+    }
+
+    // Resolve the atlas clip's frame names to sprite indices, skipping dangling names.
+    std::vector<int> active_atlas_frame_indices(const EditorState &state) {
+      std::vector<int> indices;
+      if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
+        return indices;
+      const auto &clip = state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)];
+      indices.reserve(clip.frames.size());
+      for (const auto &name : clip.frames) {
+        auto it = state.atlas_name_to_index.find(name);
+        if (it != state.atlas_name_to_index.end())
+          indices.push_back(it->second);
+      }
+      return indices;
     }
 
     // Return {col_span, row_span} for the active selection (1,1 for sprite sheet mode).
@@ -49,12 +71,66 @@ namespace tools::sprite {
               (py + static_cast<float>(pixel_h)) / tex_h};
     }
 
+    // Atlas mode: frames are resolved sprite indices, each with its own trim/source-canvas.
+    // The trimmed quad is positioned inside a source_width x source_height virtual canvas so
+    // playback doesn't jitter as trim varies frame to frame.
+    void render_atlas_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h,
+                              float dt_seconds) {
+      const auto indices = active_atlas_frame_indices(state);
+      if (indices.empty())
+        return;
+
+      static float elapsed = 0.f;
+      static int last_clip = -1;
+      if (last_clip != state.selected_atlas_clip) {
+        elapsed = 0.f;
+        last_clip = state.selected_atlas_clip;
+      }
+      elapsed += dt_seconds;
+      const float dur = frame_duration(state);
+      const int total = static_cast<int>(indices.size());
+      const int fi = static_cast<int>(elapsed / dur) % total;
+      const auto &s = state.atlas_sprites[static_cast<std::size_t>(indices[static_cast<std::size_t>(fi)])];
+
+      const float tw = static_cast<float>(tex_w);
+      const float th = static_cast<float>(tex_h);
+      const float u0 = static_cast<float>(s.x) / tw;
+      const float v0 = static_cast<float>(s.y) / th;
+      const float u1 = static_cast<float>(s.x + s.w) / tw;
+      const float v1 = static_cast<float>(s.y + s.h) / th;
+
+      const int canvas_w = s.source_width > 0 ? s.source_width : s.w;
+      const int canvas_h = s.source_height > 0 ? s.source_height : s.h;
+      const float disp_scale = std::min(200.f / static_cast<float>(canvas_w), 200.f / static_cast<float>(canvas_h));
+      const float disp_canvas_w = static_cast<float>(canvas_w) * disp_scale;
+      const float disp_canvas_h = static_cast<float>(canvas_h) * disp_scale;
+      const float disp_trim_w = static_cast<float>(s.w) * disp_scale;
+      const float disp_trim_h = static_cast<float>(s.h) * disp_scale;
+
+      ImGui::Text("Frame %d / %d  (%s)", fi + 1, total, s.name.c_str());
+      ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - disp_canvas_w) * 0.5f);
+      const ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+      ImGui::Dummy({disp_canvas_w, disp_canvas_h});
+
+      ImDrawList *dl = ImGui::GetWindowDrawList();
+      const ImVec2 img_p0 = {canvas_pos.x + static_cast<float>(s.trim_x) * disp_scale,
+                             canvas_pos.y + static_cast<float>(s.trim_y) * disp_scale};
+      const ImVec2 img_p1 = {img_p0.x + disp_trim_w, img_p0.y + disp_trim_h};
+      dl->AddImage(tex, img_p0, img_p1, {u0, v0}, {u1, v1});
+    }
+
   } // namespace
 
   void render_anim_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h, bool has_texture,
                            float dt_seconds) {
     if (!has_texture)
       return;
+
+    if (state.mode == SheetMode::Atlas) {
+      render_atlas_preview(state, tex, tex_w, tex_h, dt_seconds);
+      return;
+    }
+
     const auto frames = active_frames(state);
     if (frames.empty())
       return;

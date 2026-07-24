@@ -15,8 +15,9 @@ namespace tools::sprite {
   /**
    * @brief Load a sprite sheet JSON file into @p state.
    *
-   * Detects Character vs Sprite Sheet mode automatically from the JSON structure.
-   * Character sheets have a "frames" object; sprite sheet sheets have "columns".
+   * Detects Character, Sprite Sheet, or Atlas mode automatically from the JSON structure.
+   * Character sheets have a "frames" object; atlases have a "sprites" array + "schema_version";
+   * everything else is treated as a grid sprite sheet.
    *
    * @param state Output editor state to populate.
    * @param path  Path to the sprite sheet JSON file.

@@ -1,14 +1,20 @@
 #include "load.hpp"
+#include <corundum/resources/atlas_clips.hpp>
+#include <corundum/resources/atlas_clips_loader.hpp>
 #include <corundum/resources/character_sheet_loader.hpp>
+#include <corundum/resources/sprite_atlas.hpp>
 #include <corundum/resources/sprite_sheet_clips_loader.hpp>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <print>
 
 namespace tools::sprite {
 
   namespace {
 
     SheetMode detect_mode(const nlohmann::json &j) {
+      if (j.contains("sprites") && j.at("sprites").is_array() && j.contains("schema_version"))
+        return SheetMode::Atlas;
       if (j.contains("frames") && j.at("frames").is_object())
         return SheetMode::Character;
       return SheetMode::SpriteSheet;
@@ -64,6 +70,42 @@ namespace tools::sprite {
         state.anim_clips.push_back({clip.name, clip.frames});
     }
 
+    void load_atlas_mode(EditorState &state, const std::filesystem::path &path) {
+      auto result = corundum::resources::load_sprite_atlas(path);
+      if (!result)
+        throw SheetLoadError(result.error());
+      const auto &atlas = *result;
+
+      state.mode = SheetMode::Atlas;
+      state.image_path = atlas.path;
+      state.image_pixel_w = atlas.width;
+      state.image_pixel_h = atlas.height;
+
+      state.atlas_sprites = atlas.sprites;
+      state.atlas_name_to_index.clear();
+      for (int i = 0; i < static_cast<int>(state.atlas_sprites.size()); ++i)
+        state.atlas_name_to_index[state.atlas_sprites[static_cast<std::size_t>(i)].name] = i;
+
+      state.atlas_clips.clear();
+      const auto sidecar_path = corundum::resources::atlas_clips_sidecar_path(path);
+      if (std::filesystem::exists(sidecar_path)) {
+        auto clips_result = corundum::resources::load_atlas_clips(sidecar_path);
+        if (!clips_result)
+          throw SheetLoadError(clips_result.error());
+        for (const auto &clip : clips_result->clips) {
+          for (const auto &frame_name : clip.frames) {
+            if (!state.atlas_name_to_index.contains(frame_name))
+              std::println(stderr, "[Spritesmith] Warning: clip '{}' references unknown sprite '{}' (dangling)",
+                           clip.name, frame_name);
+          }
+          state.atlas_clips.push_back({clip.name, clip.fps, clip.frames});
+        }
+      }
+
+      state.atlas_undo.clear();
+      state.atlas_undo.push({state.atlas_clips, state.selected_atlas_clip});
+    }
+
   } // namespace
 
   void load_sheet(EditorState &state, const std::filesystem::path &path) {
@@ -77,7 +119,10 @@ namespace tools::sprite {
       throw SheetLoadError(std::string("JSON parse error: ") + e.what());
     }
     state.json_path = path;
-    if (detect_mode(j) == SheetMode::Character) {
+    const SheetMode mode = detect_mode(j);
+    if (mode == SheetMode::Atlas) {
+      load_atlas_mode(state, path);
+    } else if (mode == SheetMode::Character) {
       auto result = corundum::resources::load_character_sheet(path);
       if (!result)
         throw SheetLoadError(result.error());

@@ -2,6 +2,7 @@
 #include "layout.hpp"
 #include <algorithm>
 #include <array>
+#include <corundum/resources/atlas_clips.hpp>
 #include <corundum/resources/sprite.hpp>
 #include <format>
 #include <imgui.h>
@@ -64,10 +65,24 @@ namespace tools::sprite {
     // Sheet configuration (common)
     // ---------------------------------------------------------------------------
 
+    // Atlas mode is a distinct, read-only-geometry sheet type; it can't toggle into a grid mode
+    // (there's no grid to switch to), so it gets its own minimal config header.
+    void render_atlas_sheet_config(const EditorState &state) {
+      ImGui::SeparatorText("Atlas (read-only)");
+      ImGui::TextDisabled("Image: %s", state.image_path.c_str());
+      if (state.image_pixel_w > 0)
+        ImGui::TextDisabled("Size: %d x %d px", state.image_pixel_w, state.image_pixel_h);
+      ImGui::TextDisabled("Sprites: %d", static_cast<int>(state.atlas_sprites.size()));
+      ImGui::TextDisabled("Source: %s", state.json_path.string().c_str());
+      const auto sidecar = corundum::resources::atlas_clips_sidecar_path(state.json_path);
+      ImGui::TextDisabled("Save target: %s", sidecar.filename().string().c_str());
+    }
+
     void render_sheet_config(EditorState &state) {
       ImGui::SeparatorText("Sheet");
 
-      // Mode toggle
+      // Mode toggle — Atlas is not offered here; it's a read-only geometry source, not something
+      // a grid sheet converts into or out of.
       if (ImGui::RadioButton("Character", state.mode == SheetMode::Character)) {
         state.mode = SheetMode::Character;
         state.dirty = true;
@@ -362,6 +377,122 @@ namespace tools::sprite {
       frame_list(clip.frames, state, "##ts_frames");
     }
 
+    // ---------------------------------------------------------------------------
+    // Atlas mode: read-only sprite list + sidecar-backed clips
+    // ---------------------------------------------------------------------------
+
+    void push_atlas_undo(EditorState &state) {
+      state.atlas_undo.push({state.atlas_clips, state.selected_atlas_clip});
+    }
+
+    void atlas_frame_list(EditorState &state) {
+      auto &frames = state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)].frames;
+      const float list_h = std::min(120.f, static_cast<float>(frames.size()) * 20.f + 8.f);
+      ImGui::BeginChild("##atlas_frames", {0.f, list_h}, ImGuiChildFlags_Borders);
+      for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
+        const bool dangling = !state.atlas_name_to_index.contains(frames[static_cast<std::size_t>(i)]);
+        if (dangling)
+          ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{0.9f, 0.4f, 0.3f, 1.f});
+        ImGui::Text("%2d: %s", i + 1, frames[static_cast<std::size_t>(i)].c_str());
+        if (dangling) {
+          ImGui::PopStyleColor();
+          ImGui::SameLine();
+          ImGui::TextDisabled("(missing)");
+        }
+        ImGui::SameLine();
+        const std::string xlbl = std::format("X##atlasfl_{}", i);
+        if (ImGui::SmallButton(xlbl.c_str())) {
+          push_atlas_undo(state);
+          frames.erase(frames.begin() + i);
+          --i;
+          state.dirty = true;
+        }
+      }
+      if (frames.empty())
+        ImGui::TextDisabled("(no frames)");
+      ImGui::EndChild();
+    }
+
+    void render_atlas_section(EditorState &state) {
+      ImGui::SeparatorText("Sprites");
+      const float list_h = 110.f;
+      ImGui::BeginChild("##atlas_sprlist", {0.f, list_h}, ImGuiChildFlags_Borders);
+      for (int i = 0; i < static_cast<int>(state.atlas_sprites.size()); ++i) {
+        ImGui::PushID(i);
+        const bool sel = (state.selected_atlas_sprite == i);
+        if (ImGui::Selectable(state.atlas_sprites[static_cast<std::size_t>(i)].name.c_str(), sel))
+          state.selected_atlas_sprite = i;
+        if (sel)
+          ImGui::SetItemDefaultFocus();
+        ImGui::PopID();
+      }
+      ImGui::EndChild();
+
+      ImGui::SeparatorText("Animation Clips");
+
+      const float clip_list_h = 90.f;
+      ImGui::BeginChild("##atlas_cliplist", {0.f, clip_list_h}, ImGuiChildFlags_Borders);
+      for (int i = 0; i < static_cast<int>(state.atlas_clips.size()); ++i) {
+        const bool sel = (state.selected_atlas_clip == i);
+        if (ImGui::Selectable(state.atlas_clips[static_cast<std::size_t>(i)].name.c_str(), sel)) {
+          state.selected_atlas_clip = i;
+          state.atlas_clip_recording = false;
+        }
+        if (sel)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndChild();
+
+      if (ImGui::Button("+ Add##aca")) {
+        push_atlas_undo(state);
+        AtlasAnimClip clip;
+        clip.name = "clip_" + std::to_string(state.atlas_clips.size());
+        state.atlas_clips.push_back(std::move(clip));
+        state.selected_atlas_clip = static_cast<int>(state.atlas_clips.size()) - 1;
+        state.dirty = true;
+      }
+      ImGui::SameLine();
+      ImGui::BeginDisabled(state.selected_atlas_clip < 0);
+      if (ImGui::Button("- Remove##acr") && state.selected_atlas_clip >= 0) {
+        push_atlas_undo(state);
+        state.atlas_clips.erase(state.atlas_clips.begin() + state.selected_atlas_clip);
+        state.selected_atlas_clip = std::min(state.selected_atlas_clip, static_cast<int>(state.atlas_clips.size()) - 1);
+        state.dirty = true;
+      }
+      ImGui::EndDisabled();
+
+      if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
+        return;
+
+      auto &clip = state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)];
+
+      {
+        std::array<char, 512> name_buf{};
+        std::copy_n(clip.name.c_str(), std::min(clip.name.size(), name_buf.size() - 1), name_buf.data());
+        if (ImGui::InputText("Clip Name##acn", name_buf.data(), name_buf.size()) && name_buf[0] != '\0') {
+          push_atlas_undo(state);
+          clip.name = name_buf.data();
+          state.dirty = true;
+        }
+      }
+
+      ImGui::SetNextItemWidth(80.f);
+      if (ImGui::InputInt("FPS##acfps", &clip.fps)) {
+        clip.fps = std::max(1, clip.fps);
+        state.dirty = true;
+      }
+
+      record_button(state.atlas_clip_recording, "● Record##acr2", "■ Stop##acr2");
+      ImGui::SameLine();
+      if (ImGui::Button("Clear##acc")) {
+        push_atlas_undo(state);
+        clip.frames.clear();
+        state.dirty = true;
+      }
+
+      atlas_frame_list(state);
+    }
+
   } // namespace
 
   // ---------------------------------------------------------------------------
@@ -380,12 +511,18 @@ namespace tools::sprite {
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
 
-    render_sheet_config(state);
-    ImGui::Spacing();
-    if (state.mode == SheetMode::Character)
-      render_character_section(state);
-    else
-      render_sprite_sheet_section(state);
+    if (state.mode == SheetMode::Atlas) {
+      render_atlas_sheet_config(state);
+      ImGui::Spacing();
+      render_atlas_section(state);
+    } else {
+      render_sheet_config(state);
+      ImGui::Spacing();
+      if (state.mode == SheetMode::Character)
+        render_character_section(state);
+      else
+        render_sprite_sheet_section(state);
+    }
 
     ImGui::End();
   }

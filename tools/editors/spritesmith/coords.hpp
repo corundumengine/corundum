@@ -1,7 +1,9 @@
 #pragma once
 #include <algorithm>
 #include <corundum/resources/sprite.hpp>
+#include <corundum/resources/sprite_atlas.hpp>
 #include <optional>
+#include <span>
 #include <utility>
 
 // Pure coordinate math — no GLFW, no I/O, no rendering.
@@ -93,6 +95,38 @@ namespace tools::sprite {
     const float x = static_cast<float>(origin.x) * zoom - camera_x;
     const float y = static_cast<float>(origin.y) * zoom - camera_y;
     return {x, y, static_cast<float>(frame_w) * zoom, static_cast<float>(frame_h) * zoom};
+  }
+
+  /**
+   * @brief Find the atlas sprite under a canvas pixel position, by rect hit-test.
+   *
+   * MaxRects-packed sprites never overlap, so the first match is unambiguous.
+   *
+   * @param px, py      Canvas-space pixel position.
+   * @param canvas_w    Canvas width in pixels.
+   * @param canvas_h    Canvas height in pixels.
+   * @param camera_x    Horizontal scroll offset.
+   * @param camera_y    Vertical scroll offset.
+   * @param zoom        Display scale factor.
+   * @param sprites     Atlas sprites to test, in image pixel space.
+   * @return Index into @p sprites, or -1 if none hit.
+   */
+  [[nodiscard]] inline int sprite_at_point(int px, int py, int canvas_w, int canvas_h, float camera_x, float camera_y,
+                                           float zoom,
+                                           std::span<const corundum::resources::AtlasSprite> sprites) noexcept {
+    if (px < 0 || px >= canvas_w || py < 0 || py >= canvas_h || zoom <= 0.f)
+      return -1;
+
+    const float wx = (static_cast<float>(px) + camera_x) / zoom;
+    const float wy = (static_cast<float>(py) + camera_y) / zoom;
+
+    for (int i = 0; i < static_cast<int>(sprites.size()); ++i) {
+      const auto &s = sprites[static_cast<std::size_t>(i)];
+      if (wx >= static_cast<float>(s.x) && wx < static_cast<float>(s.x + s.w) && wy >= static_cast<float>(s.y) &&
+          wy < static_cast<float>(s.y + s.h))
+        return i;
+    }
+    return -1;
   }
 
   /**

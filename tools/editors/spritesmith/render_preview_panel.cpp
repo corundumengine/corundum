@@ -17,10 +17,14 @@ namespace tools::sprite {
     ImGui::SeparatorText("Preview");
 
     const bool has_texture = tex.width > 0;
-    const bool has_selection =
-        (state.mode == SheetMode::Character)
-            ? (state.selected_sprite >= 0 && state.selected_sprite < static_cast<int>(state.sprites.size()))
-            : (state.selected_clip >= 0 && state.selected_clip < static_cast<int>(state.anim_clips.size()));
+    bool has_selection = false;
+    if (state.mode == SheetMode::Character)
+      has_selection = state.selected_sprite >= 0 && state.selected_sprite < static_cast<int>(state.sprites.size());
+    else if (state.mode == SheetMode::SpriteSheet)
+      has_selection = state.selected_clip >= 0 && state.selected_clip < static_cast<int>(state.anim_clips.size());
+    else
+      has_selection =
+          state.selected_atlas_clip >= 0 && state.selected_atlas_clip < static_cast<int>(state.atlas_clips.size());
 
     if (!has_texture || !has_selection)
       ImGui::TextDisabled("(select a sprite and animation)");
