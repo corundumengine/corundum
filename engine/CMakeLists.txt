@@ -15,6 +15,7 @@ add_library(engine STATIC
     src/gameplay/dialogue/expr.cpp
     src/gameplay/dialogue/loader.cpp
     src/gameplay/dialogue/validate.cpp
+    src/gameplay/dialogue/validate_refs.cpp
     src/gameplay/dialogue/query.cpp
     src/gameplay/dialogue/registry.cpp
     src/gameplay/dialogue/serialize.cpp

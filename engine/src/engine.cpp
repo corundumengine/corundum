@@ -1,5 +1,6 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/dialogue/validate_refs.hpp>
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/gameplay/world/map_view.hpp>
@@ -68,35 +69,10 @@ namespace corundum {
     void validate_quest_references(const corundum::gameplay::dialogue::Registry &graphs,
                                    const corundum::gameplay::quest::Registry &quests) {
       for (const auto &[id, graph] : graphs) {
-        for (const auto &node : graph.nodes) {
-          for (const auto &action : node.actions) {
-            const auto parsed = corundum::gameplay::dialogue::parse_action(action);
-            if (!parsed)
-              continue;
-
-            const auto *ev = std::get_if<corundum::gameplay::dialogue::EventAction>(&*parsed);
-            if (!ev)
-              continue;
-
-            if (ev->name == "quest_start" && !ev->args.empty()) {
-              if (!quests.find(ev->args[0]))
-                std::println(stderr, "[engine] WARN: dialogue '{}' quest_start(\"{}\") references unknown quest", id,
-                             ev->args[0]);
-            }
-
-            if (ev->name == "quest_advance" && ev->args.size() >= 2) {
-              if (!quests.find(ev->args[0])) {
-                std::println(stderr, "[engine] WARN: dialogue '{}' quest_advance(\"{}\") references unknown quest", id,
-                             ev->args[0]);
-              } else if (const auto *q = quests.find(ev->args[0])) {
-                if (!q->find_stage(ev->args[1]))
-                  std::println(stderr,
-                               "[engine] WARN: dialogue '{}' quest_advance(\"{}\", \"{}\") references unknown stage",
-                               id, ev->args[0], ev->args[1]);
-              }
-            }
-          }
-        }
+        for (const auto &err : corundum::gameplay::dialogue::validate_quest_refs(graph, quests))
+          std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
+        for (const auto &err : corundum::gameplay::dialogue::validate_condition_quest_refs(graph, quests))
+          std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
       }
     }
 
