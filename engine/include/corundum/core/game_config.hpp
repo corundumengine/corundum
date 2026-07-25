@@ -21,10 +21,13 @@ namespace corundum::core {
     float panel_height_frac = 0.32f;
   };
 
-  /// Contains all file paths required by the game engine and logic.
+  /// Contains all file paths required by the game engine and logic. Directory fields default to
+  /// the standard project layout so a project following convention needs a near-empty game.json;
+  /// only the per-game file names (game_font, ui_font, icons_font, tilemap_path) require explicit
+  /// values.
   struct ResourcePaths {
-    /** @brief Directory containing all fonts. */
-    std::string font_dir{};
+    /** @brief Directory containing all fonts. Defaults to "assets/fonts". */
+    std::string font_dir{"assets/fonts"};
     /** @brief Path to the primary game font file. */
     std::string game_font{};
     /** @brief Path to the UI-specific font file. */
@@ -33,14 +36,14 @@ namespace corundum::core {
     std::string icons_font{};
     /** @brief Path to the main tilemap asset. */
     std::string tilemap_path{};
-    /** @brief Directory containing sprite sheet assets. */
-    std::string sprites_dir{};
-    /** @brief Directory containing defined spawn point locations. */
-    std::string spawn_points_dir{};
-    /** @brief Directory containing portal definitions. */
-    std::string portals_dir{};
-    /** @brief Directory containing dialogue data files. */
-    std::string dialogue_dir{};
+    /** @brief Directory containing sprite sheet assets. Defaults to "data/sprite_sheets". */
+    std::string sprites_dir{"data/sprite_sheets"};
+    /** @brief Directory containing defined spawn point locations. Defaults to "data/spawn_points". */
+    std::string spawn_points_dir{"data/spawn_points"};
+    /** @brief Directory containing portal definitions. Defaults to "data/portals". */
+    std::string portals_dir{"data/portals"};
+    /** @brief Directory containing dialogue data files. Defaults to "data/dialogue". */
+    std::string dialogue_dir{"data/dialogue"};
     /** @brief Directory containing quest data files. Defaults to "data/quests". */
     std::string quests_dir{"data/quests"};
     /** @brief Directory containing sound (OGG) assets. */

@@ -305,6 +305,20 @@ TEST_CASE("load_game_config — quests_dir defaults to data/quests when absent")
   CHECK(cfg.paths.quests_dir == "data/quests");
 }
 
+TEST_CASE("load_game_config — resource directories default to the standard project layout") {
+  const auto dir = temp_dir("default_resource_dirs");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  const auto &cfg = *result;
+  CHECK(cfg.paths.font_dir == "assets/fonts");
+  CHECK(cfg.paths.sprites_dir == "data/sprite_sheets");
+  CHECK(cfg.paths.spawn_points_dir == "data/spawn_points");
+  CHECK(cfg.paths.portals_dir == "data/portals");
+  CHECK(cfg.paths.dialogue_dir == "data/dialogue");
+}
+
 // ── Forward compatibility ─────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config — unknown top-level key is silently ignored") {

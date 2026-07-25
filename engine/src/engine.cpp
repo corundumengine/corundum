@@ -180,12 +180,12 @@ namespace corundum {
     int dialogue_loaded = 0;
     if (!engine.cfg.paths.dialogue_dir.empty())
       dialogue_loaded = engine.graphs.load_all(engine.cfg.paths.dialogue_dir);
-    std::println("[engine] Loaded {} dialogue graphs", dialogue_loaded);
+    std::println("[engine] Loaded {} dialogue graphs from '{}'", dialogue_loaded, engine.cfg.paths.dialogue_dir);
 
     int quest_loaded = 0;
     if (!engine.cfg.paths.quests_dir.empty())
       quest_loaded = engine.quests.load_all(engine.cfg.paths.quests_dir);
-    std::println("[engine] Loaded {} quests", quest_loaded);
+    std::println("[engine] Loaded {} quests from '{}'", quest_loaded, engine.cfg.paths.quests_dir);
     validate_quest_references(engine.graphs, engine.quests);
     return {};
   }
