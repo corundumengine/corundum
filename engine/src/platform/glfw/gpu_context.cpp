@@ -16,7 +16,7 @@ namespace corundum::platform {
   struct GpuContext::Impl {
     GLFWwindow *window{nullptr};
 #ifdef SOKOL_METAL
-    void *metal_layer{nullptr};
+    metal_layer_t *metal_layer{nullptr};
 #endif
     bool pass_active{false};
   };
@@ -34,6 +34,8 @@ namespace corundum::platform {
 
 #ifdef SOKOL_METAL
     ctx->impl_->metal_layer = metal_get_layer(raw);
+    if (!ctx->impl_->metal_layer)
+      return std::unexpected("GpuContext::create: failed to get Metal layer");
 #endif
 
     sg_desc sdesc{};
@@ -56,6 +58,10 @@ namespace corundum::platform {
   GpuContext::~GpuContext() {
     if (sg_isvalid())
       sg_shutdown();
+#ifdef SOKOL_METAL
+    if (impl_->metal_layer)
+      metal_teardown_layer(impl_->metal_layer);
+#endif
   }
 
   bool GpuContext::begin_default_pass(core::math::Colour clear) {

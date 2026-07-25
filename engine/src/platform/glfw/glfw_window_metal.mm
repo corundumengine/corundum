@@ -7,42 +7,72 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-void *metal_setup_layer(GLFWwindow *win) {
+#include <cstdlib>
+
+struct metal_layer_t {
+  CAMetalLayer *layer;
+  bool owns;
+};
+
+metal_layer_t *metal_setup_layer(GLFWwindow *win) {
   NSWindow *nswin = glfwGetCocoaWindow(win);
+  if (!nswin || !nswin.contentView)
+    return nullptr;
+
+  id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+  if (!device)
+    return nullptr;
 
   CAMetalLayer *layer = [CAMetalLayer layer];
-  layer.device = MTLCreateSystemDefaultDevice();
+  layer.device = device;
   layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-  // Match the display's backing scale so drawableSize = logical_size * scale
-  // (i.e. physical framebuffer pixels). Without this, contentsScale defaults
-  // to 1.0 on Retina and the drawable is half the expected size, causing the
-  // "only top-left visible" zoom artefact.
   layer.contentsScale = nswin.backingScaleFactor;
 
   nswin.contentView.layer = layer;
   nswin.contentView.wantsLayer = YES;
 
   CFRetain((__bridge CFTypeRef)layer);
-  return (__bridge void *)layer;
+
+  metal_layer_t *handle = (metal_layer_t *)std::malloc(sizeof(metal_layer_t));
+  handle->layer = layer;
+  handle->owns = true;
+  return handle;
 }
 
-const void *metal_device(void *layer_ptr) {
-  CAMetalLayer *layer = (__bridge CAMetalLayer *)layer_ptr;
-  return (__bridge const void *)layer.device;
+const void *metal_device(metal_layer_t *layer) {
+  if (!layer || !layer->layer)
+    return nullptr;
+  return (__bridge const void *)layer->layer.device;
 }
 
-const void *metal_next_drawable(void *layer_ptr) {
-  CAMetalLayer *layer = (__bridge CAMetalLayer *)layer_ptr;
-  id<CAMetalDrawable> drawable = [layer nextDrawable];
+const void *metal_next_drawable(metal_layer_t *layer) {
+  if (!layer || !layer->layer)
+    return nullptr;
+  id<CAMetalDrawable> drawable = [layer->layer nextDrawable];
   return (__bridge const void *)drawable;
 }
 
-void *metal_get_layer(GLFWwindow *win) {
+metal_layer_t *metal_get_layer(GLFWwindow *win) {
   NSWindow *nswin = glfwGetCocoaWindow(win);
-  return (__bridge void *)nswin.contentView.layer;
+  if (!nswin || !nswin.contentView || !nswin.contentView.layer)
+    return nullptr;
+
+  metal_layer_t *handle = (metal_layer_t *)std::malloc(sizeof(metal_layer_t));
+  handle->layer = (__bridge CAMetalLayer *)nswin.contentView.layer;
+  handle->owns = false;
+  return handle;
 }
 
-void metal_set_display_sync(void *layer_ptr, int enabled) {
-  CAMetalLayer *layer = (__bridge CAMetalLayer *)layer_ptr;
-  layer.displaySyncEnabled = enabled ? YES : NO;
+void metal_set_display_sync(metal_layer_t *layer, int enabled) {
+  if (!layer || !layer->layer)
+    return;
+  layer->layer.displaySyncEnabled = enabled ? YES : NO;
+}
+
+void metal_teardown_layer(metal_layer_t *layer) {
+  if (!layer)
+    return;
+  if (layer->owns && layer->layer)
+    CFRelease((__bridge CFTypeRef)layer->layer);
+  std::free(layer);
 }

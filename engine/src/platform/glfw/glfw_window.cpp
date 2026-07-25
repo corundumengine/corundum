@@ -7,7 +7,6 @@
 
 #ifdef __APPLE__
 #include "glfw_window_metal.h"
-#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 #include <atomic>
@@ -73,7 +72,7 @@ namespace corundum::platform::glfw {
     GLFWwindow *win{nullptr};
     WindowData data{};
 #ifdef __APPLE__
-    void *metal_layer{nullptr};
+    metal_layer_t *metal_layer{nullptr};
 #endif
   };
 
@@ -125,7 +124,7 @@ namespace corundum::platform::glfw {
       if (impl_->win) {
 #ifdef __APPLE__
         if (impl_->metal_layer) {
-          CFRelease(impl_->metal_layer);
+          metal_teardown_layer(impl_->metal_layer);
         }
 #endif
         glfwDestroyWindow(impl_->win);
