@@ -262,7 +262,7 @@ namespace corundum::gameplay::world::tilemap {
     std::span<const float> rows;      ///< Top edges (tile rows).
     std::span<const float> col_spans; ///< Horizontal extents in tiles.
     std::span<const float> row_spans; ///< Vertical extents in tiles.
-    /// Per-rect elevation [0-100], same semantics as TilemapLayer::elevation; empty means
+    /// Per-rect elevation [0–255], same semantics as TilemapLayer::elevation; empty means
     /// "no elevation data for any rect in this view" and disables elevation filtering entirely.
     std::span<const uint8_t> elevations{};
 
@@ -286,7 +286,7 @@ namespace corundum::gameplay::world::tilemap {
     std::vector<float> rows;         ///< Top edges (tile rows).
     std::vector<float> col_spans;    ///< Horizontal extents in tiles.
     std::vector<float> row_spans;    ///< Vertical extents in tiles.
-    std::vector<uint8_t> elevations; ///< Per-rect elevation [0-100]; see CollisionRectsView.
+    std::vector<uint8_t> elevations; ///< Per-rect elevation [0–255]; see CollisionRectsView.
 
     /// Append one collision rect in tile-grid space.
     void push_back(float col, float row, float col_span, float row_span, uint8_t elevation = 0) {
@@ -341,7 +341,7 @@ namespace corundum::gameplay::world::tilemap {
     std::span<const float> col_spans;  ///< Horizontal extents in tiles.
     std::span<const float> row_spans;  ///< Vertical extents in tiles.
     std::span<const TriangleCut> cuts; ///< Which corner is empty.
-    /// Per-triangle elevation [0-100]; empty disables elevation filtering. See CollisionRectsView.
+    /// Per-triangle elevation [0–255]; empty disables elevation filtering. See CollisionRectsView.
     std::span<const uint8_t> elevations{};
 
     /// Number of triangles in the view.
@@ -362,7 +362,7 @@ namespace corundum::gameplay::world::tilemap {
     std::vector<float> col_spans;    ///< Horizontal extents in tiles.
     std::vector<float> row_spans;    ///< Vertical extents in tiles.
     std::vector<TriangleCut> cuts;   ///< Which corner is empty.
-    std::vector<uint8_t> elevations; ///< Per-triangle elevation [0-100]; see CollisionTrianglesView.
+    std::vector<uint8_t> elevations; ///< Per-triangle elevation [0–255]; see CollisionTrianglesView.
 
     /// Append one diagonal collision triangle in tile-grid space.
     void push_back(float col, float row, float col_span, float row_span, TriangleCut cut, uint8_t elevation = 0) {
