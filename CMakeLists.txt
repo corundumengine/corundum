@@ -52,7 +52,7 @@ FetchContent_MakeAvailable(nlohmann_json_schema_validator)
 FetchContent_Declare(
     doctest
     GIT_REPOSITORY https://github.com/doctest/doctest
-    GIT_TAG        v2.5.2
+    GIT_TAG        v2.5.3
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -61,7 +61,7 @@ FetchContent_MakeAvailable(doctest)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        v1.92.8
+    GIT_TAG        v1.92.9
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -91,7 +91,7 @@ FetchContent_MakeAvailable(freetype)
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
-    GIT_TAG        28f9d8d44d92dab8536791a9f7d13d7e911a2b39
+    GIT_TAG        f26aaf6deeee5a4a07d83f3cd7151516bafa09ad # 29-Jul-2026
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(sokol)
@@ -121,7 +121,7 @@ endif()
 
 # ── Formatting ─────────────────────────────────────────────────────────────────
 if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
-    file(GLOB_RECURSE FORMAT_SOURCES
+  file(GLOB_RECURSE FORMAT_SOURCES
         "engine/src/**/*.cpp"
         "engine/include/corundum/**/*.hpp"
         "tests/*.cpp"
