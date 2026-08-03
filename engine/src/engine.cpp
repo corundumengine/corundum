@@ -107,43 +107,38 @@ namespace corundum {
   }
 
   std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg) {
+    const auto fail = [&engine](const std::string &msg) {
+      engine.window->close();
+      return std::unexpected(std::format("[engine] FATAL: {}", msg));
+    };
+
+    // Timing + window.
     engine.cfg = std::move(cfg);
     engine.timer.set_target_fps(static_cast<float>(engine.cfg.framerate));
     engine.window->set_vsync(engine.cfg.vsync);
     engine.window->resize(static_cast<unsigned>(engine.cfg.win_w), static_cast<unsigned>(engine.cfg.win_h));
 
+    // Render assets.
     auto char_result = engine.characters.load_all(engine.cfg.paths.sprites_dir);
-    if (!char_result) {
-      engine.window->close();
-      return std::unexpected(std::format("[engine] FATAL: {}", char_result.error()));
-    }
+    if (!char_result)
+      return fail(char_result.error());
     render::sys::load_sprite_index(*engine.renderer, engine.render, engine.characters);
 
     const auto font_path = std::format("{}/{}", engine.cfg.paths.font_dir, engine.cfg.paths.game_font);
     auto font_result = render::sys::load_font(*engine.renderer, engine.render, font_path);
-    if (!font_result.has_value()) {
-      engine.window->close();
-      return std::unexpected(std::format("[engine] FATAL: {}", font_result.error()));
-    }
+    if (!font_result)
+      return fail(font_result.error());
 
     auto ui_result = render::sys::load_ui_assets(*engine.renderer, engine.render);
-    if (!ui_result) {
-      engine.window->close();
-      return std::unexpected(std::format("[engine] FATAL: {}", ui_result.error()));
-    }
+    if (!ui_result)
+      return fail(ui_result.error());
 
-    if (!engine.cfg.paths.world_manifest_path.empty()) {
-      if (auto result = init_world(engine, engine.cfg); !result) {
-        engine.window->close();
-        return std::unexpected(std::format("[engine] FATAL: {}", result.error()));
-      }
-    } else {
-      if (auto result = init_single_map(engine, engine.cfg); !result) {
-        engine.window->close();
-        return std::unexpected(std::format("[engine] FATAL: {}", result.error()));
-      }
-    }
+    // Scene: world mode when a manifest is configured, single-map mode otherwise.
+    const bool world_mode = !engine.cfg.paths.world_manifest_path.empty();
+    if (auto result = world_mode ? init_world(engine, engine.cfg) : init_single_map(engine, engine.cfg); !result)
+      return fail(result.error());
 
+    // Audio.
     engine.audio.sounds_dir = engine.cfg.paths.sounds_dir;
     std::expected<void, std::string> audio_result = audio::sys::initialize(engine.audio);
     if (!audio_result)
@@ -153,6 +148,7 @@ namespace corundum {
 
     render::sys::configure_dialog_style(engine.render, engine.cfg);
 
+    // Dialogue + quests.
     int dialogue_loaded = 0;
     if (!engine.cfg.paths.dialogue_dir.empty())
       dialogue_loaded = engine.graphs.load_all(engine.cfg.paths.dialogue_dir);
@@ -166,33 +162,31 @@ namespace corundum {
     return {};
   }
 
-  void update(Engine &engine) noexcept {
-    while (engine.window->is_open() && !engine.quit) {
-      std::tie(engine.win_w, engine.win_h) = engine.window->size();
+  namespace {
 
-      const auto &transforms = engine.scene.world.transforms;
-      const auto n = transforms.count;
-      for (std::uint32_t i = 0; i < n; ++i) {
-        engine.render.prev_col[i] = transforms.col[i];
-        engine.render.prev_row[i] = transforms.row[i];
-      }
-      engine.render.prev_count = n;
-      engine.render.prev_cam_x = engine.scene.camera.x;
-      engine.render.prev_cam_y = engine.scene.camera.y;
-      engine.render.prev_zoom = engine.scene.camera.zoom;
+    // ── Main-loop phases ───────────────────────────────────────────────────────
 
-      engine.timer.tick();
+    /// Result of one frame's fixed-step simulation, consumed by compute_interpolation_alpha().
+    struct SimulationResult {
+      int steps_run = 0;
+      bool entities_deleted = false;
+    };
 
+    /// Poll platform input and handle the Quit action.
+    void process_input(Engine &engine) noexcept {
       input::sys::poll(engine.input_state, *engine.window);
       if (engine.input_state.is_held(input::Action::Quit)) {
         request_quit(engine);
         engine.window->close();
       }
+    }
 
-      int steps_run = 0;
-      bool deleted_this_frame = false;
+    /// Drain the timer accumulator: run gameplay, dialogue events, the
+    /// on_fixed_update hook, and deletion flushing once per fixed step.
+    [[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
+      SimulationResult result;
       while (engine.timer.step()) {
-        ++steps_run;
+        ++result.steps_run;
         engine.scene.elapsed_time += engine.timer.target_dt;
         if (engine.render.mode == render::data::RenderMode::World && engine.render.active_chunks.empty())
           continue;
@@ -207,24 +201,32 @@ namespace corundum {
         if (engine.on_fixed_update)
           engine.on_fixed_update(engine, engine.timer.target_dt);
 
-        // prev_col/prev_row were snapshotted by dense slot before this loop started. flush_deletions
-        // reassigns slots via swap-and-pop, so a slot interpolated below could now belong to a
-        // different entity than the one the snapshot captured. Detect it here and force alpha to 0
-        // below rather than interpolate against a stale/mismatched slot.
-        deleted_this_frame = deleted_this_frame || engine.scene.world.pending_deletion_count > 0;
+        // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
+        result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
         gameplay::entity::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
       }
+      return result;
+    }
 
-      if (engine.render.mode != render::data::RenderMode::World)
-        gameplay::world::handle_map_transition(engine);
+    /// Interpolation factor for this frame's render.
+    ///
+    /// prev_col/prev_row are snapshotted by dense slot before the fixed-step loop
+    /// runs. flush_deletions() reassigns slots via swap-and-pop, so after any
+    /// deletion a snapshot slot could belong to a different entity than the one
+    /// captured — force alpha to 0 rather than interpolate against a stale or
+    /// mismatched slot. Alpha is also 0 unless exactly one step ran, so multi-step
+    /// (and zero-step) frames render current state.
+    [[nodiscard]] float compute_interpolation_alpha(const core::time::LoopTimer &timer, SimulationResult sim) noexcept {
+      return (sim.steps_run == 1 && !sim.entities_deleted) ? timer.alpha() : 0.f;
+    }
 
-      engine.render.interpolation_alpha = (steps_run == 1 && !deleted_this_frame) ? engine.timer.alpha() : 0.f;
-
+    /// begin_frame → world/UI render → optional debug HUD → end_frame.
+    void render_frame(Engine &engine, const float alpha) noexcept {
       engine.renderer->begin_frame(engine.clear_colour);
-      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags,
-                          engine.render.interpolation_alpha, engine.win_w, engine.win_h);
+      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, alpha, engine.win_w,
+                          engine.win_h);
 
       if (engine.show_debug_hud) {
         const debug::OverlayInput hud_input{
@@ -237,11 +239,33 @@ namespace corundum {
       }
 
       engine.renderer->end_frame();
+    }
 
-      // Load one pending chunk per frame — queues I/O between frames so
-      // chunk-boundary loads don't hitch the render pass.
+    /// World mode: load at most one pending chunk per frame — queues I/O between
+    /// frames so chunk-boundary loads don't hitch the render pass.
+    void stream_world_chunks(Engine &engine) noexcept {
       if (engine.render.mode == render::data::RenderMode::World)
         render::sys::load_one_pending_chunk(*engine.renderer, engine.render, engine.cfg);
+    }
+
+  } // namespace
+
+  void run_loop(Engine &engine) noexcept {
+    while (engine.window->is_open() && !engine.quit) {
+      std::tie(engine.win_w, engine.win_h) = engine.window->size();
+      render::sys::snapshot_prev_frame(engine.render, engine.scene);
+      engine.timer.tick();
+
+      process_input(engine);
+
+      const SimulationResult sim = run_fixed_steps(engine);
+      if (engine.render.mode != render::data::RenderMode::World)
+        gameplay::world::handle_map_transition(engine);
+
+      const float alpha = compute_interpolation_alpha(engine.timer, sim);
+      render_frame(engine, alpha);
+
+      stream_world_chunks(engine);
     }
   }
 

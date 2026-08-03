@@ -30,8 +30,7 @@ namespace corundum {
      *  by cleanup() (window close, audio shutdown); OS reclaims the memory at exit.
      */
     struct PlatformDeleter {
-      template<typename T>
-      void operator()(T *) const noexcept { /* no-op */ }
+      template <typename T> void operator()(T *) const noexcept { /* no-op */ }
     };
   } // namespace detail
 
@@ -39,10 +38,10 @@ namespace corundum {
    *
    * Owns systems directly (no virtual dispatch), the Scene (merged ECS world +
    * game state), and all game assets. Lifecycle driven by free functions:
-   *   initialize → update → cleanup
+   *   initialize → run_loop → cleanup
    *
    * @see initialize  One-time setup before the main loop.
-   * @see update      Per-frame update loop.
+   * @see run_loop    The main loop: input, fixed-step simulation, rendering.
    * @see cleanup     Resource teardown after the main loop.
    */
   struct Engine {
@@ -61,8 +60,8 @@ namespace corundum {
     gameplay::world::Scene scene;
     gameplay::FlagStore flags;
 
-    int win_w = 0;  ///< Live window width in screen pixels, updated each frame.
-    int win_h = 0;  ///< Live window height in screen pixels, updated each frame.
+    int win_w = 0; ///< Live window width in screen pixels, updated each frame.
+    int win_h = 0; ///< Live window height in screen pixels, updated each frame.
 
     core::time::LoopTimer timer{60.f};
     core::math::Colour clear_colour{30, 30, 35, 255};
@@ -96,16 +95,22 @@ namespace corundum {
    */
   [[nodiscard]] std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg);
 
-  /** @brief Run the main loop: poll input, fixed-timestep updates, rendering.
+  /** @brief Run the main loop until the window closes or quit is requested.
+   *
+   *  Each frame: snapshot previous transforms for interpolation, process input,
+   *  advance the simulation in fixed timesteps (timer.target_dt), then render
+   *  once with an interpolation alpha in [0,1) (Game Loop pattern: fixed
+   *  update, variable render).
+   *
    *  @param[in,out] engine  Initialised Engine.
    *  @pre initialize() must have returned successfully.
    *  @performance No heap allocation during the loop.
    */
-  void update(Engine &engine) noexcept;
+  void run_loop(Engine &engine) noexcept;
 
   /** @brief Tear down resources after the main loop exits.
    *  @param[in,out] engine  Initialised Engine.
-   *  @pre update() must have returned.
+   *  @pre run_loop() must have returned.
    */
   void cleanup(Engine &engine) noexcept;
 
@@ -124,7 +129,7 @@ namespace corundum {
 
   /** @brief Request a graceful shutdown of the engine.
    *
-   *  Sets the quit flag; the next iteration of update() will exit the main loop.
+   *  Sets the quit flag; the next iteration of run_loop() will exit the main loop.
    *  Safe to call from any system during update().
    *
    *  @param[in,out] engine Initialised Engine.

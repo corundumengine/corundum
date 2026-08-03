@@ -71,7 +71,18 @@ namespace corundum::render::sys {
 
   void clean_up(data::RenderState & /*state*/) noexcept {}
 
-  void update(data::RenderState & /*state*/, float /*dt*/) noexcept {}
+  void snapshot_prev_frame(data::RenderState &state, const corundum::gameplay::world::Scene &scene) noexcept {
+    const corundum::gameplay::component::TransformTable &transforms = scene.world.transforms;
+    const std::uint32_t n = transforms.count;
+    for (std::uint32_t i = 0; i < n; ++i) {
+      state.prev_col[i] = transforms.col[i];
+      state.prev_row[i] = transforms.row[i];
+    }
+    state.prev_count = n;
+    state.prev_cam_x = scene.camera.x;
+    state.prev_cam_y = scene.camera.y;
+    state.prev_zoom = scene.camera.zoom;
+  }
 
   // ── Internal helpers (forward decls) ─────────────────────────────────────────
 

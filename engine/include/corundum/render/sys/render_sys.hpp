@@ -28,8 +28,14 @@ namespace corundum::render::sys {
   /** @brief Release any render resources held by the state. */
   void clean_up(data::RenderState &state) noexcept;
 
-  /** @brief Per-frame no-op; rendering is driven by render(). */
-  void update(data::RenderState &state, float dt) noexcept;
+  /** @brief Snapshot current entity transforms and camera into the prev_* fields
+   *  for render interpolation.
+   *  @param[out] state  Render state whose prev_col/prev_row/prev_count and
+   *                     prev_cam_x/prev_cam_y/prev_zoom are overwritten.
+   *  @param[in]  scene  Scene providing the current transforms and camera.
+   *  @note Call once per frame, before running the fixed-timestep updates.
+   */
+  void snapshot_prev_frame(data::RenderState &state, const corundum::gameplay::world::Scene &scene) noexcept;
 
   /** @brief Build the sprite-index lookup tables from the character registry.
    *  @param[in,out] r         Renderer for texture loading.

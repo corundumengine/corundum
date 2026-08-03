@@ -44,7 +44,7 @@ namespace corundum {
 
   /** @brief Execute the main game loop followed by orderly teardown.
    *
-   *  Equivalent to update(engine) followed by cleanup(engine).
+   *  Equivalent to run_loop(engine) followed by cleanup(engine).
    *
    *  @param[in,out] engine A fully-initialised Engine (from make_engine).
    *  @pre make_engine() must have returned successfully.

@@ -49,7 +49,7 @@ namespace corundum {
   }
 
   void run(Engine &engine) noexcept {
-    update(engine);
+    run_loop(engine);
     cleanup(engine);
   }
 

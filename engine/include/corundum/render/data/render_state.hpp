@@ -118,8 +118,6 @@ namespace corundum::render::data {
      *  (resized, never freed) so the depth sort touches no per-frame heap allocation. */
     std::vector<uint32_t> draw_order{};
 
-    /** @brief Interpolation alpha for render smoothing (0 = no interpolation). */
-    float interpolation_alpha{0.f};
     /** @brief Previous-frame entity tile columns for render interpolation. Fixed-size:
      *  bounded by k_max_entities, so no heap growth mid-frame. Only the first
      *  prev_count entries hold a valid snapshot from before this frame. */

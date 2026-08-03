@@ -2,6 +2,7 @@
 
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/render/sys/render_sys.hpp>
 
 namespace tilemap = corundum::gameplay::world::tilemap;
 namespace render_data = corundum::render::data;
@@ -52,4 +53,28 @@ TEST_CASE("active_tilemap: World mode returns nullptr even with chunks loaded") 
   engine.render.active_chunks.push_back(std::move(chunk));
 
   CHECK(corundum::active_tilemap(engine) == nullptr);
+}
+
+TEST_CASE("snapshot_prev_frame: copies live transforms and camera into prev_* fields") {
+  corundum::Engine engine;
+  corundum::gameplay::component::TransformTable &transforms = engine.scene.world.transforms;
+  transforms.col[0] = 3.5f;
+  transforms.row[0] = 7.25f;
+  transforms.col[1] = 10.f;
+  transforms.row[1] = 2.f;
+  transforms.count = 2;
+  engine.scene.camera.x = 100.f;
+  engine.scene.camera.y = 50.f;
+  engine.scene.camera.zoom = 2.f;
+
+  corundum::render::sys::snapshot_prev_frame(engine.render, engine.scene);
+
+  CHECK(engine.render.prev_count == 2);
+  CHECK(engine.render.prev_col[0] == 3.5f);
+  CHECK(engine.render.prev_row[0] == 7.25f);
+  CHECK(engine.render.prev_col[1] == 10.f);
+  CHECK(engine.render.prev_row[1] == 2.f);
+  CHECK(engine.render.prev_cam_x == 100.f);
+  CHECK(engine.render.prev_cam_y == 50.f);
+  CHECK(engine.render.prev_zoom == 2.f);
 }
