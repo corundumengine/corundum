@@ -35,7 +35,8 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
 
     for (int i = 0; i < static_cast<int>(state.portals.size()); ++i) {
       const auto &p = state.portals[i];
@@ -62,7 +63,8 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
 
     const int col = std::min(state.portal_drag_anchor_col, state.portal_drag_cur_col);
     const int row = std::min(state.portal_drag_anchor_row, state.portal_drag_cur_row);

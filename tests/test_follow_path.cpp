@@ -4,7 +4,7 @@
 #include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/physics/sys/physics_sys.hpp>
 
-using corundum::core::math::IsoParams;
+using corundum::core::math::IsometricParams;
 using corundum::gameplay::component::TransformTable;
 using corundum::gameplay::entity::EntityId;
 using corundum::gameplay::sys::TileCoord;
@@ -27,7 +27,7 @@ namespace {
 TEST_CASE("follow_path — aims velocity at the center of the next waypoint") {
   Fixture f;
   std::vector<TileCoord> path{{2, 0}}; // target center (2.5, 0.5) from (0.5, 0.5)
-  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsoParams{1.f, 1.f}, /*dt=*/0.01f);
+  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsometricParams{1.f, 1.f, 0.f, 0.f}, /*dt=*/0.01f);
 
   const auto slot = f.transforms.dense_idx(f.player);
   CHECK(f.transforms.dc[slot] > 0.f); // aimed along +col
@@ -45,7 +45,7 @@ TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving o
 
   // player_speed*dt=0.5: covers the 0.1 remaining to the first waypoint, but not the full
   // 1.0 segment to the second one, so exactly one waypoint should be consumed.
-  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsoParams{1.f, 1.f}, /*dt=*/0.5f);
+  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsometricParams{1.f, 1.f, 0.f, 0.f}, /*dt=*/0.5f);
 
   REQUIRE(path.size() == 1); // first waypoint popped
   CHECK(path.front().col == 2);
@@ -63,7 +63,7 @@ TEST_CASE("follow_path — empties the path and zeroes velocity on reaching the 
   f.transforms.row[slot] = 0.5f;
   std::vector<TileCoord> path{{1, 0}};
 
-  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsoParams{1.f, 1.f}, /*dt=*/1.f);
+  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsometricParams{1.f, 1.f, 0.f, 0.f}, /*dt=*/1.f);
 
   CHECK(path.empty());
   CHECK(f.transforms.dc[slot] == doctest::Approx(0.f));
@@ -77,7 +77,7 @@ TEST_CASE("follow_path — empty path is a no-op that zeroes velocity") {
   f.transforms.dr[slot] = 5.f;
   std::vector<TileCoord> path;
 
-  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsoParams{1.f, 1.f}, /*dt=*/0.1f);
+  follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsometricParams{1.f, 1.f, 0.f, 0.f}, /*dt=*/0.1f);
 
   CHECK(f.transforms.dc[slot] == doctest::Approx(0.f));
   CHECK(f.transforms.dr[slot] == doctest::Approx(0.f));

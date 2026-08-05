@@ -47,16 +47,16 @@ namespace tools::tilemap {
    */
   [[nodiscard]] inline std::optional<TileCoord> screen_to_tile(int px, int py, int canvas_left, int canvas_top,
                                                                int canvas_w, int canvas_h, float camera_x,
-                                                               float camera_y, float tile_scale, int map_w, int map_h,
-                                                               int tw, int diamond_h) noexcept {
+                                                               float camera_y, float tile_scale, float elev_step,
+                                                               int map_w, int map_h, int tw, int diamond_h) noexcept {
     if (px < canvas_left || px >= canvas_left + canvas_w)
       return std::nullopt;
     if (py < canvas_top || py >= canvas_top + canvas_h)
       return std::nullopt;
 
     // tw is the isometric diamond_w (world step), not the sprite cell width.
-    const auto iso =
-        corundum::core::math::compute_iso_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h, tile_scale);
+    const auto iso = corundum::core::math::compute_isometric_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h,
+                                                                    tile_scale, elev_step);
     if (iso.half_tw <= 0.f || iso.half_th <= 0.f)
       return std::nullopt;
 
@@ -66,7 +66,7 @@ namespace tools::tilemap {
     const float origin_shift_y = iso.half_th; // Y shift uses 1 half-diamond (no asymmetry).
     const float world_x = static_cast<float>(px - canvas_left) + camera_x - origin_shift_x;
     const float world_y = static_cast<float>(py - canvas_top) + camera_y - origin_shift_y;
-    const corundum::core::math::Vec2 frac = corundum::core::math::world_to_tile({world_x, world_y}, 0, iso, 0.f);
+    const corundum::core::math::Vec2 frac = corundum::core::math::world_to_tile({world_x, world_y}, 0, iso);
     const int col = static_cast<int>(std::floor(frac.x));
     const int row = static_cast<int>(std::floor(frac.y));
 

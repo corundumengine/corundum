@@ -29,7 +29,8 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
 
     constexpr ImU32 k_color = IM_COL32(255, 0, 200, 220);
 

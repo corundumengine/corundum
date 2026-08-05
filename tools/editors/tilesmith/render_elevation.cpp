@@ -48,7 +48,8 @@ namespace tools::tilemap {
 
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
     const auto tiles = state.map.layer_view(layer);
 
     for (int row = 0; row < state.map.height; ++row) {
@@ -75,7 +76,8 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
     draw_iso_cell(ctx, static_cast<float>(state.hover_tile_col), static_cast<float>(state.hover_tile_row),
                   static_cast<float>(state.selected_elevation), iso.half_tw, iso.half_th, state.elev_step_px,
                   iso.x_origin, state.canvas.offset_x, state.canvas.offset_y,

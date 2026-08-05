@@ -93,7 +93,7 @@ namespace corundum::debug {
    */
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso,
+                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsometricParams iso,
                       float zoom) noexcept;
 
   /**

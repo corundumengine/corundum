@@ -21,8 +21,8 @@ namespace tools::tilemap {
     /// always the same (canvas at origin, CANVAS_W/H, camera/scale from state).
     [[nodiscard]] std::optional<TileCoord> editor_screen_to_tile(int px, int py, const EditorState &state) noexcept {
       return screen_to_tile(px, py, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
-                            state.canvas.scale, state.map.width, state.map.height, effective_diamond_w(state.map),
-                            effective_diamond_h(state.map));
+                            state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
+                            effective_diamond_w(state.map), effective_diamond_h(state.map));
     }
 
     void begin_collision_drag(EditorState &state, int win_x, int win_y) noexcept {

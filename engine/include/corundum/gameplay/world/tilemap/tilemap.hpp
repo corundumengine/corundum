@@ -100,6 +100,9 @@ namespace corundum::gameplay::world::tilemap {
     std::flat_map<int, RampAxis> ramps; ///< cell_index → axis this ramp tile bridges; absent == not a ramp.
                                         ///< The elevation delta it bridges is inferred from its two
                                         ///< axis-neighbors' elevation_at() values, never stored directly.
+    uint8_t max_elevation = 0;          ///< Maximum elevation value in this layer (0 if elevation is empty).
+                                        ///< Computed in bake_render_cache() by std::ranges::max_element on the
+                                        ///< elevation vector.
 
     /// Sentinel for baked_animation_index meaning "this cell isn't animated".
     static constexpr uint32_t k_no_animation = std::numeric_limits<uint32_t>::max();
@@ -125,7 +128,8 @@ namespace corundum::gameplay::world::tilemap {
     /// (see load_tilemap()) — the render hot path (resolve_tile_cell) reads only the baked arrays.
     /// @note The tilesmith editor mutates flip_flags/animated_cells directly and never calls this,
     /// so it reads the flat_maps themselves; re-run this if a loaded Tilemap's layers are ever
-    /// mutated and then handed to the game renderer.
+    /// mutated and then handed to the game renderer. This method also computes max_elevation from
+    /// the elevation vector — tilesmith must recompute it if it ever alters elevation data.
     void bake_render_cache(int width, int height) {
       const auto n = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
 
@@ -143,6 +147,11 @@ namespace corundum::gameplay::world::tilemap {
         baked_animation_index[static_cast<std::size_t>(idx)] = static_cast<uint32_t>(baked_animations.size());
         baked_animations.push_back(anim);
       }
+
+      max_elevation = 0;
+      for (const auto e : elevation)
+        if (e > max_elevation)
+          max_elevation = e;
     }
   };
 
@@ -416,6 +425,9 @@ namespace corundum::gameplay::world::tilemap {
     std::vector<TilemapLayer> layers;       ///< Index 0 is the bottom-most layer.
     CollisionRects collisions;              ///< Impassable rects in Tiled pixel space; empty if absent.
     CollisionTriangles collision_triangles; ///< Diagonal half-tile collision shapes; empty if absent.
+
+    int max_tile_full_w = 0;
+    int max_tile_full_h = 0;
 
     /// Effective isometric diamond width (world step), falling back to the first tileset's first
     /// tile's full frame width if not set.

@@ -8,7 +8,7 @@ namespace tools::tilemap {
     if (state.map.tilesets.empty())
       return;
     const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
-                                   state.canvas.scale, state.map.width, state.map.height,
+                                   state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
                                    effective_diamond_w(state.map), effective_diamond_h(state.map));
     if (!tc)
       return;

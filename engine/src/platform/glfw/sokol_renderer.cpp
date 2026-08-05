@@ -8,6 +8,7 @@
 #include <stb_image.h>
 
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -135,8 +136,8 @@ void main() {
       return sg_make_image(&desc);
     }
 
-    int emit_quad(sg_buffer vbuf, float px, float py, float pw, float ph, float u0, float v0, float u1, float v1,
-                  float r, float g, float b, float a) {
+    void emit_quad(std::vector<Vertex> &out, float px, float py, float pw, float ph, float u0, float v0, float u1,
+                   float v1, float r, float g, float b, float a) {
       const std::array<Vertex, 6> verts{{
           {px, py, u0, v0, r, g, b, a},
           {px + pw, py, u1, v0, r, g, b, a},
@@ -145,12 +146,11 @@ void main() {
           {px + pw, py + ph, u1, v1, r, g, b, a},
           {px, py + ph, u0, v1, r, g, b, a},
       }};
-      const sg_range data{.ptr = verts.data(), .size = sizeof(verts)};
-      return sg_append_buffer(vbuf, &data);
+      out.insert(out.end(), verts.begin(), verts.end());
     }
 
-    int emit_quad_verts(sg_buffer vbuf, core::math::Vec2 v0, core::math::Vec2 v1, core::math::Vec2 v2,
-                        core::math::Vec2 v3, float r, float g, float b, float a) {
+    void emit_quad_verts(std::vector<Vertex> &out, core::math::Vec2 v0, core::math::Vec2 v1, core::math::Vec2 v2,
+                         core::math::Vec2 v3, float r, float g, float b, float a) {
       const std::array<Vertex, 6> verts{{
           {v0.x, v0.y, 0.f, 0.f, r, g, b, a},
           {v1.x, v1.y, 1.f, 0.f, r, g, b, a},
@@ -159,8 +159,7 @@ void main() {
           {v2.x, v2.y, 1.f, 1.f, r, g, b, a},
           {v3.x, v3.y, 0.f, 1.f, r, g, b, a},
       }};
-      const sg_range data{.ptr = verts.data(), .size = sizeof(verts)};
-      return sg_append_buffer(vbuf, &data);
+      out.insert(out.end(), verts.begin(), verts.end());
     }
 
   } // namespace
@@ -203,7 +202,7 @@ void main() {
     void ensure_baked(uint32_t font_id, uint32_t char_size) const;
     void rebuild_proj() noexcept;
     [[nodiscard]] bool has_quad_space();
-    void add_to_batch(sg_view view, int offset);
+    void add_to_batch(sg_view view);
     void flush_batch();
 
     corundum::platform::GpuContext &gpu_ctx_;
@@ -215,7 +214,7 @@ void main() {
 
     // ── Batch state ──────────────────────────────────────────────────
     sg_view batch_view_{};
-    int batch_start_offset_{0};
+    std::vector<Vertex> batch_vertices_;
     int batch_count_{0};
     int quad_count_{0};
 
@@ -239,6 +238,7 @@ void main() {
   // (LoadedTexture and BakedAtlas are POD aggregates; no explicit ctors needed.)
 
   SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx) : gpu_ctx_(gpu_ctx) {
+    batch_vertices_.reserve(k_max_quads * 6);
 
     // ── Shader ──────────────────────────────────────────────────────────────
     sg_shader_desc shdesc{};
@@ -349,8 +349,11 @@ void main() {
   void SokolRenderer::flush_batch() {
     if (batch_count_ == 0)
       return;
+    assert(static_cast<std::size_t>(6 * batch_count_) == batch_vertices_.size());
     bindings_.vertex_buffers[0] = vertex_buf_;
-    bindings_.vertex_buffer_offsets[0] = batch_start_offset_;
+    const sg_range batch_range{.ptr = batch_vertices_.data(), .size = batch_vertices_.size() * sizeof(Vertex)};
+    const int batch_offset = sg_append_buffer(vertex_buf_, &batch_range);
+    bindings_.vertex_buffer_offsets[0] = batch_offset;
     bindings_.views[0] = batch_view_;
     sg_apply_bindings(&bindings_);
 
@@ -358,6 +361,7 @@ void main() {
     sg_apply_uniforms(0, &ub);
 
     sg_draw(0, 6 * batch_count_, 1);
+    batch_vertices_.clear();
     batch_count_ = 0;
   }
 
@@ -373,10 +377,9 @@ void main() {
     return true;
   }
 
-  void SokolRenderer::add_to_batch(sg_view view, int offset) {
+  void SokolRenderer::add_to_batch(sg_view view) {
     if (batch_count_ == 0) {
       batch_view_ = view;
-      batch_start_offset_ = offset;
     }
     ++batch_count_;
     ++quad_count_;
@@ -439,6 +442,7 @@ void main() {
   void SokolRenderer::begin_frame(core::math::Colour clear_colour) {
     quad_count_ = 0;
     batch_count_ = 0;
+    batch_vertices_.clear();
 
     if (!gpu_ctx_.begin_default_pass(clear_colour))
       return;
@@ -492,10 +496,9 @@ void main() {
     if (batch_count_ > 0 && batch_view_.id != tex.view.id)
       flush_batch();
 
-    const int offset =
-        emit_quad(vertex_buf_, cmd.position.x, cmd.position.y, pw, ph, u0, v0, u1, v1, 1.f, 1.f, 1.f, 1.f);
+    emit_quad(batch_vertices_, cmd.position.x, cmd.position.y, pw, ph, u0, v0, u1, v1, 1.f, 1.f, 1.f, 1.f);
 
-    add_to_batch(tex.view, offset);
+    add_to_batch(tex.view);
   }
 
   void SokolRenderer::draw(const DrawText &cmd) {
@@ -548,9 +551,9 @@ void main() {
       const float u1 = static_cast<float>(g.atlas_x + g.width) / atlas_w;
       const float v1 = static_cast<float>(g.atlas_y + g.height) / atlas_h;
 
-      const int offset = emit_quad(vertex_buf_, gx, gy, gw, gh, u0, v0, u1, v1, cr, cg, cb, ca);
+      emit_quad(batch_vertices_, gx, gy, gw, gh, u0, v0, u1, v1, cr, cg, cb, ca);
 
-      add_to_batch(baked.view, offset);
+      add_to_batch(baked.view);
 
       pen_x += g.advance_x;
     }
@@ -569,10 +572,10 @@ void main() {
     if (batch_count_ > 0 && batch_view_.id != white_view_.id)
       flush_batch();
 
-    const int offset = emit_quad(vertex_buf_, cmd.position.x, cmd.position.y, cmd.size.x, cmd.size.y, 0.f, 0.f, 1.f,
-                                 1.f, cr, cg, cb, ca);
+    emit_quad(batch_vertices_, cmd.position.x, cmd.position.y, cmd.size.x, cmd.size.y, 0.f, 0.f, 1.f, 1.f, cr, cg, cb,
+              ca);
 
-    add_to_batch(white_view_, offset);
+    add_to_batch(white_view_);
   }
 
   void SokolRenderer::draw(const DrawLine &cmd) {
@@ -598,11 +601,10 @@ void main() {
     if (batch_count_ > 0 && batch_view_.id != white_view_.id)
       flush_batch();
 
-    const int offset =
-        emit_quad_verts(vertex_buf_, {cmd.start.x + px, cmd.start.y + py}, {cmd.start.x - px, cmd.start.y - py},
-                        {cmd.end.x - px, cmd.end.y - py}, {cmd.end.x + px, cmd.end.y + py}, cr, cg, cb, ca);
+    emit_quad_verts(batch_vertices_, {cmd.start.x + px, cmd.start.y + py}, {cmd.start.x - px, cmd.start.y - py},
+                    {cmd.end.x - px, cmd.end.y - py}, {cmd.end.x + px, cmd.end.y + py}, cr, cg, cb, ca);
 
-    add_to_batch(white_view_, offset);
+    add_to_batch(white_view_);
   }
 
   float SokolRenderer::measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const {

@@ -88,7 +88,8 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
     const int tw = state.map.diamond_w();
     const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
@@ -129,7 +130,8 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
     const int tw = state.map.diamond_w();
     const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);
@@ -157,7 +159,8 @@ namespace tools::tilemap {
       return;
     const int dw = effective_diamond_w(state.map);
     const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_iso_params(dw, dh, state.map.height, state.canvas.scale);
+    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
+                                                                    state.elev_step_px);
     const int tw = state.map.diamond_w();
     const int th = state.map.diamond_h();
     const float inv_tw = 1.f / static_cast<float>(tw);

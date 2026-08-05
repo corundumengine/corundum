@@ -16,7 +16,7 @@ namespace corundum::physics::sys {
   namespace {
     constexpr float k_tile_center_offset = 0.5f;
 
-    using corundum::core::math::IsoParams;
+    using corundum::core::math::IsometricParams;
     using corundum::core::math::Vec2;
 
     /** @brief Convert a tile-grid offset (dc, dr) to the equivalent screen-space displacement.
@@ -29,7 +29,7 @@ namespace corundum::physics::sys {
      * in screen space produces equal perceived speed in all directions rather than
      * equal tile-grid speed (which the isometric projection distorts).
      */
-    [[nodiscard]] constexpr Vec2 tile_to_screen_delta(float dc, float dr, IsoParams iso) noexcept {
+    [[nodiscard]] constexpr Vec2 tile_to_screen_delta(float dc, float dr, IsometricParams iso) noexcept {
       return {(dc - dr) * iso.half_tw, (dc + dr) * iso.half_th};
     }
 
@@ -41,7 +41,7 @@ namespace corundum::physics::sys {
      *
      * @pre iso.half_tw > 0 and iso.half_th > 0.
      */
-    [[nodiscard]] constexpr Vec2 screen_to_tile_delta(float svx, float svy, IsoParams iso) noexcept {
+    [[nodiscard]] constexpr Vec2 screen_to_tile_delta(float svx, float svy, IsometricParams iso) noexcept {
       return {(svx / iso.half_tw + svy / iso.half_th) / 2.f, (svy / iso.half_th - svx / iso.half_tw) / 2.f};
     }
   } // namespace
@@ -55,7 +55,7 @@ namespace corundum::physics::sys {
 
   void follow_path(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
-                   float player_speed, corundum::core::math::IsoParams iso, float dt) noexcept {
+                   float player_speed, corundum::core::math::IsometricParams iso, float dt) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
     const std::uint32_t slot = transforms.dense_idx(player);
@@ -103,7 +103,7 @@ namespace corundum::physics::sys {
 
   void apply_input(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                   float player_speed, corundum::core::math::IsoParams iso) noexcept {
+                   float player_speed, corundum::core::math::IsometricParams iso) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
 
@@ -157,7 +157,7 @@ namespace corundum::physics::sys {
                      corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
                      float player_speed, const corundum::gameplay::world::MapView &map,
                      corundum::gameplay::world::Scene &scene, float dt) noexcept {
-    using corundum::core::math::IsoParams;
+    using corundum::core::math::IsometricParams;
     using corundum::gameplay::component::CollisionTable;
     using corundum::gameplay::component::Position;
     using corundum::gameplay::entity::EntityId;
@@ -185,7 +185,7 @@ namespace corundum::physics::sys {
     const bool manual_move =
         input.is_held(corundum::input::Action::MoveUp) || input.is_held(corundum::input::Action::MoveDown) ||
         input.is_held(corundum::input::Action::MoveLeft) || input.is_held(corundum::input::Action::MoveRight);
-    const IsoParams iso{map.half_tw, map.half_th};
+    const IsometricParams iso{map.half_tw, map.half_th, 0.f, 0.f};
     if (manual_move) {
       scene.path.clear(); // manual input always overrides/cancels an active path
       apply_input(transforms, player, input, player_speed, iso);

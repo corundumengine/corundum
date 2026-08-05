@@ -10,8 +10,8 @@ namespace corundum::gameplay::world {
       const auto &first_tm = render.active_chunks[0].tilemap;
       const auto &manifest = render.manifest;
       const int total_h = manifest.tiles_tall > 0 ? manifest.tiles_tall : manifest.chunks_tall * manifest.chunk_size;
-      const auto iso =
-          core::math::compute_iso_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale);
+      const auto iso = core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h,
+                                                            cfg.tile_scale, cfg.elevation_step_px);
       const auto [iso_w, iso_h] = gameplay::world::tilemap::world_bounds_iso(manifest, iso.half_tw, iso.half_th);
       const float total_w = manifest.tiles_wide > 0 ? static_cast<float>(manifest.tiles_wide)
                                                     : static_cast<float>(manifest.chunks_wide * manifest.chunk_size);
@@ -48,7 +48,8 @@ namespace corundum::gameplay::world {
     }
 
     const auto &tm = render.map_data.tilemap;
-    const auto iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
+    const auto iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
+                                                          cfg.elevation_step_px);
     const float steps = static_cast<float>(tm.width + tm.height - 1);
     return {.collisions = tm.collisions.view(),
             .collision_triangles = tm.collision_triangles.view(),

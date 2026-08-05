@@ -184,48 +184,48 @@ TEST_CASE("chunk_at_iso — clamped at negative iso position") {
   CHECK(chunk_at_iso(-999999.f, -999999.f, m, k_half_tw, k_half_th) == ChunkCoord{0, 0});
 }
 
-// ── IsoParams overloads ──────────────────────────────────────────────────────
+// ── IsometricParams overloads ──────────────────────────────────────────────────────
 
-TEST_CASE("IsoParams tile_to_world agrees with scalar form (zero elevation, zero x_origin)") {
-  const ccm::IsoParams iso{k_half_tw, k_half_th, 0.f};
-  const auto p = ccm::tile_to_world(3.f, 4.f, 0, iso, 4.f);
+TEST_CASE("IsometricParams tile_to_world agrees with scalar form (zero elevation, zero x_origin)") {
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, 0.f, 4.f};
+  const auto p = ccm::tile_to_world(3.f, 4.f, 0, iso);
   const auto expected = ccm::tile_to_world(3, 4, 0, k_half_tw, k_half_th, 4.f, 0.f);
   CHECK(p.x == doctest::Approx(expected.x));
   CHECK(p.y == doctest::Approx(expected.y));
 }
 
-TEST_CASE("IsoParams tile_to_world agrees with scalar form (nonzero elevation, nonzero x_origin)") {
+TEST_CASE("IsometricParams tile_to_world agrees with scalar form (nonzero elevation, nonzero x_origin)") {
   constexpr float xo = 7.f * k_half_tw;
-  const ccm::IsoParams iso{k_half_tw, k_half_th, xo};
-  const auto p = ccm::tile_to_world(2.f, 5.f, 30, iso, 4.f);
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, xo, 4.f};
+  const auto p = ccm::tile_to_world(2.f, 5.f, 30, iso);
   const auto expected = ccm::tile_to_world(2, 5, 30, k_half_tw, k_half_th, 4.f, xo);
   CHECK(p.x == doctest::Approx(expected.x));
   CHECK(p.y == doctest::Approx(expected.y));
 }
 
-TEST_CASE("IsoParams tile_to_world with fractional input") {
-  const ccm::IsoParams iso{k_half_tw, k_half_th, 0.f};
-  const auto p = ccm::tile_to_world(3.7f, 4.2f, 0, iso, 0.f);
+TEST_CASE("IsometricParams tile_to_world with fractional input") {
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, 0.f, 4.f};
+  const auto p = ccm::tile_to_world(3.7f, 4.2f, 0, iso);
   const float expected_x = (3.7f - 4.2f) * k_half_tw;
   const float expected_y = (3.7f + 4.2f) * k_half_th;
   CHECK(p.x == doctest::Approx(expected_x));
   CHECK(p.y == doctest::Approx(expected_y));
 }
 
-TEST_CASE("IsoParams world_to_tile agrees with scalar form") {
+TEST_CASE("IsometricParams world_to_tile agrees with scalar form") {
   constexpr float xo = 7.f * k_half_tw;
-  const ccm::IsoParams iso{k_half_tw, k_half_th, xo};
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, xo, 4.f};
   const ccm::Vec2 world{100.f, 200.f};
-  const auto t = ccm::world_to_tile(world, 0, iso, 4.f);
+  const auto t = ccm::world_to_tile(world, 0, iso);
   const auto expected = ccm::world_to_tile(world, 0, k_half_tw, k_half_th, 4.f, xo);
   CHECK(t.x == doctest::Approx(expected.x));
   CHECK(t.y == doctest::Approx(expected.y));
 }
 
-TEST_CASE("IsoParams world_to_tile tile_to_world round-trip") {
-  const ccm::IsoParams iso{k_half_tw, k_half_th, 0.f};
-  const auto world = ccm::tile_to_world(3.f, 4.f, 0, iso, 4.f);
-  const auto tile = ccm::world_to_tile(world, 0, iso, 4.f);
+TEST_CASE("IsometricParams world_to_tile tile_to_world round-trip") {
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, 0.f, 4.f};
+  const auto world = ccm::tile_to_world(3.f, 4.f, 0, iso);
+  const auto tile = ccm::world_to_tile(world, 0, iso);
   CHECK(tile.x == doctest::Approx(3.f));
   CHECK(tile.y == doctest::Approx(4.f));
 }
@@ -263,4 +263,90 @@ TEST_CASE("world_bounds_iso — spawn position within bounds") {
   CHECK(spawn.x <= ww);
   CHECK(spawn.y >= 0.f);
   CHECK(spawn.y <= wh);
+}
+
+// ── IsometricCullBounds ───────────────────────────────────────────────────
+
+static constexpr float k_test_half_tw = 32.f;
+static constexpr float k_test_half_th = 16.f;
+static constexpr float k_test_x_origin = 128.f;
+static constexpr float k_test_elev_step = 4.f;
+
+TEST_CASE("IsometricCullBounds — round-trip: rect containing a tile encloses its depth and column") {
+  const ccm::IsometricParams iso{k_test_half_tw, k_test_half_th, k_test_x_origin, k_test_elev_step};
+
+  for (int col = 0; col < 10; ++col) {
+    for (int row = 0; row < 10; ++row) {
+      const ccm::Vec2 world = ccm::tile_to_world(col, row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+      const float margin = 1.f;
+      const ccm::IsometricCullBounds cull = ccm::compute_isometric_cull_bounds(world.x - margin, world.y - margin,
+                                                                               world.x + margin, world.y + margin, iso);
+
+      INFO("col=", col, " row=", row);
+      CHECK(cull.depth_min <= col + row);
+      CHECK(cull.depth_max >= col + row);
+      const int first_col = ccm::isometric_cull_first_column(cull, col + row);
+      const int last_col = ccm::isometric_cull_last_column(cull, col + row);
+      CHECK(first_col <= col);
+      CHECK(last_col >= col);
+    }
+  }
+}
+
+TEST_CASE("IsometricCullBounds — brute-force conservativeness over 64×64") {
+  const ccm::IsometricParams iso{k_test_half_tw, k_test_half_th, k_test_x_origin, k_test_elev_step};
+  const float half_w = static_cast<float>(k_test_half_tw);
+  const float half_h = static_cast<float>(k_test_half_th);
+
+  // Sweep a small viewport across the tile grid to verify every tile anchor
+  // inside the rect is also inside the cull bounds.
+  for (int offset_x = 0; offset_x < 10; ++offset_x) {
+    for (int offset_y = 0; offset_y < 10; ++offset_y) {
+      const float cx = k_test_x_origin + static_cast<float>(offset_x) * half_w * 2.f;
+      const float cy = static_cast<float>(offset_y) * half_h * 2.f;
+      const float vpw = half_w * 20.f;
+      const float vph = half_h * 20.f;
+
+      const ccm::IsometricCullBounds cull = ccm::compute_isometric_cull_bounds(cx, cy, cx + vpw, cy + vph, iso);
+
+      int enclosed = 0;
+      for (int col = 0; col < 64; ++col) {
+        for (int row = 0; row < 64; ++row) {
+          const ccm::Vec2 world = ccm::tile_to_world(col, row, 0, iso.half_tw, iso.half_th, 0.f, iso.x_origin);
+          const bool in_rect = world.x >= cx && world.x <= cx + vpw && world.y >= cy && world.y <= cy + vph;
+          const int depth = col + row;
+          bool in_cull = depth >= cull.depth_min && depth <= cull.depth_max;
+          if (in_cull) {
+            const int first_col = ccm::isometric_cull_first_column(cull, depth);
+            const int last_col = ccm::isometric_cull_last_column(cull, depth);
+            in_cull = col >= first_col && col <= last_col;
+          }
+          if (in_rect) {
+            REQUIRE_MESSAGE(in_cull,
+                            "offset_x=" << offset_x << " offset_y=" << offset_y << " col=" << col << " row=" << row);
+            ++enclosed;
+          }
+        }
+      }
+      CHECK(enclosed > 0);
+
+      // Bounds should add at most ~2 spare bands per edge
+      const int max_bands = 64 + 64 - 1;
+      const int visible_bands = cull.depth_max - cull.depth_min + 1;
+      CHECK(visible_bands <= max_bands);
+      CHECK(visible_bands > 0);
+    }
+  }
+}
+
+TEST_CASE("IsometricCullBounds — degenerate params return culls-nothing sentinel") {
+  const ccm::IsometricParams iso_zero{0.f, 0.f, 0.f, 0.f};
+  const ccm::IsometricCullBounds cull = ccm::compute_isometric_cull_bounds(0.f, 0.f, 100.f, 100.f, iso_zero);
+  CHECK(cull.depth_min <= -1000000000);
+  CHECK(cull.depth_max >= 1000000000);
+
+  const ccm::IsometricParams iso_neg{-1.f, -1.f, 0.f, 0.f};
+  const ccm::IsometricCullBounds cull_neg = ccm::compute_isometric_cull_bounds(0.f, 0.f, 100.f, 100.f, iso_neg);
+  CHECK(cull_neg.depth_min <= -1000000000);
+  CHECK(cull_neg.depth_max >= 1000000000);
 }

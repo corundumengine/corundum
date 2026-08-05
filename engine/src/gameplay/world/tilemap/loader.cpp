@@ -904,15 +904,32 @@ namespace corundum::gameplay::world::tilemap {
       layers.back().bake_render_cache(width, height);
     }
 
-    return Tilemap{path.string(),
-                   std::move(tilesets),
-                   width,
-                   height,
-                   iso_diamond_w,
-                   iso_diamond_h,
-                   std::move(layers),
-                   std::move(collisions),
-                   std::move(collision_triangles)};
+    int max_tile_full_w = 0;
+    int max_tile_full_h = 0;
+    for (const auto &ts : tilesets) {
+      if (!ts.info.tile_full_width.empty()) {
+        max_tile_full_w =
+            std::max(max_tile_full_w, *std::ranges::max_element(ts.info.tile_full_width.begin(),
+                                                                ts.info.tile_full_width.end(), std::less{}));
+      }
+      if (!ts.info.tile_full_height.empty()) {
+        max_tile_full_h =
+            std::max(max_tile_full_h, *std::ranges::max_element(ts.info.tile_full_height.begin(),
+                                                                ts.info.tile_full_height.end(), std::less{}));
+      }
+    }
+
+    return Tilemap{.path = path.string(),
+                   .tilesets = std::move(tilesets),
+                   .width = width,
+                   .height = height,
+                   .iso_diamond_w = iso_diamond_w,
+                   .iso_diamond_h = iso_diamond_h,
+                   .layers = std::move(layers),
+                   .collisions = std::move(collisions),
+                   .collision_triangles = std::move(collision_triangles),
+                   .max_tile_full_w = max_tile_full_w,
+                   .max_tile_full_h = max_tile_full_h};
   }
 
 } // namespace corundum::gameplay::world::tilemap

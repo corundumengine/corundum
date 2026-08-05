@@ -53,11 +53,11 @@ namespace corundum {
 
       // Initialize camera centered on the player.
       const auto &tm = *active_tilemap(engine);
-      const auto iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
+      const auto iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale, cfg.elevation_step_px);
       const auto p_slot = engine.scene.world.transforms.dense_idx(engine.scene.player);
       const float pc = engine.scene.world.transforms.col[p_slot];
       const float pr = engine.scene.world.transforms.row[p_slot];
-      const auto iso_pos = core::math::tile_to_world(pc, pr, 0, iso, 0.f);
+      const auto iso_pos = core::math::tile_to_world(pc, pr, 0, iso);
       const float iso_x = iso_pos.x;
       const float iso_y = iso_pos.y;
       const float extent = static_cast<float>(tm.width + tm.height - 1) * iso.half_tw * 2.f;

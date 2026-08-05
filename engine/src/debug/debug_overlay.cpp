@@ -53,7 +53,7 @@ namespace corundum::debug {
 
   void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
                       gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsoParams iso,
+                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsometricParams iso,
                       float zoom) noexcept {
     r.set_world_view(camera, viewport, zoom);
 
@@ -155,15 +155,17 @@ namespace corundum::debug {
     const core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
     const core::math::Vec2 camera{scene.camera.x, scene.camera.y};
 
-    core::math::IsoParams iso{};
+    core::math::IsometricParams iso{};
     if (render.mode == render::data::RenderMode::World && !render.active_chunks.empty()) {
       const gameplay::world::tilemap::Tilemap &first_tm = render.active_chunks[0].tilemap;
       const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
-      iso = core::math::compute_iso_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale);
+      iso = core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale,
+                                                 cfg.elevation_step_px);
     } else if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
       const gameplay::world::tilemap::Tilemap &tm = render.map_data.tilemap;
-      iso = core::math::compute_iso_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale);
+      iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
+                                                 cfg.elevation_step_px);
     }
     const render::data::CollisionGeometry geo = render::data::current_collisions(render);
     draw_collision(r, camera, viewport, geo.rects, geo.tris, iso, scene.camera.zoom);

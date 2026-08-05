@@ -27,7 +27,7 @@ namespace corundum::physics::sys {
    */
   void apply_input(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                   float player_speed, corundum::core::math::IsoParams iso) noexcept;
+                   float player_speed, corundum::core::math::IsometricParams iso) noexcept;
 
   /** @brief Advance @p e's position by velocity * dt.
    *  @param[in,out] transforms  SoA table; col/row for @p e are advanced.
@@ -56,7 +56,7 @@ namespace corundum::physics::sys {
    */
   void follow_path(corundum::gameplay::component::TransformTable &transforms,
                    corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
-                   float player_speed, corundum::core::math::IsoParams iso, float dt) noexcept;
+                   float player_speed, corundum::core::math::IsometricParams iso, float dt) noexcept;
 
   /** @brief Full player step: input → integrate → collision resolve → portal detect.
    *

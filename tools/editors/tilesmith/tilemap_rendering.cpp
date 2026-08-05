@@ -83,7 +83,8 @@ namespace tools::tilemap {
                       const corundum::gameplay::world::tilemap::Tilemap &map, const TilemapTextureStore &store,
                       float camera_x, float camera_y, int z_index, float tile_scale, float elapsed_time,
                       float elev_step) {
-    const auto iso = corundum::core::math::compute_iso_params(map.diamond_w(), map.diamond_h(), map.height, tile_scale);
+    const auto iso = corundum::core::math::compute_isometric_params(map.diamond_w(), map.diamond_h(), map.height,
+                                                                    tile_scale, elev_step);
 
     const int depth_max = map.width + map.height - 2;
 
@@ -128,7 +129,7 @@ namespace tools::tilemap {
                                ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
                                : 0;
 
-          const auto world = corundum::core::math::tile_to_world(col, row, elev, iso, elev_step);
+          const auto world = corundum::core::math::tile_to_world(col, row, elev, iso);
           const float iso_x = world.x;
           const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
 

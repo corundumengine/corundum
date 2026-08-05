@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <limits>
 
 namespace corundum::core::math {
 
@@ -52,9 +53,9 @@ namespace corundum::core::math {
    * @brief Packed isometric projection parameters for a tilemap at a given scale.
    *
    * Pass this to tile_to_world / world_to_tile to avoid computing half_tw, half_th,
-   * and x_origin separately at every call site.
+   * x_origin, and elev_step separately at every call site.
    */
-  struct IsoParams {
+  struct IsometricParams {
     /** @brief Half the scaled diamond width (diamond_w * tile_scale * 0.5). */
     float half_tw{};
     /** @brief Half the scaled diamond height (diamond_h * tile_scale * 0.5). */
@@ -64,23 +65,26 @@ namespace corundum::core::math {
      *   Equals (height - 1) * half_tw.
      */
     float x_origin{};
+    /** @brief Screen pixels lifted per unit of elevation. */
+    float elev_step{};
   };
 
   /**
-   * @brief Build IsoParams from raw map/metric values.
+   * @brief Build IsometricParams from raw map/metric values.
    *
    * @param diamond_w  Tilemap::diamond_w() – the isometric grid-step width  in Tiled pixels.
    * @param diamond_h  Tilemap::diamond_h() – the isometric grid-step height in Tiled pixels.
    * @param height     Number of tile rows in the map (Tilemap::height).
    * @param tile_scale Display scale factor (e.g. 1.f, 2.f).
-   * @return IsoParams with half_tw, half_th, x_origin pre-computed.
+   * @param elev_step  Screen pixels lifted per unit of elevation (GameConfig::elevation_step_px).
+   * @return IsometricParams with half_tw, half_th, x_origin, elev_step pre-computed.
    */
-  [[nodiscard]] constexpr IsoParams compute_iso_params(int diamond_w, int diamond_h, int height,
-                                                       float tile_scale) noexcept {
+  [[nodiscard]] constexpr IsometricParams compute_isometric_params(int diamond_w, int diamond_h, int height,
+                                                                   float tile_scale, float elev_step) noexcept {
     const float half_tw = static_cast<float>(diamond_w) * tile_scale * 0.5f;
     const float half_th = static_cast<float>(diamond_h) * tile_scale * 0.5f;
     const float x_origin = static_cast<float>(height - 1) * half_tw;
-    return {half_tw, half_th, x_origin};
+    return {half_tw, half_th, x_origin, elev_step};
   }
 
   /**
@@ -90,7 +94,7 @@ namespace corundum::core::math {
    * vertex of one isometric diamond cell.  Anchor at this offset from
    * tile_to_world to place a sprite so its artwork fills the cell naturally.
    *
-   * @param half_th  Half the scaled diamond height (from IsoParams or equivalent).
+   * @param half_th  Half the scaled diamond height (from IsometricParams or equivalent).
    * @return The full cell height in screen pixels.
    */
   [[nodiscard]] constexpr float diamond_cell_height(float half_th) noexcept {
@@ -162,41 +166,37 @@ namespace corundum::core::math {
 
   /**
    * @brief Convert a fractional tile grid position and elevation to an isometric
-   * world-space position using a packed IsoParams struct.
+   * world-space position using a packed IsometricParams struct.
    *
-   * Overload for callers that already hold an IsoParams. Fractional col/row lets
+   * Overload for callers that already hold an IsometricParams. Fractional col/row lets
    * camera-centering and interpolated entity positions call this directly without
    * re-inlining the projection.
    *
    * @param col       Tile column (fractional).
    * @param row       Tile row (fractional).
    * @param elevation Tile height [0–255]; 0 is flat ground level.
-   * @param iso       Packed projection parameters from compute_iso_params().
-   * @param elev_step Screen pixels lifted per unit of elevation.
+   * @param iso       Packed projection parameters from compute_isometric_params().
    * @return Isometric world-space position.
    */
-  [[nodiscard]] constexpr Vec2 tile_to_world(float col, float row, int elevation, const IsoParams &iso,
-                                             float elev_step) noexcept {
+  [[nodiscard]] constexpr Vec2 tile_to_world(float col, float row, int elevation, const IsometricParams &iso) noexcept {
     return {
         (col - row) * iso.half_tw + iso.x_origin,
-        (col + row) * iso.half_th - static_cast<float>(elevation) * elev_step,
+        (col + row) * iso.half_th - static_cast<float>(elevation) * iso.elev_step,
     };
   }
 
   /**
    * @brief Convert an isometric world-space position back to fractional tile-grid
-   * coordinates using a packed IsoParams struct. Overload for callers that already
-   * hold an IsoParams.
+   * coordinates using a packed IsometricParams struct. Overload for callers that already
+   * hold an IsometricParams.
    *
    * @param world_pos Isometric world-space position (already camera-adjusted).
    * @param elevation Assumed tile height.
-   * @param iso       Packed projection parameters from compute_iso_params().
-   * @param elev_step Screen pixels lifted per unit of elevation.
+   * @param iso       Packed projection parameters from compute_isometric_params().
    * @return Fractional {col, row}; floor() each component to get the containing cell.
    */
-  [[nodiscard]] constexpr Vec2 world_to_tile(Vec2 world_pos, int elevation, const IsoParams &iso,
-                                             float elev_step) noexcept {
-    return world_to_tile(world_pos, elevation, iso.half_tw, iso.half_th, elev_step, iso.x_origin);
+  [[nodiscard]] constexpr Vec2 world_to_tile(Vec2 world_pos, int elevation, const IsometricParams &iso) noexcept {
+    return world_to_tile(world_pos, elevation, iso.half_tw, iso.half_th, iso.elev_step, iso.x_origin);
   }
 
   /**
@@ -219,6 +219,110 @@ namespace corundum::core::math {
   [[nodiscard]] constexpr float iso_depth_key(float tx, float ty, float elevation, float half_th,
                                               float elev_step) noexcept {
     return (tx + ty) + elevation * (half_th > 0.f ? elev_step / half_th : 0.f);
+  }
+
+  /**
+   * @brief Draw-order depth key using packed IsometricParams.
+   *
+   * Overload for callers that already hold an IsometricParams.
+   */
+  [[nodiscard]] constexpr float iso_depth_key(float tx, float ty, float elevation,
+                                              const IsometricParams &iso) noexcept {
+    return iso_depth_key(tx, ty, elevation, iso.half_th, iso.elev_step);
+  }
+
+  // ── Viewport culling ───────────────────────────────────────────────────
+
+  /**
+   * @brief Bounds of the visible isometric tile range for a world-space rectangle.
+   *
+   * Computed by compute_isometric_cull_bounds() from the camera's visible area
+   * expanded by conservative pads. The depth range (min/max col+row) and u range
+   * (min/max col−row) are used to clamp tile iteration loops to only visible bands.
+   */
+  struct IsometricCullBounds {
+    int depth_min; ///< Smallest visible col+row (top-most band), inclusive.
+    int depth_max; ///< Largest visible col+row (bottom-most band), inclusive.
+    float u_min;   ///< Smallest visible (col − row), fractional.
+    float u_max;   ///< Largest visible (col − row), fractional.
+  };
+
+  /**
+   * @brief Compute culling bounds from a world-space rectangle.
+   *
+   * Converts a rect (left, top, right, bottom) in isometric world pixels
+   * into tile-grid depth/col ranges that bracket every tile whose world
+   * position falls inside the rect.
+   *
+   * @param left, top, right, bottom World-space rectangle (typically the camera
+   *                                 viewport expanded by per-side art extent pads).
+   * @param iso IsometricParams for the map (half_th, half_th, x_origin, elev_step).
+   * @return Bounds covering every tile cell overlapping the rectangle.
+   */
+  [[nodiscard]] constexpr IsometricCullBounds
+  compute_isometric_cull_bounds(float left, float top, float right, float bottom, const IsometricParams &iso) noexcept;
+
+  /**
+   * @brief First visible column in the given depth band for the supplied cull bounds.
+   *
+   * @param b Cull bounds from compute_isometric_cull_bounds().
+   * @param depth Absolute depth (col + row) of the band.
+   * @return Inclusive minimum column index; may be negative for off-screen bands.
+   */
+  [[nodiscard]] constexpr int isometric_cull_first_column(const IsometricCullBounds &b, int depth) noexcept;
+
+  /**
+   * @brief Last visible column in the given depth band for the supplied cull bounds.
+   *
+   * @param b Cull bounds from compute_isometric_cull_bounds().
+   * @param depth Absolute depth (col + row) of the band.
+   * @return Inclusive maximum column index.
+   */
+  [[nodiscard]] constexpr int isometric_cull_last_column(const IsometricCullBounds &b, int depth) noexcept;
+
+  // ── Cull implementation (constexpr, no <cmath> for AppleClang compat) ────
+
+  namespace detail {
+    [[nodiscard]] constexpr float ce_floor(float x) noexcept {
+      const int i = static_cast<int>(x);
+      return x < static_cast<float>(i) ? static_cast<float>(i - 1) : static_cast<float>(i);
+    }
+
+    [[nodiscard]] constexpr float ce_ceil(float x) noexcept {
+      const int i = static_cast<int>(x);
+      return x > static_cast<float>(i) ? static_cast<float>(i + 1) : static_cast<float>(i);
+    }
+  } // namespace detail
+
+  [[nodiscard]] constexpr IsometricCullBounds
+  compute_isometric_cull_bounds(float left, float top, float right, float bottom, const IsometricParams &iso) noexcept {
+    if (iso.half_tw <= 0.f || iso.half_th <= 0.f) {
+      return {std::numeric_limits<int>::min() / 2, std::numeric_limits<int>::max() / 2, -1e30f, 1e30f};
+    }
+    const float inv_tw = 1.f / iso.half_tw;
+    const float inv_th = 1.f / iso.half_th;
+    const float u0 = (left - iso.x_origin) * inv_tw;
+    const float u1 = (right - iso.x_origin) * inv_tw;
+    const float v0 = top * inv_th;
+    const float v1 = bottom * inv_th;
+    return {
+        static_cast<int>(detail::ce_floor(v0)),
+        static_cast<int>(detail::ce_ceil(v1)),
+        detail::ce_floor(u0),
+        detail::ce_ceil(u1),
+    };
+  }
+
+  [[nodiscard]] constexpr int isometric_cull_first_column(const IsometricCullBounds &b, int depth) noexcept {
+    const float u = b.u_min;
+    const float df = static_cast<float>(depth);
+    return static_cast<int>(detail::ce_ceil((u + df) * 0.5f));
+  }
+
+  [[nodiscard]] constexpr int isometric_cull_last_column(const IsometricCullBounds &b, int depth) noexcept {
+    const float u = b.u_max;
+    const float df = static_cast<float>(depth);
+    return static_cast<int>(detail::ce_floor((u + df) * 0.5f));
   }
 
 } // namespace corundum::core::math
