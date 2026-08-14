@@ -500,7 +500,7 @@ namespace tools::tilemap {
 
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
       mouse.left_held = true;
-      if (!popup_or_modal_open) {
+      if (!popup_or_modal_open && !ImGui::IsAnyItemActive()) {
         if (state.show_portals) {
           if (over_canvas)
             select_portal_at(state, mx, my);
@@ -573,17 +573,17 @@ namespace tools::tilemap {
       if (state.collision_dragging)
         update_collision_drag(state, mx, my);
     } else if (state.show_elevation) {
-      if (mouse.left_held && over_canvas && !popup_or_modal_open)
+      if (mouse.left_held && over_canvas && !popup_or_modal_open && !ImGui::IsAnyItemActive())
         paint_or_erase_elevation(state, mx, my, false);
       if (mouse.right_held && over_canvas)
         paint_or_erase_elevation(state, mx, my, true);
     } else if (state.show_ramps) {
-      if (mouse.left_held && over_canvas && !popup_or_modal_open)
+      if (mouse.left_held && over_canvas && !popup_or_modal_open && !ImGui::IsAnyItemActive())
         paint_or_erase_ramp(state, mx, my, false);
       if (mouse.right_held && over_canvas)
         paint_or_erase_ramp(state, mx, my, true);
     } else {
-      if (mouse.left_held && over_canvas && !popup_or_modal_open)
+      if (mouse.left_held && over_canvas && !popup_or_modal_open && !ImGui::IsAnyItemActive())
         paint_or_erase(state, mx, my, false);
       if (mouse.right_held && over_canvas)
         update_erase_drag(state, mx, my);
