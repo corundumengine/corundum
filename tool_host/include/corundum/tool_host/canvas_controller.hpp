@@ -57,16 +57,20 @@ namespace corundum::tool_host {
           panning_ = false;
       }
 
-      // Wheel zoom
+      // Wheel zoom (only while the cursor is over the canvas, so wheel over a side
+      // panel scrolls that panel instead of zooming the canvas)
       if (io.MouseWheel != 0.f && canvas_size.x > 0.f && canvas_size.y > 0.f) {
-        const float old_scale = scale;
-        scale = std::clamp(scale * (io.MouseWheel > 0.f ? 1.15f : 1.f / 1.15f), min_scale_, max_scale_);
+        const float mx = io.MousePos.x - canvas_origin.x;
+        const float my = io.MousePos.y - canvas_origin.y;
+        const bool cursor_over_canvas = mx >= 0.f && my >= 0.f && mx < canvas_size.x && my < canvas_size.y;
+        if (cursor_over_canvas) {
+          const float old_scale = scale;
+          scale = std::clamp(scale * (io.MouseWheel > 0.f ? 1.15f : 1.f / 1.15f), min_scale_, max_scale_);
 
-        if (zoom_to_cursor) {
-          const float mx = io.MousePos.x - canvas_origin.x;
-          const float my = io.MousePos.y - canvas_origin.y;
-          offset_x = mx - (mx - offset_x) * (scale / old_scale);
-          offset_y = my - (my - offset_y) * (scale / old_scale);
+          if (zoom_to_cursor) {
+            offset_x = mx - (mx - offset_x) * (scale / old_scale);
+            offset_y = my - (my - offset_y) * (scale / old_scale);
+          }
         }
       }
 
