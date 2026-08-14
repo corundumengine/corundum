@@ -112,7 +112,7 @@ Executes actions silently with no UI, then immediately advances to the next node
 {
   "id": "n_pay",
   "type": "event",
-  "actions": ["play_sound('coin')", "quest_start(\"find_sword\")"],
+  "actions": ["play_sound('coin')", "quest_start('find_sword')"],
   "next": "n2"
 }
 ```
@@ -199,7 +199,7 @@ Actions are listed as an array of strings. They run when an event node is reache
   "gold -= 5",
   "paid_innkeeper = true",
   "play_sound('coin')",
-  "quest_start(\"find_sword\")"
+  "quest_start('find_sword')"
 ]
 ```
 
@@ -231,8 +231,8 @@ Call engine functions such as audio, quests, or animations. Arguments use single
 
 | Action | Effect |
 |---|---|
-| `quest_start("quest_id")` | Starts the quest (sets flag to first stage). No-op if already started. |
-| `quest_advance("quest_id", "stage_name")` | Advances quest to the named stage. |
+| `quest_start('quest_id')` | Starts the quest (sets flag to first stage). No-op if already started. |
+| `quest_advance('quest_id', 'stage_name')` | Advances quest to the named stage. |
 
 ---
 
@@ -404,8 +404,8 @@ Condition ops:  ==  !=  <  >  <=  >=  &&  ||  !  ( )
 
 Flag actions:   flag = value  |  flag += value  |  flag -= value
 
-Quest actions:  quest_start("quest_id")
-                quest_advance("quest_id", "stage_name")
+Quest actions:  quest_start('quest_id')
+                quest_advance('quest_id', 'stage_name')
 
 Quest checks:   quest_is_started(quest_id)
                 quest_is_resolved(quest_id)

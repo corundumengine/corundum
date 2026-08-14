@@ -103,7 +103,7 @@ Quests are started and advanced by dialogue actions. No code changes are needed 
 On a dialogue edge or event node:
 
 ```json
-{ "actions": ["quest_start(\"find_sword\")"] }
+{ "actions": ["quest_start('find_sword')"] }
 ```
 
 This sets `quest.find_sword` to the value of the first stage. If the quest is already active, this is a no-op.
@@ -111,7 +111,7 @@ This sets `quest.find_sword` to the value of the first stage. If the quest is al
 ### Advancing a quest
 
 ```json
-{ "actions": ["quest_advance(\"find_sword\", \"return\")"] }
+{ "actions": ["quest_advance('find_sword', 'return')"] }
 ```
 
 This sets `quest.find_sword` to the sequence of the stage with `"name": "return"`. You can advance to any stage, including resolved ones. If the stage name doesn't exist, nothing happens (a warning is printed in debug builds).
@@ -185,10 +185,10 @@ This is how NPCs know whether to acknowledge a quest, offer a reward, or change 
 
 Typical dialogue flow:
 
-1. Player talks to the blacksmith → dialogue fires `quest_start("find_sword")`
+1. Player talks to the blacksmith → dialogue fires `quest_start('find_sword')`
 2. Player finds the sword → `sword_obtained` flag is set elsewhere (item pickup, another dialogue)
-3. Player returns → blacksmith's dialogue checks `quest.find_sword >= 1`, then advances via `quest_advance("find_sword", "return")`
-4. Player accepts the reward → `quest_advance("find_sword", "complete")`
+3. Player returns → blacksmith's dialogue checks `quest.find_sword >= 1`, then advances via `quest_advance('find_sword', 'return')`
+4. Player accepts the reward → `quest_advance('find_sword', 'complete')`
 
 ---
 
@@ -250,7 +250,7 @@ The ending stage's name is the outcome record. No separate outcome field is need
 Sometimes a quest begins not through a conversation but through a world event — the player finds a body, picks up a letter, enters a forbidden room. In these cases you can advance directly to any stage without calling `quest_start` first:
 
 ```json
-{ "actions": ["quest_advance(\"find_sword\", \"start\")"] }
+{ "actions": ["quest_advance('find_sword', 'start')"] }
 ```
 
 This sets the flag to the `start` stage's sequence even if the quest hasn't been started. The result is identical to calling `quest_start`, but it can be attached to any trigger in the world, not just an NPC conversation.
@@ -304,8 +304,8 @@ The loader rejects quests that violate any of these rules and prints a warning t
 ## Quick reference
 
 ```
-Start a quest:       quest_start("quest_id")
-Advance a quest:     quest_advance("quest_id", "stage_name")
+Start a quest:       quest_start('quest_id')
+Advance a quest:     quest_advance('quest_id', 'stage_name')
 
 Check started:       quest_is_started(quest_id)
 Check resolved:      quest_is_resolved(quest_id)
