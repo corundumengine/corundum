@@ -58,6 +58,11 @@ namespace corundum::gameplay::world::tilemap {
       return std::unexpected(std::format("Malformed tileset {}: {}", tileset_path.string(), e.what()));
     }
 
+    // spritepacker's `--pivot full-canvas` marks the atlas so importers know its pivots are
+    // fractions of the FULL source canvas (y from the bottom) rather than the trimmed box.
+    const bool full_canvas_pivot =
+        j.contains("pivot_basis") && j["pivot_basis"].is_string() && j["pivot_basis"].get<std::string>() == "full";
+
     TilesetInfo info;
     info.source = tileset_path.string();
     info.path = atlas.path;
@@ -86,17 +91,24 @@ namespace corundum::gameplay::world::tilemap {
       // Convert spritepacker's pivot (fraction of the *trimmed* box, raster convention: y=0 top,
       // y=1 bottom) into this engine's pivot convention (fraction of the *full* untrimmed frame,
       // y=0 bottom) — see docs/isometric-fundamentals.md §7 for why pivot must stay full-frame
-      // relative rather than trimmed-box relative.  These get overridden if a sidecar carries
-      // per-sprite pivots (which are already in engine convention).
-      const float px_in_trimmed = sprite.pivot_x * static_cast<float>(sprite.w);
-      const float py_in_trimmed = sprite.pivot_y * static_cast<float>(sprite.h);
-      const float full_px = static_cast<float>(sprite.trim_x) + px_in_trimmed;
-      const float full_py = static_cast<float>(sprite.trim_y) + py_in_trimmed;
-      const float pivot_x_full = sprite.source_width > 0 ? full_px / static_cast<float>(sprite.source_width) : 0.5f;
-      const float pivot_y_full_raster =
-          sprite.source_height > 0 ? full_py / static_cast<float>(sprite.source_height) : 1.f;
-      info.tile_pivot_x.push_back(pivot_x_full);
-      info.tile_pivot_y.push_back(1.f - pivot_y_full_raster);
+      // relative rather than trimmed-box relative.
+      if (full_canvas_pivot) {
+        // Full-canvas pivot: already a fraction of the full source frame with y measured from the
+        // bottom (the pack's own documented pivot, e.g. "X 0.5 Y 0.18"), so it is used directly.
+        // This preserves the source padding, which is where tilemap alignment often lives.
+        info.tile_pivot_x.push_back(static_cast<float>(sprite.pivot_x));
+        info.tile_pivot_y.push_back(static_cast<float>(sprite.pivot_y));
+      } else {
+        const float px_in_trimmed = sprite.pivot_x * static_cast<float>(sprite.w);
+        const float py_in_trimmed = sprite.pivot_y * static_cast<float>(sprite.h);
+        const float full_px = static_cast<float>(sprite.trim_x) + px_in_trimmed;
+        const float full_py = static_cast<float>(sprite.trim_y) + py_in_trimmed;
+        const float pivot_x_full = sprite.source_width > 0 ? full_px / static_cast<float>(sprite.source_width) : 0.5f;
+        const float pivot_y_full_raster =
+            sprite.source_height > 0 ? full_py / static_cast<float>(sprite.source_height) : 1.f;
+        info.tile_pivot_x.push_back(pivot_x_full);
+        info.tile_pivot_y.push_back(1.f - pivot_y_full_raster);
+      }
 
       info.tile_names.push_back(sprite.name);
       name_to_local_id.emplace(sprite.name, static_cast<int>(i));
@@ -167,37 +179,6 @@ namespace corundum::gameplay::world::tilemap {
             }
           }
           info.tile_footprints[*local_id] = {std::max(1, w), std::max(1, h)};
-        }
-      }
-    }
-
-    // ── pivots (sidecar only — engine convention, no conversion) ────────
-
-    if (sidecar && sidecar->contains("pivots") && (*sidecar)["pivots"].is_array()) {
-      for (const auto &pe : (*sidecar)["pivots"]) {
-        if (!pe.is_object())
-          continue;
-        std::string name;
-        try {
-          name = pe.at("name").get<std::string>();
-        } catch (...) {
-          continue;
-        }
-        const auto local_id = resolve_name(name);
-        if (!local_id)
-          continue;
-        const auto idx = static_cast<std::size_t>(*local_id);
-        if (pe.contains("pivot_x")) {
-          try {
-            info.tile_pivot_x[idx] = pe["pivot_x"].get<float>();
-          } catch (const nlohmann::json::exception &) {
-          }
-        }
-        if (pe.contains("pivot_y")) {
-          try {
-            info.tile_pivot_y[idx] = pe["pivot_y"].get<float>();
-          } catch (const nlohmann::json::exception &) {
-          }
         }
       }
     }

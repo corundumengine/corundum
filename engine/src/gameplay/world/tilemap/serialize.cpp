@@ -198,18 +198,6 @@ namespace corundum::gameplay::world::tilemap {
       sc["tile_footprints"] = std::move(fps_json);
     }
 
-    {
-      json pivots = json::array();
-      for (std::size_t i = 0; i < info.tile_names.size(); ++i) {
-        json pe;
-        pe["name"] = info.tile_names[i];
-        pe["pivot_x"] = info.tile_pivot_x[i];
-        pe["pivot_y"] = info.tile_pivot_y[i];
-        pivots.push_back(pe);
-      }
-      sc["pivots"] = std::move(pivots);
-    }
-
     return sc;
   }
 
