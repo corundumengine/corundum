@@ -21,15 +21,4 @@ namespace corundum::gameplay::world::tilemap {
    */
   [[nodiscard]] nlohmann::json serialize_tilemap(const Tilemap &map, const nlohmann::json *base = nullptr);
 
-  /** @brief Serialize tileset authoring data to a tiledata sidecar JSON.
-   *
-   * Produces the same format that read_sidecar() (loader.cpp) parses:
-   * schema_version: 1, optional tile_footprints array, and pivot array for
-   * every tile.
-   *
-   * @param[in] info  A fully-loaded TilesetInfo (with footprints and pivots).
-   * @return JSON object suitable for write_json() to a .tiledata.json sidecar.
-   */
-  [[nodiscard]] nlohmann::json serialize_tiledata(const TilesetInfo &info);
-
 } // namespace corundum::gameplay::world::tilemap

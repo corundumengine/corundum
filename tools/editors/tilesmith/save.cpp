@@ -44,18 +44,6 @@ namespace tools::tilemap {
         return std::unexpected(res.error());
     }
 
-    // 5. Save tiledata sidecars via engine serializer
-    for (const auto &saved_ts : state.map.tilesets) {
-      if (saved_ts.info.source.empty())
-        continue;
-      nlohmann::json sc = corundum::gameplay::world::tilemap::serialize_tiledata(saved_ts.info);
-      const std::filesystem::path source = saved_ts.info.source;
-      const std::filesystem::path sidecar_path = source.parent_path() / (source.stem().string() + ".tiledata.json");
-      auto res = corundum::core::write_json(sidecar_path, sc);
-      if (!res)
-        return std::unexpected(res.error());
-    }
-
     state.dirty = false;
     return {};
   }

@@ -12,8 +12,8 @@ namespace corundum::gameplay::world::tilemap {
   inline constexpr int k_tilemap_schema_version = 1;
 
   /// Load a tileset from its JSON source file — a spritepacker atlas JSON (schema_version 2),
-  /// optionally with tileset-only authoring fields layered on top (material, tile_footprints,
-  /// animations; see load_tileset's doc comment in loader.cpp for the on-disk shape).
+  /// optionally with tileset-only authoring fields layered on top (material, animations; see
+  /// load_tileset's doc comment in loader.cpp for the on-disk shape).
   /// @param path Path to the tileset JSON (e.g. "data/sprite_sheets/objects/terrain.json").
   /// @return TilesetInfo on success, or an error string on any parse or validation failure.
   [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const std::filesystem::path &path);

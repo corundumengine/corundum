@@ -30,9 +30,8 @@ namespace tools::tilemap {
       const float anchor_x = ox + top_world.x;
       const float anchor_y = oy + top_world.y + corundum::core::math::diamond_cell_height(iso.half_th);
 
-      const auto fp = corundum::gameplay::world::tilemap::get_tile_footprint(state.map.tilesets, state.selected_gid);
-      const float fw = static_cast<float>(fp.w);
-      const float fh = static_cast<float>(fp.h);
+      constexpr float fw = 1.0f; // tile footprint is always 1×1 now (footprint feature removed)
+      constexpr float fh = 1.0f;
 
       const ImVec2 top = {anchor_x - (fw - fh) * iso.half_tw, anchor_y - (fw + fh) * iso.half_th};
       const ImVec2 right = {anchor_x + fh * iso.half_tw, anchor_y - fh * iso.half_th};

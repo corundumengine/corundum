@@ -16,17 +16,15 @@ using json = nlohmann::json;
 namespace corundum::gameplay::world::tilemap {
 
   /// A tileset JSON *is* a spritepacker atlas JSON (schema_version 2), plus these optional
-  /// tileset-only authoring fields layered on top: material, tile_footprints, animations.
+  /// tileset-only authoring fields layered on top: material, animations.
   /// Sprites are referenced by name rather than by local_id/col-row, since MaxRects packing
   /// gives no stable grid position and array order isn't something an author should have to
   /// track across repacks.
   ///
   /// When a sidecar file @c {tileset_path.stem()}.tiledata.json exists alongside the atlas
-  /// JSON, its fields override the atlas-sourced authoring data (material, tile_footprints,
-  /// pivots, animations).  The sidecar stores pivots in the engine's full-frame/bottom-origin
-  /// convention directly, avoiding the need for any conversion round the pivot does NOT go
-  /// through.  This sidecar is the canonical home for authoring data — the atlas JSON stays
-  /// a pure spritepacker artefact that can be freely regenerated without data loss.
+  /// JSON, its fields override the atlas-sourced authoring data (material, animations).
+  /// Pivots and tile footprints are intentionally NOT read from the sidecar — pivots live in
+  /// the atlas JSON (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
   static std::optional<json> read_sidecar(const fs::path &atlas_path) {
     const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
     std::ifstream f(sidecar);
@@ -115,10 +113,10 @@ namespace corundum::gameplay::world::tilemap {
     }
 
     // ── Sidecar override (optional) ──────────────────────────────────────
-    // The sidecar may carry tile_footprints, pivots, animations, and material —
-    // all in engine convention.  When present these override the atlas-sourced
-    // defaults.  The atlas JSON becomes a pure spritepacker artefact; authoring
-    // data lives safely adjacent to it.
+    // The sidecar may carry material and animations — all in engine convention.
+    // When present these override the atlas-sourced defaults. Pivots are read
+    // from the atlas JSON instead (spritepacker `--pivot full-canvas`), so the
+    // atlas stays re-packable without losing alignment.
     const std::optional<json> sidecar = read_sidecar(tileset_path);
 
     auto resolve_name = [&name_to_local_id](const std::string &name) -> std::optional<int> {
@@ -138,48 +136,6 @@ namespace corundum::gameplay::world::tilemap {
       try {
         info.material = (*material_src)["material"].get<std::string>();
       } catch (const nlohmann::json::exception &) {
-      }
-    }
-
-    // ── tile_footprints ──────────────────────────────────────────────────
-
-    {
-      const json *fp_src = &j;
-      if (sidecar && sidecar->contains("tile_footprints") && (*sidecar)["tile_footprints"].is_array())
-        fp_src = &*sidecar;
-
-      if (fp_src->contains("tile_footprints") && (*fp_src)["tile_footprints"].is_array()) {
-        const auto &fps_json = (*fp_src)["tile_footprints"];
-        for (std::size_t fi = 0; fi < fps_json.size(); ++fi) {
-          const auto &entry = fps_json[fi];
-          if (!entry.is_object())
-            continue;
-          std::string name;
-          int w = 1, h = 1;
-          try {
-            name = entry.at("name").get<std::string>();
-          } catch (...) {
-            return std::unexpected(
-                std::format("Tileset '{}' tile_footprints[{}] missing 'name'", tileset_path.string(), fi));
-          }
-          const auto local_id = resolve_name(name);
-          if (!local_id)
-            return std::unexpected(std::format("Tileset '{}' tile_footprints[{}] unknown sprite name '{}'",
-                                               tileset_path.string(), fi, name));
-          if (entry.contains("w")) {
-            try {
-              w = entry["w"].get<int>();
-            } catch (const nlohmann::json::exception &) {
-            }
-          }
-          if (entry.contains("h")) {
-            try {
-              h = entry["h"].get<int>();
-            } catch (const nlohmann::json::exception &) {
-            }
-          }
-          info.tile_footprints[*local_id] = {std::max(1, w), std::max(1, h)};
-        }
       }
     }
 

@@ -415,39 +415,6 @@ namespace tools::tilemap {
       state.dirty = true;
     }
 
-    // ── Footprint editor (per selected tile) ─────────────────────────────────
-    ImGui::Spacing();
-    const bool fp_sel_valid = sel_valid;
-    corundum::gameplay::world::tilemap::TileFootprint fp =
-        fp_sel_valid ? corundum::gameplay::world::tilemap::get_tile_footprint(active_ts.info, sel_local_id)
-                     : corundum::gameplay::world::tilemap::TileFootprint{};
-    int fp_w = fp.w;
-    int fp_h = fp.h;
-
-    ImGui::TextDisabled("Footprint");
-    ImGui::SameLine(60.f);
-    ImGui::BeginDisabled(!fp_sel_valid);
-    ImGui::SetNextItemWidth(80.f);
-    const bool fw_changed = ImGui::DragInt("W##fp_w", &fp_w, 0.2f, 1, 32, "%d");
-    if (ImGui::IsItemHovered())
-      ImGui::SetTooltip("Footprint width in tiles");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(80.f);
-    const bool fh_changed = ImGui::DragInt("H##fp_h", &fp_h, 0.2f, 1, 32, "%d");
-    if (ImGui::IsItemHovered())
-      ImGui::SetTooltip("Footprint height in tiles");
-    ImGui::EndDisabled();
-
-    if (fp_sel_valid && (fw_changed || fh_changed)) {
-      fp_w = std::max(1, fp_w);
-      fp_h = std::max(1, fp_h);
-      if (fp_w == 1 && fp_h == 1)
-        active_ts.info.tile_footprints.erase(sel_local_id);
-      else
-        active_ts.info.tile_footprints[sel_local_id] = {fp_w, fp_h};
-      state.dirty = true;
-    }
-
     ImGui::End();
   }
 

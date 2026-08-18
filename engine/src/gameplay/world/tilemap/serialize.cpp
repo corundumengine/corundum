@@ -183,22 +183,4 @@ namespace corundum::gameplay::world::tilemap {
     return j;
   }
 
-  json serialize_tiledata(const TilesetInfo &info) {
-    json sc;
-    sc["schema_version"] = 1;
-
-    if (!info.tile_footprints.empty()) {
-      json fps_json = json::array();
-      for (const auto &[local_id, tsfp] : info.tile_footprints) {
-        if (local_id < 0 || static_cast<std::size_t>(local_id) >= info.tile_names.size())
-          continue;
-        fps_json.push_back(
-            {{"name", info.tile_names[static_cast<std::size_t>(local_id)]}, {"w", tsfp.w}, {"h", tsfp.h}});
-      }
-      sc["tile_footprints"] = std::move(fps_json);
-    }
-
-    return sc;
-  }
-
 } // namespace corundum::gameplay::world::tilemap

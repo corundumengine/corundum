@@ -32,12 +32,6 @@ namespace corundum::gameplay::world::tilemap {
     float fps = 5.f;
   };
 
-  /// Tile footprint in grid units. Defaults to 1×1 when absent.
-  struct TileFootprint {
-    int w = 1; ///< Width in tiles (>= 1).
-    int h = 1; ///< Height in tiles (>= 1).
-  };
-
   /// Metadata about the tileset PNG — owned by core, used by platform. Loaded directly from a
   /// spritepacker atlas JSON (schema_version 2): local_id is the tile's index into the atlas's
   /// `sprites[]` array, and every per-tile field below is dense (one entry per local_id, size ==
@@ -69,7 +63,6 @@ namespace corundum::gameplay::world::tilemap {
     std::vector<std::string> tile_names; ///< Sprite name from the atlas; used by tilesmith's palette.
 
     std::flat_map<std::string, TileAnimation> animations; ///< name → animation
-    std::flat_map<int, TileFootprint> tile_footprints;    ///< local_id → footprint; absent = 1×1.
     std::string material; ///< Default terrain-material tag (footstep/ambient audio selection); empty == none.
   };
 
@@ -183,22 +176,6 @@ namespace corundum::gameplay::world::tilemap {
     if (local_id >= result->tile_count)
       return nullptr;
     return result;
-  }
-
-  /// Returns the footprint for @p local_id in @p info, defaulting to {1, 1} when absent.
-  [[nodiscard]] inline TileFootprint get_tile_footprint(const TilesetInfo &info, int local_id) noexcept {
-    if (auto it = info.tile_footprints.find(local_id); it != info.tile_footprints.end())
-      return it->second;
-    return {};
-  }
-
-  /// Returns the footprint for @p gid, resolved through @p tilesets. Returns {1, 1} for unknown GIDs.
-  [[nodiscard]] inline TileFootprint get_tile_footprint(const std::vector<TilemapTileset> &tilesets,
-                                                        TileId gid) noexcept {
-    const TilemapTileset *ts = find_tileset(tilesets, gid);
-    if (!ts)
-      return {};
-    return get_tile_footprint(ts->info, static_cast<int>(gid) - static_cast<int>(ts->first_gid));
   }
 
   /// A tile's anchor point, as a fraction of its *full* (untrimmed) frame — horizontal measured from
