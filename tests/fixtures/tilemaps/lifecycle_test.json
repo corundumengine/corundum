@@ -1,0 +1,22 @@
+{
+  "id": "lifecycle_test",
+  "iso_diamond_w": 32,
+  "iso_diamond_h": 16,
+  "width": 2,
+  "height": 2,
+  "layers": [
+    {
+      "name": "ground",
+      "tiles": [
+        "0,0",
+        "0,0"
+      ]
+    }
+  ],
+  "tilesets": [
+    {
+      "first_gid": 0,
+      "source": "tests/fixtures/sprite_atlases/lifecycle_test_tileset.json"
+    }
+  ]
+}

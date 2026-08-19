@@ -53,7 +53,8 @@ namespace corundum {
 
       // Initialize camera centered on the player.
       const auto &tm = *active_tilemap(engine);
-      const auto iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale, cfg.elevation_step_px);
+      const auto iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
+                                                            cfg.elevation_step_px);
       const auto p_slot = engine.scene.world.transforms.dense_idx(engine.scene.player);
       const float pc = engine.scene.world.transforms.col[p_slot];
       const float pr = engine.scene.world.transforms.row[p_slot];
@@ -107,8 +108,8 @@ namespace corundum {
   }
 
   std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg) {
-    if (!engine.window || !engine.gpu || !engine.renderer)
-      return std::unexpected("initialize: engine.window, engine.gpu and engine.renderer must be non-null "
+    if (!engine.window || !engine.renderer)
+      return std::unexpected("initialize: engine.window and engine.renderer must be non-null "
                              "(use make_engine(), or adopt a platform before calling)");
 
     const auto fail = [&engine](const std::string &msg) {
@@ -252,7 +253,8 @@ namespace corundum {
   } // namespace
 
   void run_loop(Engine &engine) noexcept {
-    while (run_frame(engine)) {}
+    while (run_frame(engine)) {
+    }
   }
 
   bool run_frame(Engine &engine) noexcept {

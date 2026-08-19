@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "path": "test_tileset.png",
+  "width": 16,
+  "height": 16,
+  "sprites": [
+    {
+      "name": "ground",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    }
+  ]
+}

@@ -30,16 +30,26 @@ add_executable(corundum_tests
     test_entity.cpp
     test_engine_events.cpp
     test_render_state.cpp
+    test_engine_lifecycle.cpp
 )
 
-# Link to engine and doctest
+# Link to engine and doctest. engine_platform_null is also pulled in so the
+# lifecycle tests can adopt a null Window/GpuContext/Renderer — it adds no
+# runtime cost for the rest of the suite because no other test touches it.
+# `engine` itself is brought in transitively via engine_platform_null's PUBLIC
+# link, so listing it here too would emit the duplicate-library warning.
 target_link_libraries(corundum_tests
     PRIVATE
-        engine
+        engine_platform_null
         doctest::doctest
 )
 
 target_compile_options(corundum_tests PRIVATE -Wall -Wextra -Wpedantic)
+
+# Tell the lifecycle tests where to find their hand-crafted fixtures.
+target_compile_definitions(corundum_tests PRIVATE
+    CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures"
+)
 
 # Multiple test files share identical helper functions (write_file, temp_dir)
 # in anonymous namespaces — Unity batching produces redefinition errors.

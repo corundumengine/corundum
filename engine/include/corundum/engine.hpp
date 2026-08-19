@@ -99,8 +99,9 @@ namespace corundum {
    *  @param[in,out] engine Uninitialised Engine.
    *  @param[in]     cfg    Fully-loaded game configuration (move-ownership).
    *  @return ok on success, or std::unexpected with an error message.
-   *  @pre engine.window, engine.gpu and engine.renderer are non-null
-   *       (make_engine() satisfies this).
+   *  @pre engine.window and engine.renderer are non-null (make_engine()
+   *       satisfies this). engine.gpu may be left null (the main loop never
+   *       touches it) for backends that don't need a GPU context.
    *  @post On failure, cleanup() has been run on the partially-initialised
    *        engine; discard it.
    */

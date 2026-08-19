@@ -62,3 +62,18 @@ target_compile_options(engine_platform_glfw PRIVATE -Wall -Wextra -Wpedantic)
 # sokol_gfx.h lacks include guards — double-inclusion in a Unity batch
 # produces redefinition errors. Keep this target out of Unity builds.
 set_target_properties(engine_platform_glfw PROPERTIES UNITY_BUILD OFF)
+
+# Header-only null platform backend (Window/GpuContext/Renderer no-ops) for
+# headless lifecycle tests in tests/test_engine_lifecycle.cpp. Has no
+# GLFW/sokol/FreeType dependency; consumers link `corundum::engine_platform_null`
+# (or just `engine_platform_null`) in addition to `engine`.
+add_library(engine_platform_null STATIC
+    null/null_stub.cpp
+)
+target_link_libraries(engine_platform_null
+    PUBLIC  engine
+)
+target_include_directories(engine_platform_null PUBLIC
+    ${CMAKE_SOURCE_DIR}/engine/include
+)
+target_compile_options(engine_platform_null PRIVATE -Wall -Wextra -Wpedantic)

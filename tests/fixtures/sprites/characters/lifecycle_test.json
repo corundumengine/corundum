@@ -1,0 +1,19 @@
+{
+  "id": "lifecycle_test_sheet",
+  "path": "test.png",
+  "frame_width": 16,
+  "frame_height": 16,
+  "frames": {
+    "player_walk": {
+      "col_span": 1,
+      "row_span": 1,
+      "walk_around_offset": 0.5,
+      "walk_south": [{ "col": 0, "row": 0 }]
+    },
+    "player_idle": {
+      "col_span": 1,
+      "row_span": 1,
+      "idle_south": [{ "col": 0, "row": 0 }]
+    }
+  }
+}
