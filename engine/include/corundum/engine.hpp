@@ -3,6 +3,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
+#include <corundum/debug/hud_state.hpp>
 #include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
@@ -69,8 +70,7 @@ namespace corundum {
     core::time::LoopTimer timer{60.f};
     core::math::Colour clear_colour{30, 30, 35, 255};
     bool quit = false;
-    bool show_debug_hud = false;
-    float smoothed_fps = 0.f;
+    debug::HudState hud;
 
     /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
      *
@@ -106,12 +106,22 @@ namespace corundum {
    */
   [[nodiscard]] std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg);
 
+  /** @brief Advance the engine by exactly one frame: poll input, run pending
+   *  fixed steps, render once with interpolation.
+   *
+   *  @return true while the loop should continue; false once quit is requested
+   *          or the window has closed. run_loop() is equivalent to
+   *          while (run_frame(engine)) {}.
+   *
+   *  @param[in,out] engine  Initialised Engine.
+   *  @pre initialize() must have returned successfully.
+   *  @performance No heap allocation during the frame.
+   */
+  [[nodiscard]] bool run_frame(Engine &engine) noexcept;
+
   /** @brief Run the main loop until the window closes or quit is requested.
    *
-   *  Each frame: snapshot previous transforms for interpolation, process input,
-   *  advance the simulation in fixed timesteps (timer.target_dt), then render
-   *  once with an interpolation alpha in [0,1) (Game Loop pattern: fixed
-   *  update, variable render).
+   *  Equivalent to while (run_frame(engine)) {}.
    *
    *  @param[in,out] engine  Initialised Engine.
    *  @pre initialize() must have returned successfully.

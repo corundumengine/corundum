@@ -2,6 +2,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
+#include <corundum/debug/hud_state.hpp>
 #include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
@@ -114,12 +115,12 @@ namespace corundum::debug {
    * then renders collision geometry and the debug HUD text panel. Call
    * once per frame when the debug overlay is active.
    *
-   * @param[in,out] r          Active renderer between begin_frame/end_frame.
-   * @param[in]     input      Engine subsystems required by the debug overlay.
-   * @param[in,out] smoothed_fps  EMA-smoothed render FPS (read and updated each frame).
+   * @param[in,out] r     Active renderer between begin_frame/end_frame.
+   * @param[in]     input Engine subsystems required by the debug overlay.
+   * @param[in,out] hud   Debug HUD scratch (smoothed FPS is read and updated).
    * @pre begin_frame() must have been called before this function.
    * @post platform::Renderer is left in screen-space view.
    */
-  void draw_overlays(platform::Renderer &r, const OverlayInput &input, float &smoothed_fps) noexcept;
+  void draw_overlays(platform::Renderer &r, const OverlayInput &input, HudState &hud) noexcept;
 
 } // namespace corundum::debug

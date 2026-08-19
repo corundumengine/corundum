@@ -147,7 +147,7 @@ namespace corundum::debug {
     }
   }
 
-  void draw_overlays(platform::Renderer &r, const OverlayInput &input, float &smoothed_fps) noexcept {
+  void draw_overlays(platform::Renderer &r, const OverlayInput &input, HudState &hud) noexcept {
     const render::data::RenderState &render = input.render_state;
     const core::GameConfig &cfg = input.cfg;
     const gameplay::world::Scene &scene = input.scene;
@@ -206,36 +206,36 @@ namespace corundum::debug {
     }
 
     const float raw_fps = input.timer.last_frame_dt > 0.f ? 1.f / input.timer.last_frame_dt : 0.f;
-    smoothed_fps += k_fps_ema_alpha * (raw_fps - smoothed_fps);
-    HudData hud{
+    hud.smoothed_fps += k_fps_ema_alpha * (raw_fps - hud.smoothed_fps);
+    HudData data{
         .font_id = render.font_id,
         .win_w = cfg.win_w,
-        .render_fps = smoothed_fps,
+        .render_fps = hud.smoothed_fps,
         .sim_fps = static_cast<float>(cfg.framerate),
     };
     if (w.transforms.has(p)) {
-      hud.player_col = w.transforms.pos_col(p);
-      hud.player_row = w.transforms.pos_row(p);
+      data.player_col = w.transforms.pos_col(p);
+      data.player_row = w.transforms.pos_row(p);
       const std::uint32_t di = w.transforms.dense_idx(p);
-      hud.player_dc = w.transforms.dc[di];
-      hud.player_dr = w.transforms.dr[di];
+      data.player_dc = w.transforms.dc[di];
+      data.player_dr = w.transforms.dr[di];
     }
     if (w.facings.has(p)) {
-      hud.player_has_facing = true;
-      hud.player_facing = w.facings.dir_of(p);
+      data.player_has_facing = true;
+      data.player_facing = w.facings.dir_of(p);
     }
-    hud.camera_x = camera.x;
-    hud.camera_y = camera.y;
-    hud.active_chunks = static_cast<int>(render.active_chunks.size());
-    hud.collision_rects = static_cast<int>(geo.rects.size());
-    hud.collision_tris = static_cast<int>(geo.tris.size());
-    hud.entity_count = static_cast<int>(w.entities.alive());
+    data.camera_x = camera.x;
+    data.camera_y = camera.y;
+    data.active_chunks = static_cast<int>(render.active_chunks.size());
+    data.collision_rects = static_cast<int>(geo.rects.size());
+    data.collision_tris = static_cast<int>(geo.tris.size());
+    data.entity_count = static_cast<int>(w.entities.alive());
     if (scene.hovered_tile) {
-      hud.hover_valid = true;
-      hud.hover_col = scene.hovered_tile->col;
-      hud.hover_row = scene.hovered_tile->row;
+      data.hover_valid = true;
+      data.hover_col = scene.hovered_tile->col;
+      data.hover_row = scene.hovered_tile->row;
     }
-    draw_hud(r, hud);
+    draw_hud(r, data);
   }
 
 } // namespace corundum::debug

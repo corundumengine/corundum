@@ -13,8 +13,6 @@ namespace corundum {
    */
   struct EngineConfig {
     std::string config_path = "data/game.json";
-    unsigned window_width = 1280;
-    unsigned window_height = 720;
     bool show_debug_hud = false;
   };
 

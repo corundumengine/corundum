@@ -120,7 +120,6 @@ namespace corundum {
     engine.cfg = std::move(cfg);
     engine.timer.set_target_fps(static_cast<float>(engine.cfg.framerate));
     engine.window->set_vsync(engine.cfg.vsync);
-    engine.window->resize(static_cast<unsigned>(engine.cfg.win_w), static_cast<unsigned>(engine.cfg.win_h));
 
     // Render assets.
     auto char_result = engine.characters.load_all(engine.cfg.paths.sprites_dir);
@@ -230,14 +229,14 @@ namespace corundum {
       render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, alpha, engine.win_w,
                           engine.win_h);
 
-      if (engine.show_debug_hud) {
+      if (engine.hud.enabled) {
         const debug::OverlayInput hud_input{
             .render_state = engine.render,
             .cfg = engine.cfg,
             .scene = engine.scene,
             .timer = engine.timer,
         };
-        debug::draw_overlays(*engine.renderer, hud_input, engine.smoothed_fps);
+        debug::draw_overlays(*engine.renderer, hud_input, engine.hud);
       }
 
       engine.renderer->end_frame();
@@ -253,22 +252,27 @@ namespace corundum {
   } // namespace
 
   void run_loop(Engine &engine) noexcept {
-    while (engine.window->is_open() && !engine.quit) {
-      std::tie(engine.win_w, engine.win_h) = engine.window->size();
-      render::sys::snapshot_prev_frame(engine.render, engine.scene);
-      engine.timer.tick();
+    while (run_frame(engine)) {}
+  }
 
-      process_input(engine);
+  bool run_frame(Engine &engine) noexcept {
+    if (!engine.window->is_open() || engine.quit)
+      return false;
+    std::tie(engine.win_w, engine.win_h) = engine.window->size();
+    render::sys::snapshot_prev_frame(engine.render, engine.scene);
+    engine.timer.tick();
 
-      const SimulationResult sim = run_fixed_steps(engine);
-      if (engine.render.mode != render::data::RenderMode::World)
-        gameplay::world::handle_map_transition(engine);
+    process_input(engine);
 
-      const float alpha = compute_interpolation_alpha(engine.timer, sim);
-      render_frame(engine, alpha);
+    const SimulationResult sim = run_fixed_steps(engine);
+    if (engine.render.mode != render::data::RenderMode::World)
+      gameplay::world::handle_map_transition(engine);
 
-      stream_world_chunks(engine);
-    }
+    const float alpha = compute_interpolation_alpha(engine.timer, sim);
+    render_frame(engine, alpha);
+
+    stream_world_chunks(engine);
+    return true;
   }
 
   void cleanup(Engine &engine) noexcept {

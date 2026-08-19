@@ -6,8 +6,7 @@
 
 namespace {
 
-  template <typename DestUPtr, typename T>
-  void adopt_unique(DestUPtr &dest, std::unique_ptr<T> src) {
+  template <typename DestUPtr, typename T> void adopt_unique(DestUPtr &dest, std::unique_ptr<T> src) {
     dest = DestUPtr(src.release());
   }
 
@@ -31,7 +30,8 @@ namespace corundum {
 
     auto cfg = std::move(*cfg_result);
 
-    auto platform = platform::create_platform(config.window_width, config.window_height, cfg.window_title);
+    auto platform =
+        platform::create_platform(static_cast<unsigned>(cfg.win_w), static_cast<unsigned>(cfg.win_h), cfg.window_title);
     if (!platform)
       return std::unexpected(std::format("create platform: {}", platform.error()));
 
@@ -40,7 +40,7 @@ namespace corundum {
     adopt_unique(engine.gpu, std::move(platform->gpu));
     adopt_unique(engine.renderer, std::move(platform->renderer));
     engine.audio.backend = std::move(platform->audio_backend);
-    engine.show_debug_hud = config.show_debug_hud;
+    engine.hud.enabled = config.show_debug_hud;
 
     if (auto result = initialize(engine, std::move(cfg)); !result)
       return std::unexpected(result.error());
