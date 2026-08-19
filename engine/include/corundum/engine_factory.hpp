@@ -38,7 +38,9 @@ namespace corundum {
    *  @param[in] config Resolved command-line configuration.
    *  @return A fully-initialised Engine on success, or an error message.
    *  @post On success the Engine is ready for run(). On failure the window is
-   *        closed and all platform resources are released.
+   *        closed and audio is shut down; platform object memory is deliberately
+   *        not freed (see detail::PlatformDeleter) and is reclaimed by the OS
+   *        at process exit.
    */
   [[nodiscard]] std::expected<Engine, std::string> make_engine(const EngineConfig &config);
 

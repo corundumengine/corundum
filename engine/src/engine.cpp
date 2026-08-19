@@ -107,9 +107,13 @@ namespace corundum {
   }
 
   std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg) {
+    if (!engine.window || !engine.gpu || !engine.renderer)
+      return std::unexpected("initialize: engine.window, engine.gpu and engine.renderer must be non-null "
+                             "(use make_engine(), or adopt a platform before calling)");
+
     const auto fail = [&engine](const std::string &msg) {
-      engine.window->close();
-      return std::unexpected(std::format("[engine] FATAL: {}", msg));
+      cleanup(engine);
+      return std::unexpected(msg);
     };
 
     // Timing + window.
@@ -175,10 +179,8 @@ namespace corundum {
     /// Poll platform input and handle the Quit action.
     void process_input(Engine &engine) noexcept {
       input::sys::poll(engine.input_state, *engine.window);
-      if (engine.input_state.is_held(input::Action::Quit)) {
+      if (engine.input_state.is_held(input::Action::Quit))
         request_quit(engine);
-        engine.window->close();
-      }
     }
 
     /// Drain the timer accumulator: run gameplay, dialogue events, the
@@ -271,7 +273,9 @@ namespace corundum {
 
   void cleanup(Engine &engine) noexcept {
     audio::sys::shutdown(engine.audio);
-    engine.window->close();
+    if (engine.window)
+      engine.window->close();
+    engine.quit = true;
   }
 
   void request_quit(Engine &engine) noexcept {

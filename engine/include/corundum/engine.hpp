@@ -40,6 +40,9 @@ namespace corundum {
    * game state), and all game assets. Lifecycle driven by free functions:
    *   initialize → run_loop → cleanup
    *
+   * Returned by value from make_engine() and must stay trivially movable;
+   * members must never store pointers or references into sibling members.
+   *
    * @see initialize  One-time setup before the main loop.
    * @see run_loop    The main loop: input, fixed-step simulation, rendering.
    * @see cleanup     Resource teardown after the main loop.
@@ -83,6 +86,11 @@ namespace corundum {
      *  and before entity deletions are flushed. @p dt is the fixed timestep
      *  (timer.target_dt). Entities marked for deletion here are drained the
      *  same frame.
+     *
+     *  @note Marking entities for deletion in this hook sets the deletion flag,
+     *  which forces this frame's interpolation alpha to 0 (see
+     *  compute_interpolation_alpha in engine.cpp) — by design, because slot
+     *  reuse from swap-and-pop invalidates the prev-transform snapshot.
      */
     std::function<void(Engine &, float dt)> on_fixed_update;
   };
@@ -91,7 +99,10 @@ namespace corundum {
    *  @param[in,out] engine Uninitialised Engine.
    *  @param[in]     cfg    Fully-loaded game configuration (move-ownership).
    *  @return ok on success, or std::unexpected with an error message.
-   *  @post On failure the window is closed and engine is partially initialised.
+   *  @pre engine.window, engine.gpu and engine.renderer are non-null
+   *       (make_engine() satisfies this).
+   *  @post On failure, cleanup() has been run on the partially-initialised
+   *        engine; discard it.
    */
   [[nodiscard]] std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg);
 
@@ -109,8 +120,12 @@ namespace corundum {
   void run_loop(Engine &engine) noexcept;
 
   /** @brief Tear down resources after the main loop exits.
+   *
+   *  Shuts down audio and closes the window. Safe to call multiple times; after
+   *  the first call, the only valid operation on the Engine is destruction.
+   *
    *  @param[in,out] engine  Initialised Engine.
-   *  @pre run_loop() must have returned.
+   *  @pre run_loop() must have returned, or initialize() has failed.
    */
   void cleanup(Engine &engine) noexcept;
 
@@ -130,7 +145,8 @@ namespace corundum {
   /** @brief Request a graceful shutdown of the engine.
    *
    *  Sets the quit flag; the next iteration of run_loop() will exit the main loop.
-   *  Safe to call from any system during update().
+   *  Window closing is handled exclusively by cleanup(). Safe to call from any
+   *  system during update().
    *
    *  @param[in,out] engine Initialised Engine.
    */

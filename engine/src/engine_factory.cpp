@@ -27,13 +27,13 @@ namespace corundum {
   std::expected<Engine, std::string> make_engine(const EngineConfig &config) {
     auto cfg_result = core::load_game_config(config.config_path);
     if (!cfg_result)
-      return std::unexpected(std::format("[engine] FATAL: {}", cfg_result.error()));
+      return std::unexpected(std::format("load config '{}': {}", config.config_path, cfg_result.error()));
 
     auto cfg = std::move(*cfg_result);
 
     auto platform = platform::create_platform(config.window_width, config.window_height, cfg.window_title);
     if (!platform)
-      return std::unexpected(platform.error());
+      return std::unexpected(std::format("create platform: {}", platform.error()));
 
     Engine engine{};
     adopt_unique(engine.window, std::move(platform->window));
