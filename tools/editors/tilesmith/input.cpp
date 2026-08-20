@@ -62,10 +62,10 @@ namespace tools::tilemap {
       const int th = state.map.diamond_h();
       corundum::gameplay::world::tilemap::CollisionRect candidate;
       if (state.col_drag_sub_tile) {
-        candidate =
-            pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
-                                state.col_drag_cur_win_y, state.canvas.offset_x, state.canvas.offset_y,
-                                state.canvas.scale, static_cast<float>(tw), static_cast<float>(th));
+        candidate = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y,
+                                        state.col_drag_cur_win_x, state.col_drag_cur_win_y, 0, 0, CANVAS_W, CANVAS_H,
+                                        state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
+                                        state.elev_step_px, state.map.height, tw, th);
       } else {
         candidate = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
                                       state.col_drag_cur_row);
@@ -223,16 +223,20 @@ namespace tools::tilemap {
     void remove_collision_at(EditorState &state, int win_x, int win_y) noexcept {
       if (state.map.tilesets.empty())
         return;
-      const auto tc = editor_screen_to_tile(win_x, win_y, state);
-      if (!tc)
+      // Right-click outside the canvas is a no-op (matches the old editor_screen_to_tile-based
+      // guard, so right-clicks in the palette panel don't accidentally delete rects).
+      if (win_x < 0 || win_x >= CANVAS_W || win_y < 0 || win_y >= CANVAS_H)
         return;
-      const float world_x = static_cast<float>(tc->col);
-      const float world_y = static_cast<float>(tc->row);
+      // Use the same fractional isometric projection as placement so sub-tile rects (Shift-drag)
+      // are hit-testable — integer floor would miss any rect whose col/row is non-integral.
+      const auto frac = pixel_to_fractional_tile(
+          win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
+          state.elev_step_px, state.map.height, effective_diamond_w(state.map), effective_diamond_h(state.map));
       auto &cols = state.map.collisions;
       for (int i = static_cast<int>(cols.size()) - 1; i >= 0; --i) {
         const auto idx = static_cast<std::size_t>(i);
-        if (world_x >= cols.cols[idx] && world_x < cols.cols[idx] + cols.col_spans[idx] && world_y >= cols.rows[idx] &&
-            world_y < cols.rows[idx] + cols.row_spans[idx]) {
+        if (frac.x >= cols.cols[idx] && frac.x < cols.cols[idx] + cols.col_spans[idx] && frac.y >= cols.rows[idx] &&
+            frac.y < cols.rows[idx] + cols.row_spans[idx]) {
           cols.erase(idx);
           state.dirty = true;
           return;

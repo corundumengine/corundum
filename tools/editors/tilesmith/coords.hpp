@@ -32,6 +32,50 @@ namespace tools::tilemap {
   };
 
   /**
+   * @brief Convert a window pixel position to a fractional (unfloored) tile-grid coordinate,
+   * applying the isometric inverse projection the canvas renderer uses.
+   *
+   * Clamps @p px and @p py to the canvas interior first, so off-canvas pixels still produce a
+   * valid in-canvas tile coord (no `nullopt`). This lets `pixel_to_tiled_rect()` build a
+   * `CollisionRect` from two `Vec2`s without ever handling `optional`.
+   *
+   * Shared kernel between `screen_to_tile()` (whole-tile pick) and `pixel_to_tiled_rect()`
+   * (sub-tile drag) so the two paths can never drift apart.
+   *
+   * @param px, py          Window-space pixel position (will be clamped to canvas interior).
+   * @param canvas_left     Left edge of the canvas region in window space.
+   * @param canvas_top      Top edge of the canvas region in window space.
+   * @param canvas_w        Width of the canvas in pixels.
+   * @param canvas_h        Height of the canvas in pixels.
+   * @param camera_x, camera_y  Current camera scroll offset.
+   * @param tile_scale      Display scale factor.
+   * @param elev_step       Screen pixels lifted per unit of elevation.
+   * @param map_h           Map height in tiles (used to compute x_origin).
+   * @param tw              Tilemap::diamond_w() — the isometric grid-step width.
+   * @param diamond_h       Tilemap::diamond_h() — the isometric grid-step height.
+   * @return Fractional {col, row}; floor() each component to get the containing cell.
+   */
+  [[nodiscard]] inline corundum::core::math::Vec2 pixel_to_fractional_tile(int px, int py, int canvas_left,
+                                                                           int canvas_top, int canvas_w, int canvas_h,
+                                                                           float camera_x, float camera_y,
+                                                                           float tile_scale, float elev_step, int map_h,
+                                                                           int tw, int diamond_h) noexcept {
+    const int clamped_px = std::clamp(px, canvas_left, canvas_left + std::max(canvas_w, 1) - 1);
+    const int clamped_py = std::clamp(py, canvas_top, canvas_top + std::max(canvas_h, 1) - 1);
+
+    const auto iso = corundum::core::math::compute_isometric_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h,
+                                                                    tile_scale, elev_step);
+
+    // Undo the origin shift the canvas renderer applies (see main.cpp's comment on the left/right
+    // asymmetry) so picking stays aligned with rendering.
+    const float origin_shift_x = k_content_margin * iso.half_tw;
+    const float origin_shift_y = iso.half_th; // Y shift uses 1 half-diamond (no asymmetry).
+    const float world_x = static_cast<float>(clamped_px - canvas_left) + camera_x - origin_shift_x;
+    const float world_y = static_cast<float>(clamped_py - canvas_top) + camera_y - origin_shift_y;
+    return corundum::core::math::world_to_tile({world_x, world_y}, 0, iso);
+  }
+
+  /**
    * @brief Convert a window pixel position to a map tile coordinate.
    *
    * @param px, py          Window-space pixel position.
@@ -54,19 +98,10 @@ namespace tools::tilemap {
     if (py < canvas_top || py >= canvas_top + canvas_h)
       return std::nullopt;
 
-    // tw is the isometric diamond_w (world step), not the sprite cell width.
-    const auto iso = corundum::core::math::compute_isometric_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h,
-                                                                    tile_scale, elev_step);
-    if (iso.half_tw <= 0.f || iso.half_th <= 0.f)
-      return std::nullopt;
+    const corundum::core::math::Vec2 frac =
+        pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
+                                 elev_step, map_h, tw, diamond_h);
 
-    // Undo the origin shift the canvas renderer applies (see main.cpp's comment on the left/right
-    // asymmetry) so picking stays aligned with rendering.
-    const float origin_shift_x = k_content_margin * iso.half_tw;
-    const float origin_shift_y = iso.half_th; // Y shift uses 1 half-diamond (no asymmetry).
-    const float world_x = static_cast<float>(px - canvas_left) + camera_x - origin_shift_x;
-    const float world_y = static_cast<float>(py - canvas_top) + camera_y - origin_shift_y;
-    const corundum::core::math::Vec2 frac = corundum::core::math::world_to_tile({world_x, world_y}, 0, iso);
     const int col = static_cast<int>(std::floor(frac.x));
     const int row = static_cast<int>(std::floor(frac.y));
 
@@ -177,29 +212,39 @@ namespace tools::tilemap {
   /**
    * @brief Convert two window pixel drag positions to a CollisionRect in tile-grid space.
    *
-   * Used for sub-tile precision collision rect placement (Shift-drag). Coordinates are
-   * converted from window space to tile-grid space via camera and tile_scale, then normalized
-   * to a positive-size rect.
+   * Used for sub-tile precision collision rect placement (Shift-drag). Both endpoints go through
+   * the same isometric pixel→tile kernel as `screen_to_tile()` so the live preview rhombus
+   * tracks the cursor exactly and the committed rect matches the preview.
    *
-   * @param win_x_a, win_y_a  Window-space position at drag anchor.
+   * @param win_x_a, win_y_a  Window-space position at drag anchor (clamped to canvas interior).
    * @param win_x_b, win_y_b  Window-space position at drag release (or current cursor).
+   * @param canvas_left     Left edge of the canvas region in window space.
+   * @param canvas_top      Top edge of the canvas region in window space.
+   * @param canvas_w        Width of the canvas in pixels.
+   * @param canvas_h        Height of the canvas in pixels.
    * @param camera_x, camera_y  Current camera scroll offset.
-   * @param tile_scale  Display scale factor.
-   * @param tile_w, tile_h  Tile dimensions in pixels.
-   * @return CollisionRect in tile-grid space with col_span/row_span >= 1/tile_w, 1/tile_h.
+   * @param tile_scale      Display scale factor.
+   * @param elev_step       Screen pixels lifted per unit of elevation.
+   * @param map_h           Map height in tiles (used to compute x_origin).
+   * @param diamond_w       Tilemap::diamond_w() — the isometric grid-step width.
+   * @param diamond_h       Tilemap::diamond_h() — the isometric grid-step height.
+   * @return CollisionRect in tile-grid space with col_span/row_span >= 1/diamond_w, 1/diamond_h.
    */
   [[nodiscard]] inline corundum::gameplay::world::tilemap::CollisionRect
-  pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, float camera_x, float camera_y,
-                      float tile_scale, float tile_w, float tile_h) noexcept {
-    const float txa = (static_cast<float>(win_x_a) + camera_x) / tile_scale;
-    const float tya = (static_cast<float>(win_y_a) + camera_y) / tile_scale;
-    const float txb = (static_cast<float>(win_x_b) + camera_x) / tile_scale;
-    const float tyb = (static_cast<float>(win_y_b) + camera_y) / tile_scale;
-    const float min_col = std::min(txa, txb) / tile_w;
-    const float min_row = std::min(tya, tyb) / tile_h;
-    const float max_col = std::max(txa, txb) / tile_w;
-    const float max_row = std::max(tya, tyb) / tile_h;
-    return {min_col, min_row, std::max(1.f / tile_w, max_col - min_col), std::max(1.f / tile_h, max_row - min_row)};
+  pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
+                      int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
+                      int diamond_w, int diamond_h) noexcept {
+    const auto ta = pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
+                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
+    const auto tb = pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
+                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
+    const float min_col = std::min(ta.x, tb.x);
+    const float min_row = std::min(ta.y, tb.y);
+    const float max_col = std::max(ta.x, tb.x);
+    const float max_row = std::max(ta.y, tb.y);
+    const float inv_dw = 1.f / static_cast<float>(diamond_w);
+    const float inv_dh = 1.f / static_cast<float>(diamond_h);
+    return {min_col, min_row, std::max(inv_dw, max_col - min_col), std::max(inv_dh, max_row - min_row)};
   }
 
   /**
