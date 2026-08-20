@@ -131,7 +131,7 @@ namespace tools::tilemap {
 
           const auto world = corundum::core::math::tile_to_world(col, row, elev, iso);
           const float iso_x = world.x;
-          const float iso_y = world.y + corundum::core::math::diamond_cell_height(iso.half_th);
+          const float iso_y = world.y + iso.half_th;
 
           const int local_id = ts ? static_cast<int>(gid) - static_cast<int>(ts->first_gid) : 0;
           const auto frame = ts ? corundum::gameplay::world::tilemap::get_tile_frame_offset(ts->info, local_id)
@@ -145,7 +145,7 @@ namespace tools::tilemap {
           const float drawn_w = std::round(static_cast<float>(src.width) * tile_scale);
           const float drawn_h = std::round(static_cast<float>(src.height) * tile_scale);
           const float pivot_x_px = pivot.x * scaled_tw;
-          const float pivot_y_px = (1.f - pivot.y) * scaled_th;
+          const float pivot_y_px = corundum::core::math::pivot_top_offset(pivot.y, scaled_th);
           const float dst_x = ctx.origin.x + iso_x - pivot_x_px + trim_x_px - camera_x;
           const float dst_y = ctx.origin.y + iso_y - pivot_y_px + trim_y_px - camera_y;
           const ImVec2 p0 = {dst_x, dst_y};

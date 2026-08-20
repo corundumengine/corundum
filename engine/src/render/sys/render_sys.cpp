@@ -645,11 +645,11 @@ namespace corundum::render::sys {
     return ResolvedTile{
         .tex_id = tex_id,
         .src = src,
-        // Anchor at the southern (bottom) vertex so the tile fills the diamond cell, then shift by
-        // the trim rect's own offset within the full frame — only the trimmed region is drawn.
+        // Anchor at the cell center (tile_to_world + half_th, since tile_to_world returns the cell's
+        // top vertex under this codebase's TOP-vertex projection convention), then shift by the trim
+        // rect's own offset within the full frame — only the trimmed region is drawn.
         .position = {world_pos.x - pivot.x * scaled_tw + trim_x_px,
-                     world_pos.y + core::math::diamond_cell_height(ctx.iso.half_th) - (1.f - pivot.y) * scaled_th +
-                         trim_y_px},
+                     world_pos.y + ctx.iso.half_th - core::math::pivot_top_offset(pivot.y, scaled_th) + trim_y_px},
         .scale = static_cast<float>(cfg.tile_scale),
         .flip_x = flip_x,
         .flip_y = flip_y,
@@ -670,7 +670,9 @@ namespace corundum::render::sys {
 
     const float max_fw = static_cast<float>(tilemap.max_tile_full_w) * tile_scale;
     const float max_fh = static_cast<float>(tilemap.max_tile_full_h) * tile_scale;
-    const float cell_height = core::math::diamond_cell_height(params.iso.half_th);
+    // Half the diamond height — matches resolve_tile_cell()'s anchor offset so cull padding tracks
+    // where the sprite actually sits, not the cell's bottom vertex.
+    const float cell_height = params.iso.half_th;
     const float elevation_pad = static_cast<float>(layer.max_elevation) * params.iso.elev_step;
 
     const float padded_left = params.camera_x - max_fw;

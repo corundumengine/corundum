@@ -90,9 +90,18 @@ namespace corundum::core::math {
   /**
    * @brief Full diamond cell height in screen pixels (= 2 * half_th).
    *
-   * This is the vertical distance from the top vertex to the southern (bottom)
-   * vertex of one isometric diamond cell.  Anchor at this offset from
-   * tile_to_world to place a sprite so its artwork fills the cell naturally.
+   * The vertical distance from the top vertex to the southern (bottom) vertex
+   * of one isometric diamond cell — i.e. the corner-to-corner span of the
+   * diamond.  Useful for outlines and shape math (e.g. tilesmith's hover
+   * diamond outline traces its four corners relative to an internal anchor
+   * using this span).
+   *
+   * @note Do not use this as a sprite-anchor offset from tile_to_world():
+   * that anchors the sprite at the cell's southern vertex, which renders the
+   * sprite shifted one half-diamond below the cell center under this
+   * codebase's TOP-vertex projection convention.  For sprite anchors, use
+   * `half_th` directly (cell center) — the same convention already relied on
+   * by physics and picking (see tests/test_picking.cpp).
    *
    * @param half_th  Half the scaled diamond height (from IsometricParams or equivalent).
    * @return The full cell height in screen pixels.
@@ -102,11 +111,34 @@ namespace corundum::core::math {
   }
 
   /**
+   * @brief Vertical offset from the top of a (full, untrimmed) frame to a
+   * bottom-origin pivot, in scaled pixels.
+   *
+   * Converts a bottom-origin pivot.y (0 = frame bottom, 1 = frame top — see
+   * TilePivot in tilemap.hpp) to a top-origin offset suitable for sprite
+   * placement: how far down from `position.y` the pivot lands.
+   *
+   * @param pivot_y      Bottom-origin pivot coordinate in [0, 1].
+   * @param frame_height Full frame height in scaled pixels.
+   * @return Offset in scaled pixels from the top of the frame to the pivot.
+   */
+  [[nodiscard]] constexpr float pivot_top_offset(float pivot_y, float frame_height) noexcept {
+    return (1.f - pivot_y) * frame_height;
+  }
+
+  /**
    * @brief Convert a tile grid position and elevation to an isometric screen offset.
    *
-   * The origin (0, 0) is the top vertex of the diamond grid.
+   * Returns the projection point used by this codebase as the cell's top (north) vertex.
    * Increasing tx moves the tile right and down; increasing ty moves it left and down.
    * Increasing elevation lifts the tile upward on-screen.
+   *
+   * Under the codebase's TOP-vertex projection convention, the cell extends downward from
+   * this point to (this point + (0, 2*half_th)) — i.e. the southern vertex — and the
+   * cell's geometric center is at (this point + (0, half_th)). The grid renderer draws
+   * lines through top vertices of cells, which in this projection outline the cells
+   * themselves (the four top vertices of a 2x2 block form exactly the diamond of the
+   * top-left cell).
    *
    * @param tx        Tile column (0-based).
    * @param ty        Tile row (0-based).
@@ -114,7 +146,7 @@ namespace corundum::core::math {
    * @param half_tw   Half the scaled diamond width in screen pixels  (e.g. 32 for a 64-px diamond).
    * @param half_th   Half the scaled diamond height in screen pixels (e.g. 16 for a 32-px diamond).
    * @param elev_step Screen pixels lifted per unit of elevation.
-   * @return Isometric world-space position of the tile's anchor point.
+   * @return Isometric world-space projection point for the cell at (tx, ty).
    */
   [[nodiscard]] constexpr Vec2 tile_to_screen(int tx, int ty, int elevation, float half_tw, float half_th,
                                               float elev_step) noexcept {
