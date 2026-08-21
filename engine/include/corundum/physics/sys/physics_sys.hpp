@@ -10,6 +10,12 @@
 
 namespace corundum::gameplay::world {
   struct MapView;
+  struct Portal;
+  struct Scene;
+} // namespace corundum::gameplay::world
+
+namespace corundum::gameplay::world {
+  struct MapView;
   struct Scene;
 } // namespace corundum::gameplay::world
 
@@ -110,5 +116,22 @@ namespace corundum::physics::sys {
    */
   [[nodiscard]] ElevationGate compute_elevation_gate(const corundum::gameplay::world::MapView &map, float col,
                                                      float row) noexcept;
+
+  /**
+   * @brief True if the player is at an elevation that matches the portal's cell elevation.
+   *
+   * Looks up the portal's center cell elevation (rounded) and compares against
+   * @p player_elev within @p elev_tolerance. Without this gate, a player standing on
+   * a bridge (elev 5) would trigger a ground-floor portal (elev 0) authored at the
+   * same cell — they teleport down every time they cross it. Plan §4a.
+   *
+   * @param map             Active map view (uses elevation_map; World mode falls back to elev 0).
+   * @param portal          Portal whose center cell is the gating reference.
+   * @param player_elev     Player's rounded gate value (from compute_elevation_gate).
+   * @param elev_tolerance  Ramp-aware tolerance; 0 for off-ramp gating.
+   */
+  [[nodiscard]] bool portal_elev_matches(const corundum::gameplay::world::MapView &map,
+                                         const corundum::gameplay::world::Portal &portal, int player_elev,
+                                         int elev_tolerance) noexcept;
 
 } // namespace corundum::physics::sys

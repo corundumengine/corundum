@@ -76,6 +76,17 @@ namespace corundum::physics::sys {
     return gate;
   }
 
+  bool portal_elev_matches(const corundum::gameplay::world::MapView &map,
+                           const corundum::gameplay::world::Portal &portal, int player_elev,
+                           int elev_tolerance) noexcept {
+    // Use the portal's center cell — a multi-cell portal's intent is "the player is on
+    // the floor that runs through here", so the center cell is the canonical reference.
+    const float portal_elev_f =
+        corundum::gameplay::world::elevation_at_tile(map, portal.col + portal.w * 0.5f, portal.row + portal.h * 0.5f);
+    const int portal_elev = static_cast<int>(std::round(portal_elev_f));
+    return std::abs(portal_elev - player_elev) <= elev_tolerance;
+  }
+
   void integrate(corundum::gameplay::component::TransformTable &transforms, corundum::gameplay::entity::EntityId e,
                  float dt) noexcept {
     const auto slot = transforms.dense_idx(e);
@@ -280,6 +291,10 @@ namespace corundum::physics::sys {
     const Position prev_pos{prev_col, prev_row};
 
     std::array<float, corundum::gameplay::entity::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
+    // NPC elevations populated so resolve_collisions can gate player-vs-NPC by elevation
+    // (same band as player-vs-world). Without this, an NPC under a bridge (elev 0) would
+    // block a player on the bridge (elev 5). Plan §4a.
+    std::array<uint8_t, corundum::gameplay::entity::k_max_entities> npc_elevations{};
     uint16_t npc_count = 0;
     for (uint16_t i = 0; i < collisions.count; ++i) {
       const EntityId eid = collisions.idx.entities[i];
@@ -291,21 +306,27 @@ namespace corundum::physics::sys {
       const auto np_slot = transforms.dense_idx(eid);
       // Convert NPC feet position to AABB top-left.
       const float half_npc_cs = rect.col_span / 2.f;
-      npc_cols[npc_count] = transforms.col[np_slot] - half_npc_cs;
-      npc_rows[npc_count] = transforms.row[np_slot] - rect.row_span;
+      const float np_col = transforms.col[np_slot];
+      const float np_row = transforms.row[np_slot];
+      npc_cols[npc_count] = np_col - half_npc_cs;
+      npc_rows[npc_count] = np_row - rect.row_span;
       npc_cs[npc_count] = rect.col_span;
       npc_rs[npc_count] = rect.row_span;
+      npc_elevations[npc_count] =
+          static_cast<uint8_t>(std::round(corundum::gameplay::world::elevation_at_tile(map, np_col, np_row)));
       ++npc_count;
     }
     const corundum::gameplay::world::tilemap::CollisionRectsView npc_view{
         std::span{npc_cols.data(), npc_count}, std::span{npc_rows.data(), npc_count},
-        std::span{npc_cs.data(), npc_count}, std::span{npc_rs.data(), npc_count}};
+        std::span{npc_cs.data(), npc_count}, std::span{npc_rs.data(), npc_count},
+        std::span{npc_elevations.data(), npc_count}};
     // Convert player feet to AABB top-left for NPC collision.
     {
       const float half_cs = player_rect.col_span / 2.f;
       Position p_aabb{p.col - half_cs, p.row - player_rect.row_span};
       const Position prev_aabb{prev_pos.col - half_cs, prev_pos.row - player_rect.row_span};
-      resolve_collisions(p_aabb, prev_aabb, player_rect.col_span, player_rect.row_span, npc_view, 0.f);
+      resolve_collisions(p_aabb, prev_aabb, player_rect.col_span, player_rect.row_span, npc_view, 0.f, player_elev,
+                         elev_gate.tolerance);
       p.col = p_aabb.col + half_cs;
       p.row = p_aabb.row + player_rect.row_span;
     }
@@ -319,6 +340,8 @@ namespace corundum::physics::sys {
     if (!map.portals.empty()) {
       // Player AABB in tile-grid space (same convention as collision rects), tested directly
       // against portal rects — both already live in tile-grid units, so no iso<->cart conversion.
+      // Elevation gate: a player on a bridge (elev 5) crossing a ground-floor portal cell
+      // (elev 0) must NOT trigger the portal — see portal_elev_matches / plan §4a.
       const float half_cs = player_rect.col_span / 2.f;
       const float col0 = p.col - half_cs;
       const float col1 = p.col + half_cs;
@@ -326,6 +349,8 @@ namespace corundum::physics::sys {
       const float row1 = p.row + player_rect.row_span;
       for (const auto &portal : map.portals) {
         if (col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h) {
+          if (!portal_elev_matches(map, portal, player_elev, elev_gate.tolerance))
+            continue;
           if (portal.target_chunk_col >= 0) {
             p.col = static_cast<float>(portal.spawn_col);
             p.row = static_cast<float>(portal.spawn_row);
