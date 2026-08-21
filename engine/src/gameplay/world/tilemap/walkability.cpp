@@ -41,8 +41,12 @@ namespace corundum::gameplay::world::tilemap {
     const int dr = to_row - from_row;
     if (dc == 0 && dr == 0)
       return true;
+    // Tunneling guard: a multi-cell move used to return true unconditionally, letting fast
+    // movement skip past cliff gating. Now denied — the substep loop in update_player is
+    // forced to advance one cell at a time and can never skip a gating decision. Out-of-bounds
+    // returns above are intentionally untouched (cells outside the map have no graph entry).
     if (std::abs(dc) > 1 || std::abs(dr) > 1)
-      return true;
+      return false;
     const uint8_t dir = dir_for_delta(dc, dr);
     const std::size_t idx =
         static_cast<std::size_t>(from_row) * static_cast<std::size_t>(width) + static_cast<std::size_t>(from_col);

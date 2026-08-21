@@ -59,13 +59,32 @@ TEST_CASE("build_walkability_graph — keeps an edge within max_step_height conn
   CHECK(g.can_move(0, 1, 1, 1));
 }
 
-TEST_CASE("WalkabilityGraph::can_move — same cell, non-adjacent, and out-of-bounds are unblocked") {
+TEST_CASE("WalkabilityGraph::can_move — multi-cell move is denied (not bypassed to true)") {
+  // Tunneling guard: a >1-cell move used to bypass the graph entirely (returning true
+  // unconditionally), letting fast movement skip past cliff gating. Now denied so the
+  // substep loop in update_player is forced to advance one cell at a time and never
+  // skip a gating decision.
+  const Tilemap tm = make_test_map(0, 0, 0); // flat 3x3, all elevations 0
+  const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
+  // Multi-cell: denied (was: true).
+  CHECK_FALSE(g.can_move(0, 0, 2, 0));
+  CHECK_FALSE(g.can_move(0, 0, 0, 2));
+  CHECK_FALSE(g.can_move(0, 0, 2, 2));
+  // Single-cell: passable on flat ground.
+  CHECK(g.can_move(0, 0, 1, 0));
+  CHECK(g.can_move(0, 0, 0, 1));
+  // Zero delta: trivially passable.
+  CHECK(g.can_move(1, 1, 1, 1));
+}
+
+TEST_CASE("WalkabilityGraph::can_move — same cell is trivially passable; out-of-bounds stays unblocked; multi-cell is "
+          "denied") {
   const Tilemap tm = make_test_map(1, 1, 50);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
-  CHECK(g.can_move(0, 0, 0, 0));   // same cell
-  CHECK(g.can_move(0, 0, 2, 2));   // not grid-adjacent
-  CHECK(g.can_move(-1, 0, 0, 0));  // source out of bounds
-  CHECK(g.can_move(0, 0, -1, -1)); // target out of bounds
+  CHECK(g.can_move(0, 0, 0, 0));       // same cell — trivially passable
+  CHECK_FALSE(g.can_move(0, 0, 2, 2)); // not grid-adjacent — denied (tunneling guard)
+  CHECK(g.can_move(-1, 0, 0, 0));      // source out of bounds — no graph entry, unblocked
+  CHECK(g.can_move(0, 0, -1, -1));     // target out of bounds — same
 }
 
 TEST_CASE("WalkabilityGraph::set_passable — toggles symmetrically") {

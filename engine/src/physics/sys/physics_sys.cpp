@@ -199,30 +199,54 @@ namespace corundum::physics::sys {
     } else {
       apply_input(transforms, player, input, player_speed, iso); // zeroes dc/dr when nothing is held
     }
-    integrate(transforms, player, dt);
+    // Integration happens inside the substep loop below; this frame's integrate+resolve
+    // is substepped against per-cell displacement so the resolver can't skip geometry
+    // at high speed (see k_substep_max_tile / WalkabilityGraph::can_move denial below).
 
     const float map_w = map.world_w_tiles;
     const float map_h = map.world_h_tiles;
 
     const CollisionTable::Rect &player_rect = collisions.get_rect(player);
 
-    Position p{transforms.col[p_slot], transforms.row[p_slot]};
-    const Position prev_pos{prev_col, prev_row};
+    // Tunneling guard: substep integrate+resolve when the frame's displacement exceeds
+    // ~0.5 tile, so the resolver never has to clear more than one cell of geometry and
+    // thin walls can't be skipped at high speed. Pair with WalkabilityGraph::can_move's
+    // multi-cell denial (now false) so this loop is forced to take per-cell steps
+    // against the graph. 1 substep when displacement is small — math identical to the
+    // pre-substep path.
+    const float step_dist = std::hypot(transforms.dc[p_slot], transforms.dr[p_slot]) * dt;
+    constexpr float k_substep_max_tile = 0.5f;
+    const int substeps = std::max(1, static_cast<int>(std::ceil(step_dist / k_substep_max_tile)));
+    const float sub_dt = dt / static_cast<float>(substeps);
 
-    if (map.half_tw > 0.f && map.half_th > 0.f) {
-      const float half_cs = player_rect.col_span / 2.f;
-      // AABB extends upward from the feet position.
-      Position pc{p.col - half_cs, p.row - player_rect.row_span};
-      const Position pcp{prev_pos.col - half_cs, prev_pos.row - player_rect.row_span};
-      resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f, player_elev,
-                         k_elevation_tolerance);
-      resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f,
-                                  player_elev, k_elevation_tolerance);
-      // Convert AABB top-left back to feet position.
-      p.col = pc.col + half_cs;
-      p.row = pc.row + player_rect.row_span;
-      resolve_walkability(p, prev_pos, map.walkability);
+    Position p{prev_col, prev_row};
+    transforms.col[p_slot] = p.col;
+    transforms.row[p_slot] = p.row;
+    for (int s = 0; s < substeps; ++s) {
+      const Position sub_prev{p.col, p.row};
+      integrate(transforms, player, sub_dt);
+      p.col = transforms.col[p_slot];
+      p.row = transforms.row[p_slot];
+
+      if (map.half_tw > 0.f && map.half_th > 0.f) {
+        const float half_cs = player_rect.col_span / 2.f;
+        // AABB extends upward from the feet position.
+        Position pc{p.col - half_cs, p.row - player_rect.row_span};
+        const Position pcp{sub_prev.col - half_cs, sub_prev.row - player_rect.row_span};
+        resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f, player_elev,
+                           k_elevation_tolerance);
+        resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f,
+                                    player_elev, k_elevation_tolerance);
+        // Convert AABB top-left back to feet position.
+        p.col = pc.col + half_cs;
+        p.row = pc.row + player_rect.row_span;
+      }
+      resolve_walkability(p, sub_prev, map.walkability);
+      // Write resolved position back so the next substep's integrate starts from here.
+      transforms.col[p_slot] = p.col;
+      transforms.row[p_slot] = p.row;
     }
+    const Position prev_pos{prev_col, prev_row};
 
     std::array<float, corundum::gameplay::entity::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
     uint16_t npc_count = 0;
