@@ -83,4 +83,32 @@ namespace corundum::physics::sys {
                      float player_speed, const corundum::gameplay::world::MapView &map,
                      corundum::gameplay::world::Scene &scene, float dt) noexcept;
 
+  /**
+   * @brief Result of compute_elevation_gate: the integer elevation to gate
+   * colliders against, plus a ramp-aware tolerance that widens while the player
+   * stands on a ramp cell so both ends' colliders apply mid-ramp.
+   */
+  struct ElevationGate {
+    int player_elevation; ///< Rounded interpolated elevation at (col, row).
+    int tolerance;        ///< Ramp Δ/2 (ceil) while on a ramp; 0 elsewhere.
+  };
+
+  /**
+   * @brief Compute the elevation gate used to filter authored colliders by elevation.
+   *
+   * Rounds the interpolated elevation (was: truncates — see plan §3c) so a player at
+   * elev 3.99 on a 0→4 ramp gates at elev 4 instead of elev 3 (where authored top-ramp
+   * colliders were invisible). While the feet cell is a ramp, widens the tolerance to
+   * ceil(Δ/2) so both end elevations stay within range — without widening, the
+   * midpoint player (rounded to 2) would filter out colliders at both 0 and 4.
+   *
+   * @param[in] map   Active map view (uses elevation_map if set; World mode → defaults).
+   * @param[in] col   Fractional tile column (player's pre-integrate position).
+   * @param[in] row   Fractional tile row.
+   * @return Gate value (player elevation + tolerance) to pass into resolve_collisions /
+   *         resolve_triangle_collisions.
+   */
+  [[nodiscard]] ElevationGate compute_elevation_gate(const corundum::gameplay::world::MapView &map, float col,
+                                                     float row) noexcept;
+
 } // namespace corundum::physics::sys

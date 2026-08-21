@@ -46,6 +46,36 @@ namespace corundum::physics::sys {
     }
   } // namespace
 
+  ElevationGate compute_elevation_gate(const corundum::gameplay::world::MapView &map, float col, float row) noexcept {
+    using corundum::gameplay::world::tilemap::elevation_at;
+    using corundum::gameplay::world::tilemap::ramp_axis_at;
+    using corundum::gameplay::world::tilemap::RampAxis;
+
+    ElevationGate gate{};
+    const float elev_f = corundum::gameplay::world::elevation_at_tile(map, col, row);
+    gate.player_elevation = static_cast<int>(std::round(elev_f));
+
+    // World mode has no Tilemap to query — elevation_tolerance stays 0 (no ramps to widen for).
+    if (!map.elevation_map)
+      return gate;
+
+    const int cell_col = static_cast<int>(std::floor(col));
+    const int cell_row = static_cast<int>(std::floor(row));
+    const std::optional<RampAxis> axis = ramp_axis_at(*map.elevation_map, cell_col, cell_row);
+    if (!axis)
+      return gate;
+
+    // Δ across the ramp's two axis-neighbors (ramp's own integer elev doesn't matter —
+    // interpolated_elevation_at uses the neighbors). ceil(Δ/2) widens tolerance so
+    // both end elevations stay within range at the midpoint.
+    const auto [dc, dr] = *axis == RampAxis::NORTH_SOUTH ? std::pair{0, 1} : std::pair{1, 0};
+    const int elev_a = elevation_at(*map.elevation_map, cell_col - dc, cell_row - dr);
+    const int elev_b = elevation_at(*map.elevation_map, cell_col + dc, cell_row + dr);
+    const int ramp_dh = std::abs(elev_a - elev_b);
+    gate.tolerance = (ramp_dh + 1) / 2;
+    return gate;
+  }
+
   void integrate(corundum::gameplay::component::TransformTable &transforms, corundum::gameplay::entity::EntityId e,
                  float dt) noexcept {
     const auto slot = transforms.dense_idx(e);
@@ -168,9 +198,10 @@ namespace corundum::physics::sys {
 
     // The floor the player is standing on at the start of the frame — computed from the
     // pre-move position so collision resolution doesn't depend on its own not-yet-resolved
-    // result. Null elevation_map (chunked World mode) means "no elevation data": treat as 0.
-    constexpr int k_elevation_tolerance = 0;
-    const int player_elev = static_cast<int>(corundum::gameplay::world::elevation_at_tile(map, prev_col, prev_row));
+    // result. Uses round-to-nearest + ramp-aware tolerance (see compute_elevation_gate)
+    // so authored colliders at both ends of a ramp still block at mid-ramp. Plan §3c.
+    const auto elev_gate = compute_elevation_gate(map, prev_col, prev_row);
+    const int player_elev = elev_gate.player_elevation;
 
     // A click queues a new path. Deliberately keyed on mouse_click_pressed, not
     // Action::Select — Select is also raised by keyboard/gamepad confirm presses (which
@@ -234,9 +265,9 @@ namespace corundum::physics::sys {
         Position pc{p.col - half_cs, p.row - player_rect.row_span};
         const Position pcp{sub_prev.col - half_cs, sub_prev.row - player_rect.row_span};
         resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f, player_elev,
-                           k_elevation_tolerance);
+                           elev_gate.tolerance);
         resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f,
-                                    player_elev, k_elevation_tolerance);
+                                    player_elev, elev_gate.tolerance);
         // Convert AABB top-left back to feet position.
         p.col = pc.col + half_cs;
         p.row = pc.row + player_rect.row_span;
