@@ -31,6 +31,7 @@ add_executable(corundum_tests
     test_engine_events.cpp
     test_render_state.cpp
     test_engine_lifecycle.cpp
+    test_chunk_collision_aggregate.cpp
 )
 
 # Link to engine and doctest. engine_platform_null is also pulled in so the

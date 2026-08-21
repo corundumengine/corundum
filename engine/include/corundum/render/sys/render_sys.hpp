@@ -157,4 +157,16 @@ namespace corundum::render::sys {
    */
   [[nodiscard]] float elevation_under(const data::RenderState &state, float col_f, float row_f) noexcept;
 
+  /** @brief Rebuild the world-mode aggregated collision rects and triangles from active chunks.
+   *
+   * Clears and repopulates @c state.agg_collisions and @c state.agg_triangles by
+   * walking @c state.active_chunks and offsetting each chunk's tile-grid-local
+   * collision geometry into world tile-grid coordinates (offsets are in tile units,
+   * matching the tile-grid coordinate space the rest of the resolver operates in).
+   *
+   * @param[in,out] state  Render state in World mode whose aggregates will be overwritten.
+   * @note No-op when @c state.active_chunks is empty.
+   */
+  void rebuild_collision(data::RenderState &state) noexcept;
+
 } // namespace corundum::render::sys

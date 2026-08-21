@@ -400,7 +400,7 @@ namespace corundum::gameplay::world::tilemap {
     int iso_diamond_w = 0; ///< Isometric world step width in pixels (diamond width). 0 = use frame_width.
     int iso_diamond_h = 0; ///< Isometric world step height in pixels (diamond height). 0 = iso_diamond_w / 2.
     std::vector<TilemapLayer> layers;       ///< Index 0 is the bottom-most layer.
-    CollisionRects collisions;              ///< Impassable rects in Tiled pixel space; empty if absent.
+    CollisionRects collisions;              ///< Impassable rects in tile-grid space; empty if absent.
     CollisionTriangles collision_triangles; ///< Diagonal half-tile collision shapes; empty if absent.
 
     int max_tile_full_w = 0;

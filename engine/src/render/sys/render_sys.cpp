@@ -90,8 +90,6 @@ namespace corundum::render::sys {
                                                           corundum::gameplay::world::tilemap::ChunkCoord c,
                                                           const corundum::core::GameConfig &cfg);
 
-  static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg);
-
   static void sync_active_chunks(data::RenderState &state, const corundum::core::GameConfig &cfg,
                                  const corundum::gameplay::world::Scene &scene);
 
@@ -312,7 +310,7 @@ namespace corundum::render::sys {
       if (auto entry = load_chunk_entry(r, state, c, cfg))
         state.active_chunks.push_back(std::move(*entry));
     }
-    rebuild_collision(state, cfg);
+    rebuild_collision(state);
 
     const int diamond_w = state.active_chunks[0].tilemap.diamond_w();
     const int diamond_h = state.active_chunks[0].tilemap.diamond_h();
@@ -451,16 +449,16 @@ namespace corundum::render::sys {
     return data::ChunkEntry{c, std::move(tilemap), std::move(tex_ids), std::move(above_z), std::move(portals)};
   }
 
-  static void rebuild_collision(data::RenderState &state, const corundum::core::GameConfig &cfg) {
+  void rebuild_collision(data::RenderState &state) noexcept {
     using namespace corundum::gameplay::world::tilemap;
     state.agg_collisions = {};
     state.agg_triangles = {};
     if (state.active_chunks.empty())
       return;
 
-    const int tile_px = state.active_chunks[0].tilemap.diamond_w();
     for (const auto &entry : state.active_chunks) {
-      const auto [ox, oy] = chunk_origin_px(entry.coord, state.manifest, tile_px, cfg.tile_scale);
+      const int ox = entry.coord.col * state.manifest.chunk_size;
+      const int oy = entry.coord.row * state.manifest.chunk_size;
       const auto &cr = entry.tilemap.collisions;
       for (std::size_t i = 0; i < cr.size(); ++i)
         state.agg_collisions.push_back(cr.cols[i] + ox, cr.rows[i] + oy, cr.col_spans[i], cr.row_spans[i],
@@ -545,7 +543,7 @@ namespace corundum::render::sys {
 
     if (any_stale || any_new) {
       state.chunks_dirty = true;
-      rebuild_collision(state, cfg);
+      rebuild_collision(state);
     }
   }
 
