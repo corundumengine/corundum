@@ -34,6 +34,7 @@ add_executable(corundum_tests
     test_chunk_collision_aggregate.cpp
     test_elevation_gate.cpp
     test_portal_elevation.cpp
+    test_picking_elevation.cpp
 )
 
 # Link to engine and doctest. engine_platform_null is also pulled in so the
@@ -45,6 +46,11 @@ target_link_libraries(corundum_tests
     PRIVATE
         engine_platform_null
         doctest::doctest
+)
+
+# Tilesmith-only test (test_picking_elevation) needs to read the editor's coord helpers.
+target_include_directories(corundum_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/tools/editors/tilesmith
 )
 
 target_compile_options(corundum_tests PRIVATE -Wall -Wextra -Wpedantic)

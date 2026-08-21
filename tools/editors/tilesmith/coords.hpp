@@ -76,6 +76,63 @@ namespace tools::tilemap {
   }
 
   /**
+   * @brief Elevation-aware overload of pixel_to_fractional_tile — same as above but
+   * iterates the tilemap's elevations top-down so an elevated cell picks itself
+   * instead of the cell whose flat projection is under the click.
+   *
+   * Mirrors the runtime picker's strategy (picking.cpp): for each candidate elevation
+   * (max down to 0), project the click position back to tile-grid coords and check
+   * whether the resulting cell has that exact elevation. The first match wins (topmost
+   * painted cell under the click). Falls back to elev=0 if no elev matches (e.g., click
+   * outside the map) so off-canvas picks still return *some* tile coord — same as the
+   * elev=0-only behavior.
+   *
+   * Plan §1f: editors previously hardcoded elev=0 here, so clicking a visible diamond
+   * on raised terrain selected the cell behind/below it.
+   *
+   * @param map   Tilemap providing per-cell elevations (only z_index==0 layers read).
+   */
+  [[nodiscard]] inline corundum::core::math::Vec2
+  pixel_to_fractional_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
+                           float camera_y, float tile_scale, float elev_step, int map_h, int tw, int diamond_h,
+                           const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+    const int clamped_px = std::clamp(px, canvas_left, canvas_left + std::max(canvas_w, 1) - 1);
+    const int clamped_py = std::clamp(py, canvas_top, canvas_top + std::max(canvas_h, 1) - 1);
+
+    const auto iso = corundum::core::math::compute_isometric_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h,
+                                                                    tile_scale, elev_step);
+    const float origin_shift_x = k_content_margin * iso.half_tw;
+    const float origin_shift_y = iso.half_th;
+    const float world_x = static_cast<float>(clamped_px - canvas_left) + camera_x - origin_shift_x;
+    const float world_y = static_cast<float>(clamped_py - canvas_top) + camera_y - origin_shift_y;
+    const corundum::core::math::Vec2 world{world_x, world_y};
+
+    // Find the topmost elevation authored on any z_index==0 layer with a tile.
+    int max_elev = 0;
+    for (const auto &layer : map.layers) {
+      if (layer.z_index != 0 || !layer.visible)
+        continue;
+      for (const uint8_t e : layer.elevation)
+        if (static_cast<int>(e) > max_elev)
+          max_elev = e;
+    }
+
+    // Iterate elevations top-down so the topmost painted cell under the click wins.
+    for (int elev = max_elev; elev >= 0; --elev) {
+      const corundum::core::math::Vec2 frac = corundum::core::math::world_to_tile(world, elev, iso);
+      const int col = static_cast<int>(std::floor(frac.x));
+      const int row = static_cast<int>(std::floor(frac.y));
+      if (col < 0 || col >= map.width || row < 0 || row >= map.height)
+        continue;
+      if (corundum::gameplay::world::tilemap::elevation_at(map, col, row) == elev)
+        return frac;
+    }
+    // No elev matched — fall back to elev=0 (preserves the original behavior for clicks
+    // outside the map or in edge cases).
+    return corundum::core::math::world_to_tile(world, 0, iso);
+  }
+
+  /**
    * @brief Convert a window pixel position to a map tile coordinate.
    *
    * @param px, py          Window-space pixel position.
@@ -101,6 +158,34 @@ namespace tools::tilemap {
     const corundum::core::math::Vec2 frac =
         pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
                                  elev_step, map_h, tw, diamond_h);
+
+    const int col = static_cast<int>(std::floor(frac.x));
+    const int row = static_cast<int>(std::floor(frac.y));
+
+    if (col < 0 || col >= map_w || row < 0 || row >= map_h)
+      return std::nullopt;
+    return TileCoord{col, row};
+  }
+
+  /**
+   * @brief Elevation-aware overload of screen_to_tile — same contract as above but
+   * uses the elev-aware pixel_to_fractional_tile so a click on an elevated cell
+   * returns that cell rather than the cell whose flat projection sits below it.
+   *
+   * @param map  Tilemap for elevation lookup (must match the map_w/map_h bounds).
+   */
+  [[nodiscard]] inline std::optional<TileCoord>
+  screen_to_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
+                 float camera_y, float tile_scale, float elev_step, int map_w, int map_h, int tw, int diamond_h,
+                 const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+    if (px < canvas_left || px >= canvas_left + canvas_w)
+      return std::nullopt;
+    if (py < canvas_top || py >= canvas_top + canvas_h)
+      return std::nullopt;
+
+    const corundum::core::math::Vec2 frac =
+        pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
+                                 elev_step, map_h, tw, diamond_h, map);
 
     const int col = static_cast<int>(std::floor(frac.x));
     const int row = static_cast<int>(std::floor(frac.y));
@@ -238,6 +323,30 @@ namespace tools::tilemap {
                                              camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
     const auto tb = pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
                                              camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
+    const float min_col = std::min(ta.x, tb.x);
+    const float min_row = std::min(ta.y, tb.y);
+    const float max_col = std::max(ta.x, tb.x);
+    const float max_row = std::max(ta.y, tb.y);
+    const float inv_dw = 1.f / static_cast<float>(diamond_w);
+    const float inv_dh = 1.f / static_cast<float>(diamond_h);
+    return {min_col, min_row, std::max(inv_dw, max_col - min_col), std::max(inv_dh, max_row - min_row)};
+  }
+
+  /**
+   * @brief Elevation-aware overload of pixel_to_tiled_rect — sub-tile drag must use the
+   * same elev-aware kernel as screen_to_tile so the live preview tracks the cursor on
+   * raised terrain.
+   *
+   * @param map  Tilemap for elevation lookup (sub-tile precision on raised cells).
+   */
+  [[nodiscard]] inline corundum::gameplay::world::tilemap::CollisionRect
+  pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
+                      int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
+                      int diamond_w, int diamond_h, const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+    const auto ta = pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
+                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h, map);
+    const auto tb = pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
+                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h, map);
     const float min_col = std::min(ta.x, tb.x);
     const float min_row = std::min(ta.y, tb.y);
     const float max_col = std::max(ta.x, tb.x);

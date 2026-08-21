@@ -22,7 +22,7 @@ namespace tools::tilemap {
     [[nodiscard]] std::optional<TileCoord> editor_screen_to_tile(int px, int py, const EditorState &state) noexcept {
       return screen_to_tile(px, py, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
                             state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
-                            effective_diamond_w(state.map), effective_diamond_h(state.map));
+                            effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
     }
 
     void begin_collision_drag(EditorState &state, int win_x, int win_y) noexcept {
@@ -65,7 +65,7 @@ namespace tools::tilemap {
         candidate = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y,
                                         state.col_drag_cur_win_x, state.col_drag_cur_win_y, 0, 0, CANVAS_W, CANVAS_H,
                                         state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
-                                        state.elev_step_px, state.map.height, tw, th);
+                                        state.elev_step_px, state.map.height, tw, th, state.map);
       } else {
         candidate = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
                                       state.col_drag_cur_row);
