@@ -85,6 +85,201 @@ namespace corundum::physics::sys {
       return false;
     }
 
+    // X-axis clamp-to-contact: smallest col in direction of motion such that the AABB
+    // does not overlap any rect. Only valid when proposed introduces NEW overlap
+    // (escape rule lets pre-existing overlap slide through). Returns prev_col unchanged
+    // if no overlapping rect yields a reachable contact (shouldn't happen given the
+    // caller's overlap check, but defensive).
+    //
+    // For "moving right" into a wall on the right: contact = rect.left - aw (player
+    // just left of the wall). For "moving left": contact = rect.right. Among all
+    // overlapping rects, take the smallest contact that's still >= prev_col so the
+    // clamp never pushes the entity backwards.
+    [[nodiscard]] float clamp_x_contact(float pos_col, float prev_col, float y_top, float aw, float ah,
+                                        corundum::gameplay::world::tilemap::CollisionRectsView rects,
+                                        int entity_elevation, int elevation_tolerance) noexcept {
+      float best = pos_col;
+      bool found = false;
+      const bool moving_right = pos_col > prev_col;
+      const std::size_t n = rects.size();
+      const bool filter_elev = !rects.elevations.empty();
+      for (std::size_t i = 0; i < n; ++i) {
+        if (filter_elev && std::abs(static_cast<int>(rects.elevations[i]) - entity_elevation) > elevation_tolerance)
+          continue;
+        if (rects.rows[i] + rects.row_spans[i] <= y_top || rects.rows[i] >= y_top + ah)
+          continue;
+        if (rects.cols[i] + rects.col_spans[i] <= pos_col || rects.cols[i] >= pos_col + aw)
+          continue;
+        const float contact = moving_right ? rects.cols[i] - aw : rects.cols[i] + rects.col_spans[i];
+        if (moving_right) {
+          if (contact >= prev_col && (!found || contact < best)) {
+            best = contact;
+            found = true;
+          }
+        } else {
+          if (contact <= prev_col && (!found || contact > best)) {
+            best = contact;
+            found = true;
+          }
+        }
+      }
+      return found ? best : prev_col;
+    }
+
+    // Y-axis equivalent of clamp_x_contact.
+    [[nodiscard]] float clamp_y_contact(float pos_row, float prev_row, float x_left, float aw, float ah,
+                                        corundum::gameplay::world::tilemap::CollisionRectsView rects,
+                                        int entity_elevation, int elevation_tolerance) noexcept {
+      float best = pos_row;
+      bool found = false;
+      const bool moving_down = pos_row > prev_row;
+      const std::size_t n = rects.size();
+      const bool filter_elev = !rects.elevations.empty();
+      for (std::size_t i = 0; i < n; ++i) {
+        if (filter_elev && std::abs(static_cast<int>(rects.elevations[i]) - entity_elevation) > elevation_tolerance)
+          continue;
+        if (rects.cols[i] + rects.col_spans[i] <= x_left || rects.cols[i] >= x_left + aw)
+          continue;
+        if (rects.rows[i] + rects.row_spans[i] <= pos_row || rects.rows[i] >= pos_row + ah)
+          continue;
+        const float contact = moving_down ? rects.rows[i] - ah : rects.rows[i] + rects.row_spans[i];
+        if (moving_down) {
+          if (contact >= prev_row && (!found || contact < best)) {
+            best = contact;
+            found = true;
+          }
+        } else {
+          if (contact <= prev_row && (!found || contact > best)) {
+            best = contact;
+            found = true;
+          }
+        }
+      }
+      return found ? best : prev_row;
+    }
+
+    // Triangle X-axis clamp-to-contact: solve the empty-side boundary equation for col,
+    // given the row is fixed (post-X-Y). Each TriangleCut's boundary is one of:
+    //   NW: u1 + v1 = 1  → pc + aw = tx + tw * (1 - v1_norm)
+    //   NE: u0 - v1 = 0  → pc = tx + tw * v1_norm
+    //   SW: u1 - v0 = 0  → pc + aw = tx + tw * v0_norm
+    //   SE: u0 + v0 = 1  → pc = tx + tw * (1 - v0_norm)
+    // Same min/max-over-contacts filter as rects (closest reachable contact in direction
+    // of motion).
+    [[nodiscard]] float clamp_x_contact_triangle(float pos_col, float prev_col, float y_top, float aw, float ah,
+                                                 corundum::gameplay::world::tilemap::CollisionTrianglesView tris,
+                                                 int entity_elevation, int elevation_tolerance) noexcept {
+      using corundum::gameplay::world::tilemap::TriangleCut;
+      float best = pos_col;
+      bool found = false;
+      const bool moving_right = pos_col > prev_col;
+      const std::size_t n = tris.size();
+      const bool filter_elev = !tris.elevations.empty();
+      for (std::size_t i = 0; i < n; ++i) {
+        if (filter_elev && std::abs(static_cast<int>(tris.elevations[i]) - entity_elevation) > elevation_tolerance)
+          continue;
+        const float tx = tris.cols[i], ty = tris.rows[i];
+        const float tw = tris.col_spans[i], th = tris.row_spans[i];
+        if (pos_col + aw <= tx || pos_col >= tx + tw)
+          continue;
+        if (y_top + ah <= ty || y_top >= ty + th)
+          continue;
+        const float v1_norm = (y_top + ah - ty) / th;
+        const float v0_norm = (y_top - ty) / th;
+        const float u1_target = 1.f - v1_norm;
+        float contact;
+        switch (tris.cuts[i]) {
+        case TriangleCut::NW:
+          // pc + aw = tx + tw * u1_target
+          contact = tx + tw * u1_target - aw;
+          break;
+        case TriangleCut::NE:
+          // pc = tx + tw * v1_norm
+          contact = tx + tw * v1_norm;
+          break;
+        case TriangleCut::SW:
+          // pc + aw = tx + tw * v0_norm
+          contact = tx + tw * v0_norm - aw;
+          break;
+        case TriangleCut::SE:
+          // pc = tx + tw * (1 - v0_norm)
+          contact = tx + tw * (1.f - v0_norm);
+          break;
+        default:
+          std::unreachable();
+        }
+        if (moving_right) {
+          if (contact >= prev_col && (!found || contact < best)) {
+            best = contact;
+            found = true;
+          }
+        } else {
+          if (contact <= prev_col && (!found || contact > best)) {
+            best = contact;
+            found = true;
+          }
+        }
+      }
+      return found ? best : prev_col;
+    }
+
+    // Y-axis equivalent of clamp_x_contact_triangle.
+    [[nodiscard]] float clamp_y_contact_triangle(float pos_row, float prev_row, float x_left, float aw, float ah,
+                                                 corundum::gameplay::world::tilemap::CollisionTrianglesView tris,
+                                                 int entity_elevation, int elevation_tolerance) noexcept {
+      using corundum::gameplay::world::tilemap::TriangleCut;
+      float best = pos_row;
+      bool found = false;
+      const bool moving_down = pos_row > prev_row;
+      const std::size_t n = tris.size();
+      const bool filter_elev = !tris.elevations.empty();
+      for (std::size_t i = 0; i < n; ++i) {
+        if (filter_elev && std::abs(static_cast<int>(tris.elevations[i]) - entity_elevation) > elevation_tolerance)
+          continue;
+        const float tx = tris.cols[i], ty = tris.rows[i];
+        const float tw = tris.col_spans[i], th = tris.row_spans[i];
+        if (x_left + aw <= tx || x_left >= tx + tw)
+          continue;
+        if (pos_row + ah <= ty || pos_row >= ty + th)
+          continue;
+        const float u1_norm = (x_left + aw - tx) / tw;
+        const float u0_norm = (x_left - tx) / tw;
+        float contact;
+        switch (tris.cuts[i]) {
+        case TriangleCut::NW:
+          // pr + ah = ty + th * (1 - u1_norm)
+          contact = ty + th * (1.f - u1_norm) - ah;
+          break;
+        case TriangleCut::NE:
+          // pr + ah = ty + th * u0_norm
+          contact = ty + th * u0_norm - ah;
+          break;
+        case TriangleCut::SW:
+          // pr = ty + th * u1_norm
+          contact = ty + th * u1_norm;
+          break;
+        case TriangleCut::SE:
+          // pr = ty + th * (1 - u0_norm)
+          contact = ty + th * (1.f - u0_norm);
+          break;
+        default:
+          std::unreachable();
+        }
+        if (moving_down) {
+          if (contact >= prev_row && (!found || contact < best)) {
+            best = contact;
+            found = true;
+          }
+        } else {
+          if (contact <= prev_row && (!found || contact > best)) {
+            best = contact;
+            found = true;
+          }
+        }
+      }
+      return found ? best : prev_row;
+    }
+
   } // namespace
 
   void resolve_collisions(corundum::gameplay::component::Position &pos,
@@ -93,13 +288,32 @@ namespace corundum::physics::sys {
                           int entity_elevation, int elevation_tolerance) noexcept {
     const float eff_h = entity_h - y_offset;
 
-    // Test X axis: use post-integrate X with pre-integrate Y.
-    if (overlaps_any(pos.col, prev_pos.row + y_offset, entity_w, eff_h, rects, entity_elevation, elevation_tolerance))
-      pos.col = prev_pos.col;
+    // Escape rule: only block moves that introduce NEW overlap (prev didn't overlap
+    // this rect but proposed does). Pre-existing overlap lets the entity slide freely
+    // — important when teleports or geometry changes leave the entity already inside
+    // a collider. See plan §2b.
 
-    // Test Y axis: use resolved X with post-integrate Y.
-    if (overlaps_any(pos.col, pos.row + y_offset, entity_w, eff_h, rects, entity_elevation, elevation_tolerance))
-      pos.row = prev_pos.row;
+    // X-axis: clamp-to-contact on new overlap, using prev-row (frame-start Y).
+    if (pos.col != prev_pos.col) {
+      const bool prev_overlaps = overlaps_any(prev_pos.col, prev_pos.row + y_offset, entity_w, eff_h, rects,
+                                              entity_elevation, elevation_tolerance);
+      const bool new_overlaps =
+          overlaps_any(pos.col, prev_pos.row + y_offset, entity_w, eff_h, rects, entity_elevation, elevation_tolerance);
+      if (new_overlaps && !prev_overlaps)
+        pos.col = clamp_x_contact(pos.col, prev_pos.col, prev_pos.row + y_offset, entity_w, eff_h, rects,
+                                  entity_elevation, elevation_tolerance);
+    }
+
+    // Y-axis: same, using the resolved col (post-X) for the X range.
+    if (pos.row != prev_pos.row) {
+      const bool prev_overlaps =
+          overlaps_any(pos.col, prev_pos.row + y_offset, entity_w, eff_h, rects, entity_elevation, elevation_tolerance);
+      const bool new_overlaps =
+          overlaps_any(pos.col, pos.row + y_offset, entity_w, eff_h, rects, entity_elevation, elevation_tolerance);
+      if (new_overlaps && !prev_overlaps)
+        pos.row = clamp_y_contact(pos.row, prev_pos.row, pos.col, entity_w, eff_h, rects, entity_elevation,
+                                  elevation_tolerance);
+    }
   }
 
   void resolve_triangle_collisions(corundum::gameplay::component::Position &pos,
@@ -108,13 +322,29 @@ namespace corundum::physics::sys {
                                    int entity_elevation, int elevation_tolerance) noexcept {
     const float eff_h = entity_h - y_offset;
 
-    if (overlaps_any_triangle(pos.col, prev_pos.row + y_offset, entity_w, eff_h, triangles, entity_elevation,
-                              elevation_tolerance))
-      pos.col = prev_pos.col;
+    // Same escape-rule / clamp-to-contact logic as resolve_collisions; contact is
+    // solved per-TriangleCut (each cut's empty boundary is a different linear equation
+    // in (u, v), see clamp_x_contact_triangle's comment).
 
-    if (overlaps_any_triangle(pos.col, pos.row + y_offset, entity_w, eff_h, triangles, entity_elevation,
-                              elevation_tolerance))
-      pos.row = prev_pos.row;
+    if (pos.col != prev_pos.col) {
+      const bool prev_overlaps = overlaps_any_triangle(prev_pos.col, prev_pos.row + y_offset, entity_w, eff_h,
+                                                       triangles, entity_elevation, elevation_tolerance);
+      const bool new_overlaps = overlaps_any_triangle(pos.col, prev_pos.row + y_offset, entity_w, eff_h, triangles,
+                                                      entity_elevation, elevation_tolerance);
+      if (new_overlaps && !prev_overlaps)
+        pos.col = clamp_x_contact_triangle(pos.col, prev_pos.col, prev_pos.row + y_offset, entity_w, eff_h, triangles,
+                                           entity_elevation, elevation_tolerance);
+    }
+
+    if (pos.row != prev_pos.row) {
+      const bool prev_overlaps = overlaps_any_triangle(pos.col, prev_pos.row + y_offset, entity_w, eff_h, triangles,
+                                                       entity_elevation, elevation_tolerance);
+      const bool new_overlaps = overlaps_any_triangle(pos.col, pos.row + y_offset, entity_w, eff_h, triangles,
+                                                      entity_elevation, elevation_tolerance);
+      if (new_overlaps && !prev_overlaps)
+        pos.row = clamp_y_contact_triangle(pos.row, prev_pos.row, pos.col, entity_w, eff_h, triangles, entity_elevation,
+                                           elevation_tolerance);
+    }
   }
 
 } // namespace corundum::physics::sys
