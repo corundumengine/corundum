@@ -96,36 +96,49 @@ namespace tools::tilemap {
       const float row = static_cast<float>(tc->row);
       constexpr float col_span = 1.f;
       constexpr float row_span = 1.f;
-      const auto &tris = state.map.collision_triangles;
+      auto &tris = state.map.collision_triangles;
       for (std::size_t i = 0; i < tris.size(); ++i) {
         if (tris.cols[i] == col && tris.rows[i] == row && tris.col_spans[i] == col_span &&
-            tris.row_spans[i] == row_span && tris.cuts[i] == state.collision_tri_cut)
-          return;
-      }
-      const uint8_t elev =
-          static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(state.map, tc->col, tc->row));
-      state.map.collision_triangles.push_back(col, row, col_span, row_span, state.collision_tri_cut, elev);
-      state.dirty = true;
-    }
-
-    void remove_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
-      if (state.map.tilesets.empty())
-        return;
-      const auto tc = editor_screen_to_tile(win_x, win_y, state);
-      if (!tc)
-        return;
-      const float world_x = static_cast<float>(tc->col);
-      const float world_y = static_cast<float>(tc->row);
-      auto &tris = state.map.collision_triangles;
-      for (int i = static_cast<int>(tris.size()) - 1; i >= 0; --i) {
-        const auto idx = static_cast<std::size_t>(i);
-        if (world_x >= tris.cols[idx] && world_x < tris.cols[idx] + tris.col_spans[idx] && world_y >= tris.rows[idx] &&
-            world_y < tris.rows[idx] + tris.row_spans[idx]) {
-          tris.erase(idx);
-          state.dirty = true;
+            tris.row_spans[i] == row_span) {
+          // Exact cell match: same cut is a no-op; different cut updates in place rather than
+          // stacking a second triangle (compare with the half-open `>= && <` test in
+          // remove_triangle_at — that one checks "click is anywhere inside the cell").
+          if (tris.cuts[i] != state.collision_tri_cut) {
+            tris.cuts[i] = state.collision_tri_cut;
+            state.dirty = true;
+          }
           return;
         }
       }
+      const uint8_t elev =
+          static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(state.map, tc->col, tc->row));
+      tris.push_back(col, row, col_span, row_span, state.collision_tri_cut, elev);
+      state.dirty = true;
+    }
+
+    [[nodiscard]] bool remove_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
+      if (state.map.tilesets.empty())
+        return false;
+      const auto tc = editor_screen_to_tile(win_x, win_y, state);
+      if (!tc)
+        return false;
+      const float world_x = static_cast<float>(tc->col);
+      const float world_y = static_cast<float>(tc->row);
+      auto &tris = state.map.collision_triangles;
+      bool removed_any = false;
+      std::size_t i = 0;
+      while (i < tris.size()) {
+        if (world_x >= tris.cols[i] && world_x < tris.cols[i] + tris.col_spans[i] && world_y >= tris.rows[i] &&
+            world_y < tris.rows[i] + tris.row_spans[i]) {
+          tris.erase(i);
+          removed_any = true;
+        } else {
+          ++i;
+        }
+      }
+      if (removed_any)
+        state.dirty = true;
+      return removed_any;
     }
 
     void begin_erase_drag(EditorState &state, int win_x, int win_y) noexcept {
@@ -536,9 +549,7 @@ namespace tools::tilemap {
         if (state.show_portals)
           begin_portal_drag(state, mx, my);
         else if (state.show_collisions) {
-          if (state.triangle_collision_mode)
-            remove_triangle_at(state, mx, my);
-          else
+          if (!remove_triangle_at(state, mx, my))
             remove_collision_at(state, mx, my);
         } else if (state.show_elevation)
           paint_or_erase_elevation(state, mx, my, true);

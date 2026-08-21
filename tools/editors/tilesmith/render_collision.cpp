@@ -114,15 +114,29 @@ namespace tools::tilemap {
 
     if (state.show_collisions && state.triangle_collision_mode && state.hover_tile_col >= 0 &&
         state.hover_tile_row >= 0) {
-      const float col = static_cast<float>(state.hover_tile_col);
-      const float row = static_cast<float>(state.hover_tile_row);
-      // Preview at the elevation this triangle would actually be authored at if placed now.
-      const float preview_elev = static_cast<float>(
-          corundum::gameplay::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row));
-      draw_iso_triangle(ctx, col * tw, row * th, static_cast<float>(tw), static_cast<float>(th), inv_tw, inv_th,
-                        iso.half_tw, iso.half_th, preview_elev, state.elev_step_px, iso.x_origin, state.canvas.offset_x,
-                        state.canvas.offset_y, state.collision_tri_cut, IM_COL32(100, 255, 100, 50),
-                        IM_COL32(100, 255, 100, 220));
+      // Skip the placement preview if a triangle already occupies the hovered cell — drawing a
+      // ghost triangle in the same spot hides the deletion feedback (right-click erases the orange
+      // one, but the green preview immediately takes its place, making it look like nothing
+      // happened).
+      const float hover_col_f = static_cast<float>(state.hover_tile_col);
+      const float hover_row_f = static_cast<float>(state.hover_tile_row);
+      bool occupied = false;
+      for (std::size_t ti = 0; ti < tris.size(); ++ti) {
+        if (tris.cols[ti] == hover_col_f && tris.rows[ti] == hover_row_f && tris.col_spans[ti] == 1.f &&
+            tris.row_spans[ti] == 1.f) {
+          occupied = true;
+          break;
+        }
+      }
+      if (!occupied) {
+        // Preview at the elevation this triangle would actually be authored at if placed now.
+        const float preview_elev = static_cast<float>(
+            corundum::gameplay::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row));
+        draw_iso_triangle(ctx, hover_col_f * tw, hover_row_f * th, static_cast<float>(tw), static_cast<float>(th),
+                          inv_tw, inv_th, iso.half_tw, iso.half_th, preview_elev, state.elev_step_px, iso.x_origin,
+                          state.canvas.offset_x, state.canvas.offset_y, state.collision_tri_cut,
+                          IM_COL32(100, 255, 100, 50), IM_COL32(100, 255, 100, 220));
+      }
     }
   }
 
