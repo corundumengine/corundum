@@ -232,6 +232,35 @@ namespace corundum::core::math {
   }
 
   /**
+   * @brief Cell-center anchor convention: returns the cell's geometric center in
+   * isometric world space, NOT its top vertex.
+   *
+   * Under the codebase's TOP-vertex projection convention (tile_to_world returns
+   * the cell's top (north) vertex), every consumer that places an entity sprite,
+   * camera target, or feet marker needs the cell's center — `top_vertex + (0,
+   * half_th)` — to align with where the tile sprite draws. Centralizing this here
+   * prevents the anchor drift that left actors floating half_th above the ground
+   * or sunk below it.
+   *
+   * Uses @p float elevation (rather than int) to preserve interpolated elevation
+   * precision on ramps, matching what `tile_to_world`'s existing callers do
+   * inline at entity/camera sites.
+   *
+   * @param col        Tile column (fractional).
+   * @param row        Tile row (fractional).
+   * @param elevation  Tile height (may be fractional for interpolated ramps).
+   * @param iso        Packed projection parameters from compute_isometric_params().
+   * @return Isometric world-space position of the cell's geometric center.
+   */
+  [[nodiscard]] constexpr Vec2 tile_to_world_center(float col, float row, float elevation,
+                                                    const IsometricParams &iso) noexcept {
+    return {
+        (col - row) * iso.half_tw + iso.x_origin,
+        (col + row) * iso.half_th - elevation * iso.elev_step + iso.half_th,
+    };
+  }
+
+  /**
    * @brief Draw-order depth key that accounts for elevation, for painter's-algorithm sorting.
    *
    * Extends the plain grid depth (tx + ty) with an elevation term scaled so that an

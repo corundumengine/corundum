@@ -6,23 +6,23 @@ namespace tools::tilemap {
 
   namespace {
 
-    // Convert tile-grid coords (col, row) to isometric screen position, lifted by
+    // Convert tile-grid coords (col, row) to canvas screen position, lifted by
     // elevation so the tint sits on the tile's actual (raised) rendered position.
-    inline ImVec2 elev_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev, float half_tw,
-                                   float half_th, float elev_step, float x_shift, float cam_x, float cam_y) noexcept {
-      return {ctx.origin.x + (col_f - row_f) * half_tw + x_shift - cam_x,
-              ctx.origin.y + (col_f + row_f) * half_th - elev * elev_step - cam_y};
+    // Delegates the iso projection to corundum::core::math::tile_to_world.
+    inline ImVec2 elev_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev,
+                                   const corundum::core::math::IsometricParams &iso, float offset_x,
+                                   float offset_y) noexcept {
+      const auto w = corundum::core::math::tile_to_world(col_f, row_f, elev, iso);
+      return {ctx.origin.x + w.x - offset_x, ctx.origin.y + w.y - offset_y};
     }
 
-    void draw_iso_cell(const CanvasContext &ctx, float col, float row, float elev, float half_tw, float half_th,
-                       float elev_step, float x_shift, float cam_x, float cam_y, ImU32 fill, ImU32 outline) noexcept {
-      const ImVec2 top = elev_tile_to_iso(ctx, col, row, elev, half_tw, half_th, elev_step, x_shift, cam_x, cam_y);
-      const ImVec2 right =
-          elev_tile_to_iso(ctx, col + 1.f, row, elev, half_tw, half_th, elev_step, x_shift, cam_x, cam_y);
-      const ImVec2 bottom =
-          elev_tile_to_iso(ctx, col + 1.f, row + 1.f, elev, half_tw, half_th, elev_step, x_shift, cam_x, cam_y);
-      const ImVec2 left =
-          elev_tile_to_iso(ctx, col, row + 1.f, elev, half_tw, half_th, elev_step, x_shift, cam_x, cam_y);
+    void draw_iso_cell(const CanvasContext &ctx, float col, float row, float elev,
+                       const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y, ImU32 fill,
+                       ImU32 outline) noexcept {
+      const ImVec2 top = elev_tile_to_iso(ctx, col, row, elev, iso, offset_x, offset_y);
+      const ImVec2 right = elev_tile_to_iso(ctx, col + 1.f, row, elev, iso, offset_x, offset_y);
+      const ImVec2 bottom = elev_tile_to_iso(ctx, col + 1.f, row + 1.f, elev, iso, offset_x, offset_y);
+      const ImVec2 left = elev_tile_to_iso(ctx, col, row + 1.f, elev, iso, offset_x, offset_y);
       ctx.dl->AddQuadFilled(top, right, bottom, left, fill);
       if (outline)
         ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
@@ -64,9 +64,8 @@ namespace tools::tilemap {
                               tiles[row, col] != corundum::gameplay::world::tilemap::k_empty_tile;
         if (!has_tile)
           continue;
-        draw_iso_cell(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(v), iso.half_tw,
-                      iso.half_th, state.elev_step_px, iso.x_origin, state.canvas.offset_x, state.canvas.offset_y,
-                      elevation_fill_color(v), 0);
+        draw_iso_cell(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(v), iso,
+                      state.canvas.offset_x, state.canvas.offset_y, elevation_fill_color(v), 0);
       }
     }
   }
@@ -79,8 +78,7 @@ namespace tools::tilemap {
     const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
                                                                     state.elev_step_px);
     draw_iso_cell(ctx, static_cast<float>(state.hover_tile_col), static_cast<float>(state.hover_tile_row),
-                  static_cast<float>(state.selected_elevation), iso.half_tw, iso.half_th, state.elev_step_px,
-                  iso.x_origin, state.canvas.offset_x, state.canvas.offset_y,
+                  static_cast<float>(state.selected_elevation), iso, state.canvas.offset_x, state.canvas.offset_y,
                   elevation_fill_color(state.selected_elevation), IM_COL32(255, 220, 80, 220));
   }
 

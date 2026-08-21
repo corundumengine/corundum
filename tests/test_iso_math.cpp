@@ -240,6 +240,51 @@ TEST_CASE("IsometricParams tile_to_world with fractional input") {
   CHECK(p.y == doctest::Approx(expected_y));
 }
 
+// ── tile_to_world_center (anchor unification) ───────────────────────────────
+
+TEST_CASE("tile_to_world_center — cell center is top vertex plus (0, half_th)") {
+  // Pins down the unified cell-center anchor convention that 243764a introduced
+  // for tile sprites but never tested. Without this, entity/camera/debug-overlay
+  // sites drift back to top-vertex (or worse, top-vertex-minus-half_th) anchoring
+  // and actors float half_th above the ground or appear sunk below it.
+  constexpr float xo = 7.f * k_half_tw;
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, xo, 4.f};
+
+  const auto top = ccm::tile_to_world(5, 5, 0, iso);
+  const auto center = ccm::tile_to_world_center(5.f, 5.f, 0.f, iso);
+
+  CHECK(center.x == doctest::Approx(top.x));
+  CHECK(center.y == doctest::Approx(top.y + iso.half_th));
+}
+
+TEST_CASE("tile_to_world_center — entity anchor equals tile sprite cell-center anchor") {
+  // The actual regression: an entity standing at (col, row) must produce the same
+  // screen anchor as a tile sprite rendered at (col, row) — both at cell center.
+  // Tile sprites use tile_to_world + (0, half_th); entities use the same point.
+  constexpr float xo = 7.f * k_half_tw;
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, xo, 4.f};
+
+  const auto entity_anchor = ccm::tile_to_world_center(5.f, 5.f, 0.f, iso);
+  const auto tile_top = ccm::tile_to_world(5, 5, 0, iso);
+  const auto tile_center = ccm::Vec2{tile_top.x, tile_top.y + iso.half_th};
+
+  CHECK(entity_anchor.x == doctest::Approx(tile_center.x));
+  CHECK(entity_anchor.y == doctest::Approx(tile_center.y));
+}
+
+TEST_CASE("tile_to_world_center — elevation lifts the cell center, not just the top vertex") {
+  // The cell center must track the top vertex exactly half_th below it even
+  // when elevation is non-zero — otherwise raised platforms mis-anchor entities
+  // by half_th at every elevation level.
+  constexpr float xo = 7.f * k_half_tw;
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, xo, 4.f};
+  constexpr int elev = 30;
+
+  const auto center_e0 = ccm::tile_to_world_center(5.f, 5.f, 0.f, iso);
+  const auto center_e = ccm::tile_to_world_center(5.f, 5.f, static_cast<float>(elev), iso);
+  CHECK(center_e.y == doctest::Approx(center_e0.y - static_cast<float>(elev) * iso.elev_step));
+}
+
 TEST_CASE("IsometricParams world_to_tile agrees with scalar form") {
   constexpr float xo = 7.f * k_half_tw;
   const ccm::IsometricParams iso{k_half_tw, k_half_th, xo, 4.f};

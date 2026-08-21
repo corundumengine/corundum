@@ -10,19 +10,23 @@ namespace tools::tilemap {
 
   namespace {
 
-    // Convert tile-grid coords (col, row) to isometric screen position.
-    inline ImVec2 tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float half_tw, float half_th,
-                              float x_shift, float cam_x, float cam_y) noexcept {
-      return {ctx.origin.x + (col_f - row_f) * half_tw + x_shift - cam_x,
-              ctx.origin.y + (col_f + row_f) * half_th - cam_y};
+    // Convert tile-grid coords (col, row) to canvas screen position.
+    // Delegates the iso projection to corundum::core::math::tile_to_world so this
+    // stays in lockstep with engine entity/camera sites.
+    inline ImVec2 tile_to_iso(const CanvasContext &ctx, float col_f, float row_f,
+                              const corundum::core::math::IsometricParams &iso, float offset_x,
+                              float offset_y) noexcept {
+      const auto w = corundum::core::math::tile_to_world(col_f, row_f, 0, iso);
+      return {ctx.origin.x + w.x - offset_x, ctx.origin.y + w.y - offset_y};
     }
 
-    void draw_iso_portal(const CanvasContext &ctx, float col, float row, float w_tiles, float h_tiles, float half_tw,
-                         float half_th, float x_shift, float cam_x, float cam_y, ImU32 fill, ImU32 outline) noexcept {
-      const ImVec2 top = tile_to_iso(ctx, col, row, half_tw, half_th, x_shift, cam_x, cam_y);
-      const ImVec2 right = tile_to_iso(ctx, col + w_tiles, row, half_tw, half_th, x_shift, cam_x, cam_y);
-      const ImVec2 bottom = tile_to_iso(ctx, col + w_tiles, row + h_tiles, half_tw, half_th, x_shift, cam_x, cam_y);
-      const ImVec2 left = tile_to_iso(ctx, col, row + h_tiles, half_tw, half_th, x_shift, cam_x, cam_y);
+    void draw_iso_portal(const CanvasContext &ctx, float col, float row, float w_tiles, float h_tiles,
+                         const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y, ImU32 fill,
+                         ImU32 outline) noexcept {
+      const ImVec2 top = tile_to_iso(ctx, col, row, iso, offset_x, offset_y);
+      const ImVec2 right = tile_to_iso(ctx, col + w_tiles, row, iso, offset_x, offset_y);
+      const ImVec2 bottom = tile_to_iso(ctx, col + w_tiles, row + h_tiles, iso, offset_x, offset_y);
+      const ImVec2 left = tile_to_iso(ctx, col, row + h_tiles, iso, offset_x, offset_y);
       ctx.dl->AddQuadFilled(top, right, bottom, left, fill);
       ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
     }
@@ -43,13 +47,13 @@ namespace tools::tilemap {
       const bool selected = (i == state.selected_portal);
 
       draw_iso_portal(ctx, static_cast<float>(p.col), static_cast<float>(p.row), static_cast<float>(p.w),
-                      static_cast<float>(p.h), iso.half_tw, iso.half_th, iso.x_origin, state.canvas.offset_x,
-                      state.canvas.offset_y, selected ? IM_COL32(0, 200, 200, 80) : IM_COL32(0, 200, 200, 45),
+                      static_cast<float>(p.h), iso, state.canvas.offset_x, state.canvas.offset_y,
+                      selected ? IM_COL32(0, 200, 200, 80) : IM_COL32(0, 200, 200, 45),
                       selected ? IM_COL32(0, 220, 220, 255) : IM_COL32(0, 220, 220, 180));
 
       // Label at the top corner of the portal rhombus
-      const ImVec2 text_pos = tile_to_iso(ctx, static_cast<float>(p.col), static_cast<float>(p.row), iso.half_tw,
-                                          iso.half_th, iso.x_origin, state.canvas.offset_x, state.canvas.offset_y);
+      const ImVec2 text_pos = tile_to_iso(ctx, static_cast<float>(p.col), static_cast<float>(p.row), iso,
+                                          state.canvas.offset_x, state.canvas.offset_y);
       const std::string stem = std::filesystem::path(p.target_map).stem().string();
       const std::string label = std::format("-> {} @ ({},{})", stem, p.spawn_col, p.spawn_row);
       ctx.dl->AddText({text_pos.x + 3.f, text_pos.y + 2.f},
@@ -71,8 +75,8 @@ namespace tools::tilemap {
     const int w = std::abs(state.portal_drag_cur_col - state.portal_drag_anchor_col) + 1;
     const int h = std::abs(state.portal_drag_cur_row - state.portal_drag_anchor_row) + 1;
     draw_iso_portal(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(w), static_cast<float>(h),
-                    iso.half_tw, iso.half_th, iso.x_origin, state.canvas.offset_x, state.canvas.offset_y,
-                    IM_COL32(0, 220, 220, 40), IM_COL32(0, 220, 220, 230));
+                    iso, state.canvas.offset_x, state.canvas.offset_y, IM_COL32(0, 220, 220, 40),
+                    IM_COL32(0, 220, 220, 230));
   }
 
   void render_portal_panel(EditorState &state) {

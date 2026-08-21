@@ -45,9 +45,11 @@ namespace {
     // sprite while crossing a ramp. Null elevation_map (chunked/streamed World mode) isn't wired
     // up for elevation yet, so it falls back to 0, same as elsewhere in MapView consumers.
     const float elev = corundum::gameplay::world::elevation_at_tile(map, pc, pr);
-    const float iso_x = (pc - pr) * map.half_tw + map.x_origin;
-    const float iso_y = (pc + pr) * map.half_th - elev * cfg.elevation_step_px;
-    corundum::gameplay::sys::follow_player(scene.camera, iso_x, iso_y, map, win_w, win_h);
+    // Camera tracks the player's cell-center anchor (same as the sprite) so the
+    // camera and actor stay in lockstep instead of drifting half_th apart.
+    const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin, cfg.elevation_step_px};
+    const auto [pp_x, pp_y] = corundum::core::math::tile_to_world_center(pc, pr, elev, iso);
+    corundum::gameplay::sys::follow_player(scene.camera, pp_x, pp_y, map, win_w, win_h);
   }
 
   // Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel

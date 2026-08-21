@@ -7,12 +7,14 @@ namespace tools::tilemap {
 
   namespace {
 
-    // Convert tile-grid coords (col, row) to isometric screen position, lifted by
+    // Convert tile-grid coords (col, row) to canvas screen position, lifted by
     // elevation — same convention as render_elevation.cpp's elev_tile_to_iso.
-    inline ImVec2 walk_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev, float half_tw,
-                                   float half_th, float elev_step, float x_shift, float cam_x, float cam_y) noexcept {
-      return {ctx.origin.x + (col_f - row_f) * half_tw + x_shift - cam_x,
-              ctx.origin.y + (col_f + row_f) * half_th - elev * elev_step - cam_y};
+    // Delegates the iso projection to corundum::core::math::tile_to_world.
+    inline ImVec2 walk_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev,
+                                   const corundum::core::math::IsometricParams &iso, float offset_x,
+                                   float offset_y) noexcept {
+      const auto w = corundum::core::math::tile_to_world(col_f, row_f, elev, iso);
+      return {ctx.origin.x + w.x - offset_x, ctx.origin.y + w.y - offset_y};
     }
 
   } // namespace
@@ -40,11 +42,9 @@ namespace tools::tilemap {
         if (col + 1 < state.map.width && !graph.can_move(col, row, col + 1, row)) {
           const float elev =
               static_cast<float>(std::max(elevation_at(state.map, col, row), elevation_at(state.map, col + 1, row)));
-          const ImVec2 p0 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row), elev,
-                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+          const ImVec2 p0 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row), elev, iso,
                                              state.canvas.offset_x, state.canvas.offset_y);
-          const ImVec2 p1 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev,
-                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+          const ImVec2 p1 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev, iso,
                                              state.canvas.offset_x, state.canvas.offset_y);
           ctx.dl->AddLine(p0, p1, k_color, 3.f);
         }
@@ -53,11 +53,9 @@ namespace tools::tilemap {
         if (row + 1 < state.map.height && !graph.can_move(col, row, col, row + 1)) {
           const float elev =
               static_cast<float>(std::max(elevation_at(state.map, col, row), elevation_at(state.map, col, row + 1)));
-          const ImVec2 p0 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev,
-                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+          const ImVec2 p0 = walk_tile_to_iso(ctx, static_cast<float>(col + 1), static_cast<float>(row + 1), elev, iso,
                                              state.canvas.offset_x, state.canvas.offset_y);
-          const ImVec2 p1 = walk_tile_to_iso(ctx, static_cast<float>(col), static_cast<float>(row + 1), elev,
-                                             iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
+          const ImVec2 p1 = walk_tile_to_iso(ctx, static_cast<float>(col), static_cast<float>(row + 1), elev, iso,
                                              state.canvas.offset_x, state.canvas.offset_y);
           ctx.dl->AddLine(p0, p1, k_color, 3.f);
         }

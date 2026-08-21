@@ -61,24 +61,19 @@ namespace corundum::debug {
       constexpr float k_line_thickness = 2.f;
 
       // Convert a tile-grid rect's four corners to isometric and draw as a diamond.
+      // Diamond corners are at the cell's top-vertex projection (matching the cell
+      // diamond's outline), so the diamond aligns with where tile art draws its
+      // top vertex — no offset needed (the old `-iso.half_th` shift drew the
+      // collision a full diamond height below the visible tile).
       auto draw_tile_rect = [&r, iso](float col, float row, float col_span, float row_span, core::math::Colour colour) {
-        const float x0 = (col - row) * iso.half_tw + iso.x_origin;
-        const float y0 = (col + row) * iso.half_th;
-        const float x1 = ((col + col_span) - row) * iso.half_tw + iso.x_origin;
-        const float y1 = ((col + col_span) + row) * iso.half_th;
-        const float x2 = ((col + col_span) - (row + row_span)) * iso.half_tw + iso.x_origin;
-        const float y2 = ((col + col_span) + (row + row_span)) * iso.half_th;
-        const float x3 = (col - (row + row_span)) * iso.half_tw + iso.x_origin;
-        const float y3 = (col + (row + row_span)) * iso.half_th;
-        const float offset = -iso.half_th;
-        r.draw(platform::DrawLine{
-            .start = {x0, y0 + offset}, .end = {x1, y1 + offset}, .colour = colour, .thickness = k_line_thickness});
-        r.draw(platform::DrawLine{
-            .start = {x1, y1 + offset}, .end = {x2, y2 + offset}, .colour = colour, .thickness = k_line_thickness});
-        r.draw(platform::DrawLine{
-            .start = {x2, y2 + offset}, .end = {x3, y3 + offset}, .colour = colour, .thickness = k_line_thickness});
-        r.draw(platform::DrawLine{
-            .start = {x3, y3 + offset}, .end = {x0, y0 + offset}, .colour = colour, .thickness = k_line_thickness});
+        const core::math::Vec2 a = core::math::tile_to_world(col, row, 0, iso);
+        const core::math::Vec2 b = core::math::tile_to_world(col + col_span, row, 0, iso);
+        const core::math::Vec2 c = core::math::tile_to_world(col + col_span, row + row_span, 0, iso);
+        const core::math::Vec2 d = core::math::tile_to_world(col, row + row_span, 0, iso);
+        r.draw(platform::DrawLine{.start = a, .end = b, .colour = colour, .thickness = k_line_thickness});
+        r.draw(platform::DrawLine{.start = b, .end = c, .colour = colour, .thickness = k_line_thickness});
+        r.draw(platform::DrawLine{.start = c, .end = d, .colour = colour, .thickness = k_line_thickness});
+        r.draw(platform::DrawLine{.start = d, .end = a, .colour = colour, .thickness = k_line_thickness});
       };
 
       // Full-tile collisions — the red diamonds you see in keystone.
@@ -179,9 +174,9 @@ namespace corundum::debug {
       const float col = w.transforms.col[slot];
       const float row = w.transforms.row[slot];
 
-      // Feet position (entity anchor) in isometric space.
-      const float mx = (col - row) * iso.half_tw + iso.x_origin;
-      const float my = (col + row) * iso.half_th;
+      // Feet position (entity anchor) in isometric space — cell center, matching the
+      // entity sprite anchor so the marker sits on the character's feet, not above them.
+      const auto [mx, my] = core::math::tile_to_world_center(col, row, 0.f, iso);
       constexpr float k_marker_hw = 5.f;
       constexpr float k_marker_hh = 3.f;
       constexpr core::math::Colour k_player_col{0, 255, 0, 220};

@@ -487,9 +487,8 @@ namespace corundum::render::sys {
     const auto pos_slot = scene.world.transforms.dense_idx(scene.player);
     const float pc = scene.world.transforms.col[pos_slot];
     const float pr = scene.world.transforms.row[pos_slot];
-    const float iso_x = (pc - pr) * iso.half_tw + iso.x_origin;
-    const float iso_y = (pc + pr) * iso.half_th;
-    const ChunkCoord center = chunk_at_iso(iso_x, iso_y, state.manifest, iso);
+    const auto [pw_x, pw_y] = core::math::tile_to_world(pc, pr, 0, iso);
+    const ChunkCoord center = chunk_at_iso(pw_x, pw_y, state.manifest, iso);
 
     if (center != state.last_center_chunk) {
       constexpr float k_margin_tiles = 0.02f * 128.f;
@@ -995,10 +994,12 @@ namespace corundum::render::sys {
       const auto &entry = *result;
       const float walk_offset = entry.walk_offset;
       const float elev = elevation_under(state, col_f, row_f);
-      const float iso_x = (col_f - row_f) * iso.half_tw + iso.x_origin;
-      const float iso_y = (col_f + row_f) * iso.half_th - elev * cfg.elevation_step_px;
-      const float px = iso_x - static_cast<float>(entry.src.width) * scale * 0.5f;
-      const float py = iso_y - walk_offset * static_cast<float>(entry.src.height) * scale;
+      // Entity anchor = cell center (top vertex + half_th), matching the cell-center
+      // anchor convention used for tile sprites — keeps actors on the ground instead
+      // of floating half_th above it.
+      const auto [ex, ey] = core::math::tile_to_world_center(col_f, row_f, elev, iso);
+      const float px = ex - static_cast<float>(entry.src.width) * scale * 0.5f;
+      const float py = ey - walk_offset * static_cast<float>(entry.src.height) * scale;
 
       // AABB cull — skip entities entirely outside the visible viewport
       const float sw = static_cast<float>(entry.src.width) * scale;

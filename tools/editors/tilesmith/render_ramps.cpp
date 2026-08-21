@@ -8,12 +8,15 @@ namespace tools::tilemap {
     using corundum::gameplay::world::tilemap::elevation_at;
     using corundum::gameplay::world::tilemap::RampAxis;
 
-    // Convert tile-grid coords (col, row) to isometric screen position, lifted by
-    // elevation — same convention as render_elevation.cpp's elev_tile_to_iso.
-    inline ImVec2 ramp_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev, float half_tw,
-                                   float half_th, float elev_step, float x_shift, float cam_x, float cam_y) noexcept {
-      return {ctx.origin.x + (col_f - row_f) * half_tw + x_shift - cam_x,
-              ctx.origin.y + (col_f + row_f) * half_th - elev * elev_step - cam_y};
+    // Convert tile-grid coords (col, row) to canvas screen position, lifted by
+    // elevation. Delegates the iso projection to corundum::core::math::tile_to_world
+    // so this stays in lockstep with engine entity/camera sites — kills one of the
+    // five tilesmith inline projection copies called out in the audit.
+    inline ImVec2 ramp_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev,
+                                   const corundum::core::math::IsometricParams &iso, float offset_x,
+                                   float offset_y) noexcept {
+      const auto w = corundum::core::math::tile_to_world(col_f, row_f, elev, iso);
+      return {ctx.origin.x + w.x - offset_x, ctx.origin.y + w.y - offset_y};
     }
 
     void draw_ramp_line(const CanvasContext &ctx, const EditorState &state, int col, int row, RampAxis axis,
@@ -21,11 +24,9 @@ namespace tools::tilemap {
       const float elev = static_cast<float>(elevation_at(state.map, col, row));
       const auto [dc, dr] = axis == RampAxis::NORTH_SOUTH ? std::pair{0.f, -0.5f} : std::pair{0.5f, 0.f};
       const ImVec2 p0 = ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f - dc, static_cast<float>(row) + 0.5f - dr,
-                                         elev, iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
-                                         state.canvas.offset_x, state.canvas.offset_y);
+                                         elev, iso, state.canvas.offset_x, state.canvas.offset_y);
       const ImVec2 p1 = ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f + dc, static_cast<float>(row) + 0.5f + dr,
-                                         elev, iso.half_tw, iso.half_th, state.elev_step_px, iso.x_origin,
-                                         state.canvas.offset_x, state.canvas.offset_y);
+                                         elev, iso, state.canvas.offset_x, state.canvas.offset_y);
       ctx.dl->AddLine(p0, p1, color, 3.f);
       ctx.dl->AddCircleFilled(p1, 4.f, color);
     }

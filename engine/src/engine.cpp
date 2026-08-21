@@ -35,10 +35,13 @@ namespace corundum {
       const auto [ww, wh] =
           gameplay::world::tilemap::world_bounds_iso(engine.render.manifest, info.half_tw, info.half_th);
       // Convert tile-grid spawn position to isometric for camera tracking.
-      const float iso_spawn_x = (spawn_pos.col - spawn_pos.row) * info.half_tw + info.x_origin;
-      const float iso_spawn_y = (spawn_pos.col + spawn_pos.row) * info.half_th;
-      engine.scene.camera.x = std::clamp(iso_spawn_x - cfg.win_w * 0.5f, 0.f, ww - cfg.win_w);
-      engine.scene.camera.y = std::clamp(iso_spawn_y - cfg.win_h * 0.5f, 0.f, wh - cfg.win_h);
+      // Cell-center anchor (matches entity sprite position) keeps the camera
+      // aligned with the player instead of offset half_th above them.
+      const corundum::core::math::IsometricParams iso{info.half_tw, info.half_th, info.x_origin,
+                                                      cfg.elevation_step_px};
+      const auto [is_x, is_y] = corundum::core::math::tile_to_world_center(spawn_pos.col, spawn_pos.row, 0.f, iso);
+      engine.scene.camera.x = std::clamp(is_x - cfg.win_w * 0.5f, 0.f, ww - cfg.win_w);
+      engine.scene.camera.y = std::clamp(is_y - cfg.win_h * 0.5f, 0.f, wh - cfg.win_h);
       return {};
     }
 
