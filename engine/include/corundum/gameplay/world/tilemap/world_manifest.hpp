@@ -1,4 +1,5 @@
 #pragma once
+#include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 
 #include <expected>
@@ -54,9 +55,12 @@ namespace corundum::gameplay::world::tilemap {
 
   /// Converts an isometric world-space position to the chunk that contains it.
   /// Use this when the player/entity position is in isometric world space.
-  /// @pre half_tw > 0 and half_th > 0.
-  [[nodiscard]] ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m, float half_tw,
-                                        float half_th) noexcept;
+  /// The iso position is assumed to be the projection of an entity standing on the
+  /// ground (elevation 0); raise the projection point by `elevation * elev_step`
+  /// before calling if you have a different elevation in hand.
+  /// @pre iso.half_tw > 0 and iso.half_th > 0.
+  [[nodiscard]] ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m,
+                                        const corundum::core::math::IsometricParams &iso) noexcept;
 
   /// Top-left Cartesian pixel coordinate of chunk @p c's origin.
   /// Used to offset Cartesian collision rects to absolute world positions.

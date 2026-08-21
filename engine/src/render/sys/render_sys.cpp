@@ -489,7 +489,7 @@ namespace corundum::render::sys {
     const float pr = scene.world.transforms.row[pos_slot];
     const float iso_x = (pc - pr) * iso.half_tw + iso.x_origin;
     const float iso_y = (pc + pr) * iso.half_th;
-    const ChunkCoord center = chunk_at_iso(iso_x, iso_y, state.manifest, iso.half_tw, iso.half_th);
+    const ChunkCoord center = chunk_at_iso(iso_x, iso_y, state.manifest, iso);
 
     if (center != state.last_center_chunk) {
       constexpr float k_margin_tiles = 0.02f * 128.f;

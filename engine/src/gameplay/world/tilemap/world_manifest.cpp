@@ -69,12 +69,16 @@ namespace corundum::gameplay::world::tilemap {
     return {std::clamp(cx, 0, m.chunks_wide - 1), std::clamp(cy, 0, m.chunks_tall - 1)};
   }
 
-  ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m, float half_tw, float half_th) noexcept {
-    // Invert the isometric projection to recover fractional tile (col, row).
-    const float col_f = (iso_x / half_tw + iso_y / half_th) * 0.5f;
-    const float row_f = (iso_y / half_th - iso_x / half_tw) * 0.5f;
-    const int cx = static_cast<int>(col_f / static_cast<float>(m.chunk_size));
-    const int cy = static_cast<int>(row_f / static_cast<float>(m.chunk_size));
+  ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m,
+                          const corundum::core::math::IsometricParams &iso) noexcept {
+    // Invert the isometric projection (delegating to world_to_tile so x_origin and
+    // elev_step are handled the same way as every other consumer of the projection),
+    // then std::floor the fractional tile onto its containing chunk. floor — not
+    // truncate — to match the rest of the codebase (picking, tilesmith).
+    const auto tile = corundum::core::math::world_to_tile({iso_x, iso_y}, /*elevation=*/0, iso);
+    const float chunk_f = static_cast<float>(m.chunk_size);
+    const int cx = static_cast<int>(std::floor(tile.x / chunk_f));
+    const int cy = static_cast<int>(std::floor(tile.y / chunk_f));
     return {std::clamp(cx, 0, m.chunks_wide - 1), std::clamp(cy, 0, m.chunks_tall - 1)};
   }
 

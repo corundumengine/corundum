@@ -153,8 +153,9 @@ TEST_CASE("chunk_at_iso — player at world origin maps to chunk (0,0)") {
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, 0.f, 4.f};
   // Isometric position of tile (0,0) = (0, 0) with x_origin = 0
-  CHECK(chunk_at_iso(0.f, 0.f, m, k_half_tw, k_half_th) == ChunkCoord{0, 0});
+  CHECK(chunk_at_iso(0.f, 0.f, m, iso) == ChunkCoord{0, 0});
 }
 
 TEST_CASE("chunk_at_iso — player at center of world maps to center chunk") {
@@ -165,10 +166,11 @@ TEST_CASE("chunk_at_iso — player at center of world maps to center chunk") {
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, 0.f, 4.f};
   const int center_col = 8 * 128;
   const int center_row = 4 * 128;
-  const auto iso = ccm::tile_to_world(center_col, center_row, 0, k_half_tw, k_half_th, 0.f, 0.f);
-  const ChunkCoord c = chunk_at_iso(iso.x, iso.y, m, k_half_tw, k_half_th);
+  const auto world = ccm::tile_to_world(center_col, center_row, 0, iso);
+  const ChunkCoord c = chunk_at_iso(world.x, world.y, m, iso);
   CHECK(c.col == 8);
   CHECK(c.row == 4);
 }
@@ -180,8 +182,34 @@ TEST_CASE("chunk_at_iso — clamped at negative iso position") {
   auto manifest_result = load_world_manifest(dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
+  const ccm::IsometricParams iso{k_half_tw, k_half_th, 0.f, 4.f};
   // Deeply negative iso position → clamped to (0,0)
-  CHECK(chunk_at_iso(-999999.f, -999999.f, m, k_half_tw, k_half_th) == ChunkCoord{0, 0});
+  CHECK(chunk_at_iso(-999999.f, -999999.f, m, iso) == ChunkCoord{0, 0});
+}
+
+TEST_CASE("chunk_at_iso — center tile with non-zero x_origin selects the center chunk") {
+  // Bug: chunk_at_iso's inverse ignored x_origin. iso coords from tile_to_world()
+  // include x_origin, so the recovered col_f was pc + (height-1)/2 — diagonal
+  // shift away from the true chunk. Reproduces the engine caller's setup
+  // (sync_active_chunks in render_sys.cpp) and asserts the correct center chunk
+  // is selected.
+  using namespace corundum::gameplay::world::tilemap;
+  const auto dir = temp_dir("chunk_iso_x_origin");
+  write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
+  auto manifest_result = load_world_manifest(dir / "manifest.json");
+  REQUIRE(manifest_result.has_value());
+  const auto &m = *manifest_result;
+
+  const int total_h = m.chunks_tall * m.chunk_size;
+  const auto iso = ccm::compute_isometric_params(/*diamond_w=*/64, /*diamond_h=*/32, total_h, /*tile_scale=*/1.f,
+                                                 /*elev_step=*/4.f);
+  const int center_col = m.chunks_wide * m.chunk_size / 2;
+  const int center_row = m.chunks_tall * m.chunk_size / 2;
+  const auto world = ccm::tile_to_world(center_col, center_row, 0, iso);
+
+  const ChunkCoord c = chunk_at_iso(world.x, world.y, m, iso);
+  CHECK(c.col == m.chunks_wide / 2);
+  CHECK(c.row == m.chunks_tall / 2);
 }
 
 // ── IsometricParams overloads ──────────────────────────────────────────────────────
