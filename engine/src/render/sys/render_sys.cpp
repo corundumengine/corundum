@@ -904,8 +904,11 @@ namespace corundum::render::sys {
       const int chunk_size = state.manifest.chunk_size;
       if (chunk_size <= 0)
         return 0.f;
-      const int col = static_cast<int>(col_f);
-      const int row = static_cast<int>(row_f);
+      // std::floor (not truncate) so a fractionally-negative col_f/row_f identifies
+      // the cell the player is actually in — the same convention as chunk_at_iso,
+      // picking, and tilesmith. See std::floor sweep in the world-tilemap audit.
+      const int col = static_cast<int>(std::floor(col_f));
+      const int row = static_cast<int>(std::floor(row_f));
       const corundum::gameplay::world::tilemap::ChunkCoord owner{
           static_cast<int>(std::floor(static_cast<float>(col) / static_cast<float>(chunk_size))),
           static_cast<int>(std::floor(static_cast<float>(row) / static_cast<float>(chunk_size)))};

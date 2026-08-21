@@ -80,8 +80,10 @@ namespace tools::tilemap {
       state.collision_dragging = false;
       if (overlaps)
         return;
+      // std::floor (not truncate) so a sub-tile rect's col/row identifies the cell
+      // containing its top-left corner — matches picking/chunk_at_iso conventions.
       const uint8_t elev = static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(
-          state.map, static_cast<int>(candidate.col), static_cast<int>(candidate.row)));
+          state.map, static_cast<int>(std::floor(candidate.col)), static_cast<int>(std::floor(candidate.row))));
       state.map.collisions.push_back(candidate.col, candidate.row, candidate.col_span, candidate.row_span, elev);
       state.dirty = true;
     }

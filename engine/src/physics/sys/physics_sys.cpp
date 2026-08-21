@@ -178,7 +178,12 @@ namespace corundum::physics::sys {
     // wherever the mouse happens to be hovering any time the player presses Enter/Space/
     // a gamepad button for an unrelated reason (e.g. confirming dialogue).
     if (input.mouse_click_pressed && scene.hovered_tile && map.walkability) {
-      const corundum::gameplay::sys::TileCoord start{static_cast<int>(prev_col), static_cast<int>(prev_row)};
+      // std::floor (not truncate) so a fractionally-negative prev_col/prev_row selects
+      // the cell the player is actually standing in — same convention as chunk_at_iso
+      // and picking. Latent today (positions clamped >= 0), defensive against future
+      // knockback / camera-shake paths.
+      const corundum::gameplay::sys::TileCoord start{static_cast<int>(std::floor(prev_col)),
+                                                     static_cast<int>(std::floor(prev_row))};
       scene.path = corundum::gameplay::sys::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
     }
 
