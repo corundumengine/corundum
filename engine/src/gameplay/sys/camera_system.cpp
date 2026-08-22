@@ -65,4 +65,14 @@ namespace corundum::gameplay::sys {
     camera.zoom = zoom_new;
   }
 
+  void center_on(corundum::gameplay::world::Camera &camera, float target_x, float target_y, float world_w,
+                 float world_h, float win_w, float win_h) noexcept {
+    const float eff_w = win_w / camera.zoom;
+    const float eff_h = win_h / camera.zoom;
+    camera.x =
+        (world_w <= eff_w) ? (world_w - eff_w) * 0.5f : std::clamp(target_x - eff_w * 0.5f, 0.f, world_w - eff_w);
+    camera.y =
+        (world_h <= eff_h) ? (world_h - eff_h) * 0.5f : std::clamp(target_y - eff_h * 0.5f, 0.f, world_h - eff_h);
+  }
+
 } // namespace corundum::gameplay::sys

@@ -4,6 +4,7 @@
 #include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/quest/loader.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/runner.hpp>
 #include <corundum/gameplay/quest/serialize.hpp>
 #include <corundum/gameplay/quest/system.hpp>
 
@@ -485,6 +486,49 @@ TEST_CASE("quest_flag_key formats correctly") {
   CHECK(quest::quest_flag_key("find_sword") == "quest.find_sword");
   CHECK(quest::quest_flag_key("escort_merchant") == "quest.escort_merchant");
   CHECK(quest::quest_flag_key("") == "quest.");
+}
+
+// ── Runner ────────────────────────────────────────────────────────────────────
+
+TEST_CASE("Runner: start on an unknown id returns an error and sets no flag") {
+  quest::Registry registry;
+  FlagStore flags;
+  quest::Runner runner{registry, flags};
+
+  const auto result = runner.start("bogus");
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error() == "quest_start(\"bogus\") references unknown quest");
+  CHECK(flags.empty());
+}
+
+TEST_CASE("Runner: start on a known id sets the quest flag to the first stage") {
+  quest::Registry registry;
+  registry.add(make_test_quest());
+  FlagStore flags;
+  quest::Runner runner{registry, flags};
+
+  REQUIRE(runner.start("test_quest").has_value());
+  CHECK(quest::get_stage("test_quest", flags) == 1);
+}
+
+TEST_CASE("Runner: advance on an unknown id returns an error") {
+  quest::Registry registry;
+  FlagStore flags;
+  quest::Runner runner{registry, flags};
+
+  const auto result = runner.advance("bogus", "middle");
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error() == "quest_advance(\"bogus\", \"middle\") references unknown quest");
+}
+
+TEST_CASE("Runner: advance on a known id moves the flag to the named stage") {
+  quest::Registry registry;
+  registry.add(make_test_quest()); // stage "middle" has sequence 2
+  FlagStore flags;
+  quest::Runner runner{registry, flags};
+
+  REQUIRE(runner.advance("test_quest", "middle").has_value());
+  CHECK(quest::get_stage("test_quest", flags) == 2);
 }
 
 // ── Round-trip ────────────────────────────────────────────────────────────────

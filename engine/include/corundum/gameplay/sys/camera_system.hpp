@@ -45,4 +45,25 @@ namespace corundum::gameplay::sys {
   void apply_zoom(corundum::gameplay::world::Camera &camera, float zoom_delta, float anchor_x, float anchor_y,
                   float min_zoom, float max_zoom) noexcept;
 
+  /** @brief Center the camera on a world-space point, clamped to the world bounds.
+   *
+   * Positions the viewport so (@p target_x, @p target_y) sits at its center,
+   * then clamps so the viewport does not extend beyond [0, world_w] × [0, world_h].
+   * If the world is smaller than the effective viewport on an axis, the camera
+   * is centered on the world along that axis (matching follow_player's edge
+   * behavior) instead of clamping.
+   *
+   *  @param[in,out] camera    Camera state; x/y are updated. zoom is read, not written.
+   *  @param[in]     target_x  World-space X to center on, in px.
+   *  @param[in]     target_y  World-space Y to center on, in px.
+   *  @param[in]     world_w   World width in px.
+   *  @param[in]     world_h   World height in px.
+   *  @param[in]     win_w     Viewport width in window px.
+   *  @param[in]     win_h     Viewport height in window px.
+   *  @pre camera.zoom > 0.
+   *  @performance O(1). No heap allocation.
+   */
+  void center_on(corundum::gameplay::world::Camera &camera, float target_x, float target_y, float world_w,
+                 float world_h, float win_w, float win_h) noexcept;
+
 } // namespace corundum::gameplay::sys

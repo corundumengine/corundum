@@ -39,7 +39,7 @@ namespace corundum {
     adopt_unique(engine.window, std::move(platform->window));
     adopt_unique(engine.gpu, std::move(platform->gpu));
     adopt_unique(engine.renderer, std::move(platform->renderer));
-    engine.audio.backend = std::move(platform->audio_backend);
+    engine.audio.adopt_backend(std::move(platform->audio_backend));
     engine.hud.enabled = config.show_debug_hud;
 
     if (auto result = initialize(engine, std::move(cfg)); !result)

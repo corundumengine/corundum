@@ -25,6 +25,7 @@ add_library(engine STATIC
     src/gameplay/quest/validate.cpp
     src/gameplay/quest/registry.cpp
     src/gameplay/quest/system.cpp
+    src/gameplay/quest/runner.cpp
     src/core/files.cpp
     src/physics/collision.cpp
     src/physics/walkability.cpp

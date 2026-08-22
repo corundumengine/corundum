@@ -49,28 +49,28 @@ namespace corundum {
    * @see cleanup     Resource teardown after the main loop.
    */
   struct Engine {
-    std::unique_ptr<platform::Window, detail::PlatformDeleter> window;
     std::unique_ptr<platform::GpuContext, detail::PlatformDeleter> gpu;
     std::unique_ptr<platform::Renderer, detail::PlatformDeleter> renderer;
+    std::unique_ptr<platform::Window, detail::PlatformDeleter> window;
 
-    audio::sys::AudioState audio;
+    audio::sys::AudioSystem audio;
     input::InputState input_state;
     render::data::RenderState render;
 
+    core::GameConfig cfg;
     resources::CharacterRegistry characters;
+    gameplay::FlagStore flags;
     gameplay::dialogue::Registry graphs;
     gameplay::quest::Registry quests;
-    core::GameConfig cfg;
     gameplay::world::Scene scene;
-    gameplay::FlagStore flags;
 
-    int win_w = 0; ///< Live window width in screen pixels, updated each frame.
     int win_h = 0; ///< Live window height in screen pixels, updated each frame.
+    int win_w = 0; ///< Live window width in screen pixels, updated each frame.
 
-    core::time::LoopTimer timer{60.f};
     core::math::Colour clear_colour{30, 30, 35, 255};
-    bool quit = false;
     debug::HudState hud;
+    bool quit = false;
+    core::time::LoopTimer timer{60.f};
 
     /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
      *
