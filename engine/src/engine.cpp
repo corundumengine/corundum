@@ -26,22 +26,25 @@ namespace corundum {
       if (!world_result)
         return std::unexpected(world_result.error());
       const auto &info = *world_result;
-      const auto spawn_pos = gameplay::component::Position{info.spawn_world_pos.x, info.spawn_world_pos.y};
+      const gameplay::component::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
       auto scene_result =
           gameplay::world::spawn_world(cfg, engine.characters, engine.render.active_chunks[0].tilemap, spawn_pos);
       if (!scene_result)
         return std::unexpected(scene_result.error());
       engine.scene = std::move(*scene_result);
-      const auto [ww, wh] =
+      const auto [world_width, world_height] =
           gameplay::world::tilemap::world_bounds_iso(engine.render.manifest, info.half_tw, info.half_th);
       // Convert tile-grid spawn position to isometric for camera tracking.
       // Cell-center anchor (matches entity sprite position) keeps the camera
       // aligned with the player instead of offset half_th above them.
-      const corundum::core::math::IsometricParams iso{info.half_tw, info.half_th, info.x_origin,
-                                                      cfg.elevation_step_px};
-      const auto [is_x, is_y] = corundum::core::math::tile_to_world_center(spawn_pos.col, spawn_pos.row, 0.f, iso);
-      engine.scene.camera.x = std::clamp(is_x - cfg.win_w * 0.5f, 0.f, ww - cfg.win_w);
-      engine.scene.camera.y = std::clamp(is_y - cfg.win_h * 0.5f, 0.f, wh - cfg.win_h);
+      const corundum::core::math::IsometricParams iso{info.half_tw, info.half_th, info.x_origin, cfg.elevation_step_px};
+      const auto [iso_x, iso_y] = corundum::core::math::tile_to_world_center(spawn_pos.col, spawn_pos.row, 0.f, iso);
+
+      engine.scene.camera.zoom = std::clamp(cfg.default_zoom, cfg.min_zoom, cfg.max_zoom);
+      const float effective_width = static_cast<float>(cfg.win_w) / engine.scene.camera.zoom;
+      const float effective_height = static_cast<float>(cfg.win_h) / engine.scene.camera.zoom;
+      engine.scene.camera.x = std::clamp(iso_x - effective_width * 0.5f, 0.f, world_width - effective_width);
+      engine.scene.camera.y = std::clamp(iso_y - effective_height * 0.5f, 0.f, world_height - effective_height);
       return {};
     }
 
@@ -55,18 +58,23 @@ namespace corundum {
       engine.scene = std::move(*scene_result);
 
       // Initialize camera centered on the player.
-      const auto &tm = *active_tilemap(engine);
-      const auto iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
-                                                            cfg.elevation_step_px);
+      const auto &tilemap = *active_tilemap(engine);
+      const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
+                                                            cfg.tile_scale, cfg.elevation_step_px);
       const auto p_slot = engine.scene.world.transforms.dense_idx(engine.scene.player);
-      const float pc = engine.scene.world.transforms.col[p_slot];
-      const float pr = engine.scene.world.transforms.row[p_slot];
-      const auto iso_pos = core::math::tile_to_world(pc, pr, 0, iso);
+      const float player_col = engine.scene.world.transforms.col[p_slot];
+      const float player_row = engine.scene.world.transforms.row[p_slot];
+      const auto iso_pos = core::math::tile_to_world(player_col, player_row, 0.f, iso);
       const float iso_x = iso_pos.x;
       const float iso_y = iso_pos.y;
-      const float extent = static_cast<float>(tm.width + tm.height - 1) * iso.half_tw * 2.f;
-      engine.scene.camera.x = std::clamp(iso_x - cfg.win_w * 0.5f, 0.f, extent - cfg.win_w);
-      engine.scene.camera.y = std::clamp(iso_y - cfg.win_h * 0.5f, 0.f, extent - cfg.win_h);
+
+      const float map_extent = static_cast<float>(tilemap.width + tilemap.height - 1) * iso.half_tw * 2.f;
+
+      engine.scene.camera.zoom = std::clamp(cfg.default_zoom, cfg.min_zoom, cfg.max_zoom);
+      const float effective_width = static_cast<float>(cfg.win_w) / engine.scene.camera.zoom;
+      const float effective_height = static_cast<float>(cfg.win_h) / engine.scene.camera.zoom;
+      engine.scene.camera.x = std::clamp(iso_x - effective_width * 0.5f, 0.f, map_extent - effective_width);
+      engine.scene.camera.y = std::clamp(iso_y - effective_height * 0.5f, 0.f, map_extent - effective_height);
       return {};
     }
 

@@ -281,6 +281,12 @@ namespace corundum::core {
         return std::unexpected(res.error());
       cfg.max_zoom = *res;
     }
+    {
+      auto res = get_positive_float(j, "default_zoom", cfg.default_zoom, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.default_zoom = *res;
+    }
 
     if (j.contains("framerate")) {
       unsigned fr;

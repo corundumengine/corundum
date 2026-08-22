@@ -99,6 +99,8 @@ namespace corundum::core {
     float min_zoom = 0.5f;
     /** @brief Maximum allowed Camera::zoom (most zoomed in). */
     float max_zoom = 3.f;
+    /** @brief Initial Camera::zoom applied at startup, clamped to [min_zoom, max_zoom]. */
+    float default_zoom = 1.f;
 
     /** @brief Grouped resource file paths for memory locality. */
     ResourcePaths paths{};
