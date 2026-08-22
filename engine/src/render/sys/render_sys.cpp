@@ -891,6 +891,8 @@ namespace corundum::render::sys {
     if (auto entry = load_chunk_entry(r, state, c, cfg)) {
       std::println("[keystone] Loading chunk ({}, {})", c.col, c.row);
       state.active_chunks.push_back(std::move(*entry));
+      state.chunks_dirty = true;
+      rebuild_collision(state);
       return true;
     }
     return false;
