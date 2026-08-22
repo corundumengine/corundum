@@ -151,8 +151,8 @@ namespace corundum::debug {
     const core::math::Vec2 camera{scene.camera.x, scene.camera.y};
 
     core::math::IsometricParams iso{};
-    if (render.mode == render::data::RenderMode::World && !render.active_chunks.empty()) {
-      const gameplay::world::tilemap::Tilemap &first_tm = render.active_chunks[0].tilemap;
+    if (render.mode == render::data::RenderMode::World && !render.chunks.active_empty()) {
+      const gameplay::world::tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
       const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
       iso = core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale,
@@ -221,7 +221,7 @@ namespace corundum::debug {
     }
     data.camera_x = camera.x;
     data.camera_y = camera.y;
-    data.active_chunks = static_cast<int>(render.active_chunks.size());
+    data.active_chunks = static_cast<int>(render.chunks.active_size());
     data.collision_rects = static_cast<int>(geo.rects.size());
     data.collision_tris = static_cast<int>(geo.tris.size());
     data.entity_count = static_cast<int>(w.entities.alive());

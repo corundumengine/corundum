@@ -52,7 +52,7 @@ TEST_CASE("active_tilemap: World mode returns nullptr even with chunks loaded") 
 
   render_data::ChunkEntry chunk;
   chunk.tilemap = make_flat_map();
-  engine.render.active_chunks.push_back(std::move(chunk));
+  engine.render.chunks.add_active(std::move(chunk));
 
   CHECK(corundum::active_tilemap(engine) == nullptr);
 }
@@ -94,7 +94,7 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   state.manifest.chunk_size = 16;
   state.manifest.chunks_wide = 4;
   state.manifest.chunks_tall = 4;
-  state.last_center_chunk = {0, 0};
+  state.chunks.set_last_center({0, 0});
 
   // Single active chunk (0, 0) with cell (0, 0) elevation = 42 — distinguishable from 0.
   render_data::ChunkEntry chunk00;
@@ -109,10 +109,9 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   layer.elevation.assign(static_cast<std::size_t>(16 * 16), 0);
   layer.elevation[0] = 42; // (col=0, row=0)
   chunk00.tilemap.layers.push_back(std::move(layer));
-  state.active_chunks.push_back(std::move(chunk00));
+  state.chunks.add_active(std::move(chunk00));
 
-  state.chunk_slot_by_offset.fill(-1);
-  state.chunk_slot_by_offset[static_cast<std::size_t>((0 + 1) * 3 + (0 + 1))] = 0; // (0, 0) → slot 0
+  state.chunks.rebuild_slot_table(); // (0, 0) → slot 0
 
   // col_f = -0.5: without fix, truncate → col=0, chunk (0, 0) cell (0, 0) returns 42.
   //                 with fix,    floor   → col=-1, chunk (-1, 0) absent → returns 0.
@@ -127,8 +126,8 @@ TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks chunks_dirty") {
   state.manifest.chunks_wide = 1;
   state.manifest.chunks_tall = 1;
   state.manifest.base_dir = std::filesystem::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "tilemaps";
-  state.pending_chunks.push_back({0, 0}); // resolves to base_dir/chunk_0_0.json
-  state.chunks_dirty = false;             // simulate "already synced this frame" before the load
+  state.chunks.enqueue_pending({0, 0}); // resolves to base_dir/chunk_0_0.json
+  state.chunks.clear_dirty();           // simulate "already synced this frame" before the load
 
   corundum::platform::null::NullRenderer renderer;
   corundum::core::GameConfig cfg{};
@@ -136,7 +135,6 @@ TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks chunks_dirty") {
   const bool loaded = render_sys::load_one_pending_chunk(renderer, state, cfg);
 
   REQUIRE(loaded);
-  CHECK(state.active_chunks.size() == 1);
-  CHECK(state.pending_chunks.empty());
-  CHECK(state.chunks_dirty); // fails before the fix
+  CHECK(state.chunks.active_size() == 1);
+  CHECK(state.chunks.dirty()); // fails before the fix
 }

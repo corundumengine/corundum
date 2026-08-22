@@ -226,7 +226,7 @@ namespace corundum::render::sys {
   std::expected<void, std::string> load_map(corundum::platform::Renderer &r, data::RenderState &state,
                                             const std::string &tilemap_path, const corundum::core::GameConfig &cfg) {
     state.mode = data::RenderMode::SingleMap;
-    state.active_chunks.clear();
+    state.chunks.clear();
     state.manifest = {};
     state.agg_collisions = {};
     state.agg_triangles = {};
@@ -305,15 +305,15 @@ namespace corundum::render::sys {
                             corundum::gameplay::entity::k_max_entities);
 
     const ChunkCoord center{state.manifest.chunks_wide / 2, state.manifest.chunks_tall / 2};
-    state.last_center_chunk = center;
+    state.chunks.set_last_center(center);
     for (const ChunkCoord c : active_chunk_coords(center, 1, state.manifest)) {
       if (auto entry = load_chunk_entry(r, state, c, cfg))
-        state.active_chunks.push_back(std::move(*entry));
+        state.chunks.add_active(std::move(*entry));
     }
     rebuild_collision(state);
 
-    const int diamond_w = state.active_chunks[0].tilemap.diamond_w();
-    const int diamond_h = state.active_chunks[0].tilemap.diamond_h();
+    const int diamond_w = state.chunks.active_at(0).tilemap.diamond_w();
+    const int diamond_h = state.chunks.active_at(0).tilemap.diamond_h();
     const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
                                                       : state.manifest.chunks_tall * state.manifest.chunk_size;
     const auto iso =
@@ -365,19 +365,19 @@ namespace corundum::render::sys {
       r.set_world_view({cam_x, cam_y}, viewport, zoom);
       render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom, win_w, win_h);
 
-      if (state.chunks_dirty) {
+      if (state.chunks.dirty()) {
         state.above_z_cache.clear();
-        for (const auto &chunk : state.active_chunks)
+        for (const auto &chunk : state.chunks.active())
           for (const int z : chunk.above_z)
             state.above_z_cache.push_back(z);
         std::ranges::sort(state.above_z_cache);
         state.above_z_cache.erase(std::ranges::unique(state.above_z_cache).begin(), state.above_z_cache.end());
-        state.chunks_dirty = false;
+        state.chunks.clear_dirty();
       }
 
       for (const int z : state.above_z_cache) {
         r.set_world_view({cam_x, cam_y}, viewport, zoom);
-        for (const auto &chunk : state.active_chunks)
+        for (const auto &chunk : state.chunks.active())
           render_chunk(r, state, chunk, z, cfg, scene, cam_x, cam_y, zoom, win_w, win_h);
       }
     } else {
@@ -400,9 +400,9 @@ namespace corundum::render::sys {
   /// explicit @c iso_diamond_w. Returns 0 when no geometry is available — callers must treat 0 as
   /// "invalid / not yet loaded" and not divide by this value.
   int first_chunk_tile_px(const data::RenderState &state) noexcept {
-    if (state.active_chunks.empty() || state.active_chunks[0].tilemap.tilesets.empty())
+    if (state.chunks.active_empty() || state.chunks.active_at(0).tilemap.tilesets.empty())
       return 0;
-    const auto &info = state.active_chunks[0].tilemap.tilesets[0].info;
+    const auto &info = state.chunks.active_at(0).tilemap.tilesets[0].info;
     return info.tile_full_width.empty() ? 0 : info.tile_full_width[0];
   }
 
@@ -453,10 +453,10 @@ namespace corundum::render::sys {
     using namespace corundum::gameplay::world::tilemap;
     state.agg_collisions = {};
     state.agg_triangles = {};
-    if (state.active_chunks.empty())
+    if (state.chunks.active_empty())
       return;
 
-    for (const auto &entry : state.active_chunks) {
+    for (const auto &entry : state.chunks.active()) {
       const int ox = entry.coord.col * state.manifest.chunk_size;
       const int oy = entry.coord.row * state.manifest.chunk_size;
       const auto &cr = entry.tilemap.collisions;
@@ -475,11 +475,11 @@ namespace corundum::render::sys {
   static void sync_active_chunks(data::RenderState &state, const corundum::core::GameConfig &cfg,
                                  const corundum::gameplay::world::Scene &scene) {
     using namespace corundum::gameplay::world::tilemap;
-    if (state.active_chunks.empty())
+    if (state.chunks.active_empty())
       return;
 
-    const int diamond_w = state.active_chunks[0].tilemap.diamond_w();
-    const int diamond_h = state.active_chunks[0].tilemap.diamond_h();
+    const int diamond_w = state.chunks.active_at(0).tilemap.diamond_w();
+    const int diamond_h = state.chunks.active_at(0).tilemap.diamond_h();
     const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
                                                       : state.manifest.chunks_tall * state.manifest.chunk_size;
     const auto iso =
@@ -490,60 +490,43 @@ namespace corundum::render::sys {
     const auto [pw_x, pw_y] = core::math::tile_to_world(pc, pr, 0, iso);
     const ChunkCoord center = chunk_at_iso(pw_x, pw_y, state.manifest, iso);
 
-    if (center != state.last_center_chunk) {
+    if (center != state.chunks.last_center()) {
       constexpr float k_margin_tiles = 0.02f * 128.f;
-      const float col_f = pc;
-      const float row_f = pr;
-      const float local_col = col_f - static_cast<float>(center.col * state.manifest.chunk_size);
-      const float local_row = row_f - static_cast<float>(center.row * state.manifest.chunk_size);
+      const float local_col = pc - static_cast<float>(center.col * state.manifest.chunk_size);
+      const float local_row = pr - static_cast<float>(center.row * state.manifest.chunk_size);
       const float chunk_tiles = static_cast<float>(state.manifest.chunk_size);
-      const bool x_ok = (center.col == state.last_center_chunk.col) ||
+      const bool x_ok = (center.col == state.chunks.last_center().col) ||
                         (local_col >= k_margin_tiles && local_col <= chunk_tiles - k_margin_tiles);
-      const bool y_ok = (center.row == state.last_center_chunk.row) ||
+      const bool y_ok = (center.row == state.chunks.last_center().row) ||
                         (local_row >= k_margin_tiles && local_row <= chunk_tiles - k_margin_tiles);
       if (x_ok && y_ok)
-        state.last_center_chunk = center;
+        state.chunks.set_last_center(center);
     }
 
     std::array<ChunkCoord, 9> desired{};
     int desired_count = 0;
     for (int dy = -1; dy <= 1; ++dy) {
       for (int dx = -1; dx <= 1; ++dx) {
-        const ChunkCoord c{state.last_center_chunk.col + dx, state.last_center_chunk.row + dy};
+        const ChunkCoord c{state.chunks.last_center().col + dx, state.chunks.last_center().row + dy};
         if (state.manifest.in_bounds(c))
           desired[desired_count++] = c;
       }
     }
     const std::span desired_span{desired.data(), static_cast<std::size_t>(desired_count)};
-
     const auto in_desired = [&](const data::ChunkEntry &e) {
       return std::ranges::find(desired_span, e.coord) != desired_span.end();
     };
 
-    const bool any_stale = !std::ranges::all_of(state.active_chunks, in_desired);
-    std::erase_if(state.active_chunks, [&](const data::ChunkEntry &e) { return !in_desired(e); });
+    const bool any_stale = state.chunks.prune_active(in_desired);
 
-    bool any_new = false;
-    for (const ChunkCoord c : desired_span) {
-      if (!std::ranges::any_of(state.active_chunks, [&](const data::ChunkEntry &e) { return e.coord == c; }) &&
-          !std::ranges::contains(state.pending_chunks, c)) {
-        state.pending_chunks.push_back(c);
-      }
-    }
+    for (const ChunkCoord c : desired_span)
+      if (!state.chunks.has(c))
+        state.chunks.enqueue_pending(c);
 
-    state.chunk_slot_by_offset.fill(-1);
-    for (std::size_t i = 0; i < state.active_chunks.size(); ++i) {
-      const auto &e = state.active_chunks[i];
-      const int dx = e.coord.col - state.last_center_chunk.col;
-      const int dy = e.coord.row - state.last_center_chunk.row;
-      if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
-        state.chunk_slot_by_offset[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))] = static_cast<int32_t>(i);
-    }
+    state.chunks.rebuild_slot_table();
 
-    if (any_stale || any_new) {
-      state.chunks_dirty = true;
+    if (any_stale)
       rebuild_collision(state);
-    }
   }
 
   // ── render_tile_layer (internal, shared by render_tilemap / render_chunk) ───
@@ -813,7 +796,7 @@ namespace corundum::render::sys {
                                           int window_w, int window_h) {
     const float vp_w = zoom > 0.f ? static_cast<float>(window_w) / zoom : 0.f;
     const float vp_h = zoom > 0.f ? static_cast<float>(window_h) / zoom : 0.f;
-    for (const auto &chunk : state.active_chunks) {
+    for (const auto &chunk : state.chunks.active()) {
       const auto &tilemap = chunk.tilemap;
       if (tilemap.tilesets.empty())
         continue;
@@ -884,14 +867,12 @@ namespace corundum::render::sys {
   /// lift for now — wiring ramp smoothing into chunked mode is a separate follow-up.
   bool load_one_pending_chunk(corundum::platform::Renderer &r, data::RenderState &state,
                               const corundum::core::GameConfig &cfg) {
-    if (state.pending_chunks.empty())
+    corundum::gameplay::world::tilemap::ChunkCoord c;
+    if (!state.chunks.pop_pending(c))
       return false;
-    const auto c = state.pending_chunks.front();
-    state.pending_chunks.erase(state.pending_chunks.begin());
     if (auto entry = load_chunk_entry(r, state, c, cfg)) {
       std::println("[keystone] Loading chunk ({}, {})", c.col, c.row);
-      state.active_chunks.push_back(std::move(*entry));
-      state.chunks_dirty = true;
+      state.chunks.add_active(std::move(*entry));
       rebuild_collision(state);
       return true;
     }
@@ -902,7 +883,7 @@ namespace corundum::render::sys {
     using corundum::gameplay::world::tilemap::elevation_at;
     using corundum::gameplay::world::tilemap::interpolated_elevation_at;
 
-    if (!state.active_chunks.empty()) {
+    if (!state.chunks.active_empty()) {
       const int chunk_size = state.manifest.chunk_size;
       if (chunk_size <= 0)
         return 0.f;
@@ -914,14 +895,12 @@ namespace corundum::render::sys {
       const corundum::gameplay::world::tilemap::ChunkCoord owner{
           static_cast<int>(std::floor(static_cast<float>(col) / static_cast<float>(chunk_size))),
           static_cast<int>(std::floor(static_cast<float>(row) / static_cast<float>(chunk_size)))};
-      const int dx = owner.col - state.last_center_chunk.col;
-      const int dy = owner.row - state.last_center_chunk.row;
-      if (dx < -1 || dx > 1 || dy < -1 || dy > 1)
-        return 0.f;
-      const int32_t slot = state.chunk_slot_by_offset[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))];
+      const int dx = owner.col - state.chunks.last_center().col;
+      const int dy = owner.row - state.chunks.last_center().row;
+      const int32_t slot = state.chunks.slot_at_offset(dx, dy);
       if (slot < 0)
         return 0.f;
-      const auto &entry = state.active_chunks[static_cast<std::size_t>(slot)];
+      const auto &entry = state.chunks.active_at(static_cast<std::size_t>(slot));
       return static_cast<float>(
           elevation_at(entry.tilemap, col - owner.col * chunk_size, row - owner.row * chunk_size));
     }
@@ -949,8 +928,8 @@ namespace corundum::render::sys {
     const float scale = cfg.character_scale;
 
     core::math::IsometricParams iso{};
-    if (!state.active_chunks.empty() && !state.active_chunks[0].tilemap.tilesets.empty()) {
-      const auto &tm = state.active_chunks[0].tilemap;
+    if (!state.chunks.active_empty() && !state.chunks.active_at(0).tilemap.tilesets.empty()) {
+      const auto &tm = state.chunks.active_at(0).tilemap;
       const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
                                                         : state.manifest.chunks_tall * state.manifest.chunk_size;
       iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), total_h, cfg.tile_scale,
@@ -965,7 +944,7 @@ namespace corundum::render::sys {
 
     state.draw_list.clear();
 
-    if (!state.active_chunks.empty())
+    if (!state.chunks.active_empty())
       collect_ground_tiles_chunks(r, state, cfg, scene, state.draw_list, cam_x, cam_y, zoom, win_w, win_h);
     else
       collect_ground_tiles_map(r, state, cfg, scene, state.draw_list, cam_x, cam_y, zoom, win_w, win_h);

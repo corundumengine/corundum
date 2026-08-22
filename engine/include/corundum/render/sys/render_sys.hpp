@@ -160,12 +160,12 @@ namespace corundum::render::sys {
   /** @brief Rebuild the world-mode aggregated collision rects and triangles from active chunks.
    *
    * Clears and repopulates @c state.agg_collisions and @c state.agg_triangles by
-   * walking @c state.active_chunks and offsetting each chunk's tile-grid-local
+   * walking @c state.chunks.active() and offsetting each chunk's tile-grid-local
    * collision geometry into world tile-grid coordinates (offsets are in tile units,
    * matching the tile-grid coordinate space the rest of the resolver operates in).
    *
    * @param[in,out] state  Render state in World mode whose aggregates will be overwritten.
-   * @note No-op when @c state.active_chunks is empty.
+   * @note No-op when the chunk window has no active chunks.
    */
   void rebuild_collision(data::RenderState &state) noexcept;
 

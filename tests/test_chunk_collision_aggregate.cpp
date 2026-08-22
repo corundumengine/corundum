@@ -20,7 +20,7 @@ TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with 
   chunk00.coord = {0, 0};
   chunk00.tilemap.iso_diamond_w = 128;
   chunk00.tilemap.collisions.push_back(3.f, 4.f, 2.f, 1.f, /*elevation=*/0);
-  state.active_chunks.push_back(std::move(chunk00));
+  state.chunks.add_active(std::move(chunk00));
 
   // Chunk (1,0): one rect at (col=5, row=6) and one triangle at (col=7, row=8).
   // Before the fix, offsets are applied in pixel units (chunk_size * tile_px * tile_scale),
@@ -30,7 +30,7 @@ TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with 
   chunk10.tilemap.iso_diamond_w = 128;
   chunk10.tilemap.collisions.push_back(5.f, 6.f, 1.f, 2.f, /*elevation=*/1);
   chunk10.tilemap.collision_triangles.push_back(7.f, 8.f, 1.f, 1.f, tilemap::TriangleCut::NW, /*elevation=*/0);
-  state.active_chunks.push_back(std::move(chunk10));
+  state.chunks.add_active(std::move(chunk10));
 
   render_sys::rebuild_collision(state);
 
@@ -65,7 +65,7 @@ TEST_CASE("rebuild_collision — world mode: vertically adjacent chunk offsets b
   chunk02.coord = {0, 2};
   chunk02.tilemap.iso_diamond_w = 64;
   chunk02.tilemap.collisions.push_back(1.f, 2.f, 1.f, 1.f, 0);
-  state.active_chunks.push_back(std::move(chunk02));
+  state.chunks.add_active(std::move(chunk02));
 
   render_sys::rebuild_collision(state);
 

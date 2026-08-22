@@ -7,7 +7,7 @@ namespace corundum::gameplay::world {
 
   [[nodiscard]] MapView build_map_view(render::data::RenderState &render, const core::GameConfig &cfg) noexcept {
     if (render.mode == render::data::RenderMode::World) {
-      const auto &first_tm = render.active_chunks[0].tilemap;
+      const auto &first_tm = render.chunks.active_at(0).tilemap;
       const auto &manifest = render.manifest;
       const int total_h = manifest.tiles_tall > 0 ? manifest.tiles_tall : manifest.chunks_tall * manifest.chunk_size;
       const auto iso = core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h,
@@ -17,7 +17,7 @@ namespace corundum::gameplay::world {
                                                     : static_cast<float>(manifest.chunks_wide * manifest.chunk_size);
 
       render.agg_portals.clear();
-      for (const auto &chunk : render.active_chunks) {
+      for (const auto &chunk : render.chunks.active()) {
         const int ox = chunk.coord.col * manifest.chunk_size;
         const int oy = chunk.coord.row * manifest.chunk_size;
         for (const auto &p : chunk.portals) {

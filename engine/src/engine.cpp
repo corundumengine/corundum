@@ -88,7 +88,7 @@ namespace corundum {
         const auto &info = *world_result;
         const gameplay::component::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
         auto scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters,
-                                                         engine_.render.active_chunks[0].tilemap, spawn_pos);
+                                                         engine_.render.chunks.active_at(0).tilemap, spawn_pos);
         if (!scene_result)
           return std::unexpected(scene_result.error());
         engine_.scene = std::move(*scene_result);
@@ -229,7 +229,7 @@ namespace corundum {
       while (engine.timer.step()) {
         ++result.steps_run;
         engine.scene.elapsed_time += engine.timer.target_dt;
-        if (engine.render.mode == render::data::RenderMode::World && engine.render.active_chunks.empty())
+        if (engine.render.mode == render::data::RenderMode::World && engine.render.chunks.active_empty())
           continue;
 
         const auto mv = gameplay::world::build_map_view(engine.render, engine.cfg);

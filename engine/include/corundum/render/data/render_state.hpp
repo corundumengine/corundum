@@ -8,6 +8,7 @@
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/resources/sprite.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -79,6 +80,122 @@ namespace corundum::render::data {
     bool flip_y = false;
   };
 
+  /** @brief Owns the World-mode streamed chunk window: the active/pending chunk
+   *  sets, the last-synced center chunk, the offset→slot lookup used by
+   *  elevation_under(), and the dirty flag that gates rebuild_collision() and
+   *  the above_z_cache rebuild in render(). Every mutator that changes the
+   *  active set marks it dirty — the invariant a bare struct + free functions
+   *  left to caller discipline (see the chunks_dirty bug fixed alongside this).
+   */
+  class ChunkWindow {
+  public:
+    [[nodiscard]] const std::vector<ChunkEntry> &active() const noexcept {
+      return active_;
+    }
+
+    [[nodiscard]] bool active_empty() const noexcept {
+      return active_.empty();
+    }
+
+    [[nodiscard]] std::size_t active_size() const noexcept {
+      return active_.size();
+    }
+
+    [[nodiscard]] const ChunkEntry &active_at(std::size_t i) const noexcept {
+      return active_[i];
+    }
+
+    [[nodiscard]] bool dirty() const noexcept {
+      return dirty_;
+    }
+
+    void clear_dirty() noexcept {
+      dirty_ = false;
+    }
+
+    [[nodiscard]] gameplay::world::tilemap::ChunkCoord last_center() const noexcept {
+      return last_center_;
+    }
+
+    void set_last_center(gameplay::world::tilemap::ChunkCoord c) noexcept {
+      last_center_ = c;
+    }
+
+    /// @return slot index into active() for the chunk at (dx,dy) from last_center(), or -1.
+    [[nodiscard]] int32_t slot_at_offset(int dx, int dy) const noexcept {
+      if (dx < -1 || dx > 1 || dy < -1 || dy > 1)
+        return -1;
+      return slot_by_offset_[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))];
+    }
+
+    /// Add a freshly loaded chunk to the active set. Always marks dirty.
+    void add_active(ChunkEntry entry) {
+      active_.push_back(std::move(entry));
+      dirty_ = true;
+    }
+
+    /// Remove active chunks for which @p keep returns false. Marks dirty if anything was removed.
+    /// @return true if any chunk was removed.
+    template <typename Keep> bool prune_active(Keep &&keep) {
+      const std::size_t before = active_.size();
+      std::erase_if(active_, [&](const ChunkEntry &e) { return !keep(e); });
+      if (active_.size() != before) {
+        dirty_ = true;
+        return true;
+      }
+      return false;
+    }
+
+    /// True if @p c is already active or already queued in pending.
+    [[nodiscard]] bool has(gameplay::world::tilemap::ChunkCoord c) const noexcept {
+      return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; }) ||
+             std::ranges::contains(pending_, c);
+    }
+
+    /// Queue @p c for loading. Caller should check has(c) first to avoid duplicates
+    /// (kept explicit rather than implicit to match the existing call-site logic).
+    void enqueue_pending(gameplay::world::tilemap::ChunkCoord c) {
+      pending_.push_back(c);
+    }
+
+    /// Pop the front of the pending queue into @p out.
+    /// @return false if pending is empty (out left unchanged).
+    [[nodiscard]] bool pop_pending(gameplay::world::tilemap::ChunkCoord &out) {
+      if (pending_.empty())
+        return false;
+      out = pending_.front();
+      pending_.erase(pending_.begin());
+      return true;
+    }
+
+    /// Recompute the offset→slot lookup table from the current active set and last_center().
+    void rebuild_slot_table() noexcept {
+      slot_by_offset_.fill(-1);
+      for (std::size_t i = 0; i < active_.size(); ++i) {
+        const int dx = active_[i].coord.col - last_center_.col;
+        const int dy = active_[i].coord.row - last_center_.row;
+        if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
+          slot_by_offset_[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))] = static_cast<int32_t>(i);
+      }
+    }
+
+    /// Reset to the empty, never-loaded state (used by clean_up()).
+    void clear() noexcept {
+      active_.clear();
+      pending_.clear();
+      last_center_ = {};
+      slot_by_offset_.fill(-1);
+      dirty_ = true;
+    }
+
+  private:
+    std::vector<ChunkEntry> active_;
+    std::vector<gameplay::world::tilemap::ChunkCoord> pending_;
+    gameplay::world::tilemap::ChunkCoord last_center_{};
+    std::array<int32_t, 9> slot_by_offset_{-1, -1, -1, -1, -1, -1, -1, -1, -1};
+    bool dirty_{true};
+  };
+
   /** @brief All mutable rendering state — pure data with no behaviour.
    *
    * Operated on by free functions in namespace corundum::render::sys.
@@ -88,17 +205,7 @@ namespace corundum::render::data {
     SpriteFrameIndex sprite_index;
     MapData map_data{};
     corundum::gameplay::world::tilemap::WorldManifest manifest{};
-    std::vector<ChunkEntry> active_chunks{};
-    /// Chunks discovered by sync_active_chunks that need loading; drained between frames
-    /// so the I/O does not hitch the render pass.
-    std::vector<corundum::gameplay::world::tilemap::ChunkCoord> pending_chunks{};
-    corundum::gameplay::world::tilemap::ChunkCoord last_center_chunk{};
-    /// O(1) lookup from a chunk coord's offset relative to last_center_chunk (the fixed 3×3
-    /// streaming window — see sync_active_chunks) to its index in active_chunks, or -1 if that
-    /// slot isn't loaded. Indexed by (dy+1)*3+(dx+1) for dx,dy in [-1,1]. Rebuilt by
-    /// sync_active_chunks each time active_chunks or last_center_chunk changes; used by
-    /// elevation_under() to avoid a linear find_if over active_chunks per entity per frame.
-    std::array<int32_t, 9> chunk_slot_by_offset{-1, -1, -1, -1, -1, -1, -1, -1, -1};
+    ChunkWindow chunks{};
     corundum::gameplay::world::tilemap::CollisionRects agg_collisions{};
     corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
     /// Aggregated portal buffer for world mode — cleared and repopulated by build_map_view
@@ -112,7 +219,6 @@ namespace corundum::render::data {
     RenderMode mode{RenderMode::None};
 
     std::vector<int> above_z_cache{};
-    bool chunks_dirty{true};
     std::vector<DepthEntry> draw_list{};
     /** @brief Indices into draw_list, sorted by depth each frame. Reused across frames
      *  (resized, never freed) so the depth sort touches no per-frame heap allocation. */
@@ -161,8 +267,8 @@ namespace corundum::render::data {
 
   /** @brief The single loaded tilemap, if the engine is in single-map mode.
    *  @param[in] state  Initialised render state.
-   *  @return Pointer to the active tilemap, or nullptr in World mode (which streams
-   *          one tilemap per chunk — see RenderState::active_chunks) and before load. */
+   * @return Pointer to the active tilemap, or nullptr in World mode (which streams
+   *          one tilemap per chunk — see RenderState::chunks) and before load. */
   [[nodiscard]] inline const gameplay::world::tilemap::Tilemap *active_tilemap(const RenderState &state) noexcept {
     return state.mode == RenderMode::SingleMap ? &state.map_data.tilemap : nullptr;
   }
