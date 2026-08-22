@@ -34,8 +34,12 @@ namespace {
         corundum::physics::sys::integrate(world.transforms, e, dt);
     }
 
+    // One projection for the whole frame: animation speed scaling (screen-space
+    // velocity) and camera tracking (cell-center anchor) share the same params.
+    const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin, cfg.elevation_step_px};
+
     corundum::anim::sys::animate(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
-                                 dt);
+                                 iso, cfg.player_speed, dt);
 
     const auto p_slot = world.transforms.dense_idx(player);
     const float pc = world.transforms.col[p_slot];
@@ -47,7 +51,6 @@ namespace {
     const float elev = corundum::gameplay::world::elevation_at_tile(map, pc, pr);
     // Camera tracks the player's cell-center anchor (same as the sprite) so the
     // camera and actor stay in lockstep instead of drifting half_th apart.
-    const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin, cfg.elevation_step_px};
     const auto [pp_x, pp_y] = corundum::core::math::tile_to_world_center(pc, pr, elev, iso);
     corundum::gameplay::sys::follow_player(scene.camera, pp_x, pp_y, map, win_w, win_h);
   }

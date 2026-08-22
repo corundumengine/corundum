@@ -103,7 +103,7 @@ TEST_CASE("screen_to_tile — flat map baseline (no regression)") {
   const int x_origin = (map_h - 1) * (tw / 2); // 480
   // Cell (8, 8) center world position = ((8-8)*32 + 480, (8+8)*16) = (480, 256). Plus diamond half.
   const float world_y_center = 16.f * 16.f + 16.f;          // 256 + 16 = 272 (diamond center)
-  const int px = 0 + 64 + 480;                              // 544
+  const int px = 0 + 64 + x_origin;                         // 544
   const int py = 0 + 16 + static_cast<int>(world_y_center); // 288
   const std::optional<tools::tilemap::TileCoord> tile =
       screen_to_tile(px, py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh, tm);

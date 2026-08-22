@@ -261,6 +261,22 @@ namespace corundum::core::math {
   }
 
   /**
+   * @brief Convert a tile-grid delta (dc, dr) to the equivalent screen-space delta.
+   *
+   * Applies the isometric projection's Jacobian to a delta vector (no x_origin shift —
+   * this is for deltas/velocities, not positions), so that normalising in screen space
+   * produces equal perceived speed in all directions rather than equal tile-grid
+   * distance, which the isometric projection distorts unevenly by direction.
+   *
+   * @param dc, dr  Tile-grid delta (e.g. a velocity in tiles/s, or a displacement).
+   * @param iso     Packed projection parameters from compute_isometric_params().
+   * @return Screen-space delta {dx, dy}.
+   */
+  [[nodiscard]] constexpr Vec2 tile_to_screen_delta(float dc, float dr, const IsometricParams &iso) noexcept {
+    return {(dc - dr) * iso.half_tw, (dc + dr) * iso.half_th};
+  }
+
+  /**
    * @brief Draw-order depth key that accounts for elevation, for painter's-algorithm sorting.
    *
    * Extends the plain grid depth (tx + ty) with an elevation term scaled so that an

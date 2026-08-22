@@ -17,21 +17,8 @@ namespace corundum::physics::sys {
     constexpr float k_tile_center_offset = 0.5f;
 
     using corundum::core::math::IsometricParams;
+    using corundum::core::math::tile_to_screen_delta;
     using corundum::core::math::Vec2;
-
-    /** @brief Convert a tile-grid offset (dc, dr) to the equivalent screen-space displacement.
-     *
-     * The isometric projection maps tile coordinates to screen via:
-     *   screen_x = (col - row) * half_tw
-     *   screen_y = (col + row) * half_th
-     *
-     * This function applies the same Jacobian to a delta vector, so that normalising
-     * in screen space produces equal perceived speed in all directions rather than
-     * equal tile-grid speed (which the isometric projection distorts).
-     */
-    [[nodiscard]] constexpr Vec2 tile_to_screen_delta(float dc, float dr, IsometricParams iso) noexcept {
-      return {(dc - dr) * iso.half_tw, (dc + dr) * iso.half_th};
-    }
 
     /** @brief Convert a screen-space velocity back to tile-grid velocity components.
      *

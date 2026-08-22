@@ -60,7 +60,8 @@ namespace corundum::anim::sys {
                const corundum::gameplay::component::TransformTable &transforms,
                corundum::gameplay::component::AnimationTable &animations,
                corundum::gameplay::component::FacingTable &facings,
-               corundum::gameplay::component::MotionSpriteTable &motion_sprites, float dt) noexcept {
+               corundum::gameplay::component::MotionSpriteTable &motion_sprites,
+               corundum::core::math::IsometricParams iso, float reference_speed, float dt) noexcept {
     [[assume(animations.count <= std::remove_reference_t<decltype(animations)>::k_max)]];
     float *timers = std::assume_aligned<16>(animations.timer.data());
     const float *frame_durations = std::assume_aligned<16>(animations.frame_duration.data());
@@ -84,6 +85,15 @@ namespace corundum::anim::sys {
 
       const float abs_dx = std::abs(vel_dx);
       const float abs_dy = std::abs(vel_dy);
+
+      // Idle has zero velocity by definition — must NOT scale to 0 (that would freeze
+      // the idle animation). Only scale while actually moving, and guard reference_speed/iso
+      // being degenerate (misconfigured) so this never divides by zero or propagates NaN.
+      float speed_scale = 1.f;
+      if (moving && reference_speed > 0.f && iso.half_tw > 0.f && iso.half_th > 0.f) {
+        const auto [svx, svy] = corundum::core::math::tile_to_screen_delta(vel_dx, vel_dy, iso);
+        speed_scale = std::hypot(svx, svy) / reference_speed;
+      }
 
       if (motion_sprites.has(e)) [[unlikely]] {
         const auto desired = moving ? motion_sprites.walk_sprite(e) : motion_sprites.idle_sprite(e);
@@ -138,7 +148,7 @@ namespace corundum::anim::sys {
       if (frame_count <= 1)
         continue;
 
-      anim_timer += dt;
+      anim_timer += dt * speed_scale;
       if (anim_timer >= anim_fd) {
         anim_timer -= anim_fd;
         spr_frame_idx = (spr_frame_idx + 1) % frame_count;

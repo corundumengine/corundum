@@ -27,6 +27,7 @@ add_executable(corundum_tests
     test_picking.cpp
     test_pathfinding.cpp
     test_follow_path.cpp
+    test_anim_sys.cpp
     test_camera_system.cpp
     test_entity.cpp
     test_engine_events.cpp
