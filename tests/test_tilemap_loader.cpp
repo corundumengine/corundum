@@ -417,6 +417,38 @@ TEST_CASE("load_tilemap — negative z_index is clamped to 0") {
   CHECK(m.layers[0].z_index == 0);
 }
 
+TEST_CASE("load_tilemap — depth_sorted defaults to false when absent") {
+  const auto dir = temp_dir("depth_sorted_default");
+  const auto map_path = make_single_tileset_map(dir);
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  REQUIRE(result.has_value());
+  const auto &m = *result;
+  CHECK(m.layers[0].depth_sorted == false);
+}
+
+TEST_CASE("load_tilemap — depth_sorted is loaded when present") {
+  const auto dir = temp_dir("depth_sorted_true");
+  const auto ts_path = dir / "tileset_a.json";
+  const auto map_path = dir / "map.json";
+  write_file(ts_path, tileset_a_json());
+
+  std::string content;
+  content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
+  content += ts_path.string();
+  content += R"("}],"width":1,"height":1,"layers":[)";
+  content += R"({"name":"ground","tiles":["0"]},)";
+  content += R"({"name":"walls","z_index":1,"depth_sorted":true,"tiles":["0"]}]})";
+  write_file(map_path, content);
+
+  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  REQUIRE(result.has_value());
+  const auto &m = *result;
+  REQUIRE(m.layers.size() == 2);
+  CHECK(m.layers[0].depth_sorted == false);
+  CHECK(m.layers[1].z_index == 1);
+  CHECK(m.layers[1].depth_sorted == true);
+}
+
 TEST_CASE("load_tilemap — collision element missing field returns error") {
   const auto dir = temp_dir("col_missing");
   const auto ts_path = dir / "tileset_a.json";

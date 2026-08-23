@@ -102,6 +102,8 @@ namespace corundum::gameplay::world::tilemap {
         lj["name"] = layer.name;
         if (layer.z_index != 0)
           lj["z_index"] = layer.z_index;
+        if (layer.depth_sorted)
+          lj["depth_sorted"] = layer.depth_sorted;
 
         if (should_use_sparse(project_gids, k_default_sparse_threshold) || !layer.animated_cells.empty() ||
             !layer.flip_flags.empty()) {

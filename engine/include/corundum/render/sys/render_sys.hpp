@@ -141,6 +141,10 @@ namespace corundum::render::sys {
    * @param[in]     cfg    Game config for portal path resolution.
    * @return True if a chunk was loaded, false if nothing to do.
    */
+  /// Elevation of the tile under (col_f, row_f); resolves world-mode chunk ownership as needed.
+  /// Returns 0 if no tilemap is loaded there. Definition/full docs in render_sys.cpp.
+  float elevation_under(const data::RenderState &state, float col_f, float row_f) noexcept;
+
   bool load_one_pending_chunk(corundum::platform::Renderer &r, data::RenderState &state,
                               const corundum::core::GameConfig &cfg);
 

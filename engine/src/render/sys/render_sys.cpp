@@ -672,7 +672,7 @@ namespace corundum::render::sys {
     const int depth_max = tilemap.width + tilemap.height - 2;
 
     for (const auto &layer : tilemap.layers) {
-      if (!layer.visible || layer.z_index != z_index)
+      if (!layer.visible || layer.z_index != z_index || layer.depth_sorted)
         continue;
 
       const core::math::IsometricCullBounds cull = compute_layer_cull_bounds(ctx, layer, tilemap, cfg.tile_scale);
@@ -770,6 +770,57 @@ namespace corundum::render::sys {
     }
   }
 
+  /// Collects tiles from every z_index>0, depth_sorted==true layer into @p out, unconditionally —
+  /// unlike collect_tile_layer's ground-layer elevation<=0 fast path, an overlay tile's occlusion
+  /// potential comes from its art/pivot (a wall body taller than one cell), not its terrain-elevation
+  /// value, so there is no "this tile can't occlude anything" case to skip. Every matching tile always
+  /// goes into @p out to be depth-sorted against entities and elevated ground tiles.
+  static void collect_sorted_overlay_layers(const TileRenderParams &ctx, const corundum::core::GameConfig &cfg,
+                                            const corundum::gameplay::world::Scene &scene,
+                                            std::vector<data::DepthEntry> &out) {
+    const auto &tilemap = *ctx.tilemap;
+    if (tilemap.tilesets.empty())
+      return;
+
+    const int depth_max = tilemap.width + tilemap.height - 2;
+
+    for (const auto &layer : tilemap.layers) {
+      if (!layer.visible || layer.z_index <= 0 || !layer.depth_sorted)
+        continue;
+
+      const core::math::IsometricCullBounds cull = compute_layer_cull_bounds(ctx, layer, tilemap, cfg.tile_scale);
+      const int offset_depth = ctx.chunk_offset_col + ctx.chunk_offset_row;
+
+      for (int depth = std::max(0, cull.depth_min - offset_depth);
+           depth <= std::min(depth_max, cull.depth_max - offset_depth); ++depth) {
+        int col_lo = std::max(0, depth - (tilemap.height - 1));
+        int col_hi = std::min(tilemap.width - 1, depth);
+        col_lo = std::max(col_lo,
+                          core::math::isometric_cull_first_column(cull, depth + offset_depth) - ctx.chunk_offset_col);
+        col_hi =
+            std::min(col_hi, core::math::isometric_cull_last_column(cull, depth + offset_depth) - ctx.chunk_offset_col);
+
+        for (int col = col_lo; col <= col_hi; ++col) {
+          const int row = depth - col;
+          const auto rt = resolve_tile_cell(ctx, layer, tilemap, col, row, cfg, scene);
+          if (!rt)
+            continue;
+
+          out.push_back({
+              .tex_id = rt->tex_id,
+              .src = rt->src,
+              .x = rt->position.x,
+              .y = rt->position.y,
+              .depth = rt->depth,
+              .scale = rt->scale,
+              .flip_x = rt->flip_x,
+              .flip_y = rt->flip_y,
+          });
+        }
+      }
+    }
+  }
+
   /// Collects z_index==0 tiles from the single-map tilemap into @p out. Mirrors render_tilemap's context setup.
   static void collect_ground_tiles_map(corundum::platform::Renderer &r, const data::RenderState &state,
                                        const corundum::core::GameConfig &cfg,
@@ -815,6 +866,54 @@ namespace corundum::render::sys {
                                  chunk.coord.col * state.manifest.chunk_size,
                                  chunk.coord.row * state.manifest.chunk_size};
       collect_tile_layer(r, ctx, 0, cfg, scene, out);
+    }
+  }
+
+  /// Collects depth_sorted overlay-layer tiles from the single-map tilemap into @p out. Mirrors
+  /// collect_ground_tiles_map's context setup.
+  static void collect_sorted_overlay_map(const data::RenderState &state, const corundum::core::GameConfig &cfg,
+                                         const corundum::gameplay::world::Scene &scene,
+                                         std::vector<data::DepthEntry> &out, float cam_x, float cam_y, float zoom,
+                                         int window_w, int window_h) {
+    const auto &tilemap = state.map_data.tilemap;
+    if (tilemap.tilesets.empty())
+      return;
+
+    const float vp_w = zoom > 0.f ? static_cast<float>(window_w) / zoom : 0.f;
+    const float vp_h = zoom > 0.f ? static_cast<float>(window_h) / zoom : 0.f;
+    const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
+                                                          cfg.tile_scale, cfg.elevation_step_px);
+    const TileRenderParams ctx{&tilemap, &state.map_data.tileset_texture_ids, iso, cam_x, cam_y, vp_w, vp_h, 0, 0};
+    collect_sorted_overlay_layers(ctx, cfg, scene, out);
+  }
+
+  /// Collects depth_sorted overlay-layer tiles from every active chunk into @p out. Mirrors
+  /// collect_ground_tiles_chunks's context setup.
+  static void collect_sorted_overlay_chunks(const data::RenderState &state, const corundum::core::GameConfig &cfg,
+                                            const corundum::gameplay::world::Scene &scene,
+                                            std::vector<data::DepthEntry> &out, float cam_x, float cam_y, float zoom,
+                                            int window_w, int window_h) {
+    const float vp_w = zoom > 0.f ? static_cast<float>(window_w) / zoom : 0.f;
+    const float vp_h = zoom > 0.f ? static_cast<float>(window_h) / zoom : 0.f;
+    for (const auto &chunk : state.chunks.active()) {
+      const auto &tilemap = chunk.tilemap;
+      if (tilemap.tilesets.empty())
+        continue;
+
+      const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall
+                                                        : state.manifest.chunks_tall * state.manifest.chunk_size;
+      const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), total_h,
+                                                            cfg.tile_scale, cfg.elevation_step_px);
+      const TileRenderParams ctx{&tilemap,
+                                 &chunk.tileset_texture_ids,
+                                 iso,
+                                 cam_x,
+                                 cam_y,
+                                 vp_w,
+                                 vp_h,
+                                 chunk.coord.col * state.manifest.chunk_size,
+                                 chunk.coord.row * state.manifest.chunk_size};
+      collect_sorted_overlay_layers(ctx, cfg, scene, out);
     }
   }
 
@@ -948,6 +1047,11 @@ namespace corundum::render::sys {
       collect_ground_tiles_chunks(r, state, cfg, scene, state.draw_list, cam_x, cam_y, zoom, win_w, win_h);
     else
       collect_ground_tiles_map(r, state, cfg, scene, state.draw_list, cam_x, cam_y, zoom, win_w, win_h);
+
+    if (!state.chunks.active_empty())
+      collect_sorted_overlay_chunks(state, cfg, scene, state.draw_list, cam_x, cam_y, zoom, win_w, win_h);
+    else
+      collect_sorted_overlay_map(state, cfg, scene, state.draw_list, cam_x, cam_y, zoom, win_w, win_h);
 
     const auto &transforms = scene.world.transforms;
     const auto &sprites = scene.world.sprites;

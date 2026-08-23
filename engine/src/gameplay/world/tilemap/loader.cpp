@@ -714,6 +714,16 @@ namespace corundum::gameplay::world::tilemap {
           z_index = 0;
       }
 
+      bool depth_sorted = false;
+      if (layer_json.contains("depth_sorted")) {
+        try {
+          depth_sorted = layer_json["depth_sorted"].get<bool>();
+        } catch (...) {
+          return std::unexpected(
+              std::format("Tilemap '{}' layer '{}' field 'depth_sorted' has wrong type", id, layer_name));
+        }
+      }
+
       auto parse_result = parse_tiles(layer_json, layer_name);
       if (!parse_result)
         return std::unexpected(std::move(parse_result.error()));
@@ -830,6 +840,7 @@ namespace corundum::gameplay::world::tilemap {
       layers.push_back(TilemapLayer{
           .name = layer_name,
           .z_index = z_index,
+          .depth_sorted = depth_sorted,
           .visible = true,
           .tiles = std::move(tiles),
           .animated_cells = std::move(animated_cells),

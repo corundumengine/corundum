@@ -159,16 +159,31 @@ namespace tools::sprite {
     const ImVec2 img_pos = ImGui::GetCursorScreenPos();
     ImGui::Image(tex, {disp_w, disp_h}, {uvs[0], uvs[1]}, {uvs[2], uvs[3]});
 
-    if (state.show_collision_box && state.mode == SheetMode::Character && state.selected_sprite >= 0 &&
+    if (state.mode == SheetMode::Character && state.selected_sprite >= 0 &&
         state.selected_sprite < static_cast<int>(state.sprites.size())) {
       const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
-      if (sp.collision_w > 0 && sp.collision_h > 0) {
+
+      // Feet-anchor line: shows exactly where walk_around_offset places the ground-contact
+      // point at runtime (render_sys.cpp: py = ey - walk_offset * entry.src.height * scale,
+      // where entry.src.height is the FULL rendered frame, not the collision box). Always
+      // drawn — independent of "Show collision box" — since this is what the slider actually
+      // controls regardless of whether a collision box is set.
+      {
+        const float anchor_y = img_pos.y + disp_h * sp.walk_around_offset;
+        ImDrawList *dl = ImGui::GetWindowDrawList();
+        dl->AddLine({img_pos.x, anchor_y}, {img_pos.x + disp_w, anchor_y}, IM_COL32(80, 255, 80, 220), 2.f);
+        dl->AddText({img_pos.x + 2.f, anchor_y - 14.f}, IM_COL32(80, 255, 80, 220), "feet");
+      }
+
+      if (state.show_collision_box && sp.collision_w > 0 && sp.collision_h > 0) {
         const float scale_x = disp_w / static_cast<float>(pixel_w);
         const float scale_y = disp_h / static_cast<float>(pixel_h);
         const float coll_disp_w = static_cast<float>(sp.collision_w) * scale_x;
         const float coll_disp_h = static_cast<float>(sp.collision_h) * scale_y;
         const float coll_x = img_pos.x + (disp_w - coll_disp_w) * 0.5f;
-        const float coll_y = img_pos.y + coll_disp_h * sp.walk_around_offset;
+        // Bottom edge of the collision box sits on the same feet-anchor line as above —
+        // the box represents footprint/hitbox extent grounded at the character's feet.
+        const float coll_y = img_pos.y + disp_h * sp.walk_around_offset - coll_disp_h;
         ImDrawList *dl = ImGui::GetWindowDrawList();
         dl->AddRect({coll_x, coll_y}, {coll_x + coll_disp_w, coll_y + coll_disp_h}, IM_COL32(255, 80, 80, 220), 0.f, 0,
                     1.5f);

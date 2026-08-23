@@ -259,10 +259,12 @@ namespace tools::tilemap {
       }
     }
 
-    // ── Layer rename popup state ─────────────────────────────────────────────
-    bool layer_rename_requested = false; ///< True when user double-clicked a layer.
-    int layer_rename_idx = -1;           ///< Index of the layer being renamed.
-    char layer_rename_buf[256] = {};     ///< Buffer for the new name.
+    // ── Layer properties popup state ─────────────────────────────────────────
+    bool layer_rename_requested = false;   ///< True when user double-clicked a layer.
+    int layer_rename_idx = -1;             ///< Index of the layer being edited.
+    char layer_rename_buf[256] = {};       ///< Buffer for the layer name.
+    int layer_props_z_index = 0;           ///< Buffer for the layer's z_index, edited in the popup.
+    bool layer_props_depth_sorted = false; ///< Buffer for the layer's depth_sorted flag.
 
     // ── Validation popup state ───────────────────────────────────────────────
     bool show_validation_popup = false;         ///< True when Ctrl+S found problems to confirm.
@@ -322,6 +324,8 @@ namespace tools::tilemap {
             std::strncpy(layer_rename_buf, state.map.layers[static_cast<std::size_t>(idx)].name.c_str(),
                          sizeof(layer_rename_buf) - 1);
             layer_rename_buf[sizeof(layer_rename_buf) - 1] = '\0';
+            layer_props_z_index = state.map.layers[static_cast<std::size_t>(idx)].z_index;
+            layer_props_depth_sorted = state.map.layers[static_cast<std::size_t>(idx)].depth_sorted;
             return;
           }
           if (panel_x >= PALETTE_W - 24)
@@ -640,10 +644,25 @@ namespace tools::tilemap {
     if (ImGui::BeginPopupModal("Rename Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
       ImGui::TextUnformatted("Layer name:");
       ImGui::InputText("##rename", layer_rename_buf, sizeof(layer_rename_buf));
+
+      ImGui::TextUnformatted("Z-index:");
+      ImGui::InputInt("##zindex", &layer_props_z_index);
+      if (layer_props_z_index < 0)
+        layer_props_z_index = 0;
+
+      ImGui::BeginDisabled(layer_props_z_index == 0);
+      ImGui::Checkbox("Depth-sort with entities", &layer_props_depth_sorted);
+      ImGui::EndDisabled();
+      if (layer_props_z_index == 0)
+        layer_props_depth_sorted = false;
+
       bool committed = false;
-      if (ImGui::Button("Rename", ImVec2{120.f, 0.f})) {
+      if (ImGui::Button("Ok", ImVec2{120.f, 0.f})) {
         if (layer_rename_buf[0] != '\0') {
-          state.map.layers[static_cast<std::size_t>(layer_rename_idx)].name = layer_rename_buf;
+          auto &layer = state.map.layers[static_cast<std::size_t>(layer_rename_idx)];
+          layer.name = layer_rename_buf;
+          layer.z_index = layer_props_z_index;
+          layer.depth_sorted = layer_props_depth_sorted;
           state.dirty = true;
         }
         committed = true;

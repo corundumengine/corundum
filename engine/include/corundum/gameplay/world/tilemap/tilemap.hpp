@@ -77,9 +77,16 @@ namespace corundum::gameplay::world::tilemap {
 
   /// One layer of tiles. Layers are drawn bottom-to-top; k_empty_tile is transparent.
   /// z_index controls depth relative to entities: 0 = below entities (default), 1+ = above.
+  /// A z_index > 0 layer with depth_sorted = true is instead depth-sorted per-tile against
+  /// entities (see TilemapLayer::depth_sorted).
   struct TilemapLayer {
     std::string name;
     int z_index = 0;           ///< >= 0; clamped to 0 by loader if negative.
+    bool depth_sorted = false; ///< Only meaningful when z_index > 0. false (default): layer always
+                               ///< draws above all entities (rooftops, canopy, decals) — unchanged
+                               ///< legacy behavior. true: layer's tiles are depth-sorted against
+                               ///< entities and elevated ground tiles via iso_depth_key instead
+                               ///< (walls, pillars, other tall props players walk around/behind).
     bool visible = true;       ///< When false, the renderer skips this layer entirely.
     std::vector<TileId> tiles; ///< Row-major, size == map width * height; k_empty_tile for animated cells.
     std::flat_map<int, AnimatedCell> animated_cells; ///< cell_index (row*width+col) → resolved animation.

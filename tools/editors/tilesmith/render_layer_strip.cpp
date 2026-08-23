@@ -58,7 +58,10 @@ namespace tools::tilemap {
       ImGui::SetCursorScreenPos({win_pos.x + 4.f, row_top + text_offset_y});
       ImGui::PushStyleColor(ImGuiCol_Text, active ? ImVec4{173 / 255.f, 179 / 255.f, 215 / 255.f, 1.f}
                                                   : ImVec4{104 / 255.f, 107 / 255.f, 129 / 255.f, 1.f});
-      ImGui::TextUnformatted(state.map.layers[static_cast<std::size_t>(i)].name.c_str());
+      std::string label = state.map.layers[static_cast<std::size_t>(i)].name;
+      if (state.map.layers[static_cast<std::size_t>(i)].depth_sorted)
+        label += " [S]";
+      ImGui::TextUnformatted(label.c_str());
       ImGui::PopStyleColor();
 
       // Visibility icon

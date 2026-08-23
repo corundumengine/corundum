@@ -39,6 +39,13 @@ only kind of layer elevation, walkability, and ramps operate on. `z_index >
 0` layers always draw above entities (rooftops, canopy, decals) and never
 participate in elevation/walkability.
 
+`depth_sorted` (optional bool, default `false`) only applies to a `z_index >
+0` layer. When `false` (the default), the layer always draws above every
+entity — use this for rooftops, canopy, and decals. When `true`, the layer's
+tiles are depth-sorted per-cell against entities and elevated ground tiles
+instead, so a player can walk in front of or behind them realistically — use
+this for walls, pillars, and other tall props.
+
 A cell can have independently-painted data on more than one z_index==0 layer;
 elevation, material, and ramp lookups all resolve to the **topmost layer with
 a tile present at that cell** — paint order across layers matters.
@@ -206,6 +213,7 @@ Each entry in `layers`:
 |---|---|---|
 | `name` | string | Layer name. |
 | `z_index` | int | Omitted (defaults to 0) for ground layers; present for anything drawn above entities. |
+| `depth_sorted` | bool | Optional, default false; only meaningful when z_index > 0; see above. |
 | `tiles` (dense) or `objects` (sparse) | array | Tile GIDs. Tilesmith picks whichever encoding is smaller. |
 | `elevation` | array of comma-separated row strings | Per-tile elevation [0–100]; omitted entirely if the whole layer is flat. |
 | `material_overrides` | array | `{"col","row","material"}`, sparse — per-cell terrain-material tag overriding the tileset default. |

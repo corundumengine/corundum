@@ -2,6 +2,7 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/render/sys/render_sys.hpp>
 
 #include <array>
 #include <cstddef>
@@ -176,7 +177,10 @@ namespace corundum::debug {
 
       // Feet position (entity anchor) in isometric space — cell center, matching the
       // entity sprite anchor so the marker sits on the character's feet, not above them.
-      const auto [mx, my] = core::math::tile_to_world_center(col, row, 0.f, iso);
+      // Elevation must match render_sys.cpp's entity anchor calc (elevation_under), or the
+      // marker desyncs from the drawn sprite on any non-flat tile.
+      const float marker_elev = corundum::render::sys::elevation_under(render, col, row);
+      const auto [mx, my] = core::math::tile_to_world_center(col, row, marker_elev, iso);
       constexpr float k_marker_hw = 5.f;
       constexpr float k_marker_hh = 3.f;
       constexpr core::math::Colour k_player_col{0, 255, 0, 220};
