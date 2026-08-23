@@ -139,7 +139,7 @@ namespace tools::sprite {
     // ---------------------------------------------------------------------------
 
     // 3×3 compass grid: [NW N NE / W _ E / SW S SE]
-    // AnimId::COUNT is the sentinel for the blank center cell.
+    // AnimId::Count is the sentinel for the blank center cell.
     struct CompassEntry {
       AnimId id;
       const char *label;
@@ -151,7 +151,7 @@ namespace tools::sprite {
         {AnimId::North, "N", "##d_n"},
         {AnimId::NorthEast, "NE", "##d_ne"},
         {AnimId::West, "W", "##d_w"},
-        {AnimId::COUNT, "", "##d_c"},
+        {AnimId::Count, "", "##d_c"},
         {AnimId::East, "E", "##d_e"},
         {AnimId::SouthWest, "SW", "##d_sw"},
         {AnimId::South, "S", "##d_s"},
@@ -173,7 +173,7 @@ namespace tools::sprite {
           ImGui::SameLine(0.f, gap);
 
         const CompassEntry &ce = k_compass[static_cast<std::size_t>(i)];
-        if (ce.id == AnimId::COUNT) {
+        if (ce.id == AnimId::Count) {
           ImGui::Dummy({btn_w, btn_h});
           continue;
         }

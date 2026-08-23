@@ -92,11 +92,11 @@ TEST_CASE("ramp_axis_at — resolves a marked cell, nullopt elsewhere") {
   ctt::TilemapLayer layer;
   layer.z_index = 0;
   layer.tiles = {0, 0, 0, 0};
-  layer.ramps[0] = ctt::RampAxis::NORTH_SOUTH; // cell (0,0)
+  layer.ramps[0] = ctt::RampAxis::NorthSouth; // cell (0,0)
   tm.layers.push_back(layer);
 
   REQUIRE(ctt::ramp_axis_at(tm, 0, 0).has_value());
-  CHECK(*ctt::ramp_axis_at(tm, 0, 0) == ctt::RampAxis::NORTH_SOUTH);
+  CHECK(*ctt::ramp_axis_at(tm, 0, 0) == ctt::RampAxis::NorthSouth);
   CHECK_FALSE(ctt::ramp_axis_at(tm, 1, 0).has_value());
   CHECK_FALSE(ctt::ramp_axis_at(tm, -1, 0).has_value());
 }
@@ -122,7 +122,7 @@ TEST_CASE("interpolated_elevation_at — a north-south ramp blends between its n
   layer.z_index = 0;
   layer.tiles = {0, 0, 0};
   layer.elevation = {10, 5, 0};
-  layer.ramps[1] = ctt::RampAxis::NORTH_SOUTH; // cell (0,1)
+  layer.ramps[1] = ctt::RampAxis::NorthSouth; // cell (0,1)
   tm.layers.push_back(layer);
 
   // At the north edge of the ramp cell (row_f == 1.0): matches the north neighbor's elevation.

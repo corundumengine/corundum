@@ -73,7 +73,7 @@ namespace corundum::gameplay::world::tilemap {
 
   /// Axis a ramp/stair tile bridges. Set in TilemapLayer::ramps. Bidirectional along its axis
   /// (walkable both up and down); does nothing for the other axis or the four diagonals.
-  enum class RampAxis : uint8_t { NORTH_SOUTH, EAST_WEST };
+  enum class RampAxis : uint8_t { NorthSouth, EastWest };
 
   /// One layer of tiles. Layers are drawn bottom-to-top; k_empty_tile is transparent.
   /// z_index controls depth relative to entities: 0 = below entities (default), 1+ = above.
@@ -318,7 +318,7 @@ namespace corundum::gameplay::world::tilemap {
    * The solid region is the triangle that does NOT contain the named corner.
    * NW/SE triangles share the TR→BL hypotenuse; NE/SW share the TL→BR hypotenuse.
    */
-  enum class TriangleCut : uint8_t { NW, NE, SW, SE };
+  enum class TriangleCut : uint8_t { NorthWest, NorthEast, SouthWest, SouthEast };
 
   /// Non-owning Structure-of-Arrays view over diagonal collision triangle data in tile-grid space.
   struct CollisionTrianglesView {
@@ -539,7 +539,7 @@ namespace corundum::gameplay::world::tilemap {
     const std::optional<RampAxis> axis = ramp_axis_at(tm, col, row);
     if (!axis)
       return static_cast<float>(elevation_at(tm, col, row));
-    if (*axis == RampAxis::NORTH_SOUTH) {
+    if (*axis == RampAxis::NorthSouth) {
       const float t = row_f - static_cast<float>(row); // 0 at the north edge, 1 at the south edge
       return std::lerp(static_cast<float>(elevation_at(tm, col, row - 1)),
                        static_cast<float>(elevation_at(tm, col, row + 1)), t);

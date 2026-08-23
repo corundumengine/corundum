@@ -11,7 +11,7 @@ namespace corundum::platform {
   namespace {
 
     sg_sampler make_sampler(WrapMode wrap) {
-      sg_wrap sw = (wrap == WrapMode::repeat) ? SG_WRAP_REPEAT : SG_WRAP_CLAMP_TO_EDGE;
+      sg_wrap sw = (wrap == WrapMode::Repeat) ? SG_WRAP_REPEAT : SG_WRAP_CLAMP_TO_EDGE;
       sg_sampler_desc desc{};
       desc.min_filter = SG_FILTER_NEAREST;
       desc.mag_filter = SG_FILTER_NEAREST;
@@ -78,7 +78,7 @@ namespace corundum::platform {
     sg_image img = make_image(pixels, w, h);
     stbi_image_free(pixels);
 
-    sg_sampler sampler = make_sampler(WrapMode::clamp);
+    sg_sampler sampler = make_sampler(WrapMode::Clamp);
     sg_view view = make_view(img);
 
     uint32_t slot = 0;

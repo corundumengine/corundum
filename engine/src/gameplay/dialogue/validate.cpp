@@ -11,7 +11,7 @@ namespace corundum::gameplay::dialogue {
 
     for (const auto &node : graph.nodes) {
       auto check = [&](const std::string &target, const std::string &ctx) {
-        if (target == ending_node)
+        if (target == k_ending_node)
           return;
         if (!graph.id_to_index.contains(target))
           errors.push_back(
@@ -29,11 +29,11 @@ namespace corundum::gameplay::dialogue {
     for (const auto &start : graph.nodes) {
       if (start.type != NodeType::Event)
         continue;
-      if (start.next_id == ending_node)
+      if (start.next_id == k_ending_node)
         continue;
       std::vector<std::string_view> visited;
       const Node *cur = &start;
-      while (cur && cur->type == NodeType::Event && cur->next_id != ending_node) {
+      while (cur && cur->type == NodeType::Event && cur->next_id != k_ending_node) {
         for (const auto &v : visited)
           if (v == cur->id) {
             errors.push_back(std::format("[{}] event-node cycle detected: '{}' is reachable from itself "

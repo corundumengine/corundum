@@ -22,7 +22,7 @@ namespace tools::tilemap {
     void draw_ramp_line(const CanvasContext &ctx, const EditorState &state, int col, int row, RampAxis axis,
                         const corundum::core::math::IsometricParams &iso, ImU32 color) {
       const float elev = static_cast<float>(elevation_at(state.map, col, row));
-      const auto [dc, dr] = axis == RampAxis::NORTH_SOUTH ? std::pair{0.f, -0.5f} : std::pair{0.5f, 0.f};
+      const auto [dc, dr] = axis == RampAxis::NorthSouth ? std::pair{0.f, -0.5f} : std::pair{0.5f, 0.f};
       const ImVec2 p0 = ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f - dc, static_cast<float>(row) + 0.5f - dr,
                                          elev, iso, state.canvas.offset_x, state.canvas.offset_y);
       const ImVec2 p1 = ramp_tile_to_iso(ctx, static_cast<float>(col) + 0.5f + dc, static_cast<float>(row) + 0.5f + dr,

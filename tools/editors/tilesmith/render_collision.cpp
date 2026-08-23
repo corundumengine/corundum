@@ -47,22 +47,22 @@ namespace tools::tilemap {
 
       ImVec2 a, b, c;
       switch (cut) {
-      case TriangleCut::NW:
+      case TriangleCut::NorthWest:
         a = right;
         b = bottom;
         c = left;
         break;
-      case TriangleCut::SE:
+      case TriangleCut::SouthEast:
         a = top;
         b = right;
         c = left;
         break;
-      case TriangleCut::NE:
+      case TriangleCut::NorthEast:
         a = top;
         b = bottom;
         c = left;
         break;
-      case TriangleCut::SW:
+      case TriangleCut::SouthWest:
         a = top;
         b = right;
         c = bottom;

@@ -55,7 +55,7 @@ namespace corundum::physics::sys {
     // Δ across the ramp's two axis-neighbors (ramp's own integer elev doesn't matter —
     // interpolated_elevation_at uses the neighbors). ceil(Δ/2) widens tolerance so
     // both end elevations stay within range at the midpoint.
-    const auto [dc, dr] = *axis == RampAxis::NORTH_SOUTH ? std::pair{0, 1} : std::pair{1, 0};
+    const auto [dc, dr] = *axis == RampAxis::NorthSouth ? std::pair{0, 1} : std::pair{1, 0};
     const int elev_a = elevation_at(*map.elevation_map, cell_col - dc, cell_row - dr);
     const int elev_b = elevation_at(*map.elevation_map, cell_col + dc, cell_row + dr);
     const int ramp_dh = std::abs(elev_a - elev_b);

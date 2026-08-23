@@ -158,7 +158,7 @@ namespace {
 
 TEST_CASE("resolve_triangle_collisions — NW cut: empty corner is passable") {
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NW);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthWest);
   Position pos{k_near, k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
@@ -171,7 +171,7 @@ TEST_CASE("resolve_triangle_collisions — NW cut: solid half clamps to hypotenu
   // NW Y-contact: pr = ty + th * (1 - u1_norm) - h. With u1_norm = (0.97 + 0.01)/1 = 0.98:
   //   pr = 0 + 1 * (1 - 0.98) - 0.01 = 0.01.
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NW);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthWest);
   Position pos{k_far, k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
@@ -180,7 +180,7 @@ TEST_CASE("resolve_triangle_collisions — NW cut: solid half clamps to hypotenu
 
 TEST_CASE("resolve_triangle_collisions — NE cut: empty corner is passable") {
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NE);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthEast);
   Position pos{k_far, k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
@@ -191,7 +191,7 @@ TEST_CASE("resolve_triangle_collisions — NE cut: solid half clamps to hypotenu
   // NE Y-contact: pr = ty + th * ((pc - tx)/tw) - h. With pc=0.02:
   //   pr = 0 + 1 * (0.02/1) - 0.01 = 0.01.
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NE);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthEast);
   Position pos{k_near, k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
@@ -200,7 +200,7 @@ TEST_CASE("resolve_triangle_collisions — NE cut: solid half clamps to hypotenu
 
 TEST_CASE("resolve_triangle_collisions — SW cut: empty corner is passable") {
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SW);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthWest);
   Position pos{k_near, k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
@@ -211,7 +211,7 @@ TEST_CASE("resolve_triangle_collisions — SW cut: solid half clamps to hypotenu
   // SW Y-contact: pr = ty + th * ((pc + w - tx)/tw). With pc=0.97, w=0.01:
   //   pr = 0 + 1 * (0.98/1) = 0.98.
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SW);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthWest);
   Position pos{k_far, k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
@@ -220,7 +220,7 @@ TEST_CASE("resolve_triangle_collisions — SW cut: solid half clamps to hypotenu
 
 TEST_CASE("resolve_triangle_collisions — SE cut: empty corner is passable") {
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SE);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthEast);
   Position pos{k_far, k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
@@ -231,7 +231,7 @@ TEST_CASE("resolve_triangle_collisions — SE cut: solid half clamps to hypotenu
   // SE Y-contact: pr = ty + th * (1 - (pc - tx)/tw). With pc=0.02:
   //   pr = 0 + 1 * (1 - 0.02) = 0.98.
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SE);
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthEast);
   Position pos{k_near, k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
@@ -240,8 +240,8 @@ TEST_CASE("resolve_triangle_collisions — SE cut: solid half clamps to hypotenu
 
 TEST_CASE("resolve_triangle_collisions — elevation mismatch lets entity pass through solid half") {
   CollisionTriangles tris;
-  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NW, 50); // triangle authored at elevation 50
-  Position pos{k_far, k_far};                              // deep in NW cut's solid half
+  tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthWest, 50); // triangle authored at elevation 50
+  Position pos{k_far, k_far};                                     // deep in NW cut's solid half
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view(), 0.f, /*entity_elevation=*/0,
                               /*elevation_tolerance=*/0);
   CHECK(pos.col == doctest::Approx(k_far));

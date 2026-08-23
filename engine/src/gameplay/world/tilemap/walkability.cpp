@@ -8,23 +8,23 @@ namespace corundum::gameplay::world::tilemap {
 
   namespace {
 
-    constexpr uint8_t k_all_dirs = std::to_underlying(WalkDir::N) | std::to_underlying(WalkDir::NE) |
-                                   std::to_underlying(WalkDir::E) | std::to_underlying(WalkDir::SE) |
-                                   std::to_underlying(WalkDir::S) | std::to_underlying(WalkDir::SW) |
-                                   std::to_underlying(WalkDir::W) | std::to_underlying(WalkDir::NW);
+    constexpr uint8_t k_all_dirs = std::to_underlying(WalkDir::North) | std::to_underlying(WalkDir::NorthEast) |
+                                   std::to_underlying(WalkDir::East) | std::to_underlying(WalkDir::SouthEast) |
+                                   std::to_underlying(WalkDir::South) | std::to_underlying(WalkDir::SouthWest) |
+                                   std::to_underlying(WalkDir::West) | std::to_underlying(WalkDir::NorthWest);
 
     // Maps a (dc,dr) delta in {-1,0,1}^2 to its WalkDir bit via a constexpr lookup
     // table. Returns 0 for any delta outside that set (not a single-step grid-adjacent move).
     [[nodiscard]] constexpr uint8_t dir_for_delta(int dc, int dr) noexcept {
-      constexpr std::array<uint8_t, 9> k_lookup = {std::to_underlying(WalkDir::NW),
-                                                   std::to_underlying(WalkDir::N),
-                                                   std::to_underlying(WalkDir::NE),
-                                                   std::to_underlying(WalkDir::W),
+      constexpr std::array<uint8_t, 9> k_lookup = {std::to_underlying(WalkDir::NorthWest),
+                                                   std::to_underlying(WalkDir::North),
+                                                   std::to_underlying(WalkDir::NorthEast),
+                                                   std::to_underlying(WalkDir::West),
                                                    0,
-                                                   std::to_underlying(WalkDir::E),
-                                                   std::to_underlying(WalkDir::SW),
-                                                   std::to_underlying(WalkDir::S),
-                                                   std::to_underlying(WalkDir::SE)};
+                                                   std::to_underlying(WalkDir::East),
+                                                   std::to_underlying(WalkDir::SouthWest),
+                                                   std::to_underlying(WalkDir::South),
+                                                   std::to_underlying(WalkDir::SouthEast)};
       if (dc < -1 || dc > 1 || dr < -1 || dr > 1)
         return 0;
       return k_lookup[static_cast<std::size_t>((dr + 1) * 3 + (dc + 1))];
@@ -113,7 +113,7 @@ namespace corundum::gameplay::world::tilemap {
         const std::optional<RampAxis> axis = ramp_axis_at(tm, col, row);
         if (!axis)
           continue;
-        const auto [dc0, dr0] = axis == RampAxis::NORTH_SOUTH ? std::pair{0, -1} : std::pair{1, 0};
+        const auto [dc0, dr0] = axis == RampAxis::NorthSouth ? std::pair{0, -1} : std::pair{1, 0};
         g.set_passable(col, row, col + dc0, row + dr0, true);
         g.set_passable(col, row, col - dc0, row - dr0, true);
       }

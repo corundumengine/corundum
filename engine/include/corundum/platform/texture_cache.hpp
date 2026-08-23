@@ -32,7 +32,7 @@ namespace corundum::platform {
   };
 
   /** @brief Texture wrap mode for the sampler. */
-  enum class WrapMode { clamp, repeat };
+  enum class WrapMode { Clamp, Repeat };
 
   /** @brief Thread-safe texture registry backed by sokol_gfx.
    *
@@ -75,7 +75,7 @@ namespace corundum::platform {
      * @param[in] wrap   Sampler wrap mode (clamp by default).
      * @return TextureInfo for the created texture.
      */
-    [[nodiscard]] TextureInfo create(unsigned w, unsigned h, const uint32_t *rgba, WrapMode wrap = WrapMode::clamp);
+    [[nodiscard]] TextureInfo create(unsigned w, unsigned h, const uint32_t *rgba, WrapMode wrap = WrapMode::Clamp);
 
     /** @brief Destroy a texture and release its GPU resources.
      *

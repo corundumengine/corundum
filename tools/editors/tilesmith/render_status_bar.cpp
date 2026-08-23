@@ -95,7 +95,7 @@ namespace tools::tilemap {
     using corundum::gameplay::world::tilemap::RampAxis;
     const std::string ramp_label =
         state.show_ramps
-            ? std::format("  [ramp axis: {}]", state.selected_ramp_axis == RampAxis::NORTH_SOUTH ? "N-S" : "E-W")
+            ? std::format("  [ramp axis: {}]", state.selected_ramp_axis == RampAxis::NorthSouth ? "N-S" : "E-W")
             : "";
 
     const std::string text =

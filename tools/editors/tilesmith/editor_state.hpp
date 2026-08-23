@@ -44,13 +44,13 @@ namespace tools::tilemap {
     unsigned int max_step_height = 4; ///< Mirrored from GameConfig::max_step_height; read-only in Tilesmith.
     bool show_ramps = false;          ///< Whether to display/edit ramp tiles.
     corundum::gameplay::world::tilemap::RampAxis selected_ramp_axis =
-        corundum::gameplay::world::tilemap::RampAxis::NORTH_SOUTH; ///< Axis for the next ramp paint operation.
+        corundum::gameplay::world::tilemap::RampAxis::NorthSouth; ///< Axis for the next ramp paint operation.
 
     /// When show_collisions is true, controls whether left-click places triangle or rect.
     bool triangle_collision_mode = false;
     /// Orientation of the next triangle to place (cycles with [ / ] keys).
     corundum::gameplay::world::tilemap::TriangleCut collision_tri_cut =
-        corundum::gameplay::world::tilemap::TriangleCut::NW;
+        corundum::gameplay::world::tilemap::TriangleCut::NorthWest;
 
     // Collision drag state
     bool collision_dragging = false; ///< True while a collision rect drag is in progress.

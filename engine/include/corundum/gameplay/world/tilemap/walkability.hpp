@@ -16,14 +16,14 @@ namespace corundum::gameplay::world::tilemap {
    * (col,row) grid, not the rendered screen.
    */
   enum class WalkDir : uint8_t {
-    N = 0x01,  ///< row - 1
-    NE = 0x02, ///< col + 1, row - 1
-    E = 0x04,  ///< col + 1
-    SE = 0x08, ///< col + 1, row + 1
-    S = 0x10,  ///< row + 1
-    SW = 0x20, ///< col - 1, row + 1
-    W = 0x40,  ///< col - 1
-    NW = 0x80, ///< col - 1, row - 1
+    North = 0x01,     ///< row - 1
+    NorthEast = 0x02, ///< col + 1, row - 1
+    East = 0x04,      ///< col + 1
+    SouthEast = 0x08, ///< col + 1, row + 1
+    South = 0x10,     ///< row + 1
+    SouthWest = 0x20, ///< col - 1, row + 1
+    West = 0x40,      ///< col - 1
+    NorthWest = 0x80, ///< col - 1, row - 1
   };
 
   /**
@@ -73,7 +73,7 @@ namespace corundum::gameplay::world::tilemap {
    * more than @p max_step_height. Visiting every cell x direction pair
    * produces symmetric disconnection without extra bookkeeping. Second: any
    * cell with a ramp_axis_at() forces both directions along its axis back
-   * open (N+S for RampAxis::NORTH_SOUTH, E+W for RampAxis::EAST_WEST),
+   * open (N+S for RampAxis::NorthSouth, E+W for RampAxis::EastWest),
    * regardless of the elevation delta — the ramp's own two axis-neighbors
    * are the intended bridge endpoints. The other axis and all four
    * diagonals are untouched by this second pass.

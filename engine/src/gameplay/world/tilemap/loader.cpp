@@ -356,13 +356,13 @@ namespace corundum::gameplay::world::tilemap {
           return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] 'h' must be positive", id, ci));
         TriangleCut cut;
         if (cut_str == "NW")
-          cut = TriangleCut::NW;
+          cut = TriangleCut::NorthWest;
         else if (cut_str == "NE")
-          cut = TriangleCut::NE;
+          cut = TriangleCut::NorthEast;
         else if (cut_str == "SW")
-          cut = TriangleCut::SW;
+          cut = TriangleCut::SouthWest;
         else if (cut_str == "SE")
-          cut = TriangleCut::SE;
+          cut = TriangleCut::SouthEast;
         else
           return std::unexpected(
               std::format("Tilemap '{}' collision_triangles[{}] 'cut' must be NW, NE, SW, or SE", id, ci));
@@ -812,9 +812,9 @@ namespace corundum::gameplay::world::tilemap {
                                                layer_name, ri, rcol, rrow));
           RampAxis axis;
           if (axis_str == "ns")
-            axis = RampAxis::NORTH_SOUTH;
+            axis = RampAxis::NorthSouth;
           else if (axis_str == "ew")
-            axis = RampAxis::EAST_WEST;
+            axis = RampAxis::EastWest;
           else
             return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] axis '{}' must be \"ns\" or \"ew\"",
                                                id, layer_name, ri, axis_str));

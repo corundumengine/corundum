@@ -36,7 +36,7 @@ CheckOptions:
     value: lower_case
 
   - key: readability-identifier-naming.FunctionCase
-    value: camelBack
+    value: lower_case
 
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
@@ -45,7 +45,13 @@ CheckOptions:
     value: CamelCase
 
   - key: readability-identifier-naming.EnumConstantCase
-    value: UPPER_CASE
+    value: CamelCase
+
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: lower_case
+
+  - key: readability-identifier-naming.ConstexprVariablePrefix
+    value: k_
 
   - key: readability-identifier-naming.PrivateMemberSuffix
     value: _

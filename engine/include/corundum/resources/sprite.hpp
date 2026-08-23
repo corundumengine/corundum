@@ -27,18 +27,18 @@ namespace corundum::resources {
     SouthWest,
     West,
     NorthWest,
-    COUNT,
+    Count,
   };
 
   /// Total number of named animations; use as array extent.
-  inline constexpr uint8_t k_num_anim_ids = static_cast<uint8_t>(AnimId::COUNT);
+  inline constexpr uint8_t k_num_anim_ids = static_cast<uint8_t>(AnimId::Count);
 
   /// Canonical string names for each AnimId, indexed by AnimId value.
   inline constexpr std::array<std::string_view, k_num_anim_ids> k_anim_names = {
       "default", "north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest",
   };
 
-  /// Resolves an animation name to its AnimId; returns AnimId::COUNT if unknown.
+  /// Resolves an animation name to its AnimId; returns AnimId::Count if unknown.
   [[nodiscard]] inline constexpr AnimId anim_name_to_id(std::string_view name) noexcept {
     if (name == "default")
       return AnimId::Default;
@@ -58,7 +58,7 @@ namespace corundum::resources {
       return AnimId::West;
     if (name == "northwest")
       return AnimId::NorthWest;
-    return AnimId::COUNT;
+    return AnimId::Count;
   }
 
   /// Texture atlas packing metadata; geometry fields are read every rendered frame.

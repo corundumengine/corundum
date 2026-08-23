@@ -20,7 +20,7 @@ namespace {
   // (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
   Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev,
                         std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
-                        RampAxis ramp_axis = RampAxis::NORTH_SOUTH) {
+                        RampAxis ramp_axis = RampAxis::NorthSouth) {
     Tilemap tm;
     tm.width = 3;
     tm.height = 3;
@@ -139,7 +139,7 @@ TEST_CASE("resolve_walkability — leaves position alone when crossing a connect
 
 TEST_CASE("build_walkability_graph — a ramp reconnects its axis across a large elevation delta") {
   // (1,1) is raised 50 (far beyond max_step_height=4) and marked as a north-south ramp.
-  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NORTH_SOUTH);
+  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NorthSouth);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
 
   // North-south (the ramp's axis) is reconnected both ways despite the elevation delta.
@@ -156,7 +156,7 @@ TEST_CASE("build_walkability_graph — a ramp reconnects its axis across a large
 }
 
 TEST_CASE("build_walkability_graph — an east-west ramp reconnects only its own axis") {
-  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::EAST_WEST);
+  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::EastWest);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
 
   CHECK(g.can_move(1, 1, 0, 1));
@@ -166,7 +166,7 @@ TEST_CASE("build_walkability_graph — an east-west ramp reconnects only its own
 }
 
 TEST_CASE("resolve_walkability — an entity can cross a ramp cell in both directions") {
-  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NORTH_SOUTH);
+  const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NorthSouth);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
 
   // Uphill: from flat (1,0) into the ramp/raised cell (1,1).

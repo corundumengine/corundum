@@ -99,7 +99,7 @@ namespace corundum::render::sys {
    *  @param[in]     cfg    Game config.
    *  @return WorldLoadInfo on success, or std::unexpected with an error message.
    *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
-   *  @post state.mode == RenderMode::World and active_chunks is non-empty.
+   *  @post state.mode == RenderMode::World and state.chunks is non-empty.
    */
   [[nodiscard]] std::expected<WorldLoadInfo, std::string>
   load_world(corundum::platform::Renderer &r, data::RenderState &state, const corundum::core::GameConfig &cfg);
@@ -130,7 +130,7 @@ namespace corundum::render::sys {
    */
   [[nodiscard]] int first_chunk_tile_px(const data::RenderState &state) noexcept;
 
-  /** @brief Load one pending chunk from state.pending_chunks into state.active_chunks.
+  /** @brief Load one pending chunk into the active chunk window (state.chunks).
    *
    * Removes and loads the first entry from the pending-chunks queue. Called
    * between frames so the I/O does not hitch the render pass. Returns true

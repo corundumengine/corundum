@@ -120,7 +120,7 @@ namespace corundum::resources {
         }
 
         const AnimId aid = anim_name_to_id(anim_name);
-        if (aid != AnimId::COUNT)
+        if (aid != AnimId::Count)
           entry.anim_frames[static_cast<uint8_t>(aid)] = coords;
 
         entry.animations.emplace(anim_name, std::move(coords));

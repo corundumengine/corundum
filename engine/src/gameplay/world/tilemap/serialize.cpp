@@ -55,13 +55,13 @@ namespace corundum::gameplay::world::tilemap {
 
     [[nodiscard]] const char *cut_to_str(TriangleCut c) {
       switch (c) {
-      case TriangleCut::NW:
+      case TriangleCut::NorthWest:
         return "NW";
-      case TriangleCut::NE:
+      case TriangleCut::NorthEast:
         return "NE";
-      case TriangleCut::SW:
+      case TriangleCut::SouthWest:
         return "SW";
-      case TriangleCut::SE:
+      case TriangleCut::SouthEast:
         return "SE";
       }
       std::unreachable();
@@ -142,7 +142,7 @@ namespace corundum::gameplay::world::tilemap {
         if (!layer.ramps.empty()) {
           json ramps_json = json::array();
           for (const auto &[idx, axis] : layer.ramps) {
-            const char *axis_str = axis == RampAxis::NORTH_SOUTH ? "ns" : "ew";
+            const char *axis_str = axis == RampAxis::NorthSouth ? "ns" : "ew";
             ramps_json.push_back({{"col", idx % map.width}, {"row", idx / map.width}, {"axis", axis_str}});
           }
           lj["ramps"] = std::move(ramps_json);

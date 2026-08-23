@@ -14,11 +14,6 @@ namespace corundum::gameplay::world {
   struct Scene;
 } // namespace corundum::gameplay::world
 
-namespace corundum::gameplay::world {
-  struct MapView;
-  struct Scene;
-} // namespace corundum::gameplay::world
-
 namespace corundum::physics::sys {
 
   /** @brief Set player velocity from held movement keys.

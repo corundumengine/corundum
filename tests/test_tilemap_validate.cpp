@@ -111,7 +111,7 @@ TEST_CASE("validate — negative collision rect origin is flagged") {
 
 TEST_CASE("validate — collision triangle extending past map bounds") {
   auto tm = make_valid_map();
-  tm.collision_triangles.push_back(0.f, 0.f, 1.f, 5.f, ctt::TriangleCut::NW); // row_span pushes past height=2
+  tm.collision_triangles.push_back(0.f, 0.f, 1.f, 5.f, ctt::TriangleCut::NorthWest); // row_span pushes past height=2
 
   const auto errors = ctt::validate(tm);
   REQUIRE(errors.size() == 1);

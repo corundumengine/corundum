@@ -7,16 +7,21 @@ namespace corundum::core {
 
   /// Font sizes and layout parameters for the dialogue panel.
   struct DialogueRenderConfig {
-    /** @brief Font size for speaker text. */
-    unsigned font_size_speaker = 26;
     /** @brief Font size for body text. */
     unsigned font_size_body = 22;
+
     /** @brief Font size for prompt text. */
     unsigned font_size_prompt = 18;
-    /** @brief Margin around the dialogue panel. */
-    float margin = 20.f;
+
+    /** @brief Font size for speaker text. */
+    unsigned font_size_speaker = 26;
+
     /** @brief Vertical spacing between lines of text. */
     float line_spacing = 32.f;
+
+    /** @brief Margin around the dialogue panel. */
+    float margin = 20.f;
+
     /** @brief Fraction of window height occupied by the panel; must be in (0, 1). */
     float panel_height_frac = 0.32f;
   };
@@ -26,43 +31,58 @@ namespace corundum::core {
   /// only the per-game file names (game_font, ui_font, icons_font, tilemap_path) require explicit
   /// values.
   struct ResourcePaths {
-    /** @brief Directory containing all fonts. Defaults to "assets/fonts". */
-    std::string font_dir{"assets/fonts"};
-    /** @brief Path to the primary game font file. */
-    std::string game_font{};
-    /** @brief Path to the UI-specific font file. */
-    std::string ui_font{};
-    /** @brief Path to the icons font file. */
-    std::string icons_font{};
-    /** @brief Path to the main tilemap asset. */
-    std::string tilemap_path{};
-    /** @brief Directory containing sprite sheet assets. Defaults to "data/sprite_sheets". */
-    std::string sprites_dir{"data/sprite_sheets"};
-    /** @brief Directory containing defined spawn point locations. Defaults to "data/spawn_points". */
-    std::string spawn_points_dir{"data/spawn_points"};
-    /** @brief Directory containing portal definitions. Defaults to "data/portals". */
-    std::string portals_dir{"data/portals"};
     /** @brief Directory containing dialogue data files. Defaults to "data/dialogue". */
     std::string dialogue_dir{"data/dialogue"};
+
+    /** @brief Directory containing all fonts. Defaults to "assets/fonts". */
+    std::string font_dir{"assets/fonts"};
+
+    /** @brief Path to the primary game font file. */
+    std::string game_font{};
+
+    /** @brief Path to the icons font file. */
+    std::string icons_font{};
+
+    /** @brief Directory containing portal definitions. Defaults to "data/portals". */
+    std::string portals_dir{"data/portals"};
+
     /** @brief Directory containing quest data files. Defaults to "data/quests". */
     std::string quests_dir{"data/quests"};
-    /** @brief Directory containing sound (OGG) assets. */
-    std::string sounds_dir{"data/sounds"};
+
     /** @brief Optional JSON catalog mapping sound names to file paths (relative to sounds_dir).
      *  Example: {"coin": "sfx/jingle_coin_01.ogg"}. Empty → names resolve to "{name}.ogg". */
     std::string sounds_catalog{"data/sounds.json"};
+
+    /** @brief Directory containing sound (OGG) assets. */
+    std::string sounds_dir{"data/sounds"};
+
+    /** @brief Directory containing defined spawn point locations. Defaults to "data/spawn_points". */
+    std::string spawn_points_dir{"data/spawn_points"};
+
+    /** @brief Directory containing sprite sheet assets. Defaults to "data/sprite_sheets". */
+    std::string sprites_dir{"data/sprite_sheets"};
+
+    /** @brief Path to the main tilemap asset. */
+    std::string tilemap_path{};
+
+    /** @brief Path to the UI-specific font file. */
+    std::string ui_font{};
+
     /** @brief Path to the world manifest JSON. Empty → single-tilemap mode. */
     std::string world_manifest_path{};
   };
 
   /// Player identity and default placement, configurable via game.json "player" block.
   struct PlayerConfig {
-    /** @brief Sprite name for the player's walk animation. */
-    std::string walk_sprite{"player_walk"};
-    /** @brief Sprite name for the player's idle animation. */
-    std::string idle_sprite{"player_idle"};
     /** @brief Default spawn tile column (fractional tile-grid units). */
     float col = 8.f;
+
+    /** @brief Sprite name for the player's idle animation. */
+    std::string idle_sprite{"player_idle"};
+
+    /** @brief Sprite name for the player's walk animation. */
+    std::string walk_sprite{"player_walk"};
+
     /** @brief Default spawn tile row (fractional tile-grid units). */
     float row = 8.f;
   };
@@ -70,44 +90,57 @@ namespace corundum::core {
   /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
   /// data together.
   struct GameConfig {
-    /** @brief Window title shown in the OS title bar. */
-    std::string window_title = "Corundum Engine";
-    /** @brief Initial width of the game window in pixels. */
-    float win_w = 800.f;
-    /** @brief Initial height of the game window in pixels. */
-    float win_h = 600.f;
     /** @brief Target frame rate for the simulation (in FPS). */
     unsigned framerate = 60;
+
     /** @brief Enable vsync for the render loop. */
     bool vsync = true;
 
+    /** @brief Initial height of the game window in pixels. */
+    float win_h = 600.f;
+
+    /** @brief Initial width of the game window in pixels. */
+    float win_w = 800.f;
+
+    /** @brief Window title shown in the OS title bar. */
+    std::string window_title = "Corundum Engine";
+
     /** @brief Radius in tile-grid units for player interaction detection. */
     float interact_radius = 2.f;
+
     /** @brief Base movement speed of the player character. */
     float player_speed = 200.f;
 
     /** @brief Scaling factor applied to all character/entity sprites. */
     float character_scale = 2.f;
-    /** @brief Scaling factor applied to all tilemap assets. */
-    float tile_scale = 2.f;
-    /** @brief Screen pixels a tile is lifted per unit of elevation. */
-    float elevation_step_px = 4.f;
-    /** @brief Max elevation delta (same units as TilemapLayer::elevation) an entity can
-     *  step between adjacent tiles without a ramp/stair bridging them. */
-    unsigned int max_step_height = 4;
-    /** @brief Minimum allowed Camera::zoom (most zoomed out). */
-    float min_zoom = 0.5f;
-    /** @brief Maximum allowed Camera::zoom (most zoomed in). */
-    float max_zoom = 3.f;
+
     /** @brief Initial Camera::zoom applied at startup, clamped to [min_zoom, max_zoom]. */
     float default_zoom = 1.f;
 
-    /** @brief Grouped resource file paths for memory locality. */
-    ResourcePaths paths{};
-    /** @brief Player identity and default placement. */
-    PlayerConfig player{};
+    /** @brief Screen pixels a tile is lifted per unit of elevation. */
+    float elevation_step_px = 4.f;
+
+    /** @brief Max elevation delta (same units as TilemapLayer::elevation) an entity can
+     *  step between adjacent tiles without a ramp/stair bridging them. */
+    unsigned int max_step_height = 4;
+
+    /** @brief Maximum allowed Camera::zoom (most zoomed in). */
+    float max_zoom = 3.f;
+
+    /** @brief Minimum allowed Camera::zoom (most zoomed out). */
+    float min_zoom = 0.5f;
+
+    /** @brief Scaling factor applied to all tilemap assets. */
+    float tile_scale = 2.f;
+
     /** @brief Rendering configuration specific to the dialogue system. */
     DialogueRenderConfig dialogue_render;
+
+    /** @brief Grouped resource file paths for memory locality. */
+    ResourcePaths paths{};
+
+    /** @brief Player identity and default placement. */
+    PlayerConfig player{};
   };
 
   /// Parses game.json at @p path and returns a validated GameConfig.

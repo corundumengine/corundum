@@ -419,7 +419,7 @@ namespace tools::tilemap {
 
       if (state.show_collisions && state.triangle_collision_mode) {
         using Cut = corundum::gameplay::world::tilemap::TriangleCut;
-        constexpr std::array<Cut, 4> order{Cut::NW, Cut::NE, Cut::SE, Cut::SW};
+        constexpr std::array<Cut, 4> order{Cut::NorthWest, Cut::NorthEast, Cut::SouthEast, Cut::SouthWest};
         if (ImGui::IsKeyPressed(ImGuiKey_RightBracket)) {
           for (int k = 0; k < 4; ++k) {
             if (state.collision_tri_cut == order[k]) {
@@ -448,7 +448,7 @@ namespace tools::tilemap {
         if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
           using corundum::gameplay::world::tilemap::RampAxis;
           state.selected_ramp_axis =
-              state.selected_ramp_axis == RampAxis::NORTH_SOUTH ? RampAxis::EAST_WEST : RampAxis::NORTH_SOUTH;
+              state.selected_ramp_axis == RampAxis::NorthSouth ? RampAxis::EastWest : RampAxis::NorthSouth;
         }
       }
 

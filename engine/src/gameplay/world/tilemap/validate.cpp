@@ -60,7 +60,7 @@ namespace corundum::gameplay::world::tilemap {
         for (const auto &[idx, axis] : layer.ramps) {
           const int col = idx % tm.width;
           const int row = idx / tm.width;
-          const auto [dc, dr] = axis == RampAxis::NORTH_SOUTH ? std::pair{0, -1} : std::pair{1, 0};
+          const auto [dc, dr] = axis == RampAxis::NorthSouth ? std::pair{0, -1} : std::pair{1, 0};
           const int col_a = col + dc, row_a = row + dr;
           const int col_b = col - dc, row_b = row - dr;
           if (col_a < 0 || row_a < 0 || col_a >= tm.width || row_a >= tm.height || col_b < 0 || row_b < 0 ||

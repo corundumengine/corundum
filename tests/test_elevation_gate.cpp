@@ -18,7 +18,7 @@ namespace {
   // are optional; ramp_cell is the (col, row) of the ramp and ramp_axis is its axis.
   Tilemap make_map(int w, int h, const std::vector<uint8_t> &elevs,
                    std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
-                   RampAxis ramp_axis = RampAxis::NORTH_SOUTH) {
+                   RampAxis ramp_axis = RampAxis::NorthSouth) {
     Tilemap tm;
     tm.width = w;
     tm.height = h;
@@ -73,7 +73,7 @@ TEST_CASE("compute_elevation_gate — round-to-nearest elev (not truncate)") {
   elevs[0 * 4 + 1] = 0;
   elevs[1 * 4 + 1] = 0; // ramp cell's own integer elev doesn't matter (interpolated from neighbors)
   elevs[2 * 4 + 1] = 4;
-  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NORTH_SOUTH);
+  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NorthSouth);
   const MapView map = map_with_elevation_map(tm);
 
   // At (1.5, 1.99): t = 0.99, interpolated elev = lerp(0, 4, 0.99) = 3.96.
@@ -91,7 +91,7 @@ TEST_CASE("compute_elevation_gate — ramp tolerance = ceil(Δ/2) widens to both
   elevs[0 * 4 + 1] = 0;
   elevs[1 * 4 + 1] = 0;
   elevs[2 * 4 + 1] = 4;
-  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NORTH_SOUTH);
+  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NorthSouth);
   const MapView map = map_with_elevation_map(tm);
 
   // Player at ramp midpoint (1.5, 1.5): interpolated elev = 2, tolerance = 2.
@@ -112,7 +112,7 @@ TEST_CASE("compute_elevation_gate — odd ramp Δ uses ceil(Δ/2), not floor") {
   elevs[0 * 4 + 1] = 0;
   elevs[1 * 4 + 1] = 0;
   elevs[2 * 4 + 1] = 3;
-  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NORTH_SOUTH);
+  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NorthSouth);
   const MapView map = map_with_elevation_map(tm);
 
   const ElevationGate g = compute_elevation_gate(map, 1.5f, 1.5f);
@@ -125,7 +125,7 @@ TEST_CASE("compute_elevation_gate — EAST_WEST ramp axis") {
   elevs[1 * 4 + 0] = 0;
   elevs[1 * 4 + 1] = 0;
   elevs[1 * 4 + 2] = 4;
-  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::EAST_WEST);
+  const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::EastWest);
   const MapView map = map_with_elevation_map(tm);
 
   // Player at ramp cell col center (1.5, 1.5): interpolated elev = lerp(0, 4, 0.5) = 2.

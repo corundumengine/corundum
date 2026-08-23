@@ -202,21 +202,21 @@ namespace corundum::render::data {
    * Separates data from logic per DOD: functions own no state, state holds no behaviour.
    */
   struct RenderState {
-    SpriteFrameIndex sprite_index;
-    MapData map_data{};
-    corundum::gameplay::world::tilemap::WorldManifest manifest{};
-    ChunkWindow chunks{};
     corundum::gameplay::world::tilemap::CollisionRects agg_collisions{};
-    corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
     /// Aggregated portal buffer for world mode — cleared and repopulated by build_map_view
     /// then returned as a span via MapView. Single-map mode passes map_data.portals directly.
     std::vector<corundum::gameplay::world::Portal> agg_portals{};
+    corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
+    ChunkWindow chunks{};
+    corundum::gameplay::ui::DialogBoxState dialog_box{};
+    uint32_t font_id{0};
+    corundum::gameplay::world::tilemap::WorldManifest manifest{};
+    MapData map_data{};
     /// Built once when a single map loads (load_map()); single-map mode only, same
     /// limitation as MapView::elevation_map — World mode leaves this default-empty.
     corundum::gameplay::world::tilemap::WalkabilityGraph map_walkability{};
-    corundum::gameplay::ui::DialogBoxState dialog_box{};
-    uint32_t font_id{0};
     RenderMode mode{RenderMode::None};
+    SpriteFrameIndex sprite_index;
 
     std::vector<int> above_z_cache{};
     std::vector<DepthEntry> draw_list{};
@@ -224,19 +224,19 @@ namespace corundum::render::data {
      *  (resized, never freed) so the depth sort touches no per-frame heap allocation. */
     std::vector<uint32_t> draw_order{};
 
+    /** @brief Previous-frame camera x for render interpolation. */
+    float prev_cam_x{0.f};
+    /** @brief Previous-frame camera y for render interpolation. */
+    float prev_cam_y{0.f};
+    /** @brief Number of valid entries in prev_col/prev_row (entities that existed at the
+     *  start of this frame, before any mid-frame spawns). */
+    std::uint32_t prev_count{0};
     /** @brief Previous-frame entity tile columns for render interpolation. Fixed-size:
      *  bounded by k_max_entities, so no heap growth mid-frame. Only the first
      *  prev_count entries hold a valid snapshot from before this frame. */
     std::array<float, corundum::gameplay::entity::k_max_entities> prev_col{};
     /** @brief Previous-frame entity tile rows for render interpolation. See prev_col. */
     std::array<float, corundum::gameplay::entity::k_max_entities> prev_row{};
-    /** @brief Number of valid entries in prev_col/prev_row (entities that existed at the
-     *  start of this frame, before any mid-frame spawns). */
-    std::uint32_t prev_count{0};
-    /** @brief Previous-frame camera x for render interpolation. */
-    float prev_cam_x{0.f};
-    /** @brief Previous-frame camera y for render interpolation. */
-    float prev_cam_y{0.f};
     /** @brief Previous-frame camera zoom for render interpolation. */
     float prev_zoom{1.f};
   };
