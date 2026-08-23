@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <cmath>
 #include <imgui.h>
 
 namespace corundum::tool_host {
@@ -68,8 +69,11 @@ namespace corundum::tool_host {
           scale = std::clamp(scale * (io.MouseWheel > 0.f ? 1.15f : 1.f / 1.15f), min_scale_, max_scale_);
 
           if (zoom_to_cursor) {
-            offset_x = mx - (mx - offset_x) * (scale / old_scale);
-            offset_y = my - (my - offset_y) * (scale / old_scale);
+            // Keep the canvas point currently under the cursor fixed in screen space as
+            // scale changes: invert screen_to_canvas's (screen - origin + offset) / scale
+            // for the new scale, solved for the offset that maps back to the same screen x/y.
+            offset_x = (mx + offset_x) * (scale / old_scale) - mx;
+            offset_y = (my + offset_y) * (scale / old_scale) - my;
           }
         }
       }

@@ -362,7 +362,8 @@ namespace tools::tilemap {
     // Whether the canvas's own scrollbars are present this frame (mirrors the content-size vs.
     // window-size check in main.cpp that decides whether ImGui draws them), and whether the
     // --- Canvas pan/zoom ---
-    state.canvas.update({0.f, 0.f}, {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)});
+    state.canvas.update({0.f, 0.f}, {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
+                        /*zoom_to_cursor=*/true);
 
     // --- Keyboard ---
     if (!io.WantCaptureKeyboard) {

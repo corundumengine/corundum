@@ -150,26 +150,18 @@ int main(int argc, char *argv[]) {
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(2);
 
-    if (has_texture) {
-      ImGui::SetNextWindowContentSize({static_cast<float>(state.image_pixel_w) * state.canvas.scale,
-                                       static_cast<float>(state.image_pixel_h) * state.canvas.scale});
-    }
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
     ImGui::BeginChild("##canvas",
                       {static_cast<float>(tools::sprite::CANVAS_W), static_cast<float>(tools::sprite::CANVAS_H)}, false,
-                      ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     {
       ImDrawList *dl = ImGui::GetWindowDrawList();
       const ImVec2 origin = ImGui::GetWindowPos();
 
-      // Sync ImGui scrollbar with CanvasController
-      if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
-        ImGui::SetScrollX(state.canvas.offset_x);
-        ImGui::SetScrollY(state.canvas.offset_y);
-      } else {
-        state.canvas.offset_x = ImGui::GetScrollX();
-        state.canvas.offset_y = ImGui::GetScrollY();
-      }
+      // offset_x/offset_y (pan+zoom) live entirely in state.canvas, mutated by
+      // CanvasController::update() — this child has no scrollable content and never
+      // touches ImGui's own scroll state. (See render_canvas.cpp: draw positions
+      // subtract state.canvas.offset_x/y manually; ImGui scroll plays no part.)
 
       dl->PushClipRect(origin, {origin.x + tools::sprite::CANVAS_W, origin.y + tools::sprite::CANVAS_H}, true);
 

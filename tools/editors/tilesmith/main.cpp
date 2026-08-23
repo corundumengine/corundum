@@ -228,15 +228,6 @@ int main(int argc, char *argv[]) {
     const ImGuiIO &io = ImGui::GetIO();
     elapsed_time += io.DeltaTime;
 
-    if (!state.map.tilesets.empty()) {
-      const int tw = state.map.diamond_w();
-      const float half_tw = static_cast<float>(tw) * state.canvas.scale * 0.5f;
-      const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
-      ImGui::SetNextWindowContentSize({static_cast<float>(state.map.width + state.map.height) * half_tw +
-                                           tools::tilemap::k_content_margin * half_tw,
-                                       static_cast<float>(state.map.width + state.map.height) * half_th +
-                                           tools::tilemap::k_content_margin * half_th});
-    }
     ImGui::SetNextWindowPos({0.f, 0.f});
     ImGui::SetNextWindowSize(
         {static_cast<float>(tools::tilemap::CANVAS_W), static_cast<float>(tools::tilemap::CANVAS_H)});
@@ -246,31 +237,20 @@ int main(int argc, char *argv[]) {
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoBackground |
-                     ImGuiWindowFlags_HorizontalScrollbar);
+                     ImGuiWindowFlags_NoScrollbar);
     ImGui::PopStyleVar(2);
     {
       ImDrawList *dl = ImGui::GetWindowDrawList();
       const ImVec2 origin = ImGui::GetWindowPos();
       ImVec2 content_origin = origin;
 
+      // offset_x/offset_y (pan+zoom) live entirely in state.canvas, mutated by
+      // CanvasController::update() — this window has no scrollable content and never
+      // touches ImGui's own scroll state. (See tilemap_rendering.cpp: tile screen
+      // positions subtract camera_x/camera_y manually; ImGui scroll plays no part.)
       if (!state.map.tilesets.empty()) {
         const float half_tw = static_cast<float>(state.map.diamond_w()) * state.canvas.scale * 0.5f;
         const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
-        const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw +
-                                tools::tilemap::k_content_margin * half_tw;
-        const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th +
-                                tools::tilemap::k_content_margin * half_th;
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
-          if (virtual_w > static_cast<float>(tools::tilemap::CANVAS_W))
-            ImGui::SetScrollX(state.canvas.offset_x);
-          if (virtual_h > static_cast<float>(tools::tilemap::CANVAS_H))
-            ImGui::SetScrollY(state.canvas.offset_y);
-        } else {
-          if (virtual_w > static_cast<float>(tools::tilemap::CANVAS_W))
-            state.canvas.offset_x = ImGui::GetScrollX();
-          if (virtual_h > static_cast<float>(tools::tilemap::CANVAS_H))
-            state.canvas.offset_y = ImGui::GetScrollY();
-        }
         content_origin.x += tools::tilemap::k_content_margin * half_tw;
         content_origin.y += half_th;
       }
