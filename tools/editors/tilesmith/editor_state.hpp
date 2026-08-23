@@ -75,6 +75,8 @@ namespace tools::tilemap {
     int erase_drag_cur_col = 0;    ///< Current tile column under the cursor during erase drag.
     int erase_drag_cur_row = 0;    ///< Current tile row where the cursor during erase drag.
 
+    // Paint drag state
+    bool painting_active = false; ///< True while a left-click paint/erase-mode drag is in progress.
     // Fill undo state (single-action; not a general undo stack)
     std::vector<corundum::gameplay::world::tilemap::TileId>
         fill_undo_tiles;          ///< Pre-fill tiles snapshot, empty when nothing to undo.

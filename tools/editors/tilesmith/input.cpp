@@ -531,15 +531,20 @@ namespace tools::tilemap {
               begin_collision_drag(state, mx, my);
           }
         } else if (state.show_elevation) {
-          if (over_canvas)
+          if (over_canvas) {
             paint_or_erase_elevation(state, mx, my, false);
+            state.painting_active = true;
+          }
         } else if (state.show_ramps) {
-          if (over_canvas)
+          if (over_canvas) {
             paint_or_erase_ramp(state, mx, my, false);
+            state.painting_active = true;
+          }
         } else {
-          if (over_canvas)
+          if (over_canvas) {
             paint_or_erase(state, mx, my, false);
-          else if (over_panel)
+            state.painting_active = true;
+          } else if (over_panel)
             handle_palette_click(state, mx, my);
         }
       }
@@ -565,6 +570,7 @@ namespace tools::tilemap {
     // --- Mouse button released ---
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
       mouse.left_held = false;
+      state.painting_active = false;
       if (!state.show_portals && state.show_collisions && !state.triangle_collision_mode && state.collision_dragging)
         commit_collision_rect(state);
     }
@@ -590,17 +596,17 @@ namespace tools::tilemap {
       if (state.collision_dragging)
         update_collision_drag(state, mx, my);
     } else if (state.show_elevation) {
-      if (mouse.left_held && over_canvas && !popup_or_modal_open && !ImGui::IsAnyItemActive())
+      if (state.painting_active && over_canvas && !popup_or_modal_open)
         paint_or_erase_elevation(state, mx, my, false);
       if (mouse.right_held && over_canvas)
         paint_or_erase_elevation(state, mx, my, true);
     } else if (state.show_ramps) {
-      if (mouse.left_held && over_canvas && !popup_or_modal_open && !ImGui::IsAnyItemActive())
+      if (state.painting_active && over_canvas && !popup_or_modal_open)
         paint_or_erase_ramp(state, mx, my, false);
       if (mouse.right_held && over_canvas)
         paint_or_erase_ramp(state, mx, my, true);
     } else {
-      if (mouse.left_held && over_canvas && !popup_or_modal_open && !ImGui::IsAnyItemActive())
+      if (state.painting_active && over_canvas && !popup_or_modal_open)
         paint_or_erase(state, mx, my, false);
       if (mouse.right_held && over_canvas)
         update_erase_drag(state, mx, my);
