@@ -31,6 +31,7 @@ target_link_libraries(tilesmith
 )
 
 target_compile_options(tilesmith PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(tilesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Spritesmith Editor ──────────────────────────────────────────────────────────
 add_executable(spritesmith
@@ -56,7 +57,6 @@ target_link_libraries(spritesmith
 )
 
 target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic)
-
 set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Talesmith Editor ─────────────────────────────────────────────────────────────
@@ -81,3 +81,4 @@ target_link_libraries(talesmith
 )
 
 target_compile_options(talesmith PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(talesmith PROPERTIES UNITY_BUILD OFF)

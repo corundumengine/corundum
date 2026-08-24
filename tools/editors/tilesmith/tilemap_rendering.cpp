@@ -1,9 +1,9 @@
 #include "tilemap_rendering.hpp"
 
 #include "layout.hpp"
-
 #include <algorithm>
 #include <cmath>
+#include <corundum/tool_host/tool_host.hpp>
 #include <vector>
 
 namespace tools::tilemap {
