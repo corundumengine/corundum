@@ -170,7 +170,7 @@ namespace tools::tilemap {
 
           if (z_index == 0 && elev > 0) {
             const float depth_key = corundum::core::math::iso_depth_key(
-                static_cast<float>(col), static_cast<float>(row), static_cast<float>(elev), iso.half_th, elev_step);
+                static_cast<float>(col), static_cast<float>(row), static_cast<float>(elev), iso.half_th, iso.elev_step);
             pending.push_back({img_id, p0, p1, uv0, uv1, depth_key});
           } else {
             ctx.dl->AddImage(img_id, p0, p1, uv0, uv1);

@@ -65,7 +65,7 @@ namespace corundum::core::math {
      *   Equals (height - 1) * half_tw.
      */
     float x_origin{};
-    /** @brief Screen pixels lifted per unit of elevation. */
+    /** @brief Screen pixels lifted per unit of elevation, already scaled by tile_scale. */
     float elev_step{};
   };
 
@@ -76,15 +76,18 @@ namespace corundum::core::math {
    * @param diamond_h  Tilemap::diamond_h() – the isometric grid-step height in Tiled pixels.
    * @param height     Number of tile rows in the map (Tilemap::height).
    * @param tile_scale Display scale factor (e.g. 1.f, 2.f).
-   * @param elev_step  Screen pixels lifted per unit of elevation (GameConfig::elevation_step_px).
-   * @return IsometricParams with half_tw, half_th, x_origin, elev_step pre-computed.
+   * @param elev_step  Raw screen pixels lifted per unit of elevation
+   *                   (GameConfig::elevation_step_px) — multiplied by tile_scale
+   *                   just like half_tw/half_th so elevation lift scales with zoom.
+   * @return IsometricParams with half_tw, half_th, x_origin, elev_step pre-computed
+   *         (all scaled by tile_scale).
    */
   [[nodiscard]] constexpr IsometricParams compute_isometric_params(int diamond_w, int diamond_h, int height,
                                                                    float tile_scale, float elev_step) noexcept {
     const float half_tw = static_cast<float>(diamond_w) * tile_scale * 0.5f;
     const float half_th = static_cast<float>(diamond_h) * tile_scale * 0.5f;
     const float x_origin = static_cast<float>(height - 1) * half_tw;
-    return {half_tw, half_th, x_origin, elev_step};
+    return {half_tw, half_th, x_origin, elev_step * tile_scale};
   }
 
   /**

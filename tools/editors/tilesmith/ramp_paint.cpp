@@ -9,7 +9,7 @@ namespace tools::tilemap {
       return;
     const auto tc = screen_to_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
                                    state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
-                                   effective_diamond_w(state.map), effective_diamond_h(state.map));
+                                   effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
     if (!tc)
       return;
     set_ramp(state, state.active_layer, tc->col, tc->row,

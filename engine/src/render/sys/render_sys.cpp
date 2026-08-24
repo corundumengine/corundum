@@ -1095,8 +1095,7 @@ namespace corundum::render::sys {
       if (px + sw < cam_x || px > vp_r || py + sh < cam_y || py > vp_b)
         continue;
 
-      const float iso_depth =
-          corundum::core::math::iso_depth_key(col_f, row_f, elev, iso.half_th, cfg.elevation_step_px);
+      const float iso_depth = corundum::core::math::iso_depth_key(col_f, row_f, elev, iso.half_th, iso.elev_step);
       state.draw_list.push_back(
           {.tex_id = entry.tex_id, .src = entry.src, .x = px, .y = py, .depth = iso_depth, .scale = scale});
     }

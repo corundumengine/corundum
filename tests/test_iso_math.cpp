@@ -240,6 +240,70 @@ TEST_CASE("IsometricParams tile_to_world with fractional input") {
   CHECK(p.y == doctest::Approx(expected_y));
 }
 
+// ── compute_isometric_params — elev_step scales with tile_scale ───────────────
+
+TEST_CASE("compute_isometric_params — elev_step scales linearly with tile_scale") {
+  // Default tile_scale=1.f is the no-op baseline (matches every existing test that
+  // hand-builds an IsometricParams and asserts raw elev_step).
+  const auto iso1 = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/1.f, /*elev_step=*/4.f);
+  CHECK(iso1.elev_step == doctest::Approx(4.f));
+
+  // tile_scale=2.f → elev_step doubles, matching the default GameConfig::tile_scale.
+  const auto iso2 = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/2.f, /*elev_step=*/4.f);
+  CHECK(iso2.elev_step == doctest::Approx(8.f));
+
+  // tile_scale=0.5f halves it.
+  const auto iso_half = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/0.5f, /*elev_step=*/4.f);
+  CHECK(iso_half.elev_step == doctest::Approx(2.f));
+
+  // half_tw / half_th are scaled the same way — sanity check the field convention.
+  CHECK(iso2.half_tw == doctest::Approx(iso1.half_tw * 2.f));
+  CHECK(iso2.half_th == doctest::Approx(iso1.half_th * 2.f));
+}
+
+TEST_CASE("compute_isometric_params — elev_step/half_th is scale-invariant (no zoom drift)") {
+  // The "no relative drift when zooming" property: the elevation ratio
+  // elev_step / half_th must be constant across tile_scale values, since
+  // elevation lift should scale together with the rest of the diamond geometry.
+  // iso_depth_key uses this ratio as its elevation term, so scale-invariance
+  // here is what keeps depth ordering stable across zoom levels.
+  constexpr float elev_step = 4.f;
+  const auto iso_1x = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/1.f, elev_step);
+  const auto iso_2x = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/2.f, elev_step);
+  const auto iso_half = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/0.5f, elev_step);
+
+  const float r1 = iso_1x.elev_step / iso_1x.half_th;
+  const float r2 = iso_2x.elev_step / iso_2x.half_th;
+  const float rh = iso_half.elev_step / iso_half.half_th;
+
+  CHECK(r1 == doctest::Approx(r2));
+  CHECK(r1 == doctest::Approx(rh));
+}
+
+TEST_CASE("compute_isometric_params — tile_to_world elevation lift scales with tile_scale") {
+  // End-to-end check: an elevated tile at (2,2) lifts by exactly elev * iso.elev_step
+  // in scaled coordinates, and iso.elev_step scales linearly with tile_scale — so
+  // elevation lift scales with the rest of the diamond geometry instead of drifting
+  // relative to it (which is the user-visible "stays locked to its ground cell while
+  // zooming" guarantee from the renderer side).
+  constexpr float elev_step = 4.f;
+  constexpr int elev = 5;
+  const auto iso_1x = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/1.f, elev_step);
+  const auto iso_2x = ccm::compute_isometric_params(64, 32, 10, /*tile_scale=*/2.f, elev_step);
+
+  const auto flat_1x = ccm::tile_to_world(2, 2, 0, iso_1x);
+  const auto raised_1x = ccm::tile_to_world(2, 2, elev, iso_1x);
+  const auto flat_2x = ccm::tile_to_world(2, 2, 0, iso_2x);
+  const auto raised_2x = ccm::tile_to_world(2, 2, elev, iso_2x);
+
+  const float lift_1x = flat_1x.y - raised_1x.y;
+  const float lift_2x = flat_2x.y - raised_2x.y;
+  CHECK(lift_1x == doctest::Approx(static_cast<float>(elev) * iso_1x.elev_step));
+  CHECK(lift_2x == doctest::Approx(static_cast<float>(elev) * iso_2x.elev_step));
+  // Lift grows in proportion to tile_scale, matching the rest of the diamond geometry.
+  CHECK(lift_2x == doctest::Approx(lift_1x * 2.f));
+}
+
 // ── tile_to_world_center (anchor unification) ───────────────────────────────
 
 TEST_CASE("tile_to_world_center — cell center is top vertex plus (0, half_th)") {

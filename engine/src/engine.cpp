@@ -98,8 +98,10 @@ namespace corundum {
         // Convert tile-grid spawn position to isometric for camera tracking.
         // Cell-center anchor (matches entity sprite position) keeps the camera
         // aligned with the player instead of offset half_th above them.
+        // elev_step is pre-multiplied by tile_scale to match compute_isometric_params()
+        // for consistency with the renderer's scaled iso.elev_step.
         const corundum::core::math::IsometricParams iso{info.half_tw, info.half_th, info.x_origin,
-                                                        engine_.cfg.elevation_step_px};
+                                                        engine_.cfg.elevation_step_px * engine_.cfg.tile_scale};
         const auto [iso_x, iso_y] =
             corundum::core::math::tile_to_world_center(spawn_pos.col, spawn_pos.row, 0.f, iso);
 

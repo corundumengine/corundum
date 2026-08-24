@@ -36,7 +36,11 @@ namespace {
 
     // One projection for the whole frame: animation speed scaling (screen-space
     // velocity) and camera tracking (cell-center anchor) share the same params.
-    const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin, cfg.elevation_step_px};
+    // elev_step here is pre-multiplied by tile_scale to match the renderer's
+    // already-scaled iso.elev_step (see compute_isometric_params()), so the
+    // camera tracks the entity's true screen position across zoom levels.
+    const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin,
+                                                    cfg.elevation_step_px * map.tile_scale};
 
     corundum::anim::sys::animate(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
                                  iso, cfg.player_speed, dt);
@@ -91,7 +95,7 @@ namespace corundum::gameplay::world {
     update_zoom(scene, input, cfg, dt, win_w, win_h);
 
     scene.hovered_tile = corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map,
-                                                            cfg.elevation_step_px, scene.camera.zoom);
+                                                            cfg.elevation_step_px * map.tile_scale, scene.camera.zoom);
 
     if (scene.mode == corundum::gameplay::world::GameMode::Dialogue) [[unlikely]] {
       corundum::gameplay::sys::update_dialogue(scene, actions, flags, quests);

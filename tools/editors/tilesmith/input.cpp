@@ -244,9 +244,10 @@ namespace tools::tilemap {
         return;
       // Use the same fractional isometric projection as placement so sub-tile rects (Shift-drag)
       // are hit-testable — integer floor would miss any rect whose col/row is non-integral.
-      const auto frac = pixel_to_fractional_tile(
-          win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
-          state.elev_step_px, state.map.height, effective_diamond_w(state.map), effective_diamond_h(state.map));
+      const auto frac =
+          pixel_to_fractional_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
+                                   state.canvas.scale, state.elev_step_px, state.map.height,
+                                   effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
       auto &cols = state.map.collisions;
       for (int i = static_cast<int>(cols.size()) - 1; i >= 0; --i) {
         const auto idx = static_cast<std::size_t>(i);

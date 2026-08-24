@@ -172,10 +172,11 @@ is suppressed while dragging one, so you can't accidentally paint through
 it). Mouse wheel over the canvas does nothing; over the palette panel it
 scrolls the tileset grid.
 
-There's no interactive zoom in Tilesmith — `tile_scale` is computed once
-from the tileset's frame size when the map loads (targeting ~64px rendered
-cells) and stays fixed for the session. This is separate from the in-game
-camera's live scroll-wheel zoom.
+There's an interactive zoom in Tilesmith via mouse wheel over the canvas
+(managed by `CanvasController`), separate from the in-game camera's live
+scroll-wheel zoom. The startup `tile_scale` is still computed once from
+the tileset's frame size when the map loads (targeting ~64px rendered
+cells); the wheel only scales the rendered canvas around the cursor.
 
 ---
 

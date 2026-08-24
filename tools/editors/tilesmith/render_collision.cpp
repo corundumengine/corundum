@@ -145,7 +145,8 @@ namespace tools::tilemap {
     if (state.col_drag_sub_tile) {
       cr = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
                                state.col_drag_cur_win_y, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x,
-                               state.canvas.offset_y, state.canvas.scale, state.elev_step_px, state.map.height, tw, th);
+                               state.canvas.offset_y, state.canvas.scale, state.elev_step_px, state.map.height, tw, th,
+                               state.map);
     } else {
       cr = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
                              state.col_drag_cur_row);
