@@ -28,8 +28,9 @@ build/tools/tilesmith data/tilemaps/foo.json   # opens an existing map
 
 ## Layers
 
-The palette panel's layer strip (top-left) lists every layer. `+`/`-` add or
-delete a layer; double-click a row to rename; click the eye icon to toggle
+The palette panel's layer strip (top-left) lists every layer. `+` opens a
+preset picker (below); `-` deletes the active layer; double-click a row to
+rename (and edit `z_index` / `depth_sorted`); click the eye icon to toggle
 visibility; click a row to make it the active layer (or press `Tab` to cycle,
 or `1`–`9` to jump directly).
 
@@ -45,6 +46,45 @@ entity — use this for rooftops, canopy, and decals. When `true`, the layer's
 tiles are depth-sorted per-cell against entities and elevated ground tiles
 instead, so a player can walk in front of or behind them realistically — use
 this for walls, pillars, and other tall props.
+
+### Layer presets
+
+Clicking `+` opens a picker of canonical layer roles. Each preset is just a
+starting point — name, `z_index`, and `depth_sorted` all stay editable
+afterward via double-click, so picking the wrong preset is never destructive.
+
+| Preset | `z_index` | `depth_sorted` | Use |
+|---|---|---|---|
+| Ground | 0 | false | Floor / terrain — the only kind elevation, ramps, and walkability operate on. |
+| Floor Detail | 0 | false | Rugs, cracks, stains painted over Ground. A second `z_index=0` layer; elevation/material/ramp lookups automatically resolve to the topmost such layer with a tile present, so this stacks for free. |
+| Water | 0 | false | Liquid tiles; same `z_index=0` as Ground (walkable footprint). Per-cell audio/material tagging uses the existing `material_overrides` map or the water tileset's own default `material`. |
+| Walls | 1 | **true** | Walls, pillars, tall props the player walks behind/in front of. |
+| Roof | 1 | false | Roof surfaces — always draw above entities. |
+| Decor | 2 | false | Canopy, overhangs, decals meant to sit above Roof. Distinct `z_index` so it gets its own ascending draw pass independent of Roof. |
+| Blank | 0 | false | Escape hatch — reproduces the pre-preset default (`"Layer {N}"`), useful when none of the roles above fit. |
+
+Presets are only a naming/semantic convention — the engine never switches on
+the name string. What's enforced is the `z_index`/`depth_sorted` combination
+each preset applies, which is what determines draw order at runtime.
+
+### Multi-story buildings
+
+Each story's walkable footprint is a separate `Ground` layer at a different
+elevation, connected to the floors above and below by ramps. Elevation,
+walkability, and ramps only operate on `z_index=0` layers, so splitting
+stories by elevation is the only split that affects gameplay.
+
+The walls/roof decor are usually fine as a single layer pair per building —
+`depth_sorted=true` walls are collected into a single per-tile depth-sorted
+pass regardless of how many separate wall layers exist, so two `Walls`
+layers (one per story) automatically interleave correctly with entities.
+
+That said, splitting `Walls` / `Roof` per story is still worth doing when
+you want to toggle a floor's `visible` flag independently — the standard
+"upper floor fades when you're inside" cutaway, or to avoid stepping on
+another floor's tiles while painting. Each story's layers get the existing
+dedup-naming treatment (`Walls` → `Walls 2`); rename them via double-click
+to whatever makes sense (`Walls (Ground Floor)` etc.).
 
 A cell can have independently-painted data on more than one z_index==0 layer;
 elevation, material, and ramp lookups all resolve to the **topmost layer with
@@ -238,7 +278,7 @@ Modes:         E  elevation    [ / ]  brush value (Shift = ×10)
                P  portals      Delete/Backspace  remove selected
                W  walkability overlay (read-only)
 
-Layers:        Tab  cycle   1-9  jump to layer   +/-  add/delete   double-click  rename
+Layers:        Tab  cycle   1-9  jump to layer   +  preset picker   -  delete   double-click  rename
 
 Save:          Ctrl+S  validate + save (Save Anyway on warnings)
 

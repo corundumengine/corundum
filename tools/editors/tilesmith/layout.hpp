@@ -4,12 +4,12 @@
 
 namespace tools::tilemap {
 
-  constexpr int WINDOW_W = 1770;
+  constexpr int WINDOW_W = 1900;
   constexpr int WINDOW_H = 1000;
-  constexpr int PALETTE_W = 350;
+  constexpr int PALETTE_W = 480;
   constexpr int STATUS_H = 26;
-  constexpr int CANVAS_W = WINDOW_W - PALETTE_W; ///< 1620
-  constexpr int CANVAS_H = WINDOW_H - STATUS_H;  ///< 1056
+  constexpr int CANVAS_W = WINDOW_W - PALETTE_W; ///< 1420
+  constexpr int CANVAS_H = WINDOW_H - STATUS_H;  ///< 974
   constexpr int LAYER_ROW_H = 28;
   constexpr int LAYER_TITLE_H = 30; ///< Height of the "Layers" header row above the layer list.
 

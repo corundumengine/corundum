@@ -2,6 +2,7 @@
 #include "coords.hpp"
 #include "elevation_paint.hpp"
 #include "fill.hpp"
+#include "layer_presets.hpp"
 #include "layout.hpp"
 #include "paint.hpp"
 #include "ramp_paint.hpp"
@@ -261,11 +262,12 @@ namespace tools::tilemap {
     }
 
     // ── Layer properties popup state ─────────────────────────────────────────
-    bool layer_rename_requested = false;   ///< True when user double-clicked a layer.
-    int layer_rename_idx = -1;             ///< Index of the layer being edited.
-    char layer_rename_buf[256] = {};       ///< Buffer for the layer name.
-    int layer_props_z_index = 0;           ///< Buffer for the layer's z_index, edited in the popup.
-    bool layer_props_depth_sorted = false; ///< Buffer for the layer's depth_sorted flag.
+    bool layer_rename_requested = false;    ///< True when user double-clicked a layer.
+    int layer_rename_idx = -1;              ///< Index of the layer being edited.
+    char layer_rename_buf[256] = {};        ///< Buffer for the layer name.
+    int layer_props_z_index = 0;            ///< Buffer for the layer's z_index, edited in the popup.
+    bool layer_props_depth_sorted = false;  ///< Buffer for the layer's depth_sorted flag.
+    bool layer_add_popup_requested = false; ///< True when the "+" button was clicked.
 
     // ── Validation popup state ───────────────────────────────────────────────
     bool show_validation_popup = false;         ///< True when Ctrl+S found problems to confirm.
@@ -274,15 +276,8 @@ namespace tools::tilemap {
     // ── Fill-blocked popup state ─────────────────────────────────────────────
     bool show_fill_blocked_popup = false; ///< True when F was pressed on a non-ground layer.
 
-    void add_layer(EditorState &state) noexcept {
-      const std::string name = std::format("Layer {}", state.map.layers.size() + 1);
-      corundum::gameplay::world::tilemap::TilemapLayer layer;
-      layer.name = name;
-      layer.z_index = 0;
-      layer.visible = true;
-      layer.tiles.assign(static_cast<std::size_t>(state.map.width * state.map.height),
-                         corundum::gameplay::world::tilemap::k_empty_tile);
-      state.map.layers.push_back(std::move(layer));
+    void add_layer(EditorState &state, LayerPreset preset) noexcept {
+      state.map.layers.push_back(make_layer_from_preset(preset, state.map.width, state.map.height, state.map.layers));
       state.dirty = true;
     }
 
@@ -306,7 +301,7 @@ namespace tools::tilemap {
         const float btn_y = (static_cast<float>(LAYER_TITLE_H) - LAYER_BTN_H) * 0.5f;
         if (panel_x >= LAYER_BTN_ADD_X && panel_x < LAYER_BTN_ADD_X + LAYER_BTN_W && panel_y >= btn_y &&
             panel_y < btn_y + LAYER_BTN_H) {
-          add_layer(state);
+          layer_add_popup_requested = true;
           return;
         }
         if (panel_x >= LAYER_BTN_DEL_X && panel_x < LAYER_BTN_DEL_X + LAYER_BTN_W && panel_y >= btn_y &&
@@ -635,6 +630,28 @@ namespace tools::tilemap {
       constexpr float k_wheel_scroll_px = 60.f;
       state.palette_scroll_y -= io.MouseWheel * k_wheel_scroll_px;
       state.palette_scroll_y = std::clamp(state.palette_scroll_y, 0.f, static_cast<float>(std::max(0, content_h)));
+    }
+
+    // ── Add layer popup ──────────────────────────────────────────────────────
+    if (layer_add_popup_requested) {
+      ImGui::OpenPopup("Add Layer");
+      layer_add_popup_requested = false;
+    }
+
+    if (ImGui::BeginPopupModal("Add Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      constexpr LayerPreset presets[] = {LayerPreset::Ground, LayerPreset::FloorDetail, LayerPreset::Water,
+                                         LayerPreset::Walls,  LayerPreset::Roof,        LayerPreset::Decor,
+                                         LayerPreset::Blank};
+      for (const LayerPreset preset : presets) {
+        if (ImGui::Selectable(std::string(layer_preset_label(preset)).c_str())) {
+          add_layer(state, preset);
+          ImGui::CloseCurrentPopup();
+        }
+      }
+      ImGui::Separator();
+      if (ImGui::Button("Cancel", ImVec2{120.f, 0.f}))
+        ImGui::CloseCurrentPopup();
+      ImGui::EndPopup();
     }
 
     // ── Layer rename popup ──────────────────────────────────────────────────
