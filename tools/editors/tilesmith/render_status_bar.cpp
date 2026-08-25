@@ -6,7 +6,27 @@
 
 namespace tools::tilemap {
 
-  void render_status_bar(const EditorState &state) {
+  using namespace corundum::tool_host;
+
+  namespace {
+    /// Draws one status-bar segment in `role`'s color, preceded by a muted "|" separator (unless
+    /// `first` is true, for the very first segment on the line). No-op for an empty `text` so an
+    /// inactive conditional segment (e.g. elevation_label when show_elevation is false) doesn't
+    /// leave a stray separator behind — the next rendered segment ends up directly after the last
+    /// one that actually drew something, with exactly one "|" between them either way.
+    void segment(const ThemeColors &theme, TextRole role, const std::string &text, bool first = false) {
+      if (text.empty())
+        return;
+      if (!first) {
+        ImGui::SameLine();
+        TextColoredRole(theme, TextRole::Muted, "|");
+        ImGui::SameLine();
+      }
+      TextColoredRole(theme, role, text.c_str());
+    }
+  } // namespace
+
+  void render_status_bar(const EditorState &state, const ThemeColors &theme) {
     // Text (ImGui overlay)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{4.f, 4.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
@@ -44,7 +64,7 @@ namespace tools::tilemap {
       const auto &layer = state.map.layers[static_cast<std::size_t>(state.active_layer)];
       const auto hover_gid = state.map.layer_view(layer)[state.hover_tile_row, state.hover_tile_col];
       if (hover_gid == corundum::gameplay::world::tilemap::k_empty_tile) {
-        hover_label = std::format("  [hover ({},{}): empty]", state.hover_tile_col, state.hover_tile_row);
+        hover_label = std::format("[hover ({},{}): empty]", state.hover_tile_col, state.hover_tile_row);
       } else {
         const corundum::gameplay::world::tilemap::TilemapTileset *hover_ts =
             corundum::gameplay::world::tilemap::find_tileset(state.map.tilesets, hover_gid);
@@ -54,11 +74,11 @@ namespace tools::tilemap {
               (local_id >= 0 && static_cast<std::size_t>(local_id) < hover_ts->info.tile_names.size())
                   ? hover_ts->info.tile_names[static_cast<std::size_t>(local_id)]
                   : std::string{};
-          hover_label = std::format("  [hover ({},{}): GID {} local_id {} ({})]", state.hover_tile_col,
+          hover_label = std::format("[hover ({},{}): GID {} local_id {} ({})]", state.hover_tile_col,
                                     state.hover_tile_row, hover_gid, local_id, name.empty() ? "?" : name);
         } else {
-          hover_label = std::format("  [hover ({},{}): GID {} (no tileset)]", state.hover_tile_col,
-                                    state.hover_tile_row, hover_gid);
+          hover_label = std::format("[hover ({},{}): GID {} (no tileset)]", state.hover_tile_col, state.hover_tile_row,
+                                    hover_gid);
         }
       }
     }
@@ -66,11 +86,11 @@ namespace tools::tilemap {
     std::string flip_label;
     if (state.selected_flip ==
         (corundum::gameplay::world::tilemap::k_flip_h | corundum::gameplay::world::tilemap::k_flip_v))
-      flip_label = "  [flip: HV]";
+      flip_label = "[flip: HV]";
     else if (state.selected_flip == corundum::gameplay::world::tilemap::k_flip_h)
-      flip_label = "  [flip: H]";
+      flip_label = "[flip: H]";
     else if (state.selected_flip == corundum::gameplay::world::tilemap::k_flip_v)
-      flip_label = "  [flip: V]";
+      flip_label = "[flip: V]";
 
     // Elevation readout — reads the active layer's raw value directly (not the
     // cross-layer-resolved elevation_at()), since this should reflect what a
@@ -83,28 +103,32 @@ namespace tools::tilemap {
                                    ? 0
                                    : layer.elevation[static_cast<std::size_t>(state.hover_tile_row * state.map.width +
                                                                               state.hover_tile_col)];
-        elevation_label = std::format("  [elev brush:{} hover:{}]", state.selected_elevation, hover_elev);
+        elevation_label = std::format("[elev brush:{} hover:{}]", state.selected_elevation, hover_elev);
       } else {
-        elevation_label = std::format("  [elev brush:{}]", state.selected_elevation);
+        elevation_label = std::format("[elev brush:{}]", state.selected_elevation);
       }
     }
 
     const std::string walkability_label =
-        state.show_walkability ? std::format("  [walkability: max_step {}]", state.max_step_height) : "";
+        state.show_walkability ? std::format("[walkability: max_step {}]", state.max_step_height) : "";
 
     using corundum::gameplay::world::tilemap::RampAxis;
     const std::string ramp_label =
         state.show_ramps
-            ? std::format("  [ramp axis: {}]", state.selected_ramp_axis == RampAxis::NorthSouth ? "N-S" : "E-W")
+            ? std::format("[ramp axis: {}]", state.selected_ramp_axis == RampAxis::NorthSouth ? "N-S" : "E-W")
             : "";
 
-    const std::string text =
-        std::format("[layer: {}]{}{}{}{}{}{}  [Cmd+S to save]{}  [G: grid]  [ESC or Q to quit]", layer_name,
-                    tile_label.empty() ? "" : "  [" + tile_label + "]", hover_label, flip_label, elevation_label,
-                    ramp_label, walkability_label, state.dirty ? "  *" : "");
-
     ImGui::SetCursorPosX(15.0f);
-    ImGui::TextUnformatted(text.c_str());
+    segment(theme, TextRole::Normal, std::format("[layer: {}]", layer_name), /*first=*/true);
+    segment(theme, TextRole::Normal, tile_label.empty() ? "" : std::format("[{}]", tile_label));
+    segment(theme, TextRole::Muted, hover_label);
+    segment(theme, TextRole::Muted, flip_label);
+    segment(theme, TextRole::Accent, elevation_label);
+    segment(theme, TextRole::Accent, ramp_label);
+    segment(theme, TextRole::Accent, walkability_label);
+    segment(theme, state.dirty ? TextRole::Warning : TextRole::Success, state.dirty ? "* unsaved" : "saved");
+    segment(theme, TextRole::Muted, "[Cmd+S to save]  [G: grid]  [ESC or Q to quit]");
+
     ImGui::End();
   }
 

@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
     ImGui::End();
 
     tools::tilemap::render_tile_grid(*host, state, texture_store, tileset_views);
-    tools::tilemap::render_status_bar(state);
+    tools::tilemap::render_status_bar(state, theme);
     tools::tilemap::render_portal_panel(state);
 
     tools::tilemap::handle_input(state, mouse, running);
