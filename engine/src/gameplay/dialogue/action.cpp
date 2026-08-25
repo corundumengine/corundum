@@ -173,17 +173,17 @@ namespace corundum::gameplay::dialogue {
             using T = std::decay_t<decltype(a)>;
             if constexpr (std::is_same_v<T, StateAction>) {
               switch (a.op) {
-              case StateAction::Op::Assign:
-                flags[a.var] = a.value;
-                break;
-              case StateAction::Op::Add:
-                flags[a.var] += a.value;
-                break;
-              case StateAction::Op::Sub:
-                flags[a.var] -= a.value;
-                break;
-              default:
-                std::unreachable();
+                case StateAction::Op::Assign:
+                  flags[a.var] = a.value;
+                  break;
+                case StateAction::Op::Add:
+                  flags[a.var] += a.value;
+                  break;
+                case StateAction::Op::Sub:
+                  flags[a.var] -= a.value;
+                  break;
+                default:
+                  std::unreachable();
               }
             } else if constexpr (std::is_same_v<T, EventAction>) {
               events.push_back(std::move(a));

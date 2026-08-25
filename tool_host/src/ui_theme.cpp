@@ -87,22 +87,22 @@ namespace corundum::tool_host {
 
   ImVec4 GetTextColor(const ThemeColors &theme, TextRole role) {
     switch (role) {
-    case TextRole::Active:
-      return theme.text_active;
-    case TextRole::Disabled:
-      return theme.text_disabled;
-    case TextRole::Normal:
-      return theme.text_normal;
-    case TextRole::Muted:
-      return theme.text_muted;
-    case TextRole::Accent:
-      return theme.text_accent;
-    case TextRole::Success:
-      return theme.text_success;
-    case TextRole::Warning:
-      return theme.text_warning;
-    case TextRole::Error:
-      return theme.text_error;
+      case TextRole::Active:
+        return theme.text_active;
+      case TextRole::Disabled:
+        return theme.text_disabled;
+      case TextRole::Normal:
+        return theme.text_normal;
+      case TextRole::Muted:
+        return theme.text_muted;
+      case TextRole::Accent:
+        return theme.text_accent;
+      case TextRole::Success:
+        return theme.text_success;
+      case TextRole::Warning:
+        return theme.text_warning;
+      case TextRole::Error:
+        return theme.text_error;
     }
     return theme.text_normal;
   }

@@ -82,26 +82,26 @@ namespace corundum::gameplay::dialogue {
 
         // Single-character operators
         switch (c) {
-        case '<':
-          ++pos_;
-          return {TokKind::Lt, 0, src_.substr(start, 1)};
-        case '>':
-          ++pos_;
-          return {TokKind::Gt, 0, src_.substr(start, 1)};
-        case '!':
-          ++pos_;
-          return {TokKind::Not, 0, src_.substr(start, 1)};
-        case '(':
-          ++pos_;
-          return {TokKind::LParen, 0, src_.substr(start, 1)};
-        case ')':
-          ++pos_;
-          return {TokKind::RParen, 0, src_.substr(start, 1)};
-        case ',':
-          ++pos_;
-          return {TokKind::Comma, 0, src_.substr(start, 1)};
-        default:
-          break;
+          case '<':
+            ++pos_;
+            return {TokKind::Lt, 0, src_.substr(start, 1)};
+          case '>':
+            ++pos_;
+            return {TokKind::Gt, 0, src_.substr(start, 1)};
+          case '!':
+            ++pos_;
+            return {TokKind::Not, 0, src_.substr(start, 1)};
+          case '(':
+            ++pos_;
+            return {TokKind::LParen, 0, src_.substr(start, 1)};
+          case ')':
+            ++pos_;
+            return {TokKind::RParen, 0, src_.substr(start, 1)};
+          case ',':
+            ++pos_;
+            return {TokKind::Comma, 0, src_.substr(start, 1)};
+          default:
+            break;
         }
 
         // Integer literal (with optional leading minus)
@@ -211,20 +211,20 @@ namespace corundum::gameplay::dialogue {
           }
 
           switch (op) {
-          case TokKind::EqEq:
-            return lhs == rhs;
-          case TokKind::NotEq:
-            return lhs != rhs;
-          case TokKind::Lt:
-            return lhs < rhs;
-          case TokKind::Gt:
-            return lhs > rhs;
-          case TokKind::LtEq:
-            return lhs <= rhs;
-          case TokKind::GtEq:
-            return lhs >= rhs;
-          default:
-            break;
+            case TokKind::EqEq:
+              return lhs == rhs;
+            case TokKind::NotEq:
+              return lhs != rhs;
+            case TokKind::Lt:
+              return lhs < rhs;
+            case TokKind::Gt:
+              return lhs > rhs;
+            case TokKind::LtEq:
+              return lhs <= rhs;
+            case TokKind::GtEq:
+              return lhs >= rhs;
+            default:
+              break;
           }
         }
 
@@ -234,34 +234,34 @@ namespace corundum::gameplay::dialogue {
 
       int parse_primary() {
         switch (cur_.kind) {
-        case TokKind::Int: {
-          const int v = cur_.int_val;
-          advance();
-          return v;
-        }
-        case TokKind::True:
-          advance();
-          return 1;
-        case TokKind::False:
-          advance();
-          return 0;
-        case TokKind::Ident: {
-          const auto name = std::string(cur_.text);
-          advance();
-          if (cur_.kind == TokKind::LParen)
-            return parse_quest_helper(name);
-          return corundum::gameplay::visit_count(vars_, name);
-        }
-        case TokKind::LParen: {
-          advance();
-          const bool v = parse_or();
-          if (cur_.kind != TokKind::RParen)
-            throw std::runtime_error("expected ')'");
-          advance();
-          return v ? 1 : 0;
-        }
-        default:
-          throw std::runtime_error("expected value, got: " + std::string(cur_.text));
+          case TokKind::Int: {
+            const int v = cur_.int_val;
+            advance();
+            return v;
+          }
+          case TokKind::True:
+            advance();
+            return 1;
+          case TokKind::False:
+            advance();
+            return 0;
+          case TokKind::Ident: {
+            const auto name = std::string(cur_.text);
+            advance();
+            if (cur_.kind == TokKind::LParen)
+              return parse_quest_helper(name);
+            return corundum::gameplay::visit_count(vars_, name);
+          }
+          case TokKind::LParen: {
+            advance();
+            const bool v = parse_or();
+            if (cur_.kind != TokKind::RParen)
+              throw std::runtime_error("expected ')'");
+            advance();
+            return v ? 1 : 0;
+          }
+          default:
+            throw std::runtime_error("expected value, got: " + std::string(cur_.text));
         }
       }
 

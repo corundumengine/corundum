@@ -164,20 +164,20 @@ namespace corundum::platform::glfw {
 
     auto is_active = [ly, lx, dpad_up, dpad_down, dpad_left, dpad_right, lt, rt](Act act) noexcept -> bool {
       switch (act) {
-      case Act::MoveUp:
-        return ly < -k_axis_deadzone || dpad_up;
-      case Act::MoveDown:
-        return ly > k_axis_deadzone || dpad_down;
-      case Act::MoveLeft:
-        return lx < -k_axis_deadzone || dpad_left;
-      case Act::MoveRight:
-        return lx > k_axis_deadzone || dpad_right;
-      case Act::ZoomIn:
-        return rt > k_trigger_threshold; // R2
-      case Act::ZoomOut:
-        return lt > k_trigger_threshold; // L2
-      default:
-        return false;
+        case Act::MoveUp:
+          return ly < -k_axis_deadzone || dpad_up;
+        case Act::MoveDown:
+          return ly > k_axis_deadzone || dpad_down;
+        case Act::MoveLeft:
+          return lx < -k_axis_deadzone || dpad_left;
+        case Act::MoveRight:
+          return lx > k_axis_deadzone || dpad_right;
+        case Act::ZoomIn:
+          return rt > k_trigger_threshold; // R2
+        case Act::ZoomOut:
+          return lt > k_trigger_threshold; // L2
+        default:
+          return false;
       }
     };
 

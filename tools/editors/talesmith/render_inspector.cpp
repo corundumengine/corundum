@@ -371,23 +371,23 @@ namespace tools::talesmith {
     ImGui::Separator();
 
     switch (node.type) {
-    case corundum::gameplay::dialogue::NodeType::Talk:
-      copy_to_buf(node.text, state.inspector_bufs.text_buf, sizeof(state.inspector_bufs.text_buf));
-      copy_to_buf(node.next_id, state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf));
-      render_talk_editor(node, state);
-      break;
-    case corundum::gameplay::dialogue::NodeType::Choice:
-      render_choice_editor(node, state);
-      break;
-    case corundum::gameplay::dialogue::NodeType::Event:
-      copy_to_buf(node.next_id, state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf));
-      render_event_editor(node, state);
-      break;
-    case corundum::gameplay::dialogue::NodeType::End:
-      ImGui::Text("No editable properties.");
-      break;
-    default:
-      break;
+      case corundum::gameplay::dialogue::NodeType::Talk:
+        copy_to_buf(node.text, state.inspector_bufs.text_buf, sizeof(state.inspector_bufs.text_buf));
+        copy_to_buf(node.next_id, state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf));
+        render_talk_editor(node, state);
+        break;
+      case corundum::gameplay::dialogue::NodeType::Choice:
+        render_choice_editor(node, state);
+        break;
+      case corundum::gameplay::dialogue::NodeType::Event:
+        copy_to_buf(node.next_id, state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf));
+        render_event_editor(node, state);
+        break;
+      case corundum::gameplay::dialogue::NodeType::End:
+        ImGui::Text("No editable properties.");
+        break;
+      default:
+        break;
     }
 
     ImGui::EndChild();

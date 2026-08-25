@@ -55,14 +55,14 @@ namespace corundum::gameplay::world::tilemap {
 
     [[nodiscard]] const char *cut_to_str(TriangleCut c) {
       switch (c) {
-      case TriangleCut::NorthWest:
-        return "NW";
-      case TriangleCut::NorthEast:
-        return "NE";
-      case TriangleCut::SouthWest:
-        return "SW";
-      case TriangleCut::SouthEast:
-        return "SE";
+        case TriangleCut::NorthWest:
+          return "NW";
+        case TriangleCut::NorthEast:
+          return "NE";
+        case TriangleCut::SouthWest:
+          return "SW";
+        case TriangleCut::SouthEast:
+          return "SE";
       }
       std::unreachable();
     }

@@ -21,20 +21,20 @@ namespace tools::tilemap {
   [[nodiscard]] inline std::string_view layer_preset_label(LayerPreset preset) {
     switch (preset) {
       using enum LayerPreset;
-    case Ground:
-      return "Ground";
-    case FloorDetail:
-      return "Floor Detail";
-    case Water:
-      return "Water";
-    case Walls:
-      return "Walls";
-    case Roof:
-      return "Roof";
-    case Decor:
-      return "Decor";
-    default:
-      return "Blank";
+      case Ground:
+        return "Ground";
+      case FloorDetail:
+        return "Floor Detail";
+      case Water:
+        return "Water";
+      case Walls:
+        return "Walls";
+      case Roof:
+        return "Roof";
+      case Decor:
+        return "Decor";
+      default:
+        return "Blank";
     }
   }
 
@@ -92,41 +92,41 @@ namespace tools::tilemap {
 
     TilemapLayer layer;
     switch (preset) {
-    case LayerPreset::Ground:
-      layer.name = dedup_layer_name("Ground", existing_layers);
-      layer.z_index = 0;
-      layer.depth_sorted = false;
-      break;
-    case LayerPreset::FloorDetail:
-      layer.name = dedup_layer_name("Floor Detail", existing_layers);
-      layer.z_index = 0;
-      layer.depth_sorted = false;
-      break;
-    case LayerPreset::Water:
-      layer.name = dedup_layer_name("Water", existing_layers);
-      layer.z_index = 0;
-      layer.depth_sorted = false;
-      break;
-    case LayerPreset::Walls:
-      layer.name = dedup_layer_name("Walls", existing_layers);
-      layer.z_index = 1;
-      layer.depth_sorted = true;
-      break;
-    case LayerPreset::Roof:
-      layer.name = dedup_layer_name("Roof", existing_layers);
-      layer.z_index = 1;
-      layer.depth_sorted = false;
-      break;
-    case LayerPreset::Decor:
-      layer.name = dedup_layer_name("Decor", existing_layers);
-      layer.z_index = 2;
-      layer.depth_sorted = false;
-      break;
-    case LayerPreset::Blank:
-      layer.name = std::format("Layer {}", existing_layers.size() + 1);
-      layer.z_index = 0;
-      layer.depth_sorted = false;
-      break;
+      case LayerPreset::Ground:
+        layer.name = dedup_layer_name("Ground", existing_layers);
+        layer.z_index = 0;
+        layer.depth_sorted = false;
+        break;
+      case LayerPreset::FloorDetail:
+        layer.name = dedup_layer_name("Floor Detail", existing_layers);
+        layer.z_index = 0;
+        layer.depth_sorted = false;
+        break;
+      case LayerPreset::Water:
+        layer.name = dedup_layer_name("Water", existing_layers);
+        layer.z_index = 0;
+        layer.depth_sorted = false;
+        break;
+      case LayerPreset::Walls:
+        layer.name = dedup_layer_name("Walls", existing_layers);
+        layer.z_index = 1;
+        layer.depth_sorted = true;
+        break;
+      case LayerPreset::Roof:
+        layer.name = dedup_layer_name("Roof", existing_layers);
+        layer.z_index = 1;
+        layer.depth_sorted = false;
+        break;
+      case LayerPreset::Decor:
+        layer.name = dedup_layer_name("Decor", existing_layers);
+        layer.z_index = 2;
+        layer.depth_sorted = false;
+        break;
+      case LayerPreset::Blank:
+        layer.name = std::format("Layer {}", existing_layers.size() + 1);
+        layer.z_index = 0;
+        layer.depth_sorted = false;
+        break;
     }
     layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), k_empty_tile);

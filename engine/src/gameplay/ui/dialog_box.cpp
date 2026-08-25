@@ -52,39 +52,39 @@ namespace corundum::gameplay::ui {
     };
 
     switch (lay.node_type) {
-    case gameplay::dialogue::NodeType::Talk: {
-      draw_str(lay.speaker, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
-      float y = py + inset + spacing;
-      for (const auto &line : lay.body_lines) {
-        if (line.empty()) {
+      case gameplay::dialogue::NodeType::Talk: {
+        draw_str(lay.speaker, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
+        float y = py + inset + spacing;
+        for (const auto &line : lay.body_lines) {
+          if (line.empty()) {
+            y += spacing;
+            continue;
+          }
+          draw_str(line, ds.style.font_size_body, ds.style.body, px + inset, y);
           y += spacing;
-          continue;
         }
-        draw_str(line, ds.style.font_size_body, ds.style.body, px + inset, y);
-        y += spacing;
+        draw_str("[Select] Continue   [Cancel] Close", ds.style.font_size_prompt, ds.style.choice, px + inset,
+                 y + spacing / 2.f);
+        break;
       }
-      draw_str("[Select] Continue   [Cancel] Close", ds.style.font_size_prompt, ds.style.choice, px + inset,
-               y + spacing / 2.f);
-      break;
-    }
-    case gameplay::dialogue::NodeType::Choice: {
-      const char *header = lay.speaker.empty() ? "Choose:" : lay.speaker.data();
-      draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
-      for (std::size_t i = 0; i < lay.choice_lines.size(); ++i) {
-        const bool is_sel = (static_cast<int>(i) == lay.selected_choice);
-        const std::string label = (is_sel ? "> " : "  ") + lay.choice_lines[i];
-        const float y = py + inset + spacing * (1.f + static_cast<float>(i));
-        draw_str(label, ds.style.font_size_body, is_sel ? ds.style.selected : ds.style.choice, px + inset, y);
+      case gameplay::dialogue::NodeType::Choice: {
+        const char *header = lay.speaker.empty() ? "Choose:" : lay.speaker.data();
+        draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
+        for (std::size_t i = 0; i < lay.choice_lines.size(); ++i) {
+          const bool is_sel = (static_cast<int>(i) == lay.selected_choice);
+          const std::string label = (is_sel ? "> " : "  ") + lay.choice_lines[i];
+          const float y = py + inset + spacing * (1.f + static_cast<float>(i));
+          draw_str(label, ds.style.font_size_body, is_sel ? ds.style.selected : ds.style.choice, px + inset, y);
+        }
+        break;
       }
-      break;
-    }
-    case gameplay::dialogue::NodeType::End:
-      draw_str("[Select] Close", ds.style.font_size_body, ds.style.choice, px + inset, py + inset);
-      break;
-    case gameplay::dialogue::NodeType::Event:
-      break;
-    default:
-      std::unreachable();
+      case gameplay::dialogue::NodeType::End:
+        draw_str("[Select] Close", ds.style.font_size_body, ds.style.choice, px + inset, py + inset);
+        break;
+      case gameplay::dialogue::NodeType::Event:
+        break;
+      default:
+        std::unreachable();
     }
   }
 

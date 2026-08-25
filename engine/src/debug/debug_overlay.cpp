@@ -28,22 +28,22 @@ namespace corundum::debug {
     [[nodiscard]] constexpr std::string_view facing_name(gameplay::component::FacingDir d) noexcept {
       using gameplay::component::FacingDir;
       switch (d) {
-      case FacingDir::South:
-        return "South";
-      case FacingDir::North:
-        return "North";
-      case FacingDir::East:
-        return "East";
-      case FacingDir::West:
-        return "West";
-      case FacingDir::NorthEast:
-        return "NE";
-      case FacingDir::SouthEast:
-        return "SE";
-      case FacingDir::SouthWest:
-        return "SW";
-      case FacingDir::NorthWest:
-        return "NW";
+        case FacingDir::South:
+          return "South";
+        case FacingDir::North:
+          return "North";
+        case FacingDir::East:
+          return "East";
+        case FacingDir::West:
+          return "West";
+        case FacingDir::NorthEast:
+          return "NE";
+        case FacingDir::SouthEast:
+          return "SE";
+        case FacingDir::SouthWest:
+          return "SW";
+        case FacingDir::NorthWest:
+          return "NW";
       }
       std::unreachable();
     }

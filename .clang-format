@@ -1,5 +1,6 @@
 BasedOnStyle: LLVM
 NamespaceIndentation: All
+IndentCaseLabels: true
 
 IndentWidth: 2
 ColumnLimit: 120

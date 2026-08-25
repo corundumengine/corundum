@@ -64,20 +64,20 @@ namespace corundum::physics::sys {
         const float v1 = (ay1 - ty) / th; // bottom edge (max v)
         bool in_empty = false;
         switch (tris.cuts[i]) {
-        case TriangleCut::NorthWest:
-          in_empty = u1 + v1 < 1.f;
-          break;
-        case TriangleCut::NorthEast:
-          in_empty = u0 - v1 > 0.f;
-          break;
-        case TriangleCut::SouthWest:
-          in_empty = u1 - v0 < 0.f;
-          break;
-        case TriangleCut::SouthEast:
-          in_empty = u0 + v0 > 1.f;
-          break;
-        default:
-          std::unreachable();
+          case TriangleCut::NorthWest:
+            in_empty = u1 + v1 < 1.f;
+            break;
+          case TriangleCut::NorthEast:
+            in_empty = u0 - v1 > 0.f;
+            break;
+          case TriangleCut::SouthWest:
+            in_empty = u1 - v0 < 0.f;
+            break;
+          case TriangleCut::SouthEast:
+            in_empty = u0 + v0 > 1.f;
+            break;
+          default:
+            std::unreachable();
         }
         if (!in_empty) [[unlikely]]
           return true;
@@ -189,24 +189,24 @@ namespace corundum::physics::sys {
         const float u1_target = 1.f - v1_norm;
         float contact;
         switch (tris.cuts[i]) {
-        case TriangleCut::NorthWest:
-          // pc + aw = tx + tw * u1_target
-          contact = tx + tw * u1_target - aw;
-          break;
-        case TriangleCut::NorthEast:
-          // pc = tx + tw * v1_norm
-          contact = tx + tw * v1_norm;
-          break;
-        case TriangleCut::SouthWest:
-          // pc + aw = tx + tw * v0_norm
-          contact = tx + tw * v0_norm - aw;
-          break;
-        case TriangleCut::SouthEast:
-          // pc = tx + tw * (1 - v0_norm)
-          contact = tx + tw * (1.f - v0_norm);
-          break;
-        default:
-          std::unreachable();
+          case TriangleCut::NorthWest:
+            // pc + aw = tx + tw * u1_target
+            contact = tx + tw * u1_target - aw;
+            break;
+          case TriangleCut::NorthEast:
+            // pc = tx + tw * v1_norm
+            contact = tx + tw * v1_norm;
+            break;
+          case TriangleCut::SouthWest:
+            // pc + aw = tx + tw * v0_norm
+            contact = tx + tw * v0_norm - aw;
+            break;
+          case TriangleCut::SouthEast:
+            // pc = tx + tw * (1 - v0_norm)
+            contact = tx + tw * (1.f - v0_norm);
+            break;
+          default:
+            std::unreachable();
         }
         if (moving_right) {
           if (contact >= prev_col && (!found || contact < best)) {
@@ -246,24 +246,24 @@ namespace corundum::physics::sys {
         const float u0_norm = (x_left - tx) / tw;
         float contact;
         switch (tris.cuts[i]) {
-        case TriangleCut::NorthWest:
-          // pr + ah = ty + th * (1 - u1_norm)
-          contact = ty + th * (1.f - u1_norm) - ah;
-          break;
-        case TriangleCut::NorthEast:
-          // pr + ah = ty + th * u0_norm
-          contact = ty + th * u0_norm - ah;
-          break;
-        case TriangleCut::SouthWest:
-          // pr = ty + th * u1_norm
-          contact = ty + th * u1_norm;
-          break;
-        case TriangleCut::SouthEast:
-          // pr = ty + th * (1 - u0_norm)
-          contact = ty + th * (1.f - u0_norm);
-          break;
-        default:
-          std::unreachable();
+          case TriangleCut::NorthWest:
+            // pr + ah = ty + th * (1 - u1_norm)
+            contact = ty + th * (1.f - u1_norm) - ah;
+            break;
+          case TriangleCut::NorthEast:
+            // pr + ah = ty + th * u0_norm
+            contact = ty + th * u0_norm - ah;
+            break;
+          case TriangleCut::SouthWest:
+            // pr = ty + th * u1_norm
+            contact = ty + th * u1_norm;
+            break;
+          case TriangleCut::SouthEast:
+            // pr = ty + th * (1 - u0_norm)
+            contact = ty + th * (1.f - u0_norm);
+            break;
+          default:
+            std::unreachable();
         }
         if (moving_down) {
           if (contact >= prev_row && (!found || contact < best)) {

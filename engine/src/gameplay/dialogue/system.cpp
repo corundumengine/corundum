@@ -86,60 +86,60 @@ namespace corundum::gameplay::dialogue {
 
     switch (node->type) {
 
-    case NodeType::Talk:
-      if (cancel) {
-        state.reset();
+      case NodeType::Talk:
+        if (cancel) {
+          state.reset();
+          break;
+        }
+        if (select)
+          go_to(state, advance(*state.graph, *node), flags);
+        break;
+
+      case NodeType::Choice: {
+        const auto visible = visible_choices(*node, flags, state.graph->graph_id, quests);
+        const int count = static_cast<int>(visible.size());
+
+        if (count == 0) {
+          state.reset();
+          break;
+        }
+
+        if (state.selected_choice >= count)
+          state.selected_choice = count - 1;
+
+        if (up)
+          state.selected_choice = wrap(state.selected_choice, -1, count);
+        if (down)
+          state.selected_choice = wrap(state.selected_choice, +1, count);
+
+        if (select) {
+          const std::size_t full_idx = visible[static_cast<std::size_t>(state.selected_choice)];
+          const auto &edge = node->choices[full_idx];
+
+          // Record the once-flag before advancing so visible_choices sees it
+          // immediately on any same-frame re-check of this node.
+          if (edge.sequence == SequenceMode::Once)
+            corundum::gameplay::set_flag(flags, once_flag_key(state.graph->graph_id, node->id, full_idx));
+
+          pending.append_range(execute_actions(edge.actions, flags));
+          go_to(state, advance(*state.graph, *node, static_cast<int>(full_idx)), flags);
+        }
+        if (cancel)
+          state.reset();
         break;
       }
-      if (select)
+
+      case NodeType::Event: {
+        pending.append_range(execute_actions(node->actions, flags));
         go_to(state, advance(*state.graph, *node), flags);
-      break;
-
-    case NodeType::Choice: {
-      const auto visible = visible_choices(*node, flags, state.graph->graph_id, quests);
-      const int count = static_cast<int>(visible.size());
-
-      if (count == 0) {
-        state.reset();
         break;
       }
 
-      if (state.selected_choice >= count)
-        state.selected_choice = count - 1;
-
-      if (up)
-        state.selected_choice = wrap(state.selected_choice, -1, count);
-      if (down)
-        state.selected_choice = wrap(state.selected_choice, +1, count);
-
-      if (select) {
-        const std::size_t full_idx = visible[static_cast<std::size_t>(state.selected_choice)];
-        const auto &edge = node->choices[full_idx];
-
-        // Record the once-flag before advancing so visible_choices sees it
-        // immediately on any same-frame re-check of this node.
-        if (edge.sequence == SequenceMode::Once)
-          corundum::gameplay::set_flag(flags, once_flag_key(state.graph->graph_id, node->id, full_idx));
-
-        pending.append_range(execute_actions(edge.actions, flags));
-        go_to(state, advance(*state.graph, *node, static_cast<int>(full_idx)), flags);
-      }
-      if (cancel)
+      case NodeType::End:
         state.reset();
-      break;
-    }
-
-    case NodeType::Event: {
-      pending.append_range(execute_actions(node->actions, flags));
-      go_to(state, advance(*state.graph, *node), flags);
-      break;
-    }
-
-    case NodeType::End:
-      state.reset();
-      break;
-    default:
-      std::unreachable();
+        break;
+      default:
+        std::unreachable();
     }
 
     // Auto-advance through any chain of Event nodes reached after a transition.

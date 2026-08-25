@@ -13,21 +13,21 @@ namespace corundum::gameplay::dialogue {
   const Node *advance(const Graph &graph, const Node &node, int choice_index) noexcept {
     switch (node.type) {
 
-    case NodeType::Talk:
-    case NodeType::Event:
-      return graph.find(node.next_id);
+      case NodeType::Talk:
+      case NodeType::Event:
+        return graph.find(node.next_id);
 
-    case NodeType::Choice: {
-      const auto idx = static_cast<std::size_t>(choice_index);
-      if (choice_index < 0 || idx >= node.choices.size())
+      case NodeType::Choice: {
+        const auto idx = static_cast<std::size_t>(choice_index);
+        if (choice_index < 0 || idx >= node.choices.size())
+          return nullptr;
+        return graph.find(node.choices[idx].target_id);
+      }
+
+      case NodeType::End:
         return nullptr;
-      return graph.find(node.choices[idx].target_id);
-    }
-
-    case NodeType::End:
-      return nullptr;
-    default:
-      std::unreachable();
+      default:
+        std::unreachable();
     }
 
     return nullptr;
@@ -77,25 +77,25 @@ namespace corundum::gameplay::dialogue {
 
       // ── Sequence mode ────────────────────────────────────────────────────────
       switch (edge.sequence) {
-      case SequenceMode::None:
-        break;
+        case SequenceMode::None:
+          break;
 
-      case SequenceMode::Once:
-        if (corundum::gameplay::has_flag(flags, once_flag_key(graph_id, node.id, i)))
-          continue;
-        break;
+        case SequenceMode::Once:
+          if (corundum::gameplay::has_flag(flags, once_flag_key(graph_id, node.id, i)))
+            continue;
+          break;
 
-      case SequenceMode::Cycle:
-        if (cycle_idx++ != cycle_slot)
-          continue;
-        break;
+        case SequenceMode::Cycle:
+          if (cycle_idx++ != cycle_slot)
+            continue;
+          break;
 
-      case SequenceMode::Random:
-        if (random_idx++ != selected_random)
-          continue;
-        break;
-      default:
-        std::unreachable();
+        case SequenceMode::Random:
+          if (random_idx++ != selected_random)
+            continue;
+          break;
+        default:
+          std::unreachable();
       }
 
       // ── Condition expression ─────────────────────────────────────────────────

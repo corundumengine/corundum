@@ -47,28 +47,28 @@ namespace tools::tilemap {
 
       ImVec2 a, b, c;
       switch (cut) {
-      case TriangleCut::NorthWest:
-        a = right;
-        b = bottom;
-        c = left;
-        break;
-      case TriangleCut::SouthEast:
-        a = top;
-        b = right;
-        c = left;
-        break;
-      case TriangleCut::NorthEast:
-        a = top;
-        b = bottom;
-        c = left;
-        break;
-      case TriangleCut::SouthWest:
-        a = top;
-        b = right;
-        c = bottom;
-        break;
-      default:
-        std::unreachable();
+        case TriangleCut::NorthWest:
+          a = right;
+          b = bottom;
+          c = left;
+          break;
+        case TriangleCut::SouthEast:
+          a = top;
+          b = right;
+          c = left;
+          break;
+        case TriangleCut::NorthEast:
+          a = top;
+          b = bottom;
+          c = left;
+          break;
+        case TriangleCut::SouthWest:
+          a = top;
+          b = right;
+          c = bottom;
+          break;
+        default:
+          std::unreachable();
       }
       ctx.dl->AddTriangleFilled(a, b, c, fill);
       ctx.dl->AddTriangle(a, b, c, outline, 1.f);
