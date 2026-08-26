@@ -27,8 +27,9 @@ namespace tools::tilemap {
   /**
    * @brief Render the "New Tilemap" modal popup.
    *
-   * Must be called every frame while the dialog is active. Sets
-   * dlg.confirmed or dlg.cancelled when the user acts.
+   * Must be called every frame while the dialog is active. The caller is responsible for calling
+   * ImGui::OpenPopup("New Tilemap") once, the frame the dialog becomes active — see menu.cpp's
+   * open_new_map_dialog(). Sets dlg.confirmed or dlg.cancelled when the user acts.
    *
    * @param [in,out] dlg Dialog state updated each frame.
    */

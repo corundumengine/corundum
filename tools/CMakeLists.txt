@@ -1,6 +1,7 @@
 # ── Tilesmith Editor ────────────────────────────────────────────────────────────
 add_executable(tilesmith
     editors/tilesmith/main.cpp
+    editors/tilesmith/menu.cpp
     editors/tilesmith/new_map_dialog.cpp
     editors/tilesmith/tilemap_rendering.cpp
     editors/tilesmith/paint.cpp

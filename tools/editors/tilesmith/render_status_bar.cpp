@@ -30,7 +30,7 @@ namespace tools::tilemap {
     // Text (ImGui overlay)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{4.f, 4.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::SetNextWindowPos(ImVec2{0.f, static_cast<float>(CANVAS_H)});
+    ImGui::SetNextWindowPos(ImVec2{0.f, static_cast<float>(k_menu_h + CANVAS_H)});
     ImGui::SetNextWindowSize(ImVec2{static_cast<float>(WINDOW_W), static_cast<float>(STATUS_H)});
     ImGui::Begin("##statusbar", nullptr,
                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |

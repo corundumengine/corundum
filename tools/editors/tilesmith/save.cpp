@@ -4,19 +4,25 @@
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/tilemap/serialize.hpp>
+#include <corundum/gameplay/world/tilemap/tilemap.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <print>
 
 namespace tools::tilemap {
 
   std::expected<void, std::string> save_tilemap(EditorState &state) {
-    // 1. Read existing JSON for base-merge (preserves unknown keys)
-    std::ifstream in(state.map_path);
-    if (!in)
-      return std::unexpected("Cannot open: " + state.map_path.string());
-    nlohmann::json base = nlohmann::json::parse(in, nullptr, true, true);
+    // 1. Read existing JSON for base-merge (preserves unknown keys), or start from an empty
+    // object if this path doesn't exist yet (Save As to a new filename).
+    nlohmann::json base = nlohmann::json::object();
+    if (std::filesystem::exists(state.map_path)) {
+      std::ifstream in(state.map_path);
+      if (!in)
+        return std::unexpected("Cannot open: " + state.map_path.string());
+      base = nlohmann::json::parse(in, nullptr, true, true);
+    }
 
     // 2. Serialize tilemap onto base
     nlohmann::json j = corundum::gameplay::world::tilemap::serialize_tilemap(state.map, &base);
@@ -50,6 +56,21 @@ namespace tools::tilemap {
 
   std::filesystem::path portals_path(const std::filesystem::path &map_path) {
     return std::filesystem::path("data/portals") / map_path.filename();
+  }
+
+  void try_save(EditorState &state) {
+    state.validation_errors = corundum::gameplay::world::tilemap::validate(state.map);
+    if (!state.validation_errors.empty()) {
+      state.show_validation_popup = true;
+      return;
+    }
+    if (auto r = save_tilemap(state); r) {
+      std::println("[Tilesmith] Saved: {}", state.map_path.string());
+    } else {
+      state.last_io_error = r.error();
+      state.show_io_error_popup = true;
+      std::println(stderr, "[Tilesmith] Save failed: {}", r.error());
+    }
   }
 
   std::expected<void, std::string> load_portals(EditorState &state) {

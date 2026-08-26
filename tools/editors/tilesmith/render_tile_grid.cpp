@@ -151,7 +151,7 @@ namespace tools::tilemap {
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::SetNextWindowPos(ImVec2{static_cast<float>(CANVAS_W), static_cast<float>(layer_strip_h)});
+    ImGui::SetNextWindowPos(ImVec2{static_cast<float>(CANVAS_W), static_cast<float>(k_menu_h + layer_strip_h)});
     ImGui::SetNextWindowSize(ImVec2{static_cast<float>(PALETTE_W), static_cast<float>(tab_h)});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4{30.f / 255.f, 30.f / 255.f, 40.f / 255.f, 1.f});
     ImGui::Begin("Sprite Sheets", nullptr,
@@ -315,7 +315,7 @@ namespace tools::tilemap {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::SetNextWindowPos(ImVec2{static_cast<float>(CANVAS_W), static_cast<float>(layer_strip_h + tab_h)});
+    ImGui::SetNextWindowPos(ImVec2{static_cast<float>(CANVAS_W), static_cast<float>(k_menu_h + layer_strip_h + tab_h)});
     ImGui::SetNextWindowSize(ImVec2{static_cast<float>(PALETTE_W), static_cast<float>(available_h)});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4{30.f / 255.f, 30.f / 255.f, 40.f / 255.f, 1.f});
     ImGui::Begin("##tilegrid", nullptr,
@@ -368,7 +368,8 @@ namespace tools::tilemap {
       const auto &cell = layout[static_cast<std::size_t>(sel_local_id)];
       const float draw_y = static_cast<float>(cell.y) - state.palette_scroll_y;
       if (draw_y + static_cast<float>(cell.h) >= 0.f && draw_y <= static_cast<float>(available_h)) {
-        const ImVec2 p_min{static_cast<float>(CANVAS_W + cell.x), static_cast<float>(layer_strip_h + tab_h) + draw_y};
+        const ImVec2 p_min{static_cast<float>(CANVAS_W + cell.x),
+                           static_cast<float>(k_menu_h + layer_strip_h + tab_h) + draw_y};
         const ImVec2 p_max{p_min.x + static_cast<float>(cell.w), p_min.y + static_cast<float>(cell.h)};
         ImGui::GetForegroundDrawList()->AddRect(p_min, p_max, IM_COL32(255, 200, 0, 255), 0.f, 0, 2.f);
       }
@@ -381,7 +382,8 @@ namespace tools::tilemap {
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{6.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::SetNextWindowPos(ImVec2{static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H - k_pivot_panel_h)});
+    ImGui::SetNextWindowPos(
+        ImVec2{static_cast<float>(CANVAS_W), static_cast<float>(k_menu_h + CANVAS_H - k_pivot_panel_h)});
     ImGui::SetNextWindowSize(ImVec2{static_cast<float>(PALETTE_W), static_cast<float>(k_pivot_panel_h)});
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4{22.f / 255.f, 22.f / 255.f, 32.f / 255.f, 1.f});
     ImGui::Begin("##pivotpanel", nullptr,

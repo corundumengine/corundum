@@ -4,6 +4,7 @@
 #include "fill.hpp"
 #include "layer_presets.hpp"
 #include "layout.hpp"
+#include "menu.hpp"
 #include "paint.hpp"
 #include "ramp_paint.hpp"
 #include "save.hpp"
@@ -20,9 +21,9 @@ namespace tools::tilemap {
   namespace {
 
     /// Convenience overload: fills in the EditorState-derived parameters that are
-    /// always the same (canvas at origin, CANVAS_W/H, camera/scale from state).
+    /// always the same (canvas at k_menu_h origin, CANVAS_W/H, camera/scale from state).
     [[nodiscard]] std::optional<TileCoord> editor_screen_to_tile(int px, int py, const EditorState &state) noexcept {
-      return screen_to_tile(px, py, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
+      return screen_to_tile(px, py, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
                             state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
                             effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
     }
@@ -65,8 +66,8 @@ namespace tools::tilemap {
       corundum::gameplay::world::tilemap::CollisionRect candidate;
       if (state.col_drag_sub_tile) {
         candidate = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y,
-                                        state.col_drag_cur_win_x, state.col_drag_cur_win_y, 0, 0, CANVAS_W, CANVAS_H,
-                                        state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
+                                        state.col_drag_cur_win_x, state.col_drag_cur_win_y, 0, k_menu_h, CANVAS_W,
+                                        CANVAS_H, state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
                                         state.elev_step_px, state.map.height, tw, th, state.map);
       } else {
         candidate = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
@@ -249,13 +250,13 @@ namespace tools::tilemap {
         return;
       // Right-click outside the canvas is a no-op (matches the old editor_screen_to_tile-based
       // guard, so right-clicks in the palette panel don't accidentally delete rects).
-      if (win_x < 0 || win_x >= CANVAS_W || win_y < 0 || win_y >= CANVAS_H)
+      if (win_x < 0 || win_x >= CANVAS_W || win_y < k_menu_h || win_y >= k_menu_h + CANVAS_H)
         return;
       // Use the same fractional isometric projection as placement so sub-tile rects (Shift-drag)
       // are hit-testable — integer floor would miss any rect whose col/row is non-integral.
       const auto frac =
-          pixel_to_fractional_tile(win_x, win_y, 0, 0, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
-                                   state.canvas.scale, state.elev_step_px, state.map.height,
+          pixel_to_fractional_tile(win_x, win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x,
+                                   state.canvas.offset_y, state.canvas.scale, state.elev_step_px, state.map.height,
                                    effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
       auto &cols = state.map.collisions;
       for (int i = static_cast<int>(cols.size()) - 1; i >= 0; --i) {
@@ -277,10 +278,6 @@ namespace tools::tilemap {
     int layer_props_z_index = 0;            ///< Buffer for the layer's z_index, edited in the popup.
     bool layer_props_depth_sorted = false;  ///< Buffer for the layer's depth_sorted flag.
     bool layer_add_popup_requested = false; ///< True when the "+" button was clicked.
-
-    // ── Validation popup state ───────────────────────────────────────────────
-    bool show_validation_popup = false;         ///< True when Ctrl+S found problems to confirm.
-    std::vector<std::string> validation_errors; ///< Problems found by the last validate() run.
 
     // ── Fill-blocked popup state ─────────────────────────────────────────────
     bool show_fill_blocked_popup = false; ///< True when F was pressed on a non-ground layer.
@@ -304,7 +301,7 @@ namespace tools::tilemap {
 
     void handle_palette_click(EditorState &state, int win_x, int win_y) noexcept {
       const int panel_x = win_x - CANVAS_W;
-      const int panel_y = win_y;
+      const int panel_y = win_y - k_menu_h;
 
       const int n_layers = static_cast<int>(state.map.layers.size());
       const int layer_strip_h = LAYER_TITLE_H + n_layers * LAYER_ROW_H;
@@ -364,19 +361,23 @@ namespace tools::tilemap {
     const ImGuiIO &io = ImGui::GetIO();
     const int mx = static_cast<int>(io.MousePos.x);
     const int my = static_cast<int>(io.MousePos.y);
-    const bool over_canvas = mx >= 0 && mx < CANVAS_W && my >= 0 && my < CANVAS_H;
-    const bool over_panel = mx >= CANVAS_W && my >= 0 && my < CANVAS_H;
+    const bool over_canvas = mx >= 0 && mx < CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H;
+    const bool over_panel = mx >= CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H;
 
     // Whether the canvas's own scrollbars are present this frame (mirrors the content-size vs.
     // window-size check in main.cpp that decides whether ImGui draws them), and whether the
     // --- Canvas pan/zoom ---
-    state.canvas.update({0.f, 0.f}, {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
+    state.canvas.update({0.f, static_cast<float>(k_menu_h)},
+                        {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
                         /*zoom_to_cursor=*/true);
 
     // --- Keyboard ---
     if (!io.WantCaptureKeyboard) {
       if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (ImGui::IsKeyPressed(ImGuiKey_Q) && !io.KeyCtrl)) {
-        running = false;
+        if (state.dirty)
+          request_exit_confirm(state);
+        else
+          running = false;
         return;
       }
 
@@ -514,15 +515,7 @@ namespace tools::tilemap {
       }
 
       if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
-        validation_errors = corundum::gameplay::world::tilemap::validate(state.map);
-        if (validation_errors.empty()) {
-          if (auto r = save_tilemap(state); r)
-            std::println("[Tilesmith] Saved: {}", state.map_path.string());
-          else
-            std::println(stderr, "[Tilesmith] Save failed: {}", r.error());
-        } else {
-          show_validation_popup = true;
-        }
+        try_save(state);
       }
     }
 
@@ -714,15 +707,16 @@ namespace tools::tilemap {
     }
 
     // ── Validation errors popup ──────────────────────────────────────────────
-    if (show_validation_popup) {
+    if (state.show_validation_popup) {
       ImGui::OpenPopup("Validation Errors");
-      show_validation_popup = false;
+      state.show_validation_popup = false;
     }
 
     if (ImGui::BeginPopupModal("Validation Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      ImGui::TextColored(ImVec4{1.f, .6f, 0.f, 1.f}, "%zu problem(s) found in this map:", validation_errors.size());
+      ImGui::TextColored(ImVec4{1.f, .6f, 0.f, 1.f},
+                         "%zu problem(s) found in this map:", state.validation_errors.size());
       ImGui::Spacing();
-      for (const auto &msg : validation_errors)
+      for (const auto &msg : state.validation_errors)
         ImGui::BulletText("%s", msg.c_str());
       ImGui::Spacing();
       ImGui::Separator();
@@ -730,7 +724,7 @@ namespace tools::tilemap {
 
       if (ImGui::Button("Save Anyway", ImVec2{150.f, 0.f})) {
         if (auto r = save_tilemap(state); r)
-          std::println("[Tilesmith] Saved with {} validation warning(s): {}", validation_errors.size(),
+          std::println("[Tilesmith] Saved with {} validation warning(s): {}", state.validation_errors.size(),
                        state.map_path.string());
         else
           std::println(stderr, "[Tilesmith] Save failed: {}", r.error());

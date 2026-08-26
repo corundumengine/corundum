@@ -42,13 +42,6 @@ namespace tools::tilemap {
   } // namespace
 
   void render_new_map_dialog(NewMapDialogState &dlg) {
-    // Open the modal on the very first call.
-    static bool opened = false;
-    if (!opened) {
-      ImGui::OpenPopup("New Tilemap");
-      opened = true;
-    }
-
     // Center the modal in the window.
     const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, {0.5f, 0.5f});
@@ -105,7 +98,7 @@ namespace tools::tilemap {
       }
     }
     ImGui::SameLine();
-    if (ImGui::Button("Quit", {120.f, 0.f})) {
+    if (ImGui::Button("Cancel", {120.f, 0.f})) {
       dlg.cancelled = true;
       ImGui::CloseCurrentPopup();
     }

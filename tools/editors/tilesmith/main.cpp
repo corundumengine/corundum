@@ -4,7 +4,7 @@
 
 #include "input.hpp"
 #include "layout.hpp"
-#include "new_map_dialog.hpp"
+#include "menu.hpp"
 #include "render_canvas.hpp"
 #include "render_layer_strip.hpp"
 #include "render_portal.hpp"
@@ -82,21 +82,25 @@ static void center_camera(EditorState &state) noexcept {
 // Called once from inside the frame loop after JSON is written.
 // ---------------------------------------------------------------------------
 
-static void finish_map_load(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
-                            std::vector<TilesetView> &tileset_views) {
-  auto tilemap_result = corundum::gameplay::world::tilemap::load_tilemap(state.map_path.string());
-  if (!tilemap_result)
-    throw std::runtime_error(tilemap_result.error());
-  state.map = std::move(*tilemap_result);
-  auto portals_result = tools::tilemap::load_portals(state);
-  if (!portals_result)
-    throw std::runtime_error(portals_result.error());
-  texture_store = tools::tilemap::load_tilemap_textures(host, state.map);
-  tileset_views = tools::tilemap::rebuild_tileset_views(host, state.map, texture_store);
-  center_camera(state);
-  state.undo.clear();
-  tools::tilemap::push_undo_checkpoint(state);
-}
+namespace tools::tilemap {
+
+  void finish_map_load(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+                       std::vector<TilesetView> &tileset_views) {
+    auto tilemap_result = corundum::gameplay::world::tilemap::load_tilemap(state.map_path.string());
+    if (!tilemap_result)
+      throw std::runtime_error(tilemap_result.error());
+    state.map = std::move(*tilemap_result);
+    auto portals_result = tools::tilemap::load_portals(state);
+    if (!portals_result)
+      throw std::runtime_error(portals_result.error());
+    texture_store = tools::tilemap::load_tilemap_textures(host, state.map);
+    tileset_views = tools::tilemap::rebuild_tileset_views(host, state.map, texture_store);
+    center_camera(state);
+    state.undo.clear();
+    tools::tilemap::push_undo_checkpoint(state);
+  }
+
+} // namespace tools::tilemap
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -109,7 +113,7 @@ int main(int argc, char *argv[]) {
     std::println(stderr, "  Run from the project root directory.");
     return 1;
   }
-  const bool new_map_mode = (argc == 1);
+  const bool load_map_mode = (argc > 1);
 
   auto cfg_result = corundum::tool_host::load_tool_config(argc, argv);
   if (!cfg_result) {
@@ -122,25 +126,12 @@ int main(int argc, char *argv[]) {
   state.elev_step_px = cfg.elevation_step_px;
   state.max_step_height = cfg.max_step_height;
 
-  if (!new_map_mode) {
+  if (load_map_mode)
     state.map_path = argv[1];
-    auto tilemap_result = corundum::gameplay::world::tilemap::load_tilemap(state.map_path.string());
-    if (!tilemap_result) {
-      std::println(stderr, "[Tilesmith] FATAL: {}", tilemap_result.error());
-      return 1;
-    }
-    state.map = std::move(*tilemap_result);
 
-    auto portals_result = tools::tilemap::load_portals(state);
-    if (!portals_result) {
-      std::println(stderr, "[Tilesmith] FATAL: {}", portals_result.error());
-      return 1;
-    }
-    state.undo.clear();
-    tools::tilemap::push_undo_checkpoint(state);
-  }
+  const std::string initial_title =
+      load_map_mode ? ("Tilesmith :: " + state.map_path.filename().string()) : "Tilesmith";
 
-  const std::string initial_title = new_map_mode ? "Tilesmith" : ("Tilesmith :: " + state.map_path.filename().string());
   auto host_result =
       corundum::tool_host::ToolHost::create({tools::tilemap::WINDOW_W, tools::tilemap::WINDOW_H, initial_title});
   if (!host_result) {
@@ -168,23 +159,19 @@ int main(int argc, char *argv[]) {
   TilemapTextureStore texture_store;
   std::vector<TilesetView> tileset_views;
 
-  if (!new_map_mode) {
+  if (load_map_mode) {
     try {
-      texture_store = load_tilemap_textures(*host, state.map);
-    } catch (const std::runtime_error &e) {
+      tools::tilemap::finish_map_load(*host, state, texture_store, tileset_views);
+    } catch (const std::exception &e) {
       std::println(stderr, "[Tilesmith] FATAL: {}", e.what());
       return 1;
     }
-
-    tileset_views = rebuild_tileset_views(*host, state.map, texture_store);
-    center_camera(state);
   }
 
   MouseState mouse;
   bool running = true;
-  bool map_ready = !new_map_mode;
   float elapsed_time = 0.f;
-  tools::tilemap::NewMapDialogState new_map_dlg{};
+  bool triggered_initial_new_map = false;
 
   // Closure that renders all tilemap passes into a canvas context.
   const MapRenderFn render_map = [&host, &state, &texture_store, &elapsed_time](CanvasContext ctx) {
@@ -196,44 +183,22 @@ int main(int argc, char *argv[]) {
   };
 
   host->run([&]() {
-    // ── New-map dialog (shown before the editor when launched with no args) ──
-    if (!map_ready) {
-      tools::tilemap::render_new_map_dialog(new_map_dlg);
-      if (new_map_dlg.cancelled) {
-        running = false;
-        host->request_close();
-        return;
-      }
-      if (new_map_dlg.confirmed) {
-        auto write_result = tools::tilemap::write_new_tilemap_json(new_map_dlg);
-        if (!write_result) {
-          new_map_dlg.error_msg = write_result.error();
-          new_map_dlg.confirmed = false;
-          return;
-        }
-        state.map_path = *write_result;
-        try {
-          finish_map_load(*host, state, texture_store, tileset_views);
-          host->set_title("Tilesmith :: " + state.map_path.filename().string());
-        } catch (const std::exception &e) {
-          new_map_dlg.error_msg = e.what();
-          new_map_dlg.confirmed = false;
-          return;
-        }
-        map_ready = true;
-      }
-      return;
-    }
-
     if (!running) {
       host->request_close();
       return;
     }
 
+    if (!load_map_mode && !triggered_initial_new_map) {
+      tools::tilemap::open_new_map_dialog(state);
+      triggered_initial_new_map = true;
+    }
+
     const ImGuiIO &io = ImGui::GetIO();
     elapsed_time += io.DeltaTime;
 
-    ImGui::SetNextWindowPos({0.f, 0.f});
+    tools::tilemap::render_menu_bar(*host, state, texture_store, tileset_views, running);
+
+    ImGui::SetNextWindowPos({0.f, static_cast<float>(tools::tilemap::k_menu_h)});
     ImGui::SetNextWindowSize(
         {static_cast<float>(tools::tilemap::CANVAS_W), static_cast<float>(tools::tilemap::CANVAS_H)});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
@@ -269,7 +234,8 @@ int main(int argc, char *argv[]) {
     }
     ImGui::End();
 
-    ImGui::SetNextWindowPos({static_cast<float>(tools::tilemap::CANVAS_W), 0.f});
+    ImGui::SetNextWindowPos(
+        {static_cast<float>(tools::tilemap::CANVAS_W), static_cast<float>(tools::tilemap::k_menu_h)});
     ImGui::SetNextWindowSize(
         {static_cast<float>(tools::tilemap::PALETTE_W), static_cast<float>(tools::tilemap::CANVAS_H)});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});

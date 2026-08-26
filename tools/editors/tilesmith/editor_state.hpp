@@ -1,9 +1,12 @@
 #pragma once
+#include "new_map_dialog.hpp"
 #include "portal_entry.hpp"
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/tool_host/file_browser.hpp>
 #include <corundum/tool_host/undo.hpp>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace tools::tilemap {
@@ -104,6 +107,24 @@ namespace tools::tilemap {
     int portal_drag_anchor_row = 0; ///< Tile row where the portal drag began.
     int portal_drag_cur_col = 0;    ///< Current tile column under the cursor during portal drag.
     int portal_drag_cur_row = 0;    ///< Current tile row under the cursor during portal drag.
+
+    // Validation-errors popup (shown by any save path — Ctrl+S, File > Save, Save As, Save & Exit)
+    bool show_validation_popup = false;
+    std::vector<std::string> validation_errors;
+
+    // Menu bar state (File > Open/Save As browsers, New Map dialog, exit/open confirmation)
+    corundum::tool_host::FileBrowserState open_browser;
+    corundum::tool_host::FileBrowserState save_browser;
+    bool show_exit_confirm = false;
+    bool show_open_confirm = false;
+    std::filesystem::path pending_open_path;
+    bool show_new_map_dialog = false;
+    bool new_map_requested = false;
+    NewMapDialogState new_map_dlg;
+
+    // Last save/open failure, if any — shown by the popup in menu.cpp instead of stderr-only.
+    std::string last_io_error;
+    bool show_io_error_popup = false;
   };
 
 } // namespace tools::tilemap

@@ -9,6 +9,7 @@ add_library(corundum_tool_host STATIC
     src/tool_config.cpp
     src/ui_theme.cpp
     src/fonts.cpp
+    src/file_browser.cpp
 )
 
 add_library(corundum::tool_host ALIAS corundum_tool_host)

@@ -38,6 +38,7 @@ add_executable(corundum_tests
     test_portal_elevation.cpp
     test_picking_elevation.cpp
     test_layer_presets.cpp
+    test_files.cpp
 )
 
 # Link to engine and doctest. engine_platform_null is also pulled in so the
