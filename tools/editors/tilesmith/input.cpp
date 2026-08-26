@@ -7,6 +7,7 @@
 #include "paint.hpp"
 #include "ramp_paint.hpp"
 #include "save.hpp"
+#include "undo.hpp"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -87,6 +88,7 @@ namespace tools::tilemap {
           state.map, static_cast<int>(std::floor(candidate.col)), static_cast<int>(std::floor(candidate.row))));
       state.map.collisions.push_back(candidate.col, candidate.row, candidate.col_span, candidate.row_span, elev);
       state.dirty = true;
+      push_undo_checkpoint(state);
     }
 
     void place_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
@@ -109,6 +111,7 @@ namespace tools::tilemap {
           if (tris.cuts[i] != state.collision_tri_cut) {
             tris.cuts[i] = state.collision_tri_cut;
             state.dirty = true;
+            push_undo_checkpoint(state);
           }
           return;
         }
@@ -117,6 +120,7 @@ namespace tools::tilemap {
           static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(state.map, tc->col, tc->row));
       tris.push_back(col, row, col_span, row_span, state.collision_tri_cut, elev);
       state.dirty = true;
+      push_undo_checkpoint(state);
     }
 
     [[nodiscard]] bool remove_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
@@ -139,8 +143,10 @@ namespace tools::tilemap {
           ++i;
         }
       }
-      if (removed_any)
+      if (removed_any) {
         state.dirty = true;
+        push_undo_checkpoint(state);
+      }
       return removed_any;
     }
 
@@ -177,6 +183,7 @@ namespace tools::tilemap {
       erase_rect(state, col_min, row_min, col_max, row_max);
       state.erase_dragging = false;
       state.dirty = true;
+      push_undo_checkpoint(state);
     }
 
     void begin_portal_drag(EditorState &state, int win_x, int win_y) noexcept {
@@ -213,6 +220,7 @@ namespace tools::tilemap {
       state.portals.push_back({col, row, w, h, "", 0, 0});
       state.selected_portal = static_cast<int>(state.portals.size()) - 1;
       state.dirty = true;
+      push_undo_checkpoint(state);
     }
 
     void select_portal_at(EditorState &state, int win_x, int win_y) noexcept {
@@ -256,6 +264,7 @@ namespace tools::tilemap {
             frac.y < cols.rows[idx] + cols.row_spans[idx]) {
           cols.erase(idx);
           state.dirty = true;
+          push_undo_checkpoint(state);
           return;
         }
       }
@@ -279,6 +288,7 @@ namespace tools::tilemap {
     void add_layer(EditorState &state, LayerPreset preset) noexcept {
       state.map.layers.push_back(make_layer_from_preset(preset, state.map.width, state.map.height, state.map.layers));
       state.dirty = true;
+      push_undo_checkpoint(state);
     }
 
     void delete_layer(EditorState &state) noexcept {
@@ -289,6 +299,7 @@ namespace tools::tilemap {
       if (state.active_layer >= static_cast<int>(state.map.layers.size()))
         state.active_layer = static_cast<int>(state.map.layers.size()) - 1;
       state.dirty = true;
+      push_undo_checkpoint(state);
     }
 
     void handle_palette_click(EditorState &state, int win_x, int win_y) noexcept {
@@ -324,10 +335,11 @@ namespace tools::tilemap {
             layer_props_depth_sorted = state.map.layers[static_cast<std::size_t>(idx)].depth_sorted;
             return;
           }
-          if (panel_x >= PALETTE_W - 24)
+          if (panel_x >= PALETTE_W - 24) {
             state.map.layers[static_cast<std::size_t>(idx)].visible =
                 !state.map.layers[static_cast<std::size_t>(idx)].visible;
-          else
+            push_undo_checkpoint(state);
+          } else
             state.active_layer = idx;
         }
         return;
@@ -470,18 +482,17 @@ namespace tools::tilemap {
           show_fill_blocked_popup = true;
       }
 
-      if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z) && state.fill_undo_layer_idx >= 0) {
-        state.map.layers[static_cast<std::size_t>(state.fill_undo_layer_idx)].tiles = state.fill_undo_tiles;
-        state.fill_undo_tiles.clear();
-        state.fill_undo_layer_idx = -1;
-        state.dirty = true;
-      }
+      if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z))
+        apply_redo(state);
+      else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+        apply_undo(state);
 
       if ((ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) && state.show_portals &&
           state.selected_portal >= 0 && state.selected_portal < static_cast<int>(state.portals.size())) {
         state.portals.erase(state.portals.begin() + state.selected_portal);
         state.selected_portal = -1;
         state.dirty = true;
+        push_undo_checkpoint(state);
       }
 
       if (ImGui::IsKeyPressed(ImGuiKey_X))
@@ -571,9 +582,12 @@ namespace tools::tilemap {
     // --- Mouse button released ---
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
       mouse.left_held = false;
+      const bool was_painting = state.painting_active;
       state.painting_active = false;
       if (!state.show_portals && state.show_collisions && !state.triangle_collision_mode && state.collision_dragging)
         commit_collision_rect(state);
+      else if (was_painting)
+        push_undo_checkpoint(state);
     }
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
       mouse.right_held = false;
@@ -581,6 +595,8 @@ namespace tools::tilemap {
         commit_portal_rect(state);
       else if (state.erase_dragging)
         commit_erase_rect(state);
+      else if (state.show_elevation || state.show_ramps)
+        push_undo_checkpoint(state);
     }
 
     // --- Mouse moved (continuous) ---
@@ -683,6 +699,7 @@ namespace tools::tilemap {
           layer.z_index = layer_props_z_index;
           layer.depth_sorted = layer_props_depth_sorted;
           state.dirty = true;
+          push_undo_checkpoint(state);
         }
         committed = true;
       }

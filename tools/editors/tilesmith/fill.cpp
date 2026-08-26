@@ -1,5 +1,6 @@
 #include "fill.hpp"
 #include "paint.hpp"
+#include "undo.hpp"
 
 namespace tools::tilemap {
 
@@ -15,8 +16,6 @@ namespace tools::tilemap {
 
     const int layer_idx = state.active_layer;
     auto &layer = state.map.layers[static_cast<std::size_t>(layer_idx)];
-    state.fill_undo_tiles = layer.tiles;
-    state.fill_undo_layer_idx = layer_idx;
 
     for (int row = 0; row < state.map.height; ++row) {
       for (int col = 0; col < state.map.width; ++col) {
@@ -26,6 +25,7 @@ namespace tools::tilemap {
           set_tile(state, layer_idx, col, row, gid, flip);
       }
     }
+    push_undo_checkpoint(state);
     state.dirty = true;
     return true;
   }

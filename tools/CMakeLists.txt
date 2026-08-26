@@ -9,6 +9,7 @@ add_executable(tilesmith
     editors/tilesmith/fill.cpp
     editors/tilesmith/save.cpp
     editors/tilesmith/input.cpp
+    editors/tilesmith/undo.cpp
     editors/tilesmith/render_canvas.cpp
     editors/tilesmith/render_layer_strip.cpp
     editors/tilesmith/render_tile_grid.cpp

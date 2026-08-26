@@ -14,8 +14,8 @@ namespace tools::tilemap {
    *
    * No-op returning false if the active layer is not the ground layer
    * (is_ground_layer() is false). Already-painted cells are left untouched.
-   * Snapshots the layer's tiles beforehand into state.fill_undo_tiles /
-   * fill_undo_layer_idx so a single Ctrl+Z can revert the fill.
+   * Pushes one undo checkpoint at the end so Ctrl+Z reverts the whole fill in
+   * a single step.
    *
    * @param state   Editor state to modify.
    * @param gid     Tile ID to stamp into empty cells.

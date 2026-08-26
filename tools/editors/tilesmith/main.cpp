@@ -13,6 +13,7 @@
 #include "save.hpp"
 #include "tilemap_rendering.hpp"
 #include "tileset_view.hpp"
+#include "undo.hpp"
 #include <algorithm>
 #include <corundum/gameplay/world/tilemap/loader.hpp>
 #include <corundum/tool_host/fonts.hpp>
@@ -93,6 +94,8 @@ static void finish_map_load(corundum::tool_host::ToolHost &host, EditorState &st
   texture_store = tools::tilemap::load_tilemap_textures(host, state.map);
   tileset_views = tools::tilemap::rebuild_tileset_views(host, state.map, texture_store);
   center_camera(state);
+  state.undo.clear();
+  tools::tilemap::push_undo_checkpoint(state);
 }
 
 // ---------------------------------------------------------------------------
@@ -133,6 +136,8 @@ int main(int argc, char *argv[]) {
       std::println(stderr, "[Tilesmith] FATAL: {}", portals_result.error());
       return 1;
     }
+    state.undo.clear();
+    tools::tilemap::push_undo_checkpoint(state);
   }
 
   const std::string initial_title = new_map_mode ? "Tilesmith" : ("Tilesmith :: " + state.map_path.filename().string());

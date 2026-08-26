@@ -2,10 +2,22 @@
 #include "portal_entry.hpp"
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/tool_host/undo.hpp>
 #include <filesystem>
 #include <vector>
 
 namespace tools::tilemap {
+
+  /// @brief One undo/redo checkpoint: everything that gets saved to the tilemap JSON plus the
+  /// portals sidecar. Deliberately does NOT include active_layer — which layer is selected is
+  /// live UI state (like selected_gid or the camera), not document content; bundling it here
+  /// caused undo to snap the active layer back to whatever it was at the *previous* checkpoint
+  /// instead of leaving the user's current layer selection alone. See adopt_doc() in undo.cpp
+  /// for how the active layer is instead just clamped into range after a restore.
+  struct TilemapDoc {
+    corundum::gameplay::world::tilemap::Tilemap map;
+    std::vector<PortalEntry> portals;
+  };
 
   /**
    * @brief All mutable state for a tilesmith editing session.
@@ -77,10 +89,8 @@ namespace tools::tilemap {
 
     // Paint drag state
     bool painting_active = false; ///< True while a left-click paint/erase-mode drag is in progress.
-    // Fill undo state (single-action; not a general undo stack)
-    std::vector<corundum::gameplay::world::tilemap::TileId>
-        fill_undo_tiles;          ///< Pre-fill tiles snapshot, empty when nothing to undo.
-    int fill_undo_layer_idx = -1; ///< Layer index the snapshot belongs to, or -1 when nothing to undo.
+
+    corundum::tool_host::UndoStack<TilemapDoc> undo; ///< General undo/redo — see undo.hpp.
 
     // Portal state
     std::vector<PortalEntry> portals; ///< Portals loaded from data/portals/{stem}.json.
