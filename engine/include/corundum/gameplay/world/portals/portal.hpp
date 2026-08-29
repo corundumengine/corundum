@@ -20,15 +20,16 @@ namespace corundum::gameplay::world {
    * per-frame conversion round trip needed.
    */
   struct Portal {
-    float col = 0.f;           ///< Left tile column of the trigger rect.
-    float row = 0.f;           ///< Top tile row of the trigger rect.
-    float w = 0.f;             ///< Width of trigger rect in tiles.
-    float h = 0.f;             ///< Height of trigger rect in tiles.
-    std::string target_map;    ///< Path to the target tilemap JSON (empty for chunk-to-chunk portals).
-    int spawn_col = 0;         ///< Tile column for player spawn in the target map or chunk.
-    int spawn_row = 0;         ///< Tile row for player spawn in the target map or chunk.
-    int target_chunk_col = -1; ///< World-mode target chunk column (-1 = single-map portal).
-    int target_chunk_row = -1; ///< World-mode target chunk row.
+    float col = 0.f;              ///< Left tile column of the trigger rect.
+    float row = 0.f;              ///< Top tile row of the trigger rect.
+    float w = 0.f;                ///< Width of trigger rect in tiles.
+    float h = 0.f;                ///< Height of trigger rect in tiles.
+    std::string target_map;       ///< Path to the target tilemap JSON (empty for chunk-to-chunk portals).
+    int spawn_col = 0;            ///< Tile column for player spawn in the target map or chunk.
+    int spawn_row = 0;            ///< Tile row for player spawn in the target map or chunk.
+    int target_chunk_col = -1;    ///< World-mode target chunk column (-1 = single-map portal).
+    int target_chunk_row = -1;    ///< World-mode target chunk row.
+    bool return_to_world = false; ///< Exit the current interior back to the configured overworld.
   };
 
   /**
@@ -38,9 +39,10 @@ namespace corundum::gameplay::world {
    * platform shell (main.cpp) which performs the actual asset swap.
    */
   struct MapTransition {
-    std::string target_map; ///< Path to the target tilemap JSON.
-    int spawn_col = 0;      ///< Tile column for player spawn in the target map.
-    int spawn_row = 0;      ///< Tile row for player spawn in the target map.
+    std::string target_map;       ///< Path to the target tilemap JSON.
+    int spawn_col = 0;            ///< Tile column for player spawn in the target map.
+    int spawn_row = 0;            ///< Tile row for player spawn in the target map.
+    bool return_to_world = false; ///< Re-load the configured overworld instead of a named map.
   };
 
   /**

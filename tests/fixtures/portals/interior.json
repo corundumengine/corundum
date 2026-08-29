@@ -1,0 +1,5 @@
+{
+  "portals": [
+    { "col": 0, "row": 0, "w": 1, "h": 1, "spawn_col": 12, "spawn_row": 3, "return_to_world": true }
+  ]
+}

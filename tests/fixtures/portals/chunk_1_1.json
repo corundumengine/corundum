@@ -1,0 +1,5 @@
+{
+  "portals": [
+    { "col": 5, "row": 5, "w": 1, "h": 1, "target_map": "tests/fixtures/tilemaps/interior.json", "spawn_col": 1, "spawn_row": 2 }
+  ]
+}

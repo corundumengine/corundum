@@ -86,34 +86,7 @@ namespace corundum {
       }
 
       std::expected<void, std::string> init_world_scene() {
-        std::expected<render::sys::WorldLoadInfo, std::string> world_result;
-        world_result = render::sys::load_world(*engine_.renderer, engine_.render, engine_.cfg);
-        if (!world_result)
-          return std::unexpected(std::move(world_result).error());
-        const auto &info = *world_result;
-        const gameplay::component::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
-
-        std::expected<gameplay::world::Scene, std::string> scene_result;
-        scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters,
-                                                    engine_.render.chunks.active_at(0).tilemap, spawn_pos);
-        if (!scene_result)
-          return std::unexpected(std::move(scene_result).error());
-        engine_.scene = std::move(*scene_result);
-        const auto [world_width, world_height] =
-            gameplay::world::tilemap::world_bounds_iso(engine_.render.manifest, info.half_tw, info.half_th);
-
-        // Convert tile-grid spawn position to isometric for camera tracking.
-        // Cell-center anchor (matches entity sprite position) keeps the camera
-        // aligned with the player instead of offset half_th above them.
-        // elev_step is pre-multiplied by tile_scale to match compute_isometric_params()
-        // for consistency with the renderer's scaled iso.elev_step.
-        const corundum::core::math::IsometricParams iso{info.half_tw, info.half_th, info.x_origin,
-                                                        engine_.cfg.elevation_step_px * engine_.cfg.tile_scale};
-        const auto [iso_x, iso_y] =
-            corundum::core::math::tile_to_world_center(spawn_pos.col, spawn_pos.row, 0.f, iso);
-
-        apply_default_zoom_and_center(iso_x, iso_y, world_width, world_height);
-        return {};
+        return corundum::gameplay::world::enter_world(engine_, {});
       }
 
       std::expected<void, std::string> init_single_map_scene() {
@@ -320,8 +293,7 @@ namespace corundum {
     process_input(engine);
 
     const SimulationResult sim = run_fixed_steps(engine);
-    if (engine.render.mode != render::data::RenderMode::World)
-      gameplay::world::handle_map_transition(engine);
+    gameplay::world::handle_map_transition(engine);
 
     const float alpha = compute_interpolation_alpha(engine.timer, sim);
     render_frame(engine, alpha);

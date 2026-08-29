@@ -1,0 +1,14 @@
+{
+  "portals": [
+    {
+      "col": 2,
+      "row": 2,
+      "w": 1,
+      "h": 1,
+      "target_chunk_col": 1,
+      "target_chunk_row": 1,
+      "spawn_col": 3,
+      "spawn_row": 3
+    }
+  ]
+}

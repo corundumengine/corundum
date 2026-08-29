@@ -8,6 +8,7 @@
 #include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/world/scene.hpp>
+#include <corundum/gameplay/world/transition.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -63,6 +64,7 @@ namespace corundum {
     gameplay::dialogue::Registry graphs;
     gameplay::quest::Registry quests;
     gameplay::world::Scene scene;
+    bool entered_from_world = false; ///< True while inside an interior reached from the overworld.
 
     int win_h = 0; ///< Live window height in screen pixels, updated each frame.
     int win_w = 0; ///< Live window width in screen pixels, updated each frame.

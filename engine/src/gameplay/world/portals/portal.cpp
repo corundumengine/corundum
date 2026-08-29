@@ -85,9 +85,20 @@ namespace corundum::gameplay::world {
           return std::unexpected(std::format("Portals '{}' portals[{}] invalid 'target_map'", path_str, i));
         }
       }
-      if (target_chunk_col < 0 && target_map.empty())
-        return std::unexpected(std::format(
-            "Portals '{}' portals[{}] must have 'target_map' or 'target_chunk_col'/'target_chunk_row'", path_str, i));
+
+      bool return_to_world = false;
+      if (entry.contains("return_to_world")) {
+        try {
+          return_to_world = entry.at("return_to_world").get<bool>();
+        } catch (...) {
+          return std::unexpected(std::format("Portals '{}' portals[{}] invalid 'return_to_world'", path_str, i));
+        }
+      }
+
+      if (target_chunk_col < 0 && target_map.empty() && !return_to_world)
+        return std::unexpected(std::format("Portals '{}' portals[{}] must have 'target_map' or "
+                                           "'target_chunk_col'/'target_chunk_row' or 'return_to_world'",
+                                           path_str, i));
 
       int spawn_col, spawn_row;
       try {
@@ -111,6 +122,7 @@ namespace corundum::gameplay::world {
           spawn_row,
           target_chunk_col,
           target_chunk_row,
+          return_to_world,
       });
     }
 
@@ -133,6 +145,8 @@ namespace corundum::gameplay::world {
         pj["target_chunk_col"] = p.target_chunk_col;
         pj["target_chunk_row"] = p.target_chunk_row;
       }
+      if (p.return_to_world)
+        pj["return_to_world"] = true;
       j["portals"].push_back(std::move(pj));
     }
     return j;

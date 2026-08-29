@@ -3,6 +3,7 @@
 #include <corundum/render/data/render_state.hpp>
 
 #include <expected>
+#include <optional>
 #include <string>
 
 namespace corundum::platform {
@@ -88,21 +89,36 @@ namespace corundum::render::sys {
     corundum::core::math::Vec2 spawn_world_pos;
   };
 
+  /** @brief Optional spawn parameters for a (re)load of the world in world mode.
+   *
+   *  Overrides the default manifest-centre spawn and derives the 3×3 streaming
+   *  window centre from the requested spawn tile, so a return to a non-central
+   *  overworld location spawns the player into a streamed chunk.
+   */
+  struct WorldLoadParams {
+    std::optional<int> spawn_col; ///< Overworld tile column; defaults to manifest centre.
+    std::optional<int> spawn_row; ///< Overworld tile row; defaults to manifest centre.
+  };
+
   /** @brief Load the world manifest and initial chunks for world mode.
    *
-   * Loads the manifest JSON, streams the 3×3 chunk window around the centre,
-   * uploads all tileset textures, rebuilds collision aggregates, and returns
-   * the info the caller needs to spawn the game world.
+   *  Loads the manifest JSON, streams the 3×3 chunk window around the centre,
+   *  uploads all tileset textures, rebuilds collision aggregates, and returns
+   *  the info the caller needs to spawn the game world.
    *
-   *  @param[in,out] r      Renderer for chunk texture loading.
-   *  @param[out]    state  Render state populated with world manifest + active chunks.
-   *  @param[in]     cfg    Game config.
+   *  @param[in,out] r       Renderer for chunk texture loading.
+   *  @param[out]    state   Render state populated with world manifest + active chunks.
+   *  @param[in]     cfg     Game config.
+   *  @param[in]     params  Optional spawn tile; overrides the manifest-centre default
+   *                         and re-centres the streaming window on that tile's chunk.
    *  @return WorldLoadInfo on success, or std::unexpected with an error message.
    *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
    *  @post state.mode == RenderMode::World and state.chunks is non-empty.
    */
-  [[nodiscard]] std::expected<WorldLoadInfo, std::string>
-  load_world(corundum::platform::Renderer &r, data::RenderState &state, const corundum::core::GameConfig &cfg);
+  [[nodiscard]] std::expected<WorldLoadInfo, std::string> load_world(corundum::platform::Renderer &r,
+                                                                     data::RenderState &state,
+                                                                     const corundum::core::GameConfig &cfg,
+                                                                     const WorldLoadParams &params = {});
 
   /** @brief Apply dialog style (colours, fonts, spacing) from game config.
    *  @param[out] state  Render state; dialog_box style is configured.

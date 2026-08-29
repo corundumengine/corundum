@@ -345,7 +345,7 @@ namespace corundum::physics::sys {
             transforms.row[p_slot] = p.row;
             return;
           }
-          scene.pending_transition = {portal.target_map, portal.spawn_col, portal.spawn_row};
+          scene.pending_transition = {portal.target_map, portal.spawn_col, portal.spawn_row, portal.return_to_world};
           return;
         }
       }

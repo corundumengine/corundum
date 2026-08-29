@@ -280,12 +280,14 @@ namespace corundum::render::sys {
   // ── load_world ───────────────────────────────────────────────────────────────
 
   std::expected<WorldLoadInfo, std::string> load_world(corundum::platform::Renderer &r, data::RenderState &state,
-                                                       const corundum::core::GameConfig &cfg) {
+                                                       const corundum::core::GameConfig &cfg,
+                                                       const WorldLoadParams &params) {
     using namespace corundum::gameplay::world::tilemap;
 
     state.mode = data::RenderMode::World;
     state.map_data = {};
     state.map_walkability = {};
+    state.chunks.clear();
     state.above_z_cache.clear();
 
     {
@@ -304,9 +306,17 @@ namespace corundum::render::sys {
                                 state.manifest.chunk_size +
                             corundum::gameplay::entity::k_max_entities);
 
-    const ChunkCoord center{state.manifest.chunks_wide / 2, state.manifest.chunks_tall / 2};
-    state.chunks.set_last_center(center);
-    for (const ChunkCoord c : active_chunk_coords(center, 1, state.manifest)) {
+    // Default spawn is the manifest geometric centre. A supplied spawn (e.g. an interior
+    // exit portal back into the overworld) overrides it and re-centres the streaming window
+    // on that tile's chunk — otherwise a return near a world edge spawns into an unstreamed
+    // chunk. Each coordinate independently falls back to the centre so a half-specified
+    // params (only one of spawn_col/spawn_row) is not silently ignored.
+    const int cs = state.manifest.chunk_size;
+    const int spawn_tile_col = params.spawn_col.value_or(state.manifest.chunks_wide * cs / 2);
+    const int spawn_tile_row = params.spawn_row.value_or(state.manifest.chunks_tall * cs / 2);
+    const ChunkCoord window_center{spawn_tile_col / cs, spawn_tile_row / cs};
+    state.chunks.set_last_center(window_center);
+    for (const ChunkCoord c : active_chunk_coords(window_center, 1, state.manifest)) {
       if (auto entry = load_chunk_entry(r, state, c, cfg))
         state.chunks.add_active(std::move(*entry));
     }
@@ -319,12 +329,7 @@ namespace corundum::render::sys {
     const auto iso =
         core::math::compute_isometric_params(diamond_w, diamond_h, total_h, cfg.tile_scale, cfg.elevation_step_px);
 
-    const int center_col = state.manifest.chunks_wide * state.manifest.chunk_size / 2;
-    const int center_row = state.manifest.chunks_tall * state.manifest.chunk_size / 2;
-    const float center_col_f = static_cast<float>(center_col);
-    const float center_row_f = static_cast<float>(center_row);
-    const core::math::Vec2 spawn_pos{center_col_f, center_row_f};
-
+    const core::math::Vec2 spawn_pos{static_cast<float>(spawn_tile_col), static_cast<float>(spawn_tile_row)};
     std::println("[keystone] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
     return WorldLoadInfo{iso.half_tw, iso.half_th, iso.x_origin, spawn_pos};
   }
@@ -415,7 +420,6 @@ namespace corundum::render::sys {
     if (!tm_result)
       return std::nullopt;
     corundum::gameplay::world::tilemap::Tilemap tilemap = std::move(*tm_result);
-
     std::vector<uint32_t> tex_ids;
     tex_ids.reserve(tilemap.tilesets.size());
     for (const auto &ts : tilemap.tilesets) {

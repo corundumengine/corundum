@@ -19,6 +19,7 @@ add_executable(corundum_tests
     test_sprite_atlas_loader.cpp
     test_atlas_clips.cpp
     test_world_manifest.cpp
+    test_world_transition.cpp
     test_iso_math.cpp
     test_elevation_at.cpp
     test_tilemap_validate.cpp
