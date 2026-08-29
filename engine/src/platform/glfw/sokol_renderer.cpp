@@ -200,6 +200,7 @@ void main() {
 
     [[nodiscard]] uint64_t font_size_key(uint32_t font_id, uint32_t char_size) const noexcept;
     void ensure_baked(uint32_t font_id, uint32_t char_size) const;
+    void ensure_gpu_resources();
     void rebuild_proj() noexcept;
     [[nodiscard]] bool has_quad_space();
     void add_to_batch(sg_view view);
@@ -211,6 +212,7 @@ void main() {
     float cam_x_{0}, cam_y_{0}, vp_w_{0}, vp_h_{0}, zoom_{1.f};
     bool world_view_active_{false};
     bool pass_active_{false};
+    bool gpu_resources_initialized_{false};
 
     // ── Batch state ──────────────────────────────────────────────────
     sg_view batch_view_{};
@@ -238,7 +240,19 @@ void main() {
   // (LoadedTexture and BakedAtlas are POD aggregates; no explicit ctors needed.)
 
   SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx) : gpu_ctx_(gpu_ctx) {
+    // GPU resources (shader, pipeline, vertex buffer, sampler, white texture) are
+    // created lazily on the first begin_frame() so that shader/pipeline compilation —
+    // a costly Metal step on cold start — no longer blocks make_engine()/create_platform().
+    // The window can then appear before any shader work happens. Textures and fonts
+    // loaded during initialize() call only sg_make_image / FreeType (which need the
+    // sokol device from GpuContext, already set up) and never this pipeline.
     batch_vertices_.reserve(k_max_quads * 6);
+    rebuild_proj();
+  }
+
+  void SokolRenderer::ensure_gpu_resources() {
+    if (gpu_resources_initialized_)
+      return;
 
     // ── Shader ──────────────────────────────────────────────────────────────
     sg_shader_desc shdesc{};
@@ -316,6 +330,7 @@ void main() {
     bindings_.samplers[0] = sampler_;
 
     rebuild_proj();
+    gpu_resources_initialized_ = true;
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
@@ -440,6 +455,8 @@ void main() {
   }
 
   void SokolRenderer::begin_frame(core::math::Colour clear_colour) {
+    ensure_gpu_resources();
+
     quad_count_ = 0;
     batch_count_ = 0;
     batch_vertices_.clear();

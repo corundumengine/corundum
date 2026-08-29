@@ -18,6 +18,7 @@
 
 #include <format>
 #include <print>
+#include <string>
 
 namespace corundum {
 
@@ -60,17 +61,20 @@ namespace corundum {
 
     private:
       std::expected<void, std::string> load_render_assets() {
-        auto char_result = engine_.characters.load_all(engine_.cfg.paths.sprites_dir);
+        std::expected<void, std::string> char_result;
+        char_result = engine_.characters.load_all(engine_.cfg.paths.sprites_dir);
         if (!char_result)
           return std::unexpected(char_result.error());
         render::sys::load_sprite_index(*engine_.renderer, engine_.render, engine_.characters);
 
         const auto font_path = std::format("{}/{}", engine_.cfg.paths.font_dir, engine_.cfg.paths.game_font);
-        auto font_result = render::sys::load_font(*engine_.renderer, engine_.render, font_path);
+        std::expected<uint32_t, std::string> font_result;
+        font_result = render::sys::load_font(*engine_.renderer, engine_.render, font_path);
         if (!font_result)
           return std::unexpected(font_result.error());
 
-        auto ui_result = render::sys::load_ui_assets(*engine_.renderer, engine_.render);
+        std::expected<void, std::string> ui_result;
+        ui_result = render::sys::load_ui_assets(*engine_.renderer, engine_.render);
         if (!ui_result)
           return std::unexpected(ui_result.error());
         return {};
@@ -82,15 +86,18 @@ namespace corundum {
       }
 
       std::expected<void, std::string> init_world_scene() {
-        auto world_result = render::sys::load_world(*engine_.renderer, engine_.render, engine_.cfg);
+        std::expected<render::sys::WorldLoadInfo, std::string> world_result;
+        world_result = render::sys::load_world(*engine_.renderer, engine_.render, engine_.cfg);
         if (!world_result)
-          return std::unexpected(world_result.error());
+          return std::unexpected(std::move(world_result).error());
         const auto &info = *world_result;
         const gameplay::component::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
-        auto scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters,
-                                                         engine_.render.chunks.active_at(0).tilemap, spawn_pos);
+
+        std::expected<gameplay::world::Scene, std::string> scene_result;
+        scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters,
+                                                    engine_.render.chunks.active_at(0).tilemap, spawn_pos);
         if (!scene_result)
-          return std::unexpected(scene_result.error());
+          return std::unexpected(std::move(scene_result).error());
         engine_.scene = std::move(*scene_result);
         const auto [world_width, world_height] =
             gameplay::world::tilemap::world_bounds_iso(engine_.render.manifest, info.half_tw, info.half_th);
@@ -110,13 +117,16 @@ namespace corundum {
       }
 
       std::expected<void, std::string> init_single_map_scene() {
-        auto map_result =
+        std::expected<void, std::string> map_result;
+        map_result =
             render::sys::load_map(*engine_.renderer, engine_.render, engine_.cfg.paths.tilemap_path, engine_.cfg);
         if (!map_result)
-          return std::unexpected(map_result.error());
-        auto scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters, *active_tilemap(engine_));
+          return std::unexpected(std::move(map_result).error());
+
+        std::expected<gameplay::world::Scene, std::string> scene_result;
+        scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters, *active_tilemap(engine_));
         if (!scene_result)
-          return std::unexpected(scene_result.error());
+          return std::unexpected(std::move(scene_result).error());
         engine_.scene = std::move(*scene_result);
 
         const auto &tilemap = *active_tilemap(engine_);
@@ -144,11 +154,13 @@ namespace corundum {
       }
 
       void init_audio() {
-        std::expected<void, std::string> audio_result = engine_.audio.initialize(engine_.cfg.paths.sounds_dir);
-        if (!audio_result)
+        std::expected<void, std::string> audio_result;
+        audio_result = engine_.audio.initialize(engine_.cfg.paths.sounds_dir);
+        if (!audio_result) {
           std::println("[engine] WARN: Audio init failed — {}", audio_result.error());
-        else
-          engine_.audio.load_catalog(engine_.cfg.paths.sounds_catalog);
+          return;
+        }
+        engine_.audio.load_catalog(engine_.cfg.paths.sounds_catalog);
       }
 
       void load_dialogue_and_quests() {
