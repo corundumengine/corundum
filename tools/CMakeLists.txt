@@ -84,3 +84,24 @@ target_link_libraries(talesmith
 
 target_compile_options(talesmith PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(talesmith PROPERTIES UNITY_BUILD OFF)
+
+# ── Mapview Tool (headless) ───────────────────────────────────────────────────────
+# A CLI that renders a top-down overview PNG of a chunk-based world from its tilemaps.
+# Headless: links the engine's public parsing library (engine) for load_tilemap() and the
+# stb image/font headers — never the GLFW/sokol platform backend.
+add_executable(mapview
+    mapview/mapview_main.cpp
+)
+
+target_include_directories(mapview
+    PRIVATE
+        ${stb_SOURCE_DIR}
+)
+
+target_link_libraries(mapview
+    PRIVATE
+        engine
+)
+
+target_compile_options(mapview PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(mapview PROPERTIES UNITY_BUILD OFF)

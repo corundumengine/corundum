@@ -129,6 +129,8 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
         "tool_host/**/*.hpp"
         "tools/editors/**/*.cpp"
         "tools/editors/**/*.hpp"
+        "tools/mapview/**/*.cpp"
+        "tools/mapview/**/*.hpp"
         "tools/platform/**/*.cpp"
         "tools/platform/**/*.hpp"
     )
