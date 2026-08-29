@@ -1,5 +1,6 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/debug/debug_overlay.hpp>
+#include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/sys/render_sys.hpp>
@@ -18,12 +19,18 @@ namespace corundum::debug {
     constexpr core::math::Colour k_tri_col{60, 100, 220, 80};
     constexpr core::math::Colour k_hud_bg{0, 0, 0, 75};
     constexpr core::math::Colour k_hud_text{220, 220, 200, 255};
+    constexpr core::math::Colour k_player_col{0, 255, 0, 220};
 
     constexpr float k_y = 10.f;
     constexpr uint32_t k_font_sz = 16;
     constexpr float k_line_h = 20.f;
     constexpr float k_pad = 8.f;
-    constexpr float k_box_w = 275.f;
+    constexpr float k_box_w = 360.f;
+
+    constexpr float k_fps_ema_alpha = 0.05f;
+    constexpr float k_marker_hw = 5.f;
+    constexpr float k_marker_hh = 3.f;
+    constexpr float k_line_thickness = 2.f;
 
     [[nodiscard]] constexpr std::string_view facing_name(gameplay::component::FacingDir d) noexcept {
       using gameplay::component::FacingDir;
@@ -48,19 +55,32 @@ namespace corundum::debug {
       std::unreachable();
     }
 
-    constexpr float k_fps_ema_alpha = 0.05f;
-
   } // namespace
 
-  void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
-                      gameplay::world::tilemap::CollisionRectsView rects,
-                      gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsometricParams iso,
-                      float zoom) noexcept {
+  core::math::IsometricParams HudOverlay::resolve_isometric(const render::data::RenderState &render,
+                                                            const core::GameConfig &cfg) noexcept {
+    if (render.mode == render::data::RenderMode::World && !render.chunks.active_empty()) {
+      const gameplay::world::tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
+      const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
+                                                         : render.manifest.chunks_tall * render.manifest.chunk_size;
+      return core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale,
+                                                  cfg.elevation_step_px);
+    }
+    if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
+      const gameplay::world::tilemap::Tilemap &tm = render.map_data.tilemap;
+      return core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
+                                                  cfg.elevation_step_px);
+    }
+    return {};
+  }
+
+  void HudOverlay::draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+                                  gameplay::world::tilemap::CollisionRectsView rects,
+                                  gameplay::world::tilemap::CollisionTrianglesView tris,
+                                  core::math::IsometricParams iso, float zoom) const noexcept {
     r.set_world_view(camera, viewport, zoom);
 
     if (iso.half_tw > 0.f && iso.half_th > 0.f) {
-      constexpr float k_line_thickness = 2.f;
-
       // Convert a tile-grid rect's four corners to isometric and draw as a diamond.
       // Diamond corners are at the cell's top-vertex projection (matching the cell
       // diamond's outline), so the diamond aligns with where tile art draws its
@@ -105,23 +125,100 @@ namespace corundum::debug {
     r.reset_screen_view();
   }
 
-  void draw_hud(platform::Renderer &r, const HudData &d) noexcept {
-    const float x = d.win_w - k_box_w - k_pad;
+  void HudOverlay::draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+                                      float zoom, const render::data::RenderState &render,
+                                      const gameplay::entity::World &w, gameplay::entity::EntityId player,
+                                      core::math::IsometricParams iso) const noexcept {
+    if (iso.half_tw <= 0.f || iso.half_th <= 0.f || !w.transforms.has(player) || !w.collisions.has(player))
+      return;
 
-    std::array<std::string, 6> lines{
-        std::format("FPS:  sim {:3.0f} / render {:3.0f}", d.sim_fps, d.render_fps),
-        std::format("Grid:  col ({:7.1f}), row ({:7.1f})", d.player_col, d.player_row),
-        [&d] {
-          std::string vel = std::format("Velocity: dc ({:7.1f}), dr ({:7.1f})", d.player_dc, d.player_dr);
-          if (d.player_has_facing)
-            vel += std::format("  {}", facing_name(d.player_facing));
-          return vel;
-        }(),
-        std::format("Camera:  x ({:7.1f}), y ({:7.1f})", d.camera_x, d.camera_y),
-        std::format("Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}", d.active_chunks, d.collision_rects,
-                    d.collision_tris, d.entity_count),
-        d.hover_valid ? std::format("Hover:  col ({}), row ({})", d.hover_col, d.hover_row)
-                      : std::string{"Hover:  none"},
+    r.set_world_view(camera, viewport, zoom);
+    const auto slot = w.transforms.dense_idx(player);
+    const float col = w.transforms.col[slot];
+    const float row = w.transforms.row[slot];
+
+    // Feet position (entity anchor) in isometric space — cell center, matching the
+    // entity sprite anchor so the marker sits on the character's feet, not above them.
+    // Elevation must match render_sys.cpp's entity anchor calc (elevation_under), or the
+    // marker desyncs from the drawn sprite on any non-flat tile.
+    const float marker_elev = corundum::render::sys::elevation_under(render, col, row);
+    const auto [mx, my] = core::math::tile_to_world_center(col, row, marker_elev, iso);
+    r.draw(platform::DrawLine{.start = {mx, my - k_marker_hh},
+                              .end = {mx + k_marker_hw, my},
+                              .colour = k_player_col,
+                              .thickness = k_line_thickness});
+    r.draw(platform::DrawLine{.start = {mx + k_marker_hw, my},
+                              .end = {mx, my + k_marker_hh},
+                              .colour = k_player_col,
+                              .thickness = k_line_thickness});
+    r.draw(platform::DrawLine{.start = {mx, my + k_marker_hh},
+                              .end = {mx - k_marker_hw, my},
+                              .colour = k_player_col,
+                              .thickness = k_line_thickness});
+    r.draw(platform::DrawLine{.start = {mx - k_marker_hw, my},
+                              .end = {mx, my - k_marker_hh},
+                              .colour = k_player_col,
+                              .thickness = k_line_thickness});
+    r.reset_screen_view();
+  }
+
+  void HudOverlay::draw_text_panel(platform::Renderer &r, const render::data::RenderState &render,
+                                   const core::GameConfig &cfg, const gameplay::world::Scene &scene) const noexcept {
+    const float x = cfg.win_w - k_box_w - k_pad;
+
+    const gameplay::entity::World &w = scene.world;
+    const gameplay::entity::EntityId p = scene.player;
+
+    std::string grid_str{"(none)"};
+    float player_dc = 0.f;
+    float player_dr = 0.f;
+    if (w.transforms.has(p)) {
+      grid_str = std::format("col ({:7.1f}), row ({:7.1f})", w.transforms.pos_col(p), w.transforms.pos_row(p));
+      const auto di = w.transforms.dense_idx(p);
+      player_dc = w.transforms.dc[di];
+      player_dr = w.transforms.dr[di];
+    }
+
+    std::string velocity_str = std::format("dc ({:7.1f}), dr ({:7.1f})", player_dc, player_dr);
+    if (w.facings.has(p))
+      velocity_str += std::format("  {}", facing_name(w.facings.dir_of(p)));
+
+    const render::data::CollisionGeometry geo = render::data::current_collisions(render);
+    const int collision_rects = static_cast<int>(geo.rects.size());
+    const int collision_tris = static_cast<int>(geo.tris.size());
+
+    std::string map_name;
+    if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.path.empty()) {
+      map_name = render.map_data.tilemap.path;
+    } else if (render.mode == render::data::RenderMode::World && !render.chunks.active_empty()) {
+      const int cs = render.manifest.chunk_size;
+      if (cs > 0 && w.transforms.has(p)) {
+        const gameplay::world::tilemap::ChunkCoord c{static_cast<int>(w.transforms.pos_col(p)) / cs,
+                                                     static_cast<int>(w.transforms.pos_row(p)) / cs};
+        for (const render::data::ChunkEntry &entry : render.chunks.active()) {
+          if (entry.coord == c) {
+            map_name = entry.tilemap.path;
+            break;
+          }
+        }
+      }
+    }
+
+    std::string hover_str;
+    if (scene.hovered_tile)
+      hover_str = std::format("Hover:  col ({}), row ({})", scene.hovered_tile->col, scene.hovered_tile->row);
+    else
+      hover_str = "Hover:  none";
+
+    std::array<std::string, 7> lines{
+        std::format("FPS:  sim {:3.0f} / render {:3.0f}", static_cast<float>(cfg.framerate), smoothed_fps),
+        std::format("Grid:  {}", grid_str),
+        std::format("Velocity:  {}", velocity_str),
+        std::format("Camera:  x ({:7.1f}), y ({:7.1f})", scene.camera.x, scene.camera.y),
+        std::format("Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}", static_cast<int>(render.chunks.active_size()),
+                    collision_rects, collision_tris, static_cast<int>(w.entities.alive())),
+        std::format("Map:  {}", map_name),
+        hover_str,
     };
 
     r.draw(platform::DrawRect{
@@ -133,7 +230,7 @@ namespace corundum::debug {
     float y = k_y;
     for (const std::string &text : lines) {
       r.draw(platform::DrawText{
-          .font_id = d.font_id,
+          .font_id = render.font_id,
           .text = text,
           .position = {x, y},
           .char_size = k_font_sz,
@@ -143,98 +240,25 @@ namespace corundum::debug {
     }
   }
 
-  void draw_overlays(platform::Renderer &r, const OverlayInput &input, HudState &hud) noexcept {
+  void HudOverlay::render(platform::Renderer &r, const OverlayInput &input) noexcept {
     const render::data::RenderState &render = input.render_state;
     const core::GameConfig &cfg = input.cfg;
     const gameplay::world::Scene &scene = input.scene;
+    const core::time::LoopTimer &timer = input.timer;
 
     const core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
     const core::math::Vec2 camera{scene.camera.x, scene.camera.y};
 
-    core::math::IsometricParams iso{};
-    if (render.mode == render::data::RenderMode::World && !render.chunks.active_empty()) {
-      const gameplay::world::tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
-      const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
-                                                         : render.manifest.chunks_tall * render.manifest.chunk_size;
-      iso = core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale,
-                                                 cfg.elevation_step_px);
-    } else if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
-      const gameplay::world::tilemap::Tilemap &tm = render.map_data.tilemap;
-      iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
-                                                 cfg.elevation_step_px);
-    }
+    const core::math::IsometricParams iso = resolve_isometric(render, cfg);
+
     const render::data::CollisionGeometry geo = render::data::current_collisions(render);
     draw_collision(r, camera, viewport, geo.rects, geo.tris, iso, scene.camera.zoom);
+    draw_player_marker(r, camera, viewport, scene.camera.zoom, render, scene.world, scene.player, iso);
 
-    // Draw player collision bounding box in isometric space
-    const gameplay::entity::World &w = scene.world;
-    const gameplay::entity::EntityId p = scene.player;
-    if (iso.half_tw > 0.f && iso.half_th > 0.f && w.transforms.has(p) && w.collisions.has(p)) {
-      r.set_world_view(camera, viewport, scene.camera.zoom);
-      const std::uint32_t slot = w.transforms.dense_idx(p);
-      const float col = w.transforms.col[slot];
-      const float row = w.transforms.row[slot];
+    const float raw_fps = timer.last_frame_dt > 0.f ? 1.f / timer.last_frame_dt : 0.f;
+    smoothed_fps += k_fps_ema_alpha * (raw_fps - smoothed_fps);
 
-      // Feet position (entity anchor) in isometric space — cell center, matching the
-      // entity sprite anchor so the marker sits on the character's feet, not above them.
-      // Elevation must match render_sys.cpp's entity anchor calc (elevation_under), or the
-      // marker desyncs from the drawn sprite on any non-flat tile.
-      const float marker_elev = corundum::render::sys::elevation_under(render, col, row);
-      const auto [mx, my] = core::math::tile_to_world_center(col, row, marker_elev, iso);
-      constexpr float k_marker_hw = 5.f;
-      constexpr float k_marker_hh = 3.f;
-      constexpr core::math::Colour k_player_col{0, 255, 0, 220};
-      constexpr float k_line_thickness = 2.f;
-      r.draw(platform::DrawLine{.start = {mx, my - k_marker_hh},
-                                .end = {mx + k_marker_hw, my},
-                                .colour = k_player_col,
-                                .thickness = k_line_thickness});
-      r.draw(platform::DrawLine{.start = {mx + k_marker_hw, my},
-                                .end = {mx, my + k_marker_hh},
-                                .colour = k_player_col,
-                                .thickness = k_line_thickness});
-      r.draw(platform::DrawLine{.start = {mx, my + k_marker_hh},
-                                .end = {mx - k_marker_hw, my},
-                                .colour = k_player_col,
-                                .thickness = k_line_thickness});
-      r.draw(platform::DrawLine{.start = {mx - k_marker_hw, my},
-                                .end = {mx, my - k_marker_hh},
-                                .colour = k_player_col,
-                                .thickness = k_line_thickness});
-      r.reset_screen_view();
-    }
-
-    const float raw_fps = input.timer.last_frame_dt > 0.f ? 1.f / input.timer.last_frame_dt : 0.f;
-    hud.smoothed_fps += k_fps_ema_alpha * (raw_fps - hud.smoothed_fps);
-    HudData data{
-        .font_id = render.font_id,
-        .win_w = cfg.win_w,
-        .render_fps = hud.smoothed_fps,
-        .sim_fps = static_cast<float>(cfg.framerate),
-    };
-    if (w.transforms.has(p)) {
-      data.player_col = w.transforms.pos_col(p);
-      data.player_row = w.transforms.pos_row(p);
-      const std::uint32_t di = w.transforms.dense_idx(p);
-      data.player_dc = w.transforms.dc[di];
-      data.player_dr = w.transforms.dr[di];
-    }
-    if (w.facings.has(p)) {
-      data.player_has_facing = true;
-      data.player_facing = w.facings.dir_of(p);
-    }
-    data.camera_x = camera.x;
-    data.camera_y = camera.y;
-    data.active_chunks = static_cast<int>(render.chunks.active_size());
-    data.collision_rects = static_cast<int>(geo.rects.size());
-    data.collision_tris = static_cast<int>(geo.tris.size());
-    data.entity_count = static_cast<int>(w.entities.alive());
-    if (scene.hovered_tile) {
-      data.hover_valid = true;
-      data.hover_col = scene.hovered_tile->col;
-      data.hover_row = scene.hovered_tile->row;
-    }
-    draw_hud(r, data);
+    draw_text_panel(r, render, cfg, scene);
   }
 
 } // namespace corundum::debug

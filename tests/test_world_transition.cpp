@@ -251,3 +251,28 @@ TEST_CASE("world transition — chunk-to-chunk portal still teleports, not a sce
 
   corundum::cleanup(engine);
 }
+
+TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover works)") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  const auto map = corundum::gameplay::world::build_map_view(engine.render, engine.cfg);
+  // World-mode MapView carries world_render (not elevation_map); pick_tile must use it.
+  REQUIRE(map.world_render != nullptr);
+  CHECK(map.elevation_map == nullptr);
+
+  const corundum::gameplay::world::Camera &camera = engine.scene.camera;
+  // The camera is centred on the player tile (8,8); the viewport centre must fall on a tile.
+  const float mouse_x = 160.f;
+  const float mouse_y = 120.f;
+  const auto result = corundum::gameplay::sys::pick_tile(mouse_x, mouse_y, camera, map,
+                                                         engine.cfg.elevation_step_px * map.tile_scale, camera.zoom);
+
+  CHECK(result.has_value());
+
+  corundum::cleanup(engine);
+}

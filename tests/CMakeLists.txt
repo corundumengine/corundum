@@ -35,6 +35,7 @@ add_executable(corundum_tests
     test_render_state.cpp
     test_engine_lifecycle.cpp
     test_chunk_collision_aggregate.cpp
+    test_debug_overlay.cpp
     test_elevation_gate.cpp
     test_portal_elevation.cpp
     test_picking_elevation.cpp

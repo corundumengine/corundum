@@ -263,7 +263,7 @@ namespace corundum {
             .scene = engine.scene,
             .timer = engine.timer,
         };
-        debug::draw_overlays(*engine.renderer, hud_input, engine.hud);
+        engine.hud.render(*engine.renderer, hud_input);
       }
 
       engine.renderer->end_frame();

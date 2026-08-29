@@ -3,7 +3,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
-#include <corundum/debug/hud_state.hpp>
+#include <corundum/debug/debug_overlay.hpp>
 #include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/gameplay/flags.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
@@ -70,7 +70,7 @@ namespace corundum {
     int win_w = 0; ///< Live window width in screen pixels, updated each frame.
 
     core::math::Colour clear_colour{30, 30, 35, 255};
-    debug::HudState hud;
+    debug::HudOverlay hud;
     bool quit = false;
     core::time::LoopTimer timer{60.f};
 

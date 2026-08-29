@@ -25,16 +25,18 @@ namespace corundum::gameplay::sys {
   /**
    * @brief Convert a mouse position to the tile it's over, elevation-aware.
    *
-   * @details Single-map mode only (returns nullopt if @p map.elevation_map is null,
-   * matching the existing MapView::elevation_map/walkability limitation). Scans every
-   * cell in map bounds; for each, inverts the mouse position assuming that cell's real
-   * elevation (world_to_tile()) and checks whether the result falls in that exact cell
-   * — this is what makes the test diamond-exact rather than a bounding-box
-   * approximation, with no separate point-in-polygon code needed. When a raised tile's
-   * footprint visually overlaps a lower neighbor (both pass the test for the same
-   * screen point), the candidate with the larger iso_depth_key() wins — the same
-   * "larger key draws later/on top" convention the renderer already uses, so picking
-   * agrees with what's visually on top.
+   * @details Works in both single-map and chunked/world mode. In single-map mode elevation
+   * spans the map's own tilemap (map.elevation_map); in world mode it uses
+   * render::sys::elevation_under via map.world_render, spanning the whole world grid.
+   * Returns nullopt only when there is no elevation source (neither map.elevation_map
+   * nor map.world_render is set). Scans every cell in grid bounds; for each, inverts the
+   * mouse position assuming that cell's real elevation (world_to_tile()) and checks
+   * whether the result falls in that exact cell — this is what makes the test diamond-
+   * exact rather than a bounding-box approximation, with no separate point-in-polygon
+   * code needed. When a raised tile's footprint visually overlaps a lower neighbor (both
+   * pass the test for the same screen point), the candidate with the larger
+   * iso_depth_key() wins — the same "larger key draws later/on top" convention the
+   * renderer already uses, so picking agrees with what's visually on top.
    *
    * O(width * height) per call — a full-map scan, acceptable at this project's current
    * scale (no screen-space culling/chunking exists yet to make large maps common).
@@ -47,7 +49,7 @@ namespace corundum::gameplay::sys {
    * @param zoom     Current Camera::zoom; screen-to-world conversion divides by this
    *                 (matching the renderer's `screen = (world - camera) * zoom` convention).
    * @return The topmost tile under the cursor, or nullopt if none (out of bounds,
-   *         empty space, or World/chunked mode).
+   *         empty space, or no elevation source available).
    */
   [[nodiscard]] std::optional<TileCoord> pick_tile(float mouse_x, float mouse_y,
                                                    const corundum::gameplay::world::Camera &camera,
