@@ -334,6 +334,11 @@ namespace corundum::physics::sys {
       const float col1 = p.col + half_cs;
       const float row0 = p.row;
       const float row1 = p.row + player_rect.row_span;
+      // Clear a declined prompt once the player walks off its rect — otherwise standing on a
+      // portal they cancelled would suppress every subsequent re-prompt forever.
+      if (scene.transition_prompt && scene.transition_prompt->declined() &&
+          !scene.transition_prompt->overlaps(col0, col1, row0, row1))
+        scene.transition_prompt.reset();
       for (const auto &portal : map.portals) {
         if (col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h) {
           if (!portal_elev_matches(map, portal, player_elev, elev_gate.tolerance))
@@ -345,7 +350,11 @@ namespace corundum::physics::sys {
             transforms.row[p_slot] = p.row;
             return;
           }
-          scene.pending_transition = {portal.target_map, portal.spawn_col, portal.spawn_row, portal.return_to_world};
+          // Suppress re-prompting while standing on a portal the player already declined.
+          if (scene.transition_prompt && scene.transition_prompt->declined() && scene.transition_prompt->guards(portal))
+            continue;
+          scene.transition_prompt.emplace(portal);
+          scene.mode = corundum::gameplay::world::GameMode::Prompt;
           return;
         }
       }

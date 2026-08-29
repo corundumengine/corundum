@@ -75,7 +75,9 @@ namespace corundum::physics::sys {
    *  @param[in]     dt            Fixed timestep in seconds.
    *  @pre @p player must exist in @p transforms and @p collisions.
    *  @post Player position is clamped to map bounds.
-   *  @post scene.pending_transition is set if a portal was entered.
+   *  @post For cross-map and return-to-world portals, scene.transition_prompt is set and
+   *        scene.mode becomes Prompt; handle_map_transition() runs the transition only after
+   *        the player confirms. Chunk-to-chunk portals teleport the player immediately.
    *  @performance O(n) over NPC count. No heap allocation.
    */
   void update_player(corundum::gameplay::component::TransformTable &transforms,

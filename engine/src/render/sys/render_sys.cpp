@@ -3,6 +3,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/component/transform_table.hpp>
+#include <corundum/gameplay/ui/prompt_box.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/loader.hpp>
@@ -398,6 +399,11 @@ namespace corundum::render::sys {
     r.reset_screen_view();
     corundum::gameplay::ui::dialog_box_update(state.dialog_box, scene.dialogue, flags, r, viewport);
     corundum::gameplay::ui::dialog_box_render(state.dialog_box, r);
+    if (scene.transition_prompt && !scene.transition_prompt->declined()) {
+      const std::string_view question = scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
+      corundum::gameplay::ui::prompt_box_render(r, state.dialog_box.style, state.dialog_box.border, question,
+                                                scene.transition_prompt->confirm_selected(), viewport);
+    }
   }
 
   /// Returns the full (untrimmed) frame width of the first tile in the active chunk's first

@@ -82,6 +82,37 @@ namespace {
     }
   }
 
+  /// Step a paused-on-prompt scene: TransitionPrompt::step decodes the input and returns
+  /// Confirmed (commit and resume), Dismissed (Cancel / Select-on-No; resumes with the
+  /// prompt latched as declined), or Pending (stay paused). The physics system resets
+  /// the prompt once the player walks off the portal rect, so re-entering starts with
+  /// Yes highlighted again.
+  void update_transition_prompt(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input) {
+    using corundum::gameplay::world::GameMode;
+    using Step = corundum::gameplay::world::TransitionPrompt::Step;
+
+    if (!scene.transition_prompt) {
+      // Defensive: a stale Prompt mode with no candidate should not block the player.
+      scene.mode = GameMode::Exploring;
+      return;
+    }
+
+    switch (scene.transition_prompt->step(input)) {
+      case Step::Confirmed:
+        scene.pending_transition = scene.transition_prompt->transition();
+        scene.transition_prompt.reset();
+        scene.path.clear(); // don't auto-walk back onto the trigger
+        scene.mode = GameMode::Exploring;
+        break;
+      case Step::Dismissed:
+        scene.path.clear();
+        scene.mode = GameMode::Exploring;
+        break;
+      case Step::Pending:
+        break;
+    }
+  }
+
 } // namespace
 
 namespace corundum::gameplay::world {
@@ -97,11 +128,17 @@ namespace corundum::gameplay::world {
     scene.hovered_tile = corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map,
                                                             cfg.elevation_step_px * map.tile_scale, scene.camera.zoom);
 
-    if (scene.mode == corundum::gameplay::world::GameMode::Dialogue) [[unlikely]] {
-      corundum::gameplay::sys::update_dialogue(scene, actions, flags, quests);
-    } else [[likely]] {
-      update_exploring(scene, input, map, cfg, dt, win_w, win_h);
-      corundum::gameplay::sys::try_interact(scene, input, cfg, graphs, flags);
+    switch (scene.mode) {
+      case corundum::gameplay::world::GameMode::Dialogue:
+        corundum::gameplay::sys::update_dialogue(scene, actions, flags, quests);
+        break;
+      case corundum::gameplay::world::GameMode::Prompt:
+        update_transition_prompt(scene, input);
+        break;
+      case corundum::gameplay::world::GameMode::Exploring:
+        update_exploring(scene, input, map, cfg, dt, win_w, win_h);
+        corundum::gameplay::sys::try_interact(scene, input, cfg, graphs, flags);
+        break;
     }
   }
 

@@ -165,16 +165,16 @@ fragment float4 fs_main(Varyings in [[stage_in]],
   private:
     struct LoadedTexture {
       std::string path;
-      sg_image image;
-      sg_view view;
+      sg_image image{};
+      sg_view view{};
       int width = 0;
       int height = 0;
     };
 
     struct BakedAtlas {
       BakedSize data;
-      sg_image image;
-      sg_view view;
+      sg_image image{};
+      sg_view view{};
     };
 
     [[nodiscard]] uint64_t font_size_key(uint32_t font_id, uint32_t char_size) const noexcept;
@@ -226,7 +226,10 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     uint32_t dropped_quads_this_frame_{0};
   };
 
-  // (LoadedTexture and BakedAtlas are POD aggregates; no explicit ctors needed.)
+  // LoadedTexture and BakedAtlas are aggregates with in-class initializers for the
+  // sg_image/sg_view handle members — value-init (e.g. BakedAtlas b{}) leaves the
+  // .id sentinel at 0 until sg_make_image populates it, which the `image.id == 0`
+  // upload guard in ensure_uploaded() relies on.
 
   SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx) : gpu_ctx_(gpu_ctx) {
     // GPU resources (shader, pipeline, vertex buffer, sampler, white texture) are
@@ -344,7 +347,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (it == baked_atlases_.end()) {
       if (font_id >= font_atlases_.size() || !font_atlases_[font_id])
         return nullptr;
-      BakedAtlas b;
+      BakedAtlas b{};
       b.data = font_atlases_[font_id]->bake(char_size);
       it = baked_atlases_.emplace(key, std::move(b)).first;
     }

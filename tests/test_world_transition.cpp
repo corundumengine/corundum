@@ -60,6 +60,17 @@ namespace {
                                       &engine.quests);
   }
 
+  /// Run one fixed simulation step with a single action's `pressed` bit set. Used to drive
+  /// the portal-confirm prompt's Select/Cancel path through update_transition_prompt().
+  void advance_with(corundum::Engine &engine, corundum::input::Action action) {
+    auto map = corundum::gameplay::world::build_map_view(engine.render, engine.cfg);
+    corundum::input::InputState input{};
+    input.pressed.set(static_cast<std::size_t>(action));
+    corundum::gameplay::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
+                                      static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
+                                      &engine.quests);
+  }
+
   /// Place the player entity at an exact tile (row/col) without pathing.
   void move_player_to(corundum::Engine &engine, float col, float row) {
     auto &transforms = engine.scene.world.transforms;
@@ -196,8 +207,19 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
 
-  // Physics surfaced a cross-map portal with return_to_world=false and the interior target.
+  // Stepping onto the portal pauses the player on a confirm prompt — no automatic transition.
+  using corundum::gameplay::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK_FALSE(engine.scene.transition_prompt->declined());
+  REQUIRE_FALSE(engine.scene.pending_transition.has_value());
+  CHECK_FALSE(engine.entered_from_world); // not yet marked; marking happens on the transition
+
+  // Confirm — now the candidate transitions into the actual pending_transition.
+  advance_with(engine, corundum::input::Action::Select);
+  REQUIRE(engine.scene.mode == GameMode::Exploring);
   REQUIRE(engine.scene.pending_transition.has_value());
+  REQUIRE_FALSE(engine.scene.transition_prompt.has_value());
   const auto enter = *engine.scene.pending_transition;
   CHECK_FALSE(enter.return_to_world);
   // The fixture portal authors the target as a repo-relative path, which load_map
@@ -205,7 +227,6 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   CHECK(enter.target_map == "tests/fixtures/tilemaps/interior.json");
   CHECK(enter.spawn_col == 1);
   CHECK(enter.spawn_row == 2);
-  CHECK_FALSE(engine.entered_from_world); // not yet marked; marking happens on the transition
 
   handle_map_transition(engine);
   CHECK(engine.render.mode == RenderMode::SingleMap);
@@ -216,12 +237,17 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   // inside the interior, walk onto its return_to_world portal at tile (0,0).
   move_player_to(engine, 0.f, 0.f);
   advance(engine);
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->transition().return_to_world);
+  REQUIRE(engine.entered_from_world); // marker survives the interior step
+
+  advance_with(engine, corundum::input::Action::Select);
   REQUIRE(engine.scene.pending_transition.has_value());
   const auto exit = *engine.scene.pending_transition;
   CHECK(exit.return_to_world);
   CHECK(exit.spawn_col == 12);
   CHECK(exit.spawn_row == 3);
-  REQUIRE(engine.entered_from_world); // marker survives the interior step
 
   handle_map_transition(engine);
   CHECK(engine.render.mode == RenderMode::World);
@@ -273,6 +299,238 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
                                                          engine.cfg.elevation_step_px * map.tile_scale, camera.zoom);
 
   CHECK(result.has_value());
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, no auto-transition") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  // The cave-mouth portal lives at world (13,13) — see test_world_transition fixture notes.
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+
+  using corundum::gameplay::world::GameMode;
+  CHECK(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK_FALSE(engine.scene.transition_prompt->declined());
+  CHECK(engine.scene.transition_prompt->confirm_selected()); // default highlight: Yes
+  // pending_transition stays empty until the player confirms — handle_map_transition is a no-op.
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+  handle_map_transition(engine);
+  CHECK(engine.render.mode == RenderMode::World);
+  CHECK(player_tile(engine) == std::pair{13, 13});
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — Select on the prompt promotes the stashed transition") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  using corundum::gameplay::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+
+  advance_with(engine, corundum::input::Action::Select);
+
+  CHECK(engine.scene.mode == GameMode::Exploring);
+  REQUIRE(engine.scene.pending_transition.has_value());
+  CHECK_FALSE(engine.scene.transition_prompt.has_value());
+
+  // Round-trip the existing assertions to prove the promoted transition is the same one
+  // the old auto-fire path would have produced.
+  handle_map_transition(engine);
+  CHECK(engine.render.mode == RenderMode::SingleMap);
+  CHECK(player_tile(engine) == std::pair{1, 2});
+  CHECK(engine.entered_from_world);
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until player leaves the rect") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  using corundum::gameplay::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+
+  advance_with(engine, corundum::input::Action::Cancel);
+  CHECK(engine.scene.mode == GameMode::Exploring);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->declined());
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+
+  // Still standing on the portal: advance() must NOT re-arm the prompt or set pending_transition.
+  advance(engine);
+  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->declined());
+  advance(engine);
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+  CHECK(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->declined());
+
+  // Walk off the portal: the next advance() resets the declined prompt.
+  move_player_to(engine, 8.f, 8.f);
+  advance(engine);
+  CHECK_FALSE(engine.scene.transition_prompt.has_value());
+
+  // Walk back on: the prompt re-arms.
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  CHECK(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK_FALSE(engine.scene.transition_prompt->declined());
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — return_to_world portal prompts with return_to_world=true") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  // Enter the interior via the existing path (no prompt step needed — the test focuses on the
+  // return leg's prompt and confirm semantics, not the entry flow already covered above).
+  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
+  handle_map_transition(engine);
+  REQUIRE(engine.render.mode == RenderMode::SingleMap);
+  REQUIRE(engine.entered_from_world);
+
+  // Walk onto the interior's return_to_world portal at tile (0,0).
+  move_player_to(engine, 0.f, 0.f);
+  advance(engine);
+  using corundum::gameplay::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->transition().return_to_world);
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+
+  advance_with(engine, corundum::input::Action::Select);
+  REQUIRE(engine.scene.pending_transition.has_value());
+  CHECK(engine.scene.mode == GameMode::Exploring);
+
+  handle_map_transition(engine);
+  CHECK(engine.render.mode == RenderMode::World);
+  CHECK(player_tile(engine) == std::pair{12, 3});
+  CHECK_FALSE(engine.entered_from_world);
+  CHECK(engine.render.chunks.last_center() == corundum::gameplay::world::tilemap::ChunkCoord{1, 0});
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  using corundum::gameplay::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->confirm_selected());
+
+  // Right → No highlighted, still in prompt, no transition yet.
+  advance_with(engine, corundum::input::Action::MoveRight);
+  CHECK(engine.scene.mode == GameMode::Prompt);
+  CHECK_FALSE(engine.scene.transition_prompt->confirm_selected());
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+
+  // Left → Yes highlighted again.
+  advance_with(engine, corundum::input::Action::MoveLeft);
+  CHECK(engine.scene.mode == GameMode::Prompt);
+  CHECK(engine.scene.transition_prompt->confirm_selected());
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+
+  // Up/Down alias — Down acts like Right, Up like Left.
+  advance_with(engine, corundum::input::Action::MoveDown);
+  CHECK_FALSE(engine.scene.transition_prompt->confirm_selected());
+  advance_with(engine, corundum::input::Action::MoveUp);
+  CHECK(engine.scene.transition_prompt->confirm_selected());
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — Select on No backs out like Cancel") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  using corundum::gameplay::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+
+  advance_with(engine, corundum::input::Action::MoveRight);
+  REQUIRE_FALSE(engine.scene.transition_prompt->confirm_selected());
+
+  advance_with(engine, corundum::input::Action::Select);
+  CHECK(engine.scene.mode == GameMode::Exploring);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->declined());
+  CHECK_FALSE(engine.scene.pending_transition.has_value());
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — re-arming the prompt resets Yes as the default highlight") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  using corundum::gameplay::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt->confirm_selected());
+
+  // Move the highlight to No, then cancel — physics clears the prompt once the player walks off.
+  advance_with(engine, corundum::input::Action::MoveRight);
+  advance_with(engine, corundum::input::Action::Cancel);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  REQUIRE(engine.scene.transition_prompt->declined());
+  // (declined flag doesn't change the highlight; the prompt itself is reset on re-arm.)
+
+  move_player_to(engine, 8.f, 8.f);
+  advance(engine);
+  CHECK_FALSE(engine.scene.transition_prompt.has_value());
+
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
+  CHECK(engine.scene.transition_prompt->confirm_selected()); // Yes again, not carried over
 
   corundum::cleanup(engine);
 }

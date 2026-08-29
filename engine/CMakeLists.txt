@@ -34,6 +34,7 @@ add_library(engine STATIC
     src/core/json_io.cpp
     src/gameplay/world/actors/actor_loader.cpp
     src/gameplay/world/portals/portal.cpp
+    src/gameplay/world/portals/transition_prompt.cpp
     src/anim/sys/anim_sys.cpp
     src/gameplay/sys/camera_system.cpp
     src/gameplay/sys/picking.cpp
@@ -53,6 +54,7 @@ add_library(engine STATIC
     src/gameplay/world/update.cpp
     src/gameplay/ui/nine_patch.cpp
     src/gameplay/ui/dialog_box.cpp
+    src/gameplay/ui/prompt_box.cpp
     src/debug/debug_overlay.cpp
     src/audio/sys/audio_sys.cpp
 )

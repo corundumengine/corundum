@@ -5,6 +5,7 @@
 #include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
+#include <corundum/gameplay/world/portals/transition_prompt.hpp>
 #include <corundum/resources/sprite.hpp>
 
 #include <optional>
@@ -12,8 +13,9 @@
 
 namespace corundum::gameplay::world {
 
-  /** @brief Whether the player is free-roaming or locked into a dialogue session. */
-  enum class GameMode { Exploring, Dialogue };
+  /** @brief Whether the player is free-roaming, locked into a dialogue session, or paused on a portal-confirm prompt.
+   */
+  enum class GameMode { Exploring, Dialogue, Prompt };
 
   /** @brief All game-world data for a running session.
    *
@@ -42,6 +44,7 @@ namespace corundum::gameplay::world {
     std::vector<corundum::gameplay::sys::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
     std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
     std::optional<MapTransition> pending_transition;
+    std::optional<TransitionPrompt> transition_prompt;
   };
 
 } // namespace corundum::gameplay::world
