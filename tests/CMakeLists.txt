@@ -43,6 +43,26 @@ add_executable(corundum_tests
     test_files.cpp
 )
 
+# FontAtlas tests reach into the internal engine/src/platform/glfw header and
+# compile font_atlas.cpp directly so the test target doesn't drag in the full
+# GLFW backend. When corundum is consumed as a vendored library (downstream
+# projects expose only engine/include/ on their include path) those internals
+# aren't reachable — gate the test off so the build doesn't break on sync.
+set(_font_atlas_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/font_atlas.hpp")
+set(_font_atlas_fixture "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/fonts/NotoSans.ttf")
+if(EXISTS "${_font_atlas_header}" AND EXISTS "${_font_atlas_fixture}")
+    target_sources(corundum_tests PRIVATE
+        test_font_atlas.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/font_atlas.cpp
+    )
+    target_link_libraries(corundum_tests PRIVATE freetype)
+    target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw
+    )
+else()
+    message(STATUS "FontAtlas tests skipped — internal header or fixture font not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 # Link to engine and doctest. engine_platform_null is also pulled in so the
 # lifecycle tests can adopt a null Window/GpuContext/Renderer — it adds no
 # runtime cost for the rest of the suite because no other test touches it.

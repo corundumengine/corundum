@@ -252,7 +252,8 @@ namespace corundum {
 
     /// begin_frame → world/UI render → optional debug HUD → end_frame.
     void render_frame(Engine &engine, const float alpha) noexcept {
-      engine.renderer->begin_frame(engine.clear_colour);
+      if (!engine.renderer->begin_frame(engine.clear_colour))
+        return;
       render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, alpha, engine.win_w,
                           engine.win_h);
 

@@ -4,6 +4,7 @@
 #include FT_FREETYPE_H
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <print>
 
@@ -12,12 +13,9 @@ namespace corundum::platform::glfw {
   FontAtlas::~FontAtlas() {
     if (face)
       FT_Done_Face(face);
-    if (library)
-      FT_Done_FreeType(library);
   }
 
-  FontAtlas::FontAtlas(FontAtlas &&o) noexcept : library{o.library}, face{o.face}, path{std::move(o.path)} {
-    o.library = nullptr;
+  FontAtlas::FontAtlas(FontAtlas &&o) noexcept : face{o.face}, path{std::move(o.path)} {
     o.face = nullptr;
   }
 
@@ -25,27 +23,17 @@ namespace corundum::platform::glfw {
     if (this != &o) {
       if (face)
         FT_Done_Face(face);
-      if (library)
-        FT_Done_FreeType(library);
-      library = o.library;
       face = o.face;
       path = std::move(o.path);
-      o.library = nullptr;
       o.face = nullptr;
     }
     return *this;
   }
 
-  bool FontAtlas::load(std::string_view font_path) {
+  bool FontAtlas::load(FT_Library lib, std::string_view font_path) {
     path = std::string{font_path};
-    if (FT_Init_FreeType(&library) != 0) {
-      std::println(stderr, "[font_atlas] FT_Init_FreeType failed");
-      return false;
-    }
-    if (FT_New_Face(library, path.c_str(), 0, &face) != 0) {
+    if (FT_New_Face(lib, path.c_str(), 0, &face) != 0) {
       std::println(stderr, "[font_atlas] FT_New_Face failed for '{}'", path);
-      FT_Done_FreeType(library);
-      library = nullptr;
       return false;
     }
     return true;
@@ -54,70 +42,87 @@ namespace corundum::platform::glfw {
   BakedSize FontAtlas::bake(uint32_t char_size) const {
     FT_Set_Pixel_Sizes(face, 0, char_size);
 
-    // First pass: measure total atlas dimensions (single row, baseline at y=char_size).
-    int total_w = 0;
-    int max_extent = 0; // max (dst_y + rows) = max pixels needed below the atlas top
-    for (unsigned char c = 32; c < 128; ++c) {
-      if (FT_Load_Char(face, c, FT_LOAD_RENDER) != 0)
-        continue;
-      total_w += static_cast<int>(face->glyph->bitmap.width) + 1; // +1 pixel gap
-      const int dst_y = static_cast<int>(char_size) - face->glyph->bitmap_top;
-      const int extent = dst_y + static_cast<int>(face->glyph->bitmap.rows);
-      max_extent = std::max(max_extent, extent);
-    }
-
-    const int atlas_w = total_w;
-    const int atlas_h = max_extent + 2; // 2 px bottom padding for descenders
-
     BakedSize result;
-    result.atlas_w = atlas_w;
-    result.atlas_h = atlas_h;
-    // RGBA8: R=G=B=255, A=coverage. Initialise to fully transparent.
-    result.pixels.assign(static_cast<std::size_t>(atlas_w * atlas_h) * 4, 0);
 
-    // Second pass: rasterise glyphs into the atlas.
-    int pen_x = 0;
+    struct G {
+      int w{};
+      int h{};
+      int bx{};
+      int by{};
+      float adv{};
+      std::vector<uint8_t> cov;
+    };
+
+    std::array<G, 128> gs{};
+
     for (unsigned char c = 32; c < 128; ++c) {
       if (FT_Load_Char(face, c, FT_LOAD_RENDER) != 0)
         continue;
-
-      const FT_GlyphSlot g = face->glyph;
-      const int gw = static_cast<int>(g->bitmap.width);
-      const int gh = static_cast<int>(g->bitmap.rows);
-
-      // Baseline is char_size pixels from the top.
-      const int baseline = static_cast<int>(char_size);
-      const int dst_y = baseline - g->bitmap_top;
-
-      for (int row = 0; row < gh; ++row) {
-        const int y = dst_y + row;
-        if (y < 0 || y >= atlas_h)
-          continue;
-        for (int col = 0; col < gw; ++col) {
-          const int x = pen_x + col;
-          if (x < 0 || x >= atlas_w)
-            continue;
-          const uint8_t coverage = g->bitmap.buffer[static_cast<std::size_t>(row * gw + col)];
-          const auto idx = static_cast<std::size_t>((y * atlas_w + x) * 4);
-          result.pixels[idx + 0] = 255;
-          result.pixels[idx + 1] = 255;
-          result.pixels[idx + 2] = 255;
-          result.pixels[idx + 3] = coverage;
-        }
-      }
-
+      const FT_GlyphSlot s = face->glyph;
+      G &g = gs[c];
+      g.w = int(s->bitmap.width);
+      g.h = int(s->bitmap.rows);
+      g.bx = s->bitmap_left;
+      g.by = s->bitmap_top;
+      g.adv = float(s->advance.x >> 6);
+      // Size-independent metrics must be written for every loaded glyph,
+      // including zero-area ones (notably space) that the packer drops — their
+      // advance_x is still needed by draw(DrawText) to position the pen and by
+      // measure_text() to report width.
       GlyphInfo &info = result.glyphs[c];
-      info.atlas_x = pen_x;
-      info.atlas_y = dst_y; // actual row in atlas where this glyph's bitmap starts
-      info.width = gw;
-      info.height = gh;
-      info.bearing_x = g->bitmap_left;
-      info.bearing_y = g->bitmap_top;
-      info.advance_x = static_cast<float>(g->advance.x >> 6);
-
-      pen_x += gw + 1;
+      info.bearing_x = g.bx;
+      info.bearing_y = g.by;
+      info.advance_x = g.adv;
+      g.cov.resize(size_t(g.w) * g.h);
+      for (int row = 0; row < g.h; ++row)
+        std::memcpy(g.cov.data() + size_t(row) * g.w, s->bitmap.buffer + size_t(row) * s->bitmap.pitch, size_t(g.w));
     }
 
+    constexpr int max_w = 512;
+    constexpr int pad = 1;
+    std::array<int, 128> order{};
+    int n = 0;
+    for (int c = 32; c < 128; ++c)
+      if (gs[c].w > 0 || gs[c].h > 0)
+        order[n++] = c;
+    std::sort(order.begin(), order.begin() + n, [&](int a, int b) { return gs[a].h > gs[b].h; });
+
+    int pen_x = pad;
+    int pen_y = pad;
+    int shelf_h = 0;
+    int used_w = 0;
+    for (int i = 0; i < n; ++i) {
+      G &g = gs[order[i]];
+      if (pen_x + g.w + pad > max_w) {
+        pen_y += shelf_h + pad;
+        pen_x = pad;
+        shelf_h = 0;
+      }
+      GlyphInfo &info = result.glyphs[order[i]];
+      info.atlas_x = pen_x;
+      info.atlas_y = pen_y;
+      info.width = g.w;
+      info.height = g.h;
+      pen_x += g.w + pad;
+      shelf_h = std::max(shelf_h, g.h);
+      used_w = std::max(used_w, pen_x);
+    }
+    result.atlas_w = std::max(1, used_w + pad);
+    result.atlas_h = std::max(1, pen_y + shelf_h + pad);
+    result.pixels.assign(size_t(result.atlas_w) * result.atlas_h * 4, 0);
+    for (int i = 0; i < n; ++i) {
+      const int c = order[i];
+      const G &g = gs[c];
+      const GlyphInfo &info = result.glyphs[c];
+      for (int row = 0; row < g.h; ++row)
+        for (int col = 0; col < g.w; ++col) {
+          const size_t d = (size_t(info.atlas_y + row) * result.atlas_w + info.atlas_x + col) * 4;
+          result.pixels[d + 0] = 255;
+          result.pixels[d + 1] = 255;
+          result.pixels[d + 2] = 255;
+          result.pixels[d + 3] = g.cov[size_t(row) * g.w + col];
+        }
+    }
     return result;
   }
 

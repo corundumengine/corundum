@@ -210,7 +210,7 @@ namespace corundum::debug {
     else
       hover_str = "Hover:  none";
 
-    std::array<std::string, 7> lines{
+    std::array<std::string, 8> lines{
         std::format("FPS:  sim {:3.0f} / render {:3.0f}", static_cast<float>(cfg.framerate), smoothed_fps),
         std::format("Grid:  {}", grid_str),
         std::format("Velocity:  {}", velocity_str),
@@ -218,6 +218,8 @@ namespace corundum::debug {
         std::format("Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}", static_cast<int>(render.chunks.active_size()),
                     collision_rects, collision_tris, static_cast<int>(w.entities.alive())),
         std::format("Map:  {}", map_name),
+        std::format("Draw:  calls {}  quads {}{}", r.stats().draw_calls, r.stats().quads,
+                    r.stats().dropped_quads ? std::format("  DROPPED {}", r.stats().dropped_quads) : std::string{}),
         hover_str,
     };
 

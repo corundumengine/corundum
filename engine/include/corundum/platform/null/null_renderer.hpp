@@ -31,7 +31,9 @@ namespace corundum::platform::null {
 
     void reset_screen_view() override {}
 
-    void begin_frame(core::math::Colour) override {}
+    bool begin_frame(core::math::Colour) override {
+      return true;
+    }
 
     void end_frame() override {}
 
@@ -45,6 +47,10 @@ namespace corundum::platform::null {
 
     float measure_text(uint32_t, std::string_view text, uint32_t) const override {
       return static_cast<float>(text.size()) * k_glyph_advance_px;
+    }
+
+    RendererStats stats() const override {
+      return {};
     }
   };
 

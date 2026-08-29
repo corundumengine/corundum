@@ -5,6 +5,9 @@
 
 #include <sokol_gfx.h>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #include <stb_image.h>
 
 #include <array>
@@ -54,7 +57,6 @@ namespace corundum::platform::glfw {
 
     // ── Shader source ─────────────────────────────────────────────────────────
 
-#ifdef SOKOL_METAL
     static constexpr const char *k_vs_src = R"(
 #include <metal_stdlib>
 using namespace metal;
@@ -92,33 +94,6 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     return tex.sample(samp, in.texcoord) * in.color;
 }
 )";
-#else
-    static constexpr const char *k_vs_src = R"(
-#version 330 core
-layout(location=0) in vec2 position;
-layout(location=1) in vec2 texcoord;
-layout(location=2) in vec4 color;
-out vec2 v_texcoord;
-out vec4 v_color;
-uniform mat4 proj;
-void main() {
-    gl_Position = proj * vec4(position, 0.0, 1.0);
-    v_texcoord = texcoord;
-    v_color = color;
-}
-)";
-
-    static constexpr const char *k_fs_src = R"(
-#version 330 core
-in vec2 v_texcoord;
-in vec4 v_color;
-out vec4 frag_color;
-uniform sampler2D tex;
-void main() {
-    frag_color = texture(tex, v_texcoord) * v_color;
-}
-)";
-#endif
 
     sg_view make_texture_view(sg_image img) {
       sg_view_desc vdesc{};
@@ -169,19 +144,23 @@ void main() {
   class SokolRenderer final : public corundum::platform::Renderer {
   public:
     explicit SokolRenderer(corundum::platform::GpuContext &gpu_ctx);
-    ~SokolRenderer() override = default;
+    ~SokolRenderer() override;
 
     std::expected<uint32_t, std::string> load_texture(std::string_view path) override;
     std::expected<uint32_t, std::string> load_font(std::string_view path) override;
     void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
     void reset_screen_view() override;
-    void begin_frame(core::math::Colour clear_colour) override;
+    bool begin_frame(core::math::Colour clear_colour) override;
     void end_frame() override;
     void draw(const DrawSprite &cmd) override;
     void draw(const DrawText &cmd) override;
     void draw(const DrawRect &cmd) override;
     void draw(const DrawLine &cmd) override;
     float measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const override;
+
+    corundum::platform::RendererStats stats() const override {
+      return last_stats_;
+    }
 
   private:
     struct LoadedTexture {
@@ -199,7 +178,8 @@ void main() {
     };
 
     [[nodiscard]] uint64_t font_size_key(uint32_t font_id, uint32_t char_size) const noexcept;
-    void ensure_baked(uint32_t font_id, uint32_t char_size) const;
+    const BakedAtlas *ensure_metrics(uint32_t font_id, uint32_t char_size) const;
+    const BakedAtlas *ensure_uploaded(uint32_t font_id, uint32_t char_size) const;
     void ensure_gpu_resources();
     void rebuild_proj() noexcept;
     [[nodiscard]] bool has_quad_space();
@@ -213,6 +193,7 @@ void main() {
     bool world_view_active_{false};
     bool pass_active_{false};
     bool gpu_resources_initialized_{false};
+    bool gpu_init_failed_{false};
 
     // ── Batch state ──────────────────────────────────────────────────
     sg_view batch_view_{};
@@ -235,6 +216,14 @@ void main() {
     std::vector<std::unique_ptr<FontAtlas>> font_atlases_;
 
     mutable std::unordered_map<uint64_t, BakedAtlas> baked_atlases_;
+    mutable uint64_t last_key_{~0ull};
+    mutable const BakedAtlas *last_atlas_{nullptr};
+
+    FT_Library ft_lib_{nullptr};
+
+    corundum::platform::RendererStats last_stats_{};
+    uint32_t draw_calls_this_frame_{0};
+    uint32_t dropped_quads_this_frame_{0};
   };
 
   // (LoadedTexture and BakedAtlas are POD aggregates; no explicit ctors needed.)
@@ -247,18 +236,25 @@ void main() {
     // loaded during initialize() call only sg_make_image / FreeType (which need the
     // sokol device from GpuContext, already set up) and never this pipeline.
     batch_vertices_.reserve(k_max_quads * 6);
+
+    // Reserve index 0 as an invalid-slot sentinel so a stray texture_id == 0 falls
+    // through the existing range/id check without drawing texture 0 by accident.
+    textures_.push_back({});
+
+    if (FT_Init_FreeType(&ft_lib_) != 0)
+      std::println(stderr, "[sokol] FT_Init_FreeType failed");
+
     rebuild_proj();
   }
 
   void SokolRenderer::ensure_gpu_resources() {
-    if (gpu_resources_initialized_)
+    if (gpu_resources_initialized_ || gpu_init_failed_)
       return;
 
     // ── Shader ──────────────────────────────────────────────────────────────
     sg_shader_desc shdesc{};
     shdesc.vertex_func.source = k_vs_src;
     shdesc.fragment_func.source = k_fs_src;
-#ifdef SOKOL_METAL
     shdesc.vertex_func.entry = "vs_main";
     shdesc.fragment_func.entry = "fs_main";
     shdesc.uniform_blocks[0].stage = SG_SHADERSTAGE_VERTEX;
@@ -274,21 +270,6 @@ void main() {
     shdesc.texture_sampler_pairs[0].stage = SG_SHADERSTAGE_FRAGMENT;
     shdesc.texture_sampler_pairs[0].view_slot = 0;
     shdesc.texture_sampler_pairs[0].sampler_slot = 0;
-#else
-    shdesc.uniform_blocks[0].stage = SG_SHADERSTAGE_VERTEX;
-    shdesc.uniform_blocks[0].size = sizeof(float) * 16;
-    shdesc.uniform_blocks[0].glsl_uniforms[0].glsl_name = "proj";
-    shdesc.uniform_blocks[0].glsl_uniforms[0].type = SG_UNIFORMTYPE_MAT4;
-    shdesc.views[0].texture.stage = SG_SHADERSTAGE_FRAGMENT;
-    shdesc.views[0].texture.image_type = SG_IMAGETYPE_2D;
-    shdesc.views[0].texture.sample_type = SG_IMAGESAMPLETYPE_FLOAT;
-    shdesc.samplers[0].stage = SG_SHADERSTAGE_FRAGMENT;
-    shdesc.samplers[0].sampler_type = SG_SAMPLERTYPE_FILTERING;
-    shdesc.texture_sampler_pairs[0].stage = SG_SHADERSTAGE_FRAGMENT;
-    shdesc.texture_sampler_pairs[0].view_slot = 0;
-    shdesc.texture_sampler_pairs[0].sampler_slot = 0;
-    shdesc.texture_sampler_pairs[0].glsl_name = "tex";
-#endif
     pipeline_shader_ = sg_make_shader(&shdesc);
 
     // ── Pipeline ────────────────────────────────────────────────────────────
@@ -323,11 +304,27 @@ void main() {
     sg_sampler_desc samdesc{};
     samdesc.min_filter = SG_FILTER_NEAREST;
     samdesc.mag_filter = SG_FILTER_NEAREST;
+    samdesc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
+    samdesc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
     sampler_ = sg_make_sampler(&samdesc);
 
     bindings_.vertex_buffers[0] = vertex_buf_;
     bindings_.views[0] = white_view_;
     bindings_.samplers[0] = sampler_;
+
+    const bool ok = sg_query_shader_state(pipeline_shader_) == SG_RESOURCESTATE_VALID &&
+                    sg_query_pipeline_state(pipeline_) == SG_RESOURCESTATE_VALID &&
+                    sg_query_buffer_state(vertex_buf_) == SG_RESOURCESTATE_VALID &&
+                    sg_query_image_state(white_tex_) == SG_RESOURCESTATE_VALID &&
+                    sg_query_sampler_state(sampler_) == SG_RESOURCESTATE_VALID;
+    if (!ok) {
+      std::println(stderr, "[sokol] renderer GPU init failed (shader={} pipeline={} vbuf={} tex={} sampler={})",
+                   int(sg_query_shader_state(pipeline_shader_)), int(sg_query_pipeline_state(pipeline_)),
+                   int(sg_query_buffer_state(vertex_buf_)), int(sg_query_image_state(white_tex_)),
+                   int(sg_query_sampler_state(sampler_)));
+      gpu_init_failed_ = true;
+      return;
+    }
 
     rebuild_proj();
     gpu_resources_initialized_ = true;
@@ -339,17 +336,35 @@ void main() {
     return (static_cast<uint64_t>(font_id) << 32) | char_size;
   }
 
-  void SokolRenderer::ensure_baked(uint32_t font_id, uint32_t char_size) const {
+  const SokolRenderer::BakedAtlas *SokolRenderer::ensure_metrics(uint32_t font_id, uint32_t char_size) const {
     const uint64_t key = font_size_key(font_id, char_size);
-    if (baked_atlases_.contains(key))
-      return;
-    if (font_id >= font_atlases_.size() || !font_atlases_[font_id])
-      return;
-    BakedAtlas baked;
-    baked.data = font_atlases_[font_id]->bake(char_size);
-    baked.image = make_rgba8_image(baked.data.pixels.data(), baked.data.atlas_w, baked.data.atlas_h);
-    baked.view = make_texture_view(baked.image);
-    baked_atlases_[key] = std::move(baked);
+    if (last_key_ == key && last_atlas_)
+      return last_atlas_;
+    auto it = baked_atlases_.find(key);
+    if (it == baked_atlases_.end()) {
+      if (font_id >= font_atlases_.size() || !font_atlases_[font_id])
+        return nullptr;
+      BakedAtlas b;
+      b.data = font_atlases_[font_id]->bake(char_size);
+      it = baked_atlases_.emplace(key, std::move(b)).first;
+    }
+    last_key_ = key;
+    last_atlas_ = &it->second;
+    return last_atlas_;
+  }
+
+  const SokolRenderer::BakedAtlas *SokolRenderer::ensure_uploaded(uint32_t font_id, uint32_t char_size) const {
+    const BakedAtlas *a = ensure_metrics(font_id, char_size);
+    if (!a)
+      return nullptr;
+    if (a->image.id == 0) {
+      BakedAtlas &m = const_cast<BakedAtlas &>(*a);
+      m.image = make_rgba8_image(m.data.pixels.data(), m.data.atlas_w, m.data.atlas_h);
+      m.view = make_texture_view(m.image);
+      m.data.pixels.clear();
+      m.data.pixels.shrink_to_fit();
+    }
+    return a;
   }
 
   void SokolRenderer::rebuild_proj() noexcept {
@@ -376,17 +391,14 @@ void main() {
     sg_apply_uniforms(0, &ub);
 
     sg_draw(0, 6 * batch_count_, 1);
+    ++draw_calls_this_frame_;
     batch_vertices_.clear();
     batch_count_ = 0;
   }
 
   bool SokolRenderer::has_quad_space() {
     if (quad_count_ >= k_max_quads) {
-      static bool overflow_warned = false;
-      if (!overflow_warned) {
-        std::println(stderr, "[sokol] quad buffer overflow (cap={})", k_max_quads);
-        overflow_warned = true;
-      }
+      ++dropped_quads_this_frame_;
       return false;
     }
     return true;
@@ -428,7 +440,7 @@ void main() {
       return it->second;
 
     std::unique_ptr<FontAtlas> atlas = std::make_unique<FontAtlas>();
-    if (!atlas->load(path))
+    if (!atlas->load(ft_lib_, path))
       return std::unexpected(std::string{"FreeType: could not load '"} + key + "'");
 
     const uint32_t id = static_cast<uint32_t>(font_atlases_.size());
@@ -438,6 +450,9 @@ void main() {
   }
 
   void SokolRenderer::set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) {
+    if (world_view_active_ && cam_x_ == top_left.x && cam_y_ == top_left.y && vp_w_ == viewport_size.x &&
+        vp_h_ == viewport_size.y && zoom_ == zoom)
+      return;
     flush_batch();
     cam_x_ = top_left.x;
     cam_y_ = top_left.y;
@@ -449,26 +464,34 @@ void main() {
   }
 
   void SokolRenderer::reset_screen_view() {
+    if (!world_view_active_)
+      return;
     flush_batch();
     world_view_active_ = false;
     rebuild_proj();
   }
 
-  void SokolRenderer::begin_frame(core::math::Colour clear_colour) {
+  bool SokolRenderer::begin_frame(core::math::Colour clear_colour) {
     ensure_gpu_resources();
 
     quad_count_ = 0;
     batch_count_ = 0;
+    draw_calls_this_frame_ = 0;
+    dropped_quads_this_frame_ = 0;
     batch_vertices_.clear();
 
+    if (gpu_init_failed_)
+      return false;
+
     if (!gpu_ctx_.begin_default_pass(clear_colour))
-      return;
+      return false;
 
     sg_apply_pipeline(pipeline_);
     pass_active_ = true;
 
     if (!world_view_active_)
       rebuild_proj();
+    return true;
   }
 
   void SokolRenderer::end_frame() {
@@ -477,6 +500,10 @@ void main() {
     flush_batch();
     pass_active_ = false;
     gpu_ctx_.end_frame();
+
+    if (dropped_quads_this_frame_ > 0)
+      std::println(stderr, "[sokol] dropped {} quads this frame (cap {})", dropped_quads_this_frame_, k_max_quads);
+    last_stats_ = {draw_calls_this_frame_, static_cast<uint32_t>(quad_count_), dropped_quads_this_frame_};
   }
 
   void SokolRenderer::draw(const DrawSprite &cmd) {
@@ -524,15 +551,11 @@ void main() {
     if (cmd.text.empty())
       return;
 
-    ensure_baked(cmd.font_id, cmd.char_size);
-    const uint64_t key = font_size_key(cmd.font_id, cmd.char_size);
-
-    const auto it = baked_atlases_.find(key);
-    if (it == baked_atlases_.end())
+    const BakedAtlas *baked = ensure_uploaded(cmd.font_id, cmd.char_size);
+    if (!baked)
       return;
 
-    const BakedAtlas &baked = it->second;
-    const BakedSize &baked_data = baked.data;
+    const BakedSize &baked_data = baked->data;
     const float atlas_w = static_cast<float>(baked_data.atlas_w);
     const float atlas_h = static_cast<float>(baked_data.atlas_h);
     const float cr = cmd.colour.r / 255.f;
@@ -541,11 +564,18 @@ void main() {
     const float ca = cmd.colour.a / 255.f;
 
     float pen_x = cmd.position.x;
-    const float pen_y = cmd.position.y;
+    float pen_y = cmd.position.y;
+    const float line_h = static_cast<float>(cmd.char_size);
 
     for (const char ch : cmd.text) {
       if (!has_quad_space())
-        return;
+        break;
+
+      if (ch == '\n') {
+        pen_x = cmd.position.x;
+        pen_y += line_h;
+        continue;
+      }
 
       const unsigned char c = static_cast<unsigned char>(ch);
       if (c < 32 || c >= 128)
@@ -556,7 +586,7 @@ void main() {
         continue;
       }
 
-      if (batch_count_ > 0 && batch_view_.id != baked.view.id)
+      if (batch_count_ > 0 && batch_view_.id != baked->view.id)
         flush_batch();
 
       const float gx = pen_x + static_cast<float>(g.bearing_x);
@@ -570,7 +600,7 @@ void main() {
 
       emit_quad(batch_vertices_, gx, gy, gw, gh, u0, v0, u1, v1, cr, cg, cb, ca);
 
-      add_to_batch(baked.view);
+      add_to_batch(baked->view);
 
       pen_x += g.advance_x;
     }
@@ -625,25 +655,28 @@ void main() {
   }
 
   float SokolRenderer::measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const {
-    const uint64_t key = font_size_key(font_id, char_size);
-    if (!baked_atlases_.contains(key))
-      ensure_baked(font_id, char_size);
-
-    const auto it = baked_atlases_.find(key);
-    if (it == baked_atlases_.end())
+    const BakedAtlas *baked = ensure_metrics(font_id, char_size);
+    if (!baked)
       return 0.f;
 
-    const BakedSize &baked = it->second.data;
+    const BakedSize &baked_data = baked->data;
     float width = 0.f;
     for (const char ch : text) {
       const unsigned char c = static_cast<unsigned char>(ch);
       if (c >= 32 && c < 128)
-        width += baked.glyphs[c].advance_x;
+        width += baked_data.glyphs[c].advance_x;
     }
     return width;
   }
 
   // ── Factory ─────────────────────────────────────────────────────────────────
+
+  SokolRenderer::~SokolRenderer() {
+    // Faces reference ft_lib_; clear them before freeing the library.
+    font_atlases_.clear();
+    if (ft_lib_)
+      FT_Done_FreeType(ft_lib_);
+  }
 
   std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx) {
     return std::make_unique<SokolRenderer>(gpu_ctx);

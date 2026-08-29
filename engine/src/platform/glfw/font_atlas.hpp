@@ -32,7 +32,6 @@ namespace corundum::platform::glfw {
 
   /// FreeType face wrapper. Holds the FT_Face so multiple sizes can be baked from one load.
   struct FontAtlas {
-    FT_Library library{nullptr};
     FT_Face face{nullptr};
     std::string path;
 
@@ -44,9 +43,9 @@ namespace corundum::platform::glfw {
     FontAtlas(FontAtlas &&) noexcept;
     FontAtlas &operator=(FontAtlas &&) noexcept;
 
-    /// Load the FreeType face from @p font_path.
+    /// Open the FreeType face from @p font_path using the shared library @p lib.
     /// @return false if FreeType fails to open the file.
-    [[nodiscard]] bool load(std::string_view font_path);
+    [[nodiscard]] bool load(FT_Library lib, std::string_view font_path);
 
     /// Rasterise ASCII glyphs at @p char_size pixels and return the atlas pixel data.
     /// @pre load() has been called and returned true.

@@ -41,6 +41,13 @@ namespace corundum::platform {
     float thickness{1.f};
   };
 
+  /// Per-frame rendering diagnostics. Best-effort, not a contract.
+  struct RendererStats {
+    uint32_t draw_calls{};
+    uint32_t quads{};
+    uint32_t dropped_quads{};
+  };
+
   /** @brief Platform-independent rendering interface.
    *
    * Resource IDs (textures, fonts) are opaque uint32_t handles. ID 0 is invalid.
@@ -61,7 +68,7 @@ namespace corundum::platform {
 
     virtual void reset_screen_view() = 0;
 
-    virtual void begin_frame(core::math::Colour clear_colour) = 0;
+    [[nodiscard]] virtual bool begin_frame(core::math::Colour clear_colour) = 0;
 
     virtual void end_frame() = 0;
 
@@ -74,6 +81,8 @@ namespace corundum::platform {
     virtual void draw(const DrawLine &cmd) = 0;
 
     [[nodiscard]] virtual float measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const = 0;
+
+    [[nodiscard]] virtual RendererStats stats() const = 0;
   };
 
 } // namespace corundum::platform
