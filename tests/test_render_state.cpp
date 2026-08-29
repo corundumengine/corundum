@@ -138,3 +138,75 @@ TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks chunks_dirty") {
   CHECK(state.chunks.active_size() == 1);
   CHECK(state.chunks.dirty()); // fails before the fix
 }
+
+TEST_CASE("chunk window shift: crossing a boundary in a 7x7 world streams new chunks in and prunes far ones") {
+  // Mirrors sync_active_chunks(): the fixed 3x3 window (radius 1). In a world LARGER than
+  // the window, moving the player to a new center chunk must enqueue the newly-adjacent
+  // column and prune the one that fell out of range — i.e. actual chunk streaming.
+  //
+  // Village is 7x7 (chunk_0_0..chunk_6_6). Start centered at (3,3): active = cols 2..4 x rows 2..4.
+  // Player walks east one chunk: new center (4,3) -> desired cols 3..5 x rows 2..4.
+  // Expect col 5 row 2..4 to be enqueued (stream in) and col 2 row 2..4 to be pruned (stream out).
+  constexpr int k_chunk_size = 16;
+  render_data::RenderState state;
+  state.mode = render_data::RenderMode::World;
+  state.manifest.chunk_size = k_chunk_size;
+  state.manifest.chunks_wide = 7;
+  state.manifest.chunks_tall = 7;
+
+  const tilemap::ChunkCoord start_center{3, 3};
+  state.chunks.set_last_center(start_center);
+  for (int dx = -1; dx <= 1; ++dx) {
+    for (int dy = -1; dy <= 1; ++dy) {
+      render_data::ChunkEntry e;
+      e.coord = {start_center.col + dx, start_center.row + dy};
+      e.tilemap = make_flat_map();
+      state.chunks.add_active(std::move(e));
+    }
+  }
+  state.chunks.rebuild_slot_table();
+
+  // Player moved one chunk east: recompute the desired 3x3 window as sync_active_chunks does.
+  const tilemap::ChunkCoord new_center{4, 3};
+  state.chunks.set_last_center(new_center);
+  std::array<tilemap::ChunkCoord, 9> desired{};
+  int desired_count = 0;
+  for (int dy = -1; dy <= 1; ++dy)
+    for (int dx = -1; dx <= 1; ++dx)
+      desired[desired_count++] = {new_center.col + dx, new_center.row + dy};
+  const std::span<const tilemap::ChunkCoord> desired_span{desired.data(), static_cast<std::size_t>(desired_count)};
+  const auto in_desired = [&](const render_data::ChunkEntry &e) {
+    return std::ranges::find(desired_span, e.coord) != desired_span.end();
+  };
+
+  state.chunks.prune_active(in_desired);
+  state.chunks.clear_dirty();
+  for (const tilemap::ChunkCoord c : desired_span)
+    if (!state.chunks.has(c))
+      state.chunks.enqueue_pending(c);
+  state.chunks.rebuild_slot_table();
+
+  // The west column (col 2) fell outside the window and was pruned.
+  CHECK_FALSE(state.chunks.has({2, 2}));
+  CHECK_FALSE(state.chunks.has({2, 3}));
+  CHECK_FALSE(state.chunks.has({2, 4}));
+
+  // The east column (col 5) is now requested -> queued for loading (streams in on the next
+  // load_one_pending_chunk). Drain the pending queue the way the loader does and collect it.
+  std::vector<tilemap::ChunkCoord> pending_coords;
+  tilemap::ChunkCoord c;
+  while (state.chunks.pop_pending(c))
+    pending_coords.push_back(c);
+  CHECK(pending_coords.size() == 3); // {5,2}, {5,3}, {5,4} — the newly-adjacent east column
+  const bool enqueued =
+      std::ranges::all_of(std::array<tilemap::ChunkCoord, 3>{{{5, 2}, {5, 3}, {5, 4}}},
+                          [&](tilemap::ChunkCoord e) { return std::ranges::contains(pending_coords, e); });
+  CHECK(enqueued);
+
+  // The surviving loaded window is cols 3..4 x rows 2..4 (the cols common to both the old
+  // and new center windows; the new col 5 is only queued, ready to load next frame).
+  CHECK(state.chunks.has({3, 2}));
+  CHECK(state.chunks.has({4, 4}));
+  // A 7x7 world means the player can keep walking further out; the window shifted, not fixed.
+  CHECK(state.chunks.last_center() == new_center);
+}

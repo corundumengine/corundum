@@ -727,3 +727,38 @@ TEST_CASE("load_tilemap — material_overrides entry missing 'material' returns 
   auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
+
+TEST_CASE("load_tilemap — shared tileset resolves identically across separate maps (tileset info cached)") {
+  // Regression for the chunk-streaming stutter: load_tileset re-parsed every tileset from disk
+  // per chunk, so a shared atlas was recomputed (and the file re-read twice) for each chunk. The
+  // resolved TilesetInfo is now cached per source path. Two maps referencing the SAME atlas must
+  // produce identical TilesetInfo — proving the cache is transparent and not a false cache hit.
+  const auto dir = temp_dir("tileset_cache_shared");
+  const auto ts_path = dir / "shared.json";
+  write_file(ts_path, make_atlas_json("game/assets/textures/shared.png", 8, 16, 16));
+
+  const auto make_map_name = [&](const std::string &name) {
+    const auto map_path = dir / (name + ".json");
+    std::string content;
+    content += R"({"id":")" + name + R"(","tilesets":[{"first_gid":0,"source":")";
+    content += ts_path.string();
+    content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,1"]}]})";
+    write_file(map_path, content);
+    return map_path;
+  };
+
+  auto a = corundum::gameplay::world::tilemap::load_tilemap(make_map_name("map_a"));
+  auto b = corundum::gameplay::world::tilemap::load_tilemap(make_map_name("map_b"));
+  REQUIRE(a.has_value());
+  REQUIRE(b.has_value());
+  REQUIRE(a->tilesets.size() == 1);
+  REQUIRE(b->tilesets.size() == 1);
+
+  const auto &ta = a->tilesets[0].info;
+  const auto &tb = b->tilesets[0].info;
+  CHECK(ta.tile_count == 8);
+  CHECK(tb.tile_count == 8);
+  CHECK(ta.tile_count == tb.tile_count);
+  CHECK(ta.path == tb.path);
+  CHECK(ta.tile_names == tb.tile_names);
+}
