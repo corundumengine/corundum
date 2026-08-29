@@ -1,10 +1,13 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/component/animation_table.hpp>
-#include <corundum/gameplay/component/facing_table.hpp>
-#include <corundum/gameplay/component/motion_sprite_table.hpp>
-#include <corundum/gameplay/component/sprite_table.hpp>
-#include <corundum/gameplay/component/transform_table.hpp>
+
+namespace corundum::gameplay::component {
+  struct AnimationTable;
+  struct FacingTable;
+  struct MotionSpriteTable;
+  struct SpriteTable;
+  struct TransformTable;
+} // namespace corundum::gameplay::component
 
 namespace corundum::anim::sys {
 
