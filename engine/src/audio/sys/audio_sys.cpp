@@ -1,15 +1,18 @@
 #include <corundum/audio/sys/audio_sys.hpp>
 
+#include <corundum/core/json_io.hpp>
+
+#include <expected>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <print>
+#include <string>
+#include <utility>
 
 namespace corundum::audio::sys {
 
   std::string AudioSystem::resolve_path(std::string_view name) const {
-    auto it = catalog_.find(std::string(name));
-    if (it != catalog_.end())
+    if (auto it = catalog_.find(name); it != catalog_.end())
       return std::format("{}/{}", sounds_dir_, it->second);
     return std::format("{}/{}.ogg", sounds_dir_, name);
   }
@@ -24,7 +27,7 @@ namespace corundum::audio::sys {
   }
 
   void AudioSystem::shutdown() noexcept {
-    if (!initialized_)
+    if (!initialized_ && !backend_)
       return;
     backend_.reset();
     cache_.clear();
@@ -32,23 +35,20 @@ namespace corundum::audio::sys {
     initialized_ = false;
   }
 
+  AudioSystem::~AudioSystem() noexcept {
+    shutdown();
+  }
+
   void AudioSystem::load_catalog(std::string_view catalog_path) noexcept {
     if (catalog_path.empty())
       return;
 
-    std::ifstream file(catalog_path.data());
-    if (!file) {
-      std::println("[audio] WARN: Sound catalog not found: {}", catalog_path);
+    auto json_result = core::read_json(catalog_path);
+    if (!json_result) {
+      std::println("[audio] WARN: Sound catalog unavailable ({}): {}", catalog_path, json_result.error());
       return;
     }
-
-    nlohmann::json j;
-    try {
-      j = nlohmann::json::parse(file, nullptr, true, true);
-    } catch (const nlohmann::json::exception &e) {
-      std::println("[audio] WARN: Malformed sound catalog {} - {}", catalog_path, e.what());
-      return;
-    }
+    const nlohmann::json &j = *json_result;
 
     if (!j.is_object()) {
       std::println("[audio] WARN: Sound catalog must be a JSON object: {}", catalog_path);
@@ -66,13 +66,10 @@ namespace corundum::audio::sys {
   }
 
   std::expected<void, std::string> AudioSystem::play_sound(std::string_view name, float volume, bool loop) {
-    if (!initialized_ || !backend_)
+    if (!is_ready())
       return std::unexpected("[audio] Audio system not initialised");
 
-    const std::string key(name);
-
-    auto it = cache_.find(key);
-    if (it != cache_.end()) {
+    if (auto it = cache_.find(name); it != cache_.end()) {
       backend_->play(it->second, volume, loop);
       return {};
     }
@@ -82,13 +79,13 @@ namespace corundum::audio::sys {
     if (!handle_result)
       return std::unexpected(handle_result.error());
 
-    cache_.emplace(key, *handle_result);
-    backend_->play(*handle_result, volume, loop);
+    const auto [it, inserted] = cache_.try_emplace(std::string(name), *handle_result);
+    backend_->play(it->second, volume, loop);
     return {};
   }
 
   void AudioSystem::set_master_volume(float volume) noexcept {
-    if (!initialized_ || !backend_)
+    if (!is_ready())
       return;
     backend_->set_master_volume(volume);
   }
