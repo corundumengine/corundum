@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <corundum/core/files.hpp>
 #include <corundum/tool_host/file_browser.hpp>
+#include <format>
 #include <imgui.h>
+#include <print>
 
 namespace corundum::tool_host {
 
@@ -25,7 +27,12 @@ namespace corundum::tool_host {
     void refresh_entries(FileBrowserState &fb) {
       fb.entries.clear();
       fb.selected_entry = -1;
-      for (auto &e : corundum::core::list_dir_entries(fb.current_dir)) {
+      auto listed = corundum::core::list_dir_entries(fb.current_dir);
+      if (!listed) {
+        std::print(stderr, "file_browser: failed to list {}: {}\n", fb.current_dir.string(), listed.error());
+        return;
+      }
+      for (auto &e : *listed) {
         if (!e.is_dir && fb.mode == FileBrowserMode::Open && !matches_filters(e.path, fb.filters))
           continue;
         fb.entries.push_back(std::move(e));

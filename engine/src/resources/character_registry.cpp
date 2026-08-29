@@ -1,4 +1,3 @@
-#include <corundum/core/files.hpp>
 #include <corundum/resources/character_registry.hpp>
 #include <corundum/resources/character_sheet_loader.hpp>
 #include <corundum/resources/sprite.hpp>

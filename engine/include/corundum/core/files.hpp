@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -7,33 +8,37 @@
 
 namespace corundum::core {
 
-  /**
-   * @brief Return the immediate children of @p dir.
-   *
-   * Empty on any error or invalid path.
-   *
-   * @param dir Directory to list.
-   * @return Paths of immediate children, or empty on error.
-   */
-  [[nodiscard]] std::vector<std::filesystem::path> list_files_in_dir(const std::filesystem::path &dir);
-
   /// One directory entry as returned by list_dir_entries().
   struct DirEntry {
-    std::filesystem::path path; ///< Full path of the entry.
-    std::string name;           ///< Filename component only.
     bool is_dir;                ///< True if this entry is a directory.
+    std::string name;           ///< Filename component only.
+    std::filesystem::path path; ///< Full path of the entry.
+  };
+
+  /// Options controlling how list_dir_entries() walks a directory.
+  struct ListOptions {
+    /// Extensions to include; empty matches all. Compared case-insensitively (no leading dot).
+    std::vector<std::string_view> extensions;
+
+    /// If true, walk subdirectories recursively. Subdirectories themselves are always reported;
+    /// the @p extensions filter applies only to non-directory entries.
+    bool recursive = false;
   };
 
   /**
-   * @brief Return the immediate children of @p dir as DirEntry (path + name + is_dir).
+   * @brief Return the immediate children (or recursive subtree) of @p dir as DirEntry.
    *
-   * Directories first, then alphabetically by name. Empty on any error or invalid path (matches
-   * list_files_in_dir()'s silent-empty convention rather than propagating an error).
+   * Returned entries are sorted directories-first, then alphabetically by @c name. On a missing
+   * directory, a path that exists but isn't a directory, or an iteration error, the returned
+   * expected holds an error string instead of silently producing an empty list — callers that
+   * want the legacy silent-empty behavior can check @c .has_value() and ignore the error.
    *
    * @param dir Directory to list.
-   * @return Sorted directory entries, or empty on error.
+   * @param opts Listing options (recursive walk, extension filter).
+   * @return Sorted directory entries, or an error message.
    */
-  [[nodiscard]] std::vector<DirEntry> list_dir_entries(const std::filesystem::path &dir);
+  [[nodiscard]] std::expected<std::vector<DirEntry>, std::string> list_dir_entries(const std::filesystem::path &dir,
+                                                                                   ListOptions opts = {});
 
   /**
    * @brief Check whether @p path's extension matches @p ext.
