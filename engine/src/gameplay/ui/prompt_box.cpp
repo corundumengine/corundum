@@ -1,5 +1,7 @@
 #include <corundum/gameplay/ui/prompt_box.hpp>
 
+#include <corundum/gameplay/ui/ui_draw.hpp>
+
 #include <algorithm>
 
 namespace corundum::gameplay::ui {
@@ -29,35 +31,16 @@ namespace corundum::gameplay::ui {
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    r.draw(platform::DrawRect{.position = {panel_x, panel_y}, .size = {panel_w, panel_h}, .colour = style.bg});
-
-    border.render(r, panel_x, panel_y, panel_w, panel_h);
+    panel_chrome(r, style.bg, border, {panel_x, panel_y}, {panel_w, panel_h});
 
     const float q_x = panel_x + (panel_w - q_w) * 0.5f;
     const float q_y = panel_y + k_pad_y;
     r.draw(platform::DrawText{style.font_id, question, {q_x, q_y}, style.font_size_body, style.body});
 
-    // Render cursor and word as two DrawText commands — avoids per-frame std::string
-    // concatenation. The row is centered within the panel; the cursor sits in front of
-    // the highlighted option, two spaces in front of the other (matching dialog_box.cpp).
     const float opt_y = q_y + line_h + k_gap;
     const float row_x = panel_x + (panel_w - options_row_w) * 0.5f;
-    const float yes_text_x = row_x + cursor_w;
-    const float no_text_x = yes_text_x + yes_w + k_opt_gap;
-    const std::string_view yes_cursor = yes_selected ? k_cursor : "  ";
-    const std::string_view no_cursor = yes_selected ? "  " : k_cursor;
-    r.draw(platform::DrawText{style.font_id, yes_cursor, {row_x, opt_y}, style.font_size_body, style.selected});
-    r.draw(platform::DrawText{style.font_id, k_yes, {yes_text_x, opt_y}, style.font_size_body, style.selected});
-    r.draw(platform::DrawText{style.font_id,
-                              no_cursor,
-                              {no_text_x, opt_y},
-                              style.font_size_body,
-                              yes_selected ? style.choice : style.selected});
-    r.draw(platform::DrawText{style.font_id,
-                              k_no,
-                              {no_text_x + cursor_w, opt_y},
-                              style.font_size_body,
-                              yes_selected ? style.choice : style.selected});
+    draw_option(r, style, k_yes, {row_x, opt_y}, yes_selected);
+    draw_option(r, style, k_no, {row_x + cursor_w + yes_w + k_opt_gap, opt_y}, !yes_selected);
   }
 
 } // namespace corundum::gameplay::ui

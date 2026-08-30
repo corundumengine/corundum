@@ -1,5 +1,7 @@
 #include <corundum/gameplay/ui/dialog_box.hpp>
 
+#include <corundum/gameplay/ui/ui_draw.hpp>
+
 #include <utility>
 
 namespace corundum::gameplay::ui {
@@ -37,14 +39,10 @@ namespace corundum::gameplay::ui {
     const DialogLayout &lay = *ds.layout;
     const float px = lay.panel_pos.x;
     const float py = lay.panel_pos.y;
-    const float pw = lay.panel_size.x;
-    const float ph = lay.panel_size.y;
     const float inset = lay.inset;
     const float spacing = ds.style.line_spacing;
 
-    r.draw(platform::DrawRect{.position = lay.panel_pos, .size = lay.panel_size, .colour = ds.style.bg});
-
-    ds.border.render(r, px, py, pw, ph);
+    panel_chrome(r, ds.style.bg, ds.border, lay.panel_pos, lay.panel_size);
 
     auto draw_str = [&](std::string_view text, unsigned size, core::math::Colour col, float x, float y) {
       if (!text.empty())
@@ -72,9 +70,8 @@ namespace corundum::gameplay::ui {
         draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
         for (std::size_t i = 0; i < lay.choice_lines.size(); ++i) {
           const bool is_sel = (static_cast<int>(i) == lay.selected_choice);
-          const std::string label = (is_sel ? "> " : "  ") + lay.choice_lines[i];
           const float y = py + inset + spacing * (1.f + static_cast<float>(i));
-          draw_str(label, ds.style.font_size_body, is_sel ? ds.style.selected : ds.style.choice, px + inset, y);
+          draw_option(r, ds.style, lay.choice_lines[i], {px + inset, y}, is_sel);
         }
         break;
       }

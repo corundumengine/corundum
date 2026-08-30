@@ -55,6 +55,7 @@ add_library(engine STATIC
     src/gameplay/ui/nine_patch.cpp
     src/gameplay/ui/dialog_box.cpp
     src/gameplay/ui/prompt_box.cpp
+    src/gameplay/ui/ui_draw.cpp
     src/debug/debug_overlay.cpp
     src/audio/sys/audio_sys.cpp
 )

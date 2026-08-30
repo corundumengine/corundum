@@ -42,6 +42,7 @@ add_executable(corundum_tests
     test_picking_elevation.cpp
     test_layer_presets.cpp
     test_files.cpp
+    test_ui_draw.cpp
 )
 
 # FontAtlas tests reach into the internal engine/src/platform/glfw header and
