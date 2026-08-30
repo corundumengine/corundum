@@ -8,6 +8,10 @@
 #include <optional>
 #include <string>
 
+namespace corundum::gameplay::quest {
+  class Registry;
+}
+
 namespace corundum::gameplay::ui {
 
   /// Visual configuration for a dialogue box. Pure data — no behaviour.
@@ -33,15 +37,17 @@ namespace corundum::gameplay::ui {
     DialogBoxStyle style{};
     NinePatchBorder border{};
     bool visible{false};
+    std::string last_graph_id{};
     std::string last_node_id{};
     float last_panel_w{0.f};
     std::optional<DialogLayout> layout{};
   };
 
-  /// Recompute layout if the current node or panel dimensions changed, then mark visible.
+  /// Recompute layout if the current node, graph, or panel dimensions changed, then mark visible.
   /// @pre state.active && state.graph != nullptr when called.
+  /// @param quests Quest registry used by visible_choices to evaluate quest-gated conditions.
   void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::State &state, const gameplay::FlagStore &flags,
-                         platform::Renderer &r, core::math::Vec2 viewport);
+                         const gameplay::quest::Registry *quests, platform::Renderer &r, core::math::Vec2 viewport);
 
   /// Emit platform::DrawRect, nine-patch border, and platform::DrawText commands for the current frame.
   /// No-op when ds.visible is false or layout is absent.

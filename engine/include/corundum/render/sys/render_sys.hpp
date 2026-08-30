@@ -18,6 +18,10 @@ namespace corundum::gameplay::world {
   struct Scene;
 }
 
+namespace corundum::gameplay::quest {
+  class Registry;
+}
+
 namespace corundum::render::sys {
 
   /** @brief Initialise render state (pre-reserves entity draw-list buffer).
@@ -132,13 +136,14 @@ namespace corundum::render::sys {
    *  @param[in]     cfg    Game config.
    * @param[in]     scene  Scene (camera, entities, dialogue mode).
    * @param[in]     flags  Persistent game flags for conditional dialogue rendering.
+   * @param[in]     quests Loaded quest registry for quest-gated choice visibility in the dialog box.
    * @param[in]     alpha  Interpolation factor in [0,1] for render smoothing.
    * @param[in]     win_w  Live window width in screen pixels.
    * @param[in]     win_h  Live window height in screen pixels.
    */
   void render(corundum::platform::Renderer &r, data::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags, float alpha,
-              int win_w, int win_h);
+              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags,
+              const corundum::gameplay::quest::Registry *quests, float alpha, int win_w, int win_h);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

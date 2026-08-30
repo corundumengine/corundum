@@ -1,5 +1,9 @@
 #include <doctest/doctest.h>
 
+#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/system.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/ui/dialog_box.hpp>
 #include <corundum/gameplay/ui/nine_patch.hpp>
 #include <corundum/gameplay/ui/ui_draw.hpp>
@@ -182,4 +186,115 @@ TEST_CASE("ui_draw: draw_option returns the same cursor advance regardless of se
 
   CHECK(w_sel == w_unsel);
   CHECK(w_sel > 0.f);
+}
+
+// ── dialog_box_update ─────────────────────────────────────────────────────────
+
+namespace {
+
+  // Builds a Talk graph with the requested graph_id, speaker, and a node literally
+  // named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
+  // id but have different speakers.
+  corundum::gameplay::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker,
+                                                      std::string talk_text) {
+    using namespace corundum::gameplay::dialogue;
+    Graph g;
+    g.graph_id = std::move(graph_id);
+    g.speaker = std::move(speaker);
+    Node n;
+    n.id = "n0";
+    n.type = NodeType::Talk;
+    n.text = std::move(talk_text);
+    n.next_id = "end";
+    g.id_to_index[n.id] = 0;
+    g.nodes.push_back(std::move(n));
+    return g;
+  }
+
+  // Builds a Choice graph where the second option is gated by quest_is_at.
+  // Used to verify that threading the quest registry through dialog_box_update
+  // yields the gated choice in the layout (not hidden by a parse failure).
+  corundum::gameplay::dialogue::Graph make_choice_graph_with_quest_gate() {
+    using namespace corundum::gameplay::dialogue;
+    Graph g;
+    g.graph_id = "gated";
+    g.speaker = "Gatekeeper";
+    Node n;
+    n.id = "n0";
+    n.type = NodeType::Choice;
+    n.choices = {
+        {.label = "Always.", .target_id = "a"},
+        {.label = "Secret.", .target_id = "b", .condition = "quest_is_at(ember, done)"},
+    };
+    g.id_to_index[n.id] = 0;
+    g.nodes.push_back(std::move(n));
+    return g;
+  }
+
+} // namespace
+
+TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebuilds the layout") {
+  // Reproduces the Keystone cancel + retalk bug: every dialogue file starts at a
+  // node named "n0". After cancelling the innkeeper and starting the villager, the
+  // stale-check must see that the graph id changed and rebuild — otherwise the
+  // innkeeper's speaker/text stays on screen.
+  RecordingRenderer r;
+  corundum::gameplay::ui::DialogBoxState ds{};
+  ds.border = make_border();
+
+  const auto innkeeper = make_talk_graph("innkeeper_intro", "Innkeeper", "Welcome, traveller.");
+  const auto villager = make_talk_graph("villager_generic", "Villager", "Did you see the harvest moon last night?");
+
+  corundum::gameplay::dialogue::State state;
+  corundum::gameplay::FlagStore flags;
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+
+  corundum::gameplay::dialogue::start(state, innkeeper, flags);
+  corundum::gameplay::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
+  REQUIRE(ds.layout.has_value());
+  CHECK(ds.layout->speaker == "Innkeeper");
+  CHECK_FALSE(ds.layout->body_lines.empty());
+
+  // Cancel and switch NPCs.
+  state.reset();
+  corundum::gameplay::dialogue::start(state, villager, flags);
+  corundum::gameplay::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
+
+  REQUIRE(ds.layout.has_value());
+  CHECK(ds.layout->speaker == "Villager");
+  REQUIRE_FALSE(ds.layout->body_lines.empty());
+  CHECK(ds.layout->body_lines.front() == "Did you see the harvest moon last night?");
+}
+
+TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is threaded") {
+  // Verifies the render-side end of Bug 1: a Choice node with a quest_is_at gate
+  // is rendered with the gated option present when dialog_box_update receives the
+  // registry and the matching quest.<id> flag is set. Before the fix, the parse
+  // would error on a null registry and the choice would be hidden.
+  RecordingRenderer r;
+  corundum::gameplay::ui::DialogBoxState ds{};
+  ds.border = make_border();
+
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({"done", 2, true, false, {}});
+  quests.add(std::move(q));
+
+  const auto graph = make_choice_graph_with_quest_gate();
+
+  corundum::gameplay::dialogue::State state;
+  corundum::gameplay::FlagStore flags;
+  flags["quest.ember"] = 2; // matches stage "done" (sequence 2)
+  corundum::gameplay::dialogue::start(state, graph, flags);
+
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  corundum::gameplay::ui::dialog_box_update(ds, state, flags, &quests, r, viewport);
+
+  REQUIRE(ds.layout.has_value());
+  REQUIRE(ds.layout->choice_lines.size() == 2);
+  CHECK(ds.layout->choice_lines[0] == "Always.");
+  CHECK(ds.layout->choice_lines[1] == "Secret.");
 }

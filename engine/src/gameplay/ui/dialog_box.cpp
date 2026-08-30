@@ -7,22 +7,25 @@
 namespace corundum::gameplay::ui {
 
   void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::State &state, const gameplay::FlagStore &flags,
-                         platform::Renderer &r, core::math::Vec2 viewport) {
+                         const gameplay::quest::Registry *quests, platform::Renderer &r, core::math::Vec2 viewport) {
     if (!state.active || !state.graph) {
       ds.visible = false;
       return;
     }
 
     const float panel_w = viewport.x - ds.style.margin * 2.f;
-    const bool stale = !ds.layout || state.current_id != ds.last_node_id || panel_w != ds.last_panel_w;
+    const std::string_view graph_id = state.graph->graph_id;
+    const bool stale =
+        !ds.layout || state.current_id != ds.last_node_id || graph_id != ds.last_graph_id || panel_w != ds.last_panel_w;
 
     if (stale) {
       auto measure = [&](std::string_view text) -> float {
         return r.measure_text(ds.style.font_id, text, ds.style.font_size_body);
       };
 
-      ds.layout =
-          build_layout(state, flags, ds.style.margin, ds.style.panel_height_frac, ds.border.tile_w, viewport, measure);
+      ds.layout = build_layout(state, flags, ds.style.margin, ds.style.panel_height_frac, ds.border.tile_w, viewport,
+                               measure, quests);
+      ds.last_graph_id = graph_id;
       ds.last_node_id = state.current_id;
       ds.last_panel_w = panel_w;
     } else {

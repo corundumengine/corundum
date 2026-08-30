@@ -280,9 +280,6 @@ namespace corundum::gameplay::dialogue {
       }
 
       int parse_quest_helper(const std::string &name) {
-        if (!quests_)
-          return 0;
-
         advance(); // consume (
         const auto quest_id = expect_ident("for quest id in quest helper");
 
@@ -294,13 +291,13 @@ namespace corundum::gameplay::dialogue {
 
         if (name == "quest_is_resolved") {
           expect_rparen();
-          const auto *q = quests_->find(quest_id);
+          const auto *q = quests_ ? quests_->find(quest_id) : nullptr;
           return (q && corundum::gameplay::quest::is_complete(*q, vars_)) ? 1 : 0;
         }
 
         if (name == "quest_is_failed") {
           expect_rparen();
-          const auto *q = quests_->find(quest_id);
+          const auto *q = quests_ ? quests_->find(quest_id) : nullptr;
           return (q && corundum::gameplay::quest::is_failed(*q, vars_)) ? 1 : 0;
         }
 
@@ -308,7 +305,7 @@ namespace corundum::gameplay::dialogue {
           advance(); // consume comma
           const auto stage_name = expect_ident("for stage name in quest_is_at");
           expect_rparen();
-          const auto *q = quests_->find(quest_id);
+          const auto *q = quests_ ? quests_->find(quest_id) : nullptr;
           if (!q)
             return 0;
           const auto *s = q->find_stage(stage_name);

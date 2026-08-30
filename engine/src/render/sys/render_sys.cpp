@@ -358,8 +358,8 @@ namespace corundum::render::sys {
   // ── render ───────────────────────────────────────────────────────────────────
 
   void render(corundum::platform::Renderer &r, data::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags, float alpha,
-              int win_w, int win_h) {
+              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags,
+              const corundum::gameplay::quest::Registry *quests, float alpha, int win_w, int win_h) {
     const corundum::core::math::Vec2 viewport{static_cast<float>(win_w), static_cast<float>(win_h)};
     const float cam_x = state.prev_cam_x + (scene.camera.x - state.prev_cam_x) * alpha;
     const float cam_y = state.prev_cam_y + (scene.camera.y - state.prev_cam_y) * alpha;
@@ -397,7 +397,7 @@ namespace corundum::render::sys {
     }
 
     r.reset_screen_view();
-    corundum::gameplay::ui::dialog_box_update(state.dialog_box, scene.dialogue, flags, r, viewport);
+    corundum::gameplay::ui::dialog_box_update(state.dialog_box, scene.dialogue, flags, quests, r, viewport);
     corundum::gameplay::ui::dialog_box_render(state.dialog_box, r);
     if (scene.transition_prompt && !scene.transition_prompt->declined()) {
       const std::string_view question = scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";

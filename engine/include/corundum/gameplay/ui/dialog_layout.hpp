@@ -37,10 +37,14 @@ namespace corundum::gameplay::ui {
   /// @param border_tile_w Tile width of the nine-patch border (determines inset).
   /// @param viewport      Viewport dimensions in pixels.
   /// @param measure       Callable (std::string_view) -> float returning rendered width.
+  /// @param quests        Quest registry for quest-gated choice conditions. Optional —
+  ///                      defaults to nullptr; null is safe and renders all quest-gated
+  ///                      choices as not-satisfied.
   template <typename MeasureFn>
   [[nodiscard]] DialogLayout build_layout(const gameplay::dialogue::State &state, const gameplay::FlagStore &flags,
                                           float margin, float panel_height_frac, int border_tile_w,
-                                          core::math::Vec2 viewport, MeasureFn measure) {
+                                          core::math::Vec2 viewport, MeasureFn measure,
+                                          const gameplay::quest::Registry *quests = nullptr) {
     const float panel_h = viewport.y * panel_height_frac;
     const float panel_y = viewport.y - panel_h - margin;
     const float panel_x = margin;
@@ -68,7 +72,7 @@ namespace corundum::gameplay::ui {
       layout.body_lines = gameplay::wrap_text(node->text, text_w, measure);
     } else if (node->type == gameplay::dialogue::NodeType::Choice) {
       const float choice_w = panel_w - inset * 3.f;
-      layout.choice_indices = gameplay::dialogue::visible_choices(*node, flags, state.graph->graph_id);
+      layout.choice_indices = gameplay::dialogue::visible_choices(*node, flags, state.graph->graph_id, quests);
       layout.choice_lines.reserve(layout.choice_indices.size());
       for (const std::size_t idx : layout.choice_indices) {
         auto lines = gameplay::wrap_text(node->choices[idx].label, choice_w, measure);

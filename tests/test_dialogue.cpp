@@ -584,6 +584,104 @@ TEST_CASE("eval_condition: old quest helper names error") {
   CHECK(res.error().message.find("unknown quest helper") != std::string::npos);
 }
 
+TEST_CASE("eval_condition: quest helper with null registry parses and evaluates false") {
+  // Defends against the parse_quest_helper null-registry early-return that used to
+  // leave the '(' unconsumed — the parser then threw "unexpected token: (" on the
+  // closing expression end. After the fix, a null registry is safe: the call parses,
+  // the registry lookups return nullptr, and the helpers evaluate to false.
+  corundum::gameplay::FlagStore flags;
+  auto r1 = corundum::gameplay::dialogue::eval_condition("!quest_is_resolved(ember)", flags);
+  REQUIRE(r1.has_value());
+  CHECK(*r1 == true); // false under ! → true
+
+  auto r2 = corundum::gameplay::dialogue::eval_condition("quest_is_at(ember, done)", flags);
+  REQUIRE(r2.has_value());
+  CHECK(*r2 == false);
+
+  auto r3 = corundum::gameplay::dialogue::eval_condition("quest_is_resolved(ember)", flags);
+  REQUIRE(r3.has_value());
+  CHECK(*r3 == false);
+
+  auto r4 = corundum::gameplay::dialogue::eval_condition("quest_is_failed(ember)", flags);
+  REQUIRE(r4.has_value());
+  CHECK(*r4 == false);
+}
+
+TEST_CASE("eval_condition: quest_is_started works without a registry") {
+  // quest_is_started is a flag-only check (no registry lookup) — it must keep
+  // working when the registry is absent. This guards render paths that thread
+  // a non-null registry but also covers the null case for completeness.
+  corundum::gameplay::FlagStore flags;
+  flags["quest.ember"] = 1;
+
+  auto with = corundum::gameplay::dialogue::eval_condition("quest_is_started(ember)", flags, nullptr);
+  REQUIRE(with.has_value());
+  CHECK(*with == true);
+
+  corundum::gameplay::FlagStore empty_flags;
+  auto without = corundum::gameplay::dialogue::eval_condition("quest_is_started(ember)", empty_flags, nullptr);
+  REQUIRE(without.has_value());
+  CHECK(*without == false);
+}
+
+TEST_CASE("visible_choices: quest-gated choice hidden (not errored) when registry absent") {
+  // Render path used to call visible_choices with a null quest::Registry*. Without
+  // the parse_quest_helper fix the condition would parse-error and the choice would
+  // be hidden with a stderr message; the test now expects the same hide-but-no-error
+  // outcome, just without the parse failure.
+  using namespace corundum::gameplay::dialogue;
+
+  Node n;
+  n.id = "gate";
+  n.type = NodeType::Choice;
+  n.choices = {
+      {.label = "Always.", .target_id = "a"},
+      {.label = "Gated by quest stage.", .target_id = "b", .condition = "quest_is_at(ember, done)"},
+  };
+
+  corundum::gameplay::FlagStore flags;
+
+  const auto visible = visible_choices(n, flags, "any_graph");
+  REQUIRE(visible.size() == 1);
+  CHECK(visible[0] == 0);
+}
+
+TEST_CASE("visible_choices: quest-gated choice shown when registry present and stage matches") {
+  // Mirrors the gameplay/system path: a populated registry + matching quest flag
+  // reveals the gated choice. Guards that the render-side threading of quests
+  // reaches eval_condition the same way the system side already does.
+  using namespace corundum::gameplay::dialogue;
+
+  Node n;
+  n.id = "gate";
+  n.type = NodeType::Choice;
+  n.choices = {
+      {.label = "Always.", .target_id = "a"},
+      {.label = "Gated by quest stage.", .target_id = "b", .condition = "quest_is_at(ember, done)"},
+  };
+
+  corundum::gameplay::FlagStore flags;
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({"done", 2, true, false, {}});
+  quests.add(std::move(q));
+
+  // Without the matching flag the gated choice stays hidden.
+  auto v1 = visible_choices(n, flags, "any_graph", &quests);
+  REQUIRE(v1.size() == 1);
+  CHECK(v1[0] == 0);
+
+  // quest.ember = 2 matches stage "done" (sequence 2) — gated choice appears.
+  flags["quest.ember"] = 2;
+  auto v2 = visible_choices(n, flags, "any_graph", &quests);
+  REQUIRE(v2.size() == 2);
+  CHECK(v2[0] == 0);
+  CHECK(v2[1] == 1);
+}
+
 // ── Loader ────────────────────────────────────────────────────────────────────
 
 TEST_CASE("load_graph parses innkeeper.json correctly") {

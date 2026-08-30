@@ -254,8 +254,8 @@ namespace corundum {
     void render_frame(Engine &engine, const float alpha) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
-      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, alpha, engine.win_w,
-                          engine.win_h);
+      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests, alpha,
+                          engine.win_w, engine.win_h);
 
       if (engine.hud.enabled) {
         const debug::OverlayInput hud_input{
