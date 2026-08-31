@@ -3,6 +3,8 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/component/transform_table.hpp>
+#include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/ui/inventory_panel.hpp>
 #include <corundum/gameplay/ui/prompt_box.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/scene.hpp>
@@ -359,7 +361,8 @@ namespace corundum::render::sys {
 
   void render(corundum::platform::Renderer &r, data::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags,
-              const corundum::gameplay::quest::Registry *quests, float alpha, int win_w, int win_h) {
+              const corundum::gameplay::quest::Registry *quests, const corundum::gameplay::item::Registry *items,
+              float alpha, int win_w, int win_h) {
     const corundum::core::math::Vec2 viewport{static_cast<float>(win_w), static_cast<float>(win_h)};
     const float cam_x = state.prev_cam_x + (scene.camera.x - state.prev_cam_x) * alpha;
     const float cam_y = state.prev_cam_y + (scene.camera.y - state.prev_cam_y) * alpha;
@@ -403,6 +406,11 @@ namespace corundum::render::sys {
       const std::string_view question = scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
       corundum::gameplay::ui::prompt_box_render(r, state.dialog_box.style, state.dialog_box.border, question,
                                                 scene.transition_prompt->confirm_selected(), viewport);
+    }
+    if (scene.mode == corundum::gameplay::world::GameMode::Inventory && items) {
+      corundum::gameplay::ui::inventory_panel_render(r, state.dialog_box.style, state.dialog_box.border,
+                                                     corundum::gameplay::ui::build_inventory_lines(flags, *items),
+                                                     scene.inventory_cursor, viewport);
     }
   }
 

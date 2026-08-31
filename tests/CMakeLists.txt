@@ -7,6 +7,7 @@ add_executable(corundum_tests
     test_collision.cpp
     test_dialogue.cpp
     test_quest.cpp
+    test_item_loader.cpp
     test_audio.cpp
     test_spawn_points.cpp
     test_portals.cpp

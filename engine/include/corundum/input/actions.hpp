@@ -9,7 +9,19 @@ namespace corundum::input {
   /**
    * @brief Game input actions supported by the engine.
    */
-  enum class Action : uint8_t { MoveUp, MoveDown, MoveLeft, MoveRight, Select, Cancel, Quit, ZoomIn, ZoomOut, Count };
+  enum class Action : uint8_t {
+    MoveUp,
+    MoveDown,
+    MoveLeft,
+    MoveRight,
+    Select,
+    Cancel,
+    Quit,
+    ZoomIn,
+    ZoomOut,
+    Inventory,
+    Count
+  };
 
   /**
    * @brief Total number of input actions.

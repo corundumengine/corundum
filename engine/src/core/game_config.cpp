@@ -360,6 +360,12 @@ namespace corundum::core {
         return std::unexpected(res.error());
       cfg.paths.quests_dir = std::move(*res);
     }
+    {
+      auto res = get_nonempty_string(j, "items_dir", cfg.paths.items_dir, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.paths.items_dir = std::move(*res);
+    }
 
     {
       auto res = get_nonempty_string(j, "sounds_dir", cfg.paths.sounds_dir, path);

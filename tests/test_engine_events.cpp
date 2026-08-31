@@ -75,3 +75,49 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
   CHECK(pending.empty());
   CHECK(corundum::gameplay::has_flag(engine.flags, "quest.test_quest"));
 }
+
+TEST_CASE("engine events: give_item adds item.<id> count to flags") {
+  corundum::Engine engine;
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"give_item", {"gold", "5"}});
+  corundum::process_dialogue_events(engine);
+
+  CHECK(engine.flags["item.gold"] == 5);
+}
+
+TEST_CASE("engine events: give_item without a count defaults to +1") {
+  corundum::Engine engine;
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"give_item", {"salt"}});
+  corundum::process_dialogue_events(engine);
+
+  CHECK(engine.flags["item.salt"] == 1);
+}
+
+TEST_CASE("engine events: take_item subtracts and erases the key at or below zero") {
+  corundum::Engine engine;
+  engine.flags["item.gold"] = 5;
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"take_item", {"gold", "2"}});
+  corundum::process_dialogue_events(engine);
+  CHECK(engine.flags["item.gold"] == 3);
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"take_item", {"gold", "10"}});
+  corundum::process_dialogue_events(engine);
+  CHECK(!engine.flags.contains("item.gold"));
+}
+
+TEST_CASE("engine events: take_item on a missing item is a no-op") {
+  corundum::Engine engine;
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"take_item", {"gold", "1"}});
+  corundum::process_dialogue_events(engine);
+
+  CHECK(!engine.flags.contains("item.gold"));
+}
+
+TEST_CASE("engine events: reputation accumulates rep.<faction> and can go negative") {
+  corundum::Engine engine;
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"reputation", {"village", "3"}});
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"reputation", {"village", "-1"}});
+  corundum::process_dialogue_events(engine);
+
+  CHECK(engine.flags["rep.village"] == 2);
+}

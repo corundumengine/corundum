@@ -2,13 +2,17 @@
 
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/dialogue/system.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/ui/dialog_box.hpp>
+#include <corundum/gameplay/ui/inventory_panel.hpp>
 #include <corundum/gameplay/ui/nine_patch.hpp>
 #include <corundum/gameplay/ui/ui_draw.hpp>
 #include <corundum/platform/renderer.hpp>
 
+#include <deque>
 #include <expected>
 #include <string>
 #include <variant>
@@ -27,6 +31,12 @@ namespace {
   public:
     using DrawCall = std::variant<DrawRect, DrawSprite, DrawText>;
     std::vector<DrawCall> log{};
+    // DrawText::text is a string_view that may point into temporaries that die
+    // when the render call returns (e.g. formatted inventory labels); the real
+    // renderer consumes it synchronously, but this recorder must keep it alive.
+    // A deque (not vector) keeps references to stored strings stable across
+    // push_back, since the recorded DrawText views point into this container.
+    std::deque<std::string> text_owner{};
 
     std::expected<uint32_t, std::string> load_texture(std::string_view) override {
       return 1u;
@@ -51,7 +61,10 @@ namespace {
     }
 
     void draw(const DrawText &cmd) override {
-      log.push_back(cmd);
+      text_owner.push_back(std::string{cmd.text});
+      DrawText copy = cmd;
+      copy.text = text_owner.back();
+      log.push_back(copy);
     }
 
     void draw(const DrawRect &cmd) override {
@@ -297,4 +310,111 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   REQUIRE(ds.layout->choice_lines.size() == 2);
   CHECK(ds.layout->choice_lines[0] == "Always.");
   CHECK(ds.layout->choice_lines[1] == "Secret.");
+}
+
+// ── inventory_panel_render ───────────────────────────────────────────────────
+
+TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pair per row") {
+  RecordingRenderer r;
+  const corundum::gameplay::ui::NinePatchBorder border = make_border();
+  const corundum::gameplay::ui::DialogBoxStyle style{};
+
+  std::vector<corundum::gameplay::ui::InventoryLine> lines = {
+      {"Apple", 2},
+      {"Salt", 1},
+  };
+
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  corundum::gameplay::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
+
+  // panel_chrome: 1 DrawRect + 8 DrawSprite; then the "Inventory" header DrawText;
+  // then 2 rows × 2 DrawText (cursor + label).
+  REQUIRE(r.log.size() == 9 + 1 + 4);
+  CHECK(std::holds_alternative<DrawRect>(r.log[0]));
+  for (std::size_t i = 1; i < 9; ++i)
+    CHECK(std::holds_alternative<DrawSprite>(r.log[i]));
+
+  const DrawText &header = std::get<DrawText>(r.log[9]);
+  CHECK(header.text == "Inventory");
+  CHECK(header.colour.r == style.speaker.r);
+
+  const DrawText &row0_cursor = std::get<DrawText>(r.log[10]);
+  const DrawText &row0_label = std::get<DrawText>(r.log[11]);
+  const DrawText &row1_cursor = std::get<DrawText>(r.log[12]);
+  const DrawText &row1_label = std::get<DrawText>(r.log[13]);
+
+  CHECK(row0_cursor.text == "> ");
+  CHECK(row0_label.text == "Apple  x2");
+  CHECK(row0_cursor.colour.r == style.selected.r); // cursor row uses style.selected
+  CHECK(row0_label.colour.r == style.selected.r);
+
+  CHECK(row1_cursor.text == "  ");
+  CHECK(row1_label.text == "Salt  x1");
+  CHECK(row1_cursor.colour.r == style.choice.r); // non-cursor row uses style.choice
+  CHECK(row1_label.colour.r == style.choice.r);
+  CHECK(row1_label.position.y > row0_label.position.y); // rows stack downward
+}
+
+TEST_CASE("inventory_panel_render: empty list renders header plus one (empty) line") {
+  RecordingRenderer r;
+  const corundum::gameplay::ui::NinePatchBorder border = make_border();
+  const corundum::gameplay::ui::DialogBoxStyle style{};
+
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  corundum::gameplay::ui::inventory_panel_render(r, style, border, {}, 0, viewport);
+
+  // Chrome (9) + header + one "(empty)" line.
+  REQUIRE(r.log.size() == 9 + 1 + 1);
+  const DrawText &header = std::get<DrawText>(r.log[9]);
+  CHECK(header.text == "Inventory");
+  const DrawText &empty = std::get<DrawText>(r.log[10]);
+  CHECK(empty.text == "(empty)");
+}
+
+TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
+  RecordingRenderer r;
+  const corundum::gameplay::ui::NinePatchBorder border = make_border();
+  const corundum::gameplay::ui::DialogBoxStyle style{};
+
+  std::vector<corundum::gameplay::ui::InventoryLine> lines = {{"A", 1}, {"B", 1}, {"C", 1}};
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+
+  // cursor 99 → clamps to the last row.
+  corundum::gameplay::ui::inventory_panel_render(r, style, border, lines, 99, viewport);
+  const DrawText &last_cursor = std::get<DrawText>(r.log[r.log.size() - 2]);
+  CHECK(last_cursor.text == "> ");
+  const DrawText &last_label = std::get<DrawText>(r.log.back());
+  CHECK(last_label.text == "C  x1");
+
+  // cursor -5 → clamps to the first row.
+  RecordingRenderer r2;
+  corundum::gameplay::ui::inventory_panel_render(r2, style, border, lines, -5, viewport);
+  const DrawText &first_cursor = std::get<DrawText>(r2.log[10]);
+  CHECK(first_cursor.text == "> ");
+  const DrawText &first_label = std::get<DrawText>(r2.log[11]);
+  CHECK(first_label.text == "A  x1");
+}
+
+// ── build_inventory_lines ────────────────────────────────────────────────────
+
+TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by name, falls back to id") {
+  corundum::gameplay::FlagStore flags;
+  flags["item.a"] = 2;
+  flags["item.b"] = 0;  // zero count → dropped
+  flags["item.c"] = 1;  // unknown to the registry → id fallback
+  flags["quest.x"] = 3; // non-item key → ignored
+
+  corundum::gameplay::item::Registry items;
+  corundum::gameplay::item::Item a;
+  a.id = "a";
+  a.name = "Apple";
+  items.add(std::move(a));
+
+  const auto lines = corundum::gameplay::ui::build_inventory_lines(flags, items);
+
+  REQUIRE(lines.size() == 2);
+  CHECK(lines[0].name == "Apple");
+  CHECK(lines[0].count == 2);
+  CHECK(lines[1].name == "c");
+  CHECK(lines[1].count == 1);
 }

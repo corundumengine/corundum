@@ -16,6 +16,7 @@
 #include <corundum/platform/window.hpp>
 #include <corundum/render/sys/render_sys.hpp>
 
+#include <charconv>
 #include <format>
 #include <print>
 #include <string>
@@ -24,10 +25,21 @@ namespace corundum {
 
   namespace {
 
+    /// Parse args[idx] as an int; returns `fallback` if absent or unparseable.
+    int event_int_arg(const gameplay::dialogue::EventAction &ev, std::size_t idx, int fallback) noexcept {
+      if (idx >= ev.args.size())
+        return fallback;
+      int v = fallback;
+      const std::string &s = ev.args[idx];
+      std::from_chars(s.data(), s.data() + s.size(), v);
+      return v;
+    }
+
     void validate_quest_references(const corundum::gameplay::dialogue::Registry &graphs,
-                                   const corundum::gameplay::quest::Registry &quests) {
+                                   const corundum::gameplay::quest::Registry &quests,
+                                   const corundum::gameplay::item::Registry &items) {
       for (const auto &[id, graph] : graphs) {
-        for (const auto &err : corundum::gameplay::dialogue::validate_quest_refs(graph, quests))
+        for (const auto &err : corundum::gameplay::dialogue::validate_quest_refs(graph, quests, &items))
           std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
         for (const auto &err : corundum::gameplay::dialogue::validate_condition_quest_refs(graph, quests))
           std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
@@ -147,7 +159,12 @@ namespace corundum {
           quest_loaded = engine_.quests.load_all(engine_.cfg.paths.quests_dir);
         std::println("[engine] Loaded {} quests from '{}'", quest_loaded, engine_.cfg.paths.quests_dir);
 
-        validate_quest_references(engine_.graphs, engine_.quests);
+        int item_loaded = 0;
+        if (!engine_.cfg.paths.items_dir.empty())
+          item_loaded = engine_.items.load_all(engine_.cfg.paths.items_dir);
+        std::println("[engine] Loaded {} items from '{}'", item_loaded, engine_.cfg.paths.items_dir);
+
+        validate_quest_references(engine_.graphs, engine_.quests, engine_.items);
       }
 
       Engine &engine_;
@@ -168,6 +185,17 @@ namespace corundum {
       } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
         if (auto result = quest_runner.advance(ev.args[0], ev.args[1]); !result)
           std::println(stderr, "[engine] WARN: {}", result.error());
+      } else if (ev.name == "give_item" && !ev.args.empty()) {
+        engine.flags["item." + ev.args[0]] += event_int_arg(ev, 1, /*fallback=*/1);
+      } else if (ev.name == "take_item" && !ev.args.empty()) {
+        const std::string key = "item." + ev.args[0];
+        if (auto it = engine.flags.find(key); it != engine.flags.end()) {
+          it->second -= event_int_arg(ev, 1, /*fallback=*/1);
+          if (it->second <= 0)
+            engine.flags.erase(it);
+        }
+      } else if (ev.name == "reputation" && ev.args.size() >= 2) {
+        engine.flags["rep." + ev.args[0]] += event_int_arg(ev, 1, /*fallback=*/0);
       } else {
         bool handled = false;
         if (engine.on_event)
@@ -255,8 +283,8 @@ namespace corundum {
     void render_frame(Engine &engine, const float alpha) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
-      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests, alpha,
-                          engine.win_w, engine.win_h);
+      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests,
+                          &engine.items, alpha, engine.win_w, engine.win_h);
 
       if (engine.hud.enabled) {
         const debug::OverlayInput hud_input{

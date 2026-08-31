@@ -315,6 +315,21 @@ namespace corundum::gameplay::dialogue {
           return corundum::gameplay::visit_count(vars_, key) == s->sequence ? 1 : 0;
         }
 
+        if (name == "has_item") {
+          expect_rparen();
+          return corundum::gameplay::visit_count(vars_, "item." + quest_id) > 0 ? 1 : 0;
+        }
+
+        if (name == "item_count") {
+          expect_rparen();
+          return corundum::gameplay::visit_count(vars_, "item." + quest_id);
+        }
+
+        if (name == "rep") {
+          expect_rparen();
+          return corundum::gameplay::visit_count(vars_, "rep." + quest_id);
+        }
+
         throw std::runtime_error("unknown quest helper: " + name);
       }
 

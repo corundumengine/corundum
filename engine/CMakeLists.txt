@@ -26,6 +26,7 @@ add_library(engine STATIC
     src/gameplay/quest/registry.cpp
     src/gameplay/quest/system.cpp
     src/gameplay/quest/runner.cpp
+    src/gameplay/item/item.cpp
     src/core/files.cpp
     src/physics/collision.cpp
     src/physics/walkability.cpp
@@ -55,6 +56,7 @@ add_library(engine STATIC
     src/gameplay/ui/nine_patch.cpp
     src/gameplay/ui/dialog_box.cpp
     src/gameplay/ui/prompt_box.cpp
+    src/gameplay/ui/inventory_panel.cpp
     src/gameplay/ui/ui_draw.cpp
     src/debug/debug_overlay.cpp
     src/audio/sys/audio_sys.cpp

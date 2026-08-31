@@ -15,7 +15,7 @@ namespace corundum::platform::glfw {
       Action action;
     };
 
-    constexpr std::array<KeyBinding, 14> k_default_bindings{{
+    constexpr std::array<KeyBinding, 15> k_default_bindings{{
         {GLFW_KEY_W, Action::MoveUp},
         {GLFW_KEY_S, Action::MoveDown},
         {GLFW_KEY_A, Action::MoveLeft},
@@ -28,6 +28,7 @@ namespace corundum::platform::glfw {
         {GLFW_KEY_SPACE, Action::Select},
         {GLFW_KEY_ESCAPE, Action::Cancel},
         {GLFW_KEY_Q, Action::Quit},
+        {GLFW_KEY_I, Action::Inventory},
         {GLFW_KEY_EQUAL, Action::ZoomIn}, // '=' doubles as '+' without needing Shift
         {GLFW_KEY_MINUS, Action::ZoomOut},
     }};

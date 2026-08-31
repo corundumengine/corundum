@@ -43,6 +43,9 @@ namespace corundum::core {
     /** @brief Path to the icons font file. */
     std::string icons_font{};
 
+    /** @brief Directory containing item data files. Defaults to "data/items". */
+    std::string items_dir{"data/items"};
+
     /** @brief Directory containing portal definitions. Defaults to "data/portals". */
     std::string portals_dir{"data/portals"};
 

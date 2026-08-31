@@ -10,7 +10,7 @@ namespace corundum::gameplay::dialogue {
   namespace {
 
     void check_action_quest_refs(const std::string &action_str, const std::string &scope, const quest::Registry &quests,
-                                 std::vector<std::string> &errors) {
+                                 const item::Registry *items, std::vector<std::string> &errors) {
       auto parsed = parse_action(action_str);
       if (!parsed)
         return;
@@ -28,6 +28,12 @@ namespace corundum::gameplay::dialogue {
         else if (!q->find_stage(ev->args[1]))
           errors.push_back(
               std::format("{}: quest_advance references unknown stage '{}' in '{}'", scope, ev->args[1], ev->args[0]));
+      } else if (items && ev->name == "give_item" && !ev->args.empty()) {
+        if (!items->find(ev->args[0]))
+          errors.push_back(std::format("{}: give_item references unknown item '{}'", scope, ev->args[0]));
+      } else if (items && ev->name == "take_item" && !ev->args.empty()) {
+        if (!items->find(ev->args[0]))
+          errors.push_back(std::format("{}: take_item references unknown item '{}'", scope, ev->args[0]));
       }
     }
 
@@ -46,15 +52,16 @@ namespace corundum::gameplay::dialogue {
 
   } // namespace
 
-  std::vector<std::string> validate_quest_refs(const Graph &graph, const quest::Registry &quests) {
+  std::vector<std::string> validate_quest_refs(const Graph &graph, const quest::Registry &quests,
+                                               const item::Registry *items) {
     std::vector<std::string> errors;
 
     for (const auto &node : graph.nodes) {
       for (const auto &action_str : node.actions)
-        check_action_quest_refs(action_str, std::format("node '{}'", node.id), quests, errors);
+        check_action_quest_refs(action_str, std::format("node '{}'", node.id), quests, items, errors);
       for (const auto &choice : node.choices)
         for (const auto &action_str : choice.actions)
-          check_action_quest_refs(action_str, std::format("choice in node '{}'", node.id), quests, errors);
+          check_action_quest_refs(action_str, std::format("choice in node '{}'", node.id), quests, items, errors);
     }
 
     return errors;

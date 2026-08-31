@@ -14,9 +14,10 @@
 
 namespace corundum::gameplay::world {
 
-  /** @brief Whether the player is free-roaming, locked into a dialogue session, or paused on a portal-confirm prompt.
+  /** @brief Whether the player is free-roaming, locked into a dialogue session, paused on a portal-confirm prompt, or
+   * browsing the inventory panel.
    */
-  enum class GameMode { Exploring, Dialogue, Prompt };
+  enum class GameMode { Exploring, Dialogue, Prompt, Inventory };
 
   /** @brief All game-world data for a running session.
    *
@@ -48,6 +49,8 @@ namespace corundum::gameplay::world {
     float elapsed_time = 0.f;
     std::optional<corundum::gameplay::sys::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
     GameMode mode = GameMode::Exploring;
+    int inventory_cursor =
+        0; ///< Highlighted row while mode == GameMode::Inventory; clamped against the row count at render time.
     std::vector<corundum::gameplay::sys::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
     std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
     std::optional<MapTransition> pending_transition;

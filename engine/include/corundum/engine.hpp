@@ -6,6 +6,7 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/gameplay/flags.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/transition.hpp>
@@ -62,6 +63,7 @@ namespace corundum {
     resources::CharacterRegistry characters;
     gameplay::FlagStore flags;
     gameplay::dialogue::Registry graphs;
+    gameplay::item::Registry items;
     gameplay::quest::Registry quests;
     gameplay::world::Scene scene;
     bool entered_from_world = false; ///< True while inside an interior reached from the overworld.

@@ -12,7 +12,9 @@
 #include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/gameplay/dialogue/serialize.hpp>
 #include <corundum/gameplay/dialogue/system.hpp>
+#include <corundum/gameplay/dialogue/validate_refs.hpp>
 #include <corundum/gameplay/flags.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/quest/system.hpp>
 
@@ -624,6 +626,30 @@ TEST_CASE("eval_condition: quest_is_started works without a registry") {
   CHECK(*without == false);
 }
 
+TEST_CASE("eval_condition: has_item / item_count / rep helpers") {
+  corundum::gameplay::FlagStore flags;
+  flags["item.hammer"] = 2;
+  flags["rep.village"] = 5;
+
+  // has_item — truthy when count > 0
+  CHECK(*corundum::gameplay::dialogue::eval_condition("has_item(hammer)", flags) == true);
+  CHECK(*corundum::gameplay::dialogue::eval_condition("has_item(sword)", flags) == false);
+
+  // item_count — raw count, usable in comparisons
+  CHECK(*corundum::gameplay::dialogue::eval_condition("item_count(hammer) >= 2", flags) == true);
+  CHECK(*corundum::gameplay::dialogue::eval_condition("item_count(hammer) >= 3", flags) == false);
+  CHECK(*corundum::gameplay::dialogue::eval_condition("item_count(hammer) == 2", flags) == true);
+
+  // rep — raw count, usable in comparisons
+  CHECK(*corundum::gameplay::dialogue::eval_condition("rep(village) >= 5", flags) == true);
+  CHECK(*corundum::gameplay::dialogue::eval_condition("rep(village) > 5", flags) == false);
+  CHECK(*corundum::gameplay::dialogue::eval_condition("rep(other) >= 1", flags) == false);
+
+  // compound conditions
+  CHECK(*corundum::gameplay::dialogue::eval_condition("has_item(hammer) && rep(village) >= 3", flags) == true);
+  CHECK(*corundum::gameplay::dialogue::eval_condition("has_item(sword) || rep(village) >= 3", flags) == true);
+}
+
 TEST_CASE("visible_choices: quest-gated choice hidden (not errored) when registry absent") {
   // Render path used to call visible_choices with a null quest::Registry*. Without
   // the parse_quest_helper fix the condition would parse-error and the choice would
@@ -726,6 +752,51 @@ TEST_CASE("load_graph returns error for missing file") {
   const auto result = corundum::gameplay::dialogue::load_graph("no_such_file.json");
   CHECK_FALSE(result.has_value());
   CHECK_FALSE(result.error().empty());
+}
+
+TEST_CASE("validate_quest_refs: give_item/take_item unknown item produces error") {
+  using namespace corundum::gameplay::dialogue;
+
+  Graph g;
+  g.graph_id = "smith";
+  g.speaker = "Osric";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Event;
+  n.next_id = "end";
+  n.actions = {"give_item('hammer', 1)", "take_item('salt', 1)", "give_item('known_item', 1)"};
+  g.nodes.push_back(std::move(n));
+
+  corundum::gameplay::item::Registry items;
+  corundum::gameplay::item::Item item;
+  item.id = "known_item";
+  item.name = "Known";
+  items.add(std::move(item));
+
+  const auto errors = validate_quest_refs(g, {}, &items);
+  REQUIRE(errors.size() == 2);
+  CHECK(errors[0].find("give_item") != std::string::npos);
+  CHECK(errors[0].find("hammer") != std::string::npos);
+  CHECK(errors[1].find("take_item") != std::string::npos);
+  CHECK(errors[1].find("salt") != std::string::npos);
+}
+
+TEST_CASE("validate_quest_refs: null items registry skips item checks") {
+  using namespace corundum::gameplay::dialogue;
+
+  Graph g;
+  g.graph_id = "smith";
+  g.speaker = "Osric";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Event;
+  n.next_id = "end";
+  n.actions = {"give_item('hammer', 1)"};
+  g.nodes.push_back(std::move(n));
+
+  // No item registry (talesmith) — item references are not validated.
+  const auto errors = validate_quest_refs(g, {});
+  CHECK(errors.empty());
 }
 
 // ── Round-trip ────────────────────────────────────────────────────────────────

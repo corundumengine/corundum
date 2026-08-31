@@ -49,4 +49,9 @@ namespace corundum::core {
   /// @return Reference to a static SchemaValidator initialised from the embedded quest schema.
   [[nodiscard]] const SchemaValidator &quest_schema() noexcept;
 
+  /// Returns a pre-built SchemaValidator for item JSON files.
+  /// The validator is constructed once on first call (thread-safe since C++11).
+  /// @return Reference to a static SchemaValidator initialised from the embedded item schema.
+  [[nodiscard]] const SchemaValidator &item_schema() noexcept;
+
 } // namespace corundum::core

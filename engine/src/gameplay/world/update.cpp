@@ -113,6 +113,40 @@ namespace {
     }
   }
 
+  /// Modulo wrap of a list cursor, matching the dialogue choice-list cursor
+  /// (dialogue/system.cpp): Down past the last row lands on the first, Up past
+  /// the first lands on the last. `count` must be > 0.
+  int wrap_cursor(int current, int delta, int count) noexcept {
+    return (current + delta + count) % count;
+  }
+
+  /// Step a paused-on-inventory scene: Cancel returns to Exploring (pressing I
+  /// again is handled by the toggle above the mode switch); MoveUp/MoveDown wrap
+  /// the highlight within the held-item rows (the same count
+  /// build_inventory_lines renders). Not calling update_exploring here is what
+  /// pauses the player (same mechanism as Dialogue / Prompt).
+  void update_inventory(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
+                        const corundum::gameplay::FlagStore &flags) {
+    using corundum::input::Action;
+
+    if (input.is_pressed(Action::Cancel)) {
+      scene.mode = corundum::gameplay::world::GameMode::Exploring;
+      return;
+    }
+
+    const int rows = static_cast<int>(
+        std::ranges::count_if(flags, [](const auto &kv) { return kv.first.starts_with("item.") && kv.second > 0; }));
+    if (rows <= 0) {
+      scene.inventory_cursor = 0;
+      return;
+    }
+
+    if (input.is_pressed(Action::MoveDown))
+      scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, +1, rows);
+    else if (input.is_pressed(Action::MoveUp))
+      scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, -1, rows);
+  }
+
 } // namespace
 
 namespace corundum::gameplay::world {
@@ -128,12 +162,24 @@ namespace corundum::gameplay::world {
     scene.hovered_tile = corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map,
                                                             cfg.elevation_step_px * map.tile_scale, scene.camera.zoom);
 
+    if (input.is_pressed(input::Action::Inventory)) {
+      if (scene.mode == GameMode::Exploring) {
+        scene.mode = GameMode::Inventory;
+        scene.inventory_cursor = 0;
+      } else if (scene.mode == GameMode::Inventory) {
+        scene.mode = GameMode::Exploring;
+      }
+    }
+
     switch (scene.mode) {
       case corundum::gameplay::world::GameMode::Dialogue:
         corundum::gameplay::sys::update_dialogue(scene, actions, flags, quests);
         break;
       case corundum::gameplay::world::GameMode::Prompt:
         update_transition_prompt(scene, input);
+        break;
+      case corundum::gameplay::world::GameMode::Inventory:
+        update_inventory(scene, input, flags);
         break;
       case corundum::gameplay::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h);

@@ -28,6 +28,10 @@ namespace corundum::gameplay::dialogue {
    *   - Comparison: ==, !=, <, >, <=, >=
    *   - Boolean: &&, ||, !
    *   - Parentheses: (expr)
+   *   - Quest helpers: quest_is_started(id), quest_is_resolved(id),
+   *     quest_is_failed(id), quest_is_at(id, stage)
+   *   - Item / reputation helpers: has_item(id), item_count(id), rep(faction)
+   *     (all resolve against the "item.<id>" / "rep.<faction>" FlagStore keys)
    *
    * An empty expression always returns true (unconditionally visible).
    * Comparing a variable with true/false uses truthiness (non-zero == true).

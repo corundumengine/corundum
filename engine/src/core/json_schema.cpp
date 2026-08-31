@@ -124,6 +124,19 @@ namespace corundum::core {
   }
 })";
 
+    constexpr std::string_view k_item_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/item",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "id":          { "type": "string", "minLength": 1 },
+    "name":        { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "icon":        { "type": "string" }
+  }
+})";
+
   } // namespace
 
   // ── SchemaValidator ───────────────────────────────────────────────────────────
@@ -178,6 +191,18 @@ namespace corundum::core {
       return std::move(*r);
     }();
     return q;
+  }
+
+  const SchemaValidator &item_schema() noexcept {
+    static const SchemaValidator i = [] {
+      auto r = SchemaValidator::from_string(k_item_schema);
+      if (!r) {
+        std::println(stderr, "[schema] fatal: {}", r.error());
+        std::terminate();
+      }
+      return std::move(*r);
+    }();
+    return i;
   }
 
 } // namespace corundum::core
