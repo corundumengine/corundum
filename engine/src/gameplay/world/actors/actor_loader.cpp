@@ -60,7 +60,17 @@ namespace corundum::gameplay::world {
           }
         }
 
-        result.push_back(Actor{col, row, std::move(sprite_name), std::move(dialogue_ref), std::move(facing)});
+        std::string id;
+        if (entry.contains("id")) {
+          try {
+            id = entry.at("id").get<std::string>();
+          } catch (...) {
+            return std::unexpected(std::format("Spawn points '{}' actors[{}] 'id' has wrong type", path, i));
+          }
+        }
+
+        result.push_back(
+            Actor{col, row, std::move(sprite_name), std::move(dialogue_ref), std::move(facing), std::move(id)});
       }
 
       return result;

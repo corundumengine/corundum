@@ -96,10 +96,11 @@ namespace corundum::gameplay::world {
       const corundum::gameplay::component::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
 
       auto scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters,
-                                                       engine_.render.chunks.active_at(0).tilemap, spawn_pos);
+                                                       engine_.render.chunks.active_at(0).tilemap, spawn_pos, false);
       if (!scene_result)
         return std::unexpected(std::move(scene_result).error());
       engine_.scene = std::move(*scene_result);
+      gameplay::world::sync_chunk_actors(engine_.scene, engine_.render, engine_.cfg, engine_.characters);
 
       const auto [world_width, world_height] =
           corundum::gameplay::world::tilemap::world_bounds_iso(engine_.render.manifest, info.half_tw, info.half_th);

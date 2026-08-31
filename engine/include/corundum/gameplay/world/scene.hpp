@@ -6,6 +6,7 @@
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/portals/transition_prompt.hpp>
+#include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/resources/sprite.hpp>
 
 #include <optional>
@@ -29,6 +30,12 @@ namespace corundum::gameplay::world {
    *
    * @see Engine  For the owning engine struct.
    */
+  /** @brief Actor entities spawned for one resident world chunk. */
+  struct ChunkActorSet {
+    corundum::gameplay::world::tilemap::ChunkCoord coord{};
+    std::vector<corundum::gameplay::entity::EntityId> entities;
+  };
+
   struct Scene {
     corundum::gameplay::entity::EntityId player;
     corundum::gameplay::entity::World world;
@@ -45,6 +52,8 @@ namespace corundum::gameplay::world {
     std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
     std::optional<MapTransition> pending_transition;
     std::optional<TransitionPrompt> transition_prompt;
+    std::vector<ChunkActorSet>
+        chunk_actors; ///< World mode: per-chunk actor entities, kept in sync with the streaming window.
   };
 
 } // namespace corundum::gameplay::world

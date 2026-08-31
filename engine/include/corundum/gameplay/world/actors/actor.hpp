@@ -18,6 +18,7 @@ namespace corundum::gameplay::world {
     std::string sprite_name;
     std::string dialogue_ref;     ///< Empty if the actor has no dialogue.
     std::string facing = "south"; ///< Direction the NPC faces; defaults to "south".
+    std::string id;               ///< Stable authoring id (optional; key for future state persistence).
   };
 
   /** @brief Optional per-map player placement from a spawn-points file. */

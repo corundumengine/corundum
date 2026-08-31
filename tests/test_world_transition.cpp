@@ -12,6 +12,7 @@
 
 #include <expected>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace fs = std::filesystem;
@@ -32,6 +33,14 @@ namespace {
     cfg.paths.dialogue_dir.clear();
     cfg.paths.quests_dir.clear();
     cfg.paths.sounds_dir.clear();
+    return cfg;
+  }
+
+  /// Like make_world_config but with the 5×1 streaming-world manifest.
+  corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
+    corundum::core::GameConfig cfg = make_world_config(fixtures);
+    cfg.window_title = "streaming_test";
+    cfg.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
     return cfg;
   }
 
@@ -78,6 +87,15 @@ namespace {
     transforms.col[slot] = col;
     transforms.row[slot] = row;
     engine.scene.path.clear();
+  }
+
+  /// Scan live transforms for an entity standing exactly at tile (col, row).
+  std::optional<corundum::gameplay::entity::EntityId> entity_at(const corundum::Engine &engine, int col, int row) {
+    const auto &transforms = engine.scene.world.transforms;
+    for (const auto eid : transforms.active_entities())
+      if (static_cast<int>(transforms.pos_col(eid)) == col && static_cast<int>(transforms.pos_row(eid)) == row)
+        return eid;
+    return std::nullopt;
   }
 
 } // namespace
@@ -531,6 +549,124 @@ TEST_CASE("world transition — re-arming the prompt resets Yes as the default h
   REQUIRE(engine.scene.mode == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->confirm_selected()); // Yes again, not carried over
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — world boot spawns per-chunk actors") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  // The a00 greeter in chunk (0,0) is the only per-chunk actor with a dialogue ref.
+  CHECK(engine.scene.world.dialogue_refs.count == 1);
+
+  // All four chunks of the 2×2 fixture world are resident at boot.
+  CHECK(engine.scene.chunk_actors.size() == 4);
+
+  // a00 (chunk 0,0 local 2,3) and a11 (chunk 1,1 origin 8,8 + local 1,1 → 9,9).
+  const auto a00 = entity_at(engine, 2, 3);
+  const auto a11 = entity_at(engine, 9, 9);
+  REQUIRE(a00.has_value());
+  REQUIRE(a11.has_value());
+  CHECK_FALSE(*a00 == *a11);
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world transition — world actors return after an interior round-trip") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{8, 8});
+
+  // Enter the interior (records the world journey), then exit back to the overworld.
+  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
+  handle_map_transition(engine);
+  REQUIRE(engine.render.mode == RenderMode::SingleMap);
+  REQUIRE(engine.entered_from_world);
+
+  engine.scene.pending_transition = MapTransition{"", 12, 3, true};
+  handle_map_transition(engine);
+  REQUIRE(engine.render.mode == RenderMode::World);
+  CHECK(player_tile(engine) == std::pair{12, 3});
+
+  // Chunk actors are repopulated at the same tiles (the whole world was rebuilt).
+  CHECK(engine.scene.chunk_actors.size() == 4);
+  const auto back_a00 = entity_at(engine, 2, 3);
+  const auto back_a11 = entity_at(engine, 9, 9);
+  REQUIRE(back_a00.has_value());
+  REQUIRE(back_a11.has_value());
+  CHECK(engine.scene.world.entities.is_live(*back_a00));
+  CHECK(engine.scene.world.entities.is_live(*back_a11));
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world streaming — actors spawn only for resident chunks") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_streaming_config(fixtures)).has_value());
+
+  // 5×1 world boots at the manifest centre (20,4) → chunk (2,0); the 3×1 window
+  // covers (1,0)(2,0)(3,0) — chunks (0,0) and (4,0) are not resident at boot.
+  REQUIRE(player_tile(engine) == std::pair{20, 4});
+  CHECK(engine.render.chunks.active_size() == 3);
+  CHECK(engine.scene.chunk_actors.size() == 3);
+
+  // a30 lives in resident chunk (3,0); a00 lives in non-resident chunk (0,0).
+  const auto a30 = entity_at(engine, 4 + 3 * 8, 4);
+  REQUIRE(a30.has_value());
+  CHECK_FALSE(entity_at(engine, 2, 3).has_value());
+
+  corundum::cleanup(engine);
+}
+
+TEST_CASE("world streaming — streaming a chunk out despawns its actors, streaming back respawns") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(corundum::initialize(engine, make_streaming_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{20, 4});
+
+  // Capture the boot a30 handle before any streaming churn.
+  const auto boot_a30 = entity_at(engine, 4 + 3 * 8, 4);
+  REQUIRE(boot_a30.has_value());
+
+  // Walk the player west past the 2.56-tile hysteresis margin so the window
+  // recentres on chunk (0,0) (local col 3 < margin 2.56) and chunks (1,0)/(2,0)
+  // prune. Chunk (0,0) loads one-per-frame via load_one_pending_chunk.
+  move_player_to(engine, 3.f, 4.f);
+  for (int i = 0; i < 30; ++i) {
+    engine.timer.accumulator = engine.timer.target_dt;
+    REQUIRE(corundum::run_frame(engine));
+  }
+
+  // Chunk (0,0) streamed in: its a00 actor exists now.
+  const auto west_a00 = entity_at(engine, 2, 3);
+  REQUIRE(west_a00.has_value());
+  // Chunk (3,0) streamed out: its a30 actor is gone.
+  CHECK_FALSE(engine.scene.world.entities.is_live(*boot_a30));
+  CHECK_FALSE(entity_at(engine, 4 + 3 * 8, 4).has_value());
+
+  // Walk back east to tile 20; the window recentres on chunk (2,0) and (3,0) reloads.
+  move_player_to(engine, 20.f, 4.f);
+  for (int i = 0; i < 30; ++i) {
+    engine.timer.accumulator = engine.timer.target_dt;
+    REQUIRE(corundum::run_frame(engine));
+  }
+
+  const auto back_a30 = entity_at(engine, 4 + 3 * 8, 4);
+  REQUIRE(back_a30.has_value());
+  CHECK(engine.scene.world.entities.is_live(*back_a30));
 
   corundum::cleanup(engine);
 }

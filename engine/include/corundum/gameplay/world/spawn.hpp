@@ -9,6 +9,12 @@
 #include <optional>
 #include <string>
 
+namespace corundum {
+  namespace render::data {
+    struct RenderState;
+  }
+} // namespace corundum
+
 namespace corundum::gameplay::world {
 
   /**
@@ -20,12 +26,25 @@ namespace corundum::gameplay::world {
    * @param player_pos Tile-grid position for the player (col, row). Precedence (most specific
    *                  wins): explicit argument > per-map spawn_points "player" block >
    *                  game.json "player" col/row > built-in default (8, 8).
+   * @param spawn_file_actors When false, skip spawning actors from the single-file
+   *                  spawn-points data (world mode streams actors per-chunk instead).
    * @return Scene containing the populated world and player EntityId,
    *         or std::unexpected with an error description on failure.
    */
   [[nodiscard]] std::expected<Scene, std::string>
   spawn_world(const corundum::core::GameConfig &cfg, const corundum::resources::CharacterRegistry &registry,
               const corundum::gameplay::world::tilemap::Tilemap &tilemap,
-              std::optional<corundum::gameplay::component::Position> player_pos = std::nullopt);
+              std::optional<corundum::gameplay::component::Position> player_pos = std::nullopt,
+              bool spawn_file_actors = true);
+
+  /**
+   * @brief Reconcile per-chunk actor entities with the render layer's active
+   *        chunk window. World mode only. Spawns actors for newly-resident
+   *        chunks (from data/spawn_points/chunk_<col>_<row>.json, chunk-local
+   *        coords), marks actors of unloaded chunks for deletion. No-op unless
+   *        mode == World, chunks are loaded, and the player is free-roaming.
+   */
+  void sync_chunk_actors(Scene &scene, const corundum::render::data::RenderState &render,
+                         const corundum::core::GameConfig &cfg, const corundum::resources::CharacterRegistry &registry);
 
 } // namespace corundum::gameplay::world

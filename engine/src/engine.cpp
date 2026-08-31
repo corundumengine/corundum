@@ -220,6 +220,7 @@ namespace corundum {
           continue;
 
         const auto mv = gameplay::world::build_map_view(engine.render, engine.cfg);
+        gameplay::world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
         gameplay::world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
                                 static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
                                 &engine.quests);

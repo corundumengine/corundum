@@ -1,0 +1,5 @@
+{
+  "actors": [
+    { "id": "a30", "col": 4, "row": 4, "sprite": "player_idle", "facing": "south" }
+  ]
+}

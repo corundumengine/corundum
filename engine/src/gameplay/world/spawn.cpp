@@ -5,6 +5,7 @@
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/world/actors/actor.hpp>
 #include <corundum/gameplay/world/scene.hpp>
+#include <corundum/render/data/render_state.hpp>
 #include <corundum/resources/character_registry.hpp>
 
 #include <algorithm>
@@ -17,12 +18,98 @@
 
 namespace corundum::gameplay::world {
 
+  namespace {
+
+    using corundum::gameplay::component::Animation;
+    using corundum::gameplay::component::DialogueRef;
+    using corundum::gameplay::component::Position;
+    using corundum::gameplay::component::Sprite;
+    using corundum::gameplay::component::Velocity;
+    using corundum::gameplay::entity::EntityId;
+    using corundum::gameplay::entity::World;
+    using corundum::resources::AnimId;
+    using corundum::resources::CharacterRegistry;
+    using corundum::resources::SpriteId;
+
+    /// Spawn every actor in `actors`, adding (col_off,row_off) to each actor's tile coords.
+    /// dw/dh are the active tilemap's diamond width/height (for bounding-box unit conversion).
+    std::expected<std::vector<EntityId>, std::string> spawn_actors(World &world, const CharacterRegistry &registry,
+                                                                   const std::vector<Actor> &actors, int col_off,
+                                                                   int row_off, float dw, float dh) {
+      std::vector<EntityId> spawned;
+      spawned.reserve(actors.size());
+      for (const auto &a : actors) {
+        const float col = static_cast<float>(a.col + col_off);
+        const float row_f = static_cast<float>(a.row + row_off);
+        const SpriteId sid = registry.get_sprite_id(a.sprite_name);
+        if (sid == corundum::resources::k_null_sprite_id)
+          return std::unexpected(std::format("[engine] unknown sprite '{}'", a.sprite_name));
+
+        corundum::gameplay::component::BoundingBox bb{};
+        if (const auto *sd = registry.get_sprite_by_id(sid)) {
+          if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
+            const int rfw = corundum::resources::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
+            const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
+            const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
+            const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
+            bb.col_span = static_cast<float>(bb_w) / dw;
+            bb.row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
+          }
+        }
+
+        Animation npc_anim{};
+        if (const auto *sd = registry.get_sprite_by_id(sid)) {
+          for (uint8_t i = 0; i < corundum::resources::k_num_anim_ids; ++i)
+            npc_anim.frame_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
+        }
+
+        EntityId eid;
+        if (!a.dialogue_ref.empty())
+          eid = spawn(world, Position{col, row_f}, Velocity{}, Sprite{sid, AnimId::Default, 0},
+                      DialogueRef{a.dialogue_ref});
+        else
+          eid = spawn(world, Position{col, row_f}, Velocity{}, Sprite{sid, AnimId::Default, 0});
+        world.animations.insert(eid);
+        world.animations.set_frame_counts(eid, npc_anim.frame_counts);
+        world.collisions.insert(eid, bb.col_span, bb.row_span);
+
+        using FDir = corundum::gameplay::component::FacingDir;
+        static constexpr std::array<std::pair<std::string_view, FDir>, 8> k_facing_map{{
+            {"north", FDir::North},
+            {"east", FDir::East},
+            {"west", FDir::West},
+            {"south", FDir::South},
+            {"northeast", FDir::NorthEast},
+            {"southeast", FDir::SouthEast},
+            {"southwest", FDir::SouthWest},
+            {"northwest", FDir::NorthWest},
+        }};
+        auto it = std::ranges::find_if(k_facing_map, [&](const auto &kv) { return kv.first == a.facing; });
+        world.facings.insert(eid, (it != k_facing_map.end()) ? it->second : FDir::South);
+
+        spawned.push_back(eid);
+      }
+      return spawned;
+    }
+
+    /// load_spawn_points(path).actors -> spawn_actors(...). Missing file -> empty vector.
+    std::expected<std::vector<EntityId>, std::string>
+    spawn_actors_from_file(World &world, const CharacterRegistry &registry, const std::filesystem::path &path,
+                           int col_off, int row_off, float dw, float dh) {
+      auto sp = load_spawn_points(path);
+      if (!sp)
+        return std::unexpected(sp.error());
+      return spawn_actors(world, registry, sp->actors, col_off, row_off, dw, dh);
+    }
+
+  } // namespace
+
   std::expected<Scene, std::string> spawn_world(const corundum::core::GameConfig &cfg,
                                                 const corundum::resources::CharacterRegistry &registry,
                                                 const corundum::gameplay::world::tilemap::Tilemap &tilemap,
-                                                std::optional<corundum::gameplay::component::Position> player_pos) {
+                                                std::optional<corundum::gameplay::component::Position> player_pos,
+                                                bool spawn_file_actors) {
     using corundum::gameplay::component::Animation;
-    using corundum::gameplay::component::DialogueRef;
     using corundum::gameplay::component::Position;
     using corundum::gameplay::component::Sprite;
     using corundum::gameplay::component::Velocity;
@@ -43,10 +130,12 @@ namespace corundum::gameplay::world {
       return std::unexpected(spawn_points_result.error());
     const auto &spawn_points = *spawn_points_result;
 
-    if (!std::filesystem::exists(actors_path))
-      std::println("[engine] 0 actors (no spawn points file at '{}')", actors_path.string());
-    else
-      std::println("[engine] Loaded {} actors from '{}'", spawn_points.actors.size(), actors_path.string());
+    if (spawn_file_actors) {
+      if (!std::filesystem::exists(actors_path))
+        std::println("[engine] 0 actors (no spawn points file at '{}')", actors_path.string());
+      else
+        std::println("[engine] Loaded {} actors from '{}'", spawn_points.actors.size(), actors_path.string());
+    }
 
     // Spawn position precedence: explicit arg > per-map spawn_points > game.json > built-in (8,8).
     const Position spawn_pos =
@@ -106,62 +195,74 @@ namespace corundum::gameplay::world {
           std::format("[engine] too many entities for '{}': {} actors + 1 player exceeds limit of {}", map_stem,
                       spawn_points.actors.size(), corundum::gameplay::entity::k_max_entities));
 
-    for (const auto &a : spawn_points.actors) {
-      const float col = static_cast<float>(a.col);
-      const float row_f = static_cast<float>(a.row);
-      const SpriteId sid = registry.get_sprite_id(a.sprite_name);
-      if (sid == corundum::resources::k_null_sprite_id) {
-        return std::unexpected(std::format("[engine] unknown sprite '{}'", a.sprite_name));
-      }
-
-      corundum::gameplay::component::BoundingBox bb{};
-      if (const auto *sd = registry.get_sprite_by_id(sid)) {
-        if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
-          const int rfw = corundum::resources::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
-          const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
-          const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
-          const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-          bb.col_span = static_cast<float>(bb_w) / dw;
-          bb.row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
-        }
-      }
-
-      Animation npc_anim{};
-      if (const auto *sd = registry.get_sprite_by_id(sid)) {
-        for (uint8_t i = 0; i < corundum::resources::k_num_anim_ids; ++i)
-          npc_anim.frame_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
-      }
-
-      corundum::gameplay::entity::EntityId eid;
-      if (!a.dialogue_ref.empty())
-        eid = spawn(world, Position{col, row_f}, Velocity{}, Sprite{sid, AnimId::Default, 0},
-                    DialogueRef{a.dialogue_ref});
-      else
-        eid = spawn(world, Position{col, row_f}, Velocity{}, Sprite{sid, AnimId::Default, 0});
-      world.animations.insert(eid);
-      world.animations.set_frame_counts(eid, npc_anim.frame_counts);
-      world.collisions.insert(eid, bb.col_span, bb.row_span);
-
-      using FDir = corundum::gameplay::component::FacingDir;
-      static constexpr std::array<std::pair<std::string_view, FDir>, 8> k_facing_map{{
-          {"north", FDir::North},
-          {"east", FDir::East},
-          {"west", FDir::West},
-          {"south", FDir::South},
-          {"northeast", FDir::NorthEast},
-          {"southeast", FDir::SouthEast},
-          {"southwest", FDir::SouthWest},
-          {"northwest", FDir::NorthWest},
-      }};
-      auto it = std::ranges::find_if(k_facing_map, [&](const auto &kv) { return kv.first == a.facing; });
-      const FDir npc_facing = (it != k_facing_map.end()) ? it->second : FDir::South;
-      world.facings.insert(eid, npc_facing);
+    if (spawn_file_actors) {
+      auto spawned = spawn_actors(world, registry, spawn_points.actors, 0, 0, dw, dh);
+      if (!spawned)
+        return std::unexpected(spawned.error());
     }
 
     Scene result;
     result.world = std::move(world);
     result.player = player;
     return result;
+  }
+
+  void sync_chunk_actors(Scene &scene, const corundum::render::data::RenderState &render,
+                         const corundum::core::GameConfig &cfg,
+                         const corundum::resources::CharacterRegistry &registry) {
+    namespace tm = corundum::gameplay::world::tilemap;
+
+    if (render.mode != corundum::render::data::RenderMode::World)
+      return;
+    if (render.chunks.active_empty())
+      return;
+    if (scene.mode != GameMode::Exploring)
+      return; // don't churn actors mid-dialogue / mid-prompt
+
+    const auto &ref_tm = render.chunks.active_at(0).tilemap;
+    const float dw = static_cast<float>(ref_tm.diamond_w());
+    const float dh = static_cast<float>(ref_tm.diamond_h());
+    const int cs = render.manifest.chunk_size;
+
+    const auto is_resident = [&](tm::ChunkCoord c) {
+      for (const auto &e : render.chunks.active())
+        if (e.coord == c)
+          return true;
+      return false;
+    };
+
+    // 1. Despawn actors whose chunk is no longer resident.
+    std::erase_if(scene.chunk_actors, [&](const ChunkActorSet &set) {
+      if (is_resident(set.coord))
+        return false;
+      for (const EntityId eid : set.entities)
+        if (scene.world.entities.is_live(eid))
+          corundum::gameplay::entity::mark_for_deletion(scene.world, eid);
+      return true;
+    });
+
+    // 2. Spawn actors for newly-resident chunks.
+    const auto is_tracked = [&](tm::ChunkCoord c) {
+      for (const auto &set : scene.chunk_actors)
+        if (set.coord == c)
+          return true;
+      return false;
+    };
+    for (const auto &entry : render.chunks.active()) {
+      if (is_tracked(entry.coord))
+        continue;
+      const auto path = std::filesystem::path(cfg.paths.spawn_points_dir) /
+                        std::format("chunk_{}_{}.json", entry.coord.col, entry.coord.row);
+      auto spawned =
+          spawn_actors_from_file(scene.world, registry, path, entry.coord.col * cs, entry.coord.row * cs, dw, dh);
+      if (!spawned) {
+        std::println(stderr, "[engine] WARN: chunk ({}, {}) actors skipped: {}", entry.coord.col, entry.coord.row,
+                     spawned.error());
+        scene.chunk_actors.push_back(ChunkActorSet{entry.coord, {}}); // track anyway — don't retry every frame
+        continue;
+      }
+      scene.chunk_actors.push_back(ChunkActorSet{entry.coord, std::move(*spawned)});
+    }
   }
 
 } // namespace corundum::gameplay::world
