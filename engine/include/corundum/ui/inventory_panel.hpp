@@ -11,8 +11,10 @@
 
 namespace corundum::ui {
 
-  /// One row of the inventory list: display name (falls back to the raw id) and held count.
+  /// One row of the inventory list: display name (falls back to the raw id), held
+  /// count, and the item's category (Misc when the registry has no entry).
   struct InventoryLine {
+    corundum::item::ItemCategory category = corundum::item::ItemCategory::Misc;
     std::string name;
     int count = 0;
   };
@@ -22,7 +24,8 @@ namespace corundum::ui {
    * Walks @p flags, keeps every "item.<id>" key with a count > 0, strips the
    * prefix, and resolves the display name through @p items (falling back to the
    * raw id when the registry has no entry — e.g. items granted by event before
-   * their definition file was added). Sorted by name for a stable display order.
+   * their definition file was added). Sorted by (category, name) so same-category
+   * items cluster in a stable display order.
    */
   [[nodiscard]] std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
                                                                  const corundum::item::Registry &items);

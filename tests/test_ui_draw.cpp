@@ -319,8 +319,8 @@ TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pa
   const corundum::ui::DialogBoxStyle style{};
 
   std::vector<corundum::ui::InventoryLine> lines = {
-      {"Apple", 2},
-      {"Salt", 1},
+      {.name = "Apple", .count = 2},
+      {.name = "Salt", .count = 1},
   };
 
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
@@ -375,7 +375,8 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
 
-  std::vector<corundum::ui::InventoryLine> lines = {{"A", 1}, {"B", 1}, {"C", 1}};
+  std::vector<corundum::ui::InventoryLine> lines = {
+      {.name = "A", .count = 1}, {.name = "B", .count = 1}, {.name = "C", .count = 1}};
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
 
   // cursor 99 → clamps to the last row.
@@ -416,4 +417,112 @@ TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by
   CHECK(lines[0].count == 2);
   CHECK(lines[1].name == "c");
   CHECK(lines[1].count == 1);
+}
+
+TEST_CASE("build_inventory_lines: groups items by category, ordering by (category, name)") {
+  using corundum::item::ItemCategory;
+
+  corundum::world::FlagStore flags;
+  flags["item.zzz"] = 1; // Misc — category order puts it second
+  flags["item.aaa"] = 1; // Weapon
+  flags["item.mmm"] = 1; // Apparel
+  flags["item.bbb"] = 1; // Potion
+
+  corundum::item::Registry items;
+  corundum::item::Item weapon;
+  weapon.id = "aaa";
+  weapon.name = "Axe";
+  weapon.category = ItemCategory::Weapon;
+  items.add(std::move(weapon));
+
+  corundum::item::Item apparel;
+  apparel.id = "mmm";
+  apparel.name = "Cloak";
+  apparel.category = ItemCategory::Apparel;
+  items.add(std::move(apparel));
+
+  corundum::item::Item potion;
+  potion.id = "bbb";
+  potion.name = "Draught";
+  potion.category = ItemCategory::Potion;
+  items.add(std::move(potion));
+
+  const auto lines = corundum::ui::build_inventory_lines(flags, items);
+
+  REQUIRE(lines.size() == 4);
+  // Enum order is Apparel < Misc < Potion < Weapon; names sort within a category.
+  CHECK(lines[0].name == "Cloak");
+  CHECK(lines[0].category == ItemCategory::Apparel);
+  CHECK(lines[1].name == "zzz");
+  CHECK(lines[1].category == ItemCategory::Misc);
+  CHECK(lines[2].name == "Draught");
+  CHECK(lines[2].category == ItemCategory::Potion);
+  CHECK(lines[3].name == "Axe");
+  CHECK(lines[3].category == ItemCategory::Weapon);
+}
+
+TEST_CASE("inventory_panel_render: category groups draw one header per group, in category order") {
+  using corundum::item::ItemCategory;
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+
+  // Pre-sorted as build_inventory_lines would produce: (category, name).
+  std::vector<corundum::ui::InventoryLine> lines = {
+      {ItemCategory::Apparel, "Cloak", 1},
+      {ItemCategory::Misc, "zzz", 1},
+      {ItemCategory::Potion, "Draught", 1},
+      {ItemCategory::Weapon, "Axe", 1},
+  };
+
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
+
+  // Chrome (9) + "Inventory" header + 4 group headers + 4 rows × 2 DrawText (cursor + label).
+  REQUIRE(r.log.size() == 9 + 1 + 4 + 8);
+
+  std::vector<std::string> texts;
+  for (const auto &call : r.log)
+    if (std::holds_alternative<DrawText>(call))
+      texts.push_back(std::string{std::get<DrawText>(call).text});
+
+  CHECK(texts[0] == "Inventory");
+  // Each group header immediately precedes its rows (cursor then label), in category
+  // order; only the first row (cursor 0) is selected.
+  CHECK(texts[1] == "apparel");
+  CHECK(texts[2] == "> ");
+  CHECK(texts[3] == "Cloak  x1");
+  CHECK(texts[4] == "Misc");
+  CHECK(texts[5] == "  ");
+  CHECK(texts[6] == "zzz  x1");
+  CHECK(texts[7] == "potion");
+  CHECK(texts[8] == "  ");
+  CHECK(texts[9] == "Draught  x1");
+  CHECK(texts[10] == "weapon");
+  CHECK(texts[11] == "  ");
+  CHECK(texts[12] == "Axe  x1");
+}
+
+TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
+  using corundum::item::ItemCategory;
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+
+  std::vector<corundum::ui::InventoryLine> lines = {
+      {ItemCategory::Misc, "Clutter", 1},
+  };
+
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
+
+  // Chrome (9) + "Inventory" header + 1 row × 2. No "Misc" group header.
+  REQUIRE(r.log.size() == 9 + 1 + 2);
+
+  const DrawText &header = std::get<DrawText>(r.log[9]);
+  CHECK(header.text == "Inventory");
+  const DrawText &row_cursor = std::get<DrawText>(r.log[10]);
+  const DrawText &row_label = std::get<DrawText>(r.log[11]);
+  CHECK(row_cursor.text == "> ");
+  CHECK(row_label.text == "Clutter  x1");
 }

@@ -133,8 +133,17 @@ namespace corundum::core {
     "id":          { "type": "string", "minLength": 1 },
     "name":        { "type": "string", "minLength": 1 },
     "description": { "type": "string" },
-    "icon":        { "type": "string" }
-  }
+    "icon":        { "type": "string" },
+    "category":    { "type": "string", "enum": ["weapon", "apparel", "potion", "misc"] },
+    "weapon":      { "type": "object", "properties": { "damage": { "type": "integer", "minimum": 0 } } },
+    "apparel":     { "type": "object", "properties": { "slot": { "type": "string" }, "defense": { "type": "integer", "minimum": 0 } } },
+    "potion":      { "type": "object", "properties": { "effect": { "type": "string", "minLength": 1 }, "magnitude": { "type": "integer" } } }
+  },
+  "allOf": [
+    { "if": { "required": ["category"], "properties": { "category": { "const": "weapon"  } } }, "then": { "required": ["weapon"]  } },
+    { "if": { "required": ["category"], "properties": { "category": { "const": "apparel" } } }, "then": { "required": ["apparel"] } },
+    { "if": { "required": ["category"], "properties": { "category": { "const": "potion"  } } }, "then": { "required": ["potion"], "properties": { "potion": { "required": ["effect"] } } } }
+  ]
 })";
 
   } // namespace

@@ -17,6 +17,37 @@ namespace corundum::item {
       using std::runtime_error::runtime_error;
     };
 
+    static ItemCategory parse_category(const json &root) {
+      if (root.contains("category"))
+        return category_from_string(root["category"].get<std::string>());
+      return ItemCategory::Misc;
+    }
+
+    static WeaponData parse_weapon(const json &j) {
+      WeaponData w;
+      if (j.contains("damage"))
+        w.damage = j["damage"].get<int>();
+      return w;
+    }
+
+    static ApparelData parse_apparel(const json &j) {
+      ApparelData a;
+      if (j.contains("slot"))
+        a.slot = j["slot"].get<std::string>();
+      if (j.contains("defense"))
+        a.defense = j["defense"].get<int>();
+      return a;
+    }
+
+    static PotionData parse_potion(const json &j) {
+      PotionData p;
+      if (j.contains("effect"))
+        p.effect = j["effect"].get<std::string>();
+      if (j.contains("magnitude"))
+        p.magnitude = j["magnitude"].get<int>();
+      return p;
+    }
+
     static Item load_item_impl(const std::string &path) {
       std::ifstream f(path);
       if (!f)
@@ -52,10 +83,46 @@ namespace corundum::item {
       if (root.contains("icon"))
         item.icon = root["icon"].get<std::string>();
 
+      // Schema guarantees: category enum, and the payload object present when category
+      // is declared. Absent category → Misc, absent payload → defaulted struct.
+      item.category = parse_category(root);
+
+      if (item.category == ItemCategory::Weapon && root.contains("weapon"))
+        item.weapon = parse_weapon(root["weapon"]);
+      else if (item.category == ItemCategory::Apparel && root.contains("apparel"))
+        item.apparel = parse_apparel(root["apparel"]);
+      else if (item.category == ItemCategory::Potion && root.contains("potion"))
+        item.potion = parse_potion(root["potion"]);
+
       return item;
     }
 
   } // namespace
+
+  ItemCategory category_from_string(std::string_view s) noexcept {
+    if (s == "weapon")
+      return ItemCategory::Weapon;
+    if (s == "apparel")
+      return ItemCategory::Apparel;
+    if (s == "potion")
+      return ItemCategory::Potion;
+    // "misc" and anything unrecognized — schema enum checked up front.
+    return ItemCategory::Misc;
+  }
+
+  std::string_view to_string(ItemCategory c) noexcept {
+    switch (c) {
+      case ItemCategory::Weapon:
+        return "weapon";
+      case ItemCategory::Apparel:
+        return "apparel";
+      case ItemCategory::Potion:
+        return "potion";
+      case ItemCategory::Misc:
+        return "misc";
+    }
+    return "misc";
+  }
 
   std::expected<Item, std::string> load_item(const std::filesystem::path &path) {
     try {
