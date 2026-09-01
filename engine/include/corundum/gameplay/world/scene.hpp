@@ -1,7 +1,7 @@
 #pragma once
+#include <corundum/dialogue/action.hpp>
+#include <corundum/dialogue/dialogue.hpp>
 #include <corundum/ecs/world.hpp>
-#include <corundum/gameplay/dialogue/action.hpp>
-#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/world/camera.hpp>
 #include <corundum/gameplay/world/picking.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
@@ -42,7 +42,7 @@ namespace corundum::gameplay::world {
     corundum::ecs::World world;
 
     Camera camera;
-    corundum::gameplay::dialogue::State dialogue;
+    corundum::dialogue::State dialogue;
     std::optional<corundum::ecs::EntityId> dialogue_npc;
     std::optional<corundum::resources::AnimId> dialogue_npc_saved_anim;
     std::optional<corundum::ecs::FacingDir> dialogue_npc_saved_facing;
@@ -52,7 +52,7 @@ namespace corundum::gameplay::world {
     int inventory_cursor =
         0; ///< Highlighted row while mode == GameMode::Inventory; clamped against the row count at render time.
     std::vector<corundum::gameplay::world::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
-    std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
+    std::vector<corundum::dialogue::EventAction> pending_dialogue_events;
     std::optional<MapTransition> pending_transition;
     std::optional<TransitionPrompt> transition_prompt;
     std::vector<ChunkActorSet>

@@ -61,9 +61,9 @@ namespace tools::talesmith {
       ImGui::PushID(i);
 
       std::string label;
-      if (node.type == corundum::gameplay::dialogue::NodeType::Talk)
+      if (node.type == corundum::dialogue::NodeType::Talk)
         label = state.graph.speaker.empty() ? node.id : state.graph.speaker + ": " + node.text.substr(0, 30);
-      else if (node.type == corundum::gameplay::dialogue::NodeType::Choice)
+      else if (node.type == corundum::dialogue::NodeType::Choice)
         label = node.choices.empty() ? node.id : node.choices[0].label.substr(0, 30);
       else
         label = node.id;
@@ -105,9 +105,9 @@ namespace tools::talesmith {
 
       if (ImGui::Button("Create") && state.add_node_id_buf[0] != '\0') {
         state.push_undo_snapshot();
-        corundum::gameplay::dialogue::Node new_node;
+        corundum::dialogue::Node new_node;
         new_node.id = state.add_node_id_buf;
-        new_node.type = static_cast<corundum::gameplay::dialogue::NodeType>(state.add_node_type);
+        new_node.type = static_cast<corundum::dialogue::NodeType>(state.add_node_type);
         state.graph.id_to_index[new_node.id] = state.graph.nodes.size();
         state.graph.nodes.push_back(std::move(new_node));
         state.dirty = true;

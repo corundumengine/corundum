@@ -1,12 +1,12 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/ecs/entity.hpp>
-#include <corundum/gameplay/ui/dialog_box.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/tilemap/walkability.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/resources/sprite.hpp>
+#include <corundum/ui/dialog_box.hpp>
 
 #include <algorithm>
 #include <array>
@@ -208,7 +208,7 @@ namespace corundum::render {
     std::vector<corundum::gameplay::world::Portal> agg_portals{};
     corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
     ChunkWindow chunks{};
-    corundum::gameplay::ui::DialogBoxState dialog_box{};
+    corundum::ui::DialogBoxState dialog_box{};
     uint32_t font_id{0};
     corundum::gameplay::world::tilemap::WorldManifest manifest{};
     MapData map_data{};

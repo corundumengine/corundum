@@ -1,9 +1,9 @@
 #include <corundum/gameplay/world/update.hpp>
 
 #include <corundum/anim/anim_sys.hpp>
+#include <corundum/dialogue/interact.hpp>
 #include <corundum/ecs/component/components.hpp>
 #include <corundum/ecs/world.hpp>
-#include <corundum/gameplay/dialogue/interact.hpp>
 #include <corundum/gameplay/world/camera_system.hpp>
 #include <corundum/gameplay/world/picking.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
@@ -126,7 +126,7 @@ namespace {
   /// build_inventory_lines renders). Not calling update_exploring here is what
   /// pauses the player (same mechanism as Dialogue / Prompt).
   void update_inventory(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
-                        const corundum::gameplay::FlagStore &flags) {
+                        const corundum::world::FlagStore &flags) {
     using corundum::input::Action;
 
     if (input.is_pressed(Action::Cancel)) {
@@ -152,9 +152,8 @@ namespace {
 namespace corundum::gameplay::world {
 
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt, float win_w, float win_h, corundum::gameplay::FlagStore &flags,
-              const quest::Registry *quests) {
+              const corundum::dialogue::Registry &graphs, const corundum::input::InputState &input, const MapView &map,
+              float dt, float win_w, float win_h, corundum::world::FlagStore &flags, const quest::Registry *quests) {
     const auto actions = corundum::input::pressed_actions(input);
 
     update_zoom(scene, input, cfg, dt, win_w, win_h);
@@ -173,7 +172,7 @@ namespace corundum::gameplay::world {
 
     switch (scene.mode) {
       case corundum::gameplay::world::GameMode::Dialogue:
-        corundum::gameplay::dialogue::update_dialogue(scene, actions, flags, quests);
+        corundum::dialogue::update_dialogue(scene, actions, flags, quests);
         break;
       case corundum::gameplay::world::GameMode::Prompt:
         update_transition_prompt(scene, input);
@@ -183,7 +182,7 @@ namespace corundum::gameplay::world {
         break;
       case corundum::gameplay::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h);
-        corundum::gameplay::dialogue::try_interact(scene, input, cfg, graphs, flags);
+        corundum::dialogue::try_interact(scene, input, cfg, graphs, flags);
         break;
     }
   }

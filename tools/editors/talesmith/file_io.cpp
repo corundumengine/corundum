@@ -2,10 +2,10 @@
 #include "graph_layout.hpp"
 
 #include <corundum/core/json_io.hpp>
-#include <corundum/gameplay/dialogue/loader.hpp>
-#include <corundum/gameplay/dialogue/serialize.hpp>
-#include <corundum/gameplay/quest/loader.hpp>
-#include <corundum/gameplay/quest/serialize.hpp>
+#include <corundum/dialogue/loader.hpp>
+#include <corundum/dialogue/serialize.hpp>
+#include <corundum/quest/loader.hpp>
+#include <corundum/quest/serialize.hpp>
 
 #include <format>
 #include <fstream>
@@ -28,11 +28,11 @@ namespace tools::talesmith {
   std::expected<void, std::string> save_graph(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
-    return corundum::core::write_json(state.file_path, corundum::gameplay::dialogue::serialize_graph(state.graph));
+    return corundum::core::write_json(state.file_path, corundum::dialogue::serialize_graph(state.graph));
   }
 
   std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path) {
-    auto result = corundum::gameplay::dialogue::load_graph(path);
+    auto result = corundum::dialogue::load_graph(path);
     if (!result)
       return std::unexpected(result.error());
 
@@ -55,11 +55,11 @@ namespace tools::talesmith {
   std::expected<void, std::string> save_quest_file(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
-    return corundum::core::write_json(state.file_path, corundum::gameplay::quest::serialize_quest(state.quest_doc_));
+    return corundum::core::write_json(state.file_path, corundum::quest::serialize_quest(state.quest_doc_));
   }
 
   std::expected<void, std::string> load_quest_file(EditorState &state, const std::string &path) {
-    auto result = corundum::gameplay::quest::load_quest(path);
+    auto result = corundum::quest::load_quest(path);
     if (!result)
       return std::unexpected(result.error());
 

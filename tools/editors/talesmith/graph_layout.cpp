@@ -8,8 +8,7 @@
 
 namespace tools::talesmith {
 
-  void recompute_layout(corundum::gameplay::dialogue::Graph &graph, std::vector<NodeLayout> &layout,
-                        float graph_width) {
+  void recompute_layout(corundum::dialogue::Graph &graph, std::vector<NodeLayout> &layout, float graph_width) {
     layout.clear();
     const auto n = graph.nodes.size();
     if (n == 0)
@@ -19,13 +18,12 @@ namespace tools::talesmith {
     std::vector<std::unordered_set<std::size_t>> children(n);
     for (std::size_t i = 0; i < n; ++i) {
       const auto &node = graph.nodes[i];
-      if (node.type == corundum::gameplay::dialogue::NodeType::Talk ||
-          node.type == corundum::gameplay::dialogue::NodeType::Event) {
+      if (node.type == corundum::dialogue::NodeType::Talk || node.type == corundum::dialogue::NodeType::Event) {
         if (!node.next_id.empty() && node.next_id != "end") {
           if (auto it = graph.id_to_index.find(node.next_id); it != graph.id_to_index.end())
             children[i].insert(it->second);
         }
-      } else if (node.type == corundum::gameplay::dialogue::NodeType::Choice) {
+      } else if (node.type == corundum::dialogue::NodeType::Choice) {
         for (const auto &ch : node.choices) {
           if (auto it = graph.id_to_index.find(ch.target_id); it != graph.id_to_index.end())
             children[i].insert(it->second);

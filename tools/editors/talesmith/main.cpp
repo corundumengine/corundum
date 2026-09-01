@@ -8,7 +8,7 @@
 #include "shortcuts.hpp"
 #include "validate_quest_refs.hpp"
 
-#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/dialogue/dialogue.hpp>
 #include <corundum/tool_host/fonts.hpp>
 #include <corundum/tool_host/tool_config.hpp>
 #include <corundum/tool_host/tool_host.hpp>
@@ -80,7 +80,7 @@ static void action_save(EditorState &state, corundum::tool_host::ToolHost &host)
 
   // Validate dialogue graphs before saving — show modal on errors
   if (state.doc_type_ == DocumentType::Dialogue) {
-    auto errors = corundum::gameplay::dialogue::validate_graph(state.graph);
+    auto errors = corundum::dialogue::validate_graph(state.graph);
     if (!errors.empty()) {
       state.validation_errors_ = std::move(errors);
       state.show_validation_modal_ = true;

@@ -2,7 +2,7 @@
 #include "graph_layout.hpp"
 #include "validate_quest_refs.hpp"
 
-#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/quest/quest.hpp>
 
 #include <format>
 #include <imgui.h>
@@ -222,7 +222,7 @@ namespace tools::talesmith {
     if (state.quest_doc_.name.empty())
       ImGui::TextColored(k_warning_col, "  Quest name is empty");
 
-    for (const auto &msg : corundum::gameplay::quest::validate(state.quest_doc_))
+    for (const auto &msg : corundum::quest::validate(state.quest_doc_))
       ImGui::TextColored(k_warning_col, "  %s", msg.c_str());
 
     ImGui::EndChild(); // quest_editor

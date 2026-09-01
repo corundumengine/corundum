@@ -1,12 +1,12 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/item/loader.hpp>
-#include <corundum/gameplay/item/registry.hpp>
+#include <corundum/item/loader.hpp>
+#include <corundum/item/registry.hpp>
 
 #include <filesystem>
 #include <fstream>
 
-namespace item = corundum::gameplay::item;
+namespace item = corundum::item;
 
 TEST_CASE("item loader: valid JSON produces correct Item struct") {
   const auto tmp = std::filesystem::temp_directory_path() / "item_test_valid.json";

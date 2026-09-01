@@ -1,8 +1,8 @@
 #pragma once
 
-#include <corundum/gameplay/dialogue/dialogue.hpp>
-#include <corundum/gameplay/quest/quest.hpp>
-#include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/quest/quest.hpp>
+#include <corundum/quest/registry.hpp>
 #include <corundum/tool_host/canvas_controller.hpp>
 
 #include <cstddef>
@@ -63,8 +63,8 @@ namespace tools::talesmith {
   };
 
   struct GraphSnapshot {
-    corundum::gameplay::dialogue::Graph graph;
-    corundum::gameplay::quest::Quest quest;
+    corundum::dialogue::Graph graph;
+    corundum::quest::Quest quest;
     DocumentType doc_type = DocumentType::Dialogue;
     int selected_node = -1;
     int selected_stage = -1;
@@ -130,8 +130,8 @@ namespace tools::talesmith {
 
     DocumentType doc_type_ = DocumentType::Dialogue;
 
-    corundum::gameplay::dialogue::Graph graph;
-    corundum::gameplay::quest::Quest quest_doc_;
+    corundum::dialogue::Graph graph;
+    corundum::quest::Quest quest_doc_;
 
     int selected_node = -1;
     int selected_stage_ = -1;
@@ -147,7 +147,7 @@ namespace tools::talesmith {
     char graph_speaker_buf_[256]{};
     char graph_id_buf_[128]{};
     corundum::tool_host::CanvasController canvas;
-    corundum::gameplay::quest::Registry quest_registry;
+    corundum::quest::Registry quest_registry;
     bool quests_loaded_ = false;
     PopupState popups;
     InspectorState inspector_bufs;

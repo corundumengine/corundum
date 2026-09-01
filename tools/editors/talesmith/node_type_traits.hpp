@@ -1,13 +1,13 @@
 #pragma once
 
-#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/dialogue/dialogue.hpp>
 
 #include <cstddef>
 #include <imgui.h>
 
 namespace tools::talesmith {
 
-  using corundum::gameplay::dialogue::NodeType;
+  using corundum::dialogue::NodeType;
 
   struct NodeTypeTraits {
     const char *label;

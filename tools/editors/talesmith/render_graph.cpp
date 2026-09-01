@@ -62,8 +62,7 @@ namespace tools::talesmith {
           canvas_origin.x + state.canvas.offset_x + nl.x * state.canvas.scale + NODE_W * state.canvas.scale * 0.5f,
           canvas_origin.y + state.canvas.offset_y + nl.y * state.canvas.scale + NODE_H * state.canvas.scale);
 
-      if (node.type == corundum::gameplay::dialogue::NodeType::Talk ||
-          node.type == corundum::gameplay::dialogue::NodeType::Event) {
+      if (node.type == corundum::dialogue::NodeType::Talk || node.type == corundum::dialogue::NodeType::Event) {
         if (!node.next_id.empty() && node.next_id != "end" && state.graph.id_to_index.contains(node.next_id)) {
           const auto tgt = static_cast<int>(state.graph.id_to_index.at(node.next_id));
           draw_arrow(dl, from,
@@ -72,7 +71,7 @@ namespace tools::talesmith {
                       canvas_origin.y + state.canvas.offset_y + state.layout[tgt].y * state.canvas.scale},
                      IM_COL32(180, 180, 200, 180));
         }
-      } else if (node.type == corundum::gameplay::dialogue::NodeType::Choice) {
+      } else if (node.type == corundum::dialogue::NodeType::Choice) {
         for (const auto &ch : node.choices) {
           if (state.graph.id_to_index.contains(ch.target_id)) {
             const auto tgt = static_cast<int>(state.graph.id_to_index.at(ch.target_id));
@@ -112,11 +111,11 @@ namespace tools::talesmith {
       dl->AddText({pos.x + 6.f, pos.y + 3.f}, IM_COL32(255, 255, 255, 255), title.c_str());
       dl->AddText({pos.x + 6.f, pos.y + 20.f}, IM_COL32(200, 200, 200, 255), node_short_label(node.type));
 
-      if (node.type == corundum::gameplay::dialogue::NodeType::Talk) {
+      if (node.type == corundum::dialogue::NodeType::Talk) {
         auto preview = node.text.substr(0, 30);
         if (!preview.empty())
           dl->AddText({pos.x + 6.f, pos.y + 38.f}, IM_COL32(160, 160, 180, 255), preview.c_str());
-      } else if (node.type == corundum::gameplay::dialogue::NodeType::Choice) {
+      } else if (node.type == corundum::dialogue::NodeType::Choice) {
         const auto count = node.choices.size();
         const auto cc = std::to_string(count) + " choice" + (count != 1 ? "s" : "");
         dl->AddText({pos.x + 6.f, pos.y + 38.f}, IM_COL32(160, 160, 180, 255), cc.c_str());

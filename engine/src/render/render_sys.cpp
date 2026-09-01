@@ -3,15 +3,15 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/ecs/component/transform_table.hpp>
-#include <corundum/gameplay/item/registry.hpp>
-#include <corundum/gameplay/ui/inventory_panel.hpp>
-#include <corundum/gameplay/ui/prompt_box.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/loader.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/item/registry.hpp>
 #include <corundum/resources/character_registry.hpp>
 #include <corundum/resources/sprite.hpp>
+#include <corundum/ui/inventory_panel.hpp>
+#include <corundum/ui/prompt_box.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -341,7 +341,7 @@ namespace corundum::render {
 
   void configure_dialog_style(render::RenderState &state, const corundum::core::GameConfig &cfg) {
     const auto &dr = cfg.dialogue_render;
-    state.dialog_box.style = corundum::gameplay::ui::DialogBoxStyle{
+    state.dialog_box.style = corundum::ui::DialogBoxStyle{
         .font_id = state.font_id,
         .font_size_speaker = dr.font_size_speaker,
         .font_size_body = dr.font_size_body,
@@ -360,9 +360,9 @@ namespace corundum::render {
   // ── render ───────────────────────────────────────────────────────────────────
 
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags,
-              const corundum::gameplay::quest::Registry *quests, const corundum::gameplay::item::Registry *items,
-              float alpha, int win_w, int win_h) {
+              const corundum::gameplay::world::Scene &scene, const corundum::world::FlagStore &flags,
+              const corundum::quest::Registry *quests, const corundum::item::Registry *items, float alpha, int win_w,
+              int win_h) {
     const corundum::core::math::Vec2 viewport{static_cast<float>(win_w), static_cast<float>(win_h)};
     const float cam_x = state.prev_cam_x + (scene.camera.x - state.prev_cam_x) * alpha;
     const float cam_y = state.prev_cam_y + (scene.camera.y - state.prev_cam_y) * alpha;
@@ -400,17 +400,17 @@ namespace corundum::render {
     }
 
     r.reset_screen_view();
-    corundum::gameplay::ui::dialog_box_update(state.dialog_box, scene.dialogue, flags, quests, r, viewport);
-    corundum::gameplay::ui::dialog_box_render(state.dialog_box, r);
+    corundum::ui::dialog_box_update(state.dialog_box, scene.dialogue, flags, quests, r, viewport);
+    corundum::ui::dialog_box_render(state.dialog_box, r);
     if (scene.transition_prompt && !scene.transition_prompt->declined()) {
       const std::string_view question = scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
-      corundum::gameplay::ui::prompt_box_render(r, state.dialog_box.style, state.dialog_box.border, question,
-                                                scene.transition_prompt->confirm_selected(), viewport);
+      corundum::ui::prompt_box_render(r, state.dialog_box.style, state.dialog_box.border, question,
+                                      scene.transition_prompt->confirm_selected(), viewport);
     }
     if (scene.mode == corundum::gameplay::world::GameMode::Inventory && items) {
-      corundum::gameplay::ui::inventory_panel_render(r, state.dialog_box.style, state.dialog_box.border,
-                                                     corundum::gameplay::ui::build_inventory_lines(flags, *items),
-                                                     scene.inventory_cursor, viewport);
+      corundum::ui::inventory_panel_render(r, state.dialog_box.style, state.dialog_box.border,
+                                           corundum::ui::build_inventory_lines(flags, *items), scene.inventory_cursor,
+                                           viewport);
     }
   }
 

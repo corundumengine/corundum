@@ -4,10 +4,10 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/debug/debug_overlay.hpp>
-#include <corundum/gameplay/dialogue/registry.hpp>
-#include <corundum/gameplay/flags.hpp>
-#include <corundum/gameplay/item/registry.hpp>
-#include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/dialogue/registry.hpp>
+#include <corundum/world/flags.hpp>
+#include <corundum/item/registry.hpp>
+#include <corundum/quest/registry.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/transition.hpp>
 #include <corundum/input/actions.hpp>
@@ -61,10 +61,10 @@ namespace corundum {
 
     core::GameConfig cfg;
     resources::CharacterRegistry characters;
-    gameplay::FlagStore flags;
-    gameplay::dialogue::Registry graphs;
-    gameplay::item::Registry items;
-    gameplay::quest::Registry quests;
+    corundum::world::FlagStore flags;
+    dialogue::Registry graphs;
+    item::Registry items;
+    quest::Registry quests;
     gameplay::world::Scene scene;
     bool entered_from_world = false; ///< True while inside an interior reached from the overworld.
 
@@ -82,7 +82,7 @@ namespace corundum {
      *  mark the event as handled (suppresses the unknown-event WARN).
      *  Default-empty; existing games are unaffected.
      */
-    std::function<bool(Engine &, const gameplay::dialogue::EventAction &)> on_event;
+    std::function<bool(Engine &, const dialogue::EventAction &)> on_event;
 
     /** @brief Hook called once per fixed step after world / dialogue-event processing.
      *

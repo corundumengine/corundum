@@ -1,16 +1,16 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/dialogue/dialogue.hpp>
-#include <corundum/gameplay/dialogue/system.hpp>
-#include <corundum/gameplay/item/item.hpp>
-#include <corundum/gameplay/item/registry.hpp>
-#include <corundum/gameplay/quest/quest.hpp>
-#include <corundum/gameplay/quest/registry.hpp>
-#include <corundum/gameplay/ui/dialog_box.hpp>
-#include <corundum/gameplay/ui/inventory_panel.hpp>
-#include <corundum/gameplay/ui/nine_patch.hpp>
-#include <corundum/gameplay/ui/ui_draw.hpp>
+#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/dialogue/system.hpp>
+#include <corundum/item/item.hpp>
+#include <corundum/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/quest/quest.hpp>
+#include <corundum/quest/registry.hpp>
+#include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/inventory_panel.hpp>
+#include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/ui_draw.hpp>
 
 #include <deque>
 #include <expected>
@@ -82,8 +82,8 @@ namespace {
     }
   };
 
-  corundum::gameplay::ui::NinePatchBorder make_border() {
-    corundum::gameplay::ui::NinePatchBorder b{};
+  corundum::ui::NinePatchBorder make_border() {
+    corundum::ui::NinePatchBorder b{};
     b.texture_id = 1u;
     b.tile_w = 4;
     b.tile_h = 4;
@@ -94,12 +94,12 @@ namespace {
 
 TEST_CASE("ui_draw: panel_chrome emits exactly one DrawRect then the border's sprite commands") {
   RecordingRenderer r;
-  const corundum::gameplay::ui::NinePatchBorder border = make_border();
+  const corundum::ui::NinePatchBorder border = make_border();
   const corundum::core::math::Colour bg{20, 20, 20, 200};
   const corundum::core::math::Vec2 pos{10.f, 20.f};
   const corundum::core::math::Vec2 size{100.f, 60.f};
 
-  corundum::gameplay::ui::panel_chrome(r, bg, border, pos, size);
+  corundum::ui::panel_chrome(r, bg, border, pos, size);
 
   // The border draws 8 sprites (4 corners + 2 horizontal edges + 2 vertical edges).
   REQUIRE(r.log.size() == 9);
@@ -120,12 +120,12 @@ TEST_CASE("ui_draw: panel_chrome emits exactly one DrawRect then the border's sp
 
 TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border has no texture") {
   RecordingRenderer r;
-  corundum::gameplay::ui::NinePatchBorder border{};
+  corundum::ui::NinePatchBorder border{};
   border.texture_id = 0;
   border.tile_w = 4;
   border.tile_h = 4;
 
-  corundum::gameplay::ui::panel_chrome(r, {0, 0, 0, 255}, border, {0.f, 0.f}, {50.f, 50.f});
+  corundum::ui::panel_chrome(r, {0, 0, 0, 255}, border, {0.f, 0.f}, {50.f, 50.f});
 
   // The fill still goes out; only the border is skipped.
   REQUIRE(r.log.size() == 1);
@@ -134,10 +134,10 @@ TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border 
 
 TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when selected=true") {
   RecordingRenderer r;
-  const corundum::gameplay::ui::DialogBoxStyle style{};
+  const corundum::ui::DialogBoxStyle style{};
   // style.selected defaults to (255, 255, 0, 255); style.choice defaults to (200, 200, 200, 255).
 
-  const float cursor_w = corundum::gameplay::ui::draw_option(r, style, "Hello", {5.f, 7.f}, true);
+  const float cursor_w = corundum::ui::draw_option(r, style, "Hello", {5.f, 7.f}, true);
 
   REQUIRE(r.log.size() == 2);
   REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
@@ -163,9 +163,9 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when s
 
 TEST_CASE("ui_draw: draw_option emits two DrawTexts with choice colours and two-space cursor when selected=false") {
   RecordingRenderer r;
-  const corundum::gameplay::ui::DialogBoxStyle style{};
+  const corundum::ui::DialogBoxStyle style{};
 
-  const float cursor_w = corundum::gameplay::ui::draw_option(r, style, "World", {0.f, 0.f}, false);
+  const float cursor_w = corundum::ui::draw_option(r, style, "World", {0.f, 0.f}, false);
 
   REQUIRE(r.log.size() == 2);
   REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
@@ -192,10 +192,10 @@ TEST_CASE("ui_draw: draw_option returns the same cursor advance regardless of se
   // surface here and force us to always measure k_cursor_selected — which
   // draw_option already does.
   RecordingRenderer r;
-  const corundum::gameplay::ui::DialogBoxStyle style{};
+  const corundum::ui::DialogBoxStyle style{};
 
-  const float w_sel = corundum::gameplay::ui::draw_option(r, style, "A", {0.f, 0.f}, true);
-  const float w_unsel = corundum::gameplay::ui::draw_option(r, style, "A", {0.f, 0.f}, false);
+  const float w_sel = corundum::ui::draw_option(r, style, "A", {0.f, 0.f}, true);
+  const float w_unsel = corundum::ui::draw_option(r, style, "A", {0.f, 0.f}, false);
 
   CHECK(w_sel == w_unsel);
   CHECK(w_sel > 0.f);
@@ -208,9 +208,8 @@ namespace {
   // Builds a Talk graph with the requested graph_id, speaker, and a node literally
   // named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
   // id but have different speakers.
-  corundum::gameplay::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker,
-                                                      std::string talk_text) {
-    using namespace corundum::gameplay::dialogue;
+  corundum::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker, std::string talk_text) {
+    using namespace corundum::dialogue;
     Graph g;
     g.graph_id = std::move(graph_id);
     g.speaker = std::move(speaker);
@@ -227,8 +226,8 @@ namespace {
   // Builds a Choice graph where the second option is gated by quest_is_at.
   // Used to verify that threading the quest registry through dialog_box_update
   // yields the gated choice in the layout (not hidden by a parse failure).
-  corundum::gameplay::dialogue::Graph make_choice_graph_with_quest_gate() {
-    using namespace corundum::gameplay::dialogue;
+  corundum::dialogue::Graph make_choice_graph_with_quest_gate() {
+    using namespace corundum::dialogue;
     Graph g;
     g.graph_id = "gated";
     g.speaker = "Gatekeeper";
@@ -252,26 +251,26 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   // stale-check must see that the graph id changed and rebuild — otherwise the
   // innkeeper's speaker/text stays on screen.
   RecordingRenderer r;
-  corundum::gameplay::ui::DialogBoxState ds{};
+  corundum::ui::DialogBoxState ds{};
   ds.border = make_border();
 
   const auto innkeeper = make_talk_graph("innkeeper_intro", "Innkeeper", "Welcome, traveller.");
   const auto villager = make_talk_graph("villager_generic", "Villager", "Did you see the harvest moon last night?");
 
-  corundum::gameplay::dialogue::State state;
-  corundum::gameplay::FlagStore flags;
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
 
-  corundum::gameplay::dialogue::start(state, innkeeper, flags);
-  corundum::gameplay::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
+  corundum::dialogue::start(state, innkeeper, flags);
+  corundum::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
   REQUIRE(ds.layout.has_value());
   CHECK(ds.layout->speaker == "Innkeeper");
   CHECK_FALSE(ds.layout->body_lines.empty());
 
   // Cancel and switch NPCs.
   state.reset();
-  corundum::gameplay::dialogue::start(state, villager, flags);
-  corundum::gameplay::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
+  corundum::dialogue::start(state, villager, flags);
+  corundum::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
 
   REQUIRE(ds.layout.has_value());
   CHECK(ds.layout->speaker == "Villager");
@@ -285,11 +284,11 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   // registry and the matching quest.<id> flag is set. Before the fix, the parse
   // would error on a null registry and the choice would be hidden.
   RecordingRenderer r;
-  corundum::gameplay::ui::DialogBoxState ds{};
+  corundum::ui::DialogBoxState ds{};
   ds.border = make_border();
 
-  corundum::gameplay::quest::Registry quests;
-  corundum::gameplay::quest::Quest q;
+  corundum::quest::Registry quests;
+  corundum::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
   q.stages.push_back({"start", 1, false, false, {}});
@@ -298,13 +297,13 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
 
   const auto graph = make_choice_graph_with_quest_gate();
 
-  corundum::gameplay::dialogue::State state;
-  corundum::gameplay::FlagStore flags;
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
   flags["quest.ember"] = 2; // matches stage "done" (sequence 2)
-  corundum::gameplay::dialogue::start(state, graph, flags);
+  corundum::dialogue::start(state, graph, flags);
 
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
-  corundum::gameplay::ui::dialog_box_update(ds, state, flags, &quests, r, viewport);
+  corundum::ui::dialog_box_update(ds, state, flags, &quests, r, viewport);
 
   REQUIRE(ds.layout.has_value());
   REQUIRE(ds.layout->choice_lines.size() == 2);
@@ -316,16 +315,16 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
 
 TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pair per row") {
   RecordingRenderer r;
-  const corundum::gameplay::ui::NinePatchBorder border = make_border();
-  const corundum::gameplay::ui::DialogBoxStyle style{};
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
 
-  std::vector<corundum::gameplay::ui::InventoryLine> lines = {
+  std::vector<corundum::ui::InventoryLine> lines = {
       {"Apple", 2},
       {"Salt", 1},
   };
 
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
-  corundum::gameplay::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
+  corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
 
   // panel_chrome: 1 DrawRect + 8 DrawSprite; then the "Inventory" header DrawText;
   // then 2 rows × 2 DrawText (cursor + label).
@@ -357,11 +356,11 @@ TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pa
 
 TEST_CASE("inventory_panel_render: empty list renders header plus one (empty) line") {
   RecordingRenderer r;
-  const corundum::gameplay::ui::NinePatchBorder border = make_border();
-  const corundum::gameplay::ui::DialogBoxStyle style{};
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
 
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
-  corundum::gameplay::ui::inventory_panel_render(r, style, border, {}, 0, viewport);
+  corundum::ui::inventory_panel_render(r, style, border, {}, 0, viewport);
 
   // Chrome (9) + header + one "(empty)" line.
   REQUIRE(r.log.size() == 9 + 1 + 1);
@@ -373,14 +372,14 @@ TEST_CASE("inventory_panel_render: empty list renders header plus one (empty) li
 
 TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
   RecordingRenderer r;
-  const corundum::gameplay::ui::NinePatchBorder border = make_border();
-  const corundum::gameplay::ui::DialogBoxStyle style{};
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
 
-  std::vector<corundum::gameplay::ui::InventoryLine> lines = {{"A", 1}, {"B", 1}, {"C", 1}};
+  std::vector<corundum::ui::InventoryLine> lines = {{"A", 1}, {"B", 1}, {"C", 1}};
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
 
   // cursor 99 → clamps to the last row.
-  corundum::gameplay::ui::inventory_panel_render(r, style, border, lines, 99, viewport);
+  corundum::ui::inventory_panel_render(r, style, border, lines, 99, viewport);
   const DrawText &last_cursor = std::get<DrawText>(r.log[r.log.size() - 2]);
   CHECK(last_cursor.text == "> ");
   const DrawText &last_label = std::get<DrawText>(r.log.back());
@@ -388,7 +387,7 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
 
   // cursor -5 → clamps to the first row.
   RecordingRenderer r2;
-  corundum::gameplay::ui::inventory_panel_render(r2, style, border, lines, -5, viewport);
+  corundum::ui::inventory_panel_render(r2, style, border, lines, -5, viewport);
   const DrawText &first_cursor = std::get<DrawText>(r2.log[10]);
   CHECK(first_cursor.text == "> ");
   const DrawText &first_label = std::get<DrawText>(r2.log[11]);
@@ -398,19 +397,19 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
 // ── build_inventory_lines ────────────────────────────────────────────────────
 
 TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by name, falls back to id") {
-  corundum::gameplay::FlagStore flags;
+  corundum::world::FlagStore flags;
   flags["item.a"] = 2;
   flags["item.b"] = 0;  // zero count → dropped
   flags["item.c"] = 1;  // unknown to the registry → id fallback
   flags["quest.x"] = 3; // non-item key → ignored
 
-  corundum::gameplay::item::Registry items;
-  corundum::gameplay::item::Item a;
+  corundum::item::Registry items;
+  corundum::item::Item a;
   a.id = "a";
   a.name = "Apple";
   items.add(std::move(a));
 
-  const auto lines = corundum::gameplay::ui::build_inventory_lines(flags, items);
+  const auto lines = corundum::ui::build_inventory_lines(flags, items);
 
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].name == "Apple");

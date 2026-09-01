@@ -1,18 +1,18 @@
 #include <doctest/doctest.h>
 
 #include <corundum/core/json_io.hpp>
-#include <corundum/gameplay/flags.hpp>
-#include <corundum/gameplay/quest/loader.hpp>
-#include <corundum/gameplay/quest/registry.hpp>
-#include <corundum/gameplay/quest/runner.hpp>
-#include <corundum/gameplay/quest/serialize.hpp>
-#include <corundum/gameplay/quest/system.hpp>
+#include <corundum/quest/loader.hpp>
+#include <corundum/quest/registry.hpp>
+#include <corundum/quest/runner.hpp>
+#include <corundum/quest/serialize.hpp>
+#include <corundum/quest/system.hpp>
+#include <corundum/world/flags.hpp>
 
 #include <filesystem>
 #include <fstream>
 
-namespace quest = corundum::gameplay::quest;
-using corundum::gameplay::FlagStore;
+namespace quest = corundum::quest;
+using corundum::world::FlagStore;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -227,7 +227,7 @@ TEST_CASE("start sets quest.{id} to first stage sequence") {
   FlagStore flags;
 
   quest::start(q, flags);
-  CHECK(corundum::gameplay::visit_count(flags, "quest.test_quest") == 1);
+  CHECK(corundum::world::visit_count(flags, "quest.test_quest") == 1);
 }
 
 TEST_CASE("start is no-op when already started") {

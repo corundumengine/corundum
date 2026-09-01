@@ -1,9 +1,9 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
-#include <corundum/gameplay/dialogue/validate_refs.hpp>
+#include <corundum/dialogue/validate_refs.hpp>
 #include <corundum/ecs/world.hpp>
-#include <corundum/gameplay/quest/runner.hpp>
-#include <corundum/gameplay/quest/system.hpp>
+#include <corundum/quest/runner.hpp>
+#include <corundum/quest/system.hpp>
 #include <corundum/gameplay/world/camera_system.hpp>
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/spawn.hpp>
@@ -26,7 +26,7 @@ namespace corundum {
   namespace {
 
     /// Parse args[idx] as an int; returns `fallback` if absent or unparseable.
-    int event_int_arg(const gameplay::dialogue::EventAction &ev, std::size_t idx, int fallback) noexcept {
+    int event_int_arg(const dialogue::EventAction &ev, std::size_t idx, int fallback) noexcept {
       if (idx >= ev.args.size())
         return fallback;
       int v = fallback;
@@ -35,13 +35,13 @@ namespace corundum {
       return v;
     }
 
-    void validate_quest_references(const corundum::gameplay::dialogue::Registry &graphs,
-                                   const corundum::gameplay::quest::Registry &quests,
-                                   const corundum::gameplay::item::Registry &items) {
+    void validate_quest_references(const corundum::dialogue::Registry &graphs,
+                                   const corundum::quest::Registry &quests,
+                                   const corundum::item::Registry &items) {
       for (const auto &[id, graph] : graphs) {
-        for (const auto &err : corundum::gameplay::dialogue::validate_quest_refs(graph, quests, &items))
+        for (const auto &err : corundum::dialogue::validate_quest_refs(graph, quests, &items))
           std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
-        for (const auto &err : corundum::gameplay::dialogue::validate_condition_quest_refs(graph, quests))
+        for (const auto &err : corundum::dialogue::validate_condition_quest_refs(graph, quests))
           std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
       }
     }
@@ -173,7 +173,7 @@ namespace corundum {
   } // namespace
 
   void process_dialogue_events(Engine &engine) noexcept {
-    gameplay::quest::Runner quest_runner{engine.quests, engine.flags};
+    quest::Runner quest_runner{engine.quests, engine.flags};
     for (const auto &ev : engine.scene.pending_dialogue_events) {
       if (ev.name == "play_sound" && !ev.args.empty()) {
         const auto result = engine.audio.play_sound(ev.args[0]);

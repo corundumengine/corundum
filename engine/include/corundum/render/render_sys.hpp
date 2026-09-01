@@ -18,11 +18,11 @@ namespace corundum::gameplay::world {
   struct Scene;
 }
 
-namespace corundum::gameplay::quest {
+namespace corundum::quest {
   class Registry;
 }
 
-namespace corundum::gameplay::item {
+namespace corundum::item {
   class Registry;
 }
 
@@ -147,9 +147,9 @@ namespace corundum::render {
    * @param[in]     win_h  Live window height in screen pixels.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::gameplay::FlagStore &flags,
-              const corundum::gameplay::quest::Registry *quests, const corundum::gameplay::item::Registry *items,
-              float alpha, int win_w, int win_h);
+              const corundum::gameplay::world::Scene &scene, const corundum::world::FlagStore &flags,
+              const corundum::quest::Registry *quests, const corundum::item::Registry *items, float alpha, int win_w,
+              int win_h);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

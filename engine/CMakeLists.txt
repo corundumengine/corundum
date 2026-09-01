@@ -11,22 +11,22 @@ add_library(engine STATIC
     src/resources/sprite_atlas_loader.cpp
     src/resources/sprite_sheet_clips_loader.cpp
     src/resources/sprite_sheet_clips_serializer.cpp
-    src/gameplay/dialogue/action.cpp
-    src/gameplay/dialogue/expr.cpp
-    src/gameplay/dialogue/loader.cpp
-    src/gameplay/dialogue/validate.cpp
-    src/gameplay/dialogue/validate_refs.cpp
-    src/gameplay/dialogue/query.cpp
-    src/gameplay/dialogue/registry.cpp
-    src/gameplay/dialogue/serialize.cpp
-    src/gameplay/dialogue/system.cpp
-    src/gameplay/quest/loader.cpp
-    src/gameplay/quest/serialize.cpp
-    src/gameplay/quest/validate.cpp
-    src/gameplay/quest/registry.cpp
-    src/gameplay/quest/system.cpp
-    src/gameplay/quest/runner.cpp
-    src/gameplay/item/item.cpp
+    src/dialogue/action.cpp
+    src/dialogue/expr.cpp
+    src/dialogue/loader.cpp
+    src/dialogue/validate.cpp
+    src/dialogue/validate_refs.cpp
+    src/dialogue/query.cpp
+    src/dialogue/registry.cpp
+    src/dialogue/serialize.cpp
+    src/dialogue/system.cpp
+    src/quest/loader.cpp
+    src/quest/serialize.cpp
+    src/quest/validate.cpp
+    src/quest/registry.cpp
+    src/quest/system.cpp
+    src/quest/runner.cpp
+    src/item/item.cpp
     src/core/files.cpp
     src/physics/collision.cpp
     src/physics/walkability.cpp
@@ -40,7 +40,7 @@ add_library(engine STATIC
     src/gameplay/world/camera_system.cpp
     src/gameplay/world/picking.cpp
     src/gameplay/world/pathfinding.cpp
-    src/gameplay/dialogue/interact.cpp
+    src/dialogue/interact.cpp
     src/input/input_sys.cpp
     src/physics/physics_sys.cpp
     src/render/render_sys.cpp
@@ -53,11 +53,11 @@ add_library(engine STATIC
     src/gameplay/world/map_view.cpp
     src/gameplay/world/transition.cpp
     src/gameplay/world/update.cpp
-    src/gameplay/ui/nine_patch.cpp
-    src/gameplay/ui/dialog_box.cpp
-    src/gameplay/ui/prompt_box.cpp
-    src/gameplay/ui/inventory_panel.cpp
-    src/gameplay/ui/ui_draw.cpp
+    src/ui/nine_patch.cpp
+    src/ui/dialog_box.cpp
+    src/ui/prompt_box.cpp
+    src/ui/inventory_panel.cpp
+    src/ui/ui_draw.cpp
     src/debug/debug_overlay.cpp
     src/audio/audio_sys.cpp
 )

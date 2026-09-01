@@ -1,12 +1,12 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
-#include <corundum/gameplay/flags.hpp>
-#include <corundum/gameplay/quest/quest.hpp>
-#include <corundum/gameplay/quest/registry.hpp>
-#include <corundum/gameplay/quest/system.hpp>
+#include <corundum/quest/quest.hpp>
+#include <corundum/quest/registry.hpp>
+#include <corundum/quest/system.hpp>
+#include <corundum/world/flags.hpp>
 
-namespace dialogue = corundum::gameplay::dialogue;
+namespace dialogue = corundum::dialogue;
 
 TEST_CASE("engine events: on_event hook handles custom event and returns true") {
   corundum::Engine engine;
@@ -62,7 +62,7 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
   pending.push_back(dialogue::EventAction{"quest_start", {"test_quest"}});
 
   {
-    corundum::gameplay::quest::Quest q;
+    corundum::quest::Quest q;
     q.quest_id = "test_quest";
     q.name = "Test Quest";
     q.stages.push_back({"start", 1, false, false, {}});
@@ -73,7 +73,7 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
   corundum::process_dialogue_events(engine);
 
   CHECK(pending.empty());
-  CHECK(corundum::gameplay::has_flag(engine.flags, "quest.test_quest"));
+  CHECK(corundum::world::has_flag(engine.flags, "quest.test_quest"));
 }
 
 TEST_CASE("engine events: give_item adds item.<id> count to flags") {

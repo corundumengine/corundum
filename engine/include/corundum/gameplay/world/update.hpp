@@ -1,11 +1,11 @@
 #pragma once
 #include <corundum/core/game_config.hpp>
-#include <corundum/gameplay/dialogue/registry.hpp>
+#include <corundum/dialogue/registry.hpp>
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/input/actions.hpp>
 
-namespace corundum::gameplay::quest {
+namespace corundum::quest {
   class Registry;
 }
 
@@ -28,8 +28,8 @@ namespace corundum::gameplay::world {
    * @param flags       Persistent game flags (quest progress, dialogue visit counts).
    */
   void update(corundum::gameplay::world::Scene &scene, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::dialogue::Registry &graphs, const corundum::input::InputState &input,
-              const MapView &map, float dt, float win_w, float win_h, corundum::gameplay::FlagStore &flags,
+              const corundum::dialogue::Registry &graphs, const corundum::input::InputState &input, const MapView &map,
+              float dt, float win_w, float win_h, corundum::world::FlagStore &flags,
               const quest::Registry *quests = nullptr);
 
 } // namespace corundum::gameplay::world

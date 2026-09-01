@@ -2,7 +2,7 @@
 
 #include "editor_state.hpp"
 
-#include <corundum/gameplay/dialogue/validate_refs.hpp>
+#include <corundum/dialogue/validate_refs.hpp>
 
 #include <string>
 #include <vector>
@@ -11,14 +11,13 @@ namespace tools::talesmith {
 
   /// Cross-checks quest_start/quest_advance references (node and choice-edge actions,
   /// plus quest_is_* helpers in choice conditions) against the loaded quest registry.
-  /// Delegates to corundum::gameplay::dialogue's shared validator — see validate_refs.hpp.
+  /// Delegates to corundum::dialogue's shared validator — see validate_refs.hpp.
   inline std::vector<std::string> validate_quest_refs(const EditorState &state) {
     if (!state.quests_loaded_)
       return {};
 
-    auto errors = corundum::gameplay::dialogue::validate_quest_refs(state.graph, state.quest_registry);
-    auto condition_errors =
-        corundum::gameplay::dialogue::validate_condition_quest_refs(state.graph, state.quest_registry);
+    auto errors = corundum::dialogue::validate_quest_refs(state.graph, state.quest_registry);
+    auto condition_errors = corundum::dialogue::validate_condition_quest_refs(state.graph, state.quest_registry);
     errors.insert(errors.end(), std::make_move_iterator(condition_errors.begin()),
                   std::make_move_iterator(condition_errors.end()));
     return errors;
