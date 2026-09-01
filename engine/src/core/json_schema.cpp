@@ -128,7 +128,7 @@ namespace corundum::core {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://corundum.dev/schemas/item",
   "type": "object",
-  "required": ["name"],
+  "required": ["id", "name"],
   "properties": {
     "id":          { "type": "string", "minLength": 1 },
     "name":        { "type": "string", "minLength": 1 },
