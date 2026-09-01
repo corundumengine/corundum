@@ -3,7 +3,7 @@
 
 #include <memory>
 
-namespace corundum::platform::glfw {
+namespace corundum::platform::sokol {
 
   /** @brief Create a sokol_audio-backed AudioBackend.
    *
@@ -17,4 +17,4 @@ namespace corundum::platform::glfw {
    */
   [[nodiscard]] std::unique_ptr<corundum::audio::AudioBackend> make_sokol_audio_backend();
 
-} // namespace corundum::platform::glfw
+} // namespace corundum::platform::sokol

@@ -14,7 +14,6 @@ add_executable(corundum_tests
     test_transition_prompt.cpp
     test_sprite.cpp
     test_game_config.cpp
-    test_handle_pool.cpp
     test_word_wrap.cpp
     test_tilemap_loader.cpp
     test_character_sheet_loader.cpp

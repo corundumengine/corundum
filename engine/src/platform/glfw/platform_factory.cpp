@@ -25,7 +25,7 @@ namespace corundum::platform {
       return std::unexpected("Failed to create GPU context");
 
     auto renderer = glfw::make_sokol_renderer(**gpu_result);
-    auto audio = glfw::make_sokol_audio_backend();
+    auto audio = sokol::make_sokol_audio_backend();
 
     return PlatformContext{
         .window = std::move(window_ptr),

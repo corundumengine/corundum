@@ -2,8 +2,7 @@
 #include <algorithm>
 #include <imgui.h>
 
-namespace corundum {
-  namespace tool_host {
+namespace corundum::tool_host {
 
     /// Drawing context for an editor canvas — draw list + screen-space origin.
     struct CanvasContext {
@@ -100,5 +99,4 @@ namespace corundum {
       float pan_start_offset_x_ = 0.f, pan_start_offset_y_ = 0.f;
     };
 
-  } // namespace tool_host
-} // namespace corundum
+} // namespace corundum::tool_host

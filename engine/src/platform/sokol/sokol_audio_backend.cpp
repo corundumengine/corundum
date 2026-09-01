@@ -22,7 +22,7 @@
 #include <string_view>
 #include <vector>
 
-namespace corundum::platform::glfw {
+namespace corundum::platform::sokol {
 
   namespace {
 
@@ -208,4 +208,4 @@ namespace corundum::platform::glfw {
     return std::make_unique<SokolAudioBackend>();
   }
 
-} // namespace corundum::platform::glfw
+} // namespace corundum::platform::sokol
