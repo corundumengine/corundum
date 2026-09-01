@@ -6,6 +6,7 @@
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/gameplay/world/transition.hpp>
+#include <corundum/gameplay/world/update.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/platform/null/null_platform.hpp>
 #include <corundum/render/render_state.hpp>
@@ -90,7 +91,7 @@ namespace {
   }
 
   /// Scan live transforms for an entity standing exactly at tile (col, row).
-  std::optional<corundum::gameplay::entity::EntityId> entity_at(const corundum::Engine &engine, int col, int row) {
+  std::optional<corundum::ecs::EntityId> entity_at(const corundum::Engine &engine, int col, int row) {
     const auto &transforms = engine.scene.world.transforms;
     for (const auto eid : transforms.active_entities())
       if (static_cast<int>(transforms.pos_col(eid)) == col && static_cast<int>(transforms.pos_row(eid)) == row)
@@ -369,8 +370,8 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
   // The camera is centred on the player tile (8,8); the viewport centre must fall on a tile.
   const float mouse_x = 160.f;
   const float mouse_y = 120.f;
-  const auto result = corundum::gameplay::sys::pick_tile(mouse_x, mouse_y, camera, map,
-                                                         engine.cfg.elevation_step_px * map.tile_scale, camera.zoom);
+  const auto result = corundum::gameplay::world::pick_tile(mouse_x, mouse_y, camera, map,
+                                                           engine.cfg.elevation_step_px * map.tile_scale, camera.zoom);
 
   CHECK(result.has_value());
 

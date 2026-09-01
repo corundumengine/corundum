@@ -1,13 +1,13 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/component/transform_table.hpp>
-#include <corundum/gameplay/sys/picking.hpp>
+#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/physics/physics_sys.hpp>
 
 using corundum::core::math::IsometricParams;
-using corundum::gameplay::component::TransformTable;
-using corundum::gameplay::entity::EntityId;
-using corundum::gameplay::sys::TileCoord;
+using corundum::ecs::EntityId;
+using corundum::ecs::TransformTable;
+using corundum::gameplay::world::TileCoord;
 using corundum::physics::follow_path;
 
 namespace {

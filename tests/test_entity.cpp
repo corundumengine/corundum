@@ -1,14 +1,14 @@
-#include <corundum/gameplay/component/components.hpp>
-#include <corundum/gameplay/component/transform_table.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
-#include <corundum/gameplay/entity/world.hpp>
+#include <corundum/ecs/component/components.hpp>
+#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/ecs/entity.hpp>
+#include <corundum/ecs/world.hpp>
 #include <corundum/resources/sprite.hpp>
 #include <doctest/doctest.h>
 
-using namespace corundum::gameplay::entity;
-using corundum::gameplay::component::Position;
-using corundum::gameplay::component::Sprite;
-using corundum::gameplay::component::Velocity;
+using namespace corundum::ecs;
+using corundum::ecs::Position;
+using corundum::ecs::Sprite;
+using corundum::ecs::Velocity;
 
 TEST_CASE("EntityId default is invalid") {
   EntityId e{};

@@ -1,12 +1,12 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/sys/picking.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
 
-using corundum::gameplay::sys::pick_tile;
 using corundum::gameplay::world::Camera;
 using corundum::gameplay::world::MapView;
+using corundum::gameplay::world::pick_tile;
 using corundum::gameplay::world::tilemap::Tilemap;
 using corundum::gameplay::world::tilemap::TilemapLayer;
 

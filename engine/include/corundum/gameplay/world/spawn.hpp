@@ -1,6 +1,6 @@
 #pragma once
 #include <corundum/core/game_config.hpp>
-#include <corundum/gameplay/component/components.hpp>
+#include <corundum/ecs/component/components.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/resources/character_registry.hpp>
@@ -34,8 +34,7 @@ namespace corundum::gameplay::world {
   [[nodiscard]] std::expected<Scene, std::string>
   spawn_world(const corundum::core::GameConfig &cfg, const corundum::resources::CharacterRegistry &registry,
               const corundum::gameplay::world::tilemap::Tilemap &tilemap,
-              std::optional<corundum::gameplay::component::Position> player_pos = std::nullopt,
-              bool spawn_file_actors = true);
+              std::optional<corundum::ecs::Position> player_pos = std::nullopt, bool spawn_file_actors = true);
 
   /**
    * @brief Reconcile per-chunk actor entities with the render layer's active

@@ -1,10 +1,10 @@
 #include <corundum/anim/anim_sys.hpp>
 
-#include <corundum/gameplay/component/animation_table.hpp>
-#include <corundum/gameplay/component/facing_table.hpp>
-#include <corundum/gameplay/component/motion_sprite_table.hpp>
-#include <corundum/gameplay/component/sprite_table.hpp>
-#include <corundum/gameplay/component/transform_table.hpp>
+#include <corundum/ecs/component/animation_table.hpp>
+#include <corundum/ecs/component/facing_table.hpp>
+#include <corundum/ecs/component/motion_sprite_table.hpp>
+#include <corundum/ecs/component/sprite_table.hpp>
+#include <corundum/ecs/component/transform_table.hpp>
 #include <corundum/resources/sprite.hpp>
 
 #include <cmath>
@@ -14,7 +14,7 @@
 namespace corundum::anim {
 
   namespace {
-    using corundum::gameplay::component::FacingDir;
+    using corundum::ecs::FacingDir;
     using corundum::resources::AnimId;
 
     inline constexpr std::array<FacingDir, 12> k_facing_table = {
@@ -66,18 +66,16 @@ namespace corundum::anim {
 
   } // namespace
 
-  void animate(corundum::gameplay::component::SpriteTable &sprites,
-               const corundum::gameplay::component::TransformTable &transforms,
-               corundum::gameplay::component::AnimationTable &animations,
-               corundum::gameplay::component::FacingTable &facings,
-               corundum::gameplay::component::MotionSpriteTable &motion_sprites,
-               corundum::core::math::IsometricParams iso, float reference_speed, float dt) noexcept {
-    using corundum::gameplay::component::AnimationTable;
-    using corundum::gameplay::component::FacingTable;
-    using corundum::gameplay::component::MotionSpriteTable;
-    using corundum::gameplay::component::SpriteTable;
-    using corundum::gameplay::component::TransformTable;
-    using corundum::gameplay::entity::EntityId;
+  void animate(corundum::ecs::SpriteTable &sprites, const corundum::ecs::TransformTable &transforms,
+               corundum::ecs::AnimationTable &animations, corundum::ecs::FacingTable &facings,
+               corundum::ecs::MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso,
+               float reference_speed, float dt) noexcept {
+    using corundum::ecs::AnimationTable;
+    using corundum::ecs::EntityId;
+    using corundum::ecs::FacingTable;
+    using corundum::ecs::MotionSpriteTable;
+    using corundum::ecs::SpriteTable;
+    using corundum::ecs::TransformTable;
     using corundum::resources::AnimId;
     using corundum::resources::SpriteId;
 

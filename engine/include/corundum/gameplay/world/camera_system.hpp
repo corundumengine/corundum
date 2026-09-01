@@ -2,10 +2,8 @@
 #include <corundum/gameplay/world/camera.hpp>
 
 namespace corundum::gameplay::world {
-  struct MapView;
-}
 
-namespace corundum::gameplay::sys {
+  struct MapView; // defined in update.hpp — forward-declared to keep this header light.
 
   /** @brief Update the camera position to follow a target with a dead zone.
    *
@@ -23,8 +21,8 @@ namespace corundum::gameplay::sys {
    *  @post Camera is clamped so the viewport does not extend beyond the map.
    *  @performance O(1). No heap allocation.
    */
-  void follow_player(corundum::gameplay::world::Camera &camera, float player_x, float player_y,
-                     const corundum::gameplay::world::MapView &map, float win_w, float win_h) noexcept;
+  void follow_player(Camera &camera, float player_x, float player_y, const MapView &map, float win_w,
+                     float win_h) noexcept;
 
   /** @brief Adjust Camera::zoom by @p zoom_delta, keeping the world point under
    *  (@p anchor_x, @p anchor_y) visually fixed.
@@ -42,8 +40,8 @@ namespace corundum::gameplay::sys {
    *  @param[in]     max_zoom   Upper clamp bound (GameConfig::max_zoom).
    *  @performance O(1). No heap allocation.
    */
-  void apply_zoom(corundum::gameplay::world::Camera &camera, float zoom_delta, float anchor_x, float anchor_y,
-                  float min_zoom, float max_zoom) noexcept;
+  void apply_zoom(Camera &camera, float zoom_delta, float anchor_x, float anchor_y, float min_zoom,
+                  float max_zoom) noexcept;
 
   /** @brief Center the camera on a world-space point, clamped to the world bounds.
    *
@@ -63,7 +61,7 @@ namespace corundum::gameplay::sys {
    *  @pre camera.zoom > 0.
    *  @performance O(1). No heap allocation.
    */
-  void center_on(corundum::gameplay::world::Camera &camera, float target_x, float target_y, float world_w,
-                 float world_h, float win_w, float win_h) noexcept;
+  void center_on(Camera &camera, float target_x, float target_y, float world_w, float world_h, float win_w,
+                 float win_h) noexcept;
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::world

@@ -1,18 +1,18 @@
-#include <corundum/gameplay/component/components.hpp>
+#include <corundum/ecs/component/components.hpp>
+#include <corundum/gameplay/dialogue/interact.hpp>
 #include <corundum/gameplay/dialogue/system.hpp>
-#include <corundum/gameplay/sys/dialogue_system.hpp>
-#include <corundum/gameplay/sys/picking.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/resources/sprite.hpp>
 
 #include <cmath>
 #include <cstdint>
 #include <utility>
 
-namespace corundum::gameplay::sys {
+namespace corundum::gameplay::dialogue {
 
   namespace {
 
-    using corundum::gameplay::component::FacingDir;
+    using corundum::ecs::FacingDir;
     using corundum::resources::AnimId;
 
     /** @brief Ratio above which the dominant axis is considered "cardinal"
@@ -50,8 +50,8 @@ namespace corundum::gameplay::sys {
 
   void update_dialogue(corundum::gameplay::world::Scene &scene, const corundum::input::PressedActions &actions,
                        corundum::gameplay::FlagStore &flags, const quest::Registry *quests) noexcept {
-    using corundum::gameplay::entity::EntityId;
-    using corundum::gameplay::entity::World;
+    using corundum::ecs::EntityId;
+    using corundum::ecs::World;
 
     scene.pending_dialogue_events = corundum::gameplay::dialogue::system(scene.dialogue, actions, flags, quests);
     if (!scene.dialogue.active) {
@@ -75,11 +75,11 @@ namespace corundum::gameplay::sys {
   void try_interact(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg, const corundum::gameplay::dialogue::Registry &graphs,
                     corundum::gameplay::FlagStore &flags) noexcept {
-    using corundum::gameplay::component::distance;
-    using corundum::gameplay::component::Position;
+    using corundum::ecs::distance;
+    using corundum::ecs::EntityId;
+    using corundum::ecs::Position;
+    using corundum::ecs::World;
     using corundum::gameplay::dialogue::Graph;
-    using corundum::gameplay::entity::EntityId;
-    using corundum::gameplay::entity::World;
 
     if (!input.is_pressed(corundum::input::Action::Select))
       return;
@@ -109,7 +109,7 @@ namespace corundum::gameplay::sys {
         continue;
 
       if (via_click) {
-        const corundum::gameplay::sys::TileCoord npc_tile{static_cast<int>(npc_col), static_cast<int>(npc_row)};
+        const corundum::gameplay::world::TileCoord npc_tile{static_cast<int>(npc_col), static_cast<int>(npc_row)};
         if (!scene.hovered_tile || *scene.hovered_tile != npc_tile)
           continue; // click landed elsewhere — not aimed at this NPC
       }
@@ -122,7 +122,7 @@ namespace corundum::gameplay::sys {
 
       if (world.facings.has(eid)) {
         scene.dialogue_npc_saved_facing = world.facings.dir_of(eid);
-        const FacingDir face_player = corundum::gameplay::component::opposite(toward_npc);
+        const FacingDir face_player = corundum::ecs::opposite(toward_npc);
         world.facings.dir_ref(eid) = face_player;
         if (world.sprites.has(eid) && world.animations.has(eid)) {
           scene.dialogue_npc_saved_anim = world.sprites.anim_id_ref(eid);
@@ -144,4 +144,4 @@ namespace corundum::gameplay::sys {
     }
   }
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::dialogue

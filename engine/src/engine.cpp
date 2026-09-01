@@ -1,10 +1,10 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/dialogue/validate_refs.hpp>
-#include <corundum/gameplay/entity/world.hpp>
+#include <corundum/ecs/world.hpp>
 #include <corundum/gameplay/quest/runner.hpp>
 #include <corundum/gameplay/quest/system.hpp>
-#include <corundum/gameplay/sys/camera_system.hpp>
+#include <corundum/gameplay/world/camera_system.hpp>
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/spawn.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
@@ -134,7 +134,7 @@ namespace corundum {
       void apply_default_zoom_and_center(float target_x, float target_y, float world_w, float world_h) {
         engine_.scene.camera.zoom =
             std::clamp(engine_.cfg.default_zoom, engine_.cfg.min_zoom, engine_.cfg.max_zoom);
-        gameplay::sys::center_on(engine_.scene.camera, target_x, target_y, world_w, world_h,
+        gameplay::world::center_on(engine_.scene.camera, target_x, target_y, world_w, world_h,
                                  static_cast<float>(engine_.cfg.win_w), static_cast<float>(engine_.cfg.win_h));
       }
 
@@ -260,7 +260,7 @@ namespace corundum {
 
         // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
         result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
-        gameplay::entity::flush_deletions(engine.scene.world);
+        ecs::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
       }

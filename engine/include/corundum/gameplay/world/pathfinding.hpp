@@ -1,18 +1,14 @@
 #pragma once
-#include <corundum/gameplay/sys/picking.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 
 #include <vector>
 
-namespace corundum::gameplay::world {
-  struct MapView; // update.hpp — not included directly; see picking.hpp for why.
-}
-
-namespace corundum::gameplay::component {
+namespace corundum::ecs {
   struct CollisionTable;
   struct TransformTable;
-} // namespace corundum::gameplay::component
+} // namespace corundum::ecs
 
-namespace corundum::gameplay::sys {
+namespace corundum::gameplay::world {
 
   /**
    * @brief Find a walkable path from @p start to @p goal, excluding @p start.
@@ -44,8 +40,8 @@ namespace corundum::gameplay::sys {
    * @return Ordered waypoints from the first step after @p start through @p goal.
    */
   [[nodiscard]] std::vector<TileCoord>
-  find_path(const corundum::gameplay::world::MapView &map, TileCoord start, TileCoord goal,
-            const corundum::gameplay::component::CollisionTable *npc_collisions = nullptr,
-            const corundum::gameplay::component::TransformTable *npc_transforms = nullptr) noexcept;
+  find_path(const MapView &map, TileCoord start, TileCoord goal,
+            const corundum::ecs::CollisionTable *npc_collisions = nullptr,
+            const corundum::ecs::TransformTable *npc_transforms = nullptr) noexcept;
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::world

@@ -1,10 +1,10 @@
-#include <corundum/gameplay/sys/camera_system.hpp>
+#include <corundum/gameplay/world/camera_system.hpp>
 #include <corundum/gameplay/world/update.hpp>
 
 #include <algorithm>
 #include <cmath>
 
-namespace corundum::gameplay::sys {
+namespace corundum::gameplay::world {
 
   void follow_player(corundum::gameplay::world::Camera &camera, float player_x, float player_y,
                      const corundum::gameplay::world::MapView &map, float win_w, float win_h) noexcept {
@@ -75,4 +75,4 @@ namespace corundum::gameplay::sys {
         (world_h <= eff_h) ? (world_h - eff_h) * 0.5f : std::clamp(target_y - eff_h * 0.5f, 0.f, world_h - eff_h);
   }
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::world

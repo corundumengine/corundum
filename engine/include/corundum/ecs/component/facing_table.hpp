@@ -1,12 +1,12 @@
 #pragma once
 #include <array>
-#include <corundum/gameplay/component/components.hpp>
-#include <corundum/gameplay/component/sparse_index.hpp>
-#include <corundum/gameplay/component/table_concepts.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
+#include <corundum/ecs/component/components.hpp>
+#include <corundum/ecs/component/sparse_index.hpp>
+#include <corundum/ecs/component/table_concepts.hpp>
+#include <corundum/ecs/entity.hpp>
 #include <span>
 
-namespace corundum::gameplay::component {
+namespace corundum::ecs {
 
   /** @brief SoA table for the Facing component.
    *
@@ -75,4 +75,4 @@ namespace corundum::gameplay::component {
 
   static_assert(GameTable<FacingTable>);
 
-} // namespace corundum::gameplay::component
+} // namespace corundum::ecs

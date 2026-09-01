@@ -1,6 +1,6 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
+#include <corundum/ecs/entity.hpp>
 #include <corundum/gameplay/ui/dialog_box.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
@@ -234,9 +234,9 @@ namespace corundum::render {
     /** @brief Previous-frame entity tile columns for render interpolation. Fixed-size:
      *  bounded by k_max_entities, so no heap growth mid-frame. Only the first
      *  prev_count entries hold a valid snapshot from before this frame. */
-    std::array<float, corundum::gameplay::entity::k_max_entities> prev_col{};
+    std::array<float, corundum::ecs::k_max_entities> prev_col{};
     /** @brief Previous-frame entity tile rows for render interpolation. See prev_col. */
-    std::array<float, corundum::gameplay::entity::k_max_entities> prev_row{};
+    std::array<float, corundum::ecs::k_max_entities> prev_row{};
     /** @brief Previous-frame camera zoom for render interpolation. */
     float prev_zoom{1.f};
   };

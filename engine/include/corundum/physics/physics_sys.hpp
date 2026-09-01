@@ -1,9 +1,9 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/component/collision_table.hpp>
-#include <corundum/gameplay/component/transform_table.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
-#include <corundum/gameplay/sys/picking.hpp>
+#include <corundum/ecs/component/collision_table.hpp>
+#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/ecs/entity.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/input/actions.hpp>
 
 #include <vector>
@@ -26,9 +26,9 @@ namespace corundum::physics {
    *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
    *  @performance O(1).
    */
-  void apply_input(corundum::gameplay::component::TransformTable &transforms,
-                   corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                   float player_speed, corundum::core::math::IsometricParams iso) noexcept;
+  void apply_input(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+                   const corundum::input::InputState &input, float player_speed,
+                   corundum::core::math::IsometricParams iso) noexcept;
 
   /** @brief Advance @p e's position by velocity * dt.
    *  @param[in,out] transforms  SoA table; col/row for @p e are advanced.
@@ -37,8 +37,7 @@ namespace corundum::physics {
    *  @pre @p e must exist in @p transforms.
    *  @post Entity position updated by velocity * dt.
    */
-  void integrate(corundum::gameplay::component::TransformTable &transforms, corundum::gameplay::entity::EntityId e,
-                 float dt) noexcept;
+  void integrate(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId e, float dt) noexcept;
 
   /** @brief Drive velocity toward the next waypoint in a click-to-move path.
    *
@@ -55,9 +54,9 @@ namespace corundum::physics {
    *  @param[in]     dt          Fixed timestep in seconds.
    *  @pre @p player must exist in @p transforms.
    */
-  void follow_path(corundum::gameplay::component::TransformTable &transforms,
-                   corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
-                   float player_speed, corundum::core::math::IsometricParams iso, float dt) noexcept;
+  void follow_path(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+                   std::vector<corundum::gameplay::world::TileCoord> &path, float player_speed,
+                   corundum::core::math::IsometricParams iso, float dt) noexcept;
 
   /** @brief Full player step: input → integrate → collision resolve → portal detect.
    *
@@ -80,11 +79,10 @@ namespace corundum::physics {
    *        the player confirms. Chunk-to-chunk portals teleport the player immediately.
    *  @performance O(n) over NPC count. No heap allocation.
    */
-  void update_player(corundum::gameplay::component::TransformTable &transforms,
-                     const corundum::gameplay::component::CollisionTable &collisions,
-                     corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                     float player_speed, const corundum::gameplay::world::MapView &map,
-                     corundum::gameplay::world::Scene &scene, float dt) noexcept;
+  void update_player(corundum::ecs::TransformTable &transforms, const corundum::ecs::CollisionTable &collisions,
+                     corundum::ecs::EntityId player, const corundum::input::InputState &input, float player_speed,
+                     const corundum::gameplay::world::MapView &map, corundum::gameplay::world::Scene &scene,
+                     float dt) noexcept;
 
   /**
    * @brief Result of compute_elevation_gate: the integer elevation to gate

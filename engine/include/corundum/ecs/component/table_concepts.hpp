@@ -1,15 +1,15 @@
 #pragma once
 #include <concepts>
-#include <corundum/gameplay/entity/entity.hpp>
+#include <corundum/ecs/entity.hpp>
 #include <ranges>
 #include <type_traits>
 
-namespace corundum::gameplay::component {
+namespace corundum::ecs {
 
   // Tables use EntityId and k_max_entities ubiquitously.
-  using corundum::gameplay::entity::EntityId;
-  using corundum::gameplay::entity::k_cache_line;
-  using corundum::gameplay::entity::k_max_entities;
+  using corundum::ecs::EntityId;
+  using corundum::ecs::k_cache_line;
+  using corundum::ecs::k_max_entities;
 
   /** @brief A valid game table is trivially copyable, exposes an integer count,
    *         and provides a contiguous active-element span.
@@ -25,4 +25,4 @@ namespace corundum::gameplay::component {
     requires std::is_trivially_copyable_v<T>;
   };
 
-} // namespace corundum::gameplay::component
+} // namespace corundum::ecs

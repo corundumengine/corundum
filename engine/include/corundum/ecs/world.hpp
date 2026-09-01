@@ -1,34 +1,19 @@
 #pragma once
 #include <array>
 #include <cassert>
-#include <corundum/gameplay/component/animation_table.hpp>
-#include <corundum/gameplay/component/collision_table.hpp>
-#include <corundum/gameplay/component/components.hpp>
-#include <corundum/gameplay/component/dialogue_table.hpp>
-#include <corundum/gameplay/component/facing_table.hpp>
-#include <corundum/gameplay/component/motion_sprite_table.hpp>
-#include <corundum/gameplay/component/sprite_table.hpp>
-#include <corundum/gameplay/component/transform_name_table.hpp>
-#include <corundum/gameplay/component/transform_table.hpp>
-#include <corundum/gameplay/entity/entity.hpp>
+#include <corundum/ecs/component/animation_table.hpp>
+#include <corundum/ecs/component/collision_table.hpp>
+#include <corundum/ecs/component/components.hpp>
+#include <corundum/ecs/component/dialogue_table.hpp>
+#include <corundum/ecs/component/facing_table.hpp>
+#include <corundum/ecs/component/motion_sprite_table.hpp>
+#include <corundum/ecs/component/sprite_table.hpp>
+#include <corundum/ecs/component/transform_name_table.hpp>
+#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/ecs/entity.hpp>
 #include <tuple>
 
-namespace corundum::gameplay::entity {
-
-  // Types owned by corundum::gameplay::component — imported for convenience.
-  using corundum::gameplay::component::Animation;
-  using corundum::gameplay::component::AnimationTable;
-  using corundum::gameplay::component::CollisionTable;
-  using corundum::gameplay::component::DialogueRef;
-  using corundum::gameplay::component::DialogueTable;
-  using corundum::gameplay::component::FacingTable;
-  using corundum::gameplay::component::MotionSpriteTable;
-  using corundum::gameplay::component::Position;
-  using corundum::gameplay::component::Sprite;
-  using corundum::gameplay::component::SpriteTable;
-  using corundum::gameplay::component::TransformNameTable;
-  using corundum::gameplay::component::TransformTable;
-  using corundum::gameplay::component::Velocity;
+namespace corundum::ecs {
 
   /// Top-level entity container; owns the entity pool and all component tables.
   /// @note Not thread-safe.
@@ -118,4 +103,4 @@ namespace corundum::gameplay::entity {
     w.pending_deletion_count = 0;
   }
 
-} // namespace corundum::gameplay::entity
+} // namespace corundum::ecs

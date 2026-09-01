@@ -1,9 +1,9 @@
 #pragma once
+#include <corundum/ecs/world.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
-#include <corundum/gameplay/entity/world.hpp>
-#include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/gameplay/world/camera.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/portals/transition_prompt.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
@@ -34,24 +34,24 @@ namespace corundum::gameplay::world {
   /** @brief Actor entities spawned for one resident world chunk. */
   struct ChunkActorSet {
     corundum::gameplay::world::tilemap::ChunkCoord coord{};
-    std::vector<corundum::gameplay::entity::EntityId> entities;
+    std::vector<corundum::ecs::EntityId> entities;
   };
 
   struct Scene {
-    corundum::gameplay::entity::EntityId player;
-    corundum::gameplay::entity::World world;
+    corundum::ecs::EntityId player;
+    corundum::ecs::World world;
 
     Camera camera;
     corundum::gameplay::dialogue::State dialogue;
-    std::optional<corundum::gameplay::entity::EntityId> dialogue_npc;
+    std::optional<corundum::ecs::EntityId> dialogue_npc;
     std::optional<corundum::resources::AnimId> dialogue_npc_saved_anim;
-    std::optional<corundum::gameplay::component::FacingDir> dialogue_npc_saved_facing;
+    std::optional<corundum::ecs::FacingDir> dialogue_npc_saved_facing;
     float elapsed_time = 0.f;
-    std::optional<corundum::gameplay::sys::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
+    std::optional<corundum::gameplay::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
     GameMode mode = GameMode::Exploring;
     int inventory_cursor =
         0; ///< Highlighted row while mode == GameMode::Inventory; clamped against the row count at render time.
-    std::vector<corundum::gameplay::sys::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
+    std::vector<corundum::gameplay::world::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
     std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
     std::optional<MapTransition> pending_transition;
     std::optional<TransitionPrompt> transition_prompt;

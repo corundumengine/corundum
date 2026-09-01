@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-namespace corundum::gameplay::component {
+namespace corundum::ecs {
 
   /// Axis-aligned collision footprint in tile-grid units.
   /// Populated once at spawn; eliminates per-frame registry lookups during collision.
@@ -85,4 +85,4 @@ namespace corundum::gameplay::component {
     return std::sqrt(dcol * dcol + drow * drow);
   }
 
-} // namespace corundum::gameplay::component
+} // namespace corundum::ecs

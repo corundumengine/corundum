@@ -1,11 +1,11 @@
 #pragma once
 #include <algorithm>
 #include <array>
-#include <corundum/gameplay/component/sparse_index.hpp>
+#include <corundum/ecs/component/sparse_index.hpp>
 #include <cstdint>
 #include <string_view>
 
-namespace corundum::gameplay::component {
+namespace corundum::ecs {
 
   /** @brief Cold debug-label table for transforms.
    *
@@ -78,4 +78,4 @@ namespace corundum::gameplay::component {
     }
   };
 
-} // namespace corundum::gameplay::component
+} // namespace corundum::ecs

@@ -1,6 +1,6 @@
+#include <corundum/ecs/component/components.hpp>
 #include <corundum/engine.hpp>
-#include <corundum/gameplay/component/components.hpp>
-#include <corundum/gameplay/sys/camera_system.hpp>
+#include <corundum/gameplay/world/camera_system.hpp>
 #include <corundum/gameplay/world/spawn.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/gameplay/world/transition.hpp>
@@ -78,7 +78,7 @@ namespace corundum::gameplay::world {
       const auto target = anchor_cell_center ? corundum::core::math::tile_to_world_center(col, row, 0.f, iso)
                                              : corundum::core::math::tile_to_world(col, row, 0, iso);
       const auto [vw, vh] = viewport();
-      corundum::gameplay::sys::center_on(engine_.scene.camera, target.x, target.y, world_w, world_h, vw, vh);
+      corundum::gameplay::world::center_on(engine_.scene.camera, target.x, target.y, world_w, world_h, vw, vh);
     }
 
     void SceneTransitioner::fail(std::string_view context, std::string_view err) noexcept {
@@ -92,7 +92,7 @@ namespace corundum::gameplay::world {
       if (!world_result)
         return std::unexpected(std::move(world_result).error());
       const auto &info = *world_result;
-      const corundum::gameplay::component::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
+      const corundum::ecs::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
 
       auto scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters,
                                                        engine_.render.chunks.active_at(0).tilemap, spawn_pos, false);
@@ -156,7 +156,7 @@ namespace corundum::gameplay::world {
       }
 
       const auto &new_tm = *active_tilemap(engine_);
-      const gameplay::component::Position spawn{static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row)};
+      const ecs::Position spawn{static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row)};
       auto scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters, new_tm, spawn);
       if (!scene_result) {
         fail("map transition", scene_result.error());

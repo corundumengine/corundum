@@ -1,10 +1,10 @@
 #pragma once
 #include <array>
-#include <corundum/gameplay/component/sparse_index.hpp>
-#include <corundum/gameplay/component/table_concepts.hpp>
+#include <corundum/ecs/component/sparse_index.hpp>
+#include <corundum/ecs/component/table_concepts.hpp>
 #include <span>
 
-namespace corundum::gameplay::component {
+namespace corundum::ecs {
 
   /** @brief Table for the BoundingBox collision component.
    *
@@ -94,4 +94,4 @@ namespace corundum::gameplay::component {
 
   static_assert(GameTable<CollisionTable>);
 
-} // namespace corundum::gameplay::component
+} // namespace corundum::ecs

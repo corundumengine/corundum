@@ -37,10 +37,10 @@ add_library(engine STATIC
     src/gameplay/world/portals/portal.cpp
     src/gameplay/world/portals/transition_prompt.cpp
     src/anim/anim_sys.cpp
-    src/gameplay/sys/camera_system.cpp
-    src/gameplay/sys/picking.cpp
-    src/gameplay/sys/pathfinding.cpp
-    src/gameplay/sys/dialogue_system.cpp
+    src/gameplay/world/camera_system.cpp
+    src/gameplay/world/picking.cpp
+    src/gameplay/world/pathfinding.cpp
+    src/gameplay/dialogue/interact.cpp
     src/input/input_sys.cpp
     src/physics/physics_sys.cpp
     src/render/render_sys.cpp

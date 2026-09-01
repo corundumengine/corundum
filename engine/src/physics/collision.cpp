@@ -282,9 +282,8 @@ namespace corundum::physics {
 
   } // namespace
 
-  void resolve_collisions(corundum::gameplay::component::Position &pos,
-                          corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
-                          corundum::gameplay::world::tilemap::CollisionRectsView rects, float y_offset,
+  void resolve_collisions(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos, float entity_w,
+                          float entity_h, corundum::gameplay::world::tilemap::CollisionRectsView rects, float y_offset,
                           int entity_elevation, int elevation_tolerance) noexcept {
     const float eff_h = entity_h - y_offset;
 
@@ -316,10 +315,9 @@ namespace corundum::physics {
     }
   }
 
-  void resolve_triangle_collisions(corundum::gameplay::component::Position &pos,
-                                   corundum::gameplay::component::Position prev_pos, float entity_w, float entity_h,
-                                   corundum::gameplay::world::tilemap::CollisionTrianglesView triangles, float y_offset,
-                                   int entity_elevation, int elevation_tolerance) noexcept {
+  void resolve_triangle_collisions(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos, float entity_w,
+                                   float entity_h, corundum::gameplay::world::tilemap::CollisionTrianglesView triangles,
+                                   float y_offset, int entity_elevation, int elevation_tolerance) noexcept {
     const float eff_h = entity_h - y_offset;
 
     // Same escape-rule / clamp-to-contact logic as resolve_collisions; contact is

@@ -8,7 +8,7 @@ namespace corundum::gameplay::quest {
   class Registry;
 }
 
-namespace corundum::gameplay::sys {
+namespace corundum::gameplay::dialogue {
 
   /** @brief Advance the active dialogue state machine.
    *
@@ -45,4 +45,4 @@ namespace corundum::gameplay::sys {
                     const corundum::core::GameConfig &cfg, const corundum::gameplay::dialogue::Registry &graphs,
                     corundum::gameplay::FlagStore &flags) noexcept;
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::dialogue

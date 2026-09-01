@@ -1,5 +1,5 @@
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/sys/picking.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
 #include <corundum/render/render_sys.hpp>
@@ -7,7 +7,7 @@
 #include <cmath>
 #include <limits>
 
-namespace corundum::gameplay::sys {
+namespace corundum::gameplay::world {
 
   namespace {
 
@@ -58,4 +58,4 @@ namespace corundum::gameplay::sys {
     return best;
   }
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::world

@@ -1,10 +1,10 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/sys/pathfinding.hpp>
+#include <corundum/gameplay/world/pathfinding.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
 
-using corundum::gameplay::sys::find_path;
+using corundum::gameplay::world::find_path;
 using corundum::gameplay::world::MapView;
 using corundum::gameplay::world::tilemap::CollisionRects;
 using corundum::gameplay::world::tilemap::Tilemap;

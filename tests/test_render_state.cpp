@@ -70,7 +70,7 @@ TEST_CASE("NullRenderer: stats() returns zero draw/quad/dropped counts and begin
 
 TEST_CASE("snapshot_prev_frame: copies live transforms and camera into prev_* fields") {
   corundum::Engine engine;
-  corundum::gameplay::component::TransformTable &transforms = engine.scene.world.transforms;
+  corundum::ecs::TransformTable &transforms = engine.scene.world.transforms;
   transforms.col[0] = 3.5f;
   transforms.row[0] = 7.25f;
   transforms.col[1] = 10.f;

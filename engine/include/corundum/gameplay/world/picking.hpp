@@ -4,10 +4,8 @@
 #include <optional>
 
 namespace corundum::gameplay::world {
-  struct MapView; // update.hpp — forward-declared to avoid scene.hpp -> picking.hpp -> update.hpp -> scene.hpp cycle.
-}
 
-namespace corundum::gameplay::sys {
+  struct MapView; // defined in update.hpp — forward-declared to keep this header light.
 
   /**
    * @brief A tile-grid coordinate.
@@ -51,9 +49,7 @@ namespace corundum::gameplay::sys {
    * @return The topmost tile under the cursor, or nullopt if none (out of bounds,
    *         empty space, or no elevation source available).
    */
-  [[nodiscard]] std::optional<TileCoord> pick_tile(float mouse_x, float mouse_y,
-                                                   const corundum::gameplay::world::Camera &camera,
-                                                   const corundum::gameplay::world::MapView &map, float elev_step,
-                                                   float zoom) noexcept;
+  [[nodiscard]] std::optional<TileCoord> pick_tile(float mouse_x, float mouse_y, const Camera &camera,
+                                                   const MapView &map, float elev_step, float zoom) noexcept;
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::world

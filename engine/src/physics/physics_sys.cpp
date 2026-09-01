@@ -1,5 +1,5 @@
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/sys/pathfinding.hpp>
+#include <corundum/gameplay/world/pathfinding.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
 #include <corundum/physics/collision.hpp>
@@ -74,16 +74,15 @@ namespace corundum::physics {
     return std::abs(portal_elev - player_elev) <= elev_tolerance;
   }
 
-  void integrate(corundum::gameplay::component::TransformTable &transforms, corundum::gameplay::entity::EntityId e,
-                 float dt) noexcept {
+  void integrate(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId e, float dt) noexcept {
     const auto slot = transforms.dense_idx(e);
     transforms.col[slot] += transforms.dc[slot] * dt;
     transforms.row[slot] += transforms.dr[slot] * dt;
   }
 
-  void follow_path(corundum::gameplay::component::TransformTable &transforms,
-                   corundum::gameplay::entity::EntityId player, std::vector<corundum::gameplay::sys::TileCoord> &path,
-                   float player_speed, corundum::core::math::IsometricParams iso, float dt) noexcept {
+  void follow_path(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+                   std::vector<corundum::gameplay::world::TileCoord> &path, float player_speed,
+                   corundum::core::math::IsometricParams iso, float dt) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
     const std::uint32_t slot = transforms.dense_idx(player);
@@ -129,9 +128,9 @@ namespace corundum::physics {
     }
   }
 
-  void apply_input(corundum::gameplay::component::TransformTable &transforms,
-                   corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                   float player_speed, corundum::core::math::IsometricParams iso) noexcept {
+  void apply_input(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+                   const corundum::input::InputState &input, float player_speed,
+                   corundum::core::math::IsometricParams iso) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
 
@@ -180,15 +179,14 @@ namespace corundum::physics {
     }
   }
 
-  void update_player(corundum::gameplay::component::TransformTable &transforms,
-                     const corundum::gameplay::component::CollisionTable &collisions,
-                     corundum::gameplay::entity::EntityId player, const corundum::input::InputState &input,
-                     float player_speed, const corundum::gameplay::world::MapView &map,
-                     corundum::gameplay::world::Scene &scene, float dt) noexcept {
+  void update_player(corundum::ecs::TransformTable &transforms, const corundum::ecs::CollisionTable &collisions,
+                     corundum::ecs::EntityId player, const corundum::input::InputState &input, float player_speed,
+                     const corundum::gameplay::world::MapView &map, corundum::gameplay::world::Scene &scene,
+                     float dt) noexcept {
     using corundum::core::math::IsometricParams;
-    using corundum::gameplay::component::CollisionTable;
-    using corundum::gameplay::component::Position;
-    using corundum::gameplay::entity::EntityId;
+    using corundum::ecs::CollisionTable;
+    using corundum::ecs::EntityId;
+    using corundum::ecs::Position;
 
     const std::uint32_t p_slot = transforms.dense_idx(player);
     const float prev_col = transforms.col[p_slot];
@@ -211,9 +209,9 @@ namespace corundum::physics {
       // the cell the player is actually standing in — same convention as chunk_at_iso
       // and picking. Latent today (positions clamped >= 0), defensive against future
       // knockback / camera-shake paths.
-      const corundum::gameplay::sys::TileCoord start{static_cast<int>(std::floor(prev_col)),
-                                                     static_cast<int>(std::floor(prev_row))};
-      scene.path = corundum::gameplay::sys::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
+      const corundum::gameplay::world::TileCoord start{static_cast<int>(std::floor(prev_col)),
+                                                       static_cast<int>(std::floor(prev_row))};
+      scene.path = corundum::gameplay::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
     }
 
     const bool manual_move =
@@ -277,11 +275,11 @@ namespace corundum::physics {
     }
     const Position prev_pos{prev_col, prev_row};
 
-    std::array<float, corundum::gameplay::entity::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
+    std::array<float, corundum::ecs::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
     // NPC elevations populated so resolve_collisions can gate player-vs-NPC by elevation
     // (same band as player-vs-world). Without this, an NPC under a bridge (elev 0) would
     // block a player on the bridge (elev 5). Plan §4a.
-    std::array<uint8_t, corundum::gameplay::entity::k_max_entities> npc_elevations{};
+    std::array<uint8_t, corundum::ecs::k_max_entities> npc_elevations{};
     uint16_t npc_count = 0;
     for (uint16_t i = 0; i < collisions.count; ++i) {
       const EntityId eid = collisions.idx.entities[i];

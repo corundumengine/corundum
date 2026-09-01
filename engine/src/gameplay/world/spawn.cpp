@@ -1,8 +1,8 @@
 #include <corundum/gameplay/world/spawn.hpp>
 
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/component/components.hpp>
-#include <corundum/gameplay/entity/world.hpp>
+#include <corundum/ecs/component/components.hpp>
+#include <corundum/ecs/world.hpp>
 #include <corundum/gameplay/world/actors/actor.hpp>
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/render/render_state.hpp>
@@ -20,13 +20,13 @@ namespace corundum::gameplay::world {
 
   namespace {
 
-    using corundum::gameplay::component::Animation;
-    using corundum::gameplay::component::DialogueRef;
-    using corundum::gameplay::component::Position;
-    using corundum::gameplay::component::Sprite;
-    using corundum::gameplay::component::Velocity;
-    using corundum::gameplay::entity::EntityId;
-    using corundum::gameplay::entity::World;
+    using corundum::ecs::Animation;
+    using corundum::ecs::DialogueRef;
+    using corundum::ecs::EntityId;
+    using corundum::ecs::Position;
+    using corundum::ecs::Sprite;
+    using corundum::ecs::Velocity;
+    using corundum::ecs::World;
     using corundum::resources::AnimId;
     using corundum::resources::CharacterRegistry;
     using corundum::resources::SpriteId;
@@ -45,7 +45,7 @@ namespace corundum::gameplay::world {
         if (sid == corundum::resources::k_null_sprite_id)
           return std::unexpected(std::format("[engine] unknown sprite '{}'", a.sprite_name));
 
-        corundum::gameplay::component::BoundingBox bb{};
+        corundum::ecs::BoundingBox bb{};
         if (const auto *sd = registry.get_sprite_by_id(sid)) {
           if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
             const int rfw = corundum::resources::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
@@ -73,7 +73,7 @@ namespace corundum::gameplay::world {
         world.animations.set_frame_counts(eid, npc_anim.frame_counts);
         world.collisions.insert(eid, bb.col_span, bb.row_span);
 
-        using FDir = corundum::gameplay::component::FacingDir;
+        using FDir = corundum::ecs::FacingDir;
         static constexpr std::array<std::pair<std::string_view, FDir>, 8> k_facing_map{{
             {"north", FDir::North},
             {"east", FDir::East},
@@ -107,13 +107,13 @@ namespace corundum::gameplay::world {
   std::expected<Scene, std::string> spawn_world(const corundum::core::GameConfig &cfg,
                                                 const corundum::resources::CharacterRegistry &registry,
                                                 const corundum::gameplay::world::tilemap::Tilemap &tilemap,
-                                                std::optional<corundum::gameplay::component::Position> player_pos,
+                                                std::optional<corundum::ecs::Position> player_pos,
                                                 bool spawn_file_actors) {
-    using corundum::gameplay::component::Animation;
-    using corundum::gameplay::component::Position;
-    using corundum::gameplay::component::Sprite;
-    using corundum::gameplay::component::Velocity;
-    using corundum::gameplay::entity::World;
+    using corundum::ecs::Animation;
+    using corundum::ecs::Position;
+    using corundum::ecs::Sprite;
+    using corundum::ecs::Velocity;
+    using corundum::ecs::World;
     using corundum::resources::AnimId;
     using corundum::resources::SpriteId;
 
@@ -154,7 +154,7 @@ namespace corundum::gameplay::world {
 
     std::array<uint8_t, corundum::resources::k_num_anim_ids> walk_counts{};
     std::array<uint8_t, corundum::resources::k_num_anim_ids> idle_counts{};
-    corundum::gameplay::component::BoundingBox player_bb{};
+    corundum::ecs::BoundingBox player_bb{};
     float walk_fd = 0.f;
     float idle_fd = 0.f;
 
@@ -185,15 +185,15 @@ namespace corundum::gameplay::world {
 
     auto player = spawn(world, spawn_pos, Velocity{0.f, 0.f}, Sprite{idle_sid, AnimId::Default, 0}, player_anim);
     world.collisions.insert(player, player_bb.col_span, player_bb.row_span);
-    world.facings.insert(player, corundum::gameplay::component::FacingDir::South);
+    world.facings.insert(player, corundum::ecs::FacingDir::South);
     if (idle_fd > 0.f)
       world.animations.frame_duration_ref(player) = idle_fd;
     world.motion_sprites.insert(player, walk_sid, idle_sid, walk_counts, idle_counts, 0.05f, 0.12f, walk_fd, idle_fd);
 
-    if (static_cast<std::size_t>(1) + spawn_points.actors.size() > corundum::gameplay::entity::k_max_entities)
+    if (static_cast<std::size_t>(1) + spawn_points.actors.size() > corundum::ecs::k_max_entities)
       return std::unexpected(
           std::format("[engine] too many entities for '{}': {} actors + 1 player exceeds limit of {}", map_stem,
-                      spawn_points.actors.size(), corundum::gameplay::entity::k_max_entities));
+                      spawn_points.actors.size(), corundum::ecs::k_max_entities));
 
     if (spawn_file_actors) {
       auto spawned = spawn_actors(world, registry, spawn_points.actors, 0, 0, dw, dh);
@@ -237,7 +237,7 @@ namespace corundum::gameplay::world {
         return false;
       for (const EntityId eid : set.entities)
         if (scene.world.entities.is_live(eid))
-          corundum::gameplay::entity::mark_for_deletion(scene.world, eid);
+          corundum::ecs::mark_for_deletion(scene.world, eid);
       return true;
     });
 

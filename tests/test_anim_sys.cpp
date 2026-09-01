@@ -1,21 +1,21 @@
 #include <doctest/doctest.h>
 
 #include <corundum/anim/anim_sys.hpp>
-#include <corundum/gameplay/component/animation_table.hpp>
-#include <corundum/gameplay/component/facing_table.hpp>
-#include <corundum/gameplay/component/motion_sprite_table.hpp>
-#include <corundum/gameplay/component/sprite_table.hpp>
-#include <corundum/gameplay/component/transform_table.hpp>
+#include <corundum/ecs/component/animation_table.hpp>
+#include <corundum/ecs/component/facing_table.hpp>
+#include <corundum/ecs/component/motion_sprite_table.hpp>
+#include <corundum/ecs/component/sprite_table.hpp>
+#include <corundum/ecs/component/transform_table.hpp>
 
 #include <array>
 
 using corundum::core::math::IsometricParams;
-using corundum::gameplay::component::AnimationTable;
-using corundum::gameplay::component::FacingTable;
-using corundum::gameplay::component::MotionSpriteTable;
-using corundum::gameplay::component::SpriteTable;
-using corundum::gameplay::component::TransformTable;
-using corundum::gameplay::entity::EntityId;
+using corundum::ecs::AnimationTable;
+using corundum::ecs::EntityId;
+using corundum::ecs::FacingTable;
+using corundum::ecs::MotionSpriteTable;
+using corundum::ecs::SpriteTable;
+using corundum::ecs::TransformTable;
 
 namespace {
 
@@ -87,38 +87,38 @@ TEST_CASE("animate: degenerate iso falls back to the unscaled rate (no divide-by
 
 TEST_CASE("animate: pure +dc motion resolves facing to SouthEast (zone 1, col-dominant)") {
   Fixture f;
-  f.facings.insert(f.player, corundum::gameplay::component::FacingDir::South);
+  f.facings.insert(f.player, corundum::ecs::FacingDir::South);
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.facings.dir_of(f.player) == corundum::gameplay::component::FacingDir::SouthEast);
+  CHECK(f.facings.dir_of(f.player) == corundum::ecs::FacingDir::SouthEast);
 }
 
 TEST_CASE("animate: pure +dr motion resolves facing to SouthWest (zone 0, row-dominant)") {
   Fixture f;
-  f.facings.insert(f.player, corundum::gameplay::component::FacingDir::South);
+  f.facings.insert(f.player, corundum::ecs::FacingDir::South);
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 0.f;
   f.transforms.dr[slot] = 1.f;
 
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.facings.dir_of(f.player) == corundum::gameplay::component::FacingDir::SouthWest);
+  CHECK(f.facings.dir_of(f.player) == corundum::ecs::FacingDir::SouthWest);
 }
 
 TEST_CASE("animate: equal-magnitude diagonal motion resolves facing to a screen-cardinal (zone 2)") {
   Fixture f;
-  f.facings.insert(f.player, corundum::gameplay::component::FacingDir::South);
+  f.facings.insert(f.player, corundum::ecs::FacingDir::South);
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 1.f; // |dc| == |dr| → zone 2 (diagonal); +dr,+dc → screen South
 
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.facings.dir_of(f.player) == corundum::gameplay::component::FacingDir::South);
+  CHECK(f.facings.dir_of(f.player) == corundum::ecs::FacingDir::South);
 }
 
 TEST_CASE("animate: falls back to a cardinal AnimId when the directional clip is empty") {

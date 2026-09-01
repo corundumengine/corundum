@@ -1,6 +1,6 @@
-#include <corundum/gameplay/component/collision_table.hpp>
-#include <corundum/gameplay/component/transform_table.hpp>
-#include <corundum/gameplay/sys/pathfinding.hpp>
+#include <corundum/ecs/component/collision_table.hpp>
+#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/gameplay/world/pathfinding.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
 
@@ -11,7 +11,7 @@
 #include <queue>
 #include <utility>
 
-namespace corundum::gameplay::sys {
+namespace corundum::gameplay::world {
 
   namespace {
 
@@ -20,11 +20,11 @@ namespace corundum::gameplay::sys {
     constexpr int k_elevation_tolerance = 0;
     constexpr float k_sqrt2 = 1.41421356f;
 
-    [[nodiscard]] bool
-    cell_blocked_by_collision(int col, int row, const corundum::gameplay::world::tilemap::Tilemap &tm,
-                              const corundum::gameplay::world::MapView &map,
-                              const corundum::gameplay::component::CollisionTable *npc_collisions,
-                              const corundum::gameplay::component::TransformTable *npc_transforms) noexcept {
+    [[nodiscard]] bool cell_blocked_by_collision(int col, int row,
+                                                 const corundum::gameplay::world::tilemap::Tilemap &tm,
+                                                 const corundum::gameplay::world::MapView &map,
+                                                 const corundum::ecs::CollisionTable *npc_collisions,
+                                                 const corundum::ecs::TransformTable *npc_transforms) noexcept {
       using corundum::gameplay::world::tilemap::elevation_at;
       const int cell_elev = elevation_at(tm, col, row);
       const float c0 = static_cast<float>(col), c1 = c0 + 1.f;
@@ -90,8 +90,8 @@ namespace corundum::gameplay::sys {
   } // namespace
 
   std::vector<TileCoord> find_path(const corundum::gameplay::world::MapView &map, TileCoord start, TileCoord goal,
-                                   const corundum::gameplay::component::CollisionTable *npc_collisions,
-                                   const corundum::gameplay::component::TransformTable *npc_transforms) noexcept {
+                                   const corundum::ecs::CollisionTable *npc_collisions,
+                                   const corundum::ecs::TransformTable *npc_transforms) noexcept {
     if (!map.walkability || !map.elevation_map)
       return {};
     const corundum::gameplay::world::tilemap::WalkabilityGraph &graph = *map.walkability;
@@ -168,4 +168,4 @@ namespace corundum::gameplay::sys {
     return {}; // unreachable
   }
 
-} // namespace corundum::gameplay::sys
+} // namespace corundum::gameplay::world

@@ -1,11 +1,11 @@
 #include <corundum/gameplay/world/update.hpp>
 
 #include <corundum/anim/anim_sys.hpp>
-#include <corundum/gameplay/component/components.hpp>
-#include <corundum/gameplay/entity/world.hpp>
-#include <corundum/gameplay/sys/camera_system.hpp>
-#include <corundum/gameplay/sys/dialogue_system.hpp>
-#include <corundum/gameplay/sys/picking.hpp>
+#include <corundum/ecs/component/components.hpp>
+#include <corundum/ecs/world.hpp>
+#include <corundum/gameplay/dialogue/interact.hpp>
+#include <corundum/gameplay/world/camera_system.hpp>
+#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/physics/physics_sys.hpp>
 #include <corundum/resources/sprite.hpp>
@@ -17,7 +17,7 @@ namespace {
   void update_exploring(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
                         const corundum::gameplay::world::MapView &map, const corundum::core::GameConfig &cfg, float dt,
                         float win_w, float win_h) {
-    using corundum::gameplay::entity::EntityId;
+    using corundum::ecs::EntityId;
 
     auto &world = scene.world;
     const EntityId player = scene.player;
@@ -56,7 +56,7 @@ namespace {
     // Camera tracks the player's cell-center anchor (same as the sprite) so the
     // camera and actor stay in lockstep instead of drifting half_th apart.
     const auto [pp_x, pp_y] = corundum::core::math::tile_to_world_center(pc, pr, elev, iso);
-    corundum::gameplay::sys::follow_player(scene.camera, pp_x, pp_y, map, win_w, win_h);
+    corundum::gameplay::world::follow_player(scene.camera, pp_x, pp_y, map, win_w, win_h);
   }
 
   // Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel
@@ -68,8 +68,8 @@ namespace {
     using corundum::input::Action;
 
     if (input.scroll_delta_y != 0.f) {
-      corundum::gameplay::sys::apply_zoom(scene.camera, input.scroll_delta_y, input.mouse_x, input.mouse_y,
-                                          cfg.min_zoom, cfg.max_zoom);
+      corundum::gameplay::world::apply_zoom(scene.camera, input.scroll_delta_y, input.mouse_x, input.mouse_y,
+                                            cfg.min_zoom, cfg.max_zoom);
     }
 
     const float button_zoom =
@@ -77,8 +77,8 @@ namespace {
     if (button_zoom != 0.f) {
       const float center_x = win_w * 0.5f;
       const float center_y = win_h * 0.5f;
-      corundum::gameplay::sys::apply_zoom(scene.camera, button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y,
-                                          cfg.min_zoom, cfg.max_zoom);
+      corundum::gameplay::world::apply_zoom(scene.camera, button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y,
+                                            cfg.min_zoom, cfg.max_zoom);
     }
   }
 
@@ -159,8 +159,8 @@ namespace corundum::gameplay::world {
 
     update_zoom(scene, input, cfg, dt, win_w, win_h);
 
-    scene.hovered_tile = corundum::gameplay::sys::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map,
-                                                            cfg.elevation_step_px * map.tile_scale, scene.camera.zoom);
+    scene.hovered_tile = corundum::gameplay::world::pick_tile(
+        input.mouse_x, input.mouse_y, scene.camera, map, cfg.elevation_step_px * map.tile_scale, scene.camera.zoom);
 
     if (input.is_pressed(input::Action::Inventory)) {
       if (scene.mode == GameMode::Exploring) {
@@ -173,7 +173,7 @@ namespace corundum::gameplay::world {
 
     switch (scene.mode) {
       case corundum::gameplay::world::GameMode::Dialogue:
-        corundum::gameplay::sys::update_dialogue(scene, actions, flags, quests);
+        corundum::gameplay::dialogue::update_dialogue(scene, actions, flags, quests);
         break;
       case corundum::gameplay::world::GameMode::Prompt:
         update_transition_prompt(scene, input);
@@ -183,7 +183,7 @@ namespace corundum::gameplay::world {
         break;
       case corundum::gameplay::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h);
-        corundum::gameplay::sys::try_interact(scene, input, cfg, graphs, flags);
+        corundum::gameplay::dialogue::try_interact(scene, input, cfg, graphs, flags);
         break;
     }
   }

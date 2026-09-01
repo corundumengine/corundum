@@ -1,12 +1,12 @@
 #pragma once
 #include <algorithm>
 #include <array>
-#include <corundum/gameplay/component/sparse_index.hpp>
-#include <corundum/gameplay/component/table_concepts.hpp>
+#include <corundum/ecs/component/sparse_index.hpp>
+#include <corundum/ecs/component/table_concepts.hpp>
 #include <corundum/resources/sprite.hpp>
 #include <span>
 
-namespace corundum::gameplay::component {
+namespace corundum::ecs {
 
   /** @brief SoA table for entities with motion-driven sprite sheet switching.
    *
@@ -209,4 +209,4 @@ namespace corundum::gameplay::component {
 
   static_assert(GameTable<MotionSpriteTable>);
 
-} // namespace corundum::gameplay::component
+} // namespace corundum::ecs
