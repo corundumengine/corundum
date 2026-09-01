@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <corundum/resources/sprite_atlas.hpp>
+#include <corundum/sprites/sprite_atlas.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -43,7 +43,7 @@ TEST_CASE("load_sprite_atlas — valid atlas parses correctly") {
   const auto path = dir / "atlas.json";
   write_file(path, VALID_ATLAS_JSON);
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   REQUIRE(result.has_value());
   const auto &atlas = *result;
   CHECK(atlas.path == "dist/atlases/knight.png");
@@ -77,7 +77,7 @@ TEST_CASE("load_sprite_atlas — missing 'schema_version' fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"path":"p.png","width":4,"height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -86,7 +86,7 @@ TEST_CASE("load_sprite_atlas — 'schema_version' wrong type fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":"2","path":"p.png","width":4,"height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -95,7 +95,7 @@ TEST_CASE("load_sprite_atlas — 'schema_version' older than expected fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":1,"path":"p.png","width":4,"height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -104,7 +104,7 @@ TEST_CASE("load_sprite_atlas — 'schema_version' newer than expected fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":3,"path":"p.png","width":4,"height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -113,7 +113,7 @@ TEST_CASE("load_sprite_atlas — malformed JSON fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({not valid json)");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -122,7 +122,7 @@ TEST_CASE("load_sprite_atlas — missing 'path' fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"width":4,"height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -131,7 +131,7 @@ TEST_CASE("load_sprite_atlas — missing 'width' fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -140,7 +140,7 @@ TEST_CASE("load_sprite_atlas — missing 'height' fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -149,7 +149,7 @@ TEST_CASE("load_sprite_atlas — 'width' <= 0 fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":0,"height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -158,7 +158,7 @@ TEST_CASE("load_sprite_atlas — 'height' <= 0 fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":0,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -167,7 +167,7 @@ TEST_CASE("load_sprite_atlas — missing 'sprites' array fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -176,7 +176,7 @@ TEST_CASE("load_sprite_atlas — 'sprites' present but not an array fails") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"sprites":{}})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -185,7 +185,7 @@ TEST_CASE("load_sprite_atlas — empty 'sprites' array is valid") {
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"sprites":[]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   REQUIRE(result.has_value());
   CHECK(result->sprites.empty());
 }
@@ -197,7 +197,7 @@ TEST_CASE("load_sprite_atlas — sprite missing 'name' fails") {
              R"({"schema_version":2,"path":"p.png","width":4,"height":4,
                  "sprites":[{"x":0,"y":0,"w":4,"h":4}]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -208,7 +208,7 @@ TEST_CASE("load_sprite_atlas — sprite missing 'w' fails") {
              R"({"schema_version":2,"path":"p.png","width":4,"height":4,
                  "sprites":[{"name":"a","x":0,"y":0,"h":4}]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -219,7 +219,7 @@ TEST_CASE("load_sprite_atlas — sprite with empty 'name' fails") {
              R"({"schema_version":2,"path":"p.png","width":4,"height":4,
                  "sprites":[{"name":"","x":0,"y":0,"w":4,"h":4}]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -230,7 +230,7 @@ TEST_CASE("load_sprite_atlas — sprite with 'w' <= 0 fails") {
              R"({"schema_version":2,"path":"p.png","width":4,"height":4,
                  "sprites":[{"name":"a","x":0,"y":0,"w":0,"h":4}]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -241,7 +241,7 @@ TEST_CASE("load_sprite_atlas — sprite with 'h' <= 0 fails") {
              R"({"schema_version":2,"path":"p.png","width":4,"height":4,
                  "sprites":[{"name":"a","x":0,"y":0,"w":4,"h":0}]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -255,7 +255,7 @@ TEST_CASE("load_sprite_atlas — duplicate sprite name fails") {
                    {"name":"a","x":4,"y":4,"w":4,"h":4}
                  ]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }
 
@@ -266,7 +266,7 @@ TEST_CASE("load_sprite_atlas — optional sprite fields default correctly when a
              R"({"schema_version":2,"path":"p.png","width":4,"height":4,
                  "sprites":[{"name":"a","x":1,"y":2,"w":3,"h":4}]})");
 
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   REQUIRE(result.has_value());
   REQUIRE(result->sprites.size() == 1);
   const auto &sprite = result->sprites[0];
@@ -281,6 +281,6 @@ TEST_CASE("load_sprite_atlas — optional sprite fields default correctly when a
 TEST_CASE("load_sprite_atlas — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
-  auto result = corundum::resources::load_sprite_atlas(path);
+  auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
 }

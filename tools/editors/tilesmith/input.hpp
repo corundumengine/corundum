@@ -2,7 +2,7 @@
 #include "editor_state.hpp"
 #include <corundum/tool_host/canvas_controller.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   using MouseState = corundum::tool_host::MouseState;
 
@@ -20,4 +20,4 @@ namespace tools::tilemap {
    */
   void handle_input(EditorState &state, MouseState &mouse, bool &running);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

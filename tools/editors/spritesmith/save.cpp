@@ -1,17 +1,17 @@
 #include "save.hpp"
 #include <corundum/core/json_io.hpp>
-#include <corundum/resources/atlas_clips.hpp>
-#include <corundum/resources/atlas_clips_serializer.hpp>
-#include <corundum/resources/character_sheet_serializer.hpp>
-#include <corundum/resources/sprite_sheet_clips_serializer.hpp>
+#include <corundum/sprites/atlas_clips.hpp>
+#include <corundum/sprites/atlas_clips_serializer.hpp>
+#include <corundum/sprites/character_sheet_serializer.hpp>
+#include <corundum/sprites/sprite_sheet_clips_serializer.hpp>
 #include <nlohmann/json.hpp>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   namespace {
 
-    [[nodiscard]] corundum::resources::CharacterSheetData to_character_sheet(const EditorState &state) {
-      using namespace corundum::resources;
+    [[nodiscard]] corundum::sprites::CharacterSheetData to_character_sheet(const EditorState &state) {
+      using namespace corundum::sprites;
       CharacterSheetData data;
       data.id = state.sheet_id;
       data.path = state.image_path;
@@ -36,8 +36,8 @@ namespace tools::sprite {
       return data;
     }
 
-    [[nodiscard]] corundum::resources::SpriteSheetClips to_sprite_sheet_clips(const EditorState &state) {
-      using namespace corundum::resources;
+    [[nodiscard]] corundum::sprites::SpriteSheetClips to_sprite_sheet_clips(const EditorState &state) {
+      using namespace corundum::sprites;
       SpriteSheetClips data;
       data.id = state.sheet_id;
       data.path = state.image_path;
@@ -55,8 +55,8 @@ namespace tools::sprite {
       return data;
     }
 
-    [[nodiscard]] corundum::resources::AtlasClipsData to_atlas_clips_data(const EditorState &state) {
-      corundum::resources::AtlasClipsData data;
+    [[nodiscard]] corundum::sprites::AtlasClipsData to_atlas_clips_data(const EditorState &state) {
+      corundum::sprites::AtlasClipsData data;
       for (const auto &clip : state.atlas_clips)
         data.clips.push_back({clip.name, clip.fps, clip.frames});
       return data;
@@ -71,8 +71,8 @@ namespace tools::sprite {
     // Atlas mode: the atlas JSON is a read-only spritepacker artifact — only the authored
     // clips sidecar is ever written.
     if (state.mode == SheetMode::Atlas) {
-      const auto sidecar_path = corundum::resources::atlas_clips_sidecar_path(state.json_path);
-      const nlohmann::json j = corundum::resources::serialize_atlas_clips(to_atlas_clips_data(state));
+      const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(state.json_path);
+      const nlohmann::json j = corundum::sprites::serialize_atlas_clips(to_atlas_clips_data(state));
       auto res = corundum::core::write_json(sidecar_path, j);
       if (!res)
         return std::unexpected(res.error());
@@ -81,8 +81,8 @@ namespace tools::sprite {
     }
 
     const nlohmann::json j = (state.mode == SheetMode::Character)
-                                 ? corundum::resources::serialize_character_sheet(to_character_sheet(state))
-                                 : corundum::resources::serialize_sprite_sheet_clips(to_sprite_sheet_clips(state));
+                                 ? corundum::sprites::serialize_character_sheet(to_character_sheet(state))
+                                 : corundum::sprites::serialize_sprite_sheet_clips(to_sprite_sheet_clips(state));
     {
       auto res = corundum::core::write_json(state.json_path, j);
       if (!res)
@@ -93,4 +93,4 @@ namespace tools::sprite {
     return {};
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

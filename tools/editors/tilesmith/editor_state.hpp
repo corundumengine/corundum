@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /// @brief One undo/redo checkpoint: everything that gets saved to the tilemap JSON plus the
   /// portals sidecar. Deliberately does NOT include active_layer — which layer is selected is
@@ -126,4 +126,4 @@ namespace tools::tilemap {
     bool show_io_error_popup = false;
   };
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

@@ -6,7 +6,7 @@
 #include <format>
 #include <imgui.h>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -134,4 +134,4 @@ namespace tools::tilemap {
     }
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

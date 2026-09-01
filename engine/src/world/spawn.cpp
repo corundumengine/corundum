@@ -4,7 +4,7 @@
 #include <corundum/ecs/component/components.hpp>
 #include <corundum/ecs/world.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/resources/character_registry.hpp>
+#include <corundum/sprites/character_registry.hpp>
 #include <corundum/world/actors/actor.hpp>
 #include <corundum/world/scene.hpp>
 
@@ -27,9 +27,9 @@ namespace corundum::world {
     using corundum::ecs::Sprite;
     using corundum::ecs::Velocity;
     using corundum::ecs::World;
-    using corundum::resources::AnimId;
-    using corundum::resources::CharacterRegistry;
-    using corundum::resources::SpriteId;
+    using corundum::sprites::AnimId;
+    using corundum::sprites::CharacterRegistry;
+    using corundum::sprites::SpriteId;
 
     /// Spawn every actor in `actors`, adding (col_off,row_off) to each actor's tile coords.
     /// dw/dh are the active tilemap's diamond width/height (for bounding-box unit conversion).
@@ -42,14 +42,14 @@ namespace corundum::world {
         const float col = static_cast<float>(a.col + col_off);
         const float row_f = static_cast<float>(a.row + row_off);
         const SpriteId sid = registry.get_sprite_id(a.sprite_name);
-        if (sid == corundum::resources::k_null_sprite_id)
+        if (sid == corundum::sprites::k_null_sprite_id)
           return std::unexpected(std::format("[engine] unknown sprite '{}'", a.sprite_name));
 
         corundum::ecs::BoundingBox bb{};
         if (const auto *sd = registry.get_sprite_by_id(sid)) {
           if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
-            const int rfw = corundum::resources::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
-            const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
+            const int rfw = corundum::sprites::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
+            const int rfh = corundum::sprites::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
             const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
             const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
             bb.col_span = static_cast<float>(bb_w) / dw;
@@ -59,7 +59,7 @@ namespace corundum::world {
 
         Animation npc_anim{};
         if (const auto *sd = registry.get_sprite_by_id(sid)) {
-          for (uint8_t i = 0; i < corundum::resources::k_num_anim_ids; ++i)
+          for (uint8_t i = 0; i < corundum::sprites::k_num_anim_ids; ++i)
             npc_anim.frame_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
         }
 
@@ -105,7 +105,7 @@ namespace corundum::world {
   } // namespace
 
   std::expected<Scene, std::string> spawn_world(const corundum::core::GameConfig &cfg,
-                                                const corundum::resources::CharacterRegistry &registry,
+                                                const corundum::sprites::CharacterRegistry &registry,
                                                 const corundum::world::tilemap::Tilemap &tilemap,
                                                 std::optional<corundum::ecs::Position> player_pos,
                                                 bool spawn_file_actors) {
@@ -114,8 +114,8 @@ namespace corundum::world {
     using corundum::ecs::Sprite;
     using corundum::ecs::Velocity;
     using corundum::ecs::World;
-    using corundum::resources::AnimId;
-    using corundum::resources::SpriteId;
+    using corundum::sprites::AnimId;
+    using corundum::sprites::SpriteId;
 
     World world;
 
@@ -143,27 +143,27 @@ namespace corundum::world {
                                                 : Position{cfg.player.col, cfg.player.row});
 
     const SpriteId walk_sid = registry.get_sprite_id(cfg.player.walk_sprite);
-    if (walk_sid == corundum::resources::k_null_sprite_id)
+    if (walk_sid == corundum::sprites::k_null_sprite_id)
       return std::unexpected(std::format("[engine] unknown player walk sprite '{}' (game.json player.walk_sprite)",
                                          cfg.player.walk_sprite));
 
     const SpriteId idle_sid = registry.get_sprite_id(cfg.player.idle_sprite);
-    if (idle_sid == corundum::resources::k_null_sprite_id)
+    if (idle_sid == corundum::sprites::k_null_sprite_id)
       return std::unexpected(std::format("[engine] unknown player idle sprite '{}' (game.json player.idle_sprite)",
                                          cfg.player.idle_sprite));
 
-    std::array<uint8_t, corundum::resources::k_num_anim_ids> walk_counts{};
-    std::array<uint8_t, corundum::resources::k_num_anim_ids> idle_counts{};
+    std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_counts{};
+    std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_counts{};
     corundum::ecs::BoundingBox player_bb{};
     float walk_fd = 0.f;
     float idle_fd = 0.f;
 
     if (const auto *sd = registry.get_sprite_by_id(walk_sid)) {
-      for (uint8_t i = 0; i < corundum::resources::k_num_anim_ids; ++i)
+      for (uint8_t i = 0; i < corundum::sprites::k_num_anim_ids; ++i)
         walk_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
       if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
-        const int rfw = corundum::resources::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
-        const int rfh = corundum::resources::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
+        const int rfw = corundum::sprites::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
+        const int rfh = corundum::sprites::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
         const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
         const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
         // BoundingBox in tile-grid units from sprite pixel dimensions.
@@ -174,7 +174,7 @@ namespace corundum::world {
         walk_fd = 1.f / sd->fps;
     }
     if (const auto *sd = registry.get_sprite_by_id(idle_sid)) {
-      for (uint8_t i = 0; i < corundum::resources::k_num_anim_ids; ++i)
+      for (uint8_t i = 0; i < corundum::sprites::k_num_anim_ids; ++i)
         idle_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
       if (sd->fps > 0.f)
         idle_fd = 1.f / sd->fps;
@@ -208,8 +208,7 @@ namespace corundum::world {
   }
 
   void sync_chunk_actors(Scene &scene, const corundum::render::RenderState &render,
-                         const corundum::core::GameConfig &cfg,
-                         const corundum::resources::CharacterRegistry &registry) {
+                         const corundum::core::GameConfig &cfg, const corundum::sprites::CharacterRegistry &registry) {
     namespace tm = corundum::world::tilemap;
 
     if (render.mode != corundum::render::RenderMode::World)

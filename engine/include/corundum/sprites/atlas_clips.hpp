@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /** @brief Atlas clips sidecar JSON schema version. */
   inline constexpr int k_atlas_clips_schema_version = 1;
@@ -36,4 +36,4 @@ namespace corundum::resources {
    */
   [[nodiscard]] std::filesystem::path atlas_clips_sidecar_path(const std::filesystem::path &atlas_path);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

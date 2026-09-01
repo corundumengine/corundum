@@ -1,8 +1,8 @@
 #pragma once
-#include <corundum/resources/sprite_sheet_clips.hpp>
+#include <corundum/sprites/sprite_sheet_clips.hpp>
 #include <nlohmann/json.hpp>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /** @brief Serialize a sprite-sheet clips struct to JSON.
    *
@@ -13,4 +13,4 @@ namespace corundum::resources {
    */
   [[nodiscard]] nlohmann::json serialize_sprite_sheet_clips(const SpriteSheetClips &data);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

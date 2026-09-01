@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   using Id = uint16_t;
   inline constexpr Id k_null_sheet = 0;
@@ -140,4 +140,4 @@ namespace corundum::resources {
     std::array<std::vector<FrameCoord>, k_num_anim_ids> anim_frames; ///< Hot-path frame layout indexed by AnimId
   };
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

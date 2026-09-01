@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <string>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief Transient state for the New Tilemap creation dialog.
@@ -43,4 +43,4 @@ namespace tools::tilemap {
    */
   [[nodiscard]] std::expected<std::filesystem::path, std::string> write_new_tilemap_json(const NewMapDialogState &dlg);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

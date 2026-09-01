@@ -6,7 +6,7 @@
 #include <corundum/tool_host/tool_host.hpp>
 #include <vector>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   // ── TilemapTextureStore ───────────────────────────────────────────────────────
 
@@ -195,4 +195,4 @@ namespace tools::tilemap {
     return result;
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

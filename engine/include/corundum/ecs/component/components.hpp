@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
 #include <cmath>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -24,7 +24,7 @@ namespace corundum::ecs {
     float timer = 0.f;
     float frame_duration = 0.15f;
     /// Frame count per AnimId; cached at spawn from the character registry.
-    std::array<uint8_t, corundum::resources::k_num_anim_ids> frame_counts{};
+    std::array<uint8_t, corundum::sprites::k_num_anim_ids> frame_counts{};
   };
 
   /// Tile-grid position of an entity (feet position in fractional tile coordinates).
@@ -35,9 +35,9 @@ namespace corundum::ecs {
 
   /// Rendering component: identifies which sprite asset and animation frame to draw.
   struct Sprite {
-    corundum::resources::SpriteId sprite_id = corundum::resources::k_null_sprite_id; ///< Interned sprite asset.
-    corundum::resources::AnimId anim_id = corundum::resources::AnimId::Default;      ///< Current animation.
-    uint8_t frame_index = 0;                                                         ///< Frame within anim_id.
+    corundum::sprites::SpriteId sprite_id = corundum::sprites::k_null_sprite_id; ///< Interned sprite asset.
+    corundum::sprites::AnimId anim_id = corundum::sprites::AnimId::Default;      ///< Current animation.
+    uint8_t frame_index = 0;                                                     ///< Frame within anim_id.
   };
 
   /// Marks an entity as the trigger for a dialogue graph.

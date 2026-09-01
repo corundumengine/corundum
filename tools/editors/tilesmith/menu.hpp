@@ -5,7 +5,7 @@
 #include <corundum/tool_host/tool_host.hpp>
 #include <vector>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /** @brief Renders the top menu bar (File/Edit/View) and handles its actions in place.
    *
@@ -50,4 +50,4 @@ namespace tools::tilemap {
   void finish_map_load(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

@@ -1,10 +1,10 @@
 #pragma once
-#include <corundum/resources/sprite_sheet_clips.hpp>
+#include <corundum/sprites/sprite_sheet_clips.hpp>
 #include <expected>
 #include <filesystem>
 #include <string>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /** @brief Load a sprite-sheet clips JSON file.
    *
@@ -15,4 +15,4 @@ namespace corundum::resources {
    */
   [[nodiscard]] std::expected<SpriteSheetClips, std::string> load_sprite_sheet_clips(const std::filesystem::path &path);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

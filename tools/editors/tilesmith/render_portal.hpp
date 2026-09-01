@@ -2,7 +2,7 @@
 #include "editor_state.hpp"
 #include <corundum/tool_host/canvas_controller.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   using CanvasContext = corundum::tool_host::CanvasContext;
 
@@ -34,4 +34,4 @@ namespace tools::tilemap {
    */
   void render_portal_panel(EditorState &state);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

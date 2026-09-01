@@ -1,7 +1,7 @@
 #pragma once
 #include "editor_state.hpp"
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /// @brief Records the current state.map/state.portals/state.active_layer as a new undo checkpoint.
   ///
@@ -19,4 +19,4 @@ namespace tools::tilemap {
   /// @return false (no-op) if there is nothing to redo.
   bool apply_redo(EditorState &state);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

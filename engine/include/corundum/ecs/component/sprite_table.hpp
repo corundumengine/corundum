@@ -2,7 +2,7 @@
 #include <array>
 #include <corundum/ecs/component/sparse_index.hpp>
 #include <corundum/ecs/component/table_concepts.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <span>
 
 namespace corundum::ecs {
@@ -19,8 +19,8 @@ namespace corundum::ecs {
     SparseIndex<k_max> idx;
 
     // ── SoA fields (all hot — read every frame by the renderer) ────
-    std::array<corundum::resources::SpriteId, k_max> sprite_id{};
-    std::array<corundum::resources::AnimId, k_max> anim_id{};
+    std::array<corundum::sprites::SpriteId, k_max> sprite_id{};
+    std::array<corundum::sprites::AnimId, k_max> anim_id{};
     std::array<uint8_t, k_max> frame_index{};
 
     std::uint32_t count = 0;
@@ -64,7 +64,7 @@ namespace corundum::ecs {
      *  @param[in] fi  Initial frame index within the clip.
      *  @pre has(e) must be false.
      */
-    void insert(EntityId e, corundum::resources::SpriteId sid, corundum::resources::AnimId aid, uint8_t fi) noexcept {
+    void insert(EntityId e, corundum::sprites::SpriteId sid, corundum::sprites::AnimId aid, uint8_t fi) noexcept {
       idx.insert(e, count, [&](auto slot) {
         sprite_id[slot] = sid;
         anim_id[slot] = aid;
@@ -92,13 +92,13 @@ namespace corundum::ecs {
     }
 
     /** @brief Mutable reference to the sprite ID for @p e. @pre has(e). */
-    [[nodiscard]] corundum::resources::SpriteId &sprite_id_ref(EntityId e) noexcept {
+    [[nodiscard]] corundum::sprites::SpriteId &sprite_id_ref(EntityId e) noexcept {
       assert(has(e));
       return sprite_id[idx.dense_idx(e)];
     }
 
     /** @brief Mutable reference to the animation ID for @p e. @pre has(e). */
-    [[nodiscard]] corundum::resources::AnimId &anim_id_ref(EntityId e) noexcept {
+    [[nodiscard]] corundum::sprites::AnimId &anim_id_ref(EntityId e) noexcept {
       assert(has(e));
       return anim_id[idx.dense_idx(e)];
     }

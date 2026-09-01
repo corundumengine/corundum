@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -127,4 +127,4 @@ namespace tools::tilemap {
     return dest;
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

@@ -1,8 +1,8 @@
 #pragma once
-#include <corundum/resources/atlas_clips.hpp>
+#include <corundum/sprites/atlas_clips.hpp>
 #include <nlohmann/json.hpp>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /** @brief Serialize atlas clips data to JSON.
    *
@@ -13,4 +13,4 @@ namespace corundum::resources {
    */
   [[nodiscard]] nlohmann::json serialize_atlas_clips(const AtlasClipsData &data);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

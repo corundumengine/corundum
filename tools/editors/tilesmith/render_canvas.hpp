@@ -3,7 +3,7 @@
 #include <corundum/tool_host/canvas_controller.hpp>
 #include <functional>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   using CanvasContext = corundum::tool_host::CanvasContext;
 
@@ -23,4 +23,4 @@ namespace tools::tilemap {
    */
   void render_canvas(CanvasContext ctx, const EditorState &state, const MapRenderFn &render_map);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

@@ -2,7 +2,7 @@
 #include "editor_state.hpp"
 #include <imgui.h>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   /**
    * @brief Render inline animation preview content into the current ImGui window.
@@ -21,4 +21,4 @@ namespace tools::sprite {
   void render_anim_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h, bool has_texture,
                            float dt_seconds);
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

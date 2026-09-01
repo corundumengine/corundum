@@ -1,8 +1,8 @@
 #include <doctest/doctest.h>
 
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 
-namespace res = corundum::resources;
+namespace res = corundum::sprites;
 
 TEST_CASE("frame_origin: zero offset and spacing") {
   const res::IntPoint p = res::frame_origin(0, 0, 16, 16, 0, 0, 2, 3);

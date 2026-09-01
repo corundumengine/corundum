@@ -2,7 +2,7 @@
 #include "editor_state.hpp"
 #include <corundum/tool_host/ui_theme.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief Render the status bar at the bottom of the window.
@@ -15,4 +15,4 @@ namespace tools::tilemap {
    */
   void render_status_bar(const EditorState &state, const corundum::tool_host::ThemeColors &theme);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

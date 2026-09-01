@@ -2,7 +2,7 @@
 #include "coords.hpp"
 #include "layout.hpp"
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   void paint_or_erase_ramp(EditorState &state, int win_x, int win_y, bool erase) {
     if (state.map.tilesets.empty())
@@ -18,4 +18,4 @@ namespace tools::tilemap {
     state.dirty = true;
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

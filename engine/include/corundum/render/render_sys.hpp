@@ -10,7 +10,7 @@ namespace corundum::platform {
   class Renderer;
 }
 
-namespace corundum::resources {
+namespace corundum::sprites {
   class CharacterRegistry;
 }
 
@@ -53,7 +53,7 @@ namespace corundum::render {
    *  @post state.sprite_index is populated and ready for render_entities().
    */
   void load_sprite_index(corundum::platform::Renderer &r, render::RenderState &state,
-                         const corundum::resources::CharacterRegistry &registry);
+                         const corundum::sprites::CharacterRegistry &registry);
 
   /** @brief Load a TrueType font into the renderer and register it.
    *  @param[in,out] r      Renderer for font atlas creation.

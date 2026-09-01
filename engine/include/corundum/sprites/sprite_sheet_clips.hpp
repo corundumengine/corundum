@@ -1,10 +1,10 @@
 #pragma once
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 
 #include <string>
 #include <vector>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /** @brief One named animation clip — a sequence of frame coordinates. */
   struct AnimClip {
@@ -33,4 +33,4 @@ namespace corundum::resources {
     std::vector<AnimClip> clips;
   };
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

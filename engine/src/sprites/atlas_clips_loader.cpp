@@ -1,4 +1,4 @@
-#include <corundum/resources/atlas_clips_loader.hpp>
+#include <corundum/sprites/atlas_clips_loader.hpp>
 
 #include <format>
 #include <fstream>
@@ -7,7 +7,7 @@
 
 using json = nlohmann::json;
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   std::expected<AtlasClipsData, std::string> load_atlas_clips(const std::filesystem::path &path) {
     std::ifstream f(path);
@@ -79,4 +79,4 @@ namespace corundum::resources {
     return data;
   }
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

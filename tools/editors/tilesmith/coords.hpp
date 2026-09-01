@@ -16,7 +16,7 @@
   return map.diamond_h();
 }
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   // Number of half-diamonds of margin added to the computed virtual canvas
   // extent so the outermost tile diamond footprints aren't clipped by the
@@ -383,4 +383,4 @@ namespace tools::tilemap {
             std::clamp(offset_y, min_y, std::max(0.f, map_px_h - static_cast<float>(canvas_h)))};
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

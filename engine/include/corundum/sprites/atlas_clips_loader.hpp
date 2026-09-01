@@ -1,10 +1,10 @@
 #pragma once
-#include <corundum/resources/atlas_clips.hpp>
+#include <corundum/sprites/atlas_clips.hpp>
 #include <expected>
 #include <filesystem>
 #include <string>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /** @brief Load and validate an atlas clips sidecar JSON file.
    *
@@ -13,4 +13,4 @@ namespace corundum::resources {
    */
   [[nodiscard]] std::expected<AtlasClipsData, std::string> load_atlas_clips(const std::filesystem::path &path);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

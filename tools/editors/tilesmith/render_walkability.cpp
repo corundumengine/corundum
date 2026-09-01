@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <corundum/world/tilemap/walkability.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -63,4 +63,4 @@ namespace tools::tilemap {
     }
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

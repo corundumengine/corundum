@@ -1,7 +1,7 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/ecs/entity.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -47,7 +47,7 @@ namespace corundum::render {
      *  @param[in] frame_index Zero-based frame within the animation.
      *  @return Entry with texture_id, source_rect, walk_offset, or std::nullopt.
      */
-    [[nodiscard]] std::optional<Entry> get(corundum::resources::SpriteId sprite_id, corundum::resources::AnimId anim_id,
+    [[nodiscard]] std::optional<Entry> get(corundum::sprites::SpriteId sprite_id, corundum::sprites::AnimId anim_id,
                                            uint8_t frame_index) const noexcept;
   };
 

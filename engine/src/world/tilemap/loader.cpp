@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <corundum/resources/sprite_atlas.hpp>
+#include <corundum/sprites/sprite_atlas.hpp>
 #include <corundum/world/tilemap/loader.hpp>
 #include <flat_map>
 #include <format>
@@ -50,10 +50,10 @@ namespace corundum::world::tilemap {
     if (auto it = s_cache.find(key); it != s_cache.end())
       return it->second;
 
-    auto atlas_result = corundum::resources::load_sprite_atlas(tileset_path);
+    auto atlas_result = corundum::sprites::load_sprite_atlas(tileset_path);
     if (!atlas_result)
       return std::unexpected(atlas_result.error());
-    const corundum::resources::SpriteAtlas &atlas = *atlas_result;
+    const corundum::sprites::SpriteAtlas &atlas = *atlas_result;
 
     std::ifstream f(tileset_path);
     if (!f)

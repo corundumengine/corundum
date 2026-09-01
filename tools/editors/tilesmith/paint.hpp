@@ -2,7 +2,7 @@
 #include "editor_state.hpp"
 #include <corundum/world/tilemap/tilemap.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief Set a tile in a layer at (col, row). No-op if out of bounds.
@@ -57,4 +57,4 @@ namespace tools::tilemap {
    */
   void erase_rect(EditorState &state, int col_min, int row_min, int col_max, int row_max);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

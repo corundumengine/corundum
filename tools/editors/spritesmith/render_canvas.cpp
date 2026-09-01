@@ -3,7 +3,7 @@
 #include "layout.hpp"
 #include <algorithm>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   namespace {
 
@@ -147,4 +147,4 @@ namespace tools::sprite {
       draw_grid(ctx, state, tex, 0, 0);
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

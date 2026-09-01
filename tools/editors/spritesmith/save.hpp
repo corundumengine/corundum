@@ -3,7 +3,7 @@
 #include <expected>
 #include <string>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   /**
    * @brief Serialize the editor state to @p state.json_path.
@@ -19,4 +19,4 @@ namespace tools::sprite {
    */
   [[nodiscard]] std::expected<void, std::string> save_sheet(EditorState &state);
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

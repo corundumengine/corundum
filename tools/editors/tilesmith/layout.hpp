@@ -2,7 +2,7 @@
 
 /// @brief Tilesmith window and panel layout constants.
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   constexpr int k_menu_h = 26; ///< Height reserved for the top menu bar (matches STATUS_H).
   constexpr int WINDOW_W = 1900;
@@ -19,4 +19,4 @@ namespace tools::tilemap {
   constexpr float LAYER_BTN_ADD_X = PALETTE_W - 26.f; ///< Left edge of the "+" (add layer) button.
   constexpr float LAYER_BTN_DEL_X = PALETTE_W - 48.f; ///< Left edge of the "−" (delete layer) button.
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

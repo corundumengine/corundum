@@ -1,10 +1,10 @@
-#include <corundum/resources/character_registry.hpp>
-#include <corundum/resources/character_sheet_loader.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/character_registry.hpp>
+#include <corundum/sprites/character_sheet_loader.hpp>
+#include <corundum/sprites/sprite.hpp>
 
 namespace fs = std::filesystem;
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   std::expected<void, std::string> CharacterRegistry::load_all(const fs::path &index_path) {
     const fs::path characters_dir = index_path / "characters";
@@ -103,4 +103,4 @@ namespace corundum::resources {
     return sprite_by_id_[sid];
   }
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

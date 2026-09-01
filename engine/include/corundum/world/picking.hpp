@@ -10,7 +10,7 @@ namespace corundum::world {
   /**
    * @brief A tile-grid coordinate.
    *
-   * Distinct from tools::tilemap::TileCoord (Tilesmith is a separate codebase); this
+   * Distinct from tools::tilesmith::TileCoord (Tilesmith is a separate codebase); this
    * is the engine-side equivalent for picking results.
    */
   struct TileCoord {

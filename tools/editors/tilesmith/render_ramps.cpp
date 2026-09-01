@@ -1,7 +1,7 @@
 #include "render_ramps.hpp"
 #include "coords.hpp"
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -61,4 +61,4 @@ namespace tools::tilemap {
     draw_ramp_line(ctx, state, state.hover_tile_col, state.hover_tile_row, state.selected_ramp_axis, iso, k_color);
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

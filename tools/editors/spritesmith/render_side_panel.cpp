@@ -2,17 +2,17 @@
 #include "layout.hpp"
 #include <algorithm>
 #include <array>
-#include <corundum/resources/atlas_clips.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/atlas_clips.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <format>
 #include <imgui.h>
 #include <string>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   namespace {
 
-    using namespace corundum::resources;
+    using namespace corundum::sprites;
 
     // ---------------------------------------------------------------------------
     // Shared helpers
@@ -74,7 +74,7 @@ namespace tools::sprite {
         ImGui::TextDisabled("Size: %d x %d px", state.image_pixel_w, state.image_pixel_h);
       ImGui::TextDisabled("Sprites: %d", static_cast<int>(state.atlas_sprites.size()));
       ImGui::TextDisabled("Source: %s", state.json_path.string().c_str());
-      const auto sidecar = corundum::resources::atlas_clips_sidecar_path(state.json_path);
+      const auto sidecar = corundum::sprites::atlas_clips_sidecar_path(state.json_path);
       ImGui::TextDisabled("Save target: %s", sidecar.filename().string().c_str());
     }
 
@@ -527,4 +527,4 @@ namespace tools::sprite {
     ImGui::End();
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

@@ -5,7 +5,7 @@
 #include <corundum/ecs/component/motion_sprite_table.hpp>
 #include <corundum/ecs/component/sprite_table.hpp>
 #include <corundum/ecs/component/transform_table.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 
 #include <cmath>
 #include <memory>
@@ -15,7 +15,7 @@ namespace corundum::anim {
 
   namespace {
     using corundum::ecs::FacingDir;
-    using corundum::resources::AnimId;
+    using corundum::sprites::AnimId;
 
     inline constexpr std::array<FacingDir, 12> k_facing_table = {
         // zone 0 (row/vertical dominant: |dr| >> |dc|)
@@ -76,8 +76,8 @@ namespace corundum::anim {
     using corundum::ecs::MotionSpriteTable;
     using corundum::ecs::SpriteTable;
     using corundum::ecs::TransformTable;
-    using corundum::resources::AnimId;
-    using corundum::resources::SpriteId;
+    using corundum::sprites::AnimId;
+    using corundum::sprites::SpriteId;
 
     [[assume(animations.count <= std::remove_reference_t<decltype(animations)>::k_max)]];
     float *const timers = std::assume_aligned<16>(animations.timer.data());

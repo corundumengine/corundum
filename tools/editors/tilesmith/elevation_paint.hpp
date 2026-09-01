@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <corundum/world/tilemap/tilemap.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief Set a cell's elevation on a layer. No-op if out of bounds.
@@ -47,4 +47,4 @@ namespace tools::tilemap {
    */
   void paint_or_erase_elevation(EditorState &state, int win_x, int win_y, bool erase);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

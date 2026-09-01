@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /// Sprite atlas JSON schema version this engine understands. Must match spritepacker's
   /// k_metadata_schema_version exactly — there is no legacy atlas format to stay compatible with,
@@ -42,4 +42,4 @@ namespace corundum::resources {
   /// @return SpriteAtlas on success, or an error string on any parse or validation failure.
   [[nodiscard]] std::expected<SpriteAtlas, std::string> load_sprite_atlas(const std::filesystem::path &path);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

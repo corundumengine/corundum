@@ -5,7 +5,7 @@
 #include <corundum/ecs/component/components.hpp>
 #include <corundum/ecs/world.hpp>
 #include <corundum/physics/physics_sys.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera_system.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>

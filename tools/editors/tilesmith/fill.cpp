@@ -2,7 +2,7 @@
 #include "paint.hpp"
 #include "undo.hpp"
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   bool is_ground_layer(const corundum::world::tilemap::Tilemap &map, int layer_idx) noexcept {
     if (layer_idx < 0 || layer_idx >= static_cast<int>(map.layers.size()))
@@ -30,4 +30,4 @@ namespace tools::tilemap {
     return true;
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

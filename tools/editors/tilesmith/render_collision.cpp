@@ -3,7 +3,7 @@
 #include "layout.hpp"
 #include <utility>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -178,4 +178,4 @@ namespace tools::tilemap {
                   IM_COL32(255, 100, 60, 220));
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

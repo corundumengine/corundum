@@ -10,7 +10,7 @@ namespace corundum::tool_host {
   class ToolHost;
 }
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   using CanvasContext = corundum::tool_host::CanvasContext;
 
@@ -58,4 +58,4 @@ namespace tools::tilemap {
   /// Return a sorted, deduplicated list of z-indices that are > 0 (above-entity layers).
   [[nodiscard]] std::vector<int> above_z_indices(const corundum::world::tilemap::Tilemap &map) noexcept;
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

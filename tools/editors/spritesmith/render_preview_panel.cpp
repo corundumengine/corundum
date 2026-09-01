@@ -4,7 +4,7 @@
 #include <corundum/tool_host/tool_host.hpp>
 #include <imgui.h>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   void render_preview_panel(corundum::tool_host::ToolHost &host, const EditorState &state,
                             const corundum::platform::TextureInfo &tex, float dt_seconds) {
@@ -34,4 +34,4 @@ namespace tools::sprite {
     ImGui::End();
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

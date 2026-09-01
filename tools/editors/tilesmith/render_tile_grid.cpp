@@ -11,7 +11,7 @@
 #include <print>
 #include <string>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -419,4 +419,4 @@ namespace tools::tilemap {
     ImGui::End();
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

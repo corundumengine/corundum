@@ -9,7 +9,7 @@
 #include <imgui.h>
 #include <print>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
     void do_save(EditorState &state) {
@@ -181,4 +181,4 @@ namespace tools::tilemap {
     }
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

@@ -1,14 +1,14 @@
 #include "load.hpp"
-#include <corundum/resources/atlas_clips.hpp>
-#include <corundum/resources/atlas_clips_loader.hpp>
-#include <corundum/resources/character_sheet_loader.hpp>
-#include <corundum/resources/sprite_atlas.hpp>
-#include <corundum/resources/sprite_sheet_clips_loader.hpp>
+#include <corundum/sprites/atlas_clips.hpp>
+#include <corundum/sprites/atlas_clips_loader.hpp>
+#include <corundum/sprites/character_sheet_loader.hpp>
+#include <corundum/sprites/sprite_atlas.hpp>
+#include <corundum/sprites/sprite_sheet_clips_loader.hpp>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <print>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   namespace {
 
@@ -20,8 +20,8 @@ namespace tools::sprite {
       return SheetMode::SpriteSheet;
     }
 
-    void load_character(EditorState &state, const corundum::resources::CharacterSheetData &data) {
-      using namespace corundum::resources;
+    void load_character(EditorState &state, const corundum::sprites::CharacterSheetData &data) {
+      using namespace corundum::sprites;
       state.mode = SheetMode::Character;
       state.sheet_id = data.id;
       state.image_path = data.path;
@@ -49,7 +49,7 @@ namespace tools::sprite {
     }
 
     void load_sprite_sheet_mode(EditorState &state, const std::filesystem::path &path) {
-      auto result = corundum::resources::load_sprite_sheet_clips(path);
+      auto result = corundum::sprites::load_sprite_sheet_clips(path);
       if (!result)
         throw SheetLoadError(result.error());
       const auto &data = *result;
@@ -71,7 +71,7 @@ namespace tools::sprite {
     }
 
     void load_atlas_mode(EditorState &state, const std::filesystem::path &path) {
-      auto result = corundum::resources::load_sprite_atlas(path);
+      auto result = corundum::sprites::load_sprite_atlas(path);
       if (!result)
         throw SheetLoadError(result.error());
       const auto &atlas = *result;
@@ -87,9 +87,9 @@ namespace tools::sprite {
         state.atlas_name_to_index[state.atlas_sprites[static_cast<std::size_t>(i)].name] = i;
 
       state.atlas_clips.clear();
-      const auto sidecar_path = corundum::resources::atlas_clips_sidecar_path(path);
+      const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(path);
       if (std::filesystem::exists(sidecar_path)) {
-        auto clips_result = corundum::resources::load_atlas_clips(sidecar_path);
+        auto clips_result = corundum::sprites::load_atlas_clips(sidecar_path);
         if (!clips_result)
           throw SheetLoadError(clips_result.error());
         for (const auto &clip : clips_result->clips) {
@@ -123,7 +123,7 @@ namespace tools::sprite {
     if (mode == SheetMode::Atlas) {
       load_atlas_mode(state, path);
     } else if (mode == SheetMode::Character) {
-      auto result = corundum::resources::load_character_sheet(path);
+      auto result = corundum::sprites::load_character_sheet(path);
       if (!result)
         throw SheetLoadError(result.error());
       load_character(state, *result);
@@ -132,4 +132,4 @@ namespace tools::sprite {
     }
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

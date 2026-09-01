@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <string>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /** @brief Serialize state.map to state.map_path using engine serializers.
    *
@@ -50,4 +50,4 @@ namespace tools::tilemap {
    */
   [[nodiscard]] std::expected<void, std::string> load_portals(EditorState &state);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

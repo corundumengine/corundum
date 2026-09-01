@@ -3,7 +3,7 @@
 #include <corundum/tool_host/canvas_controller.hpp>
 #include <imgui.h>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   using CanvasContext = corundum::tool_host::CanvasContext;
 
@@ -21,4 +21,4 @@ namespace tools::sprite {
    */
   void render_canvas(CanvasContext ctx, const EditorState &state, ImTextureID tex, bool has_texture);
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

@@ -11,7 +11,7 @@
 #include <nlohmann/json.hpp>
 #include <print>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   std::expected<void, std::string> save_tilemap(EditorState &state) {
     // 1. Read existing JSON for base-merge (preserves unknown keys), or start from an empty
@@ -93,4 +93,4 @@ namespace tools::tilemap {
     return {};
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

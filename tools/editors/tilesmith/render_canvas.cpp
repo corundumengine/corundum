@@ -7,7 +7,7 @@
 
 #include <corundum/core/math/vec.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -101,4 +101,4 @@ namespace tools::tilemap {
       render_walkability_overlay(ctx, state);
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

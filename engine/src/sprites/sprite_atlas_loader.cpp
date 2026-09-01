@@ -1,4 +1,4 @@
-#include <corundum/resources/sprite_atlas.hpp>
+#include <corundum/sprites/sprite_atlas.hpp>
 
 #include <format>
 #include <fstream>
@@ -8,7 +8,7 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   std::expected<SpriteAtlas, std::string> load_sprite_atlas(const fs::path &path) {
     std::ifstream f(path);
@@ -118,4 +118,4 @@ namespace corundum::resources {
     return atlas;
   }
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

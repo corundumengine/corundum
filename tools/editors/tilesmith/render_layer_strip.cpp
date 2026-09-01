@@ -2,7 +2,7 @@
 #include "layout.hpp"
 #include <imgui.h>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   using namespace corundum::tool_host;
 
@@ -85,4 +85,4 @@ namespace tools::tilemap {
     ImGui::Dummy({0.f, 0.f});
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

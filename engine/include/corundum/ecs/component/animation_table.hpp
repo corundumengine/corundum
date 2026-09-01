@@ -3,7 +3,7 @@
 #include <array>
 #include <corundum/ecs/component/sparse_index.hpp>
 #include <corundum/ecs/component/table_concepts.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <span>
 
 namespace corundum::ecs {
@@ -28,7 +28,7 @@ namespace corundum::ecs {
 
     // ── Lukewarm: frame_counts[entity_idx * k_num_anim_ids + anim_id] ──
     // Read on animation transition; cached at spawn from character registry.
-    std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::resources::k_num_anim_ids> frame_counts{};
+    std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::sprites::k_num_anim_ids> frame_counts{};
 
     std::uint32_t count = 0;
 
@@ -62,8 +62,8 @@ namespace corundum::ecs {
       idx.insert(e, count, [&](auto slot) {
         timer[slot] = 0.f;
         frame_duration[slot] = 0.15f;
-        auto *fc = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
-        std::fill_n(fc, corundum::resources::k_num_anim_ids, uint8_t{0});
+        auto *fc = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
+        std::fill_n(fc, corundum::sprites::k_num_anim_ids, uint8_t{0});
       });
     }
 
@@ -75,9 +75,9 @@ namespace corundum::ecs {
       idx.remove(e, count, [&](auto slot, auto last) {
         timer[slot] = timer[last];
         frame_duration[slot] = frame_duration[last];
-        auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
-        const auto *src = &frame_counts[static_cast<std::size_t>(last) * corundum::resources::k_num_anim_ids];
-        std::copy_n(src, corundum::resources::k_num_anim_ids, dst);
+        auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
+        const auto *src = &frame_counts[static_cast<std::size_t>(last) * corundum::sprites::k_num_anim_ids];
+        std::copy_n(src, corundum::sprites::k_num_anim_ids, dst);
       });
     }
 
@@ -98,10 +98,10 @@ namespace corundum::ecs {
      *  @param[in] aid Animation clip ID.
      *  @pre has(e) must be true.
      */
-    [[nodiscard]] uint8_t frame_count(EntityId e, corundum::resources::AnimId aid) const noexcept {
+    [[nodiscard]] uint8_t frame_count(EntityId e, corundum::sprites::AnimId aid) const noexcept {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
-      return frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids +
+      return frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids +
                           static_cast<uint8_t>(aid)];
     }
 
@@ -110,11 +110,11 @@ namespace corundum::ecs {
      *  @param[in] counts Array indexed by AnimId; 0 means the clip is absent.
      *  @pre has(e) must be true.
      */
-    void set_frame_counts(EntityId e, const std::array<uint8_t, corundum::resources::k_num_anim_ids> &counts) noexcept {
+    void set_frame_counts(EntityId e, const std::array<uint8_t, corundum::sprites::k_num_anim_ids> &counts) noexcept {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
-      auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::resources::k_num_anim_ids];
-      std::copy_n(counts.data(), corundum::resources::k_num_anim_ids, dst);
+      auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
+      std::copy_n(counts.data(), corundum::sprites::k_num_anim_ids, dst);
     }
   };
 

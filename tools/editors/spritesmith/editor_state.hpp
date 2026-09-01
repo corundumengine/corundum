@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
-#include <corundum/resources/sprite.hpp>
-#include <corundum/resources/sprite_atlas.hpp>
+#include <corundum/sprites/sprite.hpp>
+#include <corundum/sprites/sprite_atlas.hpp>
 #include <corundum/tool_host/canvas_controller.hpp>
 #include <corundum/tool_host/undo.hpp>
 #include <filesystem>
@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   /**
    * @brief Selects between character animation sheet, flat sprite sheet, and read-only atlas.
@@ -31,15 +31,15 @@ namespace tools::sprite {
     float walk_around_offset = 0.6f; ///< Fractional Y offset defining the feet anchor.
     float fps = 0.f;                 ///< Playback rate override; 0 = use engine default.
     /// Per-animation frame sequences, indexed by AnimId.
-    std::array<std::vector<corundum::resources::FrameCoord>, corundum::resources::k_num_anim_ids> anim_frames;
+    std::array<std::vector<corundum::sprites::FrameCoord>, corundum::sprites::k_num_anim_ids> anim_frames;
   };
 
   /**
    * @brief A named animation clip within a sprite sheet sheet.
    */
   struct AnimClip {
-    std::string name;                                    ///< Clip name.
-    std::vector<corundum::resources::FrameCoord> frames; ///< Ordered frame coordinates.
+    std::string name;                                  ///< Clip name.
+    std::vector<corundum::sprites::FrameCoord> frames; ///< Ordered frame coordinates.
   };
 
   /**
@@ -94,9 +94,8 @@ namespace tools::sprite {
     // ---- Character mode -----------------------------------------------------
     std::vector<SpriteDefinition> sprites; ///< All sprite definitions in the sheet.
     int selected_sprite = -1;              ///< Index of the active sprite, or -1.
-    corundum::resources::AnimId selected_anim =
-        corundum::resources::AnimId::South; ///< Animation being viewed/recorded.
-    bool anim_recording = false;            ///< True while recording frames into selected_anim.
+    corundum::sprites::AnimId selected_anim = corundum::sprites::AnimId::South; ///< Animation being viewed/recorded.
+    bool anim_recording = false; ///< True while recording frames into selected_anim.
 
     // ---- Sprite Sheet mode -------------------------------------------------------
     int columns = 0;                  ///< Number of tile columns (stored in sprite sheet JSON).
@@ -107,10 +106,10 @@ namespace tools::sprite {
     bool clip_recording = false;      ///< True while recording frames into selected_clip.
 
     // ---- Atlas mode (read-only geometry, sidecar-backed clips) --------------
-    std::vector<corundum::resources::AtlasSprite> atlas_sprites; ///< Read-only, from the atlas JSON.
-    std::unordered_map<std::string, int> atlas_name_to_index;    ///< Sprite name -> atlas_sprites index.
-    std::vector<AtlasAnimClip> atlas_clips;                      ///< Authored clips (sidecar-backed).
-    int selected_atlas_clip = -1;                                ///< Index of the active clip, or -1.
+    std::vector<corundum::sprites::AtlasSprite> atlas_sprites; ///< Read-only, from the atlas JSON.
+    std::unordered_map<std::string, int> atlas_name_to_index;  ///< Sprite name -> atlas_sprites index.
+    std::vector<AtlasAnimClip> atlas_clips;                    ///< Authored clips (sidecar-backed).
+    int selected_atlas_clip = -1;                              ///< Index of the active clip, or -1.
     bool atlas_clip_recording = false;                       ///< True while recording frames into selected_atlas_clip.
     int hover_sprite = -1;                                   ///< atlas_sprites index under the cursor, or -1.
     int selected_atlas_sprite = -1;                          ///< Focused entry in the sprite list panel, or -1.
@@ -127,4 +126,4 @@ namespace tools::sprite {
     int hover_row = -1; ///< Frame row under the cursor, or -1.
   };
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

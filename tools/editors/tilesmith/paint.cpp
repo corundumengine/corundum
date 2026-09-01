@@ -2,7 +2,7 @@
 #include "coords.hpp"
 #include "layout.hpp"
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   void paint_or_erase(EditorState &state, int win_x, int win_y, bool erase) {
     if (state.map.tilesets.empty())
@@ -24,4 +24,4 @@ namespace tools::tilemap {
         set_tile(state, state.active_layer, col, row, corundum::world::tilemap::k_empty_tile);
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

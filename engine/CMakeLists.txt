@@ -2,15 +2,15 @@
 add_library(engine STATIC
     src/engine.cpp
     src/engine_factory.cpp
-    src/resources/atlas_clips.cpp
-    src/resources/atlas_clips_loader.cpp
-    src/resources/atlas_clips_serializer.cpp
-    src/resources/character_registry.cpp
-    src/resources/character_sheet_loader.cpp
-    src/resources/character_sheet_serializer.cpp
-    src/resources/sprite_atlas_loader.cpp
-    src/resources/sprite_sheet_clips_loader.cpp
-    src/resources/sprite_sheet_clips_serializer.cpp
+    src/sprites/atlas_clips.cpp
+    src/sprites/atlas_clips_loader.cpp
+    src/sprites/atlas_clips_serializer.cpp
+    src/sprites/character_registry.cpp
+    src/sprites/character_sheet_loader.cpp
+    src/sprites/character_sheet_serializer.cpp
+    src/sprites/sprite_atlas_loader.cpp
+    src/sprites/sprite_sheet_clips_loader.cpp
+    src/sprites/sprite_sheet_clips_serializer.cpp
     src/dialogue/action.cpp
     src/dialogue/expr.cpp
     src/dialogue/loader.cpp

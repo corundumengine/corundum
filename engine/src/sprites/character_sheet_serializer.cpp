@@ -1,12 +1,12 @@
-#include <corundum/resources/character_sheet_serializer.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/character_sheet_serializer.hpp>
+#include <corundum/sprites/sprite.hpp>
 
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
-using namespace corundum::resources;
+using namespace corundum::sprites;
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   json serialize_character_sheet(const CharacterSheetData &data) {
     json j;
@@ -47,4 +47,4 @@ namespace corundum::resources {
     return j;
   }
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

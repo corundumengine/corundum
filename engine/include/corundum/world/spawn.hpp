@@ -1,7 +1,7 @@
 #pragma once
 #include <corundum/core/game_config.hpp>
 #include <corundum/ecs/component/components.hpp>
-#include <corundum/resources/character_registry.hpp>
+#include <corundum/sprites/character_registry.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
@@ -32,7 +32,7 @@ namespace corundum::world {
    *         or std::unexpected with an error description on failure.
    */
   [[nodiscard]] std::expected<Scene, std::string>
-  spawn_world(const corundum::core::GameConfig &cfg, const corundum::resources::CharacterRegistry &registry,
+  spawn_world(const corundum::core::GameConfig &cfg, const corundum::sprites::CharacterRegistry &registry,
               const corundum::world::tilemap::Tilemap &tilemap,
               std::optional<corundum::ecs::Position> player_pos = std::nullopt, bool spawn_file_actors = true);
 
@@ -44,6 +44,6 @@ namespace corundum::world {
    *        mode == World, chunks are loaded, and the player is free-roaming.
    */
   void sync_chunk_actors(Scene &scene, const corundum::render::RenderState &render,
-                         const corundum::core::GameConfig &cfg, const corundum::resources::CharacterRegistry &registry);
+                         const corundum::core::GameConfig &cfg, const corundum::sprites::CharacterRegistry &registry);
 
 } // namespace corundum::world

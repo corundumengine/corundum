@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   void push_undo_checkpoint(EditorState &state) {
     state.undo.push(TilemapDoc{state.map, state.portals});
@@ -57,4 +57,4 @@ namespace tools::tilemap {
     return true;
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

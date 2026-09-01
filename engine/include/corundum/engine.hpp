@@ -15,7 +15,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/resources/character_registry.hpp>
+#include <corundum/sprites/character_registry.hpp>
 
 #include <expected>
 #include <functional>
@@ -60,7 +60,7 @@ namespace corundum {
     render::RenderState render;
 
     core::GameConfig cfg;
-    resources::CharacterRegistry characters;
+    sprites::CharacterRegistry characters;
     corundum::world::FlagStore flags;
     dialogue::Registry graphs;
     item::Registry items;

@@ -4,8 +4,8 @@
 #include <corundum/core/json_io.hpp>
 #include <corundum/ecs/component/transform_table.hpp>
 #include <corundum/item/registry.hpp>
-#include <corundum/resources/character_registry.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/character_registry.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/prompt_box.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -27,12 +27,12 @@
 #include <unordered_map>
 
 using corundum::core::math::IntRect;
-using corundum::resources::AnimId;
-using corundum::resources::k_null_sprite_id;
-using corundum::resources::k_num_anim_ids;
-using corundum::resources::rendered_frame_height;
-using corundum::resources::rendered_frame_width;
-using corundum::resources::SpriteId;
+using corundum::sprites::AnimId;
+using corundum::sprites::k_null_sprite_id;
+using corundum::sprites::k_num_anim_ids;
+using corundum::sprites::rendered_frame_height;
+using corundum::sprites::rendered_frame_width;
+using corundum::sprites::SpriteId;
 
 // ── SpriteFrameIndex::get (data layer method) ────────────────────────────────
 
@@ -112,7 +112,7 @@ namespace corundum::render {
   // ── load_sprite_index ────────────────────────────────────────────────────────
 
   void load_sprite_index(corundum::platform::Renderer &r, render::RenderState &state,
-                         const corundum::resources::CharacterRegistry &registry) {
+                         const corundum::sprites::CharacterRegistry &registry) {
     SpriteId max_id = 0;
     for (const auto &[name, frm] : registry.frames())
       if (frm.sprite_id > max_id)
@@ -125,7 +125,7 @@ namespace corundum::render {
     state.sprite_index.anim_frame_counts.assign(num_slots, 0);
     state.sprite_index.frame_rects.clear();
 
-    std::unordered_map<corundum::resources::Id, uint32_t> sheet_tex;
+    std::unordered_map<corundum::sprites::Id, uint32_t> sheet_tex;
     for (const auto &[sheet_id, sheet] : registry.sheets()) {
       auto result = r.load_texture(sheet.path);
       if (result.has_value()) {
@@ -139,7 +139,7 @@ namespace corundum::render {
     for (const auto &[name, frm] : registry.frames()) {
       if (frm.sprite_id == k_null_sprite_id)
         continue;
-      const corundum::resources::SpriteSheet *sheet = registry.get_sheet(frm.sheet_id);
+      const corundum::sprites::SpriteSheet *sheet = registry.get_sheet(frm.sheet_id);
       if (!sheet)
         continue;
       const auto tex_it = sheet_tex.find(frm.sheet_id);
@@ -161,7 +161,7 @@ namespace corundum::render {
         state.sprite_index.anim_offsets[slot] = static_cast<uint32_t>(state.sprite_index.frame_rects.size());
         state.sprite_index.anim_frame_counts[slot] = static_cast<uint8_t>(coords.size());
         for (const auto &c : coords) {
-          const resources::IntPoint origin = frame_origin(*sheet, c);
+          const sprites::IntPoint origin = frame_origin(*sheet, c);
           state.sprite_index.frame_rects.push_back(IntRect{origin.x, origin.y, fw, fh});
         }
       }

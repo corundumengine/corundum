@@ -18,8 +18,8 @@ using corundum::tool_host::ApplyEditorThemeRefined;
 using corundum::tool_host::load_theme;
 using corundum::tool_host::MouseState;
 using corundum::tool_host::ThemeColors;
-using tools::sprite::CanvasContext;
-using tools::sprite::EditorState;
+using tools::spritesmith::CanvasContext;
+using tools::spritesmith::EditorState;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -47,7 +47,7 @@ static void try_load_texture(corundum::tool_host::ToolHost &host, EditorState &s
   state.image_pixel_w = static_cast<int>(texture.width);
   state.image_pixel_h = static_cast<int>(texture.height);
 
-  if (state.mode == tools::sprite::SheetMode::SpriteSheet && state.columns == 0 && state.frame_width > 0) {
+  if (state.mode == tools::spritesmith::SheetMode::SpriteSheet && state.columns == 0 && state.frame_width > 0) {
     const int step_x = state.frame_width + state.spacing_x;
     const int step_y = state.frame_height + state.spacing_y;
     state.columns = (state.image_pixel_w - state.offset_x + state.spacing_x) / step_x;
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
   EditorState state;
   if (argc == 2) {
     try {
-      tools::sprite::load_sheet(state, argv[1]);
+      tools::spritesmith::load_sheet(state, argv[1]);
     } catch (const std::exception &e) {
       std::println(stderr, "[Spritesmith] FATAL: {}", e.what());
       return 1;
@@ -87,7 +87,8 @@ int main(int argc, char *argv[]) {
                                 ? std::string("Spritesmith :: ") + std::filesystem::path(argv[1]).filename().string()
                                 : "Spritesmith :: Untitled";
 
-  auto host_result = corundum::tool_host::ToolHost::create({tools::sprite::WINDOW_W, tools::sprite::WINDOW_H, title});
+  auto host_result =
+      corundum::tool_host::ToolHost::create({tools::spritesmith::WINDOW_W, tools::spritesmith::WINDOW_H, title});
   if (!host_result) {
     std::println(stderr, "[Spritesmith] FATAL: {}", host_result.error());
     return 1;
@@ -104,7 +105,7 @@ int main(int argc, char *argv[]) {
   }
 
   corundum::platform::TextureInfo checkerboard = host->make_checkerboard(
-      static_cast<unsigned>(tools::sprite::CANVAS_W), static_cast<unsigned>(tools::sprite::CANVAS_H), 8);
+      static_cast<unsigned>(tools::spritesmith::CANVAS_W), static_cast<unsigned>(tools::spritesmith::CANVAS_H), 8);
 
   corundum::platform::TextureInfo sprite_texture;
   std::string loaded_path;
@@ -116,9 +117,9 @@ int main(int argc, char *argv[]) {
 
     if (has_texture) {
       state.canvas.offset_x = std::max(0.f, static_cast<float>(state.image_pixel_w) * state.canvas.scale * 0.5f -
-                                                static_cast<float>(tools::sprite::CANVAS_W) * 0.5f);
+                                                static_cast<float>(tools::spritesmith::CANVAS_W) * 0.5f);
       state.canvas.offset_y = std::max(0.f, static_cast<float>(state.image_pixel_h) * state.canvas.scale * 0.5f -
-                                                static_cast<float>(tools::sprite::CANVAS_H) * 0.5f);
+                                                static_cast<float>(tools::spritesmith::CANVAS_H) * 0.5f);
     }
   }
 
@@ -151,9 +152,10 @@ int main(int argc, char *argv[]) {
     ImGui::PopStyleVar(2);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
-    ImGui::BeginChild("##canvas",
-                      {static_cast<float>(tools::sprite::CANVAS_W), static_cast<float>(tools::sprite::CANVAS_H)}, false,
-                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::BeginChild(
+        "##canvas",
+        {static_cast<float>(tools::spritesmith::CANVAS_W), static_cast<float>(tools::spritesmith::CANVAS_H)}, false,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     {
       ImDrawList *dl = ImGui::GetWindowDrawList();
       const ImVec2 origin = ImGui::GetWindowPos();
@@ -163,13 +165,14 @@ int main(int argc, char *argv[]) {
       // touches ImGui's own scroll state. (See render_canvas.cpp: draw positions
       // subtract state.canvas.offset_x/y manually; ImGui scroll plays no part.)
 
-      dl->PushClipRect(origin, {origin.x + tools::sprite::CANVAS_W, origin.y + tools::sprite::CANVAS_H}, true);
+      dl->PushClipRect(origin, {origin.x + tools::spritesmith::CANVAS_W, origin.y + tools::spritesmith::CANVAS_H},
+                       true);
 
       dl->AddImage(host->imgui_id(checkerboard.id), origin,
-                   {origin.x + tools::sprite::CANVAS_W, origin.y + tools::sprite::CANVAS_H});
+                   {origin.x + tools::spritesmith::CANVAS_W, origin.y + tools::spritesmith::CANVAS_H});
 
       CanvasContext ctx{dl, origin};
-      tools::sprite::render_canvas(ctx, state, host->imgui_id(sprite_texture.id), has_texture);
+      tools::spritesmith::render_canvas(ctx, state, host->imgui_id(sprite_texture.id), has_texture);
 
       dl->PopClipRect();
     }
@@ -179,22 +182,22 @@ int main(int argc, char *argv[]) {
     ImGui::SameLine(0.f, 0.f);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
-    ImGui::BeginChild("##panel",
-                      {static_cast<float>(tools::sprite::PANEL_W), static_cast<float>(tools::sprite::CANVAS_H)}, false,
-                      ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild(
+        "##panel", {static_cast<float>(tools::spritesmith::PANEL_W), static_cast<float>(tools::spritesmith::CANVAS_H)},
+        false, ImGuiWindowFlags_NoScrollbar);
     {
       ImDrawList *dl = ImGui::GetWindowDrawList();
       const ImVec2 sep = ImGui::GetCursorScreenPos();
-      dl->AddRectFilled(sep, {sep.x + 1.f, sep.y + static_cast<float>(tools::sprite::CANVAS_H)},
+      dl->AddRectFilled(sep, {sep.x + 1.f, sep.y + static_cast<float>(tools::spritesmith::CANVAS_H)},
                         IM_COL32(80, 80, 100, 255));
 
-      tools::sprite::render_side_panel(state, fonts, theme);
-      tools::sprite::render_preview_panel(*host, state, sprite_texture, io.DeltaTime);
+      tools::spritesmith::render_side_panel(state, fonts, theme);
+      tools::spritesmith::render_preview_panel(*host, state, sprite_texture, io.DeltaTime);
     }
     ImGui::EndChild();
     ImGui::PopStyleVar();
 
-    tools::sprite::render_status_bar(state);
+    tools::spritesmith::render_status_bar(state);
 
     ImGui::End();
   });

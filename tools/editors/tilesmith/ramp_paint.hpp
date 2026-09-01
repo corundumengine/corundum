@@ -3,7 +3,7 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <optional>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief Set or erase a cell's ramp axis on a layer. No-op if out of bounds.
@@ -42,4 +42,4 @@ namespace tools::tilemap {
    */
   void paint_or_erase_ramp(EditorState &state, int win_x, int win_y, bool erase);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

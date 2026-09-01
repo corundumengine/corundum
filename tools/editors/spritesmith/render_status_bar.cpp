@@ -3,7 +3,7 @@
 #include <format>
 #include <imgui.h>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   void render_status_bar(const EditorState &state) {
     const ImGuiIO &io = ImGui::GetIO();
@@ -39,4 +39,4 @@ namespace tools::sprite {
     ImGui::EndChild();
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

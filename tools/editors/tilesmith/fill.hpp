@@ -2,7 +2,7 @@
 #include "editor_state.hpp"
 #include <corundum/world/tilemap/tilemap.hpp>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief True when @p layer_idx refers to the map's base/ground layer (z_index == 0).
@@ -25,4 +25,4 @@ namespace tools::tilemap {
    */
   [[nodiscard]] bool fill_ground_layer(EditorState &state, corundum::world::tilemap::TileId gid, uint8_t flip);
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

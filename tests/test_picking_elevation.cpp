@@ -6,8 +6,8 @@
 
 namespace tilemap = corundum::world::tilemap;
 using corundum::core::math::Vec2;
-using tools::tilemap::pixel_to_fractional_tile;
-using tools::tilemap::screen_to_tile;
+using tools::tilesmith::pixel_to_fractional_tile;
+using tools::tilesmith::screen_to_tile;
 
 namespace {
 
@@ -86,7 +86,7 @@ TEST_CASE("pixel_to_fractional_tile — elevated cell picks itself, not its flat
 TEST_CASE("screen_to_tile — elevated cell returns correct tile, not flat-projected neighbor") {
   // Verifies the higher-level screen_to_tile wrapper also benefits from elev-aware picking.
   const tilemap::Tilemap tm = make_map_with_elevated_corner(5);
-  const std::optional<tools::tilemap::TileCoord> tile =
+  const std::optional<tools::tilesmith::TileCoord> tile =
       screen_to_tile(/*px=*/544, /*py=*/12, /*canvas_left=*/0, /*canvas_top=*/0,
                      /*canvas_w=*/1024, /*canvas_h=*/768, /*camera_x=*/0.f, /*camera_y=*/0.f, /*tile_scale=*/1.f,
                      /*elev_step=*/4.f, /*map_w=*/16, /*map_h=*/16, /*tw=*/64, /*dh=*/32, tm);
@@ -105,7 +105,7 @@ TEST_CASE("screen_to_tile — flat map baseline (no regression)") {
   const float world_y_center = 16.f * 16.f + 16.f;          // 256 + 16 = 272 (diamond center)
   const int px = 0 + 64 + x_origin;                         // 544
   const int py = 0 + 16 + static_cast<int>(world_y_center); // 288
-  const std::optional<tools::tilemap::TileCoord> tile =
+  const std::optional<tools::tilesmith::TileCoord> tile =
       screen_to_tile(px, py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh, tm);
   REQUIRE(tile.has_value());
   CHECK(tile->col == 8);
@@ -143,7 +143,7 @@ TEST_CASE(
   constexpr int py = 12;
 
   // Elevation-aware overload: picks the raised cell.
-  const std::optional<tools::tilemap::TileCoord> elev_tile =
+  const std::optional<tools::tilesmith::TileCoord> elev_tile =
       screen_to_tile(px, py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh, tm);
   REQUIRE(elev_tile.has_value());
   CHECK(elev_tile->col == 0);
@@ -152,7 +152,7 @@ TEST_CASE(
   // Flat overload: must NOT pick (0, 0) — that's the whole bug. We don't pin
   // down exactly which off-by-one cell it picks (depends on elev/elev_step
   // arithmetic details); the relevant property is "wrong, not (0, 0)".
-  const std::optional<tools::tilemap::TileCoord> flat_tile =
+  const std::optional<tools::tilesmith::TileCoord> flat_tile =
       screen_to_tile(px, py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh);
   if (flat_tile.has_value()) {
     CHECK((flat_tile->col != elev_tile->col || flat_tile->row != elev_tile->row));

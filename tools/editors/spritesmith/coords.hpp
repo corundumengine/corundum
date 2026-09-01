@@ -1,14 +1,14 @@
 #pragma once
 #include <algorithm>
-#include <corundum/resources/sprite.hpp>
-#include <corundum/resources/sprite_atlas.hpp>
+#include <corundum/sprites/sprite.hpp>
+#include <corundum/sprites/sprite_atlas.hpp>
 #include <optional>
 #include <span>
 #include <utility>
 
 // Pure coordinate math — no GLFW, no I/O, no rendering.
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   /**
    * @brief Canvas-space bounding rectangle for a single frame cell.
@@ -39,7 +39,7 @@ namespace tools::sprite {
    * @param img_rows       Total number of frame rows in the sheet.
    * @return Frame coordinate on success; nullopt if outside bounds or in spacing.
    */
-  [[nodiscard]] inline std::optional<corundum::resources::FrameCoord>
+  [[nodiscard]] inline std::optional<corundum::sprites::FrameCoord>
   screen_to_frame(int px, int py, int canvas_w, int canvas_h, float camera_x, float camera_y, float zoom, int frame_w,
                   int frame_h, int offset_x, int offset_y, int spacing_x, int spacing_y, int img_cols,
                   int img_rows) noexcept {
@@ -68,7 +68,7 @@ namespace tools::sprite {
 
     if (col < 0 || col >= img_cols || row < 0 || row >= img_rows)
       return std::nullopt;
-    return corundum::resources::FrameCoord{col, row};
+    return corundum::sprites::FrameCoord{col, row};
   }
 
   /**
@@ -90,8 +90,8 @@ namespace tools::sprite {
   [[nodiscard]] inline FrameRect frame_to_canvas_rect(int col, int row, float camera_x, float camera_y, float zoom,
                                                       int frame_w, int frame_h, int offset_x, int offset_y,
                                                       int spacing_x, int spacing_y) noexcept {
-    const corundum::resources::IntPoint origin =
-        corundum::resources::frame_origin(offset_x, offset_y, frame_w, frame_h, spacing_x, spacing_y, col, row);
+    const corundum::sprites::IntPoint origin =
+        corundum::sprites::frame_origin(offset_x, offset_y, frame_w, frame_h, spacing_x, spacing_y, col, row);
     const float x = static_cast<float>(origin.x) * zoom - camera_x;
     const float y = static_cast<float>(origin.y) * zoom - camera_y;
     return {x, y, static_cast<float>(frame_w) * zoom, static_cast<float>(frame_h) * zoom};
@@ -113,7 +113,7 @@ namespace tools::sprite {
    */
   [[nodiscard]] inline int sprite_at_point(int px, int py, int canvas_w, int canvas_h, float camera_x, float camera_y,
                                            float zoom,
-                                           std::span<const corundum::resources::AtlasSprite> sprites) noexcept {
+                                           std::span<const corundum::sprites::AtlasSprite> sprites) noexcept {
     if (px < 0 || px >= canvas_w || py < 0 || py >= canvas_h || zoom <= 0.f)
       return -1;
 
@@ -147,4 +147,4 @@ namespace tools::sprite {
     return {std::clamp(cx, 0.f, max_x), std::clamp(cy, 0.f, max_y)};
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

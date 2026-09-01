@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <corundum/resources/character_sheet_loader.hpp>
+#include <corundum/sprites/character_sheet_loader.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -43,7 +43,7 @@ TEST_CASE("load_character_sheet — valid sheet parses correctly") {
   const auto path = dir / "sheet.json";
   write_file(path, VALID_SHEET_JSON);
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   REQUIRE(result.has_value());
   const auto &data = *result;
   CHECK(data.id == "test_char");
@@ -63,8 +63,8 @@ TEST_CASE("load_character_sheet — valid sheet parses correctly") {
   CHECK(sprite.collision_h == 32);
   CHECK(sprite.walk_around_offset == doctest::Approx(0.5f));
   CHECK(sprite.fps == doctest::Approx(8.f));
-  REQUIRE(sprite.anim_frames[static_cast<uint8_t>(corundum::resources::AnimId::South)].size() == 2);
-  CHECK(sprite.anim_frames[static_cast<uint8_t>(corundum::resources::AnimId::East)].size() == 1);
+  REQUIRE(sprite.anim_frames[static_cast<uint8_t>(corundum::sprites::AnimId::South)].size() == 2);
+  CHECK(sprite.anim_frames[static_cast<uint8_t>(corundum::sprites::AnimId::East)].size() == 1);
 }
 
 TEST_CASE("load_character_sheet — missing required field 'id' fails") {
@@ -72,7 +72,7 @@ TEST_CASE("load_character_sheet — missing required field 'id' fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"path":"p.png","frame_width":16,"frame_height":16,"frames":{}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -81,7 +81,7 @@ TEST_CASE("load_character_sheet — missing required field 'path' fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","frame_width":16,"frame_height":16,"frames":{}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -90,7 +90,7 @@ TEST_CASE("load_character_sheet — missing required field 'frame_width' fails")
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_height":16,"frames":{}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -99,7 +99,7 @@ TEST_CASE("load_character_sheet — missing required field 'frame_height' fails"
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frames":{}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -110,7 +110,7 @@ TEST_CASE("load_character_sheet — col_span < 1 rejected") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":0,"row_span":1}}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -121,7 +121,7 @@ TEST_CASE("load_character_sheet — row_span < 1 rejected") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":0}}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -132,7 +132,7 @@ TEST_CASE("load_character_sheet — walk_around_offset defaults to 0.6f when abs
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   REQUIRE(result.has_value());
   CHECK(result->sprites[0].walk_around_offset == doctest::Approx(0.6f));
 }
@@ -144,7 +144,7 @@ TEST_CASE("load_character_sheet — per-frame missing 'col' fails") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"row":0}]}}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -155,7 +155,7 @@ TEST_CASE("load_character_sheet — per-frame missing 'row' fails") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"col":0}]}}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -164,7 +164,7 @@ TEST_CASE("load_character_sheet — missing 'frames' object fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -173,7 +173,7 @@ TEST_CASE("load_character_sheet — empty 'frames' object is valid") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{}})");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(result.has_value());
   CHECK(result->sprites.empty());
 }
@@ -181,7 +181,7 @@ TEST_CASE("load_character_sheet — empty 'frames' object is valid") {
 TEST_CASE("load_character_sheet — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }
 
@@ -190,6 +190,6 @@ TEST_CASE("load_character_sheet — malformed JSON fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({not valid json)");
 
-  auto result = corundum::resources::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
 }

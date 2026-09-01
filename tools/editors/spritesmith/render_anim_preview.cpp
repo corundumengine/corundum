@@ -1,13 +1,13 @@
 #include "render_anim_preview.hpp"
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <imgui.h>
 #include <span>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   namespace {
 
-    using corundum::resources::FrameCoord;
+    using corundum::sprites::FrameCoord;
 
     // Retrieve the active frame sequence (character or sprite sheet mode). Atlas mode is
     // handled separately since its frames are names, not grid coordinates.
@@ -62,9 +62,9 @@ namespace tools::sprite {
     // Return UV rect {u0,v0,u1,v1} covering pixel_w × pixel_h at frame (col,row).
     std::array<float, 4> frame_uvs(const FrameCoord &fc, const EditorState &state, float tex_w, float tex_h,
                                    int pixel_w, int pixel_h) {
-      const corundum::resources::IntPoint origin =
-          corundum::resources::frame_origin(state.offset_x, state.offset_y, state.frame_width, state.frame_height,
-                                            state.spacing_x, state.spacing_y, fc.col, fc.row);
+      const corundum::sprites::IntPoint origin =
+          corundum::sprites::frame_origin(state.offset_x, state.offset_y, state.frame_width, state.frame_height,
+                                          state.spacing_x, state.spacing_y, fc.col, fc.row);
       const float px = static_cast<float>(origin.x);
       const float py = static_cast<float>(origin.y);
       return {px / tex_w, py / tex_h, (px + static_cast<float>(pixel_w)) / tex_w,
@@ -143,8 +143,8 @@ namespace tools::sprite {
     const auto &fc = frames[fi];
 
     const auto [col_span, row_span] = active_span(state);
-    const int pixel_w = corundum::resources::rendered_frame_width(col_span, state.frame_width, state.spacing_x);
-    const int pixel_h = corundum::resources::rendered_frame_height(row_span, state.frame_height, state.spacing_y);
+    const int pixel_w = corundum::sprites::rendered_frame_width(col_span, state.frame_width, state.spacing_x);
+    const int pixel_h = corundum::sprites::rendered_frame_height(row_span, state.frame_height, state.spacing_y);
 
     const float tw = static_cast<float>(tex_w);
     const float th = static_cast<float>(tex_h);
@@ -191,4 +191,4 @@ namespace tools::sprite {
     }
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

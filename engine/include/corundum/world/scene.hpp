@@ -2,7 +2,7 @@
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/ecs/world.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -44,7 +44,7 @@ namespace corundum::world {
     Camera camera;
     corundum::dialogue::State dialogue;
     std::optional<corundum::ecs::EntityId> dialogue_npc;
-    std::optional<corundum::resources::AnimId> dialogue_npc_saved_anim;
+    std::optional<corundum::sprites::AnimId> dialogue_npc_saved_anim;
     std::optional<corundum::ecs::FacingDir> dialogue_npc_saved_facing;
     float elapsed_time = 0.f;
     std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().

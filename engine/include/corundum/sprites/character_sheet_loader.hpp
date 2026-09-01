@@ -1,13 +1,13 @@
 #pragma once
 #include <array>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <expected>
 #include <filesystem>
 #include <flat_map>
 #include <string>
 #include <vector>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /// One sprite entry parsed from a character sheet's "frames" object.
   struct CharacterSpriteEntry {
@@ -40,4 +40,4 @@ namespace corundum::resources {
   /// @return CharacterSheetData on success, or an error string on failure.
   [[nodiscard]] std::expected<CharacterSheetData, std::string> load_character_sheet(const std::filesystem::path &path);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

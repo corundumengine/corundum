@@ -2,7 +2,7 @@
 
 /// @brief Spritesmith window and panel layout constants.
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   constexpr int WINDOW_W = 1770;
   constexpr int WINDOW_H = 1000;
@@ -13,4 +13,4 @@ namespace tools::sprite {
   constexpr int CANVAS_H = WINDOW_H - STATUS_H; ///< 974
   constexpr int PANEL_H = CANVAS_H - PREVIEW_H; ///< 734
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

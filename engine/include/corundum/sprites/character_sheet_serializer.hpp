@@ -1,8 +1,8 @@
 #pragma once
-#include <corundum/resources/character_sheet_loader.hpp>
+#include <corundum/sprites/character_sheet_loader.hpp>
 #include <nlohmann/json.hpp>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /** @brief Serialize a character sheet to JSON matching the engine's character sheet schema.
    *
@@ -11,4 +11,4 @@ namespace corundum::resources {
    */
   [[nodiscard]] nlohmann::json serialize_character_sheet(const CharacterSheetData &data);
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

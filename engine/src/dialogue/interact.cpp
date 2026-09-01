@@ -1,7 +1,7 @@
 #include <corundum/dialogue/interact.hpp>
 #include <corundum/dialogue/system.hpp>
 #include <corundum/ecs/component/components.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/picking.hpp>
 
 #include <cmath>
@@ -13,7 +13,7 @@ namespace corundum::dialogue {
   namespace {
 
     using corundum::ecs::FacingDir;
-    using corundum::resources::AnimId;
+    using corundum::sprites::AnimId;
 
     /** @brief Ratio above which the dominant axis is considered "cardinal"
      *  rather than diagonal when computing facing direction. */

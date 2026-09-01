@@ -1,8 +1,8 @@
-#include <corundum/resources/atlas_clips_serializer.hpp>
+#include <corundum/sprites/atlas_clips_serializer.hpp>
 
 using json = nlohmann::json;
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   json serialize_atlas_clips(const AtlasClipsData &data) {
     json j;
@@ -18,4 +18,4 @@ namespace corundum::resources {
     return j;
   }
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

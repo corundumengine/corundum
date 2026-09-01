@@ -2,7 +2,7 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <imgui.h>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief Tool-local view of a single tileset, with the GLFW texture pre-resolved.
@@ -20,4 +20,4 @@ namespace tools::tilemap {
     unsigned tex_h;     ///< Texture height in pixels.
   };
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

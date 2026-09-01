@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   /**
    * @brief Editable portal definition using tile-grid coordinates.
@@ -19,4 +19,4 @@ namespace tools::tilemap {
     int spawn_row = 0;      ///< Spawn row in the target map.
   };
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

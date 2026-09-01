@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <stdexcept>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   /**
    * @brief Exception thrown when a sprite sheet JSON is malformed.
@@ -26,4 +26,4 @@ namespace tools::sprite {
    */
   void load_sheet(EditorState &state, const std::filesystem::path &path);
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

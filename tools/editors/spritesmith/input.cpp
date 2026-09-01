@@ -6,7 +6,7 @@
 #include <imgui.h>
 #include <print>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   namespace {
 
@@ -34,7 +34,7 @@ namespace tools::sprite {
              (state.mode == SheetMode::Atlas && state.atlas_clip_recording);
     }
 
-    void add_frame(EditorState &state, corundum::resources::FrameCoord fc) {
+    void add_frame(EditorState &state, corundum::sprites::FrameCoord fc) {
       if (state.mode == SheetMode::Character) {
         if (state.selected_sprite < 0 || state.selected_sprite >= static_cast<int>(state.sprites.size()))
           return;
@@ -160,4 +160,4 @@ namespace tools::sprite {
     }
   }
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

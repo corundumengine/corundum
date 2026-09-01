@@ -2,7 +2,7 @@
 #include "editor_state.hpp"
 #include <corundum/tool_host/canvas_controller.hpp>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   using MouseState = corundum::tool_host::MouseState;
 
@@ -20,4 +20,4 @@ namespace tools::sprite {
    */
   void handle_input(EditorState &state, MouseState &mouse, bool &running);
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

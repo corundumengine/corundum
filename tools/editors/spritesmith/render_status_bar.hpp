@@ -1,7 +1,7 @@
 #pragma once
 #include "editor_state.hpp"
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   /**
    * @brief Render the bottom status bar ImGui window.
@@ -13,4 +13,4 @@ namespace tools::sprite {
    */
   void render_status_bar(const EditorState &state);
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

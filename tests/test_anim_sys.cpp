@@ -34,9 +34,9 @@ namespace {
 
     Fixture() {
       transforms.insert(player, 0.5f, 0.5f, 0.f, 0.f);
-      sprites.insert(player, corundum::resources::SpriteId{0}, corundum::resources::AnimId::South, 0);
+      sprites.insert(player, corundum::sprites::SpriteId{0}, corundum::sprites::AnimId::South, 0);
       animations.insert(player);
-      std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{};
+      std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
       counts.fill(4); // every clip has frames, regardless of which facing gets resolved
       animations.set_frame_counts(player, counts);
       animations.frame_duration_ref(player) = 0.2f;
@@ -125,8 +125,8 @@ TEST_CASE("animate: falls back to a cardinal AnimId when the directional clip is
   Fixture f;
   // Empty every clip except the East cardinal, so a diagonal SouthEast resolve
   // (from pure +dc motion) must walk back to its horizontal-fallback AnimId::East.
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{};
-  counts[static_cast<uint8_t>(corundum::resources::AnimId::East)] = 4;
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
+  counts[static_cast<uint8_t>(corundum::sprites::AnimId::East)] = 4;
   f.animations.set_frame_counts(f.player, counts);
 
   const auto slot = f.transforms.dense_idx(f.player);
@@ -135,15 +135,15 @@ TEST_CASE("animate: falls back to a cardinal AnimId when the directional clip is
 
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::East);
+  CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::East);
 }
 
 TEST_CASE("animate: vertical-axis fallback is used when |dr| dominates") {
   Fixture f;
   // Empty every clip except the North cardinal. Pure +dr motion picks facing=SouthWest,
   // which is empty → falls back along the dominant vertical axis → AnimId::South.
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{};
-  counts[static_cast<uint8_t>(corundum::resources::AnimId::South)] = 4;
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
+  counts[static_cast<uint8_t>(corundum::sprites::AnimId::South)] = 4;
   f.animations.set_frame_counts(f.player, counts);
 
   const auto slot = f.transforms.dense_idx(f.player);
@@ -152,12 +152,12 @@ TEST_CASE("animate: vertical-axis fallback is used when |dr| dominates") {
 
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::South);
+  CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::South);
 }
 
 TEST_CASE("animate: returns AnimId::Default when every directional and cardinal clip is empty") {
   Fixture f;
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{}; // all zero
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{}; // all zero
   f.animations.set_frame_counts(f.player, counts);
 
   const auto slot = f.transforms.dense_idx(f.player);
@@ -166,7 +166,7 @@ TEST_CASE("animate: returns AnimId::Default when every directional and cardinal 
 
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::Default);
+  CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::Default);
 }
 
 TEST_CASE("animate: idle entity with no FacingTable uses the South default for AnimId lookup") {
@@ -176,7 +176,7 @@ TEST_CASE("animate: idle entity with no FacingTable uses the South default for A
   Fixture f; // no facings.insert; counts.fill(4) leaves every clip available.
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::South);
+  CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::South);
 }
 
 TEST_CASE("animate: changing AnimId resets frame_index and timer") {
@@ -189,21 +189,21 @@ TEST_CASE("animate: changing AnimId resets frame_index and timer") {
 
   // Now restrict counts to AnimId::East only and start moving → South→East transition
   // must zero frame_index and timer.
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{};
-  counts[static_cast<uint8_t>(corundum::resources::AnimId::East)] = 4;
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
+  counts[static_cast<uint8_t>(corundum::sprites::AnimId::East)] = 4;
   f.animations.set_frame_counts(f.player, counts);
 
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 1.f;
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.f);
-  CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::East);
+  CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::East);
   CHECK(f.sprites.frame_index_ref(f.player) == 0);
 }
 
 TEST_CASE("animate: single-frame AnimIds do not advance or accumulate timer") {
   Fixture f;
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{};
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts.fill(1); // every clip is a static image
   f.animations.set_frame_counts(f.player, counts);
 
@@ -214,12 +214,12 @@ TEST_CASE("animate: single-frame AnimIds do not advance or accumulate timer") {
 
 TEST_CASE("animate: motion sprite commits after the configured idle-to-walk delay") {
   Fixture f;
-  constexpr corundum::resources::SpriteId walk_sid{1};
-  constexpr corundum::resources::SpriteId idle_sid{2};
+  constexpr corundum::sprites::SpriteId walk_sid{1};
+  constexpr corundum::sprites::SpriteId idle_sid{2};
   // Start with the idle sprite active so the transition is observable from the
   // initial state (the fixture otherwise initialises sprite_id to 0).
   f.sprites.sprite_id_ref(f.player) = idle_sid;
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{};
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts.fill(4);
   f.motion_sprites.insert(f.player, walk_sid, idle_sid, counts, counts,
                           /*itw=*/0.1f, /*wti=*/0.f);
@@ -237,15 +237,15 @@ TEST_CASE("animate: motion sprite commits after the configured idle-to-walk dela
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.05f);
   CHECK(f.sprites.sprite_id_ref(f.player) == walk_sid);
-  CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::resources::k_null_sprite_id);
+  CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::sprites::k_null_sprite_id);
 }
 
 TEST_CASE("animate: motion sprite cancels a pending transition when motion state flips before delay") {
   Fixture f;
-  constexpr corundum::resources::SpriteId walk_sid{1};
-  constexpr corundum::resources::SpriteId idle_sid{2};
+  constexpr corundum::sprites::SpriteId walk_sid{1};
+  constexpr corundum::sprites::SpriteId idle_sid{2};
   f.sprites.sprite_id_ref(f.player) = idle_sid;
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> counts{};
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts.fill(4);
   f.motion_sprites.insert(f.player, walk_sid, idle_sid, counts, counts,
                           /*itw=*/0.1f, /*wti=*/0.f);
@@ -262,18 +262,18 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
   f.transforms.dc[slot] = 0.f;
   corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
                           /*dt=*/0.05f);
-  CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::resources::k_null_sprite_id);
+  CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::sprites::k_null_sprite_id);
   CHECK(f.sprites.sprite_id_ref(f.player) == idle_sid);
 }
 
 TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts and duration") {
   Fixture f;
-  constexpr corundum::resources::SpriteId walk_sid{1};
-  constexpr corundum::resources::SpriteId idle_sid{2};
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> walk_counts{};
+  constexpr corundum::sprites::SpriteId walk_sid{1};
+  constexpr corundum::sprites::SpriteId idle_sid{2};
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_counts{};
   walk_counts.fill(6);
-  walk_counts[static_cast<uint8_t>(corundum::resources::AnimId::South)] = 8; // distinguish from idle
-  std::array<uint8_t, corundum::resources::k_num_anim_ids> idle_counts{};
+  walk_counts[static_cast<uint8_t>(corundum::sprites::AnimId::South)] = 8; // distinguish from idle
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_counts{};
   idle_counts.fill(4);
   f.motion_sprites.insert(f.player, walk_sid, idle_sid, walk_counts, idle_counts,
                           /*itw=*/0.f, /*wti=*/0.f, /*walk_fd=*/0.05f, /*idle_fd=*/0.25f);
@@ -284,6 +284,6 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts a
                           /*dt=*/0.f);
 
   CHECK(f.sprites.sprite_id_ref(f.player) == walk_sid);
-  CHECK(f.animations.frame_count(f.player, corundum::resources::AnimId::South) == 8);
+  CHECK(f.animations.frame_count(f.player, corundum::sprites::AnimId::South) == 8);
   CHECK(f.animations.frame_duration_ref(f.player) == doctest::Approx(0.05f));
 }

@@ -53,7 +53,7 @@ using corundum::world::tilemap::TilemapLayer;
 using corundum::world::tilemap::TilemapTileset;
 using corundum::world::tilemap::TilePivot;
 
-namespace {
+namespace tools::mapview {
 
   struct Args {
     std::string world{"game/data/world"};
@@ -285,19 +285,19 @@ namespace {
     fill_quads(pixels, out_w, out_h, cx, cy, text, 255, 255, 255);
   }
 
-} // namespace
+} // namespace tools::mapview
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    print_usage(argv[0]);
+    tools::mapview::print_usage(argv[0]);
     return 1;
   }
-  const auto args_opt = parse_args(argc, argv);
+  const auto args_opt = tools::mapview::parse_args(argc, argv);
   if (!args_opt) {
-    print_usage(argv[0]);
+    tools::mapview::print_usage(argv[0]);
     return 1;
   }
-  const Args &args = *args_opt;
+  const tools::mapview::Args &args = *args_opt;
 
   const fs::path world_dir{args.world};
   std::ifstream mf(world_dir / "manifest.json");
@@ -330,9 +330,9 @@ int main(int argc, char **argv) {
                                                        /*elev_step_px=*/4.f);
 
   std::unordered_map<std::string, int> slot_by_path;
-  std::vector<AtlasImage> images;
-  std::vector<DrawItem> depth_items;
-  std::vector<DrawItem> above_items;
+  std::vector<tools::mapview::AtlasImage> images;
+  std::vector<tools::mapview::DrawItem> depth_items;
+  std::vector<tools::mapview::DrawItem> above_items;
   std::vector<std::pair<int, int>> label_pos;
 
   float min_x = std::numeric_limits<float>::max();
@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
   float max_x = std::numeric_limits<float>::lowest();
   float max_y = std::numeric_limits<float>::lowest();
 
-  auto track_bounds = [&](const DrawItem &item) {
+  auto track_bounds = [&](const tools::mapview::DrawItem &item) {
     min_x = std::min(min_x, item.pos_x);
     min_y = std::min(min_y, item.pos_y);
     max_x = std::max(max_x, item.pos_x + static_cast<float>(item.src.width) * item.scale);
@@ -361,7 +361,7 @@ int main(int argc, char **argv) {
       std::vector<int> image_slots;
       image_slots.reserve(tm.tilesets.size());
       for (const TilemapTileset &ts : tm.tilesets)
-        image_slots.push_back(load_image(slot_by_path, images, ts.info.path).value_or(-1));
+        image_slots.push_back(tools::mapview::load_image(slot_by_path, images, ts.info.path).value_or(-1));
 
       for (const TilemapLayer &layer : tm.layers) {
         if (!layer.visible)
@@ -370,7 +370,8 @@ int main(int argc, char **argv) {
           for (int col = 0; col < tm.width; ++col) {
             const int world_col = cx * chunk_size + col;
             const int world_row = cy * chunk_size + row;
-            auto item = resolve_tile(tm, layer, iso, col, row, world_col, world_row, args.scale, image_slots);
+            auto item = tools::mapview::resolve_tile(tm, layer, iso, col, row, world_col, world_row, args.scale,
+                                                     image_slots);
             if (!item)
               continue;
             track_bounds(*item);
@@ -405,18 +406,18 @@ int main(int argc, char **argv) {
   std::vector<uint8_t> pixels(static_cast<std::size_t>(out_w) * static_cast<std::size_t>(out_h) * 4, 0u);
 
   std::stable_sort(depth_items.begin(), depth_items.end(),
-                   [](const DrawItem &a, const DrawItem &b) { return a.depth < b.depth; });
-  for (const DrawItem &item : depth_items)
-    draw_item(pixels, out_w, out_h, images, offset_x, offset_y, item);
-  for (const DrawItem &item : above_items)
-    draw_item(pixels, out_w, out_h, images, offset_x, offset_y, item);
+                   [](const tools::mapview::DrawItem &a, const tools::mapview::DrawItem &b) { return a.depth < b.depth; });
+  for (const tools::mapview::DrawItem &item : depth_items)
+    tools::mapview::draw_item(pixels, out_w, out_h, images, offset_x, offset_y, item);
+  for (const tools::mapview::DrawItem &item : above_items)
+    tools::mapview::draw_item(pixels, out_w, out_h, images, offset_x, offset_y, item);
 
   if (args.labels) {
     for (const auto &[cx, cy] : label_pos) {
       const Vec2 base =
           tile_to_world(cx * chunk_size, cy * chunk_size, 0, iso.half_tw, iso.half_th, iso.elev_step, iso.x_origin);
-      draw_label(pixels, out_w, out_h, static_cast<int>(base.x + offset_x), static_cast<int>(base.y + offset_y),
-                 std::format("chunk_{}_{}", cx, cy));
+      tools::mapview::draw_label(pixels, out_w, out_h, static_cast<int>(base.x + offset_x),
+                                 static_cast<int>(base.y + offset_y), std::format("chunk_{}_{}", cx, cy));
     }
   }
 
@@ -428,3 +429,4 @@ int main(int argc, char **argv) {
   std::println("Done. {}×{} px written to: {}", out_w, out_h, args.output);
   return 0;
 }
+

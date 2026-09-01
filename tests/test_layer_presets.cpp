@@ -8,11 +8,11 @@
 #include <vector>
 
 namespace tilemap = corundum::world::tilemap;
-using tools::tilemap::dedup_layer_name;
-using tools::tilemap::layer_name_taken;
-using tools::tilemap::layer_preset_label;
-using tools::tilemap::LayerPreset;
-using tools::tilemap::make_layer_from_preset;
+using tools::tilesmith::dedup_layer_name;
+using tools::tilesmith::layer_name_taken;
+using tools::tilesmith::layer_preset_label;
+using tools::tilesmith::LayerPreset;
+using tools::tilesmith::make_layer_from_preset;
 
 TEST_CASE("make_layer_from_preset — Ground produces name=z=0 depth=false") {
   const tilemap::TilemapLayer layer = make_layer_from_preset(LayerPreset::Ground, 10, 8, {});

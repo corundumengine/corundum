@@ -1,4 +1,4 @@
-#include <corundum/resources/sprite_sheet_clips_loader.hpp>
+#include <corundum/sprites/sprite_sheet_clips_loader.hpp>
 
 #include <format>
 #include <fstream>
@@ -6,7 +6,7 @@
 
 using json = nlohmann::json;
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   std::expected<SpriteSheetClips, std::string> load_sprite_sheet_clips(const std::filesystem::path &path) {
     std::ifstream f(path);
@@ -100,4 +100,4 @@ namespace corundum::resources {
     return data;
   }
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

@@ -1,10 +1,10 @@
-#include <corundum/resources/sprite_sheet_clips_serializer.hpp>
+#include <corundum/sprites/sprite_sheet_clips_serializer.hpp>
 
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   json serialize_sprite_sheet_clips(const SpriteSheetClips &data) {
     json j;
@@ -41,4 +41,4 @@ namespace corundum::resources {
     return j;
   }
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

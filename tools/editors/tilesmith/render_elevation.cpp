@@ -2,7 +2,7 @@
 #include "coords.hpp"
 #include <algorithm>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   namespace {
 
@@ -82,4 +82,4 @@ namespace tools::tilemap {
                   elevation_fill_color(state.selected_elevation), IM_COL32(255, 220, 80, 220));
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith

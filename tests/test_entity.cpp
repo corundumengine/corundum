@@ -2,7 +2,7 @@
 #include <corundum/ecs/component/transform_table.hpp>
 #include <corundum/ecs/entity.hpp>
 #include <corundum/ecs/world.hpp>
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <doctest/doctest.h>
 
 using namespace corundum::ecs;
@@ -157,7 +157,7 @@ TEST_CASE("TransformTable swap-and-pop correctness") {
 TEST_CASE("World spawn and despawn") {
   World w;
   const EntityId e = spawn(w, Position{3.f, 4.f}, Velocity{0.5f, 0.f},
-                           Sprite{corundum::resources::SpriteId{1}, corundum::resources::AnimId::Default, 0});
+                           Sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0});
   CHECK(e.valid());
   CHECK(w.entities.is_live(e));
   CHECK(w.transforms.has(e));
@@ -173,9 +173,9 @@ TEST_CASE("World mark_for_deletion and flush_deletions") {
   World w;
 
   const EntityId e1 = spawn(w, Position{1.f, 2.f}, Velocity{},
-                            Sprite{corundum::resources::SpriteId{2}, corundum::resources::AnimId::Default, 0});
+                            Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0});
   const EntityId e2 = spawn(w, Position{3.f, 4.f}, Velocity{},
-                            Sprite{corundum::resources::SpriteId{3}, corundum::resources::AnimId::Default, 0});
+                            Sprite{corundum::sprites::SpriteId{3}, corundum::sprites::AnimId::Default, 0});
 
   mark_for_deletion(w, e1);
   mark_for_deletion(w, e2);
@@ -193,7 +193,7 @@ TEST_CASE("World mark_for_deletion and flush_deletions") {
 TEST_CASE("World mark_for_deletion deduplicates double marks") {
   World w;
   const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
-                           Sprite{corundum::resources::SpriteId{2}, corundum::resources::AnimId::Default, 0});
+                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0});
   CHECK(w.entities.is_live(e));
 
   mark_for_deletion(w, e);
@@ -211,7 +211,7 @@ TEST_CASE("EntityManager create pool full on fresh World with k_max_entities spa
   std::uint32_t spawned = 0;
   for (; spawned < k_max_entities; ++spawned) {
     const EntityId e = spawn(w, Position{0.f, 0.f}, Velocity{},
-                             Sprite{corundum::resources::SpriteId{1}, corundum::resources::AnimId::Default, 0});
+                             Sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0});
     CHECK(e.valid());
   }
   CHECK(w.entities.full());

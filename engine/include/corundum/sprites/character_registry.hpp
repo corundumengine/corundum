@@ -1,11 +1,11 @@
 #pragma once
-#include <corundum/resources/sprite.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <expected>
 #include <filesystem>
 #include <flat_map>
 #include <string>
 
-namespace corundum::resources {
+namespace corundum::sprites {
 
   /// Owns all loaded sprite sheets and per-sprite frame data for characters.
   class CharacterRegistry {
@@ -51,4 +51,4 @@ namespace corundum::resources {
     std::vector<const Frames *> sprite_by_id_;
   };
 
-} // namespace corundum::resources
+} // namespace corundum::sprites

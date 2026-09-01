@@ -3,7 +3,7 @@
 #include <corundum/tool_host/fonts.hpp>
 #include <corundum/tool_host/ui_theme.hpp>
 
-namespace tools::sprite {
+namespace tools::spritesmith {
 
   /**
    * @brief Render the right-side ImGui property panel.
@@ -18,4 +18,4 @@ namespace tools::sprite {
   void render_side_panel(EditorState &state, const corundum::tool_host::FontHandles &fonts,
                          const corundum::tool_host::ThemeColors &theme);
 
-} // namespace tools::sprite
+} // namespace tools::spritesmith

@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-namespace tools::tilemap {
+namespace tools::tilesmith {
 
   enum class LayerPreset { Ground, FloorDetail, Water, Walls, Roof, Decor, Blank };
 
@@ -131,4 +131,4 @@ namespace tools::tilemap {
     return layer;
   }
 
-} // namespace tools::tilemap
+} // namespace tools::tilesmith
