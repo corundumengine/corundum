@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/tilemap/world_manifest.hpp>
+#include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -37,7 +37,7 @@ TEST_CASE("load_world_manifest parses valid JSON") {
   const auto path = dir / "manifest.json";
   write_file(path, MANIFEST_JSON);
 
-  auto manifest_result = corundum::gameplay::world::tilemap::load_world_manifest(path);
+  auto manifest_result = corundum::world::tilemap::load_world_manifest(path);
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
   CHECK(m.chunk_size == 128);
@@ -47,7 +47,7 @@ TEST_CASE("load_world_manifest parses valid JSON") {
 }
 
 TEST_CASE("load_world_manifest returns error on missing file") {
-  auto result = corundum::gameplay::world::tilemap::load_world_manifest("/nonexistent/path/manifest.json");
+  auto result = corundum::world::tilemap::load_world_manifest("/nonexistent/path/manifest.json");
   CHECK(!result.has_value());
 }
 
@@ -55,7 +55,7 @@ TEST_CASE("load_world_manifest returns error on missing field") {
   const auto dir = temp_dir("missing");
   const auto path = dir / "manifest.json";
   write_file(path, R"({"chunk_size": 128, "chunks_wide": 16})"); // missing chunks_tall
-  auto result = corundum::gameplay::world::tilemap::load_world_manifest(path);
+  auto result = corundum::world::tilemap::load_world_manifest(path);
   CHECK(!result.has_value());
 }
 
@@ -63,7 +63,7 @@ TEST_CASE("WorldManifest::chunk_path") {
   const auto dir = temp_dir("chunk_path");
   const auto path = dir / "manifest.json";
   write_file(path, MANIFEST_JSON);
-  auto manifest_result = corundum::gameplay::world::tilemap::load_world_manifest(path);
+  auto manifest_result = corundum::world::tilemap::load_world_manifest(path);
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
@@ -75,7 +75,7 @@ TEST_CASE("WorldManifest::chunk_path") {
 TEST_CASE("WorldManifest::in_bounds") {
   const auto dir = temp_dir("in_bounds");
   write_file(dir / "manifest.json", MANIFEST_JSON);
-  auto manifest_result = corundum::gameplay::world::tilemap::load_world_manifest(dir / "manifest.json");
+  auto manifest_result = corundum::world::tilemap::load_world_manifest(dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
@@ -89,7 +89,7 @@ TEST_CASE("WorldManifest::in_bounds") {
 }
 
 TEST_CASE("chunk_at_cart — origin maps to (0,0)") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -102,7 +102,7 @@ TEST_CASE("chunk_at_cart — origin maps to (0,0)") {
 }
 
 TEST_CASE("chunk_at_cart — center of world") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart_center");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -115,7 +115,7 @@ TEST_CASE("chunk_at_cart — center of world") {
 }
 
 TEST_CASE("chunk_at_cart — clamped at world edge") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart_clamp");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -129,7 +129,7 @@ TEST_CASE("chunk_at_cart — clamped at world edge") {
 }
 
 TEST_CASE("chunk_origin_px — (0,0) at world origin") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("origin_px");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -142,7 +142,7 @@ TEST_CASE("chunk_origin_px — (0,0) at world origin") {
 }
 
 TEST_CASE("chunk_origin_px — (1,0) offset") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("origin_1_0");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -156,7 +156,7 @@ TEST_CASE("chunk_origin_px — (1,0) offset") {
 }
 
 TEST_CASE("world_bounds_iso for 16×8 manifest") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("world_bounds");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -176,7 +176,7 @@ TEST_CASE("world_bounds_iso for 16×8 manifest") {
 }
 
 TEST_CASE("active_chunk_coords — center of world, radius=1") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_center");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -188,7 +188,7 @@ TEST_CASE("active_chunk_coords — center of world, radius=1") {
 }
 
 TEST_CASE("active_chunk_coords — top-left corner, radius=1 clamped") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_corner");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");
@@ -200,7 +200,7 @@ TEST_CASE("active_chunk_coords — top-left corner, radius=1 clamped") {
 }
 
 TEST_CASE("active_chunk_coords — bottom-right corner clamped") {
-  using namespace corundum::gameplay::world::tilemap;
+  using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_br");
   write_file(dir / "manifest.json", MANIFEST_JSON);
   auto manifest_result = load_world_manifest(dir / "manifest.json");

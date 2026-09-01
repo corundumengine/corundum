@@ -60,14 +60,14 @@ namespace corundum::debug {
   core::math::IsometricParams HudOverlay::resolve_isometric(const render::RenderState &render,
                                                             const core::GameConfig &cfg) noexcept {
     if (render.mode == render::RenderMode::World && !render.chunks.active_empty()) {
-      const gameplay::world::tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
+      const world::tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
       const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
       return core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale,
                                                   cfg.elevation_step_px);
     }
     if (render.mode == render::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
-      const gameplay::world::tilemap::Tilemap &tm = render.map_data.tilemap;
+      const world::tilemap::Tilemap &tm = render.map_data.tilemap;
       return core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
                                                   cfg.elevation_step_px);
     }
@@ -75,8 +75,7 @@ namespace corundum::debug {
   }
 
   void HudOverlay::draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
-                                  gameplay::world::tilemap::CollisionRectsView rects,
-                                  gameplay::world::tilemap::CollisionTrianglesView tris,
+                                  world::tilemap::CollisionRectsView rects, world::tilemap::CollisionTrianglesView tris,
                                   core::math::IsometricParams iso, float zoom) const noexcept {
     r.set_world_view(camera, viewport, zoom);
 
@@ -162,7 +161,7 @@ namespace corundum::debug {
   }
 
   void HudOverlay::draw_text_panel(platform::Renderer &r, const render::RenderState &render,
-                                   const core::GameConfig &cfg, const gameplay::world::Scene &scene) const noexcept {
+                                   const core::GameConfig &cfg, const world::Scene &scene) const noexcept {
     const float x = cfg.win_w - k_box_w - k_pad;
 
     const ecs::World &w = scene.world;
@@ -192,8 +191,8 @@ namespace corundum::debug {
     } else if (render.mode == render::RenderMode::World && !render.chunks.active_empty()) {
       const int cs = render.manifest.chunk_size;
       if (cs > 0 && w.transforms.has(p)) {
-        const gameplay::world::tilemap::ChunkCoord c{static_cast<int>(w.transforms.pos_col(p)) / cs,
-                                                     static_cast<int>(w.transforms.pos_row(p)) / cs};
+        const world::tilemap::ChunkCoord c{static_cast<int>(w.transforms.pos_col(p)) / cs,
+                                           static_cast<int>(w.transforms.pos_row(p)) / cs};
         for (const render::ChunkEntry &entry : render.chunks.active()) {
           if (entry.coord == c) {
             map_name = entry.tilemap.path;
@@ -244,7 +243,7 @@ namespace corundum::debug {
   void HudOverlay::render(platform::Renderer &r, const OverlayInput &input) noexcept {
     const render::RenderState &render = input.render_state;
     const core::GameConfig &cfg = input.cfg;
-    const gameplay::world::Scene &scene = input.scene;
+    const world::Scene &scene = input.scene;
     const core::time::LoopTimer &timer = input.timer;
 
     const core::math::Vec2 viewport{cfg.win_w, cfg.win_h};

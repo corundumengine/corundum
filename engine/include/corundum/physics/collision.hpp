@@ -1,6 +1,6 @@
 #pragma once
 #include <corundum/ecs/component/components.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 namespace corundum::physics {
 
@@ -29,8 +29,8 @@ namespace corundum::physics {
    *                            block only entities standing on that platform.
    */
   void resolve_collisions(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos, float entity_w,
-                          float entity_h, corundum::gameplay::world::tilemap::CollisionRectsView rects,
-                          float y_offset = 0.f, int entity_elevation = 0, int elevation_tolerance = 0) noexcept;
+                          float entity_h, corundum::world::tilemap::CollisionRectsView rects, float y_offset = 0.f,
+                          int entity_elevation = 0, int elevation_tolerance = 0) noexcept;
 
   /**
    * @brief Axis-separated diagonal collision resolution for half-tile triangle shapes.
@@ -52,7 +52,7 @@ namespace corundum::physics {
    * @param elevation_tolerance  Same semantics as resolve_collisions.
    */
   void resolve_triangle_collisions(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos, float entity_w,
-                                   float entity_h, corundum::gameplay::world::tilemap::CollisionTrianglesView triangles,
+                                   float entity_h, corundum::world::tilemap::CollisionTrianglesView triangles,
                                    float y_offset = 0.f, int entity_elevation = 0,
                                    int elevation_tolerance = 0) noexcept;
 

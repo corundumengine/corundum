@@ -1,6 +1,6 @@
 #pragma once
 #include "editor_state.hpp"
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 namespace tools::tilemap {
 
@@ -17,8 +17,8 @@ namespace tools::tilemap {
    * @param gid       Tile ID to write.
    * @param flip      k_flip_h | FLIP_V bitmask (0 = no flip).
    */
-  inline void set_tile(EditorState &state, int layer_idx, int col, int row,
-                       corundum::gameplay::world::tilemap::TileId gid, uint8_t flip = 0) noexcept {
+  inline void set_tile(EditorState &state, int layer_idx, int col, int row, corundum::world::tilemap::TileId gid,
+                       uint8_t flip = 0) noexcept {
     if (layer_idx < 0 || layer_idx >= static_cast<int>(state.map.layers.size()))
       return;
     if (col < 0 || col >= state.map.width)
@@ -28,7 +28,7 @@ namespace tools::tilemap {
     auto &layer = state.map.layers[static_cast<std::size_t>(layer_idx)];
     const int idx = row * state.map.width + col;
     layer.tiles[static_cast<std::size_t>(idx)] = gid;
-    if (gid == corundum::gameplay::world::tilemap::k_empty_tile || flip == 0)
+    if (gid == corundum::world::tilemap::k_empty_tile || flip == 0)
       layer.flip_flags.erase(idx);
     else
       layer.flip_flags[idx] = flip;

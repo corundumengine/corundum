@@ -19,7 +19,7 @@ namespace tools::tilemap {
   TilemapTextureStore &TilemapTextureStore::operator=(TilemapTextureStore &&) noexcept = default;
 
   TilemapTextureStore load_tilemap_textures(corundum::tool_host::ToolHost &host,
-                                            const corundum::gameplay::world::tilemap::Tilemap &map) {
+                                            const corundum::world::tilemap::Tilemap &map) {
     TilemapTextureStore store;
     store.host = &host;
     store.textures.reserve(map.tilesets.size());
@@ -33,7 +33,7 @@ namespace tools::tilemap {
   }
 
   std::vector<TilesetView> rebuild_tileset_views(corundum::tool_host::ToolHost &host,
-                                                 const corundum::gameplay::world::tilemap::Tilemap &map,
+                                                 const corundum::world::tilemap::Tilemap &map,
                                                  const TilemapTextureStore &store) {
     std::vector<TilesetView> views;
     views.reserve(map.tilesets.size());
@@ -45,15 +45,14 @@ namespace tools::tilemap {
   }
 
   TileTextureView get_tile_texture(corundum::tool_host::ToolHost &host, const TilemapTextureStore &store,
-                                   const corundum::gameplay::world::tilemap::Tilemap &map,
-                                   corundum::gameplay::world::tilemap::TileId gid) noexcept {
-    const corundum::gameplay::world::tilemap::TilemapTileset *ts =
-        corundum::gameplay::world::tilemap::find_tileset(map.tilesets, gid);
+                                   const corundum::world::tilemap::Tilemap &map,
+                                   corundum::world::tilemap::TileId gid) noexcept {
+    const corundum::world::tilemap::TilemapTileset *ts = corundum::world::tilemap::find_tileset(map.tilesets, gid);
     if (!ts)
       return {};
 
     const std::ptrdiff_t idx = ts - map.tilesets.data();
-    const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
+    const auto src = corundum::world::tilemap::tile_source_rect(*ts, gid);
 
     const auto &tex = store.textures[static_cast<std::size_t>(idx)];
     return {
@@ -80,9 +79,8 @@ namespace tools::tilemap {
   } // namespace
 
   void render_tilemap(corundum::tool_host::ToolHost &host, CanvasContext ctx,
-                      const corundum::gameplay::world::tilemap::Tilemap &map, const TilemapTextureStore &store,
-                      float camera_x, float camera_y, int z_index, float tile_scale, float elapsed_time,
-                      float elev_step) {
+                      const corundum::world::tilemap::Tilemap &map, const TilemapTextureStore &store, float camera_x,
+                      float camera_y, int z_index, float tile_scale, float elapsed_time, float elev_step) {
     const auto iso = corundum::core::math::compute_isometric_params(map.diamond_w(), map.diamond_h(), map.height,
                                                                     tile_scale, elev_step);
 
@@ -104,7 +102,7 @@ namespace tools::tilemap {
           const int row = depth - col;
           const int cell_idx = row * map.width + col;
 
-          corundum::gameplay::world::tilemap::TileId gid;
+          corundum::world::tilemap::TileId gid;
           if (auto it = layer.animated_cells.find(cell_idx); it != layer.animated_cells.end()) {
             const auto &anim = it->second;
             if (anim.frame_gids.empty()) [[unlikely]]
@@ -114,7 +112,7 @@ namespace tools::tilemap {
             gid = anim.frame_gids[static_cast<std::size_t>(fidx)];
           } else {
             gid = tiles[row, col];
-            if (gid == corundum::gameplay::world::tilemap::k_empty_tile)
+            if (gid == corundum::world::tilemap::k_empty_tile)
               continue;
           }
 
@@ -122,8 +120,8 @@ namespace tools::tilemap {
           if (!img_id) [[unlikely]]
             continue;
 
-          const corundum::gameplay::world::tilemap::TilemapTileset *ts =
-              corundum::gameplay::world::tilemap::find_tileset(map.tilesets, gid);
+          const corundum::world::tilemap::TilemapTileset *ts =
+              corundum::world::tilemap::find_tileset(map.tilesets, gid);
 
           const int elev = (!layer.elevation.empty() && static_cast<std::size_t>(cell_idx) < layer.elevation.size())
                                ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
@@ -134,10 +132,10 @@ namespace tools::tilemap {
           const float iso_y = world.y + iso.half_th;
 
           const int local_id = ts ? static_cast<int>(gid) - static_cast<int>(ts->first_gid) : 0;
-          const auto frame = ts ? corundum::gameplay::world::tilemap::get_tile_frame_offset(ts->info, local_id)
-                                : corundum::gameplay::world::tilemap::TileFrameOffset{};
-          const auto pivot = ts ? corundum::gameplay::world::tilemap::get_tile_pivot(ts->info, local_id)
-                                : corundum::gameplay::world::tilemap::TilePivot{};
+          const auto frame = ts ? corundum::world::tilemap::get_tile_frame_offset(ts->info, local_id)
+                                : corundum::world::tilemap::TileFrameOffset{};
+          const auto pivot =
+              ts ? corundum::world::tilemap::get_tile_pivot(ts->info, local_id) : corundum::world::tilemap::TilePivot{};
           const float scaled_tw = std::round(static_cast<float>(frame.full_width) * tile_scale);
           const float scaled_th = std::round(static_cast<float>(frame.full_height) * tile_scale);
           const float trim_x_px = std::round(static_cast<float>(frame.trim_x) * tile_scale);
@@ -162,9 +160,9 @@ namespace tools::tilemap {
 
           if (auto fit = layer.flip_flags.find(cell_idx); fit != layer.flip_flags.end()) {
             const uint8_t f = fit->second;
-            if (f & corundum::gameplay::world::tilemap::k_flip_h)
+            if (f & corundum::world::tilemap::k_flip_h)
               std::swap(uv0.x, uv1.x);
-            if (f & corundum::gameplay::world::tilemap::k_flip_v)
+            if (f & corundum::world::tilemap::k_flip_v)
               std::swap(uv0.y, uv1.y);
           }
 
@@ -187,7 +185,7 @@ namespace tools::tilemap {
     }
   }
 
-  std::vector<int> above_z_indices(const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+  std::vector<int> above_z_indices(const corundum::world::tilemap::Tilemap &map) noexcept {
     std::vector<int> result;
     for (const auto &layer : map.layers)
       if (layer.z_index > 0)

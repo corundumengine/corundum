@@ -1,6 +1,6 @@
 #pragma once
 #include <corundum/ecs/component/components.hpp>
-#include <corundum/gameplay/world/tilemap/walkability.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
 
 namespace corundum::physics {
 
@@ -21,6 +21,6 @@ namespace corundum::physics {
    *                  e.g. chunked/streamed World mode, where this isn't wired up yet.
    */
   void resolve_walkability(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos,
-                           const corundum::gameplay::world::tilemap::WalkabilityGraph *graph) noexcept;
+                           const corundum::world::tilemap::WalkabilityGraph *graph) noexcept;
 
 } // namespace corundum::physics

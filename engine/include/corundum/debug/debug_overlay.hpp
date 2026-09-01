@@ -2,10 +2,10 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
-#include <corundum/gameplay/world/scene.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
+#include <corundum/world/scene.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 #include <cstdint>
 #include <string>
@@ -21,7 +21,7 @@ namespace corundum::debug {
   struct OverlayInput {
     const render::RenderState &render_state;
     const core::GameConfig &cfg;
-    const gameplay::world::Scene &scene;
+    const world::Scene &scene;
     const core::time::LoopTimer &timer;
   };
 
@@ -87,9 +87,8 @@ namespace corundum::debug {
 
     /** @brief Draw the collision geometry (rects and triangles) in world space. */
     void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
-                        gameplay::world::tilemap::CollisionRectsView rects,
-                        gameplay::world::tilemap::CollisionTrianglesView tris, core::math::IsometricParams iso,
-                        float zoom) const noexcept;
+                        world::tilemap::CollisionRectsView rects, world::tilemap::CollisionTrianglesView tris,
+                        core::math::IsometricParams iso, float zoom) const noexcept;
 
     /** @brief Draw the player feet-marker diamond in world space.
      *
@@ -103,7 +102,7 @@ namespace corundum::debug {
 
     /** @brief Draw the top-right HUD text panel (FPS, grid, velocity, camera, stats). */
     void draw_text_panel(platform::Renderer &r, const render::RenderState &render, const core::GameConfig &cfg,
-                         const gameplay::world::Scene &scene) const noexcept;
+                         const world::Scene &scene) const noexcept;
   };
 
 } // namespace corundum::debug

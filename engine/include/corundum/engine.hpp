@@ -8,8 +8,8 @@
 #include <corundum/world/flags.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/quest/registry.hpp>
-#include <corundum/gameplay/world/scene.hpp>
-#include <corundum/gameplay/world/transition.hpp>
+#include <corundum/world/scene.hpp>
+#include <corundum/world/transition.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -65,7 +65,7 @@ namespace corundum {
     dialogue::Registry graphs;
     item::Registry items;
     quest::Registry quests;
-    gameplay::world::Scene scene;
+    world::Scene scene;
     bool entered_from_world = false; ///< True while inside an interior reached from the overworld.
 
     int win_h = 0; ///< Live window height in screen pixels, updated each frame.
@@ -171,7 +171,7 @@ namespace corundum {
    *  @param[in] engine Initialised Engine.
    *  @return Pointer to the active tilemap, or nullptr in World mode or before load.
    *  @see render::active_tilemap() for the RenderState-level accessor. */
-  inline const gameplay::world::tilemap::Tilemap *active_tilemap(const Engine &engine) noexcept {
+  inline const world::tilemap::Tilemap *active_tilemap(const Engine &engine) noexcept {
     return corundum::render::active_tilemap(engine.render);
   }
 

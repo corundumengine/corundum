@@ -14,7 +14,7 @@ namespace corundum::resources {
   class CharacterRegistry;
 }
 
-namespace corundum::gameplay::world {
+namespace corundum::world {
   struct Scene;
 }
 
@@ -44,7 +44,7 @@ namespace corundum::render {
    *  @param[in]  scene  Scene providing the current transforms and camera.
    *  @note Call once per frame, before running the fixed-timestep updates.
    */
-  void snapshot_prev_frame(render::RenderState &state, const corundum::gameplay::world::Scene &scene) noexcept;
+  void snapshot_prev_frame(render::RenderState &state, const corundum::world::Scene &scene) noexcept;
 
   /** @brief Build the sprite-index lookup tables from the character registry.
    *  @param[in,out] r         Renderer for texture loading.
@@ -87,7 +87,7 @@ namespace corundum::render {
    *
    * Contains the isometric projection parameters and the spawn position
    * (world centre in world coordinates) that the caller should pass to
-   * gameplay::world::spawn_world(). Separates render resource loading from
+   * world::spawn_world(). Separates render resource loading from
    * game entity creation per the layer dependency rules.
    */
   struct WorldLoadInfo {
@@ -147,7 +147,7 @@ namespace corundum::render {
    * @param[in]     win_h  Live window height in screen pixels.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::world::FlagStore &flags,
+              const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
               const corundum::quest::Registry *quests, const corundum::item::Registry *items, float alpha, int win_w,
               int win_h);
 

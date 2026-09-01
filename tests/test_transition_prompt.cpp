@@ -1,13 +1,13 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/portals/portal.hpp>
-#include <corundum/gameplay/world/portals/transition_prompt.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/world/portals/portal.hpp>
+#include <corundum/world/portals/transition_prompt.hpp>
 
 namespace {
 
-  corundum::gameplay::world::Portal make_portal() {
-    corundum::gameplay::world::Portal p{};
+  corundum::world::Portal make_portal() {
+    corundum::world::Portal p{};
     p.col = 13.f;
     p.row = 13.f;
     p.w = 1.f;
@@ -27,8 +27,8 @@ namespace {
 
 } // namespace
 
-using corundum::gameplay::world::Portal;
-using corundum::gameplay::world::TransitionPrompt;
+using corundum::world::Portal;
+using corundum::world::TransitionPrompt;
 using Step = TransitionPrompt::Step;
 
 TEST_CASE("TransitionPrompt — fresh arm highlights Yes and is not declined") {

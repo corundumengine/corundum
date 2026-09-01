@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/tilemap/loader.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/loader.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 #include <filesystem>
 #include <format>
@@ -89,34 +89,33 @@ namespace {
 // ── find_tileset unit tests ───────────────────────────────────────────────────
 
 TEST_CASE("find_tileset — k_empty_tile returns nullptr") {
-  std::vector<corundum::gameplay::world::tilemap::TilemapTileset> tilesets(1);
+  std::vector<corundum::world::tilemap::TilemapTileset> tilesets(1);
   tilesets[0].first_gid = 0;
   tilesets[0].tile_count = 32;
-  CHECK(corundum::gameplay::world::tilemap::find_tileset(tilesets, corundum::gameplay::world::tilemap::k_empty_tile) ==
-        nullptr);
+  CHECK(corundum::world::tilemap::find_tileset(tilesets, corundum::world::tilemap::k_empty_tile) == nullptr);
 }
 
 TEST_CASE("find_tileset — single tileset, valid GID") {
-  std::vector<corundum::gameplay::world::tilemap::TilemapTileset> tilesets(1);
+  std::vector<corundum::world::tilemap::TilemapTileset> tilesets(1);
   tilesets[0].first_gid = 0;
   tilesets[0].tile_count = 32;
-  const auto *result = corundum::gameplay::world::tilemap::find_tileset(tilesets, 5);
+  const auto *result = corundum::world::tilemap::find_tileset(tilesets, 5);
   REQUIRE(result != nullptr);
   CHECK(result->first_gid == 0);
 }
 
 TEST_CASE("find_tileset — two tilesets, GID routes correctly") {
-  std::vector<corundum::gameplay::world::tilemap::TilemapTileset> tilesets(2);
+  std::vector<corundum::world::tilemap::TilemapTileset> tilesets(2);
   tilesets[0].first_gid = 0;
   tilesets[0].tile_count = 32;
   tilesets[1].first_gid = 32;
   tilesets[1].tile_count = 16;
 
-  CHECK(corundum::gameplay::world::tilemap::find_tileset(tilesets, 0) == &tilesets[0]);
-  CHECK(corundum::gameplay::world::tilemap::find_tileset(tilesets, 31) == &tilesets[0]);
-  CHECK(corundum::gameplay::world::tilemap::find_tileset(tilesets, 32) == &tilesets[1]);
-  CHECK(corundum::gameplay::world::tilemap::find_tileset(tilesets, 47) == &tilesets[1]);
-  CHECK(corundum::gameplay::world::tilemap::find_tileset(tilesets, 48) == nullptr); // out of range
+  CHECK(corundum::world::tilemap::find_tileset(tilesets, 0) == &tilesets[0]);
+  CHECK(corundum::world::tilemap::find_tileset(tilesets, 31) == &tilesets[0]);
+  CHECK(corundum::world::tilemap::find_tileset(tilesets, 32) == &tilesets[1]);
+  CHECK(corundum::world::tilemap::find_tileset(tilesets, 47) == &tilesets[1]);
+  CHECK(corundum::world::tilemap::find_tileset(tilesets, 48) == nullptr); // out of range
 }
 
 // ── Regression: single-tileset map loads correctly ───────────────────────────
@@ -125,7 +124,7 @@ TEST_CASE("load_tilemap — single tileset map") {
   const auto dir = temp_dir("single");
   const auto map_path = make_single_tileset_map(dir);
 
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   CHECK(m.width == 2);
@@ -157,7 +156,7 @@ TEST_CASE("load_tilemap — two tilesets, correct first_gid and tile_count") {
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
 
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   REQUIRE(m.tilesets.size() == 2);
@@ -186,7 +185,7 @@ TEST_CASE("load_tilemap — tilesets are sorted by first_gid even if JSON is uno
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
 
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   REQUIRE(m.tilesets.size() == 2);
@@ -199,10 +198,10 @@ TEST_CASE("load_tilemap — tilesets are sorted by first_gid even if JSON is uno
 TEST_CASE("load_tilemap — k_empty_tile (65535) in dense layer is accepted") {
   const auto dir = temp_dir("empty_tile");
   const auto map_path = make_single_tileset_map(dir, "0,65535");
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
-  CHECK(m.layers[0].tiles[1] == corundum::gameplay::world::tilemap::k_empty_tile);
+  CHECK(m.layers[0].tiles[1] == corundum::world::tilemap::k_empty_tile);
 }
 
 // ── Error: old "tileset" string key rejected ─────────────────────────────────
@@ -219,7 +218,7 @@ TEST_CASE("load_tilemap — old 'tileset' string key returns error") {
   content += R"(","width":1,"height":1,"layers":[{"name":"g","tiles":["0"]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -237,7 +236,7 @@ TEST_CASE("load_tilemap — first_gid not starting at 0 returns error") {
   content += R"("}],"width":1,"height":1,"layers":[{"name":"g","tiles":["10"]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -260,7 +259,7 @@ TEST_CASE("load_tilemap — gap between tilesets returns error") {
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -282,7 +281,7 @@ TEST_CASE("load_tilemap — duplicate first_gid returns error") {
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -292,7 +291,7 @@ TEST_CASE("load_tilemap — GID in layer beyond tileset range returns error") {
   const auto dir = temp_dir("gid_range");
   // TILESET_A has 32 tiles (GIDs 0–31); GID 32 is out of range
   const auto map_path = make_single_tileset_map(dir, "0,32");
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -301,7 +300,7 @@ TEST_CASE("load_tilemap — GID in layer beyond tileset range returns error") {
 TEST_CASE("load_tilemap — absent collisions key produces empty vector") {
   const auto dir = temp_dir("col_absent");
   const auto map_path = make_single_tileset_map(dir);
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   CHECK(m.collisions.size() == 0);
@@ -320,7 +319,7 @@ TEST_CASE("load_tilemap — collisions array loads correctly") {
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"x":10.0,"y":20.0,"w":30.0,"h":40.0},{"x":1.5,"y":2.5,"w":8.0,"h":4.0}]})";
   write_file(map_path, content);
 
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   REQUIRE(m.collisions.size() == 2);
@@ -345,7 +344,7 @@ TEST_CASE("load_tilemap — collision with zero width returns error") {
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"x":0,"y":0,"w":0,"h":16}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -362,7 +361,7 @@ TEST_CASE("load_tilemap — collision with zero height returns error") {
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"x":0,"y":0,"w":16,"h":0}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -371,7 +370,7 @@ TEST_CASE("load_tilemap — collision with zero height returns error") {
 TEST_CASE("load_tilemap — absent z_index defaults to 0") {
   const auto dir = temp_dir("zidx_absent");
   const auto map_path = make_single_tileset_map(dir);
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   CHECK(m.layers[0].z_index == 0);
@@ -391,7 +390,7 @@ TEST_CASE("load_tilemap — z_index is loaded when present") {
   content += R"({"name":"canopy","z_index":2,"tiles":["0"]}]})";
   write_file(map_path, content);
 
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   REQUIRE(m.layers.size() == 2);
@@ -411,7 +410,7 @@ TEST_CASE("load_tilemap — negative z_index is clamped to 0") {
   content += R"("}],"width":1,"height":1,"layers":[{"name":"ground","z_index":-3,"tiles":["0"]}]})";
   write_file(map_path, content);
 
-  auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto tm_result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(tm_result.has_value());
   const auto &m = *tm_result;
   CHECK(m.layers[0].z_index == 0);
@@ -420,7 +419,7 @@ TEST_CASE("load_tilemap — negative z_index is clamped to 0") {
 TEST_CASE("load_tilemap — depth_sorted defaults to false when absent") {
   const auto dir = temp_dir("depth_sorted_default");
   const auto map_path = make_single_tileset_map(dir);
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(result.has_value());
   const auto &m = *result;
   CHECK(m.layers[0].depth_sorted == false);
@@ -440,7 +439,7 @@ TEST_CASE("load_tilemap — depth_sorted is loaded when present") {
   content += R"({"name":"walls","z_index":1,"depth_sorted":true,"tiles":["0"]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(result.has_value());
   const auto &m = *result;
   REQUIRE(m.layers.size() == 2);
@@ -462,7 +461,7 @@ TEST_CASE("load_tilemap — collision element missing field returns error") {
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"y":0,"w":16,"h":16}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -472,27 +471,26 @@ TEST_CASE("load_tilemap — absent schema_version is treated as version 1 and lo
   const auto dir = temp_dir("schema_absent");
   const auto map_path = make_single_tileset_map(dir);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(result.has_value());
 }
 
 TEST_CASE("load_tilemap — explicit current schema_version loads fine") {
-  const auto map_path =
-      make_schema_map(temp_dir("schema_current"), corundum::gameplay::world::tilemap::k_tilemap_schema_version);
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  const auto map_path = make_schema_map(temp_dir("schema_current"), corundum::world::tilemap::k_tilemap_schema_version);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(result.has_value());
 }
 
 TEST_CASE("load_tilemap — schema_version newer than supported returns error") {
   const auto map_path =
-      make_schema_map(temp_dir("schema_future"), corundum::gameplay::world::tilemap::k_tilemap_schema_version + 1);
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+      make_schema_map(temp_dir("schema_future"), corundum::world::tilemap::k_tilemap_schema_version + 1);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
 TEST_CASE("load_tilemap — schema_version zero (invalid) returns error") {
   const auto map_path = make_schema_map(temp_dir("schema_zero"), 0);
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -508,7 +506,7 @@ TEST_CASE("load_tilemap — schema_version wrong type returns error") {
   content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -525,7 +523,7 @@ TEST_CASE("load_tileset — 'material' field is loaded") {
   j["material"] = "stone";
   write_file(ts_path, j.dump());
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
   CHECK(result->material == "stone");
 }
@@ -535,7 +533,7 @@ TEST_CASE("load_tileset — absent 'material' field defaults to empty string") {
   const auto ts_path = dir / "tileset_a.json";
   write_file(ts_path, tileset_a_json());
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
   CHECK(result->material.empty());
 }
@@ -553,9 +551,9 @@ TEST_CASE("load_tileset — per-tile pivot is converted from spritepacker's trim
                       R"("trim_x":0,"trim_y":0,"source_width":128,"source_height":256,)"
                       R"("pivot_x":0.5,"pivot_y":0.57}]})");
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 0);
+  const auto pivot = corundum::world::tilemap::get_tile_pivot(*result, 0);
   CHECK(pivot.x == doctest::Approx(0.5));
   CHECK(pivot.y == doctest::Approx(0.43));
 }
@@ -565,9 +563,9 @@ TEST_CASE("load_tileset — spritepacker's default bottom-center pivot (0.5, 1.0
   const auto ts_path = dir / "tileset_a.json";
   write_file(ts_path, tileset_a_json()); // fixture sprites all use pivot_x=0.5, pivot_y=1.0
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 0);
+  const auto pivot = corundum::world::tilemap::get_tile_pivot(*result, 0);
   CHECK(pivot.x == doctest::Approx(0.5));
   CHECK(pivot.y == doctest::Approx(0.0));
 }
@@ -577,9 +575,9 @@ TEST_CASE("load_tileset — get_tile_pivot on an out-of-range local_id returns t
   const auto ts_path = dir / "tileset_a.json";
   write_file(ts_path, tileset_a_json());
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 9999);
+  const auto pivot = corundum::world::tilemap::get_tile_pivot(*result, 9999);
   CHECK(pivot.x == doctest::Approx(0.5));
   CHECK(pivot.y == doctest::Approx(0.0));
 }
@@ -597,9 +595,9 @@ TEST_CASE("load_tileset — pivot_basis full uses the pivot directly (no trim co
   }
   write_file(ts_path, atlas.dump());
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(*result, 0);
+  const auto pivot = corundum::world::tilemap::get_tile_pivot(*result, 0);
   CHECK(pivot.x == doctest::Approx(0.5));
   CHECK(pivot.y == doctest::Approx(0.18));
 }
@@ -614,9 +612,9 @@ TEST_CASE("load_tileset — trim_x/trim_y/source_width/source_height are loaded 
                       R"("sprites":[{"name":"a","x":0,"y":0,"w":132,"h":71,)"
                       R"("trim_x":62,"trim_y":93,"source_width":256,"source_height":256}]})");
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const auto frame = corundum::gameplay::world::tilemap::get_tile_frame_offset(*result, 0);
+  const auto frame = corundum::world::tilemap::get_tile_frame_offset(*result, 0);
   CHECK(frame.trim_x == 62);
   CHECK(frame.trim_y == 93);
   CHECK(frame.full_width == 256);
@@ -629,9 +627,9 @@ TEST_CASE("load_tileset — sprite omitting trim_x/trim_y/source_width/source_he
   write_file(ts_path, R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":16,"height":16,)"
                       R"("sprites":[{"name":"a","x":0,"y":0,"w":16,"h":16}]})");
 
-  auto result = corundum::gameplay::world::tilemap::load_tileset(ts_path);
+  auto result = corundum::world::tilemap::load_tileset(ts_path);
   REQUIRE(result.has_value());
-  const auto frame = corundum::gameplay::world::tilemap::get_tile_frame_offset(*result, 0);
+  const auto frame = corundum::world::tilemap::get_tile_frame_offset(*result, 0);
   CHECK(frame.trim_x == 0);
   CHECK(frame.trim_y == 0);
   CHECK(frame.full_width == 16); // defaults to w/h when source_width/height are absent
@@ -654,11 +652,11 @@ TEST_CASE("tile_source_rect — returns the atlas rect directly (already trimmed
   content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,1"]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(result.has_value());
-  const auto *ts = corundum::gameplay::world::tilemap::find_tileset(result->tilesets, 1);
+  const auto *ts = corundum::world::tilemap::find_tileset(result->tilesets, 1);
   REQUIRE(ts != nullptr);
-  const auto rect = corundum::gameplay::world::tilemap::tile_source_rect(*ts, 1);
+  const auto rect = corundum::world::tilemap::tile_source_rect(*ts, 1);
   CHECK(rect.x == 318);
   CHECK(rect.y == 93);
   CHECK(rect.width == 132);
@@ -678,7 +676,7 @@ TEST_CASE("load_tilemap — layer 'material_overrides' is loaded") {
              R"("material_overrides":[{"col":1,"row":0,"material":"snow"}]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(result.has_value());
   const auto &layer = result->layers[0];
   REQUIRE(layer.material_overrides.contains(1)); // row 0 * width 2 + col 1
@@ -689,7 +687,7 @@ TEST_CASE("load_tilemap — absent 'material_overrides' produces an empty map") 
   const auto dir = temp_dir("material_overrides_absent");
   const auto map_path = make_single_tileset_map(dir);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   REQUIRE(result.has_value());
   CHECK(result->layers[0].material_overrides.empty());
 }
@@ -707,7 +705,7 @@ TEST_CASE("load_tilemap — material_overrides entry out of bounds returns error
              R"("material_overrides":[{"col":5,"row":0,"material":"snow"}]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -724,7 +722,7 @@ TEST_CASE("load_tilemap — material_overrides entry missing 'material' returns 
              R"("material_overrides":[{"col":1,"row":0}]}]})";
   write_file(map_path, content);
 
-  auto result = corundum::gameplay::world::tilemap::load_tilemap(map_path);
+  auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
@@ -747,8 +745,8 @@ TEST_CASE("load_tilemap — shared tileset resolves identically across separate 
     return map_path;
   };
 
-  auto a = corundum::gameplay::world::tilemap::load_tilemap(make_map_name("map_a"));
-  auto b = corundum::gameplay::world::tilemap::load_tilemap(make_map_name("map_b"));
+  auto a = corundum::world::tilemap::load_tilemap(make_map_name("map_a"));
+  auto b = corundum::world::tilemap::load_tilemap(make_map_name("map_b"));
   REQUIRE(a.has_value());
   REQUIRE(b.has_value());
   REQUIRE(a->tilesets.size() == 1);

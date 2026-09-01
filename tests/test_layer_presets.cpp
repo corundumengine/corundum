@@ -2,12 +2,12 @@
 
 #include "layer_presets.hpp"
 
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <span>
 #include <string>
 #include <vector>
 
-namespace tilemap = corundum::gameplay::world::tilemap;
+namespace tilemap = corundum::world::tilemap;
 using tools::tilemap::dedup_layer_name;
 using tools::tilemap::layer_name_taken;
 using tools::tilemap::layer_preset_label;

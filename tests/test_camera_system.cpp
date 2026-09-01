@@ -1,12 +1,12 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/camera_system.hpp>
-#include <corundum/gameplay/world/update.hpp>
+#include <corundum/world/camera_system.hpp>
+#include <corundum/world/update.hpp>
 
-using corundum::gameplay::world::apply_zoom;
-using corundum::gameplay::world::Camera;
-using corundum::gameplay::world::follow_player;
-using corundum::gameplay::world::MapView;
+using corundum::world::apply_zoom;
+using corundum::world::Camera;
+using corundum::world::follow_player;
+using corundum::world::MapView;
 
 namespace {
 
@@ -120,17 +120,17 @@ TEST_CASE("center_on: centers the viewport on the target and clamps to world bou
   Camera camera{0.f, 0.f, 1.f};
 
   // Target comfortably inside a large world: viewport centers on it exactly.
-  corundum::gameplay::world::center_on(camera, 500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
+  corundum::world::center_on(camera, 500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(500.f - 400.f));
   CHECK(camera.y == doctest::Approx(400.f - 300.f));
 
   // Target near the origin: clamped to 0 rather than going negative.
-  corundum::gameplay::world::center_on(camera, 10.f, 10.f, 2000.f, 1600.f, 800.f, 600.f);
+  corundum::world::center_on(camera, 10.f, 10.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(0.f));
   CHECK(camera.y == doctest::Approx(0.f));
 
   // Target near the far edge: clamped to world_extent - effective_extent.
-  corundum::gameplay::world::center_on(camera, 1990.f, 1590.f, 2000.f, 1600.f, 800.f, 600.f);
+  corundum::world::center_on(camera, 1990.f, 1590.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(2000.f - 800.f));
   CHECK(camera.y == doctest::Approx(1600.f - 600.f));
 }
@@ -138,7 +138,7 @@ TEST_CASE("center_on: centers the viewport on the target and clamps to world bou
 TEST_CASE("center_on: world smaller than the viewport centers the world (no UB clamp)") {
   Camera camera{0.f, 0.f, 1.f};
 
-  corundum::gameplay::world::center_on(camera, 100.f, 100.f, 400.f, 300.f, 800.f, 600.f);
+  corundum::world::center_on(camera, 100.f, 100.f, 400.f, 300.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx((400.f - 800.f) * 0.5f));
   CHECK(camera.y == doctest::Approx((300.f - 600.f) * 0.5f));
 }
@@ -146,7 +146,7 @@ TEST_CASE("center_on: world smaller than the viewport centers the world (no UB c
 TEST_CASE("center_on: zoom shrinks the effective viewport") {
   Camera camera{0.f, 0.f, 2.f}; // effective viewport is 400x300
 
-  corundum::gameplay::world::center_on(camera, 500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
+  corundum::world::center_on(camera, 500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(500.f - 200.f));
   CHECK(camera.y == doctest::Approx(400.f - 150.f));
 }

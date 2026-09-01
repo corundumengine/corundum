@@ -2,17 +2,17 @@
 #include <algorithm>
 #include <cmath>
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <optional>
 #include <span>
 
 // Pure coordinate math — no GLFW, no I/O, no rendering.
 // Returns effective isometric world-step width (diamond_w) for a tilemap.
-[[nodiscard]] inline int effective_diamond_w(const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+[[nodiscard]] inline int effective_diamond_w(const corundum::world::tilemap::Tilemap &map) noexcept {
   return map.diamond_w();
 }
 
-[[nodiscard]] inline int effective_diamond_h(const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+[[nodiscard]] inline int effective_diamond_h(const corundum::world::tilemap::Tilemap &map) noexcept {
   return map.diamond_h();
 }
 
@@ -95,7 +95,7 @@ namespace tools::tilemap {
   [[nodiscard]] inline corundum::core::math::Vec2
   pixel_to_fractional_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
                            float camera_y, float tile_scale, float elev_step, int map_h, int tw, int diamond_h,
-                           const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+                           const corundum::world::tilemap::Tilemap &map) noexcept {
     const int clamped_px = std::clamp(px, canvas_left, canvas_left + std::max(canvas_w, 1) - 1);
     const int clamped_py = std::clamp(py, canvas_top, canvas_top + std::max(canvas_h, 1) - 1);
 
@@ -124,7 +124,7 @@ namespace tools::tilemap {
       const int row = static_cast<int>(std::floor(frac.y));
       if (col < 0 || col >= map.width || row < 0 || row >= map.height)
         continue;
-      if (corundum::gameplay::world::tilemap::elevation_at(map, col, row) == elev)
+      if (corundum::world::tilemap::elevation_at(map, col, row) == elev)
         return frac;
     }
     // No elev matched — fall back to elev=0 (preserves the original behavior for clicks
@@ -174,10 +174,11 @@ namespace tools::tilemap {
    *
    * @param map  Tilemap for elevation lookup (must match the map_w/map_h bounds).
    */
-  [[nodiscard]] inline std::optional<TileCoord>
-  screen_to_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
-                 float camera_y, float tile_scale, float elev_step, int map_w, int map_h, int tw, int diamond_h,
-                 const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+  [[nodiscard]] inline std::optional<TileCoord> screen_to_tile(int px, int py, int canvas_left, int canvas_top,
+                                                               int canvas_w, int canvas_h, float camera_x,
+                                                               float camera_y, float tile_scale, float elev_step,
+                                                               int map_w, int map_h, int tw, int diamond_h,
+                                                               const corundum::world::tilemap::Tilemap &map) noexcept {
     if (px < canvas_left || px >= canvas_left + canvas_w)
       return std::nullopt;
     if (py < canvas_top || py >= canvas_top + canvas_h)
@@ -226,8 +227,7 @@ namespace tools::tilemap {
    * @return One PaletteCell per tile, in local_id order.
    */
   [[nodiscard]] inline std::vector<PaletteCell>
-  compute_palette_layout(const corundum::gameplay::world::tilemap::TilemapTileset &ts, int available_w,
-                         float tile_scale) {
+  compute_palette_layout(const corundum::world::tilemap::TilemapTileset &ts, int available_w, float tile_scale) {
     std::vector<PaletteCell> cells;
     cells.reserve(static_cast<std::size_t>(std::max(0, ts.tile_count)));
     int cursor_x = 0, cursor_y = 0, row_h = 0;
@@ -260,15 +260,14 @@ namespace tools::tilemap {
    * @param cells         Precomputed palette layout — see compute_palette_layout().
    * @return Absolute GID, or nullopt if the click doesn't land on a tile.
    */
-  [[nodiscard]] inline std::optional<corundum::gameplay::world::tilemap::TileId>
-  palette_click_to_gid(int panel_local_x, int panel_local_y,
-                       const corundum::gameplay::world::tilemap::TilemapTileset &ts, float scroll_y,
-                       std::span<const PaletteCell> cells) noexcept {
+  [[nodiscard]] inline std::optional<corundum::world::tilemap::TileId>
+  palette_click_to_gid(int panel_local_x, int panel_local_y, const corundum::world::tilemap::TilemapTileset &ts,
+                       float scroll_y, std::span<const PaletteCell> cells) noexcept {
     const int content_y = panel_local_y + static_cast<int>(scroll_y);
     for (const auto &cell : cells) {
       if (panel_local_x >= cell.x && panel_local_x < cell.x + cell.w && content_y >= cell.y &&
           content_y < cell.y + cell.h)
-        return static_cast<corundum::gameplay::world::tilemap::TileId>(static_cast<int>(ts.first_gid) + cell.local_id);
+        return static_cast<corundum::world::tilemap::TileId>(static_cast<int>(ts.first_gid) + cell.local_id);
     }
     return std::nullopt;
   }
@@ -284,8 +283,8 @@ namespace tools::tilemap {
    * @param tile_w, tile_h  Tile dimensions in Tiled pixel space.
    * @return CollisionRect with positive w/h.
    */
-  [[nodiscard]] inline corundum::gameplay::world::tilemap::CollisionRect
-  snap_to_tile_rect(int col_a, int row_a, int col_b, int row_b) noexcept {
+  [[nodiscard]] inline corundum::world::tilemap::CollisionRect snap_to_tile_rect(int col_a, int row_a, int col_b,
+                                                                                 int row_b) noexcept {
     const int min_col = std::min(col_a, col_b);
     const int min_row = std::min(row_a, row_b);
     const int max_col = std::max(col_a, col_b);
@@ -315,7 +314,7 @@ namespace tools::tilemap {
    * @param diamond_h       Tilemap::diamond_h() — the isometric grid-step height.
    * @return CollisionRect in tile-grid space with col_span/row_span >= 1/diamond_w, 1/diamond_h.
    */
-  [[nodiscard]] inline corundum::gameplay::world::tilemap::CollisionRect
+  [[nodiscard]] inline corundum::world::tilemap::CollisionRect
   pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
                       int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
                       int diamond_w, int diamond_h) noexcept {
@@ -339,10 +338,10 @@ namespace tools::tilemap {
    *
    * @param map  Tilemap for elevation lookup (sub-tile precision on raised cells).
    */
-  [[nodiscard]] inline corundum::gameplay::world::tilemap::CollisionRect
+  [[nodiscard]] inline corundum::world::tilemap::CollisionRect
   pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
                       int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
-                      int diamond_w, int diamond_h, const corundum::gameplay::world::tilemap::Tilemap &map) noexcept {
+                      int diamond_w, int diamond_h, const corundum::world::tilemap::Tilemap &map) noexcept {
     const auto ta = pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
                                              camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h, map);
     const auto tb = pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,

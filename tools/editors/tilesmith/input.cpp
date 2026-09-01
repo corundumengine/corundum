@@ -63,7 +63,7 @@ namespace tools::tilemap {
         return;
       const int tw = state.map.diamond_w();
       const int th = state.map.diamond_h();
-      corundum::gameplay::world::tilemap::CollisionRect candidate;
+      corundum::world::tilemap::CollisionRect candidate;
       if (state.col_drag_sub_tile) {
         candidate = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y,
                                         state.col_drag_cur_win_x, state.col_drag_cur_win_y, 0, k_menu_h, CANVAS_W,
@@ -85,7 +85,7 @@ namespace tools::tilemap {
         return;
       // std::floor (not truncate) so a sub-tile rect's col/row identifies the cell
       // containing its top-left corner — matches picking/chunk_at_iso conventions.
-      const uint8_t elev = static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(
+      const uint8_t elev = static_cast<uint8_t>(corundum::world::tilemap::elevation_at(
           state.map, static_cast<int>(std::floor(candidate.col)), static_cast<int>(std::floor(candidate.row))));
       state.map.collisions.push_back(candidate.col, candidate.row, candidate.col_span, candidate.row_span, elev);
       state.dirty = true;
@@ -117,8 +117,7 @@ namespace tools::tilemap {
           return;
         }
       }
-      const uint8_t elev =
-          static_cast<uint8_t>(corundum::gameplay::world::tilemap::elevation_at(state.map, tc->col, tc->row));
+      const uint8_t elev = static_cast<uint8_t>(corundum::world::tilemap::elevation_at(state.map, tc->col, tc->row));
       tris.push_back(col, row, col_span, row_span, state.collision_tri_cut, elev);
       state.dirty = true;
       push_undo_checkpoint(state);
@@ -432,7 +431,7 @@ namespace tools::tilemap {
         state.triangle_collision_mode = !state.triangle_collision_mode;
 
       if (state.show_collisions && state.triangle_collision_mode) {
-        using Cut = corundum::gameplay::world::tilemap::TriangleCut;
+        using Cut = corundum::world::tilemap::TriangleCut;
         constexpr std::array<Cut, 4> order{Cut::NorthWest, Cut::NorthEast, Cut::SouthEast, Cut::SouthWest};
         if (ImGui::IsKeyPressed(ImGuiKey_RightBracket)) {
           for (int k = 0; k < 4; ++k) {
@@ -460,7 +459,7 @@ namespace tools::tilemap {
               static_cast<uint8_t>(std::max(0, static_cast<int>(state.selected_elevation) - step));
       } else if (state.show_ramps) {
         if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
-          using corundum::gameplay::world::tilemap::RampAxis;
+          using corundum::world::tilemap::RampAxis;
           state.selected_ramp_axis =
               state.selected_ramp_axis == RampAxis::NorthSouth ? RampAxis::EastWest : RampAxis::NorthSouth;
         }
@@ -497,10 +496,10 @@ namespace tools::tilemap {
       }
 
       if (ImGui::IsKeyPressed(ImGuiKey_X))
-        state.selected_flip ^= corundum::gameplay::world::tilemap::k_flip_h;
+        state.selected_flip ^= corundum::world::tilemap::k_flip_h;
 
       if (ImGui::IsKeyPressed(ImGuiKey_Y))
-        state.selected_flip ^= corundum::gameplay::world::tilemap::k_flip_v;
+        state.selected_flip ^= corundum::world::tilemap::k_flip_v;
 
       if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !state.map.layers.empty())
         state.active_layer = (state.active_layer + 1) % static_cast<int>(state.map.layers.size());

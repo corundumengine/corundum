@@ -1,7 +1,7 @@
 #include "render_walkability.hpp"
 #include "coords.hpp"
 #include <algorithm>
-#include <corundum/gameplay/world/tilemap/walkability.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
 
 namespace tools::tilemap {
 
@@ -23,9 +23,9 @@ namespace tools::tilemap {
     if (state.map.tilesets.empty())
       return;
 
-    using corundum::gameplay::world::tilemap::build_walkability_graph;
-    using corundum::gameplay::world::tilemap::elevation_at;
-    using corundum::gameplay::world::tilemap::WalkabilityGraph;
+    using corundum::world::tilemap::build_walkability_graph;
+    using corundum::world::tilemap::elevation_at;
+    using corundum::world::tilemap::WalkabilityGraph;
 
     const WalkabilityGraph graph = build_walkability_graph(state.map, static_cast<int>(state.max_step_height));
 

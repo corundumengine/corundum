@@ -1,13 +1,13 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_sys.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/world_manifest.hpp>
 
-namespace tilemap = corundum::gameplay::world::tilemap;
+namespace tilemap = corundum::world::tilemap;
 namespace render_data = corundum::render;
 
 namespace {

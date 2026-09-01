@@ -1,16 +1,16 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/map_view.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/physics/physics_sys.hpp>
+#include <corundum/world/map_view.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
-namespace tilemap = corundum::gameplay::world::tilemap;
-using corundum::gameplay::world::MapView;
-using corundum::gameplay::world::tilemap::RampAxis;
-using corundum::gameplay::world::tilemap::Tilemap;
-using corundum::gameplay::world::tilemap::TilemapLayer;
+namespace tilemap = corundum::world::tilemap;
 using corundum::physics::compute_elevation_gate;
 using corundum::physics::ElevationGate;
+using corundum::world::MapView;
+using corundum::world::tilemap::RampAxis;
+using corundum::world::tilemap::Tilemap;
+using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 

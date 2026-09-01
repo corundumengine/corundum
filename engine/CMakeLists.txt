@@ -33,26 +33,26 @@ add_library(engine STATIC
     src/core/game_config.cpp
     src/core/json_schema.cpp
     src/core/json_io.cpp
-    src/gameplay/world/actors/actor_loader.cpp
-    src/gameplay/world/portals/portal.cpp
-    src/gameplay/world/portals/transition_prompt.cpp
+    src/world/actors/actor_loader.cpp
+    src/world/portals/portal.cpp
+    src/world/portals/transition_prompt.cpp
     src/anim/anim_sys.cpp
-    src/gameplay/world/camera_system.cpp
-    src/gameplay/world/picking.cpp
-    src/gameplay/world/pathfinding.cpp
+    src/world/camera_system.cpp
+    src/world/picking.cpp
+    src/world/pathfinding.cpp
     src/dialogue/interact.cpp
     src/input/input_sys.cpp
     src/physics/physics_sys.cpp
     src/render/render_sys.cpp
-    src/gameplay/world/tilemap/loader.cpp
-    src/gameplay/world/tilemap/serialize.cpp
-    src/gameplay/world/tilemap/world_manifest.cpp
-    src/gameplay/world/tilemap/validate.cpp
-    src/gameplay/world/tilemap/walkability.cpp
-    src/gameplay/world/spawn.cpp
-    src/gameplay/world/map_view.cpp
-    src/gameplay/world/transition.cpp
-    src/gameplay/world/update.cpp
+    src/world/tilemap/loader.cpp
+    src/world/tilemap/serialize.cpp
+    src/world/tilemap/world_manifest.cpp
+    src/world/tilemap/validate.cpp
+    src/world/tilemap/walkability.cpp
+    src/world/spawn.cpp
+    src/world/map_view.cpp
+    src/world/transition.cpp
+    src/world/update.cpp
     src/ui/nine_patch.cpp
     src/ui/dialog_box.cpp
     src/ui/prompt_box.cpp

@@ -1,8 +1,8 @@
 #include <corundum/dialogue/interact.hpp>
 #include <corundum/dialogue/system.hpp>
 #include <corundum/ecs/component/components.hpp>
-#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/resources/sprite.hpp>
+#include <corundum/world/picking.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -48,7 +48,7 @@ namespace corundum::dialogue {
 
   } // namespace
 
-  void update_dialogue(corundum::gameplay::world::Scene &scene, const corundum::input::PressedActions &actions,
+  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions,
                        corundum::world::FlagStore &flags, const quest::Registry *quests) noexcept {
     using corundum::ecs::EntityId;
     using corundum::ecs::World;
@@ -68,11 +68,11 @@ namespace corundum::dialogue {
       scene.dialogue_npc.reset();
       scene.dialogue_npc_saved_facing.reset();
       scene.dialogue_npc_saved_anim.reset();
-      scene.mode = corundum::gameplay::world::GameMode::Exploring;
+      scene.mode = corundum::world::GameMode::Exploring;
     }
   }
 
-  void try_interact(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
+  void try_interact(corundum::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
                     corundum::world::FlagStore &flags) noexcept {
     using corundum::dialogue::Graph;
@@ -109,7 +109,7 @@ namespace corundum::dialogue {
         continue;
 
       if (via_click) {
-        const corundum::gameplay::world::TileCoord npc_tile{static_cast<int>(npc_col), static_cast<int>(npc_row)};
+        const corundum::world::TileCoord npc_tile{static_cast<int>(npc_col), static_cast<int>(npc_row)};
         if (!scene.hovered_tile || *scene.hovered_tile != npc_tile)
           continue; // click landed elsewhere — not aimed at this NPC
       }
@@ -135,7 +135,7 @@ namespace corundum::dialogue {
 
       scene.dialogue_npc = eid;
       corundum::dialogue::start(scene.dialogue, *graph, flags);
-      scene.mode = corundum::gameplay::world::GameMode::Dialogue;
+      scene.mode = corundum::world::GameMode::Dialogue;
       // Defensive: a click that both queued a path AND was close enough to trigger
       // interact (same frame) would otherwise leave that path to silently resume once
       // the conversation ends, walking the player toward wherever they clicked to start it.

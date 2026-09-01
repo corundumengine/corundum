@@ -38,8 +38,8 @@ namespace tools::tilemap {
     // solid triangle is the other three vertices.
     void draw_iso_triangle(const CanvasContext &ctx, float x, float y, float w, float h, float inv_tw, float inv_th,
                            float elev, const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y,
-                           corundum::gameplay::world::tilemap::TriangleCut cut, ImU32 fill, ImU32 outline) noexcept {
-      using corundum::gameplay::world::tilemap::TriangleCut;
+                           corundum::world::tilemap::TriangleCut cut, ImU32 fill, ImU32 outline) noexcept {
+      using corundum::world::tilemap::TriangleCut;
       const ImVec2 top = tiled_to_iso(ctx, x, y, inv_tw, inv_th, elev, iso, offset_x, offset_y);
       const ImVec2 right = tiled_to_iso(ctx, x + w, y, inv_tw, inv_th, elev, iso, offset_x, offset_y);
       const ImVec2 bottom = tiled_to_iso(ctx, x + w, y + h, inv_tw, inv_th, elev, iso, offset_x, offset_y);
@@ -121,7 +121,7 @@ namespace tools::tilemap {
       if (!occupied) {
         // Preview at the elevation this triangle would actually be authored at if placed now.
         const float preview_elev = static_cast<float>(
-            corundum::gameplay::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row));
+            corundum::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row));
         draw_iso_triangle(ctx, hover_col_f * tw, hover_row_f * th, static_cast<float>(tw), static_cast<float>(th),
                           inv_tw, inv_th, preview_elev, iso, state.canvas.offset_x, state.canvas.offset_y,
                           state.collision_tri_cut, IM_COL32(100, 255, 100, 50), IM_COL32(100, 255, 100, 220));
@@ -141,7 +141,7 @@ namespace tools::tilemap {
     const float inv_tw = 1.f / static_cast<float>(tw);
     const float inv_th = 1.f / static_cast<float>(th);
 
-    corundum::gameplay::world::tilemap::CollisionRect cr;
+    corundum::world::tilemap::CollisionRect cr;
     if (state.col_drag_sub_tile) {
       cr = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
                                state.col_drag_cur_win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x,
@@ -152,8 +152,8 @@ namespace tools::tilemap {
                              state.col_drag_cur_row);
     }
     // Preview at the elevation this rect would actually be authored at if committed now.
-    const float preview_elev = static_cast<float>(corundum::gameplay::world::tilemap::elevation_at(
-        state.map, static_cast<int>(cr.col), static_cast<int>(cr.row)));
+    const float preview_elev = static_cast<float>(
+        corundum::world::tilemap::elevation_at(state.map, static_cast<int>(cr.col), static_cast<int>(cr.row)));
     draw_iso_rect(ctx, cr.col * tw, cr.row * th, cr.col_span * tw, cr.row_span * th, inv_tw, inv_th, preview_elev, iso,
                   state.canvas.offset_x, state.canvas.offset_y, IM_COL32(100, 255, 100, 40),
                   IM_COL32(100, 255, 100, 230));

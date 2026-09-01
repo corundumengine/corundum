@@ -1,7 +1,7 @@
 #pragma once
 #include "editor_state.hpp"
 #include <algorithm>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 namespace tools::tilemap {
 

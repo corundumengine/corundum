@@ -3,8 +3,8 @@
 #include "layout.hpp"
 #include <algorithm>
 #include <cmath>
-#include <corundum/gameplay/world/tilemap/loader.hpp>
 #include <corundum/tool_host/tool_host.hpp>
+#include <corundum/world/tilemap/loader.hpp>
 #include <filesystem>
 #include <format>
 #include <imgui.h>
@@ -18,16 +18,15 @@ namespace tools::tilemap {
     void fix_gids_after_removal(EditorState &state, int removed_first_gid, int removed_count) {
       for (auto &layer : state.map.layers) {
         for (auto &gid : layer.tiles) {
-          if (gid != corundum::gameplay::world::tilemap::k_empty_tile &&
+          if (gid != corundum::world::tilemap::k_empty_tile &&
               static_cast<int>(gid) >= removed_first_gid + removed_count) {
-            gid = static_cast<corundum::gameplay::world::tilemap::TileId>(static_cast<int>(gid) - removed_count);
+            gid = static_cast<corundum::world::tilemap::TileId>(static_cast<int>(gid) - removed_count);
           }
         }
         for (const auto &[_, cell] : layer.animated_cells) {
           for (auto &frame_gid : cell.frame_gids) {
             if (static_cast<int>(frame_gid) >= removed_first_gid + removed_count) {
-              frame_gid =
-                  static_cast<corundum::gameplay::world::tilemap::TileId>(static_cast<int>(frame_gid) - removed_count);
+              frame_gid = static_cast<corundum::world::tilemap::TileId>(static_cast<int>(frame_gid) - removed_count);
             }
           }
         }
@@ -35,7 +34,7 @@ namespace tools::tilemap {
     }
 
     bool tileset_has_any_tile(const EditorState &state, int tileset_idx) {
-      using corundum::gameplay::world::tilemap::TileId;
+      using corundum::world::tilemap::TileId;
       if (tileset_idx < 0 || tileset_idx >= static_cast<int>(state.map.tilesets.size()))
         return false;
       const auto &ts = state.map.tilesets[static_cast<std::size_t>(tileset_idx)];
@@ -58,11 +57,11 @@ namespace tools::tilemap {
 
     void do_add_tileset(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                         std::vector<TilesetView> &tileset_views, const std::string &source_path) {
-      using corundum::gameplay::world::tilemap::TileId;
-      using corundum::gameplay::world::tilemap::TilemapTileset;
-      using corundum::gameplay::world::tilemap::TilesetInfo;
+      using corundum::world::tilemap::TileId;
+      using corundum::world::tilemap::TilemapTileset;
+      using corundum::world::tilemap::TilesetInfo;
 
-      const auto tileset_result = corundum::gameplay::world::tilemap::load_tileset(source_path);
+      const auto tileset_result = corundum::world::tilemap::load_tileset(source_path);
       if (!tileset_result)
         throw std::runtime_error(tileset_result.error());
       TilesetInfo info = std::move(*tileset_result);
@@ -96,7 +95,7 @@ namespace tools::tilemap {
 
     void do_remove_tileset(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                            std::vector<TilesetView> &tileset_views, int idx) {
-      using corundum::gameplay::world::tilemap::TileId;
+      using corundum::world::tilemap::TileId;
 
       if (idx < 0 || idx >= static_cast<int>(state.map.tilesets.size()))
         return;
@@ -360,7 +359,7 @@ namespace tools::tilemap {
     ImGui::End();
 
     // Selected tile highlight (foreground draw list, on top of tile images)
-    corundum::gameplay::world::tilemap::TilemapTileset &active_ts =
+    corundum::world::tilemap::TilemapTileset &active_ts =
         state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
     const int sel_local_id = static_cast<int>(state.selected_gid) - static_cast<int>(ts.first_gid);
     const bool sel_valid = sel_local_id >= 0 && sel_local_id < ts.tile_count;

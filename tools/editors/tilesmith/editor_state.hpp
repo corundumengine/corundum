@@ -1,10 +1,10 @@
 #pragma once
 #include "new_map_dialog.hpp"
 #include "portal_entry.hpp"
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/tool_host/canvas_controller.hpp>
 #include <corundum/tool_host/file_browser.hpp>
 #include <corundum/tool_host/undo.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -18,7 +18,7 @@ namespace tools::tilemap {
   /// instead of leaving the user's current layer selection alone. See adopt_doc() in undo.cpp
   /// for how the active layer is instead just clamped into range after a restore.
   struct TilemapDoc {
-    corundum::gameplay::world::tilemap::Tilemap map;
+    corundum::world::tilemap::Tilemap map;
     std::vector<PortalEntry> portals;
   };
 
@@ -29,17 +29,17 @@ namespace tools::tilemap {
    * reference to this struct and reads/writes only the fields it owns.
    */
   struct EditorState {
-    corundum::gameplay::world::tilemap::Tilemap map; ///< Loaded tilemap (edited in place).
-    std::filesystem::path map_path;                  ///< Source file path used for save.
+    corundum::world::tilemap::Tilemap map; ///< Loaded tilemap (edited in place).
+    std::filesystem::path map_path;        ///< Source file path used for save.
 
-    int active_layer = 0;                                        ///< Index of the currently selected layer.
-    corundum::gameplay::world::tilemap::TileId selected_gid = 0; ///< GID of the tile selected in the palette.
-    uint8_t selected_flip = 0;    ///< k_flip_h | k_flip_v bitmask for the next paint operation.
-    int palette_tileset_idx = 0;  ///< Index of the active tileset tab.
-    float palette_scroll_y = 0.f; ///< Vertical scroll offset in pixels within the palette's flow
-                                  ///< layout (tiles have no uniform size, so there's no fixed row
-                                  ///< height to scroll by — see compute_palette_layout()).
-    int palette_tabbar_h = 28;    ///< Measured ImGui tab bar height (updated each frame).
+    int active_layer = 0;                              ///< Index of the currently selected layer.
+    corundum::world::tilemap::TileId selected_gid = 0; ///< GID of the tile selected in the palette.
+    uint8_t selected_flip = 0;                         ///< k_flip_h | k_flip_v bitmask for the next paint operation.
+    int palette_tileset_idx = 0;                       ///< Index of the active tileset tab.
+    float palette_scroll_y = 0.f;                      ///< Vertical scroll offset in pixels within the palette's flow
+                                                       ///< layout (tiles have no uniform size, so there's no fixed row
+                                                       ///< height to scroll by — see compute_palette_layout()).
+    int palette_tabbar_h = 28;                         ///< Measured ImGui tab bar height (updated each frame).
 
     corundum::tool_host::CanvasController canvas;
     /// User-controlled zoom for the palette panel (independent of canvas zoom); 1 = native pixel
@@ -58,14 +58,13 @@ namespace tools::tilemap {
     bool show_walkability = false;    ///< Whether to overlay disconnected walkability edges.
     unsigned int max_step_height = 4; ///< Mirrored from GameConfig::max_step_height; read-only in Tilesmith.
     bool show_ramps = false;          ///< Whether to display/edit ramp tiles.
-    corundum::gameplay::world::tilemap::RampAxis selected_ramp_axis =
-        corundum::gameplay::world::tilemap::RampAxis::NorthSouth; ///< Axis for the next ramp paint operation.
+    corundum::world::tilemap::RampAxis selected_ramp_axis =
+        corundum::world::tilemap::RampAxis::NorthSouth; ///< Axis for the next ramp paint operation.
 
     /// When show_collisions is true, controls whether left-click places triangle or rect.
     bool triangle_collision_mode = false;
     /// Orientation of the next triangle to place (cycles with [ / ] keys).
-    corundum::gameplay::world::tilemap::TriangleCut collision_tri_cut =
-        corundum::gameplay::world::tilemap::TriangleCut::NorthWest;
+    corundum::world::tilemap::TriangleCut collision_tri_cut = corundum::world::tilemap::TriangleCut::NorthWest;
 
     // Collision drag state
     bool collision_dragging = false; ///< True while a collision rect drag is in progress.

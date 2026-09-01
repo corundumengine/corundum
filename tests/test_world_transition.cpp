@@ -2,14 +2,14 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
-#include <corundum/gameplay/world/map_view.hpp>
-#include <corundum/gameplay/world/portals/portal.hpp>
-#include <corundum/gameplay/world/tilemap/world_manifest.hpp>
-#include <corundum/gameplay/world/transition.hpp>
-#include <corundum/gameplay/world/update.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/platform/null/null_platform.hpp>
 #include <corundum/render/render_state.hpp>
+#include <corundum/world/map_view.hpp>
+#include <corundum/world/portals/portal.hpp>
+#include <corundum/world/tilemap/world_manifest.hpp>
+#include <corundum/world/transition.hpp>
+#include <corundum/world/update.hpp>
 
 #include <expected>
 #include <filesystem>
@@ -63,22 +63,22 @@ namespace {
 
   /// Run one fixed simulation step (physics + portal detection) with no input.
   void advance(corundum::Engine &engine) {
-    auto map = corundum::gameplay::world::build_map_view(engine.render, engine.cfg);
+    auto map = corundum::world::build_map_view(engine.render, engine.cfg);
     corundum::input::InputState input{};
-    corundum::gameplay::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
-                                      static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
-                                      &engine.quests);
+    corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
+                            static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
+                            &engine.quests);
   }
 
   /// Run one fixed simulation step with a single action's `pressed` bit set. Used to drive
   /// the portal-confirm prompt's Select/Cancel path through update_transition_prompt().
   void advance_with(corundum::Engine &engine, corundum::input::Action action) {
-    auto map = corundum::gameplay::world::build_map_view(engine.render, engine.cfg);
+    auto map = corundum::world::build_map_view(engine.render, engine.cfg);
     corundum::input::InputState input{};
     input.pressed.set(static_cast<std::size_t>(action));
-    corundum::gameplay::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
-                                      static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
-                                      &engine.quests);
+    corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
+                            static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
+                            &engine.quests);
   }
 
   /// Place the player entity at an exact tile (row/col) without pathing.
@@ -101,9 +101,9 @@ namespace {
 
 } // namespace
 
-using corundum::gameplay::world::handle_map_transition;
-using corundum::gameplay::world::MapTransition;
 using corundum::render::RenderMode;
+using corundum::world::handle_map_transition;
+using corundum::world::MapTransition;
 
 // Boot a 2×2 chunk world (chunk_size 8). Default centre tile is (8,8); the default
 // streaming window centre is chunk (1,1).
@@ -130,7 +130,7 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Exploring);
   REQUIRE(engine.scene.inventory_cursor == 0);
 
@@ -242,7 +242,7 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
   CHECK(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
   CHECK_FALSE(engine.entered_from_world);
-  CHECK(engine.render.chunks.last_center() == corundum::gameplay::world::tilemap::ChunkCoord{1, 0});
+  CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
 
   corundum::cleanup(engine);
 }
@@ -283,7 +283,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   advance(engine);
 
   // Stepping onto the portal pauses the player on a confirm prompt — no automatic transition.
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK_FALSE(engine.scene.transition_prompt->declined());
@@ -328,7 +328,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   CHECK(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
   CHECK_FALSE(engine.entered_from_world);
-  CHECK(engine.render.chunks.last_center() == corundum::gameplay::world::tilemap::ChunkCoord{1, 0});
+  CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
 
   corundum::cleanup(engine);
 }
@@ -361,17 +361,17 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
   REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
-  const auto map = corundum::gameplay::world::build_map_view(engine.render, engine.cfg);
+  const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
   // World-mode MapView carries world_render (not elevation_map); pick_tile must use it.
   REQUIRE(map.world_render != nullptr);
   CHECK(map.elevation_map == nullptr);
 
-  const corundum::gameplay::world::Camera &camera = engine.scene.camera;
+  const corundum::world::Camera &camera = engine.scene.camera;
   // The camera is centred on the player tile (8,8); the viewport centre must fall on a tile.
   const float mouse_x = 160.f;
   const float mouse_y = 120.f;
-  const auto result = corundum::gameplay::world::pick_tile(mouse_x, mouse_y, camera, map,
-                                                           engine.cfg.elevation_step_px * map.tile_scale, camera.zoom);
+  const auto result = corundum::world::pick_tile(mouse_x, mouse_y, camera, map,
+                                                 engine.cfg.elevation_step_px * map.tile_scale, camera.zoom);
 
   CHECK(result.has_value());
 
@@ -390,7 +390,7 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
 
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   CHECK(engine.scene.mode == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK_FALSE(engine.scene.transition_prompt->declined());
@@ -414,7 +414,7 @@ TEST_CASE("world transition — Select on the prompt promotes the stashed transi
 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
 
   advance_with(engine, corundum::input::Action::Select);
@@ -443,7 +443,7 @@ TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until 
 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
 
   advance_with(engine, corundum::input::Action::Cancel);
@@ -496,7 +496,7 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   // Walk onto the interior's return_to_world portal at tile (0,0).
   move_player_to(engine, 0.f, 0.f);
   advance(engine);
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->transition().return_to_world);
@@ -510,7 +510,7 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   CHECK(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
   CHECK_FALSE(engine.entered_from_world);
-  CHECK(engine.render.chunks.last_center() == corundum::gameplay::world::tilemap::ChunkCoord{1, 0});
+  CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
 
   corundum::cleanup(engine);
 }
@@ -525,7 +525,7 @@ TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->confirm_selected());
@@ -561,7 +561,7 @@ TEST_CASE("world transition — Select on No backs out like Cancel") {
 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
 
   advance_with(engine, corundum::input::Action::MoveRight);
@@ -586,7 +586,7 @@ TEST_CASE("world transition — re-arming the prompt resets Yes as the default h
 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
-  using corundum::gameplay::world::GameMode;
+  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt->confirm_selected());
 

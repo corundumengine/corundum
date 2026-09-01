@@ -5,7 +5,7 @@
 namespace corundum::physics {
 
   void resolve_walkability(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos,
-                           const corundum::gameplay::world::tilemap::WalkabilityGraph *graph) noexcept {
+                           const corundum::world::tilemap::WalkabilityGraph *graph) noexcept {
     if (!graph)
       return;
 

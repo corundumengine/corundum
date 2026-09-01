@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <format>
 #include <span>
 #include <string>
@@ -44,10 +44,9 @@ namespace tools::tilemap {
    * @param existing_layers Layers to search.
    * @return true if any layer's name equals @p name.
    */
-  [[nodiscard]] inline bool
-  layer_name_taken(std::string_view name,
-                   std::span<const corundum::gameplay::world::tilemap::TilemapLayer> existing_layers) {
-    return std::ranges::contains(existing_layers, name, &corundum::gameplay::world::tilemap::TilemapLayer::name);
+  [[nodiscard]] inline bool layer_name_taken(std::string_view name,
+                                             std::span<const corundum::world::tilemap::TilemapLayer> existing_layers) {
+    return std::ranges::contains(existing_layers, name, &corundum::world::tilemap::TilemapLayer::name);
   }
 
   /** @brief Pick the first free layer name based on @p base.
@@ -59,8 +58,7 @@ namespace tools::tilemap {
    * @return A name that does not collide with any layer in @p existing_layers.
    */
   [[nodiscard]] inline std::string
-  dedup_layer_name(std::string_view base,
-                   std::span<const corundum::gameplay::world::tilemap::TilemapLayer> existing_layers) {
+  dedup_layer_name(std::string_view base, std::span<const corundum::world::tilemap::TilemapLayer> existing_layers) {
     if (!layer_name_taken(base, existing_layers))
       return std::string(base);
     for (int n = 2;; ++n) {
@@ -84,11 +82,11 @@ namespace tools::tilemap {
    * @param existing_layers Layers already on the map, used for name-deduplication.
    * @return A fully-initialized TilemapLayer; tiles are all k_empty_tile and visible=true.
    */
-  [[nodiscard]] inline corundum::gameplay::world::tilemap::TilemapLayer
+  [[nodiscard]] inline corundum::world::tilemap::TilemapLayer
   make_layer_from_preset(LayerPreset preset, int width, int height,
-                         std::span<const corundum::gameplay::world::tilemap::TilemapLayer> existing_layers) {
-    using corundum::gameplay::world::tilemap::k_empty_tile;
-    using corundum::gameplay::world::tilemap::TilemapLayer;
+                         std::span<const corundum::world::tilemap::TilemapLayer> existing_layers) {
+    using corundum::world::tilemap::k_empty_tile;
+    using corundum::world::tilemap::TilemapLayer;
 
     TilemapLayer layer;
     switch (preset) {

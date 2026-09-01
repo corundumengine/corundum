@@ -3,7 +3,7 @@
 #include <corundum/engine_factory.hpp>
 #include <corundum/dialogue/action.hpp>
 #include <corundum/world/flags.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 // Deliberate game-facing surface; replacing today's accidental transitive-include
 // reliance on engine.hpp's include block. engine.hpp's includes stay (each one
@@ -16,5 +16,5 @@ namespace corundum {
   using corundum::world::has_flag;
   using corundum::world::clear_flag;
   using corundum::world::visit_count;
-  using gameplay::world::tilemap::Tilemap;
+  using world::tilemap::Tilemap;
 } // namespace corundum

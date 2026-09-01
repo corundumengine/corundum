@@ -1,12 +1,12 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/ecs/entity.hpp>
-#include <corundum/gameplay/world/portals/portal.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/gameplay/world/tilemap/walkability.hpp>
-#include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/resources/sprite.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/world/portals/portal.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
+#include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <algorithm>
 #include <array>
@@ -53,19 +53,19 @@ namespace corundum::render {
 
   /** @brief A single pre-loaded tilemap (map mode, not world mode). */
   struct MapData {
-    corundum::gameplay::world::tilemap::Tilemap tilemap;
+    corundum::world::tilemap::Tilemap tilemap;
     std::vector<uint32_t> tileset_texture_ids;
     std::vector<int> above_z;
-    std::vector<corundum::gameplay::world::Portal> portals;
+    std::vector<corundum::world::Portal> portals;
   };
 
   /** @brief A single loaded world chunk (world mode only). */
   struct ChunkEntry {
-    corundum::gameplay::world::tilemap::ChunkCoord coord{};
-    corundum::gameplay::world::tilemap::Tilemap tilemap{};
+    corundum::world::tilemap::ChunkCoord coord{};
+    corundum::world::tilemap::Tilemap tilemap{};
     std::vector<uint32_t> tileset_texture_ids{};
     std::vector<int> above_z{};
-    std::vector<corundum::gameplay::world::Portal> portals{};
+    std::vector<corundum::world::Portal> portals{};
   };
 
   /** @brief Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
@@ -113,11 +113,11 @@ namespace corundum::render {
       dirty_ = false;
     }
 
-    [[nodiscard]] gameplay::world::tilemap::ChunkCoord last_center() const noexcept {
+    [[nodiscard]] world::tilemap::ChunkCoord last_center() const noexcept {
       return last_center_;
     }
 
-    void set_last_center(gameplay::world::tilemap::ChunkCoord c) noexcept {
+    void set_last_center(world::tilemap::ChunkCoord c) noexcept {
       last_center_ = c;
     }
 
@@ -147,20 +147,20 @@ namespace corundum::render {
     }
 
     /// True if @p c is already active or already queued in pending.
-    [[nodiscard]] bool has(gameplay::world::tilemap::ChunkCoord c) const noexcept {
+    [[nodiscard]] bool has(world::tilemap::ChunkCoord c) const noexcept {
       return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; }) ||
              std::ranges::contains(pending_, c);
     }
 
     /// Queue @p c for loading. Caller should check has(c) first to avoid duplicates
     /// (kept explicit rather than implicit to match the existing call-site logic).
-    void enqueue_pending(gameplay::world::tilemap::ChunkCoord c) {
+    void enqueue_pending(world::tilemap::ChunkCoord c) {
       pending_.push_back(c);
     }
 
     /// Pop the front of the pending queue into @p out.
     /// @return false if pending is empty (out left unchanged).
-    [[nodiscard]] bool pop_pending(gameplay::world::tilemap::ChunkCoord &out) {
+    [[nodiscard]] bool pop_pending(world::tilemap::ChunkCoord &out) {
       if (pending_.empty())
         return false;
       out = pending_.front();
@@ -190,8 +190,8 @@ namespace corundum::render {
 
   private:
     std::vector<ChunkEntry> active_;
-    std::vector<gameplay::world::tilemap::ChunkCoord> pending_;
-    gameplay::world::tilemap::ChunkCoord last_center_{};
+    std::vector<world::tilemap::ChunkCoord> pending_;
+    world::tilemap::ChunkCoord last_center_{};
     std::array<int32_t, 9> slot_by_offset_{-1, -1, -1, -1, -1, -1, -1, -1, -1};
     bool dirty_{true};
   };
@@ -202,19 +202,19 @@ namespace corundum::render {
    * Separates data from logic per DOD: functions own no state, state holds no behaviour.
    */
   struct RenderState {
-    corundum::gameplay::world::tilemap::CollisionRects agg_collisions{};
+    corundum::world::tilemap::CollisionRects agg_collisions{};
     /// Aggregated portal buffer for world mode — cleared and repopulated by build_map_view
     /// then returned as a span via MapView. Single-map mode passes map_data.portals directly.
-    std::vector<corundum::gameplay::world::Portal> agg_portals{};
-    corundum::gameplay::world::tilemap::CollisionTriangles agg_triangles{};
+    std::vector<corundum::world::Portal> agg_portals{};
+    corundum::world::tilemap::CollisionTriangles agg_triangles{};
     ChunkWindow chunks{};
     corundum::ui::DialogBoxState dialog_box{};
     uint32_t font_id{0};
-    corundum::gameplay::world::tilemap::WorldManifest manifest{};
+    corundum::world::tilemap::WorldManifest manifest{};
     MapData map_data{};
     /// Built once when a single map loads (load_map()); single-map mode only, same
     /// limitation as MapView::elevation_map — World mode leaves this default-empty.
-    corundum::gameplay::world::tilemap::WalkabilityGraph map_walkability{};
+    corundum::world::tilemap::WalkabilityGraph map_walkability{};
     RenderMode mode{RenderMode::None};
     SpriteFrameIndex sprite_index;
 
@@ -247,8 +247,8 @@ namespace corundum::render {
    * Abstracts away the World-vs-SingleMap distinction so consumers don't branch on mode.
    */
   struct CollisionGeometry {
-    gameplay::world::tilemap::CollisionRectsView rects;
-    gameplay::world::tilemap::CollisionTrianglesView tris;
+    world::tilemap::CollisionRectsView rects;
+    world::tilemap::CollisionTrianglesView tris;
   };
 
   /** @brief Return the collision geometry for the currently active render mode.
@@ -269,7 +269,7 @@ namespace corundum::render {
    *  @param[in] state  Initialised render state.
    * @return Pointer to the active tilemap, or nullptr in World mode (which streams
    *          one tilemap per chunk — see RenderState::chunks) and before load. */
-  [[nodiscard]] inline const gameplay::world::tilemap::Tilemap *active_tilemap(const RenderState &state) noexcept {
+  [[nodiscard]] inline const world::tilemap::Tilemap *active_tilemap(const RenderState &state) noexcept {
     return state.mode == RenderMode::SingleMap ? &state.map_data.tilemap : nullptr;
   }
 

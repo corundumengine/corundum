@@ -1,10 +1,10 @@
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/world/pathfinding.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/gameplay/world/update.hpp>
 #include <corundum/physics/collision.hpp>
 #include <corundum/physics/physics_sys.hpp>
 #include <corundum/physics/walkability.hpp>
+#include <corundum/world/pathfinding.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/update.hpp>
 
 #include <algorithm>
 #include <array>
@@ -33,13 +33,13 @@ namespace corundum::physics {
     }
   } // namespace
 
-  ElevationGate compute_elevation_gate(const corundum::gameplay::world::MapView &map, float col, float row) noexcept {
-    using corundum::gameplay::world::tilemap::elevation_at;
-    using corundum::gameplay::world::tilemap::ramp_axis_at;
-    using corundum::gameplay::world::tilemap::RampAxis;
+  ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col, float row) noexcept {
+    using corundum::world::tilemap::elevation_at;
+    using corundum::world::tilemap::ramp_axis_at;
+    using corundum::world::tilemap::RampAxis;
 
     ElevationGate gate{};
-    const float elev_f = corundum::gameplay::world::elevation_at_tile(map, col, row);
+    const float elev_f = corundum::world::elevation_at_tile(map, col, row);
     gate.player_elevation = static_cast<int>(std::round(elev_f));
 
     // World mode has no Tilemap to query — elevation_tolerance stays 0 (no ramps to widen for).
@@ -63,13 +63,12 @@ namespace corundum::physics {
     return gate;
   }
 
-  bool portal_elev_matches(const corundum::gameplay::world::MapView &map,
-                           const corundum::gameplay::world::Portal &portal, int player_elev,
+  bool portal_elev_matches(const corundum::world::MapView &map, const corundum::world::Portal &portal, int player_elev,
                            int elev_tolerance) noexcept {
     // Use the portal's center cell — a multi-cell portal's intent is "the player is on
     // the floor that runs through here", so the center cell is the canonical reference.
     const float portal_elev_f =
-        corundum::gameplay::world::elevation_at_tile(map, portal.col + portal.w * 0.5f, portal.row + portal.h * 0.5f);
+        corundum::world::elevation_at_tile(map, portal.col + portal.w * 0.5f, portal.row + portal.h * 0.5f);
     const int portal_elev = static_cast<int>(std::round(portal_elev_f));
     return std::abs(portal_elev - player_elev) <= elev_tolerance;
   }
@@ -81,7 +80,7 @@ namespace corundum::physics {
   }
 
   void follow_path(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
-                   std::vector<corundum::gameplay::world::TileCoord> &path, float player_speed,
+                   std::vector<corundum::world::TileCoord> &path, float player_speed,
                    corundum::core::math::IsometricParams iso, float dt) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
@@ -181,8 +180,7 @@ namespace corundum::physics {
 
   void update_player(corundum::ecs::TransformTable &transforms, const corundum::ecs::CollisionTable &collisions,
                      corundum::ecs::EntityId player, const corundum::input::InputState &input, float player_speed,
-                     const corundum::gameplay::world::MapView &map, corundum::gameplay::world::Scene &scene,
-                     float dt) noexcept {
+                     const corundum::world::MapView &map, corundum::world::Scene &scene, float dt) noexcept {
     using corundum::core::math::IsometricParams;
     using corundum::ecs::CollisionTable;
     using corundum::ecs::EntityId;
@@ -209,9 +207,9 @@ namespace corundum::physics {
       // the cell the player is actually standing in — same convention as chunk_at_iso
       // and picking. Latent today (positions clamped >= 0), defensive against future
       // knockback / camera-shake paths.
-      const corundum::gameplay::world::TileCoord start{static_cast<int>(std::floor(prev_col)),
-                                                       static_cast<int>(std::floor(prev_row))};
-      scene.path = corundum::gameplay::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
+      const corundum::world::TileCoord start{static_cast<int>(std::floor(prev_col)),
+                                             static_cast<int>(std::floor(prev_row))};
+      scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
     }
 
     const bool manual_move =
@@ -298,10 +296,10 @@ namespace corundum::physics {
       npc_cs[npc_count] = rect.col_span;
       npc_rs[npc_count] = rect.row_span;
       npc_elevations[npc_count] =
-          static_cast<uint8_t>(std::round(corundum::gameplay::world::elevation_at_tile(map, np_col, np_row)));
+          static_cast<uint8_t>(std::round(corundum::world::elevation_at_tile(map, np_col, np_row)));
       ++npc_count;
     }
-    const corundum::gameplay::world::tilemap::CollisionRectsView npc_view{
+    const corundum::world::tilemap::CollisionRectsView npc_view{
         std::span{npc_cols.data(), npc_count}, std::span{npc_rows.data(), npc_count},
         std::span{npc_cs.data(), npc_count}, std::span{npc_rs.data(), npc_count},
         std::span{npc_elevations.data(), npc_count}};
@@ -352,7 +350,7 @@ namespace corundum::physics {
           if (scene.transition_prompt && scene.transition_prompt->declined() && scene.transition_prompt->guards(portal))
             continue;
           scene.transition_prompt.emplace(portal);
-          scene.mode = corundum::gameplay::world::GameMode::Prompt;
+          scene.mode = corundum::world::GameMode::Prompt;
           return;
         }
       }

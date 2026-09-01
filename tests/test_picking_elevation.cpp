@@ -2,9 +2,9 @@
 
 #include "coords.hpp"
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
-namespace tilemap = corundum::gameplay::world::tilemap;
+namespace tilemap = corundum::world::tilemap;
 using corundum::core::math::Vec2;
 using tools::tilemap::pixel_to_fractional_tile;
 using tools::tilemap::screen_to_tile;

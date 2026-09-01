@@ -3,15 +3,15 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/ecs/component/transform_table.hpp>
-#include <corundum/gameplay/world/portals/portal.hpp>
-#include <corundum/gameplay/world/scene.hpp>
-#include <corundum/gameplay/world/tilemap/loader.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/resources/character_registry.hpp>
 #include <corundum/resources/sprite.hpp>
 #include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/prompt_box.hpp>
+#include <corundum/world/portals/portal.hpp>
+#include <corundum/world/scene.hpp>
+#include <corundum/world/tilemap/loader.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -74,7 +74,7 @@ namespace corundum::render {
 
   void clean_up(render::RenderState & /*state*/) noexcept {}
 
-  void snapshot_prev_frame(render::RenderState &state, const corundum::gameplay::world::Scene &scene) noexcept {
+  void snapshot_prev_frame(render::RenderState &state, const corundum::world::Scene &scene) noexcept {
     const corundum::ecs::TransformTable &transforms = scene.world.transforms;
     const std::uint32_t n = transforms.count;
     for (std::uint32_t i = 0; i < n; ++i) {
@@ -90,23 +90,23 @@ namespace corundum::render {
   // ── Internal helpers (forward decls) ─────────────────────────────────────────
 
   static std::optional<render::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r, render::RenderState &state,
-                                                            corundum::gameplay::world::tilemap::ChunkCoord c,
+                                                            corundum::world::tilemap::ChunkCoord c,
                                                             const corundum::core::GameConfig &cfg);
 
   static void sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
-                                 const corundum::gameplay::world::Scene &scene);
+                                 const corundum::world::Scene &scene);
 
   static void render_tilemap(corundum::platform::Renderer &r, const render::RenderState &state, int z_index,
-                             const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                             float cam_x, float cam_y, float zoom, int window_w, int window_h);
+                             const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene, float cam_x,
+                             float cam_y, float zoom, int window_w, int window_h);
 
   static void render_chunk(corundum::platform::Renderer &r, const render::RenderState &state,
                            const render::ChunkEntry &chunk, int z_index, const corundum::core::GameConfig &cfg,
-                           const corundum::gameplay::world::Scene &scene, float cam_x, float cam_y, float zoom,
-                           int window_w, int window_h);
+                           const corundum::world::Scene &scene, float cam_x, float cam_y, float zoom, int window_w,
+                           int window_h);
 
   static void render_ground_layer(corundum::platform::Renderer &r, render::RenderState &state,
-                                  const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                                  const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene,
                                   float alpha, float cam_x, float cam_y, float zoom, int win_w, int win_h);
 
   // ── load_sprite_index ────────────────────────────────────────────────────────
@@ -235,7 +235,7 @@ namespace corundum::render {
     state.agg_triangles = {};
     state.above_z_cache.clear();
 
-    auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(tilemap_path);
+    auto tm_result = corundum::world::tilemap::load_tilemap(tilemap_path);
     if (!tm_result)
       return std::unexpected(tm_result.error());
     auto tilemap = std::move(*tm_result);
@@ -261,7 +261,7 @@ namespace corundum::render {
 
     const std::string stem = std::filesystem::path(tilemap_path).stem().string();
     const auto portals_file = std::format("{}/{}.json", cfg.paths.portals_dir, stem);
-    auto portals = corundum::gameplay::world::load_portals(portals_file);
+    auto portals = corundum::world::load_portals(portals_file);
     if (!portals)
       return std::unexpected(portals.error());
     if (!std::filesystem::exists(portals_file))
@@ -270,7 +270,7 @@ namespace corundum::render {
       std::println("[engine] Loaded {} portals from '{}'", portals->size(), portals_file);
 
     state.map_walkability =
-        corundum::gameplay::world::tilemap::build_walkability_graph(tilemap, static_cast<int>(cfg.max_step_height));
+        corundum::world::tilemap::build_walkability_graph(tilemap, static_cast<int>(cfg.max_step_height));
     state.map_data = {std::move(tilemap), std::move(tex_ids), std::move(above_z), std::move(*portals)};
 
     // Upper bound is known at load time (map dims + entity cap), so this is the only
@@ -285,7 +285,7 @@ namespace corundum::render {
   std::expected<WorldLoadInfo, std::string> load_world(corundum::platform::Renderer &r, render::RenderState &state,
                                                        const corundum::core::GameConfig &cfg,
                                                        const WorldLoadParams &params) {
-    using namespace corundum::gameplay::world::tilemap;
+    using namespace corundum::world::tilemap;
 
     state.mode = render::RenderMode::World;
     state.map_data = {};
@@ -360,7 +360,7 @@ namespace corundum::render {
   // ── render ───────────────────────────────────────────────────────────────────
 
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::gameplay::world::Scene &scene, const corundum::world::FlagStore &flags,
+              const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
               const corundum::quest::Registry *quests, const corundum::item::Registry *items, float alpha, int win_w,
               int win_h) {
     const corundum::core::math::Vec2 viewport{static_cast<float>(win_w), static_cast<float>(win_h)};
@@ -407,7 +407,7 @@ namespace corundum::render {
       corundum::ui::prompt_box_render(r, state.dialog_box.style, state.dialog_box.border, question,
                                       scene.transition_prompt->confirm_selected(), viewport);
     }
-    if (scene.mode == corundum::gameplay::world::GameMode::Inventory && items) {
+    if (scene.mode == corundum::world::GameMode::Inventory && items) {
       corundum::ui::inventory_panel_render(r, state.dialog_box.style, state.dialog_box.border,
                                            corundum::ui::build_inventory_lines(flags, *items), scene.inventory_cursor,
                                            viewport);
@@ -428,12 +428,12 @@ namespace corundum::render {
   // ── load_chunk_entry (internal) ──────────────────────────────────────────────
 
   static std::optional<render::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r, render::RenderState &state,
-                                                            corundum::gameplay::world::tilemap::ChunkCoord c,
+                                                            corundum::world::tilemap::ChunkCoord c,
                                                             const corundum::core::GameConfig &cfg) {
-    auto tm_result = corundum::gameplay::world::tilemap::load_tilemap(state.manifest.chunk_path(c));
+    auto tm_result = corundum::world::tilemap::load_tilemap(state.manifest.chunk_path(c));
     if (!tm_result)
       return std::nullopt;
-    corundum::gameplay::world::tilemap::Tilemap tilemap = std::move(*tm_result);
+    corundum::world::tilemap::Tilemap tilemap = std::move(*tm_result);
     std::vector<uint32_t> tex_ids;
     tex_ids.reserve(tilemap.tilesets.size());
     for (const auto &ts : tilemap.tilesets) {
@@ -453,11 +453,11 @@ namespace corundum::render {
     std::ranges::sort(above_z);
     above_z.erase(std::ranges::unique(above_z).begin(), above_z.end());
 
-    std::vector<corundum::gameplay::world::Portal> portals;
+    std::vector<corundum::world::Portal> portals;
     {
       const std::string stem = state.manifest.chunk_path(c).stem().string();
       const auto portals_path = std::filesystem::path(cfg.paths.portals_dir) / (stem + ".json");
-      auto result = corundum::gameplay::world::load_portals(portals_path);
+      auto result = corundum::world::load_portals(portals_path);
       if (result.has_value())
         portals = std::move(*result);
       else
@@ -468,7 +468,7 @@ namespace corundum::render {
   }
 
   void rebuild_collision(render::RenderState &state) noexcept {
-    using namespace corundum::gameplay::world::tilemap;
+    using namespace corundum::world::tilemap;
     state.agg_collisions = {};
     state.agg_triangles = {};
     if (state.chunks.active_empty())
@@ -491,8 +491,8 @@ namespace corundum::render {
   // ── sync_active_chunks (internal) ────────────────────────────────────────────
 
   static void sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
-                                 const corundum::gameplay::world::Scene &scene) {
-    using namespace corundum::gameplay::world::tilemap;
+                                 const corundum::world::Scene &scene) {
+    using namespace corundum::world::tilemap;
     if (state.chunks.active_empty())
       return;
 
@@ -551,7 +551,7 @@ namespace corundum::render {
 
   /// Parameters for rendering one layer of a tilemap (single-map or world-chunk).
   struct TileRenderParams {
-    const corundum::gameplay::world::tilemap::Tilemap *tilemap;
+    const corundum::world::tilemap::Tilemap *tilemap;
     const std::vector<uint32_t> *tex_ids;
     core::math::IsometricParams iso;
     float camera_x;   ///< Camera top-left x in world pixels (interpolated).
@@ -577,16 +577,16 @@ namespace corundum::render {
   /// Resolves the tile at (col, row) in @p layer to draw data, or std::nullopt if the cell is empty/unrenderable.
   /// Shared by render_tile_layer (immediate draw, z>0 bands) and collect_tile_layer (depth-sorted, z==0 band).
   static std::optional<ResolvedTile> resolve_tile_cell(const TileRenderParams &ctx,
-                                                       const corundum::gameplay::world::tilemap::TilemapLayer &layer,
-                                                       const corundum::gameplay::world::tilemap::Tilemap &tilemap,
-                                                       int col, int row, const corundum::core::GameConfig &cfg,
-                                                       const corundum::gameplay::world::Scene &scene) {
+                                                       const corundum::world::tilemap::TilemapLayer &layer,
+                                                       const corundum::world::tilemap::Tilemap &tilemap, int col,
+                                                       int row, const corundum::core::GameConfig &cfg,
+                                                       const corundum::world::Scene &scene) {
     const int cell_idx = row * tilemap.width + col;
     const auto cell_uidx = static_cast<std::size_t>(cell_idx);
 
-    corundum::gameplay::world::tilemap::TileId gid;
+    corundum::world::tilemap::TileId gid;
     const uint32_t anim_idx = layer.baked_animation_index[cell_uidx];
-    if (anim_idx != corundum::gameplay::world::tilemap::TilemapLayer::k_no_animation) {
+    if (anim_idx != corundum::world::tilemap::TilemapLayer::k_no_animation) {
       const auto &anim = layer.baked_animations[anim_idx];
       if (anim.frame_gids.empty()) [[unlikely]]
         return std::nullopt;
@@ -595,12 +595,11 @@ namespace corundum::render {
       gid = anim.frame_gids[fidx];
     } else {
       gid = layer.at(col, row, tilemap.width);
-      if (gid == corundum::gameplay::world::tilemap::k_empty_tile)
+      if (gid == corundum::world::tilemap::k_empty_tile)
         return std::nullopt;
     }
 
-    const corundum::gameplay::world::tilemap::TilemapTileset *ts =
-        corundum::gameplay::world::tilemap::find_tileset(tilemap.tilesets, gid);
+    const corundum::world::tilemap::TilemapTileset *ts = corundum::world::tilemap::find_tileset(tilemap.tilesets, gid);
     if (!ts) [[unlikely]]
       return std::nullopt;
 
@@ -609,11 +608,11 @@ namespace corundum::render {
     if (tex_id == 0) [[unlikely]]
       return std::nullopt;
 
-    const auto src = corundum::gameplay::world::tilemap::tile_source_rect(*ts, gid);
+    const auto src = corundum::world::tilemap::tile_source_rect(*ts, gid);
 
     const uint8_t flags = layer.baked_flip_flags[cell_uidx];
-    const bool flip_x = (flags & corundum::gameplay::world::tilemap::k_flip_h) != 0;
-    const bool flip_y = (flags & corundum::gameplay::world::tilemap::k_flip_v) != 0;
+    const bool flip_x = (flags & corundum::world::tilemap::k_flip_h) != 0;
+    const bool flip_y = (flags & corundum::world::tilemap::k_flip_v) != 0;
 
     const int elev = (!layer.elevation.empty() && cell_idx < static_cast<int>(layer.elevation.size()))
                          ? static_cast<int>(layer.elevation[static_cast<std::size_t>(cell_idx)])
@@ -630,8 +629,8 @@ namespace corundum::render {
     // and frame size are per-tile (TilesetInfo::tile_pivot_*/tile_full_*) since spritepacker computes
     // them per sprite — there's no tileset-wide default to fall back to.
     const int local_id = static_cast<int>(gid) - static_cast<int>(ts->first_gid);
-    const auto frame = corundum::gameplay::world::tilemap::get_tile_frame_offset(ts->info, local_id);
-    const auto pivot = corundum::gameplay::world::tilemap::get_tile_pivot(ts->info, local_id);
+    const auto frame = corundum::world::tilemap::get_tile_frame_offset(ts->info, local_id);
+    const auto pivot = corundum::world::tilemap::get_tile_pivot(ts->info, local_id);
     const float scaled_tw = static_cast<float>(frame.full_width) * cfg.tile_scale;
     const float scaled_th = static_cast<float>(frame.full_height) * cfg.tile_scale;
     const float trim_x_px = static_cast<float>(frame.trim_x) * cfg.tile_scale;
@@ -659,10 +658,10 @@ namespace corundum::render {
   /// Computes cull bounds for one tile layer, expanding the camera rect by per-side
   /// art-extent pads so tiles whose anchors fall outside the viewport but whose sprite
   /// art extends into it aren't skipped.
-  static core::math::IsometricCullBounds
-  compute_layer_cull_bounds(const TileRenderParams &params,
-                            const corundum::gameplay::world::tilemap::TilemapLayer &layer,
-                            const corundum::gameplay::world::tilemap::Tilemap &tilemap, float tile_scale) {
+  static core::math::IsometricCullBounds compute_layer_cull_bounds(const TileRenderParams &params,
+                                                                   const corundum::world::tilemap::TilemapLayer &layer,
+                                                                   const corundum::world::tilemap::Tilemap &tilemap,
+                                                                   float tile_scale) {
     if (params.viewport_w <= 0.f || params.viewport_h <= 0.f)
       return {std::numeric_limits<int>::min() / 2, std::numeric_limits<int>::max() / 2, -1e30f, 1e30f};
 
@@ -682,7 +681,7 @@ namespace corundum::render {
   }
 
   static void render_tile_layer(corundum::platform::Renderer &r, const TileRenderParams &ctx, int z_index,
-                                const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene) {
+                                const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene) {
     const auto &tilemap = *ctx.tilemap;
     if (tilemap.tilesets.empty())
       return;
@@ -731,7 +730,7 @@ namespace corundum::render {
   /// A flat tile can never be taller than the diamond it occupies, so it can never occlude a taller entity
   /// sprite standing nearby; an elevated tile can, which is the whole point of this fix.
   static void collect_tile_layer(corundum::platform::Renderer &r, const TileRenderParams &ctx, int z_index,
-                                 const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                                 const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene,
                                  std::vector<render::DepthEntry> &out) {
     const auto &tilemap = *ctx.tilemap;
     if (tilemap.tilesets.empty())
@@ -794,8 +793,7 @@ namespace corundum::render {
   /// value, so there is no "this tile can't occlude anything" case to skip. Every matching tile always
   /// goes into @p out to be depth-sorted against entities and elevated ground tiles.
   static void collect_sorted_overlay_layers(const TileRenderParams &ctx, const corundum::core::GameConfig &cfg,
-                                            const corundum::gameplay::world::Scene &scene,
-                                            std::vector<render::DepthEntry> &out) {
+                                            const corundum::world::Scene &scene, std::vector<render::DepthEntry> &out) {
     const auto &tilemap = *ctx.tilemap;
     if (tilemap.tilesets.empty())
       return;
@@ -841,8 +839,7 @@ namespace corundum::render {
 
   /// Collects z_index==0 tiles from the single-map tilemap into @p out. Mirrors render_tilemap's context setup.
   static void collect_ground_tiles_map(corundum::platform::Renderer &r, const render::RenderState &state,
-                                       const corundum::core::GameConfig &cfg,
-                                       const corundum::gameplay::world::Scene &scene,
+                                       const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene,
                                        std::vector<render::DepthEntry> &out, float cam_x, float cam_y, float zoom,
                                        int window_w, int window_h) {
     const auto &tilemap = state.map_data.tilemap;
@@ -859,8 +856,7 @@ namespace corundum::render {
 
   /// Collects z_index==0 tiles from every active chunk into @p out. Mirrors render_chunk's context setup.
   static void collect_ground_tiles_chunks(corundum::platform::Renderer &r, const render::RenderState &state,
-                                          const corundum::core::GameConfig &cfg,
-                                          const corundum::gameplay::world::Scene &scene,
+                                          const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene,
                                           std::vector<render::DepthEntry> &out, float cam_x, float cam_y, float zoom,
                                           int window_w, int window_h) {
     const float vp_w = zoom > 0.f ? static_cast<float>(window_w) / zoom : 0.f;
@@ -890,9 +886,8 @@ namespace corundum::render {
   /// Collects depth_sorted overlay-layer tiles from the single-map tilemap into @p out. Mirrors
   /// collect_ground_tiles_map's context setup.
   static void collect_sorted_overlay_map(const render::RenderState &state, const corundum::core::GameConfig &cfg,
-                                         const corundum::gameplay::world::Scene &scene,
-                                         std::vector<render::DepthEntry> &out, float cam_x, float cam_y, float zoom,
-                                         int window_w, int window_h) {
+                                         const corundum::world::Scene &scene, std::vector<render::DepthEntry> &out,
+                                         float cam_x, float cam_y, float zoom, int window_w, int window_h) {
     const auto &tilemap = state.map_data.tilemap;
     if (tilemap.tilesets.empty())
       return;
@@ -908,9 +903,8 @@ namespace corundum::render {
   /// Collects depth_sorted overlay-layer tiles from every active chunk into @p out. Mirrors
   /// collect_ground_tiles_chunks's context setup.
   static void collect_sorted_overlay_chunks(const render::RenderState &state, const corundum::core::GameConfig &cfg,
-                                            const corundum::gameplay::world::Scene &scene,
-                                            std::vector<render::DepthEntry> &out, float cam_x, float cam_y, float zoom,
-                                            int window_w, int window_h) {
+                                            const corundum::world::Scene &scene, std::vector<render::DepthEntry> &out,
+                                            float cam_x, float cam_y, float zoom, int window_w, int window_h) {
     const float vp_w = zoom > 0.f ? static_cast<float>(window_w) / zoom : 0.f;
     const float vp_h = zoom > 0.f ? static_cast<float>(window_h) / zoom : 0.f;
     for (const auto &chunk : state.chunks.active()) {
@@ -936,8 +930,8 @@ namespace corundum::render {
   }
 
   static void render_tilemap(corundum::platform::Renderer &r, const render::RenderState &state, int z_index,
-                             const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
-                             float cam_x, float cam_y, float zoom, int window_w, int window_h) {
+                             const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene, float cam_x,
+                             float cam_y, float zoom, int window_w, int window_h) {
     const auto &tilemap = state.map_data.tilemap;
     if (tilemap.tilesets.empty())
       return;
@@ -952,8 +946,8 @@ namespace corundum::render {
 
   static void render_chunk(corundum::platform::Renderer &r, const render::RenderState &state,
                            const render::ChunkEntry &chunk, int z_index, const corundum::core::GameConfig &cfg,
-                           const corundum::gameplay::world::Scene &scene, float cam_x, float cam_y, float zoom,
-                           int window_w, int window_h) {
+                           const corundum::world::Scene &scene, float cam_x, float cam_y, float zoom, int window_w,
+                           int window_h) {
     const auto &tilemap = chunk.tilemap;
     if (tilemap.tilesets.empty())
       return;
@@ -984,7 +978,7 @@ namespace corundum::render {
   /// lift for now — wiring ramp smoothing into chunked mode is a separate follow-up.
   bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
                               const corundum::core::GameConfig &cfg) {
-    corundum::gameplay::world::tilemap::ChunkCoord c;
+    corundum::world::tilemap::ChunkCoord c;
     if (!state.chunks.pop_pending(c))
       return false;
     if (auto entry = load_chunk_entry(r, state, c, cfg)) {
@@ -997,8 +991,8 @@ namespace corundum::render {
   }
 
   float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept {
-    using corundum::gameplay::world::tilemap::elevation_at;
-    using corundum::gameplay::world::tilemap::interpolated_elevation_at;
+    using corundum::world::tilemap::elevation_at;
+    using corundum::world::tilemap::interpolated_elevation_at;
 
     if (!state.chunks.active_empty()) {
       const int chunk_size = state.manifest.chunk_size;
@@ -1009,7 +1003,7 @@ namespace corundum::render {
       // picking, and tilesmith. See std::floor sweep in the world-tilemap audit.
       const int col = static_cast<int>(std::floor(col_f));
       const int row = static_cast<int>(std::floor(row_f));
-      const corundum::gameplay::world::tilemap::ChunkCoord owner{
+      const corundum::world::tilemap::ChunkCoord owner{
           static_cast<int>(std::floor(static_cast<float>(col) / static_cast<float>(chunk_size))),
           static_cast<int>(std::floor(static_cast<float>(row) / static_cast<float>(chunk_size)))};
       const int dx = owner.col - state.chunks.last_center().col;
@@ -1040,7 +1034,7 @@ namespace corundum::render {
   /// (see iso_depth_key) so a raised platform correctly occludes/is-occluded-by nearby entities and tiles.
   /// z_index>0 layers remain a separate, subsequent immediate-draw pass (always above entities).
   static void render_ground_layer(corundum::platform::Renderer &r, render::RenderState &state,
-                                  const corundum::core::GameConfig &cfg, const corundum::gameplay::world::Scene &scene,
+                                  const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene,
                                   float alpha, float cam_x, float cam_y, float zoom, int win_w, int win_h) {
     const float scale = cfg.character_scale;
 

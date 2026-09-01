@@ -1,13 +1,13 @@
 #pragma once
 #include "editor_state.hpp"
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 namespace tools::tilemap {
 
   /**
    * @brief True when @p layer_idx refers to the map's base/ground layer (z_index == 0).
    */
-  [[nodiscard]] bool is_ground_layer(const corundum::gameplay::world::tilemap::Tilemap &map, int layer_idx) noexcept;
+  [[nodiscard]] bool is_ground_layer(const corundum::world::tilemap::Tilemap &map, int layer_idx) noexcept;
 
   /**
    * @brief Fill every empty (k_empty_tile) cell of the active layer with @p gid.
@@ -23,7 +23,6 @@ namespace tools::tilemap {
    * @return true if the fill was applied, false if refused (active layer is
    *         not the ground layer).
    */
-  [[nodiscard]] bool fill_ground_layer(EditorState &state, corundum::gameplay::world::tilemap::TileId gid,
-                                       uint8_t flip);
+  [[nodiscard]] bool fill_ground_layer(EditorState &state, corundum::world::tilemap::TileId gid, uint8_t flip);
 
 } // namespace tools::tilemap

@@ -1,8 +1,8 @@
 #pragma once
 #include <corundum/core/game_config.hpp>
 #include <corundum/dialogue/registry.hpp>
-#include <corundum/gameplay/world/scene.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/world/scene.hpp>
 
 namespace corundum::quest {
   class Registry;
@@ -23,7 +23,7 @@ namespace corundum::dialogue {
    *  @post On dialogue end, NPC facing and animation are restored from saved state.
    *  @performance O(1) per step. No heap allocation.
    */
-  void update_dialogue(corundum::gameplay::world::Scene &scene, const corundum::input::PressedActions &actions,
+  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions,
                        corundum::world::FlagStore &flags, const quest::Registry *quests = nullptr) noexcept;
 
   /** @brief Check for nearby NPCs and start a dialogue on Select press.
@@ -41,7 +41,7 @@ namespace corundum::dialogue {
    *  @post NPC facing/animation are saved before modification.
    *  @performance O(n) over dialogue-ref entities. No heap allocation.
    */
-  void try_interact(corundum::gameplay::world::Scene &scene, const corundum::input::InputState &input,
+  void try_interact(corundum::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
                     corundum::world::FlagStore &flags) noexcept;
 

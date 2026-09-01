@@ -1,6 +1,6 @@
 #include "render_status_bar.hpp"
 #include "layout.hpp"
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <format>
 #include <imgui.h>
 
@@ -45,8 +45,8 @@ namespace tools::tilemap {
 
     // Selected palette tile label.
     std::string tile_label;
-    const corundum::gameplay::world::tilemap::TilemapTileset *ts =
-        corundum::gameplay::world::tilemap::find_tileset(state.map.tilesets, state.selected_gid);
+    const corundum::world::tilemap::TilemapTileset *ts =
+        corundum::world::tilemap::find_tileset(state.map.tilesets, state.selected_gid);
     if (ts) {
       const int local_id = static_cast<int>(state.selected_gid) - static_cast<int>(ts->first_gid);
       const std::string &name = (local_id >= 0 && static_cast<std::size_t>(local_id) < ts->info.tile_names.size())
@@ -63,11 +63,11 @@ namespace tools::tilemap {
     if (hover_valid) {
       const auto &layer = state.map.layers[static_cast<std::size_t>(state.active_layer)];
       const auto hover_gid = state.map.layer_view(layer)[state.hover_tile_row, state.hover_tile_col];
-      if (hover_gid == corundum::gameplay::world::tilemap::k_empty_tile) {
+      if (hover_gid == corundum::world::tilemap::k_empty_tile) {
         hover_label = std::format("[hover ({},{}): empty]", state.hover_tile_col, state.hover_tile_row);
       } else {
-        const corundum::gameplay::world::tilemap::TilemapTileset *hover_ts =
-            corundum::gameplay::world::tilemap::find_tileset(state.map.tilesets, hover_gid);
+        const corundum::world::tilemap::TilemapTileset *hover_ts =
+            corundum::world::tilemap::find_tileset(state.map.tilesets, hover_gid);
         if (hover_ts) {
           const int local_id = static_cast<int>(hover_gid) - static_cast<int>(hover_ts->first_gid);
           const std::string &name =
@@ -84,12 +84,11 @@ namespace tools::tilemap {
     }
 
     std::string flip_label;
-    if (state.selected_flip ==
-        (corundum::gameplay::world::tilemap::k_flip_h | corundum::gameplay::world::tilemap::k_flip_v))
+    if (state.selected_flip == (corundum::world::tilemap::k_flip_h | corundum::world::tilemap::k_flip_v))
       flip_label = "[flip: HV]";
-    else if (state.selected_flip == corundum::gameplay::world::tilemap::k_flip_h)
+    else if (state.selected_flip == corundum::world::tilemap::k_flip_h)
       flip_label = "[flip: H]";
-    else if (state.selected_flip == corundum::gameplay::world::tilemap::k_flip_v)
+    else if (state.selected_flip == corundum::world::tilemap::k_flip_v)
       flip_label = "[flip: V]";
 
     // Elevation readout — reads the active layer's raw value directly (not the
@@ -112,7 +111,7 @@ namespace tools::tilemap {
     const std::string walkability_label =
         state.show_walkability ? std::format("[walkability: max_step {}]", state.max_step_height) : "";
 
-    using corundum::gameplay::world::tilemap::RampAxis;
+    using corundum::world::tilemap::RampAxis;
     const std::string ramp_label =
         state.show_ramps
             ? std::format("[ramp axis: {}]", state.selected_ramp_axis == RampAxis::NorthSouth ? "N-S" : "E-W")

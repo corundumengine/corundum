@@ -1,18 +1,18 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/gameplay/world/tilemap/walkability.hpp>
 #include <corundum/physics/walkability.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
 #include <optional>
 #include <utility>
 
 using corundum::ecs::Position;
-using corundum::gameplay::world::tilemap::build_walkability_graph;
-using corundum::gameplay::world::tilemap::RampAxis;
-using corundum::gameplay::world::tilemap::Tilemap;
-using corundum::gameplay::world::tilemap::TilemapLayer;
-using corundum::gameplay::world::tilemap::WalkabilityGraph;
 using corundum::physics::resolve_walkability;
+using corundum::world::tilemap::build_walkability_graph;
+using corundum::world::tilemap::RampAxis;
+using corundum::world::tilemap::Tilemap;
+using corundum::world::tilemap::TilemapLayer;
+using corundum::world::tilemap::WalkabilityGraph;
 
 namespace {
 

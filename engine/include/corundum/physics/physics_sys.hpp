@@ -3,16 +3,16 @@
 #include <corundum/ecs/component/collision_table.hpp>
 #include <corundum/ecs/component/transform_table.hpp>
 #include <corundum/ecs/entity.hpp>
-#include <corundum/gameplay/world/picking.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/world/picking.hpp>
 
 #include <vector>
 
-namespace corundum::gameplay::world {
+namespace corundum::world {
   struct MapView;
   struct Portal;
   struct Scene;
-} // namespace corundum::gameplay::world
+} // namespace corundum::world
 
 namespace corundum::physics {
 
@@ -55,7 +55,7 @@ namespace corundum::physics {
    *  @pre @p player must exist in @p transforms.
    */
   void follow_path(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
-                   std::vector<corundum::gameplay::world::TileCoord> &path, float player_speed,
+                   std::vector<corundum::world::TileCoord> &path, float player_speed,
                    corundum::core::math::IsometricParams iso, float dt) noexcept;
 
   /** @brief Full player step: input → integrate → collision resolve → portal detect.
@@ -81,8 +81,7 @@ namespace corundum::physics {
    */
   void update_player(corundum::ecs::TransformTable &transforms, const corundum::ecs::CollisionTable &collisions,
                      corundum::ecs::EntityId player, const corundum::input::InputState &input, float player_speed,
-                     const corundum::gameplay::world::MapView &map, corundum::gameplay::world::Scene &scene,
-                     float dt) noexcept;
+                     const corundum::world::MapView &map, corundum::world::Scene &scene, float dt) noexcept;
 
   /**
    * @brief Result of compute_elevation_gate: the integer elevation to gate
@@ -109,7 +108,7 @@ namespace corundum::physics {
    * @return Gate value (player elevation + tolerance) to pass into resolve_collisions /
    *         resolve_triangle_collisions.
    */
-  [[nodiscard]] ElevationGate compute_elevation_gate(const corundum::gameplay::world::MapView &map, float col,
+  [[nodiscard]] ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col,
                                                      float row) noexcept;
 
   /**
@@ -125,8 +124,7 @@ namespace corundum::physics {
    * @param player_elev     Player's rounded gate value (from compute_elevation_gate).
    * @param elev_tolerance  Ramp-aware tolerance; 0 for off-ramp gating.
    */
-  [[nodiscard]] bool portal_elev_matches(const corundum::gameplay::world::MapView &map,
-                                         const corundum::gameplay::world::Portal &portal, int player_elev,
-                                         int elev_tolerance) noexcept;
+  [[nodiscard]] bool portal_elev_matches(const corundum::world::MapView &map, const corundum::world::Portal &portal,
+                                         int player_elev, int elev_tolerance) noexcept;
 
 } // namespace corundum::physics

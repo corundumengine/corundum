@@ -1,5 +1,5 @@
 #pragma once
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <imgui.h>
 
 namespace tools::tilemap {
@@ -14,7 +14,7 @@ namespace tools::tilemap {
    * which the view is used.
    */
   struct TilesetView {
-    const corundum::gameplay::world::tilemap::TilemapTileset *tileset; ///< Pointer into map.tilesets.
+    const corundum::world::tilemap::TilemapTileset *tileset; ///< Pointer into map.tilesets.
     ImTextureID tex_id; ///< Pre-resolved from sf::Texture::getNativeHandle() by main.cpp.
     unsigned tex_w;     ///< Texture width in pixels.
     unsigned tex_h;     ///< Texture height in pixels.

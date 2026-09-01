@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/actors/actor.hpp>
+#include <corundum/world/actors/actor.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -23,8 +23,8 @@ namespace {
 
 } // namespace
 
-using corundum::gameplay::world::load_actors;
-using corundum::gameplay::world::load_spawn_points;
+using corundum::world::load_actors;
+using corundum::world::load_spawn_points;
 
 // ── Missing file ──────────────────────────────────────────────────────────────
 

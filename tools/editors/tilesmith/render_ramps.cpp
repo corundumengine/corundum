@@ -5,8 +5,8 @@ namespace tools::tilemap {
 
   namespace {
 
-    using corundum::gameplay::world::tilemap::elevation_at;
-    using corundum::gameplay::world::tilemap::RampAxis;
+    using corundum::world::tilemap::elevation_at;
+    using corundum::world::tilemap::RampAxis;
 
     // Convert tile-grid coords (col, row) to canvas screen position, lifted by
     // elevation. Delegates the iso projection to corundum::core::math::tile_to_world

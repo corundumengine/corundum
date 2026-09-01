@@ -1,8 +1,8 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
-namespace ctt = corundum::gameplay::world::tilemap;
+namespace ctt = corundum::world::tilemap;
 
 namespace {
 

@@ -1,14 +1,14 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/picking.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/gameplay/world/update.hpp>
+#include <corundum/world/picking.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/update.hpp>
 
-using corundum::gameplay::world::Camera;
-using corundum::gameplay::world::MapView;
-using corundum::gameplay::world::pick_tile;
-using corundum::gameplay::world::tilemap::Tilemap;
-using corundum::gameplay::world::tilemap::TilemapLayer;
+using corundum::world::Camera;
+using corundum::world::MapView;
+using corundum::world::pick_tile;
+using corundum::world::tilemap::Tilemap;
+using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 

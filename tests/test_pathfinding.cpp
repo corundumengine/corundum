@@ -1,14 +1,14 @@
 #include <doctest/doctest.h>
 
-#include <corundum/gameplay/world/pathfinding.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/gameplay/world/update.hpp>
+#include <corundum/world/pathfinding.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/update.hpp>
 
-using corundum::gameplay::world::find_path;
-using corundum::gameplay::world::MapView;
-using corundum::gameplay::world::tilemap::CollisionRects;
-using corundum::gameplay::world::tilemap::Tilemap;
-using corundum::gameplay::world::tilemap::TilemapLayer;
+using corundum::world::find_path;
+using corundum::world::MapView;
+using corundum::world::tilemap::CollisionRects;
+using corundum::world::tilemap::Tilemap;
+using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 
@@ -36,7 +36,7 @@ namespace {
 
 TEST_CASE("find_path — straight diagonal path on a flat open map") {
   Tilemap tm = make_map(5, 5);
-  const auto graph = corundum::gameplay::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
   MapView map;
   map.elevation_map = &tm;
@@ -60,7 +60,7 @@ TEST_CASE("find_path — straight diagonal path on a flat open map") {
 TEST_CASE("find_path — goal isolated by a steep elevation wall is unreachable") {
   Tilemap tm = make_map(3, 1);
   set_elevation(tm, 1, 0, 50); // the only cell between start and goal, walled off both ways
-  const auto graph = corundum::gameplay::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
   MapView map;
   map.elevation_map = &tm;
@@ -77,7 +77,7 @@ TEST_CASE("find_path — corner-cutting through a blocked pair of neighbors is r
   Tilemap tm = make_map(2, 2);
   set_elevation(tm, 1, 0, 50);
   set_elevation(tm, 0, 1, 50);
-  const auto graph = corundum::gameplay::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
   MapView map;
   map.elevation_map = &tm;
@@ -89,7 +89,7 @@ TEST_CASE("find_path — corner-cutting through a blocked pair of neighbors is r
 
 TEST_CASE("find_path — routes around a collision rect rather than through it") {
   Tilemap tm = make_map(5, 5);
-  const auto graph = corundum::gameplay::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
   CollisionRects wall;
   // Column 2 blocked except row 0 — leaves exactly one gap to route through.
@@ -117,7 +117,7 @@ TEST_CASE("find_path — routes around a collision rect rather than through it")
 
 TEST_CASE("find_path — a collision shape at a different elevation doesn't block a ground-level path") {
   Tilemap tm = make_map(3, 1);
-  const auto graph = corundum::gameplay::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
   CollisionRects wall;
   wall.push_back(1.f, 0.f, 1.f, 1.f, 50); // authored at elevation 50; path cells are all at 0
@@ -135,7 +135,7 @@ TEST_CASE("find_path — a collision shape at a different elevation doesn't bloc
 
 TEST_CASE("find_path — start equals goal returns empty") {
   Tilemap tm = make_map(3, 3);
-  const auto graph = corundum::gameplay::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
   MapView map;
   map.elevation_map = &tm;
   map.walkability = &graph;

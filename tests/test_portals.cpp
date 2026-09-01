@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/core/json_io.hpp>
-#include <corundum/gameplay/world/portals/portal.hpp>
+#include <corundum/world/portals/portal.hpp>
 
 #include <fstream>
 
@@ -23,8 +23,8 @@ namespace {
 
 } // namespace
 
-using corundum::gameplay::world::load_portals;
-using corundum::gameplay::world::serialize_portals;
+using corundum::world::load_portals;
+using corundum::world::serialize_portals;
 
 TEST_CASE("load_portals — missing file returns empty vector") {
   auto result = load_portals("/nonexistent/path/portals.json");

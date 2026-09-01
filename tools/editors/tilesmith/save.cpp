@@ -2,9 +2,9 @@
 #include "portal_entry.hpp"
 
 #include <corundum/core/json_io.hpp>
-#include <corundum/gameplay/world/portals/portal.hpp>
-#include <corundum/gameplay/world/tilemap/serialize.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/portals/portal.hpp>
+#include <corundum/world/tilemap/serialize.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -25,7 +25,7 @@ namespace tools::tilemap {
     }
 
     // 2. Serialize tilemap onto base
-    nlohmann::json j = corundum::gameplay::world::tilemap::serialize_tilemap(state.map, &base);
+    nlohmann::json j = corundum::world::tilemap::serialize_tilemap(state.map, &base);
 
     // 3. Write tilemap
     {
@@ -36,13 +36,13 @@ namespace tools::tilemap {
 
     // 4. Save portals via engine serializer
     {
-      std::vector<corundum::gameplay::world::Portal> engine_portals;
+      std::vector<corundum::world::Portal> engine_portals;
       engine_portals.reserve(state.portals.size());
       for (const auto &pe : state.portals)
         engine_portals.push_back({static_cast<float>(pe.col), static_cast<float>(pe.row), static_cast<float>(pe.w),
                                   static_cast<float>(pe.h), pe.target_map, pe.spawn_col, pe.spawn_row});
 
-      nlohmann::json portals_json = corundum::gameplay::world::serialize_portals(engine_portals);
+      nlohmann::json portals_json = corundum::world::serialize_portals(engine_portals);
       const auto ppath = portals_path(state.map_path);
       std::filesystem::create_directories(ppath.parent_path());
       auto res = corundum::core::write_json(ppath, portals_json);
@@ -59,7 +59,7 @@ namespace tools::tilemap {
   }
 
   void try_save(EditorState &state) {
-    state.validation_errors = corundum::gameplay::world::tilemap::validate(state.map);
+    state.validation_errors = corundum::world::tilemap::validate(state.map);
     if (!state.validation_errors.empty()) {
       state.show_validation_popup = true;
       return;
@@ -75,7 +75,7 @@ namespace tools::tilemap {
 
   std::expected<void, std::string> load_portals(EditorState &state) {
     // load_portals returns {} (empty vector) when the file is absent — not an error.
-    auto result = corundum::gameplay::world::load_portals(portals_path(state.map_path));
+    auto result = corundum::world::load_portals(portals_path(state.map_path));
     if (!result)
       return std::unexpected(result.error());
     state.portals.clear();

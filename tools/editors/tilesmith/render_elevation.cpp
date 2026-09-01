@@ -60,8 +60,8 @@ namespace tools::tilemap {
           continue; // skip flat cells to reduce clutter on mostly-flat maps
         // Skip cells with no tile on this layer — otherwise the tint looks like a
         // rendered sprite even though nothing will actually draw there.
-        const bool has_tile = layer.animated_cells.contains(cell_idx) ||
-                              tiles[row, col] != corundum::gameplay::world::tilemap::k_empty_tile;
+        const bool has_tile =
+            layer.animated_cells.contains(cell_idx) || tiles[row, col] != corundum::world::tilemap::k_empty_tile;
         if (!has_tile)
           continue;
         draw_iso_cell(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(v), iso,

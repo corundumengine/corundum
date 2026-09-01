@@ -1,16 +1,16 @@
 #include <doctest/doctest.h>
 
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/physics/collision.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 using corundum::ecs::Position;
-using corundum::gameplay::world::tilemap::CollisionRects;
-using corundum::gameplay::world::tilemap::CollisionRectsView;
-using corundum::gameplay::world::tilemap::CollisionTriangles;
-using corundum::gameplay::world::tilemap::TriangleCut;
 using corundum::physics::resolve_collisions;
 using corundum::physics::resolve_triangle_collisions;
+using corundum::world::tilemap::CollisionRects;
+using corundum::world::tilemap::CollisionRectsView;
+using corundum::world::tilemap::CollisionTriangles;
+using corundum::world::tilemap::TriangleCut;
 
 namespace ccm = corundum::core::math;
 

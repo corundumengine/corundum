@@ -1,6 +1,6 @@
 #pragma once
 #include "editor_state.hpp"
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <optional>
 
 namespace tools::tilemap {
@@ -15,7 +15,7 @@ namespace tools::tilemap {
    * @param axis      Axis to write, or std::nullopt to erase (cell is no longer a ramp).
    */
   inline void set_ramp(EditorState &state, int layer_idx, int col, int row,
-                       std::optional<corundum::gameplay::world::tilemap::RampAxis> axis) noexcept {
+                       std::optional<corundum::world::tilemap::RampAxis> axis) noexcept {
     if (layer_idx < 0 || layer_idx >= static_cast<int>(state.map.layers.size()))
       return;
     if (col < 0 || col >= state.map.width)

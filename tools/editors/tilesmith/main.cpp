@@ -15,10 +15,10 @@
 #include "tileset_view.hpp"
 #include "undo.hpp"
 #include <algorithm>
-#include <corundum/gameplay/world/tilemap/loader.hpp>
 #include <corundum/tool_host/fonts.hpp>
 #include <corundum/tool_host/tool_config.hpp>
 #include <corundum/tool_host/tool_host.hpp>
+#include <corundum/world/tilemap/loader.hpp>
 #include <cstdio>
 #include <imgui.h>
 #include <print>
@@ -86,7 +86,7 @@ namespace tools::tilemap {
 
   void finish_map_load(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views) {
-    auto tilemap_result = corundum::gameplay::world::tilemap::load_tilemap(state.map_path.string());
+    auto tilemap_result = corundum::world::tilemap::load_tilemap(state.map_path.string());
     if (!tilemap_result)
       throw std::runtime_error(tilemap_result.error());
     state.map = std::move(*tilemap_result);

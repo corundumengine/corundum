@@ -4,12 +4,12 @@
 #include <corundum/ecs/world.hpp>
 #include <corundum/quest/runner.hpp>
 #include <corundum/quest/system.hpp>
-#include <corundum/gameplay/world/camera_system.hpp>
-#include <corundum/gameplay/world/map_view.hpp>
-#include <corundum/gameplay/world/spawn.hpp>
-#include <corundum/gameplay/world/tilemap/world_manifest.hpp>
-#include <corundum/gameplay/world/transition.hpp>
-#include <corundum/gameplay/world/update.hpp>
+#include <corundum/world/camera_system.hpp>
+#include <corundum/world/map_view.hpp>
+#include <corundum/world/spawn.hpp>
+#include <corundum/world/tilemap/world_manifest.hpp>
+#include <corundum/world/transition.hpp>
+#include <corundum/world/update.hpp>
 #include <corundum/input/input_sys.hpp>
 #include <corundum/platform/platform_factory.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -98,7 +98,7 @@ namespace corundum {
       }
 
       std::expected<void, std::string> init_world_scene() {
-        return corundum::gameplay::world::enter_world(engine_, {});
+        return corundum::world::enter_world(engine_, {});
       }
 
       std::expected<void, std::string> init_single_map_scene() {
@@ -108,8 +108,8 @@ namespace corundum {
         if (!map_result)
           return std::unexpected(std::move(map_result).error());
 
-        std::expected<gameplay::world::Scene, std::string> scene_result;
-        scene_result = gameplay::world::spawn_world(engine_.cfg, engine_.characters, *active_tilemap(engine_));
+        std::expected<world::Scene, std::string> scene_result;
+        scene_result = world::spawn_world(engine_.cfg, engine_.characters, *active_tilemap(engine_));
         if (!scene_result)
           return std::unexpected(std::move(scene_result).error());
         engine_.scene = std::move(*scene_result);
@@ -134,7 +134,7 @@ namespace corundum {
       void apply_default_zoom_and_center(float target_x, float target_y, float world_w, float world_h) {
         engine_.scene.camera.zoom =
             std::clamp(engine_.cfg.default_zoom, engine_.cfg.min_zoom, engine_.cfg.max_zoom);
-        gameplay::world::center_on(engine_.scene.camera, target_x, target_y, world_w, world_h,
+        world::center_on(engine_.scene.camera, target_x, target_y, world_w, world_h,
                                  static_cast<float>(engine_.cfg.win_w), static_cast<float>(engine_.cfg.win_h));
       }
 
@@ -247,9 +247,9 @@ namespace corundum {
         if (engine.render.mode == render::RenderMode::World && engine.render.chunks.active_empty())
           continue;
 
-        const auto mv = gameplay::world::build_map_view(engine.render, engine.cfg);
-        gameplay::world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
-        gameplay::world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
+        const auto mv = world::build_map_view(engine.render, engine.cfg);
+        world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
+        world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
                                 static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
                                 &engine.quests);
 
@@ -323,7 +323,7 @@ namespace corundum {
     process_input(engine);
 
     const SimulationResult sim = run_fixed_steps(engine);
-    gameplay::world::handle_map_transition(engine);
+    world::handle_map_transition(engine);
 
     const float alpha = compute_interpolation_alpha(engine.timer, sim);
     render_frame(engine, alpha);

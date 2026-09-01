@@ -3,8 +3,8 @@
 #include "new_map_dialog.hpp"
 #include "save.hpp"
 #include "undo.hpp"
-#include <corundum/gameplay/world/tilemap/loader.hpp>
 #include <corundum/tool_host/file_browser.hpp>
+#include <corundum/world/tilemap/loader.hpp>
 #include <format>
 #include <imgui.h>
 #include <print>

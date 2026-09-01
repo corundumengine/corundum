@@ -11,8 +11,8 @@
 #pragma GCC diagnostic pop
 
 #include <corundum/core/math/vec.hpp>
-#include <corundum/gameplay/world/tilemap/loader.hpp>
-#include <corundum/gameplay/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/loader.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 
 #include <algorithm>
 #include <array>
@@ -40,18 +40,18 @@ using corundum::core::math::IsometricParams;
 using corundum::core::math::pivot_top_offset;
 using corundum::core::math::tile_to_world;
 using corundum::core::math::Vec2;
-using corundum::gameplay::world::tilemap::find_tileset;
-using corundum::gameplay::world::tilemap::get_tile_frame_offset;
-using corundum::gameplay::world::tilemap::get_tile_pivot;
-using corundum::gameplay::world::tilemap::k_empty_tile;
-using corundum::gameplay::world::tilemap::load_tilemap;
-using corundum::gameplay::world::tilemap::tile_source_rect;
-using corundum::gameplay::world::tilemap::TileFrameOffset;
-using corundum::gameplay::world::tilemap::TileId;
-using corundum::gameplay::world::tilemap::Tilemap;
-using corundum::gameplay::world::tilemap::TilemapLayer;
-using corundum::gameplay::world::tilemap::TilemapTileset;
-using corundum::gameplay::world::tilemap::TilePivot;
+using corundum::world::tilemap::find_tileset;
+using corundum::world::tilemap::get_tile_frame_offset;
+using corundum::world::tilemap::get_tile_pivot;
+using corundum::world::tilemap::k_empty_tile;
+using corundum::world::tilemap::load_tilemap;
+using corundum::world::tilemap::tile_source_rect;
+using corundum::world::tilemap::TileFrameOffset;
+using corundum::world::tilemap::TileId;
+using corundum::world::tilemap::Tilemap;
+using corundum::world::tilemap::TilemapLayer;
+using corundum::world::tilemap::TilemapTileset;
+using corundum::world::tilemap::TilePivot;
 
 namespace {
 
@@ -170,8 +170,8 @@ namespace {
       return std::nullopt;
 
     const std::uint8_t flags = cell_uidx < layer.baked_flip_flags.size() ? layer.baked_flip_flags[cell_uidx] : 0;
-    const bool flip_x = (flags & corundum::gameplay::world::tilemap::k_flip_h) != 0;
-    const bool flip_y = (flags & corundum::gameplay::world::tilemap::k_flip_v) != 0;
+    const bool flip_x = (flags & corundum::world::tilemap::k_flip_h) != 0;
+    const bool flip_y = (flags & corundum::world::tilemap::k_flip_v) != 0;
 
     const int elev =
         (cell_idx < static_cast<int>(layer.elevation.size())) ? static_cast<int>(layer.elevation[cell_uidx]) : 0;
