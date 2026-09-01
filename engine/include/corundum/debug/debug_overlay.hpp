@@ -5,7 +5,7 @@
 #include <corundum/gameplay/world/scene.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/render/data/render_state.hpp>
+#include <corundum/render/render_state.hpp>
 
 #include <cstdint>
 #include <string>
@@ -19,7 +19,7 @@ namespace corundum::debug {
    * the concrete types it actually reads.
    */
   struct OverlayInput {
-    const render::data::RenderState &render_state;
+    const render::RenderState &render_state;
     const core::GameConfig &cfg;
     const gameplay::world::Scene &scene;
     const core::time::LoopTimer &timer;
@@ -82,7 +82,7 @@ namespace corundum::debug {
      *  zeroed IsometricParams when the render mode has no tilemap data yet
      *  (initial frames, or mode == None) — callers use this as a "no iso" sentinel.
      */
-    [[nodiscard]] static core::math::IsometricParams resolve_isometric(const render::data::RenderState &render,
+    [[nodiscard]] static core::math::IsometricParams resolve_isometric(const render::RenderState &render,
                                                                        const core::GameConfig &cfg) noexcept;
 
     /** @brief Draw the collision geometry (rects and triangles) in world space. */
@@ -98,11 +98,11 @@ namespace corundum::debug {
      *  the marker at its feet.
      */
     void draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport, float zoom,
-                            const render::data::RenderState &render, const gameplay::entity::World &w,
+                            const render::RenderState &render, const gameplay::entity::World &w,
                             gameplay::entity::EntityId player, core::math::IsometricParams iso) const noexcept;
 
     /** @brief Draw the top-right HUD text panel (FPS, grid, velocity, camera, stats). */
-    void draw_text_panel(platform::Renderer &r, const render::data::RenderState &render, const core::GameConfig &cfg,
+    void draw_text_panel(platform::Renderer &r, const render::RenderState &render, const core::GameConfig &cfg,
                          const gameplay::world::Scene &scene) const noexcept;
   };
 

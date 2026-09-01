@@ -1,4 +1,4 @@
-#include <corundum/anim/sys/anim_sys.hpp>
+#include <corundum/anim/anim_sys.hpp>
 
 #include <corundum/gameplay/component/animation_table.hpp>
 #include <corundum/gameplay/component/facing_table.hpp>
@@ -11,7 +11,7 @@
 #include <memory>
 #include <utility>
 
-namespace corundum::anim::sys {
+namespace corundum::anim {
 
   namespace {
     using corundum::gameplay::component::FacingDir;
@@ -172,4 +172,4 @@ namespace corundum::anim::sys {
     }
   }
 
-} // namespace corundum::anim::sys
+} // namespace corundum::anim

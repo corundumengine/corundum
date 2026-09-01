@@ -2,7 +2,7 @@
 #include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 
-namespace corundum::physics::sys {
+namespace corundum::physics {
 
   /**
    * @brief Axis-separated AABB collision resolution.
@@ -58,4 +58,4 @@ namespace corundum::physics::sys {
                                    float y_offset = 0.f, int entity_elevation = 0,
                                    int elevation_tolerance = 0) noexcept;
 
-} // namespace corundum::physics::sys
+} // namespace corundum::physics

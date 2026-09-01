@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <utility>
 
-namespace corundum::physics::sys {
+namespace corundum::physics {
 
   namespace {
 
@@ -347,4 +347,4 @@ namespace corundum::physics::sys {
     }
   }
 
-} // namespace corundum::physics::sys
+} // namespace corundum::physics

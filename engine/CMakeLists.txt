@@ -36,14 +36,14 @@ add_library(engine STATIC
     src/gameplay/world/actors/actor_loader.cpp
     src/gameplay/world/portals/portal.cpp
     src/gameplay/world/portals/transition_prompt.cpp
-    src/anim/sys/anim_sys.cpp
+    src/anim/anim_sys.cpp
     src/gameplay/sys/camera_system.cpp
     src/gameplay/sys/picking.cpp
     src/gameplay/sys/pathfinding.cpp
     src/gameplay/sys/dialogue_system.cpp
-    src/input/sys/input_sys.cpp
-    src/physics/sys/physics_sys.cpp
-    src/render/sys/render_sys.cpp
+    src/input/input_sys.cpp
+    src/physics/physics_sys.cpp
+    src/render/render_sys.cpp
     src/gameplay/world/tilemap/loader.cpp
     src/gameplay/world/tilemap/serialize.cpp
     src/gameplay/world/tilemap/world_manifest.cpp
@@ -59,7 +59,7 @@ add_library(engine STATIC
     src/gameplay/ui/inventory_panel.cpp
     src/gameplay/ui/ui_draw.cpp
     src/debug/debug_overlay.cpp
-    src/audio/sys/audio_sys.cpp
+    src/audio/audio_sys.cpp
 )
 
 # Public headers are in the 'include' folder.

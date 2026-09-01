@@ -8,7 +8,7 @@
 #include <corundum/gameplay/world/transition.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/platform/null/null_platform.hpp>
-#include <corundum/render/data/render_state.hpp>
+#include <corundum/render/render_state.hpp>
 
 #include <expected>
 #include <filesystem>
@@ -102,7 +102,7 @@ namespace {
 
 using corundum::gameplay::world::handle_map_transition;
 using corundum::gameplay::world::MapTransition;
-using corundum::render::data::RenderMode;
+using corundum::render::RenderMode;
 
 // Boot a 2×2 chunk world (chunk_size 8). Default centre tile is (8,8); the default
 // streaming window centre is chunk (1,1).

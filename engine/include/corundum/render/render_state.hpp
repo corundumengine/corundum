@@ -14,7 +14,7 @@
 #include <optional>
 #include <vector>
 
-namespace corundum::render::data {
+namespace corundum::render {
 
   /** @brief Tracks whether the renderer is in map or world mode. */
   enum class RenderMode { None, SingleMap, World };
@@ -198,7 +198,7 @@ namespace corundum::render::data {
 
   /** @brief All mutable rendering state — pure data with no behaviour.
    *
-   * Operated on by free functions in namespace corundum::render::sys.
+   * Operated on by free functions in namespace corundum::render.
    * Separates data from logic per DOD: functions own no state, state holds no behaviour.
    */
   struct RenderState {
@@ -273,4 +273,4 @@ namespace corundum::render::data {
     return state.mode == RenderMode::SingleMap ? &state.map_data.tilemap : nullptr;
   }
 
-} // namespace corundum::render::data
+} // namespace corundum::render

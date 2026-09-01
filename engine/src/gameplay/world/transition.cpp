@@ -4,7 +4,7 @@
 #include <corundum/gameplay/world/spawn.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/gameplay/world/transition.hpp>
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_sys.hpp>
 
 #include <algorithm>
 #include <print>
@@ -29,7 +29,7 @@ namespace corundum::gameplay::world {
       explicit SceneTransitioner(corundum::Engine &engine) noexcept : engine_(engine) {}
 
       /// @brief (Re)initialise the overworld scene, optionally at a specific spawn tile.
-      [[nodiscard]] std::expected<void, std::string> enter_world(const corundum::render::sys::WorldLoadParams &params);
+      [[nodiscard]] std::expected<void, std::string> enter_world(const corundum::render::WorldLoadParams &params);
 
       /// @brief Handle a pending map transition triggered by portal traversal.
       void handle_map_transition() noexcept;
@@ -87,9 +87,8 @@ namespace corundum::gameplay::world {
       engine_.window->close();
     }
 
-    std::expected<void, std::string>
-    SceneTransitioner::enter_world(const corundum::render::sys::WorldLoadParams &params) {
-      auto world_result = render::sys::load_world(*engine_.renderer, engine_.render, engine_.cfg, params);
+    std::expected<void, std::string> SceneTransitioner::enter_world(const corundum::render::WorldLoadParams &params) {
+      auto world_result = render::load_world(*engine_.renderer, engine_.render, engine_.cfg, params);
       if (!world_result)
         return std::unexpected(std::move(world_result).error());
       const auto &info = *world_result;
@@ -130,7 +129,7 @@ namespace corundum::gameplay::world {
         const bool can_return = engine_.entered_from_world || !engine_.cfg.paths.world_manifest_path.empty();
         if (can_return) {
           engine_.entered_from_world = false;
-          corundum::render::sys::WorldLoadParams params;
+          corundum::render::WorldLoadParams params;
           params.spawn_col = t.spawn_col;
           params.spawn_row = t.spawn_row;
           if (auto result = enter_world(params); !result)
@@ -147,10 +146,10 @@ namespace corundum::gameplay::world {
       // Cross-map (enter-interior) transition. Mark the journey only when actually
       // leaving the World — an interior→interior (nested) cross-map transition
       // must not overwrite it.
-      if (engine_.render.mode == render::data::RenderMode::World)
+      if (engine_.render.mode == render::RenderMode::World)
         engine_.entered_from_world = true;
 
-      auto map_result = render::sys::load_map(*engine_.renderer, engine_.render, t.target_map, engine_.cfg);
+      auto map_result = render::load_map(*engine_.renderer, engine_.render, t.target_map, engine_.cfg);
       if (!map_result) {
         fail("map transition", map_result.error());
         return;
@@ -177,7 +176,7 @@ namespace corundum::gameplay::world {
   } // namespace
 
   std::expected<void, std::string> enter_world(corundum::Engine &engine,
-                                               const corundum::render::sys::WorldLoadParams &params) {
+                                               const corundum::render::WorldLoadParams &params) {
     return SceneTransitioner{engine}.enter_world(params);
   }
 

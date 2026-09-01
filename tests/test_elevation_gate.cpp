@@ -2,15 +2,15 @@
 
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/physics/sys/physics_sys.hpp>
+#include <corundum/physics/physics_sys.hpp>
 
 namespace tilemap = corundum::gameplay::world::tilemap;
 using corundum::gameplay::world::MapView;
 using corundum::gameplay::world::tilemap::RampAxis;
 using corundum::gameplay::world::tilemap::Tilemap;
 using corundum::gameplay::world::tilemap::TilemapLayer;
-using corundum::physics::sys::compute_elevation_gate;
-using corundum::physics::sys::ElevationGate;
+using corundum::physics::compute_elevation_gate;
+using corundum::physics::ElevationGate;
 
 namespace {
 

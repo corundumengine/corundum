@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-namespace corundum::audio::sys {
+namespace corundum::audio {
 
   /** @brief Owns the audio backend, sound cache, and catalog.
    *
@@ -117,4 +117,4 @@ namespace corundum::audio::sys {
     std::string sounds_dir_;
   };
 
-} // namespace corundum::audio::sys
+} // namespace corundum::audio

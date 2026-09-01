@@ -1,4 +1,4 @@
-#include <corundum/audio/sys/audio_sys.hpp>
+#include <corundum/audio/audio_sys.hpp>
 
 #include <doctest/doctest.h>
 
@@ -37,7 +37,7 @@ namespace {
 
   /// Make an AudioSystem with an adopted stub backend; returns the raw stub
   /// pointer for assertions (owned by the system).
-  StubBackend *make_system(corundum::audio::sys::AudioSystem &sys) {
+  StubBackend *make_system(corundum::audio::AudioSystem &sys) {
     std::unique_ptr<StubBackend> stub = std::make_unique<StubBackend>();
     StubBackend *raw = stub.get();
     sys.adopt_backend(std::move(stub));
@@ -47,7 +47,7 @@ namespace {
 } // namespace
 
 TEST_CASE("AudioSystem: play_sound before initialize returns an error") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   make_system(sys);
   const auto result = sys.play_sound("coin");
   REQUIRE_FALSE(result.has_value());
@@ -55,14 +55,14 @@ TEST_CASE("AudioSystem: play_sound before initialize returns an error") {
 }
 
 TEST_CASE("AudioSystem: initialize without a backend returns an error") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   const auto result = sys.initialize("data/sounds");
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error() == "[audio] No audio backend set");
 }
 
 TEST_CASE("AudioSystem: play_sound resolves the .ogg fallback path against sounds_dir") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
 
@@ -74,7 +74,7 @@ TEST_CASE("AudioSystem: play_sound resolves the .ogg fallback path against sound
 }
 
 TEST_CASE("AudioSystem: second play of the same name hits the cache (no second load)") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
 
@@ -93,7 +93,7 @@ TEST_CASE("AudioSystem: catalog entry overrides the .ogg fallback") {
     out << R"({"coin": "sfx/jingle_coin_01.ogg"})";
   }
 
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
   sys.load_catalog(catalog_path.string());
@@ -106,7 +106,7 @@ TEST_CASE("AudioSystem: catalog entry overrides the .ogg fallback") {
 }
 
 TEST_CASE("AudioSystem: set_master_volume is a no-op before initialize, forwarded after") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
 
   sys.set_master_volume(0.7f);
@@ -121,11 +121,11 @@ TEST_CASE("AudioSystem: destruction after init is RAII-safe and clears state") {
   // No explicit shutdown() — the destructor must clean up so that play_sound
   // after a fresh construct (without re-init) reports "not initialised".
   {
-    corundum::audio::sys::AudioSystem sys;
+    corundum::audio::AudioSystem sys;
     make_system(sys); // adopt a stub, intentionally unused
     REQUIRE(sys.initialize("data/sounds").has_value());
   }
-  corundum::audio::sys::AudioSystem sys2;
+  corundum::audio::AudioSystem sys2;
   const auto result = sys2.play_sound("coin");
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error() == "[audio] Audio system not initialised");
@@ -134,14 +134,14 @@ TEST_CASE("AudioSystem: destruction after init is RAII-safe and clears state") {
 TEST_CASE("AudioSystem: destruction without init is RAII-safe") {
   // Default-constructed AudioSystem must destruct without crashing — the
   // owning Engine holds it by value and may be torn down before init.
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   sys.shutdown(); // idempotent
   sys.shutdown(); // still idempotent
   CHECK(true);
 }
 
 TEST_CASE("AudioSystem: play_sound returns error after explicit shutdown") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
   sys.shutdown();
@@ -151,7 +151,7 @@ TEST_CASE("AudioSystem: play_sound returns error after explicit shutdown") {
 }
 
 TEST_CASE("AudioSystem: load_catalog with a missing file is a warn-and-continue") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
 
@@ -172,7 +172,7 @@ TEST_CASE("AudioSystem: load_catalog with malformed JSON is a warn-and-continue"
     out << "{ this is not json";
   }
 
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
   sys.load_catalog(catalog_path.string());
@@ -192,7 +192,7 @@ TEST_CASE("AudioSystem: load_catalog with a non-object JSON is a warn-and-contin
     out << R"(["not", "an", "object"])";
   }
 
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
   sys.load_catalog(catalog_path.string());
@@ -205,7 +205,7 @@ TEST_CASE("AudioSystem: load_catalog with a non-object JSON is a warn-and-contin
 }
 
 TEST_CASE("AudioSystem: load_catalog with empty path is a silent no-op") {
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
   sys.load_catalog("");
@@ -216,7 +216,7 @@ TEST_CASE("AudioSystem: load_catalog with empty path is a silent no-op") {
 TEST_CASE("AudioSystem: play_sound probes cache with std::string_view (heterogeneous lookup)") {
   // Verifies that the internal flat_map+StringLess accepts string_view
   // for cache lookup without forcing the caller to materialise a std::string.
-  corundum::audio::sys::AudioSystem sys;
+  corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
 

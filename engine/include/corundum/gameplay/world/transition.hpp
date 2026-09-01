@@ -1,5 +1,5 @@
 #pragma once
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_sys.hpp>
 
 #include <expected>
 #include <string>
@@ -24,7 +24,7 @@ namespace corundum::gameplay::world {
    *  @pre cfg.paths.world_manifest_path identifies the overworld manifest.
    */
   [[nodiscard]] std::expected<void, std::string> enter_world(corundum::Engine &engine,
-                                                             const corundum::render::sys::WorldLoadParams &params = {});
+                                                             const corundum::render::WorldLoadParams &params = {});
 
   /** @brief Handle a pending map transition triggered by portal traversal.
    *

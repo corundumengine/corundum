@@ -1,4 +1,4 @@
-#include <corundum/audio/sys/audio_sys.hpp>
+#include <corundum/audio/audio_sys.hpp>
 
 #include <corundum/core/json_io.hpp>
 
@@ -9,7 +9,7 @@
 #include <string>
 #include <utility>
 
-namespace corundum::audio::sys {
+namespace corundum::audio {
 
   std::string AudioSystem::resolve_path(std::string_view name) const {
     if (auto it = catalog_.find(name); it != catalog_.end())
@@ -90,4 +90,4 @@ namespace corundum::audio::sys {
     backend_->set_master_volume(volume);
   }
 
-} // namespace corundum::audio::sys
+} // namespace corundum::audio

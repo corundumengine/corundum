@@ -14,7 +14,7 @@ namespace corundum::gameplay::world {
   struct Scene;
 } // namespace corundum::gameplay::world
 
-namespace corundum::physics::sys {
+namespace corundum::physics {
 
   /** @brief Set player velocity from held movement keys.
    *  @param[in,out] transforms  SoA table; dx/dy for @p player are modified.
@@ -131,4 +131,4 @@ namespace corundum::physics::sys {
                                          const corundum::gameplay::world::Portal &portal, int player_elev,
                                          int elev_tolerance) noexcept;
 
-} // namespace corundum::physics::sys
+} // namespace corundum::physics

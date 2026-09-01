@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace corundum::physics::sys {
+namespace corundum::physics {
 
   void resolve_walkability(corundum::gameplay::component::Position &pos,
                            corundum::gameplay::component::Position prev_pos,
@@ -25,4 +25,4 @@ namespace corundum::physics::sys {
       pos.row = prev_pos.row;
   }
 
-} // namespace corundum::physics::sys
+} // namespace corundum::physics

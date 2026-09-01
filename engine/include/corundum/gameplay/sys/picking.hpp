@@ -27,7 +27,7 @@ namespace corundum::gameplay::sys {
    *
    * @details Works in both single-map and chunked/world mode. In single-map mode elevation
    * spans the map's own tilemap (map.elevation_map); in world mode it uses
-   * render::sys::elevation_under via map.world_render, spanning the whole world grid.
+   * render::elevation_under via map.world_render, spanning the whole world grid.
    * Returns nullopt only when there is no elevation source (neither map.elevation_map
    * nor map.world_render is set). Scans every cell in grid bounds; for each, inverts the
    * mouse position assuming that cell's real elevation (world_to_tile()) and checks

@@ -1,5 +1,5 @@
 #pragma once
-#include <corundum/audio/sys/audio_sys.hpp>
+#include <corundum/audio/audio_sys.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
@@ -14,7 +14,7 @@
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
-#include <corundum/render/data/render_state.hpp>
+#include <corundum/render/render_state.hpp>
 #include <corundum/resources/character_registry.hpp>
 
 #include <expected>
@@ -55,9 +55,9 @@ namespace corundum {
     std::unique_ptr<platform::Renderer, detail::PlatformDeleter> renderer;
     std::unique_ptr<platform::Window, detail::PlatformDeleter> window;
 
-    audio::sys::AudioSystem audio;
+    audio::AudioSystem audio;
     input::InputState input_state;
-    render::data::RenderState render;
+    render::RenderState render;
 
     core::GameConfig cfg;
     resources::CharacterRegistry characters;
@@ -170,9 +170,9 @@ namespace corundum {
   /** @brief The single loaded tilemap, if the engine is in single-map mode.
    *  @param[in] engine Initialised Engine.
    *  @return Pointer to the active tilemap, or nullptr in World mode or before load.
-   *  @see render::data::active_tilemap() for the RenderState-level accessor. */
+   *  @see render::active_tilemap() for the RenderState-level accessor. */
   inline const gameplay::world::tilemap::Tilemap *active_tilemap(const Engine &engine) noexcept {
-    return corundum::render::data::active_tilemap(engine.render);
+    return corundum::render::active_tilemap(engine.render);
   }
 
 } // namespace corundum

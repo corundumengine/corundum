@@ -1,13 +1,13 @@
 #include <corundum/gameplay/world/update.hpp>
 
-#include <corundum/anim/sys/anim_sys.hpp>
+#include <corundum/anim/anim_sys.hpp>
 #include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/sys/camera_system.hpp>
 #include <corundum/gameplay/sys/dialogue_system.hpp>
 #include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/physics/sys/physics_sys.hpp>
+#include <corundum/physics/physics_sys.hpp>
 #include <corundum/resources/sprite.hpp>
 
 #include <array>
@@ -22,8 +22,8 @@ namespace {
     auto &world = scene.world;
     const EntityId player = scene.player;
 
-    corundum::physics::sys::update_player(world.transforms, world.collisions, player, input, cfg.player_speed, map,
-                                          scene, dt);
+    corundum::physics::update_player(world.transforms, world.collisions, player, input, cfg.player_speed, map, scene,
+                                     dt);
 
     // Integrate all NPCs (player was already integrated inside update_player).
     // NPC velocities are zero today, but when AI gives them motion this establishes
@@ -31,7 +31,7 @@ namespace {
     for (uint16_t i = 0; i < world.transforms.count; ++i) {
       const EntityId e = world.transforms.idx.entities[i];
       if (e != player)
-        corundum::physics::sys::integrate(world.transforms, e, dt);
+        corundum::physics::integrate(world.transforms, e, dt);
     }
 
     // One projection for the whole frame: animation speed scaling (screen-space
@@ -42,8 +42,8 @@ namespace {
     const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin,
                                                     cfg.elevation_step_px * map.tile_scale};
 
-    corundum::anim::sys::animate(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
-                                 iso, cfg.player_speed, dt);
+    corundum::anim::animate(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites, iso,
+                            cfg.player_speed, dt);
 
     const auto p_slot = world.transforms.dense_idx(player);
     const float pc = world.transforms.col[p_slot];

@@ -12,7 +12,7 @@ using corundum::gameplay::world::tilemap::RampAxis;
 using corundum::gameplay::world::tilemap::Tilemap;
 using corundum::gameplay::world::tilemap::TilemapLayer;
 using corundum::gameplay::world::tilemap::WalkabilityGraph;
-using corundum::physics::sys::resolve_walkability;
+using corundum::physics::resolve_walkability;
 
 namespace {
 

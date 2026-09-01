@@ -5,7 +5,7 @@ namespace corundum::platform {
   class Window;
 }
 
-namespace corundum::input::sys {
+namespace corundum::input {
 
   /** @brief Read pending input from @p window and update @p state.
    *
@@ -20,4 +20,4 @@ namespace corundum::input::sys {
    */
   void poll(corundum::input::InputState &state, corundum::platform::Window &window) noexcept;
 
-} // namespace corundum::input::sys
+} // namespace corundum::input

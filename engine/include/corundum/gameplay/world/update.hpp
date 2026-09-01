@@ -9,7 +9,7 @@
 
 #include <span>
 
-namespace corundum::render::data {
+namespace corundum::render {
   struct RenderState;
 }
 
@@ -46,13 +46,13 @@ namespace corundum::gameplay::world {
     const corundum::gameplay::world::tilemap::WalkabilityGraph *walkability = nullptr;
     /// Active-chunk window for world-mode elevation lookups via elevation_under().
     /// Set by build_map_view() only in World render mode; nullptr in single-map mode.
-    const corundum::render::data::RenderState *world_render = nullptr;
+    const corundum::render::RenderState *world_render = nullptr;
   };
 
   /** @brief Elevation of the tile under (col_f, row_f) for any render mode.
    *
    * Routes through elevation_map (single-map, interpolated) or world_render
-   * (world-mode, discrete chunk lookup via render::sys::elevation_under).
+   * (world-mode, discrete chunk lookup via render::elevation_under).
    * Returns 0 if no elevation data is available at the queried position.
    *
    * @param[in] map   MapView built for the current frame.

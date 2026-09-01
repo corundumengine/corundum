@@ -3,7 +3,7 @@
 #include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_sys.hpp>
 
 #include <array>
 #include <cstddef>
@@ -57,16 +57,16 @@ namespace corundum::debug {
 
   } // namespace
 
-  core::math::IsometricParams HudOverlay::resolve_isometric(const render::data::RenderState &render,
+  core::math::IsometricParams HudOverlay::resolve_isometric(const render::RenderState &render,
                                                             const core::GameConfig &cfg) noexcept {
-    if (render.mode == render::data::RenderMode::World && !render.chunks.active_empty()) {
+    if (render.mode == render::RenderMode::World && !render.chunks.active_empty()) {
       const gameplay::world::tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
       const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
                                                          : render.manifest.chunks_tall * render.manifest.chunk_size;
       return core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale,
                                                   cfg.elevation_step_px);
     }
-    if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
+    if (render.mode == render::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
       const gameplay::world::tilemap::Tilemap &tm = render.map_data.tilemap;
       return core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
                                                   cfg.elevation_step_px);
@@ -126,8 +126,8 @@ namespace corundum::debug {
   }
 
   void HudOverlay::draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
-                                      float zoom, const render::data::RenderState &render,
-                                      const gameplay::entity::World &w, gameplay::entity::EntityId player,
+                                      float zoom, const render::RenderState &render, const gameplay::entity::World &w,
+                                      gameplay::entity::EntityId player,
                                       core::math::IsometricParams iso) const noexcept {
     if (iso.half_tw <= 0.f || iso.half_th <= 0.f || !w.transforms.has(player) || !w.collisions.has(player))
       return;
@@ -141,7 +141,7 @@ namespace corundum::debug {
     // entity sprite anchor so the marker sits on the character's feet, not above them.
     // Elevation must match render_sys.cpp's entity anchor calc (elevation_under), or the
     // marker desyncs from the drawn sprite on any non-flat tile.
-    const float marker_elev = corundum::render::sys::elevation_under(render, col, row);
+    const float marker_elev = corundum::render::elevation_under(render, col, row);
     const auto [mx, my] = core::math::tile_to_world_center(col, row, marker_elev, iso);
     r.draw(platform::DrawLine{.start = {mx, my - k_marker_hh},
                               .end = {mx + k_marker_hw, my},
@@ -162,7 +162,7 @@ namespace corundum::debug {
     r.reset_screen_view();
   }
 
-  void HudOverlay::draw_text_panel(platform::Renderer &r, const render::data::RenderState &render,
+  void HudOverlay::draw_text_panel(platform::Renderer &r, const render::RenderState &render,
                                    const core::GameConfig &cfg, const gameplay::world::Scene &scene) const noexcept {
     const float x = cfg.win_w - k_box_w - k_pad;
 
@@ -183,19 +183,19 @@ namespace corundum::debug {
     if (w.facings.has(p))
       velocity_str += std::format("  {}", facing_name(w.facings.dir_of(p)));
 
-    const render::data::CollisionGeometry geo = render::data::current_collisions(render);
+    const render::CollisionGeometry geo = render::current_collisions(render);
     const int collision_rects = static_cast<int>(geo.rects.size());
     const int collision_tris = static_cast<int>(geo.tris.size());
 
     std::string map_name;
-    if (render.mode == render::data::RenderMode::SingleMap && !render.map_data.tilemap.path.empty()) {
+    if (render.mode == render::RenderMode::SingleMap && !render.map_data.tilemap.path.empty()) {
       map_name = render.map_data.tilemap.path;
-    } else if (render.mode == render::data::RenderMode::World && !render.chunks.active_empty()) {
+    } else if (render.mode == render::RenderMode::World && !render.chunks.active_empty()) {
       const int cs = render.manifest.chunk_size;
       if (cs > 0 && w.transforms.has(p)) {
         const gameplay::world::tilemap::ChunkCoord c{static_cast<int>(w.transforms.pos_col(p)) / cs,
                                                      static_cast<int>(w.transforms.pos_row(p)) / cs};
-        for (const render::data::ChunkEntry &entry : render.chunks.active()) {
+        for (const render::ChunkEntry &entry : render.chunks.active()) {
           if (entry.coord == c) {
             map_name = entry.tilemap.path;
             break;
@@ -243,7 +243,7 @@ namespace corundum::debug {
   }
 
   void HudOverlay::render(platform::Renderer &r, const OverlayInput &input) noexcept {
-    const render::data::RenderState &render = input.render_state;
+    const render::RenderState &render = input.render_state;
     const core::GameConfig &cfg = input.cfg;
     const gameplay::world::Scene &scene = input.scene;
     const core::time::LoopTimer &timer = input.timer;
@@ -253,7 +253,7 @@ namespace corundum::debug {
 
     const core::math::IsometricParams iso = resolve_isometric(render, cfg);
 
-    const render::data::CollisionGeometry geo = render::data::current_collisions(render);
+    const render::CollisionGeometry geo = render::current_collisions(render);
     draw_collision(r, camera, viewport, geo.rects, geo.tris, iso, scene.camera.zoom);
     draw_player_marker(r, camera, viewport, scene.camera.zoom, render, scene.world, scene.player, iso);
 

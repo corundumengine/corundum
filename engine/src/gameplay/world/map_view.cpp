@@ -1,12 +1,12 @@
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
-#include <corundum/render/data/render_state.hpp>
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_state.hpp>
+#include <corundum/render/render_sys.hpp>
 
 namespace corundum::gameplay::world {
 
-  [[nodiscard]] MapView build_map_view(render::data::RenderState &render, const core::GameConfig &cfg) noexcept {
-    if (render.mode == render::data::RenderMode::World) {
+  [[nodiscard]] MapView build_map_view(render::RenderState &render, const core::GameConfig &cfg) noexcept {
+    if (render.mode == render::RenderMode::World) {
       const auto &first_tm = render.chunks.active_at(0).tilemap;
       const auto &manifest = render.manifest;
       const int total_h = manifest.tiles_tall > 0 ? manifest.tiles_tall : manifest.chunks_tall * manifest.chunk_size;
@@ -69,7 +69,7 @@ namespace corundum::gameplay::world {
 
   float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept {
     if (map.world_render)
-      return render::sys::elevation_under(*map.world_render, col_f, row_f);
+      return render::elevation_under(*map.world_render, col_f, row_f);
     if (map.elevation_map)
       return corundum::gameplay::world::tilemap::interpolated_elevation_at(*map.elevation_map, col_f, row_f);
     return 0.f;

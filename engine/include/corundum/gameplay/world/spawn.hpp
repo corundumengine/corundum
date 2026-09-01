@@ -10,7 +10,7 @@
 #include <string>
 
 namespace corundum {
-  namespace render::data {
+  namespace render {
     struct RenderState;
   }
 } // namespace corundum
@@ -44,7 +44,7 @@ namespace corundum::gameplay::world {
    *        coords), marks actors of unloaded chunks for deletion. No-op unless
    *        mode == World, chunks are loaded, and the player is free-roaming.
    */
-  void sync_chunk_actors(Scene &scene, const corundum::render::data::RenderState &render,
+  void sync_chunk_actors(Scene &scene, const corundum::render::RenderState &render,
                          const corundum::core::GameConfig &cfg, const corundum::resources::CharacterRegistry &registry);
 
 } // namespace corundum::gameplay::world

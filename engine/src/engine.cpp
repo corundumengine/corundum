@@ -10,11 +10,11 @@
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/gameplay/world/transition.hpp>
 #include <corundum/gameplay/world/update.hpp>
-#include <corundum/input/sys/input_sys.hpp>
+#include <corundum/input/input_sys.hpp>
 #include <corundum/platform/platform_factory.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_sys.hpp>
 
 #include <charconv>
 #include <format>
@@ -66,7 +66,7 @@ namespace corundum {
           return result;
 
         init_audio();
-        render::sys::configure_dialog_style(engine_.render, engine_.cfg);
+        render::configure_dialog_style(engine_.render, engine_.cfg);
         load_dialogue_and_quests();
         return {};
       }
@@ -77,16 +77,16 @@ namespace corundum {
         char_result = engine_.characters.load_all(engine_.cfg.paths.sprites_dir);
         if (!char_result)
           return std::unexpected(char_result.error());
-        render::sys::load_sprite_index(*engine_.renderer, engine_.render, engine_.characters);
+        render::load_sprite_index(*engine_.renderer, engine_.render, engine_.characters);
 
         const auto font_path = std::format("{}/{}", engine_.cfg.paths.font_dir, engine_.cfg.paths.game_font);
         std::expected<uint32_t, std::string> font_result;
-        font_result = render::sys::load_font(*engine_.renderer, engine_.render, font_path);
+        font_result = render::load_font(*engine_.renderer, engine_.render, font_path);
         if (!font_result)
           return std::unexpected(font_result.error());
 
         std::expected<void, std::string> ui_result;
-        ui_result = render::sys::load_ui_assets(*engine_.renderer, engine_.render);
+        ui_result = render::load_ui_assets(*engine_.renderer, engine_.render);
         if (!ui_result)
           return std::unexpected(ui_result.error());
         return {};
@@ -104,7 +104,7 @@ namespace corundum {
       std::expected<void, std::string> init_single_map_scene() {
         std::expected<void, std::string> map_result;
         map_result =
-            render::sys::load_map(*engine_.renderer, engine_.render, engine_.cfg.paths.tilemap_path, engine_.cfg);
+            render::load_map(*engine_.renderer, engine_.render, engine_.cfg.paths.tilemap_path, engine_.cfg);
         if (!map_result)
           return std::unexpected(std::move(map_result).error());
 
@@ -232,7 +232,7 @@ namespace corundum {
 
     /// Poll platform input and handle the Quit action.
     void process_input(Engine &engine) noexcept {
-      input::sys::poll(engine.input_state, *engine.window);
+      input::poll(engine.input_state, *engine.window);
       if (engine.input_state.is_held(input::Action::Quit))
         request_quit(engine);
     }
@@ -244,7 +244,7 @@ namespace corundum {
       while (engine.timer.step()) {
         ++result.steps_run;
         engine.scene.elapsed_time += engine.timer.target_dt;
-        if (engine.render.mode == render::data::RenderMode::World && engine.render.chunks.active_empty())
+        if (engine.render.mode == render::RenderMode::World && engine.render.chunks.active_empty())
           continue;
 
         const auto mv = gameplay::world::build_map_view(engine.render, engine.cfg);
@@ -283,7 +283,7 @@ namespace corundum {
     void render_frame(Engine &engine, const float alpha) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
-      render::sys::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests,
+      render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests,
                           &engine.items, alpha, engine.win_w, engine.win_h);
 
       if (engine.hud.enabled) {
@@ -302,8 +302,8 @@ namespace corundum {
     /// World mode: load at most one pending chunk per frame — queues I/O between
     /// frames so chunk-boundary loads don't hitch the render pass.
     void stream_world_chunks(Engine &engine) noexcept {
-      if (engine.render.mode == render::data::RenderMode::World)
-        render::sys::load_one_pending_chunk(*engine.renderer, engine.render, engine.cfg);
+      if (engine.render.mode == render::RenderMode::World)
+        render::load_one_pending_chunk(*engine.renderer, engine.render, engine.cfg);
     }
 
   } // namespace
@@ -317,7 +317,7 @@ namespace corundum {
     if (!engine.window->is_open() || engine.quit)
       return false;
     std::tie(engine.win_w, engine.win_h) = engine.window->size();
-    render::sys::snapshot_prev_frame(engine.render, engine.scene);
+    render::snapshot_prev_frame(engine.render, engine.scene);
     engine.timer.tick();
 
     process_input(engine);

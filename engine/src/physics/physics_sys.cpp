@@ -3,7 +3,7 @@
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
 #include <corundum/physics/collision.hpp>
-#include <corundum/physics/sys/physics_sys.hpp>
+#include <corundum/physics/physics_sys.hpp>
 #include <corundum/physics/walkability.hpp>
 
 #include <algorithm>
@@ -11,7 +11,7 @@
 #include <cmath>
 #include <span>
 
-namespace corundum::physics::sys {
+namespace corundum::physics {
 
   namespace {
     constexpr float k_tile_center_offset = 0.5f;
@@ -361,4 +361,4 @@ namespace corundum::physics::sys {
     }
   }
 
-} // namespace corundum::physics::sys
+} // namespace corundum::physics

@@ -9,8 +9,8 @@ using corundum::gameplay::world::tilemap::CollisionRects;
 using corundum::gameplay::world::tilemap::CollisionRectsView;
 using corundum::gameplay::world::tilemap::CollisionTriangles;
 using corundum::gameplay::world::tilemap::TriangleCut;
-using corundum::physics::sys::resolve_collisions;
-using corundum::physics::sys::resolve_triangle_collisions;
+using corundum::physics::resolve_collisions;
+using corundum::physics::resolve_triangle_collisions;
 
 namespace ccm = corundum::core::math;
 

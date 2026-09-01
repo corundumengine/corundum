@@ -2,7 +2,7 @@
 #include <corundum/gameplay/sys/picking.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
 #include <corundum/gameplay/world/update.hpp>
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_sys.hpp>
 
 #include <cmath>
 #include <limits>
@@ -17,8 +17,8 @@ namespace corundum::gameplay::sys {
     /// non-null — pick_tile's guard checks that first.
     [[nodiscard]] int pick_elevation_at(const corundum::gameplay::world::MapView &map, int col, int row) noexcept {
       if (map.world_render != nullptr)
-        return static_cast<int>(std::lround(corundum::render::sys::elevation_under(
-            *map.world_render, static_cast<float>(col), static_cast<float>(row))));
+        return static_cast<int>(std::lround(
+            corundum::render::elevation_under(*map.world_render, static_cast<float>(col), static_cast<float>(row))));
       return corundum::gameplay::world::tilemap::elevation_at(*map.elevation_map, col, row);
     }
 

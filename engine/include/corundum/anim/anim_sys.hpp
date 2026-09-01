@@ -9,7 +9,7 @@ namespace corundum::gameplay::component {
   struct TransformTable;
 } // namespace corundum::gameplay::component
 
-namespace corundum::anim::sys {
+namespace corundum::anim {
 
   /** @brief Advance all animated sprites by one fixed timestep.
    *
@@ -50,4 +50,4 @@ namespace corundum::anim::sys {
                corundum::gameplay::component::MotionSpriteTable &motion_sprites,
                corundum::core::math::IsometricParams iso, float reference_speed, float dt) noexcept;
 
-} // namespace corundum::anim::sys
+} // namespace corundum::anim

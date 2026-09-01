@@ -3,14 +3,14 @@
 #include <corundum/gameplay/world/map_view.hpp>
 #include <corundum/gameplay/world/portals/portal.hpp>
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/physics/sys/physics_sys.hpp>
+#include <corundum/physics/physics_sys.hpp>
 
 namespace tilemap = corundum::gameplay::world::tilemap;
 using corundum::gameplay::world::MapView;
 using corundum::gameplay::world::Portal;
 using corundum::gameplay::world::tilemap::Tilemap;
 using corundum::gameplay::world::tilemap::TilemapLayer;
-using corundum::physics::sys::portal_elev_matches;
+using corundum::physics::portal_elev_matches;
 
 namespace {
 

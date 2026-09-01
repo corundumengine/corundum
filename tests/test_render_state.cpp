@@ -5,10 +5,10 @@
 #include <corundum/gameplay/world/tilemap/world_manifest.hpp>
 #include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_sys.hpp>
 
 namespace tilemap = corundum::gameplay::world::tilemap;
-namespace render_data = corundum::render::data;
+namespace render_data = corundum::render;
 
 namespace {
 
@@ -80,7 +80,7 @@ TEST_CASE("snapshot_prev_frame: copies live transforms and camera into prev_* fi
   engine.scene.camera.y = 50.f;
   engine.scene.camera.zoom = 2.f;
 
-  corundum::render::sys::snapshot_prev_frame(engine.render, engine.scene);
+  corundum::render::snapshot_prev_frame(engine.render, engine.scene);
 
   CHECK(engine.render.prev_count == 2);
   CHECK(engine.render.prev_col[0] == 3.5f);
@@ -99,7 +99,7 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   // isn't in the active window — so the lookup correctly returns 0. Today positions are
   // clamped >= 0 so this never fires; standardizing on std::floor closes the seam so it
   // can't bite when anything (camera shake, knockback, chunk-local coords) goes negative.
-  namespace render_sys = corundum::render::sys;
+  namespace render_sys = corundum::render;
   render_data::RenderState state;
   state.mode = render_data::RenderMode::World;
   state.manifest.chunk_size = 16;
@@ -130,7 +130,7 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
 }
 
 TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks chunks_dirty") {
-  namespace render_sys = corundum::render::sys;
+  namespace render_sys = corundum::render;
   render_data::RenderState state;
   state.mode = render_data::RenderMode::World;
   state.manifest.chunk_size = 16;

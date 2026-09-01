@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <corundum/anim/sys/anim_sys.hpp>
+#include <corundum/anim/anim_sys.hpp>
 #include <corundum/gameplay/component/animation_table.hpp>
 #include <corundum/gameplay/component/facing_table.hpp>
 #include <corundum/gameplay/component/motion_sprite_table.hpp>
@@ -52,8 +52,8 @@ TEST_CASE("animate: moving at exactly reference speed advances at the authored f
   f.transforms.dc[slot] = 2.f; // scale = 1
   f.transforms.dr[slot] = 0.f;
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.2f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.2f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1); // one full frame_duration elapsed at scale 1
 }
 
@@ -64,15 +64,15 @@ TEST_CASE("animate: moving at 2x reference speed reaches the frame threshold in 
   f.transforms.dr[slot] = 0.f;
 
   // dt=0.1s * scale=2 == 0.2s == frame_duration: crosses the threshold; at scale=1 it would not.
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.1f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.1f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
 }
 
 TEST_CASE("animate: idle (zero velocity) still advances at the unscaled rate, not frozen") {
   Fixture f; // dc=dr=0 from the fixture — must not scale to 0
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.2f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.2f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
 }
 
@@ -80,8 +80,8 @@ TEST_CASE("animate: degenerate iso falls back to the unscaled rate (no divide-by
   Fixture f;
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 5.f; // nonzero velocity, but iso below is degenerate
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites,
-                               IsometricParams{0.f, 0.f, 0.f, 0.f}, k_reference_speed, /*dt=*/0.2f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites,
+                          IsometricParams{0.f, 0.f, 0.f, 0.f}, k_reference_speed, /*dt=*/0.2f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
 }
 
@@ -92,8 +92,8 @@ TEST_CASE("animate: pure +dc motion resolves facing to SouthEast (zone 1, col-do
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.facings.dir_of(f.player) == corundum::gameplay::component::FacingDir::SouthEast);
 }
 
@@ -104,8 +104,8 @@ TEST_CASE("animate: pure +dr motion resolves facing to SouthWest (zone 0, row-do
   f.transforms.dc[slot] = 0.f;
   f.transforms.dr[slot] = 1.f;
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.facings.dir_of(f.player) == corundum::gameplay::component::FacingDir::SouthWest);
 }
 
@@ -116,8 +116,8 @@ TEST_CASE("animate: equal-magnitude diagonal motion resolves facing to a screen-
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 1.f; // |dc| == |dr| → zone 2 (diagonal); +dr,+dc → screen South
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.facings.dir_of(f.player) == corundum::gameplay::component::FacingDir::South);
 }
 
@@ -133,8 +133,8 @@ TEST_CASE("animate: falls back to a cardinal AnimId when the directional clip is
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::East);
 }
 
@@ -150,8 +150,8 @@ TEST_CASE("animate: vertical-axis fallback is used when |dr| dominates") {
   f.transforms.dc[slot] = 0.f;
   f.transforms.dr[slot] = 1.f;
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::South);
 }
 
@@ -164,8 +164,8 @@ TEST_CASE("animate: returns AnimId::Default when every directional and cardinal 
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::Default);
 }
 
@@ -174,8 +174,8 @@ TEST_CASE("animate: idle entity with no FacingTable uses the South default for A
   // falls back to FacingDir::South while idle. Without the default, accessing
   // `facings.dir_of(e)` would assert.
   Fixture f; // no facings.insert; counts.fill(4) leaves every clip available.
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::South);
 }
 
@@ -183,8 +183,8 @@ TEST_CASE("animate: changing AnimId resets frame_index and timer") {
   Fixture f;
   // Build up a non-zero frame state.
   f.animations.frame_duration_ref(f.player) = 0.1f;
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.5f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.5f);
   REQUIRE(f.sprites.frame_index_ref(f.player) != 0);
 
   // Now restrict counts to AnimId::East only and start moving → South→East transition
@@ -195,8 +195,8 @@ TEST_CASE("animate: changing AnimId resets frame_index and timer") {
 
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 1.f;
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::resources::AnimId::East);
   CHECK(f.sprites.frame_index_ref(f.player) == 0);
 }
@@ -207,8 +207,8 @@ TEST_CASE("animate: single-frame AnimIds do not advance or accumulate timer") {
   counts.fill(1); // every clip is a static image
   f.animations.set_frame_counts(f.player, counts);
 
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/10.f); // huge dt
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/10.f); // huge dt
   CHECK(f.sprites.frame_index_ref(f.player) == 0);
 }
 
@@ -228,14 +228,14 @@ TEST_CASE("animate: motion sprite commits after the configured idle-to-walk dela
   f.transforms.dc[slot] = 1.f;
 
   // Half the delay — not yet committed; pending is set.
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.05f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.05f);
   CHECK(f.sprites.sprite_id_ref(f.player) == idle_sid);
   CHECK(f.motion_sprites.pending_sprite(f.player) == walk_sid);
 
   // Cumulative dt reaches the delay — commits.
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.05f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.05f);
   CHECK(f.sprites.sprite_id_ref(f.player) == walk_sid);
   CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::resources::k_null_sprite_id);
 }
@@ -254,14 +254,14 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
 
   // Start moving, partial-transition the timer toward the idle→walk commit.
   f.transforms.dc[slot] = 1.f;
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.05f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.05f);
   REQUIRE(f.motion_sprites.pending_sprite(f.player) == walk_sid);
 
   // Stop moving — desired flips back to idle, which is already cur_sid → cancel.
   f.transforms.dc[slot] = 0.f;
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.05f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.05f);
   CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::resources::k_null_sprite_id);
   CHECK(f.sprites.sprite_id_ref(f.player) == idle_sid);
 }
@@ -280,8 +280,8 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts a
 
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 1.f;
-  corundum::anim::sys::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
-                               k_reference_speed, /*dt=*/0.f);
+  corundum::anim::animate(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso, k_reference_speed,
+                          /*dt=*/0.f);
 
   CHECK(f.sprites.sprite_id_ref(f.player) == walk_sid);
   CHECK(f.animations.frame_count(f.player, corundum::resources::AnimId::South) == 8);

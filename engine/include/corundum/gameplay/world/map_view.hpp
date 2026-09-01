@@ -3,7 +3,7 @@
 #include <corundum/gameplay/world/update.hpp>
 
 namespace corundum {
-  namespace render::data {
+  namespace render {
     struct RenderState;
   }
 } // namespace corundum
@@ -21,6 +21,6 @@ namespace corundum::gameplay::world {
    * @param[in] cfg    Game configuration (tile scale).
    * @return A fully-populated MapView ready for the simulation step.
    */
-  [[nodiscard]] MapView build_map_view(render::data::RenderState &render, const core::GameConfig &cfg) noexcept;
+  [[nodiscard]] MapView build_map_view(render::RenderState &render, const core::GameConfig &cfg) noexcept;
 
 } // namespace corundum::gameplay::world

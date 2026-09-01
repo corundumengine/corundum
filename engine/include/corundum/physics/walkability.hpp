@@ -2,7 +2,7 @@
 #include <corundum/gameplay/component/components.hpp>
 #include <corundum/gameplay/world/tilemap/walkability.hpp>
 
-namespace corundum::physics::sys {
+namespace corundum::physics {
 
   /**
    * @brief Gate movement against a WalkabilityGraph, on top of (not instead of)
@@ -24,4 +24,4 @@ namespace corundum::physics::sys {
                            corundum::gameplay::component::Position prev_pos,
                            const corundum::gameplay::world::tilemap::WalkabilityGraph *graph) noexcept;
 
-} // namespace corundum::physics::sys
+} // namespace corundum::physics

@@ -1,12 +1,12 @@
 #include <doctest/doctest.h>
 
 #include <corundum/gameplay/world/tilemap/tilemap.hpp>
-#include <corundum/render/data/render_state.hpp>
-#include <corundum/render/sys/render_sys.hpp>
+#include <corundum/render/render_state.hpp>
+#include <corundum/render/render_sys.hpp>
 
 namespace tilemap = corundum::gameplay::world::tilemap;
-namespace render_data = corundum::render::data;
-namespace render_sys = corundum::render::sys;
+namespace render_data = corundum::render;
+namespace render_sys = corundum::render;
 
 TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with tile-unit offsets") {
   render_data::RenderState state;

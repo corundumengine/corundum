@@ -5,7 +5,7 @@
 #include <corundum/gameplay/entity/world.hpp>
 #include <corundum/gameplay/world/actors/actor.hpp>
 #include <corundum/gameplay/world/scene.hpp>
-#include <corundum/render/data/render_state.hpp>
+#include <corundum/render/render_state.hpp>
 #include <corundum/resources/character_registry.hpp>
 
 #include <algorithm>
@@ -207,12 +207,12 @@ namespace corundum::gameplay::world {
     return result;
   }
 
-  void sync_chunk_actors(Scene &scene, const corundum::render::data::RenderState &render,
+  void sync_chunk_actors(Scene &scene, const corundum::render::RenderState &render,
                          const corundum::core::GameConfig &cfg,
                          const corundum::resources::CharacterRegistry &registry) {
     namespace tm = corundum::gameplay::world::tilemap;
 
-    if (render.mode != corundum::render::data::RenderMode::World)
+    if (render.mode != corundum::render::RenderMode::World)
       return;
     if (render.chunks.active_empty())
       return;
