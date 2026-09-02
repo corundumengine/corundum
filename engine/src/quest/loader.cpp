@@ -67,7 +67,7 @@ namespace corundum::quest {
 
       // ── Schema validation ──────────────────────────────────────────────────
       {
-        auto sv = core::quest_schema().validate(root);
+        auto sv = core::schema_catalog().quest_schema().validate(root);
         if (!sv)
           throw LoadError(std::format("[schema] {}: {}", path, sv.error()));
       }

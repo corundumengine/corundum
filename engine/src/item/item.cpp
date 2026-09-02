@@ -169,7 +169,7 @@ namespace corundum::item {
       // The category folder is authoritative; inject it before validating.
       element["category"] = to_string(category);
 
-      auto sv = core::item_schema().validate(element);
+      auto sv = core::schema_catalog().item_schema().validate(element);
       if (!sv) {
         std::println(stderr, "[item] skipping invalid item in '{}': {}", path_string, sv.error());
         continue;

@@ -176,42 +176,40 @@ namespace corundum::core {
     }
   }
 
-  // ── Pre-built schema accessors (thread-safe after first call) ─────────────────
+  // ── SchemaCatalog ─────────────────────────────────────────────────────────────
 
-  const SchemaValidator &dialogue_graph_schema() noexcept {
-    static const SchemaValidator s = [] {
-      auto r = SchemaValidator::from_string(k_dialogue_graph_schema);
-      if (!r) {
-        std::println(stderr, "[schema] fatal: {}", r.error());
-        std::terminate();
-      }
-      return std::move(*r);
-    }();
-    return s;
+  SchemaCatalog SchemaCatalog::create() {
+    SchemaCatalog c;
+    c.dialogue_ = SchemaCatalog::compile_or_terminate(k_dialogue_graph_schema);
+    c.quest_ = SchemaCatalog::compile_or_terminate(k_quest_schema);
+    c.item_ = SchemaCatalog::compile_or_terminate(k_item_schema);
+    return c;
   }
 
-  const SchemaValidator &quest_schema() noexcept {
-    static const SchemaValidator q = [] {
-      auto r = SchemaValidator::from_string(k_quest_schema);
-      if (!r) {
-        std::println(stderr, "[schema] fatal: {}", r.error());
-        std::terminate();
-      }
-      return std::move(*r);
-    }();
-    return q;
+  SchemaValidator SchemaCatalog::compile_or_terminate(std::string_view schema_json) {
+    auto result = SchemaValidator::from_string(schema_json);
+    if (!result) {
+      std::println(stderr, "[schema] fatal: {}", result.error());
+      std::terminate();
+    }
+    return std::move(*result);
   }
 
-  const SchemaValidator &item_schema() noexcept {
-    static const SchemaValidator i = [] {
-      auto r = SchemaValidator::from_string(k_item_schema);
-      if (!r) {
-        std::println(stderr, "[schema] fatal: {}", r.error());
-        std::terminate();
-      }
-      return std::move(*r);
-    }();
-    return i;
+  const SchemaValidator &SchemaCatalog::dialogue_graph_schema() const noexcept {
+    return dialogue_;
+  }
+
+  const SchemaValidator &SchemaCatalog::quest_schema() const noexcept {
+    return quest_;
+  }
+
+  const SchemaValidator &SchemaCatalog::item_schema() const noexcept {
+    return item_;
+  }
+
+  const SchemaCatalog &schema_catalog() noexcept {
+    static const SchemaCatalog catalog = SchemaCatalog::create();
+    return catalog;
   }
 
 } // namespace corundum::core

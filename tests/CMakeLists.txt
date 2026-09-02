@@ -43,6 +43,7 @@ add_executable(corundum_tests
     test_layer_presets.cpp
     test_files.cpp
     test_ui_draw.cpp
+    test_json_schema.cpp
 )
 
 # FontAtlas tests reach into the internal engine/src/platform/glfw header and

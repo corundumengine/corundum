@@ -138,7 +138,7 @@ namespace corundum::dialogue {
 
     // ── Schema validation ────────────────────────────────────────────────────
     {
-      auto sv = core::dialogue_graph_schema().validate(root);
+      auto sv = core::schema_catalog().dialogue_graph_schema().validate(root);
       if (!sv)
         throw LoadError(std::format("[schema] {}: {}", path, sv.error()));
     }
