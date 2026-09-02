@@ -15,7 +15,8 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-uppercase-literal-suffix,
   -readability-magic-numbers,
-  -portability-avoid-pragma-once
+  -portability-avoid-pragma-once,
+  -cppcoreguidelines-non-private-member-variables-in-classes
 
 WarningsAsErrors: >
   bugprone-*,
