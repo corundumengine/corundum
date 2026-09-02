@@ -1,5 +1,6 @@
 #include "input.hpp"
 #include "coords.hpp"
+#include "editor_helpers.hpp"
 #include "layout.hpp"
 #include "save.hpp"
 #include <algorithm>
@@ -10,36 +11,12 @@ namespace tools::spritesmith {
 
   namespace {
 
-    int sheet_cols(const EditorState &state) {
-      if (state.mode == SheetMode::SpriteSheet)
-        return state.columns;
-      const int step = state.frame_width + state.spacing_x;
-      if (step <= 0 || state.image_pixel_w <= state.offset_x)
-        return 0;
-      return (state.image_pixel_w - state.offset_x + state.spacing_x) / step;
-    }
-
-    int sheet_rows(const EditorState &state) {
-      if (state.mode == SheetMode::SpriteSheet)
-        return state.rows;
-      const int step = state.frame_height + state.spacing_y;
-      if (step <= 0 || state.image_pixel_h <= state.offset_y)
-        return 0;
-      return (state.image_pixel_h - state.offset_y + state.spacing_y) / step;
-    }
-
-    bool is_recording(const EditorState &state) {
-      return (state.mode == SheetMode::Character && state.anim_recording) ||
-             (state.mode == SheetMode::SpriteSheet && state.clip_recording) ||
-             (state.mode == SheetMode::Atlas && state.atlas_clip_recording);
-    }
-
     void add_frame(EditorState &state, corundum::sprites::FrameCoord fc) {
       if (state.mode == SheetMode::Character) {
         if (state.selected_sprite < 0 || state.selected_sprite >= static_cast<int>(state.sprites.size()))
           return;
-        const int ai = static_cast<int>(state.selected_anim);
-        state.sprites[static_cast<std::size_t>(state.selected_sprite)].anim_frames[ai].push_back(fc);
+        const int anim_index = static_cast<int>(state.selected_anim);
+        state.sprites[static_cast<std::size_t>(state.selected_sprite)].anim_frames[anim_index].push_back(fc);
       } else {
         if (state.selected_clip < 0 || state.selected_clip >= static_cast<int>(state.anim_clips.size()))
           return;
@@ -49,7 +26,7 @@ namespace tools::spritesmith {
     }
 
     void push_atlas_undo(EditorState &state) {
-      state.atlas_undo.push({state.atlas_clips, state.selected_atlas_clip});
+      state.atlas_undo.push({.clips = state.atlas_clips, .selected_clip = state.selected_atlas_clip});
     }
 
     void add_atlas_frame(EditorState &state, int sprite_index) {
@@ -80,7 +57,7 @@ namespace tools::spritesmith {
 
   } // namespace
 
-  void handle_input(EditorState &state, MouseState &mouse, bool &running) {
+  void handle_input(EditorState &state, bool &running) {
     const ImGuiIO &io = ImGui::GetIO();
     const int mx = static_cast<int>(io.MousePos.x);
     const int my = static_cast<int>(io.MousePos.y);
@@ -91,6 +68,13 @@ namespace tools::spritesmith {
                         /*zoom_to_cursor=*/true, 0.25f, 16.f);
 
     // --- Keyboard ---
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
+      if (auto r = save_sheet(state); !r)
+        std::println(stderr, "[Spritesmith] Save failed: {}", r.error());
+      else
+        std::println("[Spritesmith] Saved: {}", state.json_path.string());
+    }
+
     if (!io.WantCaptureKeyboard) {
       if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         if (is_recording(state)) {
@@ -106,12 +90,6 @@ namespace tools::spritesmith {
         running = false;
         return;
       }
-      if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
-        if (auto r = save_sheet(state); !r)
-          std::println(stderr, "[Spritesmith] Save failed: {}", r.error());
-        else
-          std::println("[Spritesmith] Saved: {}", state.json_path.string());
-      }
       if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd))
         state.canvas.scale = std::min(state.canvas.scale * 1.25f, 16.f);
       if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract))
@@ -122,7 +100,6 @@ namespace tools::spritesmith {
 
     // --- Left mouse: frame recording ---
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-      mouse.left_held = true;
       if (over_canvas && is_recording(state) && state.image_pixel_w > 0 && !ImGui::IsAnyItemActive()) {
         if (state.mode == SheetMode::Atlas) {
           const int hit = sprite_at_point(mx, my, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
@@ -139,9 +116,6 @@ namespace tools::spritesmith {
         }
       }
     }
-    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-      mouse.left_held = false;
-
     // --- Hover ---
     state.hover_col = -1;
     state.hover_row = -1;

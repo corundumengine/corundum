@@ -1,29 +1,12 @@
 #include "render_canvas.hpp"
 #include "coords.hpp"
+#include "editor_helpers.hpp"
 #include "layout.hpp"
 #include <algorithm>
 
 namespace tools::spritesmith {
 
   namespace {
-
-    int sheet_cols(const EditorState &state) {
-      if (state.mode == SheetMode::SpriteSheet)
-        return state.columns;
-      const int step = state.frame_width + state.spacing_x;
-      if (step <= 0 || state.image_pixel_w <= state.offset_x)
-        return 0;
-      return (state.image_pixel_w - state.offset_x + state.spacing_x) / step;
-    }
-
-    int sheet_rows(const EditorState &state) {
-      if (state.mode == SheetMode::SpriteSheet)
-        return state.rows;
-      const int step = state.frame_height + state.spacing_y;
-      if (step <= 0 || state.image_pixel_h <= state.offset_y)
-        return 0;
-      return (state.image_pixel_h - state.offset_y + state.spacing_y) / step;
-    }
 
     bool is_in_active_anim(const EditorState &state, int col, int row) {
       if (state.mode == SheetMode::Character) {
@@ -41,12 +24,6 @@ namespace tools::spritesmith {
             return true;
       }
       return false;
-    }
-
-    bool is_recording(const EditorState &state) {
-      return (state.mode == SheetMode::Character && state.anim_recording) ||
-             (state.mode == SheetMode::SpriteSheet && state.clip_recording) ||
-             (state.mode == SheetMode::Atlas && state.atlas_clip_recording);
     }
 
     bool is_in_active_atlas_clip(const EditorState &state, int sprite_index) {

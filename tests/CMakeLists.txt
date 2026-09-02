@@ -17,6 +17,7 @@ add_executable(corundum_tests
     test_word_wrap.cpp
     test_tilemap_loader.cpp
     test_character_sheet_loader.cpp
+    test_character_sheet_serializer.cpp
     test_sprite_atlas_loader.cpp
     test_atlas_clips.cpp
     test_world_manifest.cpp

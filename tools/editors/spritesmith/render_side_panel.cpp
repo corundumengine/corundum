@@ -296,6 +296,16 @@ namespace tools::spritesmith {
       if (ImGui::SliderFloat("Walk Offset##wo", &sp.walk_around_offset, 0.f, 1.f, "%.2f"))
         state.dirty = true;
 
+      ImGui::SetNextItemWidth(120.f);
+      if (ImGui::InputFloat("FPS##sfps", &sp.fps, 0.f, 0.f, "%.1f")) {
+        sp.fps = std::max(0.f, sp.fps);
+        state.dirty = true;
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("(?)");
+      if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Playback rate for this sprite's animations.\n0 = use engine default (~6.7 fps).");
+
       ImGui::Text("Collision (px):");
       ImGui::SetNextItemWidth(120.f);
       if (ImGui::InputInt("W##cw", &sp.collision_w)) {

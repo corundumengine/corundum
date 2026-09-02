@@ -30,8 +30,16 @@ namespace tools::spritesmith {
         return 1.f / static_cast<float>(
                          std::max(1, state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)].fps));
       }
-      const int fps = (state.mode == SheetMode::SpriteSheet) ? state.anim_fps : 8;
-      return 1.f / static_cast<float>(std::max(1, fps));
+      if (state.mode == SheetMode::SpriteSheet)
+        return 1.f / static_cast<float>(std::max(1, state.anim_fps));
+      // Character mode: per-sprite fps override, or the engine's default frame duration.
+      constexpr float k_default_character_frame_duration = 0.15f;
+      if (state.selected_sprite >= 0 && state.selected_sprite < static_cast<int>(state.sprites.size())) {
+        const float fps = state.sprites[static_cast<std::size_t>(state.selected_sprite)].fps;
+        if (fps > 0.f)
+          return 1.f / fps;
+      }
+      return k_default_character_frame_duration;
     }
 
     // Resolve the atlas clip's frame names to sprite indices, skipping dangling names.

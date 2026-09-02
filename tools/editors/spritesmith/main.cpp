@@ -16,7 +16,6 @@
 
 using corundum::tool_host::ApplyEditorThemeRefined;
 using corundum::tool_host::load_theme;
-using corundum::tool_host::MouseState;
 using corundum::tool_host::ThemeColors;
 using tools::spritesmith::CanvasContext;
 using tools::spritesmith::EditorState;
@@ -123,7 +122,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  MouseState mouse;
   bool running = true;
 
   host->run([&]() {
@@ -140,7 +138,7 @@ int main(int argc, char *argv[]) {
       has_texture = sprite_texture.width > 0;
     }
 
-    handle_input(state, mouse, running);
+    handle_input(state, running);
 
     ImGui::SetNextWindowPos({0.f, 0.f});
     ImGui::SetNextWindowSize(io.DisplaySize);

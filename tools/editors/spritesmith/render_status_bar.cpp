@@ -1,4 +1,5 @@
 #include "render_status_bar.hpp"
+#include "editor_helpers.hpp"
 #include "layout.hpp"
 #include <format>
 #include <imgui.h>
@@ -27,9 +28,7 @@ namespace tools::spritesmith {
       hover_str = std::format("  [col:{} row:{} gid:{}]", state.hover_col, state.hover_row, gid);
     }
 
-    const bool recording = (state.mode == SheetMode::Character && state.anim_recording) ||
-                           (state.mode == SheetMode::SpriteSheet && state.clip_recording) ||
-                           (state.mode == SheetMode::Atlas && state.atlas_clip_recording);
+    const bool recording = is_recording(state);
 
     const std::string text = std::format("[{}]  {}{}{}  [Ctrl+S to save]  [Q/Esc to quit]", mode_str, file, hover_str,
                                          recording ? "  [● RECORDING]" : (state.dirty ? "  *" : ""));
