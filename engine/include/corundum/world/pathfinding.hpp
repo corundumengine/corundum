@@ -3,10 +3,10 @@
 
 #include <vector>
 
-namespace corundum::ecs {
+namespace corundum::entities {
   struct CollisionTable;
   struct TransformTable;
-} // namespace corundum::ecs
+} // namespace corundum::entities
 
 namespace corundum::world {
 
@@ -41,7 +41,7 @@ namespace corundum::world {
    */
   [[nodiscard]] std::vector<TileCoord>
   find_path(const MapView &map, TileCoord start, TileCoord goal,
-            const corundum::ecs::CollisionTable *npc_collisions = nullptr,
-            const corundum::ecs::TransformTable *npc_transforms = nullptr) noexcept;
+            const corundum::entities::CollisionTable *npc_collisions = nullptr,
+            const corundum::entities::TransformTable *npc_transforms = nullptr) noexcept;
 
 } // namespace corundum::world

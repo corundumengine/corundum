@@ -2,7 +2,7 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
-#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
@@ -68,14 +68,14 @@ namespace corundum::render {
   // ── SystemManager equivalents ────────────────────────────────────────────────
 
   std::expected<void, std::string> initialize(render::RenderState &state) {
-    state.draw_list.reserve(corundum::ecs::k_max_entities);
+    state.draw_list.reserve(corundum::entities::k_max_entities);
     return {};
   }
 
   void clean_up(render::RenderState & /*state*/) noexcept {}
 
   void snapshot_prev_frame(render::RenderState &state, const corundum::world::Scene &scene) noexcept {
-    const corundum::ecs::TransformTable &transforms = scene.world.transforms;
+    const corundum::entities::TransformTable &transforms = scene.world.transforms;
     const std::uint32_t n = transforms.count;
     for (std::uint32_t i = 0; i < n; ++i) {
       state.prev_col[i] = transforms.col[i];
@@ -276,7 +276,7 @@ namespace corundum::render {
     // Upper bound is known at load time (map dims + entity cap), so this is the only
     // reserve draw_list ever needs — steady-state rendering never reallocates it.
     state.draw_list.reserve(static_cast<std::size_t>(state.map_data.tilemap.width) * state.map_data.tilemap.height +
-                            corundum::ecs::k_max_entities);
+                            corundum::entities::k_max_entities);
     return {};
   }
 
@@ -307,7 +307,7 @@ namespace corundum::render {
     constexpr std::size_t k_max_active_chunks = 9;
     state.draw_list.reserve(k_max_active_chunks * static_cast<std::size_t>(state.manifest.chunk_size) *
                                 state.manifest.chunk_size +
-                            corundum::ecs::k_max_entities);
+                            corundum::entities::k_max_entities);
 
     // Default spawn is the manifest geometric centre. A supplied spawn (e.g. an interior
     // exit portal back into the overworld) overrides it and re-centres the streaming window

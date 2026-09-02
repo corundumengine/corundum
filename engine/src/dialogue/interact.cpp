@@ -1,6 +1,6 @@
 #include <corundum/dialogue/interact.hpp>
 #include <corundum/dialogue/system.hpp>
-#include <corundum/ecs/component/components.hpp>
+#include <corundum/entities/components.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/picking.hpp>
 
@@ -12,7 +12,7 @@ namespace corundum::dialogue {
 
   namespace {
 
-    using corundum::ecs::FacingDir;
+    using corundum::entities::FacingDir;
     using corundum::sprites::AnimId;
 
     /** @brief Ratio above which the dominant axis is considered "cardinal"
@@ -50,8 +50,8 @@ namespace corundum::dialogue {
 
   void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions,
                        corundum::world::FlagStore &flags, const quest::Registry *quests) noexcept {
-    using corundum::ecs::EntityId;
-    using corundum::ecs::World;
+    using corundum::entities::EntityId;
+    using corundum::entities::World;
 
     scene.pending_dialogue_events = corundum::dialogue::system(scene.dialogue, actions, flags, quests);
     if (!scene.dialogue.active) {
@@ -76,10 +76,10 @@ namespace corundum::dialogue {
                     const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
                     corundum::world::FlagStore &flags) noexcept {
     using corundum::dialogue::Graph;
-    using corundum::ecs::distance;
-    using corundum::ecs::EntityId;
-    using corundum::ecs::Position;
-    using corundum::ecs::World;
+    using corundum::entities::distance;
+    using corundum::entities::EntityId;
+    using corundum::entities::Position;
+    using corundum::entities::World;
 
     if (!input.is_pressed(corundum::input::Action::Select))
       return;
@@ -122,7 +122,7 @@ namespace corundum::dialogue {
 
       if (world.facings.has(eid)) {
         scene.dialogue_npc_saved_facing = world.facings.dir_of(eid);
-        const FacingDir face_player = corundum::ecs::opposite(toward_npc);
+        const FacingDir face_player = corundum::entities::opposite(toward_npc);
         world.facings.dir_ref(eid) = face_player;
         if (world.sprites.has(eid) && world.animations.has(eid)) {
           scene.dialogue_npc_saved_anim = world.sprites.anim_id_ref(eid);

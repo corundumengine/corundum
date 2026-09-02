@@ -91,7 +91,7 @@ namespace {
   }
 
   /// Scan live transforms for an entity standing exactly at tile (col, row).
-  std::optional<corundum::ecs::EntityId> entity_at(const corundum::Engine &engine, int col, int row) {
+  std::optional<corundum::entities::EntityId> entity_at(const corundum::Engine &engine, int col, int row) {
     const auto &transforms = engine.scene.world.transforms;
     for (const auto eid : transforms.active_entities())
       if (static_cast<int>(transforms.pos_col(eid)) == col && static_cast<int>(transforms.pos_row(eid)) == row)

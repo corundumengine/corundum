@@ -1,19 +1,19 @@
 #pragma once
 #include <array>
 #include <cassert>
-#include <corundum/ecs/component/animation_table.hpp>
-#include <corundum/ecs/component/collision_table.hpp>
-#include <corundum/ecs/component/components.hpp>
-#include <corundum/ecs/component/dialogue_table.hpp>
-#include <corundum/ecs/component/facing_table.hpp>
-#include <corundum/ecs/component/motion_sprite_table.hpp>
-#include <corundum/ecs/component/sprite_table.hpp>
-#include <corundum/ecs/component/transform_name_table.hpp>
-#include <corundum/ecs/component/transform_table.hpp>
-#include <corundum/ecs/entity.hpp>
+#include <corundum/entities/components.hpp>
+#include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/animation_table.hpp>
+#include <corundum/entities/tables/collision_table.hpp>
+#include <corundum/entities/tables/dialogue_table.hpp>
+#include <corundum/entities/tables/facing_table.hpp>
+#include <corundum/entities/tables/motion_sprite_table.hpp>
+#include <corundum/entities/tables/sprite_table.hpp>
+#include <corundum/entities/tables/transform_name_table.hpp>
+#include <corundum/entities/tables/transform_table.hpp>
 #include <tuple>
 
-namespace corundum::ecs {
+namespace corundum::entities {
 
   /// Top-level entity container; owns the entity pool and all component tables.
   /// @note Not thread-safe.
@@ -103,4 +103,4 @@ namespace corundum::ecs {
     w.pending_deletion_count = 0;
   }
 
-} // namespace corundum::ecs
+} // namespace corundum::entities

@@ -6,7 +6,7 @@
 #include <optional>
 #include <utility>
 
-using corundum::ecs::Position;
+using corundum::entities::Position;
 using corundum::physics::resolve_walkability;
 using corundum::world::tilemap::build_walkability_graph;
 using corundum::world::tilemap::RampAxis;

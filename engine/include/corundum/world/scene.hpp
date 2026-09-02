@@ -1,7 +1,7 @@
 #pragma once
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/dialogue.hpp>
-#include <corundum/ecs/world.hpp>
+#include <corundum/entities/world.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
@@ -34,18 +34,18 @@ namespace corundum::world {
   /** @brief Actor entities spawned for one resident world chunk. */
   struct ChunkActorSet {
     corundum::world::tilemap::ChunkCoord coord{};
-    std::vector<corundum::ecs::EntityId> entities;
+    std::vector<corundum::entities::EntityId> entities;
   };
 
   struct Scene {
-    corundum::ecs::EntityId player;
-    corundum::ecs::World world;
+    corundum::entities::EntityId player;
+    corundum::entities::World world;
 
     Camera camera;
     corundum::dialogue::State dialogue;
-    std::optional<corundum::ecs::EntityId> dialogue_npc;
+    std::optional<corundum::entities::EntityId> dialogue_npc;
     std::optional<corundum::sprites::AnimId> dialogue_npc_saved_anim;
-    std::optional<corundum::ecs::FacingDir> dialogue_npc_saved_facing;
+    std::optional<corundum::entities::FacingDir> dialogue_npc_saved_facing;
     float elapsed_time = 0.f;
     std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
     GameMode mode = GameMode::Exploring;

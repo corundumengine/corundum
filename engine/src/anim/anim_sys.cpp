@@ -1,10 +1,10 @@
 #include <corundum/anim/anim_sys.hpp>
 
-#include <corundum/ecs/component/animation_table.hpp>
-#include <corundum/ecs/component/facing_table.hpp>
-#include <corundum/ecs/component/motion_sprite_table.hpp>
-#include <corundum/ecs/component/sprite_table.hpp>
-#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/entities/tables/animation_table.hpp>
+#include <corundum/entities/tables/facing_table.hpp>
+#include <corundum/entities/tables/motion_sprite_table.hpp>
+#include <corundum/entities/tables/sprite_table.hpp>
+#include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/sprites/sprite.hpp>
 
 #include <cmath>
@@ -14,7 +14,7 @@
 namespace corundum::anim {
 
   namespace {
-    using corundum::ecs::FacingDir;
+    using corundum::entities::FacingDir;
     using corundum::sprites::AnimId;
 
     inline constexpr std::array<FacingDir, 12> k_facing_table = {
@@ -66,16 +66,16 @@ namespace corundum::anim {
 
   } // namespace
 
-  void animate(corundum::ecs::SpriteTable &sprites, const corundum::ecs::TransformTable &transforms,
-               corundum::ecs::AnimationTable &animations, corundum::ecs::FacingTable &facings,
-               corundum::ecs::MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso,
+  void animate(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,
+               corundum::entities::AnimationTable &animations, corundum::entities::FacingTable &facings,
+               corundum::entities::MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso,
                float reference_speed, float dt) noexcept {
-    using corundum::ecs::AnimationTable;
-    using corundum::ecs::EntityId;
-    using corundum::ecs::FacingTable;
-    using corundum::ecs::MotionSpriteTable;
-    using corundum::ecs::SpriteTable;
-    using corundum::ecs::TransformTable;
+    using corundum::entities::AnimationTable;
+    using corundum::entities::EntityId;
+    using corundum::entities::FacingTable;
+    using corundum::entities::MotionSpriteTable;
+    using corundum::entities::SpriteTable;
+    using corundum::entities::TransformTable;
     using corundum::sprites::AnimId;
     using corundum::sprites::SpriteId;
 

@@ -1,10 +1,10 @@
 #pragma once
 #include <array>
-#include <corundum/ecs/component/sparse_index.hpp>
-#include <corundum/ecs/component/table_concepts.hpp>
+#include <corundum/entities/tables/sparse_index.hpp>
+#include <corundum/entities/tables/table_concepts.hpp>
 #include <span>
 
-namespace corundum::ecs {
+namespace corundum::entities {
 
   /** @brief SoA table for Position and Velocity — always spawned together.
    *
@@ -134,4 +134,4 @@ namespace corundum::ecs {
 
   static_assert(GameTable<TransformTable>);
 
-} // namespace corundum::ecs
+} // namespace corundum::entities

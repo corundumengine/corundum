@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <numeric>
 
-namespace corundum::ecs {
+namespace corundum::entities {
 
   inline constexpr std::uint32_t k_max_entities = 1024;
 
@@ -102,4 +102,4 @@ namespace corundum::ecs {
     }
   };
 
-} // namespace corundum::ecs
+} // namespace corundum::entities

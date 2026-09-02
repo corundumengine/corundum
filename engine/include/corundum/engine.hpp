@@ -39,7 +39,7 @@ namespace corundum {
 
   /** @brief Game engine instance owning all system-level resources and game state.
    *
-   * Owns systems directly (no virtual dispatch), the Scene (merged ECS world +
+   * Owns systems directly (no virtual dispatch), the Scene (merged entity world +
    * game state), and all game assets. Lifecycle driven by free functions:
    *   initialize → run_loop → cleanup
    *

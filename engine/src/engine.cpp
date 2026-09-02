@@ -1,7 +1,7 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/dialogue/validate_refs.hpp>
-#include <corundum/ecs/world.hpp>
+#include <corundum/entities/world.hpp>
 #include <corundum/quest/runner.hpp>
 #include <corundum/quest/system.hpp>
 #include <corundum/world/camera_system.hpp>
@@ -260,7 +260,7 @@ namespace corundum {
 
         // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
         result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
-        ecs::flush_deletions(engine.scene.world);
+        entities::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
       }

@@ -1,7 +1,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/debug/debug_overlay.hpp>
-#include <corundum/ecs/component/components.hpp>
-#include <corundum/ecs/world.hpp>
+#include <corundum/entities/components.hpp>
+#include <corundum/entities/world.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_sys.hpp>
 
@@ -32,8 +32,8 @@ namespace corundum::debug {
     constexpr float k_marker_hh = 3.f;
     constexpr float k_line_thickness = 2.f;
 
-    [[nodiscard]] constexpr std::string_view facing_name(ecs::FacingDir d) noexcept {
-      using ecs::FacingDir;
+    [[nodiscard]] constexpr std::string_view facing_name(entities::FacingDir d) noexcept {
+      using entities::FacingDir;
       switch (d) {
         case FacingDir::South:
           return "South";
@@ -125,8 +125,8 @@ namespace corundum::debug {
   }
 
   void HudOverlay::draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
-                                      float zoom, const render::RenderState &render, const ecs::World &w,
-                                      ecs::EntityId player, core::math::IsometricParams iso) const noexcept {
+                                      float zoom, const render::RenderState &render, const entities::World &w,
+                                      entities::EntityId player, core::math::IsometricParams iso) const noexcept {
     if (iso.half_tw <= 0.f || iso.half_th <= 0.f || !w.transforms.has(player) || !w.collisions.has(player))
       return;
 
@@ -164,8 +164,8 @@ namespace corundum::debug {
                                    const core::GameConfig &cfg, const world::Scene &scene) const noexcept {
     const float x = cfg.win_w - k_box_w - k_pad;
 
-    const ecs::World &w = scene.world;
-    const ecs::EntityId p = scene.player;
+    const entities::World &w = scene.world;
+    const entities::EntityId p = scene.player;
 
     std::string grid_str{"(none)"};
     float player_dc = 0.f;

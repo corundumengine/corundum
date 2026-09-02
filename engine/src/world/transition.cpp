@@ -1,5 +1,5 @@
-#include <corundum/ecs/component/components.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/entities/components.hpp>
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/camera_system.hpp>
 #include <corundum/world/spawn.hpp>
@@ -92,7 +92,7 @@ namespace corundum::world {
       if (!world_result)
         return std::unexpected(std::move(world_result).error());
       const auto &info = *world_result;
-      const corundum::ecs::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
+      const corundum::entities::Position spawn_pos{info.spawn_world_pos.x, info.spawn_world_pos.y};
 
       auto scene_result = world::spawn_world(engine_.cfg, engine_.characters,
                                              engine_.render.chunks.active_at(0).tilemap, spawn_pos, false);
@@ -156,7 +156,7 @@ namespace corundum::world {
       }
 
       const auto &new_tm = *active_tilemap(engine_);
-      const ecs::Position spawn{static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row)};
+      const entities::Position spawn{static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row)};
       auto scene_result = world::spawn_world(engine_.cfg, engine_.characters, new_tm, spawn);
       if (!scene_result) {
         fail("map transition", scene_result.error());

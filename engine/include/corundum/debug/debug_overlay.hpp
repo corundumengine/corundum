@@ -97,7 +97,7 @@ namespace corundum::debug {
      *  the marker at its feet.
      */
     void draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport, float zoom,
-                            const render::RenderState &render, const ecs::World &w, ecs::EntityId player,
+                            const render::RenderState &render, const entities::World &w, entities::EntityId player,
                             core::math::IsometricParams iso) const noexcept;
 
     /** @brief Draw the top-right HUD text panel (FPS, grid, velocity, camera, stats). */

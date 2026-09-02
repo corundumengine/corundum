@@ -1,5 +1,5 @@
 #pragma once
-#include <corundum/ecs/component/components.hpp>
+#include <corundum/entities/components.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
 namespace corundum::physics {
@@ -28,7 +28,7 @@ namespace corundum::physics {
    *                            units of @p entity_elevation; lets a raised platform's walls
    *                            block only entities standing on that platform.
    */
-  void resolve_collisions(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos, float entity_w,
+  void resolve_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos, float entity_w,
                           float entity_h, corundum::world::tilemap::CollisionRectsView rects, float y_offset = 0.f,
                           int entity_elevation = 0, int elevation_tolerance = 0) noexcept;
 
@@ -51,9 +51,9 @@ namespace corundum::physics {
    * @param entity_elevation     Same semantics as resolve_collisions.
    * @param elevation_tolerance  Same semantics as resolve_collisions.
    */
-  void resolve_triangle_collisions(corundum::ecs::Position &pos, corundum::ecs::Position prev_pos, float entity_w,
-                                   float entity_h, corundum::world::tilemap::CollisionTrianglesView triangles,
-                                   float y_offset = 0.f, int entity_elevation = 0,
-                                   int elevation_tolerance = 0) noexcept;
+  void resolve_triangle_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
+                                   float entity_w, float entity_h,
+                                   corundum::world::tilemap::CollisionTrianglesView triangles, float y_offset = 0.f,
+                                   int entity_elevation = 0, int elevation_tolerance = 0) noexcept;
 
 } // namespace corundum::physics

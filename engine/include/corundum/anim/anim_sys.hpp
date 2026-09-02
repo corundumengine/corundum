@@ -1,13 +1,13 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 
-namespace corundum::ecs {
+namespace corundum::entities {
   struct AnimationTable;
   struct FacingTable;
   struct MotionSpriteTable;
   struct SpriteTable;
   struct TransformTable;
-} // namespace corundum::ecs
+} // namespace corundum::entities
 
 namespace corundum::anim {
 
@@ -43,9 +43,9 @@ namespace corundum::anim {
    *  @post Frame indices wrap according to cached frame counts.
    *  @performance O(n) over active animation count. No heap allocation.
    */
-  void animate(corundum::ecs::SpriteTable &sprites, const corundum::ecs::TransformTable &transforms,
-               corundum::ecs::AnimationTable &animations, corundum::ecs::FacingTable &facings,
-               corundum::ecs::MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso,
+  void animate(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,
+               corundum::entities::AnimationTable &animations, corundum::entities::FacingTable &facings,
+               corundum::entities::MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso,
                float reference_speed, float dt) noexcept;
 
 } // namespace corundum::anim

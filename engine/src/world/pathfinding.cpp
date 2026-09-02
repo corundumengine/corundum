@@ -1,5 +1,5 @@
-#include <corundum/ecs/component/collision_table.hpp>
-#include <corundum/ecs/component/transform_table.hpp>
+#include <corundum/entities/tables/collision_table.hpp>
+#include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/world/pathfinding.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/update.hpp>
@@ -22,8 +22,8 @@ namespace corundum::world {
 
     [[nodiscard]] bool cell_blocked_by_collision(int col, int row, const corundum::world::tilemap::Tilemap &tm,
                                                  const corundum::world::MapView &map,
-                                                 const corundum::ecs::CollisionTable *npc_collisions,
-                                                 const corundum::ecs::TransformTable *npc_transforms) noexcept {
+                                                 const corundum::entities::CollisionTable *npc_collisions,
+                                                 const corundum::entities::TransformTable *npc_transforms) noexcept {
       using corundum::world::tilemap::elevation_at;
       const int cell_elev = elevation_at(tm, col, row);
       const float c0 = static_cast<float>(col), c1 = c0 + 1.f;
@@ -89,8 +89,8 @@ namespace corundum::world {
   } // namespace
 
   std::vector<TileCoord> find_path(const corundum::world::MapView &map, TileCoord start, TileCoord goal,
-                                   const corundum::ecs::CollisionTable *npc_collisions,
-                                   const corundum::ecs::TransformTable *npc_transforms) noexcept {
+                                   const corundum::entities::CollisionTable *npc_collisions,
+                                   const corundum::entities::TransformTable *npc_transforms) noexcept {
     if (!map.walkability || !map.elevation_map)
       return {};
     const corundum::world::tilemap::WalkabilityGraph &graph = *map.walkability;

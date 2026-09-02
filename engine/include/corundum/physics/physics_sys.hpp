@@ -1,8 +1,8 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
-#include <corundum/ecs/component/collision_table.hpp>
-#include <corundum/ecs/component/transform_table.hpp>
-#include <corundum/ecs/entity.hpp>
+#include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/collision_table.hpp>
+#include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/world/picking.hpp>
 
@@ -26,7 +26,7 @@ namespace corundum::physics {
    *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
    *  @performance O(1).
    */
-  void apply_input(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+  void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
                    const corundum::input::InputState &input, float player_speed,
                    corundum::core::math::IsometricParams iso) noexcept;
 
@@ -37,7 +37,7 @@ namespace corundum::physics {
    *  @pre @p e must exist in @p transforms.
    *  @post Entity position updated by velocity * dt.
    */
-  void integrate(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId e, float dt) noexcept;
+  void integrate(corundum::entities::TransformTable &transforms, corundum::entities::EntityId e, float dt) noexcept;
 
   /** @brief Drive velocity toward the next waypoint in a click-to-move path.
    *
@@ -54,7 +54,7 @@ namespace corundum::physics {
    *  @param[in]     dt          Fixed timestep in seconds.
    *  @pre @p player must exist in @p transforms.
    */
-  void follow_path(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+  void follow_path(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
                    std::vector<corundum::world::TileCoord> &path, float player_speed,
                    corundum::core::math::IsometricParams iso, float dt) noexcept;
 
@@ -79,9 +79,10 @@ namespace corundum::physics {
    *        the player confirms. Chunk-to-chunk portals teleport the player immediately.
    *  @performance O(n) over NPC count. No heap allocation.
    */
-  void update_player(corundum::ecs::TransformTable &transforms, const corundum::ecs::CollisionTable &collisions,
-                     corundum::ecs::EntityId player, const corundum::input::InputState &input, float player_speed,
-                     const corundum::world::MapView &map, corundum::world::Scene &scene, float dt) noexcept;
+  void update_player(corundum::entities::TransformTable &transforms,
+                     const corundum::entities::CollisionTable &collisions, corundum::entities::EntityId player,
+                     const corundum::input::InputState &input, float player_speed, const corundum::world::MapView &map,
+                     corundum::world::Scene &scene, float dt) noexcept;
 
   /**
    * @brief Result of compute_elevation_gate: the integer elevation to gate

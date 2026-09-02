@@ -1,13 +1,13 @@
 #pragma once
 #include <cassert>
-#include <corundum/ecs/entity.hpp>
+#include <corundum/entities/entity.hpp>
 #include <limits>
 #include <span>
 
-namespace corundum::ecs {
+namespace corundum::entities {
 
-  using corundum::ecs::EntityId;
-  using corundum::ecs::k_max_entities;
+  using corundum::entities::EntityId;
+  using corundum::entities::k_max_entities;
 
   /// Sparse-index bookkeeping shared by all component tables.
   /// Owns the sparse map and dense entity array. The has/insert/remove spine
@@ -73,4 +73,4 @@ namespace corundum::ecs {
     }
   };
 
-} // namespace corundum::ecs
+} // namespace corundum::entities

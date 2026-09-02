@@ -2,8 +2,8 @@
 
 #include <corundum/anim/anim_sys.hpp>
 #include <corundum/dialogue/interact.hpp>
-#include <corundum/ecs/component/components.hpp>
-#include <corundum/ecs/world.hpp>
+#include <corundum/entities/components.hpp>
+#include <corundum/entities/world.hpp>
 #include <corundum/physics/physics_sys.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera_system.hpp>
@@ -17,7 +17,7 @@ namespace {
   void update_exploring(corundum::world::Scene &scene, const corundum::input::InputState &input,
                         const corundum::world::MapView &map, const corundum::core::GameConfig &cfg, float dt,
                         float win_w, float win_h) {
-    using corundum::ecs::EntityId;
+    using corundum::entities::EntityId;
 
     auto &world = scene.world;
     const EntityId player = scene.player;

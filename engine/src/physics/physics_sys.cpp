@@ -73,13 +73,13 @@ namespace corundum::physics {
     return std::abs(portal_elev - player_elev) <= elev_tolerance;
   }
 
-  void integrate(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId e, float dt) noexcept {
+  void integrate(corundum::entities::TransformTable &transforms, corundum::entities::EntityId e, float dt) noexcept {
     const auto slot = transforms.dense_idx(e);
     transforms.col[slot] += transforms.dc[slot] * dt;
     transforms.row[slot] += transforms.dr[slot] * dt;
   }
 
-  void follow_path(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+  void follow_path(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
                    std::vector<corundum::world::TileCoord> &path, float player_speed,
                    corundum::core::math::IsometricParams iso, float dt) noexcept {
     if (!transforms.has(player)) [[unlikely]]
@@ -127,7 +127,7 @@ namespace corundum::physics {
     }
   }
 
-  void apply_input(corundum::ecs::TransformTable &transforms, corundum::ecs::EntityId player,
+  void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
                    const corundum::input::InputState &input, float player_speed,
                    corundum::core::math::IsometricParams iso) noexcept {
     if (!transforms.has(player)) [[unlikely]]
@@ -178,13 +178,14 @@ namespace corundum::physics {
     }
   }
 
-  void update_player(corundum::ecs::TransformTable &transforms, const corundum::ecs::CollisionTable &collisions,
-                     corundum::ecs::EntityId player, const corundum::input::InputState &input, float player_speed,
-                     const corundum::world::MapView &map, corundum::world::Scene &scene, float dt) noexcept {
+  void update_player(corundum::entities::TransformTable &transforms,
+                     const corundum::entities::CollisionTable &collisions, corundum::entities::EntityId player,
+                     const corundum::input::InputState &input, float player_speed, const corundum::world::MapView &map,
+                     corundum::world::Scene &scene, float dt) noexcept {
     using corundum::core::math::IsometricParams;
-    using corundum::ecs::CollisionTable;
-    using corundum::ecs::EntityId;
-    using corundum::ecs::Position;
+    using corundum::entities::CollisionTable;
+    using corundum::entities::EntityId;
+    using corundum::entities::Position;
 
     const std::uint32_t p_slot = transforms.dense_idx(player);
     const float prev_col = transforms.col[p_slot];
@@ -273,11 +274,11 @@ namespace corundum::physics {
     }
     const Position prev_pos{prev_col, prev_row};
 
-    std::array<float, corundum::ecs::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
+    std::array<float, corundum::entities::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
     // NPC elevations populated so resolve_collisions can gate player-vs-NPC by elevation
     // (same band as player-vs-world). Without this, an NPC under a bridge (elev 0) would
     // block a player on the bridge (elev 5). Plan §4a.
-    std::array<uint8_t, corundum::ecs::k_max_entities> npc_elevations{};
+    std::array<uint8_t, corundum::entities::k_max_entities> npc_elevations{};
     uint16_t npc_count = 0;
     for (uint16_t i = 0; i < collisions.count; ++i) {
       const EntityId eid = collisions.idx.entities[i];
