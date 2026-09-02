@@ -620,8 +620,7 @@ namespace corundum::render {
 
     const int abs_col = ctx.chunk_offset_col + col;
     const int abs_row = ctx.chunk_offset_row + row;
-    const corundum::core::math::Vec2 world_pos = corundum::core::math::tile_to_world(
-        abs_col, abs_row, elev, ctx.iso.half_tw, ctx.iso.half_th, ctx.iso.elev_step, ctx.iso.x_origin);
+    const corundum::core::math::Vec2 world_pos = corundum::core::math::tile_to_world(abs_col, abs_row, elev, ctx.iso);
 
     // Pivot is always measured against the full (untrimmed) frame, not the trimmed size, so sprites
     // sharing one canvas convention (e.g. a wall body and its separately-authored topper) stay

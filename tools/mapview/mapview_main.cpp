@@ -176,8 +176,7 @@ namespace tools::mapview {
     const int elev =
         (cell_idx < static_cast<int>(layer.elevation.size())) ? static_cast<int>(layer.elevation[cell_uidx]) : 0;
 
-    const Vec2 world_pos =
-        tile_to_world(world_col, world_row, elev, iso.half_tw, iso.half_th, iso.elev_step, iso.x_origin);
+    const Vec2 world_pos = tile_to_world(world_col, world_row, elev, iso);
 
     const int local_id = static_cast<int>(gid) - static_cast<int>(ts->first_gid);
     const TileFrameOffset frame = get_tile_frame_offset(ts->info, local_id);
@@ -414,8 +413,7 @@ int main(int argc, char **argv) {
 
   if (args.labels) {
     for (const auto &[cx, cy] : label_pos) {
-      const Vec2 base =
-          tile_to_world(cx * chunk_size, cy * chunk_size, 0, iso.half_tw, iso.half_th, iso.elev_step, iso.x_origin);
+      const Vec2 base = tile_to_world(cx * chunk_size, cy * chunk_size, 0, iso);
       tools::mapview::draw_label(pixels, out_w, out_h, static_cast<int>(base.x + offset_x),
                                  static_cast<int>(base.y + offset_y), std::format("chunk_{}_{}", cx, cy));
     }

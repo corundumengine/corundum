@@ -34,14 +34,15 @@ namespace corundum::world {
 
     const corundum::core::math::Vec2 world{mouse_x / zoom + camera.x, mouse_y / zoom + camera.y};
 
+    const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin, elev_step};
+
     std::optional<TileCoord> best;
     float best_depth = -std::numeric_limits<float>::infinity();
 
     for (int row = 0; row < grid_h; ++row) {
       for (int col = 0; col < grid_w; ++col) {
         const int elev = pick_elevation_at(map, col, row);
-        const corundum::core::math::Vec2 frac =
-            corundum::core::math::world_to_tile(world, elev, map.half_tw, map.half_th, elev_step, map.x_origin);
+        const corundum::core::math::Vec2 frac = corundum::core::math::world_to_tile(world, elev, iso);
         if (static_cast<int>(std::floor(frac.x)) != col || static_cast<int>(std::floor(frac.y)) != row)
           continue;
 

@@ -82,13 +82,19 @@ namespace corundum::core::math {
    * @return IsometricParams with half_tw, half_th, x_origin, elev_step pre-computed
    *         (all scaled by tile_scale).
    */
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
+  // Raw scalar overloads are the low-level projection kernels exercised directly by
+  // test_iso_math.cpp; production callers should prefer the IsometricParams overloads
+  // below (which bundle these fields into one struct and eliminate the swap hazard).
   [[nodiscard]] constexpr IsometricParams compute_isometric_params(int diamond_w, int diamond_h, int height,
                                                                    float tile_scale, float elev_step) noexcept {
     const float half_tw = static_cast<float>(diamond_w) * tile_scale * 0.5f;
     const float half_th = static_cast<float>(diamond_h) * tile_scale * 0.5f;
     const float x_origin = static_cast<float>(height - 1) * half_tw;
-    return {half_tw, half_th, x_origin, elev_step * tile_scale};
+    return {.half_tw = half_tw, .half_th = half_th, .x_origin = x_origin, .elev_step = elev_step * tile_scale};
   }
+
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   /**
    * @brief Full diamond cell height in screen pixels (= 2 * half_th).
@@ -154,8 +160,8 @@ namespace corundum::core::math {
   [[nodiscard]] constexpr Vec2 tile_to_screen(int tx, int ty, int elevation, float half_tw, float half_th,
                                               float elev_step) noexcept {
     return {
-        static_cast<float>(tx - ty) * half_tw,
-        static_cast<float>(tx + ty) * half_th - static_cast<float>(elevation) * elev_step,
+        .x = static_cast<float>(tx - ty) * half_tw,
+        .y = (static_cast<float>(tx + ty) * half_th) - (static_cast<float>(elevation) * elev_step),
     };
   }
 
@@ -169,13 +175,16 @@ namespace corundum::core::math {
    * @param x_origin  Horizontal shift applied to the result.
    * @return Isometric world-space position offset by x_origin.
    */
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   [[nodiscard]] constexpr Vec2 tile_to_world(int tx, int ty, int elevation, float half_tw, float half_th,
                                              float elev_step, float x_origin) noexcept {
     return {
-        static_cast<float>(tx - ty) * half_tw + x_origin,
-        static_cast<float>(tx + ty) * half_th - static_cast<float>(elevation) * elev_step,
+        .x = (static_cast<float>(tx - ty) * half_tw) + x_origin,
+        .y = (static_cast<float>(tx + ty) * half_th) - (static_cast<float>(elevation) * elev_step),
     };
   }
+
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   /**
    * @brief Convert an isometric world-space position back to fractional tile-grid
@@ -190,14 +199,17 @@ namespace corundum::core::math {
    * @param x_origin  The same x_origin passed to tile_to_world.
    * @return Fractional {col, row}; floor() each component to get the containing cell.
    */
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   [[nodiscard]] constexpr Vec2 world_to_tile(Vec2 world_pos, int elevation, float half_tw, float half_th,
                                              float elev_step, float x_origin) noexcept {
     const float adj_x = world_pos.x - x_origin;
-    const float adj_y = world_pos.y + static_cast<float>(elevation) * elev_step;
+    const float adj_y = world_pos.y + (static_cast<float>(elevation) * elev_step);
     const float u = adj_x / half_tw; // tx - ty
     const float v = adj_y / half_th; // tx + ty
-    return {(u + v) * 0.5f, (v - u) * 0.5f};
+    return {.x = (u + v) * 0.5f, .y = (v - u) * 0.5f};
   }
+
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   /**
    * @brief Convert a fractional tile grid position and elevation to an isometric
@@ -215,8 +227,8 @@ namespace corundum::core::math {
    */
   [[nodiscard]] constexpr Vec2 tile_to_world(float col, float row, int elevation, const IsometricParams &iso) noexcept {
     return {
-        (col - row) * iso.half_tw + iso.x_origin,
-        (col + row) * iso.half_th - static_cast<float>(elevation) * iso.elev_step,
+        .x = ((col - row) * iso.half_tw) + iso.x_origin,
+        .y = ((col + row) * iso.half_th) - (static_cast<float>(elevation) * iso.elev_step),
     };
   }
 
@@ -258,8 +270,8 @@ namespace corundum::core::math {
   [[nodiscard]] constexpr Vec2 tile_to_world_center(float col, float row, float elevation,
                                                     const IsometricParams &iso) noexcept {
     return {
-        (col - row) * iso.half_tw + iso.x_origin,
-        (col + row) * iso.half_th - elevation * iso.elev_step + iso.half_th,
+        .x = ((col - row) * iso.half_tw) + iso.x_origin,
+        .y = ((col + row) * iso.half_th) - (elevation * iso.elev_step) + iso.half_th,
     };
   }
 
@@ -276,7 +288,7 @@ namespace corundum::core::math {
    * @return Screen-space delta {dx, dy}.
    */
   [[nodiscard]] constexpr Vec2 tile_to_screen_delta(float dc, float dr, const IsometricParams &iso) noexcept {
-    return {(dc - dr) * iso.half_tw, (dc + dr) * iso.half_th};
+    return {.x = (dc - dr) * iso.half_tw, .y = (dc + dr) * iso.half_th};
   }
 
   /**
@@ -298,7 +310,7 @@ namespace corundum::core::math {
    */
   [[nodiscard]] constexpr float iso_depth_key(float tx, float ty, float elevation, float half_th,
                                               float elev_step) noexcept {
-    return (tx + ty) + elevation * (half_th > 0.f ? elev_step / half_th : 0.f);
+    return (tx + ty) + (elevation * (half_th > 0.f ? elev_step / half_th : 0.f));
   }
 
   /**
@@ -374,10 +386,14 @@ namespace corundum::core::math {
     }
   } // namespace detail
 
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   [[nodiscard]] constexpr IsometricCullBounds
   compute_isometric_cull_bounds(float left, float top, float right, float bottom, const IsometricParams &iso) noexcept {
     if (iso.half_tw <= 0.f || iso.half_th <= 0.f) {
-      return {std::numeric_limits<int>::min() / 2, std::numeric_limits<int>::max() / 2, -1e30f, 1e30f};
+      return {.depth_min = std::numeric_limits<int>::min() / 2,
+              .depth_max = std::numeric_limits<int>::max() / 2,
+              .u_min = -1e30f,
+              .u_max = 1e30f};
     }
     const float inv_tw = 1.f / iso.half_tw;
     const float inv_th = 1.f / iso.half_th;
@@ -386,12 +402,14 @@ namespace corundum::core::math {
     const float v0 = top * inv_th;
     const float v1 = bottom * inv_th;
     return {
-        static_cast<int>(detail::ce_floor(v0)),
-        static_cast<int>(detail::ce_ceil(v1)),
-        detail::ce_floor(u0),
-        detail::ce_ceil(u1),
+        .depth_min = static_cast<int>(detail::ce_floor(v0)),
+        .depth_max = static_cast<int>(detail::ce_ceil(v1)),
+        .u_min = detail::ce_floor(u0),
+        .u_max = detail::ce_ceil(u1),
     };
   }
+
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   [[nodiscard]] constexpr int isometric_cull_first_column(const IsometricCullBounds &b, int depth) noexcept {
     const float u = b.u_min;
