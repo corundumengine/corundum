@@ -38,10 +38,10 @@ namespace corundum::core {
     std::string font_dir{"assets/fonts"};
 
     /** @brief Path to the primary game font file. */
-    std::string game_font{};
+    std::string game_font;
 
     /** @brief Path to the icons font file. */
-    std::string icons_font{};
+    std::string icons_font;
 
     /** @brief Directory containing item data files. Defaults to "data/items". */
     std::string items_dir{"data/items"};
@@ -66,13 +66,13 @@ namespace corundum::core {
     std::string sprites_dir{"data/sprite_sheets"};
 
     /** @brief Path to the main tilemap asset. */
-    std::string tilemap_path{};
+    std::string tilemap_path;
 
     /** @brief Path to the UI-specific font file. */
-    std::string ui_font{};
+    std::string ui_font;
 
     /** @brief Path to the world manifest JSON. Empty → single-tilemap mode. */
-    std::string world_manifest_path{};
+    std::string world_manifest_path;
   };
 
   /// Player identity and default placement, configurable via game.json "player" block.

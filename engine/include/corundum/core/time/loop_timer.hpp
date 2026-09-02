@@ -36,8 +36,9 @@ namespace corundum::core::time {
 
     /// @return true while accumulated time covers another fixed step; false when exhausted.
     [[nodiscard]] bool step() noexcept {
-      if (accumulator < target_dt) [[unlikely]]
-        return false;
+      if (accumulator < target_dt) {
+        [[unlikely]] return false;
+      }
       accumulator -= target_dt;
       ++step_count;
       return true;
