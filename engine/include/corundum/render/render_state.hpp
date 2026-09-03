@@ -207,6 +207,10 @@ namespace corundum::render {
     /// then returned as a span via MapView. Single-map mode passes map_data.portals directly.
     std::vector<corundum::world::Portal> agg_portals{};
     corundum::world::tilemap::CollisionTriangles agg_triangles{};
+    /// Aggregated walkability graph spanning the active chunk window (world mode only).
+    /// Rebuilt by rebuild_world_walkability() alongside agg_collisions; stays empty in
+    /// single-map mode, which uses map_walkability instead.
+    corundum::world::tilemap::WalkabilityGraph agg_walkability{};
     ChunkWindow chunks{};
     corundum::ui::DialogBoxState dialog_box{};
     uint32_t font_id{0};

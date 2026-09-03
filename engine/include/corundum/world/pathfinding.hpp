@@ -28,9 +28,10 @@ namespace corundum::world {
    *    pathfinder from routing through other entities (which would then push back
    *    reactively via physics, causing visible rubber-banding).
    *
-   * Single-map mode only (returns empty if map.walkability is null, matching the
-   * existing elevation_map/walkability limitation elsewhere). Returns empty if
-   * unreachable, out of bounds, or start == goal.
+   * Works in both single-map and world (chunked) render mode. Returns empty if
+   * map.walkability is null, the path is unreachable, start or goal is out of
+   * bounds, start == goal, or — in world mode — goal lies outside the active
+   * chunk window (the window graph does not extend past it).
    *
    * @param map             Current map view (walkability, elevation_map, collisions).
    * @param start           Starting cell (typically the entity's current floored position).

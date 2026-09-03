@@ -33,6 +33,12 @@ namespace corundum::world::tilemap {
   } // namespace
 
   bool WalkabilityGraph::can_move(int from_col, int from_row, int to_col, int to_row) const noexcept {
+    // Callers pass global tile coords; window graphs offset their cells by (col_origin,
+    // row_origin). Single-map graphs have origin (0,0), so this is a no-op there.
+    from_col -= col_origin;
+    from_row -= row_origin;
+    to_col -= col_origin;
+    to_row -= row_origin;
     if (from_col < 0 || from_row < 0 || from_col >= width || from_row >= height)
       return true;
     if (to_col < 0 || to_row < 0 || to_col >= width || to_row >= height)
@@ -54,6 +60,10 @@ namespace corundum::world::tilemap {
   }
 
   void WalkabilityGraph::set_passable(int col_a, int row_a, int col_b, int row_b, bool passable) noexcept {
+    col_a -= col_origin;
+    row_a -= row_origin;
+    col_b -= col_origin;
+    row_b -= row_origin;
     if (col_a < 0 || row_a < 0 || col_a >= width || row_a >= height)
       return;
     if (col_b < 0 || row_b < 0 || col_b >= width || row_b >= height)

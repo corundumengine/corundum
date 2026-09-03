@@ -99,6 +99,25 @@ TEST_CASE("WalkabilityGraph::set_passable — toggles symmetrically") {
   CHECK_FALSE(g.can_move(0, 1, 1, 1));
 }
 
+TEST_CASE("WalkabilityGraph::can_move — origin translates the global coords callers pass") {
+  WalkabilityGraph g;
+  g.width = 2;
+  g.height = 2;
+  g.col_origin = 10;
+  g.row_origin = 20;
+  g.edges.assign(4, 0); // nothing connected
+
+  // Global (10,20)->(11,20) maps to window-local (0,0)->(1,0): blocked (all edges 0).
+  CHECK_FALSE(g.can_move(10, 20, 11, 20));
+
+  // Open that edge with global coords, then it is passable.
+  g.set_passable(10, 20, 11, 20, true);
+  CHECK(g.can_move(10, 20, 11, 20));
+
+  // A cell outside the window is ungated (can_move returns true — same OOB contract).
+  CHECK(g.can_move(0, 0, 1, 0));
+}
+
 // ── resolve_walkability ──────────────────────────────────────────────────────
 
 TEST_CASE("resolve_walkability — null graph is a no-op") {

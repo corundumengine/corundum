@@ -29,6 +29,7 @@ add_executable(corundum_tests
     test_walkability.cpp
     test_picking.cpp
     test_pathfinding.cpp
+    test_pathfinding_world.cpp
     test_follow_path.cpp
     test_anim_sys.cpp
     test_camera_system.cpp

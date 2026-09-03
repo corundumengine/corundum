@@ -12,11 +12,14 @@
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <array>
+#include <climits>
+#include <cmath>
 #include <filesystem>
 #include <format>
 #include <iterator>
@@ -25,6 +28,7 @@
 #include <ranges>
 #include <span>
 #include <unordered_map>
+#include <utility>
 
 using corundum::core::math::IntRect;
 using corundum::sprites::AnimId;
@@ -324,6 +328,7 @@ namespace corundum::render {
         state.chunks.add_active(std::move(*entry));
     }
     rebuild_collision(state);
+    rebuild_world_walkability(state, static_cast<int>(cfg.max_step_height));
 
     const int diamond_w = state.chunks.active_at(0).tilemap.diamond_w();
     const int diamond_h = state.chunks.active_at(0).tilemap.diamond_h();
@@ -488,6 +493,109 @@ namespace corundum::render {
     }
   }
 
+  /// WalkDir bit for a single-step (dc,dr) in {-1,0,1}^2; 0 otherwise. Local mirror of
+  /// dir_for_delta() in walkability.cpp (kept private to that file).
+  static constexpr uint8_t walk_dir_bit(int dc, int dr) noexcept {
+    using corundum::world::tilemap::WalkDir;
+    constexpr std::array<uint8_t, 9> k_lookup = {std::to_underlying(WalkDir::NorthWest),
+                                                 std::to_underlying(WalkDir::North),
+                                                 std::to_underlying(WalkDir::NorthEast),
+                                                 std::to_underlying(WalkDir::West),
+                                                 uint8_t{0},
+                                                 std::to_underlying(WalkDir::East),
+                                                 std::to_underlying(WalkDir::SouthWest),
+                                                 std::to_underlying(WalkDir::South),
+                                                 std::to_underlying(WalkDir::SouthEast)};
+    if (dc < -1 || dc > 1 || dr < -1 || dr > 1)
+      return 0;
+    return k_lookup[static_cast<std::size_t>((dr + 1) * 3 + (dc + 1))];
+  }
+
+  void rebuild_world_walkability(render::RenderState &state, int max_step_height) noexcept {
+    using corundum::world::tilemap::elevation_at;
+    using corundum::world::tilemap::ramp_axis_at;
+    using corundum::world::tilemap::RampAxis;
+    using corundum::world::tilemap::WalkabilityGraph;
+
+    state.agg_walkability = {};
+    if (state.chunks.active_empty())
+      return;
+    const int cs = state.manifest.chunk_size;
+    if (cs <= 0)
+      return;
+
+    int min_cc = INT_MAX, min_cr = INT_MAX, max_cc = INT_MIN, max_cr = INT_MIN;
+    for (const auto &e : state.chunks.active()) {
+      min_cc = std::min(min_cc, e.coord.col);
+      max_cc = std::max(max_cc, e.coord.col);
+      min_cr = std::min(min_cr, e.coord.row);
+      max_cr = std::max(max_cr, e.coord.row);
+    }
+
+    WalkabilityGraph &g = state.agg_walkability;
+    g.col_origin = min_cc * cs;
+    g.row_origin = min_cr * cs;
+    g.width = (max_cc - min_cc + 1) * cs;
+    g.height = (max_cr - min_cr + 1) * cs;
+    constexpr uint8_t k_all_dirs = 0xFF; // all 8 WalkDir bits set
+    g.edges.assign(static_cast<std::size_t>(g.width) * static_cast<std::size_t>(g.height), k_all_dirs);
+
+    // Active chunk owning a global tile cell, or nullptr if the cell is outside the window.
+    const auto owner = [&](int gc, int gr) -> const render::ChunkEntry * {
+      const int cc = static_cast<int>(std::floor(static_cast<float>(gc) / static_cast<float>(cs)));
+      const int cr = static_cast<int>(std::floor(static_cast<float>(gr) / static_cast<float>(cs)));
+      for (const auto &e : state.chunks.active())
+        if (e.coord.col == cc && e.coord.row == cr)
+          return &e;
+      return nullptr;
+    };
+    const auto elev = [&](int gc, int gr) -> int {
+      const render::ChunkEntry *e = owner(gc, gr);
+      return e ? elevation_at(e->tilemap, gc - e->coord.col * cs, gr - e->coord.row * cs) : 0;
+    };
+
+    constexpr std::array<std::pair<int, int>, 8> k_neighbors{std::pair{0, -1}, std::pair{1, -1}, std::pair{1, 0},
+                                                             std::pair{1, 1},  std::pair{0, 1},  std::pair{-1, 1},
+                                                             std::pair{-1, 0}, std::pair{-1, -1}};
+
+    // Pass 1: clear any edge whose endpoints differ in elevation by more than max_step_height.
+    for (int r = 0; r < g.height; ++r) {
+      for (int c = 0; c < g.width; ++c) {
+        const int gc = c + g.col_origin;
+        const int gr = r + g.row_origin;
+        const int e0 = elev(gc, gr);
+        const std::size_t idx =
+            static_cast<std::size_t>(r) * static_cast<std::size_t>(g.width) + static_cast<std::size_t>(c);
+        for (const auto &[dc, dr] : k_neighbors) {
+          const int nc = c + dc;
+          const int nr = r + dr;
+          if (nc < 0 || nr < 0 || nc >= g.width || nr >= g.height)
+            continue;
+          if (std::abs(e0 - elev(gc + dc, gr + dr)) > max_step_height)
+            g.edges[idx] &= static_cast<uint8_t>(~walk_dir_bit(dc, dr));
+        }
+      }
+    }
+
+    // Pass 2: ramp cells force both directions along their axis back open (mirrors
+    // build_walkability_graph's second pass). set_passable() takes global coords.
+    for (int r = 0; r < g.height; ++r) {
+      for (int c = 0; c < g.width; ++c) {
+        const int gc = c + g.col_origin;
+        const int gr = r + g.row_origin;
+        const render::ChunkEntry *e = owner(gc, gr);
+        if (!e)
+          continue;
+        const std::optional<RampAxis> axis = ramp_axis_at(e->tilemap, gc - e->coord.col * cs, gr - e->coord.row * cs);
+        if (!axis)
+          continue;
+        const auto [dc0, dr0] = *axis == RampAxis::NorthSouth ? std::pair{0, -1} : std::pair{1, 0};
+        g.set_passable(gc, gr, gc + dc0, gr + dr0, true);
+        g.set_passable(gc, gr, gc - dc0, gr - dr0, true);
+      }
+    }
+  }
+
   // ── sync_active_chunks (internal) ────────────────────────────────────────────
 
   static void sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
@@ -543,8 +651,10 @@ namespace corundum::render {
 
     state.chunks.rebuild_slot_table();
 
-    if (any_stale)
+    if (any_stale) {
       rebuild_collision(state);
+      rebuild_world_walkability(state, static_cast<int>(cfg.max_step_height));
+    }
   }
 
   // ── render_tile_layer (internal, shared by render_tilemap / render_chunk) ───
@@ -984,6 +1094,7 @@ namespace corundum::render {
       std::println("[keystone] Loading chunk ({}, {})", c.col, c.row);
       state.chunks.add_active(std::move(*entry));
       rebuild_collision(state);
+      rebuild_world_walkability(state, static_cast<int>(cfg.max_step_height));
       return true;
     }
     return false;

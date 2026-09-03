@@ -200,4 +200,16 @@ namespace corundum::render {
    */
   void rebuild_collision(render::RenderState &state) noexcept;
 
+  /** @brief Rebuild the world-mode aggregated walkability graph from the active chunks.
+   *
+   * Builds a WalkabilityGraph spanning the bounding box of the active chunk window,
+   * indexed in global world tile coordinates (the graph's col_origin/row_origin record
+   * the offset). Elevation-delta gating uses global lookups, so chunk seams gate
+   * correctly. Clears the graph (no-op otherwise) when the chunk window is empty.
+   *
+   * @param[in,out] state           Render state in World mode.
+   * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
+   */
+  void rebuild_world_walkability(render::RenderState &state, int max_step_height) noexcept;
+
 } // namespace corundum::render

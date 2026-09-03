@@ -35,10 +35,17 @@ namespace corundum::world::tilemap {
    * Mutable at runtime via set_passable() so future systems (doors,
    * spawned obstacles) can open/close a specific edge without rebuilding
    * the whole graph.
+   *
+   * A graph normally spans a whole map with origin (0,0). World mode builds a graph
+   * that spans only the active chunk window; col_origin/row_origin record where that
+   * window's (0,0) cell sits in global world tile coordinates, and can_move() /
+   * set_passable() subtract the origin from the (global) coordinates callers pass.
    */
   struct WalkabilityGraph {
     int width = 0;
     int height = 0;
+    int col_origin = 0;         ///< Global tile col of cell (0,0). Non-zero only for the world-mode window graph.
+    int row_origin = 0;         ///< Global tile row of cell (0,0). See col_origin.
     std::vector<uint8_t> edges; ///< width*height; bitmask of WalkDir passable FROM each cell.
 
     /**
@@ -77,6 +84,9 @@ namespace corundum::world::tilemap {
    * regardless of the elevation delta — the ramp's own two axis-neighbors
    * are the intended bridge endpoints. The other axis and all four
    * diagonals are untouched by this second pass.
+   *
+   * The returned graph has origin (0,0); the world-mode window graph is built
+   * separately by render::rebuild_world_walkability().
    */
   [[nodiscard]] WalkabilityGraph build_walkability_graph(const Tilemap &tm, int max_step_height) noexcept;
 

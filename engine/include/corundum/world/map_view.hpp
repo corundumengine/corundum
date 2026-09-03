@@ -34,8 +34,9 @@ namespace corundum::world {
     /// Single-map tilemap, used to look up an entity's own elevation for elevation-aware
     /// collision. Null in chunked/streamed World mode (use world_render + elevation_at_tile instead).
     const corundum::world::tilemap::Tilemap *elevation_map = nullptr;
-    /// Walkability graph for movement gating across too-steep elevation edges. Null in
-    /// chunked/streamed World mode — same limitation as elevation_map.
+    /// Walkability graph for movement gating across too-steep elevation edges. In single-map
+    /// mode this is RenderState::map_walkability; in world mode it is RenderState::agg_walkability,
+    /// a graph spanning the active chunk window (origin-offset into global tile coords).
     const corundum::world::tilemap::WalkabilityGraph *walkability = nullptr;
     /// Active-chunk window for world-mode elevation lookups via elevation_under().
     /// Set by build_map_view() only in World render mode; nullptr in single-map mode.
@@ -54,6 +55,18 @@ namespace corundum::world {
    * @return Tile elevation (≥0) at the queried position; 0 when out of bounds.
    */
   [[nodiscard]] float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept;
+
+  /** @brief Discrete (integer) tile elevation at cell (col, row) for any render mode.
+   *
+   * Single-map mode reads elevation_map directly; world mode routes through
+   * render::elevation_under() via world_render. Returns 0 when neither source is set.
+   *
+   * @param[in] map MapView built for the current frame.
+   * @param[in] col Integer tile column.
+   * @param[in] row Integer tile row.
+   * @return Discrete tile elevation (>= 0); 0 when out of bounds or no source.
+   */
+  [[nodiscard]] int discrete_elevation_at(const MapView &map, int col, int row) noexcept;
 
   /**
    * @brief Build a MapView from render state for the current frame's simulation step.

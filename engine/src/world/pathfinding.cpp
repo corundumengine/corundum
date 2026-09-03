@@ -20,12 +20,10 @@ namespace corundum::world {
     constexpr int k_elevation_tolerance = 0;
     constexpr float k_sqrt2 = 1.41421356f;
 
-    [[nodiscard]] bool cell_blocked_by_collision(int col, int row, const corundum::world::tilemap::Tilemap &tm,
-                                                 const corundum::world::MapView &map,
+    [[nodiscard]] bool cell_blocked_by_collision(int col, int row, const corundum::world::MapView &map,
                                                  const corundum::entities::CollisionTable *npc_collisions,
                                                  const corundum::entities::TransformTable *npc_transforms) noexcept {
-      using corundum::world::tilemap::elevation_at;
-      const int cell_elev = elevation_at(tm, col, row);
+      const int cell_elev = corundum::world::discrete_elevation_at(map, col, row);
       const float c0 = static_cast<float>(col), c1 = c0 + 1.f;
       const float r0 = static_cast<float>(row), r1 = r0 + 1.f;
 
@@ -91,21 +89,22 @@ namespace corundum::world {
   std::vector<TileCoord> find_path(const corundum::world::MapView &map, TileCoord start, TileCoord goal,
                                    const corundum::entities::CollisionTable *npc_collisions,
                                    const corundum::entities::TransformTable *npc_transforms) noexcept {
-    if (!map.walkability || !map.elevation_map)
+    if (!map.walkability)
       return {};
     const corundum::world::tilemap::WalkabilityGraph &graph = *map.walkability;
-    const corundum::world::tilemap::Tilemap &tm = *map.elevation_map;
     const int width = graph.width;
     const int height = graph.height;
+    const int col0 = graph.col_origin;
+    const int row0 = graph.row_origin;
 
-    if (start.col < 0 || start.row < 0 || start.col >= width || start.row >= height)
+    if (start.col < col0 || start.row < row0 || start.col >= col0 + width || start.row >= row0 + height)
       return {};
-    if (goal.col < 0 || goal.row < 0 || goal.col >= width || goal.row >= height)
+    if (goal.col < col0 || goal.row < row0 || goal.col >= col0 + width || goal.row >= row0 + height)
       return {};
     if (start == goal)
       return {};
 
-    const auto index_of = [width](TileCoord c) noexcept { return c.row * width + c.col; };
+    const auto index_of = [width, col0, row0](TileCoord c) noexcept { return (c.row - row0) * width + (c.col - col0); };
 
     const std::size_t n = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
     std::vector<float> g_score(n, std::numeric_limits<float>::infinity());
@@ -126,12 +125,12 @@ namespace corundum::world {
         continue;
       closed[static_cast<std::size_t>(cur_idx)] = true;
 
-      const TileCoord cur{cur_idx % width, cur_idx / width};
+      const TileCoord cur{cur_idx % width + col0, cur_idx / width + row0};
       if (cur == goal) {
         std::vector<TileCoord> path;
         int idx = cur_idx;
         while (idx != index_of(start)) {
-          path.push_back({idx % width, idx / width});
+          path.push_back({idx % width + col0, idx / width + row0});
           idx = came_from[static_cast<std::size_t>(idx)];
         }
         std::ranges::reverse(path);
@@ -140,7 +139,7 @@ namespace corundum::world {
 
       for (const auto &[dc, dr] : k_neighbors) {
         const TileCoord next{cur.col + dc, cur.row + dr};
-        if (next.col < 0 || next.row < 0 || next.col >= width || next.row >= height)
+        if (next.col < col0 || next.row < row0 || next.col >= col0 + width || next.row >= row0 + height)
           continue;
         if (!graph.can_move(cur.col, cur.row, next.col, next.row))
           continue;
@@ -150,7 +149,7 @@ namespace corundum::world {
               !graph.can_move(cur.col, cur.row, cur.col, cur.row + dr))
             continue;
         }
-        if (cell_blocked_by_collision(next.col, next.row, tm, map, npc_collisions, npc_transforms))
+        if (cell_blocked_by_collision(next.col, next.row, map, npc_collisions, npc_transforms))
           continue;
 
         const float step_cost = (dc != 0 && dr != 0) ? k_sqrt2 : 1.f;

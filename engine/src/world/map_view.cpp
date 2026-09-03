@@ -3,6 +3,8 @@
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
+#include <cmath>
+
 namespace corundum::world {
 
   [[nodiscard]] MapView build_map_view(render::RenderState &render, const core::GameConfig &cfg) noexcept {
@@ -44,6 +46,7 @@ namespace corundum::world {
               .character_scale = cfg.character_scale,
               .tile_scale = cfg.tile_scale,
               .portals = std::span{render.agg_portals},
+              .walkability = &render.agg_walkability,
               .world_render = &render};
     }
 
@@ -73,6 +76,15 @@ namespace corundum::world {
     if (map.elevation_map)
       return corundum::world::tilemap::interpolated_elevation_at(*map.elevation_map, col_f, row_f);
     return 0.f;
+  }
+
+  int discrete_elevation_at(const MapView &map, int col, int row) noexcept {
+    if (map.elevation_map)
+      return corundum::world::tilemap::elevation_at(*map.elevation_map, col, row);
+    if (map.world_render)
+      return static_cast<int>(
+          std::lround(render::elevation_under(*map.world_render, static_cast<float>(col), static_cast<float>(row))));
+    return 0;
   }
 
 } // namespace corundum::world
