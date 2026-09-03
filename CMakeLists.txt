@@ -140,25 +140,6 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
         COMMENT "Running code formatter on all source files"
         VERBATIM
     )
-
-  # ── Static analysis ────────────────────────────────────────────────────────
-  find_program(CLANG_TIDY clang-tidy)
-  if(CLANG_TIDY)
-    add_custom_target(run_tidy
-          COMMAND ${CLANG_TIDY}
-              -p ${CMAKE_BINARY_DIR}
-              --warnings-as-errors='*'
-              ${FORMAT_SOURCES}
-          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-          COMMENT "Running clang-tidy on all source files"
-          COMMAND_EXPAND_LISTS
-      )
-  else()
-    add_custom_target(run_tidy
-          COMMAND ${CMAKE_COMMAND} -E echo
-              "clang-tidy not found — install it to use this target"
-      )
-  endif()
 endif()
 
 # ── Documentation ────────────────────────────────────────────────────────────
