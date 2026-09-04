@@ -84,7 +84,7 @@ target_include_directories(corundum_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/tools/editors/tilesmith
 )
 
-target_compile_options(corundum_tests PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(corundum_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
 # Tell the lifecycle tests where to find their hand-crafted fixtures.
 target_compile_definitions(corundum_tests PRIVATE

@@ -41,19 +41,19 @@ namespace corundum::dialogue {
     /// Optional boolean expression evaluated against the FlagStore.
     /// The edge is hidden when the expression evaluates to false.
     /// An absent or empty condition means the edge is always visible.
-    std::optional<std::string> condition;
+    std::optional<std::string> condition = std::nullopt;
 
     /// Action strings executed when this edge is taken.
     /// State mutations are applied immediately; engine hook calls are returned
     /// to the platform for dispatch.
-    std::vector<std::string> actions;
+    std::vector<std::string> actions = {};
 
     /// Sequencing behaviour across repeated visits to this Choice node.
     SequenceMode sequence = SequenceMode::None;
 
     /// If set, this edge is only offered after the current Choice node has been
     /// visited at least N times (N >= 1).
-    std::optional<int> min_visits;
+    std::optional<int> min_visits = std::nullopt;
   };
 
   /**

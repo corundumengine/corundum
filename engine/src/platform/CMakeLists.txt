@@ -57,7 +57,7 @@ endif()
 
 add_library(corundum::engine ALIAS engine_platform_glfw)
 
-target_compile_options(engine_platform_glfw PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(engine_platform_glfw PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
 # sokol_gfx.h lacks include guards — double-inclusion in a Unity batch
 # produces redefinition errors. Keep this target out of Unity builds.
@@ -76,4 +76,4 @@ target_link_libraries(engine_platform_null
 target_include_directories(engine_platform_null PUBLIC
     ${CMAKE_SOURCE_DIR}/engine/include
 )
-target_compile_options(engine_platform_null PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(engine_platform_null PRIVATE -Wall -Wextra -Wpedantic -Werror)

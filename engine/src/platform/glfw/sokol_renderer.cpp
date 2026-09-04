@@ -278,15 +278,17 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     // ── Pipeline ────────────────────────────────────────────────────────────
     sg_pipeline_desc pdesc{};
     pdesc.shader = pipeline_shader_;
-    pdesc.layout.attrs[0] = {.format = SG_VERTEXFORMAT_FLOAT2};
-    pdesc.layout.attrs[1] = {.format = SG_VERTEXFORMAT_FLOAT2};
-    pdesc.layout.attrs[2] = {.format = SG_VERTEXFORMAT_FLOAT4};
+    pdesc.layout.attrs[0] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT2};
+    pdesc.layout.attrs[1] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT2};
+    pdesc.layout.attrs[2] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT4};
     pdesc.colors[0].blend = {
         .enabled = true,
         .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
         .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        .op_rgb = SG_BLENDOP_ADD,
         .src_factor_alpha = SG_BLENDFACTOR_ONE,
         .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        .op_alpha = SG_BLENDOP_ADD,
     };
     pdesc.depth.pixel_format = SG_PIXELFORMAT_NONE;
     pdesc.depth.write_enabled = false;

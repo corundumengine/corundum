@@ -136,7 +136,7 @@ TEST_CASE("list_dir_entries recursive without filter returns every entry") {
   fs::create_directory(dir / "d");
   write_file(dir / "d" / "b.json", "{}");
 
-  const auto result = corundum::core::list_dir_entries(dir, {.recursive = true});
+  const auto result = corundum::core::list_dir_entries(dir, {.extensions = {}, .recursive = true});
   REQUIRE(result.has_value());
   // One file at root + one subdir + one file inside the subdir = 3 entries.
   REQUIRE(result->size() == 3);

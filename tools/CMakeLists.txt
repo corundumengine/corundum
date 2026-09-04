@@ -32,7 +32,7 @@ target_link_libraries(tilesmith
         corundum::tool_host
 )
 
-target_compile_options(tilesmith PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(tilesmith PRIVATE -Wall -Wextra -Wpedantic -Werror)
 set_target_properties(tilesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Spritesmith Editor ──────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ target_link_libraries(spritesmith
         corundum::tool_host
 )
 
-target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic -Werror)
 set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Loom Editor ───────────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ target_link_libraries(loom
         corundum::tool_host
 )
 
-target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic -Werror)
 set_target_properties(loom PROPERTIES UNITY_BUILD OFF)
 
 # ── Mapview Tool (headless) ───────────────────────────────────────────────────────
@@ -103,5 +103,5 @@ target_link_libraries(mapview
         engine
 )
 
-target_compile_options(mapview PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(mapview PRIVATE -Wall -Wextra -Wpedantic -Werror)
 set_target_properties(mapview PROPERTIES UNITY_BUILD OFF)

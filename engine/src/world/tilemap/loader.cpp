@@ -858,6 +858,9 @@ namespace corundum::world::tilemap {
           .elevation = std::move(elevation),
           .material_overrides = std::move(material_overrides),
           .ramps = std::move(ramps),
+          .baked_flip_flags = {},
+          .baked_animation_index = {},
+          .baked_animations = {},
       });
       layers.back().bake_render_cache(width, height);
     }

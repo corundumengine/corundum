@@ -80,4 +80,4 @@ set_source_files_properties(src/engine_factory.cpp PROPERTIES SKIP_UNITY_BUILD_I
 # Add the platform sub-module
 add_subdirectory(src/platform)
 
-target_compile_options(engine PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(engine PRIVATE -Wall -Wextra -Wpedantic -Werror)
