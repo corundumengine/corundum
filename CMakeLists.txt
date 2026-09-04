@@ -17,6 +17,31 @@ if(CCACHE_PROGRAM)
   set(CMAKE_OBJCXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}" CACHE FILEPATH "ccache launcher for Objective-C++")
 endif()
 
+# ── LLVM toolchain discovery ──────────────────────────────────────────────────
+# Resolve clang-format/clang-tidy with HINTS so the build works whether or not
+# Homebrew LLVM is on PATH. The compiler itself is pinned in CMakePresets.json
+# via cmake/llvm-clang.cmake, which sets CMAKE_*_COMPILER_INIT before project().
+if(NOT DEFINED LLVM_PREFIX)
+  if(DEFINED ENV{LLVM_PREFIX})
+    set(LLVM_PREFIX "$ENV{LLVM_PREFIX}")
+  elseif(EXISTS "/opt/homebrew/opt/llvm/bin/clang-format")
+    set(LLVM_PREFIX "/opt/homebrew/opt/llvm")
+  elseif(EXISTS "/usr/local/opt/llvm/bin/clang-format")
+    set(LLVM_PREFIX "/usr/local/opt/llvm")
+  else()
+    set(LLVM_PREFIX "")
+  endif()
+endif()
+set(LLVM_PREFIX "${LLVM_PREFIX}" CACHE PATH "Homebrew LLVM install prefix")
+
+find_program(LLVM_CLANG_FORMAT clang-format
+    HINTS "${LLVM_PREFIX}/bin"
+    REQUIRED
+    DOC "clang-format from Homebrew LLVM")
+find_program(LLVM_CLANG_TIDY clang-tidy
+    HINTS "${LLVM_PREFIX}/bin"
+    DOC "clang-tidy from Homebrew LLVM")
+
 set(FETCHCONTENT_QUIET FALSE)
 include(FetchContent)
 
@@ -119,7 +144,7 @@ if(CORUNDUM_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 
-# ── Formatting ─────────────────────────────────────────────────────────────────
+# ── Formatting & linting ───────────────────────────────────────────────────────
 if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
   file(GLOB_RECURSE FORMAT_SOURCES
         "engine/src/**/*.cpp"
@@ -135,11 +160,22 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
         "tools/platform/**/*.hpp"
     )
   add_custom_target(format_code
-        COMMAND clang-format -i ${FORMAT_SOURCES}
+        COMMAND ${LLVM_CLANG_FORMAT} -i ${FORMAT_SOURCES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Running code formatter on all source files"
+        COMMENT "Running ${LLVM_CLANG_FORMAT} on all source files"
         VERBATIM
     )
+
+  if(LLVM_CLANG_TIDY)
+    add_custom_target(tidy_code
+        COMMAND ${LLVM_CLANG_TIDY} -p ${CMAKE_BINARY_DIR}
+                --config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
+                ${FORMAT_SOURCES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running ${LLVM_CLANG_TIDY} on all source files (opt-in; slow)"
+        VERBATIM
+    )
+  endif()
 endif()
 
 # ── Documentation ────────────────────────────────────────────────────────────
