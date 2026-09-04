@@ -1,4 +1,14 @@
 ---
+# Disabled 2026-09: the bounds-check checks flag every operator[] / pointer
+# arithmetic site without seeing surrounding invariants. Our hot paths (ECS
+# pools, dense component tables) encode preconditions via assert() and
+# swap-and-pop, not runtime bounds checks. Switching to .at() would cost a
+# branch per access for zero additional safety, conflict with
+# std::expected-based error handling, and encode "I'm not sure" where the
+# code says "guaranteed by construction". Together these generated the
+# majority of clang-tidy findings; the noise drowns real signal.
+# Disabled 2026-09: IWYU in practice is mostly churn with debatable calls;
+# swapping includes to match transitive usage doesn't make code better.
 Checks: >
   -*,
   bugprone-*,
@@ -14,6 +24,9 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -misc-include-cleaner,
   -modernize-use-trailing-return-type,
   -readability-uppercase-literal-suffix,
   -readability-magic-numbers,
@@ -119,7 +132,7 @@ CheckOptions:
     value: 'true'
 
 # TODO(cleanup): LLVM Clang 23 surfaces ~7700 findings across
-# cppcoreguidelines-* (mostly the bounds-check family added in newer
-# clang-tidy), bugprone-easily-swappable-parameters, and performance
-# padding. Warnings-as-errors temporarily disabled above; re-enable
-# once the findings are addressed in a separate plan.
+# cppcoreguidelines-*, bugprone-easily-swappable-parameters, and
+# performance-*. Warnings-as-errors temporarily disabled above; re-enable
+# once the findings are addressed in a separate plan. The dominant
+# bounds-check check was disabled in-place (see above).
