@@ -793,7 +793,7 @@ TEST_CASE("validate_quest_refs: null items registry skips item checks") {
   n.actions = {"give_item('hammer', 1)"};
   g.nodes.push_back(std::move(n));
 
-  // No item registry (talesmith) — item references are not validated.
+  // No item registry (loom) — item references are not validated.
   const auto errors = validate_quest_refs(g, {});
   CHECK(errors.empty());
 }

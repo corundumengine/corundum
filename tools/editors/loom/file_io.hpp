@@ -5,7 +5,7 @@
 #include <expected>
 #include <string>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   [[nodiscard]] std::expected<void, std::string> save_graph(const EditorState &state);
   [[nodiscard]] std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path);
@@ -18,4 +18,4 @@ namespace tools::talesmith {
 
   [[nodiscard]] std::string default_doc_name(const EditorState &state);
 
-} // namespace tools::talesmith
+} // namespace tools::loom

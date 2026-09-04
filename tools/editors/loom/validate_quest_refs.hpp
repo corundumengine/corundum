@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   /// Cross-checks quest_start/quest_advance references (node and choice-edge actions,
   /// plus quest_is_* helpers in choice conditions) against the loaded quest registry.
@@ -23,4 +23,4 @@ namespace tools::talesmith {
     return errors;
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

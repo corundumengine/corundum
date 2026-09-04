@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <imgui.h>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   using corundum::dialogue::NodeType;
 
@@ -55,4 +55,4 @@ namespace tools::talesmith {
     return traits_for(t).list_color;
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

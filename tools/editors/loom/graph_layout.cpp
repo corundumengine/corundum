@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   void recompute_layout(corundum::dialogue::Graph &graph, std::vector<NodeLayout> &layout, float graph_width) {
     layout.clear();
@@ -84,4 +84,4 @@ namespace tools::talesmith {
     }
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

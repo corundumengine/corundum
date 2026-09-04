@@ -11,9 +11,9 @@
 #include <string>
 #include <vector>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
-  enum class DocumentType : uint8_t { Dialogue, Quest };
+  enum class DocumentKind : uint8_t { Dialogue, Quest };
 
   inline constexpr float k_min_scale = 0.25f;
   inline constexpr float k_max_scale = 2.0f;
@@ -62,20 +62,20 @@ namespace tools::talesmith {
     }
   };
 
-  struct GraphSnapshot {
+  struct DocSnapshot {
     corundum::dialogue::Graph graph;
     corundum::quest::Quest quest;
-    DocumentType doc_type = DocumentType::Dialogue;
+    DocumentKind doc_type = DocumentKind::Dialogue;
     int selected_node = -1;
     int selected_stage = -1;
   };
 
   struct UndoStack {
     static constexpr int k_max_depth = 256;
-    std::vector<GraphSnapshot> states_;
+    std::vector<DocSnapshot> states_;
     int cursor_ = -1;
 
-    void push(const GraphSnapshot &snap) {
+    void push(const DocSnapshot &snap) {
       if (cursor_ >= 0 && cursor_ < static_cast<int>(states_.size()) - 1)
         states_.resize(static_cast<std::size_t>(cursor_ + 1));
       if (static_cast<int>(states_.size()) >= k_max_depth)
@@ -88,7 +88,7 @@ namespace tools::talesmith {
       return cursor_ > 0;
     }
 
-    bool undo(GraphSnapshot &out) noexcept {
+    bool undo(DocSnapshot &out) noexcept {
       if (!can_undo())
         return false;
       --cursor_;
@@ -100,7 +100,7 @@ namespace tools::talesmith {
       return cursor_ >= 0 && cursor_ < static_cast<int>(states_.size()) - 1;
     }
 
-    bool redo(GraphSnapshot &out) noexcept {
+    bool redo(DocSnapshot &out) noexcept {
       if (!can_redo())
         return false;
       ++cursor_;
@@ -128,7 +128,7 @@ namespace tools::talesmith {
     std::filesystem::path file_path;
     bool dirty = false;
 
-    DocumentType doc_type_ = DocumentType::Dialogue;
+    DocumentKind doc_type_ = DocumentKind::Dialogue;
 
     corundum::dialogue::Graph graph;
     corundum::quest::Quest quest_doc_;
@@ -162,7 +162,7 @@ namespace tools::talesmith {
     float graph_width_ = 1340.f;
 
     void push_undo_snapshot() {
-      GraphSnapshot snap;
+      DocSnapshot snap;
       snap.graph = graph;
       snap.quest = quest_doc_;
       snap.doc_type = doc_type_;
@@ -172,4 +172,4 @@ namespace tools::talesmith {
     }
   };
 
-} // namespace tools::talesmith
+} // namespace tools::loom

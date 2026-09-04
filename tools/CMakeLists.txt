@@ -61,29 +61,29 @@ target_link_libraries(spritesmith
 target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic)
 set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
-# ── Talesmith Editor ─────────────────────────────────────────────────────────────
-add_executable(talesmith
-    editors/talesmith/main.cpp
-    editors/talesmith/file_io.cpp
-    editors/talesmith/graph_layout.cpp
-    editors/talesmith/render_graph.cpp
-    editors/talesmith/render_inspector.cpp
-    editors/talesmith/render_node_list.cpp
-    editors/talesmith/render_quest_editor.cpp
+# ── Loom Editor ───────────────────────────────────────────────────────────────────
+add_executable(loom
+    editors/loom/main.cpp
+    editors/loom/file_io.cpp
+    editors/loom/graph_layout.cpp
+    editors/loom/render_graph.cpp
+    editors/loom/render_inspector.cpp
+    editors/loom/render_node_list.cpp
+    editors/loom/render_quest_editor.cpp
 )
 
-target_include_directories(talesmith
+target_include_directories(loom
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/editors/talesmith
+        ${CMAKE_CURRENT_SOURCE_DIR}/editors/loom
 )
 
-target_link_libraries(talesmith
+target_link_libraries(loom
     PRIVATE
         corundum::tool_host
 )
 
-target_compile_options(talesmith PRIVATE -Wall -Wextra -Wpedantic)
-set_target_properties(talesmith PROPERTIES UNITY_BUILD OFF)
+target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(loom PROPERTIES UNITY_BUILD OFF)
 
 # ── Mapview Tool (headless) ───────────────────────────────────────────────────────
 # A CLI that renders a top-down overview PNG of a chunk-based world from its tilemaps.

@@ -21,7 +21,7 @@ namespace corundum::tool_host {
    * Captures the common pattern: middle-mouse pan with anchor, mouse-wheel
    * zoom with clamps, optional zoom-to-cursor, and screen↔canvas coordinate
    * transforms. Replaces the divergent implementations in tilesmith,
-   * spritesmith and talesmith.
+   * spritesmith and loom.
    */
   struct CanvasController {
     float offset_x = 0.f;

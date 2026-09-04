@@ -11,7 +11,7 @@
 #include <functional>
 #include <imgui.h>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   using ShortcutAction = std::function<void()>;
   using ShortcutMap = std::flat_map<ImGuiKeyChord, ShortcutAction>;
@@ -20,19 +20,19 @@ namespace tools::talesmith {
                               bool &running) {
     map.clear();
 
-    auto apply_undo = [&](const GraphSnapshot &snap) {
+    auto apply_undo = [&](const DocSnapshot &snap) {
       state.graph = snap.graph;
       state.quest_doc_ = snap.quest;
       state.doc_type_ = snap.doc_type;
       state.selected_node = snap.selected_node;
       state.selected_stage_ = snap.selected_stage;
       state.dirty = true;
-      if (snap.doc_type == DocumentType::Dialogue)
+      if (snap.doc_type == DocumentKind::Dialogue)
         recompute_layout(state.graph, state.layout, state.graph_width_);
     };
 
     map[ImGuiMod_Ctrl | ImGuiKey_N] = [&]() {
-      state.doc_type_ = DocumentType::Dialogue;
+      state.doc_type_ = DocumentKind::Dialogue;
       state.graph = {};
       state.graph.graph_id = "untitled_dialogue";
       state.quest_doc_ = {};
@@ -44,11 +44,11 @@ namespace tools::talesmith {
       state.inspector_open = false;
       state.dirty = false;
       state.undo_stack.clear();
-      host.set_title("Talesmith :: Untitled Dialogue");
+      host.set_title("Loom :: Untitled Dialogue");
     };
 
     map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N] = [&]() {
-      state.doc_type_ = DocumentType::Quest;
+      state.doc_type_ = DocumentKind::Quest;
       state.graph = {};
       state.quest_doc_ = {};
       state.quest_doc_.quest_id = "untitled_quest";
@@ -59,7 +59,7 @@ namespace tools::talesmith {
       state.inspector_open = false;
       state.dirty = false;
       state.undo_stack.clear();
-      host.set_title("Talesmith :: Untitled Quest");
+      host.set_title("Loom :: Untitled Quest");
     };
 
     map[ImGuiMod_Ctrl | ImGuiKey_O] = [&]() { state.popups.show_open = true; };
@@ -74,9 +74,9 @@ namespace tools::talesmith {
         auto result = save_file(state);
         if (result) {
           state.dirty = false;
-          host.set_title("Talesmith :: " + state.file_path.filename().string());
+          host.set_title("Loom :: " + state.file_path.filename().string());
         } else {
-          state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+          state.toast.show(std::format("[Loom] Save error: {}", result.error()));
         }
       }
     };
@@ -97,14 +97,14 @@ namespace tools::talesmith {
     };
 
     map[ImGuiMod_Ctrl | ImGuiKey_Z] = [&]() {
-      GraphSnapshot snap;
+      DocSnapshot snap;
       if (state.undo_stack.undo(snap)) {
         apply_undo(snap);
       }
     };
 
     map[ImGuiMod_Ctrl | ImGuiKey_Y] = [&]() {
-      GraphSnapshot snap;
+      DocSnapshot snap;
       if (state.undo_stack.redo(snap)) {
         apply_undo(snap);
       }
@@ -120,4 +120,4 @@ namespace tools::talesmith {
     }
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

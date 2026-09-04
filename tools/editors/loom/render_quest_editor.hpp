@@ -2,8 +2,8 @@
 
 #include "editor_state.hpp"
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   void render_quest_editor(EditorState &state);
 
-} // namespace tools::talesmith
+} // namespace tools::loom

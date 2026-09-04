@@ -11,14 +11,14 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   using json = nlohmann::json;
 
   std::string default_doc_name(const EditorState &state) {
     if (!state.file_path.empty())
       return state.file_path.filename().string();
-    if (state.doc_type_ == DocumentType::Quest)
+    if (state.doc_type_ == DocumentKind::Quest)
       return state.quest_doc_.quest_id + ".json";
     return state.graph.graph_id + ".json";
   }
@@ -36,7 +36,7 @@ namespace tools::talesmith {
     if (!result)
       return std::unexpected(result.error());
 
-    state.doc_type_ = DocumentType::Dialogue;
+    state.doc_type_ = DocumentKind::Dialogue;
     state.graph = std::move(*result);
     state.quest_doc_ = {};
     state.file_path = path;
@@ -63,7 +63,7 @@ namespace tools::talesmith {
     if (!result)
       return std::unexpected(result.error());
 
-    state.doc_type_ = DocumentType::Quest;
+    state.doc_type_ = DocumentKind::Quest;
     state.quest_doc_ = std::move(*result);
     state.graph = {};
     state.file_path = path;
@@ -96,9 +96,9 @@ namespace tools::talesmith {
   }
 
   std::expected<void, std::string> save_file(const EditorState &state) {
-    if (state.doc_type_ == DocumentType::Quest)
+    if (state.doc_type_ == DocumentKind::Quest)
       return save_quest_file(state);
     return save_graph(state);
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

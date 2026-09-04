@@ -21,15 +21,15 @@
 using corundum::tool_host::ApplyEditorThemeRefined;
 using corundum::tool_host::load_theme;
 using corundum::tool_host::ThemeColors;
-using tools::talesmith::DocumentType;
-using tools::talesmith::EditorState;
-using tools::talesmith::k_default_window_h;
-using tools::talesmith::k_default_window_w;
-using tools::talesmith::process_shortcuts;
-using tools::talesmith::ShortcutMap;
+using tools::loom::DocumentKind;
+using tools::loom::EditorState;
+using tools::loom::k_default_window_h;
+using tools::loom::k_default_window_w;
+using tools::loom::process_shortcuts;
+using tools::loom::ShortcutMap;
 
 static void new_dialogue(EditorState &state) {
-  state.doc_type_ = DocumentType::Dialogue;
+  state.doc_type_ = DocumentKind::Dialogue;
   state.graph = {};
   state.graph.graph_id = "untitled_dialogue";
   state.quest_doc_ = {};
@@ -44,7 +44,7 @@ static void new_dialogue(EditorState &state) {
 }
 
 static void new_quest(EditorState &state) {
-  state.doc_type_ = DocumentType::Quest;
+  state.doc_type_ = DocumentKind::Quest;
   state.graph = {};
   state.quest_doc_ = {};
   state.quest_doc_.quest_id = "untitled_quest";
@@ -58,10 +58,10 @@ static void new_quest(EditorState &state) {
 }
 
 static std::string app_title(const EditorState &state) {
-  std::string t = "Talesmith";
+  std::string t = "Loom";
   if (!state.file_path.empty()) {
     t += " :: " + state.file_path.filename().string();
-  } else if (state.doc_type_ == DocumentType::Quest) {
+  } else if (state.doc_type_ == DocumentKind::Quest) {
     t += " :: Untitled Quest";
   } else {
     t += " :: Untitled Dialogue";
@@ -79,7 +79,7 @@ static void action_save(EditorState &state, corundum::tool_host::ToolHost &host)
   }
 
   // Validate dialogue graphs before saving — show modal on errors
-  if (state.doc_type_ == DocumentType::Dialogue) {
+  if (state.doc_type_ == DocumentKind::Dialogue) {
     auto errors = corundum::dialogue::validate_graph(state.graph);
     if (!errors.empty()) {
       state.validation_errors_ = std::move(errors);
@@ -93,7 +93,7 @@ static void action_save(EditorState &state, corundum::tool_host::ToolHost &host)
     state.dirty = false;
     host.set_title(app_title(state));
   } else {
-    state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+    state.toast.show(std::format("[Loom] Save error: {}", result.error()));
   }
 }
 
@@ -110,14 +110,14 @@ static void action_open(EditorState &state) {
 
 int main(int argc, char *argv[]) {
   if (argc > 2) {
-    std::println(stderr, "Usage: talesmith [dialogue.json]");
+    std::println(stderr, "Usage: loom [file.json]");
     std::println(stderr, "  Run from the project root directory.");
     return 1;
   }
 
   auto cfg_result = corundum::tool_host::load_tool_config(argc, argv);
   if (!cfg_result) {
-    std::println(stderr, "[Talesmith] FATAL: {}", cfg_result.error());
+    std::println(stderr, "[Loom] FATAL: {}", cfg_result.error());
     return 1;
   }
   corundum::tool_host::ToolConfig cfg = std::move(*cfg_result);
@@ -132,10 +132,10 @@ int main(int argc, char *argv[]) {
   if (argc == 2) {
     auto load_result = load_file(state, argv[1]);
     if (!load_result) {
-      std::println(stderr, "[Talesmith] FATAL: {}", load_result.error());
+      std::println(stderr, "[Loom] FATAL: {}", load_result.error());
       return 1;
     }
-    if (state.doc_type_ == DocumentType::Dialogue && state.quests_loaded_) {
+    if (state.doc_type_ == DocumentKind::Dialogue && state.quests_loaded_) {
       auto errors = validate_quest_refs(state);
       if (!errors.empty()) {
         state.toast.show(
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
   auto host_result = corundum::tool_host::ToolHost::create(
       {static_cast<int>(k_default_window_w), static_cast<int>(k_default_window_h), title});
   if (!host_result) {
-    std::println(stderr, "[Talesmith] FATAL: {}", host_result.error());
+    std::println(stderr, "[Loom] FATAL: {}", host_result.error());
     return 1;
   }
   auto host = std::move(*host_result);
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
     if (auto t = load_theme(cfg.theme_path.string()))
       theme = *t;
     else
-      state.toast.show(std::format("[Talesmith] Theme load failed: {} — using fallback", t.error()));
+      state.toast.show(std::format("[Loom] Theme load failed: {} — using fallback", t.error()));
   }
 
   bool running = true;
@@ -228,10 +228,10 @@ int main(int argc, char *argv[]) {
 
     // ── Save As popup ─────────────────────────────────────────────────────────
     if (state.popups.show_save_as) {
-      ImGui::OpenPopup("Save Dialogue Graph As");
+      ImGui::OpenPopup("Save As");
       state.popups.show_save_as = false;
     }
-    if (ImGui::BeginPopupModal("Save Dialogue Graph As", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("Save As", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
       ImGui::Text("File path:");
       ImGui::InputText("##savepath", state.popups.save_as_path_buf, sizeof(state.popups.save_as_path_buf));
       if (ImGui::Button("Save") && state.popups.save_as_path_buf[0] != '\0') {
@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
         if (!path.ends_with(".json"))
           path += ".json";
         state.file_path = path;
-        if (state.doc_type_ == DocumentType::Quest) {
+        if (state.doc_type_ == DocumentKind::Quest) {
           state.quest_doc_.quest_id = std::filesystem::path(path).stem().string();
         } else {
           state.graph.graph_id = std::filesystem::path(path).stem().string();
@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
           host->set_title(app_title(state));
           ImGui::CloseCurrentPopup();
         } else {
-          state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+          state.toast.show(std::format("[Loom] Save error: {}", result.error()));
         }
       }
       ImGui::SameLine();
@@ -263,10 +263,10 @@ int main(int argc, char *argv[]) {
 
     // ── Open popup ────────────────────────────────────────────────────────────
     if (state.popups.show_open) {
-      ImGui::OpenPopup("Open Dialogue Graph");
+      ImGui::OpenPopup("Open");
       state.popups.show_open = false;
     }
-    if (ImGui::BeginPopupModal("Open Dialogue Graph", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("Open", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
       ImGui::Text("File path:");
       ImGui::InputText("##openpath", state.popups.open_path_buf, sizeof(state.popups.open_path_buf));
       if (ImGui::Button("Open") && state.popups.open_path_buf[0] != '\0') {
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
           std::memset(state.popups.open_path_buf, 0, sizeof(state.popups.open_path_buf));
           ImGui::CloseCurrentPopup();
         } else {
-          state.toast.show(std::format("[Talesmith] Load error: {}", result.error()));
+          state.toast.show(std::format("[Loom] Load error: {}", result.error()));
         }
       }
       ImGui::SameLine();
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
           ImGui::CloseCurrentPopup();
           running = false;
         } else {
-          state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+          state.toast.show(std::format("[Loom] Save error: {}", result.error()));
         }
       }
       ImGui::SameLine();
@@ -335,7 +335,7 @@ int main(int argc, char *argv[]) {
           host->set_title(app_title(state));
           ImGui::CloseCurrentPopup();
         } else {
-          state.toast.show(std::format("[Talesmith] Save error: {}", result.error()));
+          state.toast.show(std::format("[Loom] Save error: {}", result.error()));
         }
         state.validation_errors_.clear();
       }
@@ -347,7 +347,7 @@ int main(int argc, char *argv[]) {
       ImGui::EndPopup();
     }
 
-    if (state.doc_type_ == DocumentType::Dialogue) {
+    if (state.doc_type_ == DocumentKind::Dialogue) {
       // ── DIALOGUE LAYOUT: Node list | Graph | Inspector ──
       const ImVec2 root_avail = ImGui::GetContentRegionAvail();
       state.graph_width_ =

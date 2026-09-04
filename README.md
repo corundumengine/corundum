@@ -26,7 +26,7 @@ Requires CMake 3.28+ and a C++23 compiler. Dependencies (nlohmann/json, ImGui, G
 ```sh
 build/tools/tilesmith      # Tilemap editor
 build/tools/spritesmith    # Sprite sheet editor
-build/tools/talesmith      # Dialogue editor
+build/tools/loom           # Content editor (dialogue, quests, items)
 ```
 
 ## Test
@@ -44,7 +44,7 @@ build/tests/corundum_tests -tc="*name*"   # single test
 | `engine/src/platform/glfw/`  | GLFW windowing and sokol_gfx renderer               |
 | `engine/src/platform/sokol/` | sokol_gfx + sokol_audio implementation units        |
 | `engine/src/platform/null/`  | No-op stubs for headless testing                    |
-| `tools/`                     | Developer tools (Tilesmith, Spritesmith, Talesmith) |
+| `tools/`                     | Developer tools (Tilesmith, Spritesmith, Loom) |
 | `tests/`                     | Unit tests (doctest)                                |
 
 ## Dependencies

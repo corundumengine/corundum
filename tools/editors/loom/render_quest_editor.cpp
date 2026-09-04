@@ -7,7 +7,7 @@
 #include <format>
 #include <imgui.h>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   void render_quest_editor(EditorState &state) {
     const auto avail = ImGui::GetContentRegionAvail();
@@ -228,4 +228,4 @@ namespace tools::talesmith {
     ImGui::EndChild(); // quest_editor
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

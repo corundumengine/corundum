@@ -7,7 +7,7 @@
 #include <cstring>
 #include <imgui.h>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   namespace {} // namespace
 
@@ -140,4 +140,4 @@ namespace tools::talesmith {
     }
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

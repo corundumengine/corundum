@@ -5,7 +5,7 @@
 #include <cmath>
 #include <imgui.h>
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   namespace {
 
@@ -137,4 +137,4 @@ namespace tools::talesmith {
     ImGui::EndChild();
   }
 
-} // namespace tools::talesmith
+} // namespace tools::loom

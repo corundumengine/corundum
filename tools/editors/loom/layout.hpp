@@ -1,6 +1,6 @@
 #pragma once
 
-namespace tools::talesmith {
+namespace tools::loom {
 
   constexpr float k_default_window_w = 1600.f;
   constexpr float k_default_window_h = 900.f;
@@ -11,4 +11,4 @@ namespace tools::talesmith {
   constexpr float NODE_SPACING_X = 40.f;
   constexpr float NODE_SPACING_Y = 30.f;
 
-} // namespace tools::talesmith
+} // namespace tools::loom
