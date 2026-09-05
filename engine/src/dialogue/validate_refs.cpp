@@ -1,5 +1,6 @@
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/dialogue/registry.hpp>
 #include <corundum/dialogue/validate_refs.hpp>
 
 #include <format>
@@ -10,7 +11,8 @@ namespace corundum::dialogue {
   namespace {
 
     void check_action_quest_refs(const std::string &action_str, const std::string &scope, const quest::Registry &quests,
-                                 const item::Registry *items, std::vector<std::string> &errors) {
+                                 const item::Registry *items, const Registry *graphs,
+                                 std::vector<std::string> &errors) {
       auto parsed = parse_action(action_str);
       if (!parsed)
         return;
@@ -34,21 +36,29 @@ namespace corundum::dialogue {
       } else if (items && ev->name == "take_item" && !ev->args.empty()) {
         if (!items->find(ev->args[0]))
           errors.push_back(std::format("{}: take_item references unknown item '{}'", scope, ev->args[0]));
+      } else if (graphs && ev->name == "goto_graph" && ev->args.size() >= 2) {
+        const auto *target = graphs->find(ev->args[0]);
+        if (!target)
+          errors.push_back(std::format("{}: goto_graph references unknown graph '{}'", scope, ev->args[0]));
+        else if (!target->find(ev->args[1]))
+          errors.push_back(
+              std::format("{}: goto_graph references unknown node '{}' in '{}'", scope, ev->args[1], ev->args[0]));
       }
     }
 
   } // namespace
 
   std::vector<std::string> validate_quest_refs(const Graph &graph, const quest::Registry &quests,
-                                               const item::Registry *items) {
+                                               const item::Registry *items, const Registry *graphs) {
     std::vector<std::string> errors;
 
     for (const auto &node : graph.nodes) {
       for (const auto &action_str : node.actions)
-        check_action_quest_refs(action_str, std::format("node '{}'", node.id), quests, items, errors);
+        check_action_quest_refs(action_str, std::format("node '{}'", node.id), quests, items, graphs, errors);
       for (const auto &choice : node.choices)
         for (const auto &action_str : choice.actions)
-          check_action_quest_refs(action_str, std::format("choice in node '{}'", node.id), quests, items, errors);
+          check_action_quest_refs(action_str, std::format("choice in node '{}'", node.id), quests, items, graphs,
+                                  errors);
     }
 
     return errors;

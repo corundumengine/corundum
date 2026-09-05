@@ -119,9 +119,11 @@ namespace corundum::dialogue {
           return {TokKind::Int, val, sv};
         }
 
-        // Identifier or keyword
+        // Identifier or keyword. '.' is permitted inside identifiers so dotted
+        // flag keys (e.g. `local.x`, `quest.find_sword`) parse as a single token.
         if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
-          while (pos_ < src_.size() && (std::isalnum(static_cast<unsigned char>(src_[pos_])) || src_[pos_] == '_'))
+          while (pos_ < src_.size() &&
+                 (std::isalnum(static_cast<unsigned char>(src_[pos_])) || src_[pos_] == '_' || src_[pos_] == '.'))
             ++pos_;
           const auto sv = src_.substr(start, pos_ - start);
           if (sv == "true")
@@ -312,8 +314,8 @@ namespace corundum::dialogue {
     class Evaluator {
     public:
       Evaluator(const std::vector<ExprNode> &nodes, int32_t root, const corundum::world::FlagStore &vars,
-                const quest::Registry *quests)
-          : nodes_(nodes), root_(root), vars_(vars), quests_(quests) {}
+                const quest::Registry *quests, std::string_view zone_id)
+          : nodes_(nodes), root_(root), vars_(vars), quests_(quests), zone_id_(zone_id) {}
 
       [[nodiscard]] bool run() const {
         return eval_index(root_) != 0;
@@ -330,7 +332,7 @@ namespace corundum::dialogue {
           case ExprNode::Kind::Int:
             return n.ival;
           case ExprNode::Kind::Ident:
-            return corundum::world::visit_count(vars_, n.name);
+            return corundum::world::visit_count(vars_, corundum::world::scoped_flag_key(n.name, zone_id_));
           case ExprNode::Kind::Bool:
             return eval_index(n.lhs) != 0 ? 1 : 0;
           case ExprNode::Kind::Not:
@@ -410,6 +412,7 @@ namespace corundum::dialogue {
       int32_t root_;
       const corundum::world::FlagStore &vars_;
       const quest::Registry *quests_;
+      std::string_view zone_id_;
     };
 
     bool is_quest_helper(std::string_view name) noexcept {
@@ -455,10 +458,11 @@ namespace corundum::dialogue {
     }
   }
 
-  bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars, const quest::Registry *quests) {
+  bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars, const quest::Registry *quests,
+                std::string_view zone_id) {
     if (expr.root_ < 0)
       return false;
-    return Evaluator(expr.nodes_, expr.root_, vars, quests).run();
+    return Evaluator(expr.nodes_, expr.root_, vars, quests, zone_id).run();
   }
 
 } // namespace corundum::dialogue

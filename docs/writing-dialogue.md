@@ -275,6 +275,56 @@ Use metadata for character expressions, portrait cues, camera direction, ambient
 
 ---
 
+## State scoping
+
+Every flag the engine reads and writes lives in one shared store. By default a flag is **global and persistent** — once set it stays set everywhere, forever:
+
+```json
+{ "actions": ["cave_explored = true"] }
+```
+
+When the same key name would otherwise collide across different places (a "chest looted" in every dungeon, a "met the elder" in every town), prefix it with `local.`. A `local.<key>` reference is rewritten to `zone.<zone_id>.<key>` against the **current zone** — the tilemap's file stem for interiors, or the world manifest's directory name in overworld mode:
+
+```json
+{ "actions": ["local.chest_looted = true"] }
+{ "condition": "local.chest_looted == 1" }
+```
+
+In the `cave` zone that writes/reads `zone.cave.chest_looted`; in the `village` zone the same expression reads a different, empty key. This is authoring sugar over a plain namespaced key — there is no second container, and the state still serializes with everything else.
+
+Notes:
+
+- `local.<key>` requires an active zone. If the zone id is empty (no zone context), the reference is left untouched and behaves like a bare global key.
+- To reset a zone's state, erase the whole `zone.<id>.` key range (`corundum::world::reset_zone(flags, "cave")` from game code).
+- Dotted keys work in bare conditions too: `quest.find_sword >= 2` parses as a single identifier.
+- Bare keys are global and persistent — use them deliberately (reputation, quest stages, player-level facts).
+
+---
+
+## Cross-graph divert: `goto_graph` / `return_graph`
+
+A dialogue can jump into another graph and later return. `goto_graph('graph_id', 'node_id')` switches to the named graph at the named node; the current (graph, resume node) is pushed onto a small call stack. `return_graph()` pops that stack and resumes where the current graph would have gone, or ends the conversation when the stack is empty.
+
+```json
+{
+  "id": "n_shop",
+  "type": "event",
+  "actions": ["goto_graph('shopkeeper_intro', 'n0')"],
+  "next": "n_after_shop"
+}
+```
+
+`n_after_shop` is the resume point — after the shopkeeper's graph calls `return_graph()`, the conversation continues at `n_after_shop`, not back at the diverting event node (which would re-fire the divert).
+
+Hub-and-spoke conversation loop:
+
+- **hub graph** `elder_maren_hub` — greeting + a menu of topic choices; each choice's target Event does `goto_graph('elder_maren_<topic>', 'n0')`.
+- **spoke graphs** — one per topic, each ending with an Event that runs `return_graph()`.
+
+A spoke can itself divert to another spoke (nested); the stack unwinds in reverse. `return_graph()` on an empty stack ends the dialogue. Diverts are validated at load against the full graph registry — a `goto_graph` naming a missing graph or node is reported at startup.
+
+---
+
 ## Graph-level variables
 
 The `variables` field sets default flag values when the dialogue starts. Values are only written if the flag is not already set — they will not overwrite state from a previous session.
@@ -407,10 +457,16 @@ Flag actions:   flag = value  |  flag += value  |  flag -= value
 Quest actions:  quest_start('quest_id')
                 quest_advance('quest_id', 'stage_name')
 
+Divert actions: goto_graph('graph_id', 'node_id')
+                return_graph()
+
 Quest checks:   quest_is_started(quest_id)
                 quest_is_resolved(quest_id)
                 quest_is_failed(quest_id)
                 quest_is_at(quest_id, stage_name)
+
+State scoping:  local.<key>  →  zone.<zone_id>.<key>  (per-zone, e.g. local.chest_looted)
+                bare key     →  global, persistent
 
 Sequencing:     none  once  cycle  random
 

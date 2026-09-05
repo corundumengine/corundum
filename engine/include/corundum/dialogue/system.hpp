@@ -5,6 +5,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/world/flags.hpp>
 
+#include <string_view>
 #include <vector>
 
 namespace corundum::quest {
@@ -12,6 +13,8 @@ namespace corundum::quest {
 }
 
 namespace corundum::dialogue {
+
+  class Registry;
 
   /**
    * @brief Drives a State forward given the frame's input actions.
@@ -31,14 +34,25 @@ namespace corundum::dialogue {
    *            single call.
    *   End    — Select or Cancel closes the dialogue.
    *
+   * Two EventActions are intercepted here instead of reaching the engine queue:
+   * `goto_graph(graph_id, node_id)` pushes the current (graph, resume node) onto
+   * state.call_stack and jumps to @p node_id in @p graph_id; `return_graph()`
+   * pops the stack and resumes there (or ends the dialogue when the stack is
+   * empty). Neither requires `graphs` to be non-null — a `goto_graph` without
+   * the registry warns and is dropped.
+   *
    * @param state   Active dialogue traversal state.
    * @param actions Input actions for this frame.
    * @param flags   FlagStore for condition evaluation and state mutations.
+   * @param quests  Registry for quest-helper conditions; may be nullptr.
+   * @param graphs  Dialogue registry resolving goto_graph targets; may be nullptr.
+   * @param zone_id Current zone for `local.<key>` state; empty disables scoping.
    * @return        All EventActions emitted this frame, for the platform to dispatch.
    */
   [[nodiscard]] std::vector<EventAction> system(State &state, const input::PressedActions &actions,
                                                 corundum::world::FlagStore &flags,
-                                                const quest::Registry *quests = nullptr);
+                                                const quest::Registry *quests = nullptr,
+                                                const Registry *graphs = nullptr, std::string_view zone_id = {});
 
   /**
    * @brief Opens a dialogue at the graph's first node.

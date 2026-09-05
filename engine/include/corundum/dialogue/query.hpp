@@ -73,10 +73,12 @@ namespace corundum::dialogue {
    * @param node     The Choice node to evaluate.
    * @param flags    Active FlagStore used for condition and visit-count checks.
    * @param graph_id Owning graph's id, used to construct internal flag keys.
+   * @param zone_id  Current zone; `local.<key>` conditions resolve against it.
    */
   [[nodiscard]]
   std::vector<std::size_t> visible_choices(const Node &node, const corundum::world::FlagStore &flags,
-                                           std::string_view graph_id, const quest::Registry *quests = nullptr);
+                                           std::string_view graph_id, const quest::Registry *quests = nullptr,
+                                           std::string_view zone_id = {});
 
   /**
    * @brief Returns true if this node terminates the conversation.

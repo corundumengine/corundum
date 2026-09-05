@@ -62,9 +62,12 @@ namespace corundum::dialogue {
    *
    * @param actions Action strings to parse and execute.
    * @param flags   FlagStore to apply state mutations to.
+   * @param zone_id Current zone; a `local.<key>` state-action target resolves to
+   *                `zone.<zone_id>.<key>`. Empty means no scoping.
    * @return All EventActions found, in order.
    */
   [[nodiscard]] std::vector<EventAction> execute_actions(std::span<const std::string> actions,
-                                                         corundum::world::FlagStore &flags);
+                                                         corundum::world::FlagStore &flags,
+                                                         std::string_view zone_id = {});
 
 } // namespace corundum::dialogue

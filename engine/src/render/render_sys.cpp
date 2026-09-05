@@ -405,7 +405,7 @@ namespace corundum::render {
     }
 
     r.reset_screen_view();
-    corundum::ui::dialog_box_update(state.dialog_box, scene.dialogue, flags, quests, r, viewport);
+    corundum::ui::dialog_box_update(state.dialog_box, scene.dialogue, flags, quests, scene.zone_id, r, viewport);
     corundum::ui::dialog_box_render(state.dialog_box, r);
     if (scene.transition_prompt && !scene.transition_prompt->declined()) {
       const std::string_view question = scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";

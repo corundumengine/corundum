@@ -4,8 +4,9 @@
 namespace corundum::dialogue {
 
   std::expected<bool, ExprError> eval_condition(std::string_view expr, const corundum::world::FlagStore &vars,
-                                                const quest::Registry *quests) {
-    return compile(expr).transform([&](const CompiledExpr &compiled) { return evaluate(compiled, vars, quests); });
+                                                const quest::Registry *quests, std::string_view zone_id) {
+    return compile(expr).transform(
+        [&](const CompiledExpr &compiled) { return evaluate(compiled, vars, quests, zone_id); });
   }
 
 } // namespace corundum::dialogue

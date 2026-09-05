@@ -1,8 +1,11 @@
 #include "corundum/input/actions.hpp"
 #include <corundum/dialogue/query.hpp>
+#include <corundum/dialogue/registry.hpp>
 #include <corundum/dialogue/system.hpp>
 
 #include <algorithm>
+#include <print>
+#include <string_view>
 #include <utility>
 
 namespace corundum::dialogue {
@@ -25,9 +28,68 @@ namespace corundum::dialogue {
     corundum::world::set_flag(flags, visit_flag_key(state.graph->graph_id, next->id));
   }
 
+  // Handle goto_graph / return_graph EventActions before they reach the engine
+  // queue. Each handled divert is erased from `events`. Returns true when a
+  // divert consumed the flow — callers must not advance the current graph or
+  // flush its event chain.
+  //
+  // goto_graph(graph_id, node_id):
+  //   Pushes (current graph, current node's successor) onto state.call_stack so
+  //   a later return_graph() lands where this graph would have gone, then starts
+  //   the target graph at node_id. The resume point is the successor — an Event
+  //   node that diverts must not re-fire itself on return.
+  // return_graph():
+  //   Pops the top (graph, node) and resumes there. An empty stack means there
+  //   is nothing to return to, so the dialogue ends.
+  static bool divert(State &state, const Registry *graphs, corundum::world::FlagStore &flags, const Node *current_node,
+                     int choice_index, std::vector<EventAction> &events) {
+    bool diverted = false;
+    std::erase_if(events, [&](const EventAction &ev) {
+      if (ev.name == "goto_graph") {
+        diverted = true;
+        if (graphs == nullptr || ev.args.size() < 2) {
+          std::println(stderr, "[dialogue] goto_graph needs 'graph_id' and 'node_id'");
+          return true;
+        }
+        const Graph *target_graph = graphs->find(ev.args[0]);
+        if (target_graph == nullptr) {
+          std::println(stderr, "[dialogue] goto_graph references unknown graph '{}'", ev.args[0]);
+          return true;
+        }
+        const Node *target_node = target_graph->find(ev.args[1]);
+        if (target_node == nullptr || target_node->type == NodeType::End) {
+          std::println(stderr, "[dialogue] goto_graph references unknown node '{}' in '{}'", ev.args[1], ev.args[0]);
+          return true;
+        }
+
+        const Node *resume = advance(*state.graph, *current_node, choice_index);
+        state.call_stack.emplace_back(state.graph, resume ? resume->id : std::string{});
+        start(state, *target_graph, flags);
+        state.current_id = target_node->id;
+        state.selected_choice = 0;
+        return true;
+      }
+      if (ev.name == "return_graph") {
+        diverted = true;
+        if (state.call_stack.empty()) {
+          state.reset();
+          return true;
+        }
+        const auto [resume_graph, resume_id] = state.call_stack.back();
+        state.call_stack.pop_back();
+        state.graph = resume_graph;
+        go_to(state, resume_graph->find(resume_id), flags);
+        return true;
+      }
+      return false;
+    });
+    return diverted;
+  }
+
   // Flush any Event nodes we just landed on, collecting their emitted actions.
   // Returns immediately once the current node is not an Event.
-  static void flush_events(State &state, corundum::world::FlagStore &flags, std::vector<EventAction> &pending) {
+  static void flush_events(State &state, corundum::world::FlagStore &flags, const Registry *graphs,
+                           std::string_view zone_id, std::vector<EventAction> &pending) {
     constexpr int k_max_event_hops = 1000;
     int hops = 0;
     while (state.active && state.graph) {
@@ -40,7 +102,10 @@ namespace corundum::dialogue {
       const Node *cur = state.graph->find(state.current_id);
       if (!cur || cur->type != NodeType::Event)
         break;
-      pending.append_range(execute_actions(cur->actions, flags));
+      auto events = execute_actions(cur->actions, flags, zone_id);
+      if (divert(state, graphs, flags, cur, /*choice_index=*/0, events))
+        return; // jumped to another graph (or ended); stop flushing this graph
+      pending.append_range(events);
       go_to(state, advance(*state.graph, *cur), flags);
     }
   }
@@ -64,7 +129,7 @@ namespace corundum::dialogue {
   }
 
   std::vector<EventAction> system(State &state, const input::PressedActions &actions, corundum::world::FlagStore &flags,
-                                  const quest::Registry *quests) {
+                                  const quest::Registry *quests, const Registry *graphs, std::string_view zone_id) {
     std::vector<EventAction> pending;
 
     if (!state.active || !state.graph)
@@ -96,7 +161,7 @@ namespace corundum::dialogue {
         break;
 
       case NodeType::Choice: {
-        const auto visible = visible_choices(*node, flags, state.graph->graph_id, quests);
+        const auto visible = visible_choices(*node, flags, state.graph->graph_id, quests, zone_id);
         const int count = static_cast<int>(visible.size());
 
         if (count == 0) {
@@ -121,7 +186,11 @@ namespace corundum::dialogue {
           if (edge.sequence == SequenceMode::Once)
             corundum::world::set_flag(flags, once_flag_key(state.graph->graph_id, node->id, full_idx));
 
-          pending.append_range(execute_actions(edge.actions, flags));
+          auto events = execute_actions(edge.actions, flags, zone_id);
+          if (divert(state, graphs, flags, node, static_cast<int>(full_idx), events))
+            break; // diverted to another graph (or ended); skip the local go_to
+
+          pending.append_range(events);
           go_to(state, advance(*state.graph, *node, static_cast<int>(full_idx)), flags);
         }
         if (cancel)
@@ -130,7 +199,11 @@ namespace corundum::dialogue {
       }
 
       case NodeType::Event: {
-        pending.append_range(execute_actions(node->actions, flags));
+        auto events = execute_actions(node->actions, flags, zone_id);
+        if (divert(state, graphs, flags, node, /*choice_index=*/0, events))
+          break; // diverted to another graph (or ended); skip the local go_to
+
+        pending.append_range(events);
         go_to(state, advance(*state.graph, *node), flags);
         break;
       }
@@ -143,7 +216,7 @@ namespace corundum::dialogue {
     }
 
     // Auto-advance through any chain of Event nodes reached after a transition.
-    flush_events(state, flags, pending);
+    flush_events(state, flags, graphs, zone_id, pending);
 
     return pending;
   }

@@ -7,7 +7,8 @@
 namespace corundum::ui {
 
   void dialog_box_update(DialogBoxState &ds, const dialogue::State &state, const corundum::world::FlagStore &flags,
-                         const quest::Registry *quests, platform::Renderer &r, core::math::Vec2 viewport) {
+                         const quest::Registry *quests, std::string_view zone_id, platform::Renderer &r,
+                         core::math::Vec2 viewport) {
     if (!state.active || !state.graph) {
       ds.visible = false;
       return;
@@ -24,7 +25,7 @@ namespace corundum::ui {
       };
 
       ds.layout = build_layout(state, flags, ds.style.margin, ds.style.panel_height_frac, ds.border.tile_w, viewport,
-                               measure, quests);
+                               measure, quests, zone_id);
       ds.last_graph_id = graph_id;
       ds.last_node_id = state.current_id;
       ds.last_panel_w = panel_w;

@@ -52,7 +52,7 @@ namespace corundum::ui {
   [[nodiscard]] DialogLayout build_layout(const dialogue::State &state, const corundum::world::FlagStore &flags,
                                           float margin, float panel_height_frac, int border_tile_w,
                                           core::math::Vec2 viewport, MeasureFn measure,
-                                          const quest::Registry *quests = nullptr) {
+                                          const quest::Registry *quests = nullptr, std::string_view zone_id = {}) {
     const float panel_h = viewport.y * panel_height_frac;
     const float panel_y = viewport.y - panel_h - margin;
     const float panel_x = margin;
@@ -80,7 +80,7 @@ namespace corundum::ui {
       layout.body_lines = ui::wrap_text(node->text, text_w, measure);
     } else if (node->type == dialogue::NodeType::Choice) {
       const float choice_w = panel_w - (inset * 3.f);
-      layout.choice_indices = dialogue::visible_choices(*node, flags, state.graph->graph_id, quests);
+      layout.choice_indices = dialogue::visible_choices(*node, flags, state.graph->graph_id, quests, zone_id);
       layout.choice_lines.reserve(layout.choice_indices.size());
       for (const std::size_t idx : layout.choice_indices) {
         auto lines = ui::wrap_text(node->choices[idx].label, choice_w, measure);

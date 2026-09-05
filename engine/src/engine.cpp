@@ -39,7 +39,7 @@ namespace corundum {
                                    const corundum::quest::Registry &quests,
                                    const corundum::item::Registry &items) {
       for (const auto &[id, graph] : graphs) {
-        for (const auto &err : corundum::dialogue::validate_quest_refs(graph, quests, &items))
+        for (const auto &err : corundum::dialogue::validate_quest_refs(graph, quests, &items, &graphs))
           std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
         for (const auto &err : corundum::dialogue::validate_condition_quest_refs(graph, quests))
           std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);

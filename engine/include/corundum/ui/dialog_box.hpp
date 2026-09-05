@@ -46,8 +46,10 @@ namespace corundum::ui {
   /// Recompute layout if the current node, graph, or panel dimensions changed, then mark visible.
   /// @pre state.active && state.graph != nullptr when called.
   /// @param quests Quest registry used by visible_choices to evaluate quest-gated conditions.
+  /// @param zone_id Current zone for `local.<key>` condition evaluation.
   void dialog_box_update(DialogBoxState &ds, const dialogue::State &state, const corundum::world::FlagStore &flags,
-                         const quest::Registry *quests, platform::Renderer &r, core::math::Vec2 viewport);
+                         const quest::Registry *quests, std::string_view zone_id, platform::Renderer &r,
+                         core::math::Vec2 viewport);
 
   /// Emit platform::DrawRect, nine-patch border, and platform::DrawText commands for the current frame.
   /// No-op when ds.visible is false or layout is absent.

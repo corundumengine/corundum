@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace corundum::world {
@@ -40,6 +41,11 @@ namespace corundum::world {
 
   struct Scene {
     corundum::entities::World world;
+
+    /// Current zone identity: the tilemap path stem for interiors and the world
+    /// manifest directory name for overworld mode. `local.<key>` flag references
+    /// resolve to `zone.<zone_id>.<key>` against this value.
+    std::string zone_id;
 
     std::vector<corundum::world::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
     std::vector<corundum::dialogue::EventAction> pending_dialogue_events;

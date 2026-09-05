@@ -24,10 +24,12 @@ namespace corundum::dialogue {
    *
    * @param expr The condition string to evaluate.
    * @param vars Variable values resolved via visit_count().
+   * @param zone_id Current zone; `local.<key>` identifiers resolve against it.
    * @return true or false on success; ExprError describing the failure.
    */
   [[nodiscard]] std::expected<bool, ExprError> eval_condition(std::string_view expr,
                                                               const corundum::world::FlagStore &vars,
-                                                              const quest::Registry *quests = nullptr);
+                                                              const quest::Registry *quests = nullptr,
+                                                              std::string_view zone_id = {});
 
 } // namespace corundum::dialogue

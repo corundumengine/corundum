@@ -49,11 +49,12 @@ namespace corundum::dialogue {
   } // namespace
 
   void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions,
-                       corundum::world::FlagStore &flags, const quest::Registry *quests) noexcept {
+                       corundum::world::FlagStore &flags, const quest::Registry *quests, const Registry *graphs,
+                       std::string_view zone_id) noexcept {
     using corundum::entities::EntityId;
     using corundum::entities::World;
 
-    scene.pending_dialogue_events = corundum::dialogue::system(scene.dialogue, actions, flags, quests);
+    scene.pending_dialogue_events = corundum::dialogue::system(scene.dialogue, actions, flags, quests, graphs, zone_id);
     if (!scene.dialogue.active) {
       if (scene.dialogue_npc) {
         World &world = scene.world;

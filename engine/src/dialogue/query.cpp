@@ -34,7 +34,8 @@ namespace corundum::dialogue {
   }
 
   std::vector<std::size_t> visible_choices(const Node &node, const corundum::world::FlagStore &flags,
-                                           std::string_view graph_id, const quest::Registry *quests) {
+                                           std::string_view graph_id, const quest::Registry *quests,
+                                           std::string_view zone_id) {
     std::vector<std::size_t> result;
     if (node.type != NodeType::Choice)
       return result;
@@ -102,7 +103,8 @@ namespace corundum::dialogue {
       // Compiled at load; evaluation cannot fail (malformed expressions are
       // rejected when the graph loads, not silently hidden here).
       if (!edge.condition
-               .transform([&](const CompiledExpr &compiled) -> bool { return evaluate(compiled, flags, quests); })
+               .transform(
+                   [&](const CompiledExpr &compiled) -> bool { return evaluate(compiled, flags, quests, zone_id); })
                .value_or(true))
         continue;
 

@@ -33,9 +33,12 @@ namespace corundum::dialogue {
           ++pos;
       }
 
+      // Reads an identifier; '.' is permitted inside so dotted keys
+      // (e.g. `local.x`) parse as a single token.
       std::string read_ident() {
         const auto start = pos;
-        while (pos < src.size() && (std::isalnum(static_cast<unsigned char>(src[pos])) || src[pos] == '_'))
+        while (pos < src.size() &&
+               (std::isalnum(static_cast<unsigned char>(src[pos])) || src[pos] == '_' || src[pos] == '.'))
           ++pos;
         return std::string(src.substr(start, pos - start));
       }
@@ -161,7 +164,8 @@ namespace corundum::dialogue {
     }
   }
 
-  std::vector<EventAction> execute_actions(std::span<const std::string> actions, corundum::world::FlagStore &flags) {
+  std::vector<EventAction> execute_actions(std::span<const std::string> actions, corundum::world::FlagStore &flags,
+                                           std::string_view zone_id) {
     std::vector<EventAction> events;
     for (const auto &src : actions) {
       auto result = parse_action(src);
@@ -172,15 +176,16 @@ namespace corundum::dialogue {
           [&](auto &&a) {
             using T = std::decay_t<decltype(a)>;
             if constexpr (std::is_same_v<T, StateAction>) {
+              const std::string key = corundum::world::scoped_flag_key(a.var, zone_id);
               switch (a.op) {
                 case StateAction::Op::Assign:
-                  flags[a.var] = a.value;
+                  flags[key] = a.value;
                   break;
                 case StateAction::Op::Add:
-                  flags[a.var] += a.value;
+                  flags[key] += a.value;
                   break;
                 case StateAction::Op::Sub:
-                  flags[a.var] -= a.value;
+                  flags[key] -= a.value;
                   break;
                 default:
                   std::unreachable();

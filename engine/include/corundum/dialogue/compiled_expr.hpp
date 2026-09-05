@@ -93,7 +93,7 @@ namespace corundum::dialogue {
   private:
     friend std::expected<CompiledExpr, ExprError> compile(std::string_view src);
     friend bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars,
-                         const quest::Registry *quests);
+                         const quest::Registry *quests, std::string_view zone_id);
 
     std::vector<ExprNode> nodes_;
     std::string source_;
@@ -115,9 +115,11 @@ namespace corundum::dialogue {
    * @param vars  Values resolved via visit_count() (missing = 0).
    * @param quests Registry used by quest-helper calls; may be nullptr (helpers
    *               that need the registry then evaluate to false).
+   * @param zone_id Current zone; `local.<key>` identifiers resolve to
+   *               `zone.<zone_id>.<key>` before lookup. Empty means no scoping.
    * @return True when the expression holds.
    */
   [[nodiscard]] bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars,
-                              const quest::Registry *quests = nullptr);
+                              const quest::Registry *quests = nullptr, std::string_view zone_id = {});
 
 } // namespace corundum::dialogue

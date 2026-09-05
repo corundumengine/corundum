@@ -55,6 +55,7 @@ set(TEST_SOURCES
     test_word_wrap.cpp
     test_world_manifest.cpp
     test_world_transition.cpp
+    test_zone_scope.cpp
 )
 
 # The test executable

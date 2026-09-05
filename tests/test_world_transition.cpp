@@ -120,6 +120,8 @@ TEST_CASE("world transition — boot lands in World mode at the manifest centre"
   CHECK(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{8, 8});
   CHECK_FALSE(engine.entered_from_world);
+  // World zone id comes from the manifest's directory name.
+  CHECK(engine.scene.zone_id == "transition");
 
   corundum::cleanup(engine);
 }
@@ -196,6 +198,8 @@ TEST_CASE("world transition — World cross-map portal marks the journey and ent
   CHECK(player_tile(engine) == std::pair{1, 2});
   // Entering an interior from the world records the journey so a later exit can return.
   CHECK(engine.entered_from_world);
+  // Interior zone id comes from the tilemap path stem.
+  CHECK(engine.scene.zone_id == "interior");
 
   corundum::cleanup(engine);
 }
@@ -243,6 +247,8 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
   CHECK(player_tile(engine) == std::pair{12, 3});
   CHECK_FALSE(engine.entered_from_world);
   CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
+  // Back in world mode, the zone id reverts to the manifest's directory name.
+  CHECK(engine.scene.zone_id == "transition");
 
   corundum::cleanup(engine);
 }

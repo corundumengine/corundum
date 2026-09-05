@@ -172,7 +172,7 @@ namespace corundum::world {
 
     switch (scene.mode) {
       case corundum::world::GameMode::Dialogue:
-        corundum::dialogue::update_dialogue(scene, actions, flags, quests);
+        corundum::dialogue::update_dialogue(scene, actions, flags, quests, &graphs, scene.zone_id);
         break;
       case corundum::world::GameMode::Prompt:
         update_transition_prompt(scene, input);

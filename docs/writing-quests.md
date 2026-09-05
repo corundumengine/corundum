@@ -92,6 +92,15 @@ Objectives are the lines displayed in the journal while a stage is active.
 
 If `done_condition` is absent, the objective never shows a checkmark (useful for open-ended tasks).
 
+Zone-scoped keys work in conditions and actions the same way they do in dialogue: write `local.<key>` and it resolves to `zone.<current_zone>.<key>` (see [State scoping](writing-dialogue.md#state-scoping) in the dialogue guide). This keeps objectives like "loot the chest in this cave" scoped to the cave rather than colliding across zones:
+
+```json
+{
+  "text": "Loot the smuggler's chest",
+  "done_condition": "local.chest_looted >= 1"
+}
+```
+
 ---
 
 ## Wiring quests to dialogue

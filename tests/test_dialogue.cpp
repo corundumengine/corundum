@@ -865,6 +865,325 @@ TEST_CASE("validate_condition_quest_refs flags an unknown stage for a known ques
   CHECK(errors[0].find("unknown stage 'missing_stage'") != std::string::npos);
 }
 
+// ── Divert: goto_graph / return_graph ────────────────────────────────────────
+
+namespace {
+
+  using corundum::dialogue::Graph;
+  using corundum::dialogue::Node;
+  using corundum::dialogue::NodeType;
+
+  /// Pushes a node into a graph, maintaining the id→index map.
+  void push_node(Graph &g, Node n) {
+    g.id_to_index[n.id] = g.nodes.size();
+    g.nodes.push_back(std::move(n));
+  }
+
+  corundum::input::PressedActions select_press() {
+    corundum::input::PressedActions select{};
+    select.actions[0] = corundum::input::Action::Select;
+    select.count = 1;
+    return select;
+  }
+
+  /// Hub graph: a0 (Talk) → a_divert (Event goto_graph) → a1 (Talk) → end.
+  /// The resume point after return_graph() is a1 (the divert node's successor).
+  Graph make_hub_graph(const std::string &spoke, const std::string &spoke_entry) {
+    Graph g;
+    g.graph_id = "hub";
+    g.speaker = "Hub";
+    {
+      Node n;
+      n.id = "a0";
+      n.type = NodeType::Talk;
+      n.text = "Hello.";
+      n.next_id = "a_divert";
+      push_node(g, std::move(n));
+    }
+    {
+      Node n;
+      n.id = "a_divert";
+      n.type = NodeType::Event;
+      n.actions = {std::format("goto_graph('{}', '{}')", spoke, spoke_entry)};
+      n.next_id = "a1";
+      push_node(g, std::move(n));
+    }
+    {
+      Node n;
+      n.id = "a1";
+      n.type = NodeType::Talk;
+      n.text = "Back in the hub.";
+      n.next_id = "end";
+      push_node(g, std::move(n));
+    }
+    return g;
+  }
+
+  /// Spoke graph: b0 (Talk) → b_ret (Event return_graph) → end.
+  Graph make_leaf_graph(const std::string &id, const std::string &entry) {
+    Graph g;
+    g.graph_id = id;
+    g.speaker = id;
+    {
+      Node n;
+      n.id = entry;
+      n.type = NodeType::Talk;
+      n.text = "Spoke.";
+      n.next_id = "b_ret";
+      push_node(g, std::move(n));
+    }
+    {
+      Node n;
+      n.id = "b_ret";
+      n.type = NodeType::Event;
+      n.actions = {"return_graph()"};
+      n.next_id = "end";
+      push_node(g, std::move(n));
+    }
+    return g;
+  }
+
+  /// Mid graph: b0 (Talk) → b_divert (Event goto_graph leaf) → b1 (Talk) → b_ret (return).
+  Graph make_mid_graph() {
+    Graph g;
+    g.graph_id = "mid";
+    g.speaker = "Mid";
+    {
+      Node n;
+      n.id = "b0";
+      n.type = NodeType::Talk;
+      n.text = "Mid.";
+      n.next_id = "b_divert";
+      push_node(g, std::move(n));
+    }
+    {
+      Node n;
+      n.id = "b_divert";
+      n.type = NodeType::Event;
+      n.actions = {"goto_graph('leaf', 'c0')"};
+      n.next_id = "b1";
+      push_node(g, std::move(n));
+    }
+    {
+      Node n;
+      n.id = "b1";
+      n.type = NodeType::Talk;
+      n.text = "Mid again.";
+      n.next_id = "b_ret";
+      push_node(g, std::move(n));
+    }
+    {
+      Node n;
+      n.id = "b_ret";
+      n.type = NodeType::Event;
+      n.actions = {"return_graph()"};
+      n.next_id = "end";
+      push_node(g, std::move(n));
+    }
+    return g;
+  }
+
+} // namespace
+
+TEST_CASE("divert: goto_graph A→B runs B from its first node") {
+  using namespace corundum::dialogue;
+
+  corundum::dialogue::Registry graphs;
+  graphs.add(make_hub_graph("spoke", "b0"));
+  graphs.add(make_leaf_graph("spoke", "b0"));
+
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
+  start(state, *graphs.find("hub"), flags);
+  REQUIRE(state.active);
+  CHECK(state.current_id == "a0");
+
+  // Advancing a0 lands on a_divert (Event), whose chain fires the divert in the
+  // same call — the goto_graph is intercepted before it reaches the engine queue.
+  const auto events = system(state, select_press(), flags, nullptr, &graphs, "");
+  CHECK(events.empty());
+  REQUIRE(state.active);
+  CHECK(state.graph->graph_id == "spoke");
+  CHECK(state.current_id == "b0");
+  REQUIRE(state.call_stack.size() == 1);
+  CHECK(state.call_stack[0].first->graph_id == "hub");
+  CHECK(state.call_stack[0].second == "a1"); // resume where a_divert would have gone
+}
+
+TEST_CASE("divert: return_graph pops back to the pushed hub node") {
+  using namespace corundum::dialogue;
+
+  corundum::dialogue::Registry graphs;
+  graphs.add(make_hub_graph("spoke", "b0"));
+  graphs.add(make_leaf_graph("spoke", "b0"));
+
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
+  start(state, *graphs.find("hub"), flags);
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  REQUIRE(state.graph->graph_id == "spoke");
+  REQUIRE(state.current_id == "b0");
+
+  // Selecting b0 advances to b_ret (Event), which immediately returns the stack.
+  const auto events = system(state, select_press(), flags, nullptr, &graphs, "");
+  CHECK(events.empty()); // return_graph was intercepted
+  REQUIRE(state.active);
+  CHECK(state.graph->graph_id == "hub");
+  CHECK(state.current_id == "a1");
+  CHECK(state.call_stack.empty());
+}
+
+TEST_CASE("divert: nested A→B→C unwinds correctly") {
+  using namespace corundum::dialogue;
+
+  // A (hub) diverts to B; B diverts to C; C returns; B returns; A finishes.
+  corundum::dialogue::Registry graphs;
+  graphs.add(make_hub_graph("mid", "b0"));
+  graphs.add(make_mid_graph());
+  graphs.add(make_leaf_graph("leaf", "c0"));
+
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
+
+  // A → B.
+  start(state, *graphs.find("hub"), flags);
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  REQUIRE(state.graph->graph_id == "mid");
+  CHECK(state.call_stack.size() == 1);
+
+  // B → C.
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  REQUIRE(state.graph->graph_id == "leaf");
+  CHECK(state.call_stack.size() == 2);
+
+  // C returns → B's b1.
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  REQUIRE(state.graph->graph_id == "mid");
+  CHECK(state.current_id == "b1");
+  CHECK(state.call_stack.size() == 1);
+
+  // B returns → A's a1.
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  REQUIRE(state.graph->graph_id == "hub");
+  CHECK(state.current_id == "a1");
+  CHECK(state.call_stack.empty());
+
+  // A finishes normally.
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  CHECK_FALSE(state.active);
+}
+
+TEST_CASE("divert: per-graph visit counts stay independent") {
+  using namespace corundum::dialogue;
+
+  corundum::dialogue::Registry graphs;
+  graphs.add(make_hub_graph("mid", "b0"));
+  graphs.add(make_mid_graph());
+  graphs.add(make_leaf_graph("leaf", "c0"));
+
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
+  start(state, *graphs.find("hub"), flags);
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
+  CHECK_FALSE(state.active);
+
+  // Each graph's node visits live under its own graph-id key, untouched by the others.
+  CHECK(corundum::world::visit_count(flags, visit_flag_key("hub", "a0")) == 1);
+  CHECK(corundum::world::visit_count(flags, visit_flag_key("hub", "a1")) == 1);
+  CHECK(corundum::world::visit_count(flags, visit_flag_key("mid", "b0")) == 1);
+  CHECK(corundum::world::visit_count(flags, visit_flag_key("leaf", "c0")) == 1);
+  CHECK(corundum::world::visit_count(flags, visit_flag_key("hub", "b0")) == 0); // no cross-graph bleed
+}
+
+TEST_CASE("divert: return_graph on an empty stack ends the dialogue") {
+  using namespace corundum::dialogue;
+
+  Graph g;
+  g.graph_id = "lone";
+  g.speaker = "Lone";
+  {
+    Node n;
+    n.id = "a0";
+    n.type = NodeType::Talk;
+    n.text = "Hello.";
+    n.next_id = "a_ret";
+    push_node(g, std::move(n));
+  }
+  {
+    Node n;
+    n.id = "a_ret";
+    n.type = NodeType::Event;
+    n.actions = {"return_graph()"};
+    n.next_id = "end";
+    push_node(g, std::move(n));
+  }
+
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
+  start(state, g, flags);
+  const auto events = system(state, select_press(), flags);
+  CHECK(events.empty());
+  CHECK_FALSE(state.active);
+}
+
+TEST_CASE("divert: validate_quest_refs flags a missing goto_graph target") {
+  using namespace corundum::dialogue;
+
+  Graph g;
+  g.graph_id = "sender";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Event;
+  n.next_id = "end";
+  n.actions = {"goto_graph('missing_graph', 'n0')"};
+  g.nodes.push_back(std::move(n));
+
+  // A null graphs registry skips divert checks.
+  const auto skipped = validate_quest_refs(g, {}, nullptr, nullptr);
+  CHECK(skipped.empty());
+
+  // With a registry threaded, the unknown graph is reported.
+  const corundum::dialogue::Registry empty_registry;
+  const auto flagged = validate_quest_refs(g, {}, nullptr, &empty_registry);
+  REQUIRE(flagged.size() == 1);
+  CHECK(flagged[0].find("unknown graph 'missing_graph'") != std::string::npos);
+}
+
+TEST_CASE("divert: validate_quest_refs flags a missing node in an existing graph") {
+  using namespace corundum::dialogue;
+
+  Graph sender;
+  sender.graph_id = "sender";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Event;
+  n.next_id = "end";
+  n.actions = {"goto_graph('target', 'nope')"};
+  sender.nodes.push_back(std::move(n));
+
+  Graph target;
+  target.graph_id = "target";
+  {
+    Node tn;
+    tn.id = "n0";
+    tn.type = NodeType::Talk;
+    tn.text = "Target.";
+    tn.next_id = "end";
+    push_node(target, std::move(tn));
+  }
+
+  corundum::dialogue::Registry graphs;
+  graphs.add(std::move(target));
+
+  const auto errors = validate_quest_refs(sender, {}, nullptr, &graphs);
+  REQUIRE(errors.size() == 1);
+  CHECK(errors[0].find("unknown node 'nope' in 'target'") != std::string::npos);
+}
+
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
 TEST_CASE("serialize_graph round-trips through load_graph") {

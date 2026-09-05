@@ -215,6 +215,7 @@ namespace corundum::world {
     }
 
     Scene result;
+    result.zone_id = map_stem;
     result.world = std::move(world);
     result.player = player;
     return result;

@@ -64,12 +64,13 @@ namespace corundum::quest {
    * @param flags Active FlagStore.
    * @param quests Registry used to resolve quest-helper conditions; may be
    *               nullptr (quest helpers then evaluate to false).
+   * @param zone_id Current zone; `local.<key>` done_conditions resolve against it.
    * @return One ObjectiveView per objective of the current stage; empty when
    *         the quest is not started.
    * @note The returned views borrow @p quest's strings — the quest must outlive
    *       the returned vector.
    */
   [[nodiscard]] std::vector<ObjectiveView> objectives(const Quest &quest, const corundum::world::FlagStore &flags,
-                                                      const Registry *quests = nullptr);
+                                                      const Registry *quests = nullptr, std::string_view zone_id = {});
 
 } // namespace corundum::quest

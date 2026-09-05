@@ -4,6 +4,8 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/world/scene.hpp>
 
+#include <string_view>
+
 namespace corundum::quest {
   class Registry;
 }
@@ -19,12 +21,15 @@ namespace corundum::dialogue {
    *  @param[in]     actions   Player input actions for the current fixed step.
    *  @param[in,out] flags     Persistent game flags (dialogue visit counts, once-flags).
    *  @param[in]     quests    Loaded quest definitions for condition evaluation.
+   *  @param[in]     graphs    Loaded dialogue graphs for goto_graph/return_graph divert.
+   *  @param[in]     zone_id   Current zone for `local.<key>` state resolution.
    *  @pre GameMode must be Dialogue.
    *  @post On dialogue end, NPC facing and animation are restored from saved state.
    *  @performance O(1) per step. No heap allocation.
    */
   void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions,
-                       corundum::world::FlagStore &flags, const quest::Registry *quests = nullptr) noexcept;
+                       corundum::world::FlagStore &flags, const quest::Registry *quests = nullptr,
+                       const Registry *graphs = nullptr, std::string_view zone_id = {}) noexcept;
 
   /** @brief Check for nearby NPCs and start a dialogue on Select press.
    *

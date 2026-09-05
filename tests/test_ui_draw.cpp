@@ -262,7 +262,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
 
   corundum::dialogue::start(state, innkeeper, flags);
-  corundum::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
+  corundum::ui::dialog_box_update(ds, state, flags, nullptr, "", r, viewport);
   REQUIRE(ds.layout.has_value());
   CHECK(ds.layout->speaker == "Innkeeper");
   CHECK_FALSE(ds.layout->body_lines.empty());
@@ -270,7 +270,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   // Cancel and switch NPCs.
   state.reset();
   corundum::dialogue::start(state, villager, flags);
-  corundum::ui::dialog_box_update(ds, state, flags, nullptr, r, viewport);
+  corundum::ui::dialog_box_update(ds, state, flags, nullptr, "", r, viewport);
 
   REQUIRE(ds.layout.has_value());
   CHECK(ds.layout->speaker == "Villager");
@@ -303,7 +303,7 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   corundum::dialogue::start(state, graph, flags);
 
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
-  corundum::ui::dialog_box_update(ds, state, flags, &quests, r, viewport);
+  corundum::ui::dialog_box_update(ds, state, flags, &quests, "", r, viewport);
 
   REQUIRE(ds.layout.has_value());
   REQUIRE(ds.layout->choice_lines.size() == 2);

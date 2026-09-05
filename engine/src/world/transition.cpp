@@ -7,6 +7,7 @@
 #include <corundum/world/transition.hpp>
 
 #include <algorithm>
+#include <filesystem>
 #include <print>
 #include <string_view>
 #include <utility>
@@ -99,6 +100,10 @@ namespace corundum::world {
       if (!scene_result)
         return std::unexpected(std::move(scene_result).error());
       engine_.scene = std::move(*scene_result);
+      // World mode: the zone is the world itself, keyed by its manifest directory
+      // name (spawn_world above keyed it off the chunk tilemap stem).
+      engine_.scene.zone_id =
+          std::filesystem::path(engine_.cfg.paths.world_manifest_path).parent_path().filename().string();
       world::sync_chunk_actors(engine_.scene, engine_.render, engine_.cfg, engine_.characters);
 
       const auto [world_width, world_height] =
