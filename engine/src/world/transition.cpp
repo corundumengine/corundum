@@ -35,6 +35,10 @@ namespace corundum::world {
       /// @brief Handle a pending map transition triggered by portal traversal.
       void handle_map_transition() noexcept;
 
+      /// @brief Rebuild the scene for a saved or transitioned location (see world::apply_spawn).
+      [[nodiscard]] std::expected<void, std::string> apply_spawn(std::string_view mode, std::string_view id,
+                                                                 std::string_view zone, float col, float row) noexcept;
+
     private:
       /// @brief Live window size when populated (mid-frame), falling back to the
       ///        configured boot-time size before @c run_frame() has populated
@@ -134,10 +138,9 @@ namespace corundum::world {
         const bool can_return = engine_.entered_from_world || !engine_.cfg.paths.world_manifest_path.empty();
         if (can_return) {
           engine_.entered_from_world = false;
-          corundum::render::WorldLoadParams params;
-          params.spawn_col = t.spawn_col;
-          params.spawn_row = t.spawn_row;
-          if (auto result = enter_world(params); !result)
+          if (auto result =
+                  apply_spawn("world", "", "", static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row));
+              !result)
             fail("return-to-world", result.error());
         } else {
           // No overworld was ever loaded (single-map config with an exit portal):
@@ -154,20 +157,38 @@ namespace corundum::world {
       if (engine_.render.mode == render::RenderMode::World)
         engine_.entered_from_world = true;
 
-      auto map_result = render::load_map(*engine_.renderer, engine_.render, t.target_map, engine_.cfg);
-      if (!map_result) {
-        fail("map transition", map_result.error());
-        return;
+      if (auto result = apply_spawn("single_map", t.target_map, "", static_cast<float>(t.spawn_col),
+                                    static_cast<float>(t.spawn_row));
+          !result)
+        fail("map transition", result.error());
+    }
+
+    std::expected<void, std::string> SceneTransitioner::apply_spawn(std::string_view mode, std::string_view id,
+                                                                    std::string_view zone, float col,
+                                                                    float row) noexcept {
+      if (mode == "world") {
+        corundum::render::WorldLoadParams params;
+        params.spawn_col = static_cast<int>(col);
+        params.spawn_row = static_cast<int>(row);
+        if (auto result = enter_world(params); !result)
+          return std::unexpected(std::move(result).error());
+        if (!zone.empty())
+          engine_.scene.zone_id = std::string(zone);
+        return {};
       }
 
+      auto map_result = render::load_map(*engine_.renderer, engine_.render, std::string(id), engine_.cfg);
+      if (!map_result)
+        return std::unexpected(std::move(map_result).error());
+
       const auto &new_tm = *active_tilemap(engine_);
-      const entities::Position spawn{static_cast<float>(t.spawn_col), static_cast<float>(t.spawn_row)};
+      const entities::Position spawn{.col = col, .row = row};
       auto scene_result = world::spawn_world(engine_.cfg, engine_.characters, new_tm, spawn);
-      if (!scene_result) {
-        fail("map transition", scene_result.error());
-        return;
-      }
+      if (!scene_result)
+        return std::unexpected(std::move(scene_result).error());
       engine_.scene = std::move(*scene_result);
+      if (!zone.empty())
+        engine_.scene.zone_id = std::string(zone);
 
       // Match the world's camera framing for the interior: centre on the entry tile,
       // mirroring init_single_map_scene / enter_world. The historical cross-map
@@ -176,6 +197,7 @@ namespace corundum::world {
           new_tm.diamond_w(), new_tm.diamond_h(), new_tm.height, engine_.cfg.tile_scale, engine_.cfg.elevation_step_px);
       const float map_extent = static_cast<float>(new_tm.width + new_tm.height - 1) * iso.half_tw * 2.f;
       frame_camera_on(iso, spawn.col, spawn.row, map_extent, map_extent, /*anchor_cell_center=*/false);
+      return {};
     }
 
   } // namespace
@@ -183,6 +205,11 @@ namespace corundum::world {
   std::expected<void, std::string> enter_world(corundum::Engine &engine,
                                                const corundum::render::WorldLoadParams &params) {
     return SceneTransitioner{engine}.enter_world(params);
+  }
+
+  std::expected<void, std::string> apply_spawn(corundum::Engine &engine, std::string_view mode, std::string_view id,
+                                               std::string_view zone, float col, float row) noexcept {
+    return SceneTransitioner{engine}.apply_spawn(mode, id, zone, col, row);
   }
 
   void handle_map_transition(corundum::Engine &engine) noexcept {

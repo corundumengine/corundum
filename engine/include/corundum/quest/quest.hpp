@@ -9,6 +9,9 @@
 
 namespace corundum::quest {
 
+  /** @brief Current on-disk quest format version. Absent field == version 1. */
+  inline constexpr int k_quest_schema_version = 1;
+
   /** @brief A single task shown in the journal while its stage is active. */
   struct Objective {
     /** @brief Journal text displayed for this objective. */
@@ -43,10 +46,21 @@ namespace corundum::quest {
      * to a stage not listed here.
      */
     std::vector<std::string> advances_to{};
+    /**
+     * @brief Optional target stage name for objective-driven auto-advance.
+     *
+     * When set, `quest::tick_quests` advances to this stage once every
+     * objective carrying a `done_condition` evaluates true (order-independent).
+     * A stage without conditioned objectives never auto-advances. Stages with
+     * no `auto_advance_to` (all keystone stages) are inert.
+     */
+    std::optional<std::string> auto_advance_to = std::nullopt;
   };
 
   /** @brief A named sequence of stages comprising one quest. */
   struct Quest {
+    /** @brief On-disk format version; 1 for legacy files without the field. */
+    int schema_version = k_quest_schema_version;
     /** @brief Machine-readable identifier used in flag keys and dialogue actions. */
     std::string quest_id;
     /** @brief Human-readable name shown in the journal. */

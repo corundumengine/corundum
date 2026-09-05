@@ -254,6 +254,7 @@ namespace corundum {
                                 &engine.quests);
 
         process_dialogue_events(engine);
+        quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
 
         if (engine.on_fixed_update)
           engine.on_fixed_update(engine, engine.timer.target_dt);

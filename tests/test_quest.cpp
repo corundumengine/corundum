@@ -780,6 +780,154 @@ TEST_CASE("Runner: advance on a known id moves the flag to the named stage") {
   CHECK(quest::get_stage("test_quest", flags) == 2);
 }
 
+// ── auto_advance_to ───────────────────────────────────────────────────────────
+
+TEST_CASE("tick_quests: stage with auto_advance_to waits for its done_condition") {
+  quest::Registry reg;
+  quest::Quest q;
+  q.quest_id = "auto_q";
+  q.name = "Auto";
+  q.description = "";
+  q.stages.push_back({.name = "start",
+                      .sequence = 1,
+                      .objectives = {{.text = "Find the tracks",
+                                      .done_condition = *corundum::dialogue::compile("ember_tracks_found >= 1")}},
+                      .auto_advance_to = "complete"});
+  q.stages.push_back({.name = "complete", .sequence = 2, .resolved = true});
+  reg.add(std::move(q));
+
+  FlagStore flags;
+  quest::start(*reg.find("auto_q"), flags);
+
+  // Objective not met yet — no advance.
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("auto_q", flags) == 1);
+
+  // Objective met — advances exactly once.
+  flags["ember_tracks_found"] = 1;
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("auto_q", flags) == 2);
+  CHECK(quest::lifecycle(*reg.find("auto_q"), flags) == quest::Lifecycle::Completed);
+
+  // Idempotent: later ticks leave a completed quest alone.
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("auto_q", flags) == 2);
+}
+
+TEST_CASE("tick_quests: stage without auto_advance_to never auto-advances") {
+  quest::Registry reg;
+  quest::Quest q = make_quest_with_objectives();
+  reg.add(std::move(q));
+
+  FlagStore flags;
+  flags["quest.obj_quest"] = 1;
+  flags["ember_tracks_found"] = 1;
+
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("obj_quest", flags) == 1);
+}
+
+TEST_CASE("tick_quests: advances only when every conditioned objective holds, in either order") {
+  quest::Registry reg;
+  quest::Quest q;
+  q.quest_id = "two_obj";
+  q.name = "Two";
+  q.description = "";
+  q.stages.push_back({.name = "start",
+                      .sequence = 1,
+                      .objectives =
+                          {
+                              {.text = "A", .done_condition = *corundum::dialogue::compile("first_done == 1")},
+                              {.text = "B", .done_condition = *corundum::dialogue::compile("second_done == 1")},
+                          },
+                      .auto_advance_to = "complete"});
+  q.stages.push_back({.name = "complete", .sequence = 2, .resolved = true});
+  reg.add(std::move(q));
+
+  FlagStore flags;
+  quest::start(*reg.find("two_obj"), flags);
+
+  // One of two held — no advance.
+  flags["second_done"] = 1;
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("two_obj", flags) == 1);
+
+  // Both held (in the other order) — advances.
+  flags["first_done"] = 1;
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("two_obj", flags) == 2);
+}
+
+TEST_CASE("tick_quests: a chained auto-advance resolves one stage per tick, idempotently") {
+  quest::Registry reg;
+  quest::Quest q;
+  q.quest_id = "chain";
+  q.name = "Chain";
+  q.description = "";
+  q.stages.push_back({.name = "start",
+                      .sequence = 1,
+                      .objectives = {{.text = "A", .done_condition = *corundum::dialogue::compile("ready == 1")}},
+                      .auto_advance_to = "middle"});
+  q.stages.push_back({.name = "middle",
+                      .sequence = 2,
+                      .objectives = {{.text = "B", .done_condition = *corundum::dialogue::compile("ready == 1")}},
+                      .auto_advance_to = "complete"});
+  q.stages.push_back({.name = "complete", .sequence = 3, .resolved = true});
+  reg.add(std::move(q));
+
+  FlagStore flags;
+  quest::start(*reg.find("chain"), flags);
+  flags["ready"] = 1;
+
+  // One tick advances at most one stage (each quest is visited once per call).
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("chain", flags) == 2);
+
+  // The next tick picks up the now-current stage and advances again.
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("chain", flags) == 3);
+  CHECK(quest::lifecycle(*reg.find("chain"), flags) == quest::Lifecycle::Completed);
+
+  // Resolved quests are inert — later ticks never move them.
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("chain", flags) == 3);
+}
+
+TEST_CASE("validate: unknown auto_advance_to target is an error") {
+  auto q = make_test_quest();
+  q.stages[0].auto_advance_to = "no_such_stage";
+  const auto errors = quest::validate(q);
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("auto_advance_to") != std::string::npos);
+}
+
+TEST_CASE("validate: known auto_advance_to target passes") {
+  auto q = make_test_quest();
+  q.stages[0].auto_advance_to = "middle";
+  CHECK(quest::validate(q).empty());
+}
+
+TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)") {
+  const auto path = std::filesystem::path("../keystone/data/quests/ember_of_greyhollow.json");
+  if (!std::filesystem::exists(path)) {
+    MESSAGE("keystone checkout not present; skipping");
+    return;
+  }
+  quest::Registry reg;
+  const auto n_loaded = reg.load_all(path.parent_path());
+  REQUIRE(n_loaded >= 1);
+
+  const auto *q = reg.find("ember_of_greyhollow");
+  REQUIRE(q != nullptr);
+  for (const auto &stage : q->stages)
+    CHECK_FALSE(stage.auto_advance_to.has_value());
+
+  FlagStore flags;
+  flags["quest.ember_of_greyhollow"] = q->stages[0].sequence;
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("ember_of_greyhollow", flags) == q->stages[0].sequence);
+}
+
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
 TEST_CASE("serialize_quest round-trips through load_quest") {

@@ -1,3 +1,4 @@
+#include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
 
 #include <format>
@@ -67,6 +68,31 @@ namespace corundum::quest {
         result.push_back(&quest);
     }
     return result;
+  }
+
+  void tick_quests(const Registry &registry, corundum::world::FlagStore &flags, std::string_view zone_id) {
+    for (const auto &[id, quest] : registry) {
+      if (lifecycle(quest, flags) != Lifecycle::Active)
+        continue;
+      const auto *stage = current_stage(quest, flags);
+      if (stage == nullptr)
+        continue;
+      if (!stage->auto_advance_to.has_value())
+        continue;
+      const auto &target = *stage->auto_advance_to;
+
+      bool any_conditioned = false;
+      bool all_done = true;
+      for (const auto &obj : stage->objectives) {
+        if (!obj.done_condition.has_value())
+          continue;
+        any_conditioned = true;
+        if (!corundum::dialogue::evaluate(*obj.done_condition, flags, &registry, zone_id))
+          all_done = false;
+      }
+      if (any_conditioned && all_done)
+        advance(quest, target, flags);
+    }
   }
 
 } // namespace corundum::quest

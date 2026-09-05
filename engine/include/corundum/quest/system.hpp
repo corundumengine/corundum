@@ -87,4 +87,20 @@ namespace corundum::quest {
   [[nodiscard]] std::vector<const Quest *> active_quests(const Registry &registry,
                                                          const corundum::world::FlagStore &flags);
 
+  /**
+   * @brief Advance quests whose current stage's objectives are all satisfied.
+   *
+   * For each quest on an active (non-resolved) stage that carries an
+   * `auto_advance_to`, if that stage has at least one conditioned objective and
+   * every `done_condition` evaluates true (order-independent), advances to the
+   * named target stage. Stages without `auto_advance_to` (all keystone stages)
+   * are inert. Idempotent: once a quest resolves or its target stage's
+   * conditions stop holding, later calls are no-ops.
+   *
+   * @param registry The quest registry to scan.
+   * @param flags    Active FlagStore to mutate.
+   * @param zone_id  Current zone; `local.<key>` done_conditions resolve against it.
+   */
+  void tick_quests(const Registry &registry, corundum::world::FlagStore &flags, std::string_view zone_id = {});
+
 } // namespace corundum::quest

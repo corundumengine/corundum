@@ -32,6 +32,12 @@ namespace corundum::quest {
           errors.push_back(
               std::format(R"("{}": stage "{}" advances_to unknown stage "{}")", quest.quest_id, stage.name, target));
       }
+      const auto target = stage.auto_advance_to;
+      if (!target.has_value())
+        continue;
+      if (quest.find_stage(*target) == nullptr)
+        errors.push_back(
+            std::format(R"("{}": stage "{}" auto_advance_to unknown stage "{}")", quest.quest_id, stage.name, *target));
     }
 
     if (warnings != nullptr) {

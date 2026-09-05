@@ -11,6 +11,9 @@
 
 namespace corundum::dialogue {
 
+  /** @brief Current on-disk dialogue format version. Absent field == version 1. */
+  inline constexpr int k_dialogue_schema_version = 1;
+
   /**
    * @brief Classifies the role of a node in the dialogue graph.
    *
@@ -88,6 +91,8 @@ namespace corundum::dialogue {
    * without pointer instability across node vector reallocation.
    */
   struct Graph {
+    /** @brief On-disk format version; 1 for legacy files without the field. */
+    int schema_version = k_dialogue_schema_version;
     std::string graph_id;
     std::string speaker;
     std::vector<Node> nodes;

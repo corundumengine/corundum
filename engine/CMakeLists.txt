@@ -42,6 +42,7 @@ set(ENGINE_SOURCES
     src/quest/system.cpp
     src/quest/validate.cpp
     src/render/render_sys.cpp
+    src/save/save.cpp
     src/sprites/atlas_clips.cpp
     src/sprites/atlas_clips_loader.cpp
     src/sprites/atlas_clips_serializer.cpp

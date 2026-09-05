@@ -87,6 +87,8 @@ namespace corundum::dialogue {
     nlohmann::json j;
     j["type"] = "graph";
     j["id"] = graph.graph_id;
+    if (graph.schema_version != k_dialogue_schema_version)
+      j["schema_version"] = graph.schema_version;
 
     if (!graph.speaker.empty())
       j["speaker"] = graph.speaker;

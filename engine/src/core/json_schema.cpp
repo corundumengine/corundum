@@ -21,6 +21,7 @@ namespace corundum::core {
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "type": { "type": "string" },
+    "schema_version": { "type": "integer", "minimum": 1 },
     "speaker": { "type": "string" },
     "variables": { "type": "object" },
     "nodes": {
@@ -90,6 +91,7 @@ namespace corundum::core {
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "type": { "type": "string" },
+    "schema_version": { "type": "integer", "minimum": 1 },
     "name": { "type": "string", "minLength": 1 },
     "description": { "type": "string" },
     "stages": {
@@ -111,6 +113,7 @@ namespace corundum::core {
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },
+        "auto_advance_to": { "type": "string", "minLength": 1 },
         "objectives": {
           "type": "array",
           "items": { "$ref": "#/definitions/objective" }

@@ -222,6 +222,13 @@ namespace corundum::core {
     GameConfig cfg;
 
     {
+      auto res = get_nonempty_string(j, "game_id", cfg.game_id, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.game_id = std::move(*res);
+    }
+
+    {
       auto res = get_positive_float(j, "win_w", cfg.win_w, path);
       if (!res)
         return std::unexpected(res.error());

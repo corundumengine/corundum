@@ -20,6 +20,25 @@ namespace corundum::dialogue {
     using std::runtime_error::runtime_error;
   };
 
+  /// Parse the optional "schema_version" field. Absent -> legacy version 1.
+  static std::expected<int, std::string> parse_schema_version(const json &j, const std::string &path) {
+    if (!j.contains("schema_version"))
+      return 1;
+    if (!j["schema_version"].is_number_integer())
+      return std::unexpected(std::format("Dialogue '{}' field 'schema_version' must be an integer", path));
+    return j["schema_version"].get<int>();
+  }
+
+  /// Migrates a dialogue graph JSON object in place from @p from_version up to
+  /// k_dialogue_schema_version. No migrations exist yet — schema_version 1 is both
+  /// the legacy (absent-field) format and the current format, so this is a no-op
+  /// today. Future steps are appended in order and never edited once shipped.
+  static std::expected<void, std::string> migrate_graph_json(json & /*j*/, int from_version, const std::string &path) {
+    if (from_version < 1)
+      return std::unexpected(std::format("Dialogue '{}' has invalid schema_version {}", path, from_version));
+    return {};
+  }
+
   // ── Internal helpers ─────────────────────────────────────────────────────────
 
   static NodeType parse_type(const std::string &raw) {
@@ -132,13 +151,28 @@ namespace corundum::dialogue {
     if (!file)
       throw LoadError(std::format("cannot open dialogue file: {}", path));
 
-    const json root = [&file, &path] {
+    json root = [&file, &path] {
       try {
         return json::parse(file, nullptr, true, true);
       } catch (const json::exception &e) {
         throw LoadError(std::format("malformed JSON in {}: {}", path, e.what()));
       }
     }();
+
+    // ── Schema version (before validation so migrations run first) ──────────
+    auto version_result = parse_schema_version(root, path);
+    if (!version_result)
+      throw LoadError(std::move(version_result).error());
+    const int schema_version = *version_result;
+    if (schema_version > k_dialogue_schema_version)
+      throw LoadError(std::format("Dialogue '{}' has schema_version {}, newer than this engine supports (max {}) — "
+                                  "update the engine",
+                                  path, schema_version, k_dialogue_schema_version));
+    if (schema_version < k_dialogue_schema_version) {
+      auto mig = migrate_graph_json(root, schema_version, path);
+      if (!mig)
+        throw LoadError(std::move(mig).error());
+    }
 
     // ── Schema validation ────────────────────────────────────────────────────
     {
@@ -154,6 +188,7 @@ namespace corundum::dialogue {
 
     // Schema guarantees: id is present and non-empty.
     Graph graph;
+    graph.schema_version = schema_version;
     graph.graph_id = root["id"].get<std::string>();
 
     if (root.contains("speaker") && root["speaker"].is_string())

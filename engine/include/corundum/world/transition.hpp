@@ -3,6 +3,7 @@
 
 #include <expected>
 #include <string>
+#include <string_view>
 
 namespace corundum {
   struct Engine;
@@ -25,6 +26,26 @@ namespace corundum::world {
    */
   [[nodiscard]] std::expected<void, std::string> enter_world(corundum::Engine &engine,
                                                              const corundum::render::WorldLoadParams &params = {});
+
+  /** @brief Spawn the scene for a saved or transitioned location.
+   *
+   *  Reusable core of @ref handle_map_transition and @ref corundum::save::load_game:
+   *  rebuilds the scene at @p col, @p row in @p mode ("world" re-enters the
+   *  overworld via @ref enter_world; "single_map" loads @p id as a tilemap path and
+   *  spawns into it). When @p zone is non-empty it overwrites `scene.zone_id` after
+   *  the spawn (saves carry it explicitly); otherwise the spawn derives it.
+   *
+   *  @param[in,out] engine Fully-initialised application state.
+   *  @param[in]     mode   "world" or "single_map".
+   *  @param[in]     id     Tilemap path (single_map) or world manifest id (world; ignored).
+   *  @param[in]     zone   Zone id to force onto the new scene; empty = derive.
+   *  @param[in]     col    Player spawn tile column.
+   *  @param[in]     row    Player spawn tile row.
+   *  @return ok on success, or std::unexpected with an error message.
+   */
+  [[nodiscard]] std::expected<void, std::string> apply_spawn(corundum::Engine &engine, std::string_view mode,
+                                                             std::string_view id, std::string_view zone, float col,
+                                                             float row) noexcept;
 
   /** @brief Handle a pending map transition triggered by portal traversal.
    *

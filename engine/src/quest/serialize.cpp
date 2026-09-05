@@ -22,6 +22,8 @@ namespace corundum::quest {
         sj["failed"] = true;
       if (!s.advances_to.empty())
         sj["advances_to"] = s.advances_to;
+      if (s.auto_advance_to.has_value())
+        sj["auto_advance_to"] = *s.auto_advance_to;
 
       sj["objectives"] = nlohmann::json::array();
       for (const auto &obj : s.objectives)
@@ -36,6 +38,8 @@ namespace corundum::quest {
     nlohmann::json j;
     j["type"] = "quest";
     j["id"] = quest.quest_id;
+    if (quest.schema_version != k_quest_schema_version)
+      j["schema_version"] = quest.schema_version;
     j["name"] = quest.name;
     j["description"] = quest.description;
 

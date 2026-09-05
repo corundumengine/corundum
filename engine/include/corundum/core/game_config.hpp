@@ -93,6 +93,12 @@ namespace corundum::core {
   /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
   /// data together.
   struct GameConfig {
+    /** @brief Machine-readable id of the game this config belongs to.
+     *
+     *  Written into saves via `game_id` and compared on load to refuse loading
+     *  a save across games. Absent from game.json → empty string (no guard). */
+    std::string game_id;
+
     /** @brief Target frame rate for the simulation (in FPS). */
     unsigned framerate = 60;
 
