@@ -1,3 +1,10 @@
+# Developer tools: the tilesmith/spritesmith/loom GUI editors and the
+# headless mapview renderer. Each editor is a thin executable over
+# corundum::tool_host; C++23 arrives transitively through the target links,
+# while the warning policy is applied explicitly per-target below.
+
+include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
+
 # ── Tilesmith Editor ────────────────────────────────────────────────────────────
 add_executable(tilesmith
     editors/tilesmith/main.cpp
@@ -32,7 +39,7 @@ target_link_libraries(tilesmith
         corundum::tool_host
 )
 
-target_compile_options(tilesmith PRIVATE -Wall -Wextra -Wpedantic -Werror)
+corundum_enable_warnings(tilesmith)
 set_target_properties(tilesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Spritesmith Editor ──────────────────────────────────────────────────────────
@@ -58,10 +65,10 @@ target_link_libraries(spritesmith
         corundum::tool_host
 )
 
-target_compile_options(spritesmith PRIVATE -Wall -Wextra -Wpedantic -Werror)
+corundum_enable_warnings(spritesmith)
 set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
-# ── Loom Editor ───────────────────────────────────────────────────────────────────
+# ── Loom Editor ─────────────────────────────────────────────────────────────────
 add_executable(loom
     editors/loom/main.cpp
     editors/loom/file_io.cpp
@@ -82,13 +89,12 @@ target_link_libraries(loom
         corundum::tool_host
 )
 
-target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic -Werror)
+corundum_enable_warnings(loom)
 set_target_properties(loom PROPERTIES UNITY_BUILD OFF)
 
-# ── Mapview Tool (headless) ───────────────────────────────────────────────────────
+# ── Mapview Tool (headless) ─────────────────────────────────────────────────────
 # A CLI that renders a top-down overview PNG of a chunk-based world from its tilemaps.
-# Headless: links the engine's public parsing library (engine) for load_tilemap() and the
-# stb image/font headers — never the GLFW/sokol platform backend.
+# Links only the engine's parsing library (engine) + stb headers — no GLFW/sokol.
 add_executable(mapview
     mapview/mapview_main.cpp
 )
@@ -103,5 +109,6 @@ target_link_libraries(mapview
         engine
 )
 
-target_compile_options(mapview PRIVATE -Wall -Wextra -Wpedantic -Werror)
+corundum_use_cxx23(mapview)
+corundum_enable_warnings(mapview)
 set_target_properties(mapview PROPERTIES UNITY_BUILD OFF)

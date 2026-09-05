@@ -1,0 +1,4 @@
+# neocmakelsp lint configuration (used by the NeoCMake Zed extension and
+# neocmakelsp in other editors). Docs:
+#   https://neocmakelsp.github.io/docs/config.html
+line_max_words =  120

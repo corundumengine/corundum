@@ -5,130 +5,30 @@ project(
   LANGUAGES CXX OBJCXX
 )
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# ── ccache (auto-detect; transparent to the build) ──────────────────────────
+# ccache (auto-detect; transparent to the build)
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
   set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}" CACHE FILEPATH "ccache launcher for C++")
   set(CMAKE_OBJCXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}" CACHE FILEPATH "ccache launcher for Objective-C++")
 endif()
 
-# ── LLVM toolchain discovery ──────────────────────────────────────────────────
-# Resolve clang-format with HINTS so the build works whether or not Homebrew
-# LLVM is on PATH. The compiler itself is pinned in CMakePresets.json via
-# cmake/llvm-clang.cmake, which sets CMAKE_*_COMPILER_INIT before project().
-# clang-tidy is resolved by scripts/run_tidy.sh with the same search order.
-if(NOT DEFINED LLVM_PREFIX)
-  if(DEFINED ENV{LLVM_PREFIX})
-    set(LLVM_PREFIX "$ENV{LLVM_PREFIX}")
-  elseif(EXISTS "/opt/homebrew/opt/llvm/bin/clang-format")
-    set(LLVM_PREFIX "/opt/homebrew/opt/llvm")
-  elseif(EXISTS "/usr/local/opt/llvm/bin/clang-format")
-    set(LLVM_PREFIX "/usr/local/opt/llvm")
-  else()
-    set(LLVM_PREFIX "")
-  endif()
-endif()
-set(LLVM_PREFIX "${LLVM_PREFIX}" CACHE PATH "Homebrew LLVM install prefix")
-
-find_program(LLVM_CLANG_FORMAT clang-format
-    HINTS "${LLVM_PREFIX}/bin"
-    REQUIRED
-    DOC "clang-format from Homebrew LLVM")
-
-set(FETCHCONTENT_QUIET FALSE)
-include(FetchContent)
-
-# ── Options for consumer projects ──────────────────────────────────────────────
+# Options for consumer projects
 option(CORUNDUM_BUILD_TOOL_HOST "Build the ImGui+sokol host library for editor tools" ON)
 option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ON)
 option(CORUNDUM_BUILD_TESTS "Build unit tests" ON)
 option(CORUNDUM_BUILD_DOCS "Build Doxygen documentation" OFF)
 option(CORUNDUM_UNITY_BUILD "Enable Unity/Jumbo builds for faster compilation" ON)
 
-# ── Dependencies ───────────────────────────────────────────────────────────────
-# Disable Unity builds for third-party code — external headers often lack
-# include guards or mix C/ObjC/C++ sources that don't batch cleanly.
-set(CMAKE_UNITY_BUILD OFF)
+# Developer targets (format_code, build_docs). Included before Dependencies.cmake
+# so the REQUIRED clang-format check fails fast instead of after dependency fetches.
+include(cmake/FormatAndDocs.cmake)
+include(cmake/Dependencies.cmake)
 
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG        v3.12.0
-    GIT_SHALLOW    TRUE
-)
-FetchContent_MakeAvailable(nlohmann_json)
-
-FetchContent_Declare(
-    nlohmann_json_schema_validator
-    GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
-    GIT_TAG        2.4.0
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(nlohmann_json_schema_validator)
-
-FetchContent_Declare(
-    doctest
-    GIT_REPOSITORY https://github.com/doctest/doctest
-    GIT_TAG        v2.5.3
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(doctest)
-
-FetchContent_Declare(
-    imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        v1.92.9b
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(imgui)
-
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG        3.5.1
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-set(GLFW_BUILD_DOCS     OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(glfw)
-
-FetchContent_Declare(
-    freetype
-    GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git
-    GIT_TAG        VER-2-14-3
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(freetype)
-
-FetchContent_Declare(
-    sokol
-    GIT_REPOSITORY https://github.com/floooh/sokol.git
-    GIT_TAG        f26aaf6deeee5a4a07d83f3cd7151516bafa09ad # 29-Jul-2026
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(sokol)
-
-FetchContent_Declare(
-    stb
-    GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        31c1ad37456438565541f4919958214b6e762fb4
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(stb)
-
-# ── Engine and tools ───────────────────────────────────────────────────────────
-# Unity/Jumbo builds for first-party code only.
+# First-party targets
+# Unity/Jumbo builds for first-party code only (third-party is excluded in
+# Dependencies.cmake). Targets that don't batch cleanly opt out individually.
 if(CORUNDUM_UNITY_BUILD)
   set(CMAKE_UNITY_BUILD ON)
   set(CMAKE_UNITY_BUILD_BATCH_SIZE 8)
@@ -142,64 +42,6 @@ if(CORUNDUM_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 
-# ── Formatting & linting ───────────────────────────────────────────────────────
-# clang-tidy lives in scripts/run_tidy.sh (takes an explicit file list, so the
-# per-file diagnostics you get from clangd in the editor stay the primary flow).
-if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
-  file(GLOB_RECURSE FORMAT_SOURCES
-        "engine/src/**/*.cpp"
-        "engine/include/corundum/**/*.hpp"
-        "tests/*.cpp"
-        "tool_host/**/*.cpp"
-        "tool_host/**/*.hpp"
-        "tools/editors/**/*.cpp"
-        "tools/editors/**/*.hpp"
-        "tools/mapview/**/*.cpp"
-        "tools/mapview/**/*.hpp"
-        "tools/platform/**/*.cpp"
-        "tools/platform/**/*.hpp"
-    )
-  add_custom_target(format_code
-        COMMAND ${LLVM_CLANG_FORMAT} -i ${FORMAT_SOURCES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Running ${LLVM_CLANG_FORMAT} on all source files"
-        VERBATIM
-    )
-endif()
-
-# ── Documentation ────────────────────────────────────────────────────────────
-if(CORUNDUM_BUILD_DOCS)
-  find_program(DOXYGEN_EXECUTABLE doxygen)
-  if(DOXYGEN_EXECUTABLE)
-    FetchContent_Declare(
-        doxygen_awesome_css
-        GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css.git
-        GIT_TAG        v2.4.2
-        GIT_SHALLOW    TRUE
-        GIT_PROGRESS   TRUE
-    )
-    FetchContent_MakeAvailable(doxygen_awesome_css)
-
-    set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Doxyfile.in ${DOXYGEN_OUT} @ONLY)
-    add_custom_target(build_docs
-          COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-          COMMAND ${CMAKE_COMMAND} -E copy_if_different
-              ${CMAKE_CURRENT_SOURCE_DIR}/misc/logo.png
-              ${CMAKE_BINARY_DIR}/docs/html/misc/logo.png
-          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-          COMMENT "Generating Doxygen API documentation for engine/"
-          VERBATIM
-      )
-  else()
-    add_custom_target(build_docs
-          COMMAND ${CMAKE_COMMAND} -E echo
-              "doxygen not found — install it to use this target"
-      )
-  endif()
-endif()
-
-# ── Tests ─────────────────────────────────────────────────────────────────────
 include(CTest)
 if(CORUNDUM_BUILD_TESTS)
   add_subdirectory(tests)

@@ -1,52 +1,62 @@
+# Unit tests (doctest). The suite links engine_platform_null + doctest only —
+# never GLFW/ImGui/sokol. `engine` arrives transitively via the null backend's
+# PUBLIC link, so listing it here too would emit the duplicate-library warning.
+
+include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
+
 enable_testing()
 
-# The test executable
-add_executable(corundum_tests
+# All first-party test translation units. test_font_atlas.cpp is gated
+# separately below (it compiles an internal engine header directly).
+set(TEST_SOURCES
     main.cpp
     test_actions.cpp
-    test_collision.cpp
-    test_dialogue.cpp
-    test_quest.cpp
-    test_item_loader.cpp
+    test_anim_sys.cpp
+    test_atlas_clips.cpp
     test_audio.cpp
-    test_spawn_points.cpp
-    test_portals.cpp
-    test_transition_prompt.cpp
-    test_sprite.cpp
-    test_game_config.cpp
-    test_word_wrap.cpp
-    test_tilemap_loader.cpp
+    test_camera_system.cpp
     test_character_sheet_loader.cpp
     test_character_sheet_serializer.cpp
-    test_sprite_atlas_loader.cpp
-    test_atlas_clips.cpp
-    test_world_manifest.cpp
-    test_world_transition.cpp
-    test_iso_math.cpp
+    test_chunk_collision_aggregate.cpp
+    test_collision.cpp
+    test_debug_overlay.cpp
+    test_dialogue.cpp
     test_elevation_at.cpp
-    test_tilemap_validate.cpp
+    test_elevation_gate.cpp
+    test_engine_events.cpp
+    test_engine_lifecycle.cpp
+    test_entity.cpp
+    test_files.cpp
+    test_follow_path.cpp
+    test_game_config.cpp
+    test_iso_math.cpp
+    test_item_loader.cpp
+    test_json_schema.cpp
+    test_layer_presets.cpp
     test_material_at.cpp
-    test_walkability.cpp
-    test_picking.cpp
     test_pathfinding.cpp
     test_pathfinding_world.cpp
-    test_follow_path.cpp
-    test_anim_sys.cpp
-    test_camera_system.cpp
-    test_entity.cpp
-    test_engine_events.cpp
-    test_render_state.cpp
-    test_engine_lifecycle.cpp
-    test_chunk_collision_aggregate.cpp
-    test_debug_overlay.cpp
-    test_elevation_gate.cpp
-    test_portal_elevation.cpp
+    test_picking.cpp
     test_picking_elevation.cpp
-    test_layer_presets.cpp
-    test_files.cpp
+    test_portal_elevation.cpp
+    test_portals.cpp
+    test_quest.cpp
+    test_render_state.cpp
+    test_spawn_points.cpp
+    test_sprite.cpp
+    test_sprite_atlas_loader.cpp
+    test_tilemap_loader.cpp
+    test_tilemap_validate.cpp
+    test_transition_prompt.cpp
     test_ui_draw.cpp
-    test_json_schema.cpp
+    test_walkability.cpp
+    test_word_wrap.cpp
+    test_world_manifest.cpp
+    test_world_transition.cpp
 )
+
+# The test executable
+add_executable(corundum_tests ${TEST_SOURCES})
 
 # FontAtlas tests reach into the internal engine/src/platform/glfw header and
 # compile font_atlas.cpp directly so the test target doesn't drag in the full
@@ -71,8 +81,6 @@ endif()
 # Link to engine and doctest. engine_platform_null is also pulled in so the
 # lifecycle tests can adopt a null Window/GpuContext/Renderer — it adds no
 # runtime cost for the rest of the suite because no other test touches it.
-# `engine` itself is brought in transitively via engine_platform_null's PUBLIC
-# link, so listing it here too would emit the duplicate-library warning.
 target_link_libraries(corundum_tests
     PRIVATE
         engine_platform_null
@@ -81,14 +89,16 @@ target_link_libraries(corundum_tests
 
 # Tilesmith-only test (test_picking_elevation) needs to read the editor's coord helpers.
 target_include_directories(corundum_tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/tools/editors/tilesmith
+    ${PROJECT_SOURCE_DIR}/tools/editors/tilesmith
 )
 
-target_compile_options(corundum_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+# C++23 + warning policy propagate from engine_platform_null; keep them explicit.
+corundum_use_cxx23(corundum_tests)
+corundum_enable_warnings(corundum_tests)
 
 # Tell the lifecycle tests where to find their hand-crafted fixtures.
 target_compile_definitions(corundum_tests PRIVATE
-    CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures"
+    CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/tests/fixtures"
 )
 
 # Multiple test files share identical helper functions (write_file, temp_dir)
@@ -97,4 +107,4 @@ set_target_properties(corundum_tests PROPERTIES UNITY_BUILD OFF)
 
 # Enable CTest integration
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
-doctest_discover_tests(corundum_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+doctest_discover_tests(corundum_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
