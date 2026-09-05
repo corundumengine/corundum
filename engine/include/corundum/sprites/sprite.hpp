@@ -34,12 +34,17 @@ namespace corundum::sprites {
   inline constexpr uint8_t k_num_anim_ids = static_cast<uint8_t>(AnimId::Count);
 
   /// Canonical string names for each AnimId, indexed by AnimId value.
+  // NOLINTBEGIN(readability-trailing-comma)
+  // clang-format folds the brace so the list spans two lines while all elements stay on one line;
+  // the trailing-comma check then demands a comma there, but with the comma present clang-format
+  // moves the closing brace to its own line and the check demands its removal — an irreconcilable
+  // disagreement between the two tools, so suppress the check for this declaration.
   inline constexpr std::array<std::string_view, k_num_anim_ids> k_anim_names = {
-      "default", "north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest",
-  };
+      "default", "north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"};
+  // NOLINTEND(readability-trailing-comma)
 
   /// Resolves an animation name to its AnimId; returns AnimId::Count if unknown.
-  [[nodiscard]] inline constexpr AnimId anim_name_to_id(std::string_view name) noexcept {
+  [[nodiscard]] constexpr AnimId anim_name_to_id(std::string_view name) noexcept {
     if (name == "default")
       return AnimId::Default;
     if (name == "north")
@@ -83,14 +88,14 @@ namespace corundum::sprites {
 
   /// Total rendered pixel width for a sprite occupying col_span grid columns.
   /// @pre col_span >= 1
-  [[nodiscard]] inline constexpr int rendered_frame_width(int col_span, int frame_width, int spacing_x) noexcept {
-    return col_span * frame_width + (col_span - 1) * spacing_x;
+  [[nodiscard]] constexpr int rendered_frame_width(int col_span, int frame_width, int spacing_x) noexcept {
+    return (col_span * frame_width) + ((col_span - 1) * spacing_x);
   }
 
   /// Total rendered pixel height for a sprite occupying row_span grid rows.
   /// @pre row_span >= 1
-  [[nodiscard]] inline constexpr int rendered_frame_height(int row_span, int frame_height, int spacing_y) noexcept {
-    return row_span * frame_height + (row_span - 1) * spacing_y;
+  [[nodiscard]] constexpr int rendered_frame_height(int row_span, int frame_height, int spacing_y) noexcept {
+    return (row_span * frame_height) + ((row_span - 1) * spacing_y);
   }
 
   /** @brief Integer pixel-space point. */
@@ -109,9 +114,9 @@ namespace corundum::sprites {
    *  @param col       Frame column index.
    *  @param row       Frame row index.
    *  @return The {x, y} origin of the frame cell in image pixel space. */
-  [[nodiscard]] inline constexpr IntPoint frame_origin(int offset_x, int offset_y, int frame_w, int frame_h,
-                                                       int spacing_x, int spacing_y, int col, int row) noexcept {
-    return {offset_x + col * (frame_w + spacing_x), offset_y + row * (frame_h + spacing_y)};
+  [[nodiscard]] constexpr IntPoint frame_origin(int offset_x, int offset_y, int frame_w, int frame_h, int spacing_x,
+                                                int spacing_y, int col, int row) noexcept {
+    return {.x = offset_x + (col * (frame_w + spacing_x)), .y = offset_y + (row * (frame_h + spacing_y))};
   }
 
   /** @brief Compute the pixel-space top-left origin of a frame within the sheet's grid.
@@ -119,7 +124,7 @@ namespace corundum::sprites {
    *  @param fc    Frame coordinate (column, row) within the sheet.
    *  @return The {x, y} origin of the frame in image pixel space.
    *  @note Delegates to the raw-parameter overload. */
-  [[nodiscard]] inline constexpr IntPoint frame_origin(const SpriteSheet &sheet, FrameCoord fc) noexcept {
+  [[nodiscard]] constexpr IntPoint frame_origin(const SpriteSheet &sheet, FrameCoord fc) noexcept {
     return frame_origin(sheet.offset_x, sheet.offset_y, sheet.frame_width, sheet.frame_height, sheet.spacing_x,
                         sheet.spacing_y, fc.col, fc.row);
   }

@@ -91,9 +91,9 @@ namespace corundum::render {
    * game entity creation per the layer dependency rules.
    */
   struct WorldLoadInfo {
-    float half_tw;
-    float half_th;
-    float x_origin;
+    float half_tw{};
+    float half_th{};
+    float x_origin{};
     corundum::core::math::Vec2 spawn_world_pos;
   };
 
@@ -168,13 +168,6 @@ namespace corundum::render {
    * @param[in]     cfg    Game config for portal path resolution.
    * @return True if a chunk was loaded, false if nothing to do.
    */
-  /// Elevation of the tile under (col_f, row_f); resolves world-mode chunk ownership as needed.
-  /// Returns 0 if no tilemap is loaded there. Definition/full docs in render_sys.cpp.
-  float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept;
-
-  bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
-                              const corundum::core::GameConfig &cfg);
-
   /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
    *
    * In world mode looks up the owning chunk via the active-chunk window and returns
@@ -187,6 +180,9 @@ namespace corundum::render {
    * @return Tile elevation (≥0) at the queried position; 0 when out of bounds.
    */
   [[nodiscard]] float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept;
+
+  bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
+                              const corundum::core::GameConfig &cfg);
 
   /** @brief Rebuild the world-mode aggregated collision rects and triangles from active chunks.
    *

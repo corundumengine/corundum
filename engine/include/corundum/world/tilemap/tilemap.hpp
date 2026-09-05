@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace corundum::world::tilemap {
@@ -120,7 +121,7 @@ namespace corundum::world::tilemap {
 
     /// Tile GID at (col, row); undefined behaviour if out of bounds.
     [[nodiscard]] TileId at(int col, int row, int width) const noexcept {
-      return tiles[static_cast<std::size_t>(row * width + col)];
+      return tiles[(static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col)];
     }
 
     /// Populates baked_flip_flags / baked_animation_index / baked_animations from flip_flags and
@@ -135,14 +136,14 @@ namespace corundum::world::tilemap {
 
       baked_flip_flags.assign(n, uint8_t{0});
       for (const auto &[idx, flags] : flip_flags)
-        if (idx >= 0 && static_cast<std::size_t>(idx) < n)
+        if (idx >= 0 && std::cmp_less(idx, n))
           baked_flip_flags[static_cast<std::size_t>(idx)] = flags;
 
       baked_animation_index.assign(n, k_no_animation);
       baked_animations.clear();
       baked_animations.reserve(animated_cells.size());
       for (const auto &[idx, anim] : animated_cells) {
-        if (idx < 0 || static_cast<std::size_t>(idx) >= n)
+        if (idx < 0 || std::cmp_greater_equal(idx, n))
           continue;
         baked_animation_index[static_cast<std::size_t>(idx)] = static_cast<uint32_t>(baked_animations.size());
         baked_animations.push_back(anim);
@@ -150,8 +151,7 @@ namespace corundum::world::tilemap {
 
       max_elevation = 0;
       for (const auto e : elevation)
-        if (e > max_elevation)
-          max_elevation = e;
+        max_elevation = std::max(e, max_elevation);
     }
   };
 
@@ -177,7 +177,7 @@ namespace corundum::world::tilemap {
       else
         break;
     }
-    if (!result)
+    if (result == nullptr)
       return nullptr;
     const int local_id = static_cast<int>(gid) - static_cast<int>(result->first_gid);
     if (local_id >= result->tile_count)
@@ -199,7 +199,7 @@ namespace corundum::world::tilemap {
     if (local_id < 0 || static_cast<std::size_t>(local_id) >= info.tile_pivot_x.size())
       return {};
     const auto i = static_cast<std::size_t>(local_id);
-    return {info.tile_pivot_x[i], info.tile_pivot_y[i]};
+    return {.x = info.tile_pivot_x[i], .y = info.tile_pivot_y[i]};
   }
 
   /// A tile's placement data relative to its own full (untrimmed) frame: how far the sampled,
@@ -218,7 +218,12 @@ namespace corundum::world::tilemap {
     if (local_id < 0 || static_cast<std::size_t>(local_id) >= info.tile_trim_x.size())
       return {};
     const auto i = static_cast<std::size_t>(local_id);
-    return {info.tile_trim_x[i], info.tile_trim_y[i], info.tile_full_width[i], info.tile_full_height[i]};
+    return {
+        .trim_x = info.tile_trim_x[i],
+        .trim_y = info.tile_trim_y[i],
+        .full_width = info.tile_full_width[i],
+        .full_height = info.tile_full_height[i],
+    };
   }
 
   /// Returns the source rect in the tileset texture for @p gid — spritepacker already trims and
@@ -257,7 +262,7 @@ namespace corundum::world::tilemap {
     std::span<const float> row_spans; ///< Vertical extents in tiles.
     /// Per-rect elevation [0–255], same semantics as TilemapLayer::elevation; empty means
     /// "no elevation data for any rect in this view" and disables elevation filtering entirely.
-    std::span<const uint8_t> elevations{};
+    std::span<const uint8_t> elevations;
 
     /// Number of rects in the view.
     [[nodiscard]] std::size_t size() const noexcept {
@@ -282,6 +287,9 @@ namespace corundum::world::tilemap {
     std::vector<uint8_t> elevations; ///< Per-rect elevation [0–255]; see CollisionRectsView.
 
     /// Append one collision rect in tile-grid space.
+    // elevation (uint8_t) sits next to float row_span; both are required so the append keeps the
+    // SoA layout, and the two types are only convertible by implicit narrowing which callers avoid.
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void push_back(float col, float row, float col_span, float row_span, uint8_t elevation = 0) {
       cols.push_back(col);
       rows.push_back(row);
@@ -297,7 +305,7 @@ namespace corundum::world::tilemap {
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionRectsView view() const noexcept {
-      return {cols, rows, col_spans, row_spans, elevations};
+      return {.cols = cols, .rows = rows, .col_spans = col_spans, .row_spans = row_spans, .elevations = elevations};
     }
 
     /// Remove the rect at index @p i in O(1) via swap-and-pop. Order is not preserved.
@@ -335,7 +343,7 @@ namespace corundum::world::tilemap {
     std::span<const float> row_spans;  ///< Vertical extents in tiles.
     std::span<const TriangleCut> cuts; ///< Which corner is empty.
     /// Per-triangle elevation [0–255]; empty disables elevation filtering. See CollisionRectsView.
-    std::span<const uint8_t> elevations{};
+    std::span<const uint8_t> elevations;
 
     /// Number of triangles in the view.
     [[nodiscard]] std::size_t size() const noexcept {
@@ -374,7 +382,14 @@ namespace corundum::world::tilemap {
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionTrianglesView view() const noexcept {
-      return {cols, rows, col_spans, row_spans, cuts, elevations};
+      return {
+          .cols = cols,
+          .rows = rows,
+          .col_spans = col_spans,
+          .row_spans = row_spans,
+          .cuts = cuts,
+          .elevations = elevations,
+      };
     }
 
     /// Remove the triangle at index @p i in O(1) via swap-and-pop. Order is not preserved.
@@ -433,7 +448,7 @@ namespace corundum::world::tilemap {
     /// 2D mdspan view over @p layer's tile grid — rows × cols layout. Lives on Tilemap
     /// (not TilemapLayer) since width/height are Tilemap-owned; layer doesn't self-construct.
     /// @pre &layer must belong to this Tilemap's layers, and layer.tiles.size() == width * height.
-    [[nodiscard]] auto layer_view(TilemapLayer &layer) noexcept {
+    [[nodiscard]] auto layer_view(TilemapLayer &layer) const noexcept {
       return std::mdspan<TileId, std::dextents<std::size_t, 2>>(layer.tiles.data(), static_cast<std::size_t>(height),
                                                                 static_cast<std::size_t>(width));
     }
@@ -477,7 +492,7 @@ namespace corundum::world::tilemap {
     if (!in_bounds(tm, col, row))
       return 0;
     const auto uidx =
-        static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
+        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width)) + static_cast<std::size_t>(col);
     int result = 0;
     for (const auto &layer : tm.layers) {
       if (layer.z_index != 0 || !layer.visible)
@@ -509,7 +524,7 @@ namespace corundum::world::tilemap {
     if (!in_bounds(tm, col, row))
       return std::nullopt;
     const std::size_t uidx =
-        static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
+        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width)) + static_cast<std::size_t>(col);
     std::optional<RampAxis> result;
     for (const auto &layer : tm.layers) {
       if (layer.z_index != 0 || !layer.visible)
@@ -519,7 +534,7 @@ namespace corundum::world::tilemap {
           layer.animated_cells.contains(idx) || (uidx < layer.tiles.size() && layer.tiles[uidx] != k_empty_tile);
       if (!has_tile)
         continue;
-      if (auto it = layer.ramps.find(idx); it != layer.ramps.end())
+      if (const auto it = layer.ramps.find(idx); it != layer.ramps.end())
         result = it->second;
       else
         result = std::nullopt;
@@ -580,7 +595,7 @@ namespace corundum::world::tilemap {
     if (!in_bounds(tm, col, row))
       return {};
     const std::size_t uidx =
-        static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
+        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width)) + static_cast<std::size_t>(col);
     if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
       return {};
     const int idx = static_cast<int>(uidx);
@@ -594,14 +609,15 @@ namespace corundum::world::tilemap {
       if (!is_animated && layer.tiles[uidx] == k_empty_tile)
         continue;
 
-      if (auto it = layer.material_overrides.find(idx); it != layer.material_overrides.end()) {
+      if (const auto it = layer.material_overrides.find(idx); it != layer.material_overrides.end()) {
         result = it->second;
         continue;
       }
-      const TileId gid =
-          is_animated ? (layer.animated_cells.at(idx).frame_gids.empty() ? k_empty_tile
-                                                                         : layer.animated_cells.at(idx).frame_gids[0])
-                      : layer.tiles[uidx];
+      TileId gid = layer.tiles[uidx];
+      if (is_animated) {
+        const auto &frames = layer.animated_cells.at(idx).frame_gids;
+        gid = frames.empty() ? k_empty_tile : frames[0];
+      }
       if (const TilemapTileset *ts = find_tileset(tm.tilesets, gid); ts != nullptr)
         result = ts->info.material;
     }

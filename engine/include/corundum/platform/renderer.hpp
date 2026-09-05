@@ -23,7 +23,7 @@ namespace corundum::platform {
     std::string_view text;
     core::math::Vec2 position;
     uint32_t char_size;
-    core::math::Colour colour{255, 255, 255, 255};
+    core::math::Colour colour{.r = 255, .g = 255, .b = 255, .a = 255};
   };
 
   /// Filled axis-aligned rectangle draw command.
@@ -37,7 +37,7 @@ namespace corundum::platform {
   struct DrawLine {
     core::math::Vec2 start;
     core::math::Vec2 end;
-    core::math::Colour colour{255, 255, 255, 255};
+    core::math::Colour colour{.r = 255, .g = 255, .b = 255, .a = 255};
     float thickness{1.f};
   };
 

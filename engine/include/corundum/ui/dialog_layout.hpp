@@ -17,10 +17,15 @@ namespace corundum::ui {
     core::math::Vec2 panel_pos{};
     core::math::Vec2 panel_size{};
     float inset{0.f};
+    // NOLINTBEGIN(readability-redundant-member-init)
+    // These default member initializers are required: build_layout designated-initializes
+    // DialogLayout, and -Wmissing-designated-field-initializers (compiled with -Werror) demands
+    // every field carry an explicit default initializer.
     std::string_view speaker{};                ///< Graph-level speaker name.
     std::vector<std::string> body_lines{};     ///< Wrapped body text (Talk nodes).
     std::vector<std::string> choice_lines{};   ///< One label per visible choice.
     std::vector<std::size_t> choice_indices{}; ///< choice_lines[i] → node.choices[j].
+    // NOLINTEND(readability-redundant-member-init)
     int selected_choice{0};
     dialogue::NodeType node_type{dialogue::NodeType::End};
   };
@@ -40,6 +45,9 @@ namespace corundum::ui {
   /// @param quests        Quest registry for quest-gated choice conditions. Optional —
   ///                      defaults to nullptr; null is safe and renders all quest-gated
   ///                      choices as not-satisfied.
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
+  // margin/panel_height_frac are both viewport-scaled floats; a value struct would over-abstract
+  // this single call site.
   template <typename MeasureFn>
   [[nodiscard]] DialogLayout build_layout(const dialogue::State &state, const corundum::world::FlagStore &flags,
                                           float margin, float panel_height_frac, int border_tile_w,
@@ -48,14 +56,14 @@ namespace corundum::ui {
     const float panel_h = viewport.y * panel_height_frac;
     const float panel_y = viewport.y - panel_h - margin;
     const float panel_x = margin;
-    const float panel_w = viewport.x - margin * 2.f;
+    const float panel_w = viewport.x - (margin * 2.f);
     const float inset = std::max(margin, static_cast<float>(border_tile_w));
 
     const dialogue::Node *node = state.graph->find(state.current_id);
 
     DialogLayout layout{
-        .panel_pos = {panel_x, panel_y},
-        .panel_size = {panel_w, panel_h},
+        .panel_pos = {.x = panel_x, .y = panel_y},
+        .panel_size = {.x = panel_w, .y = panel_h},
         .inset = inset,
         .selected_choice = state.selected_choice,
         .node_type = node ? node->type : dialogue::NodeType::End,
@@ -64,14 +72,14 @@ namespace corundum::ui {
     if (!node)
       return layout;
 
-    const float text_w = panel_w - inset * 2.f;
+    const float text_w = panel_w - (inset * 2.f);
 
     layout.speaker = state.graph->speaker;
 
     if (node->type == dialogue::NodeType::Talk) {
       layout.body_lines = ui::wrap_text(node->text, text_w, measure);
     } else if (node->type == dialogue::NodeType::Choice) {
-      const float choice_w = panel_w - inset * 3.f;
+      const float choice_w = panel_w - (inset * 3.f);
       layout.choice_indices = dialogue::visible_choices(*node, flags, state.graph->graph_id, quests);
       layout.choice_lines.reserve(layout.choice_indices.size());
       for (const std::size_t idx : layout.choice_indices) {
@@ -82,5 +90,7 @@ namespace corundum::ui {
 
     return layout;
   }
+
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
 } // namespace corundum::ui

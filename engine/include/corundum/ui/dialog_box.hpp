@@ -23,11 +23,11 @@ namespace corundum::ui {
     float margin{20.f};
     float line_spacing{32.f};
     float panel_height_frac{0.32f};
-    core::math::Colour bg{0, 0, 0, 200};
-    core::math::Colour speaker{255, 255, 0, 255};
-    core::math::Colour body{255, 255, 255, 255};
-    core::math::Colour choice{200, 200, 200, 255};
-    core::math::Colour selected{255, 255, 0, 255};
+    core::math::Colour bg{.r = 0, .g = 0, .b = 0, .a = 200};
+    core::math::Colour speaker{.r = 255, .g = 255, .b = 0, .a = 255};
+    core::math::Colour body{.r = 255, .g = 255, .b = 255, .a = 255};
+    core::math::Colour choice{.r = 200, .g = 200, .b = 200, .a = 255};
+    core::math::Colour selected{.r = 255, .g = 255, .b = 0, .a = 255};
   };
 
   /// All mutable dialogue-box state — pure data, no behaviour.
@@ -37,10 +37,10 @@ namespace corundum::ui {
     DialogBoxStyle style{};
     NinePatchBorder border{};
     bool visible{false};
-    std::string last_graph_id{};
-    std::string last_node_id{};
+    std::string last_graph_id;
+    std::string last_node_id;
     float last_panel_w{0.f};
-    std::optional<DialogLayout> layout{};
+    std::optional<DialogLayout> layout;
   };
 
   /// Recompute layout if the current node, graph, or panel dimensions changed, then mark visible.

@@ -12,12 +12,13 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace corundum::render {
 
   /** @brief Tracks whether the renderer is in map or world mode. */
-  enum class RenderMode { None, SingleMap, World };
+  enum class RenderMode : uint8_t { None, SingleMap, World };
 
   /** @brief Result of a sprite-id / anim-id / frame-index lookup.
    *
@@ -36,9 +37,9 @@ namespace corundum::render {
 
     /// Lookup result: texture id, source rect, and walk_around_offset.
     struct Entry {
-      uint32_t tex_id;
+      uint32_t tex_id{};
       corundum::core::math::IntRect src;
-      float walk_offset;
+      float walk_offset{};
     };
 
     /** @brief Look up the texture ID, source rect, and walk offset for a given frame.
@@ -63,18 +64,18 @@ namespace corundum::render {
   struct ChunkEntry {
     corundum::world::tilemap::ChunkCoord coord{};
     corundum::world::tilemap::Tilemap tilemap{};
-    std::vector<uint32_t> tileset_texture_ids{};
-    std::vector<int> above_z{};
-    std::vector<corundum::world::Portal> portals{};
+    std::vector<uint32_t> tileset_texture_ids;
+    std::vector<int> above_z;
+    std::vector<corundum::world::Portal> portals;
   };
 
   /** @brief Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
   struct DepthEntry {
-    uint32_t tex_id;
+    uint32_t tex_id{};
     corundum::core::math::IntRect src;
-    float x;
-    float y;
-    float depth;
+    float x{};
+    float y{};
+    float depth{};
     float scale = 1.f;
     bool flip_x = false;
     bool flip_y = false;
@@ -125,7 +126,7 @@ namespace corundum::render {
     [[nodiscard]] int32_t slot_at_offset(int dx, int dy) const noexcept {
       if (dx < -1 || dx > 1 || dy < -1 || dy > 1)
         return -1;
-      return slot_by_offset_[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))];
+      return slot_by_offset_[(static_cast<std::size_t>(dy + 1) * 3) + static_cast<std::size_t>(dx + 1)];
     }
 
     /// Add a freshly loaded chunk to the active set. Always marks dirty.
@@ -138,7 +139,7 @@ namespace corundum::render {
     /// @return true if any chunk was removed.
     template <typename Keep> bool prune_active(Keep &&keep) {
       const std::size_t before = active_.size();
-      std::erase_if(active_, [&](const ChunkEntry &e) { return !keep(e); });
+      std::erase_if(active_, [&](const ChunkEntry &e) { return !std::forward<Keep>(keep)(e); });
       if (active_.size() != before) {
         dirty_ = true;
         return true;
@@ -175,7 +176,8 @@ namespace corundum::render {
         const int dx = active_[i].coord.col - last_center_.col;
         const int dy = active_[i].coord.row - last_center_.row;
         if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
-          slot_by_offset_[static_cast<std::size_t>((dy + 1) * 3 + (dx + 1))] = static_cast<int32_t>(i);
+          slot_by_offset_[(static_cast<std::size_t>(dy + 1) * 3) + static_cast<std::size_t>(dx + 1)] =
+              static_cast<int32_t>(i);
       }
     }
 
@@ -205,7 +207,7 @@ namespace corundum::render {
     corundum::world::tilemap::CollisionRects agg_collisions{};
     /// Aggregated portal buffer for world mode — cleared and repopulated by build_map_view
     /// then returned as a span via MapView. Single-map mode passes map_data.portals directly.
-    std::vector<corundum::world::Portal> agg_portals{};
+    std::vector<corundum::world::Portal> agg_portals;
     corundum::world::tilemap::CollisionTriangles agg_triangles{};
     /// Aggregated walkability graph spanning the active chunk window (world mode only).
     /// Rebuilt by rebuild_world_walkability() alongside agg_collisions; stays empty in
@@ -222,11 +224,11 @@ namespace corundum::render {
     RenderMode mode{RenderMode::None};
     SpriteFrameIndex sprite_index;
 
-    std::vector<int> above_z_cache{};
-    std::vector<DepthEntry> draw_list{};
+    std::vector<int> above_z_cache;
+    std::vector<DepthEntry> draw_list;
     /** @brief Indices into draw_list, sorted by depth each frame. Reused across frames
      *  (resized, never freed) so the depth sort touches no per-frame heap allocation. */
-    std::vector<uint32_t> draw_order{};
+    std::vector<uint32_t> draw_order;
 
     /** @brief Previous-frame camera x for render interpolation. */
     float prev_cam_x{0.f};
@@ -261,10 +263,10 @@ namespace corundum::render {
    */
   [[nodiscard]] inline CollisionGeometry current_collisions(const RenderState &rs) noexcept {
     if (rs.mode == RenderMode::World) {
-      return {rs.agg_collisions.view(), rs.agg_triangles.view()};
+      return {.rects = rs.agg_collisions.view(), .tris = rs.agg_triangles.view()};
     }
     if (rs.mode == RenderMode::SingleMap) {
-      return {rs.map_data.tilemap.collisions.view(), rs.map_data.tilemap.collision_triangles.view()};
+      return {.rects = rs.map_data.tilemap.collisions.view(), .tris = rs.map_data.tilemap.collision_triangles.view()};
     }
     return {};
   }
