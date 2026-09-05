@@ -29,9 +29,9 @@ namespace corundum::dialogue {
    * @brief Cross-check quest_is_started/quest_is_resolved/quest_is_failed/quest_is_at
    * references inside choice-edge condition expressions against @p quests.
    *
-   * This is a static token scan, not a full expression parse — it locates quest-helper
-   * calls in condition strings and verifies the quest id (and, for quest_is_at, the
-   * stage name) exist. Messages are node-scoped, matching validate_quest_refs.
+   * Operates on the refs() collected by each condition's compiled expression —
+   * the same grammar used at load, so there is no second parser to drift from
+   * the real one. Messages are node-scoped, matching validate_quest_refs.
    *
    * @param graph  A loaded dialogue graph.
    * @param quests Registry to validate quest ids and stage names against.

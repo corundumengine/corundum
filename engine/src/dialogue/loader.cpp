@@ -1,5 +1,6 @@
 #include <corundum/core/json_schema.hpp>
 #include <corundum/dialogue/action.hpp>
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/dialogue/loader.hpp>
 
@@ -93,7 +94,10 @@ namespace corundum::dialogue {
           const std::string cond = arr[i]["condition"].get<std::string>();
           if (cond.empty())
             throw LoadError(std::format("[{}] \"condition\" must not be empty if present", edge_ctx));
-          edge.condition = cond;
+          auto compiled = compile(cond);
+          if (!compiled)
+            throw LoadError(std::format("[{}] condition invalid: {}", edge_ctx, compiled.error().message));
+          edge.condition = std::move(*compiled);
         }
 
         if (arr[i].contains("actions")) {

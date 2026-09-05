@@ -35,15 +35,16 @@ namespace corundum::platform::null {
 
     void end_frame() override {}
 
-    void draw(const DrawSprite &/*cmd*/) override {}
+    void draw(const DrawSprite & /*cmd*/) override {}
 
-    void draw(const DrawText &/*cmd*/) override {}
+    void draw(const DrawText & /*cmd*/) override {}
 
-    void draw(const DrawRect &/*cmd*/) override {}
+    void draw(const DrawRect & /*cmd*/) override {}
 
-    void draw(const DrawLine &/*cmd*/) override {}
+    void draw(const DrawLine & /*cmd*/) override {}
 
-    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text, uint32_t /*char_size*/) const override {
+    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text,
+                                     uint32_t /*char_size*/) const override {
       return static_cast<float>(text.size()) * k_glyph_advance_px;
     }
 

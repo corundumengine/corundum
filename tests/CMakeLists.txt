@@ -20,6 +20,7 @@ set(TEST_SOURCES
     test_character_sheet_serializer.cpp
     test_chunk_collision_aggregate.cpp
     test_collision.cpp
+    test_compiled_expr.cpp
     test_debug_overlay.cpp
     test_dialogue.cpp
     test_elevation_at.cpp

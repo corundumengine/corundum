@@ -2,6 +2,8 @@
 #include "graph_layout.hpp"
 #include "node_type_traits.hpp"
 
+#include <corundum/dialogue/compiled_expr.hpp>
+
 #include <algorithm>
 #include <cstring>
 #include <format>
@@ -226,27 +228,31 @@ namespace tools::loom {
 
         char local_cond[256];
         if (ch.condition) {
-          copy_to_buf(*ch.condition, local_cond, sizeof(local_cond));
+          copy_to_buf(std::string(ch.condition->source()), local_cond, sizeof(local_cond));
         } else {
           local_cond[0] = '\0';
         }
         ImGui::InputText("Condition", local_cond, sizeof(local_cond));
         if (ImGui::IsItemDeactivatedAfterEdit()) {
           state.push_undo_snapshot();
-          std::string cond_str = from_buf(local_cond);
-          if (cond_str.empty())
+          const std::string cond_str = from_buf(local_cond);
+          if (cond_str.empty()) {
             ch.condition.reset();
-          else
-            ch.condition = std::move(cond_str);
-          state.dirty = true;
+            state.dirty = true;
+          } else if (auto compiled = corundum::dialogue::compile(cond_str)) {
+            ch.condition = std::move(*compiled);
+            state.dirty = true;
+          }
         }
         if (state.quests_loaded_) {
           std::string cond_before = from_buf(local_cond);
           render_quest_condition_quick_add(state, local_cond, sizeof(local_cond));
           std::string cond_after = from_buf(local_cond);
           if (cond_after != cond_before) {
-            ch.condition = std::move(cond_after);
-            state.dirty = true;
+            if (auto compiled = corundum::dialogue::compile(cond_after)) {
+              ch.condition = std::move(*compiled);
+              state.dirty = true;
+            }
           }
         }
 

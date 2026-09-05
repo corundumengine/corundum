@@ -18,6 +18,7 @@ set(ENGINE_SOURCES
     src/core/json_schema.cpp
     src/debug/debug_overlay.cpp
     src/dialogue/action.cpp
+    src/dialogue/compiled_expr.cpp
     src/dialogue/expr.cpp
     src/dialogue/interact.cpp
     src/dialogue/loader.cpp

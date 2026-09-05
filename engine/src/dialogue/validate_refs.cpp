@@ -1,7 +1,7 @@
 #include <corundum/dialogue/action.hpp>
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/validate_refs.hpp>
 
-#include <cctype>
 #include <format>
 #include <variant>
 
@@ -37,19 +37,6 @@ namespace corundum::dialogue {
       }
     }
 
-    bool is_ident_start(char c) noexcept {
-      return std::isalpha(static_cast<unsigned char>(c)) != 0 || c == '_';
-    }
-
-    bool is_ident_char(char c) noexcept {
-      return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_';
-    }
-
-    bool is_quest_helper(const std::string &ident) noexcept {
-      return ident == "quest_is_started" || ident == "quest_is_resolved" || ident == "quest_is_failed" ||
-             ident == "quest_is_at";
-    }
-
   } // namespace
 
   std::vector<std::string> validate_quest_refs(const Graph &graph, const quest::Registry &quests,
@@ -72,71 +59,19 @@ namespace corundum::dialogue {
 
     for (const auto &node : graph.nodes) {
       for (const auto &choice : node.choices) {
-        if (!choice.condition || choice.condition->empty())
+        if (!choice.condition)
           continue;
-        const std::string &cond = *choice.condition;
-        const std::size_t n = cond.size();
-        std::size_t i = 0;
 
-        while (i < n) {
-          if (!is_ident_start(cond[i])) {
-            ++i;
-            continue;
-          }
-
-          const std::size_t ident_start = i;
-          while (i < n && is_ident_char(cond[i]))
-            ++i;
-          const std::string ident = cond.substr(ident_start, i - ident_start);
-
-          if (!is_quest_helper(ident))
-            continue;
-
-          std::size_t j = i;
-          while (j < n && std::isspace(static_cast<unsigned char>(cond[j])) != 0)
-            ++j;
-          if (j >= n || cond[j] != '(')
-            continue; // not a call — leave to the expression evaluator
-          ++j;
-          while (j < n && std::isspace(static_cast<unsigned char>(cond[j])) != 0)
-            ++j;
-          if (j >= n || !is_ident_start(cond[j]))
-            continue; // malformed call — leave to the expression evaluator
-
-          const std::size_t quest_start = j;
-          while (j < n && is_ident_char(cond[j]))
-            ++j;
-          const std::string quest_id = cond.substr(quest_start, j - quest_start);
-
+        const auto refs = choice.condition->refs();
+        for (const auto &quest_id : refs.quest_ids) {
+          if (quests.find(quest_id) == nullptr)
+            errors.push_back(std::format("node '{}': condition references unknown quest '{}'", node.id, quest_id));
+        }
+        for (const auto &[quest_id, stage_name] : refs.quest_stages) {
           const auto *q = quests.find(quest_id);
-          if (!q) {
-            errors.push_back(std::format("node '{}': {} references unknown quest '{}'", node.id, ident, quest_id));
-            i = j;
-            continue;
-          }
-
-          if (ident == "quest_is_at") {
-            std::size_t k = j;
-            while (k < n && std::isspace(static_cast<unsigned char>(cond[k])) != 0)
-              ++k;
-            if (k < n && cond[k] == ',') {
-              ++k;
-              while (k < n && std::isspace(static_cast<unsigned char>(cond[k])) != 0)
-                ++k;
-              if (k < n && is_ident_start(cond[k])) {
-                const std::size_t stage_start = k;
-                while (k < n && is_ident_char(cond[k]))
-                  ++k;
-                const std::string stage_name = cond.substr(stage_start, k - stage_start);
-                if (!q->find_stage(stage_name))
-                  errors.push_back(std::format("node '{}': quest_is_at references unknown stage '{}' in '{}'", node.id,
-                                               stage_name, quest_id));
-                j = k;
-              }
-            }
-          }
-
-          i = j;
+          if (q != nullptr && q->find_stage(stage_name) == nullptr)
+            errors.push_back(std::format("node '{}': quest_is_at references unknown stage '{}' in '{}'", node.id,
+                                         stage_name, quest_id));
         }
       }
     }

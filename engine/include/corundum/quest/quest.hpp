@@ -1,5 +1,7 @@
 #pragma once
 
+#include <corundum/dialogue/compiled_expr.hpp>
+
 #include <optional>
 #include <string>
 #include <string_view>
@@ -11,8 +13,13 @@ namespace corundum::quest {
   struct Objective {
     /** @brief Journal text displayed for this objective. */
     std::string text;
-    /** @brief Optional expression evaluated against FlagStore to auto-check this objective. */
-    std::optional<std::string> done_condition = std::nullopt;
+    /**
+     * @brief Optional compiled expression that auto-checks this objective.
+     *
+     * Compiled once at load; quest loaders reject expressions that do not
+     * compile. An absent condition means the objective is journal-display only.
+     */
+    std::optional<dialogue::CompiledExpr> done_condition = std::nullopt;
   };
 
   /** @brief A point in a quest's progress, keyed by a sequence integer in FlagStore. */

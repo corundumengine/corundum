@@ -1,9 +1,8 @@
 #pragma once
 
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/world/flags.hpp>
 #include <expected>
-#include <string>
-#include <string_view>
 
 namespace corundum::quest {
   class Registry;
@@ -12,29 +11,16 @@ namespace corundum::quest {
 namespace corundum::dialogue {
 
   /**
-   * @brief Describes a condition expression parse or evaluation failure.
-   */
-  struct ExprError {
-    std::string message;
-  };
-
-  /**
-   * @brief Evaluate a boolean condition expression against a variable store.
+   * @brief Evaluate a boolean condition expression string against a variable store.
    *
-   * Supported syntax:
-   *   - Integer literals: 5, -3
-   *   - Boolean literals: true, false
-   *   - Identifiers: resolved via visit_count() against vars (missing = 0)
-   *   - Comparison: ==, !=, <, >, <=, >=
-   *   - Boolean: &&, ||, !
-   *   - Parentheses: (expr)
-   *   - Quest helpers: quest_is_started(id), quest_is_resolved(id),
-   *     quest_is_failed(id), quest_is_at(id, stage)
-   *   - Item / reputation helpers: has_item(id), item_count(id), rep(faction)
-   *     (all resolve against the "item.<id>" / "rep.<faction>" FlagStore keys)
+   * Thin shim over compile() → evaluate() kept for callers that hold condition
+   * strings (e.g. tests). Content loads compile once into a CompiledExpr and
+   * evaluate that instead — see compiled_expr.hpp. An empty expression always
+   * returns true; a malformed one yields an ExprError (never a silent false).
    *
-   * An empty expression always returns true (unconditionally visible).
-   * Comparing a variable with true/false uses truthiness (non-zero == true).
+   * Supported syntax is unchanged from before the split: integers, booleans,
+   * bare flag keys, comparisons, &&/||/!, parentheses, and the quest / item /
+   * reputation helpers.
    *
    * @param expr The condition string to evaluate.
    * @param vars Variable values resolved via visit_count().

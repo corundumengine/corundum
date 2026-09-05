@@ -1,4 +1,5 @@
 #include <corundum/core/json_schema.hpp>
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/loader.hpp>
 
 #include <algorithm>
@@ -18,12 +19,17 @@ namespace corundum::quest {
 
     constexpr std::string_view k_ctx = "quest";
 
-    static Objective parse_objective(const json &obj_json) {
+    static Objective parse_objective(const json &obj_json, const std::string &ctx) {
       // Schema guarantees: text is present and non-empty.
       Objective obj;
       obj.text = obj_json["text"].get<std::string>();
-      if (obj_json.contains("done_condition"))
-        obj.done_condition = obj_json["done_condition"].get<std::string>();
+      if (obj_json.contains("done_condition")) {
+        const std::string cond = obj_json["done_condition"].get<std::string>();
+        auto compiled = dialogue::compile(cond);
+        if (!compiled)
+          throw LoadError(std::format("[{}] done_condition invalid: {}", ctx, compiled.error().message));
+        obj.done_condition = std::move(*compiled);
+      }
       return obj;
     }
 
@@ -47,7 +53,7 @@ namespace corundum::quest {
       // Schema guarantees: objectives is present.
       const auto &objs = j["objectives"];
       for (std::size_t i = 0; i < objs.size(); ++i)
-        stage.objectives.push_back(parse_objective(objs[i]));
+        stage.objectives.push_back(parse_objective(objs[i], std::format("{} objective[{}]", ctx, i)));
 
       if (j.contains("advances_to")) {
         for (const auto &target : j["advances_to"])

@@ -21,7 +21,7 @@ namespace corundum::platform::null {
       open_ = false;
     }
 
-    void poll_game_input(corundum::input::InputState &/*input*/) override {}
+    void poll_game_input(corundum::input::InputState & /*input*/) override {}
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void resize(unsigned width, unsigned height) override {

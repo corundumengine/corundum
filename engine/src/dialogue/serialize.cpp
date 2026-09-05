@@ -37,7 +37,7 @@ namespace corundum::dialogue {
       cj["label"] = ch.label;
       cj["target"] = ch.target_id;
       if (ch.condition.has_value())
-        cj["condition"] = *ch.condition;
+        cj["condition"] = ch.condition->source();
       if (!ch.actions.empty())
         cj["actions"] = ch.actions;
       if (const auto *seq = sequence_str(ch.sequence))

@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/core/json_io.hpp>
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/loader.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/quest/runner.hpp>
@@ -45,7 +46,8 @@ namespace {
         .objectives =
             {
                 {.text = "Bare objective", .done_condition = std::nullopt},
-                {.text = "Conditioned objective", .done_condition = "ember_tracks_found >= 1"},
+                {.text = "Conditioned objective",
+                 .done_condition = *corundum::dialogue::compile("ember_tracks_found >= 1")},
             },
     });
     q.stages.push_back({.name = "complete", .sequence = 2, .resolved = true});
@@ -56,6 +58,20 @@ namespace {
 } // namespace
 
 // ── Loader ────────────────────────────────────────────────────────────────────
+
+TEST_CASE("quest loader: malformed done_condition is a load error") {
+  const std::string tmp = "tests/fixtures/_test_bad_done_condition.json";
+  {
+    std::ofstream f(tmp);
+    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+      {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":"gold >="}]}
+    ]})";
+  }
+  auto result = quest::load_quest(tmp);
+  CHECK_FALSE(result.has_value());
+  CHECK(result.error().find("done_condition invalid") != std::string::npos);
+  std::filesystem::remove(tmp);
+}
 
 TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
   const auto result = quest::load_quest("tests/fixtures/find_sword.json");

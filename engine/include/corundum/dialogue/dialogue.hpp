@@ -1,5 +1,7 @@
 #pragma once
 
+#include <corundum/dialogue/compiled_expr.hpp>
+
 #include <cstdint>
 #include <flat_map>
 #include <optional>
@@ -38,10 +40,11 @@ namespace corundum::dialogue {
     std::string label;     ///< Displayed to the player.
     std::string target_id; ///< ID of the destination node.
 
-    /// Optional boolean expression evaluated against the FlagStore.
-    /// The edge is hidden when the expression evaluates to false.
-    /// An absent or empty condition means the edge is always visible.
-    std::optional<std::string> condition = std::nullopt;
+    /// Optional compiled boolean expression evaluated against the FlagStore.
+    /// The edge is hidden when the expression evaluates to false. An absent
+    /// condition means the edge is always visible. Compiled once at load —
+    /// loaders reject expressions that do not compile.
+    std::optional<CompiledExpr> condition = std::nullopt;
 
     /// Action strings executed when this edge is taken.
     /// State mutations are applied immediately; engine hook calls are returned

@@ -1,4 +1,4 @@
-#include <corundum/dialogue/expr.hpp>
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/query.hpp>
 
 #include <algorithm>
@@ -99,17 +99,10 @@ namespace corundum::dialogue {
       }
 
       // ── Condition expression ─────────────────────────────────────────────────
+      // Compiled at load; evaluation cannot fail (malformed expressions are
+      // rejected when the graph loads, not silently hidden here).
       if (!edge.condition
-               .transform([&](const std::string &cond) -> bool {
-                 if (cond.empty())
-                   return true;
-                 auto r = eval_condition(cond, flags, quests);
-                 if (!r.has_value()) {
-                   std::println(stderr, "[dialogue] condition eval failed '{}': {}", cond, r.error().message);
-                   return false;
-                 }
-                 return *r;
-               })
+               .transform([&](const CompiledExpr &compiled) -> bool { return evaluate(compiled, flags, quests); })
                .value_or(true))
         continue;
 

@@ -236,7 +236,7 @@ namespace {
     n.type = NodeType::Choice;
     n.choices = {
         {.label = "Always.", .target_id = "a"},
-        {.label = "Secret.", .target_id = "b", .condition = "quest_is_at(ember, done)"},
+        {.label = "Secret.", .target_id = "b", .condition = *compile("quest_is_at(ember, done)")},
     };
     g.id_to_index[n.id] = 0;
     g.nodes.push_back(std::move(n));

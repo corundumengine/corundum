@@ -8,7 +8,7 @@ namespace corundum::quest {
       nlohmann::json oj;
       oj["text"] = obj.text;
       if (obj.done_condition.has_value())
-        oj["done_condition"] = *obj.done_condition;
+        oj["done_condition"] = obj.done_condition->source();
       return oj;
     }
 

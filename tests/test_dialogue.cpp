@@ -59,10 +59,10 @@ static corundum::dialogue::Graph make_innkeeper_graph() {
     n.choices = {
         {.label = "I need a room.",
          .target_id = "n_pay",
-         .condition = "gold >= 5 && !paid_innkeeper",
+         .condition = *compile("gold >= 5 && !paid_innkeeper"),
          .actions = {"gold -= 5", "paid_innkeeper = true"},
          .sequence = SequenceMode::Once},
-        {.label = "I need a room.", .target_id = "n_already_paid", .condition = "paid_innkeeper == true"},
+        {.label = "I need a room.", .target_id = "n_already_paid", .condition = *compile("paid_innkeeper == true")},
         {.label = "Just passing through.", .target_id = "n_bye"},
     };
     push(std::move(n));
@@ -343,8 +343,8 @@ TEST_CASE("visible_choices: condition gates on expression") {
   n.type = corundum::dialogue::NodeType::Choice;
   n.choices = {
       {.label = "Always.", .target_id = "a"},
-      {.label = "Need gold.", .target_id = "b", .condition = "gold >= 5"},
-      {.label = "Already paid.", .target_id = "c", .condition = "paid == true"},
+      {.label = "Need gold.", .target_id = "b", .condition = *corundum::dialogue::compile("gold >= 5")},
+      {.label = "Already paid.", .target_id = "c", .condition = *corundum::dialogue::compile("paid == true")},
   };
 
   corundum::world::FlagStore flags;
@@ -661,7 +661,7 @@ TEST_CASE("visible_choices: quest-gated choice hidden (not errored) when registr
   n.type = NodeType::Choice;
   n.choices = {
       {.label = "Always.", .target_id = "a"},
-      {.label = "Gated by quest stage.", .target_id = "b", .condition = "quest_is_at(ember, done)"},
+      {.label = "Gated by quest stage.", .target_id = "b", .condition = *compile("quest_is_at(ember, done)")},
   };
 
   corundum::world::FlagStore flags;
@@ -682,7 +682,7 @@ TEST_CASE("visible_choices: quest-gated choice shown when registry present and s
   n.type = NodeType::Choice;
   n.choices = {
       {.label = "Always.", .target_id = "a"},
-      {.label = "Gated by quest stage.", .target_id = "b", .condition = "quest_is_at(ember, done)"},
+      {.label = "Gated by quest stage.", .target_id = "b", .condition = *compile("quest_is_at(ember, done)")},
   };
 
   corundum::world::FlagStore flags;
@@ -728,10 +728,10 @@ TEST_CASE("load_graph parses innkeeper.json correctly") {
   REQUIRE(n1 != nullptr);
   CHECK(n1->type == corundum::dialogue::NodeType::Choice);
   CHECK(n1->choices.size() == 3);
-  CHECK(n1->choices[0].condition == "gold >= 5 && !paid_innkeeper");
+  CHECK(n1->choices[0].condition->source() == "gold >= 5 && !paid_innkeeper");
   CHECK(n1->choices[0].actions[0] == "gold -= 5");
   CHECK(n1->choices[0].sequence == corundum::dialogue::SequenceMode::Once);
-  CHECK(n1->choices[1].condition == "paid_innkeeper == true");
+  CHECK(n1->choices[1].condition->source() == "paid_innkeeper == true");
 
   const auto *n_pay = corundum::dialogue::find_node(g, "n_pay");
   REQUIRE(n_pay != nullptr);
@@ -751,6 +751,22 @@ TEST_CASE("load_graph returns error for missing file") {
   const auto result = corundum::dialogue::load_graph("no_such_file.json");
   CHECK_FALSE(result.has_value());
   CHECK_FALSE(result.error().empty());
+}
+
+TEST_CASE("load_graph rejects a dialogue with a malformed condition") {
+  const std::string tmp = "tests/fixtures/_test_bad_condition.json";
+  {
+    std::ofstream f(tmp);
+    f << R"({"type":"graph","id":"bad_cond","nodes":[
+      {"id":"n0","type":"choice","choices":[
+        {"label":"L","target":"end","condition":"gold >="}
+      ]}
+    ]})";
+  }
+  const auto result = corundum::dialogue::load_graph(tmp);
+  CHECK_FALSE(result.has_value());
+  CHECK(result.error().find("condition invalid") != std::string::npos);
+  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("validate_quest_refs: give_item/take_item unknown item produces error") {
@@ -798,6 +814,57 @@ TEST_CASE("validate_quest_refs: null items registry skips item checks") {
   CHECK(errors.empty());
 }
 
+TEST_CASE("validate_condition_quest_refs flags an unknown quest") {
+  using namespace corundum::dialogue;
+
+  Graph g;
+  g.graph_id = "gate";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Choice;
+  n.choices = {
+      {.label = "Always.", .target_id = "a"},
+      {.label = "Gated.", .target_id = "b", .condition = *compile("quest_is_at(missing, nope)")},
+  };
+  g.nodes.push_back(std::move(n));
+
+  corundum::quest::Registry quests;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({"start", 1, false, false, {}});
+  quests.add(std::move(q));
+
+  const auto errors = validate_condition_quest_refs(g, quests);
+  REQUIRE(errors.size() == 1);
+  CHECK(errors[0].find("unknown quest 'missing'") != std::string::npos);
+}
+
+TEST_CASE("validate_condition_quest_refs flags an unknown stage for a known quest") {
+  using namespace corundum::dialogue;
+
+  Graph g;
+  g.graph_id = "gate";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Choice;
+  n.choices = {
+      {.label = "Gated.", .target_id = "b", .condition = *compile("quest_is_at(ember, missing_stage)")},
+  };
+  g.nodes.push_back(std::move(n));
+
+  corundum::quest::Registry quests;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({"start", 1, false, false, {}});
+  quests.add(std::move(q));
+
+  const auto errors = validate_condition_quest_refs(g, quests);
+  REQUIRE(errors.size() == 1);
+  CHECK(errors[0].find("unknown stage 'missing_stage'") != std::string::npos);
+}
+
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
 TEST_CASE("serialize_graph round-trips through load_graph") {
@@ -829,7 +896,7 @@ TEST_CASE("serialize_graph round-trips through load_graph") {
   REQUIRE(n1 != nullptr);
   CHECK(n1->type == corundum::dialogue::NodeType::Choice);
   CHECK(n1->choices.size() == 3);
-  CHECK(n1->choices[0].condition == "gold >= 5 && !paid_innkeeper");
+  CHECK(n1->choices[0].condition->source() == "gold >= 5 && !paid_innkeeper");
   CHECK(n1->choices[0].actions[0] == "gold -= 5");
   CHECK(n1->choices[0].sequence == corundum::dialogue::SequenceMode::Once);
 

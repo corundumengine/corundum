@@ -1,4 +1,4 @@
-#include <corundum/dialogue/expr.hpp>
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
 
@@ -40,10 +40,8 @@ namespace corundum::quest {
     result.reserve(stage->objectives.size());
     for (const auto &obj : stage->objectives) {
       bool done = false;
-      if (obj.done_condition.has_value()) {
-        const auto eval = dialogue::eval_condition(*obj.done_condition, flags, quests);
-        done = eval.has_value() && *eval;
-      }
+      if (obj.done_condition.has_value())
+        done = dialogue::evaluate(*obj.done_condition, flags, quests);
       result.push_back(ObjectiveView{.text = obj.text, .done = done, .has_condition = obj.done_condition.has_value()});
     }
     return result;

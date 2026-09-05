@@ -2,6 +2,7 @@
 #include "graph_layout.hpp"
 #include "validate_quest_refs.hpp"
 
+#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/quest.hpp>
 
 #include <format>
@@ -181,17 +182,19 @@ namespace tools::loom {
         char obj_cond_buf[256];
         std::memset(obj_cond_buf, 0, sizeof(obj_cond_buf));
         if (obj.done_condition)
-          std::memcpy(obj_cond_buf, obj.done_condition->c_str(),
-                      std::min(obj.done_condition->size(), sizeof(obj_cond_buf) - 1));
+          std::memcpy(obj_cond_buf, std::string(obj.done_condition->source()).c_str(),
+                      std::min(obj.done_condition->source().size(), sizeof(obj_cond_buf) - 1));
         ImGui::InputText("Done Condition", obj_cond_buf, sizeof(obj_cond_buf));
         if (ImGui::IsItemDeactivatedAfterEdit()) {
           state.push_undo_snapshot();
           std::string cond_str = std::string(obj_cond_buf);
-          if (cond_str.empty())
+          if (cond_str.empty()) {
             obj.done_condition.reset();
-          else
-            obj.done_condition = std::move(cond_str);
-          state.dirty = true;
+            state.dirty = true;
+          } else if (auto compiled = corundum::dialogue::compile(cond_str)) {
+            obj.done_condition = std::move(*compiled);
+            state.dirty = true;
+          }
         }
 
         if (ImGui::SmallButton("X##obj")) {
