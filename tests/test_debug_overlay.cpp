@@ -78,10 +78,10 @@ TEST_CASE("HudOverlay::render on NullRenderer draws without crashing and updates
   engine.hud.smoothed_fps = 0.f;
 
   const corundum::debug::OverlayInput input{
-      .render_state = engine.render,
-      .cfg = engine.cfg,
-      .scene = engine.scene,
-      .timer = engine.timer,
+      .render_state = &engine.render,
+      .cfg = &engine.cfg,
+      .scene = &engine.scene,
+      .timer = &engine.timer,
   };
 
   engine.hud.render(*engine.renderer, input);
@@ -103,10 +103,10 @@ TEST_CASE("HudOverlay::render is a no-op on the renderer when smoothed_fps start
   engine.hud.smoothed_fps = 50.f; // pre-existing EMA value
 
   const corundum::debug::OverlayInput input{
-      .render_state = engine.render,
-      .cfg = engine.cfg,
-      .scene = engine.scene,
-      .timer = engine.timer,
+      .render_state = &engine.render,
+      .cfg = &engine.cfg,
+      .scene = &engine.scene,
+      .timer = &engine.timer,
   };
 
   engine.hud.render(*engine.renderer, input);
@@ -128,10 +128,10 @@ TEST_CASE("HudOverlay::render handles a zero last_frame_dt without dividing by z
   engine.hud.smoothed_fps = 30.f;
 
   const corundum::debug::OverlayInput input{
-      .render_state = engine.render,
-      .cfg = engine.cfg,
-      .scene = engine.scene,
-      .timer = engine.timer,
+      .render_state = &engine.render,
+      .cfg = &engine.cfg,
+      .scene = &engine.scene,
+      .timer = &engine.timer,
   };
 
   engine.hud.render(*engine.renderer, input);

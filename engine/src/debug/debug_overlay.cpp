@@ -241,10 +241,10 @@ namespace corundum::debug {
   }
 
   void HudOverlay::render(platform::Renderer &r, const OverlayInput &input) noexcept {
-    const render::RenderState &render = input.render_state;
-    const core::GameConfig &cfg = input.cfg;
-    const world::Scene &scene = input.scene;
-    const core::time::LoopTimer &timer = input.timer;
+    const render::RenderState &render = *input.render_state;
+    const core::GameConfig &cfg = *input.cfg;
+    const world::Scene &scene = *input.scene;
+    const core::time::LoopTimer &timer = *input.timer;
 
     const core::math::Vec2 viewport{cfg.win_w, cfg.win_h};
     const core::math::Vec2 camera{scene.camera.x, scene.camera.y};

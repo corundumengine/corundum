@@ -3,6 +3,7 @@
 #include <corundum/entities/entity.hpp>
 #include <limits>
 #include <span>
+#include <utility>
 
 namespace corundum::entities {
 
@@ -50,7 +51,7 @@ namespace corundum::entities {
       const auto slot = count;
       sparse[i] = slot;
       entities[slot] = e;
-      write(slot);
+      std::forward<Fn>(write)(slot);
       ++count;
     }
 
@@ -66,7 +67,7 @@ namespace corundum::entities {
         const EntityId last_e = entities[last];
         sparse[last_e.index] = slot;
         entities[slot] = last_e;
-        swap(slot, last);
+        std::forward<Fn>(swap)(slot, last);
       }
       sparse[i] = k_invalid;
       --count;

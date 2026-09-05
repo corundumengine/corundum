@@ -19,7 +19,7 @@ namespace corundum::quest {
    */
   class Runner {
   public:
-    Runner(const Registry &registry, corundum::world::FlagStore &flags) noexcept : registry_(registry), flags_(flags) {}
+    Runner(const Registry &registry, corundum::world::FlagStore &flags) noexcept : registry_(&registry), flags_(&flags) {}
 
     /** @brief Start a quest by id.
      *  @return ok on success, or an error if @p quest_id is not in the registry. */
@@ -30,8 +30,8 @@ namespace corundum::quest {
     [[nodiscard]] std::expected<void, std::string> advance(std::string_view quest_id, std::string_view stage_name);
 
   private:
-    const Registry &registry_;
-    corundum::world::FlagStore &flags_;
+    const Registry *registry_;
+    corundum::world::FlagStore *flags_;
   };
 
 } // namespace corundum::quest

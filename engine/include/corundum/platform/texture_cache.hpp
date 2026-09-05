@@ -32,7 +32,7 @@ namespace corundum::platform {
   };
 
   /** @brief Texture wrap mode for the sampler. */
-  enum class WrapMode { Clamp, Repeat };
+  enum class WrapMode : std::uint8_t { Clamp, Repeat };
 
   /** @brief Thread-safe texture registry backed by sokol_gfx.
    *

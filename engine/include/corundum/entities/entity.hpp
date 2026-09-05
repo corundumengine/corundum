@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <numeric>
+#include <ranges>
 
 namespace corundum::entities {
 
@@ -44,7 +45,7 @@ namespace corundum::entities {
    */
   struct EntityManager {
     /** @brief Free list stores raw indices. */
-    std::array<std::uint32_t, k_max_entities> free_list_raw;
+    std::array<std::uint32_t, k_max_entities> free_list_raw{};
 
     /** @brief Per-slot generation counter; incremented on each destroy(). */
     std::array<std::uint32_t, k_max_entities> generations{};
@@ -54,7 +55,7 @@ namespace corundum::entities {
 
     /** @brief Initialises the pool so create() hands out IDs 0, 1, 2, … */
     EntityManager() noexcept {
-      std::iota(free_list_raw.rbegin(), free_list_raw.rend(), std::uint32_t{0});
+      std::ranges::iota(std::views::reverse(free_list_raw), std::uint32_t{0});
       generations.fill(1);
     }
 
@@ -65,7 +66,7 @@ namespace corundum::entities {
     [[nodiscard]] EntityId create() noexcept {
       assert(free_count > 0 && "Entity pool exhausted");
       const std::uint32_t idx = free_list_raw[--free_count];
-      return {idx, generations[idx]};
+      return {.index = idx, .generation = generations[idx]};
     }
 
     /** @brief Return id to the free list for reuse.

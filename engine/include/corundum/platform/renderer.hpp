@@ -9,10 +9,10 @@ namespace corundum::platform {
 
   /// Textured quad draw command.
   struct DrawSprite {
-    uint32_t texture_id;
+    uint32_t texture_id{};
     core::math::Vec2 position;
     core::math::IntRect source;
-    core::math::Vec2 scale{1.f, 1.f};
+    core::math::Vec2 scale{.x = 1.f, .y = 1.f};
     bool flip_x{false};
     bool flip_y{false};
   };

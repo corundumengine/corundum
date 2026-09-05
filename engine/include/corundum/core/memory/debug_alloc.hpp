@@ -1,12 +1,12 @@
 #pragma once
+#include <exception>
 #include <print>
 #include <source_location>
-#include <stacktrace>
 #include <string_view>
 
 namespace corundum::core::memory {
 
-  /** @brief Log an allocation failure with location and stack trace.
+  /** @brief Log an allocation failure with source location.
    *
    * Intended for use in debug builds to diagnose unexpected allocation failures
    * during frame updates. Prints to stderr and calls std::terminate in debug
@@ -21,11 +21,9 @@ namespace corundum::core::memory {
    *     log_allocation_failure(result.error());
    * @endcode
    */
-  [[noreturn]] inline void
-  log_allocation_failure(std::string_view msg,
-                         const std::source_location &loc = std::source_location::current()) noexcept {
+  [[noreturn]] inline void log_allocation_failure(std::string_view msg,
+                                                  const std::source_location &loc = std::source_location::current()) {
     std::println(stderr, "[alloc] FAILURE at {}:{} ({}): {}", loc.file_name(), loc.line(), loc.function_name(), msg);
-    std::println(stderr, "{}", std::stacktrace::current());
     std::terminate();
   }
 

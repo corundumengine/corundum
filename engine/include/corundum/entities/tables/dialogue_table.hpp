@@ -3,6 +3,7 @@
 #include <array>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <corundum/entities/tables/table_concepts.hpp>
+#include <ranges>
 #include <string_view>
 
 namespace corundum::entities {
@@ -76,13 +77,13 @@ namespace corundum::entities {
     [[nodiscard]] std::string_view get_graph_id(EntityId e) const noexcept {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
-      return std::string_view(graph_id[slot].data(), graph_id_len[slot]);
+      return {graph_id[slot].data(), graph_id_len[slot]};
     }
 
   private:
     void set_id(std::uint32_t slot, std::string_view id) noexcept {
       const auto len = std::min(id.size(), k_max_id_len - 1);
-      std::copy_n(id.data(), len, graph_id[slot].data());
+      std::ranges::copy(id | std::views::take(len), graph_id[slot].begin());
       graph_id[slot][len] = '\0';
       graph_id_len[slot] = len;
     }

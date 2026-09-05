@@ -101,7 +101,7 @@ namespace corundum::entities {
     [[nodiscard]] uint8_t frame_count(EntityId e, corundum::sprites::AnimId aid) const noexcept {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
-      return frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids +
+      return frame_counts[(static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids) +
                           static_cast<uint8_t>(aid)];
     }
 

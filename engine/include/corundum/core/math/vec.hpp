@@ -390,10 +390,12 @@ namespace corundum::core::math {
   [[nodiscard]] constexpr IsometricCullBounds
   compute_isometric_cull_bounds(float left, float top, float right, float bottom, const IsometricParams &iso) noexcept {
     if (iso.half_tw <= 0.f || iso.half_th <= 0.f) {
-      return {.depth_min = std::numeric_limits<int>::min() / 2,
-              .depth_max = std::numeric_limits<int>::max() / 2,
-              .u_min = -1e30f,
-              .u_max = 1e30f};
+      return {
+          .depth_min = std::numeric_limits<int>::min() / 2,
+          .depth_max = std::numeric_limits<int>::max() / 2,
+          .u_min = -1e30f,
+          .u_max = 1e30f,
+      };
     }
     const float inv_tw = 1.f / iso.half_tw;
     const float inv_th = 1.f / iso.half_th;

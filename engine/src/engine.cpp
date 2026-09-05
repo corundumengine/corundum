@@ -288,10 +288,10 @@ namespace corundum {
 
       if (engine.hud.enabled) {
         const debug::OverlayInput hud_input{
-            .render_state = engine.render,
-            .cfg = engine.cfg,
-            .scene = engine.scene,
-            .timer = engine.timer,
+            .render_state = &engine.render,
+            .cfg = &engine.cfg,
+            .scene = &engine.scene,
+            .timer = &engine.timer,
         };
         engine.hud.render(*engine.renderer, hud_input);
       }

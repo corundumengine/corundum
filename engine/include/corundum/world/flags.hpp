@@ -19,7 +19,7 @@ namespace corundum::world {
    *  @return True when the flag count is >= 1.
    */
   [[nodiscard]] inline bool has_flag(const FlagStore &flags, const std::string &name) noexcept {
-    auto it = flags.find(name);
+    const auto it = flags.find(name);
     return it != flags.end() && it->second > 0;
   }
 
@@ -45,7 +45,7 @@ namespace corundum::world {
    *  @return Current count, or 0 if absent.
    */
   [[nodiscard]] inline int visit_count(const FlagStore &flags, const std::string &name) noexcept {
-    auto it = flags.find(name);
+    const auto it = flags.find(name);
     return it != flags.end() ? it->second : 0;
   }
 

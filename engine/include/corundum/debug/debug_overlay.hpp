@@ -7,9 +7,6 @@
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
-#include <cstdint>
-#include <string>
-
 namespace corundum::debug {
 
   /**
@@ -19,10 +16,10 @@ namespace corundum::debug {
    * the concrete types it actually reads.
    */
   struct OverlayInput {
-    const render::RenderState &render_state;
-    const core::GameConfig &cfg;
-    const world::Scene &scene;
-    const core::time::LoopTimer &timer;
+    const render::RenderState *render_state;
+    const core::GameConfig *cfg;
+    const world::Scene *scene;
+    const core::time::LoopTimer *timer;
   };
 
   /**

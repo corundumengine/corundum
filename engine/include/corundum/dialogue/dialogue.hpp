@@ -46,7 +46,7 @@ namespace corundum::dialogue {
     /// Action strings executed when this edge is taken.
     /// State mutations are applied immediately; engine hook calls are returned
     /// to the platform for dispatch.
-    std::vector<std::string> actions = {};
+    std::vector<std::string> actions = {}; // NOLINT(readability-redundant-member-init) — explicit default keeps designated-initializer call sites free of -Wmissing-designated-field-initializers
 
     /// Sequencing behaviour across repeated visits to this Choice node.
     SequenceMode sequence = SequenceMode::None;
@@ -104,7 +104,7 @@ namespace corundum::dialogue {
      * @return Pointer to the node, or nullptr if not found.
      */
     [[nodiscard]] const Node *find(const std::string &id) const noexcept {
-      auto it = id_to_index.find(id);
+      const auto it = id_to_index.find(id);
       return (it != id_to_index.end()) ? &nodes[it->second] : nullptr;
     }
   };

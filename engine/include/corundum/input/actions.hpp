@@ -20,7 +20,7 @@ namespace corundum::input {
     ZoomIn,
     ZoomOut,
     Inventory,
-    Count
+    Count,
   };
 
   /**
@@ -81,11 +81,11 @@ namespace corundum::input {
     /**
      * @brief True while the key bound to an action is held down.
      */
-    std::bitset<k_action_count> held{};
+    std::bitset<k_action_count> held;
     /**
      * @brief True only on the frame the key bound to an action was pressed.
      */
-    std::bitset<k_action_count> pressed{};
+    std::bitset<k_action_count> pressed;
     /**
      * @brief Cursor position in window pixels, updated once per poll cycle.
      *
