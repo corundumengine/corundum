@@ -14,10 +14,10 @@ namespace {
 
 namespace corundum {
 
-  EngineConfig parse_engine_args(int argc, char *argv[]) noexcept {
+  EngineConfig parse_engine_args(std::span<const char *const> args) noexcept {
     EngineConfig config{};
-    for (int i = 1; i < argc; ++i) {
-      if (std::string_view(argv[i]) == "--debug")
+    for (const char *const arg : args) {
+      if (std::string_view(arg) == "--debug")
         config.show_debug_hud = true;
     }
     return config;

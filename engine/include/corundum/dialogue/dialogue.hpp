@@ -46,7 +46,7 @@ namespace corundum::dialogue {
     /// Action strings executed when this edge is taken.
     /// State mutations are applied immediately; engine hook calls are returned
     /// to the platform for dispatch.
-    std::vector<std::string> actions;
+    std::vector<std::string> actions = {};
 
     /// Sequencing behaviour across repeated visits to this Choice node.
     SequenceMode sequence = SequenceMode::None;
@@ -69,7 +69,7 @@ namespace corundum::dialogue {
     std::vector<ChoiceEdge> choices; ///< Choice options (Choice nodes only).
 
     /// Action strings executed when this Event node is processed.
-    std::vector<std::string> actions;
+    std::vector<std::string> actions = {};
 
     /// Arbitrary key-value pairs passed through to the presentation layer.
     /// Ignored by core dialogue logic.

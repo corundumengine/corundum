@@ -33,7 +33,7 @@ namespace corundum {
      *  by cleanup() (window close, audio shutdown); OS reclaims the memory at exit.
      */
     struct PlatformDeleter {
-      template <typename T> void operator()(T *) const noexcept { /* no-op */ }
+      template <typename T> void operator()(T * /*unused*/) const noexcept { /* no-op */ }
     };
   } // namespace detail
 
@@ -71,7 +71,7 @@ namespace corundum {
     int win_h = 0; ///< Live window height in screen pixels, updated each frame.
     int win_w = 0; ///< Live window width in screen pixels, updated each frame.
 
-    core::math::Colour clear_colour{30, 30, 35, 255};
+    core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
     debug::HudOverlay hud;
     bool quit = false;
     core::time::LoopTimer timer{60.f};

@@ -1,14 +1,4 @@
 ---
-# Disabled 2026-09: the bounds-check checks flag every operator[] / pointer
-# arithmetic site without seeing surrounding invariants. Our hot paths (ECS
-# pools, dense component tables) encode preconditions via assert() and
-# swap-and-pop, not runtime bounds checks. Switching to .at() would cost a
-# branch per access for zero additional safety, conflict with
-# std::expected-based error handling, and encode "I'm not sure" where the
-# code says "guaranteed by construction". Together these generated the
-# majority of clang-tidy findings; the noise drowns real signal.
-# Disabled 2026-09: IWYU in practice is mostly churn with debatable calls;
-# swapping includes to match transitive usage doesn't make code better.
 Checks: >
   -*,
   bugprone-*,
@@ -30,6 +20,7 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-uppercase-literal-suffix,
   -readability-magic-numbers,
+  -readability-redundant-member-init,
   -portability-avoid-pragma-once,
   -cppcoreguidelines-non-private-member-variables-in-classes,
   -misc-non-private-member-variables-in-classes

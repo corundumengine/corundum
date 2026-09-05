@@ -26,7 +26,7 @@ namespace corundum::core::time {
     /// Frame time is capped at 250 ms to prevent the simulation from running away
     /// after a hitch (debugger breakpoint, asset load, OS preemption).
     void tick() noexcept {
-      auto now = std::chrono::steady_clock::now();
+      const auto now = std::chrono::steady_clock::now();
       const float raw_frame_time = std::chrono::duration<float>(now - prev_time).count();
       const float capped = std::min(raw_frame_time, 0.25f);
       last_frame_dt = capped;

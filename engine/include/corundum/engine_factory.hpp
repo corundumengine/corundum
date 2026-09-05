@@ -2,6 +2,7 @@
 #include <corundum/engine.hpp>
 
 #include <expected>
+#include <span>
 #include <string>
 
 namespace corundum {
@@ -21,12 +22,11 @@ namespace corundum {
    *  Supported flags:
    *    --debug        Enable the debug HUD overlay.
    *
-   *  @param[in] argc Argument count from @c main.
-   *  @param[in] argv Argument vector from @c main.
+   *  @param[in] args Argument vector from @c main (excluding the program name).
    *  @return A fully-populated EngineConfig with defaults applied.
    *  @note Never fails — unrecognised flags are silently ignored.
    */
-  [[nodiscard]] EngineConfig parse_engine_args(int argc, char *argv[]) noexcept;
+  [[nodiscard]] EngineConfig parse_engine_args(std::span<const char *const> args) noexcept;
 
   /** @brief Single-call factory: create platform, initialise engine, return a running Engine.
    *

@@ -116,7 +116,7 @@ namespace corundum::input {
      * @return true if the action is held, false otherwise.
      */
     [[nodiscard]] bool is_held(Action action) const noexcept {
-      return held.test(static_cast<std::size_t>(action));
+      return held[static_cast<std::size_t>(action)];
     }
 
     /**
@@ -125,7 +125,7 @@ namespace corundum::input {
      * @return true if the action was pressed this frame, false otherwise.
      */
     [[nodiscard]] bool is_pressed(Action action) const noexcept {
-      return pressed.test(static_cast<std::size_t>(action));
+      return pressed[static_cast<std::size_t>(action)];
     }
   };
 
