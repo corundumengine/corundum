@@ -19,7 +19,7 @@ cmake --build --preset release                             # optimised build →
 cmake --build --preset relwithdebinfo                      # optimised + debug symbols
 cmake --build --preset debug-sanitized                     # ASan + UBSan → build-sanitized/
 cmake --build --preset format                              # clang-format all sources
-cmake --build --preset tidy                                # clang-tidy all sources
+scripts/run_tidy.sh <file> [more files...]                # clang-tidy explicit files
 cmake --preset docs && cmake --build --preset docs         # Doxygen API docs → build/docs/html
 ctest --preset test                                        # run all tests
 build/tests/corundum_tests -tc="*name*"                    # run a single test
@@ -27,7 +27,7 @@ build/tests/corundum_tests -tc="*name*"                    # run a single test
 
 ### Toolchain
 
-The compiler is pinned to **Homebrew LLVM** (`brew install llvm`) via `cmake/llvm-clang.cmake`. Resolution order: explicit `LLVM_PREFIX` cache variable → `$LLVM_PREFIX` env var → `/opt/homebrew/opt/llvm` (Apple Silicon) → `/usr/local/opt/llvm` (Intel Mac) → PATH fallback. `clang-format` and `clang-tidy` are resolved with `find_program` using `HINTS ${LLVM_PREFIX}/bin`, so the format/tidy presets work without manually exporting PATH. Override the prefix with `cmake -DLLVM_PREFIX=/path/to/llvm ...`.
+The compiler is pinned to **Homebrew LLVM** (`brew install llvm`) via `cmake/llvm-clang.cmake`. Resolution order: explicit `LLVM_PREFIX` cache variable → `$LLVM_PREFIX` env var → `/opt/homebrew/opt/llvm` (Apple Silicon) → `/usr/local/opt/llvm` (Intel Mac) → PATH fallback. `clang-format` is resolved with `find_program` using `HINTS ${LLVM_PREFIX}/bin`; `scripts/run_tidy.sh` resolves `clang-tidy` with the same search order, so no PATH juggling is needed. Override the prefix with `cmake -DLLVM_PREFIX=/path/to/llvm ...` or `LLVM_PREFIX=... cmake ...`.
 
 Requires CMake 4.3+ and a C++23 compiler. Dependencies (nlohmann/json, ImGui, GLFW, sokol, stb, FreeType, doctest) are fetched automatically via FetchContent.
 

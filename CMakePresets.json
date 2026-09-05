@@ -95,11 +95,6 @@
       "targets": ["format_code"]
     },
     {
-      "name": "tidy",
-      "configurePreset": "debug",
-      "targets": ["tidy_code"]
-    },
-    {
       "name": "docs",
       "configurePreset": "docs",
       "targets": ["build_docs"]
