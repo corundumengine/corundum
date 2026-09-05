@@ -77,6 +77,9 @@ namespace corundum::entities {
      *  @param[in] vr  Initial row velocity in tiles per second.
      *  @pre has(e) must be false.
      */
+    // NOLINTBEGIN(bugprone-easily-swappable-parameters)
+    // pc/pr are the spawn position and vc/vr the spawn velocity — two naturally paired
+    // (col,row) groups. A struct would add ceremony without preventing a same-group swap.
     void insert(EntityId e, float pc, float pr, float vc, float vr) noexcept {
       idx.insert(e, count, [&](auto slot) {
         col[slot] = pc;
@@ -85,6 +88,8 @@ namespace corundum::entities {
         dr[slot] = vr;
       });
     }
+
+    // NOLINTEND(bugprone-easily-swappable-parameters)
 
     /** @brief Remove @p e's transform row via swap-and-pop.
      *  @param[in] e Entity to remove.

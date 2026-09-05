@@ -62,7 +62,7 @@ namespace corundum::entities {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
       const auto len = std::min(n.size(), std::size_t{63});
-      std::copy_n(n.data(), len, name[slot].data());
+      std::copy_n(n.begin(), len, name[slot].data());
       name[slot][len] = '\0';
       name_len[slot] = len;
     }
@@ -74,7 +74,7 @@ namespace corundum::entities {
     [[nodiscard]] std::string_view get(EntityId e) const noexcept {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
-      return std::string_view(name[slot].data(), name_len[slot]);
+      return {name[slot].data(), name_len[slot]};
     }
   };
 

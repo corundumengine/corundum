@@ -9,6 +9,7 @@
 #include <corundum/world/portals/transition_prompt.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -17,7 +18,7 @@ namespace corundum::world {
   /** @brief Whether the player is free-roaming, locked into a dialogue session, paused on a portal-confirm prompt, or
    * browsing the inventory panel.
    */
-  enum class GameMode { Exploring, Dialogue, Prompt, Inventory };
+  enum class GameMode : std::uint8_t { Exploring, Dialogue, Prompt, Inventory };
 
   /** @brief All game-world data for a running session.
    *
@@ -38,25 +39,27 @@ namespace corundum::world {
   };
 
   struct Scene {
-    corundum::entities::EntityId player;
     corundum::entities::World world;
 
-    Camera camera;
+    std::vector<corundum::world::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
+    std::vector<corundum::dialogue::EventAction> pending_dialogue_events;
+    std::vector<ChunkActorSet>
+        chunk_actors; ///< World mode: per-chunk actor entities, kept in sync with the streaming window.
+
     corundum::dialogue::State dialogue;
-    std::optional<corundum::entities::EntityId> dialogue_npc;
-    std::optional<corundum::sprites::AnimId> dialogue_npc_saved_anim;
-    std::optional<corundum::entities::FacingDir> dialogue_npc_saved_facing;
+    std::optional<MapTransition> pending_transition;
+    std::optional<TransitionPrompt> transition_prompt;
     float elapsed_time = 0.f;
-    std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
     GameMode mode = GameMode::Exploring;
     int inventory_cursor =
         0; ///< Highlighted row while mode == GameMode::Inventory; clamped against the row count at render time.
-    std::vector<corundum::world::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
-    std::vector<corundum::dialogue::EventAction> pending_dialogue_events;
-    std::optional<MapTransition> pending_transition;
-    std::optional<TransitionPrompt> transition_prompt;
-    std::vector<ChunkActorSet>
-        chunk_actors; ///< World mode: per-chunk actor entities, kept in sync with the streaming window.
+    corundum::entities::EntityId player;
+
+    Camera camera;
+    std::optional<corundum::entities::EntityId> dialogue_npc;
+    std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
+    std::optional<corundum::sprites::AnimId> dialogue_npc_saved_anim;
+    std::optional<corundum::entities::FacingDir> dialogue_npc_saved_facing;
   };
 
 } // namespace corundum::world

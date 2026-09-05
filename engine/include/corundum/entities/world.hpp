@@ -18,20 +18,21 @@ namespace corundum::entities {
   /// Top-level entity container; owns the entity pool and all component tables.
   /// @note Not thread-safe.
   struct World {
-    EntityManager entities;
-    TransformTable transforms;          ///< Hot: col, row, dc, dr — updated every frame.
-    TransformNameTable transform_names; ///< Cold: debug labels — never read in update loops.
-    SpriteTable sprites;
-    AnimationTable animations;
     CollisionTable collisions;
+    TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
+    AnimationTable animations;
+    TransformNameTable transform_names; ///< Cold: debug labels — never read in update loops.
     DialogueTable dialogue_refs;
-    FacingTable facings;
-    MotionSpriteTable motion_sprites;
 
     /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
     /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
     std::array<EntityId, k_max_entities> pending_deletions{};
     std::uint32_t pending_deletion_count = 0;
+
+    EntityManager entities;
+    FacingTable facings;
+    SpriteTable sprites;
+    MotionSpriteTable motion_sprites;
   };
 
   /// Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
@@ -52,7 +53,7 @@ namespace corundum::entities {
   }
 
   /// Spawn an NPC that triggers a dialogue graph.
-  [[nodiscard]] inline EntityId spawn(World &w, Position pos, Velocity vel, Sprite spr, DialogueRef ref) {
+  [[nodiscard]] inline EntityId spawn(World &w, Position pos, Velocity vel, Sprite spr, const DialogueRef &ref) {
     const EntityId e = spawn(w, pos, vel, spr);
     w.dialogue_refs.insert(e, ref.graph_id);
     return e;

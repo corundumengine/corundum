@@ -34,8 +34,8 @@ namespace corundum::entities {
     std::array<corundum::sprites::SpriteId, k_max> idle_id{};
 
     // Flat frame-count caches: index = slot * k_num_anim_ids + AnimId.
-    std::array<uint8_t, k_max * corundum::sprites::k_num_anim_ids> walk_counts{};
-    std::array<uint8_t, k_max * corundum::sprites::k_num_anim_ids> idle_counts{};
+    std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::sprites::k_num_anim_ids> walk_counts{};
+    std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::sprites::k_num_anim_ids> idle_counts{};
 
     // ── Transition delay config (seconds; set once at spawn) ───────
     std::array<float, k_max> idle_to_walk_delay{}; ///< Delay before idle→walk commits.
@@ -96,7 +96,7 @@ namespace corundum::entities {
     [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_frame_counts(EntityId e) const noexcept {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
-      std::array<uint8_t, corundum::sprites::k_num_anim_ids> out;
+      std::array<uint8_t, corundum::sprites::k_num_anim_ids> out{};
       std::copy_n(&walk_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids],
                   corundum::sprites::k_num_anim_ids, out.data());
       return out;
@@ -106,7 +106,7 @@ namespace corundum::entities {
     [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_frame_counts(EntityId e) const noexcept {
       assert(has(e));
       const auto slot = idx.dense_idx(e);
-      std::array<uint8_t, corundum::sprites::k_num_anim_ids> out;
+      std::array<uint8_t, corundum::sprites::k_num_anim_ids> out{};
       std::copy_n(&idle_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids],
                   corundum::sprites::k_num_anim_ids, out.data());
       return out;

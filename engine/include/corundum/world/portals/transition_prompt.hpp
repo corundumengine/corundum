@@ -1,4 +1,6 @@
 #pragma once
+#include <cstdint>
+
 #include <corundum/world/portals/portal.hpp>
 
 namespace corundum::input {
@@ -17,7 +19,7 @@ namespace corundum::world {
   class TransitionPrompt {
   public:
     /** @brief Outcome of one @ref step call. */
-    enum class Step { Confirmed, Dismissed, Pending };
+    enum class Step : std::uint8_t { Confirmed, Dismissed, Pending };
 
     /** @brief Arm a fresh prompt (Yes highlighted) for the portal just entered.
      *  @pre @p portal is a cross-map or return-to-world portal.

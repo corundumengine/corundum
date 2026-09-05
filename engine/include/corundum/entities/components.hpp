@@ -74,7 +74,7 @@ namespace corundum::entities {
   };
 
   /// Return the direction directly opposite to dir.
-  [[nodiscard]] inline constexpr FacingDir opposite(FacingDir dir) noexcept {
+  [[nodiscard]] constexpr FacingDir opposite(FacingDir dir) noexcept {
     return k_opposite_dir[std::to_underlying(dir)];
   }
 
@@ -82,7 +82,7 @@ namespace corundum::entities {
   [[nodiscard]] inline float distance(Position a, Position b) noexcept {
     const float dcol = a.col - b.col;
     const float drow = a.row - b.row;
-    return std::sqrt(dcol * dcol + drow * drow);
+    return std::sqrt((dcol * dcol) + (drow * drow));
   }
 
 } // namespace corundum::entities
