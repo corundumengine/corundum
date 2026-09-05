@@ -1,8 +1,6 @@
 #pragma once
 #include <corundum/platform/window.hpp>
 
-#include <utility>
-
 namespace corundum::platform::null {
 
   /** @brief No-op Window for headless lifecycle tests.
@@ -12,9 +10,10 @@ namespace corundum::platform::null {
    */
   class NullWindow final : public corundum::platform::Window {
   public:
-    explicit NullWindow(unsigned w = 0, unsigned h = 0) : width_{w}, height_{h} {}
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    explicit NullWindow(unsigned width, unsigned height) : width_{width}, height_{height} {}
 
-    bool is_open() const override {
+    [[nodiscard]] bool is_open() const override {
       return open_;
     }
 
@@ -22,20 +21,21 @@ namespace corundum::platform::null {
       open_ = false;
     }
 
-    void poll_game_input(corundum::input::InputState &) override {}
+    void poll_game_input(corundum::input::InputState &/*input*/) override {}
 
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void resize(unsigned width, unsigned height) override {
       width_ = width;
       height_ = height;
     }
 
-    std::pair<int, int> size() const override {
+    [[nodiscard]] std::pair<int, int> size() const override {
       return {static_cast<int>(width_), static_cast<int>(height_)};
     }
 
-    void set_vsync(bool) override {}
+    void set_vsync(bool /*enabled*/) override {}
 
-    void *native_handle() const override {
+    [[nodiscard]] void *native_handle() const override {
       return nullptr;
     }
 

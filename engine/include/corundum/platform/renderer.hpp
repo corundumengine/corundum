@@ -52,7 +52,7 @@ namespace corundum::platform {
    *
    * Resource IDs (textures, fonts) are opaque uint32_t handles. ID 0 is invalid.
    * Concrete implementations are created via factory functions
-   * (e.g. make_sokol_renderer, make_null_renderer).
+   * (e.g. make_sokol_renderer).
    *
    * @note Not thread-safe. Call only from the render thread.
    */

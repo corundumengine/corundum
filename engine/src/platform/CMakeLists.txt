@@ -81,13 +81,7 @@ set_target_properties(engine_platform_glfw PROPERTIES UNITY_BUILD OFF)
 # ── Null backend (headless) ────────────────────────────────────────────────────
 # Header-only null platform backend (Window/GpuContext/Renderer no-ops) for
 # headless lifecycle tests in tests/test_engine_lifecycle.cpp. Has no
-# GLFW/sokol/FreeType dependency; consumers link `corundum::engine_platform_null`
-# (or just `engine_platform_null`) in addition to `engine`.
-add_library(engine_platform_null STATIC
-    null/null_stub.cpp
-)
-target_link_libraries(engine_platform_null
-    PUBLIC  engine
-)
-corundum_use_cxx23(engine_platform_null)
-corundum_enable_warnings(engine_platform_null)
+# GLFW/sokol/FreeType dependency; consumers link `engine_platform_null` in
+# addition to `engine`.
+add_library(engine_platform_null INTERFACE)
+target_link_libraries(engine_platform_null INTERFACE engine)

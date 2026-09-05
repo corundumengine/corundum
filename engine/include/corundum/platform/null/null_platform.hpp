@@ -32,7 +32,7 @@ namespace corundum::platform::null {
    *  @param[in] h  Initial window height in pixels.
    *  @return A bundle whose Window/Renderer are ready to adopt.
    */
-  [[nodiscard]] inline NullPlatform make_null_platform(unsigned w = 800, unsigned h = 600) {
+  [[nodiscard]] inline NullPlatform make_null_platform(unsigned w, unsigned h) {
     NullPlatform p{};
     p.window = std::make_unique<NullWindow>(w, h);
     p.renderer = std::make_unique<NullRenderer>();
@@ -50,6 +50,8 @@ namespace corundum::platform::null {
    *  @param[in,out] platform The bundle; its members are moved out.
    */
   inline void adopt_null_platform(corundum::Engine &engine, NullPlatform &platform) {
+    // reset(release()), not std::move: Engine's unique_ptrs use a no-op deleter,
+    // so they can't be move-assigned from a default_delete.
     engine.window.reset(platform.window.release());
     engine.renderer.reset(platform.renderer.release());
   }
