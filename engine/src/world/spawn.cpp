@@ -73,6 +73,9 @@ namespace corundum::world {
         world.animations.set_frame_counts(eid, npc_anim.frame_counts);
         world.collisions.insert(eid, bb.col_span, bb.row_span);
 
+        if (!a.id.empty())
+          world.actor_ids.insert(eid, a.id);
+
         using FDir = corundum::entities::FacingDir;
         static constexpr std::array<std::pair<std::string_view, FDir>, 8> k_facing_map{{
             {"north", FDir::North},

@@ -107,6 +107,10 @@ namespace corundum::core {
         "sequence": { "type": "integer", "minimum": 1 },
         "resolved": { "type": "boolean" },
         "failed": { "type": "boolean" },
+        "advances_to": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "objectives": {
           "type": "array",
           "items": { "$ref": "#/definitions/objective" }

@@ -5,6 +5,7 @@
 #include <corundum/quest/registry.hpp>
 #include <corundum/quest/runner.hpp>
 #include <corundum/quest/serialize.hpp>
+#include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -16,19 +17,43 @@ using corundum::world::FlagStore;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-static quest::Quest make_test_quest() {
-  quest::Quest q;
-  q.quest_id = "test_quest";
-  q.name = "Test Quest";
-  q.description = "A test quest.";
+namespace {
 
-  q.stages.push_back({"start", 1, false, false, {}});
-  q.stages.push_back({"middle", 2, false, false, {}});
-  q.stages.push_back({"complete", 3, true, false, {}});
-  q.stages.push_back({"failed", 4, true, true, {}});
+  quest::Quest make_test_quest() {
+    quest::Quest q;
+    q.quest_id = "test_quest";
+    q.name = "Test Quest";
+    q.description = "A test quest.";
 
-  return q;
-}
+    q.stages.push_back({"start", 1, false, false, {}});
+    q.stages.push_back({"middle", 2, false, false, {}});
+    q.stages.push_back({"complete", 3, true, false, {}});
+    q.stages.push_back({"failed", 4, true, true, {}});
+
+    return q;
+  }
+
+  quest::Quest make_quest_with_objectives() {
+    quest::Quest q;
+    q.quest_id = "obj_quest";
+    q.name = "Obj Quest";
+    q.description = "A quest with journal objectives.";
+
+    q.stages.push_back({
+        .name = "start",
+        .sequence = 1,
+        .objectives =
+            {
+                {.text = "Bare objective", .done_condition = std::nullopt},
+                {.text = "Conditioned objective", .done_condition = "ember_tracks_found >= 1"},
+            },
+    });
+    q.stages.push_back({.name = "complete", .sequence = 2, .resolved = true});
+
+    return q;
+  }
+
+} // namespace
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +184,48 @@ TEST_CASE("quest loader: failed flag auto-sets resolved") {
   std::filesystem::remove(tmp);
 }
 
+TEST_CASE("quest loader: advances_to parses and round-trips") {
+  std::string tmp = "tests/fixtures/_test_advances_to.json";
+  {
+    std::ofstream f(tmp);
+    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+      {"name":"a","sequence":1,"advances_to":["b","c"],"objectives":[]},
+      {"name":"b","sequence":2,"resolved":true,"objectives":[]},
+      {"name":"c","sequence":3,"resolved":true,"objectives":[]}
+    ]})";
+  }
+  auto result = quest::load_quest(tmp);
+  REQUIRE(result.has_value());
+  REQUIRE(result->stages[0].advances_to.size() == 2);
+  CHECK(result->stages[0].advances_to[0] == "b");
+  CHECK(result->stages[0].advances_to[1] == "c");
+  CHECK(result->stages[1].advances_to.empty());
+
+  const auto j = quest::serialize_quest(*result);
+  const auto tmp2 = std::filesystem::path("tests/fixtures/tmp_advances_to.json");
+  REQUIRE(corundum::core::write_json(tmp2, j).has_value());
+  const auto reloaded = quest::load_quest(tmp2.string());
+  REQUIRE(reloaded.has_value());
+  REQUIRE(reloaded->stages[0].advances_to.size() == 2);
+  CHECK(reloaded->stages[0].advances_to[0] == "b");
+  CHECK(reloaded->stages[0].advances_to[1] == "c");
+
+  std::filesystem::remove(tmp);
+  std::filesystem::remove(tmp2);
+}
+
+TEST_CASE("quest loader: keystone ember_of_greyhollow still loads clean") {
+  const auto path = std::filesystem::path("../keystone/data/quests/ember_of_greyhollow.json");
+  if (!std::filesystem::exists(path)) {
+    MESSAGE("keystone checkout not present; skipping");
+    return;
+  }
+  const auto result = quest::load_quest(path);
+  REQUIRE(result.has_value());
+  CHECK(result->quest_id == "ember_of_greyhollow");
+  CHECK_FALSE(result->stages.empty());
+}
+
 TEST_CASE("quest loader: invalid JSON returns error") {
   std::string tmp = "tests/fixtures/_test_bad_json.json";
   {
@@ -203,6 +270,45 @@ TEST_CASE("validate: no resolved stage") {
   const auto errors = quest::validate(q);
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("no resolved stage") != std::string::npos);
+}
+
+// ── advances_to validation ────────────────────────────────────────────────────
+
+TEST_CASE("validate: unknown advances_to target is an error") {
+  auto q = make_test_quest();
+  q.stages[0].advances_to.emplace_back("no_such_stage");
+  const auto errors = quest::validate(q);
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("advances_to") != std::string::npos);
+}
+
+TEST_CASE("validate: known advances_to targets pass") {
+  auto q = make_test_quest();
+  q.stages[0].advances_to = {"middle"};
+  CHECK(quest::validate(q).empty());
+}
+
+TEST_CASE("validate: out-of-order sequences surface as a warning, not an error") {
+  quest::Quest q;
+  q.quest_id = "desync";
+  q.name = "Desync";
+  q.description = "";
+  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({"complete", 3, true, false, {}});
+  q.stages.push_back({"middle", 2, false, false, {}});
+
+  std::vector<std::string> warnings;
+  const auto errors = quest::validate(q, &warnings);
+  CHECK(errors.empty());
+  REQUIRE_FALSE(warnings.empty());
+  CHECK(warnings.front().find("sequence") != std::string::npos);
+}
+
+TEST_CASE("validate: in-order quest produces no warnings") {
+  auto q = make_test_quest();
+  std::vector<std::string> warnings;
+  CHECK(quest::validate(q, &warnings).empty());
+  CHECK(warnings.empty());
 }
 
 // ── find_stage ────────────────────────────────────────────────────────────────
@@ -480,6 +586,133 @@ TEST_CASE("lifecycle: organic discovery") {
   CHECK(quest::get_stage("test_quest", flags) == 2);
 }
 
+// ── Status façade ─────────────────────────────────────────────────────────────
+
+TEST_CASE("lifecycle: all four states map to the right enum") {
+  auto q = make_test_quest();
+  FlagStore flags;
+
+  CHECK(quest::lifecycle(q, flags) == quest::Lifecycle::NotStarted);
+
+  flags["quest.test_quest"] = 1;
+  CHECK(quest::lifecycle(q, flags) == quest::Lifecycle::Active);
+
+  flags["quest.test_quest"] = 2;
+  CHECK(quest::lifecycle(q, flags) == quest::Lifecycle::Active);
+
+  flags["quest.test_quest"] = 3; // "complete" is resolved but not failed
+  CHECK(quest::lifecycle(q, flags) == quest::Lifecycle::Completed);
+
+  flags["quest.test_quest"] = 4; // "failed" is resolved + failed
+  CHECK(quest::lifecycle(q, flags) == quest::Lifecycle::Failed);
+}
+
+TEST_CASE("current_stage returns nullptr when quest is not started") {
+  auto q = make_test_quest();
+  FlagStore flags;
+  CHECK(quest::current_stage(q, flags) == nullptr);
+}
+
+TEST_CASE("current_stage matches the active flag") {
+  auto q = make_test_quest();
+  FlagStore flags;
+  flags["quest.test_quest"] = 2;
+  const auto *stage = quest::current_stage(q, flags);
+  REQUIRE(stage != nullptr);
+  CHECK(stage->name == "middle");
+}
+
+TEST_CASE("current_stage points at the resolved ending stage") {
+  auto q = make_test_quest();
+  FlagStore flags;
+  flags["quest.test_quest"] = 3;
+  const auto *stage = quest::current_stage(q, flags);
+  REQUIRE(stage != nullptr);
+  CHECK(stage->name == "complete");
+}
+
+TEST_CASE("current_stage returns nullptr for a sequence with no stage") {
+  auto q = make_test_quest();
+  FlagStore flags;
+  flags["quest.test_quest"] = 99;
+  CHECK(quest::current_stage(q, flags) == nullptr);
+}
+
+TEST_CASE("objectives returns nothing for an unstarted quest") {
+  auto q = make_quest_with_objectives();
+  FlagStore flags;
+  CHECK(quest::objectives(q, flags).empty());
+}
+
+TEST_CASE("objectives reports bare and conditioned objectives") {
+  auto q = make_quest_with_objectives();
+  FlagStore flags;
+  flags["quest.obj_quest"] = 1;
+
+  const auto views = quest::objectives(q, flags);
+  REQUIRE(views.size() == 2);
+
+  CHECK(views[0].text == "Bare objective");
+  CHECK_FALSE(views[0].has_condition);
+  CHECK_FALSE(views[0].done);
+
+  CHECK(views[1].text == "Conditioned objective");
+  CHECK(views[1].has_condition);
+  CHECK_FALSE(views[1].done);
+}
+
+TEST_CASE("objectives marks a conditioned objective done when its flag is set") {
+  auto q = make_quest_with_objectives();
+  FlagStore flags;
+  flags["quest.obj_quest"] = 1;
+  flags["ember_tracks_found"] = 1;
+
+  const auto views = quest::objectives(q, flags);
+  REQUIRE(views.size() == 2);
+  CHECK_FALSE(views[0].done);
+  CHECK(views[1].done);
+}
+
+// ── Breadcrumbs ───────────────────────────────────────────────────────────────
+
+TEST_CASE("start records the quest.<id>.seen.<stage> breadcrumb") {
+  auto q = make_test_quest();
+  FlagStore flags;
+
+  quest::start(q, flags);
+  CHECK(corundum::world::has_flag(flags, "quest.test_quest.seen.start"));
+}
+
+TEST_CASE("advance records a breadcrumb for each stage entered") {
+  auto q = make_test_quest();
+  FlagStore flags;
+
+  quest::advance(q, "middle", flags);
+  CHECK(corundum::world::has_flag(flags, "quest.test_quest.seen.middle"));
+
+  quest::advance(q, "complete", flags);
+  CHECK(corundum::world::has_flag(flags, "quest.test_quest.seen.complete"));
+  // Breadcrumb from an earlier stage remains.
+  CHECK(corundum::world::has_flag(flags, "quest.test_quest.seen.middle"));
+}
+
+TEST_CASE("advance to an unknown stage records no breadcrumb") {
+  auto q = make_test_quest();
+  FlagStore flags;
+
+  quest::advance(q, "does_not_exist", flags);
+  CHECK_FALSE(corundum::world::has_flag(flags, "quest.test_quest.seen.does_not_exist"));
+}
+
+TEST_CASE("advance to a stage already entered re-records the breadcrumb") {
+  auto q = make_test_quest();
+  FlagStore flags;
+
+  quest::advance(q, "middle", flags);
+  quest::advance(q, "middle", flags);
+  CHECK(corundum::world::visit_count(flags, "quest.test_quest.seen.middle") == 2);
+}
+
 // ── quest_flag_key ────────────────────────────────────────────────────────────
 
 TEST_CASE("quest_flag_key formats correctly") {
@@ -558,6 +791,7 @@ TEST_CASE("serialize_quest round-trips through load_quest") {
     CHECK(q2.stages[i].sequence == q.stages[i].sequence);
     CHECK(q2.stages[i].resolved == q.stages[i].resolved);
     CHECK(q2.stages[i].failed == q.stages[i].failed);
+    CHECK(q2.stages[i].advances_to == q.stages[i].advances_to);
     REQUIRE(q2.stages[i].objectives.size() == q.stages[i].objectives.size());
     for (std::size_t j = 0; j < q.stages[i].objectives.size(); ++j) {
       CHECK(q2.stages[i].objectives[j].text == q.stages[i].objectives[j].text);

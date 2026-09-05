@@ -49,6 +49,11 @@ namespace corundum::quest {
       for (std::size_t i = 0; i < objs.size(); ++i)
         stage.objectives.push_back(parse_objective(objs[i]));
 
+      if (j.contains("advances_to")) {
+        for (const auto &target : j["advances_to"])
+          stage.advances_to.push_back(target.get<std::string>());
+      }
+
       return stage;
     }
 

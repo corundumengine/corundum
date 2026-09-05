@@ -8,7 +8,7 @@
 
 namespace corundum::quest {
 
-  std::vector<std::string> validate(const Quest &quest) {
+  std::vector<std::string> validate(const Quest &quest, std::vector<std::string> *warnings) {
     std::vector<std::string> errors;
 
     auto names = quest.stages | std::views::transform(&Stage::name) | std::ranges::to<std::vector>();
@@ -25,6 +25,25 @@ namespace corundum::quest {
 
     if (!std::ranges::any_of(quest.stages, &Stage::resolved))
       errors.push_back(std::format("\"{}\" has no resolved stage", quest.quest_id));
+
+    for (const auto &stage : quest.stages) {
+      for (const auto &target : stage.advances_to) {
+        if (quest.find_stage(target) == nullptr)
+          errors.push_back(
+              std::format(R"("{}": stage "{}" advances_to unknown stage "{}")", quest.quest_id, stage.name, target));
+      }
+    }
+
+    if (warnings != nullptr) {
+      for (std::size_t i = 1; i < quest.stages.size(); ++i) {
+        const auto &prev = quest.stages[i - 1];
+        const auto &curr = quest.stages[i];
+        if (curr.sequence <= prev.sequence)
+          warnings->push_back(std::format("\"{}\": stage order \"{}\" (seq {}) is not after \"{}\" (seq {}) — "
+                                          "sequence order does not match stage order",
+                                          quest.quest_id, curr.name, curr.sequence, prev.name, prev.sequence));
+      }
+    }
 
     return errors;
   }

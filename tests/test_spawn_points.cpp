@@ -1,5 +1,9 @@
 #include <doctest/doctest.h>
 
+#include <corundum/core/game_config.hpp>
+#include <corundum/engine.hpp>
+#include <corundum/entities/world.hpp>
+#include <corundum/platform/null/null_platform.hpp>
 #include <corundum/world/actors/actor.hpp>
 
 #include <filesystem>
@@ -19,6 +23,23 @@ namespace {
     const auto p = fs::temp_directory_path() / "crpg_test_spawn_points" / tag;
     fs::create_directories(p);
     return p;
+  }
+
+  corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
+    corundum::core::GameConfig cfg{};
+    cfg.window_title = "spawn_points_test";
+    cfg.win_w = 320.f;
+    cfg.win_h = 240.f;
+    cfg.paths.sprites_dir = (fixtures / "sprites").string();
+    cfg.paths.font_dir = (fixtures / "fonts").string();
+    cfg.paths.game_font = "missing.ttf"; // NullRenderer ignores file existence
+    cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
+    cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+    cfg.paths.portals_dir = (fixtures / "portals").string();
+    cfg.paths.dialogue_dir.clear();
+    cfg.paths.quests_dir.clear();
+    cfg.paths.sounds_dir.clear();
+    return cfg;
   }
 
 } // namespace
@@ -148,4 +169,53 @@ TEST_CASE("load_actors — returns actors from file with player block") {
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].sprite_name == "test_npc");
+}
+
+// ── Actor id parsing ───────────────────────────────────────────────────────────
+
+TEST_CASE("load_spawn_points — parses the actor id field") {
+  const auto dir = temp_dir("actor_id");
+  const auto p = dir / "spawn.json";
+  write_file(p, R"({
+    "actors": [
+      { "col": 2, "row": 3, "sprite": "npc1", "id": "brann" },
+      { "col": 5, "row": 7, "sprite": "npc2" }
+    ]
+  })");
+  auto result = load_spawn_points(p);
+  REQUIRE(result.has_value());
+  REQUIRE(result->actors.size() == 2);
+  CHECK(result->actors[0].id == "brann");
+  CHECK(result->actors[1].id.empty());
+}
+
+// ── find_actor wiring ─────────────────────────────────────────────────────────
+
+TEST_CASE("find_actor — world boot populates actor_ids from spawn points") {
+  corundum::Engine engine{};
+  auto platform = corundum::platform::null::make_null_platform(320, 240);
+  corundum::platform::null::adopt_null_platform(engine, platform);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+
+  // a00 (chunk 0,0) and a11 (chunk 1,1) carry ids in the fixture spawn points.
+  const auto a00 = corundum::entities::find_actor(engine.scene.world, "a00");
+  REQUIRE(a00.has_value());
+  CHECK(engine.scene.world.entities.is_live(*a00));
+
+  const auto a11 = corundum::entities::find_actor(engine.scene.world, "a11");
+  REQUIRE(a11.has_value());
+  CHECK_FALSE(*a11 == *a00);
+
+  // The player entity and unknown ids have no row.
+  CHECK_FALSE(corundum::entities::find_actor(engine.scene.world, "player").has_value());
+  CHECK_FALSE(corundum::entities::find_actor(engine.scene.world, "missing").has_value());
+
+  // Despawning the actor drops its id row.
+  corundum::entities::despawn(engine.scene.world, *a00);
+  CHECK_FALSE(corundum::entities::find_actor(engine.scene.world, "a00").has_value());
+
+  corundum::cleanup(engine);
 }

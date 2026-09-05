@@ -12,7 +12,7 @@ namespace corundum::quest {
     /** @brief Journal text displayed for this objective. */
     std::string text;
     /** @brief Optional expression evaluated against FlagStore to auto-check this objective. */
-    std::optional<std::string> done_condition;
+    std::optional<std::string> done_condition = std::nullopt;
   };
 
   /** @brief A point in a quest's progress, keyed by a sequence integer in FlagStore. */
@@ -26,7 +26,16 @@ namespace corundum::quest {
     /** @brief True if this stage is a failure ending. Implies resolved (loader enforces). */
     bool failed{false};
     /** @brief Objectives shown in the journal while this stage is active. */
-    std::vector<Objective> objectives;
+    std::vector<Objective> objectives{};
+    /**
+     * @brief Names of stages this stage may legally advance to.
+     *
+     * Empty (the default) preserves legacy behaviour: any stage name is an
+     * acceptable advance target. When non-empty, `quest::validate` rejects
+     * an unknown target name and a debug-build guard warns on a transition
+     * to a stage not listed here.
+     */
+    std::vector<std::string> advances_to{};
   };
 
   /** @brief A named sequence of stages comprising one quest. */
@@ -59,7 +68,10 @@ namespace corundum::quest {
 
   /** @brief Validate stage-uniqueness and resolution invariants on an in-memory Quest.
    *  @param quest The quest to validate.
+   *  @param warnings Optional out-param collecting non-fatal diagnostics (e.g. a
+   *                  stage-vector order that does not match the sequence integers,
+   *                  which indicates a stage-list reorder without a sequence bump).
    *  @return One message per violated rule; empty vector = valid. */
-  [[nodiscard]] std::vector<std::string> validate(const Quest &quest);
+  [[nodiscard]] std::vector<std::string> validate(const Quest &quest, std::vector<std::string> *warnings = nullptr);
 
 } // namespace corundum::quest

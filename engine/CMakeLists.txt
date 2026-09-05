@@ -37,6 +37,7 @@ set(ENGINE_SOURCES
     src/quest/registry.cpp
     src/quest/runner.cpp
     src/quest/serialize.cpp
+    src/quest/status.cpp
     src/quest/system.cpp
     src/quest/validate.cpp
     src/render/render_sys.cpp

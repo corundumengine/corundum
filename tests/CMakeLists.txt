@@ -11,6 +11,7 @@ enable_testing()
 set(TEST_SOURCES
     main.cpp
     test_actions.cpp
+    test_actor_id_table.cpp
     test_anim_sys.cpp
     test_atlas_clips.cpp
     test_audio.cpp

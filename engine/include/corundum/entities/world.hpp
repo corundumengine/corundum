@@ -3,6 +3,7 @@
 #include <cassert>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/actor_id_table.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/dialogue_table.hpp>
@@ -11,6 +12,8 @@
 #include <corundum/entities/tables/sprite_table.hpp>
 #include <corundum/entities/tables/transform_name_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
+#include <optional>
+#include <string_view>
 #include <tuple>
 
 namespace corundum::entities {
@@ -23,6 +26,7 @@ namespace corundum::entities {
     AnimationTable animations;
     TransformNameTable transform_names; ///< Cold: debug labels — never read in update loops.
     DialogueTable dialogue_refs;
+    ActorIdTable actor_ids; ///< Cold: stable authoring ids for quest/save references.
 
     /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
     /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
@@ -63,8 +67,8 @@ namespace corundum::entities {
   /// Adding a new table means adding one member to World and one entry in this tie;
   /// despawn marks/deletion and any future cross-table operations update automatically.
   [[nodiscard]] static auto all_tables(World &w) noexcept {
-    return std::tie(w.transforms, w.transform_names, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.facings,
-                    w.motion_sprites);
+    return std::tie(w.transforms, w.transform_names, w.sprites, w.animations, w.collisions, w.dialogue_refs,
+                    w.actor_ids, w.facings, w.motion_sprites);
   }
 
   /// Remove e and all of its components from the world immediately.
@@ -102,6 +106,21 @@ namespace corundum::entities {
     for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
       despawn(w, w.pending_deletions[i]);
     w.pending_deletion_count = 0;
+  }
+
+  /** @brief Find the live entity carrying a stable authoring id.
+   *
+   * Linear scan over the dense actor-id rows — id lookups happen only on
+   * quest/save resolution, never in a per-frame hot loop.
+   * @param[in] w  World to search.
+   * @param[in] id Stable authoring id (as authored in a spawn-points file).
+   * @return The entity handle, or std::nullopt when no live entity has @p id.
+   */
+  [[nodiscard]] inline std::optional<EntityId> find_actor(const World &w, std::string_view id) noexcept {
+    for (const EntityId e : w.actor_ids.active_entities())
+      if (w.actor_ids.get_actor_id(e) == id)
+        return e;
+    return std::nullopt;
   }
 
 } // namespace corundum::entities

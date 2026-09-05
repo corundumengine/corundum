@@ -1,8 +1,18 @@
 #include <corundum/quest/system.hpp>
 
+#include <format>
 #include <print>
 
 namespace corundum::quest {
+
+  namespace {
+
+    /** @brief FlagStore key recording that the player has entered a stage, e.g. quest.{id}.seen.{stage}. */
+    [[nodiscard]] std::string seen_flag_key(std::string_view quest_id, std::string_view stage_name) {
+      return std::format("quest.{}.seen.{}", quest_id, stage_name);
+    }
+
+  } // namespace
 
   int get_stage(std::string_view quest_id, const corundum::world::FlagStore &flags) noexcept {
     return corundum::world::visit_count(flags, quest_flag_key(quest_id));
@@ -37,6 +47,7 @@ namespace corundum::quest {
     if (corundum::world::visit_count(flags, key) > 0)
       return; // already started
     flags[key] = quest.stages[0].sequence;
+    corundum::world::set_flag(flags, seen_flag_key(quest.quest_id, quest.stages[0].name));
   }
 
   void advance(const Quest &quest, std::string_view stage_name, corundum::world::FlagStore &flags) {
@@ -46,6 +57,7 @@ namespace corundum::quest {
       return;
     }
     flags[quest_flag_key(quest.quest_id)] = stage->sequence;
+    corundum::world::set_flag(flags, seen_flag_key(quest.quest_id, stage->name));
   }
 
   std::vector<const Quest *> active_quests(const Registry &registry, const corundum::world::FlagStore &flags) {

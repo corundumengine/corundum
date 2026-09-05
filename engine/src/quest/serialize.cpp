@@ -20,6 +20,8 @@ namespace corundum::quest {
         sj["resolved"] = true;
       if (s.failed)
         sj["failed"] = true;
+      if (!s.advances_to.empty())
+        sj["advances_to"] = s.advances_to;
 
       sj["objectives"] = nlohmann::json::array();
       for (const auto &obj : s.objectives)
