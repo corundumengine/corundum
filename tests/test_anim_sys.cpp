@@ -221,8 +221,14 @@ TEST_CASE("animate: motion sprite commits after the configured idle-to-walk dela
   f.sprites.sprite_id_ref(f.player) = idle_sid;
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts.fill(4);
-  f.motion_sprites.insert(f.player, walk_sid, idle_sid, counts, counts,
-                          /*itw=*/0.1f, /*wti=*/0.f);
+  f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
+                                        .walk_id = walk_sid,
+                                        .idle_id = idle_sid,
+                                        .walk_counts = counts,
+                                        .idle_counts = counts,
+                                        .idle_to_walk_delay = 0.1f,
+                                        .walk_to_idle_delay = 0.f,
+                                    });
 
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 1.f;
@@ -247,8 +253,14 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
   f.sprites.sprite_id_ref(f.player) = idle_sid;
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts.fill(4);
-  f.motion_sprites.insert(f.player, walk_sid, idle_sid, counts, counts,
-                          /*itw=*/0.1f, /*wti=*/0.f);
+  f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
+                                        .walk_id = walk_sid,
+                                        .idle_id = idle_sid,
+                                        .walk_counts = counts,
+                                        .idle_counts = counts,
+                                        .idle_to_walk_delay = 0.1f,
+                                        .walk_to_idle_delay = 0.f,
+                                    });
 
   const auto slot = f.transforms.dense_idx(f.player);
 
@@ -275,8 +287,14 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts a
   walk_counts[static_cast<uint8_t>(corundum::sprites::AnimId::South)] = 8; // distinguish from idle
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_counts{};
   idle_counts.fill(4);
-  f.motion_sprites.insert(f.player, walk_sid, idle_sid, walk_counts, idle_counts,
-                          /*itw=*/0.f, /*wti=*/0.f, /*walk_fd=*/0.05f, /*idle_fd=*/0.25f);
+  f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
+                                        .walk_id = walk_sid,
+                                        .idle_id = idle_sid,
+                                        .walk_counts = walk_counts,
+                                        .idle_counts = idle_counts,
+                                        .walk_frame_duration = 0.05f,
+                                        .idle_frame_duration = 0.25f,
+                                    });
 
   const auto slot = f.transforms.dense_idx(f.player);
   f.transforms.dc[slot] = 1.f;

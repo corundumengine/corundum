@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <flat_map> // C++23: flat_map — sorted contiguous storage, replaces unordered_map
+#include <flat_map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -46,7 +46,7 @@ namespace corundum::dialogue {
     /// Action strings executed when this edge is taken.
     /// State mutations are applied immediately; engine hook calls are returned
     /// to the platform for dispatch.
-    std::vector<std::string> actions = {}; // NOLINT(readability-redundant-member-init) — explicit default keeps designated-initializer call sites free of -Wmissing-designated-field-initializers
+    std::vector<std::string> actions;
 
     /// Sequencing behaviour across repeated visits to this Choice node.
     SequenceMode sequence = SequenceMode::None;

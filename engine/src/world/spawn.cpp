@@ -110,6 +110,7 @@ namespace corundum::world {
                                                 std::optional<corundum::entities::Position> player_pos,
                                                 bool spawn_file_actors) {
     using corundum::entities::Animation;
+    using corundum::entities::MotionSpriteTable;
     using corundum::entities::Position;
     using corundum::entities::Sprite;
     using corundum::entities::Velocity;
@@ -188,7 +189,16 @@ namespace corundum::world {
     world.facings.insert(player, corundum::entities::FacingDir::South);
     if (idle_fd > 0.f)
       world.animations.frame_duration_ref(player) = idle_fd;
-    world.motion_sprites.insert(player, walk_sid, idle_sid, walk_counts, idle_counts, 0.05f, 0.12f, walk_fd, idle_fd);
+    world.motion_sprites.insert(player, MotionSpriteTable::Config{
+                                            .walk_id = walk_sid,
+                                            .idle_id = idle_sid,
+                                            .walk_counts = walk_counts,
+                                            .idle_counts = idle_counts,
+                                            .idle_to_walk_delay = 0.05f,
+                                            .walk_to_idle_delay = 0.12f,
+                                            .walk_frame_duration = walk_fd,
+                                            .idle_frame_duration = idle_fd,
+                                        });
 
     if (static_cast<std::size_t>(1) + spawn_points.actors.size() > corundum::entities::k_max_entities)
       return std::unexpected(

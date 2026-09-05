@@ -19,7 +19,8 @@ namespace corundum::quest {
    */
   class Runner {
   public:
-    Runner(const Registry &registry, corundum::world::FlagStore &flags) noexcept : registry_(&registry), flags_(&flags) {}
+    Runner(const Registry &registry, corundum::world::FlagStore &flags) noexcept
+        : registry_(&registry), flags_(&flags) {}
 
     /** @brief Start a quest by id.
      *  @return ok on success, or an error if @p quest_id is not in the registry. */
