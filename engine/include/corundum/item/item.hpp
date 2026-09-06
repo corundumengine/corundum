@@ -5,6 +5,9 @@
 
 namespace corundum::item {
 
+  /** @brief Current on-disk item batch file format version. Absent field == version 1. */
+  inline constexpr int k_item_schema_version = 1;
+
   /** @brief What kind of thing an item is; drives inventory grouping. */
   enum class ItemCategory : uint8_t { Apparel, Misc, Potion, Weapon };
 

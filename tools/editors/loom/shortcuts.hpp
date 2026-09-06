@@ -23,9 +23,11 @@ namespace tools::loom {
     auto apply_undo = [&](const DocSnapshot &snap) {
       state.graph = snap.graph;
       state.quest_doc_ = snap.quest;
+      state.item_doc_ = snap.item_doc;
       state.doc_type_ = snap.doc_type;
       state.selected_node = snap.selected_node;
       state.selected_stage_ = snap.selected_stage;
+      state.selected_item_ = snap.selected_item;
       state.dirty = true;
       if (snap.doc_type == DocumentKind::Dialogue)
         recompute_layout(state.graph, state.layout, state.graph_width_);
@@ -36,6 +38,8 @@ namespace tools::loom {
       state.graph = {};
       state.graph.graph_id = "untitled_dialogue";
       state.quest_doc_ = {};
+      state.item_doc_.clear();
+      state.selected_item_ = -1;
       state.layout.clear();
       state.file_path.clear();
       state.selected_node = -1;
@@ -52,6 +56,8 @@ namespace tools::loom {
       state.graph = {};
       state.quest_doc_ = {};
       state.quest_doc_.quest_id = "untitled_quest";
+      state.item_doc_.clear();
+      state.selected_item_ = -1;
       state.layout.clear();
       state.file_path.clear();
       state.selected_node = -1;

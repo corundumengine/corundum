@@ -31,6 +31,7 @@ set(ENGINE_SOURCES
     src/engine.cpp
     src/input/input_sys.cpp
     src/item/item.cpp
+    src/item/serialize.cpp
     src/physics/collision.cpp
     src/physics/physics_sys.cpp
     src/physics/walkability.cpp

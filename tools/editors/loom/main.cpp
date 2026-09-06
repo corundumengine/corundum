@@ -3,6 +3,7 @@
 #include "layout.hpp"
 #include "render_graph.hpp"
 #include "render_inspector.hpp"
+#include "render_item_editor.hpp"
 #include "render_node_list.hpp"
 #include "render_quest_editor.hpp"
 #include "shortcuts.hpp"
@@ -57,12 +58,31 @@ static void new_quest(EditorState &state) {
   state.undo_stack.clear();
 }
 
+static void new_item(EditorState &state) {
+  state.doc_type_ = DocumentKind::Item;
+  state.graph = {};
+  state.quest_doc_ = {};
+  state.item_doc_.clear();
+  state.item_category_ = corundum::item::ItemCategory::Misc;
+  state.item_doc_.emplace_back();
+  state.layout.clear();
+  state.file_path.clear();
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.selected_item_ = 0;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.undo_stack.clear();
+}
+
 static std::string app_title(const EditorState &state) {
   std::string t = "Loom";
   if (!state.file_path.empty()) {
     t += " :: " + state.file_path.filename().string();
   } else if (state.doc_type_ == DocumentKind::Quest) {
     t += " :: Untitled Quest";
+  } else if (state.doc_type_ == DocumentKind::Item) {
+    t += " :: Untitled Item Batch";
   } else {
     t += " :: Untitled Dialogue";
   }
@@ -202,6 +222,10 @@ int main(int argc, char *argv[]) {
             new_quest(state);
             host->set_title(app_title(state));
           }
+          if (ImGui::MenuItem("Item Batch")) {
+            new_item(state);
+            host->set_title(app_title(state));
+          }
           ImGui::EndMenu();
         }
         if (ImGui::MenuItem("Open...", "Ctrl+O")) {
@@ -241,7 +265,7 @@ int main(int argc, char *argv[]) {
         state.file_path = path;
         if (state.doc_type_ == DocumentKind::Quest) {
           state.quest_doc_.quest_id = std::filesystem::path(path).stem().string();
-        } else {
+        } else if (state.doc_type_ == DocumentKind::Dialogue) {
           state.graph.graph_id = std::filesystem::path(path).stem().string();
         }
         auto result = save_file(state);
@@ -375,9 +399,12 @@ int main(int argc, char *argv[]) {
         ImGui::SameLine();
         render_inspector(state, state.inspector_width_);
       }
-    } else {
+    } else if (state.doc_type_ == DocumentKind::Quest) {
       // ── QUEST LAYOUT ──
       render_quest_editor(state);
+    } else {
+      // ── ITEM LAYOUT ──
+      render_item_editor(state);
     }
 
     ImGui::End(); // ##root

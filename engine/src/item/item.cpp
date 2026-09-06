@@ -13,9 +13,6 @@ namespace corundum::item {
 
   namespace {
 
-    /** @brief Item batch file JSON schema version. */
-    inline constexpr int k_item_schema_version = 1;
-
     static ItemCategory parse_category(const json &root) {
       if (root.contains("category"))
         return category_from_string(root["category"].get<std::string>());

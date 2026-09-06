@@ -1,6 +1,7 @@
 #pragma once
 
 #include <corundum/dialogue/dialogue.hpp>
+#include <corundum/item/item.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/tool_host/canvas_controller.hpp>
@@ -13,7 +14,7 @@
 
 namespace tools::loom {
 
-  enum class DocumentKind : uint8_t { Dialogue, Quest };
+  enum class DocumentKind : uint8_t { Dialogue, Quest, Item };
 
   inline constexpr float k_min_scale = 0.25f;
   inline constexpr float k_max_scale = 2.0f;
@@ -65,9 +66,11 @@ namespace tools::loom {
   struct DocSnapshot {
     corundum::dialogue::Graph graph;
     corundum::quest::Quest quest;
+    std::vector<corundum::item::Item> item_doc;
     DocumentKind doc_type = DocumentKind::Dialogue;
     int selected_node = -1;
     int selected_stage = -1;
+    int selected_item = -1;
   };
 
   struct UndoStack {
@@ -132,9 +135,12 @@ namespace tools::loom {
 
     corundum::dialogue::Graph graph;
     corundum::quest::Quest quest_doc_;
+    std::vector<corundum::item::Item> item_doc_;
+    corundum::item::ItemCategory item_category_ = corundum::item::ItemCategory::Misc;
 
     int selected_node = -1;
     int selected_stage_ = -1;
+    int selected_item_ = -1;
     bool inspector_open = false;
 
     int last_scroll_target_ = -1;
@@ -165,9 +171,11 @@ namespace tools::loom {
       DocSnapshot snap;
       snap.graph = graph;
       snap.quest = quest_doc_;
+      snap.item_doc = item_doc_;
       snap.doc_type = doc_type_;
       snap.selected_node = selected_node;
       snap.selected_stage = selected_stage_;
+      snap.selected_item = selected_item_;
       undo_stack.push(snap);
     }
   };
