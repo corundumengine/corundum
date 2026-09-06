@@ -64,6 +64,6 @@ namespace corundum::world {
    * @param[in] portals  The portals to serialize.
    * @return JSON object with a "portals" array, suitable for write_json().
    */
-  [[nodiscard]] nlohmann::json serialize_portals(const std::vector<Portal> &portals);
+  [[nodiscard]] nlohmann::json serialize(const std::vector<Portal> &portals);
 
 } // namespace corundum::world

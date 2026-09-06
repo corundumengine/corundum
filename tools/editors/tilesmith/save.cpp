@@ -25,7 +25,7 @@ namespace tools::tilesmith {
     }
 
     // 2. Serialize tilemap onto base
-    nlohmann::json j = corundum::world::tilemap::serialize_tilemap(state.map, &base);
+    nlohmann::json j = corundum::world::tilemap::serialize(state.map, &base);
 
     // 3. Write tilemap
     {
@@ -42,7 +42,7 @@ namespace tools::tilesmith {
         engine_portals.push_back({static_cast<float>(pe.col), static_cast<float>(pe.row), static_cast<float>(pe.w),
                                   static_cast<float>(pe.h), pe.target_map, pe.spawn_col, pe.spawn_row});
 
-      nlohmann::json portals_json = corundum::world::serialize_portals(engine_portals);
+      nlohmann::json portals_json = corundum::world::serialize(engine_portals);
       const auto ppath = portals_path(state.map_path);
       std::filesystem::create_directories(ppath.parent_path());
       auto res = corundum::core::write_json(ppath, portals_json);

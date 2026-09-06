@@ -24,7 +24,7 @@ namespace {
 } // namespace
 
 using corundum::world::load_portals;
-using corundum::world::serialize_portals;
+using corundum::world::serialize;
 
 TEST_CASE("load_portals — missing file returns empty vector") {
   auto result = load_portals("/nonexistent/path/portals.json");
@@ -42,7 +42,7 @@ TEST_CASE("load_portals — malformed JSON returns error containing the path") {
   CHECK(result.error().find(p.string()) != std::string::npos);
 }
 
-TEST_CASE("load_portals — valid file round-trip via serialize_portals") {
+TEST_CASE("load_portals — valid file round-trip via serialize") {
   const auto dir = temp_dir("roundtrip");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -63,7 +63,7 @@ TEST_CASE("load_portals — valid file round-trip via serialize_portals") {
   CHECK(portal.spawn_row == 5);
   CHECK_FALSE(portal.return_to_world);
 
-  const auto json = serialize_portals(*result);
+  const auto json = serialize(*result);
   REQUIRE(json.contains("portals"));
   REQUIRE(json["portals"].size() == 1);
   CHECK(json["portals"][0]["col"] == 0);
@@ -116,7 +116,7 @@ TEST_CASE("load_portals — serialize writes only new keys") {
   auto result = load_portals(p);
   REQUIRE(result.has_value());
 
-  const auto json = serialize_portals(*result);
+  const auto json = serialize(*result);
   const auto &portals = json["portals"];
   REQUIRE(portals.size() == 1);
   CHECK(portals[0].contains("target_chunk_col"));
@@ -144,7 +144,7 @@ TEST_CASE("load_portals — return_to_world=true portal (bare, no target) is acc
   CHECK(portal.spawn_col == 9);
   CHECK(portal.spawn_row == 10);
 
-  const auto json = serialize_portals(*result);
+  const auto json = serialize(*result);
   const auto &portals = json["portals"];
   REQUIRE(portals.size() == 1);
   CHECK(portals[0].contains("return_to_world"));

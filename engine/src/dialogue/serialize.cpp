@@ -83,7 +83,7 @@ namespace corundum::dialogue {
 
   } // namespace
 
-  nlohmann::json serialize_graph(const Graph &graph) {
+  nlohmann::json serialize(const Graph &graph) {
     nlohmann::json j;
     j["type"] = "graph";
     j["id"] = graph.graph_id;

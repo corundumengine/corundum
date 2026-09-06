@@ -33,7 +33,7 @@ namespace tools::loom {
   std::expected<void, std::string> save_graph(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
-    return corundum::core::write_json(state.file_path, corundum::dialogue::serialize_graph(state.graph));
+    return corundum::core::write_json(state.file_path, corundum::dialogue::serialize(state.graph));
   }
 
   std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path) {
@@ -60,7 +60,7 @@ namespace tools::loom {
   std::expected<void, std::string> save_quest_file(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
-    return corundum::core::write_json(state.file_path, corundum::quest::serialize_quest(state.quest_doc_));
+    return corundum::core::write_json(state.file_path, corundum::quest::serialize(state.quest_doc_));
   }
 
   std::expected<void, std::string> load_quest_file(EditorState &state, const std::string &path) {
@@ -86,7 +86,7 @@ namespace tools::loom {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
     return corundum::core::write_json(state.file_path,
-                                      corundum::item::serialize_item_file(state.item_doc_, state.item_category_));
+                                      corundum::item::serialize(state.item_doc_, state.item_category_));
   }
 
   std::expected<void, std::string> load_item_file_doc(EditorState &state, const std::string &path) {

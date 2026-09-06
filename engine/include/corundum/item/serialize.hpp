@@ -18,6 +18,6 @@ namespace corundum::item {
    * @param category The category of the folder this batch lives in.
    * @return A JSON object suitable for write_json().
    */
-  [[nodiscard]] nlohmann::json serialize_item_file(std::span<const Item> items, ItemCategory category);
+  [[nodiscard]] nlohmann::json serialize(std::span<const Item> items, ItemCategory category);
 
 } // namespace corundum::item

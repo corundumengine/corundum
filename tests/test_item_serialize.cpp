@@ -33,7 +33,7 @@ namespace {
     auto loaded = item::load_item_file(src, category);
     if (!loaded)
       return std::unexpected(loaded.error());
-    auto write_result = corundum::core::write_json(out, item::serialize_item_file(*loaded, category));
+    auto write_result = corundum::core::write_json(out, item::serialize(*loaded, category));
     if (!write_result)
       return std::unexpected(write_result.error());
     return item::load_item_file(out, category);
@@ -153,7 +153,7 @@ TEST_CASE("item serialize: emitted JSON is a valid batch document") {
   sword.weapon = item::WeaponData{15};
   items.push_back(sword);
 
-  const auto j = item::serialize_item_file(items, item::ItemCategory::Weapon);
+  const auto j = item::serialize(items, item::ItemCategory::Weapon);
   CHECK(j.at("schema_version").get<int>() == 1);
   REQUIRE(j.at("items").is_array());
   REQUIRE(j.at("items").size() == 1);

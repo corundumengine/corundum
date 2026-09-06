@@ -217,7 +217,7 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
   CHECK(result->stages[0].advances_to[1] == "c");
   CHECK(result->stages[1].advances_to.empty());
 
-  const auto j = quest::serialize_quest(*result);
+  const auto j = quest::serialize(*result);
   const auto tmp2 = std::filesystem::path("tests/fixtures/tmp_advances_to.json");
   REQUIRE(corundum::core::write_json(tmp2, j).has_value());
   const auto reloaded = quest::load_quest(tmp2.string());
@@ -930,12 +930,12 @@ TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)"
 
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
-TEST_CASE("serialize_quest round-trips through load_quest") {
+TEST_CASE("quest serialize round-trips through load_quest") {
   const auto result = quest::load_quest("tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
   const auto &q = *result;
 
-  const auto j = quest::serialize_quest(q);
+  const auto j = quest::serialize(q);
 
   const auto tmp = std::filesystem::path("tests/fixtures/tmp_find_sword.json");
   auto write_result = corundum::core::write_json(tmp, j);

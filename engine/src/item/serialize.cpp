@@ -18,7 +18,7 @@ namespace corundum::item {
 
   } // namespace
 
-  nlohmann::json serialize_item_file(std::span<const Item> items, ItemCategory category) {
+  nlohmann::json serialize(std::span<const Item> items, ItemCategory category) {
     nlohmann::json j;
     j["schema_version"] = k_item_schema_version;
     j["items"] = nlohmann::json::array();

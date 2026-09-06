@@ -19,6 +19,6 @@ namespace corundum::world::tilemap {
    * @param[in] base  Optional existing JSON to merge onto (preserves unknown keys).
    * @return JSON object suitable for write_json().
    */
-  [[nodiscard]] nlohmann::json serialize_tilemap(const Tilemap &map, const nlohmann::json *base = nullptr);
+  [[nodiscard]] nlohmann::json serialize(const Tilemap &map, const nlohmann::json *base = nullptr);
 
 } // namespace corundum::world::tilemap

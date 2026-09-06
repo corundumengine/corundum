@@ -129,7 +129,7 @@ namespace corundum::world {
     return result;
   }
 
-  nlohmann::json serialize_portals(const std::vector<Portal> &portals) {
+  nlohmann::json serialize(const std::vector<Portal> &portals) {
     nlohmann::json j;
     j["portals"] = nlohmann::json::array();
     for (const auto &p : portals) {

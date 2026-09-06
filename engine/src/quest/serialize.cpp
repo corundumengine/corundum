@@ -34,7 +34,7 @@ namespace corundum::quest {
 
   } // namespace
 
-  nlohmann::json serialize_quest(const Quest &quest) {
+  nlohmann::json serialize(const Quest &quest) {
     nlohmann::json j;
     j["type"] = "quest";
     j["id"] = quest.quest_id;

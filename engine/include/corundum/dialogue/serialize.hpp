@@ -9,6 +9,6 @@ namespace corundum::dialogue {
    *  @param graph A fully-constructed dialogue graph.
    *  @return nlohmann::json object suitable for write_json().
    */
-  [[nodiscard]] nlohmann::json serialize_graph(const Graph &graph);
+  [[nodiscard]] nlohmann::json serialize(const Graph &graph);
 
 } // namespace corundum::dialogue

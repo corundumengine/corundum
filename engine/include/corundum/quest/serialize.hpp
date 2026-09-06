@@ -9,6 +9,6 @@ namespace corundum::quest {
    *  @param quest A fully-constructed quest document.
    *  @return nlohmann::json object suitable for write_json().
    */
-  [[nodiscard]] nlohmann::json serialize_quest(const Quest &quest);
+  [[nodiscard]] nlohmann::json serialize(const Quest &quest);
 
 } // namespace corundum::quest

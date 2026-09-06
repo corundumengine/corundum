@@ -1186,12 +1186,12 @@ TEST_CASE("divert: validate_quest_refs flags a missing node in an existing graph
 
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
-TEST_CASE("serialize_graph round-trips through load_graph") {
+TEST_CASE("dialogue serialize round-trips through load_graph") {
   const auto result = corundum::dialogue::load_graph("tests/fixtures/innkeeper.json");
   REQUIRE(result.has_value());
   const auto &g = *result;
 
-  const auto j = corundum::dialogue::serialize_graph(g);
+  const auto j = corundum::dialogue::serialize(g);
 
   const auto tmp = std::filesystem::path("tests/fixtures/tmp_innkeeper.json");
   auto write_result = corundum::core::write_json(tmp, j);

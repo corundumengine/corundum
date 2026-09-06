@@ -71,7 +71,7 @@ namespace corundum::world::tilemap {
 
   // ── Public API ─────────────────────────────────────────────────────────────────
 
-  json serialize_tilemap(const Tilemap &map, const json *base) {
+  json serialize(const Tilemap &map, const json *base) {
     json j = base ? *base : json::object();
 
     j["schema_version"] = k_tilemap_schema_version;
