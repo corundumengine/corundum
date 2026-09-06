@@ -149,6 +149,11 @@ int main(int argc, char *argv[]) {
     state.quests_loaded_ = true;
   }
 
+  if (!cfg.dialogue_dir.empty() && std::filesystem::is_directory(cfg.dialogue_dir)) {
+    [[maybe_unused]] auto graph_count = state.graph_registry_.load_all(cfg.dialogue_dir.string());
+    state.graphs_loaded_ = true;
+  }
+
   if (argc == 2) {
     auto load_result = load_file(state, argv[1]);
     if (!load_result) {

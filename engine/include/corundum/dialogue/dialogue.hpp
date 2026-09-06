@@ -91,6 +91,13 @@ namespace corundum::dialogue {
    * without pointer instability across node vector reallocation.
    */
   struct Graph {
+    /**
+     * @brief Optional stable NPC identifier this graph is attached to.
+     *
+     * Lets quest and divert logic resolve graph <-> NPC (e.g. match a
+     * spawn-points "id" from `ActorIdTable`). Empty when unset; optional.
+     */
+    std::string actor_id;
     /** @brief On-disk format version; 1 for legacy files without the field. */
     int schema_version = k_dialogue_schema_version;
     std::string graph_id;

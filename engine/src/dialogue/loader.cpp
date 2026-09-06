@@ -194,6 +194,9 @@ namespace corundum::dialogue {
     if (root.contains("speaker") && root["speaker"].is_string())
       graph.speaker = root["speaker"].get<std::string>();
 
+    if (root.contains("actor_id") && root["actor_id"].is_string())
+      graph.actor_id = root["actor_id"].get<std::string>();
+
     // Schema guarantees: nodes is a non-empty array.
     const auto &nodes_arr = root["nodes"];
     graph.nodes.reserve(nodes_arr.size());

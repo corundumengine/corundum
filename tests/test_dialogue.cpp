@@ -1184,6 +1184,36 @@ TEST_CASE("divert: validate_quest_refs flags a missing node in an existing graph
   CHECK(errors[0].find("unknown node 'nope' in 'target'") != std::string::npos);
 }
 
+// ── actor_id ───────────────────────────────────────────────────────────────────
+
+TEST_CASE("actor_id: loads from JSON and round-trips through serialize") {
+  const auto result = corundum::dialogue::load_graph("tests/fixtures/actor_dialogue.json");
+  REQUIRE(result.has_value());
+  CHECK(result->actor_id == "brann");
+
+  const auto j = corundum::dialogue::serialize(*result);
+  CHECK(j["actor_id"].get<std::string>() == "brann");
+
+  const auto tmp = std::filesystem::path("tests/fixtures/tmp_actor_dialogue.json");
+  auto write_result = corundum::core::write_json(tmp, j);
+  REQUIRE(write_result.has_value());
+
+  const auto reloaded = corundum::dialogue::load_graph(tmp.string());
+  REQUIRE(reloaded.has_value());
+  CHECK(reloaded->actor_id == "brann");
+
+  std::filesystem::remove(tmp);
+}
+
+TEST_CASE("actor_id: absent field leaves actor_id empty and serialize omits it") {
+  const auto result = corundum::dialogue::load_graph("tests/fixtures/innkeeper.json");
+  REQUIRE(result.has_value());
+  CHECK(result->actor_id.empty());
+
+  const auto j = corundum::dialogue::serialize(*result);
+  CHECK_FALSE(j.contains("actor_id"));
+}
+
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
 TEST_CASE("dialogue serialize round-trips through load_graph") {

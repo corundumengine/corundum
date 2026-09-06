@@ -76,6 +76,7 @@ add_executable(loom
     editors/loom/render_graph.cpp
     editors/loom/render_inspector.cpp
     editors/loom/render_item_editor.cpp
+    editors/loom/render_keys_panel.cpp
     editors/loom/render_node_list.cpp
     editors/loom/render_quest_editor.cpp
 )

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <corundum/dialogue/dialogue.hpp>
+#include <corundum/dialogue/registry.hpp>
 #include <corundum/item/item.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
@@ -9,6 +10,7 @@
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,6 +35,21 @@ namespace tools::loom {
     bool show_close_confirm = false;
   };
 
+  /**
+   * @brief Pending (uncommitted) condition text for one edit field.
+   *
+   * When a condition fails to compile the raw text is kept here so the buffer
+   * survives the frame-boundary re-seed, and the error is shown inline under
+   * the field. `owner` is the choice/objective index the pending edit belongs
+   * to, so switching fields re-syncs the buffer from the committed source.
+   */
+  struct CondEditState {
+    bool active = false;
+    int owner = -1;
+    std::string error;
+    std::string text;
+  };
+
   struct InspectorState {
     char id_buf[128]{};
     char text_buf[1024]{};
@@ -49,6 +66,11 @@ namespace tools::loom {
     int quick_stage_idx = 0;
     int quick_cond_type = 0;
     int quick_cond_stage_idx = 0;
+    int quick_graph_idx = 0;
+    char quick_divert_node_buf[128]{};
+
+    CondEditState choice_cond_edit;    ///< Choice-edge condition field in the inspector.
+    CondEditState objective_cond_edit; ///< Objective done_condition field in the quest editor.
 
     void clear() {
       std::memset(id_buf, 0, sizeof(id_buf));
@@ -60,6 +82,7 @@ namespace tools::loom {
       std::memset(target_buf, 0, sizeof(target_buf));
       std::memset(meta_key_buf, 0, sizeof(meta_key_buf));
       std::memset(meta_val_buf, 0, sizeof(meta_val_buf));
+      std::memset(quick_divert_node_buf, 0, sizeof(quick_divert_node_buf));
     }
   };
 
@@ -151,10 +174,13 @@ namespace tools::loom {
 
     std::vector<NodeLayout> layout;
     char graph_speaker_buf_[256]{};
+    char graph_actor_id_buf_[128]{};
     char graph_id_buf_[128]{};
     corundum::tool_host::CanvasController canvas;
     corundum::quest::Registry quest_registry;
     bool quests_loaded_ = false;
+    corundum::dialogue::Registry graph_registry_;
+    bool graphs_loaded_ = false;
     PopupState popups;
     InspectorState inspector_bufs;
     ToastState toast;
@@ -179,5 +205,28 @@ namespace tools::loom {
       undo_stack.push(snap);
     }
   };
+
+  /**
+   * @brief Commit a condition text edit into an optional CompiledExpr slot.
+   *
+   * Empty text clears the condition; valid text compiles and stores it; a
+   * malformed expression keeps the raw text in @p edit for inline feedback
+   * instead of committing. Only a real mutation pushes an undo snapshot.
+   */
+  inline void commit_condition(EditorState &state, std::optional<corundum::dialogue::CompiledExpr> &slot,
+                               const std::string &raw, CondEditState &edit, int owner) {
+    auto compiled = corundum::dialogue::compile(raw);
+    if (!compiled) {
+      edit = {.active = true, .owner = owner, .error = compiled.error().message, .text = raw};
+      return;
+    }
+    state.push_undo_snapshot();
+    if (raw.empty())
+      slot.reset();
+    else
+      slot = std::move(*compiled);
+    edit = {};
+    state.dirty = true;
+  }
 
 } // namespace tools::loom

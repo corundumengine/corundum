@@ -1,0 +1,13 @@
+{
+  "id": "actor_intro",
+  "actor_id": "brann",
+  "speaker": "Brann",
+  "nodes": [
+    {
+      "id": "n0",
+      "type": "talk",
+      "text": "The fire keeps the cold out.",
+      "next": "end"
+    }
+  ]
+}

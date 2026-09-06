@@ -23,6 +23,7 @@ namespace corundum::core {
     "type": { "type": "string" },
     "schema_version": { "type": "integer", "minimum": 1 },
     "speaker": { "type": "string" },
+    "actor_id": { "type": "string" },
     "variables": { "type": "object" },
     "nodes": {
       "type": "array",

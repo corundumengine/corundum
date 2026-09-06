@@ -24,6 +24,10 @@ namespace tools::loom {
       std::strncpy(state.graph_speaker_buf_, state.graph.speaker.c_str(), sizeof(state.graph_speaker_buf_) - 1);
       state.graph_speaker_buf_[sizeof(state.graph_speaker_buf_) - 1] = '\0';
     }
+    if (state.graph.actor_id != std::string_view(state.graph_actor_id_buf_)) {
+      std::strncpy(state.graph_actor_id_buf_, state.graph.actor_id.c_str(), sizeof(state.graph_actor_id_buf_) - 1);
+      state.graph_actor_id_buf_[sizeof(state.graph_actor_id_buf_) - 1] = '\0';
+    }
 
     ImGui::Text("Graph ID:");
     ImGui::SameLine();
@@ -40,6 +44,15 @@ namespace tools::loom {
     if (ImGui::IsItemDeactivatedAfterEdit()) {
       state.push_undo_snapshot();
       state.graph.speaker = std::string(state.graph_speaker_buf_);
+      state.dirty = true;
+    }
+
+    ImGui::Text("Actor ID:");
+    ImGui::SameLine();
+    ImGui::InputText("##graph_actor_id", state.graph_actor_id_buf_, sizeof(state.graph_actor_id_buf_));
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+      state.push_undo_snapshot();
+      state.graph.actor_id = std::string(state.graph_actor_id_buf_);
       state.dirty = true;
     }
 

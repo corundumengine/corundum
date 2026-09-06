@@ -93,6 +93,9 @@ namespace corundum::dialogue {
     if (!graph.speaker.empty())
       j["speaker"] = graph.speaker;
 
+    if (!graph.actor_id.empty())
+      j["actor_id"] = graph.actor_id;
+
     if (!graph.variables.empty()) {
       nlohmann::json vars = nlohmann::json::object();
       for (const auto &[k, v] : graph.variables)

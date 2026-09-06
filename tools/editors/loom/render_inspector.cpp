@@ -1,6 +1,7 @@
 #include "render_inspector.hpp"
 #include "graph_layout.hpp"
 #include "node_type_traits.hpp"
+#include "render_keys_panel.hpp"
 
 #include <corundum/dialogue/compiled_expr.hpp>
 
@@ -21,6 +22,25 @@ namespace tools::loom {
 
     std::string from_buf(const char *buf) {
       return std::string(buf);
+    }
+
+    constexpr auto k_warning_col = ImVec4{1.f, 0.6f, 0.f, 1.f};
+
+    /// Seed a condition InputText buffer, honouring a pending failed edit.
+    void seed_cond_buf(const std::optional<corundum::dialogue::CompiledExpr> &slot, char *buf, int buf_size,
+                       const CondEditState &edit, int owner) {
+      if (edit.active && edit.owner == owner)
+        copy_to_buf(edit.text, buf, buf_size);
+      else if (slot)
+        copy_to_buf(std::string(slot->source()), buf, buf_size);
+      else
+        copy_to_buf("", buf, buf_size);
+    }
+
+    /// Render the compile-error line under a condition field when one is pending.
+    void render_cond_error(const CondEditState &edit, int owner) {
+      if (edit.active && edit.owner == owner && !edit.error.empty())
+        ImGui::TextColored(k_warning_col, "%s", edit.error.c_str());
     }
 
     void render_quest_action_quick_add(EditorState &state, std::vector<std::string> &actions) {
@@ -157,6 +177,50 @@ namespace tools::loom {
       }
     }
 
+    void render_divert_quick_add(EditorState &state, std::vector<std::string> &actions) {
+      if (!state.graphs_loaded_)
+        return;
+
+      std::vector<const char *> graph_ids;
+      for (const auto &[id, graph] : state.graph_registry_)
+        graph_ids.push_back(id.c_str());
+      if (graph_ids.empty())
+        return;
+
+      auto &q = state.inspector_bufs;
+      if (q.quick_graph_idx >= static_cast<int>(graph_ids.size()))
+        q.quick_graph_idx = 0;
+
+      ImGui::SeparatorText("Quick Add Divert");
+
+      if (ImGui::BeginCombo("##qad_graph", graph_ids[q.quick_graph_idx])) {
+        for (int i = 0; i < static_cast<int>(graph_ids.size()); ++i) {
+          if (ImGui::Selectable(graph_ids[i], q.quick_graph_idx == i))
+            q.quick_graph_idx = i;
+        }
+        ImGui::EndCombo();
+      }
+
+      ImGui::SameLine();
+      ImGui::InputText("Node", q.quick_divert_node_buf, sizeof(q.quick_divert_node_buf));
+
+      ImGui::SameLine();
+      if (ImGui::SmallButton("goto##qad_goto") && q.quick_divert_node_buf[0] != '\0') {
+        state.push_undo_snapshot();
+        actions.emplace_back(
+            std::format("goto_graph('{}', '{}')", graph_ids[q.quick_graph_idx], q.quick_divert_node_buf));
+        state.dirty = true;
+        q.quick_divert_node_buf[0] = '\0';
+      }
+
+      ImGui::SameLine();
+      if (ImGui::SmallButton("return##qad_return")) {
+        state.push_undo_snapshot();
+        actions.emplace_back("return_graph()");
+        state.dirty = true;
+      }
+    }
+
     void render_talk_editor(corundum::dialogue::Node &node, EditorState &state) {
       ImGui::InputTextMultiline("Text", state.inspector_bufs.text_buf, sizeof(state.inspector_bufs.text_buf),
                                 {400.f, 80.f});
@@ -227,33 +291,19 @@ namespace tools::loom {
         }
 
         char local_cond[256];
-        if (ch.condition) {
-          copy_to_buf(std::string(ch.condition->source()), local_cond, sizeof(local_cond));
-        } else {
-          local_cond[0] = '\0';
-        }
+        auto &cond_edit = state.inspector_bufs.choice_cond_edit;
+        seed_cond_buf(ch.condition, local_cond, sizeof(local_cond), cond_edit, i);
         ImGui::InputText("Condition", local_cond, sizeof(local_cond));
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-          state.push_undo_snapshot();
-          const std::string cond_str = from_buf(local_cond);
-          if (cond_str.empty()) {
-            ch.condition.reset();
-            state.dirty = true;
-          } else if (auto compiled = corundum::dialogue::compile(cond_str)) {
-            ch.condition = std::move(*compiled);
-            state.dirty = true;
-          }
+          commit_condition(state, ch.condition, from_buf(local_cond), cond_edit, i);
         }
+        render_cond_error(cond_edit, i);
         if (state.quests_loaded_) {
           std::string cond_before = from_buf(local_cond);
           render_quest_condition_quick_add(state, local_cond, sizeof(local_cond));
           std::string cond_after = from_buf(local_cond);
-          if (cond_after != cond_before) {
-            if (auto compiled = corundum::dialogue::compile(cond_after)) {
-              ch.condition = std::move(*compiled);
-              state.dirty = true;
-            }
-          }
+          if (cond_after != cond_before)
+            commit_condition(state, ch.condition, cond_after, cond_edit, i);
         }
 
         static const char *seq_labels[] = {"None", "Once", "Cycle", "Random"};
@@ -292,6 +342,8 @@ namespace tools::loom {
         }
 
         render_quest_action_quick_add(state, ch.actions);
+
+        render_divert_quick_add(state, ch.actions);
 
         ImGui::SameLine();
         if (ImGui::SmallButton("Delete Choice")) {
@@ -334,6 +386,7 @@ namespace tools::loom {
         std::memset(state.inspector_bufs.action_buf, 0, sizeof(state.inspector_bufs.action_buf));
       }
       render_quest_action_quick_add(state, node.actions);
+      render_divert_quick_add(state, node.actions);
     }
 
   } // namespace
@@ -395,6 +448,9 @@ namespace tools::loom {
       default:
         break;
     }
+
+    ImGui::Separator();
+    render_keys_panel(state);
 
     ImGui::EndChild();
   }

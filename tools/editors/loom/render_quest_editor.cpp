@@ -1,14 +1,16 @@
 #include "render_quest_editor.hpp"
 #include "graph_layout.hpp"
+#include "render_keys_panel.hpp"
 #include "validate_quest_refs.hpp"
 
-#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/quest.hpp>
 
 #include <format>
 #include <imgui.h>
 
 namespace tools::loom {
+
+  constexpr auto k_warning_col = ImVec4{1.f, 0.6f, 0.f, 1.f};
 
   void render_quest_editor(EditorState &state) {
     const auto avail = ImGui::GetContentRegionAvail();
@@ -180,22 +182,24 @@ namespace tools::loom {
         }
 
         char obj_cond_buf[256];
-        std::memset(obj_cond_buf, 0, sizeof(obj_cond_buf));
-        if (obj.done_condition)
+        auto &obj_cond_edit = state.inspector_bufs.objective_cond_edit;
+        if (obj_cond_edit.active && obj_cond_edit.owner == oi) {
+          std::memset(obj_cond_buf, 0, sizeof(obj_cond_buf));
+          std::memcpy(obj_cond_buf, obj_cond_edit.text.c_str(),
+                      std::min(obj_cond_edit.text.size(), sizeof(obj_cond_buf) - 1));
+        } else if (obj.done_condition) {
+          std::memset(obj_cond_buf, 0, sizeof(obj_cond_buf));
           std::memcpy(obj_cond_buf, std::string(obj.done_condition->source()).c_str(),
                       std::min(obj.done_condition->source().size(), sizeof(obj_cond_buf) - 1));
+        } else {
+          obj_cond_buf[0] = '\0';
+        }
         ImGui::InputText("Done Condition", obj_cond_buf, sizeof(obj_cond_buf));
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-          state.push_undo_snapshot();
-          std::string cond_str = std::string(obj_cond_buf);
-          if (cond_str.empty()) {
-            obj.done_condition.reset();
-            state.dirty = true;
-          } else if (auto compiled = corundum::dialogue::compile(cond_str)) {
-            obj.done_condition = std::move(*compiled);
-            state.dirty = true;
-          }
+          commit_condition(state, obj.done_condition, std::string(obj_cond_buf), obj_cond_edit, oi);
         }
+        if (obj_cond_edit.active && obj_cond_edit.owner == oi && !obj_cond_edit.error.empty())
+          ImGui::TextColored(k_warning_col, "%s", obj_cond_edit.error.c_str());
 
         if (ImGui::SmallButton("X##obj")) {
           obj_to_delete = oi;
@@ -213,19 +217,79 @@ namespace tools::loom {
         s.objectives.push_back({});
         state.dirty = true;
       }
+
+      ImGui::SeparatorText("Advances To");
+
+      if (!state.quest_doc_.stages.empty()) {
+        int advances_to_delete = -1;
+        for (int ai = 0; ai < static_cast<int>(s.advances_to.size()); ++ai) {
+          ImGui::PushID(ai + 4000);
+
+          int current_stage_idx = -1;
+          for (int si = 0; si < static_cast<int>(state.quest_doc_.stages.size()); ++si) {
+            if (state.quest_doc_.stages[si].name == s.advances_to[ai]) {
+              current_stage_idx = si;
+              break;
+            }
+          }
+          const char *preview = current_stage_idx >= 0 ? state.quest_doc_.stages[current_stage_idx].name.c_str()
+                                                       : s.advances_to[ai].c_str();
+
+          if (ImGui::BeginCombo("##at_stage", preview)) {
+            for (int si = 0; si < static_cast<int>(state.quest_doc_.stages.size()); ++si) {
+              if (ImGui::Selectable(state.quest_doc_.stages[si].name.c_str(), si == current_stage_idx)) {
+                if (state.quest_doc_.stages[si].name != s.advances_to[ai]) {
+                  state.push_undo_snapshot();
+                  s.advances_to[ai] = state.quest_doc_.stages[si].name;
+                  state.dirty = true;
+                }
+              }
+            }
+            ImGui::EndCombo();
+          }
+
+          ImGui::SameLine();
+          if (ImGui::SmallButton("X##at")) {
+            advances_to_delete = ai;
+            state.push_undo_snapshot();
+          }
+
+          ImGui::PopID();
+        }
+
+        if (advances_to_delete >= 0) {
+          s.advances_to.erase(s.advances_to.begin() + advances_to_delete);
+          state.dirty = true;
+        }
+
+        if (ImGui::Button("+ Add Target")) {
+          state.push_undo_snapshot();
+          s.advances_to.push_back(state.quest_doc_.stages.front().name);
+          state.dirty = true;
+        }
+      } else {
+        ImGui::TextDisabled("No stages yet — add stages first.");
+      }
     } else {
       ImGui::TextDisabled("Select a stage from the list to edit its properties.");
     }
 
+    // ── Keys panel ──
+    ImGui::Separator();
+    render_keys_panel(state);
+
     // ── Validation section at bottom of editor ──
     ImGui::Separator();
-    constexpr auto k_warning_col = ImVec4{1.f, 0.6f, 0.f, 1.f};
     if (state.quest_doc_.quest_id.empty())
       ImGui::TextColored(k_warning_col, "  Quest ID is empty");
     if (state.quest_doc_.name.empty())
       ImGui::TextColored(k_warning_col, "  Quest name is empty");
 
-    for (const auto &msg : corundum::quest::validate(state.quest_doc_))
+    std::vector<std::string> quest_warnings;
+    const auto quest_errors = corundum::quest::validate(state.quest_doc_, &quest_warnings);
+    for (const auto &msg : quest_errors)
+      ImGui::TextColored(k_warning_col, "  %s", msg.c_str());
+    for (const auto &msg : quest_warnings)
       ImGui::TextColored(k_warning_col, "  %s", msg.c_str());
 
     ImGui::EndChild(); // quest_editor
