@@ -70,4 +70,6 @@ build/tests/corundum_tests -tc="*name*"   # single test
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE) for details.
+Engine and tools are Apache-2.0 — see [LICENSE](LICENSE) for details.
+
+Dependencies carry their own licenses (see [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)).
