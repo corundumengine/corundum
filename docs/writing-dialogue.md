@@ -1,12 +1,12 @@
 # Writing Dialogue
 
-Dialogues are defined as JSON files in the `data/dialogue/` directory (configurable via the `dialogue_dir` key in `game.json`). The engine loads them all at startup. This guide covers everything you need to write and wire up dialogue, from a simple NPC greeting to a branching conversation that starts quests and tracks state.
+Dialogue is written as JSON files in `data/dialogue/` (the `dialogue_dir` key in `game.json` overrides that). The engine loads them all at startup.
 
 ---
 
 ## How dialogue works
 
-A dialogue is a **graph** of nodes connected by edges. The engine tracks a current node and advances through the graph based on player input. Progress and game state are stored in the flag store — the same shared store used by quests, so dialogue conditions and quest conditions work identically.
+A dialogue is a graph of nodes joined by edges. The engine keeps track of a current node and moves forward as the player acts. Progress lives in the flag store, the same one quests use, so dialogue conditions and quest conditions behave the same way.
 
 ---
 
@@ -28,14 +28,15 @@ A dialogue is a **graph** of nodes connected by edges. The engine tracks a curre
 }
 ```
 
-Top-level fields:
+The fields at the top level:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `type` | string | no | `"graph"` (`"dialogue"` is accepted as an alias). Identifies the file to tools and the engine loader; may be omitted since the directory provides the context. |
-| `id` | string | yes | Unique identifier for this dialogue graph. Snake_case. |
-| `speaker` | string | no | Character name shown in the UI. Not used by core logic. |
-| `variables` | object | no | Default flag values applied when dialogue starts (only if the flag is not already set). |
+| `type` | string | no | `"graph"` (`"dialogue"` is accepted as an alias). Identifies the file to tools and the loader; you can leave it out, since the directory already says what the file is. |
+| `id` | string | yes | Unique identifier for this graph. Snake_case. |
+| `speaker` | string | no | Character name shown in the UI. Core logic ignores it. |
+| `actor_id` | string | no | Optional stable NPC id this graph belongs to. Lets quest and divert logic match a graph to a specific NPC (see [Stable NPC identity](#stable-npc-identity)). |
+| `variables` | object | no | Default flag values applied when the dialogue starts (only if the flag isn't already set). |
 | `nodes` | array | yes | All nodes in the graph. |
 
 ---
@@ -44,7 +45,7 @@ Top-level fields:
 
 ### Talk
 
-Displays text. The player presses Select to advance, or Cancel to close the dialogue.
+Shows a line of text. The player presses Select to advance or Cancel to close the dialogue.
 
 ```json
 {
@@ -59,15 +60,15 @@ Displays text. The player presses Select to advance, or Cancel to close the dial
 |---|---|---|---|
 | `id` | string | yes | Unique within this graph. |
 | `type` | string | yes | Must be `"talk"`. |
-| `text` | string | yes | The line of dialogue shown to the player. |
-| `next` | string | yes | Node to advance to. Use `"end"` to close the dialogue. |
-| `metadata` | object | no | Arbitrary key-value pairs passed to the UI layer. See [Metadata](#metadata). |
+| `text` | string | yes | The line shown to the player. |
+| `next` | string | yes | Node to move to next. Use `"end"` to close. |
+| `metadata` | object | no | Arbitrary string pairs passed to the UI layer. See [Metadata](#metadata). |
 
 ---
 
 ### Choice
 
-Presents a list of options. The player navigates with Move Up / Move Down and confirms with Select, or cancels with Cancel. Only visible choices are shown.
+Shows a list of options. The player moves with Move Up / Move Down, confirms with Select, and cancels with Cancel. Only visible choices are shown.
 
 ```json
 {
@@ -89,24 +90,24 @@ Presents a list of options. The player navigates with Move Up / Move Down and co
 }
 ```
 
-Each entry in `choices` is an edge:
+Each entry in `choices` is one edge:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `label` | string | yes | Text shown to the player for this option. |
-| `target` | string | yes | Node to advance to when chosen. Use `"end"` to close. |
-| `condition` | string | no | Flag expression; edge is hidden if false. See [Conditions](#conditions). |
-| `actions` | array | no | Actions executed when this edge is taken. See [Actions](#actions). |
-| `sequence` | string | no | Controls repetition. See [Sequencing](#sequencing). Defaults to `"none"`. |
-| `min_visits` | integer | no | Minimum number of times this node must have been visited for this edge to appear. |
+| `label` | string | yes | Text shown to the player. |
+| `target` | string | yes | Node to go to when chosen. Use `"end"` to close. |
+| `condition` | string | no | Flag expression; the edge is hidden when it's false. See [Conditions](#conditions). |
+| `actions` | array | no | Actions run when the edge is taken. See [Actions](#actions). |
+| `sequence` | string | no | How often the edge reappears. See [Sequencing](#sequencing). Defaults to `"none"`. |
+| `min_visits` | integer | no | Minimum number of times this node must have been visited before the edge shows. |
 
-If all edges are hidden, the dialogue closes immediately.
+If every edge is hidden, the dialogue closes on the spot.
 
 ---
 
 ### Event
 
-Executes actions silently with no UI, then immediately advances to the next node. Useful for triggering sounds, starting quests, or mutating state mid-conversation.
+Runs actions silently, with no UI, then moves straight to the next node. Handy for sounds, quest starts, or fiddling with state mid-conversation.
 
 ```json
 {
@@ -121,16 +122,16 @@ Executes actions silently with no UI, then immediately advances to the next node
 |---|---|---|---|
 | `id` | string | yes | Unique within this graph. |
 | `type` | string | yes | Must be `"event"`. |
-| `actions` | array | yes | Actions to execute. Must not be empty. |
-| `next` | string | yes | Node to advance to. Use `"end"` to close. |
+| `actions` | array | yes | Actions to run. Must not be empty. |
+| `next` | string | yes | Node to move to next. Use `"end"` to close. |
 
-Chains of event nodes are flushed in a single frame — no UI is shown between them.
+A chain of event nodes resolves in a single frame, with nothing shown in between.
 
 ---
 
 ### End
 
-Closes the dialogue. You can also use `"end"` as the value of any `next` or `target` field without defining an explicit end node.
+Closes the dialogue. You can also just write `"end"` as the value of any `next` or `target` field instead of defining an end node.
 
 ```json
 {
@@ -143,7 +144,7 @@ Closes the dialogue. You can also use `"end"` as the value of any `next` or `tar
 
 ## Conditions
 
-Conditions control whether a choice edge is visible. They are evaluated against the flag store.
+A condition decides whether a choice edge is visible. Conditions are compiled once at load time and validated right away.
 
 ```json
 { "condition": "gold >= 5" }
@@ -152,7 +153,15 @@ Conditions control whether a choice edge is visible. They are evaluated against 
 { "condition": "quest_is_started(find_sword)" }
 ```
 
-An absent or empty condition means the edge is always visible.
+Leave the condition out and the edge is always visible.
+
+### Compilation and validation
+
+Each `condition` string is parsed once and compiled into a reusable expression. If it doesn't parse, the whole graph fails to load with an error that names the offending choice. There's no silent failure here: a typo keeps the dialogue from ever loading.
+
+Once all graphs, quests, and items are loaded, the engine also cross-checks references and prints a warning to stderr for anything that doesn't resolve: an unknown quest id in `quest_is_started` / `quest_is_resolved` / `quest_is_failed`, an unknown quest or stage in `quest_is_at`, an unknown item in `give_item` / `take_item`, or an unknown graph or node in `goto_graph`. Warnings don't stop the graph from loading. The bad reference just evaluates to `false` (a hidden choice) or gets dropped at runtime.
+
+Flag keys in `actions` aren't validated at all. Only keys that appear in a `condition` are checked. Actions apply whatever they say. Flags are free-form, so there's no registry to check against.
 
 ### Operators
 
@@ -165,34 +174,77 @@ An absent or empty condition means the edge is always visible.
 ### Values
 
 - **Integers:** `5`, `-3`
-- **Booleans:** `true`, `false` — equivalent to `1` and `0`; any non-zero value is truthy
-- **Identifiers:** `gold`, `paid_innkeeper` — resolved from the flag store; missing flags default to `0`
+- **Booleans:** `true`, `false`, which are just `1` and `0`; anything non-zero is truthy
+- **Identifiers:** `gold`, `paid_innkeeper`, looked up in the flag store; a missing flag reads as `0`
+
+A bare identifier with no comparison, like `{ "condition": "sword_equipped" }`, is a truthiness check: the edge shows when the value is non-zero.
+
+Identifiers may contain dots, so namespaced keys parse as one token: `quest.find_sword >= 2`, `local.chest_looted == 1`, `rep.faction == 1`.
+
+When the right-hand side of a comparison is a boolean literal, `==` and `!=` compare by truthiness rather than exact value. `paid_innkeeper == true` is true for any non-zero value.
 
 ### Quest condition helpers
 
-Quest state can be checked with named helpers instead of raw flag values:
+Rather than reading raw flag values, you can check quest state with named helpers:
 
 | Helper | Meaning |
-|---|---|---|
-| `quest_is_started(quest_id)` | Quest has been started |
-| `quest_is_resolved(quest_id)` | Quest is over (any ending) |
-| `quest_is_failed(quest_id)` | Quest ended in failure |
-| `quest_is_at(quest_id, stage_name)` | Quest is at a specific named stage |
-
-Conditions use the `quest_is_*` naming family to distinguish them from actions (which use `quest_<verb>`).
+|---|---|
+| `quest_is_started(quest_id)` | The `quest.<id>` flag is set, meaning any stage reached, including a completed one |
+| `quest_is_resolved(quest_id)` | The quest is on a resolved stage (completed or failed) |
+| `quest_is_failed(quest_id)` | The quest ended in failure |
+| `quest_is_at(quest_id, stage_name)` | The quest is at a specific named stage |
 
 ```json
 { "condition": "quest_is_at(find_sword, complete_helped)" }
 { "condition": "quest_is_failed(escort_merchant)" }
 ```
 
-Prefer these over raw flag comparisons — they stay correct even if stage sequences are renumbered.
+[Writing Quests](writing-quests.md) describes the stage model these helpers read from.
+
+### Item and reputation helpers
+
+| Helper | Meaning |
+|---|---|
+| `has_item(item_id)` | The `item.<id>` flag is non-zero |
+| `item_count(item_id)` | The `item.<id>` count |
+| `rep(faction_id)` | The `rep.<id>` count |
+
+```json
+{ "condition": "has_item(health_potion)" }
+{ "condition": "item_count(arrows) >= 3" }
+{ "condition": "rep(merchants_guild) >= 2" }
+```
+
+---
+
+## Local vs. global state
+
+Every flag lives in one shared store, and by default a flag is global and permanent. Once set, it stays set everywhere, forever:
+
+```json
+{ "actions": ["cave_explored = true"] }
+```
+
+When the same key would otherwise collide across places (a "chest looted" in every dungeon, a "met the elder" in every town), prefix it with `local.`. A `local.<key>` reference is rewritten to `zone.<zone_id>.<key>` against the current zone, which is the tilemap's file stem for interiors or the world manifest's directory name in overworld mode:
+
+```json
+{ "actions": ["local.chest_looted = true"] }
+{ "condition": "local.chest_looted == 1" }
+```
+
+In the `cave` zone that writes/reads `zone.cave.chest_looted`; in the `village` zone the same expression hits a different, empty key. This is just sugar over a namespaced key. There's no second container, and the state serializes with everything else.
+
+A few things worth remembering:
+
+- `local.<key>` needs an active zone. With no zone context, the reference is left alone and behaves like a bare global key.
+- To wipe one zone's state, erase its whole `zone.<id>.` key range (`corundum::world::reset_zone(flags, "cave")` from game code).
+- Bare keys are global and permanent. Use them deliberately: reputation, quest stages, player-level facts.
 
 ---
 
 ## Actions
 
-Actions are listed as an array of strings. They run when an event node is reached or when a choice edge is taken.
+Actions are an array of strings. They run when an event node is reached or a choice edge is taken.
 
 ```json
 "actions": [
@@ -203,9 +255,11 @@ Actions are listed as an array of strings. They run when an event node is reache
 ]
 ```
 
+Each action string is parsed once at load time; a malformed one is a hard load error.
+
 ### Flag mutations
 
-Modify the flag store directly.
+These modify the flag store directly. `local.<key>` targets resolve to the zone-scoped key, same as in conditions.
 
 | Syntax | Meaning |
 |---|---|
@@ -213,49 +267,62 @@ Modify the flag store directly.
 | `flag += value` | Add value to flag |
 | `flag -= value` | Subtract value from flag |
 
-Values can be integers (`5`, `-1`) or booleans (`true`, `false`).
+Values are integers (`5`, `-1`) or booleans (`true`, `false`).
 
 ### Engine hooks
 
-Call engine functions such as audio, quests, or animations. Arguments use single quotes for strings.
+These call engine functions. String arguments use single quotes.
+
+| Action | Effect |
+|---|---|
+| `play_sound('name')` | Play the named sound |
+| `quest_start('quest_id')` | Start the quest (sets the flag to the first stage). No-op if already started. |
+| `quest_advance('quest_id', 'stage_name')` | Advance the quest to the named stage |
+| `give_item('item_id'[, count])` | Add `count` (default 1) to the `item.<id>` flag |
+| `take_item('item_id'[, count])` | Subtract `count` (default 1) from the `item.<id>` flag; the flag is removed at 0 |
+| `reputation('faction_id', amount)` | Add `amount` to the `rep.<id>` flag |
 
 ```json
 "actions": [
   "play_sound('coin')",
   "give_item('health_potion', 3)",
-  "trigger_event('door_opens')"
+  "reputation('merchants_guild', 1)"
 ]
 ```
 
-### Quest actions
+Any hook name the engine doesn't recognise goes to the game's `on_event` callback, which can handle it or ignore it (an ignored hook logs a warning). That's how you wire up custom events like opening a door or spawning an NPC.
+
+### Divert actions
 
 | Action | Effect |
 |---|---|
-| `quest_start('quest_id')` | Starts the quest (sets flag to first stage). No-op if already started. |
-| `quest_advance('quest_id', 'stage_name')` | Advances quest to the named stage. |
+| `goto_graph('graph_id', 'node_id')` | Switch to the named graph at the named node, pushing the current graph and resume point onto a call stack. |
+| `return_graph()` | Pop the stack and resume where the current graph would have gone. Ends the dialogue if the stack is empty. |
+
+See [Cross-graph divert](#cross-graph-divert-goto_graph-return_graph).
 
 ---
 
 ## Sequencing
 
-The `sequence` field on a choice edge controls how often it appears.
+The `sequence` field on a choice edge controls how often that edge reappears.
 
 | Value | Behaviour |
 |---|---|
 | `"none"` | Always visible (default) |
-| `"once"` | Visible once; hidden permanently after taken |
-| `"cycle"` | Rotates with other `cycle` edges on this node, one per visit |
-| `"random"` | One random `random` edge shown per visit |
+| `"once"` | Visible once, then hidden for good |
+| `"cycle"` | Rotates with the other `cycle` edges on this node, one per visit |
+| `"random"` | One of the `random` edges is shown per visit |
 
-`"once"` is the most common — use it for choices that should only be available one time, like paying for a room or receiving a quest reward.
+`"once"` is the workhorse. Use it for anything that should only happen one time, like paying for a room or claiming a quest reward.
 
-Non-sequenced edges are always shown alongside whichever cycled or random edge is active.
+Non-sequenced edges always show alongside whichever cycled or random edge is active. The cycle slot and random pick come from the node's visit count (plus, for random, a deterministic hash of the graph id, node id, and visit count), so nothing extra needs to be stored.
 
 ---
 
 ## Metadata
 
-Any node can carry a `metadata` object — arbitrary string key-value pairs passed to the UI layer. The dialogue system ignores them; your presentation code interprets them.
+Any node can carry a `metadata` object: arbitrary string pairs handed to the UI layer. The dialogue system ignores them; your presentation code interprets them.
 
 ```json
 {
@@ -271,39 +338,13 @@ Any node can carry a `metadata` object — arbitrary string key-value pairs pass
 }
 ```
 
-Use metadata for character expressions, portrait cues, camera direction, ambient sounds, or anything else the UI needs.
-
----
-
-## State scoping
-
-Every flag the engine reads and writes lives in one shared store. By default a flag is **global and persistent** — once set it stays set everywhere, forever:
-
-```json
-{ "actions": ["cave_explored = true"] }
-```
-
-When the same key name would otherwise collide across different places (a "chest looted" in every dungeon, a "met the elder" in every town), prefix it with `local.`. A `local.<key>` reference is rewritten to `zone.<zone_id>.<key>` against the **current zone** — the tilemap's file stem for interiors, or the world manifest's directory name in overworld mode:
-
-```json
-{ "actions": ["local.chest_looted = true"] }
-{ "condition": "local.chest_looted == 1" }
-```
-
-In the `cave` zone that writes/reads `zone.cave.chest_looted`; in the `village` zone the same expression reads a different, empty key. This is authoring sugar over a plain namespaced key — there is no second container, and the state still serializes with everything else.
-
-Notes:
-
-- `local.<key>` requires an active zone. If the zone id is empty (no zone context), the reference is left untouched and behaves like a bare global key.
-- To reset a zone's state, erase the whole `zone.<id>.` key range (`corundum::world::reset_zone(flags, "cave")` from game code).
-- Dotted keys work in bare conditions too: `quest.find_sword >= 2` parses as a single identifier.
-- Bare keys are global and persistent — use them deliberately (reputation, quest stages, player-level facts).
+Use metadata for expressions, portrait cues, camera direction, ambient sounds, whatever the UI needs.
 
 ---
 
 ## Cross-graph divert: `goto_graph` / `return_graph`
 
-A dialogue can jump into another graph and later return. `goto_graph('graph_id', 'node_id')` switches to the named graph at the named node; the current (graph, resume node) is pushed onto a small call stack. `return_graph()` pops that stack and resumes where the current graph would have gone, or ends the conversation when the stack is empty.
+A dialogue can jump into another graph and come back. `goto_graph('graph_id', 'node_id')` switches to the named graph at the named node, pushing the current graph and resume point onto a small call stack. `return_graph()` pops that stack and resumes where the current graph would have gone, or ends the conversation if the stack is empty.
 
 ```json
 {
@@ -314,20 +355,22 @@ A dialogue can jump into another graph and later return. `goto_graph('graph_id',
 }
 ```
 
-`n_after_shop` is the resume point — after the shopkeeper's graph calls `return_graph()`, the conversation continues at `n_after_shop`, not back at the diverting event node (which would re-fire the divert).
+`n_after_shop` is the resume point. After the shopkeeper's graph calls `return_graph()`, the conversation continues at `n_after_shop`, not back at the diverting event node, which would just re-fire the divert.
 
-Hub-and-spoke conversation loop:
+A common hub-and-spoke setup:
 
-- **hub graph** `elder_maren_hub` — greeting + a menu of topic choices; each choice's target Event does `goto_graph('elder_maren_<topic>', 'n0')`.
-- **spoke graphs** — one per topic, each ending with an Event that runs `return_graph()`.
+- **Hub graph** `elder_maren_hub`: a greeting plus a menu of topics, where each topic's event node does `goto_graph('elder_maren_<topic>', 'n0')`.
+- **Spoke graphs:** one per topic, each ending with an event node that calls `return_graph()`.
 
-A spoke can itself divert to another spoke (nested); the stack unwinds in reverse. `return_graph()` on an empty stack ends the dialogue. Diverts are validated at load against the full graph registry — a `goto_graph` naming a missing graph or node is reported at startup.
+A spoke can divert to another spoke too; the stack unwinds in reverse. `return_graph()` on an empty stack ends the dialogue.
+
+Diverts are checked at load time against the full graph registry. A `goto_graph` that names a missing graph or node is reported at startup.
 
 ---
 
 ## Graph-level variables
 
-The `variables` field sets default flag values when the dialogue starts. Values are only written if the flag is not already set — they will not overwrite state from a previous session.
+The `variables` field sets default flag values when the dialogue starts. Values are only written if the flag isn't already set, so they won't clobber state from an earlier session.
 
 ```json
 {
@@ -340,7 +383,24 @@ The `variables` field sets default flag values when the dialogue starts. Values 
 }
 ```
 
-Use this to initialise flags that the graph's own conditions and actions depend on.
+Values are integers or booleans. Use this to seed flags the graph's own conditions and actions depend on.
+
+---
+
+## Stable NPC identity
+
+An NPC's internal entity handle changes whenever its map chunk reloads, so quests and saves can't hold onto it. Instead, NPCs carry a stable authoring id (the `id` from their spawn-point entry) that survives chunk respawns.
+
+A graph can be tied to its NPC with the top-level `actor_id` field, matching that authored id. From game code, `corundum::entities::find_actor(world, id)` turns the id back into a live entity handle for quest and save logic.
+
+Per-NPC runtime state lives in flags under `npc.<id>.<key>`:
+
+```json
+{ "actions": ["npc.brann.alive = false"] }
+{ "condition": "npc.brann.alive == 1" }
+```
+
+These keys stay in the flag store (and the save file) whether or not the NPC's map chunk is currently loaded.
 
 ---
 
@@ -371,11 +431,6 @@ Use this to initialise flags that the graph's own conditions and actions depend 
           "sequence": "once"
         },
         {
-          "label": "I need a room for the night.",
-          "target": "n_already_paid",
-          "condition": "paid_innkeeper == true"
-        },
-        {
           "label": "Just passing through.",
           "target": "n_bye"
         }
@@ -394,12 +449,6 @@ Use this to initialise flags that the graph's own conditions and actions depend 
       "next": "end"
     },
     {
-      "id": "n_already_paid",
-      "type": "talk",
-      "text": "You've already paid. Your room is ready.",
-      "next": "end"
-    },
-    {
       "id": "n_bye",
       "type": "talk",
       "text": "Safe travels. Watch the road south.",
@@ -409,12 +458,12 @@ Use this to initialise flags that the graph's own conditions and actions depend 
 }
 ```
 
-**How it flows:**
+Stepping through it:
 
-1. Player opens dialogue → `n0` (Talk) is shown.
-2. Player presses Select → `n1` (Choice) appears.
-3. First visit, gold ≥ 5, not yet paid: first and third choices are visible. Player picks "I need a room" → `gold -= 5`, `paid_innkeeper = true` execute, edge is marked once-used → `n_pay` (Event) fires `play_sound('coin')` → `n2` (Talk) shown → dialogue ends.
-4. Second visit: first choice hidden (once taken), second choice now visible (paid_innkeeper is true).
+1. The player opens the dialogue and sees `n0`.
+2. Pressing Select brings up the choice node `n1`.
+3. On the first visit, with gold ≥ 5 and the room not yet paid for, the player sees both options. Choosing "I need a room" runs `gold -= 5` and `paid_innkeeper = true`, marks the edge as used, then fires `play_sound('coin')` at `n_pay` and shows `n2` before the dialogue ends.
+4. On a second visit, the first choice is gone (taken once) and the second is still there.
 
 ---
 
@@ -423,25 +472,29 @@ Use this to initialise flags that the graph's own conditions and actions depend 
 | Thing | Convention | Example |
 |---|---|---|
 | Graph `id` | `snake_case` | `innkeeper_intro`, `merchant_haggle` |
-| Node `id` | `snake_case` | `n0`, `n_pay`, `n_already_paid` |
+| Node `id` | `snake_case` | `n0`, `n_pay`, `n_bye` |
 | Flag names | `snake_case` | `paid_innkeeper`, `sword_obtained` |
+| Quest helpers | `quest_is_<state>` | `quest_is_started`, `quest_is_at` |
+| Item helpers | `has_item` / `item_count` | `has_item(health_potion)` |
 | Dialogue file | `{graph_id}.json` | `innkeeper_intro.json` |
 
 ---
 
 ## Validation rules
 
-The loader rejects graphs that violate any of these rules and prints a warning to stderr. The rest of the graphs still load.
+The loader rejects a graph that breaks any of these and prints a warning to stderr; the remaining graphs still load.
 
-- `type`, if present, should be `"graph"` (or the alias `"dialogue"`) — anything else prints a warning but the file still loads
+- `type`, if present, should be `"graph"` (or `"dialogue"`); anything else warns but the file still loads
 - `id` must be non-empty
-- All node `id` values must be unique within the graph
-- All `next` and `target` values must point to an existing node or `"end"`
-- Talk nodes must have non-empty `text`
-- Choice nodes must have at least one choice with non-empty `label` and `target`
-- Event nodes must have at least one action
-- Node `type` must be one of: `talk`, `choice`, `event`, `end`
-- Choice `sequence` must be one of: `none`, `once`, `cycle`, `random`
+- Node `id`s must be unique within the graph
+- Every `next` and `target` must point at an existing node or `"end"`
+- Talk nodes need non-empty `text`
+- Choice nodes need at least one choice with non-empty `label` and `target`
+- Event nodes need at least one action, and every action must parse
+- Node `type` must be `talk`, `choice`, `event`, or `end`
+- Choice `sequence` must be `none`, `once`, `cycle`, or `random`
+- Event nodes can't form a cycle (an event chain that loops back on itself is rejected)
+- Conditions must compile (a syntax error rejects the graph); unresolved quest/item/graph references in conditions and actions print a startup warning
 
 ---
 
@@ -454,19 +507,31 @@ Condition ops:  ==  !=  <  >  <=  >=  &&  ||  !  ( )
 
 Flag actions:   flag = value  |  flag += value  |  flag -= value
 
-Quest actions:  quest_start('quest_id')
+Engine hooks:   play_sound('name')
+                quest_start('quest_id')
                 quest_advance('quest_id', 'stage_name')
+                give_item('item_id'[, count])
+                take_item('item_id'[, count])
+                reputation('faction_id', amount)
 
 Divert actions: goto_graph('graph_id', 'node_id')
                 return_graph()
 
-Quest checks:   quest_is_started(quest_id)
-                quest_is_resolved(quest_id)
-                quest_is_failed(quest_id)
-                quest_is_at(quest_id, stage_name)
+Quest helpers:
+  quest_is_started(quest_id)    - quest flag is set (any stage)
+  quest_is_resolved(quest_id)   - quest is over (completed or failed)
+  quest_is_failed(quest_id)     - quest ended in failure
+  quest_is_at(quest_id, stage)  - quest is at a specific named stage
 
-State scoping:  local.<key>  →  zone.<zone_id>.<key>  (per-zone, e.g. local.chest_looted)
-                bare key     →  global, persistent
+Item / rep helpers:
+  has_item(item_id)    - item.<id> is non-zero
+  item_count(item_id)  - item.<id> count
+  rep(faction_id)      - rep.<id> count
+
+State scoping:
+  local.<key>   ->   zone.<zone_id>.<key>  (per-zone, e.g. local.chest_looted -> zone.cave.chest_looted)
+  bare key      ->   global, persistent
+  npc.<id>.<key> ->  per-NPC state, survives chunk reloads
 
 Sequencing:     none  once  cycle  random
 
