@@ -2,7 +2,6 @@
 
 #include <corundum/world/flags.hpp>
 
-#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <nlohmann/json.hpp>
