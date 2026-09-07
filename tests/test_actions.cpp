@@ -166,3 +166,13 @@ TEST_CASE("ZoomIn/ZoomOut — participate in pressed_actions like any other acti
   CHECK(result.size() == 1);
   CHECK(result.actions[0] == Action::ZoomOut);
 }
+
+TEST_CASE("QuickSave/QuickLoad — participate in pressed_actions like any other action") {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(Action::QuickSave));
+  state.pressed.set(static_cast<std::size_t>(Action::QuickLoad));
+  const auto result = pressed_actions(state);
+  CHECK(result.size() == 2);
+  CHECK(result.actions[0] == Action::QuickSave);
+  CHECK(result.actions[1] == Action::QuickLoad);
+}

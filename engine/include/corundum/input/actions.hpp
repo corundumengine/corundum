@@ -20,6 +20,8 @@ namespace corundum::input {
     ZoomIn,
     ZoomOut,
     Inventory,
+    QuickSave, ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
+    QuickLoad, ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
     Count,
   };
 

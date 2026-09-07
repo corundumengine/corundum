@@ -53,6 +53,7 @@ set(TEST_SOURCES
     test_tilemap_validate.cpp
     test_transition_prompt.cpp
     test_ui_draw.cpp
+    test_user_data_dir.cpp
     test_walkability.cpp
     test_word_wrap.cpp
     test_world_manifest.cpp
@@ -81,6 +82,16 @@ if(EXISTS "${_font_atlas_header}" AND EXISTS "${_font_atlas_fixture}")
     )
 else()
     message(STATUS "FontAtlas tests skipped — internal header or fixture font not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
+# user_data_dir tests reach into the internal engine/src/platform/os header and
+# compile user_data_dir.cpp directly so the test target doesn't drag in the full
+# GLFW backend. Same gating rationale as the FontAtlas block above.
+set(_user_data_dir_source "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/os/user_data_dir.cpp")
+if(EXISTS "${_user_data_dir_source}")
+    target_sources(corundum_tests PRIVATE ${_user_data_dir_source})
+else()
+    message(STATUS "user_data_dir tests skipped — internal source not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # Link to engine and doctest. engine_platform_null is also pulled in so the
