@@ -29,6 +29,11 @@ namespace corundum::dialogue {
     return std::format("_visit_{}_{}", graph_id, node_id);
   }
 
+  // Key set when a Once-marked Talk node has been shown. Unique per graph + node.
+  [[nodiscard]] inline std::string node_once_flag_key(std::string_view graph_id, std::string_view node_id) {
+    return std::format("_node_once_{}_{}", graph_id, node_id);
+  }
+
   // ── Query functions ───────────────────────────────────────────────────────────
 
   /**

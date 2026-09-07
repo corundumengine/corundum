@@ -1,6 +1,7 @@
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
 
+#include <algorithm>
 #include <format>
 #include <print>
 
@@ -57,6 +58,15 @@ namespace corundum::quest {
       std::println(stderr, "[quest] advance(\"{}\", \"{}\"): stage not found", quest.quest_id, stage_name);
       return;
     }
+#ifndef NDEBUG
+    if (const auto *current = current_stage(quest, flags); current != nullptr) {
+      const bool auto_target = current->auto_advance_to.has_value() && *current->auto_advance_to == stage_name;
+      if (!current->advances_to.empty() && !auto_target && !std::ranges::contains(current->advances_to, stage_name)) {
+        std::println(stderr, "[quest] advance(\"{}\", \"{}\"): \"{}\" not listed in stage \"{}\" advances_to",
+                     quest.quest_id, stage_name, stage_name, current->name);
+      }
+    }
+#endif
     flags[quest_flag_key(quest.quest_id)] = stage->sequence;
     corundum::world::set_flag(flags, seen_flag_key(quest.quest_id, stage->name));
   }
@@ -87,7 +97,7 @@ namespace corundum::quest {
         if (!obj.done_condition.has_value())
           continue;
         any_conditioned = true;
-        if (!corundum::dialogue::evaluate(*obj.done_condition, flags, &registry, zone_id))
+        if (!corundum::dialogue::evaluate(*obj.done_condition, flags, &registry, {}, zone_id))
           all_done = false;
       }
       if (any_conditioned && all_done)

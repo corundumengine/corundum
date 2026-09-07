@@ -156,6 +156,19 @@ namespace corundum::dialogue {
           state.reset();
           break;
         }
+        if (node->once) {
+          const auto once_key = node_once_flag_key(state.graph->graph_id, node->id);
+          if (corundum::world::has_flag(flags, once_key)) {
+            // Already shown — skip straight to next_id without waiting for input.
+            go_to(state, advance(*state.graph, *node), flags);
+            break;
+          }
+          if (select) {
+            corundum::world::set_flag(flags, once_key);
+            go_to(state, advance(*state.graph, *node), flags);
+          }
+          break;
+        }
         if (select)
           go_to(state, advance(*state.graph, *node), flags);
         break;

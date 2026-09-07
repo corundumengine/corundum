@@ -46,12 +46,12 @@ TEST_CASE("zone scope: local.<key> condition reads resolve per zone_id") {
 
   const auto in_cave = corundum::dialogue::compile("local.x == 1");
   REQUIRE(in_cave.has_value());
-  CHECK(corundum::dialogue::evaluate(*in_cave, flags, nullptr, "cave"));
+  CHECK(corundum::dialogue::evaluate(*in_cave, flags, nullptr, {}, "cave"));
 
   // The same expression in a different zone sees 0.
   const auto in_village = corundum::dialogue::compile("local.x == 1");
   REQUIRE(in_village.has_value());
-  CHECK_FALSE(corundum::dialogue::evaluate(*in_village, flags, nullptr, "village"));
+  CHECK_FALSE(corundum::dialogue::evaluate(*in_village, flags, nullptr, {}, "village"));
 }
 
 TEST_CASE("zone scope: eval_condition shim threads zone_id through") {

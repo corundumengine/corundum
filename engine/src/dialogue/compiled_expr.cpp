@@ -1,4 +1,5 @@
 #include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/dialogue/query.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
@@ -236,7 +237,7 @@ namespace corundum::dialogue {
             const auto text = std::string(cur_.text);
             advance();
             if (cur_.kind == TokKind::LParen)
-              return parse_quest_helper(text);
+              return parse_call_helper(text);
             return push(ExprNode{.kind = ExprNode::Kind::Ident, .name = text});
           }
           case TokKind::LParen: {
@@ -266,21 +267,21 @@ namespace corundum::dialogue {
         advance();
       }
 
-      int parse_quest_helper(const std::string &name) {
+      int parse_call_helper(const std::string &name) {
         advance(); // consume (
-        const auto quest_id = expect_ident("for quest id in quest helper");
+        const auto arg = expect_ident("for first argument in call helper");
 
         if (name == "quest_is_at") {
           advance(); // consume comma
           const auto stage_name = expect_ident("for stage name in quest_is_at");
           expect_rparen();
-          return push(ExprNode{.arg = quest_id, .arg2 = stage_name, .kind = ExprNode::Kind::Call, .name = name});
+          return push(ExprNode{.arg = arg, .arg2 = stage_name, .kind = ExprNode::Kind::Call, .name = name});
         }
 
         expect_rparen();
         if (name == "quest_is_started" || name == "quest_is_resolved" || name == "quest_is_failed" ||
-            name == "has_item" || name == "item_count" || name == "rep")
-          return push(ExprNode{.arg = quest_id, .kind = ExprNode::Kind::Call, .name = name});
+            name == "has_item" || name == "item_count" || name == "rep" || name == "seen" || name == "visits")
+          return push(ExprNode{.arg = arg, .kind = ExprNode::Kind::Call, .name = name});
 
         throw std::runtime_error("unknown quest helper: " + name);
       }
@@ -314,8 +315,8 @@ namespace corundum::dialogue {
     class Evaluator {
     public:
       Evaluator(const std::vector<ExprNode> &nodes, int32_t root, const corundum::world::FlagStore &vars,
-                const quest::Registry *quests, std::string_view zone_id)
-          : nodes_(nodes), root_(root), vars_(vars), quests_(quests), zone_id_(zone_id) {}
+                const quest::Registry *quests, std::string_view graph_id, std::string_view zone_id)
+          : nodes_(nodes), root_(root), vars_(vars), quests_(quests), graph_id_(graph_id), zone_id_(zone_id) {}
 
       [[nodiscard]] bool run() const {
         return eval_index(root_) != 0;
@@ -384,6 +385,11 @@ namespace corundum::dialogue {
         if (n.name == "quest_is_started")
           return flag_count(corundum::quest::quest_flag_key(n.arg)) > 0 ? 1 : 0;
 
+        if (n.name == "seen")
+          return graph_id_.empty() ? 0 : (flag_count(visit_flag_key(graph_id_, n.arg)) > 0 ? 1 : 0);
+        if (n.name == "visits")
+          return graph_id_.empty() ? 0 : flag_count(visit_flag_key(graph_id_, n.arg));
+
         const auto *q = (quests_ != nullptr) ? quests_->find(n.arg) : nullptr;
 
         if (n.name == "quest_is_resolved")
@@ -412,6 +418,7 @@ namespace corundum::dialogue {
       int32_t root_;
       const corundum::world::FlagStore &vars_;
       const quest::Registry *quests_;
+      std::string_view graph_id_;
       std::string_view zone_id_;
     };
 
@@ -459,10 +466,10 @@ namespace corundum::dialogue {
   }
 
   bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars, const quest::Registry *quests,
-                std::string_view zone_id) {
+                std::string_view graph_id, std::string_view zone_id) {
     if (expr.root_ < 0)
       return false;
-    return Evaluator(expr.nodes_, expr.root_, vars, quests, zone_id).run();
+    return Evaluator(expr.nodes_, expr.root_, vars, quests, graph_id, zone_id).run();
   }
 
 } // namespace corundum::dialogue

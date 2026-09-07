@@ -103,8 +103,9 @@ namespace corundum::dialogue {
       // Compiled at load; evaluation cannot fail (malformed expressions are
       // rejected when the graph loads, not silently hidden here).
       if (!edge.condition
-               .transform(
-                   [&](const CompiledExpr &compiled) -> bool { return evaluate(compiled, flags, quests, zone_id); })
+               .transform([&](const CompiledExpr &compiled) -> bool {
+                 return evaluate(compiled, flags, quests, graph_id, zone_id);
+               })
                .value_or(true))
         continue;
 

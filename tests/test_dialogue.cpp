@@ -1214,6 +1214,96 @@ TEST_CASE("actor_id: absent field leaves actor_id empty and serialize omits it")
   CHECK_FALSE(j.contains("actor_id"));
 }
 
+// ── Node-level once ────────────────────────────────────────────────────────────
+
+TEST_CASE("Talk once: line is shown the first time and skipped on revisit") {
+  using namespace corundum::dialogue;
+
+  Graph g;
+  g.graph_id = "once_talk";
+  {
+    Node n;
+    n.id = "n0";
+    n.type = NodeType::Talk;
+    n.text = "Only once.";
+    n.next_id = "n1";
+    n.once = true;
+    push_node(g, std::move(n));
+  }
+  {
+    Node n;
+    n.id = "n1";
+    n.type = NodeType::Talk;
+    n.text = "The rest.";
+    n.next_id = "end";
+    push_node(g, std::move(n));
+  }
+
+  corundum::dialogue::State state;
+  corundum::world::FlagStore flags;
+  start(state, g, flags);
+  REQUIRE(state.active);
+  CHECK(state.current_id == "n0");
+
+  // First visit: no input yet, still waiting on n0.
+  static_cast<void>(system(state, {}, flags));
+  CHECK(state.current_id == "n0");
+  CHECK(state.active);
+
+  // Select advances past n0 to n1, marking n0 shown.
+  static_cast<void>(system(state, select_press(), flags));
+  CHECK(state.current_id == "n1");
+
+  // n1 → end closes the dialogue.
+  static_cast<void>(system(state, select_press(), flags));
+  CHECK_FALSE(state.active);
+
+  // Reopen: n0 was already shown, so no input is required to skip it.
+  start(state, g, flags);
+  REQUIRE(state.current_id == "n0");
+  static_cast<void>(system(state, {}, flags));
+  CHECK(state.current_id == "n1");
+  CHECK(state.active);
+}
+
+TEST_CASE("Talk once: loads from JSON and round-trips through serialize") {
+  const std::string tmp = "tests/fixtures/_test_once_talk.json";
+  {
+    std::ofstream f(tmp);
+    f << R"({"type":"graph","id":"once_json","nodes":[
+      {"id":"n0","type":"talk","text":"Once.","next":"end","once":true}
+    ]})";
+  }
+  const auto result = corundum::dialogue::load_graph(tmp);
+  REQUIRE(result.has_value());
+  const auto *n0 = corundum::dialogue::find_node(*result, "n0");
+  REQUIRE(n0 != nullptr);
+  CHECK(n0->once == true);
+
+  const auto j = corundum::dialogue::serialize(*result);
+  CHECK(j["nodes"][0]["once"].get<bool>() == true);
+
+  const auto tmp2 = std::filesystem::path("tests/fixtures/tmp_once_talk.json");
+  auto write_result = corundum::core::write_json(tmp2, j);
+  REQUIRE(write_result.has_value());
+
+  const auto reloaded = corundum::dialogue::load_graph(tmp2.string());
+  REQUIRE(reloaded.has_value());
+  CHECK(corundum::dialogue::find_node(*reloaded, "n0")->once == true);
+
+  std::filesystem::remove(tmp);
+  std::filesystem::remove(tmp2);
+}
+
+TEST_CASE("Talk once: absent field defaults to false and serialize omits it") {
+  const auto result = corundum::dialogue::load_graph("tests/fixtures/innkeeper.json");
+  REQUIRE(result.has_value());
+  CHECK_FALSE(corundum::dialogue::find_node(*result, "n0")->once);
+
+  const auto j = corundum::dialogue::serialize(*result);
+  CHECK_FALSE(j["nodes"][0].contains("once"));
+}
+
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
 TEST_CASE("dialogue serialize round-trips through load_graph") {

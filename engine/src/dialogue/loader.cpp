@@ -82,6 +82,9 @@ namespace corundum::dialogue {
     node.id = node_id;
     node.type = type;
 
+    if (j.contains("once"))
+      node.once = j["once"].get<bool>();
+
     if (type == NodeType::Talk) {
       // Schema guarantees: text and next are present and non-empty.
       node.text = j["text"].get<std::string>();

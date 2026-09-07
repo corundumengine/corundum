@@ -41,7 +41,7 @@ namespace corundum::quest {
     for (const auto &obj : stage->objectives) {
       bool done = false;
       if (obj.done_condition.has_value())
-        done = dialogue::evaluate(*obj.done_condition, flags, quests, zone_id);
+        done = dialogue::evaluate(*obj.done_condition, flags, quests, {}, zone_id);
       result.push_back(ObjectiveView{.text = obj.text, .done = done, .has_condition = obj.done_condition.has_value()});
     }
     return result;

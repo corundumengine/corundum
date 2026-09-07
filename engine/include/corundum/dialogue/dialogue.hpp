@@ -73,6 +73,10 @@ namespace corundum::dialogue {
     std::string text;    ///< Body text (Talk nodes only).
     std::string next_id; ///< Target node id (Talk and Event nodes).
 
+    /// If true (Talk nodes only), the line is shown once; on a later visit the
+    /// node is skipped straight to next_id. Persists via a FlagStore once-key.
+    bool once = false;
+
     std::vector<ChoiceEdge> choices; ///< Choice options (Choice nodes only).
 
     /// Action strings executed when this Event node is processed.

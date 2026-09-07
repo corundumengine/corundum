@@ -40,6 +40,7 @@ namespace corundum::core {
         "type": { "type": "string", "enum": ["talk", "choice", "event", "end"] },
         "text": { "type": "string" },
         "next": { "type": "string" },
+        "once": { "type": "boolean" },
         "choices": {
           "type": "array",
           "minItems": 1,

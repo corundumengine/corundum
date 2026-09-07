@@ -36,7 +36,7 @@ The whole global `FlagStore` is stored as a `{ "key": int }` object, key for key
 - `npc.<id>.<key>`: per-NPC state
 - `item.<id>`: item counts
 - `rep.<id>`: reputation
-- `_visit_<graph>_<node>` / `_once_<graph>_<node>_<edge>`: internal dialogue sequencing state
+- `_visit_<graph>_<node>` / `_once_<graph>_<node>_<edge>` / `_node_once_<graph>_<node>`: internal dialogue sequencing state
 
 Absent keys aren't written at all; on load, a missing flag reads as `0`.
 

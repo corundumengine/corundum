@@ -390,6 +390,44 @@ TEST_CASE("advance is no-op for unknown stage name") {
   CHECK(flags["quest.test_quest"] == 1);
 }
 
+TEST_CASE("advance: transition outside advances_to still happens (advisory only)") {
+  quest::Quest q;
+  q.quest_id = "edge_q";
+  q.name = "Edge Q";
+  q.description = "";
+  q.stages.push_back({"a", 1, false, false, {}});
+  q.stages.push_back({"b", 2, false, false, {}});
+  q.stages.push_back({"c", 3, true, false, {}});
+  q.stages[0].advances_to = {"b"};
+
+  FlagStore flags;
+  flags["quest.edge_q"] = 1;
+
+  // "c" is not listed in stage "a" advances_to. A debug build prints a warning,
+  // but the transition still occurs — advances_to is advisory, not enforced.
+  quest::advance(q, "c", flags);
+  CHECK(flags["quest.edge_q"] == 3);
+}
+
+TEST_CASE("advance: auto_advance_to target is exempt from the advances_to warning") {
+  quest::Quest q;
+  q.quest_id = "auto_q";
+  q.name = "Auto Q";
+  q.description = "";
+  q.stages.push_back({"a", 1, false, false, {}});
+  q.stages.push_back({"b", 2, false, false, {}});
+  q.stages.push_back({"c", 3, true, false, {}});
+  q.stages[0].advances_to = {"b"};
+  q.stages[0].auto_advance_to = "c";
+
+  FlagStore flags;
+  flags["quest.auto_q"] = 1;
+
+  // "c" is the stage's auto_advance_to — legal even though not in advances_to.
+  quest::advance(q, "c", flags);
+  CHECK(flags["quest.auto_q"] == 3);
+}
+
 // ── get_stage ─────────────────────────────────────────────────────────────────
 
 TEST_CASE("get_stage reads flag correctly") {

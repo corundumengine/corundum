@@ -31,7 +31,7 @@ namespace corundum::dialogue {
    * Kind semantics mirror the hand-written evaluator this module replaces:
    *   Int    — integer literal (raw value).
    *   Ident  — flag key, resolved to its visit count (raw value).
-   *   Call   — quest/item/reputation helper; raw value (item_count/rep) or 0/1.
+   *   Call   — quest/item/reputation/visit helper; raw value (item_count/rep/visits) or 0/1.
    *   Cmp    — comparison of two raw operands; 0/1. When rhs_is_bool and the
    *            operator is ==/!= the operands are compared by truthiness.
    *   And/Or — short-circuit-free boolean combine; operands coerced to truth.
@@ -42,7 +42,7 @@ namespace corundum::dialogue {
   struct ExprNode {
     enum class Kind : uint8_t { Int, Ident, Call, Cmp, And, Or, Not, Bool };
 
-    std::string arg = {};  ///< Call: first argument (quest / item / faction id).
+    std::string arg = {};  ///< Call: first argument (quest / item / faction / node id).
     std::string arg2 = {}; ///< Call: second argument (stage name; quest_is_at only).
     int ival = 0;          ///< Int: literal value.
     Kind kind = Kind::Int;
@@ -71,7 +71,8 @@ namespace corundum::dialogue {
    *
    * Grammar is unchanged from the original string evaluator: integers, booleans,
    * bare flag keys, ==/!=/</>/<=/>=, &&/||/!, parentheses, and the quest / item /
-   * reputation helpers. An empty source compiles to an expression that always
+   * reputation helpers plus the node-visit helpers `seen(node_id)` and
+   * `visits(node_id)`. An empty source compiles to an expression that always
    * evaluates true.
    *
    * Evaluation never fails — compile() rejects every malformed expression up
@@ -93,7 +94,7 @@ namespace corundum::dialogue {
   private:
     friend std::expected<CompiledExpr, ExprError> compile(std::string_view src);
     friend bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars,
-                         const quest::Registry *quests, std::string_view zone_id);
+                         const quest::Registry *quests, std::string_view graph_id, std::string_view zone_id);
 
     std::vector<ExprNode> nodes_;
     std::string source_;
@@ -115,11 +116,15 @@ namespace corundum::dialogue {
    * @param vars  Values resolved via visit_count() (missing = 0).
    * @param quests Registry used by quest-helper calls; may be nullptr (helpers
    *               that need the registry then evaluate to false).
+   * @param graph_id Owning dialogue graph id, used by `seen`/`visits` to resolve
+   *               `_visit_<graph>_<node>` keys. Empty means no graph context, so
+   *               the visit helpers evaluate to 0/false.
    * @param zone_id Current zone; `local.<key>` identifiers resolve to
    *               `zone.<zone_id>.<key>` before lookup. Empty means no scoping.
    * @return True when the expression holds.
    */
   [[nodiscard]] bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars,
-                              const quest::Registry *quests = nullptr, std::string_view zone_id = {});
+                              const quest::Registry *quests = nullptr, std::string_view graph_id = {},
+                              std::string_view zone_id = {});
 
 } // namespace corundum::dialogue

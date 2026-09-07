@@ -139,7 +139,7 @@ The `advances_to` array declares which stages a stage may legally advance to:
 }
 ```
 
-An empty `advances_to` (the default) keeps the old behaviour: any stage name is a valid target. When it's non-empty, the loader rejects any listed name that doesn't exist in the quest. `advances_to` is a declaration of intent, surfaced to authors and tools, not a hard runtime clamp. Enforce it with dialogue conditions.
+An empty `advances_to` (the default) keeps the old behaviour: any stage name is a valid target. When it's non-empty, the loader rejects any listed name that doesn't exist in the quest. `advances_to` is a declaration of intent, surfaced to authors and tools, not a hard runtime clamp: in debug builds a transition to a stage not listed here (and not the stage's `auto_advance_to`) prints a warning, but the transition still happens. Enforce it with dialogue conditions.
 
 ---
 

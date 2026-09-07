@@ -71,6 +71,9 @@ namespace corundum::dialogue {
           break;
       }
 
+      if (node.once)
+        nj["once"] = true;
+
       if (!node.metadata.empty()) {
         nlohmann::json meta = nlohmann::json::object();
         for (const auto &[k, v] : node.metadata)

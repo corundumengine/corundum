@@ -42,8 +42,10 @@ namespace corundum::quest {
      *
      * Empty (the default) preserves legacy behaviour: any stage name is an
      * acceptable advance target. When non-empty, `quest::validate` rejects
-     * an unknown target name and a debug-build guard warns on a transition
-     * to a stage not listed here.
+     * an unknown target name, and `quest::advance` prints a debug-build
+     * warning on a transition to a stage not listed here (a transition to
+     * the stage's own `auto_advance_to` is always exempt). The warning does
+     * not block the transition — `advances_to` is advisory, not enforced.
      */
     std::vector<std::string> advances_to{};
     /**

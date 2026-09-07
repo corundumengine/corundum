@@ -62,6 +62,7 @@ Shows a line of text. The player presses Select to advance or Cancel to close th
 | `type` | string | yes | Must be `"talk"`. |
 | `text` | string | yes | The line shown to the player. |
 | `next` | string | yes | Node to move to next. Use `"end"` to close. |
+| `once` | boolean | no | If true, the line is shown once; on a later visit it's skipped straight to `next`. |
 | `metadata` | object | no | Arbitrary string pairs passed to the UI layer. See [Metadata](#metadata). |
 
 ---
@@ -214,6 +215,22 @@ Rather than reading raw flag values, you can check quest state with named helper
 { "condition": "item_count(arrows) >= 3" }
 { "condition": "rep(merchants_guild) >= 2" }
 ```
+
+### Node-visit helpers
+
+`seen(node_id)` and `visits(node_id)` read how many times a node in the *same graph* has been entered, using the engine's internal `_visit_<graph>_<node>` counter. They're the author-facing way to gate a line on whether another node was already shown:
+
+| Helper | Meaning |
+|---|---|
+| `seen(node_id)` | The named node has been entered at least once (truthy) |
+| `visits(node_id)` | The number of times the named node has been entered |
+
+```json
+{ "condition": "seen(reveal_clue)" }
+{ "condition": "visits(blacksmith_greeting) >= 2" }
+```
+
+They resolve against the graph that owns the condition, so `seen('n0')` and a `seen('n0')` in a different graph read different counters. Outside a dialogue graph (for example in a quest objective's `done_condition`) the helpers have no graph to resolve against and evaluate to false/0.
 
 ---
 

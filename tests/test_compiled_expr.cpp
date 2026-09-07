@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/dialogue/query.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/world/flags.hpp>
@@ -195,6 +196,65 @@ TEST_CASE("compiled_expr: has_item / item_count / rep helpers") {
 
   CHECK(eval_str("has_item(hammer) && rep(village) >= 3", flags) == true);
   CHECK(eval_str("has_item(sword) || rep(village) >= 3", flags) == true);
+}
+
+// ── seen / visits node-visit helpers ───────────────────────────────────────
+
+TEST_CASE("compiled_expr: seen/visits resolve against the owning graph id") {
+  FlagStore flags;
+  const auto graph_id = std::string_view("g");
+
+  // No visits recorded yet — seen is false.
+  const auto c0 = dialogue::compile("seen(n1)");
+  REQUIRE(c0.has_value());
+  CHECK_FALSE(dialogue::evaluate(*c0, flags, nullptr, graph_id));
+
+  // Record two visits to n1.
+  corundum::world::set_flag(flags, dialogue::visit_flag_key(graph_id, "n1"));
+  corundum::world::set_flag(flags, dialogue::visit_flag_key(graph_id, "n1"));
+
+  const auto seen = dialogue::compile("seen(n1)");
+  REQUIRE(seen.has_value());
+  CHECK(dialogue::evaluate(*seen, flags, nullptr, graph_id));
+
+  const auto visits_ge = dialogue::compile("visits(n1) >= 2");
+  REQUIRE(visits_ge.has_value());
+  CHECK(dialogue::evaluate(*visits_ge, flags, nullptr, graph_id));
+
+  const auto visits_eq = dialogue::compile("visits(n1) == 2");
+  REQUIRE(visits_eq.has_value());
+  CHECK(dialogue::evaluate(*visits_eq, flags, nullptr, graph_id));
+
+  const auto visits_ge3 = dialogue::compile("visits(n1) >= 3");
+  REQUIRE(visits_ge3.has_value());
+  CHECK_FALSE(dialogue::evaluate(*visits_ge3, flags, nullptr, graph_id));
+
+  // A different graph id reads a different counter.
+  const auto other_graph = dialogue::compile("seen(n1)");
+  REQUIRE(other_graph.has_value());
+  CHECK_FALSE(dialogue::evaluate(*other_graph, flags, nullptr, "other"));
+}
+
+TEST_CASE("compiled_expr: seen/visits without a graph id evaluate false/zero") {
+  FlagStore flags;
+  corundum::world::set_flag(flags, dialogue::visit_flag_key("g", "n1"));
+
+  const auto seen = dialogue::compile("seen(n1)");
+  REQUIRE(seen.has_value());
+  CHECK_FALSE(dialogue::evaluate(*seen, flags));
+
+  const auto visits = dialogue::compile("visits(n1)");
+  REQUIRE(visits.has_value());
+  CHECK_FALSE(dialogue::evaluate(*visits, flags));
+}
+
+TEST_CASE("compiled_expr: seen/visits are not collected as quest refs") {
+  const auto compiled = dialogue::compile("seen(n1) && visits(n2) >= 1");
+  REQUIRE(compiled.has_value());
+  const auto refs = compiled->refs();
+  CHECK(refs.idents.empty());
+  CHECK(refs.quest_ids.empty());
+  CHECK(refs.quest_stages.empty());
 }
 
 // ── Malformed input ─────────────────────────────────────────────────────────
