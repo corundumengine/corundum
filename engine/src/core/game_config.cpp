@@ -4,7 +4,7 @@
 #include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::core {
 
@@ -14,7 +14,7 @@ namespace corundum::core {
                                                                    unsigned int default_val, const fs::path &path) {
       if (!j.contains(key))
         return default_val;
-      int v;
+      int v = 0;
       try {
         v = j.at(key).get<int>();
       } catch (...) {
@@ -29,7 +29,7 @@ namespace corundum::core {
                                                          const fs::path &path) {
       if (!j.contains(key))
         return default_val;
-      float v;
+      float v = NAN;
       try {
         v = j.at(key).get<float>();
       } catch (...) {
@@ -64,10 +64,10 @@ namespace corundum::core {
       if (!sub.is_object())
         return std::unexpected(std::format("game.json 'dialogue_render' must be an object: {}", path.string()));
 
-      auto get_uint = [&](const std::string &key, unsigned default_val) -> std::expected<unsigned, std::string> {
+      const auto get_uint = [&](const std::string &key, unsigned default_val) -> std::expected<unsigned, std::string> {
         if (!sub.contains(key))
           return default_val;
-        unsigned v;
+        unsigned v = 0;
         try {
           v = sub.at(key).get<unsigned>();
         } catch (...) {
@@ -76,10 +76,10 @@ namespace corundum::core {
         return v;
       };
 
-      auto get_pos_float = [&](const std::string &key, float default_val) -> std::expected<float, std::string> {
+      const auto get_pos_float = [&](const std::string &key, float default_val) -> std::expected<float, std::string> {
         if (!sub.contains(key))
           return default_val;
-        float v;
+        float v = NAN;
         try {
           v = sub.at(key).get<float>();
         } catch (...) {
@@ -120,7 +120,7 @@ namespace corundum::core {
       }
 
       if (sub.contains("panel_height_frac")) {
-        float frac;
+        float frac = NAN;
         try {
           frac = sub.at("panel_height_frac").get<float>();
         } catch (...) {
@@ -145,8 +145,8 @@ namespace corundum::core {
       if (!sub.is_object())
         return std::unexpected(std::format("game.json 'player' must be an object: {}", path.string()));
 
-      auto get_str = [&](const std::string &key,
-                         const std::string &default_val) -> std::expected<std::string, std::string> {
+      const auto get_str = [&](const std::string &key,
+                               const std::string &default_val) -> std::expected<std::string, std::string> {
         if (!sub.contains(key))
           return default_val;
         std::string v;
@@ -160,10 +160,11 @@ namespace corundum::core {
         return v;
       };
 
-      auto get_non_neg_float = [&](const std::string &key, float default_val) -> std::expected<float, std::string> {
+      const auto get_non_neg_float = [&](const std::string &key,
+                                         float default_val) -> std::expected<float, std::string> {
         if (!sub.contains(key))
           return default_val;
-        float v;
+        float v = NAN;
         try {
           v = sub.at(key).get<float>();
         } catch (...) {
@@ -202,6 +203,192 @@ namespace corundum::core {
       return pc;
     }
 
+    std::expected<void, std::string> parse_window_settings(const json &j, GameConfig &cfg, const fs::path &path) {
+      {
+        auto res = get_positive_float(j, "win_w", cfg.win_w, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.win_w = *res;
+      }
+      {
+        auto res = get_positive_float(j, "win_h", cfg.win_h, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.win_h = *res;
+      }
+      if (j.contains("framerate")) {
+        unsigned fr = 0;
+        try {
+          fr = j.at("framerate").get<unsigned>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'framerate' has wrong type: {}", path.string()));
+        }
+        if (fr == 0)
+          return std::unexpected(std::format("game.json 'framerate' must be > 0: {}", path.string()));
+        cfg.framerate = fr;
+      }
+      if (j.contains("vsync")) {
+        try {
+          cfg.vsync = j.at("vsync").get<bool>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'vsync' must be a boolean: {}", path.string()));
+        }
+      }
+      return {};
+    }
+
+    std::expected<void, std::string> parse_gameplay_settings(const json &j, GameConfig &cfg, const fs::path &path) {
+      {
+        auto res = get_positive_float(j, "interact_radius", cfg.interact_radius, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.interact_radius = *res;
+      }
+      {
+        auto res = get_positive_float(j, "player_speed", cfg.player_speed, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.player_speed = *res;
+      }
+      {
+        auto res = get_positive_float(j, "character_scale", cfg.character_scale, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.character_scale = *res;
+      }
+      {
+        auto res = get_positive_float(j, "tile_scale", cfg.tile_scale, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.tile_scale = *res;
+      }
+      {
+        auto res = get_positive_float(j, "elevation_step_px", cfg.elevation_step_px, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.elevation_step_px = *res;
+      }
+      {
+        auto res = get_positive_unsigned(j, "max_step_height", cfg.max_step_height, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.max_step_height = *res;
+      }
+      return {};
+    }
+
+    std::expected<void, std::string> parse_zoom_settings(const json &j, GameConfig &cfg, const fs::path &path) {
+      {
+        auto res = get_positive_float(j, "min_zoom", cfg.min_zoom, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.min_zoom = *res;
+      }
+      {
+        auto res = get_positive_float(j, "max_zoom", cfg.max_zoom, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.max_zoom = *res;
+      }
+      {
+        auto res = get_positive_float(j, "default_zoom", cfg.default_zoom, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.default_zoom = *res;
+      }
+      return {};
+    }
+
+    std::expected<void, std::string> parse_resource_paths(const json &j, GameConfig &cfg, const fs::path &path) {
+      {
+        auto res = get_nonempty_string(j, "font_dir", cfg.paths.font_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.font_dir = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "game_font", cfg.paths.game_font, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.game_font = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "ui_font", cfg.paths.ui_font, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.ui_font = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "icons_font", cfg.paths.icons_font, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.icons_font = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "tilemap_path", cfg.paths.tilemap_path, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.tilemap_path = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "sprites_dir", cfg.paths.sprites_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.sprites_dir = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "spawn_points_dir", cfg.paths.spawn_points_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.spawn_points_dir = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "portals_dir", cfg.paths.portals_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.portals_dir = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "dialogue_dir", cfg.paths.dialogue_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.dialogue_dir = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "quests_dir", cfg.paths.quests_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.quests_dir = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "items_dir", cfg.paths.items_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.items_dir = std::move(*res);
+      }
+      {
+        auto res = get_nonempty_string(j, "sounds_dir", cfg.paths.sounds_dir, path);
+        if (!res)
+          return std::unexpected(res.error());
+        cfg.paths.sounds_dir = std::move(*res);
+      }
+      if (j.contains("sounds_catalog")) {
+        try {
+          cfg.paths.sounds_catalog = j.at("sounds_catalog").get<std::string>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'sounds_catalog' has wrong type: {}", path.string()));
+        }
+      }
+      if (j.contains("world_manifest_path")) {
+        try {
+          cfg.paths.world_manifest_path = j.at("world_manifest_path").get<std::string>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'world_manifest_path' has wrong type: {}", path.string()));
+        }
+      }
+      return {};
+    }
+
   } // namespace
 
   std::expected<GameConfig, std::string> load_game_config(const fs::path &path) {
@@ -228,182 +415,14 @@ namespace corundum::core {
       cfg.game_id = std::move(*res);
     }
 
-    {
-      auto res = get_positive_float(j, "win_w", cfg.win_w, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.win_w = *res;
-    }
-    {
-      auto res = get_positive_float(j, "win_h", cfg.win_h, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.win_h = *res;
-    }
-    {
-      auto res = get_positive_float(j, "interact_radius", cfg.interact_radius, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.interact_radius = *res;
-    }
-    {
-      auto res = get_positive_float(j, "player_speed", cfg.player_speed, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.player_speed = *res;
-    }
-    {
-      auto res = get_positive_float(j, "character_scale", cfg.character_scale, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.character_scale = *res;
-    }
-    {
-      auto res = get_positive_float(j, "tile_scale", cfg.tile_scale, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.tile_scale = *res;
-    }
-    {
-      auto res = get_positive_float(j, "elevation_step_px", cfg.elevation_step_px, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.elevation_step_px = *res;
-    }
-    {
-      auto res = get_positive_unsigned(j, "max_step_height", cfg.max_step_height, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.max_step_height = *res;
-    }
-    {
-      auto res = get_positive_float(j, "min_zoom", cfg.min_zoom, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.min_zoom = *res;
-    }
-    {
-      auto res = get_positive_float(j, "max_zoom", cfg.max_zoom, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.max_zoom = *res;
-    }
-    {
-      auto res = get_positive_float(j, "default_zoom", cfg.default_zoom, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.default_zoom = *res;
-    }
-
-    if (j.contains("framerate")) {
-      unsigned fr;
-      try {
-        fr = j.at("framerate").get<unsigned>();
-      } catch (...) {
-        return std::unexpected(std::format("game.json 'framerate' has wrong type: {}", path.string()));
-      }
-      if (fr == 0)
-        return std::unexpected(std::format("game.json 'framerate' must be > 0: {}", path.string()));
-      cfg.framerate = fr;
-    }
-
-    {
-      auto res = get_nonempty_string(j, "font_dir", cfg.paths.font_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.font_dir = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "game_font", cfg.paths.game_font, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.game_font = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "ui_font", cfg.paths.ui_font, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.ui_font = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "icons_font", cfg.paths.icons_font, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.icons_font = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "tilemap_path", cfg.paths.tilemap_path, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.tilemap_path = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "sprites_dir", cfg.paths.sprites_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.sprites_dir = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "spawn_points_dir", cfg.paths.spawn_points_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.spawn_points_dir = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "portals_dir", cfg.paths.portals_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.portals_dir = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "dialogue_dir", cfg.paths.dialogue_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.dialogue_dir = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "quests_dir", cfg.paths.quests_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.quests_dir = std::move(*res);
-    }
-    {
-      auto res = get_nonempty_string(j, "items_dir", cfg.paths.items_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.items_dir = std::move(*res);
-    }
-
-    {
-      auto res = get_nonempty_string(j, "sounds_dir", cfg.paths.sounds_dir, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.paths.sounds_dir = std::move(*res);
-    }
-
-    if (j.contains("sounds_catalog")) {
-      try {
-        cfg.paths.sounds_catalog = j.at("sounds_catalog").get<std::string>();
-      } catch (...) {
-        return std::unexpected(std::format("game.json 'sounds_catalog' has wrong type: {}", path.string()));
-      }
-    }
-
-    if (j.contains("world_manifest_path")) {
-      try {
-        cfg.paths.world_manifest_path = j.at("world_manifest_path").get<std::string>();
-      } catch (...) {
-        return std::unexpected(std::format("game.json 'world_manifest_path' has wrong type: {}", path.string()));
-      }
-    }
-
-    if (j.contains("vsync")) {
-      try {
-        cfg.vsync = j.at("vsync").get<bool>();
-      } catch (...) {
-        return std::unexpected(std::format("game.json 'vsync' must be a boolean: {}", path.string()));
-      }
-    }
+    if (auto err = parse_window_settings(j, cfg, path); !err)
+      return std::unexpected(err.error());
+    if (auto err = parse_gameplay_settings(j, cfg, path); !err)
+      return std::unexpected(err.error());
+    if (auto err = parse_zoom_settings(j, cfg, path); !err)
+      return std::unexpected(err.error());
+    if (auto err = parse_resource_paths(j, cfg, path); !err)
+      return std::unexpected(err.error());
 
     {
       auto res = get_nonempty_string(j, "window_title", cfg.window_title, path);
@@ -416,7 +435,7 @@ namespace corundum::core {
       auto res = parse_dialogue_render(j, path);
       if (!res)
         return std::unexpected(res.error());
-      cfg.dialogue_render = std::move(*res);
+      cfg.dialogue_render = *res;
     }
 
     {
