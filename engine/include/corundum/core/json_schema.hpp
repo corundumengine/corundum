@@ -34,7 +34,7 @@ namespace corundum::core {
     [[nodiscard]] std::expected<void, std::string> validate(const nlohmann::json &document) const noexcept;
 
   private:
-    explicit SchemaValidator(nlohmann::json schema_json);
+    explicit SchemaValidator(const nlohmann::json &schema_json);
 
     nlohmann::json_schema::json_validator validator_;
   };

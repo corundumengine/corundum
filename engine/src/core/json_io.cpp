@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <corundum/core/json_io.hpp>
 #include <expected>
 #include <filesystem>
 #include <format>
@@ -9,34 +10,39 @@
 
 namespace corundum::core {
 
-  /// Rebuild a json value as an ordered_json with keys in sorted order.
-  /// Recursive — handles objects, arrays, and leaf values.
-  static nlohmann::ordered_json sort_keys(const nlohmann::json &j) {
-    using ordered_json = nlohmann::ordered_json;
-    switch (j.type()) {
-      case nlohmann::json::value_t::object: {
-        ordered_json result = ordered_json::object();
-        // Collect keys, sort them, then insert in sorted order.
-        std::vector<std::string> keys;
-        keys.reserve(j.size());
-        for (const auto &[k, _] : j.items())
-          keys.push_back(k);
-        std::ranges::sort(keys);
-        for (const auto &k : keys)
-          result[k] = sort_keys(j[k]);
-        return result;
+  namespace {
+
+    using nlohmann::ordered_json;
+
+    /// Rebuild a json value as an ordered_json with keys in sorted order.
+    /// Recursive — handles objects, arrays, and leaf values.
+    ordered_json sort_keys(const nlohmann::json &j) { // NOLINT(misc-no-recursion)
+      switch (j.type()) {
+        case nlohmann::json::value_t::object: {
+          ordered_json result = ordered_json::object();
+          // Collect keys, sort them, then insert in sorted order.
+          std::vector<std::string> keys;
+          keys.reserve(j.size());
+          for (const auto &[k, _] : j.items())
+            keys.push_back(k);
+          std::ranges::sort(keys);
+          for (const auto &k : keys)
+            result[k] = sort_keys(j[k]);
+          return result;
+        }
+        case nlohmann::json::value_t::array: {
+          ordered_json result = ordered_json::array();
+          for (const auto &elem : j)
+            result.push_back(sort_keys(elem));
+          return result;
+        }
+        default:
+          // Primitives (string, number, bool, null) — pass through.
+          return ordered_json(j); // NOLINT(modernize-return-braced-init-list)
       }
-      case nlohmann::json::value_t::array: {
-        ordered_json result = ordered_json::array();
-        for (const auto &elem : j)
-          result.push_back(sort_keys(elem));
-        return result;
-      }
-      default:
-        // Primitives (string, number, bool, null) — pass through.
-        return ordered_json(j);
     }
-  }
+
+  } // namespace
 
   std::expected<void, std::string> write_json(const std::filesystem::path &path, const nlohmann::json &j) {
     const auto sorted = sort_keys(j);

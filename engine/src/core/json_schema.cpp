@@ -4,7 +4,7 @@
 #include <print>
 #include <string_view>
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::core {
 
@@ -162,12 +162,12 @@ namespace corundum::core {
   std::expected<SchemaValidator, std::string> SchemaValidator::from_string(std::string_view schema_json) {
     try {
       return SchemaValidator(json::parse(schema_json));
-    } catch (const json::parse_error &e) {
-      return std::unexpected(std::format("schema parse error: {}", e.what()));
+    } catch (const std::exception &e) {
+      return std::unexpected(std::string("schema parse error: ") + e.what());
     }
   }
 
-  SchemaValidator::SchemaValidator(json schema_json) {
+  SchemaValidator::SchemaValidator(const json &schema_json) {
     try {
       validator_.set_root_schema(schema_json);
     } catch (const std::exception &e) {
@@ -217,7 +217,13 @@ namespace corundum::core {
   }
 
   const SchemaCatalog &schema_catalog() noexcept {
-    static const SchemaCatalog catalog = SchemaCatalog::create();
+    static const SchemaCatalog catalog = [] noexcept -> SchemaCatalog {
+      try {
+        return SchemaCatalog::create();
+      } catch (...) {
+        std::terminate();
+      }
+    }();
     return catalog;
   }
 
