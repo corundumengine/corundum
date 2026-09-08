@@ -9,6 +9,7 @@ Checks: >
   cppcoreguidelines-*,
   clang-analyzer-*,
   misc-*,
+  -bugprone-easily-swappable-parameters,
   -readability-identifier-length,
   -readability-braces-around-statements,
   -cppcoreguidelines-avoid-magic-numbers,
@@ -25,12 +26,9 @@ Checks: >
   -cppcoreguidelines-non-private-member-variables-in-classes,
   -misc-non-private-member-variables-in-classes
 
+# WarningsAsErrors: '*'
 WarningsAsErrors: >
-  # Currently disabled — see TODO below. Re-enable after the
-  # clang-tidy findings cleanup plan lands.
-  # bugprone-*,
   # clang-analyzer-*,
-  # cppcoreguidelines-*
 
 HeaderFilterRegex: '.*'
 
