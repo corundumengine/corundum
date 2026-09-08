@@ -14,8 +14,15 @@
 namespace corundum::anim {
 
   namespace {
+    using corundum::entities::AnimationTable;
+    using corundum::entities::EntityId;
     using corundum::entities::FacingDir;
+    using corundum::entities::FacingTable;
+    using corundum::entities::MotionSpriteTable;
+    using corundum::entities::SpriteTable;
+    using corundum::entities::TransformTable;
     using corundum::sprites::AnimId;
+    using corundum::sprites::SpriteId;
 
     inline constexpr std::array<FacingDir, 12> k_facing_table = {
         // zone 0 (row/vertical dominant: |dr| >> |dc|)
@@ -64,25 +71,119 @@ namespace corundum::anim {
     static_assert(k_cardinal_fallback_h.size() == 8, "k_cardinal_fallback_h must cover every FacingDir value");
     static_assert(k_cardinal_fallback_v.size() == 8, "k_cardinal_fallback_v must cover every FacingDir value");
 
+    /** @brief Map a tile-space velocity to a screen-space facing direction.
+     *
+     * Splits the (|dr|, |dc|) plane into three zones by axis-dominance ratio, then
+     * indexes k_facing_table by (zone, sign_dy, sign_dx).
+     */
+    FacingDir facing_from_velocity(float abs_dx, float abs_dy, float vel_dx, float vel_dy) noexcept {
+      int zone = 2;
+      if (abs_dy > k_cardinal_dominance_ratio * abs_dx) {
+        zone = 0;
+      } else if (abs_dx > k_cardinal_dominance_ratio * abs_dy) {
+        zone = 1;
+      }
+      const int dy_sign = vel_dy > 0.f ? 1 : 0;
+      const int dx_sign = vel_dx > 0.f ? 1 : 0;
+      return k_facing_table[(zone * 4) + (dy_sign * 2) + dx_sign];
+    }
+
+    /** @brief Animation playback speed scale for one frame.
+     *
+     * Idle (zero velocity) must NOT scale to 0 (would freeze the animation). Only
+     * scale while actually moving, and guard reference_speed/iso being degenerate
+     * (misconfigured) so this never divides by zero or propagates NaN.
+     */
+    float compute_speed_scale(bool moving, float vel_dx, float vel_dy, float reference_speed,
+                              corundum::core::math::IsometricParams iso) noexcept {
+      if (!moving || reference_speed <= 0.f || iso.half_tw <= 0.f || iso.half_th <= 0.f) [[unlikely]]
+        return 1.f;
+      const auto [svx, svy] = corundum::core::math::tile_to_screen_delta(vel_dx, vel_dy, iso);
+      return std::hypot(svx, svy) / reference_speed;
+    }
+
+    /** @brief Drive the walk/idle sprite-sheet transition for one entity.
+     *
+     * Updates cur_sid, frame counts, frame index, and timer when a transition
+     * commits. No-op when @p e is not in @p motion_sprites or no transition is
+     * pending.
+     */
+    void tick_motion_sprite(SpriteTable &sprites, AnimationTable &animations, MotionSpriteTable &motion_sprites,
+                            EntityId e, bool moving, float dt, uint8_t &spr_frame_idx, float &anim_timer) noexcept {
+      if (!motion_sprites.has(e)) [[likely]]
+        return;
+
+      const SpriteId desired = moving ? motion_sprites.walk_sprite(e) : motion_sprites.idle_sprite(e);
+      SpriteId &cur_sid = sprites.sprite_id_ref(e);
+      if (cur_sid == desired) {
+        motion_sprites.cancel_transition(e);
+        return;
+      }
+
+      if (motion_sprites.pending_sprite(e) != desired)
+        motion_sprites.set_pending(e, desired);
+
+      const float elapsed = motion_sprites.tick_transition(e, dt);
+      if (elapsed < motion_sprites.delay_for(e, desired)) [[likely]]
+        return;
+
+      cur_sid = desired;
+      animations.set_frame_counts(e,
+                                  moving ? motion_sprites.walk_frame_counts(e) : motion_sprites.idle_frame_counts(e));
+      const float fd = motion_sprites.frame_duration_for(e, desired);
+      if (fd > 0.f)
+        animations.frame_duration_ref(e) = fd;
+      spr_frame_idx = 0;
+      anim_timer = 0.f;
+      motion_sprites.cancel_transition(e);
+    }
+
+    /** @brief Pick the animation clip to play this tick.
+     *
+     * While moving, uses the current velocity-derived facing; when idle, preserves
+     * the entity's last recorded facing (or South if unknown). Falls back to a
+     * cardinal clip when the directional clip is absent, then to Default.
+     */
+    AnimId pick_target_anim(const AnimationTable &animations, const FacingTable &facings, EntityId e, bool moving,
+                            FacingDir moving_facing, float abs_dx, float abs_dy) noexcept {
+      FacingDir fd = FacingDir::South;
+      if (moving) {
+        fd = moving_facing;
+      } else if (facings.has(e)) {
+        fd = facings.dir_of(e);
+      }
+      const AnimId dir_anim = k_anim_for_facing[std::to_underlying(fd)];
+      if (animations.frame_count(e, dir_anim) > 0)
+        return dir_anim;
+      const auto fdx = std::to_underlying(fd);
+      const AnimId fallback = (abs_dx >= abs_dy) ? k_cardinal_fallback_h[fdx] : k_cardinal_fallback_v[fdx];
+      return animations.frame_count(e, fallback) > 0 ? fallback : AnimId::Default;
+    }
+
+    /** @brief Advance the playback timer and wrap the frame index when it crosses a frame.
+     *
+     * No-op when the clip has 0 or 1 frame (no animation possible).
+     */
+    void advance_frame_timer(float &anim_timer, float anim_fd, uint8_t frame_count, uint8_t &spr_frame_idx, float dt,
+                             float speed_scale) noexcept {
+      if (frame_count <= 1) [[unlikely]]
+        return;
+      anim_timer += dt * speed_scale;
+      if (anim_timer >= anim_fd) {
+        anim_timer -= anim_fd;
+        spr_frame_idx = static_cast<uint8_t>((spr_frame_idx + 1) % frame_count);
+      }
+    }
+
   } // namespace
 
-  void animate(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,
-               corundum::entities::AnimationTable &animations, corundum::entities::FacingTable &facings,
-               corundum::entities::MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso,
-               float reference_speed, float dt) noexcept {
-    using corundum::entities::AnimationTable;
-    using corundum::entities::EntityId;
-    using corundum::entities::FacingTable;
-    using corundum::entities::MotionSpriteTable;
-    using corundum::entities::SpriteTable;
-    using corundum::entities::TransformTable;
-    using corundum::sprites::AnimId;
-    using corundum::sprites::SpriteId;
-
+  void animate(SpriteTable &sprites, const TransformTable &transforms, AnimationTable &animations, FacingTable &facings,
+               MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso, float reference_speed,
+               float dt) noexcept {
     [[assume(animations.count <= std::remove_reference_t<decltype(animations)>::k_max)]];
     float *const timers = std::assume_aligned<16>(animations.timer.data());
     const float *const frame_durations = std::assume_aligned<16>(animations.frame_duration.data());
-    for (uint16_t i = 0; i < animations.count; ++i) {
+    for (uint32_t i = 0; i < animations.count; ++i) {
       const EntityId e = animations.idx.entities[i];
       if (!sprites.has(e) || !transforms.has(e)) [[unlikely]]
         continue;
@@ -101,56 +202,16 @@ namespace corundum::anim {
       const float abs_dx = std::abs(vel_dx);
       const float abs_dy = std::abs(vel_dy);
 
-      // Idle has zero velocity by definition — must NOT scale to 0 (that would freeze
-      // the idle animation). Only scale while actually moving, and guard reference_speed/iso
-      // being degenerate (misconfigured) so this never divides by zero or propagates NaN.
-      float speed_scale = 1.f;
-      if (moving && reference_speed > 0.f && iso.half_tw > 0.f && iso.half_th > 0.f) {
-        const auto [svx, svy] = corundum::core::math::tile_to_screen_delta(vel_dx, vel_dy, iso);
-        speed_scale = std::hypot(svx, svy) / reference_speed;
-      }
+      const float speed_scale = compute_speed_scale(moving, vel_dx, vel_dy, reference_speed, iso);
 
-      if (motion_sprites.has(e)) [[unlikely]] {
-        const SpriteId desired = moving ? motion_sprites.walk_sprite(e) : motion_sprites.idle_sprite(e);
-        SpriteId &cur_sid = sprites.sprite_id_ref(e);
-        if (cur_sid == desired) {
-          motion_sprites.cancel_transition(e);
-        } else {
-          if (motion_sprites.pending_sprite(e) != desired)
-            motion_sprites.set_pending(e, desired);
-          const float elapsed = motion_sprites.tick_transition(e, dt);
-          if (elapsed >= motion_sprites.delay_for(e, desired)) [[unlikely]] {
-            cur_sid = desired;
-            animations.set_frame_counts(e, moving ? motion_sprites.walk_frame_counts(e)
-                                                  : motion_sprites.idle_frame_counts(e));
-            const float fd = motion_sprites.frame_duration_for(e, desired);
-            if (fd > 0.f)
-              animations.frame_duration_ref(e) = fd;
-            spr_frame_idx = 0;
-            anim_timer = 0.f;
-            motion_sprites.cancel_transition(e);
-          }
-        }
-      }
+      tick_motion_sprite(sprites, animations, motion_sprites, e, moving, dt, spr_frame_idx, anim_timer);
 
-      const int zone =
-          (abs_dy > k_cardinal_dominance_ratio * abs_dx) ? 0 : ((abs_dx > k_cardinal_dominance_ratio * abs_dy) ? 1 : 2);
-      const int dy_sign = vel_dy > 0.f ? 1 : 0;
-      const int dx_sign = vel_dx > 0.f ? 1 : 0;
-      const FacingDir facing = k_facing_table[zone * 4 + dy_sign * 2 + dx_sign];
+      const FacingDir facing = facing_from_velocity(abs_dx, abs_dy, vel_dx, vel_dy);
 
       if (moving && facings.has(e)) [[likely]]
         facings.dir_ref(e) = facing;
 
-      const AnimId target = [&]() noexcept -> AnimId {
-        const FacingDir fd = moving ? facing : (facings.has(e) ? facings.dir_of(e) : FacingDir::South);
-        const AnimId dir_anim = k_anim_for_facing[std::to_underlying(fd)];
-        if (animations.frame_count(e, dir_anim) > 0)
-          return dir_anim;
-        const AnimId fallback = (abs_dx >= abs_dy) ? k_cardinal_fallback_h[std::to_underlying(fd)]
-                                                   : k_cardinal_fallback_v[std::to_underlying(fd)];
-        return animations.frame_count(e, fallback) > 0 ? fallback : AnimId::Default;
-      }();
+      const AnimId target = pick_target_anim(animations, facings, e, moving, facing, abs_dx, abs_dy);
 
       if (spr_anim_id != target) [[unlikely]] {
         spr_anim_id = target;
@@ -159,14 +220,7 @@ namespace corundum::anim {
       }
 
       const uint8_t frame_count = animations.frame_count(e, spr_anim_id);
-      if (frame_count <= 1)
-        continue;
-
-      anim_timer += dt * speed_scale;
-      if (anim_timer >= anim_fd) {
-        anim_timer -= anim_fd;
-        spr_frame_idx = (spr_frame_idx + 1) % frame_count;
-      }
+      advance_frame_timer(anim_timer, anim_fd, frame_count, spr_frame_idx, dt, speed_scale);
     }
   }
 
