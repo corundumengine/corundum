@@ -24,10 +24,10 @@ namespace corundum::quest {
       }
 
       const std::string id = result->quest_id;
-      if (quests_.contains(id))
+      if (quests_.contains(id)) {
         std::println(stderr, "[quest] duplicate quest id '{}' — '{}' is shadowed", id,
                      entry.path().filename().string());
-      else {
+      } else {
         quests_.emplace(id, std::move(*result));
         ++loaded;
       }

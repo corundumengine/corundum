@@ -6,7 +6,7 @@ namespace corundum::physics {
 
   void resolve_walkability(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
                            const corundum::world::tilemap::WalkabilityGraph *graph) noexcept {
-    if (!graph)
+    if (graph == nullptr)
       return;
 
     const int prev_col = static_cast<int>(std::floor(prev_pos.col));

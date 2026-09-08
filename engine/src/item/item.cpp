@@ -7,26 +7,26 @@
 #include <nlohmann/json.hpp>
 #include <print>
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::item {
 
   namespace {
 
-    static ItemCategory parse_category(const json &root) {
+    ItemCategory parse_category(const json &root) {
       if (root.contains("category"))
         return category_from_string(root["category"].get<std::string>());
       return ItemCategory::Misc;
     }
 
-    static WeaponData parse_weapon(const json &j) {
+    WeaponData parse_weapon(const json &j) {
       WeaponData w;
       if (j.contains("damage"))
         w.damage = j["damage"].get<int>();
       return w;
     }
 
-    static ApparelData parse_apparel(const json &j) {
+    ApparelData parse_apparel(const json &j) {
       ApparelData a;
       if (j.contains("slot"))
         a.slot = j["slot"].get<std::string>();
@@ -35,7 +35,7 @@ namespace corundum::item {
       return a;
     }
 
-    static PotionData parse_potion(const json &j) {
+    PotionData parse_potion(const json &j) {
       PotionData p;
       if (j.contains("effect"))
         p.effect = j["effect"].get<std::string>();
@@ -44,7 +44,7 @@ namespace corundum::item {
       return p;
     }
 
-    static Item parse_item_element(const json &root) {
+    Item parse_item_element(const json &root) {
       // Schema guarantees: id and name are present and non-empty.
       Item item;
       item.id = root["id"].get<std::string>();
@@ -209,10 +209,10 @@ namespace corundum::item {
 
         for (auto &item : *result) {
           const std::string id = item.id;
-          if (items_.contains(id))
+          if (items_.contains(id)) {
             std::println(stderr, "[item] duplicate item id '{}' — '{}' is shadowed", id,
                          file_entry.path().filename().string());
-          else {
+          } else {
             items_.emplace(id, std::move(item));
             ++loaded;
           }

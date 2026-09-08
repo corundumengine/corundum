@@ -50,8 +50,16 @@ namespace corundum::sprites {
 
     const Id sheet_id = next_id_++;
     sheet_ids_.emplace(data.id, sheet_id);
-    sheets_by_id_.emplace(sheet_id, SpriteSheet{sheet_id, data.path, data.frame_width, data.frame_height, data.offset_x,
-                                                data.offset_y, data.spacing_x, data.spacing_y});
+    sheets_by_id_.emplace(sheet_id, SpriteSheet{
+                                        .id = sheet_id,
+                                        .path = data.path,
+                                        .frame_width = data.frame_width,
+                                        .frame_height = data.frame_height,
+                                        .offset_x = data.offset_x,
+                                        .offset_y = data.offset_y,
+                                        .spacing_x = data.spacing_x,
+                                        .spacing_y = data.spacing_y,
+                                    });
 
     for (auto &entry : data.sprites) {
       if (frames_.contains(entry.name))

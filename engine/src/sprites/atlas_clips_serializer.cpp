@@ -1,6 +1,6 @@
 #include <corundum/sprites/atlas_clips_serializer.hpp>
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::sprites {
 
