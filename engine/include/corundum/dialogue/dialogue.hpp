@@ -130,32 +130,7 @@ namespace corundum::dialogue {
   };
 
   /**
-   * @brief Runtime traversal state for an active dialogue session.
-   *
-   * Lives alongside GameState in the shell, NOT inside World.
-   * graph is non-owning — the Graph is stored in a Registry.
-   */
-  struct State {
-    bool active = false;
-    std::string current_id; ///< ID of the node currently being processed.
-    const Graph *graph = nullptr;
-    int selected_choice = 0; ///< Cursor into the VISIBLE choice list.
-
-    /// Divert return stack. Each entry is (graph, node) to resume at when the
-    /// current graph calls `return_graph()`. Empty while running a single graph.
-    std::vector<std::pair<const Graph *, std::string>> call_stack;
-
-    /** @brief Deactivate and clear all fields. */
-    void reset() noexcept {
-      active = false;
-      current_id.clear();
-      graph = nullptr;
-      selected_choice = 0;
-      call_stack.clear();
-    }
-  };
-
-  /** @brief Validate semantic correctness of a loaded dialogue graph.
+   * @brief Validate semantic correctness of a loaded dialogue graph.
    *
    * Checks that all edge targets (next_id, choice target_id) refer to nodes
    * that exist in the graph, and that there are no event-node cycles (which

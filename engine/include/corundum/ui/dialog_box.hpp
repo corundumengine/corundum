@@ -1,16 +1,11 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/dialogue/conversation.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/nine_patch.hpp>
-#include <corundum/world/flags.hpp>
 #include <optional>
 #include <string>
-
-namespace corundum::quest {
-  class Registry;
-}
 
 namespace corundum::ui {
 
@@ -44,11 +39,8 @@ namespace corundum::ui {
   };
 
   /// Recompute layout if the current node, graph, or panel dimensions changed, then mark visible.
-  /// @pre state.active && state.graph != nullptr when called.
-  /// @param quests Quest registry used by visible_choices to evaluate quest-gated conditions.
-  /// @param zone_id Current zone for `local.<key>` condition evaluation.
-  void dialog_box_update(DialogBoxState &ds, const dialogue::State &state, const corundum::world::FlagStore &flags,
-                         const quest::Registry *quests, std::string_view zone_id, platform::Renderer &r,
+  /// @pre conversation.is_active() when called.
+  void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &r,
                          core::math::Vec2 viewport);
 
   /// Emit platform::DrawRect, nine-patch border, and platform::DrawText commands for the current frame.

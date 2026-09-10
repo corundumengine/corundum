@@ -6,31 +6,30 @@
 
 namespace corundum::ui {
 
-  void dialog_box_update(DialogBoxState &ds, const dialogue::State &state, const corundum::world::FlagStore &flags,
-                         const quest::Registry *quests, std::string_view zone_id, platform::Renderer &r,
+  void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &r,
                          core::math::Vec2 viewport) {
-    if (!state.active || !state.graph) {
+    if (!conversation.is_active()) {
       ds.visible = false;
       return;
     }
 
     const float panel_w = viewport.x - ds.style.margin * 2.f;
-    const std::string_view graph_id = state.graph->graph_id;
-    const bool stale =
-        !ds.layout || state.current_id != ds.last_node_id || graph_id != ds.last_graph_id || panel_w != ds.last_panel_w;
+    const std::string_view graph_id = conversation.graph_id();
+    const bool stale = !ds.layout || conversation.current_node_id() != ds.last_node_id ||
+                       graph_id != ds.last_graph_id || panel_w != ds.last_panel_w;
 
     if (stale) {
       auto measure = [&](std::string_view text) -> float {
         return r.measure_text(ds.style.font_id, text, ds.style.font_size_body);
       };
 
-      ds.layout = build_layout(state, flags, ds.style.margin, ds.style.panel_height_frac, ds.border.tile_w, viewport,
-                               measure, quests, zone_id);
+      ds.layout =
+          build_layout(conversation, ds.style.margin, ds.style.panel_height_frac, ds.border.tile_w, viewport, measure);
       ds.last_graph_id = graph_id;
-      ds.last_node_id = state.current_id;
+      ds.last_node_id = conversation.current_node_id();
       ds.last_panel_w = panel_w;
     } else {
-      ds.layout->selected_choice = state.selected_choice;
+      ds.layout->selected_choice = conversation.selected_choice();
     }
 
     ds.visible = true;

@@ -1,5 +1,5 @@
+#include <corundum/dialogue/conversation.hpp>
 #include <corundum/dialogue/interact.hpp>
-#include <corundum/dialogue/system.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/picking.hpp>
@@ -48,34 +48,37 @@ namespace corundum::dialogue {
 
   } // namespace
 
-  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions,
-                       corundum::world::FlagStore &flags, const quest::Registry *quests, const Registry *graphs,
-                       std::string_view zone_id) noexcept {
+  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions) noexcept {
     using corundum::entities::EntityId;
     using corundum::entities::World;
 
-    scene.pending_dialogue_events = corundum::dialogue::system(scene.dialogue, actions, flags, quests, graphs, zone_id);
-    if (!scene.dialogue.active) {
-      if (scene.dialogue_npc) {
-        World &world = scene.world;
-        const EntityId npc = *scene.dialogue_npc;
-        if (scene.dialogue_npc_saved_facing && world.facings.has(npc))
-          world.facings.dir_ref(npc) = *scene.dialogue_npc_saved_facing;
-        if (scene.dialogue_npc_saved_anim && world.sprites.has(npc)) {
-          world.sprites.anim_id_ref(npc) = *scene.dialogue_npc_saved_anim;
-          world.sprites.frame_index_ref(npc) = 0;
-        }
+    if (!scene.dialogue)
+      return;
+
+    scene.pending_dialogue_events = scene.dialogue->update(actions);
+    if (scene.dialogue->is_active())
+      return;
+
+    if (scene.dialogue_npc) {
+      World &world = scene.world;
+      const EntityId npc = *scene.dialogue_npc;
+      if (scene.dialogue_npc_saved_facing && world.facings.has(npc))
+        world.facings.dir_ref(npc) = *scene.dialogue_npc_saved_facing;
+      if (scene.dialogue_npc_saved_anim && world.sprites.has(npc)) {
+        world.sprites.anim_id_ref(npc) = *scene.dialogue_npc_saved_anim;
+        world.sprites.frame_index_ref(npc) = 0;
       }
-      scene.dialogue_npc.reset();
-      scene.dialogue_npc_saved_facing.reset();
-      scene.dialogue_npc_saved_anim.reset();
-      scene.mode = corundum::world::GameMode::Exploring;
     }
+    scene.dialogue_npc.reset();
+    scene.dialogue_npc_saved_facing.reset();
+    scene.dialogue_npc_saved_anim.reset();
+    scene.dialogue.reset();
+    scene.mode = corundum::world::GameMode::Exploring;
   }
 
   void try_interact(corundum::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
-                    corundum::world::FlagStore &flags) noexcept {
+                    corundum::world::FlagStore &flags, const quest::Registry *quests) noexcept {
     using corundum::dialogue::Graph;
     using corundum::entities::distance;
     using corundum::entities::EntityId;
@@ -106,17 +109,18 @@ namespace corundum::dialogue {
       const float npc_col = world.transforms.col[n_slot];
       const float npc_row = world.transforms.row[n_slot];
 
-      if (distance(Position{player_col, player_row}, Position{npc_col, npc_row}) > cfg.interact_radius)
+      if (distance(Position{.col = player_col, .row = player_row}, Position{.col = npc_col, .row = npc_row}) >
+          cfg.interact_radius)
         continue;
 
       if (via_click) {
-        const corundum::world::TileCoord npc_tile{static_cast<int>(npc_col), static_cast<int>(npc_row)};
+        const corundum::world::TileCoord npc_tile{.col = static_cast<int>(npc_col), .row = static_cast<int>(npc_row)};
         if (!scene.hovered_tile || *scene.hovered_tile != npc_tile)
           continue; // click landed elsewhere — not aimed at this NPC
       }
 
       const Graph *const graph = graphs.find(world.dialogue_refs.get_graph_id(eid));
-      if (!graph)
+      if (graph == nullptr)
         continue;
 
       const FacingDir toward_npc = dir_from_delta(npc_col - player_col, npc_row - player_row);
@@ -135,7 +139,7 @@ namespace corundum::dialogue {
       }
 
       scene.dialogue_npc = eid;
-      corundum::dialogue::start(scene.dialogue, *graph, flags);
+      scene.dialogue.emplace(*graph, flags, quests, &graphs, scene.zone_id);
       scene.mode = corundum::world::GameMode::Dialogue;
       // Defensive: a click that both queued a path AND was close enough to trigger
       // interact (same frame) would otherwise leave that path to silently resume once

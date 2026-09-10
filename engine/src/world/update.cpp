@@ -114,7 +114,7 @@ namespace {
   }
 
   /// Modulo wrap of a list cursor, matching the dialogue choice-list cursor
-  /// (dialogue/system.cpp): Down past the last row lands on the first, Up past
+  /// (dialogue/conversation.cpp): Down past the last row lands on the first, Up past
   /// the first lands on the last. `count` must be > 0.
   int wrap_cursor(int current, int delta, int count) noexcept {
     return (current + delta + count) % count;
@@ -172,7 +172,7 @@ namespace corundum::world {
 
     switch (scene.mode) {
       case corundum::world::GameMode::Dialogue:
-        corundum::dialogue::update_dialogue(scene, actions, flags, quests, &graphs, scene.zone_id);
+        corundum::dialogue::update_dialogue(scene, actions);
         break;
       case corundum::world::GameMode::Prompt:
         update_transition_prompt(scene, input);
@@ -182,7 +182,7 @@ namespace corundum::world {
         break;
       case corundum::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h);
-        corundum::dialogue::try_interact(scene, input, cfg, graphs, flags);
+        corundum::dialogue::try_interact(scene, input, cfg, graphs, flags, quests);
         break;
     }
   }

@@ -5,13 +5,13 @@
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/dialogue/action.hpp>
+#include <corundum/dialogue/conversation.hpp>
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/dialogue/expr.hpp>
 #include <corundum/dialogue/loader.hpp>
 #include <corundum/dialogue/query.hpp>
 #include <corundum/dialogue/registry.hpp>
 #include <corundum/dialogue/serialize.hpp>
-#include <corundum/dialogue/system.hpp>
 #include <corundum/dialogue/validate_refs.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/quest/registry.hpp>
@@ -102,6 +102,25 @@ static corundum::dialogue::Graph make_innkeeper_graph() {
 
   return g;
 }
+
+// ── Shared graph/test helpers ────────────────────────────────────────────────
+
+namespace {
+
+  /// Pushes a node into a graph, maintaining the id→index map.
+  void push_node(corundum::dialogue::Graph &g, corundum::dialogue::Node n) {
+    g.id_to_index[n.id] = g.nodes.size();
+    g.nodes.push_back(std::move(n));
+  }
+
+  corundum::input::PressedActions select_press() {
+    corundum::input::PressedActions select{};
+    select.actions[0] = corundum::input::Action::Select;
+    select.count = 1;
+    return select;
+  }
+
+} // namespace
 
 // ── eval_condition ────────────────────────────────────────────────────────────
 
@@ -434,37 +453,55 @@ TEST_CASE("visible_choices: Cycle sequence rotates per visit") {
 // ── System / State machine ────────────────────────────────────────────────────
 
 TEST_CASE("dialogue closes automatically on reaching End") {
-  const auto g = make_innkeeper_graph();
+  corundum::dialogue::Graph g;
+  g.graph_id = "end_talk";
+  {
+    corundum::dialogue::Node n;
+    n.id = "n0";
+    n.type = corundum::dialogue::NodeType::Talk;
+    n.text = "Bye.";
+    n.next_id = "end";
+    push_node(g, std::move(n));
+  }
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
-  corundum::dialogue::start(state, g, flags);
-  REQUIRE(state.active);
+  corundum::dialogue::Conversation conversation{g, flags};
+  REQUIRE(conversation.is_active());
 
-  // Advance directly to n2 (Talk → "end") and press Select
-  state.current_id = "n2";
-  corundum::input::PressedActions select{};
-  select.actions[0] = corundum::input::Action::Select;
-  select.count = 1;
-  static_cast<void>(corundum::dialogue::system(state, select, flags));
-  CHECK_FALSE(state.active);
+  // n0 (Talk) → "end": selecting advances onto an End node and closes the dialogue.
+  static_cast<void>(conversation.update(select_press()));
+  CHECK_FALSE(conversation.is_active());
 }
 
 TEST_CASE("Event node fires actions and auto-advances") {
-  const auto g = make_innkeeper_graph();
+  corundum::dialogue::Graph g;
+  g.graph_id = "event_tail";
+  {
+    corundum::dialogue::Node n;
+    n.id = "n_pay";
+    n.type = corundum::dialogue::NodeType::Event;
+    n.next_id = "n2";
+    n.actions = {"play_sound('coin')"};
+    push_node(g, std::move(n));
+  }
+  {
+    corundum::dialogue::Node n;
+    n.id = "n2";
+    n.type = corundum::dialogue::NodeType::Talk;
+    n.text = "That'll be 5 gold pieces. Right this way.";
+    n.next_id = "end";
+    push_node(g, std::move(n));
+  }
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
   flags["gold"] = 10;
 
-  corundum::dialogue::start(state, g, flags);
-  state.current_id = "n_pay";
-
-  auto events = corundum::dialogue::system(state, {}, flags);
+  corundum::dialogue::Conversation conversation{g, flags};
+  auto events = conversation.update({});
 
   // Should have auto-advanced past Event to n2
-  CHECK(state.active);
-  CHECK(state.current_id == "n2");
+  CHECK(conversation.is_active());
+  CHECK(conversation.current_node_id() == "n2");
 
   // The play_sound event should have been emitted
   REQUIRE(events.size() == 1);
@@ -475,30 +512,26 @@ TEST_CASE("Event node fires actions and auto-advances") {
 TEST_CASE("Choice selection executes actions") {
   const auto g = make_innkeeper_graph();
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
-  corundum::dialogue::start(state, g, flags); // copies variables: gold=10
+  corundum::dialogue::Conversation conversation{g, flags}; // copies variables: gold=10
 
   // Advance past n0 (Talk) to n1 (Choice)
-  corundum::input::PressedActions select{};
-  select.actions[0] = corundum::input::Action::Select;
-  select.count = 1;
-  static_cast<void>(corundum::dialogue::system(state, select, flags));
-  REQUIRE(state.current_id == "n1");
+  static_cast<void>(conversation.update(select_press()));
+  REQUIRE(conversation.current_node_id() == "n1");
 
   // gold should be 10 from graph variables
   CHECK(flags["gold"] == 10);
   CHECK_FALSE(corundum::world::has_flag(flags, "paid_innkeeper"));
 
   // Select choice 0 — triggers Event (n_pay) which auto-advances to n2
-  static_cast<void>(corundum::dialogue::system(state, select, flags));
+  static_cast<void>(conversation.update(select_press()));
 
   // gold -= 5, paid_innkeeper = true should have fired
   CHECK(flags["gold"] == 5);
   CHECK(corundum::world::has_flag(flags, "paid_innkeeper"));
 
   // Should now be on n2 (Talk), past the Event node
-  CHECK(state.current_id == "n2");
+  CHECK(conversation.current_node_id() == "n2");
 }
 
 TEST_CASE("is_terminal true only for End nodes") {
@@ -873,19 +906,6 @@ namespace {
   using corundum::dialogue::Node;
   using corundum::dialogue::NodeType;
 
-  /// Pushes a node into a graph, maintaining the id→index map.
-  void push_node(Graph &g, Node n) {
-    g.id_to_index[n.id] = g.nodes.size();
-    g.nodes.push_back(std::move(n));
-  }
-
-  corundum::input::PressedActions select_press() {
-    corundum::input::PressedActions select{};
-    select.actions[0] = corundum::input::Action::Select;
-    select.count = 1;
-    return select;
-  }
-
   /// Hub graph: a0 (Talk) → a_divert (Event goto_graph) → a1 (Talk) → end.
   /// The resume point after return_graph() is a1 (the divert node's successor).
   Graph make_hub_graph(const std::string &spoke, const std::string &spoke_entry) {
@@ -992,22 +1012,21 @@ TEST_CASE("divert: goto_graph A→B runs B from its first node") {
   graphs.add(make_hub_graph("spoke", "b0"));
   graphs.add(make_leaf_graph("spoke", "b0"));
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
-  start(state, *graphs.find("hub"), flags);
-  REQUIRE(state.active);
-  CHECK(state.current_id == "a0");
+  Conversation conversation{*graphs.find("hub"), flags, nullptr, &graphs, ""};
+  REQUIRE(conversation.is_active());
+  CHECK(conversation.current_node_id() == "a0");
 
   // Advancing a0 lands on a_divert (Event), whose chain fires the divert in the
   // same call — the goto_graph is intercepted before it reaches the engine queue.
-  const auto events = system(state, select_press(), flags, nullptr, &graphs, "");
+  const auto events = conversation.update(select_press());
   CHECK(events.empty());
-  REQUIRE(state.active);
-  CHECK(state.graph->graph_id == "spoke");
-  CHECK(state.current_id == "b0");
-  REQUIRE(state.call_stack.size() == 1);
-  CHECK(state.call_stack[0].first->graph_id == "hub");
-  CHECK(state.call_stack[0].second == "a1"); // resume where a_divert would have gone
+  REQUIRE(conversation.is_active());
+  CHECK(conversation.graph_id() == "spoke");
+  CHECK(conversation.current_node_id() == "b0");
+  REQUIRE(conversation.call_stack_depth() == 1);
+  CHECK(conversation.resume_graph_id() == "hub");
+  CHECK(conversation.resume_node_id() == "a1"); // resume where a_divert would have gone
 }
 
 TEST_CASE("divert: return_graph pops back to the pushed hub node") {
@@ -1017,20 +1036,19 @@ TEST_CASE("divert: return_graph pops back to the pushed hub node") {
   graphs.add(make_hub_graph("spoke", "b0"));
   graphs.add(make_leaf_graph("spoke", "b0"));
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
-  start(state, *graphs.find("hub"), flags);
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  REQUIRE(state.graph->graph_id == "spoke");
-  REQUIRE(state.current_id == "b0");
+  Conversation conversation{*graphs.find("hub"), flags, nullptr, &graphs, ""};
+  static_cast<void>(conversation.update(select_press()));
+  REQUIRE(conversation.graph_id() == "spoke");
+  REQUIRE(conversation.current_node_id() == "b0");
 
   // Selecting b0 advances to b_ret (Event), which immediately returns the stack.
-  const auto events = system(state, select_press(), flags, nullptr, &graphs, "");
+  const auto events = conversation.update(select_press());
   CHECK(events.empty()); // return_graph was intercepted
-  REQUIRE(state.active);
-  CHECK(state.graph->graph_id == "hub");
-  CHECK(state.current_id == "a1");
-  CHECK(state.call_stack.empty());
+  REQUIRE(conversation.is_active());
+  CHECK(conversation.graph_id() == "hub");
+  CHECK(conversation.current_node_id() == "a1");
+  CHECK(conversation.call_stack_depth() == 0);
 }
 
 TEST_CASE("divert: nested A→B→C unwinds correctly") {
@@ -1042,35 +1060,34 @@ TEST_CASE("divert: nested A→B→C unwinds correctly") {
   graphs.add(make_mid_graph());
   graphs.add(make_leaf_graph("leaf", "c0"));
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
+  Conversation conversation{*graphs.find("hub"), flags, nullptr, &graphs, ""};
 
   // A → B.
-  start(state, *graphs.find("hub"), flags);
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  REQUIRE(state.graph->graph_id == "mid");
-  CHECK(state.call_stack.size() == 1);
+  static_cast<void>(conversation.update(select_press()));
+  REQUIRE(conversation.graph_id() == "mid");
+  CHECK(conversation.call_stack_depth() == 1);
 
   // B → C.
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  REQUIRE(state.graph->graph_id == "leaf");
-  CHECK(state.call_stack.size() == 2);
+  static_cast<void>(conversation.update(select_press()));
+  REQUIRE(conversation.graph_id() == "leaf");
+  CHECK(conversation.call_stack_depth() == 2);
 
   // C returns → B's b1.
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  REQUIRE(state.graph->graph_id == "mid");
-  CHECK(state.current_id == "b1");
-  CHECK(state.call_stack.size() == 1);
+  static_cast<void>(conversation.update(select_press()));
+  REQUIRE(conversation.graph_id() == "mid");
+  CHECK(conversation.current_node_id() == "b1");
+  CHECK(conversation.call_stack_depth() == 1);
 
   // B returns → A's a1.
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  REQUIRE(state.graph->graph_id == "hub");
-  CHECK(state.current_id == "a1");
-  CHECK(state.call_stack.empty());
+  static_cast<void>(conversation.update(select_press()));
+  REQUIRE(conversation.graph_id() == "hub");
+  CHECK(conversation.current_node_id() == "a1");
+  CHECK(conversation.call_stack_depth() == 0);
 
   // A finishes normally.
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  CHECK_FALSE(state.active);
+  static_cast<void>(conversation.update(select_press()));
+  CHECK_FALSE(conversation.is_active());
 }
 
 TEST_CASE("divert: per-graph visit counts stay independent") {
@@ -1081,15 +1098,14 @@ TEST_CASE("divert: per-graph visit counts stay independent") {
   graphs.add(make_mid_graph());
   graphs.add(make_leaf_graph("leaf", "c0"));
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
-  start(state, *graphs.find("hub"), flags);
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  static_cast<void>(system(state, select_press(), flags, nullptr, &graphs, ""));
-  CHECK_FALSE(state.active);
+  Conversation conversation{*graphs.find("hub"), flags, nullptr, &graphs, ""};
+  static_cast<void>(conversation.update(select_press()));
+  static_cast<void>(conversation.update(select_press()));
+  static_cast<void>(conversation.update(select_press()));
+  static_cast<void>(conversation.update(select_press()));
+  static_cast<void>(conversation.update(select_press()));
+  CHECK_FALSE(conversation.is_active());
 
   // Each graph's node visits live under its own graph-id key, untouched by the others.
   CHECK(corundum::world::visit_count(flags, visit_flag_key("hub", "a0")) == 1);
@@ -1122,12 +1138,11 @@ TEST_CASE("divert: return_graph on an empty stack ends the dialogue") {
     push_node(g, std::move(n));
   }
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
-  start(state, g, flags);
-  const auto events = system(state, select_press(), flags);
+  Conversation conversation{g, flags};
+  const auto events = conversation.update(select_press());
   CHECK(events.empty());
-  CHECK_FALSE(state.active);
+  CHECK_FALSE(conversation.is_active());
 }
 
 TEST_CASE("divert: validate_quest_refs flags a missing goto_graph target") {
@@ -1239,31 +1254,30 @@ TEST_CASE("Talk once: line is shown the first time and skipped on revisit") {
     push_node(g, std::move(n));
   }
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
-  start(state, g, flags);
-  REQUIRE(state.active);
-  CHECK(state.current_id == "n0");
+  Conversation first{g, flags};
+  REQUIRE(first.is_active());
+  CHECK(first.current_node_id() == "n0");
 
   // First visit: no input yet, still waiting on n0.
-  static_cast<void>(system(state, {}, flags));
-  CHECK(state.current_id == "n0");
-  CHECK(state.active);
+  static_cast<void>(first.update({}));
+  CHECK(first.current_node_id() == "n0");
+  CHECK(first.is_active());
 
   // Select advances past n0 to n1, marking n0 shown.
-  static_cast<void>(system(state, select_press(), flags));
-  CHECK(state.current_id == "n1");
+  static_cast<void>(first.update(select_press()));
+  CHECK(first.current_node_id() == "n1");
 
   // n1 → end closes the dialogue.
-  static_cast<void>(system(state, select_press(), flags));
-  CHECK_FALSE(state.active);
+  static_cast<void>(first.update(select_press()));
+  CHECK_FALSE(first.is_active());
 
   // Reopen: n0 was already shown, so no input is required to skip it.
-  start(state, g, flags);
-  REQUIRE(state.current_id == "n0");
-  static_cast<void>(system(state, {}, flags));
-  CHECK(state.current_id == "n1");
-  CHECK(state.active);
+  Conversation reopened{g, flags};
+  REQUIRE(reopened.current_node_id() == "n0");
+  static_cast<void>(reopened.update({}));
+  CHECK(reopened.current_node_id() == "n1");
+  CHECK(reopened.is_active());
 }
 
 TEST_CASE("Talk once: loads from JSON and round-trips through serialize") {

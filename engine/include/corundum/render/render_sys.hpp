@@ -140,7 +140,6 @@ namespace corundum::render {
    *  @param[in]     cfg    Game config.
    * @param[in]     scene  Scene (camera, entities, dialogue mode).
    * @param[in]     flags  Persistent game flags for conditional dialogue rendering.
-   * @param[in]     quests Loaded quest registry for quest-gated choice visibility in the dialog box.
    * @param[in]     items  Loaded item registry for display names in the inventory panel; null hides it.
    * @param[in]     alpha  Interpolation factor in [0,1] for render smoothing.
    * @param[in]     win_w  Live window width in screen pixels.
@@ -148,8 +147,7 @@ namespace corundum::render {
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::quest::Registry *quests, const corundum::item::Registry *items, float alpha, int win_w,
-              int win_h);
+              const corundum::item::Registry *items, float alpha, int win_w, int win_h);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
+#include <corundum/dialogue/conversation.hpp>
 #include <corundum/dialogue/dialogue.hpp>
-#include <corundum/dialogue/system.hpp>
 #include <corundum/item/item.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -257,25 +257,52 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   const auto innkeeper = make_talk_graph("innkeeper_intro", "Innkeeper", "Welcome, traveller.");
   const auto villager = make_talk_graph("villager_generic", "Villager", "Did you see the harvest moon last night?");
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
 
-  corundum::dialogue::start(state, innkeeper, flags);
-  corundum::ui::dialog_box_update(ds, state, flags, nullptr, "", r, viewport);
+  corundum::dialogue::Conversation innkeeper_conversation{innkeeper, flags};
+  corundum::ui::dialog_box_update(ds, innkeeper_conversation, r, viewport);
   REQUIRE(ds.layout.has_value());
   CHECK(ds.layout->speaker == "Innkeeper");
   CHECK_FALSE(ds.layout->body_lines.empty());
 
   // Cancel and switch NPCs.
-  state.reset();
-  corundum::dialogue::start(state, villager, flags);
-  corundum::ui::dialog_box_update(ds, state, flags, nullptr, "", r, viewport);
+  corundum::dialogue::Conversation villager_conversation{villager, flags};
+  corundum::ui::dialog_box_update(ds, villager_conversation, r, viewport);
 
   REQUIRE(ds.layout.has_value());
   CHECK(ds.layout->speaker == "Villager");
   REQUIRE_FALSE(ds.layout->body_lines.empty());
   CHECK(ds.layout->body_lines.front() == "Did you see the harvest moon last night?");
+}
+
+TEST_CASE("dialog_box_update: an ended conversation hides the box") {
+  // Regression: render_sys only calls dialog_box_update while scene.dialogue is
+  // engaged, and update_dialogue() resets the optional the frame the conversation
+  // ends. The box must be hidden by that frame — never repainted from a stale layout.
+  RecordingRenderer r;
+  corundum::ui::DialogBoxState ds{};
+  ds.border = make_border();
+
+  const auto graph = make_talk_graph("innkeeper_intro", "Innkeeper", "Welcome, traveller.");
+  corundum::world::FlagStore flags;
+  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+
+  corundum::dialogue::Conversation conversation{graph, flags};
+  corundum::ui::dialog_box_update(ds, conversation, r, viewport);
+  REQUIRE(ds.visible);
+  REQUIRE(ds.layout.has_value());
+
+  // The Talk node's next is "end", so Select closes the conversation.
+  corundum::input::PressedActions select{};
+  select.actions[0] = corundum::input::Action::Select;
+  select.count = 1;
+  static_cast<void>(conversation.update(select));
+  CHECK_FALSE(conversation.is_active());
+
+  // The frame after the conversation ends, the box must be hidden, not stale-visible.
+  corundum::ui::dialog_box_update(ds, conversation, r, viewport);
+  CHECK_FALSE(ds.visible);
 }
 
 TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is threaded") {
@@ -297,13 +324,12 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
 
   const auto graph = make_choice_graph_with_quest_gate();
 
-  corundum::dialogue::State state;
   corundum::world::FlagStore flags;
   flags["quest.ember"] = 2; // matches stage "done" (sequence 2)
-  corundum::dialogue::start(state, graph, flags);
+  corundum::dialogue::Conversation conversation{graph, flags, &quests};
 
   const corundum::core::math::Vec2 viewport{1280.f, 720.f};
-  corundum::ui::dialog_box_update(ds, state, flags, &quests, "", r, viewport);
+  corundum::ui::dialog_box_update(ds, conversation, r, viewport);
 
   REQUIRE(ds.layout.has_value());
   REQUIRE(ds.layout->choice_lines.size() == 2);

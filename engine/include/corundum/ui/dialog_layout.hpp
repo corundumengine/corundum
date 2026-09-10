@@ -1,10 +1,9 @@
 #pragma once
 #include <algorithm>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/dialogue/conversation.hpp>
 #include <corundum/dialogue/dialogue.hpp>
-#include <corundum/dialogue/query.hpp>
 #include <corundum/ui/word_wrap.hpp>
-#include <corundum/world/flags.hpp>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -30,60 +29,55 @@ namespace corundum::ui {
     dialogue::NodeType node_type{dialogue::NodeType::End};
   };
 
-  /// Builds a DialogLayout from the current dialogue state.
+  /// Builds a DialogLayout from the current dialogue conversation.
   ///
   /// The measure callable is the only coupling to font/platform — callers supply
   /// a lambda wrapping Renderer::measure_text, or a fixed stub for tests.
   ///
-  /// @param state         Active dialogue session. @pre state.active && state.graph != nullptr.
-  /// @param flags         FlagStore for visible_choices evaluation.
+  /// @param conversation Active dialogue conversation. @pre conversation.is_active().
   /// @param margin        Panel margin in pixels.
   /// @param panel_height_frac Fraction of the viewport height for the panel.
   /// @param border_tile_w Tile width of the nine-patch border (determines inset).
   /// @param viewport      Viewport dimensions in pixels.
   /// @param measure       Callable (std::string_view) -> float returning rendered width.
-  /// @param quests        Quest registry for quest-gated choice conditions. Optional —
-  ///                      defaults to nullptr; null is safe and renders all quest-gated
-  ///                      choices as not-satisfied.
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   // margin/panel_height_frac are both viewport-scaled floats; a value struct would over-abstract
   // this single call site.
   template <typename MeasureFn>
-  [[nodiscard]] DialogLayout build_layout(const dialogue::State &state, const corundum::world::FlagStore &flags,
-                                          float margin, float panel_height_frac, int border_tile_w,
-                                          core::math::Vec2 viewport, MeasureFn measure,
-                                          const quest::Registry *quests = nullptr, std::string_view zone_id = {}) {
+  [[nodiscard]] DialogLayout build_layout(const dialogue::Conversation &conversation, float margin,
+                                          float panel_height_frac, int border_tile_w, core::math::Vec2 viewport,
+                                          MeasureFn measure) {
     const float panel_h = viewport.y * panel_height_frac;
     const float panel_y = viewport.y - panel_h - margin;
     const float panel_x = margin;
     const float panel_w = viewport.x - (margin * 2.f);
     const float inset = std::max(margin, static_cast<float>(border_tile_w));
 
-    const dialogue::Node *node = state.graph->find(state.current_id);
+    const dialogue::NodeType type = conversation.node_type();
 
     DialogLayout layout{
         .panel_pos = {.x = panel_x, .y = panel_y},
         .panel_size = {.x = panel_w, .y = panel_h},
         .inset = inset,
-        .selected_choice = state.selected_choice,
-        .node_type = node ? node->type : dialogue::NodeType::End,
+        .selected_choice = conversation.selected_choice(),
+        .node_type = type,
     };
 
-    if (!node)
+    if (!conversation.is_active())
       return layout;
 
     const float text_w = panel_w - (inset * 2.f);
 
-    layout.speaker = state.graph->speaker;
+    layout.speaker = conversation.speaker();
 
-    if (node->type == dialogue::NodeType::Talk) {
-      layout.body_lines = ui::wrap_text(node->text, text_w, measure);
-    } else if (node->type == dialogue::NodeType::Choice) {
+    if (type == dialogue::NodeType::Talk) {
+      layout.body_lines = ui::wrap_text(conversation.current_text(), text_w, measure);
+    } else if (type == dialogue::NodeType::Choice) {
       const float choice_w = panel_w - (inset * 3.f);
-      layout.choice_indices = dialogue::visible_choices(*node, flags, state.graph->graph_id, quests, zone_id);
+      layout.choice_indices = conversation.visible_choice_indices();
       layout.choice_lines.reserve(layout.choice_indices.size());
       for (const std::size_t idx : layout.choice_indices) {
-        auto lines = ui::wrap_text(node->choices[idx].label, choice_w, measure);
+        auto lines = ui::wrap_text(conversation.choice_label(idx), choice_w, measure);
         layout.choice_lines.push_back(lines.empty() ? std::string{} : std::move(lines.front()));
       }
     }

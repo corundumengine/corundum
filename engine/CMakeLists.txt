@@ -19,13 +19,13 @@ set(ENGINE_SOURCES
     src/debug/debug_overlay.cpp
     src/dialogue/action.cpp
     src/dialogue/compiled_expr.cpp
+    src/dialogue/conversation.cpp
     src/dialogue/expr.cpp
     src/dialogue/interact.cpp
     src/dialogue/loader.cpp
     src/dialogue/query.cpp
     src/dialogue/registry.cpp
     src/dialogue/serialize.cpp
-    src/dialogue/system.cpp
     src/dialogue/validate.cpp
     src/dialogue/validate_refs.cpp
     src/engine.cpp

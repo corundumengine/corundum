@@ -1,6 +1,6 @@
 #pragma once
 #include <corundum/dialogue/action.hpp>
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/dialogue/conversation.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera.hpp>
@@ -52,7 +52,9 @@ namespace corundum::world {
     std::vector<ChunkActorSet>
         chunk_actors; ///< World mode: per-chunk actor entities, kept in sync with the streaming window.
 
-    corundum::dialogue::State dialogue;
+    /// Active dialogue conversation; disengaged while not in a dialogue. Owned here so
+    /// the presentation layer can query it read-only; stepped by dialogue::update_dialogue.
+    std::optional<corundum::dialogue::Conversation> dialogue;
     std::optional<MapTransition> pending_transition;
     std::optional<TransitionPrompt> transition_prompt;
     float elapsed_time = 0.f;
