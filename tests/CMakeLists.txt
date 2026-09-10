@@ -15,7 +15,7 @@ set(TEST_SOURCES
     test_anim_sys.cpp
     test_atlas_clips.cpp
     test_audio.cpp
-    test_camera_system.cpp
+    test_camera.cpp
     test_character_sheet_loader.cpp
     test_character_sheet_serializer.cpp
     test_chunk_collision_aggregate.cpp

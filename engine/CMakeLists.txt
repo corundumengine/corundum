@@ -59,7 +59,7 @@ set(ENGINE_SOURCES
     src/ui/prompt_box.cpp
     src/ui/ui_draw.cpp
     src/world/actors/actor_loader.cpp
-    src/world/camera_system.cpp
+    src/world/camera.cpp
     src/world/map_view.cpp
     src/world/pathfinding.cpp
     src/world/picking.cpp

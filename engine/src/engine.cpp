@@ -9,7 +9,7 @@
 #include <corundum/quest/runner.hpp>
 #include <corundum/quest/system.hpp>
 #include <corundum/render/render_sys.hpp>
-#include <corundum/world/camera_system.hpp>
+#include <corundum/world/camera.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
@@ -128,13 +128,12 @@ namespace corundum {
       }
 
       /// Set the configured default zoom, then center the camera on the target
-      /// point via the shared sys::center_on (formerly duplicated inline in
+      /// point via the shared Camera::center_on (formerly duplicated inline in
       /// init_world/init_single_map).
       void apply_default_zoom_and_center(float target_x, float target_y, float world_w, float world_h) {
         engine_->scene.camera.zoom =
             std::clamp(engine_->cfg.default_zoom, engine_->cfg.min_zoom, engine_->cfg.max_zoom);
-        world::center_on(engine_->scene.camera, target_x, target_y, world_w, world_h, engine_->cfg.win_w,
-                         engine_->cfg.win_h);
+        engine_->scene.camera.center_on(target_x, target_y, world_w, world_h, engine_->cfg.win_w, engine_->cfg.win_h);
       }
 
       void init_audio() {

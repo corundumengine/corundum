@@ -1,7 +1,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/render/render_sys.hpp>
-#include <corundum/world/camera_system.hpp>
+#include <corundum/world/camera.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <corundum/world/transition.hpp>
@@ -83,7 +83,7 @@ namespace corundum::world {
       const auto target = anchor_cell_center ? corundum::core::math::tile_to_world_center(col, row, 0.f, iso)
                                              : corundum::core::math::tile_to_world(col, row, 0, iso);
       const auto [vw, vh] = viewport();
-      corundum::world::center_on(engine_.scene.camera, target.x, target.y, world_w, world_h, vw, vh);
+      engine_.scene.camera.center_on(target.x, target.y, world_w, world_h, vw, vh);
     }
 
     void SceneTransitioner::fail(std::string_view context, std::string_view err) noexcept {

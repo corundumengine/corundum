@@ -1,11 +1,9 @@
 #include <doctest/doctest.h>
 
-#include <corundum/world/camera_system.hpp>
+#include <corundum/world/camera.hpp>
 #include <corundum/world/update.hpp>
 
-using corundum::world::apply_zoom;
 using corundum::world::Camera;
-using corundum::world::follow_player;
 using corundum::world::MapView;
 
 namespace {
@@ -22,7 +20,7 @@ namespace {
 
 TEST_CASE("apply_zoom — no-op when zoom_delta is zero") {
   Camera camera{10.f, 20.f, 1.5f};
-  apply_zoom(camera, 0.f, 100.f, 50.f, k_min_zoom, k_max_zoom);
+  camera.apply_zoom(0.f, 100.f, 50.f, k_min_zoom, k_max_zoom);
   CHECK(camera.x == doctest::Approx(10.f));
   CHECK(camera.y == doctest::Approx(20.f));
   CHECK(camera.zoom == doctest::Approx(1.5f));
@@ -36,7 +34,7 @@ TEST_CASE("apply_zoom — keeps the mouse-cursor anchor's world point fixed") {
   const float world_x_before = world_under_anchor(camera.x, anchor_x, camera.zoom);
   const float world_y_before = world_under_anchor(camera.y, anchor_y, camera.zoom);
 
-  apply_zoom(camera, 1.f, anchor_x, anchor_y, k_min_zoom, k_max_zoom);
+  camera.apply_zoom(1.f, anchor_x, anchor_y, k_min_zoom, k_max_zoom);
 
   CHECK(camera.zoom > 1.f);
   const float world_x_after = world_under_anchor(camera.x, anchor_x, camera.zoom);
@@ -53,7 +51,7 @@ TEST_CASE("apply_zoom — keeps the screen-center anchor's world point fixed on 
   const float world_x_before = world_under_anchor(camera.x, anchor_x, camera.zoom);
   const float world_y_before = world_under_anchor(camera.y, anchor_y, camera.zoom);
 
-  apply_zoom(camera, -1.f, anchor_x, anchor_y, k_min_zoom, k_max_zoom);
+  camera.apply_zoom(-1.f, anchor_x, anchor_y, k_min_zoom, k_max_zoom);
 
   CHECK(camera.zoom < 2.f);
   const float world_x_after = world_under_anchor(camera.x, anchor_x, camera.zoom);
@@ -64,19 +62,19 @@ TEST_CASE("apply_zoom — keeps the screen-center anchor's world point fixed on 
 
 TEST_CASE("apply_zoom — clamps to max_zoom") {
   Camera camera{0.f, 0.f, 2.9f};
-  apply_zoom(camera, 5.f, 0.f, 0.f, k_min_zoom, k_max_zoom);
+  camera.apply_zoom(5.f, 0.f, 0.f, k_min_zoom, k_max_zoom);
   CHECK(camera.zoom == doctest::Approx(k_max_zoom));
 }
 
 TEST_CASE("apply_zoom — clamps to min_zoom") {
   Camera camera{0.f, 0.f, 0.55f};
-  apply_zoom(camera, -5.f, 0.f, 0.f, k_min_zoom, k_max_zoom);
+  camera.apply_zoom(-5.f, 0.f, 0.f, k_min_zoom, k_max_zoom);
   CHECK(camera.zoom == doctest::Approx(k_min_zoom));
 }
 
 TEST_CASE("apply_zoom — already-clamped zoom stays put and camera position is untouched") {
   Camera camera{7.f, 9.f, k_max_zoom};
-  apply_zoom(camera, 1.f, 100.f, 100.f, k_min_zoom, k_max_zoom);
+  camera.apply_zoom(1.f, 100.f, 100.f, k_min_zoom, k_max_zoom);
   CHECK(camera.zoom == doctest::Approx(k_max_zoom));
   CHECK(camera.x == doctest::Approx(7.f));
   CHECK(camera.y == doctest::Approx(9.f));
@@ -93,7 +91,7 @@ TEST_CASE("follow_player — zoomed-in viewport clamps to a smaller effective wo
   // placed at the world's far edge, should pin the camera against that edge rather
   // than the zoom-1 clamp bound.
   Camera camera{0.f, 0.f, 2.f};
-  follow_player(camera, map.world_w_px, map.world_h_px, map, win_w, win_h);
+  camera.follow_player(map.world_w_px, map.world_h_px, map, win_w, win_h);
 
   const float eff_w = win_w / camera.zoom;
   const float eff_h = win_h / camera.zoom;
@@ -110,7 +108,7 @@ TEST_CASE("follow_player — at zoom 1, matches the un-zoomed clamp bound") {
 
   // Map smaller than the viewport centers the camera regardless of player position.
   Camera camera{0.f, 0.f, 1.f};
-  follow_player(camera, 250.f, 250.f, map, win_w, win_h);
+  camera.follow_player(250.f, 250.f, map, win_w, win_h);
 
   CHECK(camera.x == doctest::Approx((map.world_w_px - win_w) * 0.5f));
   CHECK(camera.y == doctest::Approx((map.world_h_px - win_h) * 0.5f));
@@ -120,17 +118,17 @@ TEST_CASE("center_on: centers the viewport on the target and clamps to world bou
   Camera camera{0.f, 0.f, 1.f};
 
   // Target comfortably inside a large world: viewport centers on it exactly.
-  corundum::world::center_on(camera, 500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
+  camera.center_on(500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(500.f - 400.f));
   CHECK(camera.y == doctest::Approx(400.f - 300.f));
 
   // Target near the origin: clamped to 0 rather than going negative.
-  corundum::world::center_on(camera, 10.f, 10.f, 2000.f, 1600.f, 800.f, 600.f);
+  camera.center_on(10.f, 10.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(0.f));
   CHECK(camera.y == doctest::Approx(0.f));
 
   // Target near the far edge: clamped to world_extent - effective_extent.
-  corundum::world::center_on(camera, 1990.f, 1590.f, 2000.f, 1600.f, 800.f, 600.f);
+  camera.center_on(1990.f, 1590.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(2000.f - 800.f));
   CHECK(camera.y == doctest::Approx(1600.f - 600.f));
 }
@@ -138,7 +136,7 @@ TEST_CASE("center_on: centers the viewport on the target and clamps to world bou
 TEST_CASE("center_on: world smaller than the viewport centers the world (no UB clamp)") {
   Camera camera{0.f, 0.f, 1.f};
 
-  corundum::world::center_on(camera, 100.f, 100.f, 400.f, 300.f, 800.f, 600.f);
+  camera.center_on(100.f, 100.f, 400.f, 300.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx((400.f - 800.f) * 0.5f));
   CHECK(camera.y == doctest::Approx((300.f - 600.f) * 0.5f));
 }
@@ -146,7 +144,7 @@ TEST_CASE("center_on: world smaller than the viewport centers the world (no UB c
 TEST_CASE("center_on: zoom shrinks the effective viewport") {
   Camera camera{0.f, 0.f, 2.f}; // effective viewport is 400x300
 
-  corundum::world::center_on(camera, 500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
+  camera.center_on(500.f, 400.f, 2000.f, 1600.f, 800.f, 600.f);
   CHECK(camera.x == doctest::Approx(500.f - 200.f));
   CHECK(camera.y == doctest::Approx(400.f - 150.f));
 }

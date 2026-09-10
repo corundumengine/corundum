@@ -178,10 +178,10 @@ just a loader. **Not built as part of this doc.**
 | `Action::Select` | `dialogue_system.cpp::try_interact()` | Starts dialogue (proximity-only for keyboard/gamepad; proximity **and** click-aimed-at-NPC-tile for a click — see `mouse_click_pressed` check there) |
 | `Action::Select` | `dialogue/system.cpp::system()` (`NodeType::Talk`) | Advances the line |
 | `Action::Select` | `dialogue/system.cpp::system()` (`NodeType::Choice`) | Confirms the highlighted choice |
-| `Action::Cancel` | `dialogue/system.cpp::system()` (`Talk` and `Choice`) | Hard-closes dialogue (`state.reset()`) |
+| `Action::Cancel` | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`) |
 | `Action::Quit` | `engine.cpp`'s main loop | Sets `engine.quit` and closes the window |
-| `scroll_delta_y` | `world/update.cpp::update_zoom()` | `apply_zoom()`, anchored on the mouse cursor |
-| `Action::ZoomIn/ZoomOut` (held) | `world/update.cpp::update_zoom()` | `apply_zoom()`, anchored on the screen center, rate-limited by `k_zoom_rate_per_sec` and `dt` |
+| `scroll_delta_y` | `world/update.cpp::update_zoom()` | `Camera::apply_zoom()`, anchored on the mouse cursor |
+| `Action::ZoomIn/ZoomOut` (held) | `world/update.cpp::update_zoom()` | `Camera::apply_zoom()`, anchored on the screen center, rate-limited by `k_zoom_rate_per_sec` and `dt` |
 
 `Action::Quit`'s three sources (Q key, gamepad Start, OS window-close
 button) all write the *same* `InputState::held` bit — the window-close

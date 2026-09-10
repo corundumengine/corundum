@@ -6,7 +6,7 @@
 #include <corundum/entities/world.hpp>
 #include <corundum/physics/physics_sys.hpp>
 #include <corundum/sprites/sprite.hpp>
-#include <corundum/world/camera_system.hpp>
+#include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
@@ -56,7 +56,7 @@ namespace {
     // Camera tracks the player's cell-center anchor (same as the sprite) so the
     // camera and actor stay in lockstep instead of drifting half_th apart.
     const auto [pp_x, pp_y] = corundum::core::math::tile_to_world_center(pc, pr, elev, iso);
-    corundum::world::follow_player(scene.camera, pp_x, pp_y, map, win_w, win_h);
+    scene.camera.follow_player(pp_x, pp_y, map, win_w, win_h);
   }
 
   // Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel
@@ -68,8 +68,7 @@ namespace {
     using corundum::input::Action;
 
     if (input.scroll_delta_y != 0.f) {
-      corundum::world::apply_zoom(scene.camera, input.scroll_delta_y, input.mouse_x, input.mouse_y, cfg.min_zoom,
-                                  cfg.max_zoom);
+      scene.camera.apply_zoom(input.scroll_delta_y, input.mouse_x, input.mouse_y, cfg.min_zoom, cfg.max_zoom);
     }
 
     const float button_zoom =
@@ -77,8 +76,7 @@ namespace {
     if (button_zoom != 0.f) {
       const float center_x = win_w * 0.5f;
       const float center_y = win_h * 0.5f;
-      corundum::world::apply_zoom(scene.camera, button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y,
-                                  cfg.min_zoom, cfg.max_zoom);
+      scene.camera.apply_zoom(button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y, cfg.min_zoom, cfg.max_zoom);
     }
   }
 
