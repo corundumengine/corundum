@@ -80,21 +80,31 @@ namespace corundum::platform::glfw {
                                                                              std::string_view title) {
     glfw_init_if_needed();
 
-    bool window_owns_ref = false;
-
+    // If the constructor below throws, release the refcount it was created under; once the
+    // window object exists its destructor owns the decrement.
     struct RefGuard {
-      bool &disarmed;
+      bool armed{true};
+
+      RefGuard() = default;
+      RefGuard(const RefGuard &) = delete;
+      RefGuard &operator=(const RefGuard &) = delete;
+      RefGuard(RefGuard &&) = delete;
+      RefGuard &operator=(RefGuard &&) = delete;
 
       ~RefGuard() {
-        if (!disarmed)
+        if (armed)
           glfw_term_if_done();
       }
-    } guard{window_owns_ref};
+
+      void disarm() {
+        armed = false;
+      }
+    } guard;
 
     // Use 'new' because the constructor is private.
     // The unique_ptr will take ownership immediately.
     auto window = std::unique_ptr<GLFWWindow>(new GLFWWindow(width, height, title));
-    window_owns_ref = true;
+    guard.disarm();
 
     if (!window->impl_->win) {
       return std::unexpected(WindowError::CreationFailed);
@@ -146,7 +156,6 @@ namespace corundum::platform::glfw {
   }
 
   GLFWWindow::GLFWWindow(GLFWWindow &&) noexcept = default;
-  GLFWWindow &GLFWWindow::operator=(GLFWWindow &&) noexcept = default;
 
   bool GLFWWindow::is_open() const {
     return impl_ && impl_->win && !glfwWindowShouldClose(impl_->win);

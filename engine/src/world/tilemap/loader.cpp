@@ -15,6 +15,21 @@ using json = nlohmann::json;
 
 namespace corundum::world::tilemap {
 
+  namespace {
+    // Tilesets are shared across many chunks/maps; parsing the same atlas from disk once per
+    // chunk was the dominant chunk-streaming cost (~43ms per 16x16 chunk, recomputing the same
+    // TilesetInfo for the handful of shared tilesets every time). Cache the fully-resolved result
+    // keyed by source path. Main-thread only (render/load), so no locking needed.
+    std::unordered_map<std::string, TilesetInfo> &tileset_cache() {
+      static std::unordered_map<std::string, TilesetInfo> cache;
+      return cache;
+    }
+  } // namespace
+
+  void clear_tileset_cache() {
+    tileset_cache().clear();
+  }
+
   /// A tileset JSON *is* a spritepacker atlas JSON (schema_version 2), plus these optional
   /// tileset-only authoring fields layered on top: material, animations.
   /// Sprites are referenced by name rather than by local_id/col-row, since MaxRects packing
@@ -41,13 +56,9 @@ namespace corundum::world::tilemap {
   }
 
   std::expected<TilesetInfo, std::string> load_tileset(const fs::path &tileset_path) {
-    // Tilesets are shared across many chunks/maps; parsing the same atlas from disk once per
-    // chunk was the dominant chunk-streaming cost (~43ms per 16x16 chunk, recomputing the same
-    // TilesetInfo for the handful of shared tilesets every time). Cache the fully-resolved result
-    // keyed by source path. Main-thread only (render/load), so no locking needed.
-    static std::unordered_map<std::string, TilesetInfo> s_cache;
+    auto &cache = tileset_cache();
     const std::string key = tileset_path.string();
-    if (auto it = s_cache.find(key); it != s_cache.end())
+    if (auto it = cache.find(key); it != cache.end())
       return it->second;
 
     auto atlas_result = corundum::sprites::load_sprite_atlas(tileset_path);
@@ -233,7 +244,7 @@ namespace corundum::world::tilemap {
       }
     }
 
-    s_cache.emplace(key, info);
+    cache.emplace(key, info);
     return info;
   }
 

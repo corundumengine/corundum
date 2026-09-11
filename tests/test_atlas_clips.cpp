@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/sprites/atlas_clips_loader.hpp>
 #include <corundum/sprites/atlas_clips_serializer.hpp>
 
@@ -17,10 +19,8 @@ namespace {
     f << content;
   }
 
-  fs::path temp_dir(std::string_view tag) {
-    const auto p = fs::temp_directory_path() / "crpg_test_atlas_clips" / tag;
-    fs::create_directories(p);
-    return p;
+  corundum::test::TempDir temp_dir(std::string_view tag) {
+    return corundum::test::TempDir{"crpg_test_atlas_clips_", tag};
   }
 
   constexpr std::string_view VALID_SIDECAR_JSON = R"({

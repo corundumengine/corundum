@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/core/game_config.hpp>
 
 #include <filesystem>
@@ -15,10 +17,8 @@ namespace {
     f << content;
   }
 
-  fs::path temp_dir(std::string_view tag) {
-    const auto p = fs::temp_directory_path() / "crpg_test_game_config" / tag;
-    fs::create_directories(p);
-    return p;
+  corundum::test::TempDir temp_dir(std::string_view tag) {
+    return corundum::test::TempDir{"crpg_test_game_config_", tag};
   }
 
 } // namespace

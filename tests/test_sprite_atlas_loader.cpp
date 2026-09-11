@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/sprites/sprite_atlas.hpp>
 
 #include <filesystem>
@@ -16,10 +18,8 @@ namespace {
     f << content;
   }
 
-  fs::path temp_dir(std::string_view tag) {
-    const auto p = fs::temp_directory_path() / "crpg_test_sprite_atlas" / tag;
-    fs::create_directories(p);
-    return p;
+  corundum::test::TempDir temp_dir(std::string_view tag) {
+    return corundum::test::TempDir{"crpg_test_sprite_atlas_", tag};
   }
 
   constexpr std::string_view VALID_ATLAS_JSON = R"({

@@ -180,6 +180,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     [[nodiscard]] uint64_t font_size_key(uint32_t font_id, uint32_t char_size) const noexcept;
     const BakedAtlas *ensure_metrics(uint32_t font_id, uint32_t char_size) const;
     const BakedAtlas *ensure_uploaded(uint32_t font_id, uint32_t char_size) const;
+    void destroy_gpu_resources();
     void ensure_gpu_resources();
     void rebuild_proj() noexcept;
     [[nodiscard]] bool has_quad_space();
@@ -681,7 +682,33 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
   // ── Factory ─────────────────────────────────────────────────────────────────
 
+  void SokolRenderer::destroy_gpu_resources() {
+    if (!sg_isvalid())
+      return;
+
+    for (auto &entry : baked_atlases_) {
+      sg_destroy_view(entry.second.view);
+      sg_destroy_image(entry.second.image);
+    }
+    baked_atlases_.clear();
+
+    for (auto &texture : textures_) {
+      sg_destroy_view(texture.view);
+      sg_destroy_image(texture.image);
+    }
+    textures_.clear();
+
+    sg_destroy_view(white_view_);
+    sg_destroy_image(white_tex_);
+    sg_destroy_pipeline(pipeline_);
+    sg_destroy_shader(pipeline_shader_);
+    sg_destroy_buffer(vertex_buf_);
+    sg_destroy_sampler(sampler_);
+  }
+
   SokolRenderer::~SokolRenderer() {
+    destroy_gpu_resources();
+
     // Faces reference ft_lib_; clear them before freeing the library.
     font_atlases_.clear();
     if (ft_lib_)

@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
@@ -21,10 +23,8 @@ namespace {
     f << content;
   }
 
-  fs::path temp_dir(std::string_view tag) {
-    const auto p = fs::temp_directory_path() / "crpg_test_tilemap" / tag;
-    fs::create_directories(p);
-    return p;
+  corundum::test::TempDir temp_dir(std::string_view tag) {
+    return corundum::test::TempDir{"crpg_test_tilemap_", tag};
   }
 
   // Builds a spritepacker atlas JSON (schema_version 2) with `count` sprites named "tile_0".."tile_
@@ -476,20 +476,22 @@ TEST_CASE("load_tilemap — absent schema_version is treated as version 1 and lo
 }
 
 TEST_CASE("load_tilemap — explicit current schema_version loads fine") {
-  const auto map_path = make_schema_map(temp_dir("schema_current"), corundum::world::tilemap::k_tilemap_schema_version);
+  const auto dir = temp_dir("schema_current");
+  const auto map_path = make_schema_map(dir, corundum::world::tilemap::k_tilemap_schema_version);
   auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(result.has_value());
 }
 
 TEST_CASE("load_tilemap — schema_version newer than supported returns error") {
-  const auto map_path =
-      make_schema_map(temp_dir("schema_future"), corundum::world::tilemap::k_tilemap_schema_version + 1);
+  const auto dir = temp_dir("schema_future");
+  const auto map_path = make_schema_map(dir, corundum::world::tilemap::k_tilemap_schema_version + 1);
   auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }
 
 TEST_CASE("load_tilemap — schema_version zero (invalid) returns error") {
-  const auto map_path = make_schema_map(temp_dir("schema_zero"), 0);
+  const auto dir = temp_dir("schema_zero");
+  const auto map_path = make_schema_map(dir, 0);
   auto result = corundum::world::tilemap::load_tilemap(map_path);
   CHECK(!result.has_value());
 }

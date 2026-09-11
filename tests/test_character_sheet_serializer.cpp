@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/character_sheet_serializer.hpp>
 
@@ -17,10 +19,8 @@ namespace {
     f << content;
   }
 
-  fs::path temp_dir(std::string_view tag) {
-    const auto p = fs::temp_directory_path() / "crpg_test_char_sheet" / tag;
-    fs::create_directories(p);
-    return p;
+  corundum::test::TempDir temp_dir(std::string_view tag) {
+    return corundum::test::TempDir{"crpg_test_char_sheet_serializer_", tag};
   }
 
 } // namespace
@@ -48,7 +48,8 @@ TEST_CASE("character sheet fps survives a serialize -> load round trip") {
   CHECK(j.at("frames").at("player_walk").at("fps").get<float>() == doctest::Approx(12.f));
   CHECK_FALSE(j.at("frames").at("player_idle").contains("fps"));
 
-  const auto path = temp_dir("fps_roundtrip") / "sheet.json";
+  const auto dir = temp_dir("fps_roundtrip");
+  const auto path = dir / "sheet.json";
   write_file(path, j.dump());
   const auto loaded = load_character_sheet(path);
   REQUIRE(loaded.has_value());

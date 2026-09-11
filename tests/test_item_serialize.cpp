@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/core/json_io.hpp>
 #include <corundum/item/loader.hpp>
 #include <corundum/item/serialize.hpp>
@@ -21,10 +23,8 @@ namespace {
     f << content;
   }
 
-  fs::path temp_dir(std::string_view tag) {
-    const auto p = fs::temp_directory_path() / "crpg_test_item_serialize" / tag;
-    fs::create_directories(p);
-    return p;
+  corundum::test::TempDir temp_dir(std::string_view tag) {
+    return corundum::test::TempDir{"crpg_test_item_serialize_", tag};
   }
 
   /** @brief Load -> serialize -> write -> load, returning the final parse. */
@@ -68,7 +68,8 @@ TEST_CASE("item serialize: keystone potions batch round-trips") {
     MESSAGE("keystone checkout not present; skipping");
     return;
   }
-  const auto out = temp_dir("keystone_potions") / "consumables.json";
+  const auto dir = temp_dir("keystone_potions");
+  const auto out = dir / "consumables.json";
   const auto result = round_trip(src, item::ItemCategory::Potion, out);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
@@ -87,7 +88,8 @@ TEST_CASE("item serialize: keystone misc batch round-trips") {
     MESSAGE("keystone checkout not present; skipping");
     return;
   }
-  const auto out = temp_dir("keystone_misc") / "quest_items.json";
+  const auto dir = temp_dir("keystone_misc");
+  const auto out = dir / "quest_items.json";
   const auto result = round_trip(src, item::ItemCategory::Misc, out);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 2);

@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/platform/null/null_platform.hpp>
@@ -20,8 +22,11 @@ using json = nlohmann::json;
 
 namespace {
 
+  // Owns the shared save-tree root; individual cases remove their own tag directory.
+  const corundum::test::TempDir g_save_root{"crpg_test_save_", "root"};
+
   fs::path save_path(std::string_view tag) {
-    return fs::temp_directory_path() / "crpg_test_save" / tag / "save.json";
+    return g_save_root.path() / std::string{tag} / "save.json";
   }
 
   void write_save_file(const fs::path &path, const json &j) {

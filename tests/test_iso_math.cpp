@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include "temp_dir.hpp"
+
 #include <corundum/core/math/vec.hpp>
 namespace ccm = corundum::core::math;
 #include <corundum/world/tilemap/world_manifest.hpp>
@@ -17,10 +19,8 @@ namespace {
     f << content;
   }
 
-  fs::path temp_dir(std::string_view tag) {
-    const auto p = fs::temp_directory_path() / "crpg_test_iso" / tag;
-    fs::create_directories(p);
-    return p;
+  corundum::test::TempDir temp_dir(std::string_view tag) {
+    return corundum::test::TempDir{"crpg_test_iso_", tag};
   }
 
   constexpr float k_half_tw = 32.f;

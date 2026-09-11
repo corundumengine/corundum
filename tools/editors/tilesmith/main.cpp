@@ -86,6 +86,8 @@ namespace tools::tilesmith {
 
   void finish_map_load(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views) {
+    corundum::world::tilemap::clear_tileset_cache();
+
     auto tilemap_result = corundum::world::tilemap::load_tilemap(state.map_path.string());
     if (!tilemap_result)
       throw std::runtime_error(tilemap_result.error());

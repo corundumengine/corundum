@@ -17,17 +17,33 @@ namespace {
     return fs::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "fonts" / "NotoSans.ttf";
   }
 
+  /// Owns the FreeType library for a test case so FT_Done_FreeType still runs if a
+  /// REQUIRE aborts the case before the end.
+  struct FreeTypeLibrary {
+    FT_Library lib{nullptr};
+
+    FreeTypeLibrary() = default;
+
+    ~FreeTypeLibrary() {
+      if (lib)
+        FT_Done_FreeType(lib);
+    }
+
+    FreeTypeLibrary(const FreeTypeLibrary &) = delete;
+    FreeTypeLibrary &operator=(const FreeTypeLibrary &) = delete;
+  };
+
 } // namespace
 
 TEST_CASE("FontAtlas::bake: rasterises a basic ASCII set within atlas width and produces non-empty metrics") {
-  FT_Library lib{nullptr};
-  REQUIRE(FT_Init_FreeType(&lib) == 0);
+  FreeTypeLibrary ft;
+  REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
 
   // Scope the atlas so it is destroyed before FT_Done_FreeType: a face references
   // its owning library, so the library must outlive every face loaded from it.
   {
     corundum::platform::glfw::FontAtlas atlas;
-    REQUIRE(atlas.load(lib, fixture_font_path().string()));
+    REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
 
     const corundum::platform::glfw::BakedSize baked = atlas.bake(16);
 
@@ -65,29 +81,25 @@ TEST_CASE("FontAtlas::bake: rasterises a basic ASCII set within atlas width and 
       CHECK(g.atlas_y + g.height <= baked.atlas_h);
     }
   } // atlas destroyed while lib is still alive
-
-  FT_Done_FreeType(lib);
 }
 
 TEST_CASE("FontAtlas::bake: face destruction order is correct when the library outlives the atlas") {
   // A regression for the old per-atlas FT_Library ownership: faces reference
   // their owning library, so destroying the library first crashes. The shared
   // library refactor must keep that contract intact.
-  FT_Library lib{nullptr};
-  REQUIRE(FT_Init_FreeType(&lib) == 0);
+  FreeTypeLibrary ft;
+  REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
 
   {
     corundum::platform::glfw::FontAtlas atlas;
-    REQUIRE(atlas.load(lib, fixture_font_path().string()));
+    REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
     const auto baked = atlas.bake(16);
     CHECK(baked.atlas_w > 0);
   }
 
   // Library is still valid; must not have been touched by atlas destruction.
   FT_Face probe{nullptr};
-  CHECK(FT_New_Face(lib, fixture_font_path().string().c_str(), 0, &probe) == 0);
+  CHECK(FT_New_Face(ft.lib, fixture_font_path().string().c_str(), 0, &probe) == 0);
   if (probe != nullptr)
     FT_Done_Face(probe);
-
-  FT_Done_FreeType(lib);
 }

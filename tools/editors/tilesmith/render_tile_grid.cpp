@@ -61,6 +61,8 @@ namespace tools::tilesmith {
       using corundum::world::tilemap::TilemapTileset;
       using corundum::world::tilemap::TilesetInfo;
 
+      corundum::world::tilemap::clear_tileset_cache();
+
       const auto tileset_result = corundum::world::tilemap::load_tileset(source_path);
       if (!tileset_result)
         throw std::runtime_error(tileset_result.error());

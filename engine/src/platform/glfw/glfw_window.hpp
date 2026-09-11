@@ -22,7 +22,7 @@ namespace corundum::platform::glfw {
     GLFWWindow &operator=(const GLFWWindow &) = delete;
 
     GLFWWindow(GLFWWindow &&) noexcept;
-    GLFWWindow &operator=(GLFWWindow &&) noexcept;
+    GLFWWindow &operator=(GLFWWindow &&) noexcept = delete;
 
     bool is_open() const override;
 

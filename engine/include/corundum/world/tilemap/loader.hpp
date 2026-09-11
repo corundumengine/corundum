@@ -18,6 +18,11 @@ namespace corundum::world::tilemap {
   /// @return TilesetInfo on success, or an error string on any parse or validation failure.
   [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const std::filesystem::path &path);
 
+  /// Drop every cached TilesetInfo, forcing subsequent load_tileset() calls to re-read the atlas
+  /// from disk. Use after repacking an atlas so an already-running editor picks up the change;
+  /// chunk streaming during play can leave the cache intact.
+  void clear_tileset_cache();
+
   /// Load and validate a tilemap from a JSON file; also loads the referenced tileset transitively.
   /// Returns a fully populated Tilemap with world-pixel collision data scaled by the tile
   /// dimensions.
