@@ -4,17 +4,9 @@
 #include <format>
 #include <string_view>
 
-namespace {
-
-  template <typename DestUPtr, typename T> void adopt_unique(DestUPtr &dest, std::unique_ptr<T> src) {
-    dest = DestUPtr(src.release());
-  }
-
-} // namespace
-
 namespace corundum {
 
-  EngineOptions parse_engine_args(std::span<const char *const> args) noexcept {
+  EngineOptions parse_engine_args(std::span<const char *const> args) {
     EngineOptions config{};
     for (const char *const arg : args) {
       if (std::string_view(arg) == "--debug")
@@ -36,9 +28,9 @@ namespace corundum {
       return std::unexpected(std::format("create platform: {}", platform.error()));
 
     Engine engine{};
-    adopt_unique(engine.window, std::move(platform->window));
-    adopt_unique(engine.gpu, std::move(platform->gpu));
-    adopt_unique(engine.renderer, std::move(platform->renderer));
+    engine.adopt_window(std::move(platform->window));
+    engine.adopt_gpu(std::move(platform->gpu));
+    engine.adopt_renderer(std::move(platform->renderer));
     engine.audio.adopt_backend(std::move(platform->audio_backend));
     engine.hud.enabled = options.show_debug_hud;
 

@@ -24,9 +24,10 @@ namespace corundum {
    *
    *  @param[in] args Argument vector from @c main (excluding the program name).
    *  @return A fully-populated EngineOptions with defaults applied.
-   *  @note Never fails — unrecognised flags are silently ignored.
+   *  @note Reports no failure (unrecognised flags are silently ignored) but is not
+   *        @c noexcept — constructing the option strings may allocate.
    */
-  [[nodiscard]] EngineOptions parse_engine_args(std::span<const char *const> args) noexcept;
+  [[nodiscard]] EngineOptions parse_engine_args(std::span<const char *const> args);
 
   /** @brief Single-call factory: create platform, initialise engine, return a running Engine.
    *
@@ -36,9 +37,8 @@ namespace corundum {
    *  @param[in] options Resolved command-line options.
    *  @return A fully-initialised Engine on success, or an error message.
    *  @post On success the Engine is ready for Engine::run(). On failure the window
-   *        is closed and audio is shut down; platform object memory is deliberately
-   *        not freed (see detail::PlatformDeleter) and is reclaimed by the OS
-   *        at process exit.
+   *        is closed, audio is shut down, and the Engine (and the platform objects
+   *        it owns) is destroyed.
    */
   [[nodiscard]] std::expected<Engine, std::string> make_engine(const EngineOptions &options);
 
