@@ -244,8 +244,10 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     // through the existing range/id check without drawing texture 0 by accident.
     textures_.push_back({});
 
-    if (FT_Init_FreeType(&ft_lib_) != 0)
+    if (FT_Init_FreeType(&ft_lib_) != 0) {
+      ft_lib_ = nullptr;
       std::println(stderr, "[sokol] FT_Init_FreeType failed");
+    }
 
     rebuild_proj();
   }
@@ -443,6 +445,9 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     const std::string key{path};
     if (const auto it = font_path_to_id_.find(key); it != font_path_to_id_.end())
       return it->second;
+
+    if (ft_lib_ == nullptr)
+      return std::unexpected(std::string{"FreeType: library unavailable for '"} + key + "'");
 
     std::unique_ptr<FontAtlas> atlas = std::make_unique<FontAtlas>();
     if (!atlas->load(ft_lib_, path))

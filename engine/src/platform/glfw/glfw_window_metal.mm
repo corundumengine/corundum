@@ -25,6 +25,7 @@ metal_layer_t *metal_setup_layer(GLFWwindow *win) {
 
   CAMetalLayer *layer = [CAMetalLayer layer];
   layer.device = device;
+  [device release]; // layer.device retains it
   layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
   layer.contentsScale = nswin.backingScaleFactor;
 

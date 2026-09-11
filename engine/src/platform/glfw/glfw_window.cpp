@@ -80,9 +80,21 @@ namespace corundum::platform::glfw {
                                                                              std::string_view title) {
     glfw_init_if_needed();
 
+    bool window_owns_ref = false;
+
+    struct RefGuard {
+      bool &disarmed;
+
+      ~RefGuard() {
+        if (!disarmed)
+          glfw_term_if_done();
+      }
+    } guard{window_owns_ref};
+
     // Use 'new' because the constructor is private.
     // The unique_ptr will take ownership immediately.
     auto window = std::unique_ptr<GLFWWindow>(new GLFWWindow(width, height, title));
+    window_owns_ref = true;
 
     if (!window->impl_->win) {
       return std::unexpected(WindowError::CreationFailed);

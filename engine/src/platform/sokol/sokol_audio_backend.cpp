@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstring>
 #include <expected>
+#include <memory>
 #include <mutex>
 #include <print>
 #include <string>
@@ -36,26 +37,31 @@ namespace corundum::platform::sokol {
       int num_frames{0};
     };
 
+    struct VorbisCloser {
+      void operator()(stb_vorbis *v) const noexcept {
+        if (v)
+          stb_vorbis_close(v);
+      }
+    };
+
     std::expected<LoadedClip, std::string> load_ogg(std::string_view path) {
+      const std::string filename{path};
       int error = 0;
-      stb_vorbis *vorbis = stb_vorbis_open_filename(path.data(), &error, nullptr);
+      std::unique_ptr<stb_vorbis, VorbisCloser> vorbis{stb_vorbis_open_filename(filename.c_str(), &error, nullptr)};
       if (!vorbis)
         return std::unexpected(std::format("[audio] Failed to open OGG: {}", path));
 
-      const auto info = stb_vorbis_get_info(vorbis);
+      const auto info = stb_vorbis_get_info(vorbis.get());
       const int src_channels = info.channels;
       const int src_rate = info.sample_rate;
-      const int total_samples = stb_vorbis_stream_length_in_samples(vorbis);
+      const int total_samples = stb_vorbis_stream_length_in_samples(vorbis.get());
 
-      if (total_samples <= 0) {
-        stb_vorbis_close(vorbis);
+      if (total_samples <= 0)
         return std::unexpected(std::format("[audio] Empty OGG file: {}", path));
-      }
 
       std::vector<float> src(static_cast<std::size_t>(total_samples) * src_channels);
-      const int decoded =
-          stb_vorbis_get_samples_float_interleaved(vorbis, src_channels, src.data(), static_cast<int>(src.size()));
-      stb_vorbis_close(vorbis);
+      const int decoded = stb_vorbis_get_samples_float_interleaved(vorbis.get(), src_channels, src.data(),
+                                                                   static_cast<int>(src.size()));
 
       if (decoded <= 0)
         return std::unexpected(std::format("[audio] Failed to decode OGG: {}", path));
