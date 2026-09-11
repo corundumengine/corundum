@@ -26,7 +26,7 @@ TEST_CASE("engine events: on_event hook handles custom event and returns true") 
     return true;
   };
 
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
 
   CHECK(hook_called);
   CHECK(captured_name == "my_custom_event");
@@ -48,7 +48,7 @@ TEST_CASE("engine events: on_event hook returning false falls through to WARN") 
     return false;
   };
 
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
 
   CHECK(hook_called);
   CHECK(pending.empty());
@@ -70,7 +70,7 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
     engine.quests.add(std::move(q));
   }
 
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
 
   CHECK(pending.empty());
   CHECK(corundum::world::has_flag(engine.flags, "quest.test_quest"));
@@ -79,7 +79,7 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
 TEST_CASE("engine events: give_item adds item.<id> count to flags") {
   corundum::Engine engine;
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"give_item", {"gold", "5"}});
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
 
   CHECK(engine.flags["item.gold"] == 5);
 }
@@ -87,7 +87,7 @@ TEST_CASE("engine events: give_item adds item.<id> count to flags") {
 TEST_CASE("engine events: give_item without a count defaults to +1") {
   corundum::Engine engine;
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"give_item", {"salt"}});
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
 
   CHECK(engine.flags["item.salt"] == 1);
 }
@@ -97,18 +97,18 @@ TEST_CASE("engine events: take_item subtracts and erases the key at or below zer
   engine.flags["item.gold"] = 5;
 
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"take_item", {"gold", "2"}});
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
   CHECK(engine.flags["item.gold"] == 3);
 
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"take_item", {"gold", "10"}});
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
   CHECK(!engine.flags.contains("item.gold"));
 }
 
 TEST_CASE("engine events: take_item on a missing item is a no-op") {
   corundum::Engine engine;
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"take_item", {"gold", "1"}});
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
 
   CHECK(!engine.flags.contains("item.gold"));
 }
@@ -117,7 +117,7 @@ TEST_CASE("engine events: reputation accumulates rep.<faction> and can go negati
   corundum::Engine engine;
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"reputation", {"village", "3"}});
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"reputation", {"village", "-1"}});
-  corundum::process_dialogue_events(engine);
+  engine.process_dialogue_events();
 
   CHECK(engine.flags["rep.village"] == 2);
 }

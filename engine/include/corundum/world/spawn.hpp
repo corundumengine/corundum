@@ -9,11 +9,9 @@
 #include <optional>
 #include <string>
 
-namespace corundum {
-  namespace render {
-    struct RenderState;
-  }
-} // namespace corundum
+namespace corundum::render {
+  struct RenderState;
+} // namespace corundum::render
 
 namespace corundum::world {
 

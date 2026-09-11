@@ -45,7 +45,7 @@ namespace {
 
 TEST_CASE("lifecycle: initialize on a default-constructed Engine returns an error") {
   corundum::Engine engine{};
-  std::expected<void, std::string> result = corundum::initialize(engine, corundum::core::GameConfig{});
+  std::expected<void, std::string> result = engine.initialize(corundum::core::GameConfig{});
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("must be non-null") != std::string::npos);
 }
@@ -60,10 +60,10 @@ TEST_CASE("lifecycle: initialize succeeds with NullPlatform and a fixture GameCo
   REQUIRE(fs::is_directory(fixtures));
 
   corundum::core::GameConfig cfg = make_fixture_config(fixtures);
-  std::expected<void, std::string> result = corundum::initialize(engine, std::move(cfg));
+  std::expected<void, std::string> result = engine.initialize(std::move(cfg));
   REQUIRE(result.has_value());
   CHECK(engine.window->is_open());
-  corundum::cleanup(engine);
+  engine.cleanup();
   CHECK_FALSE(engine.window->is_open());
 }
 
@@ -77,7 +77,7 @@ TEST_CASE("lifecycle: initialize failure runs cleanup so the window is closed") 
   corundum::core::GameConfig cfg = make_fixture_config(fixtures);
   cfg.paths.sprites_dir = (fixtures / "no_such_sprites_dir").string();
 
-  std::expected<void, std::string> result = corundum::initialize(engine, std::move(cfg));
+  std::expected<void, std::string> result = engine.initialize(std::move(cfg));
   REQUIRE_FALSE(result.has_value());
   CHECK_FALSE(engine.window->is_open());
 }
@@ -90,15 +90,15 @@ TEST_CASE("lifecycle: cleanup is idempotent and post-cleanup run_frame returns f
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   corundum::core::GameConfig cfg = make_fixture_config(fixtures);
-  REQUIRE(corundum::initialize(engine, std::move(cfg)).has_value());
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
   // Second cleanup must not crash.
-  corundum::cleanup(engine);
+  engine.cleanup();
 
   // Both run_frame and run_loop must exit immediately.
-  CHECK_FALSE(corundum::run_frame(engine));
-  corundum::run_loop(engine);
+  CHECK_FALSE(engine.run_frame());
+  engine.run_loop();
   CHECK(engine.quit);
 }
 
@@ -110,26 +110,26 @@ TEST_CASE("lifecycle: on_fixed_update calling request_quit ends the main loop") 
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   corundum::core::GameConfig cfg = make_fixture_config(fixtures);
-  REQUIRE(corundum::initialize(engine, std::move(cfg)).has_value());
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
 
   int hook_calls = 0;
   engine.on_fixed_update = [&hook_calls](corundum::Engine &e, float) {
     ++hook_calls;
-    corundum::request_quit(e);
+    e.request_quit();
   };
 
   // Force at least one fixed step on the next tick.
   constexpr float k_steps_to_accumulate = 2.f;
   engine.timer.accumulator = engine.timer.target_dt * k_steps_to_accumulate;
 
-  corundum::run_loop(engine);
+  engine.run_loop();
 
   CHECK(hook_calls >= 1);
   CHECK(engine.quit);
   // Window should still be open after run_loop (single-close-path contract);
   // cleanup closes it.
   CHECK(engine.window->is_open());
-  corundum::cleanup(engine);
+  engine.cleanup();
   CHECK_FALSE(engine.window->is_open());
 }
 
@@ -141,7 +141,7 @@ TEST_CASE("lifecycle: run_frame steps the simulation N times then returns false"
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   corundum::core::GameConfig cfg = make_fixture_config(fixtures);
-  REQUIRE(corundum::initialize(engine, std::move(cfg)).has_value());
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
 
   constexpr float k_steps_to_accumulate = 2.f;
   constexpr int k_frames_to_pump = 5;
@@ -149,12 +149,12 @@ TEST_CASE("lifecycle: run_frame steps the simulation N times then returns false"
   // Pump frames; each should succeed.
   for (int i = 0; i < k_frames_to_pump; ++i) {
     engine.timer.accumulator = engine.timer.target_dt * k_steps_to_accumulate;
-    CHECK(corundum::run_frame(engine));
+    CHECK(engine.run_frame());
   }
 
   // request_quit flips engine.quit; the next call must return false.
-  corundum::request_quit(engine);
-  CHECK_FALSE(corundum::run_frame(engine));
+  engine.request_quit();
+  CHECK_FALSE(engine.run_frame());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }

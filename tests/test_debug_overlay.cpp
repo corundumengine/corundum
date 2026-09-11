@@ -38,7 +38,7 @@ namespace {
     cfg.paths.quests_dir.clear();
     cfg.paths.sounds_dir.clear();
 
-    const auto result = corundum::initialize(engine, std::move(cfg));
+    const auto result = engine.initialize(std::move(cfg));
     if (!result)
       throw std::runtime_error(std::string{"hud_overlay_test setup failed: "} + result.error());
     return engine;
@@ -89,7 +89,7 @@ TEST_CASE("HudOverlay::render on NullRenderer draws without crashing and updates
   // First-tick EMA on 60 Hz should sit at alpha * 60 = 0.05 * 60 = 3.0.
   CHECK(engine.hud.smoothed_fps == doctest::Approx(3.0f).epsilon(1e-4f));
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("HudOverlay::render is a no-op on the renderer when smoothed_fps starts non-zero") {
@@ -114,7 +114,7 @@ TEST_CASE("HudOverlay::render is a no-op on the renderer when smoothed_fps start
   // EMA: 50 + 0.05 * (60 - 50) = 50.5.
   CHECK(engine.hud.smoothed_fps == doctest::Approx(50.5f).epsilon(1e-4f));
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("HudOverlay::render handles a zero last_frame_dt without dividing by zero") {
@@ -141,5 +141,5 @@ TEST_CASE("HudOverlay::render handles a zero last_frame_dt without dividing by z
   CHECK(engine.hud.smoothed_fps == doctest::Approx(28.5f).epsilon(1e-6f));
   CHECK_FALSE(std::isnan(engine.hud.smoothed_fps));
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }

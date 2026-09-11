@@ -115,7 +115,7 @@ TEST_CASE("world transition — boot lands in World mode at the manifest centre"
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
 
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 
   CHECK(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{8, 8});
@@ -123,7 +123,7 @@ TEST_CASE("world transition — boot lands in World mode at the manifest centre"
   // World zone id comes from the manifest's directory name.
   CHECK(engine.scene.zone_id == "transition");
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move the cursor") {
@@ -131,7 +131,7 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Exploring);
   REQUIRE(engine.scene.inventory_cursor == 0);
@@ -179,7 +179,7 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   CHECK(engine.scene.mode == GameMode::Inventory);
   CHECK(engine.scene.inventory_cursor == 0);
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — World cross-map portal marks the journey and enters interior") {
@@ -187,7 +187,7 @@ TEST_CASE("world transition — World cross-map portal marks the journey and ent
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // Step onto the cave-mouth portal: a cross-map portal while in World mode.
@@ -201,7 +201,7 @@ TEST_CASE("world transition — World cross-map portal marks the journey and ent
   // Interior zone id comes from the tilemap path stem.
   CHECK(engine.scene.zone_id == "interior");
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — nested SingleMap cross-map does not clear the marker") {
@@ -209,7 +209,7 @@ TEST_CASE("world transition — nested SingleMap cross-map does not clear the ma
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 
   engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
   handle_map_transition(engine);
@@ -223,7 +223,7 @@ TEST_CASE("world transition — nested SingleMap cross-map does not clear the ma
   CHECK(engine.render.mode == RenderMode::SingleMap);
   CHECK(engine.entered_from_world);
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — return_to_world exits interior, re-centres window, clears marker") {
@@ -231,7 +231,7 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
@@ -250,7 +250,7 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
   // Back in world mode, the zone id reverts to the manifest's directory name.
   CHECK(engine.scene.zone_id == "transition");
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — single-map boot with a return_to_world portal is ignored, not a quit") {
@@ -261,7 +261,7 @@ TEST_CASE("world transition — single-map boot with a return_to_world portal is
   corundum::core::GameConfig cfg = make_world_config(fixtures);
   cfg.paths.world_manifest_path.clear(); // single-map mode: no overworld to return to
   cfg.paths.tilemap_path = interior_path(fixtures);
-  REQUIRE(corundum::initialize(engine, std::move(cfg)).has_value());
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
   REQUIRE(engine.render.mode == RenderMode::SingleMap);
 
   engine.scene.pending_transition = MapTransition{"", 12, 3, true};
@@ -272,7 +272,7 @@ TEST_CASE("world transition — single-map boot with a return_to_world portal is
   CHECK(engine.render.mode == RenderMode::SingleMap);
   CHECK_FALSE(engine.entered_from_world);
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — end-to-end: walking onto the fixture portal round-trips") {
@@ -280,7 +280,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // The cave-mouth portal lives in chunk (1,1) at local tile (5,5); build_map_view
@@ -336,7 +336,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   CHECK_FALSE(engine.entered_from_world);
   CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — chunk-to-chunk portal still teleports, not a scene transition") {
@@ -344,7 +344,7 @@ TEST_CASE("world transition — chunk-to-chunk portal still teleports, not a sce
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // chunk_0_0 hosts a chunk-to-chunk portal at local (2,2) targeting chunk (1,1) at local
@@ -356,7 +356,7 @@ TEST_CASE("world transition — chunk-to-chunk portal still teleports, not a sce
   CHECK_FALSE(engine.scene.pending_transition.has_value());
   CHECK(player_tile(engine) == std::pair{11, 11});
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover works)") {
@@ -364,7 +364,7 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
@@ -381,7 +381,7 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
 
   CHECK(result.has_value());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, no auto-transition") {
@@ -389,7 +389,7 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // The cave-mouth portal lives at world (13,13) — see test_world_transition fixture notes.
@@ -407,7 +407,7 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   CHECK(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{13, 13});
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — Select on the prompt promotes the stashed transition") {
@@ -415,7 +415,7 @@ TEST_CASE("world transition — Select on the prompt promotes the stashed transi
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   move_player_to(engine, 13.f, 13.f);
@@ -436,7 +436,7 @@ TEST_CASE("world transition — Select on the prompt promotes the stashed transi
   CHECK(player_tile(engine) == std::pair{1, 2});
   CHECK(engine.entered_from_world);
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until player leaves the rect") {
@@ -444,7 +444,7 @@ TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until 
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   move_player_to(engine, 13.f, 13.f);
@@ -481,7 +481,7 @@ TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until 
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK_FALSE(engine.scene.transition_prompt->declined());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — return_to_world portal prompts with return_to_world=true") {
@@ -489,7 +489,7 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // Enter the interior via the existing path (no prompt step needed — the test focuses on the
@@ -518,7 +518,7 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   CHECK_FALSE(engine.entered_from_world);
   CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
@@ -526,7 +526,7 @@ TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   move_player_to(engine, 13.f, 13.f);
@@ -554,7 +554,7 @@ TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
   advance_with(engine, corundum::input::Action::MoveUp);
   CHECK(engine.scene.transition_prompt->confirm_selected());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — Select on No backs out like Cancel") {
@@ -562,7 +562,7 @@ TEST_CASE("world transition — Select on No backs out like Cancel") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   move_player_to(engine, 13.f, 13.f);
@@ -579,7 +579,7 @@ TEST_CASE("world transition — Select on No backs out like Cancel") {
   CHECK(engine.scene.transition_prompt->declined());
   CHECK_FALSE(engine.scene.pending_transition.has_value());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — re-arming the prompt resets Yes as the default highlight") {
@@ -587,7 +587,7 @@ TEST_CASE("world transition — re-arming the prompt resets Yes as the default h
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   move_player_to(engine, 13.f, 13.f);
@@ -613,7 +613,7 @@ TEST_CASE("world transition — re-arming the prompt resets Yes as the default h
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->confirm_selected()); // Yes again, not carried over
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — world boot spawns per-chunk actors") {
@@ -621,7 +621,7 @@ TEST_CASE("world transition — world boot spawns per-chunk actors") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // The a00 greeter in chunk (0,0) is the only per-chunk actor with a dialogue ref.
@@ -637,7 +637,7 @@ TEST_CASE("world transition — world boot spawns per-chunk actors") {
   REQUIRE(a11.has_value());
   CHECK_FALSE(*a00 == *a11);
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world transition — world actors return after an interior round-trip") {
@@ -645,7 +645,7 @@ TEST_CASE("world transition — world actors return after an interior round-trip
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // Enter the interior (records the world journey), then exit back to the overworld.
@@ -668,7 +668,7 @@ TEST_CASE("world transition — world actors return after an interior round-trip
   CHECK(engine.scene.world.entities.is_live(*back_a00));
   CHECK(engine.scene.world.entities.is_live(*back_a11));
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world streaming — actors spawn only for resident chunks") {
@@ -676,7 +676,7 @@ TEST_CASE("world streaming — actors spawn only for resident chunks") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_streaming_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_streaming_config(fixtures)).has_value());
 
   // 5×1 world boots at the manifest centre (20,4) → chunk (2,0); the 3×1 window
   // covers (1,0)(2,0)(3,0) — chunks (0,0) and (4,0) are not resident at boot.
@@ -689,7 +689,7 @@ TEST_CASE("world streaming — actors spawn only for resident chunks") {
   REQUIRE(a30.has_value());
   CHECK_FALSE(entity_at(engine, 2, 3).has_value());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }
 
 TEST_CASE("world streaming — streaming a chunk out despawns its actors, streaming back respawns") {
@@ -697,7 +697,7 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(corundum::initialize(engine, make_streaming_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_streaming_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{20, 4});
 
   // Capture the boot a30 handle before any streaming churn.
@@ -710,7 +710,7 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   move_player_to(engine, 3.f, 4.f);
   for (int i = 0; i < 30; ++i) {
     engine.timer.accumulator = engine.timer.target_dt;
-    REQUIRE(corundum::run_frame(engine));
+    REQUIRE(engine.run_frame());
   }
 
   // Chunk (0,0) streamed in: its a00 actor exists now.
@@ -724,12 +724,12 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   move_player_to(engine, 20.f, 4.f);
   for (int i = 0; i < 30; ++i) {
     engine.timer.accumulator = engine.timer.target_dt;
-    REQUIRE(corundum::run_frame(engine));
+    REQUIRE(engine.run_frame());
   }
 
   const auto back_a30 = entity_at(engine, 4 + 3 * 8, 4);
   REQUIRE(back_a30.has_value());
   CHECK(engine.scene.world.entities.is_live(*back_a30));
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }

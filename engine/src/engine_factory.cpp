@@ -14,8 +14,8 @@ namespace {
 
 namespace corundum {
 
-  EngineConfig parse_engine_args(std::span<const char *const> args) noexcept {
-    EngineConfig config{};
+  EngineOptions parse_engine_args(std::span<const char *const> args) noexcept {
+    EngineOptions config{};
     for (const char *const arg : args) {
       if (std::string_view(arg) == "--debug")
         config.show_debug_hud = true;
@@ -23,10 +23,10 @@ namespace corundum {
     return config;
   }
 
-  std::expected<Engine, std::string> make_engine(const EngineConfig &config) {
-    auto cfg_result = core::load_game_config(config.config_path);
+  std::expected<Engine, std::string> make_engine(const EngineOptions &options) {
+    auto cfg_result = core::load_game_config(options.config_path);
     if (!cfg_result)
-      return std::unexpected(std::format("load config '{}': {}", config.config_path, cfg_result.error()));
+      return std::unexpected(std::format("load config '{}': {}", options.config_path, cfg_result.error()));
 
     auto cfg = std::move(*cfg_result);
 
@@ -40,17 +40,12 @@ namespace corundum {
     adopt_unique(engine.gpu, std::move(platform->gpu));
     adopt_unique(engine.renderer, std::move(platform->renderer));
     engine.audio.adopt_backend(std::move(platform->audio_backend));
-    engine.hud.enabled = config.show_debug_hud;
+    engine.hud.enabled = options.show_debug_hud;
 
-    if (auto result = initialize(engine, std::move(cfg)); !result)
+    if (auto result = engine.initialize(std::move(cfg)); !result)
       return std::unexpected(result.error());
 
     return engine;
-  }
-
-  void run(Engine &engine) noexcept {
-    run_loop(engine);
-    cleanup(engine);
   }
 
 } // namespace corundum

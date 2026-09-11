@@ -198,7 +198,7 @@ TEST_CASE("find_actor — world boot populates actor_ids from spawn points") {
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 
   // a00 (chunk 0,0) and a11 (chunk 1,1) carry ids in the fixture spawn points.
   const auto a00 = corundum::entities::find_actor(engine.scene.world, "a00");
@@ -217,5 +217,5 @@ TEST_CASE("find_actor — world boot populates actor_ids from spawn points") {
   corundum::entities::despawn(engine.scene.world, *a00);
   CHECK_FALSE(corundum::entities::find_actor(engine.scene.world, "a00").has_value());
 
-  corundum::cleanup(engine);
+  engine.cleanup();
 }

@@ -162,7 +162,7 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
   corundum::core::GameConfig cfg = make_world_config(fixtures);
   cfg.paths.world_manifest_path.clear(); // single-map mode
   cfg.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
-  REQUIRE(corundum::initialize(engine, std::move(cfg)).has_value());
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
   REQUIRE(engine.render.mode == corundum::render::RenderMode::SingleMap);
 
   engine.flags["zone.interior.chest"] = 1;
@@ -188,7 +188,7 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
   CHECK(restored.pos_col(engine.scene.player) == doctest::Approx(5.f));
   CHECK(restored.pos_row(engine.scene.player) == doctest::Approx(6.f));
 
-  corundum::cleanup(engine);
+  engine.cleanup();
   fs::remove_all(p.parent_path());
 }
 
@@ -199,7 +199,7 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
 
-  REQUIRE(corundum::initialize(engine, make_world_config(fixtures)).has_value());
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
 
   // Register a quest and advance it to its resolved ending.
@@ -246,6 +246,6 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   CHECK(engine.scene.zone_id == "transition");
   CHECK_FALSE(engine.entered_from_world);
 
-  corundum::cleanup(engine);
+  engine.cleanup();
   fs::remove_all(p.parent_path());
 }

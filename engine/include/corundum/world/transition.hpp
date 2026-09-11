@@ -45,7 +45,7 @@ namespace corundum::world {
    */
   [[nodiscard]] std::expected<void, std::string> apply_spawn(corundum::Engine &engine, std::string_view mode,
                                                              std::string_view id, std::string_view zone, float col,
-                                                             float row) noexcept;
+                                                             float row);
 
   /** @brief Handle a pending map transition triggered by portal traversal.
    *

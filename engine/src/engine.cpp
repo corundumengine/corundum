@@ -108,12 +108,12 @@ namespace corundum {
           return std::unexpected(std::move(map_result).error());
 
         std::expected<world::Scene, std::string> scene_result;
-        scene_result = world::spawn_world(engine_->cfg, engine_->characters, *active_tilemap(*engine_));
+        scene_result = world::spawn_world(engine_->cfg, engine_->characters, *engine_->active_tilemap());
         if (!scene_result)
           return std::unexpected(std::move(scene_result).error());
         engine_->scene = std::move(*scene_result);
 
-        const auto &tilemap = *active_tilemap(*engine_);
+        const auto &tilemap = *engine_->active_tilemap();
         const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
                                                               engine_->cfg.tile_scale, engine_->cfg.elevation_step_px);
         const auto p_slot = engine_->scene.world.transforms.dense_idx(engine_->scene.player);
@@ -244,21 +244,21 @@ namespace corundum {
 
   } // namespace
 
-  void process_dialogue_events(Engine &engine) noexcept {
-    quest::Runner quest_runner{engine.quests, engine.flags};
-    for (const auto &ev : engine.scene.pending_dialogue_events)
-      dispatch_dialogue_event(engine, quest_runner, ev);
-    engine.scene.pending_dialogue_events.clear();
+  void Engine::process_dialogue_events() noexcept {
+    quest::Runner quest_runner{quests, flags};
+    for (const auto &ev : scene.pending_dialogue_events)
+      dispatch_dialogue_event(*this, quest_runner, ev);
+    scene.pending_dialogue_events.clear();
   }
 
-  std::expected<void, std::string> initialize(Engine &engine, core::GameConfig &&cfg) {
-    if (!engine.window || !engine.renderer)
-      return std::unexpected("initialize: engine.window and engine.renderer must be non-null "
+  std::expected<void, std::string> Engine::initialize(core::GameConfig &&cfg) {
+    if (!window || !renderer)
+      return std::unexpected("Engine::initialize: window and renderer must be non-null "
                              "(use make_engine(), or adopt a platform before calling)");
 
-    InitPipeline pipeline(engine);
+    InitPipeline pipeline(*this);
     if (auto result = pipeline.run(std::move(cfg)); !result) {
-      cleanup(engine);
+      cleanup();
       return std::unexpected(result.error());
     }
     return {};
@@ -278,7 +278,7 @@ namespace corundum {
     void process_input(Engine &engine) noexcept {
       input::poll(engine.input_state, *engine.window);
       if (engine.input_state.is_held(input::Action::Quit))
-        request_quit(engine);
+        engine.request_quit();
     }
 
     /// Invoke the user-provided per-fixed-step hook, swallowing any exceptions
@@ -308,7 +308,7 @@ namespace corundum {
         world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
                       static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags, &engine.quests);
 
-        process_dialogue_events(engine);
+        engine.process_dialogue_events();
         quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
 
         invoke_fixed_update_hook(engine, engine.timer.target_dt);
@@ -363,39 +363,44 @@ namespace corundum {
 
   } // namespace
 
-  void run_loop(Engine &engine) noexcept {
-    while (run_frame(engine)) {
+  void Engine::run_loop() noexcept {
+    while (run_frame()) {
     }
   }
 
-  bool run_frame(Engine &engine) noexcept {
-    if (!engine.window->is_open() || engine.quit)
+  void Engine::run() noexcept {
+    run_loop();
+    cleanup();
+  }
+
+  bool Engine::run_frame() noexcept {
+    if (!window->is_open() || quit)
       return false;
-    std::tie(engine.win_w, engine.win_h) = engine.window->size();
-    render::snapshot_prev_frame(engine.render, engine.scene);
-    engine.timer.tick();
+    std::tie(win_w, win_h) = window->size();
+    render::snapshot_prev_frame(render, scene);
+    timer.tick();
 
-    process_input(engine);
+    process_input(*this);
 
-    const SimulationResult sim = run_fixed_steps(engine);
-    world::handle_map_transition(engine);
+    const SimulationResult sim = run_fixed_steps(*this);
+    world::handle_map_transition(*this);
 
-    const float alpha = compute_interpolation_alpha(engine.timer, sim);
-    render_frame(engine, alpha);
+    const float alpha = compute_interpolation_alpha(timer, sim);
+    render_frame(*this, alpha);
 
-    stream_world_chunks(engine);
+    stream_world_chunks(*this);
     return true;
   }
 
-  void cleanup(Engine &engine) noexcept {
-    engine.audio.shutdown();
-    if (engine.window)
-      engine.window->close();
-    engine.quit = true;
+  void Engine::cleanup() noexcept {
+    audio.shutdown();
+    if (window)
+      window->close();
+    quit = true;
   }
 
-  void request_quit(Engine &engine) noexcept {
-    engine.quit = true;
+  void Engine::request_quit() noexcept {
+    quit = true;
   }
 
 } // namespace corundum

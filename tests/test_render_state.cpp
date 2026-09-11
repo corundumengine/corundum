@@ -31,7 +31,7 @@ TEST_CASE("active_tilemap: None mode returns nullptr") {
   corundum::Engine engine;
   engine.render.mode = render_data::RenderMode::None;
 
-  CHECK(corundum::active_tilemap(engine) == nullptr);
+  CHECK(engine.active_tilemap() == nullptr);
   CHECK(render_data::active_tilemap(engine.render) == nullptr);
 }
 
@@ -40,7 +40,7 @@ TEST_CASE("active_tilemap: SingleMap mode returns &map_data.tilemap") {
   engine.render.mode = render_data::RenderMode::SingleMap;
   engine.render.map_data.tilemap = make_flat_map();
 
-  const auto *tm = corundum::active_tilemap(engine);
+  const auto *tm = engine.active_tilemap();
   REQUIRE(tm != nullptr);
   CHECK(tm == &engine.render.map_data.tilemap);
   CHECK(tm->width == 2);
@@ -55,7 +55,7 @@ TEST_CASE("active_tilemap: World mode returns nullptr even with chunks loaded") 
   chunk.tilemap = make_flat_map();
   engine.render.chunks.add_active(std::move(chunk));
 
-  CHECK(corundum::active_tilemap(engine) == nullptr);
+  CHECK(engine.active_tilemap() == nullptr);
 }
 
 TEST_CASE("NullRenderer: stats() returns zero draw/quad/dropped counts and begin_frame reports success") {
