@@ -11,12 +11,30 @@ namespace tools::tilesmith {
   // ── TilemapTextureStore ───────────────────────────────────────────────────────
 
   TilemapTextureStore::~TilemapTextureStore() {
-    for (auto &t : textures)
-      host->textures().destroy(t.id);
+    clear();
+  }
+
+  void TilemapTextureStore::clear() noexcept {
+    if (host) {
+      for (const auto &t : textures)
+        host->textures().destroy(t.id);
+    }
+    textures.clear();
   }
 
   TilemapTextureStore::TilemapTextureStore(TilemapTextureStore &&) noexcept = default;
-  TilemapTextureStore &TilemapTextureStore::operator=(TilemapTextureStore &&) noexcept = default;
+
+  TilemapTextureStore &TilemapTextureStore::operator=(TilemapTextureStore &&other) noexcept {
+    // The defaulted move-assignment would drop the destination's old TextureInfos
+    // without returning them to the cache, leaking their GPU resources. Release
+    // the outgoing set first.
+    if (this != &other) {
+      clear();
+      host = other.host;
+      textures = std::move(other.textures);
+    }
+    return *this;
+  }
 
   TilemapTextureStore load_tilemap_textures(corundum::tool_host::ToolHost &host,
                                             const corundum::world::tilemap::Tilemap &map) {

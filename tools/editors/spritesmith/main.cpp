@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
   corundum::platform::TextureInfo checkerboard = host->make_checkerboard(
       static_cast<unsigned>(tools::spritesmith::CANVAS_W), static_cast<unsigned>(tools::spritesmith::CANVAS_H), 8);
 
-  corundum::platform::TextureInfo sprite_texture;
+  corundum::platform::TextureInfo sprite_texture{};
   std::string loaded_path;
   bool has_texture = false;
 

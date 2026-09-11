@@ -13,8 +13,7 @@ namespace corundum::platform {
    *  @note A default-constructed deleter is inert (null function); destruction is
    *        a no-op unless a function was supplied, so an empty handle is safe.
    */
-  template <typename T>
-  struct BackendDeleter {
+  template <typename T> struct BackendDeleter {
     void (*destroy)(T *) = nullptr;
 
     void operator()(T *pointer) const noexcept {
@@ -32,7 +31,6 @@ namespace corundum::platform {
    *  This is what lets the engine library link against the abstract interfaces
    *  without pulling in GLFW/sokol.
    */
-  template <typename T>
-  using Handle = std::unique_ptr<T, BackendDeleter<T>>;
+  template <typename T> using Handle = std::unique_ptr<T, BackendDeleter<T>>;
 
 } // namespace corundum::platform

@@ -12,9 +12,9 @@ namespace corundum::platform {
 
   /** @brief Lightweight texture descriptor returned by load() and create(). */
   struct TextureInfo {
-    uint32_t id;
-    unsigned width;
-    unsigned height;
+    uint32_t id{0};
+    unsigned width{0};
+    unsigned height{0};
   };
 
   /** @brief Opaque backend handles for embedding the texture in an ImGui draw list.
@@ -27,8 +27,8 @@ namespace corundum::platform {
    * @endcode
    */
   struct BackendTexture {
-    uint64_t view;
-    uint64_t sampler;
+    uint64_t view{0};
+    uint64_t sampler{0};
   };
 
   /** @brief Texture wrap mode for the sampler. */

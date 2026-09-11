@@ -89,11 +89,19 @@ namespace tools::tilesmith {
     auto tilemap_result = corundum::world::tilemap::load_tilemap(state.map_path.string());
     if (!tilemap_result)
       throw std::runtime_error(tilemap_result.error());
-    state.map = std::move(*tilemap_result);
+    auto new_map = std::move(*tilemap_result);
+
+    // Build everything that can fail before mutating state, so a failed open leaves the
+    // currently-loaded map (and the views/store pointing into it) intact rather than
+    // dangling. load_portals() reads only map_path, so it can run before the map commit.
+    auto new_store = tools::tilesmith::load_tilemap_textures(host, new_map);
     auto portals_result = tools::tilesmith::load_portals(state);
     if (!portals_result)
       throw std::runtime_error(portals_result.error());
-    texture_store = tools::tilesmith::load_tilemap_textures(host, state.map);
+
+    // Commit phase: moves and the view rebuild cannot throw.
+    state.map = std::move(new_map);
+    texture_store = std::move(new_store);
     tileset_views = tools::tilesmith::rebuild_tileset_views(host, state.map, texture_store);
     center_camera(state);
     state.undo.clear();

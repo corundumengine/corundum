@@ -21,8 +21,13 @@ namespace tools::tilesmith {
 
     TilemapTextureStore() = default;
     ~TilemapTextureStore();
+    TilemapTextureStore(const TilemapTextureStore &) = delete;
+    TilemapTextureStore &operator=(const TilemapTextureStore &) = delete;
     TilemapTextureStore(TilemapTextureStore &&) noexcept;
-    TilemapTextureStore &operator=(TilemapTextureStore &&) noexcept;
+    TilemapTextureStore &operator=(TilemapTextureStore &&other) noexcept;
+
+    /// Destroy every owned GPU texture. Idempotent.
+    void clear() noexcept;
   };
 
   /// Resolved texture and source rectangle for a single tile GID.
