@@ -1,6 +1,7 @@
 #pragma once
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/platform/gpu_context.hpp>
+#include <corundum/platform/handle.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 
@@ -22,9 +23,9 @@ namespace corundum::platform {
    * is still alive.
    */
   struct PlatformContext {
-    std::unique_ptr<Window> window;
-    std::unique_ptr<GpuContext> gpu;
-    std::unique_ptr<Renderer> renderer;
+    Handle<Window> window;
+    Handle<GpuContext> gpu;
+    Handle<Renderer> renderer;
     std::unique_ptr<corundum::audio::AudioBackend> audio_backend;
   };
 

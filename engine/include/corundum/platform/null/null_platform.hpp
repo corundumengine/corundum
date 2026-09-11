@@ -1,5 +1,6 @@
 #pragma once
 #include <corundum/engine.hpp>
+#include <corundum/platform/handle.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 
@@ -10,6 +11,21 @@
 
 namespace corundum::platform::null {
 
+  namespace detail {
+
+    // Backend-side destruction for the null bundle: the handle's function pointer
+    // deletes the concrete NullWindow/NullRenderer through the interface's virtual
+    // destructor, so the engine core never needs those destructors.
+    inline void destroy_window(platform::Window *window) noexcept {
+      std::default_delete<platform::Window>{}(window);
+    }
+
+    inline void destroy_renderer(platform::Renderer *renderer) noexcept {
+      std::default_delete<platform::Renderer>{}(renderer);
+    }
+
+  } // namespace detail
+
   /** @brief Owned bundle of no-op Window + Renderer for tests.
    *
    * Leaves @c Engine::gpu null (matching production behaviour when no audio
@@ -17,13 +33,11 @@ namespace corundum::platform::null {
    * except Window and Renderer — the main loop never touches @c Engine::gpu).
    *
    * adopt_null_platform() moves the bundle's members into the Engine, leaving
-   * the bundle empty; it does not need to outlive the Engine afterwards. The
-   * Engine holds the objects through no-op deleters (see detail::PlatformDeleter),
-   * so their memory is reclaimed by the OS at process exit.
+   * the bundle empty; it does not need to outlive the Engine afterwards.
    */
   struct NullPlatform {
-    std::unique_ptr<NullWindow> window;
-    std::unique_ptr<NullRenderer> renderer;
+    Handle<platform::Window> window;
+    Handle<platform::Renderer> renderer;
   };
 
   /** @brief Construct a NullPlatform bundle with a window of the given size.
@@ -34,8 +48,10 @@ namespace corundum::platform::null {
    */
   [[nodiscard]] inline NullPlatform make_null_platform(unsigned w, unsigned h) {
     NullPlatform p{};
-    p.window = std::make_unique<NullWindow>(w, h);
-    p.renderer = std::make_unique<NullRenderer>();
+    p.window =
+        Handle<platform::Window>{new NullWindow(w, h), BackendDeleter<platform::Window>{&detail::destroy_window}};
+    p.renderer =
+        Handle<platform::Renderer>{new NullRenderer(), BackendDeleter<platform::Renderer>{&detail::destroy_renderer}};
     return p;
   }
 
@@ -50,10 +66,8 @@ namespace corundum::platform::null {
    *  @param[in,out] platform The bundle; its members are moved out.
    */
   inline void adopt_null_platform(corundum::Engine &engine, NullPlatform &platform) {
-    // reset(release()), not std::move: Engine's unique_ptrs use a no-op deleter,
-    // so they can't be move-assigned from a default_delete.
-    engine.window.reset(platform.window.release());
-    engine.renderer.reset(platform.renderer.release());
+    engine.adopt_window(std::move(platform.window));
+    engine.adopt_renderer(std::move(platform.renderer));
   }
 
 } // namespace corundum::platform::null

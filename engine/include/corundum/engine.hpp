@@ -8,6 +8,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/platform/gpu_context.hpp>
+#include <corundum/platform/handle.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/quest/registry.hpp>
@@ -19,28 +20,14 @@
 
 #include <expected>
 #include <functional>
-#include <memory>
 #include <string>
 
 namespace corundum {
 
-  namespace detail {
-    /** @brief No-op deleter for platform objects whose destructors live in the platform library.
-     *
-     *  Engine holds platform resources through unique_ptr with this deleter so the
-     *  engine library itself never needs the platform destructors — tests can link
-     *  engine without linking the GLFW/sokol backend. Platform teardown is handled
-     *  by cleanup() (window close, audio shutdown); OS reclaims the memory at exit.
-     */
-    struct PlatformDeleter {
-      template <typename T> void operator()(T * /*unused*/) const noexcept { /* no-op */ }
-    };
-  } // namespace detail
-
   /** @brief Game engine instance owning all system-level resources and game state.
    *
    * Owns systems directly (no virtual dispatch), the Scene (merged entity world +
-   * game state), and all game assets. Lifecycle driven by free functions:
+   * game state), and all game assets. Lifecycle is intrinsic methods:
    *   initialize → run_loop → cleanup
    *
    * Returned by value from make_engine() and must stay trivially movable;
@@ -51,9 +38,12 @@ namespace corundum {
    * @see cleanup     Resource teardown after the main loop.
    */
   struct Engine {
-    std::unique_ptr<platform::GpuContext, detail::PlatformDeleter> gpu;
-    std::unique_ptr<platform::Renderer, detail::PlatformDeleter> renderer;
-    std::unique_ptr<platform::Window, detail::PlatformDeleter> window;
+    // Declared window → gpu → renderer so reverse-order destruction is
+    // renderer → gpu → window: sokol resources are released while the device is
+    // still alive, and the device/window outlive the renderer.
+    platform::Handle<platform::Window> window;
+    platform::Handle<platform::GpuContext> gpu;
+    platform::Handle<platform::Renderer> renderer;
 
     audio::AudioSystem audio;
     input::InputState input_state;
@@ -93,6 +83,24 @@ namespace corundum {
      *  reuse from swap-and-pop invalidates the prev-transform snapshot.
      */
     std::function<void(Engine &, float dt)> on_fixed_update;
+
+    /** @brief Take ownership of a backend-created platform handle.
+     *
+     *  The platform::Handle already carries the backend's destruction function, so
+     *  these are plain moves. make_engine() and the NullPlatform test bundle use them
+     *  to satisfy initialize()'s non-null window/renderer precondition.
+     */
+    void adopt_window(platform::Handle<platform::Window> value) noexcept {
+      window = std::move(value);
+    }
+
+    void adopt_gpu(platform::Handle<platform::GpuContext> value) noexcept {
+      gpu = std::move(value);
+    }
+
+    void adopt_renderer(platform::Handle<platform::Renderer> value) noexcept {
+      renderer = std::move(value);
+    }
 
     /** @brief Initialise all systems and load game assets.
      *
@@ -173,13 +181,19 @@ namespace corundum {
     }
 
     /** @brief True once request_quit() or cleanup() has been called. */
-    [[nodiscard]] bool quit_requested() const noexcept { return quit_; }
+    [[nodiscard]] bool quit_requested() const noexcept {
+      return quit_;
+    }
 
     /** @brief Live window width in screen pixels (0 before the first frame). */
-    [[nodiscard]] int window_width() const noexcept { return window_width_; }
+    [[nodiscard]] int window_width() const noexcept {
+      return window_width_;
+    }
 
     /** @brief Live window height in screen pixels (0 before the first frame). */
-    [[nodiscard]] int window_height() const noexcept { return window_height_; }
+    [[nodiscard]] int window_height() const noexcept {
+      return window_height_;
+    }
 
   private:
     bool quit_ = false;     ///< Set by request_quit()/cleanup(); see quit_requested().

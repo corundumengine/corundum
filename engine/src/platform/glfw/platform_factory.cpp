@@ -6,6 +6,24 @@
 
 namespace corundum::platform {
 
+  namespace {
+
+    // Destruction functions live here (the backend TU) so the handles Engine holds
+    // can delete their objects without the engine core referencing these destructors.
+    void destroy_window(Window *window) noexcept {
+      std::default_delete<Window>{}(window);
+    }
+
+    void destroy_gpu_context(GpuContext *gpu) noexcept {
+      std::default_delete<GpuContext>{}(gpu);
+    }
+
+    void destroy_renderer(Renderer *renderer) noexcept {
+      std::default_delete<Renderer>{}(renderer);
+    }
+
+  } // namespace
+
   std::expected<std::unique_ptr<Window>, std::string> create_window(unsigned w, unsigned h, std::string_view title) {
     auto result = glfw::GLFWWindow::create(w, h, title);
     if (!result)
@@ -23,14 +41,15 @@ namespace corundum::platform {
     auto gpu_result = GpuContext::create(*window_ptr);
     if (!gpu_result)
       return std::unexpected("Failed to create GPU context");
+    auto gpu_ptr = std::move(*gpu_result);
 
-    auto renderer = glfw::make_sokol_renderer(**gpu_result);
+    auto renderer = glfw::make_sokol_renderer(*gpu_ptr);
     auto audio = sokol::make_sokol_audio_backend();
 
     return PlatformContext{
-        .window = std::move(window_ptr),
-        .gpu = std::move(*gpu_result),
-        .renderer = std::move(renderer),
+        .window = Handle<Window>{window_ptr.release(), BackendDeleter<Window>{&destroy_window}},
+        .gpu = Handle<GpuContext>{gpu_ptr.release(), BackendDeleter<GpuContext>{&destroy_gpu_context}},
+        .renderer = Handle<Renderer>{renderer.release(), BackendDeleter<Renderer>{&destroy_renderer}},
         .audio_backend = std::move(audio),
     };
   }
