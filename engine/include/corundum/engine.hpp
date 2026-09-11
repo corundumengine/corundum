@@ -68,12 +68,8 @@ namespace corundum {
     world::Scene scene;
     bool entered_from_world = false; ///< True while inside an interior reached from the overworld.
 
-    int win_h = 0; ///< Live window height in screen pixels, updated each frame.
-    int win_w = 0; ///< Live window width in screen pixels, updated each frame.
-
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
     debug::HudOverlay hud;
-    bool quit = false;
     core::time::LoopTimer timer{60.f};
 
     /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
@@ -175,6 +171,20 @@ namespace corundum {
     [[nodiscard]] const world::tilemap::Tilemap *active_tilemap() const noexcept {
       return corundum::render::active_tilemap(render);
     }
+
+    /** @brief True once request_quit() or cleanup() has been called. */
+    [[nodiscard]] bool quit_requested() const noexcept { return quit_; }
+
+    /** @brief Live window width in screen pixels (0 before the first frame). */
+    [[nodiscard]] int window_width() const noexcept { return window_width_; }
+
+    /** @brief Live window height in screen pixels (0 before the first frame). */
+    [[nodiscard]] int window_height() const noexcept { return window_height_; }
+
+  private:
+    bool quit_ = false;     ///< Set by request_quit()/cleanup(); see quit_requested().
+    int window_height_ = 0; ///< Cached each frame by run_frame(); see window_height().
+    int window_width_ = 0;  ///< Cached each frame by run_frame(); see window_width().
   };
 
 } // namespace corundum

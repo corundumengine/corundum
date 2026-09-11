@@ -66,8 +66,8 @@ namespace {
     auto map = corundum::world::build_map_view(engine.render, engine.cfg);
     corundum::input::InputState input{};
     corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
-                            static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
-                            &engine.quests);
+                            static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
+                            engine.flags, &engine.quests);
   }
 
   /// Run one fixed simulation step with a single action's `pressed` bit set. Used to drive
@@ -77,8 +77,8 @@ namespace {
     corundum::input::InputState input{};
     input.pressed.set(static_cast<std::size_t>(action));
     corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
-                            static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags,
-                            &engine.quests);
+                            static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
+                            engine.flags, &engine.quests);
   }
 
   /// Place the player entity at an exact tile (row/col) without pathing.
@@ -268,7 +268,7 @@ TEST_CASE("world transition — single-map boot with a return_to_world portal is
   handle_map_transition(engine);
 
   // No overworld exists, so the portal is ignored rather than terminating the process.
-  CHECK_FALSE(engine.quit);
+  CHECK_FALSE(engine.quit_requested());
   CHECK(engine.render.mode == RenderMode::SingleMap);
   CHECK_FALSE(engine.entered_from_world);
 

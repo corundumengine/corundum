@@ -54,7 +54,7 @@ namespace corundum::world {
     private:
       /// @brief Live window size when populated (mid-frame), falling back to the
       ///        configured boot-time size before @c Engine::run_frame() has populated
-      ///        @c Engine::win_w/@c Engine::win_h.
+      ///        @c Engine::window_width()/@c Engine::window_height().
       [[nodiscard]] std::pair<float, float> viewport() const noexcept;
 
       /// @brief Clamp @c GameConfig::default_zoom into [min_zoom, max_zoom] and
@@ -80,8 +80,8 @@ namespace corundum::world {
     };
 
     std::pair<float, float> SceneTransitioner::viewport() const noexcept {
-      const float vw = engine_->win_w > 0 ? static_cast<float>(engine_->win_w) : engine_->cfg.win_w;
-      const float vh = engine_->win_h > 0 ? static_cast<float>(engine_->win_h) : engine_->cfg.win_h;
+      const float vw = engine_->window_width() > 0 ? static_cast<float>(engine_->window_width()) : engine_->cfg.win_w;
+      const float vh = engine_->window_height() > 0 ? static_cast<float>(engine_->window_height()) : engine_->cfg.win_h;
       return {vw, vh};
     }
 

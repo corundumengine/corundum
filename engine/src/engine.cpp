@@ -306,7 +306,8 @@ namespace corundum {
         const auto mv = world::build_map_view(engine.render, engine.cfg);
         world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
         world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
-                      static_cast<float>(engine.win_w), static_cast<float>(engine.win_h), engine.flags, &engine.quests);
+                      static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()), engine.flags,
+                      &engine.quests);
 
         engine.process_dialogue_events();
         quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
@@ -339,7 +340,7 @@ namespace corundum {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
       render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items, alpha,
-                     engine.win_w, engine.win_h);
+                     engine.window_width(), engine.window_height());
 
       if (engine.hud.enabled) {
         const debug::OverlayInput hud_input{
@@ -374,9 +375,9 @@ namespace corundum {
   }
 
   bool Engine::run_frame() noexcept {
-    if (!window->is_open() || quit)
+    if (!window->is_open() || quit_)
       return false;
-    std::tie(win_w, win_h) = window->size();
+    std::tie(window_width_, window_height_) = window->size();
     render::snapshot_prev_frame(render, scene);
     timer.tick();
 
@@ -396,11 +397,11 @@ namespace corundum {
     audio.shutdown();
     if (window)
       window->close();
-    quit = true;
+    quit_ = true;
   }
 
   void Engine::request_quit() noexcept {
-    quit = true;
+    quit_ = true;
   }
 
 } // namespace corundum

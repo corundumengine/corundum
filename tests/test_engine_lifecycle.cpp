@@ -99,7 +99,7 @@ TEST_CASE("lifecycle: cleanup is idempotent and post-cleanup run_frame returns f
   // Both run_frame and run_loop must exit immediately.
   CHECK_FALSE(engine.run_frame());
   engine.run_loop();
-  CHECK(engine.quit);
+  CHECK(engine.quit_requested());
 }
 
 // ── 5. on_fixed_update can request_quit, run_loop exits cleanly ─────────────
@@ -125,7 +125,7 @@ TEST_CASE("lifecycle: on_fixed_update calling request_quit ends the main loop") 
   engine.run_loop();
 
   CHECK(hook_calls >= 1);
-  CHECK(engine.quit);
+  CHECK(engine.quit_requested());
   // Window should still be open after run_loop (single-close-path contract);
   // cleanup closes it.
   CHECK(engine.window->is_open());
@@ -152,7 +152,7 @@ TEST_CASE("lifecycle: run_frame steps the simulation N times then returns false"
     CHECK(engine.run_frame());
   }
 
-  // request_quit flips engine.quit; the next call must return false.
+  // request_quit sets the quit flag; the next call must return false.
   engine.request_quit();
   CHECK_FALSE(engine.run_frame());
 
