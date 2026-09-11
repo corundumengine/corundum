@@ -6,7 +6,6 @@
 #include FT_FREETYPE_H
 
 #include <filesystem>
-#include <print>
 
 namespace fs = std::filesystem;
 
@@ -24,44 +23,48 @@ TEST_CASE("FontAtlas::bake: rasterises a basic ASCII set within atlas width and 
   FT_Library lib{nullptr};
   REQUIRE(FT_Init_FreeType(&lib) == 0);
 
-  corundum::platform::glfw::FontAtlas atlas;
-  REQUIRE(atlas.load(lib, fixture_font_path().string()));
+  // Scope the atlas so it is destroyed before FT_Done_FreeType: a face references
+  // its owning library, so the library must outlive every face loaded from it.
+  {
+    corundum::platform::glfw::FontAtlas atlas;
+    REQUIRE(atlas.load(lib, fixture_font_path().string()));
 
-  const corundum::platform::glfw::BakedSize baked = atlas.bake(16);
+    const corundum::platform::glfw::BakedSize baked = atlas.bake(16);
 
-  CHECK(baked.atlas_w > 0);
-  CHECK(baked.atlas_h > 0);
-  // The shelf packer clamps width at 512; a 16 px Latin alphabet must fit comfortably.
-  CHECK(baked.atlas_w <= 512);
+    CHECK(baked.atlas_w > 0);
+    CHECK(baked.atlas_h > 0);
+    // The shelf packer clamps width at 512; a 16 px Latin alphabet must fit comfortably.
+    CHECK(baked.atlas_w <= 512);
 
-  // Pixel buffer is RGBA8, fully populated.
-  CHECK(baked.pixels.size() == static_cast<std::size_t>(baked.atlas_w) * baked.atlas_h * 4);
+    // Pixel buffer is RGBA8, fully populated.
+    CHECK(baked.pixels.size() == static_cast<std::size_t>(baked.atlas_w) * baked.atlas_h * 4);
 
-  // Glyph metrics for 'M' must be present and positive.
-  const auto &glyph_m = baked.glyphs[static_cast<unsigned char>('M')];
-  CHECK(glyph_m.width > 0);
-  CHECK(glyph_m.height > 0);
-  CHECK(glyph_m.advance_x > 0.f);
+    // Glyph metrics for 'M' must be present and positive.
+    const auto &glyph_m = baked.glyphs[static_cast<unsigned char>('M')];
+    CHECK(glyph_m.width > 0);
+    CHECK(glyph_m.height > 0);
+    CHECK(glyph_m.advance_x > 0.f);
 
-  // Regression: space has a 0×0 bitmap (so the packer drops it), but its
-  // advance_x must still be populated — draw(DrawText) uses it to advance the
-  // pen between words and measure_text() sums it for width reporting. An
-  // empty advance rendered "Hello World" as "HelloWorld" in the dialog box.
-  const auto &glyph_space = baked.glyphs[static_cast<unsigned char>(' ')];
-  CHECK(glyph_space.width == 0);
-  CHECK(glyph_space.height == 0);
-  CHECK(glyph_space.advance_x > 0.f);
+    // Regression: space has a 0×0 bitmap (so the packer drops it), but its
+    // advance_x must still be populated — draw(DrawText) uses it to advance the
+    // pen between words and measure_text() sums it for width reporting. An
+    // empty advance rendered "Hello World" as "HelloWorld" in the dialog box.
+    const auto &glyph_space = baked.glyphs[static_cast<unsigned char>(' ')];
+    CHECK(glyph_space.width == 0);
+    CHECK(glyph_space.height == 0);
+    CHECK(glyph_space.advance_x > 0.f);
 
-  // Every glyph rect must fit inside the atlas bounds.
-  for (unsigned char c = 32; c < 128; ++c) {
-    const auto &g = baked.glyphs[c];
-    if (g.width == 0 && g.height == 0)
-      continue;
-    CHECK(g.atlas_x >= 0);
-    CHECK(g.atlas_y >= 0);
-    CHECK(g.atlas_x + g.width <= baked.atlas_w);
-    CHECK(g.atlas_y + g.height <= baked.atlas_h);
-  }
+    // Every glyph rect must fit inside the atlas bounds.
+    for (unsigned char c = 32; c < 128; ++c) {
+      const auto &g = baked.glyphs[c];
+      if (g.width == 0 && g.height == 0)
+        continue;
+      CHECK(g.atlas_x >= 0);
+      CHECK(g.atlas_y >= 0);
+      CHECK(g.atlas_x + g.width <= baked.atlas_w);
+      CHECK(g.atlas_y + g.height <= baked.atlas_h);
+    }
+  } // atlas destroyed while lib is still alive
 
   FT_Done_FreeType(lib);
 }
@@ -83,7 +86,7 @@ TEST_CASE("FontAtlas::bake: face destruction order is correct when the library o
   // Library is still valid; must not have been touched by atlas destruction.
   FT_Face probe{nullptr};
   CHECK(FT_New_Face(lib, fixture_font_path().string().c_str(), 0, &probe) == 0);
-  if (probe)
+  if (probe != nullptr)
     FT_Done_Face(probe);
 
   FT_Done_FreeType(lib);
