@@ -4,7 +4,13 @@
 #include <algorithm>
 #include <cctype>
 #include <corundum/core/files.hpp>
+#include <expected>
+#include <filesystem>
 #include <format>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
 
 namespace corundum::core {
 

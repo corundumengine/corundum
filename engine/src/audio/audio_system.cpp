@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/audio/audio_system.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_io.hpp>
 
@@ -10,6 +12,7 @@
 #include <nlohmann/json.hpp>
 #include <print>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace corundum::audio {

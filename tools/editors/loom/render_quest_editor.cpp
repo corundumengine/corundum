@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_quest_editor.hpp"
-#include "graph_layout.hpp"
+#include "editor_state.hpp"
 #include "render_keys_panel.hpp"
-#include "validate_quest_refs.hpp"
 
+#include <algorithm>
 #include <corundum/quest/quest.hpp>
 
-#include <format>
+#include <cstring>
 #include <imgui.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace tools::loom {
 

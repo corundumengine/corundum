@@ -1,15 +1,22 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/direction.hpp>
+#include <corundum/core/game_config.hpp>
 #include <corundum/dialogue/conversation.hpp>
+#include <corundum/dialogue/dialogue.hpp>
 #include <corundum/dialogue/interact.hpp>
 #include <corundum/entities/components.hpp>
+#include <corundum/entities/entity.hpp>
+#include <corundum/entities/world.hpp>
+#include <corundum/input/actions.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <corundum/world/flags.hpp>
 #include <corundum/world/picking.hpp>
+#include <corundum/world/scene.hpp>
 
 #include <cmath>
 #include <cstdint>
-#include <utility>
 
 namespace corundum::dialogue {
 

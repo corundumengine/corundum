@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "fill.hpp"
+#include "editor_state.hpp"
 #include "paint.hpp"
 #include "undo.hpp"
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <cstddef>
+#include <cstdint>
 
 namespace tools::tilesmith {
 

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_keys_panel.hpp"
+#include "editor_state.hpp"
+#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/quest/quest.hpp>
 
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>

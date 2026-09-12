@@ -1,10 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/character_sheet_serializer.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <nlohmann/json_fwd.hpp>
 
+#include <cstdint>
 #include <nlohmann/json.hpp>
+#include <string>
 
 using json = nlohmann::json;
 using namespace corundum::sprites;

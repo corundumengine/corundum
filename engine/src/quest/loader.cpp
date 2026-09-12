@@ -4,11 +4,22 @@
 #include <corundum/core/json_schema.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/loader.hpp>
+#include <corundum/quest/quest.hpp>
+#include <nlohmann/json_fwd.hpp>
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdio>
+#include <exception>
+#include <expected>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <print>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
 
 using json = nlohmann::json;
 

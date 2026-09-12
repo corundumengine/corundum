@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <optional>
+#include <utility>
 
 namespace corundum::world::tilemap {
 

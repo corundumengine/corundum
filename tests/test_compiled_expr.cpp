@@ -10,6 +10,9 @@
 #include <corundum/world/flags.hpp>
 
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace dialogue = corundum::dialogue;
 using corundum::world::FlagStore;

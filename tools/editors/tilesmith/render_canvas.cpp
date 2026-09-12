@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_canvas.hpp"
+#include "editor_state.hpp"
 #include "render_collision.hpp"
 #include "render_elevation.hpp"
 #include "render_portal.hpp"
 #include "render_ramps.hpp"
 #include "render_walkability.hpp"
+#include <imgui.h>
 
 #include <corundum/core/math/vec.hpp>
 

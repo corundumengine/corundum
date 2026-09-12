@@ -4,14 +4,25 @@
 #include <algorithm>
 #include <corundum/sprites/sprite_atlas.hpp>
 #include <corundum/world/tilemap/loader.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <expected>
+#include <filesystem>
 #include <flat_map>
 #include <format>
 #include <fstream>
+#include <functional>
 #include <limits>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <sstream>
+#include <string>
+#include <tuple>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;

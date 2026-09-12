@@ -1,12 +1,20 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cmath>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <algorithm>
+#include <expected>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;

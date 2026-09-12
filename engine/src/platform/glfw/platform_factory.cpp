@@ -2,10 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/platform/platform_factory.hpp>
+#include <expected>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
 
 #include "../sokol/sokol_audio_backend.hpp"
 #include "glfw_window.hpp"
 #include "sokol_renderer.hpp"
+#include <corundum/platform/handle.hpp>
+#include <corundum/platform/renderer.hpp>
+#include <corundum/platform/window.hpp>
 
 namespace corundum::platform {
 

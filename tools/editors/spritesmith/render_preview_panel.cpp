@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_preview_panel.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
 #include "render_anim_preview.hpp"
+#include <corundum/platform/texture_cache.hpp>
 #include <corundum/tool_host/tool_host.hpp>
 #include <imgui.h>
 

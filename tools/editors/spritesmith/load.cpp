@@ -2,14 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "load.hpp"
+#include "editor_state.hpp"
 #include <corundum/sprites/atlas_clips.hpp>
 #include <corundum/sprites/atlas_clips_loader.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/sprite_atlas.hpp>
 #include <corundum/sprites/sprite_sheet_clips_loader.hpp>
+#include <cstddef>
+#include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <print>
+#include <stdexcept>
+#include <utility>
 
 namespace tools::spritesmith {
 

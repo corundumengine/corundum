@@ -11,16 +11,22 @@
 #include "render_quest_editor.hpp"
 #include "shortcuts.hpp"
 #include "validate_quest_refs.hpp"
+#include <corundum/item/item.hpp>
 
+#include <algorithm>
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/tool_host/fonts.hpp>
 #include <corundum/tool_host/tool_config.hpp>
 #include <corundum/tool_host/tool_host.hpp>
 #include <corundum/tool_host/ui_theme.hpp>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <format>
 #include <imgui.h>
 #include <print>
 #include <string>
+#include <utility>
 
 using corundum::tool_host::ApplyEditorThemeRefined;
 using corundum::tool_host::load_theme;

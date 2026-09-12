@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "graph_layout.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
+#include <corundum/dialogue/dialogue.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>

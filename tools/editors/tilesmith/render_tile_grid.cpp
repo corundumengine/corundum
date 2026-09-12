@@ -3,16 +3,25 @@
 
 #include "render_tile_grid.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
+#include "tilemap_rendering.hpp"
+#include "tileset_view.hpp"
 #include <algorithm>
 #include <cmath>
 #include <corundum/tool_host/tool_host.hpp>
 #include <corundum/world/tilemap/loader.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <format>
 #include <imgui.h>
 #include <print>
+#include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace tools::tilesmith {
 

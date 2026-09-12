@@ -1,10 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/game_config.hpp>
+#include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/motion_sprite_table.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/spawn.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <corundum/core/direction.hpp>
-#include <corundum/core/math/vec.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/render/render_state.hpp>
@@ -13,11 +18,17 @@
 #include <corundum/world/scene.hpp>
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <expected>
 #include <filesystem>
 #include <format>
 #include <optional>
 #include <print>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace corundum::world {
 

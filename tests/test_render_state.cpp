@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
+#include <array>
+#include <corundum/core/game_config.hpp>
+#include <corundum/entities/tables/transform_table.hpp>
+#include <corundum/render/render_state.hpp>
+#include <cstddef>
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
@@ -9,6 +15,10 @@
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
+#include <span>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace tilemap = corundum::world::tilemap;
 namespace render_data = corundum::render;

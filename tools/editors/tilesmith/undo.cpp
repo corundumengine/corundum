@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "undo.hpp"
+#include "editor_state.hpp"
 #include <algorithm>
 #include <utility>
 

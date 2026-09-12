@@ -4,6 +4,8 @@
 #include <doctest/doctest.h>
 
 #include <corundum/world/tilemap/tilemap.hpp>
+#include <string>
+#include <utility>
 
 namespace ctt = corundum::world::tilemap;
 

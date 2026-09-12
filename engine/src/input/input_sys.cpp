@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/input/actions.hpp>
 #include <corundum/input/input_sys.hpp>
 #include <corundum/platform/window.hpp>
 

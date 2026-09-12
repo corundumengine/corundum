@@ -6,6 +6,7 @@
 #include "temp_dir.hpp"
 
 #include <corundum/core/math/vec.hpp>
+#include <string_view>
 namespace ccm = corundum::core::math;
 #include <corundum/world/tilemap/world_manifest.hpp>
 

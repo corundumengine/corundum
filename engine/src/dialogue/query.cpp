@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/dialogue/dialogue.hpp>
 #include <corundum/dialogue/query.hpp>
+#include <corundum/world/flags.hpp>
 
 #include <algorithm>
+#include <cstddef>
+#include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace corundum::dialogue {
 

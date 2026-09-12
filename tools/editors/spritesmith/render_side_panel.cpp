@@ -2,14 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_side_panel.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
 #include <algorithm>
 #include <array>
 #include <corundum/sprites/atlas_clips.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <corundum/tool_host/fonts.hpp>
+#include <corundum/tool_host/ui_theme.hpp>
+#include <cstddef>
 #include <format>
 #include <imgui.h>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace tools::spritesmith {
 

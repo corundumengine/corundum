@@ -4,7 +4,12 @@
 #include <corundum/dialogue/loader.hpp>
 #include <corundum/dialogue/registry.hpp>
 
+#include <cstdio>
+#include <filesystem>
 #include <print>
+#include <string>
+#include <string_view>
+#include <utility>
 
 namespace corundum::dialogue {
 

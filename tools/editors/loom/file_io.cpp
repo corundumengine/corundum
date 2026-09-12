@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "file_io.hpp"
+#include "editor_state.hpp"
 #include "graph_layout.hpp"
+#include <corundum/item/item.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/dialogue/loader.hpp>
@@ -12,10 +15,13 @@
 #include <corundum/quest/loader.hpp>
 #include <corundum/quest/serialize.hpp>
 
+#include <expected>
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <string>
+#include <utility>
 
 namespace tools::loom {
 

@@ -3,6 +3,9 @@
 
 #include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/expr.hpp>
+#include <corundum/world/flags.hpp>
+#include <expected>
+#include <string_view>
 
 namespace corundum::dialogue {
 

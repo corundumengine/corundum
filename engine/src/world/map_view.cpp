@@ -1,12 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/game_config.hpp>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/map_view.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <cmath>
+#include <span>
 
 namespace corundum::world {
 

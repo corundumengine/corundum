@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/entities/components.hpp>
 #include <doctest/doctest.h>
 
-#include <corundum/core/math/vec.hpp>
 #include <corundum/physics/collision.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 

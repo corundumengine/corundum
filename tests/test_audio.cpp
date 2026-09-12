@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/audio/audio_system.hpp>
 
 #include <doctest/doctest.h>
 
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 

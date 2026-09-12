@@ -1,11 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <doctest/doctest.h>
 
 #include "coords.hpp"
 #include <corundum/core/math/vec.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
+#include <optional>
+#include <utility>
 
 namespace tilemap = corundum::world::tilemap;
 using corundum::core::math::Vec2;

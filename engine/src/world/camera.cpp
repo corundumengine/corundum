@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/world/camera.hpp>
-#include <corundum/world/update.hpp>
+#include <corundum/world/map_view.hpp>
 
 #include <algorithm>
 #include <cmath>

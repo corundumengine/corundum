@@ -3,16 +3,21 @@
 
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
+#include <corundum/world/map_view.hpp>
 #include <corundum/world/pathfinding.hpp>
+#include <corundum/world/picking.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
-#include <corundum/world/update.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <queue>
 #include <utility>
+#include <vector>
 
 namespace corundum::world {
 

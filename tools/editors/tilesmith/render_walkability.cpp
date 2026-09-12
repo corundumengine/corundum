@@ -3,8 +3,12 @@
 
 #include "render_walkability.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include <algorithm>
+#include <corundum/core/math/vec.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
+#include <imgui.h>
 
 namespace tools::tilesmith {
 

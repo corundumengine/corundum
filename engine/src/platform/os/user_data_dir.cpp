@@ -4,7 +4,11 @@
 #include <corundum/platform/paths.hpp>
 
 #include <cstdlib>
+#include <expected>
+#include <filesystem>
 #include <optional>
+#include <string>
+#include <string_view>
 
 namespace corundum::platform {
 

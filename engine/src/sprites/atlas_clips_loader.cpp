@@ -1,12 +1,18 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/sprites/atlas_clips.hpp>
 #include <corundum/sprites/atlas_clips_loader.hpp>
+#include <nlohmann/json_fwd.hpp>
 
+#include <expected>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <string>
 #include <unordered_set>
+#include <utility>
 
 using json = nlohmann::json;
 

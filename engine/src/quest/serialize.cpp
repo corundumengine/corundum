@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/quest/quest.hpp>
 #include <corundum/quest/serialize.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 namespace corundum::quest {
 

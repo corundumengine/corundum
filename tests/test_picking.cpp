@@ -1,11 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/world/camera.hpp>
+#include <corundum/world/map_view.hpp>
+#include <cstddef>
 #include <doctest/doctest.h>
 
 #include <corundum/world/picking.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
-#include <corundum/world/update.hpp>
+#include <utility>
 
 using corundum::world::Camera;
 using corundum::world::MapView;

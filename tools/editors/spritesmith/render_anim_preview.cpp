@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_anim_preview.hpp"
+#include "editor_state.hpp"
+#include <algorithm>
+#include <array>
 #include <corundum/sprites/sprite.hpp>
+#include <cstddef>
 #include <imgui.h>
 #include <span>
+#include <utility>
+#include <vector>
 
 namespace tools::spritesmith {
 

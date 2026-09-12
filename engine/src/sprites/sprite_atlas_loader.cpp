@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/sprites/sprite_atlas.hpp>
+#include <nlohmann/json_fwd.hpp>
 
+#include <expected>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <string>
 #include <unordered_set>
+#include <utility>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;

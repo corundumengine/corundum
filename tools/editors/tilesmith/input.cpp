@@ -3,6 +3,7 @@
 
 #include "input.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include "elevation_paint.hpp"
 #include "fill.hpp"
 #include "layer_presets.hpp"
@@ -14,9 +15,15 @@
 #include "undo.hpp"
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <format>
 #include <imgui.h>
+#include <optional>
 #include <print>
 
 namespace tools::tilesmith {

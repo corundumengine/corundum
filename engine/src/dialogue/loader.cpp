@@ -1,16 +1,29 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <__flat_map/sorted_unique.h>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/dialogue/loader.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdio>
+#include <exception>
+#include <expected>
+#include <filesystem>
+#include <flat_map>
 #include <format>
 #include <fstream>
+#include <functional>
 #include <nlohmann/json.hpp>
+#include <print>
+#include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 using json = nlohmann::json;

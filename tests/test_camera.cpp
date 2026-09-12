@@ -4,7 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/world/camera.hpp>
-#include <corundum/world/update.hpp>
+#include <corundum/world/map_view.hpp>
 
 using corundum::world::Camera;
 using corundum::world::MapView;

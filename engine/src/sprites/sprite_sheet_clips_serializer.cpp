@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/sprites/sprite_sheet_clips.hpp>
 #include <corundum/sprites/sprite_sheet_clips_serializer.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <nlohmann/json.hpp>
 

@@ -3,11 +3,16 @@
 
 #include "render_portal.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include <algorithm>
 #include <array>
+#include <corundum/core/math/vec.hpp>
+#include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <imgui.h>
+#include <string>
 
 namespace tools::tilesmith {
 

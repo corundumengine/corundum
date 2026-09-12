@@ -3,7 +3,9 @@
 
 #include "ramp_paint.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
+#include <optional>
 
 namespace tools::tilesmith {
 

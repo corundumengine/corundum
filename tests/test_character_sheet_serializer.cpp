@@ -1,9 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cstddef>
 #include <doctest/doctest.h>
 
 #include "temp_dir.hpp"
+#include <corundum/sprites/sprite.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/character_sheet_serializer.hpp>
@@ -11,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 
 namespace fs = std::filesystem;
 

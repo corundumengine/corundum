@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "input_translator.hpp"
+#include <corundum/input/actions.hpp>
 
 #include <GLFW/glfw3.h>
 
 #include <array>
+#include <cstddef>
 
 namespace corundum::platform::glfw {
 

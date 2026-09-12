@@ -1,17 +1,26 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/platform/texture_cache.hpp>
 #include <corundum/tool_host/tool_host.hpp>
+#include <imgui.h>
 
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/platform_factory.hpp>
 
 #include <GLFW/glfw3.h>
+#include <cstddef>
+#include <cstdint>
+#include <expected>
+#include <functional>
 #include <imgui_impl_glfw.h>
+#include <memory>
 #include <sokol_gfx.h>
 #include <sokol_imgui.h>
 
 #include <chrono>
+#include <string>
+#include <utility>
 #include <vector>
 
 using namespace corundum::platform;

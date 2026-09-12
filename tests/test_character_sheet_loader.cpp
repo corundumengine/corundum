@@ -1,15 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cstdint>
 #include <doctest/doctest.h>
 
 #include "temp_dir.hpp"
+#include <corundum/sprites/sprite.hpp>
 
 #include <corundum/sprites/character_sheet_loader.hpp>
 
 #include <filesystem>
 #include <fstream>
-#include <string>
+#include <string_view>
 
 namespace fs = std::filesystem;
 

@@ -5,9 +5,12 @@
 #include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/registry.hpp>
 #include <corundum/dialogue/validate_refs.hpp>
+#include <corundum/item/registry.hpp>
 
 #include <format>
+#include <string>
 #include <variant>
+#include <vector>
 
 namespace corundum::dialogue {
 

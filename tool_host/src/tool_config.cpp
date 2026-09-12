@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/tool_host/tool_config.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_io.hpp>
 
 #include <cstdlib>
+#include <expected>
+#include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <string_view>
 
 using json = nlohmann::json;
 

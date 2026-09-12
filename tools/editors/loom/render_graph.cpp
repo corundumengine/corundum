@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_graph.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
 #include "node_type_traits.hpp"
+#include <corundum/dialogue/dialogue.hpp>
 
 #include <cmath>
 #include <imgui.h>
+#include <string>
 
 namespace tools::loom {
 

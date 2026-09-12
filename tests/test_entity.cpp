@@ -6,6 +6,7 @@
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <cstdint>
 #include <doctest/doctest.h>
 
 using namespace corundum::entities;

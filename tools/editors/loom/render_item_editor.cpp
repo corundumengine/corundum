@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_item_editor.hpp"
+#include "editor_state.hpp"
 
 #include <corundum/item/item.hpp>
 
@@ -9,6 +10,8 @@
 #include <cstring>
 #include <format>
 #include <imgui.h>
+#include <string>
+#include <vector>
 
 namespace tools::loom {
 

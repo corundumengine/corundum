@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/math/vec.hpp>
+#include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/input/actions.hpp>
+#include <corundum/world/flags.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <doctest/doctest.h>
 
 #include <corundum/dialogue/conversation.hpp>
@@ -18,6 +24,8 @@
 #include <deque>
 #include <expected>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 

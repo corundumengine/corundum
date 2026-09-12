@@ -4,6 +4,8 @@
 #include <doctest/doctest.h>
 
 #include "temp_dir.hpp"
+#include <corundum/render/render_state.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
@@ -17,8 +19,8 @@
 
 #include <filesystem>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <string>
+#include <utility>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;

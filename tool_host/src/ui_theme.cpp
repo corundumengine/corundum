@@ -3,9 +3,12 @@
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/tool_host/ui_theme.hpp>
+#include <cstdint>
+#include <expected>
 #include <imgui.h>
+#include <nlohmann/json_fwd.hpp>
 
-#include <fstream>
+#include <string>
 
 namespace corundum::tool_host {
 

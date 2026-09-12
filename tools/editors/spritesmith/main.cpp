@@ -9,13 +9,18 @@
 #include "render_preview_panel.hpp"
 #include "render_side_panel.hpp"
 #include "render_status_bar.hpp"
+#include <algorithm>
+#include <corundum/platform/texture_cache.hpp>
 #include <corundum/tool_host/fonts.hpp>
 #include <corundum/tool_host/tool_config.hpp>
 #include <corundum/tool_host/tool_host.hpp>
 #include <corundum/tool_host/ui_theme.hpp>
+#include <cstdio>
+#include <exception>
 #include <imgui.h>
 #include <print>
 #include <string>
+#include <utility>
 
 using corundum::tool_host::ApplyEditorThemeRefined;
 using corundum::tool_host::load_theme;

@@ -1,11 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/math/vec.hpp>
+#include <corundum/entities/entity.hpp>
 #include <doctest/doctest.h>
 
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/physics/physics_sys.hpp>
 #include <corundum/world/picking.hpp>
+#include <vector>
 
 using corundum::core::math::IsometricParams;
 using corundum::entities::EntityId;

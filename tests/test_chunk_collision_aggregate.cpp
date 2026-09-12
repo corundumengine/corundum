@@ -6,6 +6,7 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
+#include <utility>
 
 namespace tilemap = corundum::world::tilemap;
 namespace render_data = corundum::render;

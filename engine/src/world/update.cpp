@@ -1,19 +1,27 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
+#include <corundum/core/game_config.hpp>
+#include <corundum/core/math/vec.hpp>
+#include <corundum/dialogue/registry.hpp>
+#include <corundum/entities/entity.hpp>
+#include <corundum/input/actions.hpp>
+#include <corundum/world/flags.hpp>
+#include <corundum/world/map_view.hpp>
+#include <corundum/world/portals/transition_prompt.hpp>
+#include <corundum/world/scene.hpp>
 #include <corundum/world/update.hpp>
 
 #include <corundum/animation/animation_system.hpp>
 #include <corundum/dialogue/interact.hpp>
-#include <corundum/entities/components.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/physics/physics_sys.hpp>
-#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
-#include <corundum/world/tilemap/tilemap.hpp>
 
 #include <array>
+#include <cstdint>
 
 namespace {
 

@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/world/map_view.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <doctest/doctest.h>
 
 #include <corundum/world/pathfinding.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
-#include <corundum/world/update.hpp>
+#include <utility>
 
 using corundum::world::find_path;
 using corundum::world::MapView;

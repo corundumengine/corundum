@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_layer_strip.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
+#include <corundum/tool_host/ui_theme.hpp>
+#include <cstddef>
 #include <imgui.h>
+#include <string>
 
 namespace tools::tilesmith {
 

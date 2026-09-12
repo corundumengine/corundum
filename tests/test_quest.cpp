@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/quest/quest.hpp>
+#include <cstddef>
 #include <doctest/doctest.h>
 
 #include <corundum/core/json_io.hpp>
@@ -15,6 +17,9 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
+#include <utility>
+#include <vector>
 
 namespace quest = corundum::quest;
 using corundum::world::FlagStore;

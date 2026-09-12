@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/ui/word_wrap.hpp>
+#include <string_view>
 
 TEST_CASE("wrap_text — basic overflow") {
   // measure = character count (proxy for fixed-width font)

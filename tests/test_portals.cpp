@@ -5,10 +5,14 @@
 
 #include "temp_dir.hpp"
 
-#include <corundum/core/json_io.hpp>
 #include <corundum/world/portals/portal.hpp>
 
+#include <nlohmann/json.hpp>
+
+#include <filesystem>
 #include <fstream>
+#include <string>
+#include <string_view>
 
 namespace fs = std::filesystem;
 

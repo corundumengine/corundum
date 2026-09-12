@@ -2,17 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "save.hpp"
+#include "editor_state.hpp"
 #include "portal_entry.hpp"
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/serialize.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
+#include <cstdio>
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <print>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace tools::tilesmith {
 

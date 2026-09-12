@@ -4,6 +4,13 @@
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <expected>
+#include <filesystem>
+#include <format>
+#include <string>
+#include <system_error>
+#include <utility>
+#include <vector>
 
 namespace fs = std::filesystem;
 

@@ -3,7 +3,12 @@
 
 #include "render_collision.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
+#include <corundum/core/math/vec.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <cstddef>
+#include <imgui.h>
 #include <utility>
 
 namespace tools::tilesmith {

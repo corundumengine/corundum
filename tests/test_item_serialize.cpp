@@ -1,19 +1,24 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cstddef>
 #include <doctest/doctest.h>
 
 #include "temp_dir.hpp"
+#include <corundum/item/item.hpp>
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/item/loader.hpp>
 #include <corundum/item/serialize.hpp>
 
+#include <expected>
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace fs = std::filesystem;
 namespace item = corundum::item;

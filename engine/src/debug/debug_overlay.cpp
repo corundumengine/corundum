@@ -2,18 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/direction.hpp>
+#include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/core/time/loop_timer.hpp>
 #include <corundum/debug/debug_overlay.hpp>
-#include <corundum/entities/components.hpp>
+#include <corundum/entities/entity.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/render/render_state.hpp>
 #include <corundum/render/render_sys.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
-#include <utility>
 
 namespace corundum::debug {
 

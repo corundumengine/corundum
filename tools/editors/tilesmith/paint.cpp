@@ -3,7 +3,9 @@
 
 #include "paint.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
+#include <corundum/world/tilemap/tilemap.hpp>
 
 namespace tools::tilesmith {
 

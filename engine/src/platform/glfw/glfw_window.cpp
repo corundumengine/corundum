@@ -7,6 +7,11 @@
 #include <corundum/input/actions.hpp>
 
 #include <GLFW/glfw3.h>
+#include <cstdio>
+#include <expected>
+#include <memory>
+#include <string_view>
+#include <utility>
 
 #ifdef __APPLE__
 #include "glfw_window_metal.h"

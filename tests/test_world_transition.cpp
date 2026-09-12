@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/world/camera.hpp>
+#include <corundum/world/picking.hpp>
+#include <corundum/world/scene.hpp>
+#include <cstddef>
 #include <doctest/doctest.h>
 
 #include <corundum/core/game_config.hpp>
@@ -18,6 +22,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <utility>
 
 namespace fs = std::filesystem;
 

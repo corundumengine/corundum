@@ -4,12 +4,15 @@
 #include <doctest/doctest.h>
 
 #include "temp_dir.hpp"
+#include <corundum/item/item.hpp>
 
 #include <corundum/item/loader.hpp>
 #include <corundum/item/registry.hpp>
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
+#include <string>
 #include <string_view>
 
 namespace fs = std::filesystem;

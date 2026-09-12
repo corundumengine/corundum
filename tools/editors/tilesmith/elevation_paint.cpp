@@ -3,6 +3,7 @@
 
 #include "elevation_paint.hpp"
 #include "coords.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
 
 namespace tools::tilesmith {

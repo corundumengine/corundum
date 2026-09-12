@@ -3,8 +3,13 @@
 
 #include "font_atlas.hpp"
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
+#include <cstdint>
+#include <cstdio>
+#include <ft2build.h> // NOLINT(misc-include-cleaner): shim that defines FT_FREETYPE_H
+#include <string_view>
+#include <utility>
+#include <vector>
+#include FT_FREETYPE_H // NOLINT(misc-include-cleaner): macro include resolved through ft2build.h
 
 #include <algorithm>
 #include <array>

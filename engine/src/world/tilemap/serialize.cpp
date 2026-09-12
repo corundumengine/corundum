@@ -3,9 +3,14 @@
 
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/serialize.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
+#include <nlohmann/json_fwd.hpp>
 
+#include <cstddef>
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 using json = nlohmann::json;

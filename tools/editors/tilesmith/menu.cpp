@@ -2,15 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "menu.hpp"
-#include "layout.hpp"
+#include "editor_state.hpp"
 #include "new_map_dialog.hpp"
 #include "save.hpp"
+#include "tilemap_rendering.hpp"
+#include "tileset_view.hpp"
 #include "undo.hpp"
 #include <corundum/tool_host/file_browser.hpp>
-#include <corundum/world/tilemap/loader.hpp>
+#include <corundum/tool_host/tool_host.hpp>
+#include <cstdio>
+#include <exception>
+#include <filesystem>
 #include <format>
 #include <imgui.h>
 #include <print>
+#include <vector>
 
 namespace tools::tilesmith {
 

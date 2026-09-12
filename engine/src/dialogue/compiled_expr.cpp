@@ -6,14 +6,21 @@
 #include <corundum/quest/registry.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
+#include <corundum/world/flags.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <expected>
 #include <format>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace corundum::dialogue {
 

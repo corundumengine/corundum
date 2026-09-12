@@ -1,15 +1,25 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/math/vec.hpp>
+#include <corundum/item/item.hpp>
+#include <corundum/item/registry.hpp>
+#include <corundum/platform/renderer.hpp>
+#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/inventory_panel.hpp>
+#include <corundum/ui/nine_patch.hpp>
+#include <corundum/world/flags.hpp>
 
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <vector>
 
 namespace corundum::ui {
 

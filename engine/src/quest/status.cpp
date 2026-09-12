@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/quest/quest.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
+#include <corundum/world/flags.hpp>
+#include <string_view>
+#include <vector>
 
 namespace corundum::quest {
 

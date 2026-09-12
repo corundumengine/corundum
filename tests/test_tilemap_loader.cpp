@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "temp_dir.hpp"
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -13,6 +14,8 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace fs = std::filesystem;
 

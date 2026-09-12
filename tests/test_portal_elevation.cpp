@@ -1,12 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cstddef>
+#include <cstdint>
 #include <doctest/doctest.h>
 
 #include <corundum/physics/physics_sys.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
+#include <utility>
 
 namespace tilemap = corundum::world::tilemap;
 using corundum::physics::portal_elev_matches;

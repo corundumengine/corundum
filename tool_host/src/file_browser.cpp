@@ -4,9 +4,16 @@
 #include <algorithm>
 #include <corundum/core/files.hpp>
 #include <corundum/tool_host/file_browser.hpp>
+#include <cstddef>
+#include <cstdio>
+#include <filesystem>
 #include <format>
 #include <imgui.h>
+#include <optional>
 #include <print>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace corundum::tool_host {
 

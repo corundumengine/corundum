@@ -23,9 +23,12 @@
 #include <corundum/tool_host/tool_host.hpp>
 #include <corundum/world/tilemap/loader.hpp>
 #include <cstdio>
+#include <exception>
 #include <imgui.h>
 #include <print>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 using corundum::tool_host::ApplyEditorThemeRefined;

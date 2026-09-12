@@ -4,6 +4,7 @@
 #include <corundum/quest/quest.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <format>
 #include <ranges>
 #include <string>

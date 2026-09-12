@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_node_list.hpp"
+#include "editor_state.hpp"
 #include "graph_layout.hpp"
-#include "layout.hpp"
 #include "node_type_traits.hpp"
-#include "render_inspector.hpp"
+#include <corundum/dialogue/dialogue.hpp>
 
 #include <cstring>
 #include <imgui.h>
+#include <string_view>
+#include <utility>
 
 namespace tools::loom {
 

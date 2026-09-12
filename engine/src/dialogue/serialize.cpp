@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/dialogue/dialogue.hpp>
 #include <corundum/dialogue/serialize.hpp>
+#include <nlohmann/json_fwd.hpp>
+#include <utility>
 
 namespace corundum::dialogue {
 

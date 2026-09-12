@@ -4,12 +4,18 @@
 #include "input.hpp"
 #include "coords.hpp"
 #include "editor_helpers.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
 #include "save.hpp"
 #include <algorithm>
+#include <corundum/sprites/sprite.hpp>
+#include <corundum/tool_host/undo.hpp>
+#include <cstddef>
+#include <cstdio>
 #include <imgui.h>
 #include <optional>
 #include <print>
+#include <utility>
 
 namespace tools::spritesmith {
 

@@ -1,9 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/input/actions.hpp>
+#include <corundum/item/item.hpp>
+#include <corundum/quest/quest.hpp>
 #include <doctest/doctest.h>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 
 #include <corundum/core/json_io.hpp>
@@ -18,8 +23,9 @@
 #include <corundum/dialogue/validate_refs.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/quest/registry.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/world/flags.hpp>
+#include <utility>
+#include <vector>
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

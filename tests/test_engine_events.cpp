@@ -1,13 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/dialogue/action.hpp>
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/world/flags.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace dialogue = corundum::dialogue;
 

@@ -8,6 +8,7 @@
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
 #include <vector>
 

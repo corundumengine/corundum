@@ -4,12 +4,14 @@
 #include <doctest/doctest.h>
 
 #include "temp_dir.hpp"
+#include <corundum/sprites/atlas_clips.hpp>
 
 #include <corundum/sprites/atlas_clips_loader.hpp>
 #include <corundum/sprites/atlas_clips_serializer.hpp>
 
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <string_view>
 
 namespace fs = std::filesystem;

@@ -1,10 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/math/vec.hpp>
+#include <corundum/dialogue/conversation.hpp>
+#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/dialog_layout.hpp>
 
 #include <corundum/ui/ui_draw.hpp>
 
+#include <cstddef>
+#include <string_view>
 #include <utility>
 
 namespace corundum::ui {

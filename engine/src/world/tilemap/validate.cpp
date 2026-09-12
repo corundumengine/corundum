@@ -3,7 +3,9 @@
 
 #include <corundum/world/tilemap/tilemap.hpp>
 
+#include <cstddef>
 #include <format>
+#include <string>
 #include <unordered_set>
 #include <vector>
 

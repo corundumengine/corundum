@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/math/vec.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
+#include <corundum/render/render_state.hpp>
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/spawn.hpp>
@@ -10,9 +12,12 @@
 #include <corundum/world/transition.hpp>
 
 #include <algorithm>
+#include <cstdio>
+#include <expected>
 #include <filesystem>
 #include <format>
 #include <print>
+#include <string>
 #include <string_view>
 #include <utility>
 

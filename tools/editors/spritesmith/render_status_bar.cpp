@@ -3,9 +3,12 @@
 
 #include "render_status_bar.hpp"
 #include "editor_helpers.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
+#include <cstddef>
 #include <format>
 #include <imgui.h>
+#include <string>
 
 namespace tools::spritesmith {
 

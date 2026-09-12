@@ -4,8 +4,11 @@
 #include "render_canvas.hpp"
 #include "coords.hpp"
 #include "editor_helpers.hpp"
+#include "editor_state.hpp"
 #include "layout.hpp"
 #include <algorithm>
+#include <cstddef>
+#include <imgui.h>
 
 namespace tools::spritesmith {
 
