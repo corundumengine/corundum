@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/audio/audio_sys.hpp>
+#include <corundum/audio/audio_system.hpp>
 
 #include <doctest/doctest.h>
 
@@ -217,7 +217,7 @@ TEST_CASE("AudioSystem: load_catalog with empty path is a silent no-op") {
 }
 
 TEST_CASE("AudioSystem: play_sound probes cache with std::string_view (heterogeneous lookup)") {
-  // Verifies that the internal flat_map+StringLess accepts string_view
+  // Verifies that the internal flat_map+std::less<> accepts string_view
   // for cache lookup without forcing the caller to materialise a std::string.
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);

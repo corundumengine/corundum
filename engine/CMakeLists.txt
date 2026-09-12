@@ -11,7 +11,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 # (kept standalone — see below).
 set(ENGINE_SOURCES
     src/animation/animation_system.cpp
-    src/audio/audio_sys.cpp
+    src/audio/audio_system.cpp
     src/core/files.cpp
     src/core/game_config.cpp
     src/core/json_io.cpp

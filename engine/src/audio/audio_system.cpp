@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/audio/audio_sys.hpp>
+#include <corundum/audio/audio_system.hpp>
 
 #include <corundum/core/json_io.hpp>
 
@@ -25,6 +25,7 @@ namespace corundum::audio {
       return std::unexpected("[audio] No audio backend set");
     sounds_dir_ = std::move(sounds_dir);
     cache_.clear();
+    catalog_.clear();
     initialized_ = true;
     return {};
   }

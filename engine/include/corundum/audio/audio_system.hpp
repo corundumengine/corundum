@@ -4,7 +4,9 @@
 #pragma once
 #include <corundum/audio/audio_backend.hpp>
 
+#include <expected>
 #include <flat_map>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -42,6 +44,8 @@ namespace corundum::audio {
      *  @param[in] sounds_dir Base directory sound file paths are resolved against.
      *  @return ok on success, or an error if adopt_backend() was never called.
      *  @post On success, subsequent play_sound()/load_catalog() calls are active.
+     *  @note Re-initialising clears the sound cache and catalog, so a stale
+     *        catalog from a previous sounds_dir cannot leak across calls.
      */
     [[nodiscard]] std::expected<void, std::string> initialize(std::string sounds_dir);
 
@@ -89,31 +93,14 @@ namespace corundum::audio {
      *  (if present) or the sounds_dir + ".ogg" fallback. */
     [[nodiscard]] std::string resolve_path(std::string_view name) const;
 
-    /** @brief Heterogeneous comparator: lets callers probe with std::string_view
-     *  without first allocating a std::string for lookup. */
-    struct StringLess {
-      using is_transparent = void;
-
-      [[nodiscard]] bool operator()(const std::string &lhs, const std::string &rhs) const noexcept {
-        return lhs < rhs;
-      }
-
-      [[nodiscard]] bool operator()(std::string_view lhs, const std::string &rhs) const noexcept {
-        return lhs < rhs;
-      }
-
-      [[nodiscard]] bool operator()(const std::string &lhs, std::string_view rhs) const noexcept {
-        return lhs < rhs;
-      }
-    };
-
     std::unique_ptr<audio::AudioBackend> backend_;
 
-    /** @brief SoundHandle cache keyed by logical name. */
-    std::flat_map<std::string, audio::SoundHandle, StringLess> cache_;
+    /** @brief SoundHandle cache keyed by logical name. std::less<> gives
+     *  heterogeneous lookup, so string_view probes avoid a std::string alloc. */
+    std::flat_map<std::string, audio::SoundHandle, std::less<>> cache_;
 
     /** @brief Logical-name → relative-path catalog loaded from JSON. */
-    std::flat_map<std::string, std::string, StringLess> catalog_;
+    std::flat_map<std::string, std::string, std::less<>> catalog_;
 
     bool initialized_{false};
 
