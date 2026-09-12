@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 #include <corundum/engine.hpp>
 #include <corundum/engine_factory.hpp>

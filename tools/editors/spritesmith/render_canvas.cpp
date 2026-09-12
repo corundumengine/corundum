@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "render_canvas.hpp"
 #include "coords.hpp"
 #include "editor_helpers.hpp"

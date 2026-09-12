@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include <corundum/render/render_sys.hpp>
 
 #include <corundum/core/game_config.hpp>

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include <algorithm>
 #include <array>
 #include <corundum/sprites/character_sheet_loader.hpp>

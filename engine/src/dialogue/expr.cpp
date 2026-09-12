@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/expr.hpp>
 

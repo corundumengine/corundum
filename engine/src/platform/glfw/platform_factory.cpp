@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include <corundum/platform/platform_factory.hpp>
 
 #include "../sokol/sokol_audio_backend.hpp"

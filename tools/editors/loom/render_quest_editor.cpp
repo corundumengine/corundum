@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "render_quest_editor.hpp"
 #include "graph_layout.hpp"
 #include "render_keys_panel.hpp"

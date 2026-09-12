@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // One-time sokol_imgui implementation translation unit.
 // SOKOL_METAL / SOKOL_GLCORE / SOKOL_D3D11 / SOKOL_IMGUI_NO_SOKOL_APP
 // are injected by CMake compile definitions.

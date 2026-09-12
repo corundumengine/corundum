@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 
 // IWYU pragma: export — these are re-exported by the PCH for all translation units

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "render_status_bar.hpp"
 #include "editor_helpers.hpp"
 #include "layout.hpp"

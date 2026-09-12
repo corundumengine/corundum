@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/platform/gpu_context.hpp>

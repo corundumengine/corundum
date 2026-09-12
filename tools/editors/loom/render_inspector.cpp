@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "render_inspector.hpp"
 #include "graph_layout.hpp"
 #include "node_type_traits.hpp"
