@@ -1,4 +1,5 @@
 #pragma once
+#include <corundum/core/direction.hpp>
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/conversation.hpp>
 #include <corundum/entities/world.hpp>
@@ -67,7 +68,7 @@ namespace corundum::world {
     std::optional<corundum::entities::EntityId> dialogue_npc;
     std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
     std::optional<corundum::sprites::AnimId> dialogue_npc_saved_anim;
-    std::optional<corundum::entities::FacingDir> dialogue_npc_saved_facing;
+    std::optional<corundum::core::Direction> dialogue_npc_saved_facing;
   };
 
 } // namespace corundum::world

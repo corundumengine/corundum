@@ -12,38 +12,29 @@ namespace corundum::dialogue {
 
   namespace {
 
-    using corundum::entities::FacingDir;
+    using corundum::core::Direction;
     using corundum::sprites::AnimId;
+    using corundum::sprites::to_anim;
 
     /** @brief Ratio above which the dominant axis is considered "cardinal"
      *  rather than diagonal when computing facing direction. */
     inline constexpr float k_cardinal_dominance_ratio = 2.f;
 
-    /// Map facing direction to the corresponding directional AnimId.
-    inline constexpr std::array<AnimId, 8> k_dir_to_anim = {
-        AnimId::South,     AnimId::North,     AnimId::East,      AnimId::West,
-        AnimId::NorthEast, AnimId::SouthEast, AnimId::SouthWest, AnimId::NorthWest,
-    };
-
-    [[nodiscard]] constexpr AnimId dir_to_anim(FacingDir dir) noexcept {
-      return k_dir_to_anim[std::to_underlying(dir)];
-    }
-
-    /// Classify a tile-grid displacement (dx=Δcol, dy=Δrow) into the nearest screen-space FacingDir.
+    /// Classify a tile-grid displacement (dx=Δcol, dy=Δrow) into the nearest screen-space Direction.
     /// The isometric projection rotates the grid axes 45° relative to screen space,
     /// so tile-cardinal directions (pure dc/dr) map to screen-intercardinal and vice versa:
     ///   Tile SE (+,+) → screen South,  Tile NW (-,-) → screen North,
     ///   Tile NE (+,-) → screen East,   Tile SW (-,+) → screen West.
-    [[nodiscard]] FacingDir dir_from_delta(float dx, float dy) noexcept {
+    [[nodiscard]] Direction dir_from_delta(float dx, float dy) noexcept {
       const float ax = std::abs(dx);
       const float ay = std::abs(dy);
       if (ay > k_cardinal_dominance_ratio * ax)
-        return dy > 0.f ? FacingDir::SouthWest : FacingDir::NorthEast;
+        return dy > 0.f ? Direction::SouthWest : Direction::NorthEast;
       if (ax > k_cardinal_dominance_ratio * ay)
-        return dx > 0.f ? FacingDir::SouthEast : FacingDir::NorthWest;
+        return dx > 0.f ? Direction::SouthEast : Direction::NorthWest;
       if (dx > 0.f)
-        return dy > 0.f ? FacingDir::South : FacingDir::East;
-      return dy > 0.f ? FacingDir::West : FacingDir::North;
+        return dy > 0.f ? Direction::South : Direction::East;
+      return dy > 0.f ? Direction::West : Direction::North;
     }
 
   } // namespace
@@ -123,15 +114,15 @@ namespace corundum::dialogue {
       if (graph == nullptr)
         continue;
 
-      const FacingDir toward_npc = dir_from_delta(npc_col - player_col, npc_row - player_row);
+      const Direction toward_npc = dir_from_delta(npc_col - player_col, npc_row - player_row);
 
       if (world.facings.has(eid)) {
         scene.dialogue_npc_saved_facing = world.facings.dir_of(eid);
-        const FacingDir face_player = corundum::entities::opposite(toward_npc);
+        const Direction face_player = corundum::core::opposite(toward_npc);
         world.facings.dir_ref(eid) = face_player;
         if (world.sprites.has(eid) && world.animations.has(eid)) {
           scene.dialogue_npc_saved_anim = world.sprites.anim_id_ref(eid);
-          const AnimId dir_anim = dir_to_anim(face_player);
+          const AnimId dir_anim = to_anim(face_player);
           const bool has_dir_anim = world.animations.frame_count(eid, dir_anim) > 0;
           world.sprites.anim_id_ref(eid) = has_dir_anim ? dir_anim : AnimId::Default;
           world.sprites.frame_index_ref(eid) = 0;

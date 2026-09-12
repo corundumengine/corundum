@@ -1,5 +1,6 @@
 #include <corundum/world/spawn.hpp>
 
+#include <corundum/core/direction.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/world.hpp>
@@ -8,12 +9,11 @@
 #include <corundum/world/actors/actor.hpp>
 #include <corundum/world/scene.hpp>
 
-#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <format>
+#include <optional>
 #include <print>
-#include <string_view>
 #include <utility>
 
 namespace corundum::world {
@@ -76,19 +76,8 @@ namespace corundum::world {
         if (!a.id.empty())
           world.actor_ids.insert(eid, a.id);
 
-        using FDir = corundum::entities::FacingDir;
-        static constexpr std::array<std::pair<std::string_view, FDir>, 8> k_facing_map{{
-            {"north", FDir::North},
-            {"east", FDir::East},
-            {"west", FDir::West},
-            {"south", FDir::South},
-            {"northeast", FDir::NorthEast},
-            {"southeast", FDir::SouthEast},
-            {"southwest", FDir::SouthWest},
-            {"northwest", FDir::NorthWest},
-        }};
-        auto it = std::ranges::find_if(k_facing_map, [&](const auto &kv) { return kv.first == a.facing; });
-        world.facings.insert(eid, (it != k_facing_map.end()) ? it->second : FDir::South);
+        const std::optional<corundum::core::Direction> facing = corundum::core::direction_from_name(a.facing);
+        world.facings.insert(eid, facing.value_or(corundum::core::Direction::South));
 
         spawned.push_back(eid);
       }
@@ -189,7 +178,7 @@ namespace corundum::world {
 
     auto player = spawn(world, spawn_pos, Velocity{0.f, 0.f}, Sprite{idle_sid, AnimId::Default, 0}, player_anim);
     world.collisions.insert(player, player_bb.col_span, player_bb.row_span);
-    world.facings.insert(player, corundum::entities::FacingDir::South);
+    world.facings.insert(player, corundum::core::Direction::South);
     if (idle_fd > 0.f)
       world.animations.frame_duration_ref(player) = idle_fd;
     world.motion_sprites.insert(player, MotionSpriteTable::Config{

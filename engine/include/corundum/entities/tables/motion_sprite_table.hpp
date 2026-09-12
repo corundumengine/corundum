@@ -16,7 +16,7 @@ namespace corundum::entities {
    * are moving. Configurable per-direction transition delays prevent flickering
    * on brief inputs or mid-step stops.
    *
-   * Transition logic (handled by AnimationSystem::animate):
+   * Transition logic (handled by animation::update):
    *   - When desired sprite differs from current, a pending transition starts.
    *   - The transition commits only when the pending timer >= the configured delay.
    *   - If the desired sprite reverts to current before the timer fires, the
@@ -56,7 +56,7 @@ namespace corundum::entities {
     std::array<float, k_max> walk_frame_duration{}; ///< Seconds per frame while walking; 0 = no override.
     std::array<float, k_max> idle_frame_duration{}; ///< Seconds per frame while idle; 0 = no override.
 
-    // ── Pending transition runtime state (mutated by AnimationSystem) ─
+    // ── Pending transition runtime state (mutated by animation::update) ─
     /// SpriteId the entity is transitioning toward; k_null_sprite_id = no pending transition.
     std::array<corundum::sprites::SpriteId, k_max> pending_sid{};
     std::array<float, k_max> transition_timer{}; ///< Accumulated time toward the pending transition.
@@ -115,7 +115,7 @@ namespace corundum::entities {
       return idle_counts[idx.dense_idx(e)];
     }
 
-    // ── Transition mutations (called by AnimationSystem) ───────────
+    // ── Transition mutations (called by animation::update) ───────────
 
     /** @brief Begin tracking a transition to @p target, resetting the timer.
      *  No-op if @p target is already the pending target.

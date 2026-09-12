@@ -1,10 +1,10 @@
 #pragma once
 #include <array>
 #include <cmath>
+#include <corundum/core/direction.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <cstdint>
 #include <string>
-#include <utility>
 
 namespace corundum::entities {
 
@@ -18,7 +18,7 @@ namespace corundum::entities {
   };
 
   /// Sprite animation playback state.
-  /// frame_counts is cached from the character registry at spawn so animate() never reads the
+  /// frame_counts is cached from the character registry at spawn so animation::update never reads the
   /// registry in its hot loop.
   struct Animation {
     float timer = 0.f;
@@ -52,31 +52,11 @@ namespace corundum::entities {
     float dr = 0.f;
   };
 
-  /// Cardinal and intercardinal directions.
-  enum class FacingDir : uint8_t { South, North, East, West, NorthEast, SouthEast, SouthWest, NorthWest };
-
-  /// Lookup table mapping FacingDir to its opposite direction.
-  inline constexpr std::array<FacingDir, 8> k_opposite_dir = {
-      FacingDir::North,     // South
-      FacingDir::South,     // North
-      FacingDir::West,      // East
-      FacingDir::East,      // West
-      FacingDir::SouthWest, // NorthEast
-      FacingDir::NorthWest, // SouthEast
-      FacingDir::NorthEast, // SouthWest
-      FacingDir::SouthEast, // NorthWest
-  };
-
-  /// Last-faced direction; used by animate() to pick directional idle animations.
+  /// Last-faced direction; used by animation::update to pick directional idle animations.
   /// Only entities with directional idle behaviour (e.g. the player) receive this component.
   struct Facing {
-    FacingDir dir = FacingDir::South;
+    corundum::core::Direction dir = corundum::core::Direction::South;
   };
-
-  /// Return the direction directly opposite to dir.
-  [[nodiscard]] constexpr FacingDir opposite(FacingDir dir) noexcept {
-    return k_opposite_dir[std::to_underlying(dir)];
-  }
 
   /// Euclidean distance between two tile-grid positions.
   [[nodiscard]] inline float distance(Position a, Position b) noexcept {

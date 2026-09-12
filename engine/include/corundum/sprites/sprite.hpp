@@ -1,9 +1,12 @@
 #pragma once
 #include <array>
+#include <corundum/core/direction.hpp>
 #include <cstdint>
 #include <flat_map>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace corundum::sprites {
@@ -14,55 +17,45 @@ namespace corundum::sprites {
   using SpriteId = uint16_t;
   inline constexpr SpriteId k_null_sprite_id = 0;
 
-  /// Animation identifiers matching JSON sprite sheet keys; interned at load time.
-  /// Each value names a facing direction; the sprite sheet itself determines the motion type
-  /// (walk, idle, attack, etc.) — switching sheets switches the motion, not the AnimId.
+  /// Animation clip keys for a sprite sheet: one per screen direction plus a
+  /// non-directional fallback. The directional values are pinned to core::Direction
+  /// so a facing can be used directly as a clip key; the sheet itself determines the
+  /// motion type (walk, idle, attack, ...) — switching sheets switches the motion.
   enum class AnimId : uint8_t {
-    Default = 0,
-    North,
-    NorthEast,
-    East,
-    SouthEast,
-    South,
-    SouthWest,
-    West,
-    NorthWest,
-    Count,
+    South = std::to_underlying(core::Direction::South),
+    North = std::to_underlying(core::Direction::North),
+    East = std::to_underlying(core::Direction::East),
+    West = std::to_underlying(core::Direction::West),
+    NorthEast = std::to_underlying(core::Direction::NorthEast),
+    SouthEast = std::to_underlying(core::Direction::SouthEast),
+    SouthWest = std::to_underlying(core::Direction::SouthWest),
+    NorthWest = std::to_underlying(core::Direction::NorthWest),
+    Default = std::to_underlying(core::Direction::Count),
+    Count = core::k_num_directions + 1,
   };
 
   /// Total number of named animations; use as array extent.
   inline constexpr uint8_t k_num_anim_ids = static_cast<uint8_t>(AnimId::Count);
 
+  /// Clip key for a screen direction. The directional enumerators mirror Direction.
+  [[nodiscard]] constexpr AnimId to_anim(core::Direction dir) noexcept {
+    return static_cast<AnimId>(std::to_underlying(dir));
+  }
+
+  static_assert(std::to_underlying(AnimId::Default) == core::k_num_directions,
+                "AnimId::Default must immediately follow the directional values");
+
   /// Canonical string names for each AnimId, indexed by AnimId value.
-  // NOLINTBEGIN(readability-trailing-comma)
-  // clang-format folds the brace so the list spans two lines while all elements stay on one line;
-  // the trailing-comma check then demands a comma there, but with the comma present clang-format
-  // moves the closing brace to its own line and the check demands its removal — an irreconcilable
-  // disagreement between the two tools, so suppress the check for this declaration.
   inline constexpr std::array<std::string_view, k_num_anim_ids> k_anim_names = {
-      "default", "north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"};
-  // NOLINTEND(readability-trailing-comma)
+      "south", "north", "east", "west", "northeast", "southeast", "southwest", "northwest", "default",
+  };
 
   /// Resolves an animation name to its AnimId; returns AnimId::Count if unknown.
   [[nodiscard]] constexpr AnimId anim_name_to_id(std::string_view name) noexcept {
     if (name == "default")
       return AnimId::Default;
-    if (name == "north")
-      return AnimId::North;
-    if (name == "northeast")
-      return AnimId::NorthEast;
-    if (name == "east")
-      return AnimId::East;
-    if (name == "southeast")
-      return AnimId::SouthEast;
-    if (name == "south")
-      return AnimId::South;
-    if (name == "southwest")
-      return AnimId::SouthWest;
-    if (name == "west")
-      return AnimId::West;
-    if (name == "northwest")
-      return AnimId::NorthWest;
+    if (const std::optional<core::Direction> dir = core::direction_from_name(name))
+      return to_anim(*dir);
     return AnimId::Count;
   }
 

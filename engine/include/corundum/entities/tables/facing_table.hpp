@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <corundum/core/direction.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
@@ -20,7 +21,7 @@ namespace corundum::entities {
     SparseIndex<k_max> idx;
 
     // ── SoA field ──────────────────────────────────────────────────
-    std::array<FacingDir, k_max> dir{};
+    std::array<core::Direction, k_max> dir{};
 
     std::uint32_t count = 0;
 
@@ -49,7 +50,7 @@ namespace corundum::entities {
      *  @param[in] d Initial facing direction.
      *  @pre has(e) must be false.
      */
-    void insert(EntityId e, FacingDir d) noexcept {
+    void insert(EntityId e, core::Direction d) noexcept {
       idx.insert(e, count, [&](auto slot) { dir[slot] = d; });
     }
 
@@ -61,13 +62,13 @@ namespace corundum::entities {
     }
 
     /** @brief Mutable facing direction reference for @p e. @pre has(e). */
-    [[nodiscard]] FacingDir &dir_ref(EntityId e) noexcept {
+    [[nodiscard]] core::Direction &dir_ref(EntityId e) noexcept {
       assert(has(e));
       return dir[idx.dense_idx(e)];
     }
 
     /** @brief Facing direction of @p e. @pre has(e). */
-    [[nodiscard]] FacingDir dir_of(EntityId e) const noexcept {
+    [[nodiscard]] core::Direction dir_of(EntityId e) const noexcept {
       assert(has(e));
       return dir[idx.dense_idx(e)];
     }

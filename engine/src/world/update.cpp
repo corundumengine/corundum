@@ -1,6 +1,6 @@
 #include <corundum/world/update.hpp>
 
-#include <corundum/anim/anim_sys.hpp>
+#include <corundum/animation/animation_system.hpp>
 #include <corundum/dialogue/interact.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/world.hpp>
@@ -42,8 +42,8 @@ namespace {
     const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin,
                                                     cfg.elevation_step_px * map.tile_scale};
 
-    corundum::anim::animate(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites, iso,
-                            cfg.player_speed, dt);
+    corundum::animation::update(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
+                                iso, cfg.player_speed, dt);
 
     const auto p_slot = world.transforms.dense_idx(player);
     const float pc = world.transforms.col[p_slot];

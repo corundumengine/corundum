@@ -10,7 +10,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 # as a separate library with its own sources) and src/engine_factory.cpp
 # (kept standalone — see below).
 set(ENGINE_SOURCES
-    src/anim/anim_sys.cpp
+    src/animation/animation_system.cpp
     src/audio/audio_sys.cpp
     src/core/files.cpp
     src/core/game_config.cpp

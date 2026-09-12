@@ -12,7 +12,7 @@ set(TEST_SOURCES
     main.cpp
     test_actions.cpp
     test_actor_id_table.cpp
-    test_anim_sys.cpp
+    test_animation_system.cpp
     test_atlas_clips.cpp
     test_audio.cpp
     test_camera.cpp
@@ -23,6 +23,7 @@ set(TEST_SOURCES
     test_compiled_expr.cpp
     test_debug_overlay.cpp
     test_dialogue.cpp
+    test_direction.cpp
     test_elevation_at.cpp
     test_elevation_gate.cpp
     test_engine_events.cpp

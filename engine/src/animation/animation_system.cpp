@@ -1,5 +1,6 @@
-#include <corundum/anim/anim_sys.hpp>
+#include <corundum/animation/animation_system.hpp>
 
+#include <corundum/core/direction.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
 #include <corundum/entities/tables/facing_table.hpp>
 #include <corundum/entities/tables/motion_sprite_table.hpp>
@@ -11,51 +12,48 @@
 #include <memory>
 #include <utility>
 
-namespace corundum::anim {
+namespace corundum::animation {
 
   namespace {
+    using corundum::core::Direction;
     using corundum::entities::AnimationTable;
     using corundum::entities::EntityId;
-    using corundum::entities::FacingDir;
     using corundum::entities::FacingTable;
     using corundum::entities::MotionSpriteTable;
     using corundum::entities::SpriteTable;
     using corundum::entities::TransformTable;
     using corundum::sprites::AnimId;
     using corundum::sprites::SpriteId;
+    using corundum::sprites::to_anim;
 
-    inline constexpr std::array<FacingDir, 12> k_facing_table = {
+    inline constexpr std::array<Direction, 12> k_facing_table = {
         // zone 0 (row/vertical dominant: |dr| >> |dc|)
-        // row axis (dr) maps to NE/SW on screen; entries here use FacingDir in screen-space terms.
-        FacingDir::NorthEast, // dr<0, dc<0  (NE-ish on screen)
-        FacingDir::NorthEast, // dr<0, dc>0  (NE-ish on screen)
-        FacingDir::SouthWest, // dr>0, dc<0  (SW-ish on screen)
-        FacingDir::SouthWest, // dr>0, dc>0  (SW-ish on screen)
+        // row axis (dr) maps to NE/SW on screen; entries here use Direction in screen-space terms.
+        Direction::NorthEast, // dr<0, dc<0  (NE-ish on screen)
+        Direction::NorthEast, // dr<0, dc>0  (NE-ish on screen)
+        Direction::SouthWest, // dr>0, dc<0  (SW-ish on screen)
+        Direction::SouthWest, // dr>0, dc>0  (SW-ish on screen)
         // zone 1 (col/horizontal dominant: |dc| >> |dr|)
         // col axis (dc) maps to NW/SE on screen.
-        FacingDir::NorthWest, // dc<0, dr<0  (NW-ish on screen)
-        FacingDir::SouthEast, // dc>0, dr<0  (SE-ish on screen)
-        FacingDir::NorthWest, // dc<0, dr>0  (NW-ish on screen)
-        FacingDir::SouthEast, // dc>0, dr>0  (SE-ish on screen)
+        Direction::NorthWest, // dc<0, dr<0  (NW-ish on screen)
+        Direction::SouthEast, // dc>0, dr<0  (SE-ish on screen)
+        Direction::NorthWest, // dc<0, dr>0  (NW-ish on screen)
+        Direction::SouthEast, // dc>0, dr>0  (SE-ish on screen)
         // zone 2 (diagonal: |dc| ≈ |dr|)
         // Pure screen-cardinal directions from combined tile axes.
-        FacingDir::North, // dr<0, dc<0  (NW tile = up on screen)
-        FacingDir::East,  // dr<0, dc>0  (NE tile = right on screen)
-        FacingDir::West,  // dr>0, dc<0  (SW tile = left on screen)
-        FacingDir::South, // dr>0, dc>0  (SE tile = down on screen)
+        Direction::North, // dr<0, dc<0  (NW tile = up on screen)
+        Direction::East,  // dr<0, dc>0  (NE tile = right on screen)
+        Direction::West,  // dr>0, dc<0  (SW tile = left on screen)
+        Direction::South, // dr>0, dc>0  (SE tile = down on screen)
     };
 
-    inline constexpr std::array<AnimId, 8> k_anim_for_facing = {
-        AnimId::South,     AnimId::North,     AnimId::East,      AnimId::West,
-        AnimId::NorthEast, AnimId::SouthEast, AnimId::SouthWest, AnimId::NorthWest,
-    };
-
-    inline constexpr std::array<AnimId, 8> k_cardinal_fallback_h = {
+    // Fallbacks indexed by Direction value (AnimId's directional values mirror Direction).
+    inline constexpr std::array<AnimId, core::k_num_directions> k_cardinal_fallback_h = {
         AnimId::South, AnimId::North, AnimId::East, AnimId::West,
         AnimId::East,  AnimId::East,  AnimId::West, AnimId::West,
     };
 
-    inline constexpr std::array<AnimId, 8> k_cardinal_fallback_v = {
+    inline constexpr std::array<AnimId, core::k_num_directions> k_cardinal_fallback_v = {
         AnimId::South, AnimId::North, AnimId::East,  AnimId::West,
         AnimId::North, AnimId::South, AnimId::South, AnimId::North,
     };
@@ -64,19 +62,19 @@ namespace corundum::anim {
     /// instead of remaining diagonal (zone 2).
     inline constexpr float k_cardinal_dominance_ratio = 2.f;
 
-    // Lookup tables above are indexed by std::to_underlying(FacingDir). Pinning
-    // their cardinality here makes any future addition to FacingDir (e.g. a 16-way
-    // direction) a hard compile error rather than a silent mis-index.
-    static_assert(k_anim_for_facing.size() == 8, "k_anim_for_facing must cover every FacingDir value");
-    static_assert(k_cardinal_fallback_h.size() == 8, "k_cardinal_fallback_h must cover every FacingDir value");
-    static_assert(k_cardinal_fallback_v.size() == 8, "k_cardinal_fallback_v must cover every FacingDir value");
+    // Tying the fallback tables to the Count sentinel makes any future addition to
+    // Direction a hard compile error rather than a silent out-of-bounds index.
+    static_assert(k_cardinal_fallback_h.size() == core::k_num_directions,
+                  "k_cardinal_fallback_h must cover every Direction value");
+    static_assert(k_cardinal_fallback_v.size() == core::k_num_directions,
+                  "k_cardinal_fallback_v must cover every Direction value");
 
     /** @brief Map a tile-space velocity to a screen-space facing direction.
      *
      * Splits the (|dr|, |dc|) plane into three zones by axis-dominance ratio, then
      * indexes k_facing_table by (zone, sign_dy, sign_dx).
      */
-    FacingDir facing_from_velocity(float abs_dx, float abs_dy, float vel_dx, float vel_dy) noexcept {
+    Direction facing_from_velocity(float abs_dx, float abs_dy, float vel_dx, float vel_dy) noexcept {
       int zone = 2;
       if (abs_dy > k_cardinal_dominance_ratio * abs_dx) {
         zone = 0;
@@ -95,10 +93,10 @@ namespace corundum::anim {
      * (misconfigured) so this never divides by zero or propagates NaN.
      */
     float compute_speed_scale(bool moving, float vel_dx, float vel_dy, float reference_speed,
-                              corundum::core::math::IsometricParams iso) noexcept {
+                              core::math::IsometricParams iso) noexcept {
       if (!moving || reference_speed <= 0.f || iso.half_tw <= 0.f || iso.half_th <= 0.f) [[unlikely]]
         return 1.f;
-      const auto [svx, svy] = corundum::core::math::tile_to_screen_delta(vel_dx, vel_dy, iso);
+      const auto [svx, svy] = core::math::tile_to_screen_delta(vel_dx, vel_dy, iso);
       return std::hypot(svx, svy) / reference_speed;
     }
 
@@ -145,14 +143,14 @@ namespace corundum::anim {
      * cardinal clip when the directional clip is absent, then to Default.
      */
     AnimId pick_target_anim(const AnimationTable &animations, const FacingTable &facings, EntityId e, bool moving,
-                            FacingDir moving_facing, float abs_dx, float abs_dy) noexcept {
-      FacingDir fd = FacingDir::South;
+                            Direction moving_facing, float abs_dx, float abs_dy) noexcept {
+      Direction fd = Direction::South;
       if (moving) {
         fd = moving_facing;
       } else if (facings.has(e)) {
         fd = facings.dir_of(e);
       }
-      const AnimId dir_anim = k_anim_for_facing[std::to_underlying(fd)];
+      const AnimId dir_anim = to_anim(fd);
       if (animations.frame_count(e, dir_anim) > 0)
         return dir_anim;
       const auto fdx = std::to_underlying(fd);
@@ -177,10 +175,10 @@ namespace corundum::anim {
 
   } // namespace
 
-  void animate(SpriteTable &sprites, const TransformTable &transforms, AnimationTable &animations, FacingTable &facings,
-               MotionSpriteTable &motion_sprites, corundum::core::math::IsometricParams iso, float reference_speed,
-               float dt) noexcept {
-    [[assume(animations.count <= std::remove_reference_t<decltype(animations)>::k_max)]];
+  void update(SpriteTable &sprites, const TransformTable &transforms, AnimationTable &animations, FacingTable &facings,
+              MotionSpriteTable &motion_sprites, core::math::IsometricParams iso, float reference_speed,
+              float dt) noexcept {
+    [[assume(animations.count <= AnimationTable::k_max)]];
     float *const timers = std::assume_aligned<16>(animations.timer.data());
     const float *const frame_durations = std::assume_aligned<16>(animations.frame_duration.data());
     for (uint32_t i = 0; i < animations.count; ++i) {
@@ -206,7 +204,7 @@ namespace corundum::anim {
 
       tick_motion_sprite(sprites, animations, motion_sprites, e, moving, dt, spr_frame_idx, anim_timer);
 
-      const FacingDir facing = facing_from_velocity(abs_dx, abs_dy, vel_dx, vel_dy);
+      const Direction facing = moving ? facing_from_velocity(abs_dx, abs_dy, vel_dx, vel_dy) : Direction::South;
 
       if (moving && facings.has(e)) [[likely]]
         facings.dir_ref(e) = facing;
@@ -224,4 +222,4 @@ namespace corundum::anim {
     }
   }
 
-} // namespace corundum::anim
+} // namespace corundum::animation

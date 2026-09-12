@@ -1,3 +1,4 @@
+#include <corundum/core/direction.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/entities/components.hpp>
@@ -31,29 +32,6 @@ namespace corundum::debug {
     constexpr float k_marker_hw = 5.f;
     constexpr float k_marker_hh = 3.f;
     constexpr float k_line_thickness = 2.f;
-
-    [[nodiscard]] constexpr std::string_view facing_name(entities::FacingDir d) noexcept {
-      using entities::FacingDir;
-      switch (d) {
-        case FacingDir::South:
-          return "South";
-        case FacingDir::North:
-          return "North";
-        case FacingDir::East:
-          return "East";
-        case FacingDir::West:
-          return "West";
-        case FacingDir::NorthEast:
-          return "NE";
-        case FacingDir::SouthEast:
-          return "SE";
-        case FacingDir::SouthWest:
-          return "SW";
-        case FacingDir::NorthWest:
-          return "NW";
-      }
-      std::unreachable();
-    }
 
   } // namespace
 
@@ -179,7 +157,7 @@ namespace corundum::debug {
 
     std::string velocity_str = std::format("dc ({:7.1f}), dr ({:7.1f})", player_dc, player_dr);
     if (w.facings.has(p))
-      velocity_str += std::format("  {}", facing_name(w.facings.dir_of(p)));
+      velocity_str += std::format("  {}", core::direction_name(w.facings.dir_of(p)));
 
     const render::CollisionGeometry geo = render::current_collisions(render);
     const int collision_rects = static_cast<int>(geo.rects.size());
