@@ -196,7 +196,8 @@ namespace corundum::debug {
       hover_str = "Hover:  none";
 
     std::array<std::string, 8> lines{
-        std::format("FPS:  sim {:3.0f} / render {:3.0f}", static_cast<float>(cfg.framerate), smoothed_fps),
+        std::format("FPS:  sim {:3.0f} / render {:3.0f}{}", static_cast<float>(cfg.simulation_fps), smoothed_fps,
+                    shed_frames > 0 ? std::format("  SHED {}", shed_frames) : std::string{}),
         std::format("Grid:  {}", grid_str),
         std::format("Velocity:  {}", velocity_str),
         std::format("Camera:  x ({:7.1f}), y ({:7.1f})", scene.camera.x, scene.camera.y),
@@ -244,6 +245,9 @@ namespace corundum::debug {
 
     const float raw_fps = timer.last_frame_dt > 0.f ? 1.f / timer.last_frame_dt : 0.f;
     smoothed_fps += k_fps_ema_alpha * (raw_fps - smoothed_fps);
+
+    if (input.step_budget_exhausted)
+      ++shed_frames;
 
     draw_text_panel(r, render, cfg, scene);
   }

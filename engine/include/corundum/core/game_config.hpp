@@ -93,6 +93,10 @@ namespace corundum::core {
     float row = 8.f;
   };
 
+  /** @brief Fixed-update rate applied when game.json omits "simulation_fps", and the rate the engine's
+   *  timer starts at before initialize() applies the configured value. */
+  constexpr unsigned k_default_simulation_fps = 60;
+
   /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
   /// data together.
   struct GameConfig {
@@ -102,8 +106,9 @@ namespace corundum::core {
      *  a save across games. Absent from game.json → empty string (no guard). */
     std::string game_id;
 
-    /** @brief Target frame rate for the simulation (in FPS). */
-    unsigned framerate = 60;
+    /** @brief Target fixed-update rate for the simulation, in Hz. Rendering is paced independently by
+     *  vsync, so this neither caps nor follows the display rate. */
+    unsigned simulation_fps = k_default_simulation_fps;
 
     /** @brief Enable vsync for the render loop. */
     bool vsync = true;

@@ -11,6 +11,8 @@
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
+#include <cstdint>
+
 namespace corundum::debug {
 
   /**
@@ -24,6 +26,8 @@ namespace corundum::debug {
     const core::GameConfig *cfg;
     const world::Scene *scene;
     const core::time::LoopTimer *timer;
+    /** @brief True when this frame's fixed-step drain exhausted its budget and dropped queued time. */
+    bool step_budget_exhausted = false;
   };
 
   /**
@@ -57,6 +61,13 @@ namespace corundum::debug {
 
     /** @brief EMA-smoothed render FPS, updated each frame render() runs. */
     float smoothed_fps = 0.f;
+
+    /** @brief Frames where the fixed-step drain exhausted its budget and shed queued simulation time.
+     *
+     *  Accumulates while the overlay is enabled. A steady climb means the simulation cannot keep up
+     *  with the configured rate and is silently falling behind wall time.
+     */
+    uint32_t shed_frames = 0;
 
     /**
      * @brief Draw all debug visualizations for the current frame.

@@ -19,6 +19,10 @@ namespace corundum::core {
 
   namespace {
 
+    /// Upper bound on the configured simulation rate. Real rates top out in the low hundreds, so
+    /// anything past this is a corrupt or hand-edited config.
+    constexpr unsigned int k_max_simulation_fps = 1000;
+
     std::expected<unsigned int, std::string> get_positive_unsigned(const json &j, const std::string &key,
                                                                    unsigned int default_val, const fs::path &path) {
       if (!j.contains(key))
@@ -225,16 +229,19 @@ namespace corundum::core {
           return std::unexpected(res.error());
         cfg.win_h = *res;
       }
-      if (j.contains("framerate")) {
+      if (j.contains("simulation_fps")) {
         unsigned fr = 0;
         try {
-          fr = j.at("framerate").get<unsigned>();
+          fr = j.at("simulation_fps").get<unsigned>();
         } catch (...) {
-          return std::unexpected(std::format("game.json 'framerate' has wrong type: {}", path.string()));
+          return std::unexpected(std::format("game.json 'simulation_fps' has wrong type: {}", path.string()));
         }
         if (fr == 0)
-          return std::unexpected(std::format("game.json 'framerate' must be > 0: {}", path.string()));
-        cfg.framerate = fr;
+          return std::unexpected(std::format("game.json 'simulation_fps' must be > 0: {}", path.string()));
+        if (fr > k_max_simulation_fps)
+          return std::unexpected(
+              std::format("game.json 'simulation_fps' must be <= {}: {}", k_max_simulation_fps, path.string()));
+        cfg.simulation_fps = fr;
       }
       if (j.contains("vsync")) {
         try {

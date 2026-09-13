@@ -54,6 +54,7 @@ TEST_CASE("HudOverlay: default construction leaves the overlay disabled with zer
   corundum::debug::HudOverlay overlay;
   CHECK_FALSE(overlay.enabled);
   CHECK(overlay.smoothed_fps == 0.f);
+  CHECK(overlay.shed_frames == 0u);
 }
 
 TEST_CASE("HudOverlay: movable but non-copyable") {
@@ -144,6 +145,35 @@ TEST_CASE("HudOverlay::render handles a zero last_frame_dt without dividing by z
   // 30 + 0.05 * (0 - 30) = 30 - 1.5 = 28.5. No division-by-zero, no NaN.
   CHECK(engine.hud.smoothed_fps == doctest::Approx(28.5f).epsilon(1e-6f));
   CHECK_FALSE(std::isnan(engine.hud.smoothed_fps));
+
+  engine.cleanup();
+}
+
+TEST_CASE("HudOverlay: counts only the frames whose step budget was exhausted") {
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+
+  corundum::Engine engine = make_initialised_engine(fixtures);
+
+  engine.timer.last_frame_dt = 1.f / 60.f;
+  engine.hud.enabled = true;
+
+  const auto render_with = [&engine](const bool budget_exhausted) {
+    const corundum::debug::OverlayInput input{
+        .render_state = &engine.render,
+        .cfg = &engine.cfg,
+        .scene = &engine.scene,
+        .timer = &engine.timer,
+        .step_budget_exhausted = budget_exhausted,
+    };
+    engine.hud.render(*engine.renderer, input);
+  };
+
+  render_with(true);
+  render_with(false);
+  render_with(true);
+
+  CHECK(engine.hud.shed_frames == 2u);
 
   engine.cleanup();
 }

@@ -63,7 +63,7 @@ namespace corundum {
 
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
     debug::HudOverlay hud;
-    core::time::LoopTimer timer{60.f};
+    core::time::LoopTimer timer{static_cast<float>(core::k_default_simulation_fps)};
 
     /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
      *

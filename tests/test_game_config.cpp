@@ -50,12 +50,12 @@ TEST_CASE("load_game_config — // and /* */ comments are ignored") {
   write_file(p, R"({
     // window setup
     "window_title": "Commented", /* inline */
-    "framerate": 30
+    "simulation_fps": 30
   })");
   auto result = load_game_config(p);
   REQUIRE(result.has_value());
   CHECK(result->window_title == "Commented");
-  CHECK(result->framerate == 30);
+  CHECK(result->simulation_fps == 30);
 }
 
 TEST_CASE("load_game_config — JSON array (not object) returns error") {
@@ -70,7 +70,7 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   const auto dir = temp_dir("full");
   const auto p = dir / "game.json";
   write_file(p, R"({
-        "win_w": 1280.0, "win_h": 720.0, "framerate": 30,
+        "win_w": 1280.0, "win_h": 720.0, "simulation_fps": 30,
         "interact_radius": 64.0, "player_speed": 150.0,
         "character_scale": 3, "tile_scale": 4, "elevation_step_px": 6.0,
         "font_dir": "game/assets/fonts", "game_font": "MyFont.ttf",
@@ -87,7 +87,7 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   const auto &cfg = *result;
   CHECK(cfg.win_w == doctest::Approx(1280.f));
   CHECK(cfg.win_h == doctest::Approx(720.f));
-  CHECK(cfg.framerate == 30u);
+  CHECK(cfg.simulation_fps == 30u);
   CHECK(cfg.interact_radius == doctest::Approx(64.f));
   CHECK(cfg.player_speed == doctest::Approx(150.f));
   CHECK(cfg.character_scale == doctest::Approx(3.f));
@@ -140,10 +140,18 @@ TEST_CASE("load_game_config — win_h <= 0 returns error") {
   CHECK(!result.has_value());
 }
 
-TEST_CASE("load_game_config — framerate = 0 returns error") {
-  const auto dir = temp_dir("framerate_zero");
+TEST_CASE("load_game_config — simulation_fps = 0 returns error") {
+  const auto dir = temp_dir("simulation_fps_zero");
   const auto p = dir / "game.json";
-  write_file(p, R"({"framerate": 0})");
+  write_file(p, R"({"simulation_fps": 0})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — simulation_fps above the supported maximum returns error") {
+  const auto dir = temp_dir("simulation_fps_too_large");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"simulation_fps": 100000})");
   auto result = load_game_config(p);
   CHECK(!result.has_value());
 }

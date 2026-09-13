@@ -68,7 +68,7 @@ namespace corundum {
 
       std::expected<void, std::string> run(core::GameConfig &&cfg) {
         engine_->cfg = std::move(cfg);
-        engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.framerate));
+        engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
         engine_->window->set_vsync(engine_->cfg.vsync);
 
         if (auto result = load_render_assets(); !result)
@@ -285,6 +285,8 @@ namespace corundum {
     struct SimulationResult {
       int steps_run = 0;
       bool entities_deleted = false;
+      /// True when the drain exhausted its step budget and dropped queued simulation time.
+      bool budget_exhausted = false;
     };
 
     /// Poll platform input and handle the Quit action.
@@ -306,33 +308,42 @@ namespace corundum {
       }
     }
 
+    /// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
+    /// simulation sheds the remaining time rather than compounding a backlog.
+    constexpr int k_max_steps_per_frame = 8;
+
     /// Drain the timer accumulator: run gameplay, dialogue events, the
     /// on_fixed_update hook, and deletion flushing once per fixed step.
     [[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
-      SimulationResult result;
-      while (engine.timer.step()) {
-        ++result.steps_run;
+      const int steps = engine.timer.take_steps(k_max_steps_per_frame);
+      SimulationResult result{.steps_run = steps, .budget_exhausted = steps == k_max_steps_per_frame};
+
+      for (int step_index = 0; step_index < steps; ++step_index) {
         engine.scene.elapsed_time += engine.timer.target_dt;
-        if (engine.render.mode == render::RenderMode::World && engine.render.chunks.active_empty())
-          continue;
 
-        const auto mv = world::build_map_view(engine.render, engine.cfg);
-        world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
-        world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
-                      static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
-                      engine.flags, &engine.quests);
+        // World mode with nothing streamed in has no actors to simulate, but time still advances
+        // and the input edge must still be consumed: poll() only ORs presses in, so a press
+        // latched here would fire the moment the world activates.
+        if (engine.render.mode != render::RenderMode::World || !engine.render.chunks.active_empty()) {
+          const auto mv = world::build_map_view(engine.render, engine.cfg);
+          world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
+          world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
+                        static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
+                        engine.flags, &engine.quests);
 
-        engine.process_dialogue_events();
-        quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
+          engine.process_dialogue_events();
+          quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
 
-        invoke_fixed_update_hook(engine, engine.timer.target_dt);
+          invoke_fixed_update_hook(engine, engine.timer.target_dt);
 
-        // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
-        result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
-        entities::flush_deletions(engine.scene.world);
+          // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
+          result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
+          entities::flush_deletions(engine.scene.world);
+        }
 
         input::clear_pressed(engine.input_state);
       }
+
       return result;
     }
 
@@ -349,7 +360,7 @@ namespace corundum {
     }
 
     /// begin_frame → world/UI render → optional debug HUD → end_frame.
-    void render_frame(Engine &engine, const float alpha) noexcept {
+    void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
       render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items, alpha,
@@ -361,6 +372,7 @@ namespace corundum {
             .cfg = &engine.cfg,
             .scene = &engine.scene,
             .timer = &engine.timer,
+            .step_budget_exhausted = budget_exhausted,
         };
         engine.hud.render(*engine.renderer, hud_input);
       }
@@ -400,7 +412,7 @@ namespace corundum {
     world::handle_map_transition(*this);
 
     const float alpha = compute_interpolation_alpha(timer, sim);
-    render_frame(*this, alpha);
+    render_frame(*this, alpha, sim.budget_exhausted);
 
     stream_world_chunks(*this);
     return true;

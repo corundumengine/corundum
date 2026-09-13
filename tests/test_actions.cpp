@@ -154,6 +154,21 @@ TEST_CASE("accumulate_input — sums scroll_delta_y rather than overwriting") {
   CHECK(dst.scroll_delta_y == doctest::Approx(3.f));
 }
 
+TEST_CASE("accumulate_input — ORs pressed actions rather than overwriting") {
+  // A press already in dst survives the poll: accumulate_input only ever adds. Only
+  // clear_pressed removes it, which is why the fixed-step loop must clear on every step —
+  // a step that skips the clear latches its presses until the next one that doesn't.
+  corundum::input::InputState dst{};
+  dst.pressed.set(static_cast<std::size_t>(Action::MoveUp));
+  corundum::input::InputState src{};
+  src.pressed.set(static_cast<std::size_t>(Action::Cancel));
+
+  accumulate_input(dst, src);
+
+  CHECK(dst.is_pressed(Action::MoveUp));
+  CHECK(dst.is_pressed(Action::Cancel));
+}
+
 // ── ZoomIn / ZoomOut — ordinary held actions, no special-casing ─────────────────
 
 TEST_CASE("ZoomIn/ZoomOut — behave like any other held action") {
