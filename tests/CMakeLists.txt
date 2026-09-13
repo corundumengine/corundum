@@ -35,6 +35,7 @@ set(TEST_SOURCES
     test_iso_math.cpp
     test_item_loader.cpp
     test_item_serialize.cpp
+    test_json_io.cpp
     test_json_schema.cpp
     test_layer_presets.cpp
     test_loop_timer.cpp

@@ -18,7 +18,6 @@ namespace corundum::core {
   /// @note Not safe for concurrent use (nlohmann::json_schema::json_validator is not thread-safe).
   class SchemaValidator {
   public:
-    SchemaValidator() = default;
     SchemaValidator(SchemaValidator &&) noexcept = default;
     SchemaValidator &operator=(SchemaValidator &&) noexcept = default;
 
@@ -37,6 +36,9 @@ namespace corundum::core {
     [[nodiscard]] std::expected<void, std::string> validate(const nlohmann::json &document) const noexcept;
 
   private:
+    friend class SchemaCatalog;
+
+    SchemaValidator() = default;
     explicit SchemaValidator(const nlohmann::json &schema_json);
 
     nlohmann::json_schema::json_validator validator_;
@@ -50,7 +52,6 @@ namespace corundum::core {
   ///       schema_catalog() once; do not create multiple catalogs.
   class SchemaCatalog {
   public:
-    SchemaCatalog() = default;
     SchemaCatalog(SchemaCatalog &&) noexcept = default;
     SchemaCatalog &operator=(SchemaCatalog &&) noexcept = default;
 
@@ -72,6 +73,8 @@ namespace corundum::core {
 
   private:
     friend const SchemaCatalog &schema_catalog() noexcept;
+
+    SchemaCatalog() = default;
 
     /// Builds a fully-populated catalog, compiling every embedded schema.
     /// @return A SchemaCatalog with all validators compiled.

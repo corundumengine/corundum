@@ -49,7 +49,7 @@ namespace corundum::core {
   } // namespace
 
   std::expected<void, std::string> write_json(const std::filesystem::path &path, const nlohmann::json &j) {
-    const auto sorted = sort_keys(j);
+    const ordered_json sorted = sort_keys(j);
     std::ofstream f(path);
     if (!f)
       return std::unexpected(std::format("cannot open for writing: {}", path.string()));
