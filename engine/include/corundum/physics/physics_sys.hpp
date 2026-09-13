@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>

@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <corundum/core/game_config.hpp>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/dialogue/registry.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/input/actions.hpp>

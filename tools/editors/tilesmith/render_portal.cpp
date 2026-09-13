@@ -6,7 +6,7 @@
 #include "editor_state.hpp"
 #include <algorithm>
 #include <array>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>

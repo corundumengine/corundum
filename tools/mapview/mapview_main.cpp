@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <nlohmann/json_fwd.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <iterator>
+#include <nlohmann/json_fwd.hpp>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -17,6 +17,7 @@
 #include <stb_easy_font.h>
 #pragma GCC diagnostic pop
 
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -376,8 +377,8 @@ int main(int argc, char **argv) {
           for (int col = 0; col < tm.width; ++col) {
             const int world_col = cx * chunk_size + col;
             const int world_row = cy * chunk_size + row;
-            auto item = tools::mapview::resolve_tile(tm, layer, iso, col, row, world_col, world_row, args.scale,
-                                                     image_slots);
+            auto item =
+                tools::mapview::resolve_tile(tm, layer, iso, col, row, world_col, world_row, args.scale, image_slots);
             if (!item)
               continue;
             track_bounds(*item);
@@ -411,8 +412,9 @@ int main(int argc, char **argv) {
 
   std::vector<uint8_t> pixels(static_cast<std::size_t>(out_w) * static_cast<std::size_t>(out_h) * 4, 0u);
 
-  std::stable_sort(depth_items.begin(), depth_items.end(),
-                   [](const tools::mapview::DrawItem &a, const tools::mapview::DrawItem &b) { return a.depth < b.depth; });
+  std::stable_sort(
+      depth_items.begin(), depth_items.end(),
+      [](const tools::mapview::DrawItem &a, const tools::mapview::DrawItem &b) { return a.depth < b.depth; });
   for (const tools::mapview::DrawItem &item : depth_items)
     tools::mapview::draw_item(pixels, out_w, out_h, images, offset_x, offset_y, item);
   for (const tools::mapview::DrawItem &item : above_items)
@@ -434,4 +436,3 @@ int main(int argc, char **argv) {
   std::println("Done. {}×{} px written to: {}", out_w, out_h, args.output);
   return 0;
 }
-

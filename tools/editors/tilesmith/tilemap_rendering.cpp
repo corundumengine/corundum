@@ -7,7 +7,7 @@
 #include "tileset_view.hpp"
 #include <algorithm>
 #include <cmath>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/tool_host/tool_host.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <cstddef>

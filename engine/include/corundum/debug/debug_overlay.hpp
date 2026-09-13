@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/platform/renderer.hpp>

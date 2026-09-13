@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <cmath>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <nlohmann/json_fwd.hpp>
 

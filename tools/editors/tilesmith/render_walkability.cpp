@@ -5,7 +5,7 @@
 #include "coords.hpp"
 #include "editor_state.hpp"
 #include <algorithm>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
 #include <imgui.h>

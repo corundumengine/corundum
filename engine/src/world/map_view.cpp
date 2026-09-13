@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/game_config.hpp>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/map_view.hpp>

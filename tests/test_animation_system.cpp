@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/direction.hpp>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <cstdint>

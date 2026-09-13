@@ -4,6 +4,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <optional>

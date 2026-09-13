@@ -1,21 +1,21 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/core/game_config.hpp>
-#include <corundum/core/math/vec.hpp>
-#include <corundum/dialogue/action.hpp>
-#include <corundum/input/actions.hpp>
-#include <corundum/render/render_state.hpp>
 #include <algorithm>
+#include <corundum/core/game_config.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/debug/debug_overlay.hpp>
+#include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/validate_refs.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
+#include <corundum/input/actions.hpp>
 #include <corundum/input/input_sys.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/quest/runner.hpp>
 #include <corundum/quest/system.hpp>
+#include <corundum/render/render_state.hpp>
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/map_view.hpp>
@@ -319,8 +319,8 @@ namespace corundum {
         const auto mv = world::build_map_view(engine.render, engine.cfg);
         world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
         world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
-                      static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()), engine.flags,
-                      &engine.quests);
+                      static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
+                      engine.flags, &engine.quests);
 
         engine.process_dialogue_events();
         quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);

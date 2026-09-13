@@ -10,7 +10,7 @@
 #include "render_walkability.hpp"
 #include <imgui.h>
 
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 
 namespace tools::tilesmith {
 

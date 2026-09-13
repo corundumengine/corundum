@@ -3,7 +3,7 @@
 
 #include <array>
 #include <corundum/animation/animation_system.hpp>
-#include <corundum/core/math/vec.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/entities/entity.hpp>
 
 #include <corundum/core/direction.hpp>

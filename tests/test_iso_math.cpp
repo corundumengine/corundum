@@ -5,6 +5,7 @@
 
 #include "temp_dir.hpp"
 
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <string_view>
 namespace ccm = corundum::core::math;
