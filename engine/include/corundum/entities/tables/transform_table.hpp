@@ -14,8 +14,7 @@ namespace corundum::entities {
    * All positions are in tile-grid fractional coordinates (col, row).
    * Velocities are in tiles per second (dc, dr).
    * Hot path (every frame): col, row, dc, dr — read and written by physics, input, and
-   * animation systems. Debug labels live in the paired TransformNameTable to keep
-   * this struct cache-clean.
+   * animation systems.
    *
    * Uses a sparse–dense mapping: `sparse[entity_id]` → dense row index. Removal is
    * O(1) via swap-and-pop; the dense arrays are always contiguous.

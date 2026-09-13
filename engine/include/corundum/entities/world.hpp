@@ -13,7 +13,6 @@
 #include <corundum/entities/tables/facing_table.hpp>
 #include <corundum/entities/tables/motion_sprite_table.hpp>
 #include <corundum/entities/tables/sprite_table.hpp>
-#include <corundum/entities/tables/transform_name_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <optional>
 #include <string_view>
@@ -27,7 +26,6 @@ namespace corundum::entities {
     CollisionTable collisions;
     TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
     AnimationTable animations;
-    TransformNameTable transform_names; ///< Cold: debug labels — never read in update loops.
     DialogueTable dialogue_refs;
     ActorIdTable actor_ids; ///< Cold: stable authoring ids for quest/save references.
 
@@ -46,7 +44,6 @@ namespace corundum::entities {
   [[nodiscard]] inline EntityId spawn(World &w, Position pos, Velocity vel, Sprite spr) {
     const EntityId e = w.entities.create();
     w.transforms.insert(e, pos.col, pos.row, vel.dc, vel.dr);
-    w.transform_names.insert(e);
     w.sprites.insert(e, spr.sprite_id, spr.anim_id, spr.frame_index);
     return e;
   }
@@ -70,8 +67,8 @@ namespace corundum::entities {
   /// Adding a new table means adding one member to World and one entry in this tie;
   /// despawn marks/deletion and any future cross-table operations update automatically.
   [[nodiscard]] static auto all_tables(World &w) noexcept {
-    return std::tie(w.transforms, w.transform_names, w.sprites, w.animations, w.collisions, w.dialogue_refs,
-                    w.actor_ids, w.facings, w.motion_sprites);
+    return std::tie(w.transforms, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.actor_ids, w.facings,
+                    w.motion_sprites);
   }
 
   /// Remove e and all of its components from the world immediately.
