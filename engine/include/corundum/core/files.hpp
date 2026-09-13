@@ -20,8 +20,8 @@ namespace corundum::core {
 
   /// Options controlling how list_dir_entries() walks a directory.
   struct ListOptions {
-    /// Extensions to include; empty matches all. Compared case-insensitively (no leading dot).
-    std::vector<std::string_view> extensions;
+    /// Extensions to include; empty matches all. Compared case-insensitively, leading dot optional.
+    std::vector<std::string_view> extensions = {};
 
     /// If true, walk subdirectories recursively. Subdirectories themselves are always reported;
     /// the @p extensions filter applies only to non-directory entries.
@@ -37,20 +37,20 @@ namespace corundum::core {
    * want the legacy silent-empty behavior can check @c .has_value() and ignore the error.
    *
    * @param dir Directory to list.
-   * @param opts Listing options (recursive walk, extension filter).
+   * @param options Listing options (recursive walk, extension filter).
    * @return Sorted directory entries, or an error message.
    */
   [[nodiscard]] std::expected<std::vector<DirEntry>, std::string> list_dir_entries(const std::filesystem::path &dir,
-                                                                                   ListOptions opts = {});
+                                                                                   ListOptions options = {});
 
   /**
    * @brief Check whether @p path's extension matches @p ext.
    *
-   * Comparison is case-insensitive and ignores any leading dot on either side (pass "json", not
-   * ".json").
+   * Comparison is case-insensitive and ignores a leading dot on either side, so both "json" and
+   * ".json" match "foo.JSON".
    *
    * @param path Path to test.
-   * @param ext Expected extension (without leading dot).
+   * @param ext Expected extension (leading dot optional).
    * @return True if the path's extension matches.
    */
   [[nodiscard]] bool has_extension(const std::filesystem::path &path, std::string_view ext) noexcept;

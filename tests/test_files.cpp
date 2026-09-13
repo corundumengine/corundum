@@ -158,12 +158,14 @@ TEST_CASE("list_dir_entries rejects with error on the same path used twice in a 
   REQUIRE(!gone.has_value());
 }
 
-TEST_CASE("has_extension matches case-insensitively without leading dot") {
+TEST_CASE("has_extension matches case-insensitively and ignores a leading dot on either side") {
   CHECK(corundum::core::has_extension("/foo/bar.JSON", "json"));
   CHECK(corundum::core::has_extension("/foo/bar.json", "JSON"));
   CHECK(corundum::core::has_extension("/foo/bar.Json", "json"));
   CHECK(corundum::core::has_extension("/foo/bar.json", "JSON"));
   CHECK(corundum::core::has_extension("bar.txt", "txt"));
+  CHECK(corundum::core::has_extension("foo.json", ".json"));
+  CHECK(corundum::core::has_extension("foo.JSON", ".Json"));
   CHECK(corundum::core::has_extension("noext", "json") == false);
   CHECK(corundum::core::has_extension("foo.json", "txt") == false);
   CHECK(corundum::core::has_extension("foo.json", "jsonx") == false);
