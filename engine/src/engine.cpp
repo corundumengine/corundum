@@ -366,16 +366,14 @@ namespace corundum {
       render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items, alpha,
                      engine.window_width(), engine.window_height());
 
-      if (engine.hud.enabled) {
-        const debug::OverlayInput hud_input{
-            .render_state = &engine.render,
-            .cfg = &engine.cfg,
-            .scene = &engine.scene,
-            .timer = &engine.timer,
-            .step_budget_exhausted = budget_exhausted,
-        };
-        engine.hud.render(*engine.renderer, hud_input);
-      }
+      const debug::OverlayInput hud_input{
+          .render_state = &engine.render,
+          .cfg = &engine.cfg,
+          .scene = &engine.scene,
+          .timer = &engine.timer,
+          .step_budget_exhausted = budget_exhausted,
+      };
+      engine.hud.render(*engine.renderer, hud_input);
 
       engine.renderer->end_frame();
     }

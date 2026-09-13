@@ -177,3 +177,30 @@ TEST_CASE("HudOverlay: counts only the frames whose step budget was exhausted") 
 
   engine.cleanup();
 }
+
+TEST_CASE("HudOverlay::render advances the FPS EMA but skips drawing while disabled") {
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+
+  corundum::Engine engine = make_initialised_engine(fixtures);
+
+  engine.timer.last_frame_dt = 1.f / 60.f;
+  engine.hud.enabled = false;
+  engine.hud.smoothed_fps = 0.f;
+
+  const corundum::debug::OverlayInput input{
+      .render_state = &engine.render,
+      .cfg = &engine.cfg,
+      .scene = &engine.scene,
+      .timer = &engine.timer,
+      .step_budget_exhausted = true,
+  };
+
+  engine.hud.render(*engine.renderer, input);
+
+  // EMA still advances (0.05 * 60 = 3.0); shed frames are not counted while disabled.
+  CHECK(engine.hud.smoothed_fps == doctest::Approx(3.0f).epsilon(1e-4f));
+  CHECK(engine.hud.shed_frames == 0u);
+
+  engine.cleanup();
+}

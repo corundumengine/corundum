@@ -6,6 +6,8 @@
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
+#include <corundum/entities/entity.hpp>
+#include <corundum/entities/world.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/world/scene.hpp>
@@ -18,14 +20,15 @@ namespace corundum::debug {
   /**
    * @brief Immutable snapshot of engine subsystems consumed by the debug overlay.
    *
-   * Decouples the debug HUD from the Engine struct so the header includes only
-   * the concrete types it actually reads.
+   * Passes the engine subsystems the debug overlay reads without coupling the
+   * overlay to the Engine struct.
    */
   struct OverlayInput {
-    const render::RenderState *render_state;
-    const core::GameConfig *cfg;
-    const world::Scene *scene;
-    const core::time::LoopTimer *timer;
+    const render::RenderState *render_state = nullptr;
+    const core::GameConfig *cfg = nullptr;
+    const world::Scene *scene = nullptr;
+    const core::time::LoopTimer *timer = nullptr;
+
     /** @brief True when this frame's fixed-step drain exhausted its budget and dropped queued time. */
     bool step_budget_exhausted = false;
   };
@@ -33,16 +36,13 @@ namespace corundum::debug {
   /**
    * @brief Owning type for the debug HUD overlay.
    *
-   * Consolidates HUD scratch state (enabled flag, EMA-smoothed render FPS) and
-   * all debug-rendering behavior (collision geometry, player feet marker, text
-   * panel) into a single class with one entry point — render(). Replaces the
-   * previous loose aggregate (HudState) + free functions (draw_collision /
-   * draw_hud / draw_overlays) pattern where state and behavior lived in
-   * separate declarations and a transient HudData DTO was passed between them.
+   * Consolidates HUD scratch state (enabled flag, EMA-smoothed render FPS, shed
+   * frame count) and all debug-rendering behavior (collision geometry, player
+   * feet marker, text panel) behind a single render() entry point.
    *
-   * Lifecycle is RAII: no heap allocations, no OS handles, no resources to
-   * release. Defaults to disabled; flip @c enabled to true before calling
-   * @c render to actually draw.
+   * Lifecycle is RAII: the object owns no heap memory, OS handles, or other
+   * resources to release. Defaults to disabled; call render() every frame — it
+   * advances the FPS EMA unconditionally and draws only while @c enabled.
    *
    * @note Not thread-safe. Call from the game thread, once per frame between
    *       the renderer's begin_frame() and end_frame() calls.
@@ -59,7 +59,7 @@ namespace corundum::debug {
     /** @brief When true, render() draws the debug overlay. */
     bool enabled = false;
 
-    /** @brief EMA-smoothed render FPS, updated each frame render() runs. */
+    /** @brief EMA-smoothed render FPS, advanced on every render() call. */
     float smoothed_fps = 0.f;
 
     /** @brief Frames where the fixed-step drain exhausted its budget and shed queued simulation time.
@@ -72,19 +72,19 @@ namespace corundum::debug {
     /**
      * @brief Draw all debug visualizations for the current frame.
      *
-     * Reads render state, scene data, and timing from @p input; draws collision
-     * geometry and the player feet marker in world space, then the HUD text
-     * panel in screen space. Updates @c smoothed_fps from the loop timer's
-     * last frame dt regardless of whether anything visible was drawn — the EMA
-     * still advances so toggling the overlay on later shows a near-instant
-     * value rather than the initial 0 climbing from zero.
+     * Advances @c smoothed_fps from the loop timer's last frame dt on every
+     * call, then draws collision geometry and the player feet marker in world
+     * space and the HUD text panel in screen space while @c enabled. Advancing
+     * the EMA even when disabled means toggling the overlay on later shows a
+     * settled value instead of climbing from zero.
      *
      * @param[in,out] r     Active renderer between begin_frame/end_frame.
      * @param[in]     input Bundle of engine subsystems required by the overlay.
      * @pre begin_frame() must have been called before this method.
-     * @post platform::Renderer is left in screen-space view.
+     * @post platform::Renderer is left in screen-space view; nothing is drawn and
+     *       the renderer is untouched when @c enabled is false.
      */
-    void render(platform::Renderer &r, const OverlayInput &input) noexcept;
+    void render(platform::Renderer &r, const OverlayInput &input);
 
   private:
     /** @brief Resolve the isometric projection parameters from the active render mode.
@@ -98,9 +98,9 @@ namespace corundum::debug {
                                                                        const core::GameConfig &cfg) noexcept;
 
     /** @brief Draw the collision geometry (rects and triangles) in world space. */
-    void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
-                        world::tilemap::CollisionRectsView rects, world::tilemap::CollisionTrianglesView tris,
-                        core::math::IsometricParams iso, float zoom) const noexcept;
+    static void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+                               world::tilemap::CollisionRectsView rects, world::tilemap::CollisionTrianglesView tris,
+                               core::math::IsometricParams iso, float zoom) noexcept;
 
     /** @brief Draw the player feet-marker diamond in world space.
      *
@@ -108,13 +108,13 @@ namespace corundum::debug {
      *  entity is missing the Transform/Collision components needed to anchor
      *  the marker at its feet.
      */
-    void draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport, float zoom,
-                            const render::RenderState &render, const entities::World &w, entities::EntityId player,
-                            core::math::IsometricParams iso) const noexcept;
+    static void draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+                                   float zoom, const render::RenderState &render, const entities::World &w,
+                                   entities::EntityId player, core::math::IsometricParams iso) noexcept;
 
     /** @brief Draw the top-right HUD text panel (FPS, grid, velocity, camera, stats). */
     void draw_text_panel(platform::Renderer &r, const render::RenderState &render, const core::GameConfig &cfg,
-                         const world::Scene &scene) const noexcept;
+                         const world::Scene &scene) const;
   };
 
 } // namespace corundum::debug
