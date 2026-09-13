@@ -25,9 +25,9 @@ Checks: >
   -cppcoreguidelines-non-private-member-variables-in-classes,
   -misc-non-private-member-variables-in-classes
 
-# WarningsAsErrors: '*'
-WarningsAsErrors: >
-  # clang-analyzer-*,
+# Off: nothing consumes clang-tidy's exit code (see the TODO at the bottom).
+# To gate a single run, pass --warnings-as-errors='*' on the command line.
+WarningsAsErrors: ''
 
 HeaderFilterRegex: '.*'
 
