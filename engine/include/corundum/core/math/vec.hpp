@@ -13,29 +13,6 @@ namespace corundum::core::math {
     float y = 0.f;
   };
 
-  /// 3D float vector.
-  struct Vec3 {
-    float x = 0.f;
-    float y = 0.f;
-    float z = 0.f;
-  };
-
-  /// 4D float vector.
-  struct Vec4 {
-    float x = 0.f;
-    float y = 0.f;
-    float z = 0.f;
-    float w = 0.f;
-  };
-
-  /// Unit quaternion for rotations.
-  struct Quat {
-    float x = 0.f;
-    float y = 0.f;
-    float z = 0.f;
-    float w = 1.f;
-  };
-
   /// Axis-aligned integer rectangle for texture source regions.
   struct IntRect {
     int x = 0;
@@ -152,29 +129,16 @@ namespace corundum::core::math {
    * themselves (the four top vertices of a 2x2 block form exactly the diamond of the
    * top-left cell).
    *
+   * The x-origin shift keeps the leftmost tile at x = 0; @p x_origin should be
+   * `(map_height_in_tiles - 1) * half_tw`, matching the editor's x_shift convention and
+   * ensuring camera.x is always non-negative.
+   *
    * @param tx        Tile column (0-based).
    * @param ty        Tile row (0-based).
    * @param elevation Tile height [0–255]; 0 is flat ground level.
    * @param half_tw   Half the scaled diamond width in screen pixels  (e.g. 32 for a 64-px diamond).
    * @param half_th   Half the scaled diamond height in screen pixels (e.g. 16 for a 32-px diamond).
    * @param elev_step Screen pixels lifted per unit of elevation.
-   * @return Isometric world-space projection point for the cell at (tx, ty).
-   */
-  [[nodiscard]] constexpr Vec2 tile_to_screen(int tx, int ty, int elevation, float half_tw, float half_th,
-                                              float elev_step) noexcept {
-    return {
-        .x = static_cast<float>(tx - ty) * half_tw,
-        .y = (static_cast<float>(tx + ty) * half_th) - (static_cast<float>(elevation) * elev_step),
-    };
-  }
-
-  /**
-   * @brief tile_to_screen with an x-origin shift so the leftmost tile lands at x = 0.
-   *
-   * @p x_origin should be `(map_height_in_tiles - 1) * half_tw`. This matches the
-   * editor's x_shift convention and ensures camera.x is always non-negative.
-   *
-   * @param tx, ty, elevation, half_tw, half_th, elev_step  Same as tile_to_screen.
    * @param x_origin  Horizontal shift applied to the result.
    * @return Isometric world-space position offset by x_origin.
    */
@@ -300,13 +264,13 @@ namespace corundum::core::math {
    * Extends the plain grid depth (tx + ty) with an elevation term scaled so that an
    * elevation delta which lifts a tile by exactly one grid-step's worth of screen
    * pixels (half_th) shifts the depth by exactly 1.0 — the same units as a genuine
-   * one-cell grid move. This keeps the key consistent with tile_to_screen/tile_to_world's
+   * one-cell grid move. This keeps the key consistent with tile_to_world's
    * geometry instead of using an arbitrary weight, so a raised tile correctly sorts
    * after (draws on top of/occludes) a lower neighboring tile once its screen-space
    * lift visually overhangs into that neighbor's footprint.
    *
    * @param tx, ty    Tile column/row (fractional for interpolated entity positions).
-   * @param elevation Tile height, same units as tile_to_screen's elevation parameter.
+   * @param elevation Tile height, same units as tile_to_world's elevation parameter.
    * @param half_th   Half the scaled diamond height in screen pixels.
    * @param elev_step Screen pixels lifted per unit of elevation.
    * @return Depth key; smaller draws first (further back).
@@ -336,10 +300,10 @@ namespace corundum::core::math {
    * (min/max col−row) are used to clamp tile iteration loops to only visible bands.
    */
   struct IsometricCullBounds {
-    int depth_min; ///< Smallest visible col+row (top-most band), inclusive.
-    int depth_max; ///< Largest visible col+row (bottom-most band), inclusive.
-    float u_min;   ///< Smallest visible (col − row), fractional.
-    float u_max;   ///< Largest visible (col − row), fractional.
+    int depth_min = 0; ///< Smallest visible col+row (top-most band), inclusive.
+    int depth_max = 0; ///< Largest visible col+row (bottom-most band), inclusive.
+    float u_min = 0.f; ///< Smallest visible (col − row), fractional.
+    float u_max = 0.f; ///< Largest visible (col − row), fractional.
   };
 
   /**
