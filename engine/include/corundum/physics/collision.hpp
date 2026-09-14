@@ -12,9 +12,12 @@ namespace corundum::physics {
    *
    * @details
    * Algorithm:
-   *   1. Try X: AABB at (pos.x, prev_pos.y). If it overlaps any rect, revert pos.x.
-   *   2. Try Y: AABB at (pos.x, pos.y).      If it overlaps any rect, revert pos.y.
-   * This allows sliding along a wall in the non-blocked axis.
+   *   1. Resolve X: AABB at (pos.col, prev_pos.row). If it introduces overlap the
+   *      previous AABB did not have, clamp pos.col to the nearest contact.
+   *   2. Resolve Y: AABB at (pos.col, pos.row). Same, clamping pos.row.
+   * Contact-clamping (rather than reverting to prev) leaves the entity flush against
+   * the geometry instead of a gap away, and resolving the axes in sequence lets it
+   * slide along a wall in the non-blocked axis.
    *
    * @param pos       Post-integrate position (top-left corner). Modified in-place. In practice
    *                  callers pass tile-grid (col,row) units, matching the collision data below,
@@ -25,11 +28,13 @@ namespace corundum::physics {
    * @param rects     SoA collision rects in tile-grid space.
    * @param y_offset  Shifts the top of the collision box downward, letting the upper portion
    *                  of a sprite visually overlap objects above it.
-   * @param entity_elevation    The entity's own current elevation [0-100]. Ignored when
+   * @param entity_elevation    The entity's own current elevation [0–255]. Ignored when
    *                            @p rects carries no per-rect elevation data.
    * @param elevation_tolerance A rect is only tested if its elevation is within this many
    *                            units of @p entity_elevation; lets a raised platform's walls
    *                            block only entities standing on that platform.
+   *
+   * @pre y_offset < entity_h, so the collision box keeps a positive height.
    */
   void resolve_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos, float entity_w,
                           float entity_h, corundum::world::tilemap::CollisionRectsView rects, float y_offset = 0.f,
@@ -53,6 +58,8 @@ namespace corundum::physics {
    * resolve_collisions).
    * @param entity_elevation     Same semantics as resolve_collisions.
    * @param elevation_tolerance  Same semantics as resolve_collisions.
+   *
+   * @pre y_offset < entity_h, so the collision box keeps a positive height.
    */
   void resolve_triangle_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
                                    float entity_w, float entity_h,
