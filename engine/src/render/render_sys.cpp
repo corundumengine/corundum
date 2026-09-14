@@ -324,7 +324,7 @@ namespace corundum::render {
         return std::unexpected(manifest_result.error());
       state.manifest = std::move(*manifest_result);
     }
-    std::println("[keystone] World manifest: {}×{} chunks of {}×{} tiles", state.manifest.chunks_wide,
+    std::println("[engine] World manifest: {}×{} chunks of {}×{} tiles", state.manifest.chunks_wide,
                  state.manifest.chunks_tall, state.manifest.chunk_size, state.manifest.chunk_size);
 
     // Chunk streaming keeps a fixed 3×3 window (radius 1, see sync_active_chunks), so this
@@ -359,7 +359,7 @@ namespace corundum::render {
         core::math::compute_isometric_params(diamond_w, diamond_h, total_h, cfg.tile_scale, cfg.elevation_step_px);
 
     const core::math::Vec2 spawn_pos{static_cast<float>(spawn_tile_col), static_cast<float>(spawn_tile_row)};
-    std::println("[keystone] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
+    std::println("[engine] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
     return WorldLoadInfo{iso.half_tw, iso.half_th, iso.x_origin, spawn_pos};
   }
 
@@ -1119,7 +1119,7 @@ namespace corundum::render {
     if (!state.chunks.pop_pending(c))
       return false;
     if (auto entry = load_chunk_entry(r, state, c, cfg)) {
-      std::println("[keystone] Loading chunk ({}, {})", c.col, c.row);
+      std::println("[engine] Loading chunk ({}, {})", c.col, c.row);
       state.chunks.add_active(std::move(*entry));
       rebuild_collision(state);
       rebuild_world_walkability(state, static_cast<int>(cfg.max_step_height));

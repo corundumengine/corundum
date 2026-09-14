@@ -56,7 +56,6 @@ namespace corundum::tool_host {
     if (!j.is_object())
       return std::unexpected("Tool config must be a JSON object");
 
-    // Resolve symlinks so relative paths work correctly (e.g. keystone/tools → ../corundum/tools).
     const auto config_dir = std::filesystem::weakly_canonical(config_path).parent_path();
 
     auto resolve = [&](const std::string &key) -> std::filesystem::path {

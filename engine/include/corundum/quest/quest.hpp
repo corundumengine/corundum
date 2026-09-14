@@ -57,7 +57,7 @@ namespace corundum::quest {
      * When set, `quest::tick_quests` advances to this stage once every
      * objective carrying a `done_condition` evaluates true (order-independent).
      * A stage without conditioned objectives never auto-advances. Stages with
-     * no `auto_advance_to` (all keystone stages) are inert.
+     * no `auto_advance_to` are inert.
      */
     std::optional<std::string> auto_advance_to = std::nullopt;
   };

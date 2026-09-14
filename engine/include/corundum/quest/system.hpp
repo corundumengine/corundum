@@ -96,8 +96,8 @@ namespace corundum::quest {
    * For each quest on an active (non-resolved) stage that carries an
    * `auto_advance_to`, if that stage has at least one conditioned objective and
    * every `done_condition` evaluates true (order-independent), advances to the
-   * named target stage. Stages without `auto_advance_to` (all keystone stages)
-   * are inert. Idempotent: once a quest resolves or its target stage's
+   * named target stage. Stages without `auto_advance_to` are inert.
+   * Idempotent: once a quest resolves or its target stage's
    * conditions stop holding, later calls are no-ops.
    *
    * @param registry The quest registry to scan.
