@@ -15,7 +15,7 @@ namespace corundum::world::tilemap {
    * N/S/E/W here are grid axes (row decreasing/increasing, col increasing/
    * decreasing) — unrelated to TriangleCut's screen-space corner naming.
    * Isometric screen up/down/left/right map to grid *diagonals* (see
-   * physics_sys.cpp's apply_input), so these compass names describe the
+   * physics_system.cpp's apply_input), so these compass names describe the
    * (col,row) grid, not the rendered screen.
    */
   enum class WalkDir : uint8_t {

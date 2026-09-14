@@ -32,7 +32,7 @@ set(ENGINE_SOURCES
     src/item/item.cpp
     src/item/serialize.cpp
     src/physics/collision.cpp
-    src/physics/physics_sys.cpp
+    src/physics/physics_system.cpp
     src/physics/walkability.cpp
     src/quest/loader.cpp
     src/quest/registry.cpp

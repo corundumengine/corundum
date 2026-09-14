@@ -6,7 +6,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/entities/tables/transform_table.hpp>
-#include <corundum/physics/physics_sys.hpp>
+#include <corundum/physics/physics_system.hpp>
 #include <corundum/world/picking.hpp>
 #include <vector>
 

@@ -7,7 +7,7 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/physics/collision.hpp>
-#include <corundum/physics/physics_sys.hpp>
+#include <corundum/physics/physics_system.hpp>
 #include <corundum/physics/walkability.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/pathfinding.hpp>
@@ -42,7 +42,60 @@ namespace corundum::physics {
      * @pre iso.half_tw > 0 and iso.half_th > 0.
      */
     [[nodiscard]] constexpr Vec2 screen_to_tile_delta(float svx, float svy, IsometricParams iso) noexcept {
-      return {(svx / iso.half_tw + svy / iso.half_th) / 2.f, (svy / iso.half_th - svx / iso.half_tw) / 2.f};
+      return {
+          .x = ((svx / iso.half_tw) + (svy / iso.half_th)) / 2.f,
+          .y = ((svy / iso.half_th) - (svx / iso.half_tw)) / 2.f,
+      };
+    }
+
+    /** @brief Test the player's post-move AABB against every portal in @p map.
+     *
+     * Both the AABB and the portal rects are tile-grid, so no iso↔cart conversion is needed. A
+     * chunk-to-chunk portal teleports immediately (writing the spawn back through @p transforms);
+     * a cross-map or return-to-world portal arms scene.transition_prompt, so the actual map swap
+     * waits for the player to confirm. Clears a declined prompt once the player steps off its rect
+     * — otherwise standing on a portal they cancelled would suppress every later re-prompt.
+     * Elevation-gated via portal_elev_matches, so a player on a bridge does not trip a
+     * ground-floor portal authored at the same cell.
+     *
+     * @pre @p player_slot is the dense index of the player in @p transforms.
+     */
+    void resolve_portals(corundum::entities::TransformTable &transforms, std::uint32_t player_slot,
+                         corundum::entities::Position pos, float col_span, float row_span,
+                         const corundum::world::MapView &map, corundum::world::Scene &scene, int player_elev,
+                         int elev_tolerance) noexcept {
+      if (map.portals.empty())
+        return;
+
+      const float half_span = col_span / 2.f;
+      const float col0 = pos.col - half_span;
+      const float col1 = pos.col + half_span;
+      const float row0 = pos.row;
+      const float row1 = pos.row + row_span;
+
+      if (scene.transition_prompt && scene.transition_prompt->declined() &&
+          !scene.transition_prompt->overlaps(col0, col1, row0, row1))
+        scene.transition_prompt.reset();
+
+      for (const auto &portal : map.portals) {
+        const bool overlaps =
+            col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h;
+        if (!overlaps)
+          continue;
+        if (!portal_elev_matches(map, portal, player_elev, elev_tolerance))
+          continue;
+        if (portal.target_chunk_col >= 0) {
+          transforms.col[player_slot] = static_cast<float>(portal.spawn_col);
+          transforms.row[player_slot] = static_cast<float>(portal.spawn_row);
+          return;
+        }
+        // Suppress re-prompting while standing on a portal the player already declined.
+        if (scene.transition_prompt && scene.transition_prompt->declined() && scene.transition_prompt->guards(portal))
+          continue;
+        scene.transition_prompt.emplace(portal);
+        scene.mode = corundum::world::GameMode::Prompt;
+        return;
+      }
     }
   } // namespace
 
@@ -56,7 +109,7 @@ namespace corundum::physics {
     gate.player_elevation = static_cast<int>(std::round(elev_f));
 
     // World mode has no Tilemap to query — elevation_tolerance stays 0 (no ramps to widen for).
-    if (!map.elevation_map)
+    if (map.elevation_map == nullptr)
       return gate;
 
     const int cell_col = static_cast<int>(std::floor(col));
@@ -81,7 +134,7 @@ namespace corundum::physics {
     // Use the portal's center cell — a multi-cell portal's intent is "the player is on
     // the floor that runs through here", so the center cell is the canonical reference.
     const float portal_elev_f =
-        corundum::world::elevation_at_tile(map, portal.col + portal.w * 0.5f, portal.row + portal.h * 0.5f);
+        corundum::world::elevation_at_tile(map, portal.col + (portal.w * 0.5f), portal.row + (portal.h * 0.5f));
     const int portal_elev = static_cast<int>(std::round(portal_elev_f));
     return std::abs(portal_elev - player_elev) <= elev_tolerance;
   }
@@ -99,45 +152,42 @@ namespace corundum::physics {
       return;
     const std::uint32_t slot = transforms.dense_index(player);
 
-    if (path.empty()) {
-      transforms.dc[slot] = 0.f;
-      transforms.dr[slot] = 0.f;
-      return;
+    while (!path.empty()) {
+      const float target_col = static_cast<float>(path.front().col) + k_tile_center_offset;
+      const float target_row = static_cast<float>(path.front().row) + k_tile_center_offset;
+      const float dc = target_col - transforms.col[slot];
+      const float dr = target_row - transforms.row[slot];
+
+      if (iso.half_tw > 0.f && iso.half_th > 0.f) {
+        const auto [svx, svy] = tile_to_screen_delta(dc, dr, iso);
+        const float screen_dist = std::hypot(svx, svy);
+
+        if (screen_dist > player_speed * dt) {
+          const float scale = player_speed / screen_dist;
+          const auto [tdc, tdr] = screen_to_tile_delta(svx * scale, svy * scale, iso);
+          transforms.dc[slot] = tdc;
+          transforms.dr[slot] = tdr;
+          return;
+        }
+      } else {
+        const float dist = std::hypot(dc, dr);
+
+        if (dist > player_speed * dt) {
+          const float inv_dist = player_speed / dist;
+          transforms.dc[slot] = dc * inv_dist;
+          transforms.dr[slot] = dr * inv_dist;
+          return;
+        }
+      }
+
+      // This frame's movement reaches the front waypoint: snap onto it and take the next.
+      transforms.col[slot] = target_col;
+      transforms.row[slot] = target_row;
+      path.erase(path.begin());
     }
 
-    const float target_col = static_cast<float>(path.front().col) + k_tile_center_offset;
-    const float target_row = static_cast<float>(path.front().row) + k_tile_center_offset;
-    const float dc = target_col - transforms.col[slot];
-    const float dr = target_row - transforms.row[slot];
-
-    if (iso.half_tw > 0.f && iso.half_th > 0.f) {
-      const auto [svx, svy] = tile_to_screen_delta(dc, dr, iso);
-      const float screen_dist = std::hypot(svx, svy);
-
-      if (screen_dist <= player_speed * dt) {
-        transforms.col[slot] = target_col;
-        transforms.row[slot] = target_row;
-        path.erase(path.begin());
-        follow_path(transforms, player, path, player_speed, iso, dt);
-        return;
-      }
-      const float scale = player_speed / screen_dist;
-      const auto [tdc, tdr] = screen_to_tile_delta(svx * scale, svy * scale, iso);
-      transforms.dc[slot] = tdc;
-      transforms.dr[slot] = tdr;
-    } else {
-      const float dist = std::hypot(dc, dr);
-      if (dist <= player_speed * dt) {
-        transforms.col[slot] = target_col;
-        transforms.row[slot] = target_row;
-        path.erase(path.begin());
-        follow_path(transforms, player, path, player_speed, iso, dt);
-        return;
-      }
-      const float inv_dist = player_speed / dist;
-      transforms.dc[slot] = dc * inv_dist;
-      transforms.dr[slot] = dr * inv_dist;
-    }
+    transforms.dc[slot] = 0.f;
+    transforms.dr[slot] = 0.f;
   }
 
   void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
@@ -174,7 +224,7 @@ namespace corundum::physics {
       dr -= 1.f;
     }
 
-    const float len_sq = dc * dc + dr * dr;
+    const float len_sq = (dc * dc) + (dr * dr);
     if (len_sq > 0.f && iso.half_tw > 0.f && iso.half_th > 0.f) {
       // Normalise in screen space so that east/west and north/south movement
       // feel equally fast (isometric projection distorts tile-grid distances).
@@ -216,20 +266,22 @@ namespace corundum::physics {
     // carry no click position), and using it here would spuriously queue a path toward
     // wherever the mouse happens to be hovering any time the player presses Enter/Space/
     // a gamepad button for an unrelated reason (e.g. confirming dialogue).
-    if (input.mouse_click_pressed && scene.hovered_tile && map.walkability) {
+    if (input.mouse_click_pressed && scene.hovered_tile && (map.walkability != nullptr)) {
       // std::floor (not truncate) so a fractionally-negative prev_col/prev_row selects
       // the cell the player is actually standing in — same convention as chunk_at_iso
       // and picking. Latent today (positions clamped >= 0), defensive against future
       // knockback / camera-shake paths.
-      const corundum::world::TileCoord start{static_cast<int>(std::floor(prev_col)),
-                                             static_cast<int>(std::floor(prev_row))};
+      const corundum::world::TileCoord start{
+          .col = static_cast<int>(std::floor(prev_col)),
+          .row = static_cast<int>(std::floor(prev_row)),
+      };
       scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
     }
 
     const bool manual_move =
         input.is_held(corundum::input::Action::MoveUp) || input.is_held(corundum::input::Action::MoveDown) ||
         input.is_held(corundum::input::Action::MoveLeft) || input.is_held(corundum::input::Action::MoveRight);
-    const IsometricParams iso{map.half_tw, map.half_th, 0.f, 0.f};
+    const IsometricParams iso{.half_tw = map.half_tw, .half_th = map.half_th, .x_origin = 0.f, .elev_step = 0.f};
     if (manual_move) {
       scene.path.clear(); // manual input always overrides/cancels an active path
       apply_input(transforms, player, input, player_speed, iso);
@@ -258,11 +310,11 @@ namespace corundum::physics {
     const int substeps = std::max(1, static_cast<int>(std::ceil(step_dist / k_substep_max_tile)));
     const float sub_dt = dt / static_cast<float>(substeps);
 
-    Position p{prev_col, prev_row};
+    Position p{.col = prev_col, .row = prev_row};
     transforms.col[p_slot] = p.col;
     transforms.row[p_slot] = p.row;
     for (int s = 0; s < substeps; ++s) {
-      const Position sub_prev{p.col, p.row};
+      const Position sub_prev{.col = p.col, .row = p.row};
       integrate(transforms, player, sub_dt);
       p.col = transforms.col[p_slot];
       p.row = transforms.row[p_slot];
@@ -270,8 +322,8 @@ namespace corundum::physics {
       if (map.half_tw > 0.f && map.half_th > 0.f) {
         const float half_cs = player_rect.col_span / 2.f;
         // AABB extends upward from the feet position.
-        Position pc{p.col - half_cs, p.row - player_rect.row_span};
-        const Position pcp{sub_prev.col - half_cs, sub_prev.row - player_rect.row_span};
+        Position pc{.col = p.col - half_cs, .row = p.row - player_rect.row_span};
+        const Position pcp{.col = sub_prev.col - half_cs, .row = sub_prev.row - player_rect.row_span};
         resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f, player_elev,
                            elev_gate.tolerance);
         resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f,
@@ -285,15 +337,18 @@ namespace corundum::physics {
       transforms.col[p_slot] = p.col;
       transforms.row[p_slot] = p.row;
     }
-    const Position prev_pos{prev_col, prev_row};
+    const Position prev_pos{.col = prev_col, .row = prev_row};
 
-    std::array<float, corundum::entities::k_max_entities> npc_cols{}, npc_rows{}, npc_cs{}, npc_rs{};
+    std::array<float, corundum::entities::k_max_entities> npc_cols{};
+    std::array<float, corundum::entities::k_max_entities> npc_rows{};
+    std::array<float, corundum::entities::k_max_entities> npc_cs{};
+    std::array<float, corundum::entities::k_max_entities> npc_rs{};
     // NPC elevations populated so resolve_collisions can gate player-vs-NPC by elevation
     // (same band as player-vs-world). Without this, an NPC under a bridge (elev 0) would
     // block a player on the bridge (elev 5). Plan §4a.
     std::array<uint8_t, corundum::entities::k_max_entities> npc_elevations{};
     uint16_t npc_count = 0;
-    for (uint16_t i = 0; i < collisions.count; ++i) {
+    for (std::uint32_t i = 0; i < collisions.count; ++i) {
       const EntityId eid = collisions.index.entities[i];
       if (eid == player)
         continue;
@@ -314,14 +369,17 @@ namespace corundum::physics {
       ++npc_count;
     }
     const corundum::world::tilemap::CollisionRectsView npc_view{
-        std::span{npc_cols.data(), npc_count}, std::span{npc_rows.data(), npc_count},
-        std::span{npc_cs.data(), npc_count}, std::span{npc_rs.data(), npc_count},
-        std::span{npc_elevations.data(), npc_count}};
+        .cols = std::span{npc_cols.data(), npc_count},
+        .rows = std::span{npc_rows.data(), npc_count},
+        .col_spans = std::span{npc_cs.data(), npc_count},
+        .row_spans = std::span{npc_rs.data(), npc_count},
+        .elevations = std::span{npc_elevations.data(), npc_count},
+    };
     // Convert player feet to AABB top-left for NPC collision.
     {
       const float half_cs = player_rect.col_span / 2.f;
-      Position p_aabb{p.col - half_cs, p.row - player_rect.row_span};
-      const Position prev_aabb{prev_pos.col - half_cs, prev_pos.row - player_rect.row_span};
+      Position p_aabb{.col = p.col - half_cs, .row = p.row - player_rect.row_span};
+      const Position prev_aabb{.col = prev_pos.col - half_cs, .row = prev_pos.row - player_rect.row_span};
       resolve_collisions(p_aabb, prev_aabb, player_rect.col_span, player_rect.row_span, npc_view, 0.f, player_elev,
                          elev_gate.tolerance);
       p.col = p_aabb.col + half_cs;
@@ -334,41 +392,8 @@ namespace corundum::physics {
     transforms.col[p_slot] = p.col;
     transforms.row[p_slot] = p.row;
 
-    if (!map.portals.empty()) {
-      // Player AABB in tile-grid space (same convention as collision rects), tested directly
-      // against portal rects — both already live in tile-grid units, so no iso<->cart conversion.
-      // Elevation gate: a player on a bridge (elev 5) crossing a ground-floor portal cell
-      // (elev 0) must NOT trigger the portal — see portal_elev_matches / plan §4a.
-      const float half_cs = player_rect.col_span / 2.f;
-      const float col0 = p.col - half_cs;
-      const float col1 = p.col + half_cs;
-      const float row0 = p.row;
-      const float row1 = p.row + player_rect.row_span;
-      // Clear a declined prompt once the player walks off its rect — otherwise standing on a
-      // portal they cancelled would suppress every subsequent re-prompt forever.
-      if (scene.transition_prompt && scene.transition_prompt->declined() &&
-          !scene.transition_prompt->overlaps(col0, col1, row0, row1))
-        scene.transition_prompt.reset();
-      for (const auto &portal : map.portals) {
-        if (col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h) {
-          if (!portal_elev_matches(map, portal, player_elev, elev_gate.tolerance))
-            continue;
-          if (portal.target_chunk_col >= 0) {
-            p.col = static_cast<float>(portal.spawn_col);
-            p.row = static_cast<float>(portal.spawn_row);
-            transforms.col[p_slot] = p.col;
-            transforms.row[p_slot] = p.row;
-            return;
-          }
-          // Suppress re-prompting while standing on a portal the player already declined.
-          if (scene.transition_prompt && scene.transition_prompt->declined() && scene.transition_prompt->guards(portal))
-            continue;
-          scene.transition_prompt.emplace(portal);
-          scene.mode = corundum::world::GameMode::Prompt;
-          return;
-        }
-      }
-    }
+    resolve_portals(transforms, p_slot, p, player_rect.col_span, player_rect.row_span, map, scene, player_elev,
+                    elev_gate.tolerance);
   }
 
 } // namespace corundum::physics

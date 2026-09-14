@@ -16,7 +16,7 @@
 #include <corundum/animation/animation_system.hpp>
 #include <corundum/dialogue/interact.hpp>
 #include <corundum/entities/world.hpp>
-#include <corundum/physics/physics_sys.hpp>
+#include <corundum/physics/physics_system.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 

@@ -171,10 +171,10 @@ just a loader. **Not built as part of this doc.**
 
 | Signal | Consumed at | Behavior |
 |---|---|---|
-| `Action::MoveUp/Down/Left/Right` | `physics_sys.cpp::apply_input()` | World movement |
-| `Action::MoveUp/Down/Left/Right` | `physics_sys.cpp::update_player()` | Cancels an active click-to-move path |
+| `Action::MoveUp/Down/Left/Right` | `physics_system.cpp::apply_input()` | World movement |
+| `Action::MoveUp/Down/Left/Right` | `physics_system.cpp::update_player()` | Cancels an active click-to-move path |
 | `Action::MoveUp/Down` | `dialogue/system.cpp::system()` (`NodeType::Choice`) | Choice cursor navigation |
-| `mouse_click_pressed` | `physics_sys.cpp::update_player()` | Queues a click-to-move path via `find_path()` |
+| `mouse_click_pressed` | `physics_system.cpp::update_player()` | Queues a click-to-move path via `find_path()` |
 | `Action::Select` | `dialogue_system.cpp::try_interact()` | Starts dialogue (proximity-only for keyboard/gamepad; proximity **and** click-aimed-at-NPC-tile for a click — see `mouse_click_pressed` check there) |
 | `Action::Select` | `dialogue/system.cpp::system()` (`NodeType::Talk`) | Advances the line |
 | `Action::Select` | `dialogue/system.cpp::system()` (`NodeType::Choice`) | Confirms the highlighted choice |

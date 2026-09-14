@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <doctest/doctest.h>
 
-#include <corundum/physics/physics_sys.hpp>
+#include <corundum/physics/physics_system.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>

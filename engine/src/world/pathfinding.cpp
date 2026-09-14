@@ -23,7 +23,7 @@ namespace corundum::world {
 
   namespace {
 
-    // Mirrors physics_sys.cpp's elevation-aware collision gating: a shape only blocks
+    // Mirrors physics_system.cpp's elevation-aware collision gating: a shape only blocks
     // an entity (here, a path node) whose own elevation is within this many units.
     constexpr int k_elevation_tolerance = 0;
     constexpr float k_sqrt2 = 1.41421356f;
