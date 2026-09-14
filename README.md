@@ -5,9 +5,11 @@
 
 <p align="center">
   <a href="https://corundumengine.com">
-    <img src="misc/logo.png" width="500" alt="Cordundum Engine logo">
+    <img src="branding/logo.png" width="500" alt="Corundum Engine logo">
   </a>
 </p>
+
+"Corundum Engine" and its logo are trademarks of Gentle Lion Studios, Inc. — see [TRADEMARKS.md](TRADEMARKS.md).
 
 Forging tools for 2D RPGs. A data-oriented engine, editor toolset, and asset pipeline in C++23. **Pre-alpha — under active development, expect breakage.**
 
@@ -71,5 +73,7 @@ build/tests/corundum_tests -tc="*name*"   # single test
 ## License
 
 Engine and tools are Apache-2.0 — see [LICENSE](LICENSE) for details.
+
+"Corundum Engine" and its logo are trademarks of Gentle Lion Studios, Inc. — see [TRADEMARKS.md](TRADEMARKS.md).
 
 Dependencies carry their own licenses (see [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)).

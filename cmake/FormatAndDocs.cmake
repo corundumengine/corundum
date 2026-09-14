@@ -80,8 +80,8 @@ if(CORUNDUM_BUILD_DOCS)
     add_custom_target(build_docs
           COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
           COMMAND ${CMAKE_COMMAND} -E copy_if_different
-              ${CMAKE_CURRENT_SOURCE_DIR}/misc/logo.png
-              ${CMAKE_BINARY_DIR}/docs/html/misc/logo.png
+              ${CMAKE_CURRENT_SOURCE_DIR}/branding/logo.png
+              ${CMAKE_BINARY_DIR}/docs/html/branding/logo.png
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
           COMMENT "Generating Doxygen API documentation for engine/"
           VERBATIM
