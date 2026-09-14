@@ -92,7 +92,7 @@ namespace {
   /// Place the player entity at an exact tile (row/col) without pathing.
   void move_player_to(corundum::Engine &engine, float col, float row) {
     auto &transforms = engine.scene.world.transforms;
-    const auto slot = transforms.dense_idx(engine.scene.player);
+    const auto slot = transforms.dense_index(engine.scene.player);
     transforms.col[slot] = col;
     transforms.row[slot] = row;
     engine.scene.path.clear();

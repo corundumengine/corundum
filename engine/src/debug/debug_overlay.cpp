@@ -118,7 +118,7 @@ namespace corundum::debug {
       return;
 
     r.set_world_view(camera, viewport, zoom);
-    const auto slot = w.transforms.dense_idx(player);
+    const auto slot = w.transforms.dense_index(player);
     const float col = w.transforms.col[slot];
     const float row = w.transforms.row[slot];
 
@@ -165,7 +165,7 @@ namespace corundum::debug {
     float player_dc = 0.f;
     float player_dr = 0.f;
     if (w.transforms.has(p)) {
-      const auto di = w.transforms.dense_idx(p);
+      const auto di = w.transforms.dense_index(p);
       player_dc = w.transforms.dc[di];
       player_dr = w.transforms.dr[di];
     }

@@ -40,7 +40,7 @@ namespace {
     // NPC velocities are zero today, but when AI gives them motion this establishes
     // a clear integration step separate from the player update.
     for (uint16_t i = 0; i < world.transforms.count; ++i) {
-      const EntityId e = world.transforms.idx.entities[i];
+      const EntityId e = world.transforms.index.entities[i];
       if (e != player)
         corundum::physics::integrate(world.transforms, e, dt);
     }
@@ -56,7 +56,7 @@ namespace {
     corundum::animation::update(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
                                 iso, cfg.player_speed, dt);
 
-    const auto p_slot = world.transforms.dense_idx(player);
+    const auto p_slot = world.transforms.dense_index(player);
     const float pc = world.transforms.col[p_slot];
     const float pr = world.transforms.row[p_slot];
     // Elevation term matches the renderer's entity path (render_sys.cpp) so the camera tracks

@@ -633,7 +633,7 @@ namespace corundum::render {
                                                       : state.manifest.chunks_tall * state.manifest.chunk_size;
     const auto iso =
         core::math::compute_isometric_params(diamond_w, diamond_h, total_h, cfg.tile_scale, cfg.elevation_step_px);
-    const auto pos_slot = scene.world.transforms.dense_idx(scene.player);
+    const auto pos_slot = scene.world.transforms.dense_index(scene.player);
     const float pc = scene.world.transforms.col[pos_slot];
     const float pr = scene.world.transforms.row[pos_slot];
     const auto [pw_x, pw_y] = core::math::tile_to_world(pc, pr, 0, iso);
@@ -1211,7 +1211,7 @@ namespace corundum::render {
       if (!transforms.has(e)) [[unlikely]]
         continue;
 
-      const auto tr_slot = transforms.dense_idx(e);
+      const auto tr_slot = transforms.dense_index(e);
       float col_f = transforms.col[tr_slot];
       float row_f = transforms.row[tr_slot];
 

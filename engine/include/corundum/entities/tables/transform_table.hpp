@@ -3,8 +3,11 @@
 
 #pragma once
 #include <array>
+#include <cassert>
+#include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <corundum/entities/tables/table_concepts.hpp>
+#include <cstdint>
 #include <span>
 
 namespace corundum::entities {
@@ -16,7 +19,7 @@ namespace corundum::entities {
    * Hot path (every frame): col, row, dc, dr — read and written by physics, input, and
    * animation systems.
    *
-   * Uses a sparse–dense mapping: `sparse[entity_id]` → dense row index. Removal is
+   * Uses a sparse–dense mapping: `index.sparse[entity_id]` → dense row index. Removal is
    * O(1) via swap-and-pop; the dense arrays are always contiguous.
    */
   struct TransformTable {
@@ -25,12 +28,15 @@ namespace corundum::entities {
     // ── Hot: accessed every frame (SoA). Front-loaded so cold sparse/entities data
     // below never shares a cache line with — or sits immediately before — hot data. ──
     alignas(k_cache_line) std::array<float, k_max> col{};
+
     alignas(k_cache_line) std::array<float, k_max> row{};
+
     alignas(k_cache_line) std::array<float, k_max> dc{};
+
     alignas(k_cache_line) std::array<float, k_max> dr{};
 
     // ── Sparse index: EntityId → dense row ─────────────────────────
-    SparseIndex<k_max> idx;
+    SparseIndex<k_max> index;
 
     std::uint32_t count = 0;
 
@@ -61,33 +67,34 @@ namespace corundum::entities {
 
     /** @brief Contiguous span of the EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.idx.active_entities(self.count);
+      return self.index.active_entities(self.count);
     }
 
     /** @brief True if @p e has a row in this table.
      *  @param[in] e Entity to query.
      */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      return idx.has(e);
+      return index.has(e);
     }
 
     /** @brief Add a transform row for @p e.
-     *  @param[in] e   Entity to add (must not already be present).
-     *  @param[in] pc  Initial tile column (fractional).
-     *  @param[in] pr  Initial tile row (fractional).
-     *  @param[in] vc  Initial column velocity in tiles per second.
-     *  @param[in] vr  Initial row velocity in tiles per second.
+     *  @param[in] e       Entity to add (must not already be present).
+     *  @param[in] pos_col Initial tile column (fractional).
+     *  @param[in] pos_row Initial tile row (fractional).
+     *  @param[in] vel_col Initial column velocity in tiles per second.
+     *  @param[in] vel_row Initial row velocity in tiles per second.
      *  @pre has(e) must be false.
      */
     // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-    // pc/pr are the spawn position and vc/vr the spawn velocity — two naturally paired
-    // (col,row) groups. A struct would add ceremony without preventing a same-group swap.
-    void insert(EntityId e, float pc, float pr, float vc, float vr) noexcept {
-      idx.insert(e, count, [&](auto slot) {
-        col[slot] = pc;
-        row[slot] = pr;
-        dc[slot] = vc;
-        dr[slot] = vr;
+    // pos_col/pos_row are the spawn position and vel_col/vel_row the spawn velocity — two
+    // naturally paired (col,row) groups. A struct would add ceremony without preventing a
+    // same-group swap.
+    void insert(EntityId e, float pos_col, float pos_row, float vel_col, float vel_row) noexcept {
+      index.insert(e, count, [&](auto slot) {
+        col[slot] = pos_col;
+        row[slot] = pos_row;
+        dc[slot] = vel_col;
+        dr[slot] = vel_row;
       });
     }
 
@@ -98,7 +105,7 @@ namespace corundum::entities {
      *  @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      idx.remove(e, count, [&](auto slot, auto last) {
+      index.remove(e, count, [&](auto slot, auto last) {
         col[slot] = col[last];
         row[slot] = row[last];
         dc[slot] = dc[last];
@@ -109,33 +116,33 @@ namespace corundum::entities {
     /** @brief Tile column of @p e. @pre has(e). */
     [[nodiscard]] float pos_col(EntityId e) const noexcept {
       assert(has(e));
-      return col[idx.dense_idx(e)];
+      return col[index.dense_index(e)];
     }
 
     /** @brief Tile row of @p e. @pre has(e). */
     [[nodiscard]] float pos_row(EntityId e) const noexcept {
       assert(has(e));
-      return row[idx.dense_idx(e)];
+      return row[index.dense_index(e)];
     }
 
     /** @brief Mutable tile column of @p e. @pre has(e). */
     [[nodiscard]] float &pos_col(EntityId e) noexcept {
       assert(has(e));
-      return col[idx.dense_idx(e)];
+      return col[index.dense_index(e)];
     }
 
     /** @brief Mutable tile row of @p e. @pre has(e). */
     [[nodiscard]] float &pos_row(EntityId e) noexcept {
       assert(has(e));
-      return row[idx.dense_idx(e)];
+      return row[index.dense_index(e)];
     }
 
     /** @brief Dense row index for @p e; use for direct SoA array subscript on hot paths.
      *  @pre has(e) must be true.
      *  @return Index into col/row/dc/dr arrays.
      */
-    [[nodiscard]] std::uint32_t dense_idx(EntityId e) const noexcept {
-      return idx.dense_idx(e);
+    [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept {
+      return index.dense_index(e);
     }
   };
 

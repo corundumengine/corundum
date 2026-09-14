@@ -98,7 +98,7 @@ namespace corundum::dialogue {
     const bool via_click = input.mouse_click_pressed;
 
     World &world = scene.world;
-    const std::uint32_t player_slot = world.transforms.dense_idx(scene.player);
+    const std::uint32_t player_slot = world.transforms.dense_index(scene.player);
     const float player_col = world.transforms.col[player_slot];
     const float player_row = world.transforms.row[player_slot];
 
@@ -106,7 +106,7 @@ namespace corundum::dialogue {
       if (!world.transforms.has(eid))
         continue;
 
-      const std::uint32_t npc_slot = world.transforms.dense_idx(eid);
+      const std::uint32_t npc_slot = world.transforms.dense_index(eid);
       const float npc_col = world.transforms.col[npc_slot];
       const float npc_row = world.transforms.row[npc_slot];
 

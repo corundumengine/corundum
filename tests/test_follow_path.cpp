@@ -35,7 +35,7 @@ TEST_CASE("follow_path — aims velocity at the center of the next waypoint") {
   std::vector<TileCoord> path{{2, 0}}; // target center (2.5, 0.5) from (0.5, 0.5)
   follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsometricParams{1.f, 1.f, 0.f, 0.f}, /*dt=*/0.01f);
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   CHECK(f.transforms.dc[slot] > 0.f); // aimed along +col
   CHECK(f.transforms.dr[slot] == doctest::Approx(0.f));
   REQUIRE(path.size() == 1); // not yet reached, waypoint still pending
@@ -43,7 +43,7 @@ TEST_CASE("follow_path — aims velocity at the center of the next waypoint") {
 
 TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving on to the next") {
   Fixture f;
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   // Start right next to the first waypoint's center so a normal step reaches it.
   f.transforms.col[slot] = 1.4f;
   f.transforms.row[slot] = 0.5f;
@@ -64,7 +64,7 @@ TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving o
 
 TEST_CASE("follow_path — empties the path and zeroes velocity on reaching the final waypoint") {
   Fixture f;
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.col[slot] = 1.45f;
   f.transforms.row[slot] = 0.5f;
   std::vector<TileCoord> path{{1, 0}};
@@ -78,7 +78,7 @@ TEST_CASE("follow_path — empties the path and zeroes velocity on reaching the 
 
 TEST_CASE("follow_path — empty path is a no-op that zeroes velocity") {
   Fixture f;
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 5.f;
   f.transforms.dr[slot] = 5.f;
   std::vector<TileCoord> path;

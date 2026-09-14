@@ -87,7 +87,7 @@ namespace corundum::physics {
   }
 
   void integrate(corundum::entities::TransformTable &transforms, corundum::entities::EntityId e, float dt) noexcept {
-    const auto slot = transforms.dense_idx(e);
+    const auto slot = transforms.dense_index(e);
     transforms.col[slot] += transforms.dc[slot] * dt;
     transforms.row[slot] += transforms.dr[slot] * dt;
   }
@@ -97,7 +97,7 @@ namespace corundum::physics {
                    corundum::core::math::IsometricParams iso, float dt) noexcept {
     if (!transforms.has(player)) [[unlikely]]
       return;
-    const std::uint32_t slot = transforms.dense_idx(player);
+    const std::uint32_t slot = transforms.dense_index(player);
 
     if (path.empty()) {
       transforms.dc[slot] = 0.f;
@@ -146,7 +146,7 @@ namespace corundum::physics {
     if (!transforms.has(player)) [[unlikely]]
       return;
 
-    const std::uint32_t slot = transforms.dense_idx(player);
+    const std::uint32_t slot = transforms.dense_index(player);
     transforms.dc[slot] = 0.f;
     transforms.dr[slot] = 0.f;
 
@@ -200,7 +200,7 @@ namespace corundum::physics {
     using corundum::entities::EntityId;
     using corundum::entities::Position;
 
-    const std::uint32_t p_slot = transforms.dense_idx(player);
+    const std::uint32_t p_slot = transforms.dense_index(player);
     const float prev_col = transforms.col[p_slot];
     const float prev_row = transforms.row[p_slot];
 
@@ -294,13 +294,13 @@ namespace corundum::physics {
     std::array<uint8_t, corundum::entities::k_max_entities> npc_elevations{};
     uint16_t npc_count = 0;
     for (uint16_t i = 0; i < collisions.count; ++i) {
-      const EntityId eid = collisions.idx.entities[i];
+      const EntityId eid = collisions.index.entities[i];
       if (eid == player)
         continue;
       if (!transforms.has(eid))
         continue;
       const auto &rect = collisions.rects[i];
-      const auto np_slot = transforms.dense_idx(eid);
+      const auto np_slot = transforms.dense_index(eid);
       // Convert NPC feet position to AABB top-left.
       const float half_npc_cs = rect.col_span / 2.f;
       const float np_col = transforms.col[np_slot];

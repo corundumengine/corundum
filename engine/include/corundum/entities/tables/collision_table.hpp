@@ -3,8 +3,11 @@
 
 #pragma once
 #include <array>
+#include <cassert>
+#include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <corundum/entities/tables/table_concepts.hpp>
+#include <cstdint>
 #include <span>
 
 namespace corundum::entities {
@@ -23,13 +26,14 @@ namespace corundum::entities {
     // before — hot data. ────────────────────────────────────────────
     struct Rect {
       float col_span = 0.f;
+
       float row_span = 0.f;
     };
 
     alignas(k_cache_line) std::array<Rect, k_max> rects{};
 
     // ── Sparse index ───────────────────────────────────────────────
-    SparseIndex<k_max> idx;
+    SparseIndex<k_max> index;
 
     std::uint32_t count = 0;
 
@@ -45,12 +49,12 @@ namespace corundum::entities {
 
     /** @brief Contiguous span of EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.idx.active_entities(self.count);
+      return self.index.active_entities(self.count);
     }
 
     /** @brief True if @p e has a collision rect. @param[in] e Entity to query. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      return idx.has(e);
+      return index.has(e);
     }
 
     /** @brief Add a collision rect for @p e.
@@ -60,38 +64,38 @@ namespace corundum::entities {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, float col_span, float row_span) noexcept {
-      idx.insert(e, count, [&](auto slot) { rects[slot] = {col_span, row_span}; });
+      index.insert(e, count, [&](auto slot) { rects[slot] = {col_span, row_span}; });
     }
 
     /** @brief Remove @p e's collision rect via swap-and-pop.
      *  @param[in] e Entity to remove. @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      idx.remove(e, count, [&](auto slot, auto last) { rects[slot] = rects[last]; });
+      index.remove(e, count, [&](auto slot, auto last) { rects[slot] = rects[last]; });
     }
 
     /** @brief Const collision rect for @p e. @pre has(e). */
     [[nodiscard]] const Rect &get_rect(EntityId e) const noexcept {
       assert(has(e));
-      return rects[idx.dense_idx(e)];
+      return rects[index.dense_index(e)];
     }
 
     /** @brief Mutable collision rect for @p e. @pre has(e). */
     [[nodiscard]] Rect &get_rect(EntityId e) noexcept {
       assert(has(e));
-      return rects[idx.dense_idx(e)];
+      return rects[index.dense_index(e)];
     }
 
     /** @brief col_span of @p e's collision rect. @pre has(e). */
     [[nodiscard]] float col_span(EntityId e) const noexcept {
       assert(has(e));
-      return rects[idx.dense_idx(e)].col_span;
+      return rects[index.dense_index(e)].col_span;
     }
 
     /** @brief row_span of @p e's collision rect. @pre has(e). */
     [[nodiscard]] float row_span(EntityId e) const noexcept {
       assert(has(e));
-      return rects[idx.dense_idx(e)].row_span;
+      return rects[index.dense_index(e)].row_span;
     }
   };
 

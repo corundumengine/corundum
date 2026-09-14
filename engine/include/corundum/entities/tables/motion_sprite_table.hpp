@@ -4,6 +4,7 @@
 #pragma once
 #include <array>
 #include <cassert>
+#include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <corundum/entities/tables/table_concepts.hpp>
 #include <corundum/sprites/sprite.hpp>
@@ -33,35 +34,48 @@ namespace corundum::entities {
     /** @brief Spawn-time configuration for one motion-sprite entry. */
     struct Config {
       corundum::sprites::SpriteId walk_id = corundum::sprites::k_null_sprite_id;
+
       corundum::sprites::SpriteId idle_id = corundum::sprites::k_null_sprite_id;
+
       std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_counts{};
+
       std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_counts{};
+
       float idle_to_walk_delay = 0.f;
+
       float walk_to_idle_delay = 0.f;
+
       float walk_frame_duration = 0.f;
+
       float idle_frame_duration = 0.f;
     };
 
     // ── Sparse index ───────────────────────────────────────────────
-    SparseIndex<k_max> idx;
+    SparseIndex<k_max> index;
 
     // ── Sprite IDs and cached frame counts (set once at spawn) ─────
     std::array<corundum::sprites::SpriteId, k_max> walk_id{};
+
     std::array<corundum::sprites::SpriteId, k_max> idle_id{};
+
     std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> walk_counts{};
+
     std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> idle_counts{};
 
     // ── Transition delay config (seconds; set once at spawn) ───────
     std::array<float, k_max> idle_to_walk_delay{}; ///< Delay before idle→walk commits.
+
     std::array<float, k_max> walk_to_idle_delay{}; ///< Delay before walk→idle commits.
 
     // ── Per-sprite frame duration overrides (0 = use AnimationTable default) ─
     std::array<float, k_max> walk_frame_duration{}; ///< Seconds per frame while walking; 0 = no override.
+
     std::array<float, k_max> idle_frame_duration{}; ///< Seconds per frame while idle; 0 = no override.
 
     // ── Pending transition runtime state (mutated by animation::update) ─
     /// SpriteId the entity is transitioning toward; k_null_sprite_id = no pending transition.
     std::array<corundum::sprites::SpriteId, k_max> pending_sid{};
+
     std::array<float, k_max> transition_timer{}; ///< Accumulated time toward the pending transition.
 
     std::uint32_t count = 0;
@@ -70,25 +84,25 @@ namespace corundum::entities {
 
     /** @brief True if @p e has a motion-sprite entry. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      return idx.has(e);
+      return index.has(e);
     }
 
     /** @brief Walk SpriteId for @p e. @pre has(e). */
     [[nodiscard]] corundum::sprites::SpriteId walk_sprite(EntityId e) const noexcept {
       assert(has(e));
-      return walk_id[idx.dense_idx(e)];
+      return walk_id[index.dense_index(e)];
     }
 
     /** @brief Idle SpriteId for @p e. @pre has(e). */
     [[nodiscard]] corundum::sprites::SpriteId idle_sprite(EntityId e) const noexcept {
       assert(has(e));
-      return idle_id[idx.dense_idx(e)];
+      return idle_id[index.dense_index(e)];
     }
 
     /** @brief Configured delay (seconds) for the transition to @p target_sid. @pre has(e). */
     [[nodiscard]] float delay_for(EntityId e, corundum::sprites::SpriteId target_sid) const noexcept {
       assert(has(e));
-      const std::uint32_t slot = idx.dense_idx(e);
+      const std::uint32_t slot = index.dense_index(e);
       return (target_sid == walk_id[slot]) ? idle_to_walk_delay[slot] : walk_to_idle_delay[slot];
     }
 
@@ -96,26 +110,26 @@ namespace corundum::entities {
      * has(e). */
     [[nodiscard]] float frame_duration_for(EntityId e, corundum::sprites::SpriteId target_sid) const noexcept {
       assert(has(e));
-      const std::uint32_t slot = idx.dense_idx(e);
+      const std::uint32_t slot = index.dense_index(e);
       return (target_sid == walk_id[slot]) ? walk_frame_duration[slot] : idle_frame_duration[slot];
     }
 
     /** @brief SpriteId currently pending transition, or k_null_sprite_id if none. @pre has(e). */
     [[nodiscard]] corundum::sprites::SpriteId pending_sprite(EntityId e) const noexcept {
       assert(has(e));
-      return pending_sid[idx.dense_idx(e)];
+      return pending_sid[index.dense_index(e)];
     }
 
     /** @brief Walk frame counts for @p e, suitable for AnimationTable::set_frame_counts. @pre has(e). */
     [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_frame_counts(EntityId e) const noexcept {
       assert(has(e));
-      return walk_counts[idx.dense_idx(e)];
+      return walk_counts[index.dense_index(e)];
     }
 
     /** @brief Idle frame counts for @p e, suitable for AnimationTable::set_frame_counts. @pre has(e). */
     [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_frame_counts(EntityId e) const noexcept {
       assert(has(e));
-      return idle_counts[idx.dense_idx(e)];
+      return idle_counts[index.dense_index(e)];
     }
 
     // ── Transition mutations (called by animation::update) ───────────
@@ -126,7 +140,9 @@ namespace corundum::entities {
      */
     void set_pending(EntityId e, corundum::sprites::SpriteId target) noexcept {
       assert(has(e));
-      const std::uint32_t slot = idx.dense_idx(e);
+      const std::uint32_t slot = index.dense_index(e);
+      if (pending_sid[slot] == target)
+        return;
       pending_sid[slot] = target;
       transition_timer[slot] = 0.f;
     }
@@ -136,7 +152,7 @@ namespace corundum::entities {
      */
     float tick_transition(EntityId e, float dt) noexcept {
       assert(has(e));
-      float &timer = transition_timer[idx.dense_idx(e)];
+      float &timer = transition_timer[index.dense_index(e)];
       timer += dt;
       return timer;
     }
@@ -144,7 +160,7 @@ namespace corundum::entities {
     /** @brief Cancel any pending transition, resetting the timer to zero. @pre has(e). */
     void cancel_transition(EntityId e) noexcept {
       assert(has(e));
-      const std::uint32_t slot = idx.dense_idx(e);
+      const std::uint32_t slot = index.dense_index(e);
       pending_sid[slot] = corundum::sprites::k_null_sprite_id;
       transition_timer[slot] = 0.f;
     }
@@ -157,7 +173,7 @@ namespace corundum::entities {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, const Config &config) noexcept {
-      idx.insert(e, count, [this, &config](auto slot) {
+      index.insert(e, count, [this, &config](auto slot) {
         walk_id[slot] = config.walk_id;
         idle_id[slot] = config.idle_id;
         idle_to_walk_delay[slot] = config.idle_to_walk_delay;
@@ -173,7 +189,7 @@ namespace corundum::entities {
 
     /** @brief Remove @p e's entry via swap-and-pop. @pre has(e). */
     void remove(EntityId e) noexcept {
-      idx.remove(e, count, [this](auto slot, auto last) {
+      index.remove(e, count, [this](auto slot, auto last) {
         walk_id[slot] = walk_id[last];
         idle_id[slot] = idle_id[last];
         idle_to_walk_delay[slot] = idle_to_walk_delay[last];
@@ -194,7 +210,7 @@ namespace corundum::entities {
     }
 
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.idx.active_entities(self.count);
+      return self.index.active_entities(self.count);
     }
   };
 

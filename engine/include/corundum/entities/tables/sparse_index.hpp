@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <array>
 #include <cassert>
 #include <corundum/entities/entity.hpp>
+#include <cstdint>
 #include <limits>
 #include <span>
 #include <utility>
 
 namespace corundum::entities {
-
-  using corundum::entities::EntityId;
-  using corundum::entities::k_max_entities;
 
   /// Sparse-index bookkeeping shared by all component tables.
   /// Owns the sparse map and dense entity array. The has/insert/remove spine
@@ -36,7 +35,7 @@ namespace corundum::entities {
       return s != k_invalid && entities[s] == e;
     }
 
-    [[nodiscard]] std::uint32_t dense_idx(EntityId e) const noexcept {
+    [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept {
       assert(has(e));
       return sparse[e.index];
     }
@@ -49,6 +48,7 @@ namespace corundum::entities {
     /// calls @p write(slot) to let the table initialise its payload.
     /// @p count is the table's own count member (incremented after the write).
     template <typename Fn> void insert(EntityId e, std::uint32_t &count, Fn &&write) noexcept {
+      assert(e.index < KMax && "SparseIndex::insert: EntityId index out of range");
       assert(!has(e));
       const auto i = e.index;
       const auto slot = count;

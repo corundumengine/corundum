@@ -189,11 +189,11 @@ namespace corundum::animation {
     float *const timers = std::assume_aligned<16>(animations.timer.data());
     const float *const frame_durations = std::assume_aligned<16>(animations.frame_duration.data());
     for (uint32_t i = 0; i < animations.count; ++i) {
-      const EntityId e = animations.idx.entities[i];
+      const EntityId e = animations.index.entities[i];
       if (!sprites.has(e) || !transforms.has(e)) [[unlikely]]
         continue;
 
-      const uint32_t tr_slot = transforms.dense_idx(e);
+      const uint32_t tr_slot = transforms.dense_index(e);
 
       AnimId &spr_anim_id = sprites.anim_id_ref(e);
       uint8_t &spr_frame_idx = sprites.frame_index_ref(e);

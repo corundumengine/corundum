@@ -4,9 +4,13 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <corundum/entities/tables/table_concepts.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <span>
 
 namespace corundum::entities {
@@ -24,10 +28,11 @@ namespace corundum::entities {
     // ── Hot: timer / frame_duration tick every frame. Front-loaded so the cold data
     // below never shares a cache line with — or sits immediately before — hot data. ──
     alignas(k_cache_line) std::array<float, k_max> timer{};
+
     alignas(k_cache_line) std::array<float, k_max> frame_duration{};
 
     // ── Sparse index ───────────────────────────────────────────────
-    SparseIndex<k_max> idx;
+    SparseIndex<k_max> index;
 
     // ── Lukewarm: frame_counts[entity_idx * k_num_anim_ids + anim_id] ──
     // Read on animation transition; cached at spawn from character registry.
@@ -47,14 +52,14 @@ namespace corundum::entities {
 
     /** @brief Contiguous span of EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.idx.active_entities(self.count);
+      return self.index.active_entities(self.count);
     }
 
     /** @brief True if @p e has an animation row.
      *  @param[in] e Entity to query.
      */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      return idx.has(e);
+      return index.has(e);
     }
 
     /** @brief Add an animation row for @p e with default 0.15 s frame duration.
@@ -62,11 +67,11 @@ namespace corundum::entities {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e) noexcept {
-      idx.insert(e, count, [&](auto slot) {
+      index.insert(e, count, [&](auto slot) {
         timer[slot] = 0.f;
         frame_duration[slot] = 0.15f;
-        auto *fc = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
-        std::fill_n(fc, corundum::sprites::k_num_anim_ids, uint8_t{0});
+        auto *counts = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
+        std::fill_n(counts, corundum::sprites::k_num_anim_ids, uint8_t{0});
       });
     }
 
@@ -75,37 +80,37 @@ namespace corundum::entities {
      *  @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      idx.remove(e, count, [&](auto slot, auto last) {
+      index.remove(e, count, [&](auto slot, auto last) {
         timer[slot] = timer[last];
         frame_duration[slot] = frame_duration[last];
-        auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
-        const auto *src = &frame_counts[static_cast<std::size_t>(last) * corundum::sprites::k_num_anim_ids];
-        std::copy_n(src, corundum::sprites::k_num_anim_ids, dst);
+        auto *destination = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
+        const auto *source = &frame_counts[static_cast<std::size_t>(last) * corundum::sprites::k_num_anim_ids];
+        std::copy_n(source, corundum::sprites::k_num_anim_ids, destination);
       });
     }
 
     /** @brief Mutable playback timer reference for @p e. @pre has(e). */
     [[nodiscard]] float &timer_ref(EntityId e) noexcept {
       assert(has(e));
-      return timer[idx.dense_idx(e)];
+      return timer[index.dense_index(e)];
     }
 
     /** @brief Mutable frame duration reference for @p e. @pre has(e). */
     [[nodiscard]] float &frame_duration_ref(EntityId e) noexcept {
       assert(has(e));
-      return frame_duration[idx.dense_idx(e)];
+      return frame_duration[index.dense_index(e)];
     }
 
-    /** @brief Number of frames in @p aid for entity @p e; 0 if the clip is absent.
-     *  @param[in] e   Entity to query.
-     *  @param[in] aid Animation clip ID.
+    /** @brief Number of frames in @p anim_id for entity @p e; 0 if the clip is absent.
+     *  @param[in] e      Entity to query.
+     *  @param[in] anim_id Animation clip ID.
      *  @pre has(e) must be true.
      */
-    [[nodiscard]] uint8_t frame_count(EntityId e, corundum::sprites::AnimId aid) const noexcept {
+    [[nodiscard]] uint8_t frame_count(EntityId e, corundum::sprites::AnimId anim_id) const noexcept {
       assert(has(e));
-      const auto slot = idx.dense_idx(e);
+      const auto slot = index.dense_index(e);
       return frame_counts[(static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids) +
-                          static_cast<uint8_t>(aid)];
+                          static_cast<uint8_t>(anim_id)];
     }
 
     /** @brief Bulk-set all per-clip frame counts for @p e (called once at spawn).
@@ -115,9 +120,9 @@ namespace corundum::entities {
      */
     void set_frame_counts(EntityId e, const std::array<uint8_t, corundum::sprites::k_num_anim_ids> &counts) noexcept {
       assert(has(e));
-      const auto slot = idx.dense_idx(e);
-      auto *dst = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
-      std::copy_n(counts.data(), corundum::sprites::k_num_anim_ids, dst);
+      const auto slot = index.dense_index(e);
+      auto *destination = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
+      std::copy_n(counts.data(), corundum::sprites::k_num_anim_ids, destination);
     }
   };
 

@@ -3,16 +3,10 @@
 
 #pragma once
 #include <concepts>
-#include <corundum/entities/entity.hpp>
 #include <ranges>
 #include <type_traits>
 
 namespace corundum::entities {
-
-  // Tables use EntityId and k_max_entities ubiquitously.
-  using corundum::entities::EntityId;
-  using corundum::entities::k_cache_line;
-  using corundum::entities::k_max_entities;
 
   /** @brief A valid game table is trivially copyable, exposes an integer count,
    *         and provides a contiguous active-element span.

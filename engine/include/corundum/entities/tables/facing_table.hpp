@@ -3,11 +3,12 @@
 
 #pragma once
 #include <array>
+#include <cassert>
 #include <corundum/core/direction.hpp>
-#include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <corundum/entities/tables/table_concepts.hpp>
+#include <cstdint>
 #include <span>
 
 namespace corundum::entities {
@@ -21,7 +22,7 @@ namespace corundum::entities {
     static constexpr auto k_max = k_max_entities;
 
     // ── Sparse index ───────────────────────────────────────────────
-    SparseIndex<k_max> idx;
+    SparseIndex<k_max> index;
 
     // ── SoA field ──────────────────────────────────────────────────
     std::array<core::Direction, k_max> dir{};
@@ -40,12 +41,12 @@ namespace corundum::entities {
 
     /** @brief Contiguous span of EntityIds in dense order. */
     [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.idx.active_entities(self.count);
+      return self.index.active_entities(self.count);
     }
 
     /** @brief True if @p e has a facing entry. @param[in] e Entity to query. */
     [[nodiscard]] bool has(EntityId e) const noexcept {
-      return idx.has(e);
+      return index.has(e);
     }
 
     /** @brief Add a facing row for @p e.
@@ -54,26 +55,26 @@ namespace corundum::entities {
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, core::Direction d) noexcept {
-      idx.insert(e, count, [&](auto slot) { dir[slot] = d; });
+      index.insert(e, count, [&](auto slot) { dir[slot] = d; });
     }
 
     /** @brief Remove @p e's facing row via swap-and-pop.
      *  @param[in] e Entity to remove. @pre has(e) must be true.
      */
     void remove(EntityId e) noexcept {
-      idx.remove(e, count, [&](auto slot, auto last) { dir[slot] = dir[last]; });
+      index.remove(e, count, [&](auto slot, auto last) { dir[slot] = dir[last]; });
     }
 
     /** @brief Mutable facing direction reference for @p e. @pre has(e). */
     [[nodiscard]] core::Direction &dir_ref(EntityId e) noexcept {
       assert(has(e));
-      return dir[idx.dense_idx(e)];
+      return dir[index.dense_index(e)];
     }
 
     /** @brief Facing direction of @p e. @pre has(e). */
     [[nodiscard]] core::Direction dir_of(EntityId e) const noexcept {
       assert(has(e));
-      return dir[idx.dense_idx(e)];
+      return dir[index.dense_index(e)];
     }
   };
 

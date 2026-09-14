@@ -58,8 +58,8 @@ namespace corundum::world {
       if (npc_collisions && npc_transforms) {
         for (uint16_t i = 0; i < npc_collisions->count; ++i) {
           const auto &rect = npc_collisions->rects[i];
-          const auto eid = npc_collisions->idx.entities[i];
-          const auto tslot = npc_transforms->dense_idx(eid);
+          const auto eid = npc_collisions->index.entities[i];
+          const auto tslot = npc_transforms->dense_index(eid);
           const float npc_col = npc_transforms->col[tslot];
           const float npc_row = npc_transforms->row[tslot];
           const float half_cs = rect.col_span / 2.f;

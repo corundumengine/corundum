@@ -129,7 +129,7 @@ namespace corundum {
         const auto &tilemap = *engine_->active_tilemap();
         const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
                                                               engine_->cfg.tile_scale, engine_->cfg.elevation_step_px);
-        const auto p_slot = engine_->scene.world.transforms.dense_idx(engine_->scene.player);
+        const auto p_slot = engine_->scene.world.transforms.dense_index(engine_->scene.player);
         const float player_col = engine_->scene.world.transforms.col[p_slot];
         const float player_row = engine_->scene.world.transforms.row[p_slot];
         const auto iso_pos = core::math::tile_to_world(player_col, player_row, 0.f, iso);

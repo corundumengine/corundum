@@ -55,7 +55,7 @@ namespace {
 
 TEST_CASE("animate: moving at exactly reference speed advances at the authored frame_duration") {
   Fixture f;
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   // Pure +col move at exactly the reference screen speed: |screen_vel| = 2*hypot(4,3) = 10.
   f.transforms.dc[slot] = 2.f; // scale = 1
   f.transforms.dr[slot] = 0.f;
@@ -68,7 +68,7 @@ TEST_CASE("animate: moving at exactly reference speed advances at the authored f
 
 TEST_CASE("animate: moving at 2x reference speed reaches the frame threshold in half the dt") {
   Fixture f;
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 4.f; // |screen_vel| = 20 → scale = 2
   f.transforms.dr[slot] = 0.f;
 
@@ -89,7 +89,7 @@ TEST_CASE("animate: idle (zero velocity) still advances at the unscaled rate, no
 
 TEST_CASE("animate: degenerate iso falls back to the unscaled rate (no divide-by-zero/NaN)") {
   Fixture f;
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 5.f; // nonzero velocity, but iso below is degenerate
   corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites,
                               IsometricParams{0.f, 0.f, 0.f, 0.f}, k_reference_speed, /*dt=*/0.2f);
@@ -99,7 +99,7 @@ TEST_CASE("animate: degenerate iso falls back to the unscaled rate (no divide-by
 TEST_CASE("animate: pure +dc motion resolves facing to SouthEast (zone 1, col-dominant)") {
   Fixture f;
   f.facings.insert(f.player, corundum::core::Direction::South);
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
@@ -112,7 +112,7 @@ TEST_CASE("animate: pure +dc motion resolves facing to SouthEast (zone 1, col-do
 TEST_CASE("animate: pure +dr motion resolves facing to SouthWest (zone 0, row-dominant)") {
   Fixture f;
   f.facings.insert(f.player, corundum::core::Direction::South);
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 0.f;
   f.transforms.dr[slot] = 1.f;
 
@@ -125,7 +125,7 @@ TEST_CASE("animate: pure +dr motion resolves facing to SouthWest (zone 0, row-do
 TEST_CASE("animate: equal-magnitude diagonal motion resolves facing to a screen-cardinal (zone 2)") {
   Fixture f;
   f.facings.insert(f.player, corundum::core::Direction::South);
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 1.f; // |dc| == |dr| → zone 2 (diagonal); +dr,+dc → screen South
 
@@ -143,7 +143,7 @@ TEST_CASE("animate: falls back to a cardinal AnimId when the directional clip is
   counts[static_cast<uint8_t>(corundum::sprites::AnimId::East)] = 4;
   f.animations.set_frame_counts(f.player, counts);
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
@@ -161,7 +161,7 @@ TEST_CASE("animate: vertical-axis fallback is used when |dr| dominates") {
   counts[static_cast<uint8_t>(corundum::sprites::AnimId::South)] = 4;
   f.animations.set_frame_counts(f.player, counts);
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 0.f;
   f.transforms.dr[slot] = 1.f;
 
@@ -176,7 +176,7 @@ TEST_CASE("animate: returns AnimId::Default when every directional and cardinal 
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{}; // all zero
   f.animations.set_frame_counts(f.player, counts);
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
@@ -212,7 +212,7 @@ TEST_CASE("animate: changing AnimId resets frame_index and timer") {
   counts[static_cast<uint8_t>(corundum::sprites::AnimId::East)] = 4;
   f.animations.set_frame_counts(f.player, counts);
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
   corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
                               k_reference_speed,
@@ -251,7 +251,7 @@ TEST_CASE("animate: motion sprite commits after the configured idle-to-walk dela
                                         .walk_to_idle_delay = 0.f,
                                     });
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
 
   // Half the delay — not yet committed; pending is set.
@@ -285,7 +285,7 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
                                         .walk_to_idle_delay = 0.f,
                                     });
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
 
   // Start moving, partial-transition the timer toward the idle→walk commit.
   f.transforms.dc[slot] = 1.f;
@@ -321,7 +321,7 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts a
                                         .idle_frame_duration = 0.25f,
                                     });
 
-  const auto slot = f.transforms.dense_idx(f.player);
+  const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
   corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
                               k_reference_speed,
