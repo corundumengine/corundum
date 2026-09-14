@@ -22,9 +22,17 @@ namespace corundum::dialogue {
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
-  static int wrap(int current, int delta, int count) {
-    return (current + delta + count) % count;
-  }
+  namespace {
+
+    int wrap(int current, int delta, int count) {
+      return (current + delta + count) % count;
+    }
+
+    bool pressed(const corundum::input::PressedActions &actions, corundum::input::Action action) {
+      return std::ranges::contains(actions, action);
+    }
+
+  } // namespace
 
   // ── Conversation ──────────────────────────────────────────────────────────────
 
@@ -32,6 +40,8 @@ namespace corundum::dialogue {
                              const Registry *graphs, std::string zone_id)
       : flags_(&flags), graphs_(graphs), quests_(quests), zone_id_(std::move(zone_id)) {
     start_graph(graph);
+    if (!graph.nodes.empty())
+      go_to(graph.nodes.data());
   }
 
   // ── Conversation queries ──────────────────────────────────────────────────────
@@ -71,7 +81,7 @@ namespace corundum::dialogue {
 
   std::vector<std::size_t> Conversation::visible_choice_indices() const {
     const Node *node = current_node();
-    if ((node == nullptr) || node->type != NodeType::Choice || !graph_)
+    if ((node == nullptr) || node->type != NodeType::Choice || (graph_ == nullptr))
       return {};
     return visible_choices(*node, *flags_, graph_->graph_id, quests_, zone_id_);
   }
@@ -114,11 +124,7 @@ namespace corundum::dialogue {
       flags_->try_emplace(k, v);
 
     graph_ = &graph;
-    current_id_ = graph.nodes[0].id;
-    selected_choice_ = 0;
     active_ = true;
-
-    corundum::world::set_flag(*flags_, visit_flag_key(graph.graph_id, graph.nodes[0].id));
   }
 
   void Conversation::go_to(const Node *next) {
@@ -161,8 +167,7 @@ namespace corundum::dialogue {
         const Node *resume = advance(*graph_, *current_node, choice_index);
         call_stack_.emplace_back(graph_, resume ? resume->id : std::string{});
         start_graph(*target_graph);
-        current_id_ = target_node->id;
-        selected_choice_ = 0;
+        go_to(target_node);
         return true;
       }
       if (ev.name == "return_graph") {
@@ -196,11 +201,87 @@ namespace corundum::dialogue {
       if ((cur == nullptr) || cur->type != NodeType::Event)
         break;
       auto events = execute_actions(cur->actions, *flags_, zone_id_);
-      if (divert(cur, /*choice_index=*/0, events))
-        return; // jumped to another graph (or ended); stop flushing this graph
+      const bool diverted = divert(cur, /*choice_index=*/0, events);
       pending.append_range(events);
+      if (diverted)
+        return; // jumped to another graph (or ended); stop flushing this graph
       go_to(advance(*graph_, *cur));
     }
+  }
+
+  void Conversation::handle_talk(const Node &node, const input::PressedActions &actions) {
+    if (pressed(actions, corundum::input::Action::Cancel)) {
+      reset();
+      return;
+    }
+
+    if (!node.once) {
+      if (pressed(actions, corundum::input::Action::Select))
+        go_to(advance(*graph_, node));
+      return;
+    }
+
+    const std::string once_key = node_once_flag_key(graph_->graph_id, node.id);
+    if (corundum::world::has_flag(*flags_, once_key)) {
+      // Already shown — skip straight to next_id without waiting for input.
+      go_to(advance(*graph_, node));
+      return;
+    }
+
+    if (pressed(actions, corundum::input::Action::Select)) {
+      corundum::world::set_flag(*flags_, once_key);
+      go_to(advance(*graph_, node));
+    }
+  }
+
+  void Conversation::handle_choice(const Node &node, const input::PressedActions &actions,
+                                   std::vector<EventAction> &pending) {
+    const std::vector<std::size_t> visible = visible_choices(node, *flags_, graph_->graph_id, quests_, zone_id_);
+    const int count = static_cast<int>(visible.size());
+
+    if (count == 0) {
+      reset();
+      return;
+    }
+
+    if (selected_choice_ >= count)
+      selected_choice_ = count - 1;
+
+    if (pressed(actions, corundum::input::Action::MoveUp))
+      selected_choice_ = wrap(selected_choice_, -1, count);
+    if (pressed(actions, corundum::input::Action::MoveDown))
+      selected_choice_ = wrap(selected_choice_, +1, count);
+
+    if (pressed(actions, corundum::input::Action::Select)) {
+      const std::size_t full_index = visible[static_cast<std::size_t>(selected_choice_)];
+      const ChoiceEdge &edge = node.choices[full_index];
+
+      // Record the once-flag before advancing so visible_choices sees it
+      // immediately on any same-frame re-check of this node.
+      if (edge.sequence == SequenceMode::Once)
+        corundum::world::set_flag(*flags_, once_flag_key(graph_->graph_id, node.id, full_index));
+
+      auto events = execute_actions(edge.actions, *flags_, zone_id_);
+      const bool diverted = divert(&node, static_cast<int>(full_index), events);
+      pending.append_range(events);
+      if (diverted)
+        return; // diverted to another graph (or ended); skip the local go_to
+
+      go_to(advance(*graph_, node, static_cast<int>(full_index)));
+    }
+
+    if (pressed(actions, corundum::input::Action::Cancel))
+      reset();
+  }
+
+  void Conversation::handle_event(const Node &node, std::vector<EventAction> &pending) {
+    auto events = execute_actions(node.actions, *flags_, zone_id_);
+    const bool diverted = divert(&node, /*choice_index=*/0, events);
+    pending.append_range(events);
+    if (diverted)
+      return; // diverted to another graph (or ended); skip the local go_to
+
+    go_to(advance(*graph_, node));
   }
 
   // ── Conversation public API ───────────────────────────────────────────────────
@@ -217,86 +298,16 @@ namespace corundum::dialogue {
       return pending;
     }
 
-    // C++23: std::ranges::contains — replaces the manual has() helper
-    const auto contains = [&](corundum::input::Action a) { return std::ranges::contains(actions, a); };
-
-    const bool select = contains(corundum::input::Action::Select);
-    const bool cancel = contains(corundum::input::Action::Cancel);
-    const bool up = contains(corundum::input::Action::MoveUp);
-    const bool down = contains(corundum::input::Action::MoveDown);
-
     switch (node->type) {
-
       case NodeType::Talk:
-        if (cancel) {
-          reset();
-          break;
-        }
-        if (node->once) {
-          const auto once_key = node_once_flag_key(graph_->graph_id, node->id);
-          if (corundum::world::has_flag(*flags_, once_key)) {
-            // Already shown — skip straight to next_id without waiting for input.
-            go_to(advance(*graph_, *node));
-            break;
-          }
-          if (select) {
-            corundum::world::set_flag(*flags_, once_key);
-            go_to(advance(*graph_, *node));
-          }
-          break;
-        }
-        if (select)
-          go_to(advance(*graph_, *node));
+        handle_talk(*node, actions);
         break;
-
-      case NodeType::Choice: {
-        const auto visible = visible_choices(*node, *flags_, graph_->graph_id, quests_, zone_id_);
-        const int count = static_cast<int>(visible.size());
-
-        if (count == 0) {
-          reset();
-          break;
-        }
-
-        if (selected_choice_ >= count)
-          selected_choice_ = count - 1;
-
-        if (up)
-          selected_choice_ = wrap(selected_choice_, -1, count);
-        if (down)
-          selected_choice_ = wrap(selected_choice_, +1, count);
-
-        if (select) {
-          const std::size_t full_idx = visible[static_cast<std::size_t>(selected_choice_)];
-          const auto &edge = node->choices[full_idx];
-
-          // Record the once-flag before advancing so visible_choices sees it
-          // immediately on any same-frame re-check of this node.
-          if (edge.sequence == SequenceMode::Once)
-            corundum::world::set_flag(*flags_, once_flag_key(graph_->graph_id, node->id, full_idx));
-
-          auto events = execute_actions(edge.actions, *flags_, zone_id_);
-          if (divert(node, static_cast<int>(full_idx), events))
-            break; // diverted to another graph (or ended); skip the local go_to
-
-          pending.append_range(events);
-          go_to(advance(*graph_, *node, static_cast<int>(full_idx)));
-        }
-        if (cancel)
-          reset();
+      case NodeType::Choice:
+        handle_choice(*node, actions, pending);
         break;
-      }
-
-      case NodeType::Event: {
-        auto events = execute_actions(node->actions, *flags_, zone_id_);
-        if (divert(node, /*choice_index=*/0, events))
-          break; // diverted to another graph (or ended); skip the local go_to
-
-        pending.append_range(events);
-        go_to(advance(*graph_, *node));
+      case NodeType::Event:
+        handle_event(*node, pending);
         break;
-      }
-
       case NodeType::End:
         reset();
         break;

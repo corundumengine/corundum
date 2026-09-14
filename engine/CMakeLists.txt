@@ -20,7 +20,6 @@ set(ENGINE_SOURCES
     src/dialogue/action.cpp
     src/dialogue/compiled_expr.cpp
     src/dialogue/conversation.cpp
-    src/dialogue/expr.cpp
     src/dialogue/interact.cpp
     src/dialogue/loader.cpp
     src/dialogue/query.cpp

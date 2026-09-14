@@ -6,7 +6,6 @@
 
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
-#include <corundum/dialogue/expr.hpp>
 #include <corundum/dialogue/query.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -39,7 +38,10 @@ TEST_CASE("zone scope: bare keys are untouched by scoping") {
 
   CHECK(flags["gold"] == 5);
   CHECK_FALSE(flags.contains("zone.cave.gold"));
-  CHECK(*corundum::dialogue::eval_condition("gold == 5", flags));
+
+  const auto gold_is_five = corundum::dialogue::compile("gold == 5");
+  REQUIRE(gold_is_five.has_value());
+  CHECK(corundum::dialogue::evaluate(*gold_is_five, flags));
 }
 
 // ── local.<key> read scoping ─────────────────────────────────────────────────
@@ -56,14 +58,6 @@ TEST_CASE("zone scope: local.<key> condition reads resolve per zone_id") {
   const auto in_village = corundum::dialogue::compile("local.x == 1");
   REQUIRE(in_village.has_value());
   CHECK_FALSE(corundum::dialogue::evaluate(*in_village, flags, nullptr, {}, "village"));
-}
-
-TEST_CASE("zone scope: eval_condition shim threads zone_id through") {
-  FlagStore flags;
-  flags["zone.cave.chest"] = 1;
-
-  CHECK(*corundum::dialogue::eval_condition("local.chest == 1", flags, nullptr, "cave"));
-  CHECK_FALSE(*corundum::dialogue::eval_condition("local.chest == 1", flags, nullptr, "village"));
 }
 
 TEST_CASE("zone scope: visible_choices evaluates local.<key> conditions per zone") {

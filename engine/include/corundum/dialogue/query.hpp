@@ -6,8 +6,11 @@
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/world/flags.hpp>
 
+#include <cstddef>
 #include <format>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace corundum::quest {
   class Registry;
@@ -38,13 +41,6 @@ namespace corundum::dialogue {
   }
 
   // ── Query functions ───────────────────────────────────────────────────────────
-
-  /**
-   * @brief Find a node by id.
-   * @return Pointer to the node, or nullptr. O(1) via the pre-built index map.
-   */
-  [[nodiscard]]
-  const Node *find_node(const Graph &graph, const std::string &id) noexcept;
 
   /**
    * @brief Advance to the next node.
@@ -87,11 +83,5 @@ namespace corundum::dialogue {
   std::vector<std::size_t> visible_choices(const Node &node, const corundum::world::FlagStore &flags,
                                            std::string_view graph_id, const quest::Registry *quests = nullptr,
                                            std::string_view zone_id = {});
-
-  /**
-   * @brief Returns true if this node terminates the conversation.
-   */
-  [[nodiscard]]
-  bool is_terminal(const Node &node) noexcept;
 
 } // namespace corundum::dialogue

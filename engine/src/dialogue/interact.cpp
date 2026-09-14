@@ -28,7 +28,7 @@ namespace corundum::dialogue {
 
     /** @brief Ratio above which the dominant axis is considered "cardinal"
      *  rather than diagonal when computing facing direction. */
-    inline constexpr float k_cardinal_dominance_ratio = 2.f;
+    constexpr float k_cardinal_dominance_ratio = 2.f;
 
     /// Classify a tile-grid displacement (dx=Δcol, dy=Δrow) into the nearest screen-space Direction.
     /// The isometric projection rotates the grid axes 45° relative to screen space,
@@ -49,7 +49,7 @@ namespace corundum::dialogue {
 
   } // namespace
 
-  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions) noexcept {
+  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions) {
     using corundum::entities::EntityId;
     using corundum::entities::World;
 
@@ -79,7 +79,7 @@ namespace corundum::dialogue {
 
   void try_interact(corundum::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
-                    corundum::world::FlagStore &flags, const quest::Registry *quests) noexcept {
+                    corundum::world::FlagStore &flags, const quest::Registry *quests) {
     using corundum::dialogue::Graph;
     using corundum::entities::distance;
     using corundum::entities::EntityId;
@@ -98,17 +98,17 @@ namespace corundum::dialogue {
     const bool via_click = input.mouse_click_pressed;
 
     World &world = scene.world;
-    const std::uint32_t p_slot = world.transforms.dense_idx(scene.player);
-    const float player_col = world.transforms.col[p_slot];
-    const float player_row = world.transforms.row[p_slot];
+    const std::uint32_t player_slot = world.transforms.dense_idx(scene.player);
+    const float player_col = world.transforms.col[player_slot];
+    const float player_row = world.transforms.row[player_slot];
 
     for (EntityId eid : world.dialogue_refs.active_entities()) {
       if (!world.transforms.has(eid))
         continue;
 
-      const std::uint32_t n_slot = world.transforms.dense_idx(eid);
-      const float npc_col = world.transforms.col[n_slot];
-      const float npc_row = world.transforms.row[n_slot];
+      const std::uint32_t npc_slot = world.transforms.dense_idx(eid);
+      const float npc_col = world.transforms.col[npc_slot];
+      const float npc_row = world.transforms.row[npc_slot];
 
       if (distance(Position{.col = player_col, .row = player_row}, Position{.col = npc_col, .row = npc_row}) >
           cfg.interact_radius)

@@ -5,10 +5,13 @@
 
 #include <corundum/dialogue/dialogue.hpp>
 
+#include <cstddef>
 #include <filesystem>
 #include <flat_map>
+#include <functional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace corundum::dialogue {
 

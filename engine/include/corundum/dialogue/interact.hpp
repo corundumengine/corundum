@@ -7,8 +7,6 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/world/scene.hpp>
 
-#include <string_view>
-
 namespace corundum::quest {
   class Registry;
 }
@@ -26,7 +24,7 @@ namespace corundum::dialogue {
    *  @post On dialogue end, scene.dialogue is reset and NPC facing/animation are
    *        restored from saved state.
    */
-  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions) noexcept;
+  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions);
 
   /** @brief Check for nearby NPCs and start a dialogue on Select press.
    *
@@ -44,10 +42,10 @@ namespace corundum::dialogue {
    *  @post If an NPC is within range, scene.mode → Dialogue and scene.dialogue holds a
    *        new Conversation.
    *  @post NPC facing/animation are saved before modification.
-   *  @performance O(n) over dialogue-ref entities. No heap allocation.
+   *  @note O(n) over dialogue-ref entities; allocates the new Conversation on success.
    */
   void try_interact(corundum::world::Scene &scene, const corundum::input::InputState &input,
                     const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
-                    corundum::world::FlagStore &flags, const quest::Registry *quests = nullptr) noexcept;
+                    corundum::world::FlagStore &flags, const quest::Registry *quests = nullptr);
 
 } // namespace corundum::dialogue

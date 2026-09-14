@@ -4,6 +4,7 @@
 #pragma once
 
 #include <corundum/world/flags.hpp>
+#include <cstdint>
 #include <expected>
 #include <span>
 #include <string>

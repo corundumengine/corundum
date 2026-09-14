@@ -15,7 +15,7 @@
 namespace corundum::dialogue {
 
   /** @brief Current on-disk dialogue format version. Absent field == version 1. */
-  inline constexpr int k_dialogue_schema_version = 1;
+  constexpr int k_dialogue_schema_version = 1;
 
   /**
    * @brief Classifies the role of a node in the dialogue graph.

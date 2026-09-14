@@ -40,7 +40,7 @@ namespace {
 
 } // namespace
 
-// ── compile → evaluate characterization (port of every eval_condition case) ──
+// ── compile → evaluate characterization ─────────────────────────────────────
 
 TEST_CASE("compiled_expr: empty source compiles to always-true") {
   FlagStore flags;

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/files.hpp>
 #include <corundum/dialogue/loader.hpp>
 #include <corundum/dialogue/registry.hpp>
 
@@ -14,28 +15,27 @@
 namespace corundum::dialogue {
 
   int Registry::load_all(const std::filesystem::path &dir) {
-    int loaded = 0;
-
-    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
-      std::println("[dialogue] no dialogue directory at '{}'", dir.string());
-      return loaded;
+    const auto entries = corundum::core::list_dir_entries(dir, {.extensions = {"json"}});
+    if (!entries) {
+      std::println(stderr, "[dialogue] cannot read dialogue directory '{}': {}", dir.string(), entries.error());
+      return 0;
     }
 
-    for (const auto &entry : std::filesystem::directory_iterator(dir)) {
-      if (entry.path().extension() != ".json")
+    int loaded = 0;
+    for (const auto &entry : *entries) {
+      if (entry.is_dir)
         continue;
 
-      auto result = load_graph(entry.path());
+      auto result = load_graph(entry.path);
       if (!result) {
-        std::println(stderr, "[dialogue] skipping '{}': {}", entry.path().filename().string(), result.error());
+        std::println(stderr, "[dialogue] skipping '{}': {}", entry.name, result.error());
         continue;
       }
 
       const std::string id = result->graph_id;
-      if (graphs_.contains(id))
-        std::println(stderr, "[dialogue] duplicate graph id '{}' — '{}' is shadowed", id,
-                     entry.path().filename().string());
-      else {
+      if (graphs_.contains(id)) {
+        std::println(stderr, "[dialogue] duplicate graph id '{}' — '{}' is shadowed", id, entry.name);
+      } else {
         graphs_.emplace(id, std::move(*result));
         ++loaded;
       }

@@ -125,8 +125,8 @@ namespace corundum::dialogue {
     /// Node currently being processed; nullptr when inactive or unresolvable.
     [[nodiscard]] const Node *current_node() const noexcept;
 
-    /// Begin running @p graph: apply variable defaults and jump to its first node.
-    /// No-op when the graph has no nodes.
+    /// Make @p graph current after applying its variable defaults; the caller then
+    /// advances to the entry node. No-op when the graph has no nodes.
     void start_graph(const Graph &graph);
 
     /// Advance to a node, resetting the choice cursor and recording a visit. Ends the
@@ -134,13 +134,23 @@ namespace corundum::dialogue {
     void go_to(const Node *next);
 
     /// Handle goto_graph / return_graph EventActions before they reach the engine queue.
-    /// Each handled divert is erased from `events`. Returns true when a divert consumed
-    /// the flow — the caller must not advance the current graph or flush its event chain.
+    /// The handled divert is erased from `events`; any other events survive and must still
+    /// be dispatched by the caller. Returns true when a divert consumed the flow — the
+    /// caller must not advance the current graph or flush its event chain.
     bool divert(const Node *current_node, int choice_index, std::vector<EventAction> &events);
 
     /// Flush any Event nodes just landed on, collecting their emitted actions. Returns
     /// once the current node is not an Event.
     void flush_events(std::vector<EventAction> &pending);
+
+    /// Handle a Talk node: Cancel closes; Select (or a previously-shown once-node) advances.
+    void handle_talk(const Node &node, const input::PressedActions &actions);
+
+    /// Handle a Choice node: cursor movement, selection (executing the edge's actions), Cancel.
+    void handle_choice(const Node &node, const input::PressedActions &actions, std::vector<EventAction> &pending);
+
+    /// Handle an Event node: execute its actions and advance unless a divert consumes the flow.
+    void handle_event(const Node &node, std::vector<EventAction> &pending);
 
     /// Deactivate and clear all traversal state.
     void reset() noexcept;

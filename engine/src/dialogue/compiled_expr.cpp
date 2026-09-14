@@ -16,9 +16,11 @@
 #include <exception>
 #include <expected>
 #include <format>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -48,11 +50,89 @@ namespace corundum::dialogue {
       End,    // end of input
     };
 
-    struct Token {
-      TokKind kind = TokKind::End;
-      int int_val = 0;
-      std::string_view text;
+    class Token {
+    public:
+      /// Build from kind + source span; an Int's value is derived here so the
+      /// lexer never has to know how a token stores its value.
+      static Token make(TokKind kind, std::string_view text = {}) {
+        Token token;
+        token.kind_ = kind;
+        token.text_ = text;
+
+        if (kind == TokKind::Int) {
+          const auto parsed = std::from_chars(text.data(), text.data() + text.size(), token.int_value_);
+          if (parsed.ec == std::errc::result_out_of_range)
+            throw std::runtime_error(std::format("integer literal out of range: {}", text));
+        }
+        return token;
+      }
+
+      [[nodiscard]] bool is(TokKind kind) const noexcept {
+        return kind_ == kind;
+      }
+
+      [[nodiscard]] bool is_comparison() const noexcept {
+        return kind_ == TokKind::EqEq || kind_ == TokKind::NotEq || kind_ == TokKind::Lt || kind_ == TokKind::Gt ||
+               kind_ == TokKind::LtEq || kind_ == TokKind::GtEq;
+      }
+
+      [[nodiscard]] TokKind kind() const noexcept {
+        return kind_;
+      }
+
+      [[nodiscard]] int int_value() const noexcept {
+        return int_value_;
+      }
+
+      [[nodiscard]] std::string_view text() const noexcept {
+        return text_;
+      }
+
+    private:
+      TokKind kind_ = TokKind::End;
+      int int_value_ = 0;
+      std::string_view text_{};
     };
+
+    [[nodiscard]] bool is_digit(char c) noexcept {
+      return std::isdigit(static_cast<unsigned char>(c)) != 0;
+    }
+
+    [[nodiscard]] bool is_alpha(char c) noexcept {
+      return std::isalpha(static_cast<unsigned char>(c)) != 0;
+    }
+
+    [[nodiscard]] bool is_alnum(char c) noexcept {
+      return std::isalnum(static_cast<unsigned char>(c)) != 0;
+    }
+
+    [[nodiscard]] bool is_space(char c) noexcept {
+      return std::isspace(static_cast<unsigned char>(c)) != 0;
+    }
+
+    [[nodiscard]] bool is_identifier_char(char c) noexcept {
+      return is_alnum(c) || c == '_' || c == '.';
+    }
+
+    /// Kind of the single-character operator @p c, or nullopt when it is not one.
+    [[nodiscard]] std::optional<TokKind> single_char_operator(char c) noexcept {
+      switch (c) {
+        case '<':
+          return TokKind::Lt;
+        case '>':
+          return TokKind::Gt;
+        case '!':
+          return TokKind::Not;
+        case '(':
+          return TokKind::LParen;
+        case ')':
+          return TokKind::RParen;
+        case ',':
+          return TokKind::Comma;
+        default:
+          return std::nullopt;
+      }
+    }
 
     class Lexer {
     public:
@@ -61,95 +141,94 @@ namespace corundum::dialogue {
       Token next() {
         skip_ws();
         if (pos_ >= src_.size())
-          return {TokKind::End, 0, {}};
+          return Token::make(TokKind::End);
 
-        const auto start = pos_;
-        const char c = src_[pos_];
-        const char c2 = (pos_ + 1 < src_.size()) ? src_[pos_ + 1] : '\0';
+        if (const auto token = scan_operator())
+          return *token;
+        if (const auto token = scan_int())
+          return *token;
+        if (const auto token = scan_identifier())
+          return *token;
 
-        // Two-character operators
-        if (c == '=' && c2 == '=') {
-          pos_ += 2;
-          return {TokKind::EqEq, 0, src_.substr(start, 2)};
-        }
-        if (c == '!' && c2 == '=') {
-          pos_ += 2;
-          return {TokKind::NotEq, 0, src_.substr(start, 2)};
-        }
-        if (c == '<' && c2 == '=') {
-          pos_ += 2;
-          return {TokKind::LtEq, 0, src_.substr(start, 2)};
-        }
-        if (c == '>' && c2 == '=') {
-          pos_ += 2;
-          return {TokKind::GtEq, 0, src_.substr(start, 2)};
-        }
-        if (c == '&' && c2 == '&') {
-          pos_ += 2;
-          return {TokKind::And, 0, src_.substr(start, 2)};
-        }
-        if (c == '|' && c2 == '|') {
-          pos_ += 2;
-          return {TokKind::Or, 0, src_.substr(start, 2)};
-        }
-
-        // Single-character operators
-        switch (c) {
-          case '<':
-            ++pos_;
-            return {TokKind::Lt, 0, src_.substr(start, 1)};
-          case '>':
-            ++pos_;
-            return {TokKind::Gt, 0, src_.substr(start, 1)};
-          case '!':
-            ++pos_;
-            return {TokKind::Not, 0, src_.substr(start, 1)};
-          case '(':
-            ++pos_;
-            return {TokKind::LParen, 0, src_.substr(start, 1)};
-          case ')':
-            ++pos_;
-            return {TokKind::RParen, 0, src_.substr(start, 1)};
-          case ',':
-            ++pos_;
-            return {TokKind::Comma, 0, src_.substr(start, 1)};
-          default:
-            break;
-        }
-
-        // Integer literal (with optional leading minus)
-        const bool neg = (c == '-' && std::isdigit(static_cast<unsigned char>(c2)));
-        if (neg || std::isdigit(static_cast<unsigned char>(c))) {
-          if (neg)
-            ++pos_;
-          while (pos_ < src_.size() && std::isdigit(static_cast<unsigned char>(src_[pos_])))
-            ++pos_;
-          const auto sv = src_.substr(start, pos_ - start);
-          int val = 0;
-          std::from_chars(sv.data(), sv.data() + sv.size(), val);
-          return {TokKind::Int, val, sv};
-        }
-
-        // Identifier or keyword. '.' is permitted inside identifiers so dotted
-        // flag keys (e.g. `local.x`, `quest.find_sword`) parse as a single token.
-        if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
-          while (pos_ < src_.size() &&
-                 (std::isalnum(static_cast<unsigned char>(src_[pos_])) || src_[pos_] == '_' || src_[pos_] == '.'))
-            ++pos_;
-          const auto sv = src_.substr(start, pos_ - start);
-          if (sv == "true")
-            return {TokKind::True, 1, sv};
-          if (sv == "false")
-            return {TokKind::False, 0, sv};
-          return {TokKind::Ident, 0, sv};
-        }
-
-        throw std::runtime_error(std::string("unexpected character in expression: ") + c);
+        throw std::runtime_error(std::string("unexpected character in expression: ") + src_[pos_]);
       }
 
     private:
+      /// Consume a single- or two-character operator, if one starts at the cursor.
+      [[nodiscard]] std::optional<Token> scan_operator() {
+        const auto start = pos_;
+        const char c = src_[pos_];
+        const char next_char = (pos_ + 1 < src_.size()) ? src_[pos_ + 1] : '\0';
+
+        if (c == '=' && next_char == '=') {
+          pos_ += 2;
+          return Token::make(TokKind::EqEq, src_.substr(start, 2));
+        }
+        if (c == '!' && next_char == '=') {
+          pos_ += 2;
+          return Token::make(TokKind::NotEq, src_.substr(start, 2));
+        }
+        if (c == '<' && next_char == '=') {
+          pos_ += 2;
+          return Token::make(TokKind::LtEq, src_.substr(start, 2));
+        }
+        if (c == '>' && next_char == '=') {
+          pos_ += 2;
+          return Token::make(TokKind::GtEq, src_.substr(start, 2));
+        }
+        if (c == '&' && next_char == '&') {
+          pos_ += 2;
+          return Token::make(TokKind::And, src_.substr(start, 2));
+        }
+        if (c == '|' && next_char == '|') {
+          pos_ += 2;
+          return Token::make(TokKind::Or, src_.substr(start, 2));
+        }
+
+        const std::optional<TokKind> kind = single_char_operator(c);
+        if (!kind.has_value())
+          return std::nullopt;
+        ++pos_;
+        return Token::make(*kind, src_.substr(start, 1));
+      }
+
+      /// Consume an integer literal (optional leading minus), if one starts here.
+      [[nodiscard]] std::optional<Token> scan_int() {
+        const char c = src_[pos_];
+        const char next_char = (pos_ + 1 < src_.size()) ? src_[pos_ + 1] : '\0';
+        const bool negative = (c == '-' && is_digit(next_char));
+
+        if (!negative && !is_digit(c))
+          return std::nullopt;
+
+        const auto start = pos_;
+        if (negative)
+          ++pos_;
+        while (pos_ < src_.size() && is_digit(src_[pos_]))
+          ++pos_;
+        return Token::make(TokKind::Int, src_.substr(start, pos_ - start));
+      }
+
+      /// Consume an identifier or keyword, if one starts here. '.' is permitted inside
+      /// so dotted flag keys (e.g. `local.x`, `quest.find_sword`) parse as one token.
+      [[nodiscard]] std::optional<Token> scan_identifier() {
+        const char c = src_[pos_];
+        if (!is_alpha(c) && c != '_')
+          return std::nullopt;
+
+        const auto start = pos_;
+        while (pos_ < src_.size() && is_identifier_char(src_[pos_]))
+          ++pos_;
+        const std::string_view text = src_.substr(start, pos_ - start);
+        if (text == "true")
+          return Token::make(TokKind::True, text);
+        if (text == "false")
+          return Token::make(TokKind::False, text);
+        return Token::make(TokKind::Ident, text);
+      }
+
       void skip_ws() {
-        while (pos_ < src_.size() && std::isspace(static_cast<unsigned char>(src_[pos_])))
+        while (pos_ < src_.size() && is_space(src_[pos_]))
           ++pos_;
       }
 
@@ -159,17 +238,21 @@ namespace corundum::dialogue {
 
     // ── Recursive-descent parser emitting arena nodes ───────────────────────────
 
+    // The grammar and the node tree are processed by recursive descent / recursive
+    // walk; the mutual recursion between precedence levels is inherent to that design,
+    // so misc-no-recursion does not apply across these two classes.
+    // NOLINTBEGIN(misc-no-recursion)
     class Parser {
     public:
-      Parser(std::string_view src, std::vector<ExprNode> &arena) : lex_(src), arena_(arena) {
+      Parser(std::string_view src, std::vector<ExprNode> &arena) : lex_(src), arena_(&arena) {
         advance();
       }
 
       /** @brief Parse the whole expression; returns the root arena index. */
       int parse() {
         const int root = parse_or();
-        if (cur_.kind != TokKind::End)
-          throw std::runtime_error("unexpected token: " + std::string(cur_.text));
+        if (!cur_.is(TokKind::End))
+          throw std::runtime_error("unexpected token: " + std::string(cur_.text()));
         return root;
       }
 
@@ -179,13 +262,13 @@ namespace corundum::dialogue {
       }
 
       int push(ExprNode node) {
-        arena_.push_back(std::move(node));
-        return static_cast<int>(arena_.size()) - 1;
+        arena_->push_back(std::move(node));
+        return static_cast<int>(arena_->size()) - 1;
       }
 
       int parse_or() {
         int val = parse_and();
-        while (cur_.kind == TokKind::Or) {
+        while (cur_.is(TokKind::Or)) {
           advance();
           const int rhs = parse_and();
           val = push(ExprNode{.kind = ExprNode::Kind::Or, .lhs = val, .rhs = rhs});
@@ -195,7 +278,7 @@ namespace corundum::dialogue {
 
       int parse_and() {
         int val = parse_not();
-        while (cur_.kind == TokKind::And) {
+        while (cur_.is(TokKind::And)) {
           advance();
           const int rhs = parse_not();
           val = push(ExprNode{.kind = ExprNode::Kind::And, .lhs = val, .rhs = rhs});
@@ -204,7 +287,7 @@ namespace corundum::dialogue {
       }
 
       int parse_not() {
-        if (cur_.kind == TokKind::Not) {
+        if (cur_.is(TokKind::Not)) {
           advance();
           return push(ExprNode{.kind = ExprNode::Kind::Not, .lhs = parse_not()});
         }
@@ -214,13 +297,12 @@ namespace corundum::dialogue {
       int parse_cmp() {
         const int lhs = parse_primary();
 
-        if (cur_.kind == TokKind::EqEq || cur_.kind == TokKind::NotEq || cur_.kind == TokKind::Lt ||
-            cur_.kind == TokKind::Gt || cur_.kind == TokKind::LtEq || cur_.kind == TokKind::GtEq) {
-          const auto op = cmp_op(cur_.kind);
+        if (cur_.is_comparison()) {
+          const auto op = cmp_op(cur_.kind());
           advance();
           // Remember whether the RHS is a bool literal so evaluation can do a
           // truthiness comparison instead of an exact integer comparison.
-          const bool rhs_is_bool = (cur_.kind == TokKind::True || cur_.kind == TokKind::False);
+          const bool rhs_is_bool = cur_.is(TokKind::True) || cur_.is(TokKind::False);
           const int rhs = parse_primary();
           return push(
               ExprNode{.kind = ExprNode::Kind::Cmp, .lhs = lhs, .op = op, .rhs = rhs, .rhs_is_bool = rhs_is_bool});
@@ -231,48 +313,48 @@ namespace corundum::dialogue {
       }
 
       int parse_primary() {
-        switch (cur_.kind) {
+        switch (cur_.kind()) {
           case TokKind::Int: {
-            const int v = cur_.int_val;
+            const int v = cur_.int_value();
             advance();
-            return push(ExprNode{.ival = v});
+            return push(ExprNode{.value = v});
           }
           case TokKind::True:
             advance();
-            return push(ExprNode{.ival = 1});
+            return push(ExprNode{.value = 1});
           case TokKind::False:
             advance();
-            return push(ExprNode{.ival = 0});
+            return push(ExprNode{.value = 0});
           case TokKind::Ident: {
-            const auto text = std::string(cur_.text);
+            const auto text = std::string(cur_.text());
             advance();
-            if (cur_.kind == TokKind::LParen)
+            if (cur_.is(TokKind::LParen))
               return parse_call_helper(text);
             return push(ExprNode{.kind = ExprNode::Kind::Ident, .name = text});
           }
           case TokKind::LParen: {
             advance();
             const int inner = parse_or();
-            if (cur_.kind != TokKind::RParen)
+            if (!cur_.is(TokKind::RParen))
               throw std::runtime_error("expected ')'");
             advance();
             return inner;
           }
           default:
-            throw std::runtime_error("expected value, got: " + std::string(cur_.text));
+            throw std::runtime_error("expected value, got: " + std::string(cur_.text()));
         }
       }
 
       std::string expect_ident(std::string_view context) {
-        if (cur_.kind != TokKind::Ident)
+        if (!cur_.is(TokKind::Ident))
           throw std::runtime_error(std::format("expected identifier {}", context));
-        const auto text = std::string(cur_.text);
+        const auto text = std::string(cur_.text());
         advance();
         return text;
       }
 
       void expect_rparen() {
-        if (cur_.kind != TokKind::RParen)
+        if (!cur_.is(TokKind::RParen))
           throw std::runtime_error("expected ')'");
         advance();
       }
@@ -285,7 +367,7 @@ namespace corundum::dialogue {
           advance(); // consume comma
           const auto stage_name = expect_ident("for stage name in quest_is_at");
           expect_rparen();
-          return push(ExprNode{.arg = arg, .arg2 = stage_name, .kind = ExprNode::Kind::Call, .name = name});
+          return push(ExprNode{.arg = arg, .kind = ExprNode::Kind::Call, .name = name, .stage_name = stage_name});
         }
 
         expect_rparen();
@@ -317,7 +399,7 @@ namespace corundum::dialogue {
 
       Lexer lex_;
       Token cur_;
-      std::vector<ExprNode> &arena_;
+      std::vector<ExprNode> *arena_;
     };
 
     // ── Arena evaluator ──────────────────────────────────────────────────────────
@@ -326,24 +408,28 @@ namespace corundum::dialogue {
     public:
       Evaluator(const std::vector<ExprNode> &nodes, int32_t root, const corundum::world::FlagStore &vars,
                 const quest::Registry *quests, std::string_view graph_id, std::string_view zone_id)
-          : nodes_(nodes), root_(root), vars_(vars), quests_(quests), graph_id_(graph_id), zone_id_(zone_id) {}
+          : nodes_(&nodes), root_(root), vars_(&vars), quests_(quests), graph_id_(graph_id), zone_id_(zone_id) {}
 
       [[nodiscard]] bool run() const {
         return eval_index(root_) != 0;
       }
 
     private:
+      [[nodiscard]] int flag_count(const std::string &key) const {
+        return corundum::world::visit_count(*vars_, key);
+      }
+
       [[nodiscard]] const ExprNode &node(int index) const {
-        return nodes_[static_cast<std::size_t>(index)];
+        return (*nodes_)[static_cast<std::size_t>(index)];
       }
 
       [[nodiscard]] int eval_index(int index) const {
         const ExprNode &n = node(index);
         switch (n.kind) {
           case ExprNode::Kind::Int:
-            return n.ival;
+            return n.value;
           case ExprNode::Kind::Ident:
-            return corundum::world::visit_count(vars_, corundum::world::scoped_flag_key(n.name, zone_id_));
+            return corundum::world::visit_count(*vars_, corundum::world::scoped_flag_key(n.name, zone_id_));
           case ExprNode::Kind::Bool:
             return eval_index(n.lhs) != 0 ? 1 : 0;
           case ExprNode::Kind::Not:
@@ -365,11 +451,11 @@ namespace corundum::dialogue {
         const int rhs = eval_index(n.rhs);
 
         if (n.rhs_is_bool && (n.op == CmpOp::Eq || n.op == CmpOp::Ne)) {
-          const bool lb = (lhs != 0);
-          const bool rb = (rhs != 0);
+          const bool lhs_truthy = (lhs != 0);
+          const bool rhs_truthy = (rhs != 0);
           if (n.op == CmpOp::Eq)
-            return (lb == rb) ? 1 : 0;
-          return (lb != rb) ? 1 : 0;
+            return (lhs_truthy == rhs_truthy) ? 1 : 0;
+          return (lhs_truthy != rhs_truthy) ? 1 : 0;
         }
 
         switch (n.op) {
@@ -390,30 +476,11 @@ namespace corundum::dialogue {
       }
 
       [[nodiscard]] int eval_call(const ExprNode &n) const {
-        const auto flag_count = [&](const std::string &key) { return corundum::world::visit_count(vars_, key); };
+        if (const auto value = eval_visit_helper(n))
+          return *value;
+        if (const auto value = eval_quest_helper(n))
+          return *value;
 
-        if (n.name == "quest_is_started")
-          return flag_count(corundum::quest::quest_flag_key(n.arg)) > 0 ? 1 : 0;
-
-        if (n.name == "seen")
-          return graph_id_.empty() ? 0 : (flag_count(visit_flag_key(graph_id_, n.arg)) > 0 ? 1 : 0);
-        if (n.name == "visits")
-          return graph_id_.empty() ? 0 : flag_count(visit_flag_key(graph_id_, n.arg));
-
-        const auto *q = (quests_ != nullptr) ? quests_->find(n.arg) : nullptr;
-
-        if (n.name == "quest_is_resolved")
-          return (q != nullptr && corundum::quest::is_complete(*q, vars_)) ? 1 : 0;
-        if (n.name == "quest_is_failed")
-          return (q != nullptr && corundum::quest::is_failed(*q, vars_)) ? 1 : 0;
-        if (n.name == "quest_is_at") {
-          if (q == nullptr)
-            return 0;
-          const auto *s = q->find_stage(n.arg2);
-          if (s == nullptr)
-            return 0;
-          return flag_count(corundum::quest::quest_flag_key(n.arg)) == s->sequence ? 1 : 0;
-        }
         if (n.name == "has_item")
           return flag_count("item." + n.arg) > 0 ? 1 : 0;
         if (n.name == "item_count")
@@ -424,13 +491,51 @@ namespace corundum::dialogue {
         std::unreachable();
       }
 
-      const std::vector<ExprNode> &nodes_;
+      /// seen/visits — resolved against the owning graph; 0 without graph context.
+      [[nodiscard]] std::optional<int> eval_visit_helper(const ExprNode &n) const {
+        if (n.name == "seen") {
+          if (graph_id_.empty())
+            return 0;
+          return flag_count(visit_flag_key(graph_id_, n.arg)) > 0 ? 1 : 0;
+        }
+        if (n.name == "visits") {
+          if (graph_id_.empty())
+            return 0;
+          return flag_count(visit_flag_key(graph_id_, n.arg));
+        }
+        return std::nullopt;
+      }
+
+      [[nodiscard]] std::optional<int> eval_quest_helper(const ExprNode &n) const {
+        if (n.name == "quest_is_started")
+          return flag_count(corundum::quest::quest_flag_key(n.arg)) > 0 ? 1 : 0;
+
+        const auto *quest = (quests_ != nullptr) ? quests_->find(n.arg) : nullptr;
+
+        if (n.name == "quest_is_resolved")
+          return (quest != nullptr && corundum::quest::is_complete(*quest, *vars_)) ? 1 : 0;
+        if (n.name == "quest_is_failed")
+          return (quest != nullptr && corundum::quest::is_failed(*quest, *vars_)) ? 1 : 0;
+        if (n.name == "quest_is_at") {
+          if (quest == nullptr)
+            return 0;
+          const auto *stage = quest->find_stage(n.stage_name);
+          if (stage == nullptr)
+            return 0;
+          return flag_count(corundum::quest::quest_flag_key(n.arg)) == stage->sequence ? 1 : 0;
+        }
+        return std::nullopt;
+      }
+
+      const std::vector<ExprNode> *nodes_;
       int32_t root_;
-      const corundum::world::FlagStore &vars_;
+      const corundum::world::FlagStore *vars_;
       const quest::Registry *quests_;
       std::string_view graph_id_;
       std::string_view zone_id_;
     };
+
+    // NOLINTEND(misc-no-recursion)
 
     bool is_quest_helper(std::string_view name) noexcept {
       return name == "quest_is_started" || name == "quest_is_resolved" || name == "quest_is_failed" ||
@@ -452,8 +557,8 @@ namespace corundum::dialogue {
 
       if (!std::ranges::contains(out.quest_ids, n.arg))
         out.quest_ids.push_back(n.arg);
-      if (n.name == "quest_is_at" && !std::ranges::contains(out.quest_stages, std::pair(n.arg, n.arg2)))
-        out.quest_stages.emplace_back(n.arg, n.arg2);
+      if (n.name == "quest_is_at" && !std::ranges::contains(out.quest_stages, std::pair(n.arg, n.stage_name)))
+        out.quest_stages.emplace_back(n.arg, n.stage_name);
     }
     return out;
   }
@@ -463,7 +568,7 @@ namespace corundum::dialogue {
     result.source_ = std::string(src);
     try {
       if (src.empty()) {
-        result.nodes_.push_back(ExprNode{.ival = 1});
+        result.nodes_.push_back(ExprNode{.value = 1});
         result.root_ = 0;
       } else {
         Parser parser(src, result.nodes_);

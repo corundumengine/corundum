@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -25,15 +26,15 @@ namespace corundum::dialogue {
 
     // ── Parsing helpers ───────────────────────────────────────────────────────────
 
-    struct Ctx {
+    struct ParseCursor {
       std::string_view src;
       std::size_t pos = 0;
 
-      bool at_end() const noexcept {
+      [[nodiscard]] bool at_end() const noexcept {
         return pos >= src.size();
       }
 
-      char peek() const noexcept {
+      [[nodiscard]] char peek() const noexcept {
         return pos < src.size() ? src[pos] : '\0';
       }
 
@@ -42,7 +43,7 @@ namespace corundum::dialogue {
       }
 
       void skip_ws() noexcept {
-        while (pos < src.size() && std::isspace(static_cast<unsigned char>(src[pos])))
+        while (pos < src.size() && std::isspace(static_cast<unsigned char>(src[pos])) != 0)
           ++pos;
       }
 
@@ -51,7 +52,7 @@ namespace corundum::dialogue {
       std::string read_ident() {
         const auto start = pos;
         while (pos < src.size() &&
-               (std::isalnum(static_cast<unsigned char>(src[pos])) || src[pos] == '_' || src[pos] == '.'))
+               (std::isalnum(static_cast<unsigned char>(src[pos])) != 0 || src[pos] == '_' || src[pos] == '.'))
           ++pos;
         return std::string(src.substr(start, pos - start));
       }
@@ -60,10 +61,12 @@ namespace corundum::dialogue {
         const auto start = pos;
         if (pos < src.size() && src[pos] == '-')
           ++pos;
-        while (pos < src.size() && std::isdigit(static_cast<unsigned char>(src[pos])))
+        while (pos < src.size() && std::isdigit(static_cast<unsigned char>(src[pos])) != 0)
           ++pos;
         int v = 0;
-        std::from_chars(src.data() + start, src.data() + pos, v);
+        const auto parsed = std::from_chars(src.data() + start, src.data() + pos, v);
+        if (parsed.ec == std::errc::result_out_of_range)
+          throw std::runtime_error(std::format("integer literal out of range: {}", src.substr(start, pos - start)));
         return v;
       }
 
@@ -72,8 +75,8 @@ namespace corundum::dialogue {
         skip_ws();
         if (at_end())
           throw std::runtime_error("expected value but reached end of input");
-        if (std::isdigit(static_cast<unsigned char>(peek())) ||
-            (peek() == '-' && pos + 1 < src.size() && std::isdigit(static_cast<unsigned char>(src[pos + 1]))))
+        if (std::isdigit(static_cast<unsigned char>(peek())) != 0 ||
+            (peek() == '-' && pos + 1 < src.size() && std::isdigit(static_cast<unsigned char>(src[pos + 1])) != 0))
           return read_int();
         const auto word = read_ident();
         if (word == "true")
@@ -100,7 +103,7 @@ namespace corundum::dialogue {
     };
 
     Action parse_impl(std::string_view src) {
-      Ctx ctx{src};
+      ParseCursor ctx{.src = src};
       ctx.skip_ws();
 
       if (ctx.at_end())
@@ -123,9 +126,9 @@ namespace corundum::dialogue {
           std::string arg;
           if (ctx.peek() == '\'') {
             arg = ctx.read_quoted();
-          } else if (std::isdigit(static_cast<unsigned char>(ctx.peek())) ||
+          } else if (std::isdigit(static_cast<unsigned char>(ctx.peek())) != 0 ||
                      (ctx.peek() == '-' && ctx.pos + 1 < ctx.src.size() &&
-                      std::isdigit(static_cast<unsigned char>(ctx.src[ctx.pos + 1])))) {
+                      std::isdigit(static_cast<unsigned char>(ctx.src[ctx.pos + 1])) != 0)) {
             arg = std::to_string(ctx.read_int());
           } else {
             arg = ctx.read_ident();
@@ -204,10 +207,10 @@ namespace corundum::dialogue {
                   std::unreachable();
               }
             } else if constexpr (std::is_same_v<T, EventAction>) {
-              events.push_back(std::move(a));
+              events.push_back(std::forward<decltype(a)>(a));
             }
           },
-          *result);
+          std::move(*result));
     }
     return events;
   }

@@ -23,30 +23,30 @@ namespace corundum::dialogue {
       if (!parsed)
         return;
       const auto *ev = std::get_if<EventAction>(&*parsed);
-      if (!ev)
+      if (ev == nullptr)
         return;
 
       if (ev->name == "quest_start" && !ev->args.empty()) {
-        if (!quests.find(ev->args[0]))
+        if (quests.find(ev->args[0]) == nullptr)
           errors.push_back(std::format("{}: quest_start references unknown quest '{}'", scope, ev->args[0]));
       } else if (ev->name == "quest_advance" && ev->args.size() >= 2) {
         const auto *q = quests.find(ev->args[0]);
-        if (!q)
+        if (q == nullptr)
           errors.push_back(std::format("{}: quest_advance references unknown quest '{}'", scope, ev->args[0]));
-        else if (!q->find_stage(ev->args[1]))
+        else if (q->find_stage(ev->args[1]) == nullptr)
           errors.push_back(
               std::format("{}: quest_advance references unknown stage '{}' in '{}'", scope, ev->args[1], ev->args[0]));
-      } else if (items && ev->name == "give_item" && !ev->args.empty()) {
-        if (!items->find(ev->args[0]))
+      } else if (items != nullptr && ev->name == "give_item" && !ev->args.empty()) {
+        if (items->find(ev->args[0]) == nullptr)
           errors.push_back(std::format("{}: give_item references unknown item '{}'", scope, ev->args[0]));
-      } else if (items && ev->name == "take_item" && !ev->args.empty()) {
-        if (!items->find(ev->args[0]))
+      } else if (items != nullptr && ev->name == "take_item" && !ev->args.empty()) {
+        if (items->find(ev->args[0]) == nullptr)
           errors.push_back(std::format("{}: take_item references unknown item '{}'", scope, ev->args[0]));
-      } else if (graphs && ev->name == "goto_graph" && ev->args.size() >= 2) {
+      } else if (graphs != nullptr && ev->name == "goto_graph" && ev->args.size() >= 2) {
         const auto *target = graphs->find(ev->args[0]);
-        if (!target)
+        if (target == nullptr)
           errors.push_back(std::format("{}: goto_graph references unknown graph '{}'", scope, ev->args[0]));
-        else if (!target->find(ev->args[1]))
+        else if (target->find(ev->args[1]) == nullptr)
           errors.push_back(
               std::format("{}: goto_graph references unknown node '{}' in '{}'", scope, ev->args[1], ev->args[0]));
       }

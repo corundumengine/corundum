@@ -45,15 +45,15 @@ namespace corundum::dialogue {
   struct ExprNode {
     enum class Kind : uint8_t { Int, Ident, Call, Cmp, And, Or, Not, Bool };
 
-    std::string arg = {};  ///< Call: first argument (quest / item / faction / node id).
-    std::string arg2 = {}; ///< Call: second argument (stage name; quest_is_at only).
-    int ival = 0;          ///< Int: literal value.
+    std::string arg = {}; ///< Call: first argument (quest / item / faction / node id).
     Kind kind = Kind::Int;
-    int32_t lhs = -1;         ///< Left operand arena index.
-    std::string name = {};    ///< Ident: flag key. Call: helper name.
-    CmpOp op = CmpOp::Eq;     ///< Cmp: comparison operator.
-    int32_t rhs = -1;         ///< Right operand arena index.
-    bool rhs_is_bool = false; ///< Cmp: RHS was a true/false literal.
+    int32_t lhs = -1;            ///< Left operand arena index.
+    std::string name = {};       ///< Ident: flag key. Call: helper name.
+    CmpOp op = CmpOp::Eq;        ///< Cmp: comparison operator.
+    int32_t rhs = -1;            ///< Right operand arena index.
+    bool rhs_is_bool = false;    ///< Cmp: RHS was a true/false literal.
+    std::string stage_name = {}; ///< Call: second argument (stage name; quest_is_at only).
+    int value = 0;               ///< Int: literal value.
   };
 
   /**
