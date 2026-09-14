@@ -4,6 +4,7 @@
 #pragma once
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <numeric>
 #include <ranges>
@@ -44,22 +45,16 @@ namespace corundum::entities {
    *
    * Maintains a stack-based free list of recycled IDs.  Each slot has an associated
    * generation counter that increments on every `destroy()` call, so handles that
-   * outlive their entity are rejectable.
+   * outlive their entity are rejectable.  The free list, generation table, and free
+   * count are private — the pool's invariant holds only while those change through
+   * create() and destroy().
    */
-  struct EntityManager {
-    /** @brief Free list stores raw indices. */
-    std::array<std::uint32_t, k_max_entities> free_list_raw{};
-
-    /** @brief Per-slot generation counter; incremented on each destroy(). */
-    std::array<std::uint32_t, k_max_entities> generations{};
-
-    /** @brief Number of available (free) slots. */
-    std::uint32_t free_count = k_max_entities;
-
+  class EntityManager {
+  public:
     /** @brief Initialises the pool so create() hands out IDs 0, 1, 2, … */
     EntityManager() noexcept {
-      std::ranges::iota(std::views::reverse(free_list_raw), std::uint32_t{0});
-      generations.fill(1);
+      std::ranges::iota(std::views::reverse(free_list_), std::uint32_t{0});
+      generations_.fill(1);
     }
 
     /** @brief Allocate a fresh entity ID.
@@ -67,9 +62,9 @@ namespace corundum::entities {
      *  @return A live entity ID with the current generation for the recyclable slot.
      */
     [[nodiscard]] EntityId create() noexcept {
-      assert(free_count > 0 && "Entity pool exhausted");
-      const std::uint32_t idx = free_list_raw[--free_count];
-      return {.index = idx, .generation = generations[idx]};
+      assert(free_count_ > 0 && "Entity pool exhausted");
+      const std::uint32_t idx = free_list_[--free_count_];
+      return {.index = idx, .generation = generations_[idx]};
     }
 
     /** @brief Return id to the free list for reuse.
@@ -82,28 +77,38 @@ namespace corundum::entities {
      */
     void destroy(EntityId id) noexcept {
       assert(id.index < k_max_entities && "Entity ID out of range");
-      if (id.generation != generations[id.index])
+      if (id.generation != generations_[id.index])
         return; // Already destroyed or stale handle — no-op.
-      assert(free_count < k_max_entities && "Double-destroy detected");
-      ++generations[id.index];
-      free_list_raw[free_count++] = id.index;
+      assert(free_count_ < k_max_entities && "Double-destroy detected");
+      ++generations_[id.index];
+      free_list_[free_count_++] = id.index;
     }
 
     /** @brief True if @p id refers to the current occupant of its slot.
      *  @param[in] id Entity handle to query. */
     [[nodiscard]] bool is_live(EntityId id) const noexcept {
-      return id.valid() && id.index < k_max_entities && id.generation == generations[id.index];
+      return id.valid() && id.index < k_max_entities && id.generation == generations_[id.index];
     }
 
     /** @brief True when the pool is exhausted and create() would assert. */
     [[nodiscard]] bool full() const noexcept {
-      return free_count == 0;
+      return free_count_ == 0;
     }
 
     /** @brief Number of currently live entities; O(1). */
     [[nodiscard]] std::uint32_t alive() const noexcept {
-      return k_max_entities - free_count;
+      return k_max_entities - free_count_;
     }
+
+  private:
+    /** @brief Free list stores raw indices. */
+    std::array<std::uint32_t, k_max_entities> free_list_{};
+
+    /** @brief Per-slot generation counter; incremented on each destroy(). */
+    std::array<std::uint32_t, k_max_entities> generations_{};
+
+    /** @brief Number of available (free) slots. */
+    std::uint32_t free_count_ = k_max_entities;
   };
 
 } // namespace corundum::entities

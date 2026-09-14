@@ -14,6 +14,7 @@
 #include <corundum/entities/tables/motion_sprite_table.hpp>
 #include <corundum/entities/tables/sprite_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <tuple>
@@ -21,22 +22,37 @@
 namespace corundum::entities {
 
   /// Top-level entity container; owns the entity pool and all component tables.
+  /// Member order is alignment-driven rather than alphabetical: the cache-line-aligned tables stay
+  /// first and contiguous so the smaller members never force padding between them.
   /// @note Not thread-safe.
   struct World {
+    // ── Cache-line-aligned tables ──────────────────────────────────
     CollisionTable collisions;
-    TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
-    AnimationTable animations;
-    DialogueTable dialogue_refs;
-    ActorIdTable actor_ids; ///< Cold: stable authoring ids for quest/save references.
 
+    TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
+
+    AnimationTable animations;
+
+    // ── Cold id tables ─────────────────────────────────────────────
+    DialogueTable dialogue_refs;
+
+    ActorIdTable actor_ids; ///< Stable authoring ids, read on quest/save resolution.
+
+    // ── Deferred deletion queue ────────────────────────────────────
     /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
     /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
     std::array<EntityId, k_max_entities> pending_deletions{};
+
     std::uint32_t pending_deletion_count = 0;
 
+    // ── Entity pool ────────────────────────────────────────────────
     EntityManager entities;
+
+    // ── Facing and sprite tables ───────────────────────────────────
     FacingTable facings;
+
     SpriteTable sprites;
+
     MotionSpriteTable motion_sprites;
   };
 
@@ -64,9 +80,9 @@ namespace corundum::entities {
   }
 
   /// @brief Tie all component tables into a tuple for fold-expression iteration.
-  /// Adding a new table means adding one member to World and one entry in this tie;
-  /// despawn marks/deletion and any future cross-table operations update automatically.
-  [[nodiscard]] static auto all_tables(World &w) noexcept {
+  /// Adding a new table means adding one member to World and one entry in this tie, so
+  /// despawn and any future cross-table operation pick it up automatically.
+  [[nodiscard]] inline auto all_tables(World &w) noexcept {
     return std::tie(w.transforms, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.actor_ids, w.facings,
                     w.motion_sprites);
   }
@@ -83,8 +99,9 @@ namespace corundum::entities {
   /** @brief Queue @p e for removal at the next flush_deletions() call.
    *
    * Safe to call mid-iteration — the entity remains live until flush_deletions().
+   * Marking an entity that is already queued is ignored, so double-marking is safe.
    * @param[in,out] w World that owns @p e.
-   * @param[in]     e A live entity not already queued for deletion.
+   * @param[in]     e A live entity to queue for removal.
    * @pre @p e must be live (returned by EntityManager::create() and not destroyed).
    */
   inline void mark_for_deletion(World &w, EntityId e) {

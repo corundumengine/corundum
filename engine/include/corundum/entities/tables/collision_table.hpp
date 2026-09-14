@@ -12,11 +12,15 @@
 
 namespace corundum::entities {
 
-  /** @brief Table for the BoundingBox collision component.
+  /** @brief Table for the axis-aligned collision footprint of an entity.
+   *
+   * Footprints are in tile-grid units and populated once at spawn, so collision never needs a
+   * per-frame registry lookup. A footprint extends from (col - col_span/2, row - row_span) to
+   * (col + col_span/2, row) around the entity's feet position (col, row).
    *
    * `col_span` and `row_span` are always read together (they form one collision rect), so
    * they stay as an AoS `Rect` inside the table. Per DOD §4.3: fields accessed as a
-   * unit may remain AoS. The array of rects is `alignas(16)` for cache alignment.
+   * unit may remain AoS. The array of rects is `alignas(k_cache_line)` for cache alignment.
    */
   struct CollisionTable {
     static constexpr auto k_max = k_max_entities;

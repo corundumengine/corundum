@@ -59,15 +59,16 @@ namespace corundum::world {
         if (sid == corundum::sprites::k_null_sprite_id)
           return std::unexpected(std::format("[engine] unknown sprite '{}'", a.sprite_name));
 
-        corundum::entities::BoundingBox bb{};
+        float col_span = 0.f;
+        float row_span = 0.f;
         if (const auto *sd = registry.get_sprite_by_id(sid)) {
           if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
             const int rfw = corundum::sprites::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
             const int rfh = corundum::sprites::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
             const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
             const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-            bb.col_span = static_cast<float>(bb_w) / dw;
-            bb.row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
+            col_span = static_cast<float>(bb_w) / dw;
+            row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
           }
         }
 
@@ -85,7 +86,7 @@ namespace corundum::world {
           eid = spawn(world, Position{col, row_f}, Velocity{}, Sprite{sid, AnimId::Default, 0});
         world.animations.insert(eid);
         world.animations.set_frame_counts(eid, npc_anim.frame_counts);
-        world.collisions.insert(eid, bb.col_span, bb.row_span);
+        world.collisions.insert(eid, col_span, row_span);
 
         if (!a.id.empty())
           world.actor_ids.insert(eid, a.id);
@@ -161,7 +162,8 @@ namespace corundum::world {
 
     std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_counts{};
     std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_counts{};
-    corundum::entities::BoundingBox player_bb{};
+    float player_col_span = 0.f;
+    float player_row_span = 0.f;
     float walk_fd = 0.f;
     float idle_fd = 0.f;
 
@@ -173,9 +175,9 @@ namespace corundum::world {
         const int rfh = corundum::sprites::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
         const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
         const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-        // BoundingBox in tile-grid units from sprite pixel dimensions.
-        player_bb.col_span = static_cast<float>(bb_w) / dw;
-        player_bb.row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
+        // Collision footprint in tile-grid units from sprite pixel dimensions.
+        player_col_span = static_cast<float>(bb_w) / dw;
+        player_row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
       }
       if (sd->fps > 0.f)
         walk_fd = 1.f / sd->fps;
@@ -191,7 +193,7 @@ namespace corundum::world {
     player_anim.frame_counts = idle_counts;
 
     auto player = spawn(world, spawn_pos, Velocity{0.f, 0.f}, Sprite{idle_sid, AnimId::Default, 0}, player_anim);
-    world.collisions.insert(player, player_bb.col_span, player_bb.row_span);
+    world.collisions.insert(player, player_col_span, player_row_span);
     world.facings.insert(player, corundum::core::Direction::South);
     if (idle_fd > 0.f)
       world.animations.frame_duration_ref(player) = idle_fd;

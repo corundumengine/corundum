@@ -3,6 +3,7 @@
 
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/animation_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/sprites/sprite.hpp>
@@ -171,6 +172,18 @@ TEST_CASE("World spawn and despawn") {
   CHECK_FALSE(w.entities.is_live(e));
   CHECK_FALSE(w.transforms.has(e));
   CHECK_FALSE(w.sprites.has(e));
+}
+
+TEST_CASE("World spawn with Animation copies frame counts into the animation table") {
+  World w;
+  Animation anim{};
+  anim.frame_counts[static_cast<std::uint8_t>(corundum::sprites::AnimId::Default)] = 7;
+
+  const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
+                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0}, anim);
+
+  CHECK(w.animations.has(e));
+  CHECK(w.animations.frame_count(e, corundum::sprites::AnimId::Default) == 7);
 }
 
 TEST_CASE("World mark_for_deletion and flush_deletions") {

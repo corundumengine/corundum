@@ -11,22 +11,11 @@
 
 namespace corundum::entities {
 
-  /// Axis-aligned collision footprint in tile-grid units.
-  /// Populated once at spawn; eliminates per-frame registry lookups during collision.
-  /// The collision AABB extends from (col - col_span/2, row - row_span) to (col + col_span/2, row)
-  /// centered on the entity's feet position (col, row).
-  struct BoundingBox {
-    float col_span = 0.f; ///< Horizontal collision extent in tile columns.
-    float row_span = 0.f; ///< Vertical collision extent in tile rows (upward from feet).
-  };
-
-  /// Sprite animation playback state.
-  /// frame_counts is cached from the character registry at spawn so animation::update never reads the
-  /// registry in its hot loop.
+  /// Animation input for a spawned entity: the per-AnimId frame counts read from the character registry.
+  /// Spawn input only — the playback timer and frame duration live in the AnimationTable, which caches
+  /// these counts so animation::update never reads the registry in its hot loop.
   struct Animation {
-    float timer = 0.f;
-    float frame_duration = 0.15f;
-    /// Frame count per AnimId; cached at spawn from the character registry.
+    /// Frame count per AnimId; 0 means the clip is absent.
     std::array<uint8_t, corundum::sprites::k_num_anim_ids> frame_counts{};
   };
 
