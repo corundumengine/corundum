@@ -3,6 +3,7 @@
 
 #include <corundum/item/item.hpp>
 #include <corundum/item/serialize.hpp>
+#include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <span>
 #include <utility>

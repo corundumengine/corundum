@@ -33,28 +33,28 @@ namespace corundum::item {
     }
 
     WeaponData parse_weapon(const json &j) {
-      WeaponData w;
+      WeaponData weapon;
       if (j.contains("damage"))
-        w.damage = j["damage"].get<int>();
-      return w;
+        weapon.damage = j["damage"].get<int>();
+      return weapon;
     }
 
     ApparelData parse_apparel(const json &j) {
-      ApparelData a;
+      ApparelData apparel;
       if (j.contains("slot"))
-        a.slot = j["slot"].get<std::string>();
+        apparel.slot = j["slot"].get<std::string>();
       if (j.contains("defense"))
-        a.defense = j["defense"].get<int>();
-      return a;
+        apparel.defense = j["defense"].get<int>();
+      return apparel;
     }
 
     PotionData parse_potion(const json &j) {
-      PotionData p;
+      PotionData potion;
       if (j.contains("effect"))
-        p.effect = j["effect"].get<std::string>();
+        potion.effect = j["effect"].get<std::string>();
       if (j.contains("magnitude"))
-        p.magnitude = j["magnitude"].get<int>();
-      return p;
+        potion.magnitude = j["magnitude"].get<int>();
+      return potion;
     }
 
     Item parse_item_element(const json &root) {
@@ -85,19 +85,19 @@ namespace corundum::item {
 
   } // namespace
 
-  ItemCategory category_from_string(std::string_view s) noexcept {
-    if (s == "weapon")
+  ItemCategory category_from_string(std::string_view name) noexcept {
+    if (name == "weapon")
       return ItemCategory::Weapon;
-    if (s == "apparel")
+    if (name == "apparel")
       return ItemCategory::Apparel;
-    if (s == "potion")
+    if (name == "potion")
       return ItemCategory::Potion;
     // "misc" and anything unrecognized — schema enum checked up front.
     return ItemCategory::Misc;
   }
 
-  std::string_view to_string(ItemCategory c) noexcept {
-    switch (c) {
+  std::string_view to_string(ItemCategory category) noexcept {
+    switch (category) {
       case ItemCategory::Weapon:
         return "weapon";
       case ItemCategory::Apparel:
@@ -110,8 +110,8 @@ namespace corundum::item {
     return "misc";
   }
 
-  std::string_view category_dir_name(ItemCategory c) noexcept {
-    switch (c) {
+  std::string_view category_dir_name(ItemCategory category) noexcept {
+    switch (category) {
       case ItemCategory::Weapon:
         return "weapons";
       case ItemCategory::Apparel:
@@ -179,9 +179,9 @@ namespace corundum::item {
       // The category folder is authoritative; inject it before validating.
       element["category"] = to_string(category);
 
-      auto sv = core::schema_catalog().item_schema().validate(element);
-      if (!sv) {
-        std::println(stderr, "[item] skipping invalid item in '{}': {}", path_string, sv.error());
+      auto validation = core::schema_catalog().item_schema().validate(element);
+      if (!validation) {
+        std::println(stderr, "[item] skipping invalid item in '{}': {}", path_string, validation.error());
         continue;
       }
 
@@ -195,7 +195,7 @@ namespace corundum::item {
     int loaded = 0;
 
     if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
-      std::println("[item] no item directory at '{}'", dir.string());
+      std::println(stderr, "[item] no item directory at '{}'", dir.string());
       return loaded;
     }
 

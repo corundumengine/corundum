@@ -20,11 +20,14 @@ namespace corundum::item {
   class Registry {
   public:
     /**
-     * @brief Scan a directory for *.json files and load each as an Item.
+     * @brief Load every item under a directory's per-category subfolders.
      *
-     * Bad files are skipped with a stderr message (non-fatal).
+     * Walks the known category folders (`weapons`, `apparel`, `potions`, `misc`)
+     * beneath @p dir and loads each `*.json` batch file via load_item_file().
+     * Files sitting directly under @p dir, unknown category folders, non-`.json`
+     * files, and items failing validation are skipped with a stderr message (non-fatal).
      *
-     * @param dir Directory containing item JSON files.
+     * @param dir Root directory holding one subfolder per item category.
      * @return Number of items successfully loaded.
      */
     [[nodiscard]] int load_all(const std::filesystem::path &dir);

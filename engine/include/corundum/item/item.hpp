@@ -2,25 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 
 namespace corundum::item {
 
-  /** @brief Current on-disk item batch file format version. Absent field == version 1. */
+  /** @brief Current on-disk item batch file format version; every batch file must declare it. */
   inline constexpr int k_item_schema_version = 1;
 
   /** @brief What kind of thing an item is; drives inventory grouping. */
   enum class ItemCategory : uint8_t { Apparel, Misc, Potion, Weapon };
 
   /** @brief Parse a category name ("weapon", "apparel", ...). Unknown or absent → Misc. */
-  [[nodiscard]] ItemCategory category_from_string(std::string_view s) noexcept;
+  [[nodiscard]] ItemCategory category_from_string(std::string_view name) noexcept;
   /** @brief Canonical serialized form of a category, matching the JSON schema enum. */
-  [[nodiscard]] std::string_view to_string(ItemCategory c) noexcept;
+  [[nodiscard]] std::string_view to_string(ItemCategory category) noexcept;
 
   /** @brief On-disk directory name for a category's batch files under data/items/. */
-  [[nodiscard]] std::string_view category_dir_name(ItemCategory c) noexcept;
+  [[nodiscard]] std::string_view category_dir_name(ItemCategory category) noexcept;
   /** @brief Parse a category directory name ("weapons", "apparel", ...). Unknown → nullopt. */
   [[nodiscard]] std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept;
 

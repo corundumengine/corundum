@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+
 #include <corundum/item/item.hpp>
 
 #include <nlohmann/json.hpp>
