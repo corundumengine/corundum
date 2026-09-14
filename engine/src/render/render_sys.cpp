@@ -621,6 +621,11 @@ namespace corundum::render {
 
   // ── sync_active_chunks (internal) ────────────────────────────────────────────
 
+  /// Fraction of a chunk the player must cross before the streaming window recenters.
+  /// Relative to chunk_size so the margin scales with the world (2.56 tiles for a 128-tile
+  /// chunk, 0.16 for an 8-tile one) rather than being tuned for a single chunk size.
+  constexpr float k_recenter_margin_fraction = 0.02f;
+
   static void sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
                                  const corundum::world::Scene &scene) {
     using namespace corundum::world::tilemap;
@@ -640,14 +645,14 @@ namespace corundum::render {
     const ChunkCoord center = chunk_at_iso(pw_x, pw_y, state.manifest, iso);
 
     if (center != state.chunks.last_center()) {
-      constexpr float k_margin_tiles = 0.02f * 128.f;
+      const float chunk_tiles = static_cast<float>(state.manifest.chunk_size);
+      const float margin_tiles = k_recenter_margin_fraction * chunk_tiles;
       const float local_col = pc - static_cast<float>(center.col * state.manifest.chunk_size);
       const float local_row = pr - static_cast<float>(center.row * state.manifest.chunk_size);
-      const float chunk_tiles = static_cast<float>(state.manifest.chunk_size);
       const bool x_ok = (center.col == state.chunks.last_center().col) ||
-                        (local_col >= k_margin_tiles && local_col <= chunk_tiles - k_margin_tiles);
+                        (local_col >= margin_tiles && local_col <= chunk_tiles - margin_tiles);
       const bool y_ok = (center.row == state.chunks.last_center().row) ||
-                        (local_row >= k_margin_tiles && local_row <= chunk_tiles - k_margin_tiles);
+                        (local_row >= margin_tiles && local_row <= chunk_tiles - margin_tiles);
       if (x_ok && y_ok)
         state.chunks.set_last_center(center);
     }

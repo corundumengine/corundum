@@ -712,9 +712,10 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   const auto boot_a30 = entity_at(engine, 4 + 3 * 8, 4);
   REQUIRE(boot_a30.has_value());
 
-  // Walk the player west past the 2.56-tile hysteresis margin so the window
-  // recentres on chunk (0,0) (local col 3 < margin 2.56) and chunks (1,0)/(2,0)
-  // prune. Chunk (0,0) loads one-per-frame via load_one_pending_chunk.
+  // Walk the player west to tile 3, well inside chunk (0,0) relative to the recenter margin
+  // (0.02 * chunk_size = 0.16 tiles of an 8-tile chunk), so the window recentres on chunk
+  // (0,0) and chunks (2,0)/(3,0) prune. Chunk (0,0) loads one-per-frame via
+  // load_one_pending_chunk.
   move_player_to(engine, 3.f, 4.f);
   for (int i = 0; i < 30; ++i) {
     engine.timer.accumulator = engine.timer.target_dt;
@@ -738,6 +739,32 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   const auto back_a30 = entity_at(engine, 4 + 3 * 8, 4);
   REQUIRE(back_a30.has_value());
   CHECK(engine.scene.world.entities.is_live(*back_a30));
+
+  engine.cleanup();
+}
+
+TEST_CASE("world streaming — the recenter margin scales with chunk_size, not a fixed tile count") {
+  // The margin is 0.02 * chunk_size — 0.16 tiles for this fixture's 8-tile chunks. A player 1
+  // tile into a new chunk is past it and must recentre, so chunk (0,0) streams in. A margin
+  // hard-coded for 128-tile chunks (2.56 tiles) would leave the window on the old chunk.
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_streaming_config(fixtures)).has_value());
+  REQUIRE(player_tile(engine) == std::pair{20, 4}); // chunk (2,0)
+
+  // Tile 1 is chunk (0,0) at local col 1: inside the chunk-relative margin, outside a 2.56 one.
+  move_player_to(engine, 1.f, 4.f);
+  for (int i = 0; i < 30; ++i) {
+    engine.timer.accumulator = engine.timer.target_dt;
+    REQUIRE(engine.run_frame());
+  }
+
+  const corundum::world::tilemap::ChunkCoord west_center{.col = 0, .row = 0};
+  CHECK(engine.render.chunks.last_center() == west_center);
+  // (0,0) is resident, so its actor streamed in.
+  CHECK(entity_at(engine, 2, 3).has_value());
 
   engine.cleanup();
 }

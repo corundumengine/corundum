@@ -234,3 +234,62 @@ TEST_CASE("chunk window shift: crossing a boundary in a 7x7 world streams new ch
   // A 7x7 world means the player can keep walking further out; the window shifted, not fixed.
   CHECK(state.chunks.last_center() == new_center);
 }
+
+TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-front draw order") {
+  // Regression: the render pass draws chunks in active() order, so a re-streamed chunk must
+  // land where the boot window had it, not at the end. Appending it left it drawing on top of
+  // the chunk in front of it after a walk away and back — their overlapping art at the shared
+  // seam flipped, making the boundary look like one tilemap riding slightly over the other.
+  constexpr int k_chunk_size = 16;
+  render_data::RenderState state;
+  state.mode = render_data::RenderMode::World;
+  state.manifest.chunk_size = k_chunk_size;
+  state.manifest.chunks_wide = 7;
+  state.manifest.chunks_tall = 7;
+
+  const auto coords_of = [](const render_data::ChunkWindow &window) {
+    std::vector<tilemap::ChunkCoord> coords;
+    for (const render_data::ChunkEntry &e : window.active())
+      coords.push_back(e.coord);
+    return coords;
+  };
+
+  // Mirrors sync_active_chunks() + load_one_pending_chunk(): recenter, prune what fell outside
+  // the radius-1 window, then add each newly-adjacent chunk as it finishes loading.
+  const auto load_window = [&](tilemap::ChunkCoord center) {
+    state.chunks.set_last_center(center);
+    std::array<tilemap::ChunkCoord, 9> desired{};
+    int desired_count = 0;
+    for (int dy = -1; dy <= 1; ++dy)
+      for (int dx = -1; dx <= 1; ++dx)
+        desired[desired_count++] = {center.col + dx, center.row + dy};
+    const std::span<const tilemap::ChunkCoord> span{desired.data(), static_cast<std::size_t>(desired_count)};
+    const auto in_desired = [&](const render_data::ChunkEntry &e) {
+      return std::ranges::find(span, e.coord) != span.end();
+    };
+    state.chunks.prune_active(in_desired);
+    for (const tilemap::ChunkCoord c : span) {
+      if (state.chunks.has(c))
+        continue;
+      render_data::ChunkEntry e;
+      e.coord = c;
+      e.tilemap = make_flat_map();
+      state.chunks.add_active(std::move(e));
+    }
+    state.chunks.rebuild_slot_table();
+  };
+
+  load_window({3, 3});
+  const std::vector<tilemap::ChunkCoord> boot_order = coords_of(state.chunks);
+
+  // Walk south one chunk, then back: the row that streams out and back in must not reorder.
+  load_window({3, 4});
+  load_window({3, 3});
+
+  CHECK(coords_of(state.chunks) == boot_order);
+  // The invariant behind it: back-to-front == ascending (row, col).
+  CHECK(std::ranges::is_sorted(state.chunks.active(),
+                               [](const render_data::ChunkEntry &a, const render_data::ChunkEntry &b) {
+                                 return std::pair{a.coord.row, a.coord.col} < std::pair{b.coord.row, b.coord.col};
+                               }));
+}

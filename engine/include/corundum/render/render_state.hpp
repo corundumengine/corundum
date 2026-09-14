@@ -90,6 +90,9 @@ namespace corundum::render {
    *  the above_z_cache rebuild in render(). Every mutator that changes the
    *  active set marks it dirty — the invariant a bare struct + free functions
    *  left to caller discipline (see the chunks_dirty bug fixed alongside this).
+   *
+   *  active() is kept in the canonical back-to-front draw order (see sort_active)
+   *  so streamed-in chunks always draw in the same order as the load_world bootstrap.
    */
   class ChunkWindow {
   public:
@@ -135,6 +138,7 @@ namespace corundum::render {
     /// Add a freshly loaded chunk to the active set. Always marks dirty.
     void add_active(ChunkEntry entry) {
       active_.push_back(std::move(entry));
+      sort_active();
       dirty_ = true;
     }
 
@@ -194,6 +198,18 @@ namespace corundum::render {
     }
 
   private:
+    /// Restore the canonical back-to-front draw order, then re-derive the offset→slot table.
+    ///
+    /// The render pass draws chunks in active() order. Appending a streamed-in chunk (rather
+    /// than ordering it) left it drawing ahead of the chunk in front of it after a walk
+    /// away-and-back, so their overlapping art at the shared seam flipped — one chunk's tiles
+    /// riding over the neighbour's. Row-major (row, then col) is the load_world() bootstrap
+    /// order; within a window a greater row or col is nearer the camera, so it draws later.
+    void sort_active() noexcept {
+      std::ranges::sort(active_, {}, [](const ChunkEntry &e) noexcept { return std::pair{e.coord.row, e.coord.col}; });
+      rebuild_slot_table();
+    }
+
     std::vector<ChunkEntry> active_;
     std::vector<world::tilemap::ChunkCoord> pending_;
     world::tilemap::ChunkCoord last_center_{};
