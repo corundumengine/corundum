@@ -32,6 +32,7 @@ set(TEST_SOURCES
     test_files.cpp
     test_follow_path.cpp
     test_game_config.cpp
+    test_input_sys.cpp
     test_iso_math.cpp
     test_item_loader.cpp
     test_item_serialize.cpp

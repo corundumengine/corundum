@@ -7,7 +7,7 @@
 
 namespace corundum::input {
 
-  void poll(corundum::input::InputState &state, corundum::platform::Window &window) noexcept {
+  void poll(InputState &state, platform::Window &window) noexcept {
     window.poll_game_input(state);
   }
 

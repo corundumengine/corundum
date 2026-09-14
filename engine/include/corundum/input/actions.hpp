@@ -31,13 +31,12 @@ namespace corundum::input {
   /**
    * @brief Total number of input actions.
    */
-  inline constexpr auto k_action_count = static_cast<std::size_t>(Action::Count);
+  inline constexpr std::size_t k_action_count = static_cast<std::size_t>(Action::Count);
 
   /**
    * @brief Container for actions pressed this frame.
    *
-   * Zero-allocation result type; small enough to return by value in registers.
-   * Supports range-for iteration via begin/end.
+   * Zero-allocation; supports range-for iteration via begin/end.
    */
   struct PressedActions {
     std::array<Action, k_action_count> actions{};
@@ -86,11 +85,11 @@ namespace corundum::input {
     /**
      * @brief True while the key bound to an action is held down.
      */
-    std::bitset<k_action_count> held;
+    std::bitset<k_action_count> held{};
     /**
      * @brief True only on the frame the key bound to an action was pressed.
      */
-    std::bitset<k_action_count> pressed;
+    std::bitset<k_action_count> pressed{};
     /**
      * @brief Cursor position in window pixels, updated once per poll cycle.
      *
@@ -150,20 +149,20 @@ namespace corundum::input {
   /**
    * @brief Accumulates freshly-polled input into destination state.
    *
-   * Copies @p src held state directly (always reflects current key state) and
-   * ORs @p src pressed bits into @p dst so that presses are preserved across
-   * render frames between fixed-step simulation ticks.
+   * Copies @p source held state directly (always reflects current key state) and
+   * ORs @p source pressed bits into @p destination so that presses are preserved
+   * across render frames between fixed-step simulation ticks.
    *
-   * @param[in,out] dst Destination state to accumulate into.
-   * @param[in]     src Source state from the current event-poll cycle.
+   * @param[in,out] destination Destination state to accumulate into.
+   * @param[in]     source      Source state from the current event-poll cycle.
    */
-  inline void accumulate_input(InputState &dst, const InputState &src) noexcept {
-    dst.held = src.held;
-    dst.pressed |= src.pressed;
-    dst.mouse_x = src.mouse_x;
-    dst.mouse_y = src.mouse_y;
-    dst.mouse_click_pressed |= src.mouse_click_pressed;
-    dst.scroll_delta_y += src.scroll_delta_y;
+  inline void accumulate_input(InputState &destination, const InputState &source) noexcept {
+    destination.held = source.held;
+    destination.pressed |= source.pressed;
+    destination.mouse_x = source.mouse_x;
+    destination.mouse_y = source.mouse_y;
+    destination.mouse_click_pressed |= source.mouse_click_pressed;
+    destination.scroll_delta_y += source.scroll_delta_y;
   }
 
   /**

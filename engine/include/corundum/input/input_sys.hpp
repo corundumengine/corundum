@@ -10,17 +10,20 @@ namespace corundum::platform {
 
 namespace corundum::input {
 
-  /** @brief Read pending input from @p window and update @p state.
+  /** @brief Read pending input from @p window and accumulate it into @p state.
    *
-   * Clears pressed flags from the previous frame before polling so that
-   * pressed is only true on the frame the key went down.
+   * Forwards to @c Window::poll_game_input, which translates this frame's events.
+   * Held flags are overwritten with the window's current key state; pressed flags,
+   * the mouse click, and the scroll delta accumulate, so a press survives every
+   * render frame that runs no fixed step.
    *
-   *  @param[in,out] state   Snapshot updated with the current frame's events.
+   *  @param[in,out] state   Snapshot accumulated into; this call does not clear it.
    *  @param[in]     window  Source window; must be open.
    *  @pre Must be called once per frame before any system reads @p state.
-   *  @post state.pressed is cleared then repopulated for this frame.
+   *  @pre @p state must be cleared with @c clear_pressed each simulation step, or a
+   *       latched press is re-observed on every subsequent read.
    *  @thread_safety Must be called from the main thread only.
    */
-  void poll(corundum::input::InputState &state, corundum::platform::Window &window) noexcept;
+  void poll(InputState &state, platform::Window &window) noexcept;
 
 } // namespace corundum::input
