@@ -24,15 +24,15 @@ namespace {
     EntityId player = static_cast<EntityId>(0);
 
     Fixture() {
-      transforms.insert(player, 0.5f, 0.5f, 0.f, 0.f);
+      transforms.insert(player, 0.f, 0.f, 0.f, 0.f); // standing on tile (0, 0)
     }
   };
 
 } // namespace
 
-TEST_CASE("follow_path — aims velocity at the center of the next waypoint") {
+TEST_CASE("follow_path — aims velocity at the next waypoint") {
   Fixture f;
-  std::vector<TileCoord> path{{2, 0}}; // target center (2.5, 0.5) from (0.5, 0.5)
+  std::vector<TileCoord> path{{2, 0}}; // waypoint is the tile index itself: (2, 0) from (0, 0)
   follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsometricParams{1.f, 1.f, 0.f, 0.f}, /*dt=*/0.01f);
 
   const auto slot = f.transforms.dense_index(f.player);
@@ -44,10 +44,10 @@ TEST_CASE("follow_path — aims velocity at the center of the next waypoint") {
 TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving on to the next") {
   Fixture f;
   const auto slot = f.transforms.dense_index(f.player);
-  // Start right next to the first waypoint's center so a normal step reaches it.
-  f.transforms.col[slot] = 1.4f;
-  f.transforms.row[slot] = 0.5f;
-  std::vector<TileCoord> path{{1, 0}, {2, 0}}; // first center (1.5,0.5), second (2.5,0.5)
+  // Start right next to the first waypoint so a normal step reaches it.
+  f.transforms.col[slot] = 0.9f;
+  f.transforms.row[slot] = 0.f;
+  std::vector<TileCoord> path{{1, 0}, {2, 0}}; // first (1,0), second (2,0)
 
   // player_speed*dt=0.5: covers the 0.1 remaining to the first waypoint, but not the full
   // 1.0 segment to the second one, so exactly one waypoint should be consumed.
@@ -55,9 +55,9 @@ TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving o
 
   REQUIRE(path.size() == 1); // first waypoint popped
   CHECK(path.front().col == 2);
-  // Position snapped exactly to the first waypoint's center before moving on.
-  CHECK(f.transforms.col[slot] == doctest::Approx(1.5f));
-  CHECK(f.transforms.row[slot] == doctest::Approx(0.5f));
+  // Position snapped exactly onto the first waypoint before moving on.
+  CHECK(f.transforms.col[slot] == doctest::Approx(1.f));
+  CHECK(f.transforms.row[slot] == doctest::Approx(0.f));
   // Velocity now points at the second waypoint.
   CHECK(f.transforms.dc[slot] > 0.f);
 }
@@ -65,8 +65,8 @@ TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving o
 TEST_CASE("follow_path — empties the path and zeroes velocity on reaching the final waypoint") {
   Fixture f;
   const auto slot = f.transforms.dense_index(f.player);
-  f.transforms.col[slot] = 1.45f;
-  f.transforms.row[slot] = 0.5f;
+  f.transforms.col[slot] = 0.95f;
+  f.transforms.row[slot] = 0.f;
   std::vector<TileCoord> path{{1, 0}};
 
   follow_path(f.transforms, f.player, path, /*player_speed=*/1.f, IsometricParams{1.f, 1.f, 0.f, 0.f}, /*dt=*/1.f);

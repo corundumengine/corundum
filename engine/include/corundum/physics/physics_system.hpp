@@ -44,10 +44,11 @@ namespace corundum::physics {
 
   /** @brief Drive velocity toward the next waypoint in a click-to-move path.
    *
-   * Aims at the center of path.front() (col+0.5, row+0.5). Pops the waypoint and moves
-   * on to the next one once this frame's movement would reach or pass it (uses dt to
-   * detect this robustly rather than an arbitrary distance epsilon). Zeroes velocity
-   * once the path empties.
+   * Aims at path.front() directly: a waypoint is a tile index, the same space as the
+   * entity's stored position, so the sprite's feet anchor needs no compensation here — it
+   * is applied once, in footprint_of. Pops the waypoint and moves on to the next one once
+   * this frame's movement would reach or pass it (uses dt to detect this robustly rather
+   * than an arbitrary distance epsilon). Zeroes velocity once the path empties.
    *
    *  @param[in,out] transforms  SoA table; dc/dr for @p player are modified.
    *  @param[in]     player      EntityId of the player character.

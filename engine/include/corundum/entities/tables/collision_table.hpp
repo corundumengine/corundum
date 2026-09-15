@@ -23,22 +23,41 @@ namespace corundum::entities {
     float row_span = 0.f;
   };
 
-  /** @brief The collision footprint of an entity standing at @p col/@p row with the given spans.
+  /** @brief Offset from an entity's tile-grid position to its sprite's feet anchor.
    *
-   * The single definition of the CollisionTable footprint convention below — the box's
-   * bottom edge is the entity's feet, so it extends *up* from (col, row). Deriving the box
-   * independently at a call site is how the pathfinder came to treat the cell north of an
-   * NPC as free and route movement straight into it, so new consumers belong here.
+   * Positions index tiles — an integer coordinate means "standing on that tile" — while
+   * sprites are drawn at that tile's centre (tile_to_world_center), half a tile in on both
+   * axes. Anything deriving a world-space box from a position has to anchor on the same
+   * point, or the box sits half a tile off the character it belongs to.
+   */
+  inline constexpr float k_entity_anchor_offset = 0.5f;
+
+  /** @brief The collision footprint of the entity standing on tile (@p col, @p row).
+   *
+   * The single definition of the CollisionTable footprint convention below: a box centred
+   * on the sprite's feet anchor — (col, row) offset by k_entity_anchor_offset — so it covers
+   * the tile the entity stands on.
+   *
+   * Anchoring the box's *bottom edge* on the feet instead pushes the whole box a row_span
+   * north, into the tile above. That is what made a portal one row away fire the moment the
+   * entity stood next to it, and it is how the pathfinder came to treat the cell north of an
+   * NPC as free and route movement straight into it — so new consumers belong here.
    */
   [[nodiscard]] constexpr GridBox footprint_of(float col, float row, float col_span, float row_span) noexcept {
-    return {.col = col - (col_span * 0.5f), .row = row - row_span, .col_span = col_span, .row_span = row_span};
+    const float feet_col = col + k_entity_anchor_offset;
+    const float feet_row = row + k_entity_anchor_offset;
+    return {.col = feet_col - (col_span * 0.5f),
+            .row = feet_row - (row_span * 0.5f),
+            .col_span = col_span,
+            .row_span = row_span};
   }
 
   /** @brief Table for the axis-aligned collision footprint of an entity.
    *
    * Footprints are in tile-grid units and populated once at spawn, so collision never needs a
-   * per-frame registry lookup. A footprint extends from (col - col_span/2, row - row_span) to
-   * (col + col_span/2, row) around the entity's feet position (col, row).
+   * per-frame registry lookup. A footprint extends from (col - col_span/2, row - row_span/2)
+   * to (col + col_span/2, row + row_span/2) — centred on the entity's feet, which are the
+   * tile centre for the tile it stands on.
    *
    * `col_span` and `row_span` are always read together (they form one collision rect), so
    * they stay as an AoS `Rect` inside the table. Per DOD §4.3: fields accessed as a

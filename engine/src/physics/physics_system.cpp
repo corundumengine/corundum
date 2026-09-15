@@ -28,8 +28,6 @@
 namespace corundum::physics {
 
   namespace {
-    constexpr float k_tile_center_offset = 0.5f;
-
     using corundum::core::math::IsometricParams;
     using corundum::core::math::tile_to_screen_delta;
     using corundum::core::math::Vec2;
@@ -157,8 +155,11 @@ namespace corundum::physics {
     const std::uint32_t slot = transforms.dense_index(player);
 
     while (!path.empty()) {
-      const float target_col = static_cast<float>(path.front().col) + k_tile_center_offset;
-      const float target_row = static_cast<float>(path.front().row) + k_tile_center_offset;
+      // Waypoints are tile indices, which is exactly the entity's stored position — so
+      // there is no half-tile offset here; the sprite's feet anchor (the tile centre) is
+      // applied once, by footprint_of.
+      const float target_col = static_cast<float>(path.front().col);
+      const float target_row = static_cast<float>(path.front().row);
       const float dc = target_col - transforms.col[slot];
       const float dr = target_row - transforms.row[slot];
 
@@ -314,9 +315,11 @@ namespace corundum::physics {
     const int substeps = std::max(1, static_cast<int>(std::ceil(step_dist / k_substep_max_tile)));
     const float sub_dt = dt / static_cast<float>(substeps);
 
-    Position p{.col = prev_col, .row = prev_row};
-    transforms.col[p_slot] = p.col;
-    transforms.row[p_slot] = p.row;
+    // Solve from wherever the movement branch above left the entity, so a waypoint follow_path
+    // has already snapped onto stays snapped. Resetting to the frame-start position here would
+    // drop the entity just short of the tile it was sent to, and floor() would then report the
+    // tile before it.
+    Position p{.col = transforms.col[p_slot], .row = transforms.row[p_slot]};
     for (int s = 0; s < substeps; ++s) {
       const Position sub_prev{.col = p.col, .row = p.row};
       integrate(transforms, player, sub_dt);
@@ -324,17 +327,19 @@ namespace corundum::physics {
       p.row = transforms.row[p_slot];
 
       if (map.half_tw > 0.f && map.half_th > 0.f) {
-        const float half_cs = player_rect.col_span / 2.f;
-        // AABB extends upward from the feet position.
-        Position pc{.col = p.col - half_cs, .row = p.row - player_rect.row_span};
-        const Position pcp{.col = sub_prev.col - half_cs, .row = sub_prev.row - player_rect.row_span};
-        resolve_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collisions, 0.f, player_elev,
-                           elev_gate.tolerance);
-        resolve_triangle_collisions(pc, pcp, player_rect.col_span, player_rect.row_span, map.collision_triangles, 0.f,
-                                    player_elev, elev_gate.tolerance);
-        // Convert AABB top-left back to feet position.
-        p.col = pc.col + half_cs;
-        p.row = pc.row + player_rect.row_span;
+        const corundum::entities::GridBox box =
+            corundum::entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
+        const corundum::entities::GridBox prev_box =
+            corundum::entities::footprint_of(sub_prev.col, sub_prev.row, player_rect.col_span, player_rect.row_span);
+        Position pc{.col = box.col, .row = box.row};
+        const Position pcp{.col = prev_box.col, .row = prev_box.row};
+        resolve_collisions(pc, pcp, box.col_span, box.row_span, map.collisions, 0.f, player_elev, elev_gate.tolerance);
+        resolve_triangle_collisions(pc, pcp, box.col_span, box.row_span, map.collision_triangles, 0.f, player_elev,
+                                    elev_gate.tolerance);
+        // Back to the entity's tile-grid position, undoing the feet anchor — half a span on
+        // each axis, matching the centred footprint_of.
+        p.col = pc.col + (box.col_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
+        p.row = pc.row + (box.row_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
       }
       resolve_walkability(p, sub_prev, map.walkability);
       // Write resolved position back so the next substep's integrate starts from here.
@@ -380,15 +385,18 @@ namespace corundum::physics {
         .row_spans = std::span{npc_rs.data(), npc_count},
         .elevations = std::span{npc_elevations.data(), npc_count},
     };
-    // Convert player feet to AABB top-left for NPC collision.
+    // Player footprint against the NPC boxes, anchored on the same point as the world pass.
     {
-      const float half_cs = player_rect.col_span / 2.f;
-      Position p_aabb{.col = p.col - half_cs, .row = p.row - player_rect.row_span};
-      const Position prev_aabb{.col = prev_pos.col - half_cs, .row = prev_pos.row - player_rect.row_span};
-      resolve_collisions(p_aabb, prev_aabb, player_rect.col_span, player_rect.row_span, npc_view, 0.f, player_elev,
+      const corundum::entities::GridBox box =
+          corundum::entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
+      const corundum::entities::GridBox prev_box =
+          corundum::entities::footprint_of(prev_pos.col, prev_pos.row, player_rect.col_span, player_rect.row_span);
+      Position p_aabb{.col = box.col, .row = box.row};
+      const Position prev_aabb{.col = prev_box.col, .row = prev_box.row};
+      resolve_collisions(p_aabb, prev_aabb, box.col_span, box.row_span, npc_view, 0.f, player_elev,
                          elev_gate.tolerance);
-      p.col = p_aabb.col + half_cs;
-      p.row = p_aabb.row + player_rect.row_span;
+      p.col = p_aabb.col + (box.col_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
+      p.row = p_aabb.row + (box.row_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
     }
 
     p.col = std::clamp(p.col, 0.f, std::max(0.f, map_w - player_rect.col_span));

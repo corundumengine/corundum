@@ -162,10 +162,39 @@ TEST_CASE("find_path — null walkability (World mode) returns empty") {
 }
 
 TEST_CASE("find_path — routes around an NPC's footprint, not through the cell it blocks") {
-  // An entity's footprint extends up from its feet (collision_table.hpp), so an NPC at
-  // (2,3) with a 1x1 box covers rows 2..3 — including the cell *north* of its own tile.
-  // Testing [row, row + row_span] instead left that cell looking free, so the path was
-  // routed straight through it and the player jammed against the NPC.
+  // The pathfinder's obstacle box is the same one physics resolves against (footprint_of),
+  // so a path must never be routed through the tile an NPC stands on.
+  Tilemap tm = make_map(5, 5);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+
+  corundum::entities::EntityManager entities;
+  corundum::entities::CollisionTable npc_collisions;
+  corundum::entities::TransformTable npc_transforms;
+  const corundum::entities::EntityId npc = entities.create();
+  npc_transforms.insert(npc, 2.f, 2.f, 0.f, 0.f);
+  npc_collisions.insert(npc, 1.f, 1.f);
+
+  MapView map;
+  map.elevation_map = &tm;
+  map.walkability = &graph;
+
+  const corundum::world::TileCoord start{.col = 0, .row = 2};
+  const corundum::world::TileCoord goal{.col = 4, .row = 2};
+  const auto path = find_path(map, start, goal, &npc_collisions, &npc_transforms);
+  REQUIRE_FALSE(path.empty());
+  CHECK(path.back() == goal);
+
+  // The detour goes around the NPC's tile rather than straight through it.
+  const auto on_npc = [](const corundum::world::TileCoord &step) noexcept {
+    return step == corundum::world::TileCoord{.col = 2, .row = 2};
+  };
+  CHECK_FALSE(std::ranges::any_of(path, on_npc));
+}
+
+TEST_CASE("find_path — an NPC one row away does not block the path") {
+  // A footprint centred on its own tile must not reach into the row above it: an NPC on
+  // (2,3) leaves the row-2 lane clear. Anchoring the box's south edge on the feet reaches a
+  // whole row_span north, which both blocked this path and stranded the player against NPCs.
   Tilemap tm = make_map(5, 5);
   const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
@@ -183,15 +212,9 @@ TEST_CASE("find_path — routes around an NPC's footprint, not through the cell 
   const corundum::world::TileCoord start{.col = 0, .row = 2};
   const corundum::world::TileCoord goal{.col = 4, .row = 2};
   const auto path = find_path(map, start, goal, &npc_collisions, &npc_transforms);
-  REQUIRE_FALSE(path.empty());
-  CHECK(path.back() == goal);
-
-  // The detour goes around the footprint's cells rather than straight through them.
-  const auto on_npc = [](const corundum::world::TileCoord &step) noexcept {
-    return step == corundum::world::TileCoord{.col = 1, .row = 2} ||
-           step == corundum::world::TileCoord{.col = 2, .row = 2};
-  };
-  CHECK_FALSE(std::ranges::any_of(path, on_npc));
+  REQUIRE(path.size() == 4);
+  for (const auto &step : path)
+    CHECK(step.row == 2);
 }
 
 TEST_CASE("find_path — the mover's own footprint is not treated as an obstacle") {
@@ -211,7 +234,7 @@ TEST_CASE("find_path — the mover's own footprint is not treated as an obstacle
   map.elevation_map = &tm;
   map.walkability = &graph;
 
-  // Footprint is cols 0.75..1.25 — it covers cell (1,0), the only step east.
+  // Footprint is cols 1.25..1.75, rows 0.5..1.0 — it covers cell (1,0), the only step east.
   const corundum::world::TileCoord start{.col = 0, .row = 0};
   const corundum::world::TileCoord goal{.col = 2, .row = 0};
   CHECK(find_path(map, start, goal, &collisions, &transforms).empty());

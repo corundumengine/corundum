@@ -89,15 +89,21 @@ namespace {
                             engine.flags, &engine.quests);
   }
 
-  /// Place the player entity on tile (col, row) without pathing, at the cell centre.
-  /// That is where follow_path leaves an entity that walked there (waypoints are tile + 0.5),
-  /// and the only position at which the collision footprint — which starts at the feet and
-  /// extends up — sits inside the tile rather than on its corner.
+  /// Drive fixed steps until the queued click-to-move path empties. Capped, so a path that
+  /// never completes fails the assertions that follow instead of hanging.
+  void advance_until_path_clear(corundum::Engine &engine, int max_steps = 120) {
+    for (int i = 0; i < max_steps && !engine.scene.path.empty(); ++i)
+      advance(engine);
+  }
+
+  /// Place the player entity on tile (col, row) without pathing. A position indexes a tile —
+  /// an integer coordinate means "standing on that tile" — which is also where follow_path
+  /// leaves an entity that walked there, since waypoints are tile indices.
   void move_player_to(corundum::Engine &engine, float col, float row) {
     auto &transforms = engine.scene.world.transforms;
     const auto slot = transforms.dense_index(engine.scene.player);
-    transforms.col[slot] = col + 0.5f;
-    transforms.row[slot] = row + 0.5f;
+    transforms.col[slot] = col;
+    transforms.row[slot] = row;
     engine.scene.path.clear();
   }
 
@@ -421,33 +427,76 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   engine.cleanup();
 }
 
-TEST_CASE("world transition — a portal arms once the footprint reaches it, not before") {
+TEST_CASE("world transition — a portal arms only from its own tile") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 
-  // The cave-mouth portal covers world tile (13,13), so its row range is [13,14). A
-  // footprint runs from the feet *up*, so a player standing in tile (13,12) never
-  // reaches that range and must stay disarmed.
+  // The cave-mouth portal covers world tile (13,13), so its row range is [13,14). A player
+  // one row north is not on it.
   move_player_to(engine, 13.f, 12.f);
   advance(engine);
   CHECK_FALSE(engine.scene.transition_prompt.has_value());
 
-  // Feet exactly on the portal's top edge (12.5 in move_player_to's tile units puts the
-  // centre there) still don't reach into the portal's row: overlap is half-open, the same
-  // rule resolve_collisions and TransitionPrompt::overlaps use.
-  move_player_to(engine, 13.f, 12.5f);
+  // Nor is a player one row south — the cave-interior case. An exit at (8,1) with the player
+  // spawning at (8,2) armed the leave prompt the moment you entered, because a footprint
+  // anchored on the feet' south edge reaches a whole row_span north into the portal's row.
+  move_player_to(engine, 13.f, 14.f);
   advance(engine);
   CHECK_FALSE(engine.scene.transition_prompt.has_value());
 
-  // One step further and the footprint is over the portal.
+  // On the portal's own tile it arms.
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
   using corundum::world::GameMode;
   REQUIRE(engine.scene.mode == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
+
+  engine.cleanup();
+}
+
+TEST_CASE("world transition — a followed path puts the player on the target tile, not short of it") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+
+  // Waypoints are tile indices, so the walk has to end exactly on the tile — and floor() of
+  // the resting position has to report that tile, not the one before it. Stops one frame's
+  // movement short of the waypoint if follow_path's snap is discarded before the solve.
+  move_player_to(engine, 8.f, 8.f);
+  engine.scene.path = {corundum::world::TileCoord{.col = 9, .row = 8}};
+  advance_until_path_clear(engine);
+
+  REQUIRE(engine.scene.path.empty());
+  const auto &transforms = engine.scene.world.transforms;
+  CHECK(transforms.pos_col(engine.scene.player) == doctest::Approx(9.f));
+  CHECK(transforms.pos_row(engine.scene.player) == doctest::Approx(8.f));
+  CHECK(player_tile(engine) == std::pair{9, 8});
+
+  engine.cleanup();
+}
+
+TEST_CASE("world transition — an idle player does not drift") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+
+  // The collision solve round-trips the entity's position through its footprint every step.
+  // Getting that inverse wrong slides the entity a fraction of a tile per frame with no input
+  // at all — which is how the cave-mouth exit came to fire the moment the player entered.
+  move_player_to(engine, 8.f, 8.f);
+  for (int i = 0; i < 30; ++i)
+    advance(engine);
+
+  const auto &transforms = engine.scene.world.transforms;
+  CHECK(transforms.pos_col(engine.scene.player) == doctest::Approx(8.f));
+  CHECK(transforms.pos_row(engine.scene.player) == doctest::Approx(8.f));
 
   engine.cleanup();
 }
