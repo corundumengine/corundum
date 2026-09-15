@@ -28,7 +28,7 @@ set(ENGINE_SOURCES
     src/dialogue/validate.cpp
     src/dialogue/validate_refs.cpp
     src/engine.cpp
-    src/input/input_sys.cpp
+    src/input/input_system.cpp
     src/item/item.cpp
     src/item/serialize.cpp
     src/physics/collision.cpp

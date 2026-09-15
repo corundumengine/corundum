@@ -4,7 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/input/actions.hpp>
-#include <corundum/input/input_sys.hpp>
+#include <corundum/input/input_system.hpp>
 #include <corundum/platform/window.hpp>
 
 #include <cstddef>

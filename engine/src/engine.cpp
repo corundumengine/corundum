@@ -10,7 +10,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/input/actions.hpp>
-#include <corundum/input/input_sys.hpp>
+#include <corundum/input/input_system.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/quest/runner.hpp>

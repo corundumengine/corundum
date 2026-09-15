@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/input/actions.hpp>
-#include <corundum/input/input_sys.hpp>
+#include <corundum/input/input_system.hpp>
 #include <corundum/platform/window.hpp>
 
 namespace corundum::input {
