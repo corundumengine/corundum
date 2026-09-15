@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <array>
 #include <corundum/entities/components.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -22,11 +23,9 @@ using corundum::world::tilemap::WalkabilityGraph;
 
 namespace {
 
-  // A 3x3 flat map (elevation 0 everywhere) with one raised tile at the caller-chosen
-  // (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
-  Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev,
-                        std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
-                        RampAxis ramp_axis = RampAxis::NorthSouth) {
+  // A 3x3 map whose per-cell elevations are given row-major (index == row * 3 + col), with a
+  // non-empty tile everywhere so elevation_at() sees a tile present. No ramps.
+  Tilemap make_elevation_map(const std::array<uint8_t, 9> &elevation) {
     Tilemap tm;
     tm.width = 3;
     tm.height = 3;
@@ -35,14 +34,24 @@ namespace {
     layer.name = "ground";
     layer.z_index = 0;
     layer.visible = true;
-    layer.tiles.assign(9, 1); // non-empty tile everywhere so elevation_at() sees a tile present
-    layer.elevation.assign(9, 0);
-    layer.elevation[static_cast<std::size_t>(raised_row * tm.width + raised_col)] = raised_elev;
+    layer.tiles.assign(9, 1);
+    layer.elevation.assign(elevation.begin(), elevation.end());
+    tm.layers.push_back(std::move(layer));
+    return tm;
+  }
+
+  // A flat map (elevation 0 everywhere) with one raised tile at the caller-chosen
+  // (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
+  Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev,
+                        std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
+                        RampAxis ramp_axis = RampAxis::NorthSouth) {
+    std::array<uint8_t, 9> elevation{};
+    elevation[(static_cast<std::size_t>(raised_row) * 3) + static_cast<std::size_t>(raised_col)] = raised_elev;
+    Tilemap tm = make_elevation_map(elevation);
     if (ramp_cell) {
       const auto [rcol, rrow] = *ramp_cell;
-      layer.ramps[rrow * tm.width + rcol] = ramp_axis;
+      tm.layers.front().ramps[(rrow * 3) + rcol] = ramp_axis;
     }
-    tm.layers.push_back(std::move(layer));
     return tm;
   }
 
@@ -158,6 +167,39 @@ TEST_CASE("resolve_walkability — leaves position alone when crossing a connect
   resolve_walkability(pos, prev, &g);
   CHECK(pos.col == doctest::Approx(1.5f));
   CHECK(pos.row == doctest::Approx(1.5f));
+}
+
+TEST_CASE("resolve_walkability — a two-axis step is gated by the diagonal edge, not the cardinals") {
+  // Stepping (0,1) -> (1,0) crosses both axes. Every cardinal edge along the way is within
+  // max_step_height, but the diagonal itself rises 5 — gating on the cardinals alone would
+  // let the entity cut that corner.
+  std::array<uint8_t, 9> elevation{};
+  elevation[(0 * 3) + 1] = 5; // (1,0): the diagonal destination
+  elevation[(1 * 3) + 1] = 2; // (1,1): the column step on the way
+  const Tilemap tm = make_elevation_map(elevation);
+  const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
+
+  REQUIRE(g.can_move(0, 1, 1, 1));       // column step open
+  REQUIRE(g.can_move(1, 1, 1, 0));       // row step open
+  REQUIRE_FALSE(g.can_move(0, 1, 1, 0)); // diagonal step closed
+
+  Position pos{.col = 1.5f, .row = 0.5f};
+  const Position prev{.col = 0.5f, .row = 1.5f};
+  resolve_walkability(pos, prev, &g);
+  CHECK(pos.col == doctest::Approx(1.5f));     // column step kept
+  CHECK(pos.row == doctest::Approx(prev.row)); // diagonal denied, so the row step reverts
+}
+
+TEST_CASE("resolve_walkability — a two-axis step across a connected diagonal is allowed") {
+  const std::array<uint8_t, 9> flat{};
+  const Tilemap tm = make_elevation_map(flat);
+  const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
+
+  Position pos{.col = 1.5f, .row = 0.5f};
+  const Position prev{.col = 0.5f, .row = 1.5f};
+  resolve_walkability(pos, prev, &g);
+  CHECK(pos.col == doctest::Approx(1.5f));
+  CHECK(pos.row == doctest::Approx(0.5f));
 }
 
 // ── ramps ─────────────────────────────────────────────────────────────────────

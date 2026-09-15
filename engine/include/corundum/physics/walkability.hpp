@@ -15,8 +15,11 @@ namespace corundum::physics {
    * — collision gates against explicit authored geometry, this gates against terrain
    * elevation deltas the walkability graph encodes. Axis-separated like
    * resolve_collisions: reverts pos.col if the column crossed into a disconnected
-   * cell, then the same for pos.row. Operates on the entity's actual feet position,
-   * not a collision AABB.
+   * cell, then the same for pos.row, so an axis the graph blocks still slides along
+   * the other. A step that crosses both axes is diagonal, and is gated by the graph's
+   * diagonal edge rather than the two cardinal edges — both cardinals can be open
+   * across a corner whose own elevation step is still too large. Operates on the
+   * entity's actual feet position, not a collision AABB.
    *
    * @param pos       Post-integrate (and post-collision-resolution) position. Modified in-place.
    * @param prev_pos  Position before integrate ran this frame.
