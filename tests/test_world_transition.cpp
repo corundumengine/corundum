@@ -89,12 +89,15 @@ namespace {
                             engine.flags, &engine.quests);
   }
 
-  /// Place the player entity at an exact tile (row/col) without pathing.
+  /// Place the player entity on tile (col, row) without pathing, at the cell centre.
+  /// That is where follow_path leaves an entity that walked there (waypoints are tile + 0.5),
+  /// and the only position at which the collision footprint — which starts at the feet and
+  /// extends up — sits inside the tile rather than on its corner.
   void move_player_to(corundum::Engine &engine, float col, float row) {
     auto &transforms = engine.scene.world.transforms;
     const auto slot = transforms.dense_index(engine.scene.player);
-    transforms.col[slot] = col;
-    transforms.row[slot] = row;
+    transforms.col[slot] = col + 0.5f;
+    transforms.row[slot] = row + 0.5f;
     engine.scene.path.clear();
   }
 
@@ -414,6 +417,37 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   handle_map_transition(engine);
   CHECK(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{13, 13});
+
+  engine.cleanup();
+}
+
+TEST_CASE("world transition — a portal arms once the footprint reaches it, not before") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+
+  // The cave-mouth portal covers world tile (13,13), so its row range is [13,14). A
+  // footprint runs from the feet *up*, so a player standing in tile (13,12) never
+  // reaches that range and must stay disarmed.
+  move_player_to(engine, 13.f, 12.f);
+  advance(engine);
+  CHECK_FALSE(engine.scene.transition_prompt.has_value());
+
+  // Feet exactly on the portal's top edge (12.5 in move_player_to's tile units puts the
+  // centre there) still don't reach into the portal's row: overlap is half-open, the same
+  // rule resolve_collisions and TransitionPrompt::overlaps use.
+  move_player_to(engine, 13.f, 12.5f);
+  advance(engine);
+  CHECK_FALSE(engine.scene.transition_prompt.has_value());
+
+  // One step further and the footprint is over the portal.
+  move_player_to(engine, 13.f, 13.f);
+  advance(engine);
+  using corundum::world::GameMode;
+  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.transition_prompt.has_value());
 
   engine.cleanup();
 }

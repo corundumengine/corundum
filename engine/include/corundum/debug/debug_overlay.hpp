@@ -112,6 +112,18 @@ namespace corundum::debug {
                                    float zoom, const render::RenderState &render, const entities::World &w,
                                    entities::EntityId player, core::math::IsometricParams iso) noexcept;
 
+    /** @brief Draw every entity's collision footprint in world space.
+     *
+     *  One outline per entity with a collision component, traced from the same
+     *  (col ± col_span/2, row - row_span) to (…, row) rect the player-vs-NPC resolution
+     *  consumes — so the outline shows exactly what blocks movement. The player's
+     *  footprint uses the marker colour; everything else uses the footprint colour.
+     *  Entities with no transform row or no positive span are skipped.
+     */
+    static void draw_entity_footprints(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+                                       float zoom, const render::RenderState &render, const entities::World &w,
+                                       entities::EntityId player, core::math::IsometricParams iso) noexcept;
+
     /** @brief Draw the top-right HUD text panel (FPS, grid, velocity, camera, stats). */
     void draw_text_panel(platform::Renderer &r, const render::RenderState &render, const core::GameConfig &cfg,
                          const world::Scene &scene) const;

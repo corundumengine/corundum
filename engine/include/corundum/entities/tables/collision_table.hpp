@@ -12,6 +12,28 @@
 
 namespace corundum::entities {
 
+  /** @brief Axis-aligned box in tile-grid units: top-left corner plus extent. */
+  struct GridBox {
+    float col = 0.f;
+
+    float row = 0.f;
+
+    float col_span = 0.f;
+
+    float row_span = 0.f;
+  };
+
+  /** @brief The collision footprint of an entity standing at @p col/@p row with the given spans.
+   *
+   * The single definition of the CollisionTable footprint convention below — the box's
+   * bottom edge is the entity's feet, so it extends *up* from (col, row). Deriving the box
+   * independently at a call site is how the pathfinder came to treat the cell north of an
+   * NPC as free and route movement straight into it, so new consumers belong here.
+   */
+  [[nodiscard]] constexpr GridBox footprint_of(float col, float row, float col_span, float row_span) noexcept {
+    return {.col = col - (col_span * 0.5f), .row = row - row_span, .col_span = col_span, .row_span = row_span};
+  }
+
   /** @brief Table for the axis-aligned collision footprint of an entity.
    *
    * Footprints are in tile-grid units and populated once at spawn, so collision never needs a

@@ -8,6 +8,7 @@
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
@@ -16,6 +17,7 @@
 #include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -32,6 +34,7 @@ namespace corundum::debug {
     constexpr core::math::Colour k_hud_bg{.r = 0, .g = 0, .b = 0, .a = 75};
     constexpr core::math::Colour k_hud_text{.r = 220, .g = 220, .b = 200, .a = 255};
     constexpr core::math::Colour k_player_col{.r = 0, .g = 255, .b = 0, .a = 220};
+    constexpr core::math::Colour k_footprint_col{.r = 255, .g = 200, .b = 0, .a = 220};
 
     constexpr float k_y = 10.f;
     constexpr uint32_t k_font_sz = 16;
@@ -44,22 +47,36 @@ namespace corundum::debug {
     constexpr float k_marker_hh = 3.f;
     constexpr float k_line_thickness = 2.f;
 
+    /// Outline @p box as an isometric diamond sitting at @p elev.
+    ///
+    /// tile_to_world takes a whole-tile elevation, so the sub-tile part of an interpolated
+    /// ramp elevation rounds away — up to half a step of drift on a ramp, which a debug
+    /// outline can live with.
+    void draw_iso_box(platform::Renderer &r, const entities::GridBox &box, float elev, core::math::IsometricParams iso,
+                      core::math::Colour colour) noexcept {
+      const int whole_elev = static_cast<int>(std::round(elev));
+      const core::math::Vec2 a = core::math::tile_to_world(box.col, box.row, whole_elev, iso);
+      const core::math::Vec2 b = core::math::tile_to_world(box.col + box.col_span, box.row, whole_elev, iso);
+      const core::math::Vec2 c =
+          core::math::tile_to_world(box.col + box.col_span, box.row + box.row_span, whole_elev, iso);
+      const core::math::Vec2 d = core::math::tile_to_world(box.col, box.row + box.row_span, whole_elev, iso);
+      r.draw(platform::DrawLine{.start = a, .end = b, .colour = colour, .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{.start = b, .end = c, .colour = colour, .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{.start = c, .end = d, .colour = colour, .thickness = k_line_thickness});
+      r.draw(platform::DrawLine{.start = d, .end = a, .colour = colour, .thickness = k_line_thickness});
+    }
+
     template <typename View>
     void draw_tile_collisions(platform::Renderer &r, const View &view, core::math::IsometricParams iso,
                               core::math::Colour colour) noexcept {
       for (std::size_t i = 0; i < view.size(); ++i) {
-        const float col = view.cols[i];
-        const float row = view.rows[i];
-        const float col_end = col + view.col_spans[i];
-        const float row_end = row + view.row_spans[i];
-        const core::math::Vec2 a = core::math::tile_to_world(col, row, 0, iso);
-        const core::math::Vec2 b = core::math::tile_to_world(col_end, row, 0, iso);
-        const core::math::Vec2 c = core::math::tile_to_world(col_end, row_end, 0, iso);
-        const core::math::Vec2 d = core::math::tile_to_world(col, row_end, 0, iso);
-        r.draw(platform::DrawLine{.start = a, .end = b, .colour = colour, .thickness = k_line_thickness});
-        r.draw(platform::DrawLine{.start = b, .end = c, .colour = colour, .thickness = k_line_thickness});
-        r.draw(platform::DrawLine{.start = c, .end = d, .colour = colour, .thickness = k_line_thickness});
-        r.draw(platform::DrawLine{.start = d, .end = a, .colour = colour, .thickness = k_line_thickness});
+        const entities::GridBox box{
+            .col = view.cols[i],
+            .row = view.rows[i],
+            .col_span = view.col_spans[i],
+            .row_span = view.row_spans[i],
+        };
+        draw_iso_box(r, box, 0.f, iso, colour);
       }
     }
 
@@ -152,6 +169,40 @@ namespace corundum::debug {
         .colour = k_player_col,
         .thickness = k_line_thickness,
     });
+    r.reset_screen_view();
+  }
+
+  void HudOverlay::draw_entity_footprints(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+                                          float zoom, const render::RenderState &render, const entities::World &w,
+                                          entities::EntityId player, core::math::IsometricParams iso) noexcept {
+    r.set_world_view(camera, viewport, zoom);
+
+    const bool iso_ok = iso.half_tw > 0.f && iso.half_th > 0.f;
+    for (std::uint32_t i = 0; i < w.collisions.count; ++i) {
+      const entities::EntityId eid = w.collisions.index.entities[i];
+      if (!w.transforms.has(eid))
+        continue;
+
+      const entities::CollisionTable::Rect &rect = w.collisions.rects[i];
+      if (rect.col_span <= 0.f || rect.row_span <= 0.f)
+        continue;
+
+      const auto slot = w.transforms.dense_index(eid);
+      const float col = w.transforms.col[slot];
+      const float row = w.transforms.row[slot];
+      const entities::GridBox box = entities::footprint_of(col, row, rect.col_span, rect.row_span);
+      const core::math::Colour colour = eid == player ? k_player_col : k_footprint_col;
+
+      if (iso_ok)
+        draw_iso_box(r, box, corundum::render::elevation_under(render, col, row), iso, colour);
+      else
+        r.draw(platform::DrawRect{
+            .position = {.x = box.col, .y = box.row},
+            .size = {.x = box.col_span, .y = box.row_span},
+            .colour = colour,
+        });
+    }
+
     r.reset_screen_view();
   }
 
@@ -287,6 +338,7 @@ namespace corundum::debug {
     const render::CollisionGeometry geo = render::current_collisions(render);
     draw_collision(r, camera, viewport, geo.rects, geo.tris, iso, scene.camera.zoom);
     draw_player_marker(r, camera, viewport, scene.camera.zoom, render, scene.world, scene.player, iso);
+    draw_entity_footprints(r, camera, viewport, scene.camera.zoom, render, scene.world, scene.player, iso);
 
     draw_text_panel(r, render, cfg, scene);
   }

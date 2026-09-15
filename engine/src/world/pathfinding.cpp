@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/world/map_view.hpp>
@@ -30,7 +31,8 @@ namespace corundum::world {
 
     [[nodiscard]] bool cell_blocked_by_collision(int col, int row, const corundum::world::MapView &map,
                                                  const corundum::entities::CollisionTable *npc_collisions,
-                                                 const corundum::entities::TransformTable *npc_transforms) noexcept {
+                                                 const corundum::entities::TransformTable *npc_transforms,
+                                                 corundum::entities::EntityId exclude) noexcept {
       const int cell_elev = corundum::world::discrete_elevation_at(map, col, row);
       const float c0 = static_cast<float>(col), c1 = c0 + 1.f;
       const float r0 = static_cast<float>(row), r1 = r0 + 1.f;
@@ -59,15 +61,13 @@ namespace corundum::world {
         for (uint16_t i = 0; i < npc_collisions->count; ++i) {
           const auto &rect = npc_collisions->rects[i];
           const auto eid = npc_collisions->index.entities[i];
+          if (eid == exclude) // the mover's own footprint straddles the cells around its feet
+            continue;
           const auto tslot = npc_transforms->dense_index(eid);
-          const float npc_col = npc_transforms->col[tslot];
-          const float npc_row = npc_transforms->row[tslot];
-          const float half_cs = rect.col_span / 2.f;
-          const float n0 = npc_col - half_cs;
-          const float n2 = npc_col + half_cs;
-          const float n1 = npc_row;
-          const float n3 = npc_row + rect.row_span;
-          if (c0 < n2 && c1 > n0 && r0 < n3 && r1 > n1)
+          const corundum::entities::GridBox npc_box = corundum::entities::footprint_of(
+              npc_transforms->col[tslot], npc_transforms->row[tslot], rect.col_span, rect.row_span);
+          if (c0 < npc_box.col + npc_box.col_span && c1 > npc_box.col && r0 < npc_box.row + npc_box.row_span &&
+              r1 > npc_box.row)
             return true;
         }
       }
@@ -96,7 +96,8 @@ namespace corundum::world {
 
   std::vector<TileCoord> find_path(const corundum::world::MapView &map, TileCoord start, TileCoord goal,
                                    const corundum::entities::CollisionTable *npc_collisions,
-                                   const corundum::entities::TransformTable *npc_transforms) noexcept {
+                                   const corundum::entities::TransformTable *npc_transforms,
+                                   corundum::entities::EntityId exclude) noexcept {
     if (!map.walkability)
       return {};
     const corundum::world::tilemap::WalkabilityGraph &graph = *map.walkability;
@@ -157,7 +158,7 @@ namespace corundum::world {
               !graph.can_move(cur.col, cur.row, cur.col, cur.row + dr))
             continue;
         }
-        if (cell_blocked_by_collision(next.col, next.row, map, npc_collisions, npc_transforms))
+        if (cell_blocked_by_collision(next.col, next.row, map, npc_collisions, npc_transforms, exclude))
           continue;
 
         const float step_cost = (dc != 0 && dr != 0) ? k_sqrt2 : 1.f;

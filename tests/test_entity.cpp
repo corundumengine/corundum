@@ -4,6 +4,7 @@
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
+#include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/sprites/sprite.hpp>
@@ -233,4 +234,16 @@ TEST_CASE("EntityManager create pool full on fresh World with k_max_entities spa
   }
   CHECK(w.entities.full());
   CHECK(spawned == k_max_entities);
+}
+
+TEST_CASE("footprint_of — the box extends up from the entity's feet") {
+  const GridBox box = footprint_of(8.f, 11.f, 1.f, 0.5f);
+
+  CHECK(box.col == doctest::Approx(7.5f));
+  CHECK(box.row == doctest::Approx(10.5f));
+  CHECK(box.col_span == doctest::Approx(1.f));
+  CHECK(box.row_span == doctest::Approx(0.5f));
+  // The feet are the box's bottom edge and its horizontal centre — not its centre.
+  CHECK(box.row + box.row_span == doctest::Approx(11.f));
+  CHECK(box.col + (box.col_span * 0.5f) == doctest::Approx(8.f));
 }

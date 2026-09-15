@@ -1,12 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/collision_table.hpp>
+#include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <corundum/world/pathfinding.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <utility>
@@ -155,4 +159,64 @@ TEST_CASE("find_path — null walkability (World mode) returns empty") {
   map.elevation_map = &tm;
   map.walkability = nullptr;
   CHECK(find_path(map, {0, 0}, {2, 2}).empty());
+}
+
+TEST_CASE("find_path — routes around an NPC's footprint, not through the cell it blocks") {
+  // An entity's footprint extends up from its feet (collision_table.hpp), so an NPC at
+  // (2,3) with a 1x1 box covers rows 2..3 — including the cell *north* of its own tile.
+  // Testing [row, row + row_span] instead left that cell looking free, so the path was
+  // routed straight through it and the player jammed against the NPC.
+  Tilemap tm = make_map(5, 5);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+
+  corundum::entities::EntityManager entities;
+  corundum::entities::CollisionTable npc_collisions;
+  corundum::entities::TransformTable npc_transforms;
+  const corundum::entities::EntityId npc = entities.create();
+  npc_transforms.insert(npc, 2.f, 3.f, 0.f, 0.f);
+  npc_collisions.insert(npc, 1.f, 1.f);
+
+  MapView map;
+  map.elevation_map = &tm;
+  map.walkability = &graph;
+
+  const corundum::world::TileCoord start{.col = 0, .row = 2};
+  const corundum::world::TileCoord goal{.col = 4, .row = 2};
+  const auto path = find_path(map, start, goal, &npc_collisions, &npc_transforms);
+  REQUIRE_FALSE(path.empty());
+  CHECK(path.back() == goal);
+
+  // The detour goes around the footprint's cells rather than straight through them.
+  const auto on_npc = [](const corundum::world::TileCoord &step) noexcept {
+    return step == corundum::world::TileCoord{.col = 1, .row = 2} ||
+           step == corundum::world::TileCoord{.col = 2, .row = 2};
+  };
+  CHECK_FALSE(std::ranges::any_of(path, on_npc));
+}
+
+TEST_CASE("find_path — the mover's own footprint is not treated as an obstacle") {
+  // A mover's footprint straddles the cells around its feet, so leaving it in the NPC scan
+  // marks its own first step blocked. Callers pass the mover as `exclude` to avoid that.
+  Tilemap tm = make_map(3, 1);
+  const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
+
+  corundum::entities::EntityManager entities;
+  corundum::entities::CollisionTable collisions;
+  corundum::entities::TransformTable transforms;
+  const corundum::entities::EntityId mover = entities.create();
+  transforms.insert(mover, 1.f, 0.5f, 0.f, 0.f);
+  collisions.insert(mover, 0.5f, 0.5f);
+
+  MapView map;
+  map.elevation_map = &tm;
+  map.walkability = &graph;
+
+  // Footprint is cols 0.75..1.25 — it covers cell (1,0), the only step east.
+  const corundum::world::TileCoord start{.col = 0, .row = 0};
+  const corundum::world::TileCoord goal{.col = 2, .row = 0};
+  CHECK(find_path(map, start, goal, &collisions, &transforms).empty());
+
+  const auto path = find_path(map, start, goal, &collisions, &transforms, mover);
+  REQUIRE_FALSE(path.empty());
+  CHECK(path.back() == goal);
 }

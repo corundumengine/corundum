@@ -5,6 +5,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/physics/collision.hpp>
 #include <corundum/physics/physics_system.hpp>
@@ -67,11 +68,14 @@ namespace corundum::physics {
       if (map.portals.empty())
         return;
 
-      const float half_span = col_span / 2.f;
-      const float col0 = pos.col - half_span;
-      const float col1 = pos.col + half_span;
-      const float row0 = pos.row;
-      const float row1 = pos.row + row_span;
+      // Same footprint the collision pass uses — the box's bottom edge is the player's
+      // feet, so it reaches into the cell *above* the feet position.
+      const corundum::entities::GridBox footprint =
+          corundum::entities::footprint_of(pos.col, pos.row, col_span, row_span);
+      const float col0 = footprint.col;
+      const float col1 = footprint.col + footprint.col_span;
+      const float row0 = footprint.row;
+      const float row1 = footprint.row + footprint.row_span;
 
       if (scene.transition_prompt && scene.transition_prompt->declined() &&
           !scene.transition_prompt->overlaps(col0, col1, row0, row1))
@@ -275,7 +279,7 @@ namespace corundum::physics {
           .col = static_cast<int>(std::floor(prev_col)),
           .row = static_cast<int>(std::floor(prev_row)),
       };
-      scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms);
+      scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms, player);
     }
 
     const bool manual_move =
@@ -356,14 +360,15 @@ namespace corundum::physics {
         continue;
       const auto &rect = collisions.rects[i];
       const auto np_slot = transforms.dense_index(eid);
-      // Convert NPC feet position to AABB top-left.
-      const float half_npc_cs = rect.col_span / 2.f;
       const float np_col = transforms.col[np_slot];
       const float np_row = transforms.row[np_slot];
-      npc_cols[npc_count] = np_col - half_npc_cs;
-      npc_rows[npc_count] = np_row - rect.row_span;
-      npc_cs[npc_count] = rect.col_span;
-      npc_rs[npc_count] = rect.row_span;
+      // NPC feet position to AABB top-left, per the shared CollisionTable convention.
+      const corundum::entities::GridBox npc_box =
+          corundum::entities::footprint_of(np_col, np_row, rect.col_span, rect.row_span);
+      npc_cols[npc_count] = npc_box.col;
+      npc_rows[npc_count] = npc_box.row;
+      npc_cs[npc_count] = npc_box.col_span;
+      npc_rs[npc_count] = npc_box.row_span;
       npc_elevations[npc_count] =
           static_cast<uint8_t>(std::round(corundum::world::elevation_at_tile(map, np_col, np_row)));
       ++npc_count;

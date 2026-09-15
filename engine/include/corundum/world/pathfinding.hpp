@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/entities/entity.hpp>
 #include <corundum/world/picking.hpp>
 
 #include <vector>
@@ -27,9 +28,12 @@ namespace corundum::world {
    *    this a path could route straight through a wall (the entity wouldn't clip
    *    through it, but would visibly get stuck pushing against it mid-path).
    *  - When @p npc_collisions and @p npc_transforms are both non-null, a candidate cell
-   *    is also rejected if it overlaps any NPC's collision AABB. This prevents the
-   *    pathfinder from routing through other entities (which would then push back
-   *    reactively via physics, causing visible rubber-banding).
+   *    is also rejected if it overlaps any NPC's collision AABB, skipping @p exclude.
+   *    This prevents the pathfinder from routing through other entities (which would
+   *    then push back reactively via physics, causing visible rubber-banding). Pass the
+   *    entity that will walk the path as @p exclude: its own footprint straddles the
+   *    cell it stands in, so scanning it would mark its own first step blocked and
+   *    leave an adjacent goal unreachable.
    *
    * Works in both single-map and world (chunked) render mode. Returns empty if
    * map.walkability is null, the path is unreachable, start or goal is out of
@@ -41,11 +45,13 @@ namespace corundum::world {
    * @param goal            Target cell (typically the picked/hovered tile).
    * @param npc_collisions  Entity bounding-box table for dynamic NPC obstacle avoidance; nullptr = skip.
    * @param npc_transforms  Entity position table for dynamic NPC obstacle avoidance; nullptr = skip.
+   * @param exclude         Entity the NPC scan ignores (the mover); EntityId::invalid() = skip none.
    * @return Ordered waypoints from the first step after @p start through @p goal.
    */
   [[nodiscard]] std::vector<TileCoord>
   find_path(const MapView &map, TileCoord start, TileCoord goal,
             const corundum::entities::CollisionTable *npc_collisions = nullptr,
-            const corundum::entities::TransformTable *npc_transforms = nullptr) noexcept;
+            const corundum::entities::TransformTable *npc_transforms = nullptr,
+            corundum::entities::EntityId exclude = corundum::entities::EntityId::invalid()) noexcept;
 
 } // namespace corundum::world
