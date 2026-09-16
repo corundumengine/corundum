@@ -248,3 +248,15 @@ TEST_CASE("footprint_of — the box is centred on the tile the entity stands on"
   CHECK(box.col + (box.col_span * 0.5f) == doctest::Approx(8.5f));
   CHECK(box.row + (box.row_span * 0.5f) == doctest::Approx(11.5f));
 }
+
+TEST_CASE("position_of — inverts footprint_of") {
+  // The pair has to stay in step: the physics solve converts a resolved box back to a
+  // position, so a drifted inverse would slide every entity off its own footprint.
+  const Position square = position_of(footprint_of(8.f, 11.f, 1.f, 0.5f));
+  CHECK(square.col == doctest::Approx(8.f));
+  CHECK(square.row == doctest::Approx(11.f));
+
+  const Position narrow = position_of(footprint_of(3.f, 4.f, 0.25f, 0.9f));
+  CHECK(narrow.col == doctest::Approx(3.f));
+  CHECK(narrow.row == doctest::Approx(4.f));
+}

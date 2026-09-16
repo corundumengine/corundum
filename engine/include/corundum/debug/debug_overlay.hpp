@@ -104,6 +104,12 @@ namespace corundum::debug {
 
     /** @brief Draw the player feet-marker diamond in world space.
      *
+     *  Marks the entity's anchor point — the tile centre the sprite, the footprint and the
+     *  camera are all pinned to — at a fixed screen size, in its own colour. Unlike the
+     *  footprint outline it shows a *point*, not an extent, and it still shows one when the
+     *  player's footprint is degenerate; that is what makes it the tool for telling a
+     *  misplaced footprint apart from a sprite drawn off its anchor.
+     *
      *  No-op when the isometric params are zero (no tilemap yet) or the player
      *  entity is missing the Transform/Collision components needed to anchor
      *  the marker at its feet.
@@ -114,10 +120,10 @@ namespace corundum::debug {
 
     /** @brief Draw every entity's collision footprint in world space.
      *
-     *  One outline per entity with a collision component, traced from the same
-     *  (col ± col_span/2, row - row_span) to (…, row) rect the player-vs-NPC resolution
-     *  consumes — so the outline shows exactly what blocks movement. The player's
-     *  footprint uses the marker colour; everything else uses the footprint colour.
+     *  One outline per entity with a collision component, traced from the same rect the
+     *  player-vs-NPC resolution consumes (see entities::footprint_of, the single definition
+     *  of that convention) — so the outline shows exactly what blocks movement. The player's
+     *  footprint uses the player colour; everything else uses the footprint colour.
      *  Entities with no transform row or no positive span are skipped.
      */
     static void draw_entity_footprints(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,

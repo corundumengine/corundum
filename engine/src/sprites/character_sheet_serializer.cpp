@@ -35,10 +35,8 @@ namespace corundum::sprites {
       json sj;
       sj["col_span"] = sp.col_span;
       sj["row_span"] = sp.row_span;
-      if (sp.collision_w > 0)
-        sj["collision_w"] = sp.collision_w;
-      if (sp.collision_h > 0)
-        sj["collision_h"] = sp.collision_h;
+      sj["footprint_col_span"] = sp.footprint_col_span;
+      sj["footprint_row_span"] = sp.footprint_row_span;
       sj["walk_around_offset"] = sp.walk_around_offset;
       if (sp.fps > 0.f)
         sj["fps"] = sp.fps;

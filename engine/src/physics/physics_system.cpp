@@ -66,8 +66,8 @@ namespace corundum::physics {
       if (map.portals.empty())
         return;
 
-      // Same footprint the collision pass uses — the box's bottom edge is the player's
-      // feet, so it reaches into the cell *above* the feet position.
+      // Same footprint the collision pass uses: a ground patch centred on the feet, so it
+      // covers the tile the player stands on and does not reach into its neighbours.
       const corundum::entities::GridBox footprint =
           corundum::entities::footprint_of(pos.col, pos.row, col_span, row_span);
       const float col0 = footprint.col;
@@ -336,10 +336,14 @@ namespace corundum::physics {
         resolve_collisions(pc, pcp, box.col_span, box.row_span, map.collisions, 0.f, player_elev, elev_gate.tolerance);
         resolve_triangle_collisions(pc, pcp, box.col_span, box.row_span, map.collision_triangles, 0.f, player_elev,
                                     elev_gate.tolerance);
-        // Back to the entity's tile-grid position, undoing the feet anchor — half a span on
-        // each axis, matching the centred footprint_of.
-        p.col = pc.col + (box.col_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
-        p.row = pc.row + (box.row_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
+        // Back to the entity's tile-grid position via footprint_of's paired inverse, so the
+        // anchor offset lives in exactly one place.
+        p = corundum::entities::position_of(corundum::entities::GridBox{
+            .col = pc.col,
+            .row = pc.row,
+            .col_span = box.col_span,
+            .row_span = box.row_span,
+        });
       }
       resolve_walkability(p, sub_prev, map.walkability);
       // Write resolved position back so the next substep's integrate starts from here.
@@ -395,12 +399,23 @@ namespace corundum::physics {
       const Position prev_aabb{.col = prev_box.col, .row = prev_box.row};
       resolve_collisions(p_aabb, prev_aabb, box.col_span, box.row_span, npc_view, 0.f, player_elev,
                          elev_gate.tolerance);
-      p.col = p_aabb.col + (box.col_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
-      p.row = p_aabb.row + (box.row_span * 0.5f) - corundum::entities::k_entity_anchor_offset;
+      p = corundum::entities::position_of(corundum::entities::GridBox{
+          .col = p_aabb.col,
+          .row = p_aabb.row,
+          .col_span = box.col_span,
+          .row_span = box.row_span,
+      });
     }
 
-    p.col = std::clamp(p.col, 0.f, std::max(0.f, map_w - player_rect.col_span));
-    p.row = std::clamp(p.row, 0.f, std::max(0.f, map_h - player_rect.row_span));
+    // Bound the footprint, which sits half a tile in from the stored position: the position
+    // may reach map_w - 0.5 - col_span/2, not map_w - col_span. The lower bound stays 0 so the
+    // position itself never leaves the map — stricter than the box needs, and harmless.
+    const float col_limit =
+        std::max(0.f, map_w - corundum::entities::k_entity_anchor_offset - (player_rect.col_span * 0.5f));
+    const float row_limit =
+        std::max(0.f, map_h - corundum::entities::k_entity_anchor_offset - (player_rect.row_span * 0.5f));
+    p.col = std::clamp(p.col, 0.f, col_limit);
+    p.row = std::clamp(p.row, 0.f, row_limit);
 
     transforms.col[p_slot] = p.col;
     transforms.row[p_slot] = p.row;

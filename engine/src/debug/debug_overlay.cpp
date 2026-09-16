@@ -35,6 +35,9 @@ namespace corundum::debug {
     constexpr core::math::Colour k_hud_text{.r = 220, .g = 220, .b = 200, .a = 255};
     constexpr core::math::Colour k_player_col{.r = 0, .g = 255, .b = 0, .a = 220};
     constexpr core::math::Colour k_footprint_col{.r = 255, .g = 200, .b = 0, .a = 220};
+    /// The feet marker — deliberately not the player's green, so the anchor point reads as
+    /// its own glyph instead of disappearing inside the player's footprint outline.
+    constexpr core::math::Colour k_marker_col{.r = 255, .g = 0, .b = 255, .a = 220};
 
     constexpr float k_y = 10.f;
     constexpr uint32_t k_font_sz = 16;
@@ -148,25 +151,25 @@ namespace corundum::debug {
     r.draw(platform::DrawLine{
         .start = {.x = mx, .y = my - k_marker_hh},
         .end = {.x = mx + k_marker_hw, .y = my},
-        .colour = k_player_col,
+        .colour = k_marker_col,
         .thickness = k_line_thickness,
     });
     r.draw(platform::DrawLine{
         .start = {.x = mx + k_marker_hw, .y = my},
         .end = {.x = mx, .y = my + k_marker_hh},
-        .colour = k_player_col,
+        .colour = k_marker_col,
         .thickness = k_line_thickness,
     });
     r.draw(platform::DrawLine{
         .start = {.x = mx, .y = my + k_marker_hh},
         .end = {.x = mx - k_marker_hw, .y = my},
-        .colour = k_player_col,
+        .colour = k_marker_col,
         .thickness = k_line_thickness,
     });
     r.draw(platform::DrawLine{
         .start = {.x = mx - k_marker_hw, .y = my},
         .end = {.x = mx, .y = my - k_marker_hh},
-        .colour = k_player_col,
+        .colour = k_marker_col,
         .thickness = k_line_thickness,
     });
     r.reset_screen_view();

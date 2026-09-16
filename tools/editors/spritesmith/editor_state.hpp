@@ -26,11 +26,13 @@ namespace tools::spritesmith {
    * matching the character sprite JSON schema.
    */
   struct SpriteDefinition {
-    std::string name;                ///< Unique sprite name (key in "frames" object).
-    int col_span = 1;                ///< Horizontal grid cell span (>= 1).
-    int row_span = 1;                ///< Vertical grid cell span (>= 1).
-    int collision_w = 0;             ///< Collision width in sprite pixels; 0 = full frame width.
-    int collision_h = 0;             ///< Collision height in sprite pixels; 0 = full frame height.
+    std::string name; ///< Unique sprite name (key in "frames" object).
+    int col_span = 1; ///< Horizontal grid cell span (>= 1).
+    int row_span = 1; ///< Vertical grid cell span (>= 1).
+    /// Collision footprint in tile-grid units, centred on the feet anchor by the runtime.
+    /// Authored in tiles so the number means what the game uses.
+    float footprint_col_span = 0.25f;
+    float footprint_row_span = 0.5f;
     float walk_around_offset = 0.6f; ///< Fractional Y offset defining the feet anchor.
     float fps = 0.f;                 ///< Playback rate override; 0 = use engine default.
     /// Per-animation frame sequences, indexed by AnimId.
@@ -93,6 +95,13 @@ namespace tools::spritesmith {
     // ---- Derived from loaded image (set by main after texture load) ---------
     int image_pixel_w = 0; ///< Pixel width of the loaded PNG.
     int image_pixel_h = 0; ///< Pixel height of the loaded PNG.
+
+    // ---- Tile geometry (set by main from ToolConfig) ------------------------
+    /// Tile diamond size in pixels, used to draw the ground footprint at true scale in the
+    /// animation preview. Should match the project's tilemap diamonds (sprite pixels and
+    /// world pixels are the same unit).
+    int tile_diamond_w = 128;
+    int tile_diamond_h = 64;
 
     // ---- Character mode -----------------------------------------------------
     std::vector<SpriteDefinition> sprites; ///< All sprite definitions in the sheet.

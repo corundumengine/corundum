@@ -4,6 +4,7 @@
 #pragma once
 #include <array>
 #include <cassert>
+#include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <corundum/entities/tables/table_concepts.hpp>
@@ -50,6 +51,17 @@ namespace corundum::entities {
             .row = feet_row - (row_span * 0.5f),
             .col_span = col_span,
             .row_span = row_span};
+  }
+
+  /** @brief The entity position @p box was built from — footprint_of's inverse.
+   *
+   * Paired with footprint_of so the anchor offset is written down once: a caller converting
+   * a resolved box back to a position must use this rather than re-deriving the arithmetic,
+   * which would silently drift out of step with k_entity_anchor_offset.
+   */
+  [[nodiscard]] constexpr Position position_of(const GridBox &box) noexcept {
+    return {.col = box.col + (box.col_span * 0.5f) - k_entity_anchor_offset,
+            .row = box.row + (box.row_span * 0.5f) - k_entity_anchor_offset};
   }
 
   /** @brief Table for the axis-aligned collision footprint of an entity.

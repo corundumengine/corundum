@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_side_panel.hpp"
+#include "editor_helpers.hpp"
 #include "editor_state.hpp"
 #include "layout.hpp"
 #include <algorithm>
@@ -293,13 +294,15 @@ namespace tools::spritesmith {
         }
       }
 
-      ImGui::Text("Col/Row Span:");
+      // Grid cells the artwork covers — a slicing property of the sheet, not collision. A
+      // creature drawn across two cells gets 2 here; the preview then shows those cells.
+      ImGui::Text("Frame cells:");
       ImGui::SetNextItemWidth(70.f);
-      if (ImGui::InputInt("##cs", &sp.col_span))
+      if (ImGui::InputInt("X##cs", &sp.col_span))
         sp.col_span = std::max(1, sp.col_span);
       ImGui::SameLine();
       ImGui::SetNextItemWidth(70.f);
-      if (ImGui::InputInt("##rs", &sp.row_span))
+      if (ImGui::InputInt("Y##rs", &sp.row_span))
         sp.row_span = std::max(1, sp.row_span);
 
       if (ImGui::SliderFloat("Walk Offset##wo", &sp.walk_around_offset, 0.f, 1.f, "%.2f"))
@@ -315,18 +318,22 @@ namespace tools::spritesmith {
       if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Playback rate for this sprite's animations.\n0 = use engine default (~6.7 fps).");
 
-      ImGui::Text("Collision (px):");
+      // The collision patch on the ground, in tiles. Unrelated to Frame cells above: that
+      // slices the artwork, this is what the entity actually occupies.
+      ImGui::Text("Footprint (tiles):");
       ImGui::SetNextItemWidth(120.f);
-      if (ImGui::InputInt("W##cw", &sp.collision_w)) {
-        sp.collision_w = std::max(0, sp.collision_w);
+      if (ImGui::InputFloat("W##fpw", &sp.footprint_col_span, 0.05f, 0.f, "%.2f")) {
+        sp.footprint_col_span = std::max(0.f, sp.footprint_col_span);
         state.dirty = true;
       }
       ImGui::SameLine();
       ImGui::SetNextItemWidth(120.f);
-      if (ImGui::InputInt("H##ch", &sp.collision_h)) {
-        sp.collision_h = std::max(0, sp.collision_h);
+      if (ImGui::InputFloat("D##fpd", &sp.footprint_row_span, 0.05f, 0.f, "%.2f")) {
+        sp.footprint_row_span = std::max(0.f, sp.footprint_row_span);
         state.dirty = true;
       }
+      ImGui::TextDisabled("Ground patch: W spans columns, D spans rows. Centred on the feet line.");
+
       ImGui::Checkbox("Show collision box##scb", &state.show_collision_box);
 
       render_anim_section(sp, state);

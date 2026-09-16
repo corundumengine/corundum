@@ -46,10 +46,9 @@ namespace corundum::world {
     using corundum::sprites::SpriteId;
 
     /// Spawn every actor in `actors`, adding (col_off,row_off) to each actor's tile coords.
-    /// dw/dh are the active tilemap's diamond width/height (for bounding-box unit conversion).
     std::expected<std::vector<EntityId>, std::string> spawn_actors(World &world, const CharacterRegistry &registry,
                                                                    const std::vector<Actor> &actors, int col_off,
-                                                                   int row_off, float dw, float dh) {
+                                                                   int row_off) {
       std::vector<EntityId> spawned;
       spawned.reserve(actors.size());
       for (const auto &a : actors) {
@@ -62,14 +61,8 @@ namespace corundum::world {
         float col_span = 0.f;
         float row_span = 0.f;
         if (const auto *sd = registry.get_sprite_by_id(sid)) {
-          if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
-            const int rfw = corundum::sprites::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
-            const int rfh = corundum::sprites::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
-            const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
-            const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-            col_span = static_cast<float>(bb_w) / dw;
-            row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
-          }
+          col_span = sd->footprint_col_span;
+          row_span = sd->footprint_row_span;
         }
 
         Animation npc_anim{};
@@ -100,13 +93,14 @@ namespace corundum::world {
     }
 
     /// load_spawn_points(path).actors -> spawn_actors(...). Missing file -> empty vector.
-    std::expected<std::vector<EntityId>, std::string>
-    spawn_actors_from_file(World &world, const CharacterRegistry &registry, const std::filesystem::path &path,
-                           int col_off, int row_off, float dw, float dh) {
+    std::expected<std::vector<EntityId>, std::string> spawn_actors_from_file(World &world,
+                                                                             const CharacterRegistry &registry,
+                                                                             const std::filesystem::path &path,
+                                                                             int col_off, int row_off) {
       auto sp = load_spawn_points(path);
       if (!sp)
         return std::unexpected(sp.error());
-      return spawn_actors(world, registry, sp->actors, col_off, row_off, dw, dh);
+      return spawn_actors(world, registry, sp->actors, col_off, row_off);
     }
 
   } // namespace
@@ -126,9 +120,6 @@ namespace corundum::world {
     using corundum::sprites::SpriteId;
 
     World world;
-
-    const float dw = static_cast<float>(tilemap.diamond_w());
-    const float dh = static_cast<float>(tilemap.diamond_h());
 
     const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
     const auto actors_path = std::filesystem::path(cfg.paths.spawn_points_dir) / (map_stem + ".json");
@@ -170,15 +161,8 @@ namespace corundum::world {
     if (const auto *sd = registry.get_sprite_by_id(walk_sid)) {
       for (uint8_t i = 0; i < corundum::sprites::k_num_anim_ids; ++i)
         walk_counts[i] = static_cast<uint8_t>(sd->anim_frames[i].size());
-      if (const auto *sh = registry.get_sheet(sd->sheet_id)) {
-        const int rfw = corundum::sprites::rendered_frame_width(sd->col_span, sh->frame_width, sh->spacing_x);
-        const int rfh = corundum::sprites::rendered_frame_height(sd->row_span, sh->frame_height, sh->spacing_y);
-        const int bb_w = sd->collision_w > 0 ? sd->collision_w : rfw;
-        const int bb_h = sd->collision_h > 0 ? sd->collision_h : rfh;
-        // Collision footprint in tile-grid units from sprite pixel dimensions.
-        player_col_span = static_cast<float>(bb_w) / dw;
-        player_row_span = static_cast<float>(bb_h) * sd->walk_around_offset / dh;
-      }
+      player_col_span = sd->footprint_col_span;
+      player_row_span = sd->footprint_row_span;
       if (sd->fps > 0.f)
         walk_fd = 1.f / sd->fps;
     }
@@ -214,7 +198,7 @@ namespace corundum::world {
                       spawn_points.actors.size(), corundum::entities::k_max_entities));
 
     if (spawn_file_actors) {
-      auto spawned = spawn_actors(world, registry, spawn_points.actors, 0, 0, dw, dh);
+      auto spawned = spawn_actors(world, registry, spawn_points.actors, 0, 0);
       if (!spawned)
         return std::unexpected(spawned.error());
     }
@@ -237,9 +221,6 @@ namespace corundum::world {
     if (scene.mode != GameMode::Exploring)
       return; // don't churn actors mid-dialogue / mid-prompt
 
-    const auto &ref_tm = render.chunks.active_at(0).tilemap;
-    const float dw = static_cast<float>(ref_tm.diamond_w());
-    const float dh = static_cast<float>(ref_tm.diamond_h());
     const int cs = render.manifest.chunk_size;
 
     const auto is_resident = [&](tm::ChunkCoord c) {
@@ -271,8 +252,7 @@ namespace corundum::world {
         continue;
       const auto path = std::filesystem::path(cfg.paths.spawn_points_dir) /
                         std::format("chunk_{}_{}.json", entry.coord.col, entry.coord.row);
-      auto spawned =
-          spawn_actors_from_file(scene.world, registry, path, entry.coord.col * cs, entry.coord.row * cs, dw, dh);
+      auto spawned = spawn_actors_from_file(scene.world, registry, path, entry.coord.col * cs, entry.coord.row * cs);
       if (!spawned) {
         std::println(stderr, "[engine] WARN: chunk ({}, {}) actors skipped: {}", entry.coord.col, entry.coord.row,
                      spawned.error());

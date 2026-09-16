@@ -4,9 +4,11 @@
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <cstdio>
 #include <expected>
 #include <filesystem>
 #include <format>
+#include <print>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -71,6 +73,17 @@ namespace corundum::sprites {
                                         .spacing_y = data.spacing_y,
                                     });
 
+    // A sheet that omits the footprint keys silently gets the loader's default, which has
+    // nothing to do with how big its art is. Say so: an unchosen hitbox should be visible in
+    // the log rather than discovered in play.
+    for (const auto &entry : data.sprites) {
+      if (!entry.footprint_authored)
+        std::println(stderr,
+                     "[engine] WARN: sprite '{}/{}' declares no footprint; using {:.2f} x {:.2f} tiles — set "
+                     "one in spritesmith",
+                     data.id, entry.name, entry.footprint_col_span, entry.footprint_row_span);
+    }
+
     for (auto &entry : data.sprites) {
       if (frames_.contains(entry.name))
         return std::unexpected(std::format("Duplicate sprite name: '{}'", entry.name));
@@ -79,8 +92,8 @@ namespace corundum::sprites {
       frames.sheet_id = sheet_id;
       frames.col_span = entry.col_span;
       frames.row_span = entry.row_span;
-      frames.collision_w = entry.collision_w;
-      frames.collision_h = entry.collision_h;
+      frames.footprint_col_span = entry.footprint_col_span;
+      frames.footprint_row_span = entry.footprint_row_span;
       frames.walk_around_offset = entry.walk_around_offset;
       frames.fps = entry.fps;
       frames.sprite_id = next_sprite_id_++;

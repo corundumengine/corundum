@@ -95,8 +95,11 @@ namespace corundum::sprites {
         return std::unexpected(std::format("Sprite '{}' col_span must be >= 1", sprite_name));
       if (entry.row_span < 1)
         return std::unexpected(std::format("Sprite '{}' row_span must be >= 1", sprite_name));
-      entry.collision_w = anims_json.value("collision_w", 0);
-      entry.collision_h = anims_json.value("collision_h", 0);
+      entry.footprint_authored = anims_json.contains("footprint_col_span") && anims_json.contains("footprint_row_span");
+      entry.footprint_col_span = anims_json.value("footprint_col_span", k_default_footprint_col_span);
+      entry.footprint_row_span = anims_json.value("footprint_row_span", k_default_footprint_row_span);
+      if (entry.footprint_col_span < 0.f || entry.footprint_row_span < 0.f)
+        return std::unexpected(std::format("Sprite '{}' footprint spans must be >= 0", sprite_name));
       entry.walk_around_offset = anims_json.value("walk_around_offset", 0.6f);
       entry.fps = anims_json.value("fps", 0.f);
       entry.anim_frames.fill({});
@@ -106,8 +109,8 @@ namespace corundum::sprites {
           "col_span",
           "row_span",
           "fps",
-          "collision_w",
-          "collision_h",
+          "footprint_col_span",
+          "footprint_row_span",
       });
 
       for (const auto &[anim_name, frames_json] : anims_json.items()) {

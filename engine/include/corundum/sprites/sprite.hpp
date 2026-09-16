@@ -126,15 +126,17 @@ namespace corundum::sprites {
   }
 
   /// Per-sprite frame data for a character; hot-path access goes through anim_frames.
-  /// col_span/row_span express the character's footprint in grid-cell units,
-  /// e.g. col_span=1, row_span=2 for a 1x2-tile-tall character.
   struct Frames {
-    Id sheet_id = k_null_sheet;            ///< Owning sprite sheet
-    int col_span = 1;                      ///< Grid columns the sprite occupies
-    int row_span = 1;                      ///< Grid rows the sprite occupies
-    int collision_w = 0;                   ///< Collision width in sprite pixels; 0 = use rendered frame width
-    int collision_h = 0;                   ///< Collision height in sprite pixels; 0 = use rendered frame height
-    float walk_around_offset = 0.f;        ///< Fraction of sprite height locating the feet
+    Id sheet_id = k_null_sheet; ///< Owning sprite sheet
+    int col_span = 1;           ///< Grid columns the sprite's frame occupies (2 for a two-cell-wide creature)
+    int row_span = 1;           ///< Grid rows the sprite's frame occupies
+    /// Collision footprint in tile-grid units, centred on the entity's feet by the physics
+    /// system. Authored in tiles rather than converted from sprite pixels: the patch of ground
+    /// an entity occupies has nothing to do with how tall its art is, and routing the number
+    /// through the tile diamond and walk_around_offset made it unpredictable from the editor.
+    float footprint_col_span = 0.25f;
+    float footprint_row_span = 0.5f;
+    float walk_around_offset = 0.f;        ///< Fraction of sprite height locating the feet; rendering only
     float fps = 0.f;                       ///< Playback rate override; 0 = use engine default
     SpriteId sprite_id = k_null_sprite_id; ///< Interned identifier for O(1) lookup
     std::flat_map<std::string, std::vector<FrameCoord>> animations;  ///< Frames by name; populated at load time only

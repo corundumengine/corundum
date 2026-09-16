@@ -34,7 +34,7 @@ namespace {
       "hero":{
         "col_span":1,"row_span":2,
         "walk_around_offset":0.5,"fps":8,
-        "collision_w":16,"collision_h":32,
+        "footprint_col_span":0.25,"footprint_row_span":0.75,
         "south":[{"col":0,"row":0},{"col":1,"row":0}],
         "east":[{"col":2,"row":0}]
       }
@@ -64,8 +64,9 @@ TEST_CASE("load_character_sheet — valid sheet parses correctly") {
   CHECK(sprite.name == "hero");
   CHECK(sprite.col_span == 1);
   CHECK(sprite.row_span == 2);
-  CHECK(sprite.collision_w == 16);
-  CHECK(sprite.collision_h == 32);
+  CHECK(sprite.footprint_col_span == doctest::Approx(0.25f));
+  CHECK(sprite.footprint_row_span == doctest::Approx(0.75f));
+  CHECK(sprite.footprint_authored); // the keys were present, so the load path stays quiet
   CHECK(sprite.walk_around_offset == doctest::Approx(0.5f));
   CHECK(sprite.fps == doctest::Approx(8.f));
   REQUIRE(sprite.anim_frames[static_cast<uint8_t>(corundum::sprites::AnimId::South)].size() == 2);
@@ -197,4 +198,33 @@ TEST_CASE("load_character_sheet — malformed JSON fails") {
 
   auto result = corundum::sprites::load_character_sheet(path);
   CHECK(!result.has_value());
+}
+
+TEST_CASE("load_character_sheet — footprint spans default when absent") {
+  const auto dir = temp_dir("default_footprint");
+  const auto path = dir / "sheet.json";
+  write_file(path, R"({
+    "id":"t","path":"p.png","frame_width":16,"frame_height":16,
+    "frames":{"hero":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}
+  })");
+
+  auto result = corundum::sprites::load_character_sheet(path);
+  REQUIRE(result.has_value());
+  REQUIRE(result->sprites.size() == 1);
+  CHECK(result->sprites[0].footprint_col_span == doctest::Approx(corundum::sprites::k_default_footprint_col_span));
+  CHECK(result->sprites[0].footprint_row_span == doctest::Approx(corundum::sprites::k_default_footprint_row_span));
+  // Flagged so the registry can warn: this sprite has no authored hitbox.
+  CHECK_FALSE(result->sprites[0].footprint_authored);
+}
+
+TEST_CASE("load_character_sheet — a negative footprint span is rejected") {
+  const auto dir = temp_dir("negative_footprint");
+  const auto path = dir / "sheet.json";
+  write_file(path, R"({
+    "id":"t","path":"p.png","frame_width":16,"frame_height":16,
+    "frames":{"hero":{"col_span":1,"row_span":1,"footprint_col_span":-0.1,"south":[{"col":0,"row":0}]}}
+  })");
+
+  const auto result = corundum::sprites::load_character_sheet(path);
+  CHECK_FALSE(result.has_value());
 }

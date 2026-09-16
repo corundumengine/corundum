@@ -5,5 +5,7 @@
     "quests_dir": "../keystone/data/quests",
     "dialogue_dir": "../keystone/data/dialogue",
     "elevation_step_px": 4,
-    "max_step_height": 4
+    "max_step_height": 4,
+    "tile_diamond_w": 128,
+    "tile_diamond_h": 64
 }

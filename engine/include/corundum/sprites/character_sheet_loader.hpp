@@ -12,13 +12,23 @@
 
 namespace corundum::sprites {
 
+  /// Footprint a sprite falls back to when its sheet omits one, in tile-grid units. Named
+  /// rather than written inline so the load path can report the substitution instead of
+  /// leaving a silent default that has nothing to do with the sprite's art.
+  inline constexpr float k_default_footprint_col_span = 0.25f;
+
+  inline constexpr float k_default_footprint_row_span = 0.5f;
+
   /// One sprite entry parsed from a character sheet's "frames" object.
   struct CharacterSpriteEntry {
     std::string name;
     int col_span = 1;
     int row_span = 1;
-    int collision_w = 0;
-    int collision_h = 0;
+    float footprint_col_span = k_default_footprint_col_span; ///< Collision footprint width, tile-grid units.
+    float footprint_row_span = k_default_footprint_row_span; ///< Collision footprint depth, tile-grid units.
+    /// False when the sheet omitted either footprint key, so the caller can report that the
+    /// defaults above were substituted.
+    bool footprint_authored = false;
     float walk_around_offset = 0.6f;
     float fps = 0.f;
     std::flat_map<std::string, std::vector<FrameCoord>> animations;

@@ -8,11 +8,15 @@
       "col_span": 1,
       "row_span": 1,
       "walk_around_offset": 0.9,
+      "footprint_col_span": 0.5,
+      "footprint_row_span": 0.9,
       "walk_south": [{ "col": 0, "row": 0 }]
     },
     "player_idle": {
       "col_span": 1,
       "row_span": 1,
+      "footprint_col_span": 0.5,
+      "footprint_row_span": 0.6,
       "idle_south": [{ "col": 0, "row": 0 }]
     }
   }

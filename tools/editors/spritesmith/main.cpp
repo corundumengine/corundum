@@ -81,6 +81,8 @@ int main(int argc, char *argv[]) {
   corundum::tool_host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
+  state.tile_diamond_w = cfg.tile_diamond_w;
+  state.tile_diamond_h = cfg.tile_diamond_h;
   if (argc == 2) {
     try {
       tools::spritesmith::load_sheet(state, argv[1]);

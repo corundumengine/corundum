@@ -82,6 +82,10 @@ namespace corundum::tool_host {
       cfg.elevation_step_px = j["elevation_step_px"].get<float>();
     if (j.contains("max_step_height"))
       cfg.max_step_height = j["max_step_height"].get<unsigned int>();
+    if (j.contains("tile_diamond_w"))
+      cfg.tile_diamond_w = j["tile_diamond_w"].get<int>();
+    if (j.contains("tile_diamond_h"))
+      cfg.tile_diamond_h = j["tile_diamond_h"].get<int>();
 
     return cfg;
   }

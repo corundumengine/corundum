@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "render_anim_preview.hpp"
+#include "editor_helpers.hpp"
 #include "editor_state.hpp"
 #include <algorithm>
 #include <array>
@@ -192,18 +193,32 @@ namespace tools::spritesmith {
         dl->AddText({img_pos.x + 2.f, anchor_y - 14.f}, IM_COL32(80, 255, 80, 220), "feet");
       }
 
-      if (state.show_collision_box && sp.collision_w > 0 && sp.collision_h > 0) {
+      if (state.show_collision_box) {
+        // Per-axis display scale: the sprite is stretched to (disp_w, disp_h), so a ground
+        // shape has to be stretched the same way to stay comparable with the art.
         const float scale_x = disp_w / static_cast<float>(pixel_w);
         const float scale_y = disp_h / static_cast<float>(pixel_h);
-        const float coll_disp_w = static_cast<float>(sp.collision_w) * scale_x;
-        const float coll_disp_h = static_cast<float>(sp.collision_h) * scale_y;
-        const float coll_x = img_pos.x + (disp_w - coll_disp_w) * 0.5f;
-        // Bottom edge of the collision box sits on the same feet-anchor line as above —
-        // the box represents footprint/hitbox extent grounded at the character's feet.
-        const float coll_y = img_pos.y + disp_h * sp.walk_around_offset - coll_disp_h;
+        const float half_tw = static_cast<float>(state.tile_diamond_w) * 0.5f;
+        const float half_th = static_cast<float>(state.tile_diamond_h) * 0.5f;
+        const ImVec2 anchor{img_pos.x + (disp_w * 0.5f), img_pos.y + (disp_h * sp.walk_around_offset)};
         ImDrawList *dl = ImGui::GetWindowDrawList();
-        dl->AddRect({coll_x, coll_y}, {coll_x + coll_disp_w, coll_y + coll_disp_h}, IM_COL32(255, 80, 80, 220), 0.f, 0,
-                    1.5f);
+
+        // A grid rectangle projects to a parallelogram — a symmetric diamond only when its col
+        // and row spans match — so trace the four corners as offsets (±c/2, ±r/2) from the feet
+        // anchor, projected the way the runtime projects the same rect. Sprite pixels are world
+        // pixels, so this lands on the art at the size the game will use.
+        const auto ground_rect = [&](float col_span, float row_span, ImU32 colour, float thickness) {
+          const auto at = [&](float dc, float dr) {
+            return ImVec2{anchor.x + ((dc - dr) * half_tw * scale_x), anchor.y + ((dc + dr) * half_th * scale_y)};
+          };
+          const float half_c = col_span * 0.5f;
+          const float half_r = row_span * 0.5f;
+          dl->AddQuad(at(-half_c, -half_r), at(half_c, -half_r), at(half_c, half_r), at(-half_c, half_r), colour,
+                      thickness);
+        };
+
+        ground_rect(1.f, 1.f, IM_COL32(120, 120, 140, 150), 1.f); // one tile, for scale
+        ground_rect(sp.footprint_col_span, sp.footprint_row_span, IM_COL32(255, 80, 80, 220), 1.5f);
       }
     }
   }

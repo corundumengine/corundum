@@ -49,8 +49,8 @@ namespace tools::spritesmith {
         sp.name = entry.name;
         sp.col_span = entry.col_span;
         sp.row_span = entry.row_span;
-        sp.collision_w = entry.collision_w;
-        sp.collision_h = entry.collision_h;
+        sp.footprint_col_span = entry.footprint_col_span;
+        sp.footprint_row_span = entry.footprint_row_span;
         sp.walk_around_offset = entry.walk_around_offset;
         sp.fps = entry.fps;
         sp.anim_frames = entry.anim_frames;
