@@ -13,11 +13,15 @@ namespace corundum::quest {
   /**
    * @brief Load and validate a quest from a JSON file.
    *
-   * Validates the JSON schema, stage uniqueness, sequence ordering,
-   * and ensures at least one resolved stage exists.
+   * Rejects a file that fails schema validation or breaks an in-memory quest
+   * invariant: duplicate stage names or sequences, no resolved stage, or an
+   * `advances_to` / `auto_advance_to` target naming no stage. Non-fatal
+   * diagnostics — a `type` field other than "quest", or a stage list whose
+   * order disagrees with its sequence integers — are printed to stderr and do
+   * not fail the load.
    *
    * @param path Filesystem path to the quest JSON file.
-   * @return The parsed Quest on success, or an error message on failure.
+   * @return The parsed Quest on success, or a message describing the failure.
    */
   [[nodiscard]] std::expected<Quest, std::string> load_quest(const std::filesystem::path &path);
 

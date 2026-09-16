@@ -20,8 +20,9 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::quest {
 
@@ -34,7 +35,7 @@ namespace corundum::quest {
     constexpr std::string_view k_ctx = "quest";
 
     /// Parse the optional "schema_version" field. Absent -> legacy version 1.
-    static std::expected<int, std::string> parse_schema_version(const json &j, const std::string &path) {
+    std::expected<int, std::string> parse_schema_version(const json &j, const std::string &path) {
       if (!j.contains("schema_version"))
         return 1;
       if (!j["schema_version"].is_number_integer())
@@ -46,14 +47,13 @@ namespace corundum::quest {
     /// k_quest_schema_version. No migrations exist yet — schema_version 1 is both
     /// the legacy (absent-field) format and the current format, so this is a no-op
     /// today. Future steps are appended in order and never edited once shipped.
-    static std::expected<void, std::string> migrate_quest_json(json & /*j*/, int from_version,
-                                                               const std::string &path) {
+    std::expected<void, std::string> migrate_quest_json(json & /*j*/, int from_version, const std::string &path) {
       if (from_version < 1)
         return std::unexpected(std::format("Quest '{}' has invalid schema_version {}", path, from_version));
       return {};
     }
 
-    static Objective parse_objective(const json &obj_json, const std::string &ctx) {
+    Objective parse_objective(const json &obj_json, const std::string &ctx) {
       // Schema guarantees: text is present and non-empty.
       Objective obj;
       obj.text = obj_json["text"].get<std::string>();
@@ -67,7 +67,7 @@ namespace corundum::quest {
       return obj;
     }
 
-    static Stage parse_stage(const json &j, std::size_t index) {
+    Stage parse_stage(const json &j, std::size_t index) {
       const auto ctx = std::format("stage[{}]", index);
 
       // Schema guarantees: name and sequence are present, sequence >= 1.
@@ -86,11 +86,14 @@ namespace corundum::quest {
 
       // Schema guarantees: objectives is present.
       const auto &objs = j["objectives"];
+      stage.objectives.reserve(objs.size());
       for (std::size_t i = 0; i < objs.size(); ++i)
         stage.objectives.push_back(parse_objective(objs[i], std::format("{} objective[{}]", ctx, i)));
 
       if (j.contains("advances_to")) {
-        for (const auto &target : j["advances_to"])
+        const auto &targets = j["advances_to"];
+        stage.advances_to.reserve(targets.size());
+        for (const auto &target : targets)
           stage.advances_to.push_back(target.get<std::string>());
       }
 
@@ -103,7 +106,14 @@ namespace corundum::quest {
       return stage;
     }
 
-    static Quest load_quest_impl(const std::string &path) {
+    /// A quest JSON that has been parsed, migrated, and schema-validated.
+    struct ValidatedRoot {
+      json root;
+      int schema_version = k_quest_schema_version;
+    };
+
+    /// Read @p path, migrate it forward, and return its schema-validated root.
+    ValidatedRoot load_validated_root(const std::string &path) {
       std::ifstream f(path);
       if (!f)
         throw LoadError(std::format("cannot open quest file: {}", path));
@@ -116,7 +126,7 @@ namespace corundum::quest {
         }
       }();
 
-      // ── Schema version (before validation so migrations run first) ──────────
+      // Schema version is read before validation so migrations run first.
       auto version_result = parse_schema_version(root, path);
       if (!version_result)
         throw LoadError(std::move(version_result).error());
@@ -131,32 +141,42 @@ namespace corundum::quest {
           throw LoadError(std::move(mig).error());
       }
 
-      // ── Schema validation ──────────────────────────────────────────────────
-      {
-        auto sv = core::schema_catalog().quest_schema().validate(root);
-        if (!sv)
-          throw LoadError(std::format("[schema] {}: {}", path, sv.error()));
-      }
+      auto validated = core::schema_catalog().quest_schema().validate(root);
+      if (!validated)
+        throw LoadError(std::format("[schema] {}: {}", path, validated.error()));
 
-      // ── Type field (optional — directory context tells us the type) ────────
+      // The "type" field is optional — directory context already tells us the type.
       if (root.contains("type") && root["type"].is_string() && root["type"] != "quest")
-        std::println(stderr, "[warning] quest file {} has type \"{}\" instead of \"quest\"", path,
+        std::println(stderr, R"([warning] quest file {} has type "{}" instead of "quest")", path,
                      root["type"].get<std::string>());
+
+      return ValidatedRoot{.root = std::move(root), .schema_version = schema_version};
+    }
+
+    /// Build a Quest from an already schema-validated root.
+    Quest load_quest_impl(const std::string &path) {
+      const ValidatedRoot loaded = load_validated_root(path);
+      const json &root = loaded.root;
 
       // Schema guarantees: id, name, description are present; id and name are non-empty.
       Quest quest;
-      quest.schema_version = schema_version;
+      quest.schema_version = loaded.schema_version;
       quest.quest_id = root["id"].get<std::string>();
       quest.name = root["name"].get<std::string>();
       quest.description = root["description"].get<std::string>();
 
       // Schema guarantees: stages is a non-empty array.
       const auto &stages = root["stages"];
+      quest.stages.reserve(stages.size());
       for (std::size_t i = 0; i < stages.size(); ++i)
         quest.stages.push_back(parse_stage(stages[i], i));
 
-      if (const auto errors = validate(quest); !errors.empty())
+      std::vector<std::string> warnings;
+      const std::vector<std::string> errors = validate(quest, &warnings);
+      if (!errors.empty())
         throw LoadError(std::format("[{}] {}", k_ctx, errors.front()));
+      for (const auto &warning : warnings)
+        std::println(stderr, "[warning] quest {}: {}", path, warning);
 
       return quest;
     }
