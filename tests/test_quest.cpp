@@ -352,6 +352,21 @@ TEST_CASE("validate: no resolved stage") {
   CHECK(errors.front().find("no resolved stage") != std::string::npos);
 }
 
+TEST_CASE("validate: non-positive stage sequences are rejected") {
+  auto q = make_test_quest();
+
+  // Zero collides with the "not started" sentinel get_stage() reports.
+  q.stages[1].sequence = 0;
+  const auto zero_errors = quest::validate(q);
+  REQUIRE_FALSE(zero_errors.empty());
+  CHECK(zero_errors.front().find("must be positive") != std::string::npos);
+
+  q.stages[1].sequence = -3;
+  const auto negative_errors = quest::validate(q);
+  REQUIRE_FALSE(negative_errors.empty());
+  CHECK(negative_errors.front().find("must be positive") != std::string::npos);
+}
+
 // ── advances_to validation ────────────────────────────────────────────────────
 
 TEST_CASE("validate: unknown advances_to target is an error") {

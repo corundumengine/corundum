@@ -11,7 +11,7 @@
 
 namespace corundum::quest {
 
-  Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags) noexcept {
+  Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags) {
     const int stage_seq = get_stage(quest.quest_id, flags);
     if (stage_seq <= 0)
       return Lifecycle::NotStarted;
@@ -26,7 +26,7 @@ namespace corundum::quest {
     return Lifecycle::Active;
   }
 
-  const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags) noexcept {
+  const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags) {
     const int stage_seq = get_stage(quest.quest_id, flags);
     if (stage_seq <= 0)
       return nullptr;

@@ -26,30 +26,24 @@ namespace corundum::quest {
 
   } // namespace
 
-  int get_stage(std::string_view quest_id, const corundum::world::FlagStore &flags) noexcept {
+  int get_stage(std::string_view quest_id, const corundum::world::FlagStore &flags) {
     return corundum::world::visit_count(flags, quest_flag_key(quest_id));
   }
 
-  bool is_complete(const Quest &quest, const corundum::world::FlagStore &flags) noexcept {
+  bool is_complete(const Quest &quest, const corundum::world::FlagStore &flags) {
     const int stage_seq = get_stage(quest.quest_id, flags);
     if (stage_seq <= 0)
       return false;
-    for (const auto &stage : quest.stages) {
-      if (stage.resolved && stage.sequence == stage_seq)
-        return true;
-    }
-    return false;
+    return std::ranges::any_of(
+        quest.stages, [stage_seq](const Stage &stage) { return stage.resolved && stage.sequence == stage_seq; });
   }
 
-  bool is_failed(const Quest &quest, const corundum::world::FlagStore &flags) noexcept {
+  bool is_failed(const Quest &quest, const corundum::world::FlagStore &flags) {
     const int stage_seq = get_stage(quest.quest_id, flags);
     if (stage_seq <= 0)
       return false;
-    for (const auto &stage : quest.stages) {
-      if (stage.failed && stage.sequence == stage_seq)
-        return true;
-    }
-    return false;
+    return std::ranges::any_of(quest.stages,
+                               [stage_seq](const Stage &stage) { return stage.failed && stage.sequence == stage_seq; });
   }
 
   void start(const Quest &quest, corundum::world::FlagStore &flags) {
@@ -64,15 +58,15 @@ namespace corundum::quest {
 
   void advance(const Quest &quest, std::string_view stage_name, corundum::world::FlagStore &flags) {
     const auto *stage = quest.find_stage(stage_name);
-    if (!stage) {
-      std::println(stderr, "[quest] advance(\"{}\", \"{}\"): stage not found", quest.quest_id, stage_name);
+    if (stage == nullptr) {
+      std::println(stderr, R"([quest] advance("{}", "{}"): stage not found)", quest.quest_id, stage_name);
       return;
     }
 #ifndef NDEBUG
     if (const auto *current = current_stage(quest, flags); current != nullptr) {
       const bool auto_target = current->auto_advance_to.has_value() && *current->auto_advance_to == stage_name;
       if (!current->advances_to.empty() && !auto_target && !std::ranges::contains(current->advances_to, stage_name)) {
-        std::println(stderr, "[quest] advance(\"{}\", \"{}\"): \"{}\" not listed in stage \"{}\" advances_to",
+        std::println(stderr, R"([quest] advance("{}", "{}"): "{}" not listed in stage "{}" advances_to)",
                      quest.quest_id, stage_name, stage_name, current->name);
       }
     }

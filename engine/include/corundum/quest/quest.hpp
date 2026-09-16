@@ -13,12 +13,12 @@
 namespace corundum::quest {
 
   /** @brief Current on-disk quest format version. Absent field == version 1. */
-  inline constexpr int k_quest_schema_version = 1;
+  constexpr int k_quest_schema_version = 1;
 
   /** @brief A single task shown in the journal while its stage is active. */
   struct Objective {
     /** @brief Journal text displayed for this objective. */
-    std::string text;
+    std::string text{};
     /**
      * @brief Optional compiled expression that auto-checks this objective.
      *
@@ -31,7 +31,7 @@ namespace corundum::quest {
   /** @brief A point in a quest's progress, keyed by a sequence integer in FlagStore. */
   struct Stage {
     /** @brief Named identifier used in dialogue actions (e.g. "start", "return", "failed"). */
-    std::string name;
+    std::string name{};
     /** @brief Positive integer written to quest.{id} when this stage is active. */
     int sequence{0};
     /** @brief True if this stage ends the quest. At least one resolved stage per quest. */
@@ -67,13 +67,13 @@ namespace corundum::quest {
     /** @brief On-disk format version; 1 for legacy files without the field. */
     int schema_version = k_quest_schema_version;
     /** @brief Machine-readable identifier used in flag keys and dialogue actions. */
-    std::string quest_id;
+    std::string quest_id{};
     /** @brief Human-readable name shown in the journal. */
-    std::string name;
+    std::string name{};
     /** @brief Brief premise shown at the top of the journal entry. */
-    std::string description;
+    std::string description{};
     /** @brief Ordered list of stages; the last stage is typically the completion sentinel. */
-    std::vector<Stage> stages;
+    std::vector<Stage> stages{};
 
     /**
      * @brief Look up a stage by name.
@@ -92,7 +92,13 @@ namespace corundum::quest {
     }
   };
 
-  /** @brief Validate stage-uniqueness and resolution invariants on an in-memory Quest.
+  /** @brief Validate a Quest's stage-uniqueness, sequence, and resolution invariants.
+   *
+   *  Rejects duplicate stage names or sequences, a non-positive stage sequence,
+   *  a quest with no resolved stage, and an `advances_to` / `auto_advance_to`
+   *  target naming no stage. Quest loaders run this on every parsed quest, so it
+   *  is also the check that catches a quest built or edited in memory.
+   *
    *  @param quest The quest to validate.
    *  @param warnings Optional out-param collecting non-fatal diagnostics (e.g. a
    *                  stage-vector order that does not match the sequence integers,

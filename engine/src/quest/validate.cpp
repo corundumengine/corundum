@@ -31,6 +31,12 @@ namespace corundum::quest {
       errors.push_back(std::format("\"{}\" has no resolved stage", quest.quest_id));
 
     for (const auto &stage : quest.stages) {
+      // Zero is the "not started" sentinel get_stage() reports, so a non-positive
+      // sequence is a stage the runtime can never enter.
+      if (stage.sequence <= 0)
+        errors.push_back(std::format(R"("{}": stage "{}" has sequence {}, which must be positive)", quest.quest_id,
+                                     stage.name, stage.sequence));
+
       for (const auto &target : stage.advances_to) {
         if (quest.find_stage(target) == nullptr)
           errors.push_back(

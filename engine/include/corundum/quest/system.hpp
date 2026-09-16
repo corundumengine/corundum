@@ -34,7 +34,7 @@ namespace corundum::quest {
    * @param flags    Active FlagStore.
    * @return The stage sequence (0 if not started / inactive).
    */
-  [[nodiscard]] int get_stage(std::string_view quest_id, const corundum::world::FlagStore &flags) noexcept;
+  [[nodiscard]] int get_stage(std::string_view quest_id, const corundum::world::FlagStore &flags);
 
   /**
    * @brief Check whether a quest is over (flag matches any resolved stage).
@@ -43,7 +43,7 @@ namespace corundum::quest {
    * @param flags Active FlagStore.
    * @return True when the quest's current flag value matches a resolved stage.
    */
-  [[nodiscard]] bool is_complete(const Quest &quest, const corundum::world::FlagStore &flags) noexcept;
+  [[nodiscard]] bool is_complete(const Quest &quest, const corundum::world::FlagStore &flags);
 
   /**
    * @brief Check whether a quest ended in failure (flag matches any failed stage).
@@ -52,7 +52,7 @@ namespace corundum::quest {
    * @param flags Active FlagStore.
    * @return True when the quest's current flag value matches a failed stage.
    */
-  [[nodiscard]] bool is_failed(const Quest &quest, const corundum::world::FlagStore &flags) noexcept;
+  [[nodiscard]] bool is_failed(const Quest &quest, const corundum::world::FlagStore &flags);
 
   /**
    * @brief Start a quest by setting its flag to the first stage's sequence.

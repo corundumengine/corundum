@@ -34,7 +34,7 @@ namespace corundum::quest {
    * @param flags Active FlagStore.
    * @return The matching Lifecycle value.
    */
-  [[nodiscard]] Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags) noexcept;
+  [[nodiscard]] Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags);
 
   /**
    * @brief The stage matching the current flag value, or nullptr when inactive.
@@ -44,7 +44,7 @@ namespace corundum::quest {
    * @return Pointer to the stage whose sequence equals the flag, or nullptr when
    *         the quest is not started or the sequence matches no stage.
    */
-  [[nodiscard]] const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags) noexcept;
+  [[nodiscard]] const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags);
 
   /**
    * @brief Journal view of one objective of the current stage.

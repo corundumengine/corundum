@@ -24,7 +24,7 @@ namespace corundum::quest {
     const Quest *quest = registry_->find(quest_id);
     if (quest == nullptr)
       return std::unexpected(
-          std::format("quest_advance(\"{}\", \"{}\") references unknown quest", quest_id, stage_name));
+          std::format(R"(quest_advance("{}", "{}") references unknown quest)", quest_id, stage_name));
     corundum::quest::advance(*quest, stage_name, *flags_);
     return {};
   }
