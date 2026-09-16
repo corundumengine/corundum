@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -65,20 +66,39 @@ namespace {
     return q;
   }
 
+  /// Condition source text for an objective, or empty when it carries no condition.
+  std::string_view condition_source(const quest::Objective &objective) {
+    return objective.done_condition.has_value() ? objective.done_condition->source() : std::string_view{};
+  }
+
+  void check_objective_matches(const quest::Objective &actual, const quest::Objective &expected) {
+    CHECK(actual.text == expected.text);
+    CHECK(actual.done_condition.has_value() == expected.done_condition.has_value());
+    CHECK(condition_source(actual) == condition_source(expected));
+  }
+
   void check_objectives_match(const std::vector<quest::Objective> &actual,
                               const std::vector<quest::Objective> &expected) {
     REQUIRE(actual.size() == expected.size());
     for (std::size_t i = 0; i < expected.size(); ++i)
-      CHECK(actual[i].text == expected[i].text);
+      check_objective_matches(actual[i], expected[i]);
   }
 
-  void check_stages_match(const quest::Stage &actual, const quest::Stage &expected) {
+  void check_stage_identity_matches(const quest::Stage &actual, const quest::Stage &expected) {
     CHECK(actual.name == expected.name);
     CHECK(actual.sequence == expected.sequence);
     CHECK(actual.resolved == expected.resolved);
     CHECK(actual.failed == expected.failed);
-    CHECK(actual.advances_to == expected.advances_to);
+  }
 
+  void check_stage_edges_match(const quest::Stage &actual, const quest::Stage &expected) {
+    CHECK(actual.advances_to == expected.advances_to);
+    CHECK(actual.auto_advance_to == expected.auto_advance_to);
+  }
+
+  void check_stages_match(const quest::Stage &actual, const quest::Stage &expected) {
+    check_stage_identity_matches(actual, expected);
+    check_stage_edges_match(actual, expected);
     check_objectives_match(actual.objectives, expected.objectives);
   }
 
@@ -1069,6 +1089,37 @@ TEST_CASE("quest serialize round-trips through load_quest") {
   const auto reloaded = quest::load_quest(tmp.string());
   REQUIRE(reloaded.has_value());
 
+  check_quests_match(*reloaded, q);
+
+  std::filesystem::remove(tmp);
+}
+
+TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_condition") {
+  quest::Quest q;
+  q.quest_id = "round_trip_all";
+  q.name = "Round Trip All";
+  q.description = "Every optional stage and objective field populated.";
+
+  q.stages.push_back({
+      .name = "start",
+      .sequence = 1,
+      .objectives =
+          {
+              {.text = "Bare", .done_condition = std::nullopt},
+              {.text = "Conditioned", .done_condition = *corundum::dialogue::compile("gold >= 1")},
+          },
+      .advances_to = {"done", "failed"},
+      .auto_advance_to = "done",
+  });
+  q.stages.push_back({.name = "done", .sequence = 2, .resolved = true});
+  q.stages.push_back({.name = "failed", .sequence = 3, .resolved = true, .failed = true});
+
+  const auto j = quest::serialize(q);
+  const auto tmp = std::filesystem::path("tests/fixtures/tmp_round_trip_all.json");
+  REQUIRE(corundum::core::write_json(tmp, j).has_value());
+
+  const auto reloaded = quest::load_quest(tmp.string());
+  REQUIRE(reloaded.has_value());
   check_quests_match(*reloaded, q);
 
   std::filesystem::remove(tmp);
