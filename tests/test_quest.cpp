@@ -343,13 +343,13 @@ TEST_CASE("quest loader: invalid JSON returns error") {
 
 TEST_CASE("validate: valid quest returns empty vector") {
   const auto q = make_test_quest();
-  CHECK(quest::validate(q).empty());
+  CHECK(quest::validate(q).errors.empty());
 }
 
 TEST_CASE("validate: duplicate stage names") {
   auto q = make_test_quest();
   q.stages.push_back({.failed = false, .name = "start", .objectives = {}, .resolved = true, .sequence = 5});
-  const auto errors = quest::validate(q);
+  const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("duplicate stage name") != std::string::npos);
 }
@@ -357,9 +357,9 @@ TEST_CASE("validate: duplicate stage names") {
 TEST_CASE("validate: duplicate sequences") {
   auto q = make_test_quest();
   q.stages.push_back({.failed = false, .name = "unique_name", .objectives = {}, .resolved = true, .sequence = 2});
-  const auto errors = quest::validate(q);
+  const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
-  CHECK(errors.front().find("duplicate sequence") != std::string::npos);
+  CHECK(errors.front().find("duplicate stage sequence") != std::string::npos);
 }
 
 TEST_CASE("validate: no resolved stage") {
@@ -367,7 +367,7 @@ TEST_CASE("validate: no resolved stage") {
   q.quest_id = "unresolved";
   q.stages.push_back({.failed = false, .name = "a", .objectives = {}, .resolved = false, .sequence = 1});
   q.stages.push_back({.failed = false, .name = "b", .objectives = {}, .resolved = false, .sequence = 2});
-  const auto errors = quest::validate(q);
+  const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("no resolved stage") != std::string::npos);
 }
@@ -377,12 +377,12 @@ TEST_CASE("validate: non-positive stage sequences are rejected") {
 
   // Zero collides with the "not started" sentinel get_stage() reports.
   q.stages[1].sequence = 0;
-  const auto zero_errors = quest::validate(q);
+  const std::vector<std::string> zero_errors = quest::validate(q).errors;
   REQUIRE_FALSE(zero_errors.empty());
   CHECK(zero_errors.front().find("must be positive") != std::string::npos);
 
   q.stages[1].sequence = -3;
-  const auto negative_errors = quest::validate(q);
+  const std::vector<std::string> negative_errors = quest::validate(q).errors;
   REQUIRE_FALSE(negative_errors.empty());
   CHECK(negative_errors.front().find("must be positive") != std::string::npos);
 }
@@ -393,7 +393,7 @@ TEST_CASE("validate: failed stage that is not resolved is rejected") {
   q.stages.push_back({.failed = false, .name = "end", .objectives = {}, .resolved = true, .sequence = 1});
   q.stages.push_back({.failed = true, .name = "bad_end", .objectives = {}, .resolved = false, .sequence = 2});
 
-  const auto errors = quest::validate(q);
+  const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("failed but not resolved") != std::string::npos);
 }
@@ -403,7 +403,7 @@ TEST_CASE("validate: failed stage that is not resolved is rejected") {
 TEST_CASE("validate: unknown advances_to target is an error") {
   auto q = make_test_quest();
   q.stages[0].advances_to.emplace_back("no_such_stage");
-  const auto errors = quest::validate(q);
+  const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("advances_to") != std::string::npos);
 }
@@ -411,7 +411,7 @@ TEST_CASE("validate: unknown advances_to target is an error") {
 TEST_CASE("validate: known advances_to targets pass") {
   auto q = make_test_quest();
   q.stages[0].advances_to = {"middle"};
-  CHECK(quest::validate(q).empty());
+  CHECK(quest::validate(q).errors.empty());
 }
 
 TEST_CASE("validate: out-of-order sequences surface as a warning, not an error") {
@@ -423,18 +423,17 @@ TEST_CASE("validate: out-of-order sequences surface as a warning, not an error")
   q.stages.push_back({.failed = false, .name = "complete", .objectives = {}, .resolved = true, .sequence = 3});
   q.stages.push_back({.failed = false, .name = "middle", .objectives = {}, .resolved = false, .sequence = 2});
 
-  std::vector<std::string> warnings;
-  const auto errors = quest::validate(q, &warnings);
-  CHECK(errors.empty());
-  REQUIRE_FALSE(warnings.empty());
-  CHECK(warnings.front().find("sequence") != std::string::npos);
+  const quest::ValidationResult validation = quest::validate(q);
+  CHECK(validation.errors.empty());
+  REQUIRE_FALSE(validation.warnings.empty());
+  CHECK(validation.warnings.front().find("sequence") != std::string::npos);
 }
 
 TEST_CASE("validate: in-order quest produces no warnings") {
   const auto q = make_test_quest();
-  std::vector<std::string> warnings;
-  CHECK(quest::validate(q, &warnings).empty());
-  CHECK(warnings.empty());
+  const quest::ValidationResult validation = quest::validate(q);
+  CHECK(validation.errors.empty());
+  CHECK(validation.warnings.empty());
 }
 
 // ── find_stage ────────────────────────────────────────────────────────────────
@@ -1061,7 +1060,7 @@ TEST_CASE("tick_quests: a chained auto-advance resolves one stage per tick, idem
 TEST_CASE("validate: unknown auto_advance_to target is an error") {
   auto q = make_test_quest();
   q.stages[0].auto_advance_to = "no_such_stage";
-  const auto errors = quest::validate(q);
+  const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("auto_advance_to") != std::string::npos);
 }
@@ -1069,7 +1068,7 @@ TEST_CASE("validate: unknown auto_advance_to target is an error") {
 TEST_CASE("validate: known auto_advance_to target passes") {
   auto q = make_test_quest();
   q.stages[0].auto_advance_to = "middle";
-  CHECK(quest::validate(q).empty());
+  CHECK(quest::validate(q).errors.empty());
 }
 
 TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)") {

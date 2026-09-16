@@ -171,11 +171,10 @@ namespace corundum::quest {
       for (std::size_t i = 0; i < stages.size(); ++i)
         quest.stages.push_back(parse_stage(stages[i], i));
 
-      std::vector<std::string> warnings;
-      const std::vector<std::string> errors = validate(quest, &warnings);
-      if (!errors.empty())
-        throw LoadError(std::format("[{}] {}", k_ctx, errors.front()));
-      for (const auto &warning : warnings)
+      const ValidationResult validation = validate(quest);
+      if (!validation.errors.empty())
+        throw LoadError(std::format("[{}] {}", k_ctx, validation.errors.front()));
+      for (const auto &warning : validation.warnings)
         std::println(stderr, "[warning] quest {}: {}", path, warning);
 
       return quest;

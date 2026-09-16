@@ -102,6 +102,18 @@ namespace corundum::quest {
     }
   };
 
+  /** @brief Diagnostics produced by quest::validate. */
+  struct ValidationResult {
+    /** @brief One message per violated rule; empty means the quest is valid. */
+    std::vector<std::string> errors{};
+
+    /**
+     * @brief Non-fatal diagnostics, e.g. a stage-vector order that does not match the
+     *        sequence integers (a stage-list reorder without a sequence bump).
+     */
+    std::vector<std::string> warnings{};
+  };
+
   /** @brief Validate a Quest's stage-uniqueness, sequence, and resolution invariants.
    *
    *  Rejects duplicate stage names or sequences, a non-positive stage sequence,
@@ -111,10 +123,8 @@ namespace corundum::quest {
    *  a quest built or edited in memory.
    *
    *  @param quest The quest to validate.
-   *  @param warnings Optional out-param collecting non-fatal diagnostics (e.g. a
-   *                  stage-vector order that does not match the sequence integers,
-   *                  which indicates a stage-list reorder without a sequence bump).
-   *  @return One message per violated rule; empty vector = valid. */
-  [[nodiscard]] std::vector<std::string> validate(const Quest &quest, std::vector<std::string> *warnings = nullptr);
+   *  @return One message per violated rule in `errors`, plus non-fatal
+   *          diagnostics in `warnings`. */
+  [[nodiscard]] ValidationResult validate(const Quest &quest);
 
 } // namespace corundum::quest

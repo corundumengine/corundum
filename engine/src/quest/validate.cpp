@@ -6,68 +6,79 @@
 #include <algorithm>
 #include <cstddef>
 #include <format>
+#include <optional>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace corundum::quest {
 
-  std::vector<std::string> validate(const Quest &quest, std::vector<std::string> *warnings) {
-    std::vector<std::string> errors;
+  namespace {
 
-    auto names = quest.stages | std::views::transform(&Stage::name) | std::ranges::to<std::vector>();
-    std::ranges::sort(names);
-    const auto dup_name = std::ranges::adjacent_find(names);
-    if (dup_name != names.end())
-      errors.push_back(std::format("duplicate stage name \"{}\"", *dup_name));
+    /// Append the "unknown stage" error for @p target, which @p field names in the
+    /// message ("advances_to" or "auto_advance_to").
+    void check_target(const Quest &quest, const Stage &stage, std::string_view field, std::string_view target,
+                      std::vector<std::string> &errors) {
+      if (quest.find_stage(target) == nullptr)
+        errors.push_back(
+            std::format(R"("{}": stage "{}" {} unknown stage "{}")", quest.quest_id, stage.name, field, target));
+    }
 
-    auto seqs = quest.stages | std::views::transform(&Stage::sequence) | std::ranges::to<std::vector>();
-    std::ranges::sort(seqs);
-    const auto dup_seq = std::ranges::adjacent_find(seqs);
-    if (dup_seq != seqs.end())
-      errors.push_back(std::format("duplicate sequence {} in stages", *dup_seq));
+  } // namespace
+
+  ValidationResult validate(const Quest &quest) {
+    ValidationResult result;
+
+    std::vector<std::string> stage_names =
+        quest.stages | std::views::transform(&Stage::name) | std::ranges::to<std::vector>();
+    std::ranges::sort(stage_names);
+    const auto duplicate_name = std::ranges::adjacent_find(stage_names);
+    if (duplicate_name != stage_names.end())
+      result.errors.push_back(std::format(R"("{}": duplicate stage name "{}")", quest.quest_id, *duplicate_name));
+
+    std::vector<int> stage_sequences =
+        quest.stages | std::views::transform(&Stage::sequence) | std::ranges::to<std::vector>();
+    std::ranges::sort(stage_sequences);
+    const auto duplicate_sequence = std::ranges::adjacent_find(stage_sequences);
+    if (duplicate_sequence != stage_sequences.end())
+      result.errors.push_back(std::format(R"("{}": duplicate stage sequence {})", quest.quest_id, *duplicate_sequence));
 
     if (!std::ranges::any_of(quest.stages, &Stage::resolved))
-      errors.push_back(std::format("\"{}\" has no resolved stage", quest.quest_id));
+      result.errors.push_back(std::format("\"{}\" has no resolved stage", quest.quest_id));
 
     for (const auto &stage : quest.stages) {
       // Zero is the "not started" sentinel get_stage() reports, so a non-positive
       // sequence is a stage the runtime can never enter.
       if (stage.sequence <= 0)
-        errors.push_back(std::format(R"("{}": stage "{}" has sequence {}, which must be positive)", quest.quest_id,
-                                     stage.name, stage.sequence));
+        result.errors.push_back(std::format(R"("{}": stage "{}" has sequence {}, which must be positive)",
+                                            quest.quest_id, stage.name, stage.sequence));
 
-      // Stage documents failed as implying resolved; lifecycle() relies on it, while
-      // is_complete() reads only `resolved`. Loaders normalize the flag pair, so this
-      // catches a quest built or edited in memory.
+      // A failed ending must also be resolved: is_complete() reads only that flag, so
+      // without it a failure would report as an unfinished quest. Loaders normalize the
+      // pair; this catches a quest built or edited in memory.
       if (stage.failed && !stage.resolved)
-        errors.push_back(std::format(R"("{}": stage "{}" is failed but not resolved)", quest.quest_id, stage.name));
+        result.errors.push_back(
+            std::format(R"("{}": stage "{}" is failed but not resolved)", quest.quest_id, stage.name));
 
-      for (const auto &target : stage.advances_to) {
-        if (quest.find_stage(target) == nullptr)
-          errors.push_back(
-              std::format(R"("{}": stage "{}" advances_to unknown stage "{}")", quest.quest_id, stage.name, target));
-      }
-      const auto target = stage.auto_advance_to;
-      if (!target.has_value())
-        continue;
-      if (quest.find_stage(*target) == nullptr)
-        errors.push_back(
-            std::format(R"("{}": stage "{}" auto_advance_to unknown stage "{}")", quest.quest_id, stage.name, *target));
+      for (const auto &target : stage.advances_to)
+        check_target(quest, stage, "advances_to", target, result.errors);
+      const std::optional<std::string> auto_target = stage.auto_advance_to;
+      if (auto_target.has_value())
+        check_target(quest, stage, "auto_advance_to", *auto_target, result.errors);
     }
 
-    if (warnings != nullptr) {
-      for (std::size_t i = 1; i < quest.stages.size(); ++i) {
-        const auto &prev = quest.stages[i - 1];
-        const auto &curr = quest.stages[i];
-        if (curr.sequence <= prev.sequence)
-          warnings->push_back(std::format("\"{}\": stage order \"{}\" (seq {}) is not after \"{}\" (seq {}) — "
-                                          "sequence order does not match stage order",
-                                          quest.quest_id, curr.name, curr.sequence, prev.name, prev.sequence));
-      }
+    for (std::size_t i = 1; i < quest.stages.size(); ++i) {
+      const Stage &previous = quest.stages[i - 1];
+      const Stage &current = quest.stages[i];
+      if (current.sequence <= previous.sequence)
+        result.warnings.push_back(std::format("\"{}\": stage order \"{}\" (seq {}) is not after \"{}\" (seq {}) — "
+                                              "sequence order does not match stage order",
+                                              quest.quest_id, current.name, current.sequence, previous.name,
+                                              previous.sequence));
     }
 
-    return errors;
+    return result;
   }
 
 } // namespace corundum::quest

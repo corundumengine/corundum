@@ -291,11 +291,10 @@ namespace tools::loom {
     if (state.quest_doc_.name.empty())
       ImGui::TextColored(k_warning_col, "  Quest name is empty");
 
-    std::vector<std::string> quest_warnings;
-    const auto quest_errors = corundum::quest::validate(state.quest_doc_, &quest_warnings);
-    for (const auto &msg : quest_errors)
+    const corundum::quest::ValidationResult validation = corundum::quest::validate(state.quest_doc_);
+    for (const auto &msg : validation.errors)
       ImGui::TextColored(k_warning_col, "  %s", msg.c_str());
-    for (const auto &msg : quest_warnings)
+    for (const auto &msg : validation.warnings)
       ImGui::TextColored(k_warning_col, "  %s", msg.c_str());
 
     ImGui::EndChild(); // quest_editor
