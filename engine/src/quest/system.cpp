@@ -31,19 +31,13 @@ namespace corundum::quest {
   }
 
   bool is_complete(const Quest &quest, const corundum::world::FlagStore &flags) {
-    const int stage_seq = get_stage(quest.quest_id, flags);
-    if (stage_seq <= 0)
-      return false;
-    return std::ranges::any_of(
-        quest.stages, [stage_seq](const Stage &stage) { return stage.resolved && stage.sequence == stage_seq; });
+    const Stage *stage = current_stage(quest, flags);
+    return stage != nullptr && stage->resolved;
   }
 
   bool is_failed(const Quest &quest, const corundum::world::FlagStore &flags) {
-    const int stage_seq = get_stage(quest.quest_id, flags);
-    if (stage_seq <= 0)
-      return false;
-    return std::ranges::any_of(quest.stages,
-                               [stage_seq](const Stage &stage) { return stage.failed && stage.sequence == stage_seq; });
+    const Stage *stage = current_stage(quest, flags);
+    return stage != nullptr && stage->failed;
   }
 
   void start(const Quest &quest, corundum::world::FlagStore &flags) {
@@ -86,10 +80,10 @@ namespace corundum::quest {
 
   void tick_quests(const Registry &registry, corundum::world::FlagStore &flags, std::string_view zone_id) {
     for (const auto &[id, quest] : registry) {
-      if (lifecycle(quest, flags) != Lifecycle::Active)
-        continue;
-      const auto *stage = current_stage(quest, flags);
-      if (stage == nullptr)
+      // Equivalent to lifecycle() == Active in one lookup: a null stage covers "not started"
+      // and a dangling sequence, and either terminal kind stops auto-advance.
+      const Stage *stage = current_stage(quest, flags);
+      if (stage == nullptr || stage->resolved || stage->failed)
         continue;
       if (!stage->auto_advance_to.has_value())
         continue;

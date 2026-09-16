@@ -35,10 +35,10 @@ namespace {
     q.name = "Test Quest";
     q.description = "A test quest.";
 
-    q.stages.push_back({.name = "start", .sequence = 1, .resolved = false, .failed = false, .objectives = {}});
-    q.stages.push_back({.name = "middle", .sequence = 2, .resolved = false, .failed = false, .objectives = {}});
-    q.stages.push_back({.name = "complete", .sequence = 3, .resolved = true, .failed = false, .objectives = {}});
-    q.stages.push_back({.name = "failed", .sequence = 4, .resolved = true, .failed = true, .objectives = {}});
+    q.stages.push_back({.failed = false, .name = "start", .objectives = {}, .resolved = false, .sequence = 1});
+    q.stages.push_back({.failed = false, .name = "middle", .objectives = {}, .resolved = false, .sequence = 2});
+    q.stages.push_back({.failed = false, .name = "complete", .objectives = {}, .resolved = true, .sequence = 3});
+    q.stages.push_back({.failed = true, .name = "failed", .objectives = {}, .resolved = true, .sequence = 4});
 
     return q;
   }
@@ -51,7 +51,6 @@ namespace {
 
     q.stages.push_back({
         .name = "start",
-        .sequence = 1,
         .objectives =
             {
                 {.text = "Bare objective", .done_condition = std::nullopt},
@@ -60,8 +59,9 @@ namespace {
                     .done_condition = *corundum::dialogue::compile("ember_tracks_found >= 1"),
                 },
             },
+        .sequence = 1,
     });
-    q.stages.push_back({.name = "complete", .sequence = 2, .resolved = true});
+    q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
 
     return q;
   }
@@ -348,7 +348,7 @@ TEST_CASE("validate: valid quest returns empty vector") {
 
 TEST_CASE("validate: duplicate stage names") {
   auto q = make_test_quest();
-  q.stages.push_back({.name = "start", .sequence = 5, .resolved = true, .failed = false, .objectives = {}});
+  q.stages.push_back({.failed = false, .name = "start", .objectives = {}, .resolved = true, .sequence = 5});
   const auto errors = quest::validate(q);
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("duplicate stage name") != std::string::npos);
@@ -356,7 +356,7 @@ TEST_CASE("validate: duplicate stage names") {
 
 TEST_CASE("validate: duplicate sequences") {
   auto q = make_test_quest();
-  q.stages.push_back({.name = "unique_name", .sequence = 2, .resolved = true, .failed = false, .objectives = {}});
+  q.stages.push_back({.failed = false, .name = "unique_name", .objectives = {}, .resolved = true, .sequence = 2});
   const auto errors = quest::validate(q);
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("duplicate sequence") != std::string::npos);
@@ -365,8 +365,8 @@ TEST_CASE("validate: duplicate sequences") {
 TEST_CASE("validate: no resolved stage") {
   quest::Quest q;
   q.quest_id = "unresolved";
-  q.stages.push_back({.name = "a", .sequence = 1, .resolved = false, .failed = false, .objectives = {}});
-  q.stages.push_back({.name = "b", .sequence = 2, .resolved = false, .failed = false, .objectives = {}});
+  q.stages.push_back({.failed = false, .name = "a", .objectives = {}, .resolved = false, .sequence = 1});
+  q.stages.push_back({.failed = false, .name = "b", .objectives = {}, .resolved = false, .sequence = 2});
   const auto errors = quest::validate(q);
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("no resolved stage") != std::string::npos);
@@ -385,6 +385,17 @@ TEST_CASE("validate: non-positive stage sequences are rejected") {
   const auto negative_errors = quest::validate(q);
   REQUIRE_FALSE(negative_errors.empty());
   CHECK(negative_errors.front().find("must be positive") != std::string::npos);
+}
+
+TEST_CASE("validate: failed stage that is not resolved is rejected") {
+  quest::Quest q;
+  q.quest_id = "unnormalized";
+  q.stages.push_back({.failed = false, .name = "end", .objectives = {}, .resolved = true, .sequence = 1});
+  q.stages.push_back({.failed = true, .name = "bad_end", .objectives = {}, .resolved = false, .sequence = 2});
+
+  const auto errors = quest::validate(q);
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("failed but not resolved") != std::string::npos);
 }
 
 // ── advances_to validation ────────────────────────────────────────────────────
@@ -408,9 +419,9 @@ TEST_CASE("validate: out-of-order sequences surface as a warning, not an error")
   q.quest_id = "desync";
   q.name = "Desync";
   q.description = "";
-  q.stages.push_back({.name = "start", .sequence = 1, .resolved = false, .failed = false, .objectives = {}});
-  q.stages.push_back({.name = "complete", .sequence = 3, .resolved = true, .failed = false, .objectives = {}});
-  q.stages.push_back({.name = "middle", .sequence = 2, .resolved = false, .failed = false, .objectives = {}});
+  q.stages.push_back({.failed = false, .name = "start", .objectives = {}, .resolved = false, .sequence = 1});
+  q.stages.push_back({.failed = false, .name = "complete", .objectives = {}, .resolved = true, .sequence = 3});
+  q.stages.push_back({.failed = false, .name = "middle", .objectives = {}, .resolved = false, .sequence = 2});
 
   std::vector<std::string> warnings;
   const auto errors = quest::validate(q, &warnings);
@@ -494,9 +505,9 @@ TEST_CASE("advance: transition outside advances_to still happens (advisory only)
   q.quest_id = "edge_q";
   q.name = "Edge Q";
   q.description = "";
-  q.stages.push_back({.name = "a", .sequence = 1, .resolved = false, .failed = false, .objectives = {}});
-  q.stages.push_back({.name = "b", .sequence = 2, .resolved = false, .failed = false, .objectives = {}});
-  q.stages.push_back({.name = "c", .sequence = 3, .resolved = true, .failed = false, .objectives = {}});
+  q.stages.push_back({.failed = false, .name = "a", .objectives = {}, .resolved = false, .sequence = 1});
+  q.stages.push_back({.failed = false, .name = "b", .objectives = {}, .resolved = false, .sequence = 2});
+  q.stages.push_back({.failed = false, .name = "c", .objectives = {}, .resolved = true, .sequence = 3});
   q.stages[0].advances_to = {"b"};
 
   FlagStore flags;
@@ -513,9 +524,9 @@ TEST_CASE("advance: auto_advance_to target is exempt from the advances_to warnin
   q.quest_id = "auto_q";
   q.name = "Auto Q";
   q.description = "";
-  q.stages.push_back({.name = "a", .sequence = 1, .resolved = false, .failed = false, .objectives = {}});
-  q.stages.push_back({.name = "b", .sequence = 2, .resolved = false, .failed = false, .objectives = {}});
-  q.stages.push_back({.name = "c", .sequence = 3, .resolved = true, .failed = false, .objectives = {}});
+  q.stages.push_back({.failed = false, .name = "a", .objectives = {}, .resolved = false, .sequence = 1});
+  q.stages.push_back({.failed = false, .name = "b", .objectives = {}, .resolved = false, .sequence = 2});
+  q.stages.push_back({.failed = false, .name = "c", .objectives = {}, .resolved = true, .sequence = 3});
   q.stages[0].advances_to = {"b"};
   q.stages[0].auto_advance_to = "c";
 
@@ -789,6 +800,10 @@ TEST_CASE("current_stage returns nullptr for a sequence with no stage") {
   FlagStore flags;
   flags["quest.test_quest"] = 99;
   CHECK(quest::current_stage(q, flags) == nullptr);
+
+  // A dangling sequence still reports Active — the stage itself is the only way to tell.
+  CHECK(quest::lifecycle(q, flags) == quest::Lifecycle::Active);
+  CHECK(quest::objectives(q, flags).empty());
 }
 
 TEST_CASE("objectives returns nothing for an unstarted quest") {
@@ -926,8 +941,8 @@ TEST_CASE("tick_quests: stage with auto_advance_to waits for its done_condition"
   q.name = "Auto";
   q.description = "";
   q.stages.push_back({
+      .auto_advance_to = "complete",
       .name = "start",
-      .sequence = 1,
       .objectives =
           {
               {
@@ -935,9 +950,9 @@ TEST_CASE("tick_quests: stage with auto_advance_to waits for its done_condition"
                   .done_condition = *corundum::dialogue::compile("ember_tracks_found >= 1"),
               },
           },
-      .auto_advance_to = "complete",
+      .sequence = 1,
   });
-  q.stages.push_back({.name = "complete", .sequence = 2, .resolved = true});
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
   reg.add(std::move(q));
 
   FlagStore flags;
@@ -978,16 +993,16 @@ TEST_CASE("tick_quests: advances only when every conditioned objective holds, in
   q.name = "Two";
   q.description = "";
   q.stages.push_back({
+      .auto_advance_to = "complete",
       .name = "start",
-      .sequence = 1,
       .objectives =
           {
               {.text = "A", .done_condition = *corundum::dialogue::compile("first_done == 1")},
               {.text = "B", .done_condition = *corundum::dialogue::compile("second_done == 1")},
           },
-      .auto_advance_to = "complete",
+      .sequence = 1,
   });
-  q.stages.push_back({.name = "complete", .sequence = 2, .resolved = true});
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
   reg.add(std::move(q));
 
   FlagStore flags;
@@ -1011,18 +1026,18 @@ TEST_CASE("tick_quests: a chained auto-advance resolves one stage per tick, idem
   q.name = "Chain";
   q.description = "";
   q.stages.push_back({
-      .name = "start",
-      .sequence = 1,
-      .objectives = {{.text = "A", .done_condition = *corundum::dialogue::compile("ready == 1")}},
       .auto_advance_to = "middle",
+      .name = "start",
+      .objectives = {{.text = "A", .done_condition = *corundum::dialogue::compile("ready == 1")}},
+      .sequence = 1,
   });
   q.stages.push_back({
-      .name = "middle",
-      .sequence = 2,
-      .objectives = {{.text = "B", .done_condition = *corundum::dialogue::compile("ready == 1")}},
       .auto_advance_to = "complete",
+      .name = "middle",
+      .objectives = {{.text = "B", .done_condition = *corundum::dialogue::compile("ready == 1")}},
+      .sequence = 2,
   });
-  q.stages.push_back({.name = "complete", .sequence = 3, .resolved = true});
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 3});
   reg.add(std::move(q));
 
   FlagStore flags;
@@ -1101,18 +1116,18 @@ TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_conditi
   q.description = "Every optional stage and objective field populated.";
 
   q.stages.push_back({
+      .advances_to = {"done", "failed"},
+      .auto_advance_to = "done",
       .name = "start",
-      .sequence = 1,
       .objectives =
           {
               {.text = "Bare", .done_condition = std::nullopt},
               {.text = "Conditioned", .done_condition = *corundum::dialogue::compile("gold >= 1")},
           },
-      .advances_to = {"done", "failed"},
-      .auto_advance_to = "done",
+      .sequence = 1,
   });
-  q.stages.push_back({.name = "done", .sequence = 2, .resolved = true});
-  q.stages.push_back({.name = "failed", .sequence = 3, .resolved = true, .failed = true});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  q.stages.push_back({.failed = true, .name = "failed", .resolved = true, .sequence = 3});
 
   const auto j = quest::serialize(q);
   const auto tmp = std::filesystem::path("tests/fixtures/tmp_round_trip_all.json");

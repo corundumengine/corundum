@@ -18,7 +18,9 @@ namespace corundum::quest {
    * @brief Typed lifecycle status of a quest, derived from the FlagStore.
    *
    * NotStarted — no stage integer written yet (flag absent or 0).
-   * Active     — in progress on a non-resolved stage.
+   * Active     — in progress on a non-resolved stage; also the result when the
+   *              flag matches no stage at all (a dangling sequence), so callers
+   *              needing the stage itself must still check current_stage().
    * Completed  — on a resolved, non-failed stage.
    * Failed     — on a failed stage (which is also resolved).
    */
@@ -50,9 +52,14 @@ namespace corundum::quest {
    * @brief Journal view of one objective of the current stage.
    */
   struct ObjectiveView {
-    std::string_view text; ///< Journal text (view into the Quest definition).
-    bool done;             ///< True when done_condition evaluates true.
-    bool has_condition;    ///< True when the objective carries a done_condition.
+    /** @brief True when done_condition evaluates true. */
+    bool done{false};
+
+    /** @brief True when the objective carries a done_condition. */
+    bool has_condition{false};
+
+    /** @brief Journal text (view into the Quest definition). */
+    std::string_view text{};
   };
 
   /**
@@ -69,7 +76,7 @@ namespace corundum::quest {
    *               nullptr (quest helpers then evaluate to false).
    * @param zone_id Current zone; `local.<key>` done_conditions resolve against it.
    * @return One ObjectiveView per objective of the current stage; empty when
-   *         the quest is not started.
+   *         the quest is not started or its flag names no stage.
    * @note The returned views borrow @p quest's strings — the quest must outlive
    *       the returned vector.
    */

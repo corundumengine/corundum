@@ -23,15 +23,20 @@
 #include <utility>
 
 namespace fs = std::filesystem;
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace {
 
   // Owns the shared save-tree root; individual cases remove their own tag directory.
-  const corundum::test::TempDir g_save_root{"crpg_test_save_", "root"};
+  // Held behind a function-local static: TempDir's constructor touches the filesystem
+  // and can throw, which must not happen during static initialization before main.
+  const corundum::test::TempDir &save_root() {
+    static const corundum::test::TempDir root{"crpg_test_save_", "root"};
+    return root;
+  }
 
   fs::path save_path(std::string_view tag) {
-    return g_save_root.path() / std::string{tag} / "save.json";
+    return save_root().path() / std::string{tag} / "save.json";
   }
 
   void write_save_file(const fs::path &path, const json &j) {
@@ -217,8 +222,8 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   q.quest_id = "save_q";
   q.name = "Save Quest";
   q.description = "";
-  q.stages.push_back({"start", 1, false, false, {}});
-  q.stages.push_back({"complete", 2, true, false, {}});
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
   engine.quests.add(std::move(q));
 
   corundum::quest::start(*engine.quests.find("save_q"), engine.flags);

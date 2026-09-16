@@ -71,8 +71,8 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
     corundum::quest::Quest q;
     q.quest_id = "test_quest";
     q.name = "Test Quest";
-    q.stages.push_back({"start", 1, false, false, {}});
-    q.stages.push_back({"complete", 2, true, false, {}});
+    q.stages.push_back({.name = "start", .sequence = 1});
+    q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
     engine.quests.add(std::move(q));
   }
 

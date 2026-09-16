@@ -30,16 +30,6 @@ namespace corundum::quest {
 
   /** @brief A point in a quest's progress, keyed by a sequence integer in FlagStore. */
   struct Stage {
-    /** @brief Named identifier used in dialogue actions (e.g. "start", "return", "failed"). */
-    std::string name{};
-    /** @brief Positive integer written to quest.{id} when this stage is active. */
-    int sequence{0};
-    /** @brief True if this stage ends the quest. At least one resolved stage per quest. */
-    bool resolved{false};
-    /** @brief True if this stage is a failure ending. Implies resolved (loader enforces). */
-    bool failed{false};
-    /** @brief Objectives shown in the journal while this stage is active. */
-    std::vector<Objective> objectives{};
     /**
      * @brief Names of stages this stage may legally advance to.
      *
@@ -51,6 +41,7 @@ namespace corundum::quest {
      * not block the transition — `advances_to` is advisory, not enforced.
      */
     std::vector<std::string> advances_to{};
+
     /**
      * @brief Optional target stage name for objective-driven auto-advance.
      *
@@ -60,18 +51,37 @@ namespace corundum::quest {
      * no `auto_advance_to` are inert.
      */
     std::optional<std::string> auto_advance_to = std::nullopt;
+
+    /** @brief True if this stage is a failure ending. Implies resolved (loader enforces). */
+    bool failed{false};
+
+    /** @brief Named identifier used in dialogue actions (e.g. "start", "return", "failed"). */
+    std::string name{};
+
+    /** @brief Objectives shown in the journal while this stage is active. */
+    std::vector<Objective> objectives{};
+
+    /** @brief True if this stage ends the quest. At least one resolved stage per quest. */
+    bool resolved{false};
+
+    /** @brief Positive integer written to quest.{id} when this stage is active. */
+    int sequence{0};
   };
 
   /** @brief A named sequence of stages comprising one quest. */
   struct Quest {
-    /** @brief On-disk format version; 1 for legacy files without the field. */
-    int schema_version = k_quest_schema_version;
-    /** @brief Machine-readable identifier used in flag keys and dialogue actions. */
-    std::string quest_id{};
-    /** @brief Human-readable name shown in the journal. */
-    std::string name{};
     /** @brief Brief premise shown at the top of the journal entry. */
     std::string description{};
+
+    /** @brief Human-readable name shown in the journal. */
+    std::string name{};
+
+    /** @brief Machine-readable identifier used in flag keys and dialogue actions. */
+    std::string quest_id{};
+
+    /** @brief On-disk format version; 1 for legacy files without the field. */
+    int schema_version = k_quest_schema_version;
+
     /** @brief Ordered list of stages; the last stage is typically the completion sentinel. */
     std::vector<Stage> stages{};
 
@@ -95,9 +105,10 @@ namespace corundum::quest {
   /** @brief Validate a Quest's stage-uniqueness, sequence, and resolution invariants.
    *
    *  Rejects duplicate stage names or sequences, a non-positive stage sequence,
-   *  a quest with no resolved stage, and an `advances_to` / `auto_advance_to`
-   *  target naming no stage. Quest loaders run this on every parsed quest, so it
-   *  is also the check that catches a quest built or edited in memory.
+   *  a failed stage that is not also resolved, a quest with no resolved stage,
+   *  and an `advances_to` / `auto_advance_to` target naming no stage. Quest
+   *  loaders run this on every parsed quest, so it is also the check that catches
+   *  a quest built or edited in memory.
    *
    *  @param quest The quest to validate.
    *  @param warnings Optional out-param collecting non-fatal diagnostics (e.g. a

@@ -31,9 +31,9 @@
 
 namespace {
 
-  using DrawRect = corundum::platform::DrawRect;
-  using DrawSprite = corundum::platform::DrawSprite;
-  using DrawText = corundum::platform::DrawText;
+  using corundum::platform::DrawRect;
+  using corundum::platform::DrawSprite;
+  using corundum::platform::DrawText;
 
   /// Records every draw call into one ordered log so tests can assert both
   /// counts and ordering. measure_text mirrors the null backend's per-glyph
@@ -49,46 +49,48 @@ namespace {
     // push_back, since the recorded DrawText views point into this container.
     std::deque<std::string> text_owner{};
 
-    std::expected<uint32_t, std::string> load_texture(std::string_view) override {
+    std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override {
       return 1u;
     }
 
-    std::expected<uint32_t, std::string> load_font(std::string_view) override {
+    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override {
       return 2u;
     }
 
-    void set_world_view(corundum::core::math::Vec2, corundum::core::math::Vec2, float) override {}
+    void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
+                        float /*zoom*/) override {}
 
     void reset_screen_view() override {}
 
-    bool begin_frame(corundum::core::math::Colour) override {
+    bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override {
       return true;
     }
 
     void end_frame() override {}
 
     void draw(const DrawSprite &cmd) override {
-      log.push_back(cmd);
+      log.emplace_back(cmd);
     }
 
     void draw(const DrawText &cmd) override {
-      text_owner.push_back(std::string{cmd.text});
+      text_owner.emplace_back(cmd.text);
       DrawText copy = cmd;
       copy.text = text_owner.back();
-      log.push_back(copy);
+      log.emplace_back(copy);
     }
 
     void draw(const DrawRect &cmd) override {
-      log.push_back(cmd);
+      log.emplace_back(cmd);
     }
 
-    void draw(const corundum::platform::DrawLine &) override {}
+    void draw(const corundum::platform::DrawLine & /*cmd*/) override {}
 
-    float measure_text(uint32_t, std::string_view text, uint32_t) const override {
+    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text,
+                                     uint32_t /*char_size*/) const override {
       return static_cast<float>(text.size()) * 8.f;
     }
 
-    corundum::platform::RendererStats stats() const override {
+    [[nodiscard]] corundum::platform::RendererStats stats() const override {
       return {};
     }
   };
@@ -103,12 +105,15 @@ namespace {
 
 } // namespace
 
+// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+// test's logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("ui_draw: panel_chrome emits exactly one DrawRect then the border's sprite commands") {
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border();
-  const corundum::core::math::Colour bg{20, 20, 20, 200};
-  const corundum::core::math::Vec2 pos{10.f, 20.f};
-  const corundum::core::math::Vec2 size{100.f, 60.f};
+  const corundum::core::math::Colour bg{.r = 20, .g = 20, .b = 20, .a = 200};
+  const corundum::core::math::Vec2 pos{.x = 10.f, .y = 20.f};
+  const corundum::core::math::Vec2 size{.x = 100.f, .y = 60.f};
 
   corundum::ui::panel_chrome(r, bg, border, pos, size);
 
@@ -136,7 +141,8 @@ TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border 
   border.tile_w = 4;
   border.tile_h = 4;
 
-  corundum::ui::panel_chrome(r, {0, 0, 0, 255}, border, {0.f, 0.f}, {50.f, 50.f});
+  corundum::ui::panel_chrome(r, {.r = 0, .g = 0, .b = 0, .a = 255}, border, {.x = 0.f, .y = 0.f},
+                             {.x = 50.f, .y = 50.f});
 
   // The fill still goes out; only the border is skipped.
   REQUIRE(r.log.size() == 1);
@@ -148,7 +154,7 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when s
   const corundum::ui::DialogBoxStyle style{};
   // style.selected defaults to (255, 255, 0, 255); style.choice defaults to (200, 200, 200, 255).
 
-  const float cursor_w = corundum::ui::draw_option(r, style, "Hello", {5.f, 7.f}, true);
+  const float cursor_w = corundum::ui::draw_option(r, style, "Hello", {.x = 5.f, .y = 7.f}, true);
 
   REQUIRE(r.log.size() == 2);
   REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
@@ -176,7 +182,7 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with choice colours and two-
   RecordingRenderer r;
   const corundum::ui::DialogBoxStyle style{};
 
-  const float cursor_w = corundum::ui::draw_option(r, style, "World", {0.f, 0.f}, false);
+  const float cursor_w = corundum::ui::draw_option(r, style, "World", {.x = 0.f, .y = 0.f}, false);
 
   REQUIRE(r.log.size() == 2);
   REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
@@ -205,8 +211,8 @@ TEST_CASE("ui_draw: draw_option returns the same cursor advance regardless of se
   RecordingRenderer r;
   const corundum::ui::DialogBoxStyle style{};
 
-  const float w_sel = corundum::ui::draw_option(r, style, "A", {0.f, 0.f}, true);
-  const float w_unsel = corundum::ui::draw_option(r, style, "A", {0.f, 0.f}, false);
+  const float w_sel = corundum::ui::draw_option(r, style, "A", {.x = 0.f, .y = 0.f}, true);
+  const float w_unsel = corundum::ui::draw_option(r, style, "A", {.x = 0.f, .y = 0.f}, false);
 
   CHECK(w_sel == w_unsel);
   CHECK(w_sel > 0.f);
@@ -269,22 +275,26 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   const auto villager = make_talk_graph("villager_generic", "Villager", "Did you see the harvest moon last night?");
 
   corundum::world::FlagStore flags;
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
-  corundum::dialogue::Conversation innkeeper_conversation{innkeeper, flags};
+  const corundum::dialogue::Conversation innkeeper_conversation{innkeeper, flags};
   corundum::ui::dialog_box_update(ds, innkeeper_conversation, r, viewport);
   REQUIRE(ds.layout.has_value());
+  // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   CHECK(ds.layout->speaker == "Innkeeper");
   CHECK_FALSE(ds.layout->body_lines.empty());
+  // NOLINTEND(bugprone-unchecked-optional-access)
 
   // Cancel and switch NPCs.
-  corundum::dialogue::Conversation villager_conversation{villager, flags};
+  const corundum::dialogue::Conversation villager_conversation{villager, flags};
   corundum::ui::dialog_box_update(ds, villager_conversation, r, viewport);
 
   REQUIRE(ds.layout.has_value());
+  // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   CHECK(ds.layout->speaker == "Villager");
   REQUIRE_FALSE(ds.layout->body_lines.empty());
   CHECK(ds.layout->body_lines.front() == "Did you see the harvest moon last night?");
+  // NOLINTEND(bugprone-unchecked-optional-access)
 }
 
 TEST_CASE("dialog_box_update: an ended conversation hides the box") {
@@ -297,7 +307,7 @@ TEST_CASE("dialog_box_update: an ended conversation hides the box") {
 
   const auto graph = make_talk_graph("innkeeper_intro", "Innkeeper", "Welcome, traveller.");
   corundum::world::FlagStore flags;
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   corundum::dialogue::Conversation conversation{graph, flags};
   corundum::ui::dialog_box_update(ds, conversation, r, viewport);
@@ -329,38 +339,43 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   corundum::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
-  q.stages.push_back({"start", 1, false, false, {}});
-  q.stages.push_back({"done", 2, true, false, {}});
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
   quests.add(std::move(q));
 
   const auto graph = make_choice_graph_with_quest_gate();
 
   corundum::world::FlagStore flags;
   flags["quest.ember"] = 2; // matches stage "done" (sequence 2)
-  corundum::dialogue::Conversation conversation{graph, flags, &quests};
+  const corundum::dialogue::Conversation conversation{graph, flags, &quests};
 
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
   corundum::ui::dialog_box_update(ds, conversation, r, viewport);
 
   REQUIRE(ds.layout.has_value());
+  // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   REQUIRE(ds.layout->choice_lines.size() == 2);
   CHECK(ds.layout->choice_lines[0] == "Always.");
   CHECK(ds.layout->choice_lines[1] == "Secret.");
+  // NOLINTEND(bugprone-unchecked-optional-access)
 }
 
 // ── inventory_panel_render ───────────────────────────────────────────────────
 
+// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+// test's logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pair per row") {
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
 
-  std::vector<corundum::ui::InventoryLine> lines = {
+  const std::vector<corundum::ui::InventoryLine> lines = {
       {.name = "Apple", .count = 2},
       {.name = "Salt", .count = 1},
   };
 
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
   corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
 
   // panel_chrome: 1 DrawRect + 8 DrawSprite; then the "Inventory" header DrawText;
@@ -396,7 +411,7 @@ TEST_CASE("inventory_panel_render: empty list renders header plus one (empty) li
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
 
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
   corundum::ui::inventory_panel_render(r, style, border, {}, 0, viewport);
 
   // Chrome (9) + header + one "(empty)" line.
@@ -412,9 +427,12 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
 
-  std::vector<corundum::ui::InventoryLine> lines = {
-      {.name = "A", .count = 1}, {.name = "B", .count = 1}, {.name = "C", .count = 1}};
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const std::vector<corundum::ui::InventoryLine> lines = {
+      {.name = "A", .count = 1},
+      {.name = "B", .count = 1},
+      {.name = "C", .count = 1},
+  };
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   // cursor 99 → clamps to the last row.
   corundum::ui::inventory_panel_render(r, style, border, lines, 99, viewport);
@@ -498,6 +516,9 @@ TEST_CASE("build_inventory_lines: groups items by category, ordering by (categor
   CHECK(lines[3].category == ItemCategory::Weapon);
 }
 
+// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+// test's logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: category groups draw one header per group, in category order") {
   using corundum::item::ItemCategory;
   RecordingRenderer r;
@@ -505,14 +526,14 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
   const corundum::ui::DialogBoxStyle style{};
 
   // Pre-sorted as build_inventory_lines would produce: (category, name).
-  std::vector<corundum::ui::InventoryLine> lines = {
-      {ItemCategory::Apparel, "Cloak", 1},
-      {ItemCategory::Misc, "zzz", 1},
-      {ItemCategory::Potion, "Draught", 1},
-      {ItemCategory::Weapon, "Axe", 1},
+  const std::vector<corundum::ui::InventoryLine> lines = {
+      {.category = ItemCategory::Apparel, .name = "Cloak", .count = 1},
+      {.category = ItemCategory::Misc, .name = "zzz", .count = 1},
+      {.category = ItemCategory::Potion, .name = "Draught", .count = 1},
+      {.category = ItemCategory::Weapon, .name = "Axe", .count = 1},
   };
 
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
   corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
 
   // Chrome (9) + "Inventory" header + 4 group headers + 4 rows × 2 DrawText (cursor + label).
@@ -521,7 +542,7 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
   std::vector<std::string> texts;
   for (const auto &call : r.log)
     if (std::holds_alternative<DrawText>(call))
-      texts.push_back(std::string{std::get<DrawText>(call).text});
+      texts.emplace_back(std::get<DrawText>(call).text);
 
   CHECK(texts[0] == "Inventory");
   // Each group header immediately precedes its rows (cursor then label), in category
@@ -546,11 +567,11 @@ TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
 
-  std::vector<corundum::ui::InventoryLine> lines = {
-      {ItemCategory::Misc, "Clutter", 1},
+  const std::vector<corundum::ui::InventoryLine> lines = {
+      {.category = ItemCategory::Misc, .name = "Clutter", .count = 1},
   };
 
-  const corundum::core::math::Vec2 viewport{1280.f, 720.f};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
   corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
 
   // Chrome (9) + "Inventory" header + 1 row × 2. No "Misc" group header.

@@ -32,8 +32,8 @@ namespace {
     corundum::quest::Quest q;
     q.quest_id = "tq";
     q.name = "TQ";
-    q.stages.push_back({"start", 1, false, false, {}});
-    q.stages.push_back({"complete", 2, true, false, {}});
+    q.stages.push_back({.name = "start", .sequence = 1});
+    q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
     quests.add(std::move(q));
     return quests;
   }

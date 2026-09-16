@@ -37,6 +37,12 @@ namespace corundum::quest {
         errors.push_back(std::format(R"("{}": stage "{}" has sequence {}, which must be positive)", quest.quest_id,
                                      stage.name, stage.sequence));
 
+      // Stage documents failed as implying resolved; lifecycle() relies on it, while
+      // is_complete() reads only `resolved`. Loaders normalize the flag pair, so this
+      // catches a quest built or edited in memory.
+      if (stage.failed && !stage.resolved)
+        errors.push_back(std::format(R"("{}": stage "{}" is failed but not resolved)", quest.quest_id, stage.name));
+
       for (const auto &target : stage.advances_to) {
         if (quest.find_stage(target) == nullptr)
           errors.push_back(

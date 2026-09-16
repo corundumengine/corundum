@@ -49,7 +49,7 @@ namespace corundum::quest {
       bool done = false;
       if (obj.done_condition.has_value())
         done = dialogue::evaluate(*obj.done_condition, flags, quests, {}, zone_id);
-      result.push_back(ObjectiveView{.text = obj.text, .done = done, .has_condition = obj.done_condition.has_value()});
+      result.push_back(ObjectiveView{.done = done, .has_condition = obj.done_condition.has_value(), .text = obj.text});
     }
     return result;
   }

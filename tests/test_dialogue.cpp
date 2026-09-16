@@ -526,8 +526,8 @@ TEST_CASE("visible_choices: quest-gated choice shown when registry present and s
   corundum::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
-  q.stages.push_back({"start", 1, false, false, {}});
-  q.stages.push_back({"done", 2, true, false, {}});
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
   quests.add(std::move(q));
 
   // Without the matching flag the gated choice stays hidden.
@@ -668,7 +668,7 @@ TEST_CASE("validate_condition_quest_refs flags an unknown quest") {
   corundum::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
-  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({.name = "start", .sequence = 1});
   quests.add(std::move(q));
 
   const auto errors = validate_condition_quest_refs(g, quests);
@@ -693,7 +693,7 @@ TEST_CASE("validate_condition_quest_refs flags an unknown stage for a known ques
   corundum::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
-  q.stages.push_back({"start", 1, false, false, {}});
+  q.stages.push_back({.name = "start", .sequence = 1});
   quests.add(std::move(q));
 
   const auto errors = validate_condition_quest_refs(g, quests);
