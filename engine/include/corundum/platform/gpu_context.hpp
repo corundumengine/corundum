@@ -13,23 +13,22 @@ namespace corundum::platform {
 
   class Window;
 
-  /** @brief RAII sokol_gfx device lifecycle and per-frame render pass.
+  /** @brief Owns the GPU device and drives the default render pass.
    *
-   * Owns the sokol_gfx device (sg_setup/sg_shutdown), the default render
-   * pass (swapchain + sg_begin_pass/sg_end_pass), and frame finalisation
-   * (sg_commit + present).  Designed to be shared by a game Renderer
-   * (SokolRenderer) and an editor ToolHost without pulling in sokol or
-   * GLFW types.
+   * A live context is what keeps every GPU resource valid, so it must outlive the
+   * renderer and the texture cache that draw through it. It exists so the game
+   * renderer and the editor tool host share one device without either of them
+   * knowing which graphics backend sits behind it.
    *
    * @note Not thread-safe. Call only from the render thread.
    */
   class GpuContext {
   public:
-    /** @brief Create a sokol_gfx device for the given window.
+    /** @brief Create a GPU device for the given window.
      *
-     * @param[in] window  A fully-initialised platform Window.
-     * @pre @p window must be a GLFWWindow (downcast internally).
-     * @return Owning pointer on success, or std::unexpected with an error message.
+     * @pre @p window must come from the linked platform backend; a window from
+     *      another backend is reported as an error rather than downcast unchecked.
+     * @return Owning pointer on success, or std::unexpected with the reason.
      */
     [[nodiscard]] static std::expected<std::unique_ptr<GpuContext>, std::string> create(Window &window);
 
@@ -40,32 +39,28 @@ namespace corundum::platform {
     GpuContext(GpuContext &&) noexcept = delete;
     GpuContext &operator=(GpuContext &&) noexcept = delete;
 
-    /** @brief Start a new default render pass.
-     *
-     * Builds the swapchain from the current framebuffer size and clears to
-     * the given colour. On macOS Metal this may fail if there is no drawable
-     * ready — in that case the pass is skipped and @c false is returned so
-     * the caller can avoid issuing draw commands.
+    /** @brief Start the default render pass, clearing to @p clear.
      *
      * @param[in] clear  RGBA clear colour (8-bit channels).
-     * @return @c true if the pass was started; @c false if the frame was skipped.
+     * @return @c true if the pass was started; @c false if the frame was skipped
+     *         because no render target was ready, in which case the caller must
+     *         issue no draws this frame.
      */
-    bool begin_default_pass(core::math::Colour clear);
+    [[nodiscard]] bool begin_default_pass(core::math::Colour clear);
 
-    /** @brief End the current render pass and present the frame.
+    /** @brief End a pass started by begin_default_pass() and present the frame.
      *
-     * If begin_default_pass() returned @c false earlier in the frame this
-     * is a no-op.
+     * No-op if begin_default_pass() returned @c false earlier in the frame.
      */
     void end_frame();
 
     /** @brief Logical window size in screen coordinates. */
     [[nodiscard]] std::pair<int, int> window_size() const noexcept;
 
-    /** @brief Physical framebuffer size in pixels (retina-aware). */
+    /** @brief Physical framebuffer size in pixels (high-DPI aware). */
     [[nodiscard]] std::pair<int, int> framebuffer_size() const noexcept;
 
-    /** @brief Content scale factor (e.g. 2.0 on Retina displays). */
+    /** @brief Content scale factor of the window's monitor (x axis; e.g. 2.0 on a high-DPI display). */
     [[nodiscard]] float dpi_scale() const noexcept;
 
   private:

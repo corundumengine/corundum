@@ -27,9 +27,12 @@ namespace corundum::platform {
   GpuContext::GpuContext() : impl_{std::make_unique<Impl>()} {}
 
   std::expected<std::unique_ptr<GpuContext>, std::string> GpuContext::create(Window &window) {
-    auto &glfw_win = static_cast<glfw::GLFWWindow &>(window);
-    ::GLFWwindow *raw = glfw_win.glfw_window();
-    if (!raw)
+    const auto *glfw_win = dynamic_cast<glfw::GLFWWindow *>(&window);
+    if (glfw_win == nullptr)
+      return std::unexpected("GpuContext::create: window is not a GLFW window");
+
+    ::GLFWwindow *raw = glfw_win->glfw_window();
+    if (raw == nullptr)
       return std::unexpected("GpuContext::create: window has no GLFW handle");
 
     auto ctx = std::unique_ptr<GpuContext>(new GpuContext());
@@ -37,7 +40,7 @@ namespace corundum::platform {
 
 #ifdef SOKOL_METAL
     ctx->impl_->metal_layer = metal_get_layer(raw);
-    if (!ctx->impl_->metal_layer)
+    if (ctx->impl_->metal_layer == nullptr)
       return std::unexpected("GpuContext::create: failed to get Metal layer");
 #endif
 
@@ -62,22 +65,23 @@ namespace corundum::platform {
     if (sg_isvalid())
       sg_shutdown();
 #ifdef SOKOL_METAL
-    if (impl_->metal_layer)
+    if (impl_->metal_layer != nullptr)
       metal_teardown_layer(impl_->metal_layer);
 #endif
   }
 
   bool GpuContext::begin_default_pass(core::math::Colour clear) {
-    int fb_w{}, fb_h{};
+    int fb_w{};
+    int fb_h{};
     glfwGetFramebufferSize(impl_->window, &fb_w, &fb_h);
 
     sg_pass_action action{};
     action.colors[0].load_action = SG_LOADACTION_CLEAR;
     action.colors[0].clear_value = {
-        clear.r / 255.f,
-        clear.g / 255.f,
-        clear.b / 255.f,
-        clear.a / 255.f,
+        .r = static_cast<float>(clear.r) / 255.f,
+        .g = static_cast<float>(clear.g) / 255.f,
+        .b = static_cast<float>(clear.b) / 255.f,
+        .a = static_cast<float>(clear.a) / 255.f,
     };
 
     sg_swapchain swapchain{};
@@ -89,7 +93,7 @@ namespace corundum::platform {
 #ifdef SOKOL_METAL
     swapchain.color_format = SG_PIXELFORMAT_BGRA8;
     swapchain.metal.current_drawable = metal_next_drawable(impl_->metal_layer);
-    if (!swapchain.metal.current_drawable) {
+    if (swapchain.metal.current_drawable == nullptr) {
       impl_->pass_active = false;
       return false;
     }
@@ -117,19 +121,22 @@ namespace corundum::platform {
   }
 
   std::pair<int, int> GpuContext::window_size() const noexcept {
-    int w{}, h{};
+    int w{};
+    int h{};
     glfwGetWindowSize(impl_->window, &w, &h);
     return {w, h};
   }
 
   std::pair<int, int> GpuContext::framebuffer_size() const noexcept {
-    int w{}, h{};
+    int w{};
+    int h{};
     glfwGetFramebufferSize(impl_->window, &w, &h);
     return {w, h};
   }
 
   float GpuContext::dpi_scale() const noexcept {
-    float xscale{}, yscale{};
+    float xscale{};
+    float yscale{};
     glfwGetWindowContentScale(impl_->window, &xscale, &yscale);
     return xscale;
   }
