@@ -47,10 +47,12 @@ namespace corundum::entities {
   [[nodiscard]] constexpr GridBox footprint_of(float col, float row, float col_span, float row_span) noexcept {
     const float feet_col = col + k_entity_anchor_offset;
     const float feet_row = row + k_entity_anchor_offset;
-    return {.col = feet_col - (col_span * 0.5f),
-            .row = feet_row - (row_span * 0.5f),
-            .col_span = col_span,
-            .row_span = row_span};
+    return {
+        .col = feet_col - (col_span * 0.5f),
+        .row = feet_row - (row_span * 0.5f),
+        .col_span = col_span,
+        .row_span = row_span,
+    };
   }
 
   /** @brief The entity position @p box was built from — footprint_of's inverse.
@@ -60,8 +62,10 @@ namespace corundum::entities {
    * which would silently drift out of step with k_entity_anchor_offset.
    */
   [[nodiscard]] constexpr Position position_of(const GridBox &box) noexcept {
-    return {.col = box.col + (box.col_span * 0.5f) - k_entity_anchor_offset,
-            .row = box.row + (box.row_span * 0.5f) - k_entity_anchor_offset};
+    return {
+        .col = box.col + (box.col_span * 0.5f) - k_entity_anchor_offset,
+        .row = box.row + (box.row_span * 0.5f) - k_entity_anchor_offset,
+    };
   }
 
   /** @brief Table for the axis-aligned collision footprint of an entity.
