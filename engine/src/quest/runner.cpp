@@ -15,7 +15,7 @@ namespace corundum::quest {
   std::expected<void, std::string> Runner::start(std::string_view quest_id) {
     const Quest *quest = registry_->find(quest_id);
     if (quest == nullptr)
-      return std::unexpected(std::format("quest_start(\"{}\") references unknown quest", quest_id));
+      return std::unexpected(std::format(R"(quest_start("{}") references unknown quest)", quest_id));
     corundum::quest::start(*quest, *flags_);
     return {};
   }

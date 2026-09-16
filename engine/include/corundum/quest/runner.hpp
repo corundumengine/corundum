@@ -4,7 +4,6 @@
 #pragma once
 
 #include <corundum/quest/registry.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <expected>
@@ -26,10 +25,18 @@ namespace corundum::quest {
         : registry_(&registry), flags_(&flags) {}
 
     /** @brief Start a quest by id.
+     *
+     *  Starting a quest that is already underway is a no-op, so an ok return
+     *  does not by itself mean the quest's flag moved.
+     *
      *  @return ok on success, or an error if @p quest_id is not in the registry. */
     [[nodiscard]] std::expected<void, std::string> start(std::string_view quest_id);
 
     /** @brief Advance a quest by id to a named stage.
+     *
+     *  A @p stage_name that the quest does not define is a no-op reported to
+     *  stderr, so an ok return does not by itself mean the quest moved.
+     *
      *  @return ok on success, or an error if @p quest_id is not in the registry. */
     [[nodiscard]] std::expected<void, std::string> advance(std::string_view quest_id, std::string_view stage_name);
 
