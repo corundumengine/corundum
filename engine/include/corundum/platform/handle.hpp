@@ -13,10 +13,10 @@ namespace corundum::platform {
    *  pointer) so the handle stays default-constructible — unique_ptr disables its
    *  default constructor when the deleter is itself a pointer type.
    *
-   *  @note A default-constructed deleter is inert (null function); destruction is
-   *        a no-op unless a function was supplied, so an empty handle is safe.
+   *  @note An empty handle is safe to destroy.
    */
   template <typename T> struct BackendDeleter {
+    /** @brief Destruction function for the handle's object, or null if none was supplied. */
     void (*destroy)(T *) = nullptr;
 
     void operator()(T *pointer) const noexcept {
@@ -28,11 +28,10 @@ namespace corundum::platform {
   /** @brief Owning handle to a platform object whose destruction is performed by a
    *  function supplied by the backend that created it.
    *
-   *  The object is destroyed on scope exit. Because the function lives in the backend
-   *  translation unit (real or null), the engine core never references the
-   *  interface's destructor symbol — only the backend that built the object does.
-   *  This is what lets the engine library link against the abstract interfaces
-   *  without pulling in GLFW/sokol.
+   *  The object is destroyed on scope exit. Because the function is owned by the
+   *  backend that built the object, the engine core never references the interface's
+   *  destructor symbol. This is what lets the engine library link against the
+   *  abstract interfaces without pulling in the rendering backend.
    */
   template <typename T> using Handle = std::unique_ptr<T, BackendDeleter<T>>;
 
