@@ -43,6 +43,10 @@ namespace corundum::platform::glfw {
     struct WindowData {
       corundum::input::InputState input{};
       JoystickAxisState joystick_axis{};
+
+#ifdef __APPLE__
+      MetalLayer *metal_layer{nullptr};
+#endif
     };
 
     void key_callback(GLFWwindow *win, int key, int /*scancode*/, int action, int /*mods*/) noexcept {
@@ -72,13 +76,22 @@ namespace corundum::platform::glfw {
         translate_scroll(yoffset, data->input);
       }
     }
+
+#ifdef __APPLE__
+    void content_scale_callback(GLFWwindow *win, float /*xscale*/, float /*yscale*/) noexcept {
+      const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
+      if (data != nullptr && data->metal_layer != nullptr) {
+        metal_sync_contents_scale(data->metal_layer, win);
+      }
+    }
+#endif
   } // namespace
 
   struct GLFWWindow::Impl {
     GLFWwindow *win{nullptr};
     WindowData data{};
 #ifdef __APPLE__
-    metal_layer_t *metal_layer{nullptr};
+    MetalLayer *metal_layer{nullptr};
 #endif
   };
 
@@ -141,6 +154,8 @@ namespace corundum::platform::glfw {
 
 #ifdef __APPLE__
       impl_->metal_layer = metal_setup_layer(impl_->win);
+      impl_->data.metal_layer = impl_->metal_layer;
+      glfwSetWindowContentScaleCallback(impl_->win, content_scale_callback);
 #else
       glfwMakeContextCurrent(impl_->win);
 #endif
@@ -152,6 +167,9 @@ namespace corundum::platform::glfw {
       if (impl_->win != nullptr) {
 #ifdef __APPLE__
         if (impl_->metal_layer != nullptr) {
+          // Destroying the window below can drive the content-scale callback, so stop it
+          // reaching the handle before the handle is freed.
+          impl_->data.metal_layer = nullptr;
           metal_teardown_layer(impl_->metal_layer);
         }
 #endif

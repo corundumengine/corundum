@@ -8,42 +8,61 @@
 extern "C" {
 #endif
 
-typedef struct metal_layer_t metal_layer_t;
+typedef struct MetalLayer MetalLayer;
 
 struct GLFWwindow;
 
-/// Attach a CAMetalLayer to the NSWindow backing @p win and return an owning handle.
-/// The device is created via MTLCreateSystemDefaultDevice. drawableSize is left unset so
-/// the layer auto-sizes from its backing view, which correctly handles Retina displays.
-/// @pre win must be a valid GLFW window created with GLFW_CLIENT_API = GLFW_NO_API.
-/// @return owning metal_layer_t*, or nullptr if the window is invalid or Metal is unavailable.
-///         Call metal_teardown_layer() to release.
-metal_layer_t *metal_setup_layer(struct GLFWwindow *win);
+/** @brief Attach a CAMetalLayer to the NSWindow backing @p win and return an owning handle.
+ *
+ * Drawables follow the backing view's size, so they track the view across resizes. The
+ * contentsScale captured here is not GLFW's to maintain: call metal_sync_contents_scale()
+ * from the window's content-scale callback, or drawables stop matching the framebuffer on a
+ * display with a different scale.
+ *
+ * @pre @p win must be a valid GLFW window created with GLFW_CLIENT_API = GLFW_NO_API.
+ * @return Owning handle, or nullptr if @p win has no content view or Metal is unavailable.
+ *         Release with metal_teardown_layer().
+ */
+MetalLayer *metal_setup_layer(struct GLFWwindow *win);
 
-/// Return the MTLDevice owned by @p layer as a const void*.
-/// @return nullptr if @p layer is null or has no device.
-const void *metal_device(metal_layer_t *layer);
+/** @brief The MTLDevice backing @p layer.
+ *
+ * @return nullptr if @p layer is null or has no device.
+ */
+const void *metal_device(const MetalLayer *layer);
 
-/// Acquire the next CAMetalDrawable from @p layer.
-/// Returns a const void* bridged pointer to the drawable. Valid for one frame.
-/// @return nullptr if the layer has no drawable ready (skip frame), or if @p layer is null.
-const void *metal_next_drawable(metal_layer_t *layer);
+/** @brief The next drawable @p layer has for this frame.
+ *
+ * @note Borrowed, not retained: the layer holds the drawable until the frame is presented.
+ * @return nullptr if @p layer is null or has no drawable ready, in which case the frame
+ *         should be skipped.
+ */
+const void *metal_next_drawable(MetalLayer *layer);
 
-/// Return a borrowed handle wrapping the existing CAMetalLayer attached to the NSWindow
-/// backing @p win. The underlying CAMetalLayer is owned by the NSWindow contentView.
-/// @return metal_layer_t* wrapping the existing layer, or nullptr if the window is invalid.
-///         Call metal_teardown_layer() to free the wrapper (the CAMetalLayer is NOT released).
-metal_layer_t *metal_get_layer(struct GLFWwindow *win);
+/** @brief Wrap the CAMetalLayer already attached to the NSWindow backing @p win.
+ *
+ * The wrapped layer belongs to the window's content view, so the handle only borrows it.
+ *
+ * @return Borrowed handle, or nullptr if @p win is invalid or its content view carries no
+ *         layer. metal_teardown_layer() frees the wrapper alone.
+ */
+MetalLayer *metal_get_layer(struct GLFWwindow *win);
 
-/// Enable or disable display sync on @p layer.
-/// No-op if @p layer is null.
-void metal_set_display_sync(metal_layer_t *layer, int enabled);
+/** @brief Enable or disable display sync on @p layer; no-op if @p layer is null. */
+void metal_set_display_sync(MetalLayer *layer, int enabled);
 
-/// Release all resources owned by @p layer and free the handle.
-/// For a handle from metal_setup_layer(): CFReleases the CAMetalLayer, then frees the wrapper.
-/// For a handle from metal_get_layer(): only frees the wrapper (CAMetalLayer owned by NSWindow).
-/// Safe to call with nullptr (no-op).
-void metal_teardown_layer(metal_layer_t *layer);
+/** @brief Match @p layer's contentsScale to the backing scale factor of @p win.
+ *
+ * No-op if @p layer is null or @p win has no NSWindow.
+ */
+void metal_sync_contents_scale(MetalLayer *layer, struct GLFWwindow *win);
+
+/** @brief Release the resources @p layer owns and free the handle; no-op if @p layer is null.
+ *
+ * A handle from metal_setup_layer() releases the CAMetalLayer; one from metal_get_layer()
+ * frees the wrapper alone, leaving the window's layer attached.
+ */
+void metal_teardown_layer(MetalLayer *layer);
 
 #ifdef __cplusplus
 }

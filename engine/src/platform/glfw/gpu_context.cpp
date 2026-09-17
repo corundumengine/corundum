@@ -19,7 +19,7 @@ namespace corundum::platform {
   struct GpuContext::Impl {
     GLFWwindow *window{nullptr};
 #ifdef SOKOL_METAL
-    metal_layer_t *metal_layer{nullptr};
+    MetalLayer *metal_layer{nullptr};
 #endif
     bool pass_active{false};
   };
