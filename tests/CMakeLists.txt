@@ -54,6 +54,7 @@ set(TEST_SOURCES
     test_spawn_points.cpp
     test_sprite.cpp
     test_sprite_atlas_loader.cpp
+    test_texture_slot_table.cpp
     test_tilemap_loader.cpp
     test_tilemap_validate.cpp
     test_transition_prompt.cpp

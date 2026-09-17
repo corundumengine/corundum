@@ -62,7 +62,7 @@ namespace corundum::tool_host {
       return std::unexpected(gpu_result.error());
     ctx->impl_->gpu_ctx = std::move(*gpu_result);
 
-    ctx->impl_->textures = std::make_unique<TextureCache>(*ctx->impl_->gpu_ctx);
+    ctx->impl_->textures = std::make_unique<TextureCache>();
 
     ctx->impl_->glfw_win = static_cast<GLFWwindow *>(ctx->impl_->window->native_handle());
     if (!ctx->impl_->glfw_win)
@@ -145,7 +145,7 @@ namespace corundum::tool_host {
                                            sg_sampler{static_cast<uint32_t>(bt.sampler)});
   }
 
-  TextureInfo ToolHost::make_checkerboard(unsigned w, unsigned h, unsigned check_size) {
+  std::expected<TextureInfo, std::string> ToolHost::make_checkerboard(unsigned w, unsigned h, unsigned check_size) {
     std::vector<uint32_t> pixels(static_cast<std::size_t>(w) * h);
     constexpr uint32_t dark = 0xFF787878u;
     constexpr uint32_t light = 0xFFA0A0A0u;

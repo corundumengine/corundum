@@ -3,6 +3,7 @@
 
 #include "sokol_renderer.hpp"
 #include "font_atlas.hpp"
+#include "sokol_texture_upload.hpp"
 
 #include <corundum/platform/gpu_context.hpp>
 
@@ -97,22 +98,6 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     return tex.sample(samp, in.texcoord) * in.color;
 }
 )";
-
-    sg_view make_texture_view(sg_image img) {
-      sg_view_desc vdesc{};
-      vdesc.texture.image = img;
-      return sg_make_view(&vdesc);
-    }
-
-    sg_image make_rgba8_image(const uint8_t *pixels, int w, int h) {
-      sg_image_desc desc{};
-      desc.width = w;
-      desc.height = h;
-      desc.pixel_format = SG_PIXELFORMAT_RGBA8;
-      desc.data.mip_levels[0] = {.ptr = pixels, .size = static_cast<std::size_t>(w * h * 4)};
-      desc.label = "texture";
-      return sg_make_image(&desc);
-    }
 
     void emit_quad(std::vector<Vertex> &out, float px, float py, float pw, float ph, float u0, float v0, float u1,
                    float v1, float r, float g, float b, float a) {
@@ -308,7 +293,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
     // ── 1x1 white RGBA texture for DrawRect ────────────────────────────────
     const uint8_t white[4] = {255, 255, 255, 255};
-    white_tex_ = make_rgba8_image(white, 1, 1);
+    white_tex_ = make_rgba8_image(white, 1, 1, "texture");
     white_view_ = make_texture_view(white_tex_);
 
     // ── Sampler ────────────────────────────────────────────────────────────
@@ -370,7 +355,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       return nullptr;
     if (a->image.id == 0) {
       BakedAtlas &m = const_cast<BakedAtlas &>(*a);
-      m.image = make_rgba8_image(m.data.pixels.data(), m.data.atlas_w, m.data.atlas_h);
+      m.image = make_rgba8_image(m.data.pixels.data(), m.data.atlas_w, m.data.atlas_h, "texture");
       m.view = make_texture_view(m.image);
       m.data.pixels.clear();
       m.data.pixels.shrink_to_fit();
@@ -435,8 +420,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (!pixels)
       return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
 
-    sg_image img = make_rgba8_image(pixels, w, h);
-    sg_view view = make_texture_view(img);
+    const sg_image img = make_rgba8_image(pixels, w, h, "texture");
+    const sg_view view = make_texture_view(img);
     stbi_image_free(pixels);
 
     const uint32_t id = static_cast<uint32_t>(textures_.size());

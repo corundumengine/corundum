@@ -113,8 +113,13 @@ int main(int argc, char *argv[]) {
       std::println(stderr, "[Spritesmith] Theme load failed: {} — using fallback", t.error());
   }
 
-  corundum::platform::TextureInfo checkerboard = host->make_checkerboard(
-      static_cast<unsigned>(tools::spritesmith::CANVAS_W), static_cast<unsigned>(tools::spritesmith::CANVAS_H), 8);
+  auto checkerboard_result = host->make_checkerboard(static_cast<unsigned>(tools::spritesmith::CANVAS_W),
+                                                     static_cast<unsigned>(tools::spritesmith::CANVAS_H), 8);
+  if (!checkerboard_result) {
+    std::println(stderr, "[Spritesmith] FATAL: {}", checkerboard_result.error());
+    return 1;
+  }
+  corundum::platform::TextureInfo checkerboard = *checkerboard_result;
 
   corundum::platform::TextureInfo sprite_texture{};
   std::string loaded_path;

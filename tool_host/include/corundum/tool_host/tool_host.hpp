@@ -54,7 +54,9 @@ namespace corundum::tool_host {
     [[nodiscard]] ImTextureID imgui_id(uint32_t texture_id);
 
     /// Create a checkerboard pattern texture (RGBA8, REPEAT wrap).
-    [[nodiscard]] platform::TextureInfo make_checkerboard(unsigned w, unsigned h, unsigned check_size = 8);
+    /// @return TextureInfo on success, or std::unexpected with the reason.
+    [[nodiscard]] std::expected<platform::TextureInfo, std::string> make_checkerboard(unsigned w, unsigned h,
+                                                                                      unsigned check_size = 8);
 
   private:
     ToolHost();
