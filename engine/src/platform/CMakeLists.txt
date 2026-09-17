@@ -20,7 +20,6 @@ set(PLATFORM_GLFW_SOURCES
     glfw/font_atlas.cpp
     glfw/input_translator.cpp
     glfw/texture_cache.cpp
-    os/user_data_dir.cpp
     sokol/sokol_impl.cpp
     sokol/sokol_audio_impl.cpp
     sokol/sokol_audio_backend.cpp
