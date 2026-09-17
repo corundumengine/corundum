@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/input/actions.hpp>
 #include <corundum/platform/window.hpp>
+
+#include <utility>
 
 namespace corundum::platform::null {
 
@@ -25,12 +28,6 @@ namespace corundum::platform::null {
     }
 
     void poll_game_input(corundum::input::InputState & /*input*/) override {}
-
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    void resize(unsigned width, unsigned height) override {
-      width_ = width;
-      height_ = height;
-    }
 
     [[nodiscard]] std::pair<int, int> size() const override {
       return {static_cast<int>(width_), static_cast<int>(height_)};

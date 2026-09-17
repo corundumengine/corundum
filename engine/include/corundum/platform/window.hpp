@@ -8,33 +8,46 @@
 
 namespace corundum::platform {
 
-  /// @brief Abstract OS window. Concrete implementations live in the platform layer.
-  /// @note Not thread-safe. Call only from the main thread.
+  /** @brief Abstract OS window. Concrete implementations live in the platform layer.
+   *
+   *  @note Not thread-safe. Call only from the main thread.
+   */
   class Window {
   public:
     virtual ~Window() = default;
 
+    /** @brief @c true while the window is open; the platform also reports it closed once the user
+     *  dismisses the window.
+     */
     [[nodiscard]] virtual bool is_open() const = 0;
 
+    /** @brief Ask the window to close; is_open() reports it closed from the next query on. */
     virtual void close() = 0;
 
-    /// Poll platform events, translate to engine input, and write into @p input.
-    /// Clears pressed flags before writing new ones each frame.
-    /// @pre This window must be open.
+    /** @brief Poll platform events, translate them to engine input, and append the result to @p input.
+     *
+     *  Presses already latched in @p input are left untouched — clearing them is the simulation
+     *  step's job, via input::clear_pressed.
+     *
+     *  @pre This window must be open.
+     */
     virtual void poll_game_input(corundum::input::InputState &input) = 0;
 
-    /// Resize the OS window to the given dimensions in pixels.
-    virtual void resize(unsigned width, unsigned height) = 0;
-
-    /// @brief Query the current OS window dimensions in screen pixels.
-    /// @return {width, height} in pixels.
+    /** @brief Query the current window dimensions in logical screen coordinates.
+     *
+     *  @return {width, height}; not framebuffer pixels, so a high-DPI display reports a smaller
+     *          pair than the number of pixels actually drawn.
+     */
     [[nodiscard]] virtual std::pair<int, int> size() const = 0;
 
-    /// Enable or disable vertical synchronisation.
+    /** @brief Enable or disable vertical synchronisation. */
     virtual void set_vsync(bool enabled) = 0;
 
-    /// @brief Return the platform-native window handle (e.g. GLFWwindow*).
-    /// The caller is responsible for correct interpretation of the void*.
+    /** @brief Opaque handle to the window in the API of the backend that created it.
+     *
+     *  Its meaning is defined by the linked backend, so only that backend's code may interpret
+     *  it. May be @c nullptr when the backend holds no live window object.
+     */
     [[nodiscard]] virtual void *native_handle() const = 0;
   };
 

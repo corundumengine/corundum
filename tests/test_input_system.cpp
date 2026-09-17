@@ -34,9 +34,6 @@ namespace {
       accumulate_input(input, scripted);
     }
 
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    void resize(unsigned /*width*/, unsigned /*height*/) override {}
-
     [[nodiscard]] std::pair<int, int> size() const override {
       return {0, 0};
     }

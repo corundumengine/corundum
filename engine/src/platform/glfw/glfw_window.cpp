@@ -29,11 +29,9 @@ namespace corundum::platform::glfw {
     std::atomic<int> s_glfw_refcount{0};
 
     void glfw_init_if_needed() {
-      if (s_glfw_refcount.fetch_add(1, std::memory_order_relaxed) == 0) {
-        if (!glfwInit()) {
-          std::println(stderr, "[glfw] glfwInit() failed");
-          std::terminate();
-        }
+      if (s_glfw_refcount.fetch_add(1, std::memory_order_relaxed) == 0 && glfwInit() == GLFW_FALSE) {
+        std::println(stderr, "[glfw] glfwInit() failed");
+        std::terminate();
       }
     }
 
@@ -49,28 +47,28 @@ namespace corundum::platform::glfw {
 
     void key_callback(GLFWwindow *win, int key, int /*scancode*/, int action, int /*mods*/) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
-      if (data) {
+      if (data != nullptr) {
         translate_key(key, action, data->input);
       }
     }
 
     void window_close_callback(GLFWwindow *win) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
-      if (data) {
+      if (data != nullptr) {
         data->input.held[static_cast<std::size_t>(corundum::input::Action::Quit)] = true;
       }
     }
 
     void mouse_button_callback(GLFWwindow *win, int button, int action, int /*mods*/) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
-      if (data) {
+      if (data != nullptr) {
         translate_mouse_button(button, action, data->input);
       }
     }
 
     void scroll_callback(GLFWwindow *win, double /*xoffset*/, double yoffset) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
-      if (data) {
+      if (data != nullptr) {
         translate_scroll(yoffset, data->input);
       }
     }
@@ -114,7 +112,7 @@ namespace corundum::platform::glfw {
     auto window = std::unique_ptr<GLFWWindow>(new GLFWWindow(width, height, title));
     guard.disarm();
 
-    if (!window->impl_->win) {
+    if (window->impl_->win == nullptr) {
       return std::unexpected(WindowError::CreationFailed);
     }
 
@@ -134,7 +132,7 @@ namespace corundum::platform::glfw {
     impl_->win = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), std::string{title}.c_str(),
                                   nullptr, nullptr);
 
-    if (impl_->win) {
+    if (impl_->win != nullptr) {
       glfwSetWindowUserPointer(impl_->win, &impl_->data);
       glfwSetKeyCallback(impl_->win, key_callback);
       glfwSetMouseButtonCallback(impl_->win, mouse_button_callback);
@@ -151,9 +149,9 @@ namespace corundum::platform::glfw {
 
   GLFWWindow::~GLFWWindow() {
     if (impl_) {
-      if (impl_->win) {
+      if (impl_->win != nullptr) {
 #ifdef __APPLE__
-        if (impl_->metal_layer) {
+        if (impl_->metal_layer != nullptr) {
           metal_teardown_layer(impl_->metal_layer);
         }
 #endif
@@ -166,11 +164,11 @@ namespace corundum::platform::glfw {
   GLFWWindow::GLFWWindow(GLFWWindow &&) noexcept = default;
 
   bool GLFWWindow::is_open() const {
-    return impl_ && impl_->win && !glfwWindowShouldClose(impl_->win);
+    return impl_ && impl_->win != nullptr && glfwWindowShouldClose(impl_->win) == GLFW_FALSE;
   }
 
   void GLFWWindow::close() {
-    if (impl_ && impl_->win)
+    if (impl_ && impl_->win != nullptr)
       glfwSetWindowShouldClose(impl_->win, GLFW_TRUE);
   }
 
@@ -178,31 +176,28 @@ namespace corundum::platform::glfw {
     corundum::input::clear_pressed(impl_->data.input);
     glfwPollEvents();
     poll_joystick(impl_->data.input, impl_->data.joystick_axis);
-    double mx = 0.0, my = 0.0;
+    double mx = 0.0;
+    double my = 0.0;
     glfwGetCursorPos(impl_->win, &mx, &my);
     impl_->data.input.mouse_x = static_cast<float>(mx);
     impl_->data.input.mouse_y = static_cast<float>(my);
     corundum::input::accumulate_input(input, impl_->data.input);
   }
 
-  void GLFWWindow::resize(unsigned width, unsigned height) {
-    if (impl_ && impl_->win)
-      glfwSetWindowSize(impl_->win, static_cast<int>(width), static_cast<int>(height));
-  }
-
   std::pair<int, int> GLFWWindow::size() const {
-    if (!impl_ || !impl_->win)
+    if (!impl_ || impl_->win == nullptr)
       return {0, 0};
-    int w = 0, h = 0;
+    int w = 0;
+    int h = 0;
     glfwGetWindowSize(impl_->win, &w, &h);
     return {w, h};
   }
 
   void GLFWWindow::set_vsync(bool enabled) {
-    if (!impl_ || !impl_->win)
+    if (!impl_ || impl_->win == nullptr)
       return;
 #ifdef __APPLE__
-    if (impl_->metal_layer)
+    if (impl_->metal_layer != nullptr)
       metal_set_display_sync(impl_->metal_layer, enabled ? 1 : 0);
 #else
     glfwMakeContextCurrent(impl_->win);

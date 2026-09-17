@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/input/actions.hpp>
 #include <corundum/platform/window.hpp>
 
+#include <cstdint>
 #include <expected>
 #include <memory>
 #include <string_view>
+#include <utility>
 
 struct GLFWwindow;
 
 namespace corundum::platform::glfw {
-  enum class WindowError { CreationFailed };
+  enum class WindowError : std::uint8_t { CreationFailed };
 
   class GLFWWindow final : public corundum::platform::Window {
   public:
@@ -27,11 +30,10 @@ namespace corundum::platform::glfw {
     GLFWWindow(GLFWWindow &&) noexcept;
     GLFWWindow &operator=(GLFWWindow &&) noexcept = delete;
 
-    bool is_open() const override;
+    [[nodiscard]] bool is_open() const override;
 
     void close() override;
     void poll_game_input(corundum::input::InputState &input) override;
-    void resize(unsigned width, unsigned height) override;
     [[nodiscard]] std::pair<int, int> size() const override;
     void set_vsync(bool enabled) override;
 
