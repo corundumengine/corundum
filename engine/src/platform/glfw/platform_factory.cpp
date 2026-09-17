@@ -3,6 +3,7 @@
 
 #include <corundum/platform/platform_factory.hpp>
 #include <expected>
+#include <format>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -35,8 +36,9 @@ namespace corundum::platform {
 
   } // namespace
 
-  std::expected<std::unique_ptr<Window>, std::string> create_window(unsigned w, unsigned h, std::string_view title) {
-    auto result = glfw::GLFWWindow::create(w, h, title);
+  std::expected<std::unique_ptr<Window>, std::string> create_window(unsigned width, unsigned height,
+                                                                    std::string_view title) {
+    auto result = glfw::GLFWWindow::create(width, height, title);
     if (!result)
       return std::unexpected("Failed to create GLFW window");
     return std::move(*result);
@@ -51,7 +53,7 @@ namespace corundum::platform {
 
     auto gpu_result = GpuContext::create(*window_ptr);
     if (!gpu_result)
-      return std::unexpected("Failed to create GPU context");
+      return std::unexpected(std::format("Failed to create GPU context: {}", gpu_result.error()));
     auto gpu_ptr = std::move(*gpu_result);
 
     auto renderer = glfw::make_sokol_renderer(*gpu_ptr);

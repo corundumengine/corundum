@@ -21,40 +21,36 @@ namespace corundum::platform {
    * behind the abstract interfaces so callers never need to include platform
    * internals.
    *
-   * Destruction order (renderer → gpu → window) ensures that sg resources
-   * owned by the renderer are released while the sokol device (owned by gpu)
-   * is still alive.
+   * Fields are declared in destruction order: members are destroyed in reverse,
+   * so the renderer is released while the GPU device is still alive, and the GPU
+   * device while its window is still alive. Do not reorder.
    */
   struct PlatformContext {
     Handle<Window> window;
+
     Handle<GpuContext> gpu;
+
     Handle<Renderer> renderer;
+
     std::unique_ptr<corundum::audio::AudioBackend> audio_backend;
   };
 
   /** @brief Create a platform-specific Window only (no renderer or audio).
    *
    * The window is fully initialised and ready for GPU context creation.
-   * glfwInit/glfwTerminate are refcounted internally.
    *
-   * @param[in] w      Initial window width in pixels.
-   * @param[in] h      Initial window height in pixels.
-   * @param[in] title  Window title.
+   * @param[in] width   Initial window width in pixels.
+   * @param[in] height  Initial window height in pixels.
    * @return Owning pointer to the Window, or std::unexpected with an error message.
    */
-  [[nodiscard]] std::expected<std::unique_ptr<Window>, std::string> create_window(unsigned w, unsigned h,
+  [[nodiscard]] std::expected<std::unique_ptr<Window>, std::string> create_window(unsigned width, unsigned height,
                                                                                   std::string_view title);
 
-  /** @brief Create a platform-specific Window, Renderer and AudioBackend.
+  /** @brief Create a platform-specific Window, GPU context, Renderer and AudioBackend.
    *
-   * On macOS this creates a GLFW window with a Metal layer and a sokol
-   * Metal renderer. On other platforms the GLFW/GL or GLFW/D3D backend is used.
-   * The audio backend wraps sokol_audio (44100 Hz stereo stream callback).
-   *
-   * @param[in] width  Initial window width in pixels.
-   * @param[in] height Initial window height in pixels.
-   * @param[in] title  Window title.
-   * @return PlatformContext on success, or std::unexpected with an error message.
+   * @param[in] width   Initial window width in pixels.
+   * @param[in] height  Initial window height in pixels.
+   * @return The bundle on success, or std::unexpected with an error message.
    * @post Window, gpu, renderer, and audio_backend are all valid (non-null) on success.
    */
   [[nodiscard]] std::expected<PlatformContext, std::string> create_platform(unsigned width, unsigned height,
