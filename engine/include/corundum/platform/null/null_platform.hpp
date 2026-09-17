@@ -11,6 +11,7 @@
 #include <corundum/platform/null/null_window.hpp>
 
 #include <memory>
+#include <utility>
 
 namespace corundum::platform::null {
 
@@ -31,39 +32,40 @@ namespace corundum::platform::null {
 
   /** @brief Owned bundle of no-op Window + Renderer for tests.
    *
-   * Leaves @c Engine::gpu null (matching production behaviour when no audio
-   * backend is present: nothing about the platform is required to be non-null
-   * except Window and Renderer — the main loop never touches @c Engine::gpu).
+   * Carries no @c GpuContext: this backend provides none, and initialize()
+   * permits a null @c Engine::gpu because the main loop never touches it.
    *
-   * adopt_null_platform() moves the bundle's members into the Engine, leaving
-   * the bundle empty; it does not need to outlive the Engine afterwards.
+   * adopt_null_platform() moves the members into the Engine, leaving the bundle
+   * empty and safe to destroy at any point afterwards.
    */
   struct NullPlatform {
-    Handle<platform::Window> window;
+    /** @brief No-op renderer; every asset load returns the shared dummy handle. */
     Handle<platform::Renderer> renderer;
+
+    /** @brief No-op window of the requested size. */
+    Handle<platform::Window> window;
   };
 
   /** @brief Construct a NullPlatform bundle with a window of the given size.
    *
-   *  @param[in] w  Initial window width in pixels (stored for `size()`).
-   *  @param[in] h  Initial window height in pixels.
+   *  @param[in] width   Initial window width in pixels (stored for `size()`).
+   *  @param[in] height  Initial window height in pixels.
    *  @return A bundle whose Window/Renderer are ready to adopt.
    */
-  [[nodiscard]] inline NullPlatform make_null_platform(unsigned w, unsigned h) {
-    NullPlatform p{};
-    p.window =
-        Handle<platform::Window>{new NullWindow(w, h), BackendDeleter<platform::Window>{&detail::destroy_window}};
-    p.renderer =
+  [[nodiscard]] inline NullPlatform make_null_platform(unsigned width, unsigned height) {
+    NullPlatform bundle{};
+    bundle.renderer =
         Handle<platform::Renderer>{new NullRenderer(), BackendDeleter<platform::Renderer>{&detail::destroy_renderer}};
-    return p;
+    bundle.window = Handle<platform::Window>{new NullWindow(width, height),
+                                             BackendDeleter<platform::Window>{&detail::destroy_window}};
+    return bundle;
   }
 
   /** @brief Move the NullPlatform's Window/Renderer into @p engine.
    *
-   *  Audio backend is left null (initialise() downgrades audio init to WARN
-   *  when no backend is present); Engine::gpu is also left null. The platform
-   *  members of @p platform are released; the bundle itself can be destroyed
-   *  once the engine is.
+   *  @p platform is left empty and may be destroyed immediately; nothing in the
+   *  engine refers back to it. The audio backend and @c Engine::gpu stay null
+   *  (initialize() downgrades audio init to a WARN when no backend is present).
    *
    *  @param[in,out] engine Uninitialised Engine.
    *  @param[in,out] platform The bundle; its members are moved out.

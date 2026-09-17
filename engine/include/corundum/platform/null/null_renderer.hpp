@@ -2,14 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+
+#include <cstdint>
+#include <expected>
+#include <string>
+#include <string_view>
 
 namespace corundum::platform::null {
 
-  /// Single shared handle returned for every loaded texture/font; the null
-  /// backend performs no real asset loading, so every request aliases this.
+  /** @brief Shared dummy handle returned for every loaded texture and font.
+   *
+   *  The null backend performs no real asset loading, so every request aliases this.
+   */
   constexpr uint32_t k_dummy_handle = 1u;
-  /// Assumed per-glyph advance width used by measure_text().
+
+  /** @brief Assumed per-glyph advance width reported by measure_text(). */
   constexpr float k_glyph_advance_px = 8.f;
 
   /** @brief No-op Renderer for headless lifecycle tests.

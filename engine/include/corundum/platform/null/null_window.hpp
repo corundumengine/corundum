@@ -16,7 +16,6 @@ namespace corundum::platform::null {
    */
   class NullWindow final : public corundum::platform::Window {
   public:
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     explicit NullWindow(unsigned width, unsigned height) : width_{width}, height_{height} {}
 
     [[nodiscard]] bool is_open() const override {
