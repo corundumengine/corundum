@@ -340,8 +340,13 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (it == baked_atlases_.end()) {
       if (font_id >= font_atlases_.size() || !font_atlases_[font_id])
         return nullptr;
+      std::expected<BakedSize, std::string> baked = font_atlases_[font_id]->bake(char_size);
+      if (!baked) {
+        std::println(stderr, "[sokol] {}", baked.error());
+        return nullptr;
+      }
       BakedAtlas b{};
-      b.data = font_atlases_[font_id]->bake(char_size);
+      b.data = std::move(*baked);
       it = baked_atlases_.emplace(key, std::move(b)).first;
     }
     last_key_ = key;
