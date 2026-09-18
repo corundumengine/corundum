@@ -4,6 +4,7 @@
 #include "glfw_window.hpp"
 #include "input_translator.hpp"
 
+#include <corundum/input/action_resolver.hpp>
 #include <corundum/input/actions.hpp>
 
 #include <GLFW/glfw3.h>
@@ -12,7 +13,6 @@
 #include "glfw_window_metal.h"
 #endif
 
-#include <cstddef>
 #include <expected>
 #include <memory>
 #include <string>
@@ -40,7 +40,7 @@ namespace corundum::platform::glfw {
 
     struct WindowData {
       corundum::input::InputState input{};
-      JoystickAxisState joystick_axis{};
+      corundum::input::ActionResolver input_resolver{};
 
 #ifdef SOKOL_METAL
       MetalLayer *metal_layer{nullptr};
@@ -50,21 +50,21 @@ namespace corundum::platform::glfw {
     void key_callback(GLFWwindow *win, int key, int /*scancode*/, int action, int /*mods*/) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
       if (data != nullptr) {
-        translate_key(key, action, data->input);
+        translate_key(key, action, data->input_resolver, data->input);
       }
     }
 
     void window_close_callback(GLFWwindow *win) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
       if (data != nullptr) {
-        data->input.held[static_cast<std::size_t>(corundum::input::Action::Quit)] = true;
+        translate_window_close(data->input_resolver, data->input);
       }
     }
 
     void mouse_button_callback(GLFWwindow *win, int button, int action, int /*mods*/) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
       if (data != nullptr) {
-        translate_mouse_button(button, action, data->input);
+        translate_mouse_button(button, action, data->input_resolver, data->input);
       }
     }
 
@@ -202,7 +202,7 @@ namespace corundum::platform::glfw {
       return;
     corundum::input::clear_pressed(impl_->data.input);
     glfwPollEvents();
-    poll_joystick(impl_->data.input, impl_->data.joystick_axis);
+    poll_gamepad(impl_->data.input_resolver, impl_->data.input);
     double mx = 0.0;
     double my = 0.0;
     glfwGetCursorPos(impl_->win, &mx, &my);

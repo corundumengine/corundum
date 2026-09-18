@@ -10,6 +10,7 @@ enable_testing()
 # separately below (it compiles an internal engine header directly).
 set(TEST_SOURCES
     main.cpp
+    test_action_resolver.cpp
     test_actions.cpp
     test_actor_id_table.cpp
     test_animation_system.cpp

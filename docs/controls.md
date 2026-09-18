@@ -131,17 +131,17 @@ All in `engine/src/platform/glfw/input_translator.cpp`:
 
 | Table | Maps | Entries |
 |---|---|---|
-| `k_default_bindings` | GLFW key → `Action` | WASD/arrows → Move*; Enter/Space → Select; Escape → Cancel; Q → Quit; `=` → ZoomIn; `-` → ZoomOut |
-| `k_button_bindings` | mapped gamepad button (`GLFW_GAMEPAD_BUTTON_*`) → `Action` | A → Select; B → Cancel; Start → Quit |
+| `k_key_bindings` | GLFW key → `Action` | WASD/arrows → Move*; Enter/Space → Select; Escape → Cancel; Q → Quit; `=` → ZoomIn; `-` → ZoomOut |
+| `k_gamepad_button_bindings` | mapped gamepad button (`GLFW_GAMEPAD_BUTTON_*`) → `Action` | A → Select; B → Cancel; Start → Quit |
 | `k_mouse_bindings` | mouse button → `Action` | Left click → Select |
-| (inline in `poll_joystick`) | stick/d-pad/trigger axes → `Action` | left stick + d-pad → Move*, deadzone 0.5; L2 trigger → ZoomOut, R2 trigger → ZoomIn, threshold 0.0 |
+| (inline in `poll_gamepad`) | stick/d-pad/trigger axes → `Action` | left stick + d-pad → Move*, radial deadzone 0.5 with a 0.3 per-axis floor; L2 trigger → ZoomOut, R2 trigger → ZoomIn, threshold 0.0 |
 
 Zoom is bound to the analog triggers (L2/R2), not the shoulder bumpers —
 GLFW's mapped gamepad API reports triggers as axes
 (`GLFW_GAMEPAD_AXIS_LEFT_TRIGGER`/`RIGHT_TRIGGER`, resting at -1.0 and
 reading +1.0 fully pressed), not buttons, so they're handled alongside
-the stick/d-pad axis logic in `poll_joystick()` rather than in
-`k_button_bindings`.
+the stick/d-pad axis logic in `poll_gamepad()` rather than in
+`k_gamepad_button_bindings`.
 
 `mouse_click_pressed` is **not** in a binding table — it's raised
 directly in `translate_mouse_button()` (`input_translator.cpp`) whenever
@@ -151,7 +151,7 @@ binding above (both fire from the same physical click, deliberately).
 `translate_scroll()` from GLFW's scroll callback, since a continuous
 signed magnitude has no discrete `Action` to bind to.
 
-`poll_joystick()` uses GLFW's *mapped* gamepad API
+`poll_gamepad()` uses GLFW's *mapped* gamepad API
 (`glfwJoystickIsGamepad()` + `glfwGetGamepadState()`), not raw
 `glfwGetJoystickButtons()`/`glfwGetJoystickAxes()` indices. Raw button
 order varies per controller/platform (one tested controller reported its
@@ -166,6 +166,22 @@ compile-time tables with the same shape loaded from a config file (the
 `{key/button, Action}` pair structure already matches what a settings
 UI would need to edit and persist) — no structural redesign required,
 just a loader. **Not built as part of this doc.**
+
+### Resolving multiple sources per action
+
+Several sources routinely map to one `Action` (W and Up both mean
+`MoveUp`; keyboard Enter, mouse-left and gamepad A all mean `Select`),
+and the stick and d-pad are independent sources for the same move
+actions. `corundum::input::ActionResolver`
+(`engine/include/corundum/input/action_resolver.hpp`) tracks which
+sources are active per action and derives `held`/`pressed` from that
+set: an action's `held` bit stays set until *every* source bound to it
+is released, and a press edge fires only on the transition from no
+source active to at least one. This is what lets keyboard and gamepad
+share an action without one device's release clearing the other's
+input. The GLFW backend gives each binding a distinct source index
+(`input_translator.cpp`) and releases the gamepad-owned sources when the
+device disconnects, so a held bit cannot latch.
 
 ### Consumption sites (where each signal drives behavior)
 
@@ -184,9 +200,10 @@ just a loader. **Not built as part of this doc.**
 | `Action::ZoomIn/ZoomOut` (held) | `world/update.cpp::update_zoom()` | `Camera::apply_zoom()`, anchored on the screen center, rate-limited by `k_zoom_rate_per_sec` and `dt` |
 
 `Action::Quit`'s three sources (Q key, gamepad Start, OS window-close
-button) all write the *same* `InputState::held` bit — the window-close
-callback (`glfw_window.cpp`) sets it exactly like a key press would, so
-there's no separate immediate-exit path for player input. (A *different*,
+button) all raise the same `Action::Quit` through the `ActionResolver` —
+the window-close callback (`glfw_window.cpp`) calls
+`translate_window_close()` exactly like a key press would, so there's no
+separate immediate-exit path for player input. (A *different*,
 non-input-triggered exit path exists for unrecoverable map-load failures
 in `transition.cpp`, unrelated to any of the above.)
 
