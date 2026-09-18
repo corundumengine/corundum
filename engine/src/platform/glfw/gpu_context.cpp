@@ -20,6 +20,7 @@ namespace corundum::platform {
     GLFWwindow *window{nullptr};
 #ifdef SOKOL_METAL
     MetalLayer *metal_layer{nullptr};
+    const void *metal_drawable{nullptr};
 #endif
     bool pass_active{false};
   };
@@ -65,6 +66,7 @@ namespace corundum::platform {
     if (sg_isvalid())
       sg_shutdown();
 #ifdef SOKOL_METAL
+    metal_release_drawable(impl_->metal_drawable);
     if (impl_->metal_layer != nullptr)
       metal_teardown_layer(impl_->metal_layer);
 #endif
@@ -91,8 +93,13 @@ namespace corundum::platform {
     swapchain.depth_format = SG_PIXELFORMAT_NONE;
 
 #ifdef SOKOL_METAL
+    // The layer latches drawableSize once it has vended a drawable, so it has to be resized
+    // to match the pass dimensions every frame.
+    metal_set_drawable_size(impl_->metal_layer, fb_w, fb_h);
+    metal_release_drawable(impl_->metal_drawable);
+    impl_->metal_drawable = metal_next_drawable(impl_->metal_layer);
     swapchain.color_format = SG_PIXELFORMAT_BGRA8;
-    swapchain.metal.current_drawable = metal_next_drawable(impl_->metal_layer);
+    swapchain.metal.current_drawable = impl_->metal_drawable;
     if (swapchain.metal.current_drawable == nullptr) {
       impl_->pass_active = false;
       return false;
@@ -115,7 +122,11 @@ namespace corundum::platform {
     impl_->pass_active = false;
     sg_end_pass();
     sg_commit();
-#ifndef SOKOL_METAL
+#ifdef SOKOL_METAL
+    // sg_commit() presents and drops sokol's reference, so the retained drawable is free to go.
+    metal_release_drawable(impl_->metal_drawable);
+    impl_->metal_drawable = nullptr;
+#else
     glfwSwapBuffers(impl_->window);
 #endif
   }
