@@ -37,7 +37,10 @@ namespace corundum::platform::null {
       return k_dummy_handle;
     }
 
-    void set_world_view(core::math::Vec2 /*top_left*/, core::math::Vec2 /*viewport_size*/, float /*zoom*/) override {}
+    void set_world_view(core::math::Vec2 top_left, core::math::Vec2 /*viewport_size*/, float zoom) override {
+      last_cam_ = top_left;
+      last_zoom_ = zoom;
+    }
 
     void reset_screen_view() override {}
 
@@ -63,6 +66,24 @@ namespace corundum::platform::null {
     [[nodiscard]] RendererStats stats() const override {
       return {};
     }
+
+    /** @brief Camera top-left recorded by the most recent set_world_view() call.
+     *  @note Exposed so tests can observe the camera position render() computes.
+     */
+    [[nodiscard]] core::math::Vec2 last_camera_top_left() const noexcept {
+      return last_cam_;
+    }
+
+    /** @brief Zoom recorded by the most recent set_world_view() call.
+     *  @note Exposed so tests can observe the zoom render() computes.
+     */
+    [[nodiscard]] float last_zoom() const noexcept {
+      return last_zoom_;
+    }
+
+  private:
+    core::math::Vec2 last_cam_{};
+    float last_zoom_{1.f};
   };
 
 } // namespace corundum::platform::null

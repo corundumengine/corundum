@@ -385,13 +385,45 @@ namespace corundum::render {
 
   // ── render ───────────────────────────────────────────────────────────────────
 
+  namespace {
+
+    /** @brief Camera position and zoom computed for one frame's render. */
+    struct CameraBlend {
+      float x{};
+
+      float y{};
+
+      float zoom{1.f};
+    };
+
+    /** @brief Blend the camera between the pre-frame snapshot and the current scene camera.
+     *
+     *  Only a normal single-step frame interpolates (0 < alpha < 1). alpha is 0 on catch-up
+     *  (2+ fixed steps in one frame) and deletion frames, where the entity path renders current
+     *  state too — interpolating the camera there would lag it one hitch behind the player.
+     */
+    CameraBlend blend_camera(const render::RenderState &state, const corundum::world::Scene &scene,
+                             float alpha) noexcept {
+      if (alpha <= 0.f || alpha >= 1.f)
+        return {.x = scene.camera.x, .y = scene.camera.y, .zoom = scene.camera.zoom};
+
+      return {
+          .x = std::lerp(state.prev_cam_x, scene.camera.x, alpha),
+          .y = std::lerp(state.prev_cam_y, scene.camera.y, alpha),
+          .zoom = std::lerp(state.prev_zoom, scene.camera.zoom, alpha),
+      };
+    }
+
+  } // namespace
+
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
               const corundum::item::Registry *items, float alpha, int win_w, int win_h) {
     const corundum::core::math::Vec2 viewport{static_cast<float>(win_w), static_cast<float>(win_h)};
-    const float cam_x = state.prev_cam_x + (scene.camera.x - state.prev_cam_x) * alpha;
-    const float cam_y = state.prev_cam_y + (scene.camera.y - state.prev_cam_y) * alpha;
-    const float zoom = state.prev_zoom + (scene.camera.zoom - state.prev_zoom) * alpha;
+    const CameraBlend camera = blend_camera(state, scene, alpha);
+    const float cam_x = camera.x;
+    const float cam_y = camera.y;
+    const float zoom = camera.zoom;
 
     if (state.mode == render::RenderMode::World) {
       sync_active_chunks(state, cfg, scene);

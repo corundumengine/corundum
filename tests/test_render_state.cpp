@@ -105,6 +105,50 @@ TEST_CASE("snapshot_prev_frame: copies live transforms and camera into prev_* fi
   CHECK(engine.render.prev_zoom == 2.f);
 }
 
+TEST_CASE("render: alpha==0 renders the current camera, not the stale snapshot (multi-step/deletion frame)") {
+  namespace render_sys = corundum::render;
+
+  corundum::Engine engine;
+  corundum::platform::null::NullRenderer renderer;
+
+  // Stale snapshot taken at the start of the frame vs. the camera the fixed steps have
+  // since advanced to. compute_interpolation_alpha() returns 0 on catch-up (2+ steps in
+  // one frame) and deletion frames; the entity path renders current state there, so the
+  // camera must too. Before the fix this collapsed to prev_cam_* (the stale snapshot).
+  engine.render.prev_cam_x = 100.f;
+  engine.render.prev_cam_y = 50.f;
+  engine.render.prev_zoom = 2.f;
+  engine.scene.camera.x = 140.f;
+  engine.scene.camera.y = 80.f;
+  engine.scene.camera.zoom = 1.5f;
+
+  render_sys::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 0.f, 800, 600);
+
+  CHECK(renderer.last_camera_top_left().x == doctest::Approx(140.f));
+  CHECK(renderer.last_camera_top_left().y == doctest::Approx(80.f));
+  CHECK(renderer.last_zoom() == doctest::Approx(1.5f));
+}
+
+TEST_CASE("render: a normal single-step frame still blends the camera between snapshot and current") {
+  namespace render_sys = corundum::render;
+
+  corundum::Engine engine;
+  corundum::platform::null::NullRenderer renderer;
+
+  engine.render.prev_cam_x = 100.f;
+  engine.render.prev_cam_y = 50.f;
+  engine.render.prev_zoom = 2.f;
+  engine.scene.camera.x = 140.f;
+  engine.scene.camera.y = 80.f;
+  engine.scene.camera.zoom = 1.5f;
+
+  render_sys::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 0.5f, 800, 600);
+
+  CHECK(renderer.last_camera_top_left().x == doctest::Approx(120.f));
+  CHECK(renderer.last_camera_top_left().y == doctest::Approx(65.f));
+  CHECK(renderer.last_zoom() == doctest::Approx(1.75f));
+}
+
 TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell), not the truncated cell's elevation") {
   // Latent bug: elevation_under used `static_cast<int>(col_f)` which truncates toward
   // zero, so col_f = -0.5 became col = 0 and the lookup went to chunk (0, 0) cell (0, ...).
