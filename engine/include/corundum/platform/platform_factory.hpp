@@ -50,6 +50,7 @@ namespace corundum::platform {
    *
    * @param[in] width   Initial window width in pixels.
    * @param[in] height  Initial window height in pixels.
+   * @param[in] title   Initial window title.
    * @return The bundle on success, or std::unexpected with an error message.
    * @post Window, gpu, renderer, and audio_backend are all valid (non-null) on success.
    */

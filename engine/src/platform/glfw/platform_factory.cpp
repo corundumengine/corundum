@@ -20,18 +20,11 @@ namespace corundum::platform {
 
   namespace {
 
-    // Destruction functions live here (the backend TU) so the handles Engine holds
-    // can delete their objects without the engine core referencing these destructors.
-    void destroy_window(Window *window) noexcept {
-      std::default_delete<Window>{}(window);
-    }
-
-    void destroy_gpu_context(GpuContext *gpu) noexcept {
-      std::default_delete<GpuContext>{}(gpu);
-    }
-
-    void destroy_renderer(Renderer *renderer) noexcept {
-      std::default_delete<Renderer>{}(renderer);
+    // Destruction functions live here (the backend TU). They give Engine's default-
+    // constructible handles a runtime-supplied deleter and keep the delete-expression in
+    // this TU; the actual virtual dispatch still happens through the interface destructors.
+    template <typename T> void destroy(T *object) noexcept {
+      std::default_delete<T>{}(object);
     }
 
   } // namespace
@@ -45,13 +38,11 @@ namespace corundum::platform {
   }
 
   std::expected<PlatformContext, std::string> create_platform(unsigned width, unsigned height, std::string_view title) {
-    auto window_result = glfw::GLFWWindow::create(width, height, title);
-    if (!window_result)
-      return std::unexpected(std::format("Failed to create GLFW window: {}", glfw::to_string(window_result.error())));
+    auto window = create_window(width, height, title);
+    if (!window)
+      return std::unexpected(window.error());
 
-    auto window_ptr = std::move(*window_result);
-
-    auto gpu_result = GpuContext::create(*window_ptr);
+    auto gpu_result = GpuContext::create(**window);
     if (!gpu_result)
       return std::unexpected(std::format("Failed to create GPU context: {}", gpu_result.error()));
     auto gpu_ptr = std::move(*gpu_result);
@@ -60,9 +51,9 @@ namespace corundum::platform {
     auto audio = sokol::make_sokol_audio_backend();
 
     return PlatformContext{
-        .window = Handle<Window>{window_ptr.release(), BackendDeleter<Window>{&destroy_window}},
-        .gpu = Handle<GpuContext>{gpu_ptr.release(), BackendDeleter<GpuContext>{&destroy_gpu_context}},
-        .renderer = Handle<Renderer>{renderer.release(), BackendDeleter<Renderer>{&destroy_renderer}},
+        .window = Handle<Window>{window->release(), BackendDeleter<Window>{&destroy<Window>}},
+        .gpu = Handle<GpuContext>{gpu_ptr.release(), BackendDeleter<GpuContext>{&destroy<GpuContext>}},
+        .renderer = Handle<Renderer>{renderer.release(), BackendDeleter<Renderer>{&destroy<Renderer>}},
         .audio_backend = std::move(audio),
     };
   }
