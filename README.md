@@ -11,7 +11,7 @@
 
 "Corundum Engine" and its logo are trademarks of Gentle Lion Studios, Inc. — see [TRADEMARKS.md](TRADEMARKS.md).
 
-Forging tools for 2D RPGs. A data-oriented engine, editor toolset, and asset pipeline in C++23. **Pre-alpha — under active development, expect breakage.**
+Forging tools for 2D RPGs. A data-oriented engine and editor toolset in C++23. **Pre-alpha — under active development, expect breakage.**
 
 ## Build
 
@@ -21,7 +21,7 @@ cmake --build --preset release                             # optimised build →
 cmake --build --preset relwithdebinfo                      # optimised + debug symbols
 cmake --build --preset debug-sanitized                     # ASan + UBSan → build-sanitized/
 cmake --build --preset format                              # clang-format all sources
-scripts/run_tidy.sh <file> [more files...]                # clang-tidy explicit files
+scripts/run_tidy.sh <file> [more files...]                 # clang-tidy explicit files
 cmake --preset docs && cmake --build --preset docs         # Doxygen API docs → build/docs/html
 ctest --preset test                                        # run all tests
 build/tests/corundum_tests -tc="*name*"                    # run a single test
@@ -61,14 +61,16 @@ build/tests/corundum_tests -tc="*name*"   # single test
 
 ## Dependencies
 
-| Library                                           | Purpose                     |
-| ------------------------------------------------- | --------------------------- |
-| [nlohmann/json](https://github.com/nlohmann/json) | JSON parsing                |
-| [ImGui](https://github.com/ocornut/imgui)         | Editor GUI                  |
-| [GLFW](https://github.com/glfw/glfw)              | Windowing and input         |
-| [sokol](https://github.com/floooh/sokol)          | GPU rendering, audio        |
-| [stb](https://github.com/nothings/stb)            | Image loading, OGG decoding |
-| [FreeType](https://freetype.org)                  | Font rasterization          |
+| Library                                                                             | Purpose                     |
+| ----------------------------------------------------------------------------------- | --------------------------- |
+| [nlohmann/json](https://github.com/nlohmann/json)                                   | JSON parsing                |
+| [ImGui](https://github.com/ocornut/imgui)                                           | Editor GUI                  |
+| [GLFW](https://github.com/glfw/glfw)                                                | Windowing and input         |
+| [sokol](https://github.com/floooh/sokol)                                            | GPU rendering, audio        |
+| [stb](https://github.com/nothings/stb)                                              | Image loading, OGG decoding |
+| [FreeType](https://freetype.org)                                                    | Font rasterization          |
+| [doctest](https://github.com/doctest/doctest)                                       | Unit testing                |
+| [nlohmann-json-schema-validator](https://github.com/pboettch/json-schema-validator) | JSON schema validation      |
 
 ## License
 
