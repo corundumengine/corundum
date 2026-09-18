@@ -91,6 +91,18 @@ else()
     message(STATUS "FontAtlas tests skipped — internal header or fixture font not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
+# render_scale.hpp is a pure internal header; gate the test off when consuming corundum as a
+# vendored library, same rationale as the FontAtlas tests above.
+set(_render_scale_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/render_scale.hpp")
+if(EXISTS "${_render_scale_header}")
+    target_sources(corundum_tests PRIVATE test_render_scale.cpp)
+    target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw
+    )
+else()
+    message(STATUS "render-scale tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 # Link to engine and doctest. engine_platform_null is also pulled in so the
 # lifecycle tests can adopt a null Window/GpuContext/Renderer — it adds no
 # runtime cost for the rest of the suite because no other test touches it.

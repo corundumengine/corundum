@@ -3,6 +3,7 @@
 
 #include "sokol_renderer.hpp"
 #include "font_atlas.hpp"
+#include "render_scale.hpp"
 #include "sokol_texture_upload.hpp"
 
 #include <corundum/platform/gpu_context.hpp>
@@ -208,6 +209,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     void destroy_gpu_resources();
     void ensure_gpu_resources();
     void rebuild_proj() noexcept;
+    void update_screen_scale() noexcept;
     [[nodiscard]] bool has_quad_space();
     [[nodiscard]] bool begin_primitive(sg_view view);
     void add_to_batch(sg_view view);
@@ -216,6 +218,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     corundum::platform::GpuContext &gpu_ctx_;
 
     std::array<float, 16> proj_{};
+    ScreenScale screen_scale_{};
     float cam_x_{0}, cam_y_{0}, vp_w_{0}, vp_h_{0}, zoom_{1.f};
     bool world_view_active_{false};
     bool pass_active_{false};
@@ -279,6 +282,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       std::println(stderr, "[sokol] FT_Init_FreeType failed");
     }
 
+    update_screen_scale();
     rebuild_proj();
   }
 
@@ -383,7 +387,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (it == baked_atlases_.end()) {
       if (font_id >= font_atlases_.size() || font_atlases_[font_id] == nullptr)
         return nullptr;
-      std::expected<BakedSize, std::string> baked = font_atlases_[font_id]->bake(char_size);
+      const uint32_t physical_size = physical_font_size(char_size, screen_scale_.y);
+      std::expected<BakedSize, std::string> baked = font_atlases_[font_id]->bake(physical_size);
       if (!baked) {
         std::println(stderr, "[sokol] {}", baked.error());
         failed_keys_.insert(key);
@@ -425,15 +430,22 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     return atlas;
   }
 
+  void SokolRenderer::update_screen_scale() noexcept {
+    const auto [win_w, win_h] = gpu_ctx_.window_size();
+    const auto [fb_w, fb_h] = gpu_ctx_.framebuffer_size();
+    screen_scale_ = derive_screen_scale(fb_w, fb_h, win_w, win_h);
+  }
+
   void SokolRenderer::rebuild_proj() noexcept {
     if (world_view_active_) {
       proj_ = make_ortho(cam_x_, cam_x_ + (vp_w_ / zoom_), cam_y_, cam_y_ + (vp_h_ / zoom_));
     } else {
-      // Screen space spans the logical window size, not the physical framebuffer: the frame
-      // is rendered at logical resolution and magnified to the swapchain by the content
-      // scale. NEAREST sampling keeps the magnified pixels crisp for pixel art.
-      auto [w, h] = gpu_ctx_.window_size();
-      proj_ = make_ortho(0.f, static_cast<float>(w), 0.f, static_cast<float>(h));
+      // Screen space spans the physical framebuffer, matching the sokol swapchain built in
+      // GpuContext::begin_default_pass(). draw() scales incoming logical-point positions by the
+      // cached screen_scale_ so callers keep working in logical window points; only the emitted
+      // geometry (and the baked font atlases, see ensure_metrics) is physical-resolution.
+      const auto [fb_w, fb_h] = gpu_ctx_.framebuffer_size();
+      proj_ = make_ortho(0.f, static_cast<float>(fb_w), 0.f, static_cast<float>(fb_h));
     }
   }
 
@@ -555,6 +567,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
   bool SokolRenderer::begin_frame(core::math::Colour clear_colour) {
     ensure_gpu_resources();
+    update_screen_scale();
 
     quad_count_ = 0;
     batch_count_ = 0;
@@ -616,10 +629,14 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (!begin_primitive(tex.view))
       return;
 
-    const float pw = static_cast<float>(cmd.source.width) * cmd.scale.x;
-    const float ph = static_cast<float>(cmd.source.height) * cmd.scale.y;
+    // Screen-space draws arrive in logical window points; scale to the physical framebuffer the
+    // projection spans. World-space draws are already in world units and are scale-invariant.
+    const float sx = world_view_active_ ? 1.f : screen_scale_.x;
+    const float sy = world_view_active_ ? 1.f : screen_scale_.y;
+    const float pw = static_cast<float>(cmd.source.width) * cmd.scale.x * sx;
+    const float ph = static_cast<float>(cmd.source.height) * cmd.scale.y * sy;
 
-    emit_quad(batch_vertices_, cmd.position.x, cmd.position.y, pw, ph, u0, v0, u1, v1, 1.f, 1.f, 1.f, 1.f);
+    emit_quad(batch_vertices_, cmd.position.x * sx, cmd.position.y * sy, pw, ph, u0, v0, u1, v1, 1.f, 1.f, 1.f, 1.f);
 
     add_to_batch(tex.view);
   }
@@ -637,6 +654,13 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     const float atlas_h = static_cast<float>(baked_data.atlas_h);
     const ColourF colour = unpack_colour(cmd.colour);
 
+    // Glyphs are baked at the physical font size (see ensure_metrics), so their pixel metrics are
+    // converted back to logical units here — keeping the pen math below in the same units as
+    // cmd.position/cmd.char_size — then re-expanded by (sx, sy) only when emitting quads, matching
+    // DrawSprite/DrawRect/DrawLine.
+    const float sx = world_view_active_ ? 1.f : screen_scale_.x;
+    const float sy = world_view_active_ ? 1.f : screen_scale_.y;
+
     float pen_x = cmd.position.x;
     float pen_y = cmd.position.y;
     const float line_h = static_cast<float>(cmd.char_size);
@@ -652,28 +676,31 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       if (c < 32 || c >= 128)
         continue;
       const GlyphInfo &g = baked_data.glyphs[c];
+      const float advance = to_logical(static_cast<float>(g.advance_x), screen_scale_.x);
       if (g.width == 0) {
-        pen_x += g.advance_x;
+        pen_x += advance;
         continue;
       }
 
       if (!begin_primitive(baked->view))
         break;
 
-      const float gx = pen_x + static_cast<float>(g.bearing_x);
-      const float gy = pen_y + static_cast<float>(cmd.char_size) - static_cast<float>(g.bearing_y);
-      const float gw = static_cast<float>(g.width);
-      const float gh = static_cast<float>(g.height);
+      const float gw = to_logical(static_cast<float>(g.width), screen_scale_.x);
+      const float gh = to_logical(static_cast<float>(g.height), screen_scale_.y);
+      const float gx = pen_x + to_logical(static_cast<float>(g.bearing_x), screen_scale_.x);
+      const float gy =
+          pen_y + static_cast<float>(cmd.char_size) - to_logical(static_cast<float>(g.bearing_y), screen_scale_.y);
       const float u0 = static_cast<float>(g.atlas_x) / atlas_w;
       const float v0 = static_cast<float>(g.atlas_y) / atlas_h;
       const float u1 = static_cast<float>(g.atlas_x + g.width) / atlas_w;
       const float v1 = static_cast<float>(g.atlas_y + g.height) / atlas_h;
 
-      emit_quad(batch_vertices_, gx, gy, gw, gh, u0, v0, u1, v1, colour.r, colour.g, colour.b, colour.a);
+      emit_quad(batch_vertices_, gx * sx, gy * sy, gw * sx, gh * sy, u0, v0, u1, v1, colour.r, colour.g, colour.b,
+                colour.a);
 
       add_to_batch(baked->view);
 
-      pen_x += g.advance_x;
+      pen_x += advance;
     }
   }
 
@@ -681,16 +708,25 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (!begin_primitive(white_view_))
       return;
     const ColourF colour = unpack_colour(cmd.colour);
+    const float sx = world_view_active_ ? 1.f : screen_scale_.x;
+    const float sy = world_view_active_ ? 1.f : screen_scale_.y;
 
-    emit_quad(batch_vertices_, cmd.position.x, cmd.position.y, cmd.size.x, cmd.size.y, 0.f, 0.f, 1.f, 1.f, colour.r,
-              colour.g, colour.b, colour.a);
+    emit_quad(batch_vertices_, cmd.position.x * sx, cmd.position.y * sy, cmd.size.x * sx, cmd.size.y * sy, 0.f, 0.f,
+              1.f, 1.f, colour.r, colour.g, colour.b, colour.a);
 
     add_to_batch(white_view_);
   }
 
   void SokolRenderer::draw(const DrawLine &cmd) {
-    const float dx = cmd.end.x - cmd.start.x;
-    const float dy = cmd.end.y - cmd.start.y;
+    const float sx = world_view_active_ ? 1.f : screen_scale_.x;
+    const float sy = world_view_active_ ? 1.f : screen_scale_.y;
+
+    const float sx0 = cmd.start.x * sx;
+    const float sy0 = cmd.start.y * sy;
+    const float sx1 = cmd.end.x * sx;
+    const float sy1 = cmd.end.y * sy;
+    const float dx = sx1 - sx0;
+    const float dy = sy1 - sy0;
     const float len = std::sqrt((dx * dx) + (dy * dy));
     if (len < 0.0001f)
       return;
@@ -699,15 +735,16 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       return;
 
     const ColourF colour = unpack_colour(cmd.colour);
-    const float hw = cmd.thickness * 0.5f;
+    // Thickness is authored in logical points, so it tracks the mean physical scale.
+    const float hw = cmd.thickness * 0.5f * (0.5f * (sx + sy));
     const float nx = dx / len;
     const float ny = dy / len;
     const float px = -ny * hw;
     const float py = nx * hw;
 
-    emit_quad_verts(batch_vertices_, {.x = cmd.start.x + px, .y = cmd.start.y + py},
-                    {.x = cmd.start.x - px, .y = cmd.start.y - py}, {.x = cmd.end.x - px, .y = cmd.end.y - py},
-                    {.x = cmd.end.x + px, .y = cmd.end.y + py}, colour.r, colour.g, colour.b, colour.a);
+    emit_quad_verts(batch_vertices_, {.x = sx0 + px, .y = sy0 + py}, {.x = sx0 - px, .y = sy0 - py},
+                    {.x = sx1 - px, .y = sy1 - py}, {.x = sx1 + px, .y = sy1 + py}, colour.r, colour.g, colour.b,
+                    colour.a);
 
     add_to_batch(white_view_);
   }
@@ -717,7 +754,9 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (baked == nullptr)
       return 0.f;
 
-    // Report the widest line, matching how draw(DrawText) lays multi-line text out.
+    // Advances are baked at the physical font size (see ensure_metrics); convert back to logical
+    // window points so the result matches the logical char_size callers passed in, and report the
+    // widest line, matching how draw(DrawText) lays multi-line text out.
     const BakedSize &baked_data = baked->data;
     float widest_line = 0.f;
     float line_width = 0.f;
@@ -729,7 +768,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       }
       const auto c = static_cast<unsigned char>(ch);
       if (c >= 32 && c < 128)
-        line_width += baked_data.glyphs[c].advance_x;
+        line_width += to_logical(static_cast<float>(baked_data.glyphs[c].advance_x), screen_scale_.x);
     }
     return std::max(widest_line, line_width);
   }

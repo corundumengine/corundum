@@ -77,6 +77,13 @@ namespace corundum::platform {
    * Concrete implementations are created via the platform factory
    * (create_platform() in platform_factory.hpp).
    *
+   * Coordinate spaces: draw commands issued between set_world_view() and reset_screen_view() are
+   * interpreted in world units. Commands issued outside that bracket are in logical window points;
+   * a high-DPI backend scales them to the display's physical pixels internally, so callers never
+   * need to know the content scale. Font sizes passed to draw(DrawText) and measure_text() are
+   * logical points and are rasterised at the display's physical resolution by such a backend.
+   * (The null backend ignores the content scale, since it draws nothing.)
+   *
    * Draw commands are only consumed inside a begin_frame()/end_frame() bracket; draws
    * issued outside one, or referencing an invalid resource ID, are discarded.
    *
@@ -95,10 +102,10 @@ namespace corundum::platform {
     [[nodiscard]] virtual std::expected<uint32_t, std::string> load_font(std::string_view path) = 0;
 
     /// Set the world camera rect (top-left and viewport size, in world pixels) and zoom.
-    /// Subsequent draws are interpreted in world space until reset_screen_view().
+    /// Subsequent draws are interpreted in world units until reset_screen_view().
     virtual void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) = 0;
 
-    /// Return to screen-space drawing.
+    /// Return to screen-space drawing, where coordinates are logical window points.
     virtual void reset_screen_view() = 0;
 
     /** @brief Start a frame's default render pass, clearing to @p clear_colour.
