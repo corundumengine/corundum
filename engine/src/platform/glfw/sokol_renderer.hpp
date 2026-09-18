@@ -23,7 +23,11 @@ namespace corundum::platform::glfw {
    * @param[in] gpu_ctx  A fully-initialised GpuContext with an active sokol device.
    *
    * @return Owning pointer to the initialised Renderer.
+   *
+   * @note The shader sources are Metal (MSL) only, matching the current macOS/Metal
+   *       support in GpuContext; the D3D11 and GLCore paths are not implemented yet.
    */
-  [[nodiscard]] std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx);
+  [[nodiscard]] std::unique_ptr<corundum::platform::Renderer>
+  make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx);
 
 } // namespace corundum::platform::glfw
