@@ -97,12 +97,18 @@ set_target_properties(loom PROPERTIES UNITY_BUILD OFF)
 # ── Mapview Tool (headless) ─────────────────────────────────────────────────────
 # A CLI that renders a top-down overview PNG of a chunk-based world from its tilemaps.
 # Links only the engine's parsing library (engine) + stb headers — no GLFW/sokol.
+#
+# mapview_main.cpp defines STB_IMAGE_IMPLEMENTATION itself, so this executable must
+# never link engine_platform_glfw (which compiles the same implementation in
+# glfw/stb_impl.cpp) — that would be a duplicate-symbol link error.
 add_executable(mapview
     mapview/mapview_main.cpp
 )
 
+# stb is third-party: SYSTEM keeps its warnings and clang-tidy findings out of this
+# target, which builds under -Werror (see engine/src/platform/CMakeLists.txt).
 target_include_directories(mapview
-    PRIVATE
+    SYSTEM PRIVATE
         ${stb_SOURCE_DIR}
 )
 

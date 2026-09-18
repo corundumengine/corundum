@@ -32,9 +32,14 @@ endif()
 
 add_library(engine_platform_glfw STATIC ${PLATFORM_GLFW_SOURCES})
 
+# stb is third-party: SYSTEM keeps its warnings and clang-tidy findings out of
+# this target, which builds under -Werror (see CompilerWarnings.cmake).
 target_include_directories(engine_platform_glfw
     PRIVATE
         ${sokol_SOURCE_DIR}
+)
+target_include_directories(engine_platform_glfw
+    SYSTEM PRIVATE
         ${stb_SOURCE_DIR}
 )
 
