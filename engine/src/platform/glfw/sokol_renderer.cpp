@@ -24,6 +24,7 @@
 #include <expected>
 #include <memory>
 #include <print>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -338,8 +339,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
     // ── 1x1 white RGBA texture for DrawRect ────────────────────────────────
     const std::array<uint8_t, 4> white{255, 255, 255, 255};
-    white_tex_ = make_rgba8_image(white.data(), 1, 1, "texture");
-    white_view_ = make_texture_view(white_tex_);
+    white_tex_ = make_rgba8_image(white, 1, 1, "white_1x1");
+    white_view_ = make_texture_view(white_tex_, "white_1x1");
 
     // ── Sampler ────────────────────────────────────────────────────────────
     sg_sampler_desc samdesc{};
@@ -416,7 +417,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (atlas->data.atlas_w <= 0 || atlas->data.atlas_h <= 0 || atlas->data.pixels.empty())
       return nullptr;
 
-    atlas->image = make_rgba8_image(atlas->data.pixels.data(), atlas->data.atlas_w, atlas->data.atlas_h, "texture");
+    atlas->image = make_rgba8_image(atlas->data.pixels, atlas->data.atlas_w, atlas->data.atlas_h, "font_atlas");
     if (atlas->image.id == 0) {
       // Keep the CPU pixels so a later frame can retry the upload, but stop retrying on
       // every draw call so a permanently failing device doesn't flood stderr.
@@ -424,7 +425,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       failed_keys_.insert(key);
       return nullptr;
     }
-    atlas->view = make_texture_view(atlas->image);
+    atlas->view = make_texture_view(atlas->image, "font_atlas");
     atlas->data.pixels.clear();
     atlas->data.pixels.shrink_to_fit();
     return atlas;
@@ -507,14 +508,15 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (pixels == nullptr)
       return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
 
-    const auto image = make_rgba8_image(pixels, width, height, "texture");
+    const auto image =
+        make_rgba8_image(std::span<const uint8_t>{pixels, rgba8_byte_count(width, height)}, width, height, key.c_str());
     stbi_image_free(pixels);
 
-    if (sg_query_image_state(image) != SG_RESOURCESTATE_VALID)
+    if (image.id == 0)
       return std::unexpected(std::string{"sokol: failed to create image for '"} + key + "'");
 
-    const auto view = make_texture_view(image);
-    if (sg_query_view_state(view) != SG_RESOURCESTATE_VALID) {
+    const auto view = make_texture_view(image, key.c_str());
+    if (view.id == 0) {
       sg_destroy_image(image);
       return std::unexpected(std::string{"sokol: failed to create texture view for '"} + key + "'");
     }

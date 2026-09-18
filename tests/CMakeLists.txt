@@ -103,6 +103,18 @@ else()
     message(STATUS "render-scale tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
+# texture_byte_size.hpp is likewise a pure internal header (the sokol upload wrapper that consumes it
+# is not linkable from tests); gate it the same way.
+set(_texture_byte_size_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/texture_byte_size.hpp")
+if(EXISTS "${_texture_byte_size_header}")
+    target_sources(corundum_tests PRIVATE test_texture_byte_size.cpp)
+    target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw
+    )
+else()
+    message(STATUS "texture byte-size tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 # Link to engine and doctest. engine_platform_null is also pulled in so the
 # lifecycle tests can adopt a null Window/GpuContext/Renderer — it adds no
 # runtime cost for the rest of the suite because no other test touches it.

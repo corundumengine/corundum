@@ -4,6 +4,7 @@
 #include <corundum/platform/texture_cache.hpp>
 
 #include "sokol_texture_upload.hpp"
+#include "texture_byte_size.hpp"
 
 #include <corundum/platform/texture_slot_table.hpp>
 #include <sokol_gfx.h>
@@ -13,6 +14,7 @@
 #include <expected>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -47,9 +49,11 @@ namespace corundum::platform {
       return sg_make_sampler(&desc);
     }
 
-    /** @brief False when the device rejected any handle in @p handles. */
+    /** @brief False unless every handle in @p handles is usable for drawing. */
     bool handles_valid(const TextureHandles &handles) {
-      return handles.image.id != 0 && handles.sampler.id != 0 && handles.view.id != 0;
+      return sg_query_image_state(handles.image) == SG_RESOURCESTATE_VALID &&
+             sg_query_sampler_state(handles.sampler) == SG_RESOURCESTATE_VALID &&
+             sg_query_view_state(handles.view) == SG_RESOURCESTATE_VALID;
     }
 
     /** @brief Release every valid handle in @p handles. */
@@ -90,13 +94,14 @@ namespace corundum::platform {
     if (pixels == nullptr)
       return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
 
-    const sg_image image = glfw::make_rgba8_image(pixels, w, h, "texture_cache");
+    const sg_image image =
+        glfw::make_rgba8_image(std::span<const uint8_t>{pixels, glfw::rgba8_byte_count(w, h)}, w, h, "texture_cache");
     stbi_image_free(pixels);
 
     const TextureHandles handles{
         .image = image,
         .sampler = make_sampler(WrapMode::Clamp),
-        .view = glfw::make_texture_view(image),
+        .view = glfw::make_texture_view(image, "texture_cache"),
     };
     if (!handles_valid(handles)) {
       destroy_handles(handles);
@@ -117,12 +122,14 @@ namespace corundum::platform {
     if (rgba == nullptr)
       return std::unexpected(std::string{"TextureCache: texture pixels are null"});
 
-    const sg_image image = glfw::make_rgba8_image(static_cast<const uint8_t *>(rgba), static_cast<int>(w),
-                                                  static_cast<int>(h), "texture_cache");
+    const auto *pixels = static_cast<const uint8_t *>(rgba);
+    const sg_image image = glfw::make_rgba8_image(
+        std::span<const uint8_t>{pixels, glfw::rgba8_byte_count(static_cast<int>(w), static_cast<int>(h))},
+        static_cast<int>(w), static_cast<int>(h), "texture_cache");
     const TextureHandles handles{
         .image = image,
         .sampler = make_sampler(wrap),
-        .view = glfw::make_texture_view(image),
+        .view = glfw::make_texture_view(image, "texture_cache"),
     };
     if (!handles_valid(handles)) {
       destroy_handles(handles);
