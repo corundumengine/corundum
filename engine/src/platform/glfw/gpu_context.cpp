@@ -31,7 +31,7 @@ namespace corundum::platform {
     if (glfw_win == nullptr)
       return std::unexpected("GpuContext::create: window is not a GLFW window");
 
-    ::GLFWwindow *raw = glfw_win->glfw_window();
+    auto *raw = static_cast<::GLFWwindow *>(glfw_win->native_handle());
     if (raw == nullptr)
       return std::unexpected("GpuContext::create: window has no GLFW handle");
 

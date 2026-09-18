@@ -14,7 +14,14 @@
 struct GLFWwindow;
 
 namespace corundum::platform::glfw {
-  enum class WindowError : std::uint8_t { CreationFailed };
+  /// @brief Why GLFWWindow::create() failed.
+  enum class WindowError : std::uint8_t {
+    InitializationFailed, ///< glfwInit() could not bring GLFW up.
+    CreationFailed,       ///< GLFW could not create the window.
+  };
+
+  /// @brief Human-readable form of @p error, for diagnostics.
+  [[nodiscard]] std::string_view to_string(WindowError error) noexcept;
 
   class GLFWWindow final : public corundum::platform::Window {
   public:
@@ -34,12 +41,13 @@ namespace corundum::platform::glfw {
 
     void close() override;
     void poll_game_input(corundum::input::InputState &input) override;
+
+    /// @return {0, 0} once the underlying GLFW window no longer exists.
     [[nodiscard]] std::pair<int, int> size() const override;
+
     void set_vsync(bool enabled) override;
 
     [[nodiscard]] void *native_handle() const noexcept override;
-
-    [[nodiscard]] ::GLFWwindow *glfw_window() const noexcept;
 
   private:
     /// Private constructor to force usage of the factory method.

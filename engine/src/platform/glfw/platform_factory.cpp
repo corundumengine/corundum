@@ -40,14 +40,14 @@ namespace corundum::platform {
                                                                     std::string_view title) {
     auto result = glfw::GLFWWindow::create(width, height, title);
     if (!result)
-      return std::unexpected("Failed to create GLFW window");
+      return std::unexpected(std::format("Failed to create GLFW window: {}", glfw::to_string(result.error())));
     return std::move(*result);
   }
 
   std::expected<PlatformContext, std::string> create_platform(unsigned width, unsigned height, std::string_view title) {
     auto window_result = glfw::GLFWWindow::create(width, height, title);
     if (!window_result)
-      return std::unexpected("Failed to create GLFW window");
+      return std::unexpected(std::format("Failed to create GLFW window: {}", glfw::to_string(window_result.error())));
 
     auto window_ptr = std::move(*window_result);
 

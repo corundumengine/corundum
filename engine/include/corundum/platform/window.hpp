@@ -10,6 +10,8 @@ namespace corundum::platform {
 
   /** @brief Abstract OS window. Concrete implementations live in the platform layer.
    *
+   *  @note Corundum is single-window by design: in-game UI (world, panels, maps) is
+   *        drawn inside this window, never in additional OS windows.
    *  @note Not thread-safe. Call only from the main thread.
    */
   class Window {

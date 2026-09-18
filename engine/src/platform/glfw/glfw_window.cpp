@@ -7,36 +7,34 @@
 #include <corundum/input/actions.hpp>
 
 #include <GLFW/glfw3.h>
-#include <cstdio>
-#include <expected>
-#include <memory>
-#include <string_view>
-#include <utility>
 
-#ifdef __APPLE__
+#ifdef SOKOL_METAL
 #include "glfw_window_metal.h"
 #endif
 
-#include <atomic>
-#include <cstdlib>
-#include <exception>
-#include <print>
+#include <cstddef>
+#include <expected>
+#include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 
 namespace corundum::platform::glfw {
 
   namespace {
-    std::atomic<int> s_glfw_refcount{0};
+    /// Main-thread-only refcount: the first window brings GLFW up, the last tears it down.
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): TU-local, must stay mutable.
+    int s_glfw_refcount = 0;
 
-    void glfw_init_if_needed() {
-      if (s_glfw_refcount.fetch_add(1, std::memory_order_relaxed) == 0 && glfwInit() == GLFW_FALSE) {
-        std::println(stderr, "[glfw] glfwInit() failed");
-        std::terminate();
-      }
+    [[nodiscard]] bool glfw_init_if_needed() {
+      if (s_glfw_refcount == 0 && glfwInit() == GLFW_FALSE)
+        return false;
+      ++s_glfw_refcount;
+      return true;
     }
 
     void glfw_term_if_done() {
-      if (s_glfw_refcount.fetch_sub(1, std::memory_order_relaxed) == 1)
+      if (--s_glfw_refcount == 0)
         glfwTerminate();
     }
 
@@ -44,7 +42,7 @@ namespace corundum::platform::glfw {
       corundum::input::InputState input{};
       JoystickAxisState joystick_axis{};
 
-#ifdef __APPLE__
+#ifdef SOKOL_METAL
       MetalLayer *metal_layer{nullptr};
 #endif
     };
@@ -77,7 +75,7 @@ namespace corundum::platform::glfw {
       }
     }
 
-#ifdef __APPLE__
+#ifdef SOKOL_METAL
     void content_scale_callback(GLFWwindow *win, float /*xscale*/, float /*yscale*/) noexcept {
       const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
       if (data != nullptr && data->metal_layer != nullptr) {
@@ -90,14 +88,22 @@ namespace corundum::platform::glfw {
   struct GLFWWindow::Impl {
     GLFWwindow *win{nullptr};
     WindowData data{};
-#ifdef __APPLE__
-    MetalLayer *metal_layer{nullptr};
-#endif
   };
+
+  std::string_view to_string(WindowError error) noexcept {
+    switch (error) {
+      case WindowError::InitializationFailed:
+        return "GLFW initialization failed";
+      case WindowError::CreationFailed:
+        return "GLFW window creation failed";
+    }
+    return "unknown GLFW window error";
+  }
 
   std::expected<std::unique_ptr<GLFWWindow>, WindowError> GLFWWindow::create(unsigned width, unsigned height,
                                                                              std::string_view title) {
-    glfw_init_if_needed();
+    if (!glfw_init_if_needed())
+      return std::unexpected(WindowError::InitializationFailed);
 
     // If the constructor below throws, release the refcount it was created under; once the
     // window object exists its destructor owns the decrement.
@@ -133,8 +139,9 @@ namespace corundum::platform::glfw {
   }
 
   GLFWWindow::GLFWWindow(unsigned width, unsigned height, std::string_view title) : impl_{std::make_unique<Impl>()} {
+    glfwDefaultWindowHints();
 
-#ifdef __APPLE__
+#ifdef SOKOL_METAL
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #else
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -152,9 +159,8 @@ namespace corundum::platform::glfw {
       glfwSetScrollCallback(impl_->win, scroll_callback);
       glfwSetWindowCloseCallback(impl_->win, window_close_callback);
 
-#ifdef __APPLE__
-      impl_->metal_layer = metal_setup_layer(impl_->win);
-      impl_->data.metal_layer = impl_->metal_layer;
+#ifdef SOKOL_METAL
+      impl_->data.metal_layer = metal_setup_layer(impl_->win);
       glfwSetWindowContentScaleCallback(impl_->win, content_scale_callback);
 #else
       glfwMakeContextCurrent(impl_->win);
@@ -165,12 +171,13 @@ namespace corundum::platform::glfw {
   GLFWWindow::~GLFWWindow() {
     if (impl_) {
       if (impl_->win != nullptr) {
-#ifdef __APPLE__
-        if (impl_->metal_layer != nullptr) {
+#ifdef SOKOL_METAL
+        if (impl_->data.metal_layer != nullptr) {
           // Destroying the window below can drive the content-scale callback, so stop it
           // reaching the handle before the handle is freed.
+          MetalLayer *layer = impl_->data.metal_layer;
           impl_->data.metal_layer = nullptr;
-          metal_teardown_layer(impl_->metal_layer);
+          metal_teardown_layer(layer);
         }
 #endif
         glfwDestroyWindow(impl_->win);
@@ -191,6 +198,8 @@ namespace corundum::platform::glfw {
   }
 
   void GLFWWindow::poll_game_input(corundum::input::InputState &input) {
+    if (!impl_ || impl_->win == nullptr)
+      return;
     corundum::input::clear_pressed(impl_->data.input);
     glfwPollEvents();
     poll_joystick(impl_->data.input, impl_->data.joystick_axis);
@@ -214,9 +223,9 @@ namespace corundum::platform::glfw {
   void GLFWWindow::set_vsync(bool enabled) {
     if (!impl_ || impl_->win == nullptr)
       return;
-#ifdef __APPLE__
-    if (impl_->metal_layer != nullptr)
-      metal_set_display_sync(impl_->metal_layer, enabled ? 1 : 0);
+#ifdef SOKOL_METAL
+    if (impl_->data.metal_layer != nullptr)
+      metal_set_display_sync(impl_->data.metal_layer, enabled ? 1 : 0);
 #else
     glfwMakeContextCurrent(impl_->win);
     glfwSwapInterval(enabled ? 1 : 0);
@@ -224,10 +233,6 @@ namespace corundum::platform::glfw {
   }
 
   void *GLFWWindow::native_handle() const noexcept {
-    return impl_ ? impl_->win : nullptr;
-  }
-
-  ::GLFWwindow *GLFWWindow::glfw_window() const noexcept {
     return impl_ ? impl_->win : nullptr;
   }
 
