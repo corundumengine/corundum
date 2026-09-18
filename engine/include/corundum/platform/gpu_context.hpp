@@ -20,6 +20,8 @@ namespace corundum::platform {
    * renderer and the editor tool host share one device without either of them
    * knowing which graphics backend sits behind it.
    *
+   * @note The device is process-wide, so at most one context may be live; a second
+   *       create() is reported as an error rather than left to the backend.
    * @note Not thread-safe. Call only from the render thread.
    */
   class GpuContext {
@@ -28,6 +30,8 @@ namespace corundum::platform {
      *
      * @pre @p window must come from the linked platform backend; a window from
      *      another backend is reported as an error rather than downcast unchecked.
+     * @pre @p window must outlive the returned context, which borrows its native
+     *      handle and render target.
      * @return Owning pointer on success, or std::unexpected with the reason.
      */
     [[nodiscard]] static std::expected<std::unique_ptr<GpuContext>, std::string> create(Window &window);
