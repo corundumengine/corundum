@@ -62,12 +62,12 @@ namespace corundum::quest {
     }
 
     /** @brief Range-for support for iterating all loaded quests (id, quest) pairs. */
-    auto begin() const noexcept {
+    [[nodiscard]] auto begin() const noexcept {
       return quests_.begin();
     }
 
     /** @brief Iterator past the last loaded quest. */
-    auto end() const noexcept {
+    [[nodiscard]] auto end() const noexcept {
       return quests_.end();
     }
 

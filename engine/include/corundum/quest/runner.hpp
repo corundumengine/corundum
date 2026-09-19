@@ -18,6 +18,10 @@ namespace corundum::quest {
    * Registry::find() from the start()/advance() call that must follow it —
    * an unknown quest id becomes a returned error instead of a call site that
    * forgot to check for nullptr.
+   *
+   * Error text is phrased for dialogue-event logging (the primary caller), e.g.
+   * `quest_start("x") references unknown quest`; treat it as a diagnostic, not
+   * as a stable interface for other callers.
    */
   class Runner {
   public:
@@ -41,6 +45,8 @@ namespace corundum::quest {
     [[nodiscard]] std::expected<void, std::string> advance(std::string_view quest_id, std::string_view stage_name);
 
   private:
+    // Pointers, not references: the project's clang-tidy config rejects reference data members
+    // (cppcoreguidelines-avoid-const-or-ref-data-members). Both are non-null by construction.
     const Registry *registry_;
     corundum::world::FlagStore *flags_;
   };

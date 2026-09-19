@@ -1008,6 +1008,28 @@ TEST_CASE("Runner: advance on a known id moves the flag to the named stage") {
   CHECK(quest::get_stage("test_quest", flags) == 2);
 }
 
+TEST_CASE("Runner: start on an already-underway quest returns ok without moving the flag") {
+  quest::Registry registry;
+  registry.add(make_test_quest()); // stage "middle" has sequence 2
+  FlagStore flags;
+  quest::Runner runner{registry, flags};
+
+  REQUIRE(runner.advance("test_quest", "middle").has_value());
+  REQUIRE(runner.start("test_quest").has_value());
+  CHECK(quest::get_stage("test_quest", flags) == 2);
+}
+
+TEST_CASE("Runner: advance to a stage the quest does not define returns ok without moving the flag") {
+  quest::Registry registry;
+  registry.add(make_test_quest());
+  FlagStore flags;
+  quest::Runner runner{registry, flags};
+
+  REQUIRE(runner.start("test_quest").has_value()); // stage "start" has sequence 1
+  REQUIRE(runner.advance("test_quest", "nonexistent").has_value());
+  CHECK(quest::get_stage("test_quest", flags) == 1);
+}
+
 // ── auto_advance_to ───────────────────────────────────────────────────────────
 
 TEST_CASE("tick_quests: stage with auto_advance_to waits for its done_condition") {
