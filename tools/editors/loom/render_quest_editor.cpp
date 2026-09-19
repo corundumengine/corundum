@@ -286,11 +286,6 @@ namespace tools::loom {
 
     // ── Validation section at bottom of editor ──
     ImGui::Separator();
-    if (state.quest_doc_.quest_id.empty())
-      ImGui::TextColored(k_warning_col, "  Quest ID is empty");
-    if (state.quest_doc_.name.empty())
-      ImGui::TextColored(k_warning_col, "  Quest name is empty");
-
     const corundum::quest::ValidationResult validation = corundum::quest::validate(state.quest_doc_);
     for (const auto &msg : validation.errors)
       ImGui::TextColored(k_warning_col, "  %s", msg.c_str());

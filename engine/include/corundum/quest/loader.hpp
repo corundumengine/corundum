@@ -15,12 +15,12 @@ namespace corundum::quest {
    *
    * Migrates the file to the current schema version first, then rejects it if
    * the version is newer than the engine supports, if it fails schema
-   * validation, or if it breaks a quest invariant: an empty or non-compiling
-   * `done_condition`, duplicate stage names or sequences, no resolved stage, or
-   * an `advances_to` / `auto_advance_to` target naming no stage. Non-fatal
-   * diagnostics — a `type` field other than "quest", or a stage list whose
-   * order disagrees with its sequence integers — are printed to stderr and do
-   * not fail the load.
+   * validation, or if it breaks a quest invariant: an empty quest id or name,
+   * an empty or non-compiling `done_condition`, duplicate stage names or
+   * sequences, no resolved stage, or an `advances_to` / `auto_advance_to`
+   * target naming no stage. Non-fatal diagnostics — a `type` field other than
+   * "quest", or a stage list whose order disagrees with its sequence integers
+   * — are printed to stderr and do not fail the load.
    *
    * @param path Filesystem path to the quest JSON file.
    * @return The parsed Quest on success, or a message describing the failure.

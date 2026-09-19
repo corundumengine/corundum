@@ -127,8 +127,8 @@ namespace corundum::quest {
 
   /** @brief Validate a Quest's stage-uniqueness, sequence, and resolution invariants.
    *
-   *  Rejects an empty quest id or stage name, duplicate stage names or
-   *  sequences, a non-positive stage sequence, a failed stage that is not also
+   *  Rejects an empty quest id, quest name, or stage name, duplicate stage names
+   *  or sequences, a non-positive stage sequence, a failed stage that is not also
    *  resolved, a quest with no resolved stage, and an `advances_to` /
    *  `auto_advance_to` target naming no stage. Quest loaders run this on every
    *  parsed quest, so it is also the check that catches a quest built or edited

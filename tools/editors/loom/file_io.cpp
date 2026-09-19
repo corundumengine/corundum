@@ -69,6 +69,12 @@ namespace tools::loom {
   std::expected<void, std::string> save_quest_file(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
+
+    // Never write a quest the loader would reject — the file format is a contract.
+    const corundum::quest::ValidationResult validation = corundum::quest::validate(state.quest_doc_);
+    if (!validation.ok())
+      return std::unexpected(validation.errors.front());
+
     return corundum::core::write_json(state.file_path, corundum::quest::serialize(state.quest_doc_));
   }
 

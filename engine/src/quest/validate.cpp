@@ -33,6 +33,11 @@ namespace corundum::quest {
     if (quest.quest_id.empty())
       result.errors.emplace_back("quest has an empty quest_id");
 
+    // The schema requires a non-empty name, so an empty one would serialize to a
+    // file load_quest() rejects.
+    if (quest.name.empty())
+      result.errors.emplace_back("quest has an empty name");
+
     std::vector<std::string> stage_names =
         quest.stages | std::views::transform(&Stage::name) | std::ranges::to<std::vector>();
     std::ranges::sort(stage_names);

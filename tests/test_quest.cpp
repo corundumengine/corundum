@@ -376,6 +376,14 @@ TEST_CASE("validate: empty quest_id is rejected") {
   CHECK(validation.errors.front().find("empty quest_id") != std::string::npos);
 }
 
+TEST_CASE("validate: empty quest name is rejected") {
+  auto q = make_test_quest();
+  q.name.clear();
+  const auto validation = quest::validate(q);
+  CHECK_FALSE(validation.ok());
+  CHECK(validation.errors.front().find("empty name") != std::string::npos);
+}
+
 TEST_CASE("validate: empty stage name is rejected") {
   auto q = make_test_quest();
   q.stages[0].name.clear();
@@ -403,6 +411,7 @@ TEST_CASE("validate: duplicate sequences") {
 TEST_CASE("validate: duplicate sequence is not also reported as an order warning") {
   quest::Quest q;
   q.quest_id = "dup_warn";
+  q.name = "Dup Warn";
   q.stages.push_back({.name = "a", .resolved = false, .sequence = 1});
   q.stages.push_back({.name = "b", .resolved = true, .sequence = 1});
   const auto validation = quest::validate(q);
@@ -414,6 +423,7 @@ TEST_CASE("validate: duplicate sequence is not also reported as an order warning
 TEST_CASE("validate: no resolved stage") {
   quest::Quest q;
   q.quest_id = "unresolved";
+  q.name = "Unresolved";
   q.stages.push_back({.failed = false, .name = "a", .objectives = {}, .resolved = false, .sequence = 1});
   q.stages.push_back({.failed = false, .name = "b", .objectives = {}, .resolved = false, .sequence = 2});
   const std::vector<std::string> errors = quest::validate(q).errors;
@@ -439,6 +449,7 @@ TEST_CASE("validate: non-positive stage sequences are rejected") {
 TEST_CASE("validate: failed stage that is not resolved is rejected") {
   quest::Quest q;
   q.quest_id = "unnormalized";
+  q.name = "Unnormalized";
   q.stages.push_back({.failed = false, .name = "end", .objectives = {}, .resolved = true, .sequence = 1});
   q.stages.push_back({.failed = true, .name = "bad_end", .objectives = {}, .resolved = false, .sequence = 2});
 
