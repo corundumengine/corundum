@@ -16,6 +16,7 @@ set(ENGINE_SOURCES
     src/core/game_config.cpp
     src/core/json_io.cpp
     src/core/json_schema.cpp
+    src/core/schema_version.cpp
     src/core/user_data_dir.cpp
     src/debug/debug_overlay.cpp
     src/dialogue/action.cpp

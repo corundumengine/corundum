@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/json_schema.hpp>
+#include <corundum/core/schema_version.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/loader.hpp>
 #include <corundum/quest/quest.hpp>
@@ -33,32 +34,27 @@ namespace corundum::quest {
     };
 
     constexpr std::string_view k_ctx = "quest";
-
-    /// Parse the optional "schema_version" field. Absent -> legacy version 1.
-    std::expected<int, std::string> parse_schema_version(const json &j, const std::string &path) {
-      if (!j.contains("schema_version"))
-        return 1;
-      if (!j["schema_version"].is_number_integer())
-        return std::unexpected(std::format("Quest '{}' field 'schema_version' must be an integer", path));
-      return j["schema_version"].get<int>();
-    }
+    constexpr std::string_view k_asset_label = "Quest";
 
     /// Migrates a quest JSON object in place from @p from_version up to
     /// k_quest_schema_version. No migrations exist yet — schema_version 1 is both
     /// the legacy (absent-field) format and the current format, so this is a no-op
     /// today. Future steps are appended in order and never edited once shipped.
-    std::expected<void, std::string> migrate_quest_json(json & /*j*/, int from_version, const std::string &path) {
-      if (from_version < 1)
-        return std::unexpected(std::format("Quest '{}' has invalid schema_version {}", path, from_version));
+    std::expected<void, std::string> migrate_quest_json(json & /*j*/, int /*from_version*/,
+                                                        const std::string & /*path*/) {
       return {};
     }
 
     Objective parse_objective(const json &obj_json, const std::string &ctx) {
-      // Schema guarantees: text is present and non-empty.
+      // Schema guarantees: text is present.
       Objective obj;
       obj.text = obj_json["text"].get<std::string>();
       if (obj_json.contains("done_condition")) {
         const std::string cond = obj_json["done_condition"].get<std::string>();
+        // An empty expression compiles to a constant-true node, which would
+        // silently mark the objective done (and auto-advance its stage).
+        if (cond.empty())
+          throw LoadError(std::format("[{}] \"done_condition\" must not be empty if present", ctx));
         auto compiled = dialogue::compile(cond);
         if (!compiled)
           throw LoadError(std::format("[{}] done_condition invalid: {}", ctx, compiled.error().message));
@@ -106,14 +102,8 @@ namespace corundum::quest {
       return stage;
     }
 
-    /// A quest JSON that has been parsed, migrated, and schema-validated.
-    struct ValidatedRoot {
-      json root;
-      int schema_version = k_quest_schema_version;
-    };
-
     /// Read @p path, migrate it forward, and return its schema-validated root.
-    ValidatedRoot load_validated_root(const std::string &path) {
+    json load_validated_root(const std::string &path) {
       std::ifstream f(path);
       if (!f)
         throw LoadError(std::format("cannot open quest file: {}", path));
@@ -127,19 +117,10 @@ namespace corundum::quest {
       }();
 
       // Schema version is read before validation so migrations run first.
-      auto version_result = parse_schema_version(root, path);
-      if (!version_result)
-        throw LoadError(std::move(version_result).error());
-      const int schema_version = *version_result;
-      if (schema_version > k_quest_schema_version)
-        throw LoadError(std::format("Quest '{}' has schema_version {}, newer than this engine supports (max {}) — "
-                                    "update the engine",
-                                    path, schema_version, k_quest_schema_version));
-      if (schema_version < k_quest_schema_version) {
-        auto mig = migrate_quest_json(root, schema_version, path);
-        if (!mig)
-          throw LoadError(std::move(mig).error());
-      }
+      auto prepared =
+          core::prepare_schema_version(root, k_quest_schema_version, k_asset_label, path, migrate_quest_json);
+      if (!prepared)
+        throw LoadError(std::move(prepared).error());
 
       auto validated = core::schema_catalog().quest_schema().validate(root);
       if (!validated)
@@ -150,17 +131,17 @@ namespace corundum::quest {
         std::println(stderr, R"([warning] quest file {} has type "{}" instead of "quest")", path,
                      root["type"].get<std::string>());
 
-      return ValidatedRoot{.root = std::move(root), .schema_version = schema_version};
+      return root;
     }
 
     /// Build a Quest from an already schema-validated root.
     Quest load_quest_impl(const std::string &path) {
-      const ValidatedRoot loaded = load_validated_root(path);
-      const json &root = loaded.root;
+      const json root = load_validated_root(path);
 
       // Schema guarantees: id, name, description are present; id and name are non-empty.
       Quest quest;
-      quest.schema_version = loaded.schema_version;
+      // The root was migrated to the current shape, so this describes the loaded data.
+      quest.schema_version = k_quest_schema_version;
       quest.quest_id = root["id"].get<std::string>();
       quest.name = root["name"].get<std::string>();
       quest.description = root["description"].get<std::string>();

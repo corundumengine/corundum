@@ -52,6 +52,7 @@ set(TEST_SOURCES
     test_quest.cpp
     test_render_state.cpp
     test_save.cpp
+    test_schema_version.cpp
     test_spawn_points.cpp
     test_sprite.cpp
     test_sprite_atlas_loader.cpp

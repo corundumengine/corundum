@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/json_schema.hpp>
+#include <corundum/core/schema_version.hpp>
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/dialogue/dialogue.hpp>
@@ -22,6 +23,7 @@
 #include <print>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -37,22 +39,14 @@ namespace corundum::dialogue {
       using std::runtime_error::runtime_error;
     };
 
-    /// Parse the optional "schema_version" field. Absent -> legacy version 1.
-    std::expected<int, std::string> parse_schema_version(const json &j, const std::string &path) {
-      if (!j.contains("schema_version"))
-        return 1;
-      if (!j["schema_version"].is_number_integer())
-        return std::unexpected(std::format("Dialogue '{}' field 'schema_version' must be an integer", path));
-      return j["schema_version"].get<int>();
-    }
+    constexpr std::string_view k_asset_label = "Dialogue";
 
     /// Migrates a dialogue graph JSON object in place from @p from_version up to
     /// k_dialogue_schema_version. No migrations exist yet — schema_version 1 is both
     /// the legacy (absent-field) format and the current format, so this is a no-op
     /// today. Future steps are appended in order and never edited once shipped.
-    std::expected<void, std::string> migrate_graph_json(json & /*j*/, int from_version, const std::string &path) {
-      if (from_version < 1)
-        return std::unexpected(std::format("Dialogue '{}' has invalid schema_version {}", path, from_version));
+    std::expected<void, std::string> migrate_graph_json(json & /*j*/, int /*from_version*/,
+                                                        const std::string & /*path*/) {
       return {};
     }
 
@@ -204,14 +198,8 @@ namespace corundum::dialogue {
       return variables;
     }
 
-    /// A graph JSON that has been parsed, migrated, and schema-validated.
-    struct ValidatedRoot {
-      json root;
-      int schema_version = k_dialogue_schema_version;
-    };
-
     /// Read @p path and return its schema-validated root object.
-    ValidatedRoot load_validated_root(const std::string &path) {
+    json load_validated_root(const std::string &path) {
       std::ifstream file(path);
       if (!file)
         throw LoadError(std::format("cannot open dialogue file: {}", path));
@@ -225,19 +213,10 @@ namespace corundum::dialogue {
       }();
 
       // Schema version is read before validation so migrations run first.
-      auto version_result = parse_schema_version(root, path);
-      if (!version_result)
-        throw LoadError(std::move(version_result).error());
-      const int schema_version = *version_result;
-      if (schema_version > k_dialogue_schema_version)
-        throw LoadError(std::format("Dialogue '{}' has schema_version {}, newer than this engine supports (max {}) — "
-                                    "update the engine",
-                                    path, schema_version, k_dialogue_schema_version));
-      if (schema_version < k_dialogue_schema_version) {
-        auto migration = migrate_graph_json(root, schema_version, path);
-        if (!migration)
-          throw LoadError(std::move(migration).error());
-      }
+      auto prepared =
+          core::prepare_schema_version(root, k_dialogue_schema_version, k_asset_label, path, migrate_graph_json);
+      if (!prepared)
+        throw LoadError(std::move(prepared).error());
 
       auto validated = core::schema_catalog().dialogue_graph_schema().validate(root);
       if (!validated)
@@ -248,16 +227,16 @@ namespace corundum::dialogue {
         std::println(stderr, R"([warning] dialogue file {} has type "{}" instead of "graph")", path,
                      root["type"].get<std::string>());
 
-      return ValidatedRoot{.root = std::move(root), .schema_version = schema_version};
+      return root;
     }
 
     Graph load_graph_impl(const std::string &path) {
-      const ValidatedRoot loaded = load_validated_root(path);
-      const json &root = loaded.root;
+      const json root = load_validated_root(path);
 
       // Schema guarantees: id is present and non-empty.
       Graph graph;
-      graph.schema_version = loaded.schema_version;
+      // The root was migrated to the current shape, so this describes the loaded data.
+      graph.schema_version = k_dialogue_schema_version;
       graph.graph_id = root["id"].get<std::string>();
 
       if (root.contains("speaker") && root["speaker"].is_string())

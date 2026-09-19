@@ -141,6 +141,22 @@ TEST_CASE("quest loader: malformed done_condition is a load error") {
   std::filesystem::remove(tmp);
 }
 
+TEST_CASE("quest loader: empty done_condition is a load error") {
+  // An empty expression compiles to constant-true, so accepting it would silently
+  // complete the objective (and auto-advance its stage).
+  const std::string tmp = "tests/fixtures/_test_empty_done_condition.json";
+  {
+    std::ofstream f(tmp);
+    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+      {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":""}]}
+    ]})";
+  }
+  const auto result = quest::load_quest(tmp);
+  CHECK_FALSE(result.has_value());
+  CHECK(result.error().find("done_condition") != std::string::npos);
+  std::filesystem::remove(tmp);
+}
+
 TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
   const auto result = quest::load_quest("tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
@@ -169,25 +185,29 @@ TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
   CHECK_FALSE(q.stages[3].failed);
 }
 
-TEST_CASE("quest loader: missing type field fails") {
+TEST_CASE("quest loader: missing type field loads") {
   const std::string tmp = "tests/fixtures/_test_no_type.json";
   {
     std::ofstream f(tmp);
-    f << R"({"id":"x","name":"x","description":"","stages":[]})";
+    f << R"({"id":"x","name":"x","description":"","stages":[
+      {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})";
   }
   const auto result = quest::load_quest(tmp);
-  CHECK_FALSE(result.has_value());
+  REQUIRE(result.has_value());
+  CHECK(result->quest_id == "x");
   std::filesystem::remove(tmp);
 }
 
-TEST_CASE("quest loader: wrong type field fails") {
+TEST_CASE("quest loader: wrong type field warns but loads") {
   const std::string tmp = "tests/fixtures/_test_wrong_type.json";
   {
     std::ofstream f(tmp);
-    f << R"({"type":"dialogue","id":"x","name":"x","description":"","stages":[]})";
+    f << R"({"type":"dialogue","id":"x","name":"x","description":"","stages":[
+      {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})";
   }
   const auto result = quest::load_quest(tmp);
-  CHECK_FALSE(result.has_value());
+  REQUIRE(result.has_value());
+  CHECK(result->quest_id == "x");
   std::filesystem::remove(tmp);
 }
 
