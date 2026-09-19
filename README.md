@@ -13,6 +13,8 @@
 
 Forging tools for 2D RPGs. A data-oriented engine and editor toolset in C++23. **Pre-alpha — under active development, expect breakage.**
 
+Follow development on [the devlog](https://corundumengine.com/blog/).
+
 ## Build
 
 ```sh
