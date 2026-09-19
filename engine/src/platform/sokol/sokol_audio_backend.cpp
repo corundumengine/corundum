@@ -19,6 +19,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <expected>
 #include <memory>
@@ -34,6 +35,10 @@ namespace corundum::platform::sokol {
 
     constexpr int k_target_rate = 44100;
     constexpr int k_target_channels = 2;
+
+    /// sokol log levels: 0 = panic, 1 = error, 2 = warning, 3 = info. Surface failures
+    /// only; routine warnings would be noise on the game's stderr.
+    constexpr uint32_t k_max_reported_log_level = 1;
 
     // ── OGG loading (pure function, no instance state) ─────────────────────────
 
@@ -123,6 +128,12 @@ namespace corundum::platform::sokol {
         desc.user_data = this;
         desc.sample_rate = k_target_rate;
         desc.num_channels = k_target_channels;
+        desc.logger.func = [](const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
+                              const char *file, void *) {
+          if (level <= k_max_reported_log_level)
+            std::println(stderr, "[{}] item={} ({}:{}) {}", tag ? tag : "saudio", item_id, file ? file : "?", line,
+                         msg ? msg : "");
+        };
 
         saudio_setup(&desc);
         valid_.store(saudio_isvalid());
