@@ -18,17 +18,19 @@ namespace corundum::quest {
   /** @brief Owns all loaded Quest objects for the session.
    *
    * Keys are the "id" field from each JSON file (== Quest::quest_id).
-   * Mirrors the dialogue::Registry pattern exactly.
    */
   class Registry {
   public:
     /**
      * @brief Scan a directory for *.json files and load each as a Quest.
      *
-     * Bad files are skipped with a stderr message (non-fatal).
+     * Bad files are skipped with a stderr message (non-fatal). Existing
+     * entries are not cleared first, so repeated calls accumulate.
      *
      * @param dir Directory containing quest JSON files.
      * @return Number of quests successfully loaded.
+     * @note A missing or unreadable directory is also reported as 0, with the
+     *       underlying error written to stderr.
      */
     [[nodiscard]] int load_all(const std::filesystem::path &dir);
 
@@ -44,22 +46,28 @@ namespace corundum::quest {
       return quests_.size();
     }
 
-    /** @brief Register a quest directly.
+    /** @brief Register a quest directly, keyed by its quest_id.
      *
-     *  @param quest The quest to register (moved into the registry, keyed
-     *               by quest_id). Useful for tests.
+     *  Unlike load_all(), this path does not run quest::validate.
+     *
+     *  @param quest The quest to register (moved into the registry).
+     *  @return True if the quest was inserted; false if a quest with the same
+     *          quest_id was already present (first registration wins).
+     *  @pre `quest` has already passed quest::validate. Useful for tests and
+     *       callers holding an already-validated quest.
      */
-    void add(Quest quest) {
-      quests_.emplace(quest.quest_id, std::move(quest));
+    bool add(Quest quest) {
+      const std::string id = quest.quest_id;
+      return quests_.emplace(id, std::move(quest)).second;
     }
 
     /** @brief Range-for support for iterating all loaded quests (id, quest) pairs. */
-    [[nodiscard]] auto begin() const noexcept {
+    auto begin() const noexcept {
       return quests_.begin();
     }
 
-    /** @brief Range-for support end sentinel. */
-    [[nodiscard]] auto end() const noexcept {
+    /** @brief Iterator past the last loaded quest. */
+    auto end() const noexcept {
       return quests_.end();
     }
 

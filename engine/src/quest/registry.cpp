@@ -32,11 +32,11 @@ namespace corundum::quest {
         continue;
       }
 
-      const std::string id = result->quest_id;
+      const std::string_view id = result->quest_id;
       if (quests_.contains(id)) {
         std::println(stderr, "[quest] duplicate quest id '{}' — '{}' is shadowed", id, entry.name);
       } else {
-        quests_.emplace(id, std::move(*result));
+        quests_.emplace(std::string(id), std::move(*result));
         ++loaded;
       }
     }

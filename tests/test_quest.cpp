@@ -752,6 +752,34 @@ TEST_CASE("registry load_all loads valid files, skips bad ones") {
   std::filesystem::remove_all(tmp_dir);
 }
 
+TEST_CASE("registry add returns false for a duplicate id and keeps the first quest") {
+  quest::Registry reg;
+
+  auto first = make_test_quest();
+  first.name = "First";
+  CHECK(reg.add(std::move(first)));
+
+  auto second = make_test_quest();
+  second.name = "Second";
+  CHECK_FALSE(reg.add(std::move(second)));
+
+  CHECK(reg.size() == 1);
+  const auto *q = reg.find("test_quest");
+  REQUIRE(q != nullptr);
+  CHECK(q->name == "First");
+}
+
+TEST_CASE("registry add and find are heterogeneously keyed") {
+  quest::Registry reg;
+  CHECK(reg.add(make_test_quest()));
+
+  // A string_view lookup must find the entry owned by the registry's string key.
+  const std::string_view key = "test_quest";
+  const auto *q = reg.find(key);
+  REQUIRE(q != nullptr);
+  CHECK(q->quest_id == "test_quest");
+}
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 TEST_CASE("lifecycle: helped path") {
