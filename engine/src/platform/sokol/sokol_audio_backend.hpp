@@ -10,11 +10,14 @@ namespace corundum::platform::sokol {
 
   /** @brief Create a sokol_audio-backed AudioBackend.
    *
-   * Initialises sokol_audio with a 44100 Hz stereo stream callback.
-   * The returned backend is valid even if saudio_setup() fails — all
-   * operations become no-ops and destruction is safe.
+   * Initialises sokol_audio with a 44100 Hz stereo stream callback. The returned
+   * backend is always usable: if saudio_setup() fails, load_sound() reports an
+   * error, play() and set_master_volume() become no-ops, and destruction is safe.
    *
-   * Must be called from the main thread.
+   * @note sokol_audio is process-global. Only one backend may own it at a time —
+   *       a second instance's setup fails, and destroying one disables audio for
+   *       the whole process.
+   * @note Must be called from the main thread.
    *
    * @return Owning pointer to the initialised AudioBackend.
    */

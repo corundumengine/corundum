@@ -4,19 +4,21 @@
 #include "sokol_audio_backend.hpp"
 
 #define STB_VORBIS_IMPLEMENTATION
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wtautological-compare"
 #endif
 #include <stb_vorbis.c> // NOLINT(bugprone-suspicious-include)
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 
 #include <sokol_audio.h>
 
 #include <algorithm>
-#include <cmath>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <expected>
 #include <memory>
@@ -41,52 +43,63 @@ namespace corundum::platform::sokol {
     };
 
     struct VorbisCloser {
-      void operator()(stb_vorbis *v) const noexcept {
-        if (v)
-          stb_vorbis_close(v);
+      void operator()(stb_vorbis *vorbis) const noexcept {
+        if (vorbis != nullptr)
+          stb_vorbis_close(vorbis);
       }
     };
 
     std::expected<LoadedClip, std::string> load_ogg(std::string_view path) {
       const std::string filename{path};
       int error = 0;
-      std::unique_ptr<stb_vorbis, VorbisCloser> vorbis{stb_vorbis_open_filename(filename.c_str(), &error, nullptr)};
+      const std::unique_ptr<stb_vorbis, VorbisCloser> vorbis{
+          stb_vorbis_open_filename(filename.c_str(), &error, nullptr)};
       if (!vorbis)
         return std::unexpected(std::format("[audio] Failed to open OGG: {}", path));
 
       const auto info = stb_vorbis_get_info(vorbis.get());
-      const int src_channels = info.channels;
-      const int src_rate = info.sample_rate;
-      const int total_samples = stb_vorbis_stream_length_in_samples(vorbis.get());
+      const int source_channels = info.channels;
+      const int source_rate = static_cast<int>(info.sample_rate);
+      if (source_channels < 1 || source_rate < 1)
+        return std::unexpected(std::format("[audio] Unsupported OGG format: {}", path));
 
-      if (total_samples <= 0)
+      // Decode the whole stream in chunks. stb_vorbis_stream_length_in_samples
+      // reports 0 for a valid stream whose last-page granule position is absent,
+      // so the reported length is never trusted.
+      constexpr int k_chunk_frames = 4096;
+      std::vector<float> source;
+      std::vector<float> chunk(static_cast<std::size_t>(k_chunk_frames) * source_channels);
+      for (;;) {
+        const int decoded = stb_vorbis_get_samples_float_interleaved(vorbis.get(), source_channels, chunk.data(),
+                                                                     static_cast<int>(chunk.size()));
+        if (decoded <= 0)
+          break;
+        const auto count = static_cast<std::size_t>(decoded) * source_channels;
+        source.insert(source.end(), chunk.begin(), chunk.begin() + static_cast<std::ptrdiff_t>(count));
+      }
+
+      const int source_frames = static_cast<int>(source.size() / static_cast<std::size_t>(source_channels));
+      if (source_frames == 0)
         return std::unexpected(std::format("[audio] Empty OGG file: {}", path));
 
-      std::vector<float> src(static_cast<std::size_t>(total_samples) * src_channels);
-      const int decoded = stb_vorbis_get_samples_float_interleaved(vorbis.get(), src_channels, src.data(),
-                                                                   static_cast<int>(src.size()));
-
-      if (decoded <= 0)
-        return std::unexpected(std::format("[audio] Failed to decode OGG: {}", path));
-
-      const float ratio = static_cast<float>(k_target_rate) / static_cast<float>(src_rate);
-      const int dst_frames = std::max(1, static_cast<int>(static_cast<float>(decoded) * ratio));
+      const float ratio = static_cast<float>(k_target_rate) / static_cast<float>(source_rate);
+      const int dest_frames = std::max(1, static_cast<int>(static_cast<float>(source_frames) * ratio));
 
       LoadedClip clip;
-      clip.num_frames = dst_frames;
-      clip.samples.resize(static_cast<std::size_t>(dst_frames) * k_target_channels);
+      clip.num_frames = dest_frames;
+      clip.samples.resize(static_cast<std::size_t>(dest_frames) * k_target_channels);
 
-      for (int i = 0; i < dst_frames; ++i) {
-        const float src_pos = static_cast<float>(i) / ratio;
-        const int idx = std::min(static_cast<int>(src_pos), decoded - 1);
-        const int next = std::min(idx + 1, decoded - 1);
-        const float frac = src_pos - static_cast<float>(idx);
+      for (int i = 0; i < dest_frames; ++i) {
+        const float source_pos = static_cast<float>(i) / ratio;
+        const int index = std::min(static_cast<int>(source_pos), source_frames - 1);
+        const int next = std::min(index + 1, source_frames - 1);
+        const float fraction = source_pos - static_cast<float>(index);
 
-        for (int ch = 0; ch < k_target_channels; ++ch) {
-          const int sc = std::min(ch, src_channels - 1);
-          const float a = src[static_cast<std::size_t>(idx) * src_channels + sc];
-          const float b = src[static_cast<std::size_t>(next) * src_channels + sc];
-          clip.samples[static_cast<std::size_t>(i) * k_target_channels + ch] = a + (b - a) * frac;
+        for (int channel = 0; channel < k_target_channels; ++channel) {
+          const int source_channel = std::min(channel, source_channels - 1);
+          const float a = source[(static_cast<std::size_t>(index) * source_channels) + source_channel];
+          const float b = source[(static_cast<std::size_t>(next) * source_channels) + source_channel];
+          clip.samples[(static_cast<std::size_t>(i) * k_target_channels) + channel] = a + ((b - a) * fraction);
         }
       }
 
@@ -112,34 +125,42 @@ namespace corundum::platform::sokol {
         desc.num_channels = k_target_channels;
 
         saudio_setup(&desc);
-        valid_ = saudio_isvalid();
+        valid_.store(saudio_isvalid());
 
-        if (!valid_)
+        if (!valid_.load())
           std::println("[audio] WARN: saudio_setup() failed — audio disabled");
       }
 
+      SokolAudioBackend(const SokolAudioBackend &) = delete;
+      SokolAudioBackend &operator=(const SokolAudioBackend &) = delete;
+      SokolAudioBackend(SokolAudioBackend &&) = delete;
+      SokolAudioBackend &operator=(SokolAudioBackend &&) = delete;
+
       ~SokolAudioBackend() override {
-        if (valid_)
+        if (valid_.load())
           saudio_shutdown();
       }
 
       std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view path) override {
+        if (!valid_.load())
+          return std::unexpected("[audio] Audio disabled: saudio_setup() failed");
+
         auto clip_result = load_ogg(path);
         if (!clip_result)
           return std::unexpected(clip_result.error());
 
         const std::lock_guard<std::mutex> lock(mutex_);
-        const auto handle = static_cast<corundum::audio::SoundHandle>(clips_.size());
+        const auto handle = static_cast<corundum::audio::SoundHandle>(clips_.size() + 1);
         clips_.push_back(std::move(*clip_result));
         return handle;
       }
 
       void play(corundum::audio::SoundHandle handle, float volume, bool loop) override {
-        if (!valid_)
+        if (!valid_.load())
           return;
 
         const std::lock_guard<std::mutex> lock(mutex_);
-        if (handle >= clips_.size())
+        if (!has_clip(handle))
           return;
         voices_.push_back(ActiveVoice{
             .clip_id = handle,
@@ -155,50 +176,69 @@ namespace corundum::platform::sokol {
       }
 
     private:
+      /// @pre The caller holds mutex_.
+      [[nodiscard]] bool has_clip(corundum::audio::SoundHandle handle) const noexcept {
+        return handle != 0 && handle <= clips_.size();
+      }
+
+      /// @pre has_clip(handle) is true.
+      [[nodiscard]] const LoadedClip &clip_for(corundum::audio::SoundHandle handle) const noexcept {
+        return clips_[static_cast<std::size_t>(handle) - 1];
+      }
+
+      /// @brief Mix @p num_frames of one voice into an interleaved output buffer.
+      /// @pre The caller holds mutex_ and has_clip(voice.clip_id) is true.
+      void mix_voice(ActiveVoice &voice, float *buffer, int num_frames, int num_channels) {
+        const auto &clip = clip_for(voice.clip_id);
+        if (clip.num_frames == 0)
+          return;
+
+        int offset = 0;
+        while (offset < num_frames) {
+          if (voice.frame_cursor >= clip.num_frames) {
+            if (!voice.loop)
+              break;
+            voice.frame_cursor = 0;
+          }
+
+          const int remaining = clip.num_frames - static_cast<int>(voice.frame_cursor);
+          const int batch = std::min(num_frames - offset, remaining);
+
+          for (int i = 0; i < batch; ++i) {
+            const int source_index = (static_cast<int>(voice.frame_cursor) + i) * k_target_channels;
+            for (int channel = 0; channel < num_channels; ++channel) {
+              const int mix_channel = std::min(channel, k_target_channels - 1);
+              buffer[((offset + i) * num_channels) + channel] +=
+                  clip.samples[static_cast<std::size_t>(source_index) + mix_channel] * voice.volume * master_volume_;
+            }
+          }
+
+          voice.frame_cursor += batch;
+          offset += batch;
+        }
+      }
+
       static void stream_cb(float *buffer, int num_frames, int num_channels, void *user_data) {
         auto *self = static_cast<SokolAudioBackend *>(user_data);
-        if (!self || !self->valid_)
+        if (self == nullptr || !self->valid_.load())
           return;
 
         std::memset(buffer, 0, static_cast<std::size_t>(num_frames) * num_channels * sizeof(float));
 
+        // The lock is held for the whole mix, so play()/set_master_volume() on the
+        // game thread block until the callback returns. Fine at the current call
+        // frequency; a command queue would be the fix if that changes.
         const std::lock_guard<std::mutex> lock(self->mutex_);
 
         for (auto &voice : self->voices_) {
-          if (voice.clip_id >= self->clips_.size())
-            continue;
-
-          auto &clip = self->clips_[voice.clip_id];
-          if (clip.num_frames == 0)
-            continue;
-
-          int offset = 0;
-          while (offset < num_frames) {
-            if (voice.frame_cursor >= clip.num_frames) {
-              if (!voice.loop)
-                break;
-              voice.frame_cursor = 0;
-            }
-
-            const int remaining = clip.num_frames - static_cast<int>(voice.frame_cursor);
-            const int batch = std::min(num_frames - offset, remaining);
-
-            for (int i = 0; i < batch; ++i) {
-              const int src_idx = (static_cast<int>(voice.frame_cursor) + i) * k_target_channels;
-              for (int ch = 0; ch < num_channels; ++ch) {
-                const int mix_ch = std::min(ch, k_target_channels - 1);
-                buffer[(offset + i) * num_channels + ch] +=
-                    clip.samples[static_cast<std::size_t>(src_idx) + mix_ch] * voice.volume * self->master_volume_;
-              }
-            }
-
-            voice.frame_cursor += batch;
-            offset += batch;
-          }
+          if (self->has_clip(voice.clip_id))
+            self->mix_voice(voice, buffer, num_frames, num_channels);
         }
 
-        std::erase_if(self->voices_, [self](const ActiveVoice &v) {
-          return !v.loop && (v.clip_id >= self->clips_.size() || v.frame_cursor >= self->clips_[v.clip_id].num_frames);
+        std::erase_if(self->voices_, [self](const ActiveVoice &voice) {
+          if (voice.loop)
+            return false;
+          return !self->has_clip(voice.clip_id) || voice.frame_cursor >= self->clip_for(voice.clip_id).num_frames;
         });
       }
 
@@ -206,7 +246,7 @@ namespace corundum::platform::sokol {
       std::vector<LoadedClip> clips_;
       std::vector<ActiveVoice> voices_;
       float master_volume_{1.0f};
-      bool valid_{false};
+      std::atomic<bool> valid_{false};
     };
 
   } // namespace
