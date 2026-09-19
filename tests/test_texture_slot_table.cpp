@@ -124,3 +124,21 @@ TEST_CASE("TextureSlotTable: slot_count is the high-water mark, not the live cou
   CHECK(table.slot_count() == 3);
   CHECK(table.find(3).has_value());
 }
+
+TEST_CASE("TextureSlotTable: peek exposes a live slot without copying its payload") {
+  Table table;
+  table.adopt({.image = 10, .view = 11}, 4, 8);
+
+  const Slot *slot = table.peek(1);
+  REQUIRE(slot != nullptr);
+  CHECK(slot->width == 4);
+  CHECK(slot->height == 8);
+  CHECK(slot->payload.image == 10);
+  CHECK(slot->payload.view == 11);
+
+  CHECK(table.peek(0) == nullptr);
+  CHECK(table.peek(2) == nullptr);
+
+  REQUIRE(table.release(1).has_value());
+  CHECK(table.peek(1) == nullptr);
+}

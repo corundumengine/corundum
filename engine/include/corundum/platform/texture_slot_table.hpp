@@ -84,12 +84,29 @@ namespace corundum::platform {
       return slots_.size();
     }
 
-    /** @brief The slot published under @p id, or std::nullopt if @p id is not live. */
+    /** @brief The slot published under @p id, or std::nullopt if @p id is not live.
+     *
+     * @note Copies the slot, and with it the payload; use peek() to read a field
+     *       or two without copying.
+     */
     [[nodiscard]] std::optional<Slot> find(uint32_t id) const {
-      if (id == 0 || id > slots_.size())
+      const Slot *slot = peek(id);
+      if (slot == nullptr)
         return std::nullopt;
 
-      return slots_[static_cast<std::size_t>(id) - 1];
+      return *slot;
+    }
+
+    /** @brief The live slot under @p id, or nullptr if @p id is not live.
+     *
+     * @note The pointer is invalidated by the next adopt() or release().
+     */
+    [[nodiscard]] const Slot *peek(uint32_t id) const {
+      if (id == 0 || id > slots_.size())
+        return nullptr;
+
+      const std::optional<Slot> &slot = slots_[static_cast<std::size_t>(id) - 1];
+      return slot ? &*slot : nullptr;
     }
 
   private:
