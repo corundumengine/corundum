@@ -53,10 +53,10 @@ namespace {
         .name = "start",
         .objectives =
             {
-                {.text = "Bare objective", .done_condition = std::nullopt},
+                {.done_condition = std::nullopt, .text = "Bare objective"},
                 {
-                    .text = "Conditioned objective",
                     .done_condition = *corundum::dialogue::compile("ember_tracks_found >= 1"),
+                    .text = "Conditioned objective",
                 },
             },
         .sequence = 1,
@@ -363,7 +363,25 @@ TEST_CASE("quest loader: invalid JSON returns error") {
 
 TEST_CASE("validate: valid quest returns empty vector") {
   const auto q = make_test_quest();
-  CHECK(quest::validate(q).errors.empty());
+  const auto validation = quest::validate(q);
+  CHECK(validation.errors.empty());
+  CHECK(validation.ok());
+}
+
+TEST_CASE("validate: empty quest_id is rejected") {
+  quest::Quest q;
+  q.stages.push_back({.name = "a", .resolved = true, .sequence = 1});
+  const auto validation = quest::validate(q);
+  CHECK_FALSE(validation.ok());
+  CHECK(validation.errors.front().find("empty quest_id") != std::string::npos);
+}
+
+TEST_CASE("validate: empty stage name is rejected") {
+  auto q = make_test_quest();
+  q.stages[0].name.clear();
+  const auto validation = quest::validate(q);
+  CHECK_FALSE(validation.ok());
+  CHECK(validation.errors.front().find("empty name") != std::string::npos);
 }
 
 TEST_CASE("validate: duplicate stage names") {
@@ -380,6 +398,17 @@ TEST_CASE("validate: duplicate sequences") {
   const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("duplicate stage sequence") != std::string::npos);
+}
+
+TEST_CASE("validate: duplicate sequence is not also reported as an order warning") {
+  quest::Quest q;
+  q.quest_id = "dup_warn";
+  q.stages.push_back({.name = "a", .resolved = false, .sequence = 1});
+  q.stages.push_back({.name = "b", .resolved = true, .sequence = 1});
+  const auto validation = quest::validate(q);
+  REQUIRE_FALSE(validation.errors.empty());
+  CHECK(validation.errors.front().find("duplicate stage sequence") != std::string::npos);
+  CHECK(validation.warnings.empty());
 }
 
 TEST_CASE("validate: no resolved stage") {
@@ -965,8 +994,8 @@ TEST_CASE("tick_quests: stage with auto_advance_to waits for its done_condition"
       .objectives =
           {
               {
-                  .text = "Find the tracks",
                   .done_condition = *corundum::dialogue::compile("ember_tracks_found >= 1"),
+                  .text = "Find the tracks",
               },
           },
       .sequence = 1,
@@ -1016,8 +1045,8 @@ TEST_CASE("tick_quests: advances only when every conditioned objective holds, in
       .name = "start",
       .objectives =
           {
-              {.text = "A", .done_condition = *corundum::dialogue::compile("first_done == 1")},
-              {.text = "B", .done_condition = *corundum::dialogue::compile("second_done == 1")},
+              {.done_condition = *corundum::dialogue::compile("first_done == 1"), .text = "A"},
+              {.done_condition = *corundum::dialogue::compile("second_done == 1"), .text = "B"},
           },
       .sequence = 1,
   });
@@ -1047,13 +1076,13 @@ TEST_CASE("tick_quests: a chained auto-advance resolves one stage per tick, idem
   q.stages.push_back({
       .auto_advance_to = "middle",
       .name = "start",
-      .objectives = {{.text = "A", .done_condition = *corundum::dialogue::compile("ready == 1")}},
+      .objectives = {{.done_condition = *corundum::dialogue::compile("ready == 1"), .text = "A"}},
       .sequence = 1,
   });
   q.stages.push_back({
       .auto_advance_to = "complete",
       .name = "middle",
-      .objectives = {{.text = "B", .done_condition = *corundum::dialogue::compile("ready == 1")}},
+      .objectives = {{.done_condition = *corundum::dialogue::compile("ready == 1"), .text = "B"}},
       .sequence = 2,
   });
   q.stages.push_back({.name = "complete", .resolved = true, .sequence = 3});
@@ -1140,8 +1169,8 @@ TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_conditi
       .name = "start",
       .objectives =
           {
-              {.text = "Bare", .done_condition = std::nullopt},
-              {.text = "Conditioned", .done_condition = *corundum::dialogue::compile("gold >= 1")},
+              {.done_condition = std::nullopt, .text = "Bare"},
+              {.done_condition = *corundum::dialogue::compile("gold >= 1"), .text = "Conditioned"},
           },
       .sequence = 1,
   });

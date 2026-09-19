@@ -17,8 +17,6 @@ namespace corundum::quest {
 
   /** @brief A single task shown in the journal while its stage is active. */
   struct Objective {
-    /** @brief Journal text displayed for this objective. */
-    std::string text{};
     /**
      * @brief Optional compiled expression that auto-checks this objective.
      *
@@ -26,6 +24,9 @@ namespace corundum::quest {
      * compile. An absent condition means the objective is journal-display only.
      */
     std::optional<dialogue::CompiledExpr> done_condition = std::nullopt;
+
+    /** @brief Journal text displayed for this objective. */
+    std::string text{};
   };
 
   /** @brief A point in a quest's progress, keyed by a sequence integer in FlagStore. */
@@ -52,7 +53,12 @@ namespace corundum::quest {
      */
     std::optional<std::string> auto_advance_to = std::nullopt;
 
-    /** @brief True if this stage is a failure ending. Implies resolved (loader enforces). */
+    /**
+     * @brief True if this stage is a failure ending.
+     *
+     * Implies resolved: the loader normalizes the pair, and `quest::validate`
+     * rejects a failed stage left unresolved.
+     */
     bool failed{false};
 
     /** @brief Named identifier used in dialogue actions (e.g. "start", "return", "failed"). */
@@ -80,7 +86,7 @@ namespace corundum::quest {
     std::string quest_id{};
 
     /** @brief On-disk format version; 1 for legacy files without the field. */
-    int schema_version = k_quest_schema_version;
+    int schema_version{k_quest_schema_version};
 
     /** @brief Ordered list of stages; the last stage is typically the completion sentinel. */
     std::vector<Stage> stages{};
@@ -112,15 +118,21 @@ namespace corundum::quest {
      *        sequence integers (a stage-list reorder without a sequence bump).
      */
     std::vector<std::string> warnings{};
+
+    /** @brief True when no rule was violated, i.e. `errors` is empty. */
+    [[nodiscard]] bool ok() const noexcept {
+      return errors.empty();
+    }
   };
 
   /** @brief Validate a Quest's stage-uniqueness, sequence, and resolution invariants.
    *
-   *  Rejects duplicate stage names or sequences, a non-positive stage sequence,
-   *  a failed stage that is not also resolved, a quest with no resolved stage,
-   *  and an `advances_to` / `auto_advance_to` target naming no stage. Quest
-   *  loaders run this on every parsed quest, so it is also the check that catches
-   *  a quest built or edited in memory.
+   *  Rejects an empty quest id or stage name, duplicate stage names or
+   *  sequences, a non-positive stage sequence, a failed stage that is not also
+   *  resolved, a quest with no resolved stage, and an `advances_to` /
+   *  `auto_advance_to` target naming no stage. Quest loaders run this on every
+   *  parsed quest, so it is also the check that catches a quest built or edited
+   *  in memory.
    *
    *  @param quest The quest to validate.
    *  @return One message per violated rule in `errors`, plus non-fatal

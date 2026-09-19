@@ -30,6 +30,9 @@ namespace corundum::quest {
   ValidationResult validate(const Quest &quest) {
     ValidationResult result;
 
+    if (quest.quest_id.empty())
+      result.errors.emplace_back("quest has an empty quest_id");
+
     std::vector<std::string> stage_names =
         quest.stages | std::views::transform(&Stage::name) | std::ranges::to<std::vector>();
     std::ranges::sort(stage_names);
@@ -48,6 +51,9 @@ namespace corundum::quest {
       result.errors.push_back(std::format("\"{}\" has no resolved stage", quest.quest_id));
 
     for (const auto &stage : quest.stages) {
+      if (stage.name.empty())
+        result.errors.push_back(std::format(R"("{}": stage has an empty name)", quest.quest_id));
+
       // Zero is the "not started" sentinel get_stage() reports, so a non-positive
       // sequence is a stage the runtime can never enter.
       if (stage.sequence <= 0)
@@ -71,7 +77,8 @@ namespace corundum::quest {
     for (std::size_t i = 1; i < quest.stages.size(); ++i) {
       const Stage &previous = quest.stages[i - 1];
       const Stage &current = quest.stages[i];
-      if (current.sequence <= previous.sequence)
+      // Equality is a duplicate sequence, already reported as an error above.
+      if (current.sequence < previous.sequence)
         result.warnings.push_back(std::format("\"{}\": stage order \"{}\" (seq {}) is not after \"{}\" (seq {}) — "
                                               "sequence order does not match stage order",
                                               quest.quest_id, current.name, current.sequence, previous.name,

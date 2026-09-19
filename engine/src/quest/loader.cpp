@@ -153,7 +153,7 @@ namespace corundum::quest {
         quest.stages.push_back(parse_stage(stages[i], i));
 
       const ValidationResult validation = validate(quest);
-      if (!validation.errors.empty())
+      if (!validation.ok())
         throw LoadError(std::format("[{}] {}", k_ctx, validation.errors.front()));
       for (const auto &warning : validation.warnings)
         std::println(stderr, "[warning] quest {}: {}", path, warning);
