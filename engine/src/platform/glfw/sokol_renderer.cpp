@@ -215,6 +215,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     [[nodiscard]] bool begin_primitive(sg_view view);
     void add_to_batch(sg_view view);
     void flush_batch();
+    void upload_and_draw_pending_batches();
 
     corundum::platform::GpuContext &gpu_ctx_;
 
@@ -231,6 +232,19 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     std::vector<Vertex> batch_vertices_;
     int batch_count_{0};
     int quad_count_{0};
+    std::size_t batch_start_{0}; // index into batch_vertices_ where the open batch begins
+
+    struct PendingBatch {
+      std::array<float, 16> proj{};
+
+      int vertex_count{0};
+
+      int vertex_offset{0}; // byte offset into vertex_buf_
+
+      sg_view view{};
+    };
+
+    std::vector<PendingBatch> pending_batches_;
 
     sg_shader pipeline_shader_{};
     sg_pipeline pipeline_{};
@@ -273,6 +287,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     // loaded during initialize() call only sg_make_image / FreeType (which need the
     // sokol device from GpuContext, already set up) and never this pipeline.
     batch_vertices_.reserve(static_cast<std::size_t>(k_max_vertices));
+    pending_batches_.reserve(64);
 
     // Reserve index 0 as an invalid-slot sentinel so a stray texture_id == 0 falls
     // through the existing range/id check without drawing texture 0 by accident.
@@ -331,10 +346,10 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     pdesc.depth.write_enabled = false;
     pipeline_ = sg_make_pipeline(&pdesc);
 
-    // ── Vertex buffer (stream, appended per draw call) ──────────────────────
+    // ── Vertex buffer (write-transient: filled once per frame before any draws) ─
     sg_buffer_desc bdesc{};
     bdesc.size = k_vertex_buf_size;
-    bdesc.usage.stream_update = true;
+    bdesc.usage.write_transient = true;
     vertex_buf_ = sg_make_buffer(&bdesc);
 
     // ── 1x1 white RGBA texture for DrawRect ────────────────────────────────
@@ -453,21 +468,41 @@ fragment float4 fs_main(Varyings in [[stage_in]],
   void SokolRenderer::flush_batch() {
     if (!pass_active_ || batch_count_ == 0)
       return;
-    assert(static_cast<std::size_t>(6 * batch_count_) == batch_vertices_.size());
-    bindings_.vertex_buffers[0] = vertex_buf_;
-    const sg_range batch_range{.ptr = batch_vertices_.data(), .size = batch_vertices_.size() * sizeof(Vertex)};
-    const int batch_offset = sg_append_buffer(vertex_buf_, &batch_range);
-    bindings_.vertex_buffer_offsets[0] = batch_offset;
-    bindings_.views[0] = batch_view_;
-    sg_apply_bindings(&bindings_);
-
-    const sg_range ub{.ptr = proj_.data(), .size = sizeof(proj_)};
-    sg_apply_uniforms(0, &ub);
-
-    sg_draw(0, 6 * batch_count_, 1);
-    ++draw_calls_this_frame_;
-    batch_vertices_.clear();
+    assert(static_cast<std::size_t>(6 * batch_count_) == batch_vertices_.size() - batch_start_);
+    pending_batches_.push_back(PendingBatch{
+        .proj = proj_,
+        .vertex_count = 6 * batch_count_,
+        .vertex_offset = static_cast<int>(batch_start_ * sizeof(Vertex)),
+        .view = batch_view_,
+    });
+    batch_start_ = batch_vertices_.size();
     batch_count_ = 0;
+  }
+
+  /** @pre `pass_active_` is true; called once per frame, before `gpu_ctx_.end_frame()`.
+   *  @note Issues the frame's single `sg_write_buffer_transient()` upload, then replays every
+   *        recorded batch. Write-transient buffers may not be written after they are bound. */
+  void SokolRenderer::upload_and_draw_pending_batches() {
+    if (pending_batches_.empty())
+      return;
+
+    sg_write_buffer_desc wdesc{};
+    wdesc.src.data = {.ptr = batch_vertices_.data(), .size = batch_vertices_.size() * sizeof(Vertex)};
+    wdesc.dst.buffer = vertex_buf_;
+    sg_write_buffer_transient(&wdesc);
+
+    bindings_.vertex_buffers[0] = vertex_buf_;
+    for (const PendingBatch &b : pending_batches_) {
+      bindings_.vertex_buffer_offsets[0] = b.vertex_offset;
+      bindings_.views[0] = b.view;
+      sg_apply_bindings(&bindings_);
+
+      const sg_range ub{.ptr = b.proj.data(), .size = sizeof(b.proj)};
+      sg_apply_uniforms(0, &ub);
+
+      sg_draw(0, b.vertex_count, 1);
+      ++draw_calls_this_frame_;
+    }
   }
 
   bool SokolRenderer::has_quad_space() {
@@ -576,6 +611,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     draw_calls_this_frame_ = 0;
     dropped_quads_this_frame_ = 0;
     batch_vertices_.clear();
+    pending_batches_.clear();
+    batch_start_ = 0;
 
     if (gpu_init_failed_)
       return false;
@@ -595,6 +632,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     if (!pass_active_)
       return;
     flush_batch();
+    upload_and_draw_pending_batches();
     pass_active_ = false;
     gpu_ctx_.end_frame();
 

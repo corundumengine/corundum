@@ -75,7 +75,7 @@ FetchContent_MakeAvailable(freetype)
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
-    GIT_TAG        f26aaf6deeee5a4a07d83f3cd7151516bafa09ad # 29-Jul-2026
+    GIT_TAG        2e75443dbd4940b5aa8d76a8e479f8e4b270b9a3 # 14-Sep-2026
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(sokol)
