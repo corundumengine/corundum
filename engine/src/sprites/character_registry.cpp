@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/files.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/sprite.hpp>
@@ -10,7 +11,6 @@
 #include <format>
 #include <print>
 #include <string>
-#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -21,33 +21,42 @@ namespace corundum::sprites {
   std::expected<void, std::string> CharacterRegistry::load_all(const fs::path &index_path) {
     const fs::path characters_dir = index_path / "characters";
 
-    // Recurse so character sheets can be organized into subdirectories per character.
-    std::vector<fs::path> files;
-    std::error_code ec;
-    for (const auto &entry : fs::recursive_directory_iterator(characters_dir, ec)) {
-      if (!ec && entry.is_regular_file() && entry.path().extension() == ".json")
-        files.push_back(entry.path());
+    // Recurse so character sheets can be organized into subdirectories per character. The listing
+    // is sorted, which keeps interned sheet/sprite ids stable across runs and platforms.
+    const auto entries = core::list_dir_entries(characters_dir, {.extensions = {"json"}, .recursive = true});
+    if (!entries)
+      return std::unexpected(std::format("Characters sprite sheets are missing: {}", entries.error()));
+
+    std::expected<void, std::string> failure;
+    std::size_t sheet_count = 0;
+    for (const auto &entry : *entries) {
+      if (entry.is_dir)
+        continue;
+      auto result = load_sheet(entry.path);
+      if (!result) {
+        failure = std::unexpected(result.error());
+        break;
+      }
+      ++sheet_count;
     }
 
-    if (files.empty())
+    // Rebuild even on failure: a partial load has already mutated frames_, so the previous
+    // pointers are dangling until this runs.
+    rebuild_sprite_index();
+
+    if (!failure.has_value())
+      return failure;
+
+    if (sheet_count == 0)
       return std::unexpected(std::format("Characters sprite sheets are missing: {}", characters_dir.string()));
 
-    for (const auto &file : files) {
-      auto result = load_sheet(fs::path(file));
-      if (!result)
-        return std::unexpected(result.error());
-    }
-
-    // Populate sprite_by_id_ after all load_sheet() calls complete
-    sprite_by_id_.resize(next_sprite_id_, nullptr);
-    for (auto &&[sprite_name, frames] : frames_) {
-      const auto sid = get_sprite_id(sprite_name);
-      if (sid != k_null_sprite_id) {
-        sprite_by_id_[sid] = &frames;
-      }
-    }
-
     return {};
+  }
+
+  void CharacterRegistry::rebuild_sprite_index() {
+    sprite_by_id_.assign(static_cast<std::size_t>(next_sprite_id_), nullptr);
+    for (const Frames &frames : frames_.values())
+      sprite_by_id_[frames.sprite_id] = &frames;
   }
 
   std::expected<void, std::string> CharacterRegistry::load_sheet(const fs::path &sheet_path) {
@@ -58,7 +67,14 @@ namespace corundum::sprites {
     CharacterSheetData &data = *result;
 
     if (sheet_ids_.contains(data.id))
-      return std::unexpected(std::format("Duplicate sheet id: '{}'", data.id));
+      return std::unexpected(std::format("Duplicate sheet id '{}' in '{}'", data.id, sheet_path.string()));
+
+    // Validate every sprite name before mutating any state, so a collision leaves the registry as
+    // it was rather than half-loaded.
+    for (const auto &entry : data.sprites) {
+      if (frames_.contains(entry.name))
+        return std::unexpected(std::format("Duplicate sprite name '{}' in '{}'", entry.name, sheet_path.string()));
+    }
 
     const Id sheet_id = next_id_++;
     sheet_ids_.emplace(data.id, sheet_id);
@@ -85,9 +101,6 @@ namespace corundum::sprites {
     }
 
     for (auto &entry : data.sprites) {
-      if (frames_.contains(entry.name))
-        return std::unexpected(std::format("Duplicate sprite name: '{}'", entry.name));
-
       Frames frames;
       frames.sheet_id = sheet_id;
       frames.col_span = entry.col_span;
