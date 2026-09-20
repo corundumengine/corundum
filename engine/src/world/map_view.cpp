@@ -4,7 +4,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>

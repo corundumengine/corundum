@@ -95,8 +95,11 @@ namespace corundum::render {
    */
   struct WorldLoadInfo {
     float half_tw{};
+
     float half_th{};
+
     float x_origin{};
+
     corundum::core::math::Vec2 spawn_world_pos;
   };
 
@@ -108,6 +111,7 @@ namespace corundum::render {
    */
   struct WorldLoadParams {
     std::optional<int> spawn_col; ///< Overworld tile column; defaults to manifest centre.
+
     std::optional<int> spawn_row; ///< Overworld tile row; defaults to manifest centre.
   };
 
@@ -141,12 +145,12 @@ namespace corundum::render {
    *  @param[in,out] r      Renderer for all draw calls.
    *  @param[in,out] state  Render state (chunk streaming may modify active set).
    *  @param[in]     cfg    Game config.
-   * @param[in]     scene  Scene (camera, entities, dialogue mode).
-   * @param[in]     flags  Persistent game flags for conditional dialogue rendering.
-   * @param[in]     items  Loaded item registry for display names in the inventory panel; null hides it.
-   * @param[in]     alpha  Interpolation factor in [0,1] for render smoothing.
-   * @param[in]     win_w  Live window width in screen pixels.
-   * @param[in]     win_h  Live window height in screen pixels.
+   *  @param[in]     scene  Scene (camera, entities, dialogue mode).
+   *  @param[in]     flags  Persistent game flags for conditional dialogue rendering.
+   *  @param[in]     items  Loaded item registry for display names in the inventory panel; null hides it.
+   *  @param[in]     alpha  Interpolation factor in [0,1] for render smoothing.
+   *  @param[in]     win_w  Live window width in screen pixels.
+   *  @param[in]     win_h  Live window height in screen pixels.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
@@ -169,6 +173,9 @@ namespace corundum::render {
    * @param[in]     cfg    Game config for portal path resolution.
    * @return True if a chunk was loaded, false if nothing to do.
    */
+  bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
+                              const corundum::core::GameConfig &cfg);
+
   /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
    *
    * In world mode looks up the owning chunk via the active-chunk window and returns
@@ -182,9 +189,6 @@ namespace corundum::render {
    */
   [[nodiscard]] float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept;
 
-  bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
-                              const corundum::core::GameConfig &cfg);
-
   /** @brief Rebuild the world-mode aggregated collision rects and triangles from active chunks.
    *
    * Clears and repopulates @c state.agg_collisions and @c state.agg_triangles by
@@ -195,7 +199,7 @@ namespace corundum::render {
    * @param[in,out] state  Render state in World mode whose aggregates will be overwritten.
    * @note No-op when the chunk window has no active chunks.
    */
-  void rebuild_collision(render::RenderState &state) noexcept;
+  void rebuild_collision(render::RenderState &state);
 
   /** @brief Rebuild the world-mode aggregated walkability graph from the active chunks.
    *
@@ -207,6 +211,6 @@ namespace corundum::render {
    * @param[in,out] state           Render state in World mode.
    * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
    */
-  void rebuild_world_walkability(render::RenderState &state, int max_step_height) noexcept;
+  void rebuild_world_walkability(render::RenderState &state, int max_step_height);
 
 } // namespace corundum::render

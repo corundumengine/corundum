@@ -5,7 +5,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>

@@ -8,7 +8,7 @@
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/engine.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/transition.hpp>
 
 #include <expected>

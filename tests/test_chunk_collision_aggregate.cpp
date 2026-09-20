@@ -4,13 +4,13 @@
 #include <doctest/doctest.h>
 
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <utility>
 
 namespace tilemap = corundum::world::tilemap;
 namespace render_data = corundum::render;
-namespace render_sys = corundum::render;
+namespace render_system = corundum::render;
 
 TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with tile-unit offsets") {
   render_data::RenderState state;
@@ -36,7 +36,7 @@ TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with 
   chunk10.tilemap.collision_triangles.push_back(7.f, 8.f, 1.f, 1.f, tilemap::TriangleCut::NorthWest, /*elevation=*/0);
   state.chunks.add_active(std::move(chunk10));
 
-  render_sys::rebuild_collision(state);
+  render_system::rebuild_collision(state);
 
   REQUIRE(state.agg_collisions.size() == 2);
   // (0,0) — no offset.
@@ -71,7 +71,7 @@ TEST_CASE("rebuild_collision — world mode: vertically adjacent chunk offsets b
   chunk02.tilemap.collisions.push_back(1.f, 2.f, 1.f, 1.f, 0);
   state.chunks.add_active(std::move(chunk02));
 
-  render_sys::rebuild_collision(state);
+  render_system::rebuild_collision(state);
 
   REQUIRE(state.agg_collisions.size() == 1);
   // Row offset only — col must be unchanged.
@@ -86,7 +86,7 @@ TEST_CASE("rebuild_collision — empty active_chunks is a no-op") {
   // Pre-populate to confirm it's cleared (or left empty) and not touched.
   state.agg_collisions.push_back(99.f, 99.f, 1.f, 1.f, 0);
 
-  render_sys::rebuild_collision(state);
+  render_system::rebuild_collision(state);
 
   CHECK(state.agg_collisions.size() == 0);
   CHECK(state.agg_triangles.size() == 0);

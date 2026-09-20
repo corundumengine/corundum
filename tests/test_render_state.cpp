@@ -11,7 +11,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <type_traits>
@@ -138,7 +138,7 @@ TEST_CASE("snapshot_prev_frame: copies live transforms and camera into prev_* fi
 }
 
 TEST_CASE("render: alpha==0 renders the current camera, not the stale snapshot (multi-step/deletion frame)") {
-  namespace render_sys = corundum::render;
+  namespace render_system = corundum::render;
 
   corundum::Engine engine;
   corundum::platform::null::NullRenderer renderer;
@@ -154,7 +154,7 @@ TEST_CASE("render: alpha==0 renders the current camera, not the stale snapshot (
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  render_sys::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 0.f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 0.f, 800, 600);
 
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(140.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(80.f));
@@ -162,7 +162,7 @@ TEST_CASE("render: alpha==0 renders the current camera, not the stale snapshot (
 }
 
 TEST_CASE("render: a normal single-step frame still blends the camera between snapshot and current") {
-  namespace render_sys = corundum::render;
+  namespace render_system = corundum::render;
 
   corundum::Engine engine;
   corundum::platform::null::NullRenderer renderer;
@@ -174,7 +174,7 @@ TEST_CASE("render: a normal single-step frame still blends the camera between sn
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  render_sys::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 0.5f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 0.5f, 800, 600);
 
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(120.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(65.f));
@@ -188,7 +188,7 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   // isn't in the active window — so the lookup correctly returns 0. Today positions are
   // clamped >= 0 so this never fires; standardizing on std::floor closes the seam so it
   // can't bite when anything (camera shake, knockback, chunk-local coords) goes negative.
-  namespace render_sys = corundum::render;
+  namespace render_system = corundum::render;
   render_data::RenderState state;
   state.mode = render_data::RenderMode::World;
   state.manifest.chunk_size = 16;
@@ -213,11 +213,11 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
 
   // col_f = -0.5: without fix, truncate → col=0, chunk (0, 0) cell (0, 0) returns 42.
   //                 with fix,    floor   → col=-1, chunk (-1, 0) absent → returns 0.
-  CHECK(render_sys::elevation_under(state, -0.5f, 0.f) == doctest::Approx(0.f));
+  CHECK(render_system::elevation_under(state, -0.5f, 0.f) == doctest::Approx(0.f));
 }
 
 TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks the chunk window dirty") {
-  namespace render_sys = corundum::render;
+  namespace render_system = corundum::render;
   render_data::RenderState state;
   state.mode = render_data::RenderMode::World;
   state.manifest.chunk_size = 16;
@@ -230,7 +230,7 @@ TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks the chunk window
   corundum::platform::null::NullRenderer renderer;
   const corundum::core::GameConfig cfg{};
 
-  const bool loaded = render_sys::load_one_pending_chunk(renderer, state, cfg);
+  const bool loaded = render_system::load_one_pending_chunk(renderer, state, cfg);
 
   REQUIRE(loaded);
   CHECK(state.chunks.active_size() == 1);

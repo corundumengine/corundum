@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 
 #include <expected>
 #include <string>

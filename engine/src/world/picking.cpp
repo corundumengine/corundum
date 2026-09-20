@@ -3,7 +3,7 @@
 
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/picking.hpp>

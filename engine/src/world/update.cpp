@@ -59,7 +59,7 @@ namespace {
     const auto p_slot = world.transforms.dense_index(player);
     const float pc = world.transforms.col[p_slot];
     const float pr = world.transforms.row[p_slot];
-    // Elevation term matches the renderer's entity path (render_sys.cpp) so the camera tracks
+    // Elevation term matches the renderer's entity path (render_system.cpp) so the camera tracks
     // the player's actual screen position — omitting it made the camera jitter relative to the
     // sprite while crossing a ramp. Null elevation_map (chunked/streamed World mode) isn't wired
     // up for elevation yet, so it falls back to 0, same as elsewhere in MapView consumers.

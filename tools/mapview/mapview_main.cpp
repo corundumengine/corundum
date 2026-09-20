@@ -150,7 +150,7 @@ namespace tools::mapview {
   }
 
   /// Resolves a single tile cell to a draw item, mirroring the engine renderer's anchor math
-  /// (render_sys.cpp resolve_tile_cell) so the image matches the in-game view.
+  /// (render_system.cpp resolve_tile_cell) so the image matches the in-game view.
   std::optional<DrawItem> resolve_tile(const Tilemap &tm, const TilemapLayer &layer, const IsometricParams &iso,
                                        int local_col, int local_row, int world_col, int world_row, float scale,
                                        const std::vector<int> &image_slots) {

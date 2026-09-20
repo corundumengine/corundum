@@ -12,7 +12,7 @@
 #include <corundum/entities/world.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
@@ -144,7 +144,7 @@ namespace corundum::debug {
 
     // Feet position (entity anchor) in isometric space — cell center, matching the
     // entity sprite anchor so the marker sits on the character's feet, not above them.
-    // Elevation must match render_sys.cpp's entity anchor calc (elevation_under), or the
+    // Elevation must match render_system.cpp's entity anchor calc (elevation_under), or the
     // marker desyncs from the drawn sprite on any non-flat tile.
     const float marker_elev = corundum::render::elevation_under(render, col, row);
     const auto [mx, my] = core::math::tile_to_world_center(col, row, marker_elev, iso);

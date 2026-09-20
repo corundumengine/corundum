@@ -298,7 +298,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
 }
 
 TEST_CASE("dialog_box_update: an ended conversation hides the box") {
-  // Regression: render_sys only calls dialog_box_update while scene.dialogue is
+  // Regression: the render system only calls dialog_box_update while scene.dialogue is
   // engaged, and update_dialogue() resets the optional the frame the conversation
   // ends. The box must be hidden by that frame — never repainted from a stale layout.
   RecordingRenderer r;

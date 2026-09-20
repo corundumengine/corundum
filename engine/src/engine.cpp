@@ -16,7 +16,7 @@
 #include <corundum/quest/runner.hpp>
 #include <corundum/quest/system.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_sys.hpp>
+#include <corundum/render/render_system.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/spawn.hpp>

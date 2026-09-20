@@ -182,7 +182,7 @@ namespace tools::spritesmith {
       const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
 
       // Feet-anchor line: shows exactly where walk_around_offset places the ground-contact
-      // point at runtime (render_sys.cpp: py = ey - walk_offset * entry.src.height * scale,
+      // point at runtime (render_system.cpp: py = ey - walk_offset * entry.src.height * scale,
       // where entry.src.height is the FULL rendered frame, not the collision box). Always
       // drawn — independent of "Show collision box" — since this is what the slider actually
       // controls regardless of whether a collision box is set.
