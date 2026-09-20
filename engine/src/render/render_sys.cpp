@@ -77,11 +77,15 @@ namespace corundum::render {
       return std::nullopt;
 
     const std::size_t slot = sid * k_num_anim_ids + aid;
-    if (slot >= anim_frame_counts.size() || frame_index >= anim_frame_counts[slot])
+    if (slot >= anim_frame_counts.size() || slot >= anim_offsets.size() || frame_index >= anim_frame_counts[slot])
+      return std::nullopt;
+
+    const std::size_t rect_index = anim_offsets[slot] + frame_index;
+    if (rect_index >= frame_rects.size())
       return std::nullopt;
 
     const float woff = sid < walk_offsets.size() ? walk_offsets[sid] : 0.f;
-    return Entry{*tex_by_sprite_id[sid], frame_rects[anim_offsets[slot] + frame_index], woff};
+    return Entry{*tex_by_sprite_id[sid], frame_rects[rect_index], woff};
   }
 
 } // namespace corundum::render
@@ -327,11 +331,10 @@ namespace corundum::render {
     std::println("[engine] World manifest: {}×{} chunks of {}×{} tiles", state.manifest.chunks_wide,
                  state.manifest.chunks_tall, state.manifest.chunk_size, state.manifest.chunk_size);
 
-    // Chunk streaming keeps a fixed 3×3 window (radius 1, see sync_active_chunks), so this
-    // bound holds for the life of the world regardless of which chunks are currently active.
-    constexpr std::size_t k_max_active_chunks = 9;
-    state.draw_list.reserve(k_max_active_chunks * static_cast<std::size_t>(state.manifest.chunk_size) *
-                                state.manifest.chunk_size +
+    // Chunk streaming keeps a fixed ChunkWindow::k_side × k_side window, so this bound holds
+    // for the life of the world regardless of which chunks are currently active.
+    state.draw_list.reserve(render::ChunkWindow::k_max_active_chunks *
+                                static_cast<std::size_t>(state.manifest.chunk_size) * state.manifest.chunk_size +
                             corundum::entities::k_max_entities);
 
     // Default spawn is the manifest geometric centre. A supplied spawn (e.g. an interior
@@ -344,7 +347,7 @@ namespace corundum::render {
     const int spawn_tile_row = params.spawn_row.value_or(state.manifest.chunks_tall * cs / 2);
     const ChunkCoord window_center{spawn_tile_col / cs, spawn_tile_row / cs};
     state.chunks.set_last_center(window_center);
-    for (const ChunkCoord c : active_chunk_coords(window_center, 1, state.manifest)) {
+    for (const ChunkCoord c : active_chunk_coords(window_center, render::ChunkWindow::k_radius, state.manifest)) {
       if (auto entry = load_chunk_entry(r, state, c, cfg))
         state.chunks.add_active(std::move(*entry));
     }
@@ -431,14 +434,13 @@ namespace corundum::render {
       r.set_world_view({cam_x, cam_y}, viewport, zoom);
       render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom, win_w, win_h);
 
-      if (state.chunks.dirty()) {
+      if (state.chunks.consume_dirty()) {
         state.above_z_cache.clear();
         for (const auto &chunk : state.chunks.active())
           for (const int z : chunk.above_z)
             state.above_z_cache.push_back(z);
         std::ranges::sort(state.above_z_cache);
         state.above_z_cache.erase(std::ranges::unique(state.above_z_cache).begin(), state.above_z_cache.end());
-        state.chunks.clear_dirty();
       }
 
       for (const int z : state.above_z_cache) {
@@ -689,10 +691,10 @@ namespace corundum::render {
         state.chunks.set_last_center(center);
     }
 
-    std::array<ChunkCoord, 9> desired{};
+    std::array<ChunkCoord, render::ChunkWindow::k_max_active_chunks> desired{};
     int desired_count = 0;
-    for (int dy = -1; dy <= 1; ++dy) {
-      for (int dx = -1; dx <= 1; ++dx) {
+    for (int dy = -render::ChunkWindow::k_radius; dy <= render::ChunkWindow::k_radius; ++dy) {
+      for (int dx = -render::ChunkWindow::k_radius; dx <= render::ChunkWindow::k_radius; ++dx) {
         const ChunkCoord c{state.chunks.last_center().col + dx, state.chunks.last_center().row + dy};
         if (state.manifest.in_bounds(c))
           desired[desired_count++] = c;
@@ -708,8 +710,6 @@ namespace corundum::render {
     for (const ChunkCoord c : desired_span)
       if (!state.chunks.has(c))
         state.chunks.enqueue_pending(c);
-
-    state.chunks.rebuild_slot_table();
 
     if (any_stale) {
       rebuild_collision(state);

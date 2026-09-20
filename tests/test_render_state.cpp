@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <algorithm>
-#include <array>
 #include <corundum/core/game_config.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/render/render_state.hpp>
@@ -15,7 +14,6 @@
 #include <corundum/render/render_sys.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
-#include <span>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -33,9 +31,43 @@ namespace {
     layer.name = "ground";
     layer.z_index = 0;
     layer.visible = true;
-    layer.tiles.assign(static_cast<std::size_t>(tm.width * tm.height), 1);
+    layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
     tm.layers.push_back(std::move(layer));
     return tm;
+  }
+
+  // A 7x7 world whose chunk window starts centred at (3,3), then shifts one chunk east to
+  // (4,3) — mirroring sync_active_chunks()'s recenter → prune → enqueue sequence. Returns the
+  // state with the new centre applied and the newly-adjacent east column queued for loading.
+  render_data::RenderState shifted_window_state() {
+    constexpr int k_chunk_size = 16;
+    render_data::RenderState state;
+    state.mode = render_data::RenderMode::World;
+    state.manifest.chunk_size = k_chunk_size;
+    state.manifest.chunks_wide = 7;
+    state.manifest.chunks_tall = 7;
+
+    const tilemap::ChunkCoord start_center{.col = 3, .row = 3};
+    state.chunks.set_last_center(start_center);
+    for (const tilemap::ChunkCoord coord :
+         tilemap::active_chunk_coords(start_center, render_data::ChunkWindow::k_radius, state.manifest)) {
+      render_data::ChunkEntry e;
+      e.coord = coord;
+      e.tilemap = make_flat_map();
+      state.chunks.add_active(std::move(e));
+    }
+
+    const tilemap::ChunkCoord new_center{.col = 4, .row = 3};
+    state.chunks.set_last_center(new_center);
+    const std::vector<tilemap::ChunkCoord> desired =
+        tilemap::active_chunk_coords(new_center, render_data::ChunkWindow::k_radius, state.manifest);
+    state.chunks.prune_active(
+        [&](const render_data::ChunkEntry &e) { return std::ranges::contains(desired, e.coord); });
+    (void)state.chunks.consume_dirty();
+    for (const tilemap::ChunkCoord c : desired)
+      if (!state.chunks.has(c))
+        state.chunks.enqueue_pending(c);
+    return state;
   }
 
 } // namespace
@@ -162,11 +194,11 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   state.manifest.chunk_size = 16;
   state.manifest.chunks_wide = 4;
   state.manifest.chunks_tall = 4;
-  state.chunks.set_last_center({0, 0});
+  state.chunks.set_last_center({.col = 0, .row = 0});
 
   // Single active chunk (0, 0) with cell (0, 0) elevation = 42 — distinguishable from 0.
   render_data::ChunkEntry chunk00;
-  chunk00.coord = {0, 0};
+  chunk00.coord = {.col = 0, .row = 0};
   chunk00.tilemap.width = 16;
   chunk00.tilemap.height = 16;
   tilemap::TilemapLayer layer;
@@ -179,14 +211,12 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   chunk00.tilemap.layers.push_back(std::move(layer));
   state.chunks.add_active(std::move(chunk00));
 
-  state.chunks.rebuild_slot_table(); // (0, 0) → slot 0
-
   // col_f = -0.5: without fix, truncate → col=0, chunk (0, 0) cell (0, 0) returns 42.
   //                 with fix,    floor   → col=-1, chunk (-1, 0) absent → returns 0.
   CHECK(render_sys::elevation_under(state, -0.5f, 0.f) == doctest::Approx(0.f));
 }
 
-TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks chunks_dirty") {
+TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks the chunk window dirty") {
   namespace render_sys = corundum::render;
   render_data::RenderState state;
   state.mode = render_data::RenderMode::World;
@@ -194,89 +224,59 @@ TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks chunks_dirty") {
   state.manifest.chunks_wide = 1;
   state.manifest.chunks_tall = 1;
   state.manifest.base_dir = std::filesystem::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "tilemaps";
-  state.chunks.enqueue_pending({0, 0}); // resolves to base_dir/chunk_0_0.json
-  state.chunks.clear_dirty();           // simulate "already synced this frame" before the load
+  state.chunks.enqueue_pending({.col = 0, .row = 0}); // resolves to base_dir/chunk_0_0.json
+  (void)state.chunks.consume_dirty();                 // simulate "already synced this frame" before the load
 
   corundum::platform::null::NullRenderer renderer;
-  corundum::core::GameConfig cfg{};
+  const corundum::core::GameConfig cfg{};
 
   const bool loaded = render_sys::load_one_pending_chunk(renderer, state, cfg);
 
   REQUIRE(loaded);
   CHECK(state.chunks.active_size() == 1);
-  CHECK(state.chunks.dirty()); // fails before the fix
+  CHECK(state.chunks.consume_dirty()); // fails before the fix
 }
 
-TEST_CASE("chunk window shift: crossing a boundary in a 7x7 world streams new chunks in and prunes far ones") {
+TEST_CASE("chunk window shift: moving the window prunes the column that fell outside it") {
   // Mirrors sync_active_chunks(): the fixed 3x3 window (radius 1). In a world LARGER than
-  // the window, moving the player to a new center chunk must enqueue the newly-adjacent
-  // column and prune the one that fell out of range — i.e. actual chunk streaming.
+  // the window, moving the player to a new center chunk must prune the column that fell out
+  // of range and keep the columns common to both windows — i.e. actual chunk streaming.
   //
   // Village is 7x7 (chunk_0_0..chunk_6_6). Start centered at (3,3): active = cols 2..4 x rows 2..4.
   // Player walks east one chunk: new center (4,3) -> desired cols 3..5 x rows 2..4.
-  // Expect col 5 row 2..4 to be enqueued (stream in) and col 2 row 2..4 to be pruned (stream out).
-  constexpr int k_chunk_size = 16;
-  render_data::RenderState state;
-  state.mode = render_data::RenderMode::World;
-  state.manifest.chunk_size = k_chunk_size;
-  state.manifest.chunks_wide = 7;
-  state.manifest.chunks_tall = 7;
+  render_data::RenderState state = shifted_window_state();
 
-  const tilemap::ChunkCoord start_center{3, 3};
-  state.chunks.set_last_center(start_center);
-  for (int dx = -1; dx <= 1; ++dx) {
-    for (int dy = -1; dy <= 1; ++dy) {
-      render_data::ChunkEntry e;
-      e.coord = {start_center.col + dx, start_center.row + dy};
-      e.tilemap = make_flat_map();
-      state.chunks.add_active(std::move(e));
-    }
-  }
-  state.chunks.rebuild_slot_table();
-
-  // Player moved one chunk east: recompute the desired 3x3 window as sync_active_chunks does.
-  const tilemap::ChunkCoord new_center{4, 3};
-  state.chunks.set_last_center(new_center);
-  std::array<tilemap::ChunkCoord, 9> desired{};
-  int desired_count = 0;
-  for (int dy = -1; dy <= 1; ++dy)
-    for (int dx = -1; dx <= 1; ++dx)
-      desired[desired_count++] = {new_center.col + dx, new_center.row + dy};
-  const std::span<const tilemap::ChunkCoord> desired_span{desired.data(), static_cast<std::size_t>(desired_count)};
-  const auto in_desired = [&](const render_data::ChunkEntry &e) {
-    return std::ranges::find(desired_span, e.coord) != desired_span.end();
+  const std::vector<tilemap::ChunkCoord> k_pruned_column{
+      {.col = 2, .row = 2},
+      {.col = 2, .row = 3},
+      {.col = 2, .row = 4},
   };
+  const std::vector<tilemap::ChunkCoord> k_surviving_column{
+      {.col = 3, .row = 2},
+      {.col = 4, .row = 4},
+  };
+  CHECK(std::ranges::none_of(k_pruned_column, [&](tilemap::ChunkCoord c) { return state.chunks.has(c); }));
+  CHECK(std::ranges::all_of(k_surviving_column, [&](tilemap::ChunkCoord c) { return state.chunks.has(c); }));
+}
 
-  state.chunks.prune_active(in_desired);
-  state.chunks.clear_dirty();
-  for (const tilemap::ChunkCoord c : desired_span)
-    if (!state.chunks.has(c))
-      state.chunks.enqueue_pending(c);
-  state.chunks.rebuild_slot_table();
+TEST_CASE("chunk window shift: the newly-adjacent column is queued and the centre advances") {
+  // Continuation of the shift above: the east column (col 5) is the only new chunk the window
+  // needs, so it is queued for load_one_pending_chunk to stream in on a later frame.
+  render_data::RenderState state = shifted_window_state();
 
-  // The west column (col 2) fell outside the window and was pruned.
-  CHECK_FALSE(state.chunks.has({2, 2}));
-  CHECK_FALSE(state.chunks.has({2, 3}));
-  CHECK_FALSE(state.chunks.has({2, 4}));
-
-  // The east column (col 5) is now requested -> queued for loading (streams in on the next
-  // load_one_pending_chunk). Drain the pending queue the way the loader does and collect it.
   std::vector<tilemap::ChunkCoord> pending_coords;
   tilemap::ChunkCoord c;
   while (state.chunks.pop_pending(c))
     pending_coords.push_back(c);
-  CHECK(pending_coords.size() == 3); // {5,2}, {5,3}, {5,4} — the newly-adjacent east column
-  const bool enqueued =
-      std::ranges::all_of(std::array<tilemap::ChunkCoord, 3>{{{5, 2}, {5, 3}, {5, 4}}},
-                          [&](tilemap::ChunkCoord e) { return std::ranges::contains(pending_coords, e); });
-  CHECK(enqueued);
 
-  // The surviving loaded window is cols 3..4 x rows 2..4 (the cols common to both the old
-  // and new center windows; the new col 5 is only queued, ready to load next frame).
-  CHECK(state.chunks.has({3, 2}));
-  CHECK(state.chunks.has({4, 4}));
+  const std::vector<tilemap::ChunkCoord> k_east_column{
+      {.col = 5, .row = 2},
+      {.col = 5, .row = 3},
+      {.col = 5, .row = 4},
+  };
+  CHECK(std::ranges::is_permutation(k_east_column, pending_coords));
   // A 7x7 world means the player can keep walking further out; the window shifted, not fixed.
-  CHECK(state.chunks.last_center() == new_center);
+  CHECK(state.chunks.last_center() == tilemap::ChunkCoord{.col = 4, .row = 3});
 }
 
 TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-front draw order") {
@@ -302,17 +302,11 @@ TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-fron
   // the radius-1 window, then add each newly-adjacent chunk as it finishes loading.
   const auto load_window = [&](tilemap::ChunkCoord center) {
     state.chunks.set_last_center(center);
-    std::array<tilemap::ChunkCoord, 9> desired{};
-    int desired_count = 0;
-    for (int dy = -1; dy <= 1; ++dy)
-      for (int dx = -1; dx <= 1; ++dx)
-        desired[desired_count++] = {center.col + dx, center.row + dy};
-    const std::span<const tilemap::ChunkCoord> span{desired.data(), static_cast<std::size_t>(desired_count)};
-    const auto in_desired = [&](const render_data::ChunkEntry &e) {
-      return std::ranges::find(span, e.coord) != span.end();
-    };
-    state.chunks.prune_active(in_desired);
-    for (const tilemap::ChunkCoord c : span) {
+    const std::vector<tilemap::ChunkCoord> desired =
+        tilemap::active_chunk_coords(center, render_data::ChunkWindow::k_radius, state.manifest);
+    state.chunks.prune_active(
+        [&](const render_data::ChunkEntry &e) { return std::ranges::contains(desired, e.coord); });
+    for (const tilemap::ChunkCoord c : desired) {
       if (state.chunks.has(c))
         continue;
       render_data::ChunkEntry e;
@@ -320,15 +314,14 @@ TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-fron
       e.tilemap = make_flat_map();
       state.chunks.add_active(std::move(e));
     }
-    state.chunks.rebuild_slot_table();
   };
 
-  load_window({3, 3});
+  load_window({.col = 3, .row = 3});
   const std::vector<tilemap::ChunkCoord> boot_order = coords_of(state.chunks);
 
   // Walk south one chunk, then back: the row that streams out and back in must not reorder.
-  load_window({3, 4});
-  load_window({3, 3});
+  load_window({.col = 3, .row = 4});
+  load_window({.col = 3, .row = 3});
 
   CHECK(coords_of(state.chunks) == boot_order);
   // The invariant behind it: back-to-front == ascending (row, col).

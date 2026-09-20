@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -29,6 +30,10 @@ namespace corundum::render {
    * Stores frame rectangles in a single contiguous buffer with flat offset
    * and count tables indexed by (sprite_id * k_num_anim_ids + anim_id).
    *
+   * The tables are parallel and must agree: anim_offsets and anim_frame_counts share
+   * one index space and length, and each (offset, count) pair must address a valid
+   * window into frame_rects. get() verifies that window before dereferencing.
+   *
    * @performance O(1) lookup with no pointer chasing — all frame data in contiguous arrays.
    */
   struct SpriteFrameIndex {
@@ -38,18 +43,18 @@ namespace corundum::render {
     std::vector<uint32_t> anim_offsets;
     std::vector<uint8_t> anim_frame_counts;
 
-    /// Lookup result: texture id, source rect, and walk_around_offset.
+    /// Lookup result: texture ID, source rect, and walk_around_offset.
     struct Entry {
-      uint32_t tex_id{};
-      corundum::core::math::IntRect src;
-      float walk_offset{};
+      uint32_t tex_id = 0;
+      corundum::core::math::IntRect src{};
+      float walk_offset = 0.f;
     };
 
     /** @brief Look up the texture ID, source rect, and walk offset for a given frame.
      *  @param[in] sprite_id   Interned sprite identifier.
      *  @param[in] anim_id     Animation identifier.
      *  @param[in] frame_index Zero-based frame within the animation.
-     *  @return Entry with texture_id, source_rect, walk_offset, or std::nullopt.
+     *  @return Entry with tex_id, src, walk_offset, or std::nullopt.
      */
     [[nodiscard]] std::optional<Entry> get(corundum::sprites::SpriteId sprite_id, corundum::sprites::AnimId anim_id,
                                            uint8_t frame_index) const noexcept;
@@ -74,11 +79,11 @@ namespace corundum::render {
 
   /** @brief Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
   struct DepthEntry {
-    uint32_t tex_id{};
-    corundum::core::math::IntRect src;
-    float x{};
-    float y{};
-    float depth{};
+    uint32_t tex_id = 0;
+    corundum::core::math::IntRect src{};
+    float x = 0.f;
+    float y = 0.f;
+    float depth = 0.f;
     float scale = 1.f;
     bool flip_x = false;
     bool flip_y = false;
@@ -86,16 +91,25 @@ namespace corundum::render {
 
   /** @brief Owns the World-mode streamed chunk window: the active/pending chunk
    *  sets, the last-synced center chunk, the offset→slot lookup used by
-   *  elevation_under(), and the dirty flag that gates rebuild_collision() and
-   *  the above_z_cache rebuild in render(). Every mutator that changes the
-   *  active set marks it dirty — the invariant a bare struct + free functions
-   *  left to caller discipline (see the chunks_dirty bug fixed alongside this).
+   *  elevation_under(), and the dirty flag that gates the above_z_cache rebuild in
+   *  render(). Every mutator that changes the active set marks it dirty, and every
+   *  mutator that moves the window or reshuffles the active set re-derives the
+   *  offset→slot lookup — callers never touch either by hand.
    *
    *  active() is kept in the canonical back-to-front draw order (see sort_active)
    *  so streamed-in chunks always draw in the same order as the load_world bootstrap.
    */
   class ChunkWindow {
   public:
+    /// Streaming radius in chunks: the resident window is a (2 * k_radius + 1) square.
+    static constexpr int k_radius = 1;
+
+    /// Chunks per side of the resident window.
+    static constexpr int k_side = (2 * k_radius) + 1;
+
+    /// Maximum chunks resident at once; the bound callers may reserve against.
+    static constexpr std::size_t k_max_active_chunks = static_cast<std::size_t>(k_side) * k_side;
+
     [[nodiscard]] const std::vector<ChunkEntry> &active() const noexcept {
       return active_;
     }
@@ -112,27 +126,28 @@ namespace corundum::render {
       return active_[i];
     }
 
-    [[nodiscard]] bool dirty() const noexcept {
-      return dirty_;
-    }
-
-    void clear_dirty() noexcept {
+    /// @return true if the active set changed since the last call, clearing the flag.
+    [[nodiscard]] bool consume_dirty() noexcept {
+      const bool was_dirty = dirty_;
       dirty_ = false;
+      return was_dirty;
     }
 
     [[nodiscard]] world::tilemap::ChunkCoord last_center() const noexcept {
       return last_center_;
     }
 
+    /// Recenter the window and re-derive the offset→slot lookup.
     void set_last_center(world::tilemap::ChunkCoord c) noexcept {
       last_center_ = c;
+      rebuild_slot_table();
     }
 
     /// @return slot index into active() for the chunk at (dx,dy) from last_center(), or -1.
     [[nodiscard]] int32_t slot_at_offset(int dx, int dy) const noexcept {
-      if (dx < -1 || dx > 1 || dy < -1 || dy > 1)
+      if (dx < -k_radius || dx > k_radius || dy < -k_radius || dy > k_radius)
         return -1;
-      return slot_by_offset_[(static_cast<std::size_t>(dy + 1) * 3) + static_cast<std::size_t>(dx + 1)];
+      return slot_by_offset_[offset_index(dx, dy)];
     }
 
     /// Add a freshly loaded chunk to the active set. Always marks dirty.
@@ -142,16 +157,16 @@ namespace corundum::render {
       dirty_ = true;
     }
 
-    /// Remove active chunks for which @p keep returns false. Marks dirty if anything was removed.
+    /// Remove active chunks for which @p keep returns false, re-deriving the slot table.
     /// @return true if any chunk was removed.
     template <typename Keep> bool prune_active(Keep &&keep) {
       const std::size_t before = active_.size();
       std::erase_if(active_, [&](const ChunkEntry &e) { return !std::forward<Keep>(keep)(e); });
-      if (active_.size() != before) {
-        dirty_ = true;
-        return true;
-      }
-      return false;
+      if (active_.size() == before)
+        return false;
+      dirty_ = true;
+      rebuild_slot_table();
+      return true;
     }
 
     /// True if @p c is already active or already queued in pending.
@@ -176,28 +191,39 @@ namespace corundum::render {
       return true;
     }
 
-    /// Recompute the offset→slot lookup table from the current active set and last_center().
-    void rebuild_slot_table() noexcept {
-      slot_by_offset_.fill(-1);
-      for (std::size_t i = 0; i < active_.size(); ++i) {
-        const int dx = active_[i].coord.col - last_center_.col;
-        const int dy = active_[i].coord.row - last_center_.row;
-        if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
-          slot_by_offset_[(static_cast<std::size_t>(dy + 1) * 3) + static_cast<std::size_t>(dx + 1)] =
-              static_cast<int32_t>(i);
-      }
-    }
-
     /// Reset to the empty, never-loaded state (used by clean_up()).
     void clear() noexcept {
       active_.clear();
       pending_.clear();
       last_center_ = {};
-      slot_by_offset_.fill(-1);
+      slot_by_offset_ = empty_slots();
       dirty_ = true;
     }
 
   private:
+    /// Flatten a window offset into a slot_by_offset_ index. Callers bound-check first.
+    [[nodiscard]] static constexpr std::size_t offset_index(int dx, int dy) noexcept {
+      return (static_cast<std::size_t>(dy + k_radius) * k_side) + static_cast<std::size_t>(dx + k_radius);
+    }
+
+    /// All offsets absent — the value slot_by_offset_ holds before the first rebuild.
+    [[nodiscard]] static constexpr std::array<int32_t, k_max_active_chunks> empty_slots() noexcept {
+      std::array<int32_t, k_max_active_chunks> slots{};
+      slots.fill(-1);
+      return slots;
+    }
+
+    /// Re-derive the offset→slot lookup from the current active set and last_center().
+    void rebuild_slot_table() noexcept {
+      slot_by_offset_ = empty_slots();
+      for (std::size_t i = 0; i < active_.size(); ++i) {
+        const int dx = active_[i].coord.col - last_center_.col;
+        const int dy = active_[i].coord.row - last_center_.row;
+        if (dx >= -k_radius && dx <= k_radius && dy >= -k_radius && dy <= k_radius)
+          slot_by_offset_[offset_index(dx, dy)] = static_cast<int32_t>(i);
+      }
+    }
+
     /// Restore the canonical back-to-front draw order, then re-derive the offset→slot table.
     ///
     /// The render pass draws chunks in active() order. Appending a streamed-in chunk (rather
@@ -213,14 +239,16 @@ namespace corundum::render {
     std::vector<ChunkEntry> active_;
     std::vector<world::tilemap::ChunkCoord> pending_;
     world::tilemap::ChunkCoord last_center_{};
-    std::array<int32_t, 9> slot_by_offset_{-1, -1, -1, -1, -1, -1, -1, -1, -1};
+    std::array<int32_t, k_max_active_chunks> slot_by_offset_ = empty_slots();
     bool dirty_{true};
   };
 
-  /** @brief All mutable rendering state — pure data with no behaviour.
+  /** @brief All mutable rendering state for the active map or world.
    *
-   * Operated on by free functions in namespace corundum::render.
-   * Separates data from logic per DOD: functions own no state, state holds no behaviour.
+   * Mostly passive data: free functions in namespace corundum::render own the logic.
+   * ChunkWindow is the one member that keeps behaviour, encapsulating its own
+   * streaming invariants (draw order, dirty flag, offset→slot lookup) so callers
+   * never have to uphold them by hand.
    */
   struct RenderState {
     corundum::world::tilemap::CollisionRects agg_collisions{};
@@ -272,8 +300,8 @@ namespace corundum::render {
    * Abstracts away the World-vs-SingleMap distinction so consumers don't branch on mode.
    */
   struct CollisionGeometry {
-    world::tilemap::CollisionRectsView rects;
-    world::tilemap::CollisionTrianglesView tris;
+    world::tilemap::CollisionRectsView rects{};
+    world::tilemap::CollisionTrianglesView tris{};
   };
 
   /** @brief Return the collision geometry for the currently active render mode.
@@ -291,11 +319,11 @@ namespace corundum::render {
   }
 
   /** @brief The single loaded tilemap, if the engine is in single-map mode.
-   *  @param[in] state  Initialised render state.
-   * @return Pointer to the active tilemap, or nullptr in World mode (which streams
+   *  @param[in] rs  Initialised render state.
+   *  @return Pointer to the active tilemap, or nullptr in World mode (which streams
    *          one tilemap per chunk — see RenderState::chunks) and before load. */
-  [[nodiscard]] inline const world::tilemap::Tilemap *active_tilemap(const RenderState &state) noexcept {
-    return state.mode == RenderMode::SingleMap ? &state.map_data.tilemap : nullptr;
+  [[nodiscard]] inline const world::tilemap::Tilemap *active_tilemap(const RenderState &rs) noexcept {
+    return rs.mode == RenderMode::SingleMap ? &rs.map_data.tilemap : nullptr;
   }
 
 } // namespace corundum::render

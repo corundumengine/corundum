@@ -22,6 +22,11 @@ namespace {
   using corundum::world::tilemap::Tilemap;
   using corundum::world::tilemap::TilemapLayer;
 
+  // Row-major index into a per-cell tilemap array.
+  std::size_t cell_index(int col, int row, int width) {
+    return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
+  }
+
   // A flat chunk_size x chunk_size tilemap: one tile per cell, elevation 0 everywhere.
   Tilemap flat_chunk(int chunk_size) {
     Tilemap tm;
@@ -33,41 +38,40 @@ namespace {
     layer.name = "ground";
     layer.z_index = 0;
     layer.visible = true;
-    layer.tiles.assign(static_cast<std::size_t>(chunk_size * chunk_size), 1);
-    layer.elevation.assign(static_cast<std::size_t>(chunk_size * chunk_size), 0);
+    layer.tiles.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 1);
+    layer.elevation.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 0);
     tm.layers.push_back(std::move(layer));
     return tm;
   }
 
   void set_elev(Tilemap &tm, int col, int row, uint8_t e) {
-    tm.layers[0].elevation[static_cast<std::size_t>(row * tm.width + col)] = e;
+    tm.layers[0].elevation[cell_index(col, row, tm.width)] = e;
   }
 
   render_data::ChunkEntry make_chunk(int ccol, int crow, Tilemap tm) {
     render_data::ChunkEntry c;
-    c.coord = {ccol, crow};
+    c.coord = {.col = ccol, .row = crow};
     c.tilemap = std::move(tm);
     return c;
   }
 
   // World-mode RenderState with a horizontal run of `n` chunks along row 0, starting at (0,0).
   // Each chunk's tilemap is produced by `mk(chunk_index)` so tests can inject elevation walls.
-  template <typename Mk> void init_world(render_data::RenderState &state, int chunk_size, int n, Mk &&mk) {
+  template <typename Mk> void init_world(render_data::RenderState &state, int chunk_size, int n, const Mk &mk) {
     state.mode = render_data::RenderMode::World;
     state.manifest.chunk_size = chunk_size;
     state.manifest.chunks_wide = n + 2;
     state.manifest.chunks_tall = 3;
     for (int i = 0; i < n; ++i)
       state.chunks.add_active(make_chunk(i, 0, mk(i)));
-    state.chunks.set_last_center({0, 0});
-    state.chunks.rebuild_slot_table();
+    state.chunks.set_last_center({.col = 0, .row = 0});
     corundum::render::rebuild_collision(state);
     corundum::render::rebuild_world_walkability(state, /*max_step_height=*/4);
   }
 
   // MapView as build_map_view's world branch wires it (minus the iso math the pathfinder
   // does not use).
-  MapView world_map_view(render_data::RenderState &state) {
+  MapView world_map_view(const render_data::RenderState &state) {
     MapView m;
     m.collisions = state.agg_collisions.view();
     m.collision_triangles = state.agg_triangles.view();
@@ -96,7 +100,7 @@ TEST_CASE("find_path — routes across a chunk boundary in world mode") {
   const MapView map = world_map_view(state);
 
   // Start in chunk (0,0); goal at global col 12 lives in chunk (1,0).
-  const auto path = find_path(map, {2, 4}, {12, 4});
+  const auto path = find_path(map, {.col = 2, .row = 4}, {.col = 12, .row = 4});
   REQUIRE_FALSE(path.empty());
   CHECK(path.back().col == 12);
   CHECK(path.back().row == 4);
@@ -113,7 +117,7 @@ TEST_CASE("find_path — an elevation wall on the chunk seam blocks the route") 
   });
   const MapView map = world_map_view(state);
 
-  const auto path = find_path(map, {2, 4}, {12, 4});
+  const auto path = find_path(map, {.col = 2, .row = 4}, {.col = 12, .row = 4});
   CHECK(path.empty()); // global-coord elevation lookup gates the seam edges
 }
 
@@ -121,7 +125,7 @@ TEST_CASE("build_map_view — world mode wires up the walkability graph") {
   render_data::RenderState state;
   init_world(state, 8, 1, [](int) { return flat_chunk(8); });
 
-  corundum::core::GameConfig cfg;
+  const corundum::core::GameConfig cfg;
   const MapView mv = corundum::world::build_map_view(state, cfg);
   CHECK(mv.walkability == &state.agg_walkability);
   CHECK(mv.elevation_map == nullptr);
