@@ -5,7 +5,7 @@
 
 #include "temp_dir.hpp"
 #include <corundum/render/render_state.hpp>
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
@@ -131,6 +131,46 @@ TEST_CASE("save: a save with a newer version than the engine supports is refused
 TEST_CASE("save: a non-object save JSON is refused") {
   const auto state = corundum::save::from_json(json::array({1, 2, 3}));
   REQUIRE_FALSE(state.has_value());
+}
+
+TEST_CASE("save: from_json rejects a field with the wrong JSON type") {
+  const json j = {
+      {"version", 1},
+      {"game_id", 42}, // must be a string
+      {"mode", "single_map"},
+  };
+
+  const auto state = corundum::save::from_json(j);
+  REQUIRE_FALSE(state.has_value());
+  CHECK(state.error().find("game_id") != std::string::npos);
+}
+
+TEST_CASE("save: from_json rejects a non-numeric player position") {
+  const json j = {
+      {"version", 1},
+      {"mode", "single_map"},
+      {"player_col", "five"},
+  };
+
+  const auto state = corundum::save::from_json(j);
+  REQUIRE_FALSE(state.has_value());
+  CHECK(state.error().find("player_col") != std::string::npos);
+}
+
+TEST_CASE("save: from_json rejects a non-integer version") {
+  const json j = {{"version", "one"}, {"mode", "single_map"}};
+
+  const auto state = corundum::save::from_json(j);
+  REQUIRE_FALSE(state.has_value());
+  CHECK(state.error().find("version") != std::string::npos);
+}
+
+TEST_CASE("save: from_json rejects an unknown mode") {
+  const json j = {{"version", 1}, {"mode", "overworld"}};
+
+  const auto state = corundum::save::from_json(j);
+  REQUIRE_FALSE(state.has_value());
+  CHECK(state.error().find("mode") != std::string::npos);
 }
 
 // ── load_game guards ──────────────────────────────────────────────────────────
@@ -260,6 +300,62 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   CHECK(restored.pos_row(engine.scene.player) == doctest::Approx(3.f));
   CHECK(engine.scene.zone_id == "transition");
   CHECK_FALSE(engine.entered_from_world);
+
+  engine.cleanup();
+  fs::remove_all(p.parent_path());
+}
+
+TEST_CASE("save: load_game refuses a save whose world manifest differs") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
+
+  corundum::save::SaveState s;
+  s.game_id = "test_game";
+  s.mode = "world";
+  s.map_or_world_id = "some/other/world/manifest.json";
+
+  const fs::path p = save_path("wrong_world");
+  write_save_file(p, corundum::save::to_json(s));
+
+  const auto result = corundum::save::load_game(engine, p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("world") != std::string::npos);
+
+  engine.cleanup();
+  fs::remove_all(p.parent_path());
+}
+
+TEST_CASE("save: a failed load leaves the engine's flags untouched") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+
+  corundum::core::GameConfig cfg = make_world_config(fixtures);
+  cfg.paths.world_manifest_path.clear(); // single-map mode
+  cfg.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  engine.flags["keep.me"] = 1;
+
+  corundum::save::SaveState s;
+  s.game_id = "test_game";
+  s.mode = "single_map";
+  s.map_or_world_id = (fixtures / "tilemaps/does_not_exist.json").string();
+
+  const fs::path p = save_path("failed_load");
+  write_save_file(p, corundum::save::to_json(s));
+
+  const auto result = corundum::save::load_game(engine, p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(engine.flags.count("keep.me") == 1);
+  CHECK(engine.flags.size() == 1);
 
   engine.cleanup();
   fs::remove_all(p.parent_path());

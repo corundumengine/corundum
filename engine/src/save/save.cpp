@@ -16,14 +16,35 @@
 #include <format>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace corundum::save {
 
   namespace {
 
-    constexpr std::string_view k_mode_world = "world";
-    constexpr std::string_view k_mode_single_map = "single_map";
+    /// Copy `j[key]` into @p out when present, rejecting a present value whose JSON
+    /// type doesn't match @p T. Absent keys leave @p out at its existing default.
+    template <typename T>
+    [[nodiscard]] std::expected<void, std::string> read_field(const nlohmann::json &j, std::string_view key, T &out) {
+      const auto it = j.find(key);
+      if (it == j.end())
+        return {};
+
+      if constexpr (std::is_same_v<T, std::string>) {
+        if (!it->is_string())
+          return std::unexpected(std::format("save '{}' must be a string", key));
+      } else if constexpr (std::is_same_v<T, bool>) {
+        if (!it->is_boolean())
+          return std::unexpected(std::format("save '{}' must be a boolean", key));
+      } else {
+        if (!it->is_number())
+          return std::unexpected(std::format("save '{}' must be a number", key));
+      }
+
+      out = it->get<T>();
+      return {};
+    }
 
     /// Serialize the whole FlagStore as a `{ "key": int }` object. Written
     /// manually (not via nlohmann's map support) so no conversion surprises
@@ -51,7 +72,7 @@ namespace corundum::save {
     return j;
   }
 
-  std::expected<void, std::string> migrate(nlohmann::json & /*j*/, int from_version) noexcept {
+  std::expected<void, std::string> migrate(nlohmann::json & /*j*/, int from_version) {
     if (from_version < 1)
       return std::unexpected(std::format("save has invalid version {}", from_version));
     // Future versions append migration steps here, in order:
@@ -65,6 +86,8 @@ namespace corundum::save {
     if (!j.is_object())
       return std::unexpected("save JSON must be an object");
 
+    if (j.contains("version") && !j["version"].is_number_integer())
+      return std::unexpected("save 'version' must be an integer");
     const int version = j.value("version", 1);
     if (version > k_save_version)
       return std::unexpected(
@@ -76,13 +99,24 @@ namespace corundum::save {
 
     SaveState s;
     s.version = k_save_version;
-    s.game_id = migrated.value("game_id", std::string{});
-    s.mode = migrated.value("mode", std::string{k_mode_single_map});
-    s.map_or_world_id = migrated.value("map_or_world_id", std::string{});
-    s.active_zone = migrated.value("active_zone", std::string{});
-    s.player_col = migrated.value("player_col", 0.f);
-    s.player_row = migrated.value("player_row", 0.f);
-    s.entered_from_world = migrated.value("entered_from_world", false);
+
+    if (auto result = read_field(migrated, "game_id", s.game_id); !result)
+      return std::unexpected(std::move(result).error());
+    if (auto result = read_field(migrated, "mode", s.mode); !result)
+      return std::unexpected(std::move(result).error());
+    if (auto result = read_field(migrated, "map_or_world_id", s.map_or_world_id); !result)
+      return std::unexpected(std::move(result).error());
+    if (auto result = read_field(migrated, "active_zone", s.active_zone); !result)
+      return std::unexpected(std::move(result).error());
+    if (auto result = read_field(migrated, "player_col", s.player_col); !result)
+      return std::unexpected(std::move(result).error());
+    if (auto result = read_field(migrated, "player_row", s.player_row); !result)
+      return std::unexpected(std::move(result).error());
+    if (auto result = read_field(migrated, "entered_from_world", s.entered_from_world); !result)
+      return std::unexpected(std::move(result).error());
+
+    if (s.mode != k_mode_single_map && s.mode != k_mode_world)
+      return std::unexpected(std::format("save 'mode' must be '{}' or '{}'", k_mode_single_map, k_mode_world));
 
     if (migrated.contains("flags")) {
       if (!migrated["flags"].is_object())
@@ -104,7 +138,7 @@ namespace corundum::save {
         engine.render.mode == render::RenderMode::World ? std::string{k_mode_world} : std::string{k_mode_single_map};
 
     if (state.mode == k_mode_world) {
-      state.map_or_world_id = engine.scene.zone_id;
+      state.map_or_world_id = engine.cfg.paths.world_manifest_path;
     } else {
       const auto *tm = render::active_tilemap(engine.render);
       if (tm == nullptr)
@@ -134,13 +168,21 @@ namespace corundum::save {
       return std::unexpected(
           std::format("save '{}' is for game '{}', not '{}'", path.string(), state->game_id, engine.cfg.game_id));
 
-    engine.flags = std::move(state->flags);
-    engine.entered_from_world = state->entered_from_world;
+    if (state->mode == k_mode_world && !state->map_or_world_id.empty() &&
+        state->map_or_world_id != engine.cfg.paths.world_manifest_path)
+      return std::unexpected(std::format("save '{}' is for world '{}', not '{}'", path.string(), state->map_or_world_id,
+                                         engine.cfg.paths.world_manifest_path));
 
+    // Rebuild the scene first: apply_spawn reads no flag state, so committing flags
+    // only after it succeeds keeps a failed load from leaving the engine with the
+    // save's flags but the previous scene.
     auto spawn = world::apply_spawn(engine, state->mode, state->map_or_world_id, state->active_zone, state->player_col,
                                     state->player_row);
     if (!spawn)
       return std::unexpected(std::move(spawn).error());
+
+    engine.flags = std::move(state->flags);
+    engine.entered_from_world = state->entered_from_world;
     return {};
   }
 

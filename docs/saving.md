@@ -18,7 +18,7 @@ struct SaveState {
     int version = k_save_version;      // On-disk format version
     std::string game_id;               // From game.json; guards cross-game loads
     std::string mode;                  // "single_map" | "world"
-    std::string map_or_world_id;       // Tilemap path (single_map) or world manifest id (world)
+    std::string map_or_world_id;       // Tilemap path (single_map) or world manifest path (world)
     std::string active_zone;           // Scene zone id at save time
     float player_col = 0.f;            // Player tile column
     float player_row = 0.f;            // Player tile row
@@ -77,7 +77,7 @@ corundum::save::load_game(
 );
 ```
 
-It restores the saved flags, then runs the existing transition machinery to rebuild the scene at the saved spawn point. NPCs respawn from their spawn-point data; any per-NPC state you keep in `npc.<id>.*` flags comes back verbatim along with everything else (the engine doesn't reconstruct NPC state from those flags by itself).
+It rebuilds the scene at the saved location through the transition machinery (`enter_world` for world mode, `load_map` for single-map mode) and only then restores the saved flags and return-journey marker, so a failed load leaves the running game untouched. NPCs respawn from their spawn-point data; any per-NPC state you keep in `npc.<id>.*` flags comes back verbatim along with everything else (the engine doesn't reconstruct NPC state from those flags by itself).
 
 ## Migration
 
@@ -105,20 +105,20 @@ That's what lets you add new flags in an update without breaking old saves. Docu
 On load, the engine:
 
 1. Reads and parses the save JSON
-2. Validates the version and runs any migrations
-3. Checks the save's `game_id` matches the running game (a mismatch is an error)
-4. Replaces the engine's flags with the saved flags
-5. Rebuilds the scene at the saved location via the transition machinery (`enter_world` for world mode, `load_map` for single-map mode)
-6. Restores the active zone and the return-journey marker
+2. Validates the fields, the version, and runs any migrations
+3. Checks the save's `game_id` matches the running game, and (in world mode) that its world manifest matches (a mismatch is an error)
+4. Rebuilds the scene at the saved location via the transition machinery (`enter_world` for world mode, `load_map` for single-map mode)
+5. Replaces the engine's flags with the saved flags and restores the active zone and the return-journey marker
 
 ## Loading Errors
 
 Loading can fail in a few ways, each returning an error string:
 
 - File not found or unreadable
-- Malformed JSON
+- Malformed JSON, or a field with the wrong JSON type
+- Save `mode` is neither `single_map` nor `world`
 - Save version newer than the engine supports
-- Save `game_id` differs from the running game
+- Save `game_id` differs from the running game, or (in world mode) the world manifest differs
 - The map/world can't be loaded at the saved spawn point
 
 Handle it gracefully:
