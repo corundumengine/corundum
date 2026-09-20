@@ -11,30 +11,38 @@
 
 namespace corundum::quest {
 
+  namespace {
+
+    /// The stage whose sequence equals @p stage_seq, or nullptr. Non-positive
+    /// sequences never name a stage (0 is the not-started sentinel).
+    [[nodiscard]] const Stage *stage_for_sequence(const Quest &quest, int stage_seq) {
+      if (stage_seq <= 0)
+        return nullptr;
+      for (const auto &stage : quest.stages) {
+        if (stage.sequence == stage_seq)
+          return &stage;
+      }
+      return nullptr;
+    }
+
+  } // namespace
+
   Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags) {
     const int stage_seq = get_stage(quest.quest_id, flags);
     if (stage_seq <= 0)
       return Lifecycle::NotStarted;
-    for (const auto &stage : quest.stages) {
-      if (stage.sequence == stage_seq) {
-        if (stage.failed)
-          return Lifecycle::Failed;
-        if (stage.resolved)
-          return Lifecycle::Completed;
-      }
-    }
+    const Stage *stage = stage_for_sequence(quest, stage_seq);
+    if (stage == nullptr)
+      return Lifecycle::Active; // dangling sequence
+    if (stage->failed)
+      return Lifecycle::Failed;
+    if (stage->resolved)
+      return Lifecycle::Completed;
     return Lifecycle::Active;
   }
 
   const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags) {
-    const int stage_seq = get_stage(quest.quest_id, flags);
-    if (stage_seq <= 0)
-      return nullptr;
-    for (const auto &stage : quest.stages) {
-      if (stage.sequence == stage_seq)
-        return &stage;
-    }
-    return nullptr;
+    return stage_for_sequence(quest, get_stage(quest.quest_id, flags));
   }
 
   std::vector<ObjectiveView> objectives(const Quest &quest, const corundum::world::FlagStore &flags,
@@ -45,11 +53,12 @@ namespace corundum::quest {
 
     std::vector<ObjectiveView> result;
     result.reserve(stage->objectives.size());
-    for (const auto &obj : stage->objectives) {
+    for (const auto &objective : stage->objectives) {
       bool done = false;
-      if (obj.done_condition.has_value())
-        done = dialogue::evaluate(*obj.done_condition, flags, quests, {}, zone_id);
-      result.push_back(ObjectiveView{.done = done, .has_condition = obj.done_condition.has_value(), .text = obj.text});
+      if (objective.done_condition.has_value())
+        done = dialogue::evaluate(*objective.done_condition, flags, quests, {}, zone_id);
+      result.push_back(
+          ObjectiveView{.done = done, .has_condition = objective.done_condition.has_value(), .text = objective.text});
     }
     return result;
   }

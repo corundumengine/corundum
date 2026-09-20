@@ -66,6 +66,23 @@ namespace {
     return q;
   }
 
+  /// A single-stage quest whose sole objective is auto-checked by @p condition.
+  quest::Quest make_quest_with_condition(std::string_view condition) {
+    quest::Quest q;
+    q.quest_id = "cond_quest";
+    q.name = "Conditional Quest";
+    q.description = "A quest driven by a done_condition.";
+
+    q.stages.push_back({
+        .name = "start",
+        .objectives = {{.done_condition = *corundum::dialogue::compile(condition), .text = "Conditioned"}},
+        .sequence = 1,
+    });
+    q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+
+    return q;
+  }
+
   /// Condition source text for an objective, or empty when it carries no condition.
   std::string_view condition_source(const quest::Objective &objective) {
     return objective.done_condition.has_value() ? objective.done_condition->source() : std::string_view{};
@@ -926,6 +943,40 @@ TEST_CASE("objectives marks a conditioned objective done when its flag is set") 
   REQUIRE(views.size() == 2);
   CHECK_FALSE(views[0].done);
   CHECK(views[1].done);
+}
+
+TEST_CASE("objectives resolves a quest-helper condition through the registry") {
+  const auto q = make_quest_with_condition("quest_is_resolved(test_quest)");
+  quest::Registry registry;
+  registry.add(make_test_quest());
+  FlagStore flags;
+  flags["quest.cond_quest"] = 1;
+  flags["quest.test_quest"] = 3; // test_quest is on its resolved stage
+
+  const auto with_registry = quest::objectives(q, flags, &registry);
+  REQUIRE(with_registry.size() == 1);
+  CHECK(with_registry[0].done);
+
+  // Without the registry the helper has no quest to resolve, so it stays false.
+  const auto without_registry = quest::objectives(q, flags);
+  REQUIRE(without_registry.size() == 1);
+  CHECK_FALSE(without_registry[0].done);
+}
+
+TEST_CASE("objectives resolves a local.<key> condition against the zone") {
+  const auto q = make_quest_with_condition("local.ember_tracks_found >= 1");
+  FlagStore flags;
+  flags["quest.cond_quest"] = 1;
+  flags["zone.ember_marsh.ember_tracks_found"] = 1;
+
+  const auto scoped = quest::objectives(q, flags, nullptr, "ember_marsh");
+  REQUIRE(scoped.size() == 1);
+  CHECK(scoped[0].done);
+
+  // With no active zone the local key does not resolve, so the condition is false.
+  const auto unscoped = quest::objectives(q, flags);
+  REQUIRE(unscoped.size() == 1);
+  CHECK_FALSE(unscoped[0].done);
 }
 
 // ── Breadcrumbs ───────────────────────────────────────────────────────────────

@@ -77,6 +77,8 @@ namespace corundum::quest {
    * @param zone_id Current zone; `local.<key>` done_conditions resolve against it.
    * @return One ObjectiveView per objective of the current stage; empty when
    *         the quest is not started or its flag names no stage.
+   * @note Node-visit helpers (`seen`/`visits`) always evaluate false here — an
+   *       objective has no owning dialogue graph to resolve them against.
    * @note The returned views borrow @p quest's strings — the quest must outlive
    *       the returned vector.
    */
