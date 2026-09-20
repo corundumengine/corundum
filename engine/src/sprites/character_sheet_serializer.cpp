@@ -10,8 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-using json = nlohmann::json;
-using namespace corundum::sprites;
+using nlohmann::json;
 
 namespace corundum::sprites {
 
@@ -35,15 +34,20 @@ namespace corundum::sprites {
       json sj;
       sj["col_span"] = sp.col_span;
       sj["row_span"] = sp.row_span;
-      sj["footprint_col_span"] = sp.footprint_col_span;
-      sj["footprint_row_span"] = sp.footprint_row_span;
-      sj["walk_around_offset"] = sp.walk_around_offset;
+      // Write a footprint only when one was authored. Emitting the substituted defaults would
+      // flip footprint_authored on the next load and silence the "no footprint" registry warning.
+      if (sp.footprint_authored) {
+        sj["footprint_col_span"] = sp.footprint_col_span;
+        sj["footprint_row_span"] = sp.footprint_row_span;
+      }
+      if (sp.walk_around_offset != k_default_walk_around_offset)
+        sj["walk_around_offset"] = sp.walk_around_offset;
       if (sp.fps > 0.f)
         sj["fps"] = sp.fps;
       for (uint8_t i = 0; i < k_num_anim_ids; ++i) {
         if (sp.anim_frames[i].empty())
           continue;
-        auto &arr = sj[std::string(k_anim_names[i])] = json::array();
+        json &arr = sj[std::string(k_anim_names[i])] = json::array();
         for (const auto &fc : sp.anim_frames[i])
           arr.push_back({{"col", fc.col}, {"row", fc.row}});
       }

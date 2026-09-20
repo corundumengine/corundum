@@ -75,6 +75,77 @@ TEST_CASE("character sheet fps survives a serialize -> load round trip") {
   CHECK(li->fps == doctest::Approx(0.f));
 }
 
+TEST_CASE("character sheet footprint authored state survives a serialize -> load round trip") {
+  using namespace corundum::sprites;
+  const auto dir = temp_dir("footprint_roundtrip");
+  const auto path = dir / "sheet.json";
+  // One sprite authors a footprint, the other relies on the loader's defaults.
+  write_file(
+      path,
+      R"({"id":"sheet","path":"s.png","frame_width":16,"frame_height":16,"frames":{"authored":{"col_span":1,"row_span":1,"footprint_col_span":0.5,"footprint_row_span":0.9,"south":[{"col":0,"row":0}]},"defaulted":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}})");
+
+  const auto loaded = load_character_sheet(path);
+  REQUIRE(loaded.has_value());
+
+  const nlohmann::json j = serialize_character_sheet(*loaded);
+  CHECK(j.at("frames").at("authored").contains("footprint_col_span"));
+  CHECK_FALSE(j.at("frames").at("defaulted").contains("footprint_col_span"));
+
+  const auto reload_path = dir / "reloaded.json";
+  write_file(reload_path, j.dump());
+  const auto reloaded = load_character_sheet(reload_path);
+  REQUIRE(reloaded.has_value());
+  REQUIRE(reloaded->sprites.size() == 2);
+
+  for (const auto &s : reloaded->sprites) {
+    if (s.name == "authored") {
+      CHECK(s.footprint_authored); // the keys were authored, so the registry stays quiet
+      CHECK(s.footprint_col_span == doctest::Approx(0.5f));
+      CHECK(s.footprint_row_span == doctest::Approx(0.9f));
+    } else if (s.name == "defaulted") {
+      CHECK_FALSE(s.footprint_authored); // omission must not fabricate an authored footprint
+      CHECK(s.footprint_col_span == doctest::Approx(k_default_footprint_col_span));
+      CHECK(s.footprint_row_span == doctest::Approx(k_default_footprint_row_span));
+    }
+  }
+}
+
+TEST_CASE("character sheet walk_around_offset is omitted at its default and round-trips otherwise") {
+  using namespace corundum::sprites;
+  CharacterSheetData data;
+  data.id = "sheet";
+  data.path = "s.png";
+  data.frame_width = 16;
+  data.frame_height = 16;
+
+  CharacterSpriteEntry custom;
+  custom.name = "custom";
+  custom.walk_around_offset = 0.9f;
+  custom.anim_frames[static_cast<std::size_t>(AnimId::South)] = {{.col = 0, .row = 0}};
+  data.sprites.push_back(custom);
+
+  CharacterSpriteEntry defaulted;
+  defaulted.name = "defaulted";
+  defaulted.anim_frames[static_cast<std::size_t>(AnimId::South)] = {{.col = 0, .row = 1}};
+  data.sprites.push_back(defaulted);
+
+  const nlohmann::json j = serialize_character_sheet(data);
+  CHECK(j.at("frames").at("custom").at("walk_around_offset").get<float>() == doctest::Approx(0.9f));
+  CHECK_FALSE(j.at("frames").at("defaulted").contains("walk_around_offset"));
+
+  const auto dir = temp_dir("walk_around_roundtrip");
+  const auto path = dir / "sheet.json";
+  write_file(path, j.dump());
+  const auto loaded = load_character_sheet(path);
+  REQUIRE(loaded.has_value());
+  for (const auto &s : loaded->sprites) {
+    if (s.name == "custom")
+      CHECK(s.walk_around_offset == doctest::Approx(0.9f));
+    if (s.name == "defaulted")
+      CHECK(s.walk_around_offset == doctest::Approx(k_default_walk_around_offset));
+  }
+}
+
 TEST_CASE("load_character_sheet — fps defaults to 0.f when absent") {
   const auto dir = temp_dir("fps_default");
   const auto path = dir / "sheet.json";

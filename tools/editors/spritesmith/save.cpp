@@ -36,6 +36,8 @@ namespace tools::spritesmith {
         entry.row_span = sp.row_span;
         entry.footprint_col_span = sp.footprint_col_span;
         entry.footprint_row_span = sp.footprint_row_span;
+        // spritesmith always exposes both footprint fields, so every save authors them.
+        entry.footprint_authored = true;
         entry.walk_around_offset = sp.walk_around_offset;
         entry.fps = sp.fps;
         entry.anim_frames = sp.anim_frames;
