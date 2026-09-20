@@ -251,6 +251,35 @@ TEST_CASE("serialize_atlas_clips — round-trips through load, including danglin
   CHECK(result->clips[1].fps == 4);
 }
 
+TEST_CASE("serialize_atlas_clips — writes schema_version and omits default 'fps'") {
+  corundum::sprites::AtlasClipsData data;
+  data.clips.push_back({.fps = corundum::sprites::k_default_clip_fps, .frames = {"a_0"}, .name = "idle"});
+
+  const auto j = corundum::sprites::serialize_atlas_clips(data);
+  CHECK(j["schema_version"] == corundum::sprites::k_atlas_clips_schema_version);
+  REQUIRE(j["clips"].size() == 1);
+  CHECK(!j["clips"][0].contains("fps"));
+
+  const auto dir = temp_dir("default_fps");
+  const auto path = dir / "sidecar.json";
+  write_file(path, j.dump());
+
+  const auto result = corundum::sprites::load_atlas_clips(path);
+  REQUIRE(result.has_value());
+  REQUIRE(result->clips.size() == 1);
+  CHECK(result->clips[0].fps == corundum::sprites::k_default_clip_fps);
+}
+
+TEST_CASE("serialize_atlas_clips — empty data round-trips to empty clips") {
+  const auto dir = temp_dir("empty");
+  const auto path = dir / "sidecar.json";
+  write_file(path, corundum::sprites::serialize_atlas_clips({}).dump());
+
+  const auto result = corundum::sprites::load_atlas_clips(path);
+  REQUIRE(result.has_value());
+  CHECK(result->clips.empty());
+}
+
 TEST_CASE("atlas_clips_sidecar_path — replaces the extension with .spritedata.json") {
   const auto p = corundum::sprites::atlas_clips_sidecar_path("data/sprite_sheets/environments/ground-d.json");
   CHECK(p == fs::path("data/sprite_sheets/environments/ground-d.spritedata.json"));

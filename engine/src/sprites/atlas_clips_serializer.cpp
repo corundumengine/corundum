@@ -4,6 +4,8 @@
 #include <corundum/sprites/atlas_clips.hpp>
 #include <corundum/sprites/atlas_clips_serializer.hpp>
 #include <nlohmann/json_fwd.hpp>
+
+#include <nlohmann/json.hpp>
 #include <utility>
 
 using nlohmann::json;
@@ -17,7 +19,8 @@ namespace corundum::sprites {
     for (const auto &clip : data.clips) {
       json cj;
       cj["name"] = clip.name;
-      cj["fps"] = clip.fps;
+      if (clip.fps != k_default_clip_fps)
+        cj["fps"] = clip.fps;
       cj["frames"] = clip.frames;
       j["clips"].push_back(std::move(cj));
     }
