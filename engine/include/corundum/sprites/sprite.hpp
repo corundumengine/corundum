@@ -3,9 +3,9 @@
 
 #pragma once
 #include <array>
+#include <cassert>
 #include <corundum/core/direction.hpp>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -40,7 +40,9 @@ namespace corundum::sprites {
   inline constexpr uint8_t k_num_anim_ids = static_cast<uint8_t>(AnimId::Count);
 
   /// Clip key for a screen direction. The directional enumerators mirror Direction.
+  /// @pre dir must not be core::Direction::Count.
   [[nodiscard]] constexpr AnimId to_anim(core::Direction dir) noexcept {
+    assert(dir != core::Direction::Count && "Count is a sentinel, not a facing");
     return static_cast<AnimId>(std::to_underlying(dir));
   }
 
@@ -53,11 +55,12 @@ namespace corundum::sprites {
   };
 
   /// Resolves an animation name to its AnimId; returns AnimId::Count if unknown.
+  /// @note Resolves against k_anim_names so the loader and serializer can never disagree on
+  ///       which names are valid.
   [[nodiscard]] constexpr AnimId anim_name_to_id(std::string_view name) noexcept {
-    if (name == "default")
-      return AnimId::Default;
-    if (const std::optional<core::Direction> dir = core::direction_from_name(name))
-      return to_anim(*dir);
+    for (uint8_t i = 0; i < k_num_anim_ids; ++i)
+      if (k_anim_names[i] == name)
+        return static_cast<AnimId>(i);
     return AnimId::Count;
   }
 
@@ -71,8 +74,6 @@ namespace corundum::sprites {
     int offset_y = 0;     ///< Pixel offset from top edge of image to the first frame
     int spacing_x = 0;    ///< Horizontal gap in pixels between frames
     int spacing_y = 0;    ///< Vertical gap in pixels between frames
-    int columns = 0;      ///< Number of frames horizontally in the sheet
-    int rows = 0;         ///< Number of frames vertically in the sheet
   };
 
   /// Grid location of a single animation frame within a sprite sheet.
@@ -84,12 +85,14 @@ namespace corundum::sprites {
   /// Total rendered pixel width for a sprite occupying col_span grid columns.
   /// @pre col_span >= 1
   [[nodiscard]] constexpr int rendered_frame_width(int col_span, int frame_width, int spacing_x) noexcept {
+    assert(col_span >= 1);
     return (col_span * frame_width) + ((col_span - 1) * spacing_x);
   }
 
   /// Total rendered pixel height for a sprite occupying row_span grid rows.
   /// @pre row_span >= 1
   [[nodiscard]] constexpr int rendered_frame_height(int row_span, int frame_height, int spacing_y) noexcept {
+    assert(row_span >= 1);
     return (row_span * frame_height) + ((row_span - 1) * spacing_y);
   }
 
