@@ -59,14 +59,14 @@ namespace tools::spritesmith {
       data.spacing_y = state.spacing_y;
       data.anim_fps = state.anim_fps;
       for (const auto &clip : state.anim_clips)
-        data.clips.push_back({clip.name, clip.frames});
+        data.clips.push_back({.name = clip.name, .frames = clip.frames});
       return data;
     }
 
     [[nodiscard]] corundum::sprites::AtlasClipsData to_atlas_clips_data(const EditorState &state) {
       corundum::sprites::AtlasClipsData data;
       for (const auto &clip : state.atlas_clips)
-        data.clips.push_back({clip.name, clip.fps, clip.frames});
+        data.clips.push_back({.fps = clip.fps, .frames = clip.frames, .name = clip.name});
       return data;
     }
 

@@ -6,9 +6,9 @@
 
 namespace corundum::sprites {
 
-  std::filesystem::path atlas_clips_sidecar_path(const std::filesystem::path &atlas_path) {
-    std::filesystem::path p = atlas_path;
-    return p.replace_extension(".spritedata.json");
+  std::filesystem::path atlas_clips_sidecar_path(std::filesystem::path atlas_path) {
+    atlas_path.replace_extension(".spritedata.json");
+    return atlas_path;
   }
 
 } // namespace corundum::sprites

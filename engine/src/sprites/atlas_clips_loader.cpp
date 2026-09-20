@@ -14,9 +14,55 @@
 #include <unordered_set>
 #include <utility>
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::sprites {
+
+  namespace {
+
+    /** @brief Validate and parse one entry of the sidecar's "clips" array.
+     *
+     * @param clip_json  The clip object; all field types are checked before extraction.
+     * @param path       Sidecar path, used only to name the file in error messages.
+     */
+    std::expected<AtlasClip, std::string> parse_clip(const json &clip_json, const std::filesystem::path &path) {
+      AtlasClip clip;
+
+      if (!clip_json.contains("name") || !clip_json["name"].is_string())
+        return std::unexpected(std::format("Atlas clips sidecar '{}' clip missing 'name'", path.string()));
+      clip.name = clip_json["name"].get<std::string>();
+      if (clip.name.empty())
+        return std::unexpected(std::format("Atlas clips sidecar '{}' has a clip with empty 'name'", path.string()));
+
+      if (clip_json.contains("fps")) {
+        if (!clip_json["fps"].is_number_integer())
+          return std::unexpected(
+              std::format("Atlas clips sidecar '{}' clip '{}' field 'fps' has wrong type", path.string(), clip.name));
+        clip.fps = clip_json["fps"].get<int>();
+        if (clip.fps <= 0)
+          return std::unexpected(
+              std::format("Atlas clips sidecar '{}' clip '{}' has non-positive 'fps'", path.string(), clip.name));
+      }
+
+      if (!clip_json.contains("frames") || !clip_json["frames"].is_array())
+        return std::unexpected(
+            std::format("Atlas clips sidecar '{}' clip '{}' missing 'frames' array", path.string(), clip.name));
+
+      for (const auto &frame_json : clip_json["frames"]) {
+        if (!frame_json.is_string())
+          return std::unexpected(
+              std::format("Atlas clips sidecar '{}' clip '{}' has a non-string frame entry", path.string(), clip.name));
+        std::string frame_name = frame_json.get<std::string>();
+        if (frame_name.empty())
+          return std::unexpected(
+              std::format("Atlas clips sidecar '{}' clip '{}' has an empty frame name", path.string(), clip.name));
+        clip.frames.push_back(std::move(frame_name));
+      }
+
+      return clip;
+    }
+
+  } // namespace
 
   std::expected<AtlasClipsData, std::string> load_atlas_clips(const std::filesystem::path &path) {
     std::ifstream f(path);
@@ -52,37 +98,15 @@ namespace corundum::sprites {
     data.clips.reserve(clips_arr.size());
 
     for (const auto &cj : clips_arr) {
-      AtlasClip clip;
-      if (!cj.contains("name") || !cj["name"].is_string())
-        return std::unexpected(std::format("Atlas clips sidecar '{}' clip missing 'name'", path.string()));
-      clip.name = cj["name"].get<std::string>();
-      if (clip.name.empty())
-        return std::unexpected(std::format("Atlas clips sidecar '{}' has a clip with empty 'name'", path.string()));
-      if (!seen_names.insert(clip.name).second)
+      auto clip = parse_clip(cj, path);
+      if (!clip)
+        return std::unexpected(clip.error());
+
+      if (!seen_names.insert(clip->name).second)
         return std::unexpected(
-            std::format("Atlas clips sidecar '{}' has duplicate clip name '{}'", path.string(), clip.name));
+            std::format("Atlas clips sidecar '{}' has duplicate clip name '{}'", path.string(), clip->name));
 
-      clip.fps = cj.value("fps", 8);
-      if (clip.fps <= 0)
-        return std::unexpected(
-            std::format("Atlas clips sidecar '{}' clip '{}' has non-positive 'fps'", path.string(), clip.name));
-
-      if (!cj.contains("frames") || !cj["frames"].is_array())
-        return std::unexpected(
-            std::format("Atlas clips sidecar '{}' clip '{}' missing 'frames' array", path.string(), clip.name));
-
-      for (const auto &fj : cj["frames"]) {
-        if (!fj.is_string())
-          return std::unexpected(
-              std::format("Atlas clips sidecar '{}' clip '{}' has a non-string frame entry", path.string(), clip.name));
-        std::string frame_name = fj.get<std::string>();
-        if (frame_name.empty())
-          return std::unexpected(
-              std::format("Atlas clips sidecar '{}' clip '{}' has an empty frame name", path.string(), clip.name));
-        clip.frames.push_back(std::move(frame_name));
-      }
-
-      data.clips.push_back(std::move(clip));
+      data.clips.push_back(std::move(*clip));
     }
 
     return data;
