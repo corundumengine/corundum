@@ -89,14 +89,14 @@ namespace corundum::sprites {
                                         .spacing_y = data.spacing_y,
                                     });
 
-    // A sheet that omits the footprint keys silently gets the loader's default, which has
+    // A sheet that omits either footprint key silently gets the loader's default, which has
     // nothing to do with how big its art is. Say so: an unchosen hitbox should be visible in
     // the log rather than discovered in play.
     for (const auto &entry : data.sprites) {
       if (!entry.footprint_authored)
         std::println(stderr,
-                     "[engine] WARN: sprite '{}/{}' declares no footprint; using {:.2f} x {:.2f} tiles — set "
-                     "one in spritesmith",
+                     "[engine] WARN: sprite '{}/{}' declares no complete footprint; using {:.2f} x {:.2f} tiles "
+                     "— set one in spritesmith",
                      data.id, entry.name, entry.footprint_col_span, entry.footprint_row_span);
     }
 
@@ -110,7 +110,6 @@ namespace corundum::sprites {
       frames.walk_around_offset = entry.walk_around_offset;
       frames.fps = entry.fps;
       frames.sprite_id = next_sprite_id_++;
-      frames.animations = std::move(entry.animations);
       frames.anim_frames = std::move(entry.anim_frames);
 
       frames_.emplace(entry.name, std::move(frames));

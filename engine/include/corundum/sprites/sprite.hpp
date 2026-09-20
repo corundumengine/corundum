@@ -5,7 +5,6 @@
 #include <array>
 #include <corundum/core/direction.hpp>
 #include <cstdint>
-#include <flat_map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -125,6 +124,16 @@ namespace corundum::sprites {
                         sheet.spacing_y, fc.col, fc.row);
   }
 
+  /// Footprint a sprite falls back to when its sheet omits one, in tile-grid units. Named
+  /// rather than written inline so the load path can report the substitution instead of
+  /// leaving a silent default that has nothing to do with the sprite's art.
+  inline constexpr float k_default_footprint_col_span = 0.25f;
+
+  inline constexpr float k_default_footprint_row_span = 0.5f;
+
+  /// Fraction of sprite height at which the feet sit when a sheet omits walk_around_offset.
+  inline constexpr float k_default_walk_around_offset = 0.6f;
+
   /// Per-sprite frame data for a character; hot-path access goes through anim_frames.
   struct Frames {
     Id sheet_id = k_null_sheet; ///< Owning sprite sheet
@@ -134,12 +143,12 @@ namespace corundum::sprites {
     /// system. Authored in tiles rather than converted from sprite pixels: the patch of ground
     /// an entity occupies has nothing to do with how tall its art is, and routing the number
     /// through the tile diamond and walk_around_offset made it unpredictable from the editor.
-    float footprint_col_span = 0.25f;
-    float footprint_row_span = 0.5f;
-    float walk_around_offset = 0.f;        ///< Fraction of sprite height locating the feet; rendering only
-    float fps = 0.f;                       ///< Playback rate override; 0 = use engine default
-    SpriteId sprite_id = k_null_sprite_id; ///< Interned identifier for O(1) lookup
-    std::flat_map<std::string, std::vector<FrameCoord>> animations;  ///< Frames by name; populated at load time only
+    float footprint_col_span = k_default_footprint_col_span;
+    float footprint_row_span = k_default_footprint_row_span;
+    /// Fraction of sprite height locating the feet; rendering only.
+    float walk_around_offset = k_default_walk_around_offset;
+    float fps = 0.f;                                                 ///< Playback rate override; 0 = use engine default
+    SpriteId sprite_id = k_null_sprite_id;                           ///< Interned identifier for O(1) lookup
     std::array<std::vector<FrameCoord>, k_num_anim_ids> anim_frames; ///< Hot-path frame layout indexed by AnimId
   };
 

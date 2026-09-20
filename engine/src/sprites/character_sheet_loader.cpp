@@ -11,7 +11,6 @@
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <nlohmann/json_fwd.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -22,87 +21,50 @@ using json = nlohmann::json;
 
 namespace corundum::sprites {
 
-  std::expected<CharacterSheetData, std::string> load_character_sheet(const fs::path &path) {
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open sheet: {}", path.string()));
+  namespace {
 
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed sheet {}: {}", path.string(), e.what()));
+    /// Reads a required key as T, converting a missing key or a wrong-typed value into an error
+    /// string rather than letting nlohmann throw out of the load path.
+    template <typename T>
+    std::expected<T, std::string> required_value(const json &object, const char *key, const fs::path &path) {
+      if (!object.contains(key))
+        return std::unexpected(std::format("Sheet '{}' missing '{}'", path.string(), key));
+      try {
+        return object.at(key).get<T>();
+      } catch (const json::exception &e) {
+        return std::unexpected(std::format("Sheet '{}' field '{}': {}", path.string(), key, e.what()));
+      }
     }
 
-    auto require_str = [&j, &path](const char *key) -> std::expected<std::string, std::string> {
-      if (!j.contains(key))
-        return std::unexpected(std::format("Sheet '{}' missing '{}'", path.string(), key));
-      try {
-        return j[key].get<std::string>();
-      } catch (...) {
-        return std::unexpected(std::format("Sheet field '{}' has wrong type", key));
-      }
-    };
-
-    auto require_int = [&j, &path](const char *key) -> std::expected<int, std::string> {
-      if (!j.contains(key))
-        return std::unexpected(std::format("Sheet '{}' missing '{}'", path.string(), key));
-      try {
-        return j[key].get<int>();
-      } catch (...) {
-        return std::unexpected(std::format("Sheet field '{}' has wrong type", key));
-      }
-    };
-
-    auto id_result = require_str("id");
-    if (!id_result)
-      return std::unexpected(id_result.error());
-
-    auto path_result = require_str("path");
-    if (!path_result)
-      return std::unexpected(path_result.error());
-
-    auto fw_result = require_int("frame_width");
-    if (!fw_result)
-      return std::unexpected(fw_result.error());
-
-    auto fh_result = require_int("frame_height");
-    if (!fh_result)
-      return std::unexpected(fh_result.error());
-
-    CharacterSheetData data;
-    data.id = *id_result;
-    data.path = *path_result;
-    data.frame_width = *fw_result;
-    data.frame_height = *fh_result;
-    data.offset_x = j.value("offset_x", 0);
-    data.offset_y = j.value("offset_y", 0);
-    data.spacing_x = j.value("spacing_x", 0);
-    data.spacing_y = j.value("spacing_y", 0);
-
-    if (!j.contains("frames") || !j["frames"].is_object())
-      return std::unexpected(std::format("Sprite Sheet '{}' missing 'frames' object", data.id));
-
-    for (const auto &[sprite_name, anims_json] : j["frames"].items()) {
-      if (!anims_json.is_object())
-        return std::unexpected(std::format("Sprite '{}' must be an object of animations", sprite_name));
-
+    /// Parse one "frames" entry. Metadata keys are read first; every remaining key must resolve
+    /// to an AnimId, because the runtime only ever plays the direction-indexed anim_frames and a
+    /// misspelled clip would otherwise load without error and do nothing.
+    std::expected<CharacterSpriteEntry, std::string> parse_sprite_entry(const std::string &sprite_name,
+                                                                        const json &anims_json, const fs::path &path) {
       CharacterSpriteEntry entry;
       entry.name = sprite_name;
-      entry.col_span = anims_json.value("col_span", 1);
-      entry.row_span = anims_json.value("row_span", 1);
+
+      try {
+        entry.col_span = anims_json.value("col_span", 1);
+        entry.row_span = anims_json.value("row_span", 1);
+        entry.footprint_authored =
+            anims_json.contains("footprint_col_span") && anims_json.contains("footprint_row_span");
+        entry.footprint_col_span = anims_json.value("footprint_col_span", k_default_footprint_col_span);
+        entry.footprint_row_span = anims_json.value("footprint_row_span", k_default_footprint_row_span);
+        entry.walk_around_offset = anims_json.value("walk_around_offset", k_default_walk_around_offset);
+        entry.fps = anims_json.value("fps", 0.f);
+      } catch (const json::exception &e) {
+        return std::unexpected(std::format("Sheet '{}' sprite '{}': {}", path.string(), sprite_name, e.what()));
+      }
+
       if (entry.col_span < 1)
         return std::unexpected(std::format("Sprite '{}' col_span must be >= 1", sprite_name));
       if (entry.row_span < 1)
         return std::unexpected(std::format("Sprite '{}' row_span must be >= 1", sprite_name));
-      entry.footprint_authored = anims_json.contains("footprint_col_span") && anims_json.contains("footprint_row_span");
-      entry.footprint_col_span = anims_json.value("footprint_col_span", k_default_footprint_col_span);
-      entry.footprint_row_span = anims_json.value("footprint_row_span", k_default_footprint_row_span);
       if (entry.footprint_col_span < 0.f || entry.footprint_row_span < 0.f)
         return std::unexpected(std::format("Sprite '{}' footprint spans must be >= 0", sprite_name));
-      entry.walk_around_offset = anims_json.value("walk_around_offset", 0.6f);
-      entry.fps = anims_json.value("fps", 0.f);
-      entry.anim_frames.fill({});
+      if (entry.fps < 0.f)
+        return std::unexpected(std::format("Sprite '{}' fps must be >= 0", sprite_name));
 
       static constexpr auto k_metadata_keys = std::to_array<std::string_view>({
           "walk_around_offset",
@@ -116,28 +78,92 @@ namespace corundum::sprites {
       for (const auto &[anim_name, frames_json] : anims_json.items()) {
         if (std::ranges::contains(k_metadata_keys, anim_name))
           continue;
+
+        const AnimId anim_id = anim_name_to_id(anim_name);
+        if (anim_id == AnimId::Count)
+          return std::unexpected(std::format("Sprite '{}' has unknown animation '{}'", sprite_name, anim_name));
+
         if (!frames_json.is_array() || frames_json.empty())
           return std::unexpected(std::format("Animation '{}/{}' must be a non-empty array", sprite_name, anim_name));
 
         std::vector<FrameCoord> coords;
         coords.reserve(frames_json.size());
-
         for (const auto &frame : frames_json) {
           try {
-            coords.push_back({frame.at("col").get<int>(), frame.at("row").get<int>()});
-          } catch (...) {
-            return std::unexpected(std::format("Frame in '{}/{}' missing 'col' or 'row'", sprite_name, anim_name));
+            coords.push_back({.col = frame.at("col").get<int>(), .row = frame.at("row").get<int>()});
+          } catch (const json::exception &e) {
+            return std::unexpected(std::format("Frame in '{}/{}' is invalid: {}", sprite_name, anim_name, e.what()));
           }
         }
 
-        const AnimId aid = anim_name_to_id(anim_name);
-        if (aid != AnimId::Count)
-          entry.anim_frames[static_cast<uint8_t>(aid)] = coords;
-
-        entry.animations.emplace(anim_name, std::move(coords));
+        entry.anim_frames[static_cast<uint8_t>(anim_id)] = std::move(coords);
       }
 
-      data.sprites.push_back(std::move(entry));
+      return entry;
+    }
+
+  } // namespace
+
+  std::expected<CharacterSheetData, std::string> load_character_sheet(const fs::path &path) {
+    std::ifstream f(path);
+    if (!f)
+      return std::unexpected(std::format("Cannot open sheet: {}", path.string()));
+
+    json j;
+    try {
+      j = json::parse(f, nullptr, true, true);
+    } catch (const json::exception &e) {
+      return std::unexpected(std::format("Malformed sheet {}: {}", path.string(), e.what()));
+    }
+
+    const auto id = required_value<std::string>(j, "id", path);
+    if (!id)
+      return std::unexpected(id.error());
+
+    const auto image_path = required_value<std::string>(j, "path", path);
+    if (!image_path)
+      return std::unexpected(image_path.error());
+
+    const auto frame_width = required_value<int>(j, "frame_width", path);
+    if (!frame_width)
+      return std::unexpected(frame_width.error());
+
+    const auto frame_height = required_value<int>(j, "frame_height", path);
+    if (!frame_height)
+      return std::unexpected(frame_height.error());
+
+    if (*frame_width <= 0)
+      return std::unexpected(std::format("Sheet '{}' frame_width must be > 0", path.string()));
+    if (*frame_height <= 0)
+      return std::unexpected(std::format("Sheet '{}' frame_height must be > 0", path.string()));
+
+    CharacterSheetData data;
+    data.id = *id;
+    data.path = *image_path;
+    data.frame_width = *frame_width;
+    data.frame_height = *frame_height;
+
+    try {
+      data.offset_x = j.value("offset_x", 0);
+      data.offset_y = j.value("offset_y", 0);
+      data.spacing_x = j.value("spacing_x", 0);
+      data.spacing_y = j.value("spacing_y", 0);
+    } catch (const json::exception &e) {
+      return std::unexpected(std::format("Sheet '{}' has an invalid field: {}", path.string(), e.what()));
+    }
+
+    if (!j.contains("frames") || !j.at("frames").is_object())
+      return std::unexpected(std::format("Sheet '{}' missing 'frames' object", path.string()));
+
+    for (const auto &[sprite_name, anims_json] : j.at("frames").items()) {
+      if (!anims_json.is_object())
+        return std::unexpected(std::format("Sprite '{}' must be an object of animations", sprite_name));
+
+      auto entry = parse_sprite_entry(sprite_name, anims_json, path);
+      if (!entry)
+        return std::unexpected(entry.error());
+
+      data.sprites.push_back(std::move(*entry));
     }
 
     return data;
