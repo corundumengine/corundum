@@ -1318,6 +1318,27 @@ TEST_CASE("validate: auto_advance_to targeting the same stage is an error") {
   CHECK(errors.front().find("\"start\"") != std::string::npos);
 }
 
+TEST_CASE("validate: a self-target is reported once, not also as a cycle") {
+  auto q = make_test_quest();
+  q.stages[0].auto_advance_to = "start";
+  const std::vector<std::string> errors = quest::validate(q).errors;
+  REQUIRE(errors.size() == 1);
+  CHECK(errors.front().find("targets itself") != std::string::npos);
+}
+
+TEST_CASE("validate: an auto_advance_to cycle is an error") {
+  quest::Quest q;
+  q.quest_id = "cycle";
+  q.name = "Cycle";
+  q.stages.push_back({.auto_advance_to = "b", .name = "a", .sequence = 1});
+  q.stages.push_back({.auto_advance_to = "a", .name = "b", .sequence = 2});
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 3});
+
+  const std::vector<std::string> errors = quest::validate(q).errors;
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("cycle") != std::string::npos);
+}
+
 TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)") {
   const auto path = std::filesystem::path("../keystone/data/quests/ember_of_greyhollow.json");
   if (!std::filesystem::exists(path)) {

@@ -49,7 +49,9 @@ namespace corundum::quest {
      * When set, `quest::tick_quests` advances to this stage once every
      * objective carrying a `done_condition` evaluates true (order-independent).
      * A stage without conditioned objectives never auto-advances. Stages with
-     * no `auto_advance_to` are inert.
+     * no `auto_advance_to` are inert. `quest::validate` rejects a self-target
+     * and any cycle in the auto-advance graph, either of which would re-enter
+     * its stages every tick.
      */
     std::optional<std::string> auto_advance_to = std::nullopt;
 
@@ -129,10 +131,10 @@ namespace corundum::quest {
    *
    *  Rejects an empty quest id, quest name, or stage name, duplicate stage names
    *  or sequences, a non-positive stage sequence, a failed stage that is not also
-   *  resolved, a quest with no resolved stage, and an `advances_to` /
-   *  `auto_advance_to` target naming no stage. Quest loaders run this on every
-   *  parsed quest, so it is also the check that catches a quest built or edited
-   *  in memory.
+   *  resolved, a quest with no resolved stage, an `advances_to` / `auto_advance_to`
+   *  target naming no stage, and an `auto_advance_to` that targets its own stage or
+   *  forms a cycle. Quest loaders run this on every parsed quest, so it is also the
+   *  check that catches a quest built or edited in memory.
    *
    *  @param quest The quest to validate.
    *  @return One message per violated rule in `errors`, plus non-fatal
