@@ -547,6 +547,26 @@ TEST_CASE("start is no-op when already started") {
   CHECK(flags["quest.test_quest"] == 2);
 }
 
+TEST_CASE("start on a quest with no stages is a no-op") {
+  quest::Quest q;
+  q.quest_id = "empty";
+  FlagStore flags;
+
+  quest::start(q, flags);
+  CHECK(flags.empty());
+}
+
+TEST_CASE("start on a quest whose first stage has a non-positive sequence is a no-op") {
+  quest::Quest q;
+  q.quest_id = "bad_seq";
+  q.name = "Bad";
+  q.stages.push_back({.name = "a", .resolved = true, .sequence = 0});
+  FlagStore flags;
+
+  quest::start(q, flags);
+  CHECK(flags.empty());
+}
+
 // ── advance ───────────────────────────────────────────────────────────────────
 
 TEST_CASE("advance moves to correct stage sequence") {
@@ -628,38 +648,38 @@ TEST_CASE("get_stage returns 0 when key absent") {
   CHECK(quest::get_stage("test_quest", flags) == 0);
 }
 
-// ── is_complete ───────────────────────────────────────────────────────────────
+// ── is_resolved ───────────────────────────────────────────────────────────────
 
-TEST_CASE("is_complete true when flag matches any resolved stage") {
+TEST_CASE("is_resolved true when flag matches any resolved stage") {
   const auto q = make_test_quest();
   FlagStore flags;
   flags["quest.test_quest"] = 3; // "complete" is resolved
 
-  CHECK(quest::is_complete(q, flags));
+  CHECK(quest::is_resolved(q, flags));
   CHECK_FALSE(quest::is_failed(q, flags));
 }
 
-TEST_CASE("is_complete false when inactive or on non-resolved stage") {
+TEST_CASE("is_resolved false when inactive or on non-resolved stage") {
   const auto q = make_test_quest();
   FlagStore flags;
 
   // Inactive
-  CHECK_FALSE(quest::is_complete(q, flags));
+  CHECK_FALSE(quest::is_resolved(q, flags));
 
   // Non-resolved stage
   flags["quest.test_quest"] = 1;
-  CHECK_FALSE(quest::is_complete(q, flags));
+  CHECK_FALSE(quest::is_resolved(q, flags));
 }
 
-TEST_CASE("multiple resolved stages both satisfy is_complete") {
+TEST_CASE("multiple resolved stages both satisfy is_resolved") {
   const auto q = make_test_quest();
   FlagStore flags;
 
   flags["quest.test_quest"] = 3;
-  CHECK(quest::is_complete(q, flags));
+  CHECK(quest::is_resolved(q, flags));
 
   flags["quest.test_quest"] = 4;
-  CHECK(quest::is_complete(q, flags));
+  CHECK(quest::is_resolved(q, flags));
 }
 
 // ── is_failed ─────────────────────────────────────────────────────────────────
@@ -669,7 +689,7 @@ TEST_CASE("is_failed true when flag matches failed stage") {
   FlagStore flags;
   flags["quest.test_quest"] = 4; // "failed" is failed+resolved
 
-  CHECK(quest::is_complete(q, flags));
+  CHECK(quest::is_resolved(q, flags));
   CHECK(quest::is_failed(q, flags));
 }
 
@@ -678,7 +698,7 @@ TEST_CASE("is_failed false for non-failed resolved stage") {
   FlagStore flags;
   flags["quest.test_quest"] = 3; // "complete" is resolved but not failed
 
-  CHECK(quest::is_complete(q, flags));
+  CHECK(quest::is_resolved(q, flags));
   CHECK_FALSE(quest::is_failed(q, flags));
 }
 
@@ -689,10 +709,10 @@ TEST_CASE("is_failed false when not started") {
   CHECK_FALSE(quest::is_failed(q, flags));
 }
 
-// ── active_quests ─────────────────────────────────────────────────────────────
+// ── started_quests ────────────────────────────────────────────────────────────
 
-TEST_CASE("active_quests returns only quests with stage > 0") {
-  const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_active";
+TEST_CASE("started_quests returns every quest with stage > 0, including resolved ones") {
+  const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_started";
   std::filesystem::create_directories(tmp_dir);
   {
     std::ofstream f(tmp_dir / "q1.json");
@@ -713,12 +733,14 @@ TEST_CASE("active_quests returns only quests with stage > 0") {
   CHECK(reg.size() == 2);
 
   FlagStore flags;
-  flags["quest.q1"] = 1; // q1 active
+  flags["quest.q1"] = 1; // q1 started on a resolved stage
   // q2 not started
 
-  auto active = quest::active_quests(reg, flags);
-  REQUIRE(active.size() == 1);
-  CHECK(active[0]->quest_id == "q1");
+  auto started = quest::started_quests(reg, flags);
+  REQUIRE(started.size() == 1);
+  CHECK(started[0]->quest_id == "q1");
+  // "started" includes resolved quests; it is not the same as Lifecycle::Active.
+  CHECK(quest::lifecycle(*started[0], flags) == quest::Lifecycle::Completed);
 
   std::filesystem::remove_all(tmp_dir);
 }
@@ -820,17 +842,17 @@ TEST_CASE("lifecycle: helped path") {
   // Start
   quest::start(q, flags);
   CHECK(quest::get_stage("test_quest", flags) == 1);
-  CHECK_FALSE(quest::is_complete(q, flags));
+  CHECK_FALSE(quest::is_resolved(q, flags));
 
   // Advance to middle
   quest::advance(q, "middle", flags);
   CHECK(quest::get_stage("test_quest", flags) == 2);
-  CHECK_FALSE(quest::is_complete(q, flags));
+  CHECK_FALSE(quest::is_resolved(q, flags));
 
   // Advance to resolved
   quest::advance(q, "complete", flags);
   CHECK(quest::get_stage("test_quest", flags) == 3);
-  CHECK(quest::is_complete(q, flags));
+  CHECK(quest::is_resolved(q, flags));
   CHECK_FALSE(quest::is_failed(q, flags));
 }
 
@@ -841,7 +863,7 @@ TEST_CASE("lifecycle: betrayed path") {
   quest::start(q, flags);
   quest::advance(q, "failed", flags);
   CHECK(quest::get_stage("test_quest", flags) == 4);
-  CHECK(quest::is_complete(q, flags));
+  CHECK(quest::is_resolved(q, flags));
   CHECK(quest::is_failed(q, flags));
 }
 
@@ -1146,6 +1168,60 @@ TEST_CASE("tick_quests: stage without auto_advance_to never auto-advances") {
   CHECK(quest::get_stage("obj_quest", flags) == 1);
 }
 
+TEST_CASE("tick_quests: local.<key> objectives resolve against the active zone") {
+  quest::Registry reg;
+  quest::Quest q;
+  q.quest_id = "zoned";
+  q.name = "Zoned";
+  q.description = "";
+  q.stages.push_back({
+      .auto_advance_to = "complete",
+      .name = "start",
+      .objectives = {{.done_condition = *corundum::dialogue::compile("local.tracks_found >= 1"), .text = "Tracks"}},
+      .sequence = 1,
+  });
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
+  reg.add(std::move(q));
+
+  FlagStore flags;
+  quest::start(*reg.find("zoned"), flags);
+  flags["zone.ember_marsh.tracks_found"] = 1;
+
+  // No active zone — the local key does not resolve, so the stage stays.
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("zoned", flags) == 1);
+
+  // Active zone — the objective holds and the quest advances.
+  quest::tick_quests(reg, flags, "ember_marsh");
+  CHECK(quest::get_stage("zoned", flags) == 2);
+}
+
+TEST_CASE("tick_quests: an unvalidated self-targeting stage does not loop") {
+  quest::Registry reg;
+  quest::Quest q;
+  q.quest_id = "self";
+  q.name = "Self";
+  q.description = "";
+  q.stages.push_back({
+      .auto_advance_to = "start",
+      .name = "start",
+      .objectives = {{.done_condition = *corundum::dialogue::compile("ready == 1"), .text = "A"}},
+      .sequence = 1,
+  });
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
+  reg.add(std::move(q));
+
+  FlagStore flags;
+  quest::start(*reg.find("self"), flags);
+  flags["ready"] = 1;
+
+  // A self-target is skipped before advance(), so the stage and its breadcrumb
+  // count stay put instead of churning every tick.
+  quest::tick_quests(reg, flags, {});
+  CHECK(quest::get_stage("self", flags) == 1);
+  CHECK(corundum::world::visit_count(flags, "quest.self.seen.start") == 1);
+}
+
 TEST_CASE("tick_quests: advances only when every conditioned objective holds, in either order") {
   quest::Registry reg;
   quest::Quest q;
@@ -1230,6 +1306,16 @@ TEST_CASE("validate: known auto_advance_to target passes") {
   auto q = make_test_quest();
   q.stages[0].auto_advance_to = "middle";
   CHECK(quest::validate(q).errors.empty());
+}
+
+TEST_CASE("validate: auto_advance_to targeting the same stage is an error") {
+  auto q = make_test_quest();
+  q.stages[0].auto_advance_to = "start";
+  const std::vector<std::string> errors = quest::validate(q).errors;
+  REQUIRE_FALSE(errors.empty());
+  CHECK(errors.front().find("test_quest") != std::string::npos);
+  CHECK(errors.front().find("targets itself") != std::string::npos);
+  CHECK(errors.front().find("\"start\"") != std::string::npos);
 }
 
 TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)") {

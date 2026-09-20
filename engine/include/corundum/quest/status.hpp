@@ -49,6 +49,24 @@ namespace corundum::quest {
   [[nodiscard]] const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags);
 
   /**
+   * @brief True when @p objective's done_condition evaluates true.
+   *
+   * A bare objective (no done_condition) is never done. Node-visit helpers
+   * (`seen`/`visits`) cannot resolve here — an objective has no owning dialogue
+   * graph — so they evaluate false. This is the per-objective form of the state
+   * reported by objectives().
+   *
+   * @param objective The objective to test.
+   * @param flags     Active FlagStore.
+   * @param quests    Registry used to resolve quest-helper conditions; may be
+   *                  nullptr (quest helpers then evaluate false).
+   * @param zone_id   Current zone; `local.<key>` conditions resolve against it.
+   * @return True when the objective's done_condition holds.
+   */
+  [[nodiscard]] bool objective_done(const Objective &objective, const corundum::world::FlagStore &flags,
+                                    const Registry *quests = nullptr, std::string_view zone_id = {});
+
+  /**
    * @brief Journal view of one objective of the current stage.
    */
   struct ObjectiveView {

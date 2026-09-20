@@ -45,6 +45,13 @@ namespace corundum::quest {
     return stage_for_sequence(quest, get_stage(quest.quest_id, flags));
   }
 
+  bool objective_done(const Objective &objective, const corundum::world::FlagStore &flags, const Registry *quests,
+                      std::string_view zone_id) {
+    if (!objective.done_condition.has_value())
+      return false;
+    return dialogue::evaluate(*objective.done_condition, flags, quests, {}, zone_id);
+  }
+
   std::vector<ObjectiveView> objectives(const Quest &quest, const corundum::world::FlagStore &flags,
                                         const Registry *quests, std::string_view zone_id) {
     const auto *stage = current_stage(quest, flags);
@@ -54,9 +61,7 @@ namespace corundum::quest {
     std::vector<ObjectiveView> result;
     result.reserve(stage->objectives.size());
     for (const auto &objective : stage->objectives) {
-      bool done = false;
-      if (objective.done_condition.has_value())
-        done = dialogue::evaluate(*objective.done_condition, flags, quests, {}, zone_id);
+      const bool done = objective_done(objective, flags, quests, zone_id);
       result.push_back(
           ObjectiveView{.done = done, .has_condition = objective.done_condition.has_value(), .text = objective.text});
     }

@@ -65,7 +65,7 @@ namespace corundum::quest {
         result.errors.push_back(std::format(R"("{}": stage "{}" has sequence {}, which must be positive)",
                                             quest.quest_id, stage.name, stage.sequence));
 
-      // A failed ending must also be resolved: is_complete() reads only that flag, so
+      // A failed ending must also be resolved: is_resolved() reads only that flag, so
       // without it a failure would report as an unfinished quest. Loaders normalize the
       // pair; this catches a quest built or edited in memory.
       if (stage.failed && !stage.resolved)
@@ -75,8 +75,14 @@ namespace corundum::quest {
       for (const auto &target : stage.advances_to)
         check_target(quest, stage, "advances_to", target, result.errors);
       const std::optional<std::string> auto_target = stage.auto_advance_to;
-      if (auto_target.has_value())
+      if (auto_target.has_value()) {
         check_target(quest, stage, "auto_advance_to", *auto_target, result.errors);
+        // A self-target re-arms every tick: tick_quests would re-enter the same stage
+        // and re-record its seen breadcrumb without bound.
+        if (*auto_target == stage.name)
+          result.errors.push_back(
+              std::format(R"("{}": stage "{}" auto_advance_to targets itself)", quest.quest_id, stage.name));
+      }
     }
 
     for (std::size_t i = 1; i < quest.stages.size(); ++i) {

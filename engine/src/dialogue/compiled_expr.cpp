@@ -513,7 +513,7 @@ namespace corundum::dialogue {
         const auto *quest = (quests_ != nullptr) ? quests_->find(n.arg) : nullptr;
 
         if (n.name == "quest_is_resolved")
-          return (quest != nullptr && corundum::quest::is_complete(*quest, *vars_)) ? 1 : 0;
+          return (quest != nullptr && corundum::quest::is_resolved(*quest, *vars_)) ? 1 : 0;
         if (n.name == "quest_is_failed")
           return (quest != nullptr && corundum::quest::is_failed(*quest, *vars_)) ? 1 : 0;
         if (n.name == "quest_is_at") {

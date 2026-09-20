@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/dialogue/compiled_expr.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
@@ -30,7 +29,7 @@ namespace corundum::quest {
     return corundum::world::visit_count(flags, quest_flag_key(quest_id));
   }
 
-  bool is_complete(const Quest &quest, const corundum::world::FlagStore &flags) {
+  bool is_resolved(const Quest &quest, const corundum::world::FlagStore &flags) {
     const Stage *stage = current_stage(quest, flags);
     return stage != nullptr && stage->resolved;
   }
@@ -41,12 +40,22 @@ namespace corundum::quest {
   }
 
   void start(const Quest &quest, corundum::world::FlagStore &flags) {
-    if (quest.stages.empty())
+    if (quest.stages.empty()) {
+      std::println(stderr, R"([quest] start("{}"): quest has no stages)", quest.quest_id);
       return;
+    }
+    const int first_sequence = quest.stages[0].sequence;
+    // A non-positive sequence collides with the "not started" sentinel, so the quest
+    // could never report as started. Only reachable for an unvalidated Registry::add quest.
+    if (first_sequence <= 0) {
+      std::println(stderr, R"([quest] start("{}"): first stage "{}" has sequence {}, which must be positive)",
+                   quest.quest_id, quest.stages[0].name, first_sequence);
+      return;
+    }
     const auto key = quest_flag_key(quest.quest_id);
     if (corundum::world::visit_count(flags, key) > 0)
       return; // already started
-    flags[key] = quest.stages[0].sequence;
+    flags[key] = first_sequence;
     corundum::world::set_flag(flags, seen_flag_key(quest.quest_id, quest.stages[0].name));
   }
 
@@ -69,8 +78,9 @@ namespace corundum::quest {
     corundum::world::set_flag(flags, seen_flag_key(quest.quest_id, stage->name));
   }
 
-  std::vector<const Quest *> active_quests(const Registry &registry, const corundum::world::FlagStore &flags) {
+  std::vector<const Quest *> started_quests(const Registry &registry, const corundum::world::FlagStore &flags) {
     std::vector<const Quest *> result;
+    result.reserve(registry.size());
     for (const auto &[id, quest] : registry) {
       if (get_stage(id, flags) > 0)
         result.push_back(&quest);
@@ -81,13 +91,19 @@ namespace corundum::quest {
   void tick_quests(const Registry &registry, corundum::world::FlagStore &flags, std::string_view zone_id) {
     for (const auto &[id, quest] : registry) {
       // Equivalent to lifecycle() == Active in one lookup: a null stage covers "not started"
-      // and a dangling sequence, and either terminal kind stops auto-advance.
+      // and a dangling sequence. `resolved` also covers `failed` on a validated quest; the
+      // explicit `failed` check keeps an unvalidated Registry::add quest from advancing out
+      // of a terminal failure.
       const Stage *stage = current_stage(quest, flags);
       if (stage == nullptr || stage->resolved || stage->failed)
         continue;
       if (!stage->auto_advance_to.has_value())
         continue;
       const auto &target = *stage->auto_advance_to;
+      // A self-target would re-enter this stage (and re-record its breadcrumb) every tick;
+      // validate() rejects it, but Registry::add() skips validation.
+      if (target == stage->name)
+        continue;
 
       bool any_conditioned = false;
       bool all_done = true;
@@ -95,8 +111,10 @@ namespace corundum::quest {
         if (!obj.done_condition.has_value())
           continue;
         any_conditioned = true;
-        if (!corundum::dialogue::evaluate(*obj.done_condition, flags, &registry, {}, zone_id))
+        if (!objective_done(obj, flags, &registry, zone_id)) {
           all_done = false;
+          break;
+        }
       }
       if (any_conditioned && all_done)
         advance(quest, target, flags);

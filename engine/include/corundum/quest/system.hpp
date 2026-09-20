@@ -37,27 +37,33 @@ namespace corundum::quest {
   [[nodiscard]] int get_stage(std::string_view quest_id, const corundum::world::FlagStore &flags);
 
   /**
-   * @brief Check whether a quest is over (flag matches any resolved stage).
+   * @brief Check whether the current stage is a resolved ending.
+   *
+   * A failed stage is also resolved, so this reports true for both success and
+   * failure endings; is_failed() tells them apart.
    *
    * @param quest The quest definition.
    * @param flags Active FlagStore.
-   * @return True when the quest's current flag value matches a resolved stage.
+   * @return True when the stage named by the quest's flag is resolved.
    */
-  [[nodiscard]] bool is_complete(const Quest &quest, const corundum::world::FlagStore &flags);
+  [[nodiscard]] bool is_resolved(const Quest &quest, const corundum::world::FlagStore &flags);
 
   /**
-   * @brief Check whether a quest ended in failure (flag matches any failed stage).
+   * @brief Check whether the current stage is a failure ending.
    *
    * @param quest The quest definition.
    * @param flags Active FlagStore.
-   * @return True when the quest's current flag value matches a failed stage.
+   * @return True when the stage named by the quest's flag is failed.
    */
   [[nodiscard]] bool is_failed(const Quest &quest, const corundum::world::FlagStore &flags);
 
   /**
    * @brief Start a quest by setting its flag to the first stage's sequence.
    *
-   * No-op if the quest is already started (flag > 0).
+   * No-op if the quest is already started (flag > 0). A quest with no stages, or
+   * whose first stage has a non-positive sequence, cannot be started and is
+   * reported to stderr instead. This only affects quests registered through
+   * Registry::add(), which skips quest::validate().
    *
    * @param quest The quest to start.
    * @param flags Active FlagStore to mutate.
@@ -68,8 +74,9 @@ namespace corundum::quest {
    * @brief Advance a quest to a named stage.
    *
    * Works on unstarted quests (allows organic discovery to bypass the
-   * start stage). No-op if stage_name is not found; prints a warning
-   * in debug builds to catch dialogue typos.
+   * start stage). An unknown stage_name is a no-op reported to stderr in every
+   * build; in debug builds, a transition to a stage not listed in the current
+   * stage's advances_to additionally warns, to catch dialogue typos.
    *
    * @param quest      The quest definition.
    * @param stage_name The name of the target stage.
@@ -78,17 +85,17 @@ namespace corundum::quest {
   void advance(const Quest &quest, std::string_view stage_name, corundum::world::FlagStore &flags);
 
   /**
-   * @brief Collect pointers to all quests that are active (stage > 0).
+   * @brief Collect pointers to every quest that has been started (stage > 0).
    *
-   * Iterates the registry and returns quests whose flag is set to a
-   * positive value (started, in-progress, or resolved).
+   * Includes in-progress, completed, and failed quests — not only
+   * Lifecycle::Active ones. Use lifecycle() to filter further.
    *
    * @param registry The quest registry to scan.
    * @param flags    Active FlagStore.
-   * @return Non-owning pointers to all active quests.
+   * @return Non-owning pointers to all started quests; borrows @p registry.
    */
-  [[nodiscard]] std::vector<const Quest *> active_quests(const Registry &registry,
-                                                         const corundum::world::FlagStore &flags);
+  [[nodiscard]] std::vector<const Quest *> started_quests(const Registry &registry,
+                                                          const corundum::world::FlagStore &flags);
 
   /**
    * @brief Advance quests whose current stage's objectives are all satisfied.

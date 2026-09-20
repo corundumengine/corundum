@@ -124,7 +124,7 @@ Give a stage `"auto_advance_to": "stage_name"` and the quest advances to that si
 }
 ```
 
-When all three objectives are done, the quest moves to `ending_confrontation`. Note that `auto_advance_to` names exactly one stage: a single target, not a list. If you need a branch, give each ending its own stage and have the dialogue that finishes the last objective `quest_advance` to the right one.
+When all three objectives are done, the quest moves to `ending_confrontation`. Note that `auto_advance_to` names exactly one stage: a single target, not a list. If you need a branch, give each ending its own stage and have the dialogue that finishes the last objective `quest_advance` to the right one. `auto_advance_to` must name a stage other than the one it belongs to; the loader rejects a self-target, which would otherwise re-enter the same stage on every tick.
 
 ### Legal transitions: `advances_to`
 
