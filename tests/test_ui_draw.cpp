@@ -260,6 +260,25 @@ namespace {
     return g;
   }
 
+  // Builds a Choice graph whose second option is gated by a plain boolean flag,
+  // for exercising a visibility change at an otherwise unchanged node.
+  corundum::dialogue::Graph make_flag_gated_choice_graph() {
+    using namespace corundum::dialogue;
+    Graph g;
+    g.graph_id = "flag_gated";
+    g.speaker = "Gatekeeper";
+    Node n;
+    n.id = "n0";
+    n.type = NodeType::Choice;
+    n.choices = {
+        {.label = "Always.", .target_id = "a"},
+        {.label = "Secret.", .target_id = "b", .condition = *compile("secret == true")},
+    };
+    g.id_to_index[n.id] = 0;
+    g.nodes.push_back(std::move(n));
+    return g;
+  }
+
 } // namespace
 
 TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebuilds the layout") {
@@ -356,6 +375,66 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   REQUIRE(ds.layout->choice_lines.size() == 2);
   CHECK(ds.layout->choice_lines[0] == "Always.");
+  CHECK(ds.layout->choice_lines[1] == "Secret.");
+  // NOLINTEND(bugprone-unchecked-optional-access)
+}
+
+TEST_CASE("dialog_box_update: a vertical-only viewport change rebuilds the panel geometry") {
+  // Regression: the stale check tracked only panel width, so growing the window
+  // vertically left the box pinned at its old height and offset (build_layout derives
+  // panel_h and panel_y from viewport.y).
+  RecordingRenderer r;
+  corundum::ui::DialogBoxState ds{};
+  ds.border = make_border();
+
+  const auto graph = make_talk_graph("innkeeper_intro", "Innkeeper", "Welcome, traveller.");
+  corundum::world::FlagStore flags;
+  const corundum::dialogue::Conversation conversation{graph, flags};
+
+  corundum::ui::dialog_box_update(ds, conversation, r, {.x = 1280.f, .y = 720.f});
+  REQUIRE(ds.layout.has_value());
+  // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
+  const float first_h = ds.layout->panel_size.y;
+  const float first_y = ds.layout->panel_pos.y;
+  // NOLINTEND(bugprone-unchecked-optional-access)
+
+  // Same width, taller viewport.
+  corundum::ui::dialog_box_update(ds, conversation, r, {.x = 1280.f, .y = 900.f});
+
+  REQUIRE(ds.layout.has_value());
+  // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
+  CHECK(ds.layout->panel_size.y > first_h);
+  CHECK(ds.layout->panel_pos.y != first_y);
+  // NOLINTEND(bugprone-unchecked-optional-access)
+}
+
+TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the layout") {
+  // Regression: the cache key was (graph, node, viewport). A Choice node re-visited with
+  // different flags (quest progress between visits, or a goto_graph loop) kept the old
+  // condition-evaluated choice list.
+  RecordingRenderer r;
+  corundum::ui::DialogBoxState ds{};
+  ds.border = make_border();
+
+  const auto graph = make_flag_gated_choice_graph();
+  corundum::world::FlagStore flags;
+  const corundum::dialogue::Conversation conversation{graph, flags};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+
+  corundum::ui::dialog_box_update(ds, conversation, r, viewport);
+  REQUIRE(ds.layout.has_value());
+  // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
+  REQUIRE(ds.layout->choice_lines.size() == 1);
+  CHECK(ds.layout->choice_lines[0] == "Always.");
+  // NOLINTEND(bugprone-unchecked-optional-access)
+
+  // Quest progress unlocks the gated option while the node stays the same.
+  flags["secret"] = 1;
+  corundum::ui::dialog_box_update(ds, conversation, r, viewport);
+
+  REQUIRE(ds.layout.has_value());
+  // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
+  REQUIRE(ds.layout->choice_lines.size() == 2);
   CHECK(ds.layout->choice_lines[1] == "Secret.");
   // NOLINTEND(bugprone-unchecked-optional-access)
 }

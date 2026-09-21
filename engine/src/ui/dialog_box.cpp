@@ -23,13 +23,21 @@ namespace corundum::ui {
       return;
     }
 
-    const float panel_w = viewport.x - ds.style.margin * 2.f;
     const std::string_view graph_id = conversation.graph_id();
+
+    // Choice visibility is condition-evaluated (flags/quests), so a node visited twice can
+    // present a different set of choices. The cache key must include it even when the graph,
+    // node, and viewport are unchanged — e.g. ending and restarting the same graph after
+    // quest progress, or a goto_graph loop back through this node.
+    const bool choices_changed = ds.layout && conversation.node_type() == dialogue::NodeType::Choice &&
+                                 conversation.visible_choice_indices() != ds.layout->choice_indices;
+
     const bool stale = !ds.layout || conversation.current_node_id() != ds.last_node_id ||
-                       graph_id != ds.last_graph_id || panel_w != ds.last_panel_w;
+                       graph_id != ds.last_graph_id || viewport.x != ds.last_viewport.x ||
+                       viewport.y != ds.last_viewport.y || choices_changed;
 
     if (stale) {
-      auto measure = [&](std::string_view text) -> float {
+      const auto measure = [&](std::string_view text) -> float {
         return r.measure_text(ds.style.font_id, text, ds.style.font_size_body);
       };
 
@@ -37,7 +45,7 @@ namespace corundum::ui {
           build_layout(conversation, ds.style.margin, ds.style.panel_height_frac, ds.border.tile_w, viewport, measure);
       ds.last_graph_id = graph_id;
       ds.last_node_id = conversation.current_node_id();
-      ds.last_panel_w = panel_w;
+      ds.last_viewport = viewport;
     } else {
       ds.layout->selected_choice = conversation.selected_choice();
     }
@@ -57,9 +65,15 @@ namespace corundum::ui {
 
     panel_chrome(r, ds.style.bg, ds.border, lay.panel_pos, lay.panel_size);
 
-    auto draw_str = [&](std::string_view text, unsigned size, core::math::Colour col, float x, float y) {
+    const auto draw_str = [&](std::string_view text, unsigned size, core::math::Colour col, float x, float y) {
       if (!text.empty())
-        r.draw(platform::DrawText{ds.style.font_id, text, {x, y}, size, col});
+        r.draw(platform::DrawText{
+            .font_id = ds.style.font_id,
+            .text = text,
+            .position = {.x = x, .y = y},
+            .char_size = size,
+            .colour = col,
+        });
     };
 
     switch (lay.node_type) {
@@ -75,16 +89,16 @@ namespace corundum::ui {
           y += spacing;
         }
         draw_str("[Select] Continue   [Cancel] Close", ds.style.font_size_prompt, ds.style.choice, px + inset,
-                 y + spacing / 2.f);
+                 y + (spacing / 2.f));
         break;
       }
       case dialogue::NodeType::Choice: {
-        const char *header = lay.speaker.empty() ? "Choose:" : lay.speaker.data();
+        const std::string_view header = lay.speaker.empty() ? std::string_view{"Choose:"} : lay.speaker;
         draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
         for (std::size_t i = 0; i < lay.choice_lines.size(); ++i) {
-          const bool is_sel = (static_cast<int>(i) == lay.selected_choice);
-          const float y = py + inset + spacing * (1.f + static_cast<float>(i));
-          draw_option(r, ds.style, lay.choice_lines[i], {px + inset, y}, is_sel);
+          const bool is_sel = std::cmp_equal(i, lay.selected_choice);
+          const float y = py + inset + (spacing * (1.f + static_cast<float>(i)));
+          draw_option(r, ds.style, lay.choice_lines[i], {.x = px + inset, .y = y}, is_sel);
         }
         break;
       }

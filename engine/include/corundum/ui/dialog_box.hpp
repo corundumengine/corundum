@@ -7,6 +7,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -15,16 +16,27 @@ namespace corundum::ui {
   /// Visual configuration for a dialogue box. Pure data — no behaviour.
   struct DialogBoxStyle {
     uint32_t font_id{0};
+
     unsigned font_size_speaker{26};
+
     unsigned font_size_body{22};
+
     unsigned font_size_prompt{18};
+
     float margin{20.f};
+
     float line_spacing{32.f};
+
     float panel_height_frac{0.32f};
+
     core::math::Colour bg{.r = 0, .g = 0, .b = 0, .a = 200};
+
     core::math::Colour speaker{.r = 255, .g = 255, .b = 0, .a = 255};
+
     core::math::Colour body{.r = 255, .g = 255, .b = 255, .a = 255};
+
     core::math::Colour choice{.r = 200, .g = 200, .b = 200, .a = 255};
+
     core::math::Colour selected{.r = 255, .g = 255, .b = 0, .a = 255};
   };
 
@@ -33,16 +45,23 @@ namespace corundum::ui {
   /// Operated on by free functions in namespace corundum::ui.
   struct DialogBoxState {
     DialogBoxStyle style{};
+
     NinePatchBorder border{};
+
     bool visible{false};
+
     std::string last_graph_id;
+
     std::string last_node_id;
-    float last_panel_w{0.f};
+
+    /// Viewport the cached layout was built for; used to invalidate on resize.
+    core::math::Vec2 last_viewport{};
+
     std::optional<DialogLayout> layout;
   };
 
-  /// Recompute layout if the current node, graph, or panel dimensions changed, then mark visible.
-  /// @pre conversation.is_active() when called.
+  /// Recompute layout if the current node, graph, viewport, or visible-choice set changed, then mark visible.
+  /// Hides the box (leaving the cache intact) when the conversation is inactive.
   void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &r,
                          core::math::Vec2 viewport);
 
