@@ -96,6 +96,11 @@ namespace corundum::save {
     nlohmann::json migrated = j;
     if (auto result = migrate(migrated, version); !result)
       return std::unexpected(std::move(result).error());
+    // When migrate() gains real steps, verify here that the document actually reached
+    // k_save_version — a no-op migration would otherwise let an old save parse as the current
+    // format. prepare_schema_version enforces this for asset documents; for save, decide whether
+    // to check `migrated["version"]` (steps bump the field) or have migrate() return the version
+    // it reached.
 
     SaveState s;
     s.version = k_save_version;

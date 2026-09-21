@@ -93,8 +93,9 @@ namespace corundum::world::tilemap {
 
     // spritepacker's `--pivot full-canvas` marks the atlas so importers know its pivots are
     // fractions of the FULL source canvas (y from the bottom) rather than the trimmed box.
-    const bool full_canvas_pivot =
-        j.contains("pivot_basis") && j["pivot_basis"].is_string() && j["pivot_basis"].get<std::string>() == "full";
+    // The atlas loader already validates and surfaces this, so resolve it from there rather
+    // than re-reading the JSON field here.
+    const bool full_canvas_pivot = atlas.pivot_basis == corundum::sprites::PivotBasis::FullCanvas;
 
     TilesetInfo info;
     info.source = tileset_path.string();
@@ -264,15 +265,18 @@ namespace corundum::world::tilemap {
   }
 
   /// Migrates a tilemap JSON object in place from @p from_version up to k_tilemap_schema_version,
-  /// applying each version-to-version step in sequence. No migrations exist yet — schema_version 1
-  /// is both the legacy (absent-field) format and the current format, so this is a no-op today. This
-  /// is the hook point for future schema changes, e.g.:
+  /// applying each version-to-version step in sequence and returning the version reached. No
+  /// migrations exist yet — schema_version 1 is both the legacy (absent-field) format and the
+  /// current format — so this returns @p from_version unchanged. When k_tilemap_schema_version is
+  /// raised, append a step and advance @p from_version with it, e.g.:
   ///   if (from_version < 2) { /* rewrite v1 fields into v2 shape */ from_version = 2; }
-  /// Existing steps must never be edited once shipped, since already-migrated files may depend on
-  /// the exact transformation a step performed.
-  static std::expected<void, std::string> migrate_tilemap_json(json & /*j*/, int /*from_version*/,
-                                                               const std::string & /*path*/) {
-    return {};
+  /// The caller rejects a result below the current version, so leaving this stub unchanged after a
+  /// bump fails loudly rather than mis-parsing an old file. Existing steps must never be edited
+  /// once shipped, since already-migrated files may depend on the exact transformation a step
+  /// performed.
+  static std::expected<int, std::string> migrate_tilemap_json(json & /*j*/, int from_version,
+                                                              const std::string & /*path*/) {
+    return from_version;
   }
 
   std::expected<Tilemap, std::string> load_tilemap(const fs::path &path) {

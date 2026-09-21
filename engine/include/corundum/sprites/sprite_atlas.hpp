@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <string>
@@ -14,29 +15,50 @@ namespace corundum::sprites {
   /// so a mismatch fails loudly instead of silently misreading fields.
   inline constexpr int k_sprite_atlas_schema_version = 2;
 
+  /// How an atlas's AtlasSprite::pivot_x/pivot_y are measured. spritepacker writes Trimmed by
+  /// default (fraction of the trimmed box, y from the top) and FullCanvas when packed with
+  /// `--pivot full-canvas` (fraction of the full source canvas, y from the bottom). The two bases
+  /// are not comparable, so consumers must resolve pivots according to this discriminator.
+  enum class PivotBasis : std::uint8_t { Trimmed, FullCanvas };
+
   /// One packed sprite's placement and trim/pivot metadata, as written by spritepacker.
   /// `x/y/w/h` is the trimmed content's position in the atlas. `trim_x/trim_y` is the offset from
   /// the original untrimmed sprite's top-left corner to that trimmed region, and
   /// `source_width/source_height` are the original dimensions — together they let a consumer
   /// re-expand a sprite to its authored canvas before applying its pivot.
   ///
-  /// @note `pivot_x/pivot_y` are normalized anchor coordinates measured against the *trimmed* box
-  /// — unlike TilesetInfo/TilePivot (tilemap.hpp), which measure pivot against the sprite's full
-  /// *untrimmed* frame. Don't reuse tileset pivot-resolution logic against atlas data without
-  /// accounting for this different anchor basis (see docs/isometric-fundamentals.md §7).
+  /// @note `pivot_x/pivot_y` are measured against the basis recorded in SpriteAtlas::pivot_basis.
+  /// Under PivotBasis::Trimmed they are normalized against the *trimmed* box — unlike
+  /// TilesetInfo/TilePivot (tilemap.hpp), which measure pivot against the sprite's full *untrimmed*
+  /// frame. Don't reuse tileset pivot-resolution logic against atlas data without accounting for
+  /// this different anchor basis (see docs/isometric-fundamentals.md §7).
   struct AtlasSprite {
     std::string name;
-    int x = 0, y = 0, w = 0, h = 0;
-    int trim_x = 0, trim_y = 0;
-    int source_width = 0, source_height = 0;
-    float pivot_x = 0.f, pivot_y = 0.f;
+
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+
+    int trim_x = 0;
+    int trim_y = 0;
+
+    int source_width = 0;
+    int source_height = 0;
+
+    float pivot_x = 0.f;
+    float pivot_y = 0.f;
   };
 
   /// Top-level data parsed from a spritepacker atlas metadata JSON file (schema_version 2).
   struct SpriteAtlas {
     std::string path;
+
     int width = 0;
     int height = 0;
+
+    PivotBasis pivot_basis = PivotBasis::Trimmed;
+
     std::vector<AtlasSprite> sprites;
   };
 

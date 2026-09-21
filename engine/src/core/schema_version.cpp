@@ -44,9 +44,28 @@ namespace corundum::core {
     if (schema_version < 1)
       return std::unexpected(std::format("{} '{}' has invalid schema_version {}", asset_label, path, schema_version));
 
-    if (schema_version < current_version && migrate)
-      return migrate(root, schema_version, path);
+    if (schema_version == current_version)
+      return {};
 
+    if (!migrate)
+      return std::unexpected(
+          std::format("{} '{}' has schema_version {}, but no migration to version {} is available — supply a "
+                      "migration or update the engine",
+                      asset_label, path, schema_version, current_version));
+
+    auto reached = migrate(root, schema_version, path);
+    if (!reached)
+      return std::unexpected(std::move(reached).error());
+
+    // A migration that stops short (including the no-op stub left in place after a version bump)
+    // would otherwise let an old document be parsed as current — fail loudly instead.
+    if (*reached != current_version)
+      return std::unexpected(
+          std::format("{} '{}' migration from version {} stopped at version {} (expected {}) — the migration must "
+                      "advance the document to the current version",
+                      asset_label, path, schema_version, *reached, current_version));
+
+    root["schema_version"] = current_version;
     return {};
   }
 

@@ -42,12 +42,14 @@ namespace corundum::dialogue {
     constexpr std::string_view k_asset_label = "Dialogue";
 
     /// Migrates a dialogue graph JSON object in place from @p from_version up to
-    /// k_dialogue_schema_version. No migrations exist yet — schema_version 1 is both
-    /// the legacy (absent-field) format and the current format, so this is a no-op
-    /// today. Future steps are appended in order and never edited once shipped.
-    std::expected<void, std::string> migrate_graph_json(json & /*j*/, int /*from_version*/,
-                                                        const std::string & /*path*/) {
-      return {};
+    /// k_dialogue_schema_version, returning the version reached. No migrations exist
+    /// yet — schema_version 1 is both the legacy (absent-field) format and the
+    /// current format — so this returns @p from_version unchanged. Future steps
+    /// advance @p from_version and are never edited once shipped; leaving this stub
+    /// unchanged after a version bump fails loudly (the caller rejects a result below
+    /// the current version).
+    std::expected<int, std::string> migrate_graph_json(json & /*j*/, int from_version, const std::string & /*path*/) {
+      return from_version;
     }
 
     // ── Internal helpers ───────────────────────────────────────────────────────
