@@ -91,12 +91,6 @@ namespace corundum::world::tilemap {
       return std::unexpected(std::format("Malformed tileset {}: {}", tileset_path.string(), e.what()));
     }
 
-    // spritepacker's `--pivot full-canvas` marks the atlas so importers know its pivots are
-    // fractions of the FULL source canvas (y from the bottom) rather than the trimmed box.
-    // The atlas loader already validates and surfaces this, so resolve it from there rather
-    // than re-reading the JSON field here.
-    const bool full_canvas_pivot = atlas.pivot_basis == corundum::sprites::PivotBasis::FullCanvas;
-
     TilesetInfo info;
     info.source = tileset_path.string();
     info.path = atlas.path;
@@ -122,27 +116,12 @@ namespace corundum::world::tilemap {
       info.tile_trim_x.push_back(sprite.trim_x);
       info.tile_trim_y.push_back(sprite.trim_y);
 
-      // Convert spritepacker's pivot (fraction of the *trimmed* box, raster convention: y=0 top,
-      // y=1 bottom) into this engine's pivot convention (fraction of the *full* untrimmed frame,
-      // y=0 bottom) — see docs/isometric-fundamentals.md §7 for why pivot must stay full-frame
-      // relative rather than trimmed-box relative.
-      if (full_canvas_pivot) {
-        // Full-canvas pivot: already a fraction of the full source frame with y measured from the
-        // bottom (the pack's own documented pivot, e.g. "X 0.5 Y 0.18"), so it is used directly.
-        // This preserves the source padding, which is where tilemap alignment often lives.
-        info.tile_pivot_x.push_back(static_cast<float>(sprite.pivot_x));
-        info.tile_pivot_y.push_back(static_cast<float>(sprite.pivot_y));
-      } else {
-        const float px_in_trimmed = sprite.pivot_x * static_cast<float>(sprite.w);
-        const float py_in_trimmed = sprite.pivot_y * static_cast<float>(sprite.h);
-        const float full_px = static_cast<float>(sprite.trim_x) + px_in_trimmed;
-        const float full_py = static_cast<float>(sprite.trim_y) + py_in_trimmed;
-        const float pivot_x_full = sprite.source_width > 0 ? full_px / static_cast<float>(sprite.source_width) : 0.5f;
-        const float pivot_y_full_raster =
-            sprite.source_height > 0 ? full_py / static_cast<float>(sprite.source_height) : 1.f;
-        info.tile_pivot_x.push_back(pivot_x_full);
-        info.tile_pivot_y.push_back(1.f - pivot_y_full_raster);
-      }
+      // Pivots stay full-frame relative so untrimmed source padding (where tilemap alignment
+      // lives) survives repacking; resolve_pivot collapses spritepacker's pivot basis into the
+      // engine's full-frame, bottom-origin convention.
+      const corundum::sprites::PivotPoint pivot = corundum::sprites::resolve_pivot(sprite, atlas.pivot_basis);
+      info.tile_pivot_x.push_back(pivot.x);
+      info.tile_pivot_y.push_back(pivot.y);
 
       info.tile_names.push_back(sprite.name);
       name_to_local_id.emplace(sprite.name, static_cast<int>(i));

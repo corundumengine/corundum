@@ -199,18 +199,19 @@ namespace corundum::sprites {
       return {};
     }
 
-    /// Parse the optional "pivot_basis" field, defaulting to PivotBasis::Trimmed when absent.
+    /// Parse the optional "pivot_basis" field, defaulting to PivotBasis::TrimmedTopOrigin when
+    /// absent.
     std::expected<PivotBasis, std::string> parse_pivot_basis(const json &root, const std::string &file) {
       if (!root.contains("pivot_basis"))
-        return PivotBasis::Trimmed;
+        return PivotBasis::TrimmedTopOrigin;
       if (!root["pivot_basis"].is_string())
         return std::unexpected(std::format("Sprite atlas '{}' field 'pivot_basis' must be a string", file));
 
       const std::string basis = root["pivot_basis"].get<std::string>();
       if (basis == "full")
-        return PivotBasis::FullCanvas;
+        return PivotBasis::FullCanvasBottomOrigin;
       if (basis == "trimmed")
-        return PivotBasis::Trimmed;
+        return PivotBasis::TrimmedTopOrigin;
 
       return std::unexpected(
           std::format("Sprite atlas '{}' field 'pivot_basis' must be 'trimmed' or 'full', got '{}'", file, basis));
@@ -265,6 +266,23 @@ namespace corundum::sprites {
         .pivot_basis = *pivot_basis,
         .sprites = std::move(*sprites),
     };
+  }
+
+  PivotPoint resolve_pivot(const AtlasSprite &sprite, PivotBasis basis) noexcept {
+    if (basis == PivotBasis::FullCanvasBottomOrigin)
+      return {.x = sprite.pivot_x, .y = sprite.pivot_y};
+
+    // Trimmed-box pivot: a fraction of the trimmed w/h with y measured from the top. Recover the
+    // full-frame position by adding the trim offset, then flip y into the bottom-origin convention.
+    const float pivot_x_full = static_cast<float>(sprite.trim_x) + (sprite.pivot_x * static_cast<float>(sprite.w));
+    const float pivot_y_full_raster =
+        static_cast<float>(sprite.trim_y) + (sprite.pivot_y * static_cast<float>(sprite.h));
+
+    // @pre guarantees positive source dimensions; the guards keep a hand-built sprite safe.
+    const float x = sprite.source_width > 0 ? pivot_x_full / static_cast<float>(sprite.source_width) : 0.5f;
+    const float y_raster =
+        sprite.source_height > 0 ? pivot_y_full_raster / static_cast<float>(sprite.source_height) : 1.f;
+    return {.x = x, .y = 1.f - y_raster};
   }
 
 } // namespace corundum::sprites

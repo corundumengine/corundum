@@ -381,7 +381,7 @@ TEST_CASE("load_sprite_atlas — absent 'pivot_basis' defaults to trimmed") {
 
   const auto result = corundum::sprites::load_sprite_atlas(path);
   REQUIRE(result.has_value());
-  CHECK(result->pivot_basis == corundum::sprites::PivotBasis::Trimmed);
+  CHECK(result->pivot_basis == corundum::sprites::PivotBasis::TrimmedTopOrigin);
 }
 
 TEST_CASE("load_sprite_atlas — 'pivot_basis': 'full' is surfaced") {
@@ -391,7 +391,7 @@ TEST_CASE("load_sprite_atlas — 'pivot_basis': 'full' is surfaced") {
 
   const auto result = corundum::sprites::load_sprite_atlas(path);
   REQUIRE(result.has_value());
-  CHECK(result->pivot_basis == corundum::sprites::PivotBasis::FullCanvas);
+  CHECK(result->pivot_basis == corundum::sprites::PivotBasis::FullCanvasBottomOrigin);
 }
 
 TEST_CASE("load_sprite_atlas — unknown 'pivot_basis' value fails") {
@@ -410,4 +410,81 @@ TEST_CASE("load_sprite_atlas — wrong-typed 'pivot_basis' fails") {
 
   const auto result = corundum::sprites::load_sprite_atlas(path);
   CHECK(!result.has_value());
+}
+
+TEST_CASE("resolve_pivot — trimmed-box basis converts to full-frame, bottom-origin") {
+  using corundum::sprites::AtlasSprite;
+  using corundum::sprites::PivotBasis;
+  using corundum::sprites::resolve_pivot;
+
+  // 24x40 trimmed at (8,16) in a 40x64 source; pivot (0.5, 1.0) is the bottom-centre of the
+  // trimmed box, i.e. pixel (8 + 12, 16 + 40) = (20, 56) of the full frame.
+  const AtlasSprite sprite{
+      .name = "knight",
+      .x = 0,
+      .y = 0,
+      .w = 24,
+      .h = 40,
+      .trim_x = 8,
+      .trim_y = 16,
+      .source_width = 40,
+      .source_height = 64,
+      .pivot_x = 0.5f,
+      .pivot_y = 1.0f,
+  };
+
+  const auto pivot = resolve_pivot(sprite, PivotBasis::TrimmedTopOrigin);
+  CHECK(pivot.x == doctest::Approx(20.f / 40.f));
+  CHECK(pivot.y == doctest::Approx(1.f - (56.f / 64.f)));
+}
+
+TEST_CASE("resolve_pivot — full-canvas basis passes the pivot through unchanged") {
+  using corundum::sprites::AtlasSprite;
+  using corundum::sprites::PivotBasis;
+  using corundum::sprites::resolve_pivot;
+
+  // Trim and source size must NOT shift a full-canvas pivot; (0.5, 0.18) is the pack's own value.
+  const AtlasSprite sprite{
+      .name = "knight",
+      .x = 0,
+      .y = 0,
+      .w = 24,
+      .h = 40,
+      .trim_x = 8,
+      .trim_y = 16,
+      .source_width = 40,
+      .source_height = 64,
+      .pivot_x = 0.5f,
+      .pivot_y = 0.18f,
+  };
+
+  const auto pivot = resolve_pivot(sprite, PivotBasis::FullCanvasBottomOrigin);
+  CHECK(pivot.x == doctest::Approx(0.5f));
+  CHECK(pivot.y == doctest::Approx(0.18f));
+}
+
+TEST_CASE("resolve_pivot — untrimmed top-left pivot in trimmed basis resolves to bottom-left") {
+  using corundum::sprites::AtlasSprite;
+  using corundum::sprites::PivotBasis;
+  using corundum::sprites::resolve_pivot;
+
+  // No trim, default (0,0) pivot is the top-left of the trimmed box == top-left of the full frame,
+  // which is the bottom-left corner once y is flipped into the engine's bottom-origin convention.
+  const AtlasSprite sprite{
+      .name = "a",
+      .x = 0,
+      .y = 0,
+      .w = 4,
+      .h = 4,
+      .trim_x = 0,
+      .trim_y = 0,
+      .source_width = 4,
+      .source_height = 4,
+      .pivot_x = 0.f,
+      .pivot_y = 0.f,
+  };
+
+  const auto pivot = resolve_pivot(sprite, PivotBasis::TrimmedTopOrigin);
+  CHECK(pivot.x == doctest::Approx(0.f));
+  CHECK(pivot.y == doctest::Approx(1.f));
 }
