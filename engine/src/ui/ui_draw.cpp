@@ -4,6 +4,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <string_view>
@@ -11,7 +12,6 @@
 namespace corundum::ui {
 
   namespace {
-    constexpr std::string_view k_cursor_selected = "> ";
     constexpr std::string_view k_cursor_unselected = "  ";
   } // namespace
 
@@ -23,11 +23,11 @@ namespace corundum::ui {
 
   float draw_option(platform::Renderer &r, const DialogBoxStyle &style, std::string_view label, core::math::Vec2 pos,
                     bool selected) {
-    // Advance is always measured against k_cursor_selected so that the cursor column and
+    // Advance is always measured against k_choice_cursor so that the cursor column and
     // the label column line up whether the option is selected or not — even on a font
-    // where "> " and "  " happen to differ in width.
-    const float cursor_w = r.measure_text(style.font_id, k_cursor_selected, style.font_size_body);
-    const std::string_view cursor = selected ? k_cursor_selected : k_cursor_unselected;
+    // where k_choice_cursor and k_cursor_unselected happen to differ in width.
+    const float cursor_w = r.measure_text(style.font_id, k_choice_cursor, style.font_size_body);
+    const std::string_view cursor = selected ? k_choice_cursor : k_cursor_unselected;
     const core::math::Colour col = selected ? style.selected : style.choice;
 
     r.draw(platform::DrawText{style.font_id, cursor, pos, style.font_size_body, col});

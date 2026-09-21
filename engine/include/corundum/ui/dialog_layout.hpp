@@ -14,31 +14,66 @@
 
 namespace corundum::ui {
 
+  /// Cursor prefix drawn before every dialogue choice. Shared with the renderer so the
+  /// layout can reserve exactly the column the cursor occupies.
+  inline constexpr std::string_view k_choice_cursor = "> ";
+
+  /// One visible dialogue choice: the index into the node's full choice list and its label
+  /// pre-wrapped into the lines the renderer draws in order (at least one, possibly empty).
+  struct ChoiceLayout {
+    std::size_t index{0};
+
+    std::vector<std::string> lines{};
+  };
+
   /// Computed layout for one dialogue frame. Pure data — no renderer dependency.
+  ///
+  /// Every field carries a default member initializer: build_layout designated-initializes
+  /// DialogLayout, and -Wmissing-designated-field-initializers (compiled with -Werror)
+  /// requires each field to have one.
   struct DialogLayout {
     core::math::Vec2 panel_pos{};
+
     core::math::Vec2 panel_size{};
+
     float inset{0.f};
-    // NOLINTBEGIN(readability-redundant-member-init)
-    // These default member initializers are required: build_layout designated-initializes
-    // DialogLayout, and -Wmissing-designated-field-initializers (compiled with -Werror) demands
-    // every field carry an explicit default initializer.
-    std::string_view speaker{};                ///< Graph-level speaker name.
-    std::vector<std::string> body_lines{};     ///< Wrapped body text (Talk nodes).
-    std::vector<std::string> choice_lines{};   ///< One label per visible choice.
-    std::vector<std::size_t> choice_indices{}; ///< choice_lines[i] → node.choices[j].
-    // NOLINTEND(readability-redundant-member-init)
+
+    std::string_view speaker{};
+
+    std::vector<std::string> body_lines{};
+
+    std::vector<ChoiceLayout> choices{};
+
     int selected_choice{0};
+
     dialogue::NodeType node_type{dialogue::NodeType::End};
   };
+
+  /// True when @p layout's choices carry @p indices in order. Labels are a pure function of
+  /// the index, so comparing indices is enough to detect a changed visible-choice set.
+  [[nodiscard]] inline bool choices_match(const DialogLayout &layout,
+                                          const std::vector<std::size_t> &indices) noexcept {
+    if (layout.choices.size() != indices.size())
+      return false;
+
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+      if (layout.choices[i].index != indices[i])
+        return false;
+    }
+
+    return true;
+  }
 
   /// Builds a DialogLayout from the current dialogue conversation.
   ///
   /// The measure callable is the only coupling to font/platform — callers supply
   /// a lambda wrapping Renderer::measure_text, or a fixed stub for tests.
   ///
-  /// @param conversation Active dialogue conversation. @pre conversation.is_active().
-  /// @param margin        Panel margin in pixels.
+  /// An inactive conversation yields an End-type layout with empty text, matching the
+  /// values Conversation reports while inactive.
+  ///
+  /// @param conversation Active dialogue conversation.
+  /// @param margin        Panel margin in pixels; also the minimum inset, so text clears the border.
   /// @param panel_height_frac Fraction of the viewport height for the panel.
   /// @param border_tile_w Tile width of the nine-patch border (determines inset).
   /// @param viewport      Viewport dimensions in pixels.
@@ -49,7 +84,7 @@ namespace corundum::ui {
   template <typename MeasureFn>
   [[nodiscard]] DialogLayout build_layout(const dialogue::Conversation &conversation, float margin,
                                           float panel_height_frac, int border_tile_w, core::math::Vec2 viewport,
-                                          MeasureFn measure) {
+                                          const MeasureFn &measure) {
     const float panel_h = viewport.y * panel_height_frac;
     const float panel_y = viewport.y - panel_h - margin;
     const float panel_x = margin;
@@ -66,22 +101,22 @@ namespace corundum::ui {
         .node_type = type,
     };
 
-    if (!conversation.is_active())
-      return layout;
-
-    const float text_w = panel_w - (inset * 2.f);
-
     layout.speaker = conversation.speaker();
 
+    const float text_w = std::max(0.f, panel_w - (inset * 2.f));
     if (type == dialogue::NodeType::Talk) {
       layout.body_lines = ui::wrap_text(conversation.current_text(), text_w, measure);
     } else if (type == dialogue::NodeType::Choice) {
-      const float choice_w = panel_w - (inset * 3.f);
-      layout.choice_indices = conversation.visible_choice_indices();
-      layout.choice_lines.reserve(layout.choice_indices.size());
-      for (const std::size_t idx : layout.choice_indices) {
-        auto lines = ui::wrap_text(conversation.choice_label(idx), choice_w, measure);
-        layout.choice_lines.push_back(lines.empty() ? std::string{} : std::move(lines.front()));
+      // The cursor column lives inside the text width; measuring it keeps the wrap budget
+      // equal to the label's actual drawable width.
+      const float choice_w = std::max(0.f, text_w - measure(k_choice_cursor));
+      const std::vector<std::size_t> indices = conversation.visible_choice_indices();
+      layout.choices.reserve(indices.size());
+      for (const std::size_t index : indices) {
+        std::vector<std::string> lines = ui::wrap_text(conversation.choice_label(index), choice_w, measure);
+        if (lines.empty())
+          lines.emplace_back();
+        layout.choices.push_back(ChoiceLayout{.index = index, .lines = std::move(lines)});
       }
     }
 

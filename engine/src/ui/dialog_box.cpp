@@ -30,7 +30,7 @@ namespace corundum::ui {
     // node, and viewport are unchanged — e.g. ending and restarting the same graph after
     // quest progress, or a goto_graph loop back through this node.
     const bool choices_changed = ds.layout && conversation.node_type() == dialogue::NodeType::Choice &&
-                                 conversation.visible_choice_indices() != ds.layout->choice_indices;
+                                 !choices_match(*ds.layout, conversation.visible_choice_indices());
 
     const bool stale = !ds.layout || conversation.current_node_id() != ds.last_node_id ||
                        graph_id != ds.last_graph_id || viewport.x != ds.last_viewport.x ||
@@ -95,10 +95,14 @@ namespace corundum::ui {
       case dialogue::NodeType::Choice: {
         const std::string_view header = lay.speaker.empty() ? std::string_view{"Choose:"} : lay.speaker;
         draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
-        for (std::size_t i = 0; i < lay.choice_lines.size(); ++i) {
+        float y = py + inset + spacing;
+        for (std::size_t i = 0; i < lay.choices.size(); ++i) {
           const bool is_sel = std::cmp_equal(i, lay.selected_choice);
-          const float y = py + inset + (spacing * (1.f + static_cast<float>(i)));
-          draw_option(r, ds.style, lay.choice_lines[i], {.x = px + inset, .y = y}, is_sel);
+          for (std::size_t line = 0; line < lay.choices[i].lines.size(); ++line) {
+            // Only the first line carries the cursor; continuation lines keep the hanging indent.
+            draw_option(r, ds.style, lay.choices[i].lines[line], {.x = px + inset, .y = y}, is_sel && line == 0);
+            y += spacing;
+          }
         }
         break;
       }

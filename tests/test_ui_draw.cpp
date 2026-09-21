@@ -17,6 +17,7 @@
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/ui_draw.hpp>
@@ -206,7 +207,7 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with choice colours and two-
 TEST_CASE("ui_draw: draw_option returns the same cursor advance regardless of selection state") {
   // Guarantees column alignment: the label x is pos.x + return value in both
   // branches. If a font renders "> " and "  " at different widths the bug would
-  // surface here and force us to always measure k_cursor_selected — which
+  // surface here and force us to always measure k_choice_cursor — which
   // draw_option already does.
   RecordingRenderer r;
   const corundum::ui::DialogBoxStyle style{};
@@ -373,9 +374,11 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
-  REQUIRE(ds.layout->choice_lines.size() == 2);
-  CHECK(ds.layout->choice_lines[0] == "Always.");
-  CHECK(ds.layout->choice_lines[1] == "Secret.");
+  REQUIRE(ds.layout->choices.size() == 2);
+  REQUIRE(ds.layout->choices[0].lines.size() == 1);
+  REQUIRE(ds.layout->choices[1].lines.size() == 1);
+  CHECK(ds.layout->choices[0].lines.front() == "Always.");
+  CHECK(ds.layout->choices[1].lines.front() == "Secret.");
   // NOLINTEND(bugprone-unchecked-optional-access)
 }
 
@@ -424,8 +427,8 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
   corundum::ui::dialog_box_update(ds, conversation, r, viewport);
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
-  REQUIRE(ds.layout->choice_lines.size() == 1);
-  CHECK(ds.layout->choice_lines[0] == "Always.");
+  REQUIRE(ds.layout->choices.size() == 1);
+  CHECK(ds.layout->choices[0].lines.front() == "Always.");
   // NOLINTEND(bugprone-unchecked-optional-access)
 
   // Quest progress unlocks the gated option while the node stays the same.
@@ -434,9 +437,46 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
-  REQUIRE(ds.layout->choice_lines.size() == 2);
-  CHECK(ds.layout->choice_lines[1] == "Secret.");
+  REQUIRE(ds.layout->choices.size() == 2);
+  CHECK(ds.layout->choices[1].lines.front() == "Secret.");
   // NOLINTEND(bugprone-unchecked-optional-access)
+}
+
+TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped line") {
+  // Regression: the layout kept only the first wrapped line of a choice label, silently
+  // truncating any option too long for the panel.
+  RecordingRenderer r;
+  using namespace corundum::dialogue;
+
+  Graph graph;
+  graph.graph_id = "wrapped";
+  Node node;
+  node.id = "n0";
+  node.type = NodeType::Choice;
+  node.choices = {{.label = "Alpha Beta Gamma Delta", .target_id = "a"}};
+  graph.id_to_index[node.id] = 0;
+  graph.nodes.push_back(std::move(node));
+
+  corundum::world::FlagStore flags;
+  const corundum::dialogue::Conversation conversation{graph, flags};
+
+  // Narrow viewport: choice_w = 200 - 2*20 (margin) - 2*20 (inset) - 16 (cursor) = 104px,
+  // i.e. 13 glyphs at the recorder's 8px each.
+  const corundum::ui::DialogLayout layout =
+      corundum::ui::build_layout(conversation, 20.f, 0.32f, 4, {.x = 200.f, .y = 720.f},
+                                 [&](std::string_view text) { return r.measure_text(0, text, 22); });
+
+  REQUIRE(layout.choices.size() == 1);
+  REQUIRE(layout.choices[0].lines.size() > 1);
+
+  // Re-joining the wrapped lines recovers every word of the label.
+  std::string joined;
+  for (const std::string &line : layout.choices[0].lines) {
+    if (!joined.empty())
+      joined += ' ';
+    joined += line;
+  }
+  CHECK(joined == "Alpha Beta Gamma Delta");
 }
 
 // ── inventory_panel_render ───────────────────────────────────────────────────
