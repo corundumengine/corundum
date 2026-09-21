@@ -19,10 +19,23 @@ using FT_Library = struct FT_LibraryRec_ *;
 
 namespace corundum::platform::glfw {
 
-  /// Number of ASCII codepoints (0–127) an atlas reserves metrics for.
-  inline constexpr std::size_t k_ascii_count = 128;
+  /// Number of codepoints (0–255: ASCII + Latin-1 Supplement) an atlas reserves metrics for.
+  inline constexpr std::size_t k_latin1_count = 256;
   /// First codepoint that is actually baked; control codes below it stay zeroed.
   inline constexpr std::size_t k_first_baked_ascii = 32;
+  /// First baked codepoint of the Latin-1 Supplement; the C1 block (0x80–0x9F) before it is skipped.
+  inline constexpr std::size_t k_first_baked_latin1 = 0xA0;
+
+  /// Number of codepoints baked outside Latin-1.
+  inline constexpr std::size_t k_extended_count = 9;
+
+  /// Codepoints outside Latin-1 worth baking individually: hyphen, non-breaking
+  /// hyphen, en/em dash, curly single/double quotes, and horizontal ellipsis —
+  /// characters word processors substitute for their ASCII look-alikes via
+  /// "smart punctuation".
+  inline constexpr std::array<uint32_t, k_extended_count> k_extended_codepoints = {
+      0x2010, 0x2011, 0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D, 0x2026,
+  };
 
   /// Metrics for a single glyph within the atlas texture.
   struct GlyphInfo {
@@ -35,13 +48,23 @@ namespace corundum::platform::glfw {
     float advance_x{}; ///< Horizontal advance to next glyph origin.
   };
 
+  /// A glyph from the extended (non-Latin-1) set. `codepoint` is always one of
+  /// k_extended_codepoints; a codepoint FreeType could not render keeps zeroed
+  /// metrics, which the renderer treats as a zero-width skip.
+  struct ExtendedGlyph {
+    uint32_t codepoint{};
+
+    GlyphInfo info{};
+  };
+
   /// Pixel data and per-glyph layout for one (font, char_size) combination.
   /// The pixel data is RGBA: R=G=B=255, A=coverage. Upload to the GPU as RGBA8.
   struct BakedSize {
     int atlas_w{};
     int atlas_h{};
     std::vector<uint8_t> pixels; ///< RGBA8, row-major, atlas_w * atlas_h * 4 bytes.
-    std::array<GlyphInfo, k_ascii_count> glyphs{};
+    std::array<GlyphInfo, k_latin1_count> glyphs{};
+    std::array<ExtendedGlyph, k_extended_count> extended_glyphs{};
   };
 
   /// FreeType face wrapper. Holds the FT_Face so multiple sizes can be baked from one load.
@@ -61,7 +84,8 @@ namespace corundum::platform::glfw {
     /// @return false if FreeType fails to open the file.
     [[nodiscard]] bool load(FT_Library lib, std::string_view font_path);
 
-    /// Rasterise ASCII glyphs at @p char_size pixels and return the atlas pixel data.
+    /// Rasterise Latin-1 Supplement plus the extended punctuation set at @p char_size
+    /// pixels and return the atlas pixel data.
     /// @pre load() has been called and returned true.
     /// @return the baked atlas, or a message if FreeType rejected @p char_size.
     [[nodiscard]] std::expected<BakedSize, std::string> bake(uint32_t char_size) const;

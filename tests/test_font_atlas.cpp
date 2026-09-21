@@ -54,19 +54,32 @@ namespace {
     return std::move(*baked);
   }
 
-  /// Assert every packed glyph rectangle sits inside the atlas, leaving a uniform
+  /// Look up an extended-set glyph by codepoint, mirroring the renderer's search.
+  const pg::GlyphInfo *find_extended(const pg::BakedSize &baked, uint32_t codepoint) {
+    for (const pg::ExtendedGlyph &extended : baked.extended_glyphs)
+      if (extended.codepoint == codepoint)
+        return &extended.info;
+    return nullptr;
+  }
+
+  /// Assert @p glyph's rectangle sits inside the atlas, leaving a uniform
   /// one-pixel border on all four sides.
   // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
+  void check_glyph_rect(const pg::BakedSize &baked, const pg::GlyphInfo &glyph) {
+    if (glyph.width == 0 || glyph.height == 0)
+      return;
+    CHECK(glyph.atlas_x >= k_padding);
+    CHECK(glyph.atlas_y >= k_padding);
+    CHECK(glyph.atlas_x + glyph.width + k_padding <= baked.atlas_w);
+    CHECK(glyph.atlas_y + glyph.height + k_padding <= baked.atlas_h);
+  }
+
+  /// Assert every packed glyph (Latin-1 and extended) sits inside the atlas.
   void check_glyph_bounds(const pg::BakedSize &baked) {
-    for (std::size_t c = pg::k_first_baked_ascii; c < pg::k_ascii_count; ++c) {
-      const auto &g = baked.glyphs[c];
-      if (g.width == 0 || g.height == 0)
-        continue;
-      CHECK(g.atlas_x >= k_padding);
-      CHECK(g.atlas_y >= k_padding);
-      CHECK(g.atlas_x + g.width + k_padding <= baked.atlas_w);
-      CHECK(g.atlas_y + g.height + k_padding <= baked.atlas_h);
-    }
+    for (std::size_t c = pg::k_first_baked_ascii; c < pg::k_latin1_count; ++c)
+      check_glyph_rect(baked, baked.glyphs[c]);
+    for (const pg::ExtendedGlyph &extended : baked.extended_glyphs)
+      check_glyph_rect(baked, extended.info);
   }
 
   /// Assert @p glyph's rectangle is opaque white in RGB (alpha carries coverage)
@@ -230,4 +243,45 @@ TEST_CASE("FontAtlas::bake: face destruction order is correct when the library o
   CHECK(FT_New_Face(ft.lib, fixture_font_path().string().c_str(), 0, &probe) == 0);
   if (probe != nullptr)
     FT_Done_Face(probe);
+}
+
+// doctest's CHECK macros expand to control flow, so the assertion count — not the
+// test's logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_CASE("FontAtlas::bake: extended punctuation and Latin-1 letters are baked") {
+  FreeTypeLibrary ft;
+  REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
+  pg::FontAtlas atlas;
+  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+  const pg::BakedSize baked = require_bake(atlas, 16);
+
+  // Em dash and en dash: the characters silently dropped before this fix.
+  for (const uint32_t cp : {0x2013u, 0x2014u}) {
+    const pg::GlyphInfo *g = find_extended(baked, cp);
+    REQUIRE(g != nullptr);
+    CHECK(g->width > 0);
+    CHECK(g->advance_x > 0.f);
+  }
+
+  // Latin-1 Supplement letter, e.g. 'é' (U+00E9), for future localization.
+  const auto &e_acute = baked.glyphs[0xE9];
+  CHECK(e_acute.width > 0);
+  CHECK(e_acute.advance_x > 0.f);
+
+  check_glyph_bounds(baked);
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
+TEST_CASE("FontAtlas::bake: full coverage stays within a sane atlas size") {
+  FreeTypeLibrary ft;
+  REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
+  pg::FontAtlas atlas;
+  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+
+  // Covers the physical sizes the game's UI/dialogue fonts are baked at.
+  for (const uint32_t size : {12u, 16u, 24u, 32u}) {
+    const pg::BakedSize baked = require_bake(atlas, size);
+    CHECK(baked.atlas_w <= 512);
+    CHECK(baked.atlas_h <= 2048);
+  }
 }
