@@ -62,6 +62,7 @@ set(TEST_SOURCES
     test_tilemap_loader.cpp
     test_tilemap_validate.cpp
     test_transition_prompt.cpp
+    test_ui_assets.cpp
     test_ui_draw.cpp
     test_user_data_dir.cpp
     test_utf8.cpp

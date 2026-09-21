@@ -150,6 +150,85 @@ TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border 
   CHECK(std::holds_alternative<DrawRect>(r.log[0]));
 }
 
+TEST_CASE("ui_draw: nine_patch_render emits corners and correctly stretched edges") {
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border(); // 4×4 cells
+  const corundum::core::math::Vec2 pos{.x = 10.f, .y = 20.f};
+  const corundum::core::math::Vec2 size{.x = 100.f, .y = 60.f};
+
+  corundum::ui::nine_patch_render(r, border, pos.x, pos.y, size.x, size.y);
+
+  // Order: four corners at natural size (TL, TR, BL, BR), then horizontal edges, then vertical edges.
+  REQUIRE(r.log.size() == 8);
+  for (const auto &call : r.log)
+    REQUIRE(std::holds_alternative<DrawSprite>(call));
+
+  const auto sprite = [&](std::size_t i) -> const DrawSprite & { return std::get<DrawSprite>(r.log[i]); };
+
+  // Top-left corner sits at the rect origin at natural size.
+  CHECK(sprite(0).source.x == 0);
+  CHECK(sprite(0).source.y == 0);
+  CHECK(sprite(0).source.width == 4);
+  CHECK(sprite(0).source.height == 4);
+  CHECK(sprite(0).position.x == pos.x);
+  CHECK(sprite(0).position.y == pos.y);
+  CHECK(sprite(0).scale.x == 1.f);
+  CHECK(sprite(0).scale.y == 1.f);
+
+  // Top-right corner is pinned to the rect's right/top edges.
+  CHECK(sprite(1).source.x == 8);
+  CHECK(sprite(1).source.y == 0);
+  CHECK(sprite(1).position.x == pos.x + size.x - 4.f);
+  CHECK(sprite(1).position.y == pos.y);
+
+  // Top-middle edge stretches only on X across the inner span: (100 - 8) / 4 = 23.
+  CHECK(sprite(4).source.x == 4);
+  CHECK(sprite(4).source.y == 0);
+  CHECK(sprite(4).position.x == pos.x + 4.f);
+  CHECK(sprite(4).position.y == pos.y);
+  CHECK(sprite(4).scale.x == 23.f);
+  CHECK(sprite(4).scale.y == 1.f);
+
+  // Left-middle edge stretches only on Y: (60 - 8) / 4 = 13.
+  CHECK(sprite(6).source.x == 0);
+  CHECK(sprite(6).source.y == 4);
+  CHECK(sprite(6).position.x == pos.x);
+  CHECK(sprite(6).position.y == pos.y + 4.f);
+  CHECK(sprite(6).scale.x == 1.f);
+  CHECK(sprite(6).scale.y == 13.f);
+}
+
+TEST_CASE("ui_draw: nine_patch_render is a no-op without a texture or with non-positive cell size") {
+  RecordingRenderer r;
+  corundum::ui::NinePatchBorder no_texture{};
+  no_texture.tile_w = 4;
+  no_texture.tile_h = 4;
+  corundum::ui::nine_patch_render(r, no_texture, 0.f, 0.f, 100.f, 60.f);
+
+  corundum::ui::NinePatchBorder zero_cell{};
+  zero_cell.texture_id = 1u;
+  corundum::ui::nine_patch_render(r, zero_cell, 0.f, 0.f, 100.f, 60.f);
+
+  CHECK(r.log.empty());
+}
+
+TEST_CASE("ui_draw: nine_patch_render clamps a sub-cell rect instead of emitting negative scales") {
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border(); // 4×4 cells
+
+  // 4×4 is narrower/shorter than two 4px corners, so both inner spans clamp to 0.
+  corundum::ui::nine_patch_render(r, border, 0.f, 0.f, 4.f, 4.f);
+
+  REQUIRE(r.log.size() == 8);
+  for (const auto &call : r.log) {
+    const DrawSprite &s = std::get<DrawSprite>(call);
+    CHECK(s.scale.x >= 0.f);
+    CHECK(s.scale.y >= 0.f);
+  }
+  CHECK(std::get<DrawSprite>(r.log[4]).scale.x == 0.f); // top-middle edge
+  CHECK(std::get<DrawSprite>(r.log[6]).scale.y == 0.f); // left-middle edge
+}
+
 TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when selected=true") {
   RecordingRenderer r;
   const corundum::ui::DialogBoxStyle style{};

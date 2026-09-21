@@ -8,6 +8,7 @@
 #include <expected>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace corundum::platform {
   class Renderer;
@@ -68,12 +69,15 @@ namespace corundum::render {
                                                                render::RenderState &state, const std::string &path);
 
   /** @brief Load shared UI textures (dialog box border, etc.).
-   *  @param[in,out] r      Renderer for texture creation.
-   *  @param[out]    state  Render state; dialog_box border is configured.
+   *  @param[in,out] r     Renderer for texture creation.
+   *  @param[out]    state Render state; dialog_box border is configured.
+   *  @param[in]     path  Borders manifest to read; the border cell size is taken from the
+   *                       upper_left frame, so multi-frame cells are supported.
    *  @return ok on success, or an error string on failure.
    */
-  [[nodiscard]] std::expected<void, std::string> load_ui_assets(corundum::platform::Renderer &r,
-                                                                render::RenderState &state);
+  [[nodiscard]] std::expected<void, std::string>
+  load_ui_assets(corundum::platform::Renderer &r, render::RenderState &state,
+                 std::string_view path = "data/sprite_sheets/ui/borders.json");
 
   /** @brief Load a single tilemap for map mode.
    *  @param[in,out] r             Renderer for tileset texture loading.

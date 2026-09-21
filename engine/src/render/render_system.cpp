@@ -216,12 +216,11 @@ namespace corundum::render {
 
   // ── load_ui_assets ───────────────────────────────────────────────────────────
 
-  std::expected<void, std::string> load_ui_assets(corundum::platform::Renderer &r, render::RenderState &state) {
-    constexpr std::string_view k_path = "data/sprite_sheets/ui/borders.json";
-
-    auto j_result = corundum::core::read_json(k_path);
+  std::expected<void, std::string> load_ui_assets(corundum::platform::Renderer &r, render::RenderState &state,
+                                                  std::string_view path) {
+    auto j_result = corundum::core::read_json(path);
     if (!j_result) {
-      std::println(stderr, "[renderer] WARNING: could not load '{}': {}", k_path, j_result.error());
+      std::println(stderr, "[renderer] WARNING: could not load '{}': {}", path, j_result.error());
       return {};
     }
     const nlohmann::json &j = *j_result;
@@ -234,7 +233,7 @@ namespace corundum::render {
       fh = j.at("frame_height").get<int>();
       tex_path = j.at("path").get<std::string>();
     } catch (const nlohmann::json::exception &e) {
-      return std::unexpected(std::format("[renderer] malformed UI assets '{}': {}", k_path, e.what()));
+      return std::unexpected(std::format("[renderer] malformed UI assets '{}': {}", path, e.what()));
     }
 
     const auto make_rect = [&](std::string_view name) -> IntRect {
@@ -254,6 +253,9 @@ namespace corundum::render {
       state.dialog_box.border.texture_id = 0;
     }
 
+    // NinePatchBorder lays the frame out as a uniform 3×3 grid. A cell is the size of the
+    // upper_left frame — one frame in some atlases, but multi-frame in others (the shipped
+    // border uses 2×2-frame 32px cells), so the span must come from the frame, not frame_width.
     const IntRect ul = make_rect("upper_left");
     state.dialog_box.border.tile_w = ul.width;
     state.dialog_box.border.tile_h = ul.height;

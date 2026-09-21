@@ -5,39 +5,48 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 
+#include <algorithm>
+
 namespace corundum::ui {
 
-  void NinePatchBorder::render(platform::Renderer &r, float x, float y, float w, float h) const {
-    if (texture_id == 0)
+  void nine_patch_render(platform::Renderer &r, const NinePatchBorder &border, float x, float y, float w, float h) {
+    if (border.texture_id == 0 || border.tile_w <= 0 || border.tile_h <= 0)
       return;
 
-    const float cw = static_cast<float>(tile_w);
-    const float ch = static_cast<float>(tile_h);
+    const float corner_w = static_cast<float>(border.tile_w);
+    const float corner_h = static_cast<float>(border.tile_h);
 
-    // Source rects derived from the uniform 3×3 tile grid.
-    auto src = [&](int col, int row) -> core::math::IntRect { return {col * tile_w, row * tile_h, tile_w, tile_h}; };
-
-    auto emit = [&](core::math::IntRect s, float px, float py, float sx = 1.f, float sy = 1.f) {
-      r.draw(platform::DrawSprite{texture_id, {px, py}, s, {sx, sy}});
+    const auto source = [&](int col, int row) -> core::math::IntRect {
+      return {.x = col * border.tile_w, .y = row * border.tile_h, .width = border.tile_w, .height = border.tile_h};
     };
 
-    // Corners — drawn at natural tile size.
-    emit(src(0, 0), x, y);
-    emit(src(2, 0), x + w - cw, y);
-    emit(src(0, 2), x, y + h - ch);
-    emit(src(2, 2), x + w - cw, y + h - ch);
+    // DrawSprite::scale multiplies the source cell, and position is the quad's top-left,
+    // so the edge scales below stretch a cell to the inner span.
+    const auto emit = [&](core::math::IntRect src, float px, float py, float scale_x = 1.f, float scale_y = 1.f) {
+      r.draw(platform::DrawSprite{
+          .texture_id = border.texture_id,
+          .position = {.x = px, .y = py},
+          .source = src,
+          .scale = {.x = scale_x, .y = scale_y},
+      });
+    };
 
-    // Horizontal edges — stretch X to fill inner width.
-    const float inner_w = w - cw * 2.f;
-    const float sx_h = inner_w / static_cast<float>(tile_w);
-    emit(src(1, 0), x + cw, y, sx_h, 1.f);
-    emit(src(1, 2), x + cw, y + h - ch, sx_h, 1.f);
+    // Corners — drawn at natural cell size.
+    emit(source(0, 0), x, y);
+    emit(source(2, 0), x + w - corner_w, y);
+    emit(source(0, 2), x, y + h - corner_h);
+    emit(source(2, 2), x + w - corner_w, y + h - corner_h);
 
-    // Vertical edges — stretch Y to fill inner height.
-    const float inner_h = h - ch * 2.f;
-    const float sy_v = inner_h / static_cast<float>(tile_h);
-    emit(src(0, 1), x, y + ch, 1.f, sy_v);
-    emit(src(2, 1), x + w - cw, y + ch, 1.f, sy_v);
+    const float inner_w = std::max(0.f, w - (corner_w * 2.f));
+    const float inner_h = std::max(0.f, h - (corner_h * 2.f));
+
+    // Horizontal edges — stretch X to fill the inner width.
+    emit(source(1, 0), x + corner_w, y, inner_w / corner_w, 1.f);
+    emit(source(1, 2), x + corner_w, y + h - corner_h, inner_w / corner_w, 1.f);
+
+    // Vertical edges — stretch Y to fill the inner height.
+    emit(source(0, 1), x, y + corner_h, 1.f, inner_h / corner_h);
+    emit(source(2, 1), x + w - corner_w, y + corner_h, 1.f, inner_h / corner_h);
   }
 
 } // namespace corundum::ui

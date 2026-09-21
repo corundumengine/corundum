@@ -15,7 +15,8 @@ namespace corundum::ui {
    *         chrome of every nine-patch modal panel.
    *  @param r       Renderer; receives one DrawRect then the border's DrawSprite commands.
    *  @param bg      Panel fill colour (e.g. DialogBoxStyle::bg).
-   *  @param border  Nine-patch frame. @pre border.texture_id != 0.
+   *  @param border  Nine-patch frame; a zero texture_id or non-positive cell size skips only
+   *                 the frame, leaving the fill rect intact.
    *  @param pos     Top-left of the panel in screen pixels.
    *  @param size    Panel width/height in screen pixels.
    */
