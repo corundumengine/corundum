@@ -6,6 +6,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/dialogue/conversation.hpp>
 #include <corundum/dialogue/dialogue.hpp>
+#include <corundum/ui/choice_cursor.hpp>
 #include <corundum/ui/word_wrap.hpp>
 #include <cstddef>
 #include <string>
@@ -13,10 +14,6 @@
 #include <vector>
 
 namespace corundum::ui {
-
-  /// Cursor prefix drawn before every dialogue choice. Shared with the renderer so the
-  /// layout can reserve exactly the column the cursor occupies.
-  inline constexpr std::string_view k_choice_cursor = "> ";
 
   /// One visible dialogue choice: the index into the node's full choice list and its label
   /// pre-wrapped into the lines the renderer draws in order (at least one, possibly empty).

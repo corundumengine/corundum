@@ -4,7 +4,6 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/prompt_box.hpp>
 
@@ -28,9 +27,9 @@ namespace corundum::ui {
     const float q_w = r.measure_text(style.font_id, question, style.font_size_body);
     const float yes_w = r.measure_text(style.font_id, k_yes, style.font_size_body);
     const float no_w = r.measure_text(style.font_id, k_no, style.font_size_body);
-    // draw_option always advances its label by a cursor-width prefix, selected or not, so
+    // draw_option always advances its label past the cursor column, selected or not, so
     // each column is cursor + label.
-    const float cursor_w = r.measure_text(style.font_id, k_choice_cursor, style.font_size_body);
+    const float cursor_w = cursor_advance(r, style);
     const float yes_col_w = cursor_w + yes_w;
     const float no_col_w = cursor_w + no_w;
     const float options_row_w = yes_col_w + k_opt_gap + no_col_w;

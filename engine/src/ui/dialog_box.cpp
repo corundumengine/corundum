@@ -99,8 +99,9 @@ namespace corundum::ui {
         for (std::size_t i = 0; i < lay.choices.size(); ++i) {
           const bool is_sel = std::cmp_equal(i, lay.selected_choice);
           for (std::size_t line = 0; line < lay.choices[i].lines.size(); ++line) {
-            // Only the first line carries the cursor; continuation lines keep the hanging indent.
-            draw_option(r, ds.style, lay.choices[i].lines[line], {.x = px + inset, .y = y}, is_sel && line == 0);
+            // Every line keeps the selected colour; only the first carries the cursor, so
+            // continuation lines are drawn as cursorless with the same hanging indent.
+            draw_option(r, ds.style, lay.choices[i].lines[line], {.x = px + inset, .y = y}, is_sel, line == 0);
             y += spacing;
           }
         }

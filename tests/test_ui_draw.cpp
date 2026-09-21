@@ -237,7 +237,8 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when s
   const corundum::ui::DialogBoxStyle style{};
   // style.selected defaults to (255, 255, 0, 255); style.choice defaults to (200, 200, 200, 255).
 
-  const float cursor_w = corundum::ui::draw_option(r, style, "Hello", {.x = 5.f, .y = 7.f}, true);
+  const float cursor_w = corundum::ui::cursor_advance(r, style);
+  corundum::ui::draw_option(r, style, "Hello", {.x = 5.f, .y = 7.f}, true);
 
   REQUIRE(r.log.size() == 2);
   REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
@@ -265,7 +266,8 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with choice colours and two-
   RecordingRenderer r;
   const corundum::ui::DialogBoxStyle style{};
 
-  const float cursor_w = corundum::ui::draw_option(r, style, "World", {.x = 0.f, .y = 0.f}, false);
+  const float cursor_w = corundum::ui::cursor_advance(r, style);
+  corundum::ui::draw_option(r, style, "World", {.x = 0.f, .y = 0.f}, false);
 
   REQUIRE(r.log.size() == 2);
   REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
@@ -286,19 +288,43 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with choice colours and two-
   CHECK(label.colour.b == style.choice.b);
 }
 
-TEST_CASE("ui_draw: draw_option returns the same cursor advance regardless of selection state") {
-  // Guarantees column alignment: the label x is pos.x + return value in both
-  // branches. If a font renders "> " and "  " at different widths the bug would
-  // surface here and force us to always measure k_choice_cursor — which
-  // draw_option already does.
+TEST_CASE("ui_draw: draw_option aligns the label at cursor_advance whether or not it is selected") {
+  // Column alignment guarantee: selected and unselected options reserve the same cursor
+  // column, so the label x is pos.x + cursor_advance in both branches. If a font rendered
+  // "> " and "  " at different widths this would surface here — cursor_advance always
+  // measures k_choice_cursor, which is the point.
   RecordingRenderer r;
   const corundum::ui::DialogBoxStyle style{};
+  const float advance = corundum::ui::cursor_advance(r, style);
 
-  const float w_sel = corundum::ui::draw_option(r, style, "A", {.x = 0.f, .y = 0.f}, true);
-  const float w_unsel = corundum::ui::draw_option(r, style, "A", {.x = 0.f, .y = 0.f}, false);
+  corundum::ui::draw_option(r, style, "A", {.x = 0.f, .y = 0.f}, true);
+  corundum::ui::draw_option(r, style, "A", {.x = 100.f, .y = 0.f}, false);
 
-  CHECK(w_sel == w_unsel);
-  CHECK(w_sel > 0.f);
+  REQUIRE(r.log.size() == 4);
+  const DrawText &selected_label = std::get<DrawText>(r.log[1]);
+  const DrawText &unselected_label = std::get<DrawText>(r.log[3]);
+  CHECK(selected_label.position.x == advance);
+  CHECK(unselected_label.position.x == 100.f + advance);
+  CHECK(advance > 0.f);
+}
+
+TEST_CASE("ui_draw: draw_option without a cursor keeps the selected colour and the hanging indent") {
+  // Continuation lines of a wrapped selected option: the whole option stays highlighted
+  // (style.selected) even though only the first line shows the "> " cursor.
+  RecordingRenderer r;
+  const corundum::ui::DialogBoxStyle style{};
+  const float advance = corundum::ui::cursor_advance(r, style);
+
+  corundum::ui::draw_option(r, style, "continuation", {.x = 3.f, .y = 9.f}, true, false);
+
+  REQUIRE(r.log.size() == 2);
+  const DrawText &cursor = std::get<DrawText>(r.log[0]);
+  const DrawText &label = std::get<DrawText>(r.log[1]);
+  CHECK(cursor.text == "  ");
+  CHECK(label.text == "continuation");
+  CHECK(label.position.x == 3.f + advance);
+  CHECK(cursor.colour.r == style.selected.r);
+  CHECK(label.colour.r == style.selected.r);
 }
 
 // ── prompt_box_render ───────────────────────────────────────────────────────
@@ -661,6 +687,42 @@ TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped
     joined += line;
   }
   CHECK(joined == "Alpha Beta Gamma Delta");
+}
+
+TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colour and hanging indent") {
+  // A selected choice whose label wrapped: only the first line shows the "> " cursor, but
+  // every line stays highlighted (style.selected) and aligned in the label column.
+  RecordingRenderer r;
+  corundum::ui::DialogBoxState ds{};
+  ds.border = make_border();
+  ds.visible = true;
+
+  corundum::ui::DialogLayout layout{};
+  layout.panel_pos = {.x = 0.f, .y = 0.f};
+  layout.panel_size = {.x = 400.f, .y = 200.f};
+  layout.inset = 10.f;
+  layout.node_type = corundum::dialogue::NodeType::Choice;
+  layout.choices = {
+      corundum::ui::ChoiceLayout{.index = 0, .lines = {"first line", "second line"}},
+      corundum::ui::ChoiceLayout{.index = 1, .lines = {"other"}},
+  };
+  ds.layout = std::move(layout);
+
+  corundum::ui::dialog_box_render(ds, r);
+
+  // chrome (1 rect + 8 sprites) + "Choose:" header + choice 0 (2 lines × 2) + choice 1 (1 × 2).
+  REQUIRE(r.log.size() == 9 + 1 + 4 + 2);
+  const float advance = corundum::ui::cursor_advance(r, ds.style);
+
+  // First line: "> " cursor in the selected colour, label in the cursor column.
+  CHECK(std::get<DrawText>(r.log[10]).text == "> ");
+  CHECK(std::get<DrawText>(r.log[11]).colour.r == ds.style.selected.r);
+  CHECK(std::get<DrawText>(r.log[11]).position.x == 10.f + advance); // px + inset + advance
+
+  // Second line: no cursor, same colour, same hanging indent.
+  CHECK(std::get<DrawText>(r.log[12]).text == "  ");
+  CHECK(std::get<DrawText>(r.log[13]).colour.r == ds.style.selected.r);
+  CHECK(std::get<DrawText>(r.log[13]).position.x == std::get<DrawText>(r.log[11]).position.x);
 }
 
 // ── inventory_panel_render ───────────────────────────────────────────────────

@@ -6,7 +6,6 @@
 #include <corundum/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/world/flags.hpp>
@@ -90,7 +89,7 @@ namespace corundum::ui {
     // The panel title and group headers use the (usually larger) speaker font, so they
     // need a taller row than body text.
     const float header_line_h = std::max(body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
-    const float cursor_w = r.measure_text(style.font_id, k_choice_cursor, style.font_size_body);
+    const float cursor_w = cursor_advance(r, style);
     const float title_w = r.measure_text(style.font_id, k_panel_header, style.font_size_speaker);
 
     // Build one label per row and group consecutive rows by category. Input is sorted by
