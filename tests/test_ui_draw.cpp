@@ -20,6 +20,7 @@
 #include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/prompt_box.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <deque>
@@ -150,6 +151,7 @@ TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border 
   CHECK(std::holds_alternative<DrawRect>(r.log[0]));
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("ui_draw: nine_patch_render emits corners and correctly stretched edges") {
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border(); // 4×4 cells
@@ -212,6 +214,7 @@ TEST_CASE("ui_draw: nine_patch_render is a no-op without a texture or with non-p
   CHECK(r.log.empty());
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("ui_draw: nine_patch_render clamps a sub-cell rect instead of emitting negative scales") {
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border(); // 4×4 cells
@@ -221,7 +224,7 @@ TEST_CASE("ui_draw: nine_patch_render clamps a sub-cell rect instead of emitting
 
   REQUIRE(r.log.size() == 8);
   for (const auto &call : r.log) {
-    const DrawSprite &s = std::get<DrawSprite>(call);
+    const auto &s = std::get<DrawSprite>(call);
     CHECK(s.scale.x >= 0.f);
     CHECK(s.scale.y >= 0.f);
   }
@@ -296,6 +299,108 @@ TEST_CASE("ui_draw: draw_option returns the same cursor advance regardless of se
 
   CHECK(w_sel == w_unsel);
   CHECK(w_sel > 0.f);
+}
+
+// ── prompt_box_render ───────────────────────────────────────────────────────
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
+TEST_CASE("prompt_box_render: chrome, question, then the Yes/No option pairs") {
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+
+  corundum::ui::prompt_box_render(r, style, border, "Enter?", true, viewport);
+
+  // Chrome (1 DrawRect + 8 DrawSprite), question, then Yes (cursor+label) and No (cursor+label).
+  REQUIRE(r.log.size() == 9 + 1 + 4);
+  CHECK(std::holds_alternative<DrawRect>(r.log[0]));
+  for (std::size_t i = 1; i < 9; ++i)
+    CHECK(std::holds_alternative<DrawSprite>(r.log[i]));
+
+  const DrawText &question = std::get<DrawText>(r.log[9]);
+  CHECK(question.text == "Enter?");
+  CHECK(question.colour.r == style.body.r);
+
+  const DrawText &yes_cursor = std::get<DrawText>(r.log[10]);
+  const DrawText &yes_label = std::get<DrawText>(r.log[11]);
+  const DrawText &no_cursor = std::get<DrawText>(r.log[12]);
+  const DrawText &no_label = std::get<DrawText>(r.log[13]);
+
+  CHECK(yes_cursor.text == "> ");
+  CHECK(yes_label.text == "Yes");
+  CHECK(yes_cursor.colour.r == style.selected.r);
+  CHECK(no_cursor.text == "  ");
+  CHECK(no_label.text == "No");
+  CHECK(no_cursor.colour.r == style.choice.r);
+  CHECK(no_label.position.y == yes_label.position.y); // both options share the row
+  CHECK(no_label.position.x > yes_label.position.x);
+}
+
+TEST_CASE("prompt_box_render: the option row is centered within the panel") {
+  // Regression: the row's width must count the cursor column ahead of both labels, or the
+  // row is placed half a cursor-width right of center.
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+
+  corundum::ui::prompt_box_render(r, style, border, "Enter?", true, viewport);
+
+  const DrawRect &panel = std::get<DrawRect>(r.log[0]);
+  const DrawText &yes_cursor = std::get<DrawText>(r.log[10]);
+  const DrawText &no_label = std::get<DrawText>(r.log[13]);
+
+  const float no_w = r.measure_text(style.font_id, "No", style.font_size_body);
+  const float row_left = yes_cursor.position.x;
+  const float row_right = no_label.position.x + no_w;
+  const float panel_center = panel.position.x + (panel.size.x * 0.5f);
+
+  CHECK((row_left + row_right) * 0.5f == panel_center);
+}
+
+TEST_CASE("prompt_box_render: selection swaps the cursor without moving the label columns") {
+  RecordingRenderer r_yes;
+  RecordingRenderer r_no;
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+
+  corundum::ui::prompt_box_render(r_yes, style, border, "Leave?", true, viewport);
+  corundum::ui::prompt_box_render(r_no, style, border, "Leave?", false, viewport);
+
+  // Cursors follow the highlighted option...
+  CHECK(std::get<DrawText>(r_yes.log[10]).text == "> ");
+  CHECK(std::get<DrawText>(r_yes.log[12]).text == "  ");
+  CHECK(std::get<DrawText>(r_no.log[10]).text == "  ");
+  CHECK(std::get<DrawText>(r_no.log[12]).text == "> ");
+
+  // ...but the label columns stay put, since draw_option always advances by the cursor width.
+  CHECK(std::get<DrawText>(r_yes.log[11]).position.x == std::get<DrawText>(r_no.log[11]).position.x);
+  CHECK(std::get<DrawText>(r_yes.log[13]).position.x == std::get<DrawText>(r_no.log[13]).position.x);
+
+  // Colours also follow selection.
+  CHECK(std::get<DrawText>(r_yes.log[11]).colour.r == style.selected.r);
+  CHECK(std::get<DrawText>(r_no.log[11]).colour.r == style.choice.r);
+}
+
+TEST_CASE("prompt_box_render: panel respects the minimum width and grows for a long question") {
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+
+  {
+    RecordingRenderer r;
+    corundum::ui::prompt_box_render(r, style, border, "Enter?", true, viewport);
+    CHECK(std::get<DrawRect>(r.log[0]).size.x == 200.f);
+  }
+  {
+    RecordingRenderer r;
+    const std::string_view long_question = "A considerably longer question?";
+    corundum::ui::prompt_box_render(r, style, border, long_question, true, viewport);
+    const float q_w = r.measure_text(style.font_id, long_question, style.font_size_body);
+    CHECK(std::get<DrawRect>(r.log[0]).size.x == q_w + 64.f); // content + 2 × k_pad_x
+  }
 }
 
 // ── dialog_box_update ─────────────────────────────────────────────────────────
@@ -799,7 +904,7 @@ TEST_CASE("inventory_panel_render: panel width reserves the cursor column and he
 
   // measure_text is 8px/char: content = cursor (2) + label (32) = 34 chars, plus 24px pad each side.
   const DrawRect &panel = std::get<DrawRect>(r.log[0]);
-  CHECK(panel.size.x == 34.f * 8.f + 24.f * 2.f);
+  CHECK(panel.size.x == (34.f * 8.f) + (24.f * 2.f));
 }
 
 TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row height") {
@@ -826,5 +931,5 @@ TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row
   CHECK(row_cursor.position.y - group_header.position.y == 44.f);
 
   const DrawRect &panel = std::get<DrawRect>(r.log[0]);
-  CHECK(panel.size.y == 16.f * 2.f + 44.f + 10.f + 14.f + 44.f);
+  CHECK(panel.size.y == (16.f * 2.f) + 44.f + 10.f + 14.f + 44.f);
 }
