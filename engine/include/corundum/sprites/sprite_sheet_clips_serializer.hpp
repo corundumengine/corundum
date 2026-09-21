@@ -9,7 +9,7 @@ namespace corundum::sprites {
 
   /** @brief Serialize a sprite-sheet clips struct to JSON.
    *
-   * Writes schema_version: 1 on save.
+   * Writes k_sprite_sheet_clips_schema_version on save.
    *
    * @param[in] data  The sprite-sheet clips data.
    * @return JSON object suitable for write_json(); round-trips through load_sprite_sheet_clips().

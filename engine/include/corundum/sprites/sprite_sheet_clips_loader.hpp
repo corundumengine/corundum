@@ -11,7 +11,8 @@ namespace corundum::sprites {
 
   /** @brief Load a sprite-sheet clips JSON file.
    *
-   * Accepts a missing schema_version field as version 1.
+   * A missing schema_version field is read as version 1; a newer version is rejected. Every
+   * field is type- and range-checked, so a malformed file returns an error rather than throwing.
    *
    * @param[in] path  Path to the sprite-sheet clips JSON.
    * @return SpriteSheetClips on success, or an error string on failure.

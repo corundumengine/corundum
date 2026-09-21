@@ -11,7 +11,10 @@
 #include <corundum/sprites/sprite_sheet_clips.hpp>
 #include <corundum/sprites/sprite_sheet_clips_serializer.hpp>
 #include <expected>
+#include <format>
 #include <nlohmann/json_fwd.hpp>
+#include <string>
+#include <unordered_set>
 #include <utility>
 
 namespace tools::spritesmith {
@@ -72,6 +75,19 @@ namespace tools::spritesmith {
       return data;
     }
 
+    /// Reject clip names the loader refuses (empty or duplicated), so a save can never write a
+    /// sheet that load_sprite_sheet_clips() would then reject.
+    [[nodiscard]] std::expected<void, std::string> validate_sprite_sheet_clip_names(const EditorState &state) {
+      std::unordered_set<std::string> seen;
+      for (const auto &clip : state.anim_clips) {
+        if (clip.name.empty())
+          return std::unexpected("Animation clip names must not be empty.");
+        if (!seen.insert(clip.name).second)
+          return std::unexpected(std::format("Duplicate animation clip name '{}'.", clip.name));
+      }
+      return {};
+    }
+
   } // namespace
 
   std::expected<void, std::string> save_sheet(EditorState &state) {
@@ -88,6 +104,11 @@ namespace tools::spritesmith {
         return std::unexpected(res.error());
       state.dirty = false;
       return {};
+    }
+
+    if (state.mode == SheetMode::SpriteSheet) {
+      if (auto valid = validate_sprite_sheet_clip_names(state); !valid)
+        return std::unexpected(valid.error());
     }
 
     const nlohmann::json j = (state.mode == SheetMode::Character)
