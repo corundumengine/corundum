@@ -11,6 +11,7 @@
 #include <corundum/entities/world.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_system.hpp>
+#include <corundum/item/item.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/quest/runner.hpp>
@@ -222,8 +223,13 @@ namespace corundum {
         warn_log("[engine] WARN: {}", result.error());
     }
 
+    /// The FlagStore key holding an item's runtime count (`item.<id>`).
+    std::string item_flag_key(std::string_view id) {
+      return std::format("{}{}", item::k_flag_prefix, id);
+    }
+
     void handle_take_item(Engine &engine, const dialogue::EventAction &ev) {
-      const std::string key = "item." + ev.args[0];
+      const std::string key = item_flag_key(ev.args[0]);
       if (const auto it = engine.flags.find(key); it != engine.flags.end()) {
         it->second -= event_int_arg(ev, 1, /*fallback=*/1);
         if (it->second <= 0)
@@ -241,7 +247,7 @@ namespace corundum {
         else if (ev.name == "quest_advance" && ev.args.size() >= 2)
           handle_quest_advance(quest_runner, ev);
         else if (ev.name == "give_item" && !ev.args.empty())
-          engine.flags["item." + ev.args[0]] += event_int_arg(ev, 1, /*fallback=*/1);
+          engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
         else if (ev.name == "take_item" && !ev.args.empty())
           handle_take_item(engine, ev);
         else if (ev.name == "reputation" && ev.args.size() >= 2)

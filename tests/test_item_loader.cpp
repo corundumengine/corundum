@@ -52,14 +52,16 @@ TEST_CASE("item loader: batch file loads multiple items and injects the folder c
   CHECK(sword.name == "Steel Sword");
   CHECK(sword.category == item::ItemCategory::Weapon);
   REQUIRE(sword.weapon.has_value());
-  CHECK(sword.weapon->damage == 12);
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts if the payload is unset.
+  CHECK(sword.weapon.value().damage == 12);
 
   const auto &axe = (*result)[1];
   CHECK(axe.id == "steel_axe");
   CHECK(axe.name == "Steel Axe");
   CHECK(axe.category == item::ItemCategory::Weapon);
   REQUIRE(axe.weapon.has_value());
-  CHECK(axe.weapon->damage == 18);
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts if the payload is unset.
+  CHECK(axe.weapon.value().damage == 18);
 }
 
 TEST_CASE("item loader: item missing id fails schema validation for that element only") {
@@ -122,8 +124,10 @@ TEST_CASE("item loader: apparel and potion payloads parse into the Item struct")
   CHECK(helm.id == "helm");
   CHECK(helm.category == item::ItemCategory::Apparel);
   REQUIRE(helm.apparel.has_value());
-  CHECK(helm.apparel->slot == "head");
-  CHECK(helm.apparel->defense == 3);
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts if the payload is unset.
+  CHECK(helm.apparel.value().slot == "head");
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts if the payload is unset.
+  CHECK(helm.apparel.value().defense == 3);
   // The "potion" object is present but the injected category is Apparel — the
   // loader only fills the payload matching the declared category.
   CHECK_FALSE(helm.potion.has_value());
@@ -167,7 +171,7 @@ TEST_CASE("item loader: unsupported schema_version fails") {
 
   const auto result = item::load_item_file(path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
-  CHECK(result.error().find("1") != std::string::npos);
+  CHECK(result.error().find('1') != std::string::npos);
 }
 
 TEST_CASE("item loader: non-array items fails") {
@@ -250,13 +254,15 @@ TEST_CASE("registry load_all loads category folders, skips unknown and bad files
   CHECK(sword->name == "Steel Sword");
   CHECK(sword->category == item::ItemCategory::Weapon);
   REQUIRE(sword->weapon.has_value());
-  CHECK(sword->weapon->damage == 12);
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts if the payload is unset.
+  CHECK(sword->weapon.value().damage == 12);
 
   const auto *flask = reg.find("heal_flask");
   REQUIRE(flask != nullptr);
   CHECK(flask->category == item::ItemCategory::Potion);
   REQUIRE(flask->potion.has_value());
-  CHECK(flask->potion->effect == "heal");
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts if the payload is unset.
+  CHECK(flask->potion.value().effect == "heal");
 
   const auto *clutter = reg.find("clutter");
   REQUIRE(clutter != nullptr);
@@ -285,4 +291,16 @@ TEST_CASE("registry load_all: duplicate id across two files warns and keeps the 
   const auto *sword = reg.find("sword");
   REQUIRE(sword != nullptr);
   CHECK(sword->name == "Sword A");
+}
+
+TEST_CASE("item flags: is_held_item accepts only positive item.<id> counts") {
+  CHECK(item::is_held_item("item.potion", 1));
+  CHECK(item::is_held_item("item.potion", 3));
+  CHECK_FALSE(item::is_held_item("item.potion", 0));
+  CHECK_FALSE(item::is_held_item("item.potion", -1));
+  CHECK_FALSE(item::is_held_item("quest.potion", 1));
+  // The prefix includes the dot, so a similarly named key is not a held item.
+  CHECK_FALSE(item::is_held_item("items.potion", 1));
+
+  CHECK(item::item_id_from_flag("item.elixir") == "elixir");
 }

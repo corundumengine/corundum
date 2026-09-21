@@ -490,8 +490,8 @@ TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pa
   const corundum::ui::DialogBoxStyle style{};
 
   const std::vector<corundum::ui::InventoryLine> lines = {
-      {.name = "Apple", .count = 2},
-      {.name = "Salt", .count = 1},
+      {.count = 2, .name = "Apple"},
+      {.count = 1, .name = "Salt"},
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
@@ -547,9 +547,9 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
   const corundum::ui::DialogBoxStyle style{};
 
   const std::vector<corundum::ui::InventoryLine> lines = {
-      {.name = "A", .count = 1},
-      {.name = "B", .count = 1},
-      {.name = "C", .count = 1},
+      {.count = 1, .name = "A"},
+      {.count = 1, .name = "B"},
+      {.count = 1, .name = "C"},
   };
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
@@ -646,10 +646,10 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
 
   // Pre-sorted as build_inventory_lines would produce: (category, name).
   const std::vector<corundum::ui::InventoryLine> lines = {
-      {.category = ItemCategory::Apparel, .name = "Cloak", .count = 1},
-      {.category = ItemCategory::Misc, .name = "zzz", .count = 1},
-      {.category = ItemCategory::Potion, .name = "Draught", .count = 1},
-      {.category = ItemCategory::Weapon, .name = "Axe", .count = 1},
+      {.category = ItemCategory::Apparel, .count = 1, .name = "Cloak"},
+      {.category = ItemCategory::Misc, .count = 1, .name = "zzz"},
+      {.category = ItemCategory::Potion, .count = 1, .name = "Draught"},
+      {.category = ItemCategory::Weapon, .count = 1, .name = "Axe"},
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
@@ -666,16 +666,16 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
   CHECK(texts[0] == "Inventory");
   // Each group header immediately precedes its rows (cursor then label), in category
   // order; only the first row (cursor 0) is selected.
-  CHECK(texts[1] == "apparel");
+  CHECK(texts[1] == "Apparel");
   CHECK(texts[2] == "> ");
   CHECK(texts[3] == "Cloak  x1");
   CHECK(texts[4] == "Misc");
   CHECK(texts[5] == "  ");
   CHECK(texts[6] == "zzz  x1");
-  CHECK(texts[7] == "potion");
+  CHECK(texts[7] == "Potion");
   CHECK(texts[8] == "  ");
   CHECK(texts[9] == "Draught  x1");
-  CHECK(texts[10] == "weapon");
+  CHECK(texts[10] == "Weapon");
   CHECK(texts[11] == "  ");
   CHECK(texts[12] == "Axe  x1");
 }
@@ -687,7 +687,7 @@ TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
   const corundum::ui::DialogBoxStyle style{};
 
   const std::vector<corundum::ui::InventoryLine> lines = {
-      {.category = ItemCategory::Misc, .name = "Clutter", .count = 1},
+      {.category = ItemCategory::Misc, .count = 1, .name = "Clutter"},
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
@@ -702,4 +702,50 @@ TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
   const DrawText &row_label = std::get<DrawText>(r.log[11]);
   CHECK(row_cursor.text == "> ");
   CHECK(row_label.text == "Clutter  x1");
+}
+
+TEST_CASE("inventory_panel_render: panel width reserves the cursor column and header width") {
+  using corundum::item::ItemCategory;
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+
+  // A name long enough to clear k_min_w: label 32 chars (256px) + "> " (16px) = 272 content.
+  const std::vector<corundum::ui::InventoryLine> lines = {
+      {.category = ItemCategory::Apparel, .count = 1, .name = "abcdefghijklmnopqrstuvwxyzab"},
+  };
+
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+  corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
+
+  // measure_text is 8px/char: content = cursor (2) + label (32) = 34 chars, plus 24px pad each side.
+  const DrawRect &panel = std::get<DrawRect>(r.log[0]);
+  CHECK(panel.size.x == 34.f * 8.f + 24.f * 2.f);
+}
+
+TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row height") {
+  using corundum::item::ItemCategory;
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border();
+  corundum::ui::DialogBoxStyle style{};
+  style.font_size_body = 10;
+  style.line_spacing = 12.f;
+  style.font_size_speaker = 40;
+
+  const std::vector<corundum::ui::InventoryLine> lines = {
+      {.category = ItemCategory::Apparel, .count = 1, .name = "Cloak"},
+  };
+
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+  corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
+
+  // Chrome(9) + title + group header + cursor + label. Header row height is
+  // max(body_line_h, speaker + 4) = max(14, 44) = 44, not the body row height.
+  const DrawText &group_header = std::get<DrawText>(r.log[10]);
+  const DrawText &row_cursor = std::get<DrawText>(r.log[11]);
+  CHECK(group_header.text == "Apparel");
+  CHECK(row_cursor.position.y - group_header.position.y == 44.f);
+
+  const DrawRect &panel = std::get<DrawRect>(r.log[0]);
+  CHECK(panel.size.y == 16.f * 2.f + 44.f + 10.f + 14.f + 44.f);
 }

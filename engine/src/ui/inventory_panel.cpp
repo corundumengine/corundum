@@ -6,6 +6,7 @@
 #include <corundum/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/world/flags.hpp>
@@ -15,32 +16,47 @@
 #include <algorithm>
 #include <cstddef>
 #include <format>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace corundum::ui {
 
   namespace {
-    constexpr std::string_view k_item_flag_prefix = "item.";
     constexpr std::string_view k_panel_header = "Inventory";
-    constexpr std::string_view k_misc_header = "Misc";
+    constexpr std::string_view k_empty_label = "(empty)";
 
-    /// A run of consecutive lines sharing one category (input is sorted by (category, name)).
+    /// UI display name for a category. Deliberately separate from item::to_string(),
+    /// which is the lowercase serialized/schema form, not presentation text.
+    std::string_view category_display_name(item::ItemCategory category) noexcept {
+      switch (category) {
+        case item::ItemCategory::Apparel:
+          return "Apparel";
+        case item::ItemCategory::Misc:
+          return "Misc";
+        case item::ItemCategory::Potion:
+          return "Potion";
+        case item::ItemCategory::Weapon:
+          return "Weapon";
+      }
+      return "Misc";
+    }
+
+    /// A run of consecutive rows sharing one category (input is sorted by (category, name)).
     struct Group {
       item::ItemCategory category = item::ItemCategory::Misc;
-      std::vector<std::size_t> indices{}; ///< Indices into the caller's `lines` vector.
+
+      std::size_t first = 0; ///< Index of the group's first label in the labels vector.
+
+      std::size_t count = 0; ///< Number of labels in the group.
     };
 
-    // The category the previous row belonged to, for one header per group. k_misc_header
-    // renders only when a group other than Misc is present, so a handful of un-categorized
-    // items don't look over-organized.
-    std::optional<item::ItemCategory> maybe_group_header(const item::ItemCategory current, bool has_non_misc) {
-      if (current == item::ItemCategory::Misc && !has_non_misc)
-        return std::nullopt;
-      return current;
+    /// Headers are drawn for every category once any non-Misc row is present; an all-Misc
+    /// inventory omits them so a handful of un-categorized items don't look over-organized.
+    bool show_group_header(item::ItemCategory category, bool has_non_misc) noexcept {
+      return category != item::ItemCategory::Misc || has_non_misc;
     }
   } // namespace
 
@@ -48,14 +64,14 @@ namespace corundum::ui {
                                                    const corundum::item::Registry &items) {
     std::vector<InventoryLine> lines;
     for (const auto &[key, count] : flags) {
-      if (!key.starts_with(k_item_flag_prefix) || count <= 0)
+      if (!item::is_held_item(key, count))
         continue;
-      const std::string_view id = std::string_view{key}.substr(k_item_flag_prefix.size());
+      const std::string_view id = item::item_id_from_flag(key);
       const item::Item *def = items.find(id);
       lines.push_back(InventoryLine{
-          .category = def ? def->category : item::ItemCategory::Misc,
-          .name = def ? def->name : std::string{id},
+          .category = def != nullptr ? def->category : item::ItemCategory::Misc,
           .count = count,
+          .name = def != nullptr ? def->name : std::string{id},
       });
     }
     std::ranges::sort(lines, {}, [](const InventoryLine &l) { return std::tuple{l.category, l.name}; });
@@ -69,85 +85,109 @@ namespace corundum::ui {
     constexpr float k_pad_y = 16.f;
     constexpr float k_header_gap = 10.f;
     constexpr float k_group_gap = 6.f;
-    constexpr std::string_view k_empty_label = "(empty)";
 
-    const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
-    const float header_w = r.measure_text(style.font_id, k_panel_header, style.font_size_speaker);
+    const float body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
+    // The panel title and group headers use the (usually larger) speaker font, so they
+    // need a taller row than body text.
+    const float header_line_h = std::max(body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
+    const float cursor_w = r.measure_text(style.font_id, k_choice_cursor, style.font_size_body);
+    const float title_w = r.measure_text(style.font_id, k_panel_header, style.font_size_speaker);
 
-    // Group the already-sorted lines by category so we can label each run and size the panel.
+    // Build one label per row and group consecutive rows by category. Input is sorted by
+    // (category, name), so equal categories are already adjacent.
+    std::vector<std::string> labels;
+    labels.reserve(lines.size());
     std::vector<Group> groups;
-    for (const auto &line : lines) {
+    float widest_body_w = 0.f;
+    for (const InventoryLine &line : lines) {
       if (groups.empty() || groups.back().category != line.category)
-        groups.push_back(Group{line.category});
-      groups.back().indices.push_back(&line - lines.data());
+        groups.push_back(Group{.category = line.category, .first = labels.size()});
+      ++groups.back().count;
+      labels.push_back(std::format("{}  x{}", line.name, line.count));
+      widest_body_w = std::max(widest_body_w, r.measure_text(style.font_id, labels.back(), style.font_size_body));
     }
 
     const bool has_non_misc =
         std::ranges::any_of(groups, [](const Group &g) { return g.category != item::ItemCategory::Misc; });
 
-    std::vector<std::string> labels;
-    labels.reserve(lines.size());
-    float content_w = header_w;
-    float group_rows = 0.f;
-    for (const auto &group : groups) {
-      const bool show_header = maybe_group_header(group.category, has_non_misc).has_value();
-      if (show_header)
-        group_rows += 1.f;
-      for (const auto &idx : group.indices) {
-        labels.push_back(std::format("{}  x{}", lines[idx].name, lines[idx].count));
-        content_w = std::max(content_w, r.measure_text(style.font_id, labels.back(), style.font_size_body));
-      }
+    // Width must fit the title, the per-row cursor prefix plus the widest label, and the
+    // widest group header.
+    float content_w = std::max(title_w, cursor_w + widest_body_w);
+    int header_count = 0;
+    for (const Group &group : groups) {
+      if (!show_group_header(group.category, has_non_misc))
+        continue;
+      ++header_count;
+      content_w = std::max(
+          content_w, r.measure_text(style.font_id, category_display_name(group.category), style.font_size_speaker));
     }
     if (lines.empty())
       content_w = std::max(content_w, r.measure_text(style.font_id, k_empty_label, style.font_size_body));
 
-    const float panel_w = std::max(k_min_w, content_w + k_pad_x * 2.f);
-    const float rows = static_cast<float>(lines.empty() ? 1 : lines.size());
-    // Each group contributes its rows plus one header row (when labeled); groups are
-    // separated by k_group_gap, and there is no extra gap after the final group.
-    const float group_extra =
-        group_rows * line_h + std::max(0.f, static_cast<float>(groups.size()) - 1.f) * k_group_gap;
-    const float panel_h = k_pad_y * 2.f + line_h + k_header_gap + rows * line_h + group_extra;
+    const float panel_w = std::max(k_min_w, content_w + (k_pad_x * 2.f));
+    const float body_rows = static_cast<float>(labels.empty() ? 1 : labels.size());
+    // One gap between adjacent groups (there is no gap before the first or after the last).
+    const float group_gaps = header_count > 0 ? static_cast<float>(header_count - 1) * k_group_gap : 0.f;
+    const float panel_h = (k_pad_y * 2.f) + header_line_h + k_header_gap + (body_rows * body_line_h) +
+                          (static_cast<float>(header_count) * header_line_h) + group_gaps;
 
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    panel_chrome(r, style.bg, border, {panel_x, panel_y}, {panel_w, panel_h});
+    panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
 
-    const float header_x = panel_x + (panel_w - header_w) * 0.5f;
+    const float header_x = panel_x + ((panel_w - title_w) * 0.5f);
     const float header_y = panel_y + k_pad_y;
     r.draw(platform::DrawText{
-        style.font_id, k_panel_header, {header_x, header_y}, style.font_size_speaker, style.speaker});
+        .font_id = style.font_id,
+        .text = k_panel_header,
+        .position = {.x = header_x, .y = header_y},
+        .char_size = style.font_size_speaker,
+        .colour = style.speaker,
+    });
+
+    float y = header_y + header_line_h + k_header_gap;
 
     if (lines.empty()) {
       const float empty_w = r.measure_text(style.font_id, k_empty_label, style.font_size_body);
-      const float empty_x = panel_x + (panel_w - empty_w) * 0.5f;
-      r.draw(platform::DrawText{style.font_id,
-                                k_empty_label,
-                                {empty_x, header_y + line_h + k_header_gap},
-                                style.font_size_body,
-                                style.choice});
+      const float empty_x = panel_x + ((panel_w - empty_w) * 0.5f);
+      r.draw(platform::DrawText{
+          .font_id = style.font_id,
+          .text = k_empty_label,
+          .position = {.x = empty_x, .y = y},
+          .char_size = style.font_size_body,
+          .colour = style.choice,
+      });
       return;
     }
 
     const int clamped_cursor = std::clamp(cursor, 0, static_cast<int>(lines.size()) - 1);
     const float row_x = panel_x + k_pad_x;
-    float y = header_y + line_h + k_header_gap;
-    std::size_t label_index = 0;
-    for (const auto &group : groups) {
-      if (maybe_group_header(group.category, has_non_misc).has_value()) {
-        const std::string_view label =
-            group.category == item::ItemCategory::Misc ? k_misc_header : item::to_string(group.category);
+    for (std::size_t group_index = 0; group_index < groups.size(); ++group_index) {
+      const Group &group = groups[group_index];
+
+      if (show_group_header(group.category, has_non_misc)) {
+        const std::string_view label = category_display_name(group.category);
         const float label_w = r.measure_text(style.font_id, label, style.font_size_speaker);
-        const float label_x = panel_x + (panel_w - label_w) * 0.5f;
-        r.draw(platform::DrawText{style.font_id, label, {label_x, y}, style.font_size_speaker, style.speaker});
-        y += line_h;
+        const float label_x = panel_x + ((panel_w - label_w) * 0.5f);
+        r.draw(platform::DrawText{
+            .font_id = style.font_id,
+            .text = label,
+            .position = {.x = label_x, .y = y},
+            .char_size = style.font_size_speaker,
+            .colour = style.speaker,
+        });
+        y += header_line_h;
       }
-      for (const auto &idx : group.indices) {
-        draw_option(r, style, labels[label_index++], {row_x, y}, static_cast<int>(idx) == clamped_cursor);
-        y += line_h;
+
+      for (std::size_t row = 0; row < group.count; ++row) {
+        const std::size_t index = group.first + row;
+        draw_option(r, style, labels[index], {.x = row_x, .y = y}, std::cmp_equal(index, clamped_cursor));
+        y += body_line_h;
       }
-      y += k_group_gap;
+
+      if (group_index + 1 < groups.size())
+        y += k_group_gap;
     }
   }
 

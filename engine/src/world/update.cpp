@@ -7,6 +7,7 @@
 #include <corundum/dialogue/registry.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/item/item.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
@@ -144,7 +145,7 @@ namespace {
     }
 
     const int rows = static_cast<int>(
-        std::ranges::count_if(flags, [](const auto &kv) { return kv.first.starts_with("item.") && kv.second > 0; }));
+        std::ranges::count_if(flags, [](const auto &kv) { return corundum::item::is_held_item(kv.first, kv.second); }));
     if (rows <= 0) {
       scene.inventory_cursor = 0;
       return;

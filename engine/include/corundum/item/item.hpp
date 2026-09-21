@@ -26,6 +26,26 @@ namespace corundum::item {
   /** @brief Parse a category directory name ("weapons", "apparel", ...). Unknown → nullopt. */
   [[nodiscard]] std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept;
 
+  /** @brief FlagStore key prefix for an item's runtime count: `item.<id>`. */
+  inline constexpr std::string_view k_flag_prefix = "item.";
+
+  /** @brief True when @p flag_key names a held item and @p count is positive.
+   *
+   *  Sole authority for which FlagStore rows the inventory treats as held items;
+   *  both the row count (cursor wrapping) and the rendered list go through it.
+   */
+  [[nodiscard]] constexpr bool is_held_item(std::string_view flag_key, int count) noexcept {
+    return flag_key.starts_with(k_flag_prefix) && count > 0;
+  }
+
+  /** @brief Strip the `item.` prefix from @p flag_key.
+   *  @pre is_held_item(flag_key, count) returned true for @p flag_key.
+   */
+  [[nodiscard]] constexpr std::string_view item_id_from_flag(std::string_view flag_key) noexcept {
+    flag_key.remove_prefix(k_flag_prefix.size());
+    return flag_key;
+  }
+
   /** @brief Category payload for clothing/armour. */
   struct ApparelData {
     int defense = 0;
