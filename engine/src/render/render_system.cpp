@@ -594,27 +594,6 @@ namespace corundum::render {
 
   namespace {
 
-    /// WalkDir bit for a single-step (dc,dr) in {-1,0,1}^2; 0 otherwise. Local mirror of
-    /// dir_for_delta() in walkability.cpp (kept private to that file).
-    constexpr uint8_t walk_dir_bit(int dc, int dr) noexcept {
-      using corundum::world::tilemap::WalkDir;
-      constexpr std::array<uint8_t, 9> k_lookup = {
-          std::to_underlying(WalkDir::NorthWest),
-          std::to_underlying(WalkDir::North),
-          std::to_underlying(WalkDir::NorthEast),
-          std::to_underlying(WalkDir::West),
-          uint8_t{0},
-          std::to_underlying(WalkDir::East),
-          std::to_underlying(WalkDir::SouthWest),
-          std::to_underlying(WalkDir::South),
-          std::to_underlying(WalkDir::SouthEast),
-      };
-      if (dc < -1 || dc > 1 || dr < -1 || dr > 1)
-        return 0;
-      const std::size_t index = (static_cast<std::size_t>(dr + 1) * 3) + static_cast<std::size_t>(dc + 1);
-      return k_lookup[index];
-    }
-
     /// Active chunk owning the global tile cell (gc, gr), or nullptr if outside the window.
     const render::ChunkEntry *chunk_owner_at(const render::RenderState &state, int gc, int gr,
                                              int chunk_size) noexcept {
@@ -638,10 +617,8 @@ namespace corundum::render {
     /// elevation differs by more than @p max_step_height.
     void clear_steep_walkability_edges(const render::RenderState &state, corundum::world::tilemap::WalkabilityGraph &g,
                                        int chunk_size, int max_step_height) {
-      constexpr std::array<std::pair<int, int>, 8> k_neighbors{
-          std::pair{0, -1}, std::pair{1, -1}, std::pair{1, 0},  std::pair{1, 1},
-          std::pair{0, 1},  std::pair{-1, 1}, std::pair{-1, 0}, std::pair{-1, -1},
-      };
+      using corundum::world::tilemap::k_walk_neighbors;
+      using corundum::world::tilemap::walk_dir_bit;
       for (int r = 0; r < g.height; ++r) {
         for (int c = 0; c < g.width; ++c) {
           const int gc = c + g.col_origin;
@@ -649,13 +626,14 @@ namespace corundum::render {
           const int e0 = chunk_tile_elevation_at(state, gc, gr, chunk_size);
           const std::size_t idx =
               (static_cast<std::size_t>(r) * static_cast<std::size_t>(g.width)) + static_cast<std::size_t>(c);
-          for (const auto &[dc, dr] : k_neighbors) {
-            const int nc = c + dc;
-            const int nr = r + dr;
+          for (const auto &[delta_col, delta_row] : k_walk_neighbors) {
+            const int nc = c + delta_col;
+            const int nr = r + delta_row;
             if (nc < 0 || nr < 0 || nc >= g.width || nr >= g.height)
               continue;
-            if (std::abs(e0 - chunk_tile_elevation_at(state, gc + dc, gr + dr, chunk_size)) > max_step_height)
-              g.edges[idx] &= static_cast<uint8_t>(~walk_dir_bit(dc, dr));
+            if (std::abs(e0 - chunk_tile_elevation_at(state, gc + delta_col, gr + delta_row, chunk_size)) >
+                max_step_height)
+              g.edges[idx] &= static_cast<uint8_t>(~walk_dir_bit(delta_col, delta_row));
           }
         }
       }
@@ -713,8 +691,8 @@ namespace corundum::render {
     g.row_origin = min_cr * chunk_size;
     g.width = (max_cc - min_cc + 1) * chunk_size;
     g.height = (max_cr - min_cr + 1) * chunk_size;
-    constexpr uint8_t k_all_dirs = 0xFF; // all 8 WalkDir bits set
-    g.edges.assign(static_cast<std::size_t>(g.width) * static_cast<std::size_t>(g.height), k_all_dirs);
+    g.edges.assign(static_cast<std::size_t>(g.width) * static_cast<std::size_t>(g.height),
+                   corundum::world::tilemap::k_all_walk_dirs);
 
     clear_steep_walkability_edges(state, g, chunk_size, max_step_height);
     reopen_walkability_ramp_edges(state, g, chunk_size);

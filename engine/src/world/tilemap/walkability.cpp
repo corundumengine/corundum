@@ -4,37 +4,70 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
 
-#include <array>
-#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
 #include <utility>
+#include <vector>
 
 namespace corundum::world::tilemap {
 
   namespace {
 
-    constexpr uint8_t k_all_dirs = std::to_underlying(WalkDir::North) | std::to_underlying(WalkDir::NorthEast) |
-                                   std::to_underlying(WalkDir::East) | std::to_underlying(WalkDir::SouthEast) |
-                                   std::to_underlying(WalkDir::South) | std::to_underlying(WalkDir::SouthWest) |
-                                   std::to_underlying(WalkDir::West) | std::to_underlying(WalkDir::NorthWest);
+    /// Linear index of cell (col, row) in a width-wide row-major grid.
+    [[nodiscard]] constexpr std::size_t cell_index(int col, int row, int width) noexcept {
+      return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
+    }
 
-    // Maps a (dc,dr) delta in {-1,0,1}^2 to its WalkDir bit via a constexpr lookup
-    // table. Returns 0 for any delta outside that set (not a single-step grid-adjacent move).
-    [[nodiscard]] constexpr uint8_t dir_for_delta(int dc, int dr) noexcept {
-      constexpr std::array<uint8_t, 9> k_lookup = {std::to_underlying(WalkDir::NorthWest),
-                                                   std::to_underlying(WalkDir::North),
-                                                   std::to_underlying(WalkDir::NorthEast),
-                                                   std::to_underlying(WalkDir::West),
-                                                   0,
-                                                   std::to_underlying(WalkDir::East),
-                                                   std::to_underlying(WalkDir::SouthWest),
-                                                   std::to_underlying(WalkDir::South),
-                                                   std::to_underlying(WalkDir::SouthEast)};
-      if (dc < -1 || dc > 1 || dr < -1 || dr > 1)
-        return 0;
-      return k_lookup[static_cast<std::size_t>((dr + 1) * 3 + (dc + 1))];
+    /// Elevation of every cell, cached row-major: the neighbour scan samples each cell up to nine
+    /// times, and elevation_at() re-scans every z-index-0 layer on each call.
+    [[nodiscard]] std::vector<int> cache_cell_elevations(const Tilemap &tm, std::size_t cell_count) {
+      std::vector<int> elevations(cell_count);
+      for (int row = 0; row < tm.height; ++row) {
+        for (int col = 0; col < tm.width; ++col) {
+          elevations[cell_index(col, row, tm.width)] = elevation_at(tm, col, row);
+        }
+      }
+      return elevations;
+    }
+
+    /// First pass: clear the edge from each cell to any neighbour whose elevation differs by more
+    /// than @p max_step_height.
+    void clear_steep_edges(const Tilemap &tm, WalkabilityGraph &g, const std::vector<int> &elevations,
+                           int max_step_height) {
+      for (int row = 0; row < tm.height; ++row) {
+        for (int col = 0; col < tm.width; ++col) {
+          const std::size_t idx = cell_index(col, row, tm.width);
+          const int elevation = elevations[idx];
+          for (const auto &[delta_col, delta_row] : k_walk_neighbors) {
+            const int neighbor_col = col + delta_col;
+            const int neighbor_row = row + delta_row;
+            if (neighbor_col < 0 || neighbor_row < 0 || neighbor_col >= tm.width || neighbor_row >= tm.height)
+              continue;
+            if (std::abs(elevation - elevations[cell_index(neighbor_col, neighbor_row, tm.width)]) > max_step_height)
+              g.edges[idx] &= static_cast<uint8_t>(~walk_dir_bit(delta_col, delta_row));
+          }
+        }
+      }
+    }
+
+    /// Second pass: a ramp cell forces both directions along its axis back open, overriding the
+    /// max_step_height disconnect above for exactly those two directions — the ramp's height delta
+    /// is inferred from its two axis-neighbors' elevations, never stored directly. Diagonals and
+    /// the other axis are untouched and still governed normally.
+    void reopen_ramp_edges(const Tilemap &tm, WalkabilityGraph &g) {
+      for (int row = 0; row < tm.height; ++row) {
+        for (int col = 0; col < tm.width; ++col) {
+          const std::optional<RampAxis> axis = ramp_axis_at(tm, col, row);
+          if (!axis)
+            continue;
+          const auto [delta_col_axis, delta_row_axis] =
+              *axis == RampAxis::NorthSouth ? std::pair{0, -1} : std::pair{1, 0};
+          g.set_passable(col, row, col + delta_col_axis, row + delta_row_axis, true);
+          g.set_passable(col, row, col - delta_col_axis, row - delta_row_axis, true);
+        }
+      }
     }
 
   } // namespace
@@ -50,20 +83,18 @@ namespace corundum::world::tilemap {
       return true;
     if (to_col < 0 || to_row < 0 || to_col >= width || to_row >= height)
       return true;
-    const int dc = to_col - from_col;
-    const int dr = to_row - from_row;
-    if (dc == 0 && dr == 0)
+    const int delta_col = to_col - from_col;
+    const int delta_row = to_row - from_row;
+    if (delta_col == 0 && delta_row == 0)
       return true;
-    // Tunneling guard: a multi-cell move used to return true unconditionally, letting fast
-    // movement skip past cliff gating. Now denied — the substep loop in update_player is
-    // forced to advance one cell at a time and can never skip a gating decision. Out-of-bounds
-    // returns above are intentionally untouched (cells outside the map have no graph entry).
-    if (std::abs(dc) > 1 || std::abs(dr) > 1)
+
+    // Multi-cell moves are denied rather than bypassed, so a fast mover's per-cell substep loop
+    // (physics_system.cpp) can never skip an edge decision. The out-of-bounds returns above stay
+    // unblocked: cells outside the map have no graph entry.
+    if (std::abs(delta_col) > 1 || std::abs(delta_row) > 1)
       return false;
-    const uint8_t dir = dir_for_delta(dc, dr);
-    const std::size_t idx =
-        static_cast<std::size_t>(from_row) * static_cast<std::size_t>(width) + static_cast<std::size_t>(from_col);
-    return (edges[idx] & dir) != 0;
+    const std::size_t idx = cell_index(from_col, from_row, width);
+    return (edges[idx] & walk_dir_bit(delta_col, delta_row)) != 0;
   }
 
   void WalkabilityGraph::set_passable(int col_a, int row_a, int col_b, int row_b, bool passable) noexcept {
@@ -75,16 +106,14 @@ namespace corundum::world::tilemap {
       return;
     if (col_b < 0 || row_b < 0 || col_b >= width || row_b >= height)
       return;
-    const int dc = col_b - col_a;
-    const int dr = row_b - row_a;
-    if (std::abs(dc) > 1 || std::abs(dr) > 1 || (dc == 0 && dr == 0))
+    const int delta_col = col_b - col_a;
+    const int delta_row = row_b - row_a;
+    if (std::abs(delta_col) > 1 || std::abs(delta_row) > 1 || (delta_col == 0 && delta_row == 0))
       return;
-    const uint8_t dir_ab = dir_for_delta(dc, dr);
-    const uint8_t dir_ba = dir_for_delta(-dc, -dr);
-    const std::size_t idx_a =
-        static_cast<std::size_t>(row_a) * static_cast<std::size_t>(width) + static_cast<std::size_t>(col_a);
-    const std::size_t idx_b =
-        static_cast<std::size_t>(row_b) * static_cast<std::size_t>(width) + static_cast<std::size_t>(col_b);
+    const uint8_t dir_ab = walk_dir_bit(delta_col, delta_row);
+    const uint8_t dir_ba = walk_dir_bit(-delta_col, -delta_row);
+    const std::size_t idx_a = cell_index(col_a, row_a, width);
+    const std::size_t idx_b = cell_index(col_b, row_b, width);
     if (passable) {
       edges[idx_a] |= dir_ab;
       edges[idx_b] |= dir_ba;
@@ -94,48 +123,17 @@ namespace corundum::world::tilemap {
     }
   }
 
-  WalkabilityGraph build_walkability_graph(const Tilemap &tm, int max_step_height) noexcept {
+  WalkabilityGraph build_walkability_graph(const Tilemap &tm, int max_step_height) {
+    const std::size_t cell_count = static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height);
+
     WalkabilityGraph g;
     g.width = tm.width;
     g.height = tm.height;
-    g.edges.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), k_all_dirs);
+    g.edges.assign(cell_count, k_all_walk_dirs);
 
-    constexpr std::array<std::pair<int, int>, 8> k_neighbors{std::pair{0, -1}, std::pair{1, -1}, std::pair{1, 0},
-                                                             std::pair{1, 1},  std::pair{0, 1},  std::pair{-1, 1},
-                                                             std::pair{-1, 0}, std::pair{-1, -1}};
-
-    for (int row = 0; row < tm.height; ++row) {
-      for (int col = 0; col < tm.width; ++col) {
-        const int elev = elevation_at(tm, col, row);
-        const std::size_t idx =
-            static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width) + static_cast<std::size_t>(col);
-        for (const auto &[dc, dr] : k_neighbors) {
-          const int ncol = col + dc;
-          const int nrow = row + dr;
-          if (ncol < 0 || nrow < 0 || ncol >= tm.width || nrow >= tm.height)
-            continue;
-          const int nelev = elevation_at(tm, ncol, nrow);
-          if (std::abs(elev - nelev) > max_step_height)
-            g.edges[idx] &= static_cast<uint8_t>(~dir_for_delta(dc, dr));
-        }
-      }
-    }
-
-    // Ramp pass: force-reconnect both directions along a ramp cell's axis, overriding the
-    // max_step_height disconnect above for exactly those two directions — the ramp's height
-    // delta is inferred from its two axis-neighbors' elevation_at() values, never stored
-    // directly. Diagonals and the other axis are untouched and still governed normally.
-    for (int row = 0; row < tm.height; ++row) {
-      for (int col = 0; col < tm.width; ++col) {
-        const std::optional<RampAxis> axis = ramp_axis_at(tm, col, row);
-        if (!axis)
-          continue;
-        const auto [dc0, dr0] = axis == RampAxis::NorthSouth ? std::pair{0, -1} : std::pair{1, 0};
-        g.set_passable(col, row, col + dc0, row + dr0, true);
-        g.set_passable(col, row, col - dc0, row - dr0, true);
-      }
-    }
-
+    const std::vector<int> elevations = cache_cell_elevations(tm, cell_count);
+    clear_steep_edges(tm, g, elevations, max_step_height);
+    reopen_ramp_edges(tm, g);
     return g;
   }
 
