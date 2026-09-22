@@ -120,6 +120,18 @@ else()
     message(STATUS "texture byte-size tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
+# encoding.hpp is a pure internal header (the JSON spellings shared by the tilemap loader and
+# serializer); gate the test off when consuming corundum as a vendored library.
+set(_tilemap_encoding_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/world/tilemap/encoding.hpp")
+if(EXISTS "${_tilemap_encoding_header}")
+    target_sources(corundum_tests PRIVATE test_tilemap_encoding.cpp)
+    target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/world/tilemap
+    )
+else()
+    message(STATUS "tilemap encoding tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 # Link to engine and doctest. engine_platform_null is also pulled in so the
 # lifecycle tests can adopt a null Window/GpuContext/Renderer — it adds no
 # runtime cost for the rest of the suite because no other test touches it.

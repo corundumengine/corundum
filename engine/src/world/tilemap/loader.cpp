@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "encoding.hpp"
+
 #include <algorithm>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/sprites/sprite_atlas.hpp>
@@ -444,22 +446,14 @@ namespace corundum::world::tilemap {
           return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] 'w' must be positive", id, ci));
         if (h <= 0.f)
           return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] 'h' must be positive", id, ci));
-        TriangleCut cut = TriangleCut::NorthWest;
-        if (cut_str == "NW")
-          cut = TriangleCut::NorthWest;
-        else if (cut_str == "NE")
-          cut = TriangleCut::NorthEast;
-        else if (cut_str == "SW")
-          cut = TriangleCut::SouthWest;
-        else if (cut_str == "SE")
-          cut = TriangleCut::SouthEast;
-        else
+        const std::optional<TriangleCut> cut = triangle_cut_from_string(cut_str);
+        if (!cut.has_value())
           return std::unexpected(
               std::format("Tilemap '{}' collision_triangles[{}] 'cut' must be NW, NE, SW, or SE", id, ci));
         auto elevation = parse_collision_elevation(entry);
         if (!elevation)
           return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] {}", id, ci, elevation.error()));
-        collision_triangles.push_back(x, y, w, h, cut, *elevation);
+        collision_triangles.push_back(x, y, w, h, *cut, *elevation);
       }
     }
 
@@ -691,15 +685,11 @@ namespace corundum::world::tilemap {
             return std::unexpected(
                 std::format("Tilemap '{}' layer '{}' objects[{}] 'flip' must be a string", id, layer_name, i));
           }
-          if (flip_str == "H")
-            flip = k_flip_h;
-          else if (flip_str == "V")
-            flip = k_flip_v;
-          else if (flip_str == "HV")
-            flip = k_flip_h | k_flip_v;
-          else
+          const std::optional<uint8_t> parsed_flip = flip_flags_from_string(flip_str);
+          if (!parsed_flip.has_value())
             return std::unexpected(std::format(
                 R"(Tilemap '{}' layer '{}' objects[{}] 'flip' must be "H", "V", or "HV")", id, layer_name, i));
+          flip = *parsed_flip;
         }
 
         if (has_anim) {
@@ -907,12 +897,8 @@ namespace corundum::world::tilemap {
           if (rcol < 0 || rcol >= width || rrow < 0 || rrow >= height)
             return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] position ({}, {}) out of bounds", id,
                                                layer_name, ri, rcol, rrow));
-          RampAxis axis = RampAxis::NorthSouth;
-          if (axis_str == "ns")
-            axis = RampAxis::NorthSouth;
-          else if (axis_str == "ew")
-            axis = RampAxis::EastWest;
-          else
+          const std::optional<RampAxis> axis = ramp_axis_from_string(axis_str);
+          if (!axis.has_value())
             return std::unexpected(std::format(R"(Tilemap '{}' layer '{}' ramps[{}] axis '{}' must be "ns" or "ew")",
                                                id, layer_name, ri, axis_str));
           const std::size_t flat_idx =
@@ -920,7 +906,7 @@ namespace corundum::world::tilemap {
           if (flat_idx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
             return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] index {} exceeds int maximum", id,
                                                layer_name, ri, flat_idx));
-          ramps[static_cast<int>(flat_idx)] = axis;
+          ramps[static_cast<int>(flat_idx)] = *axis;
         }
       }
 
