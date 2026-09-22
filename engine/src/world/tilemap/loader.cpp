@@ -20,17 +20,19 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace fs = std::filesystem;
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::world::tilemap {
 
   namespace {
+
     // Tilesets are shared across many chunks/maps; parsing the same atlas from disk once per
     // chunk was the dominant chunk-streaming cost (~43ms per 16x16 chunk, recomputing the same
     // TilesetInfo for the handful of shared tilesets every time). Cache the fully-resolved result
@@ -39,6 +41,212 @@ namespace corundum::world::tilemap {
       static std::unordered_map<std::string, TilesetInfo> cache;
       return cache;
     }
+
+    /// Read the optional sidecar @c {atlas_path.stem()}.tiledata.json sitting next to @p atlas_path.
+    /// @return The parsed object, or std::nullopt when the sidecar is absent or malformed — a broken
+    ///         sidecar is treated as absent rather than failing the whole load.
+    std::optional<json> read_sidecar(const fs::path &atlas_path) {
+      const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
+      std::ifstream f(sidecar);
+      if (!f)
+        return std::nullopt;
+      try {
+        auto sc = json::parse(f, nullptr, true, true);
+        if (!sc.is_object())
+          return std::nullopt;
+        return sc;
+      } catch (const json::exception &) {
+        return std::nullopt;
+      }
+    }
+
+    /// Parse @p path as JSON.
+    /// @param label Asset kind for error messages (e.g. "tileset", "tilemap").
+    /// @return The parsed document, or a "Cannot open" / "Malformed" message naming @p label.
+    std::expected<json, std::string> parse_json_file(const fs::path &path, std::string_view label) {
+      std::ifstream file(path);
+      if (!file)
+        return std::unexpected(std::format("Cannot open {}: {}", label, path.string()));
+      try {
+        return json::parse(file, nullptr, true, true);
+      } catch (const json::exception &e) {
+        return std::unexpected(std::format("Malformed {} {}: {}", label, path.string(), e.what()));
+      }
+    }
+
+    /// Per-tile data resolved from a spritepacker atlas, plus the sprite-name → local-id lookup the
+    /// animations block uses to resolve frame names.
+    struct TilesetTiles {
+      TilesetInfo info;
+      std::unordered_map<std::string, int> name_to_local_id;
+    };
+
+    /// Build @p atlas's per-tile arrays (rects, trim, pivot, names) into a fresh TilesetInfo.
+    TilesetTiles build_tileset_tiles(const corundum::sprites::SpriteAtlas &atlas, const fs::path &tileset_path) {
+      TilesetTiles tiles;
+      TilesetInfo &info = tiles.info;
+      info.source = tileset_path.string();
+      info.path = atlas.path;
+      info.tile_count = static_cast<int>(atlas.sprites.size());
+
+      info.tile_rects.reserve(atlas.sprites.size());
+      info.tile_full_width.reserve(atlas.sprites.size());
+      info.tile_full_height.reserve(atlas.sprites.size());
+      info.tile_trim_x.reserve(atlas.sprites.size());
+      info.tile_trim_y.reserve(atlas.sprites.size());
+      info.tile_pivot_x.reserve(atlas.sprites.size());
+      info.tile_pivot_y.reserve(atlas.sprites.size());
+      info.tile_names.reserve(atlas.sprites.size());
+
+      tiles.name_to_local_id.reserve(atlas.sprites.size());
+
+      for (std::size_t i = 0; i < atlas.sprites.size(); ++i) {
+        const auto &sprite = atlas.sprites[i];
+        info.tile_rects.push_back({.x = sprite.x, .y = sprite.y, .width = sprite.w, .height = sprite.h});
+        info.tile_full_width.push_back(sprite.source_width);
+        info.tile_full_height.push_back(sprite.source_height);
+        info.tile_trim_x.push_back(sprite.trim_x);
+        info.tile_trim_y.push_back(sprite.trim_y);
+
+        // Pivots stay full-frame relative so untrimmed source padding (where tilemap alignment
+        // lives) survives repacking; resolve_pivot collapses spritepacker's pivot basis into the
+        // engine's full-frame, bottom-origin convention.
+        const corundum::sprites::PivotPoint pivot = corundum::sprites::resolve_pivot(sprite, atlas.pivot_basis);
+        info.tile_pivot_x.push_back(pivot.x);
+        info.tile_pivot_y.push_back(pivot.y);
+
+        info.tile_names.push_back(sprite.name);
+        tiles.name_to_local_id.emplace(sprite.name, static_cast<int>(i));
+      }
+      return tiles;
+    }
+
+    /// Resolve a tileset's default material tag, preferring the sidecar's `material` string when
+    /// present; empty when neither the sidecar nor the atlas JSON sets one.
+    std::string resolve_tileset_material(const json &atlas_json, const json *sidecar) {
+      const json *source = &atlas_json;
+      if (sidecar != nullptr && sidecar->contains("material") && (*sidecar)["material"].is_string())
+        source = sidecar;
+      if (const auto it = source->find("material"); it != source->end() && it->is_string())
+        return it->get<std::string>();
+      return {};
+    }
+
+    /// @return @p name's local tile id in @p name_to_local_id, or nullopt if the atlas has no such sprite.
+    std::optional<int> resolve_sprite_id(const std::unordered_map<std::string, int> &name_to_local_id,
+                                         const std::string &name) {
+      const auto it = name_to_local_id.find(name);
+      if (it == name_to_local_id.end())
+        return std::nullopt;
+      return it->second;
+    }
+
+    /// A parsed `animations.clips` entry: its name paired with the resolved clip.
+    using AnimationClip = std::pair<std::string, TileAnimation>;
+
+    /// Parse one `animations.clips` entry.
+    /// @param clip_index Index of @p clip in the clips array, for error messages.
+    /// @param default_fps Clip fps used when the entry does not set its own.
+    /// @return The (name, clip) pair, or a message describing the first malformed field.
+    std::expected<AnimationClip, std::string>
+    parse_animation_clip(const json &clip, std::size_t clip_index, float default_fps, const fs::path &tileset_path,
+                         const std::unordered_map<std::string, int> &name_to_local_id) {
+      if (!clip.is_object())
+        return std::unexpected(
+            std::format("Tileset '{}' animations.clips[{}] must be an object", tileset_path.string(), clip_index));
+
+      std::string name;
+      try {
+        name = clip.at("name").get<std::string>();
+      } catch (...) {
+        return std::unexpected(std::format("Tileset '{}' animations.clips[{}] missing or invalid 'name'",
+                                           tileset_path.string(), clip_index));
+      }
+      if (name.empty())
+        return std::unexpected(std::format("Tileset '{}' animations.clips[{}] 'name' must not be empty",
+                                           tileset_path.string(), clip_index));
+
+      if (!clip.contains("frames") || !clip["frames"].is_array())
+        return std::unexpected(
+            std::format("Tileset '{}' animations.clips[{}] missing 'frames' array", tileset_path.string(), clip_index));
+
+      TileAnimation anim;
+      anim.fps = default_fps;
+      if (clip.contains("fps")) {
+        try {
+          anim.fps = clip["fps"].get<float>();
+        } catch (...) {
+          return std::unexpected(
+              std::format("Tileset '{}' animations.clips[{}] 'fps' has wrong type", tileset_path.string(), clip_index));
+        }
+        if (anim.fps <= 0.f)
+          return std::unexpected(std::format("Tileset '{}' animations.clips[{}] 'fps' must be positive",
+                                             tileset_path.string(), clip_index));
+      }
+
+      for (std::size_t fi = 0; fi < clip["frames"].size(); ++fi) {
+        const auto &frame = clip["frames"][fi];
+        std::string frame_name;
+        try {
+          frame_name = frame.get<std::string>();
+        } catch (...) {
+          return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] must be a sprite name",
+                                             tileset_path.string(), clip_index, fi));
+        }
+        const auto local_id = resolve_sprite_id(name_to_local_id, frame_name);
+        if (!local_id)
+          return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] unknown sprite name '{}'",
+                                             tileset_path.string(), clip_index, fi, frame_name));
+        anim.frames.push_back(*local_id);
+      }
+      if (anim.frames.empty())
+        return std::unexpected(std::format("Tileset '{}' animations.clips[{}] 'frames' must not be empty",
+                                           tileset_path.string(), clip_index));
+
+      return AnimationClip{std::move(name), std::move(anim)};
+    }
+
+    /// Parse a tileset's `animations` block — the sidecar's when present, else the atlas JSON's.
+    /// @return name → clip, or a message describing the first malformed clip; empty when absent.
+    std::expected<std::flat_map<std::string, TileAnimation>, std::string>
+    parse_tileset_animations(const json &atlas_json, const json *sidecar, const fs::path &tileset_path,
+                             const std::unordered_map<std::string, int> &name_to_local_id) {
+      const json *source = &atlas_json;
+      if (sidecar != nullptr && sidecar->contains("animations") && (*sidecar)["animations"].is_object())
+        source = sidecar;
+
+      std::flat_map<std::string, TileAnimation> animations;
+      if (!source->contains("animations"))
+        return animations;
+
+      const auto &anim_obj = (*source)["animations"];
+      if (!anim_obj.is_object())
+        return std::unexpected(std::format("Tileset '{}' field 'animations' must be an object", tileset_path.string()));
+
+      float default_fps = 5.f;
+      if (anim_obj.contains("fps")) {
+        try {
+          default_fps = anim_obj["fps"].get<float>();
+        } catch (...) {
+          return std::unexpected(std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
+        }
+        if (default_fps <= 0.f)
+          return std::unexpected(std::format("Tileset '{}' animations 'fps' must be positive", tileset_path.string()));
+      }
+
+      if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
+        return std::unexpected(std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
+
+      const auto &clips = anim_obj["clips"];
+      for (std::size_t ci = 0; ci < clips.size(); ++ci) {
+        auto clip = parse_animation_clip(clips[ci], ci, default_fps, tileset_path, name_to_local_id);
+        if (!clip)
+          return std::unexpected(std::move(clip.error()));
+        animations[clip->first] = std::move(clip->second);
+      }
+      return animations;
+    }
+
   } // namespace
 
   void clear_tileset_cache() {
@@ -51,196 +259,37 @@ namespace corundum::world::tilemap {
   /// gives no stable grid position and array order isn't something an author should have to
   /// track across repacks.
   ///
-  /// When a sidecar file @c {tileset_path.stem()}.tiledata.json exists alongside the atlas
-  /// JSON, its fields override the atlas-sourced authoring data (material, animations).
-  /// Pivots and tile footprints are intentionally NOT read from the sidecar — pivots live in
-  /// the atlas JSON (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
-  static std::optional<json> read_sidecar(const fs::path &atlas_path) {
-    const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
-    std::ifstream f(sidecar);
-    if (!f)
-      return std::nullopt;
-    try {
-      auto sc = json::parse(f, nullptr, true, true);
-      if (!sc.is_object())
-        return std::nullopt;
-      return sc;
-    } catch (const json::exception &) {
-      return std::nullopt;
-    }
-  }
-
+  /// When a sidecar file @c {tileset_path.stem()}.tiledata.json exists alongside the atlas JSON,
+  /// its fields override the atlas-sourced authoring data (material, animations). Pivots and tile
+  /// footprints are intentionally NOT read from the sidecar — pivots live in the atlas JSON
+  /// (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
   std::expected<TilesetInfo, std::string> load_tileset(const fs::path &tileset_path) {
     auto &cache = tileset_cache();
     const std::string key = tileset_path.string();
-    if (auto it = cache.find(key); it != cache.end())
+    if (const auto it = cache.find(key); it != cache.end())
       return it->second;
 
-    auto atlas_result = corundum::sprites::load_sprite_atlas(tileset_path);
-    if (!atlas_result)
-      return std::unexpected(atlas_result.error());
-    const corundum::sprites::SpriteAtlas &atlas = *atlas_result;
+    auto atlas = corundum::sprites::load_sprite_atlas(tileset_path);
+    if (!atlas)
+      return std::unexpected(atlas.error());
 
-    std::ifstream f(tileset_path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open tileset: {}", tileset_path.string()));
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed tileset {}: {}", tileset_path.string(), e.what()));
-    }
+    auto atlas_json = parse_json_file(tileset_path, "tileset");
+    if (!atlas_json)
+      return std::unexpected(std::move(atlas_json.error()));
 
-    TilesetInfo info;
-    info.source = tileset_path.string();
-    info.path = atlas.path;
-    info.tile_count = static_cast<int>(atlas.sprites.size());
-
-    info.tile_rects.reserve(atlas.sprites.size());
-    info.tile_full_width.reserve(atlas.sprites.size());
-    info.tile_full_height.reserve(atlas.sprites.size());
-    info.tile_trim_x.reserve(atlas.sprites.size());
-    info.tile_trim_y.reserve(atlas.sprites.size());
-    info.tile_pivot_x.reserve(atlas.sprites.size());
-    info.tile_pivot_y.reserve(atlas.sprites.size());
-    info.tile_names.reserve(atlas.sprites.size());
-
-    std::unordered_map<std::string, int> name_to_local_id;
-    name_to_local_id.reserve(atlas.sprites.size());
-
-    for (std::size_t i = 0; i < atlas.sprites.size(); ++i) {
-      const auto &sprite = atlas.sprites[i];
-      info.tile_rects.push_back({sprite.x, sprite.y, sprite.w, sprite.h});
-      info.tile_full_width.push_back(sprite.source_width);
-      info.tile_full_height.push_back(sprite.source_height);
-      info.tile_trim_x.push_back(sprite.trim_x);
-      info.tile_trim_y.push_back(sprite.trim_y);
-
-      // Pivots stay full-frame relative so untrimmed source padding (where tilemap alignment
-      // lives) survives repacking; resolve_pivot collapses spritepacker's pivot basis into the
-      // engine's full-frame, bottom-origin convention.
-      const corundum::sprites::PivotPoint pivot = corundum::sprites::resolve_pivot(sprite, atlas.pivot_basis);
-      info.tile_pivot_x.push_back(pivot.x);
-      info.tile_pivot_y.push_back(pivot.y);
-
-      info.tile_names.push_back(sprite.name);
-      name_to_local_id.emplace(sprite.name, static_cast<int>(i));
-    }
-
-    // ── Sidecar override (optional) ──────────────────────────────────────
-    // The sidecar may carry material and animations — all in engine convention.
-    // When present these override the atlas-sourced defaults. Pivots are read
-    // from the atlas JSON instead (spritepacker `--pivot full-canvas`), so the
-    // atlas stays re-packable without losing alignment.
     const std::optional<json> sidecar = read_sidecar(tileset_path);
+    const json *sidecar_json = sidecar ? &*sidecar : nullptr;
 
-    auto resolve_name = [&name_to_local_id](const std::string &name) -> std::optional<int> {
-      auto it = name_to_local_id.find(name);
-      if (it == name_to_local_id.end())
-        return std::nullopt;
-      return it->second;
-    };
+    TilesetTiles tiles = build_tileset_tiles(*atlas, tileset_path);
+    tiles.info.material = resolve_tileset_material(*atlas_json, sidecar_json);
 
-    // ── material ─────────────────────────────────────────────────────────
+    auto animations = parse_tileset_animations(*atlas_json, sidecar_json, tileset_path, tiles.name_to_local_id);
+    if (!animations)
+      return std::unexpected(std::move(animations.error()));
+    tiles.info.animations = std::move(*animations);
 
-    const json *material_src = &j;
-    if (sidecar && sidecar->contains("material") && (*sidecar)["material"].is_string())
-      material_src = &*sidecar;
-
-    if (material_src->contains("material")) {
-      try {
-        info.material = (*material_src)["material"].get<std::string>();
-      } catch (const nlohmann::json::exception &) {
-      }
-    }
-
-    // ── animations ───────────────────────────────────────────────────────
-
-    {
-      const json *anim_src = &j;
-      if (sidecar && sidecar->contains("animations") && (*sidecar)["animations"].is_object())
-        anim_src = &*sidecar;
-
-      if (anim_src->contains("animations")) {
-        const auto &anim_obj = (*anim_src)["animations"];
-        if (!anim_obj.is_object())
-          return std::unexpected(
-              std::format("Tileset '{}' field 'animations' must be an object", tileset_path.string()));
-
-        float default_fps = 5.f;
-        if (anim_obj.contains("fps")) {
-          try {
-            default_fps = anim_obj["fps"].get<float>();
-          } catch (...) {
-            return std::unexpected(std::format("Tileset '{}' animations 'fps' has wrong type", tileset_path.string()));
-          }
-          if (default_fps <= 0.f)
-            return std::unexpected(
-                std::format("Tileset '{}' animations 'fps' must be positive", tileset_path.string()));
-        }
-
-        if (!anim_obj.contains("clips") || !anim_obj["clips"].is_array())
-          return std::unexpected(std::format("Tileset '{}' animations missing 'clips' array", tileset_path.string()));
-
-        const auto &clips = anim_obj["clips"];
-        for (std::size_t ci = 0; ci < clips.size(); ++ci) {
-          const auto &clip = clips[ci];
-          if (!clip.is_object())
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] must be an object", tileset_path.string(), ci));
-
-          std::string name;
-          try {
-            name = clip.at("name").get<std::string>();
-          } catch (...) {
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] missing or invalid 'name'", tileset_path.string(), ci));
-          }
-          if (name.empty())
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] 'name' must not be empty", tileset_path.string(), ci));
-
-          if (!clip.contains("frames") || !clip["frames"].is_array())
-            return std::unexpected(
-                std::format("Tileset '{}' animations.clips[{}] missing 'frames' array", tileset_path.string(), ci));
-
-          TileAnimation anim;
-          anim.fps = default_fps;
-          if (clip.contains("fps")) {
-            try {
-              anim.fps = clip["fps"].get<float>();
-            } catch (...) {
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] 'fps' has wrong type", tileset_path.string(), ci));
-            }
-            if (anim.fps <= 0.f)
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] 'fps' must be positive", tileset_path.string(), ci));
-          }
-
-          for (std::size_t fi = 0; fi < clip["frames"].size(); ++fi) {
-            const auto &frame = clip["frames"][fi];
-            std::string frame_name;
-            try {
-              frame_name = frame.get<std::string>();
-            } catch (...) {
-              return std::unexpected(std::format("Tileset '{}' animations.clips[{}] frames[{}] must be a sprite name",
-                                                 tileset_path.string(), ci, fi));
-            }
-            const auto local_id = resolve_name(frame_name);
-            if (!local_id)
-              return std::unexpected(
-                  std::format("Tileset '{}' animations.clips[{}] frames[{}] unknown sprite name '{}'",
-                              tileset_path.string(), ci, fi, frame_name));
-            anim.frames.push_back(*local_id);
-          }
-          info.animations[name] = std::move(anim);
-        }
-      }
-    }
-
-    cache.emplace(key, info);
-    return info;
+    cache.emplace(key, tiles.info);
+    return tiles.info;
   }
 
   /// Migrates a tilemap JSON object in place from @p from_version up to k_tilemap_schema_version,
@@ -253,22 +302,58 @@ namespace corundum::world::tilemap {
   /// bump fails loudly rather than mis-parsing an old file. Existing steps must never be edited
   /// once shipped, since already-migrated files may depend on the exact transformation a step
   /// performed.
-  static std::expected<int, std::string> migrate_tilemap_json(json & /*j*/, int from_version,
-                                                              const std::string & /*path*/) {
-    return from_version;
-  }
+  namespace {
 
-  std::expected<Tilemap, std::string> load_tilemap(const fs::path &path) {
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open tilemap: {}", path.string()));
-
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed tilemap {}: {}", path.string(), e.what()));
+    std::expected<int, std::string> migrate_tilemap_json(json & /*j*/, int from_version, const std::string & /*path*/) {
+      return from_version;
     }
+
+    /// Split @p row_str into comma-separated integers, rejecting a count other than @p width.
+    /// @param what Human-readable locator (e.g. "layer 'ground' row 3") prefixed to any error.
+    /// @return Exactly @p width values, or a message describing the first malformed token.
+    std::expected<std::vector<int>, std::string> parse_csv_row(const std::string &row_str, int width,
+                                                               const std::string &what) {
+      std::vector<int> values;
+      values.reserve(static_cast<std::size_t>(width));
+      std::istringstream stream(row_str);
+      std::string token;
+      while (std::getline(stream, token, ',')) {
+        if (std::cmp_greater_equal(values.size(), width))
+          return std::unexpected(std::format("{} has more than {} values", what, width));
+        try {
+          values.push_back(std::stoi(token));
+        } catch (...) {
+          return std::unexpected(std::format("{} value {}: not an integer", what, values.size()));
+        }
+      }
+      if (std::cmp_not_equal(values.size(), width))
+        return std::unexpected(std::format("{} has {} values, expected {}", what, values.size(), width));
+      return values;
+    }
+
+    /// Parse a collision entry's optional "elevation" field, range-checked to [0, 255]; absent -> 0.
+    std::expected<uint8_t, std::string> parse_collision_elevation(const json &entry) {
+      if (!entry.contains("elevation"))
+        return uint8_t{0};
+      int value = 0;
+      try {
+        value = entry["elevation"].get<int>();
+      } catch (...) {
+        return std::unexpected(std::string{"'elevation' has wrong type (expected integer)"});
+      }
+      if (value < 0 || value > 255)
+        return std::unexpected(std::format("'elevation' value {} out of range [0, 255]", value));
+      return static_cast<uint8_t>(value);
+    }
+
+  } // namespace
+
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): large flat format validator.
+  std::expected<Tilemap, std::string> load_tilemap(const fs::path &path) {
+    auto parsed = parse_json_file(path, "tilemap");
+    if (!parsed)
+      return std::unexpected(std::move(parsed.error()));
+    json &j = *parsed;
 
     auto prepared =
         core::prepare_schema_version(j, k_tilemap_schema_version, "Tilemap", path.string(), migrate_tilemap_json);
@@ -316,8 +401,10 @@ namespace corundum::world::tilemap {
           return std::unexpected(std::format("Tilemap '{}' collisions[{}] 'w' must be positive", id, ci));
         if (r.row_span <= 0.f)
           return std::unexpected(std::format("Tilemap '{}' collisions[{}] 'h' must be positive", id, ci));
-        const uint8_t elevation = entry.contains("elevation") ? entry["elevation"].get<uint8_t>() : uint8_t{0};
-        collisions.push_back(r.col, r.row, r.col_span, r.row_span, elevation);
+        auto elevation = parse_collision_elevation(entry);
+        if (!elevation)
+          return std::unexpected(std::format("Tilemap '{}' collisions[{}] {}", id, ci, elevation.error()));
+        collisions.push_back(r.col, r.row, r.col_span, r.row_span, *elevation);
       }
     }
 
@@ -337,7 +424,10 @@ namespace corundum::world::tilemap {
         const auto &entry = tri_json[ci];
         if (!entry.is_object())
           return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] must be an object", id, ci));
-        float x, y, w, h;
+        float x = 0.f;
+        float y = 0.f;
+        float w = 0.f;
+        float h = 0.f;
         std::string cut_str;
         try {
           x = entry.at("x").get<float>();
@@ -354,7 +444,7 @@ namespace corundum::world::tilemap {
           return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] 'w' must be positive", id, ci));
         if (h <= 0.f)
           return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] 'h' must be positive", id, ci));
-        TriangleCut cut;
+        TriangleCut cut = TriangleCut::NorthWest;
         if (cut_str == "NW")
           cut = TriangleCut::NorthWest;
         else if (cut_str == "NE")
@@ -366,8 +456,10 @@ namespace corundum::world::tilemap {
         else
           return std::unexpected(
               std::format("Tilemap '{}' collision_triangles[{}] 'cut' must be NW, NE, SW, or SE", id, ci));
-        const uint8_t elevation = entry.contains("elevation") ? entry["elevation"].get<uint8_t>() : uint8_t{0};
-        collision_triangles.push_back(x, y, w, h, cut, elevation);
+        auto elevation = parse_collision_elevation(entry);
+        if (!elevation)
+          return std::unexpected(std::format("Tilemap '{}' collision_triangles[{}] {}", id, ci, elevation.error()));
+        collision_triangles.push_back(x, y, w, h, cut, *elevation);
       }
     }
 
@@ -384,7 +476,7 @@ namespace corundum::world::tilemap {
       const auto &entry = tilesets_json[ti];
       if (!entry.is_object())
         return std::unexpected(std::format("Tilemap '{}' tilesets[{}] must be an object", id, ti));
-      int first_gid;
+      int first_gid = 0;
       std::string source;
       try {
         first_gid = entry.at("first_gid").get<int>();
@@ -403,13 +495,11 @@ namespace corundum::world::tilemap {
       }
       if (source.empty())
         return std::unexpected(std::format("Tilemap '{}' tilesets[{}] 'source' must not be empty", id, ti));
-      TilesetInfo info;
       auto tileset_result = load_tileset(fs::path(source));
       if (!tileset_result.has_value())
         return std::unexpected(std::format("[{}] tilesets[{}]: {}", id, ti, tileset_result.error()));
-      info = std::move(*tileset_result);
       TilemapTileset ts;
-      ts.info = std::move(info);
+      ts.info = std::move(*tileset_result);
       ts.first_gid = static_cast<TileId>(first_gid);
       ts.tile_count = ts.info.tile_count;
       if (static_cast<uint32_t>(ts.first_gid) + static_cast<uint32_t>(ts.tile_count) >
@@ -443,10 +533,10 @@ namespace corundum::world::tilemap {
     }
 
     // width, height
-    auto require_pos_int = [&j, &id](const char *key) -> std::expected<int, std::string> {
+    const auto require_positive_int = [&j, &id](const char *key) -> std::expected<int, std::string> {
       if (!j.contains(key))
         return std::unexpected(std::format("Tilemap '{}' missing '{}'", id, key));
-      int v;
+      int v = 0;
       try {
         v = j[key].get<int>();
       } catch (...) {
@@ -459,20 +549,21 @@ namespace corundum::world::tilemap {
 
     int width = 0;
     {
-      auto r = require_pos_int("width");
+      auto r = require_positive_int("width");
       if (!r)
         return std::unexpected(std::move(r.error()));
       width = *r;
     }
     int height = 0;
     {
-      auto r = require_pos_int("height");
+      auto r = require_positive_int("height");
       if (!r)
         return std::unexpected(std::move(r.error()));
       height = *r;
     }
 
-    int iso_diamond_w = 0, iso_diamond_h = 0;
+    int iso_diamond_w = 0;
+    int iso_diamond_h = 0;
     if (j.contains("iso_diamond_w")) {
       try {
         iso_diamond_w = j["iso_diamond_w"].get<int>();
@@ -500,19 +591,24 @@ namespace corundum::world::tilemap {
     if (layers_json.empty())
       return std::unexpected(std::format("Tilemap '{}' must have at least one layer", id));
 
-    const int expected = width * height;
+    const auto expected = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    // flat_map keys and the animation/flip indices are ints, so a cell count above INT_MAX would
+    // silently wrap those indices; reject it rather than overflow them.
+    if (expected > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+      return std::unexpected(
+          std::format("Tilemap '{}' dimensions {}x{} exceed the supported cell count", id, width, height));
 
     // Dense format: array of height strings, each a comma-separated row of width tile IDs.
     auto parse_dense = [&height, &id, &expected, &width,
                         &tilesets](const json &layer_json,
                                    const std::string &layer_name) -> std::expected<std::vector<TileId>, std::string> {
       const auto &tiles_json = layer_json["tiles"];
-      if (static_cast<int>(tiles_json.size()) != height)
+      if (std::cmp_not_equal(tiles_json.size(), height))
         return std::unexpected(std::format("Tilemap '{}' layer '{}' tiles row count mismatch: expected {}, got {}", id,
                                            layer_name, height, tiles_json.size()));
 
       std::vector<TileId> tiles;
-      tiles.reserve(static_cast<std::size_t>(expected));
+      tiles.reserve(expected);
 
       for (int r = 0; r < height; ++r) {
         std::string row_str;
@@ -522,44 +618,32 @@ namespace corundum::world::tilemap {
           return std::unexpected(std::format("Tilemap '{}' layer '{}' tiles[{}] must be a string", id, layer_name, r));
         }
 
-        std::istringstream ss(row_str);
-        std::string token;
-        int col = 0;
-        while (std::getline(ss, token, ',')) {
-          if (col >= width)
-            return std::unexpected(
-                std::format("Tilemap '{}' layer '{}' row {} has more than {} tiles", id, layer_name, r, width));
-          int v;
-          try {
-            v = std::stoi(token);
-          } catch (...) {
-            return std::unexpected(
-                std::format("Tilemap '{}' layer '{}' row {} col {}: not an integer", id, layer_name, r, col));
-          }
+        auto row = parse_csv_row(row_str, width, std::format("Tilemap '{}' layer '{}' row {}", id, layer_name, r));
+        if (!row)
+          return std::unexpected(std::move(row.error()));
+        for (int col = 0; col < width; ++col) {
+          const int v = (*row)[col];
           if (v < 0)
             return std::unexpected(
                 std::format("Tilemap '{}' layer '{}' row {} col {}: id={} is negative", id, layer_name, r, col, v));
-          if (v != static_cast<int>(k_empty_tile) && find_tileset(tilesets, static_cast<TileId>(v)) == nullptr)
+          if (std::cmp_not_equal(v, k_empty_tile) && find_tileset(tilesets, static_cast<TileId>(v)) == nullptr)
             return std::unexpected(std::format(
                 "Tilemap '{}' layer '{}' row {} col {}: GID={} not covered by any tileset", id, layer_name, r, col, v));
           tiles.push_back(static_cast<TileId>(v));
-          ++col;
         }
-        if (col != width)
-          return std::unexpected(
-              std::format("Tilemap '{}' layer '{}' row {} has {} tiles, expected {}", id, layer_name, r, col, width));
       }
       return tiles;
     };
 
-    using TilesAndAnims =
+    using TilesAndAnimations =
         std::tuple<std::vector<TileId>, std::flat_map<int, AnimatedCell>, std::flat_map<int, uint8_t>>;
 
+    // NOLINTNEXTLINE(readability-function-cognitive-complexity): single sparse-layer validator.
     auto parse_sparse = [&expected, &width, &height, &id,
                          &tilesets](const json &layer_json,
-                                    const std::string &layer_name) -> std::expected<TilesAndAnims, std::string> {
-      std::vector<TileId> tiles(static_cast<std::size_t>(expected), k_empty_tile);
-      std::vector<bool> occupied(static_cast<std::size_t>(expected), false);
+                                    const std::string &layer_name) -> std::expected<TilesAndAnimations, std::string> {
+      std::vector<TileId> tiles(expected, k_empty_tile);
+      std::vector<bool> occupied(expected, false);
       std::flat_map<int, AnimatedCell> animated_cells;
       std::flat_map<int, uint8_t> flip_flags_map;
 
@@ -578,7 +662,8 @@ namespace corundum::world::tilemap {
           return std::unexpected(
               std::format("Tilemap '{}' layer '{}' objects[{}] missing 'id' or 'anim'", id, layer_name, i));
 
-        int col, row;
+        int col = 0;
+        int row = 0;
         try {
           col = entry.at("col").get<int>();
           row = entry.at("row").get<int>();
@@ -590,7 +675,8 @@ namespace corundum::world::tilemap {
           return std::unexpected(std::format("Tilemap '{}' layer '{}' objects[{}] position ({}, {}) out of bounds", id,
                                              layer_name, i, col, row));
 
-        const auto idx = static_cast<std::size_t>(row * width + col);
+        const auto idx =
+            (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
         if (occupied[idx])
           return std::unexpected(
               std::format("Tilemap '{}' layer '{}' duplicate entry at ({}, {})", id, layer_name, col, row));
@@ -613,7 +699,7 @@ namespace corundum::world::tilemap {
             flip = k_flip_h | k_flip_v;
           else
             return std::unexpected(std::format(
-                "Tilemap '{}' layer '{}' objects[{}] 'flip' must be \"H\", \"V\", or \"HV\"", id, layer_name, i));
+                R"(Tilemap '{}' layer '{}' objects[{}] 'flip' must be "H", "V", or "HV")", id, layer_name, i));
         }
 
         if (has_anim) {
@@ -628,14 +714,14 @@ namespace corundum::world::tilemap {
           AnimatedCell cell;
           bool found = false;
           for (const auto &ts : tilesets) {
-            auto it = ts.info.animations.find(anim_name);
+            const auto it = ts.info.animations.find(anim_name);
             if (it == ts.info.animations.end())
               continue;
             const auto &ta = it->second;
             cell.anim_name = anim_name;
             cell.fps = ta.fps;
             cell.frame_gids.reserve(ta.frames.size());
-            for (int local_id : ta.frames)
+            for (const int local_id : ta.frames)
               cell.frame_gids.push_back(ts.first_gid + static_cast<TileId>(local_id));
             found = true;
             break;
@@ -647,7 +733,7 @@ namespace corundum::world::tilemap {
           // tiles[idx] stays k_empty_tile; the renderer uses animated_cells instead.
           animated_cells[static_cast<int>(idx)] = std::move(cell);
         } else {
-          int tile_id;
+          int tile_id = 0;
           try {
             tile_id = entry.at("id").get<int>();
           } catch (...) {
@@ -665,9 +751,9 @@ namespace corundum::world::tilemap {
       return std::make_tuple(std::move(tiles), std::move(animated_cells), std::move(flip_flags_map));
     };
 
-    auto parse_tiles = [&id, &parse_dense,
-                        &parse_sparse](const json &layer_json,
-                                       const std::string &layer_name) -> std::expected<TilesAndAnims, std::string> {
+    const auto parse_tiles = [&id, &parse_dense, &parse_sparse](
+                                 const json &layer_json,
+                                 const std::string &layer_name) -> std::expected<TilesAndAnimations, std::string> {
       const bool has_dense = layer_json.contains("tiles") && layer_json["tiles"].is_array();
       const bool has_sparse = layer_json.contains("objects") && layer_json["objects"].is_array();
       if (has_dense && has_sparse)
@@ -677,7 +763,7 @@ namespace corundum::world::tilemap {
         auto r = parse_dense(layer_json, layer_name);
         if (!r)
           return std::unexpected(std::move(r.error()));
-        return TilesAndAnims{std::move(*r), {}, {}};
+        return TilesAndAnimations{std::move(*r), std::flat_map<int, AnimatedCell>{}, std::flat_map<int, uint8_t>{}};
       }
       if (has_sparse)
         return parse_sparse(layer_json, layer_name);
@@ -710,8 +796,7 @@ namespace corundum::world::tilemap {
         } catch (...) {
           return std::unexpected(std::format("Tilemap '{}' layer '{}' field 'z_index' has wrong type", id, layer_name));
         }
-        if (z_index < 0)
-          z_index = 0;
+        z_index = std::max(z_index, 0);
       }
 
       bool depth_sorted = false;
@@ -729,36 +814,37 @@ namespace corundum::world::tilemap {
         return std::unexpected(std::move(parse_result.error()));
       auto [tiles, animated_cells, flip_flags] = std::move(*parse_result);
 
-      // Optional elevation data (same format as tiles: comma-separated rows)
+      // Optional elevation data (same rows-of-CSV layout as 'tiles'); absent means all flat.
       std::vector<uint8_t> elevation;
-      if (layer_json.contains("elevation") && layer_json["elevation"].is_array()) {
+      if (layer_json.contains("elevation")) {
         const auto &elev_json = layer_json["elevation"];
-        if (static_cast<int>(elev_json.size()) == height) {
-          elevation.reserve(static_cast<std::size_t>(expected));
-          for (int r = 0; r < height; ++r) {
-            std::string row_str;
-            try {
-              row_str = elev_json[r].get<std::string>();
-            } catch (...) {
-              elevation.clear();
-              break;
-            }
-            std::istringstream ss(row_str);
-            std::string token;
-            int col = 0;
-            while (std::getline(ss, token, ',') && col < width) {
-              try {
-                int v = std::stoi(token);
-                elevation.push_back(static_cast<uint8_t>(std::clamp(v, 0, 255)));
-              } catch (...) {
-                elevation.push_back(0); // Default to flat if parse fails
-              }
-              ++col;
-            }
-            // Pad to width if row is short
-            while (elevation.size() < static_cast<std::size_t>(r + 1) * width) {
-              elevation.push_back(0);
-            }
+        if (!elev_json.is_array())
+          return std::unexpected(
+              std::format("Tilemap '{}' layer '{}' field 'elevation' must be an array", id, layer_name));
+        if (std::cmp_not_equal(elev_json.size(), height))
+          return std::unexpected(
+              std::format("Tilemap '{}' layer '{}' elevation row count mismatch: expected {}, got {}", id, layer_name,
+                          height, elev_json.size()));
+        elevation.reserve(expected);
+        for (int r = 0; r < height; ++r) {
+          std::string row_str;
+          try {
+            row_str = elev_json[r].get<std::string>();
+          } catch (...) {
+            return std::unexpected(
+                std::format("Tilemap '{}' layer '{}' elevation[{}] must be a string", id, layer_name, r));
+          }
+          auto row =
+              parse_csv_row(row_str, width, std::format("Tilemap '{}' layer '{}' elevation row {}", id, layer_name, r));
+          if (!row)
+            return std::unexpected(std::move(row.error()));
+          for (int col = 0; col < width; ++col) {
+            const int v = (*row)[col];
+            if (v < 0 || v > 255)
+              return std::unexpected(
+                  std::format("Tilemap '{}' layer '{}' elevation row {} col {}: value {} out of range [0, 255]", id,
+                              layer_name, r, col, v));
+            elevation.push_back(static_cast<uint8_t>(v));
           }
         }
       }
@@ -772,7 +858,8 @@ namespace corundum::world::tilemap {
           if (!entry.is_object())
             return std::unexpected(
                 std::format("Tilemap '{}' layer '{}' material_overrides[{}] must be an object", id, layer_name, mi));
-          int mcol, mrow;
+          int mcol = 0;
+          int mrow = 0;
           std::string material;
           try {
             mcol = entry.at("col").get<int>();
@@ -788,7 +875,7 @@ namespace corundum::world::tilemap {
                                                "out of bounds",
                                                id, layer_name, mi, mcol, mrow));
           const std::size_t flat_idx =
-              static_cast<std::size_t>(mrow) * static_cast<std::size_t>(width) + static_cast<std::size_t>(mcol);
+              (static_cast<std::size_t>(mrow) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(mcol);
           if (flat_idx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
             return std::unexpected(std::format("Tilemap '{}' layer '{}' material_overrides[{}] index {} "
                                                "exceeds int maximum",
@@ -806,8 +893,8 @@ namespace corundum::world::tilemap {
           if (!entry.is_object())
             return std::unexpected(
                 std::format("Tilemap '{}' layer '{}' ramps[{}] must be an object", id, layer_name, ri));
-          int rcol;
-          int rrow;
+          int rcol = 0;
+          int rrow = 0;
           std::string axis_str;
           try {
             rcol = entry.at("col").get<int>();
@@ -820,16 +907,16 @@ namespace corundum::world::tilemap {
           if (rcol < 0 || rcol >= width || rrow < 0 || rrow >= height)
             return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] position ({}, {}) out of bounds", id,
                                                layer_name, ri, rcol, rrow));
-          RampAxis axis;
+          RampAxis axis = RampAxis::NorthSouth;
           if (axis_str == "ns")
             axis = RampAxis::NorthSouth;
           else if (axis_str == "ew")
             axis = RampAxis::EastWest;
           else
-            return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] axis '{}' must be \"ns\" or \"ew\"",
+            return std::unexpected(std::format(R"(Tilemap '{}' layer '{}' ramps[{}] axis '{}' must be "ns" or "ew")",
                                                id, layer_name, ri, axis_str));
           const std::size_t flat_idx =
-              static_cast<std::size_t>(rrow) * static_cast<std::size_t>(width) + static_cast<std::size_t>(rcol);
+              (static_cast<std::size_t>(rrow) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(rcol);
           if (flat_idx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
             return std::unexpected(std::format("Tilemap '{}' layer '{}' ramps[{}] index {} exceeds int maximum", id,
                                                layer_name, ri, flat_idx));
@@ -870,17 +957,19 @@ namespace corundum::world::tilemap {
       }
     }
 
-    return Tilemap{.path = path.string(),
-                   .tilesets = std::move(tilesets),
-                   .width = width,
-                   .height = height,
-                   .iso_diamond_w = iso_diamond_w,
-                   .iso_diamond_h = iso_diamond_h,
-                   .layers = std::move(layers),
-                   .collisions = std::move(collisions),
-                   .collision_triangles = std::move(collision_triangles),
-                   .max_tile_full_w = max_tile_full_w,
-                   .max_tile_full_h = max_tile_full_h};
+    return Tilemap{
+        .path = path.string(),
+        .tilesets = std::move(tilesets),
+        .width = width,
+        .height = height,
+        .iso_diamond_w = iso_diamond_w,
+        .iso_diamond_h = iso_diamond_h,
+        .layers = std::move(layers),
+        .collisions = std::move(collisions),
+        .collision_triangles = std::move(collision_triangles),
+        .max_tile_full_w = max_tile_full_w,
+        .max_tile_full_h = max_tile_full_h,
+    };
   }
 
 } // namespace corundum::world::tilemap
