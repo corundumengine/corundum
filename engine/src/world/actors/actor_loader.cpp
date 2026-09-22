@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/direction.hpp>
 #include <corundum/world/actors/actor.hpp>
 #include <cstddef>
 #include <expected>
@@ -11,14 +12,84 @@
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::world {
 
   namespace {
+
+    /// Read a required actor field, or an error naming the field and actor.
+    template <typename T>
+    std::expected<T, std::string> read_required(const json &entry, std::string_view key, const std::string &path,
+                                                std::size_t index) {
+      try {
+        return entry.at(key).get<T>();
+      } catch (...) {
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] missing or invalid '{}'", path, index, key));
+      }
+    }
+
+    /// Read an optional actor field; absent key yields nullopt, wrong type is an error.
+    template <typename T>
+    std::expected<std::optional<T>, std::string> read_optional(const json &entry, std::string_view key,
+                                                               const std::string &path, std::size_t index) {
+      if (!entry.contains(key))
+        return std::optional<T>{};
+      try {
+        return entry.at(key).get<T>();
+      } catch (...) {
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] '{}' has wrong type", path, index, key));
+      }
+    }
+
+    std::expected<Actor, std::string> parse_actor(const json &entry, const std::string &path, std::size_t index) {
+      if (!entry.is_object())
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] must be an object", path, index));
+
+      const auto col = read_required<int>(entry, "col", path, index);
+      const auto row = read_required<int>(entry, "row", path, index);
+      const auto sprite_name = read_required<std::string>(entry, "sprite", path, index);
+      const auto dialogue_ref = read_optional<std::string>(entry, "dialogue", path, index);
+      const auto facing = read_optional<std::string>(entry, "facing", path, index);
+      const auto id = read_optional<std::string>(entry, "id", path, index);
+
+      if (!col)
+        return std::unexpected(col.error());
+      if (!row)
+        return std::unexpected(row.error());
+      if (!sprite_name)
+        return std::unexpected(sprite_name.error());
+      if (!dialogue_ref)
+        return std::unexpected(dialogue_ref.error());
+      if (!facing)
+        return std::unexpected(facing.error());
+      if (!id)
+        return std::unexpected(id.error());
+
+      if (*col < 0 || *row < 0)
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] 'col' and 'row' must be >= 0", path, index));
+      if (sprite_name->empty())
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] 'sprite' must not be empty", path, index));
+      if (*facing && !corundum::core::direction_from_name(**facing))
+        return std::unexpected(
+            std::format("Spawn points '{}' actors[{}] 'facing' is not a valid direction", path, index));
+
+      Actor actor{
+          .col = *col,
+          .row = *row,
+          .sprite_name = *sprite_name,
+          .dialogue_ref = dialogue_ref->value_or(""),
+          .id = id->value_or(""),
+      };
+      if (*facing)
+        actor.facing = **facing;
+      return actor;
+    }
 
     std::expected<std::vector<Actor>, std::string> parse_actors(const json &j, const std::string &path) {
       if (!j.contains("actors") || !j["actors"].is_array())
@@ -27,61 +98,18 @@ namespace corundum::world {
       const auto &arr = j["actors"];
       std::vector<Actor> result;
       result.reserve(arr.size());
+      std::unordered_set<std::string> seen_ids;
 
-      for (std::size_t i = 0; i < arr.size(); ++i) {
-        const auto &entry = arr[i];
+      for (std::size_t index = 0; index < arr.size(); ++index) {
+        auto actor = parse_actor(arr[index], path, index);
+        if (!actor)
+          return std::unexpected(actor.error());
 
-        if (!entry.is_object())
-          return std::unexpected(std::format("Spawn points '{}' actors[{}] must be an object", path, i));
+        if (!actor->id.empty() && !seen_ids.insert(actor->id).second)
+          return std::unexpected(
+              std::format("Spawn points '{}' actors[{}] duplicate actor id '{}'", path, index, actor->id));
 
-        int col, row;
-        try {
-          col = entry.at("col").get<int>();
-          row = entry.at("row").get<int>();
-        } catch (...) {
-          return std::unexpected(std::format("Spawn points '{}' actors[{}] missing or invalid 'col'/'row'", path, i));
-        }
-        if (col < 0 || row < 0)
-          return std::unexpected(std::format("Spawn points '{}' actors[{}] 'col' and 'row' must be >= 0", path, i));
-
-        std::string sprite_name;
-        try {
-          sprite_name = entry.at("sprite").get<std::string>();
-        } catch (...) {
-          return std::unexpected(std::format("Spawn points '{}' actors[{}] missing or invalid 'sprite'", path, i));
-        }
-        if (sprite_name.empty())
-          return std::unexpected(std::format("Spawn points '{}' actors[{}] 'sprite' must not be empty", path, i));
-
-        std::string dialogue_ref;
-        if (entry.contains("dialogue")) {
-          try {
-            dialogue_ref = entry.at("dialogue").get<std::string>();
-          } catch (...) {
-            return std::unexpected(std::format("Spawn points '{}' actors[{}] 'dialogue' has wrong type", path, i));
-          }
-        }
-
-        std::string facing = "south";
-        if (entry.contains("facing")) {
-          try {
-            facing = entry.at("facing").get<std::string>();
-          } catch (...) {
-            return std::unexpected(std::format("Spawn points '{}' actors[{}] 'facing' has wrong type", path, i));
-          }
-        }
-
-        std::string id;
-        if (entry.contains("id")) {
-          try {
-            id = entry.at("id").get<std::string>();
-          } catch (...) {
-            return std::unexpected(std::format("Spawn points '{}' actors[{}] 'id' has wrong type", path, i));
-          }
-        }
-
-        result.push_back(
-            Actor{col, row, std::move(sprite_name), std::move(dialogue_ref), std::move(facing), std::move(id)});
+        result.push_back(std::move(*actor));
       }
 
       return result;
@@ -95,7 +123,8 @@ namespace corundum::world {
       if (!p.is_object())
         return std::unexpected(std::format("Spawn points '{}' 'player' must be an object", path));
 
-      float col, row;
+      float col = 0.f;
+      float row = 0.f;
       try {
         col = p.at("col").get<float>();
         row = p.at("row").get<float>();
@@ -105,15 +134,18 @@ namespace corundum::world {
       if (col < 0.f || row < 0.f)
         return std::unexpected(std::format("Spawn points '{}' 'player' 'col' and 'row' must be >= 0", path));
 
-      return PlayerSpawn{col, row};
+      return PlayerSpawn{.col = col, .row = row};
     }
 
   } // namespace
 
   std::expected<SpawnPoints, std::string> load_spawn_points(const std::filesystem::path &path) {
+    if (!std::filesystem::exists(path))
+      return SpawnPoints{};
+
     std::ifstream f(path);
     if (!f)
-      return SpawnPoints{};
+      return std::unexpected(std::format("Cannot open spawn points '{}'", path.string()));
 
     json j;
     try {
@@ -138,17 +170,10 @@ namespace corundum::world {
       auto player_res = parse_player_spawn(j, path.string());
       if (!player_res)
         return std::unexpected(player_res.error());
-      result.player = std::move(*player_res);
+      result.player = *player_res;
     }
 
     return result;
-  }
-
-  std::expected<std::vector<Actor>, std::string> load_actors(const std::filesystem::path &path) {
-    auto res = load_spawn_points(path);
-    if (!res)
-      return std::unexpected(res.error());
-    return std::move(res->actors);
   }
 
 } // namespace corundum::world

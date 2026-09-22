@@ -48,7 +48,6 @@ namespace {
 
 } // namespace
 
-using corundum::world::load_actors;
 using corundum::world::load_spawn_points;
 
 // ── Missing file ──────────────────────────────────────────────────────────────
@@ -77,6 +76,7 @@ TEST_CASE("load_spawn_points — actors only, no player block") {
   REQUIRE(result->actors.size() == 2);
   CHECK(result->actors[0].col == 2);
   CHECK(result->actors[0].sprite_name == "npc1");
+  CHECK(result->actors[0].facing == "south");
   CHECK(result->actors[1].dialogue_ref == "greeting");
   CHECK(result->actors[1].facing == "east");
 }
@@ -152,29 +152,6 @@ TEST_CASE("load_spawn_points — not an object returns error") {
   CHECK(!result.has_value());
 }
 
-// ── load_actors wrapper ────────────────────────────────────────────────────────
-
-TEST_CASE("load_actors — missing file returns empty vector") {
-  auto result = load_actors("/nonexistent/path/spawn.json");
-  REQUIRE(result.has_value());
-  CHECK(result->empty());
-}
-
-TEST_CASE("load_actors — returns actors from file with player block") {
-  const auto dir = temp_dir("actors_wrapper");
-  const auto p = dir / "spawn.json";
-  write_file(p, R"({
-    "player": { "col": 1.0, "row": 2.0 },
-    "actors": [
-      { "col": 4, "row": 5, "sprite": "test_npc" }
-    ]
-  })");
-  auto result = load_actors(p);
-  REQUIRE(result.has_value());
-  REQUIRE(result->size() == 1);
-  CHECK((*result)[0].sprite_name == "test_npc");
-}
-
 // ── Actor id parsing ───────────────────────────────────────────────────────────
 
 TEST_CASE("load_spawn_points — parses the actor id field") {
@@ -191,6 +168,39 @@ TEST_CASE("load_spawn_points — parses the actor id field") {
   REQUIRE(result->actors.size() == 2);
   CHECK(result->actors[0].id == "brann");
   CHECK(result->actors[1].id.empty());
+}
+
+TEST_CASE("load_spawn_points — duplicate actor id returns error") {
+  const auto dir = temp_dir("actor_id_duplicate");
+  const auto p = dir / "spawn.json";
+  write_file(p, R"({
+    "actors": [
+      { "col": 2, "row": 3, "sprite": "npc1", "id": "brann" },
+      { "col": 5, "row": 7, "sprite": "npc2", "id": "brann" }
+    ]
+  })");
+  auto result = load_spawn_points(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_spawn_points — invalid facing returns error") {
+  const auto dir = temp_dir("bad_facing");
+  const auto p = dir / "spawn.json";
+  write_file(p, R"({
+    "actors": [
+      { "col": 2, "row": 3, "sprite": "npc1", "facing": "nroth" }
+    ]
+  })");
+  auto result = load_spawn_points(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_spawn_points — facing has wrong type returns error") {
+  const auto dir = temp_dir("facing_type");
+  const auto p = dir / "spawn.json";
+  write_file(p, R"({ "actors": [ { "col": 2, "row": 3, "sprite": "npc1", "facing": 7 } ] })");
+  auto result = load_spawn_points(p);
+  CHECK(!result.has_value());
 }
 
 // ── find_actor wiring ─────────────────────────────────────────────────────────

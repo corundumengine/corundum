@@ -13,18 +13,26 @@ namespace corundum::world {
   /**
    * @brief An NPC to spawn on a map at load time.
    *
-   * col/row are tile coordinates; main.cpp converts to world-space pixels at spawn time.
+   * col/row are integer tile coordinates. Spawn converts them to a fractional tile-space
+   * Position, offset by the chunk origin for actors streamed from a world-mode chunk file.
    */
   struct Actor {
     int col = 0;
     int row = 0;
+
     std::string sprite_name;
+
     std::string dialogue_ref;     ///< Empty if the actor has no dialogue.
-    std::string facing = "south"; ///< Direction the NPC faces; defaults to "south".
-    std::string id;               ///< Stable authoring id (optional; key for future state persistence).
+    std::string facing = "south"; ///< Direction the NPC faces; must name a core::Direction.
+
+    std::string id; ///< Stable authoring id (optional; unique within one spawn-points file, key for persistence).
   };
 
-  /** @brief Optional per-map player placement from a spawn-points file. */
+  /**
+   * @brief Optional per-map player placement from a spawn-points file.
+   *
+   * col/row are fractional tile coordinates, allowing sub-tile placement unlike Actor.
+   */
   struct PlayerSpawn {
     float col = 0.f;
     float row = 0.f;
@@ -46,20 +54,5 @@ namespace corundum::world {
    * @return Loaded spawn points, or std::unexpected with an error description on failure.
    */
   [[nodiscard]] std::expected<SpawnPoints, std::string> load_spawn_points(const std::filesystem::path &path);
-
-  /**
-   * @brief Load actors from a spawn points JSON file.
-   *
-   * Thin wrapper around load_spawn_points returning only the actors vector.
-   * Expects an object with an "actors" array. Returns an empty vector if the
-   * file does not exist.
-   *
-   * @note Prefer load_spawn_points when the caller also needs player placement.
-   *
-   * @param path Path to the spawn points JSON (e.g. "data/spawn_points/world.json").
-   * @return Loaded actors, empty if file is absent, or std::unexpected with an
-   *         error description on schema/parse failure.
-   */
-  [[nodiscard]] std::expected<std::vector<Actor>, std::string> load_actors(const std::filesystem::path &path);
 
 } // namespace corundum::world
