@@ -3,10 +3,10 @@
 
 #pragma once
 #include "new_map_dialog.hpp"
-#include "portal_entry.hpp"
 #include <corundum/tool_host/canvas_controller.hpp>
 #include <corundum/tool_host/file_browser.hpp>
 #include <corundum/tool_host/undo.hpp>
+#include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <filesystem>
 #include <string>
@@ -22,7 +22,7 @@ namespace tools::tilesmith {
   /// for how the active layer is instead just clamped into range after a restore.
   struct TilemapDoc {
     corundum::world::tilemap::Tilemap map;
-    std::vector<PortalEntry> portals;
+    std::vector<corundum::world::Portal> portals;
   };
 
   /**
@@ -98,10 +98,10 @@ namespace tools::tilesmith {
     corundum::tool_host::UndoStack<TilemapDoc> undo; ///< General undo/redo — see undo.hpp.
 
     // Portal state
-    std::vector<PortalEntry> portals; ///< Portals loaded from data/portals/{stem}.json.
-    bool show_portals = false;        ///< Whether to display/edit portal rectangles.
-    bool show_portals_popup = false;  ///< Whether to display the portal edit popup.
-    int selected_portal = -1;         ///< Index of the currently selected portal, or -1.
+    std::vector<corundum::world::Portal> portals; ///< Portals loaded from data/portals/{stem}.json.
+    bool show_portals = false;                    ///< Whether to display/edit portal rectangles.
+    bool show_portals_popup = false;              ///< Whether to display the portal edit popup.
+    int selected_portal = -1;                     ///< Index of the currently selected portal, or -1.
 
     // Portal drag state
     bool portal_dragging = false;   ///< True while a portal rect drag is in progress.

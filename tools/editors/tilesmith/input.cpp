@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <cstdint>
 #include <cstdio>
@@ -227,7 +228,12 @@ namespace tools::tilesmith {
       const int row = std::min(state.portal_drag_anchor_row, state.portal_drag_cur_row);
       const int w = std::abs(state.portal_drag_cur_col - state.portal_drag_anchor_col) + 1;
       const int h = std::abs(state.portal_drag_cur_row - state.portal_drag_anchor_row) + 1;
-      state.portals.push_back({col, row, w, h, "", 0, 0});
+      state.portals.push_back(corundum::world::Portal{
+          .col = static_cast<float>(col),
+          .row = static_cast<float>(row),
+          .w = static_cast<float>(w),
+          .h = static_cast<float>(h),
+      });
       state.selected_portal = static_cast<int>(state.portals.size()) - 1;
       state.dirty = true;
       push_undo_checkpoint(state);
@@ -246,7 +252,9 @@ namespace tools::tilesmith {
 
       for (int i = static_cast<int>(state.portals.size()) - 1; i >= 0; --i) {
         const auto &p = state.portals[static_cast<std::size_t>(i)];
-        if (tc->col >= p.col && tc->col < p.col + p.w && tc->row >= p.row && tc->row < p.row + p.h) {
+        const float col = static_cast<float>(tc->col);
+        const float row = static_cast<float>(tc->row);
+        if (col >= p.col && col < p.col + p.w && row >= p.row && row < p.row + p.h) {
           state.selected_portal = i;
           return;
         }

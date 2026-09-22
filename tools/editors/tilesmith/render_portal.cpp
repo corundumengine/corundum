@@ -54,16 +54,21 @@ namespace tools::tilesmith {
       const auto &p = state.portals[i];
       const bool selected = (i == state.selected_portal);
 
-      draw_iso_portal(ctx, static_cast<float>(p.col), static_cast<float>(p.row), static_cast<float>(p.w),
-                      static_cast<float>(p.h), iso, state.canvas.offset_x, state.canvas.offset_y,
+      draw_iso_portal(ctx, p.col, p.row, p.w, p.h, iso, state.canvas.offset_x, state.canvas.offset_y,
                       selected ? IM_COL32(0, 200, 200, 80) : IM_COL32(0, 200, 200, 45),
                       selected ? IM_COL32(0, 220, 220, 255) : IM_COL32(0, 220, 220, 180));
 
       // Label at the top corner of the portal rhombus
-      const ImVec2 text_pos = tile_to_iso(ctx, static_cast<float>(p.col), static_cast<float>(p.row), iso,
-                                          state.canvas.offset_x, state.canvas.offset_y);
+      const ImVec2 text_pos = tile_to_iso(ctx, p.col, p.row, iso, state.canvas.offset_x, state.canvas.offset_y);
       const std::string stem = std::filesystem::path(p.target_map).stem().string();
-      const std::string label = std::format("-> {} @ ({},{})", stem, p.spawn_col, p.spawn_row);
+      std::string label;
+      if (p.return_to_world)
+        label = std::format("-> overworld @ ({},{})", p.spawn_col, p.spawn_row);
+      else if (p.target_chunk_col >= 0)
+        label =
+            std::format("-> chunk ({},{}) @ ({},{})", p.target_chunk_col, p.target_chunk_row, p.spawn_col, p.spawn_row);
+      else
+        label = std::format("-> {} @ ({},{})", stem, p.spawn_col, p.spawn_row);
       ctx.dl->AddText({text_pos.x + 3.f, text_pos.y + 2.f},
                       selected ? IM_COL32(0, 255, 255, 255) : IM_COL32(0, 220, 220, 200), label.c_str());
     }
@@ -122,7 +127,30 @@ namespace tools::tilesmith {
       if (ImGui::InputInt("spawn row", &p.spawn_row))
         state.dirty = true;
 
-      ImGui::TextDisabled("rect: col %d  row %d  w %d  h %d  [portal %d/%d]", p.col, p.row, p.w, p.h,
+      // World-mode portals target a chunk in the overworld instead of a named map; both
+      // coordinates move together, so a single checkbox toggles the pair on and off.
+      bool chunk_target = p.target_chunk_col >= 0 && p.target_chunk_row >= 0;
+      if (ImGui::Checkbox("chunk target", &chunk_target)) {
+        p.target_chunk_col = chunk_target ? 0 : -1;
+        p.target_chunk_row = chunk_target ? 0 : -1;
+        state.dirty = true;
+      }
+      if (chunk_target) {
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(70.f);
+        if (ImGui::InputInt("##chunk_col", &p.target_chunk_col))
+          state.dirty = true;
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(70.f);
+        if (ImGui::InputInt("##chunk_row", &p.target_chunk_row))
+          state.dirty = true;
+      }
+
+      if (ImGui::Checkbox("return to world", &p.return_to_world))
+        state.dirty = true;
+
+      ImGui::TextDisabled("rect: col %d  row %d  w %d  h %d  [portal %d/%d]", static_cast<int>(p.col),
+                          static_cast<int>(p.row), static_cast<int>(p.w), static_cast<int>(p.h),
                           state.selected_portal + 1, static_cast<int>(state.portals.size()));
 
       if (ImGui::Button("Remove portal")) {

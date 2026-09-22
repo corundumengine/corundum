@@ -3,7 +3,6 @@
 
 #include "save.hpp"
 #include "editor_state.hpp"
-#include "portal_entry.hpp"
 #include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_io.hpp>
@@ -35,7 +34,7 @@ namespace tools::tilesmith {
     }
 
     // 2. Serialize tilemap onto base
-    nlohmann::json j = corundum::world::tilemap::serialize(state.map, &base);
+    const nlohmann::json j = corundum::world::tilemap::serialize(state.map, &base);
 
     // 3. Write tilemap
     {
@@ -46,13 +45,7 @@ namespace tools::tilesmith {
 
     // 4. Save portals via engine serializer
     {
-      std::vector<corundum::world::Portal> engine_portals;
-      engine_portals.reserve(state.portals.size());
-      for (const auto &pe : state.portals)
-        engine_portals.push_back({static_cast<float>(pe.col), static_cast<float>(pe.row), static_cast<float>(pe.w),
-                                  static_cast<float>(pe.h), pe.target_map, pe.spawn_col, pe.spawn_row});
-
-      nlohmann::json portals_json = corundum::world::serialize(engine_portals);
+      const nlohmann::json portals_json = corundum::world::serialize(state.portals);
       const auto ppath = portals_path(state.map_path);
       std::filesystem::create_directories(ppath.parent_path());
       auto res = corundum::core::write_json(ppath, portals_json);
@@ -88,18 +81,7 @@ namespace tools::tilesmith {
     auto result = corundum::world::load_portals(portals_path(state.map_path));
     if (!result)
       return std::unexpected(result.error());
-    state.portals.clear();
-    for (const auto &p : *result) {
-      PortalEntry e;
-      e.col = static_cast<int>(p.col);
-      e.row = static_cast<int>(p.row);
-      e.w = static_cast<int>(p.w);
-      e.h = static_cast<int>(p.h);
-      e.target_map = p.target_map;
-      e.spawn_col = p.spawn_col;
-      e.spawn_row = p.spawn_row;
-      state.portals.push_back(std::move(e));
-    }
+    state.portals = std::move(*result);
     return {};
   }
 

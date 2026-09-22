@@ -45,8 +45,43 @@ TEST_CASE("load_portals — malformed JSON returns error containing the path") {
   write_file(p, "{bad json");
   auto result = load_portals(p);
   REQUIRE(!result.has_value());
-  CHECK(result.error().find("Malformed portals") != std::string::npos);
+  CHECK(result.error().find("malformed JSON") != std::string::npos);
   CHECK(result.error().find(p.string()) != std::string::npos);
+}
+
+TEST_CASE("load_portals — absent file is empty but an unopenable path is an error") {
+  const auto dir = temp_dir("unopenable");
+  const auto p = dir / "portals.json";
+  write_file(p, R"({ "portals": [] })");
+  // A directory exists but cannot be read as a JSON document.
+  const auto as_dir = dir / "a_directory";
+  std::filesystem::create_directory(as_dir);
+  auto result = load_portals(as_dir);
+  REQUIRE(!result.has_value());
+  CHECK(result.error().find(as_dir.string()) != std::string::npos);
+}
+
+TEST_CASE("load_portals — accepts an explicit schema_version") {
+  const auto dir = temp_dir("schema_version");
+  const auto p = dir / "portals.json";
+  write_file(p, R"({
+    "schema_version": 1,
+    "portals": [
+      { "col": 0, "row": 0, "w": 1, "h": 1, "target_map": "m.json", "spawn_col": 0, "spawn_row": 0 }
+    ]
+  })");
+  auto result = load_portals(p);
+  REQUIRE(result.has_value());
+  CHECK(result->size() == 1);
+}
+
+TEST_CASE("load_portals — rejects a newer schema_version") {
+  const auto dir = temp_dir("schema_too_new");
+  const auto p = dir / "portals.json";
+  write_file(p, R"({ "schema_version": 999, "portals": [] })");
+  auto result = load_portals(p);
+  REQUIRE(!result.has_value());
+  CHECK(result.error().find("999") != std::string::npos);
 }
 
 TEST_CASE("load_portals — valid file round-trip via serialize") {
@@ -73,6 +108,7 @@ TEST_CASE("load_portals — valid file round-trip via serialize") {
   const auto json = serialize(*result);
   REQUIRE(json.contains("portals"));
   REQUIRE(json["portals"].size() == 1);
+  CHECK(json["schema_version"] == 1);
   CHECK(json["portals"][0]["col"] == 0);
   CHECK(json["portals"][0]["row"] == 1);
   CHECK(json["portals"][0]["target_map"] == "other.json");
