@@ -14,7 +14,6 @@ namespace {
   ctt::TilemapTileset make_tileset(ctt::TileId first_gid, int tile_count, std::string material) {
     ctt::TilemapTileset ts;
     ts.first_gid = first_gid;
-    ts.tile_count = tile_count;
     ts.info.tile_count = tile_count;
     ts.info.material = std::move(material);
     return ts;
@@ -127,7 +126,6 @@ TEST_CASE("in_bounds — material_at disambiguates OOB from empty default") {
   tm.height = 2;
   ctt::TilemapTileset ts;
   ts.first_gid = 0;
-  ts.tile_count = 4;
   ts.info.tile_count = 4;
   ts.info.material = "";
   tm.tilesets.push_back(ts);

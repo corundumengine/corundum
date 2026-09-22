@@ -97,14 +97,14 @@ namespace {
 TEST_CASE("find_tileset — k_empty_tile returns nullptr") {
   std::vector<corundum::world::tilemap::TilemapTileset> tilesets(1);
   tilesets[0].first_gid = 0;
-  tilesets[0].tile_count = 32;
+  tilesets[0].info.tile_count = 32;
   CHECK(corundum::world::tilemap::find_tileset(tilesets, corundum::world::tilemap::k_empty_tile) == nullptr);
 }
 
 TEST_CASE("find_tileset — single tileset, valid GID") {
   std::vector<corundum::world::tilemap::TilemapTileset> tilesets(1);
   tilesets[0].first_gid = 0;
-  tilesets[0].tile_count = 32;
+  tilesets[0].info.tile_count = 32;
   const auto *result = corundum::world::tilemap::find_tileset(tilesets, 5);
   REQUIRE(result != nullptr);
   CHECK(result->first_gid == 0);
@@ -113,9 +113,9 @@ TEST_CASE("find_tileset — single tileset, valid GID") {
 TEST_CASE("find_tileset — two tilesets, GID routes correctly") {
   std::vector<corundum::world::tilemap::TilemapTileset> tilesets(2);
   tilesets[0].first_gid = 0;
-  tilesets[0].tile_count = 32;
+  tilesets[0].info.tile_count = 32;
   tilesets[1].first_gid = 32;
-  tilesets[1].tile_count = 16;
+  tilesets[1].info.tile_count = 16;
 
   CHECK(corundum::world::tilemap::find_tileset(tilesets, 0) == tilesets.data());
   CHECK(corundum::world::tilemap::find_tileset(tilesets, 31) == tilesets.data());
@@ -137,7 +137,7 @@ TEST_CASE("load_tilemap — single tileset map") {
   CHECK(m.height == 1);
   REQUIRE(m.tilesets.size() == 1);
   CHECK(m.tilesets[0].first_gid == 0);
-  CHECK(m.tilesets[0].tile_count == 32);
+  CHECK(m.tilesets[0].info.tile_count == 32);
   REQUIRE(m.layers.size() == 1);
   CHECK(m.layers[0].name == "ground");
   CHECK(m.layers[0].tiles[0] == 0);
@@ -167,9 +167,9 @@ TEST_CASE("load_tilemap — two tilesets, correct first_gid and tile_count") {
   const auto &m = *tm_result;
   REQUIRE(m.tilesets.size() == 2);
   CHECK(m.tilesets[0].first_gid == 0);
-  CHECK(m.tilesets[0].tile_count == 32);
+  CHECK(m.tilesets[0].info.tile_count == 32);
   CHECK(m.tilesets[1].first_gid == 32);
-  CHECK(m.tilesets[1].tile_count == 16);
+  CHECK(m.tilesets[1].info.tile_count == 16);
   CHECK(m.layers[0].tiles[0] == 0);
   CHECK(m.layers[0].tiles[1] == 32);
 }

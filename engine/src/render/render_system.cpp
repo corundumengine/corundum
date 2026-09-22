@@ -833,7 +833,7 @@ namespace corundum::render {
         const auto fidx = static_cast<std::size_t>(static_cast<int>(scene.elapsed_time * anim.fps)) % n;
         gid = anim.frame_gids[fidx];
       } else {
-        gid = layer.at(col, row, tilemap.width);
+        gid = tilemap.tile_at(layer, col, row);
         if (gid == corundum::world::tilemap::k_empty_tile)
           return std::nullopt;
       }

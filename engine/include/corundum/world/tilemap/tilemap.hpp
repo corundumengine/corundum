@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <corundum/core/math/vec.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <flat_map>
+#include <functional>
 #include <limits>
 #include <mdspan>
 #include <optional>
@@ -25,6 +29,7 @@ namespace corundum::world::tilemap {
   /// owning tileset's per-tile arrays).
   struct TileAnimation {
     std::vector<int> frames;
+
     float fps = 5.f;
   };
 
@@ -32,7 +37,9 @@ namespace corundum::world::tilemap {
   /// frame_gids are global tile IDs, ready for direct use with get_tile_texture.
   struct AnimatedCell {
     std::string anim_name; ///< Original clip name, used when saving.
+
     std::vector<TileId> frame_gids;
+
     float fps = 5.f;
   };
 
@@ -43,30 +50,38 @@ namespace corundum::world::tilemap {
   /// computes trim and pivot per sprite, so there's no shared default left to override.
   struct TilesetInfo {
     std::string path;
+
     std::string source;
+
     int tile_count = 0;
 
     // Per-tile data, parallel arrays indexed by local_id (size == tile_count).
-    std::vector<corundum::core::math::IntRect> tile_rects; ///< Sampled (already-trimmed) rect in the
-                                                           ///< atlas texture — ready to use directly
-                                                           ///< as a texture source rect.
-    std::vector<int> tile_full_width;                      ///< Original (untrimmed) sprite canvas width, from
-                                                           ///< spritepacker's source_width. Used to scale pivot into
-                                                           ///< pixels, since the trimmed rect alone can't recover it.
-    std::vector<int> tile_full_height;                     ///< Same, for source_height.
-    std::vector<int> tile_trim_x;                          ///< Offset from the untrimmed canvas's top-left corner to
-                                                           ///< tile_rects' content, from spritepacker's trim_x.
-    std::vector<int> tile_trim_y;                          ///< Same, for trim_y.
-    std::vector<float> tile_pivot_x;                       ///< Anchor point as a fraction of the *full* (untrimmed)
-                                                           ///< frame, left = 0. From spritepacker's pivot_x, converted
-                                                           ///< from the trimmed-box basis it's authored in.
-    std::vector<float> tile_pivot_y;                       ///< Same, for the vertical anchor, bottom = 0 (matching the
-                                     ///< isometric ground-contact convention used elsewhere in this
-                                     ///< codebase) — inverted from spritepacker's pivot_y, which
-                                     ///< measures from the top in raster (image-row) convention.
+    std::vector<corundum::core::math::IntRect> tile_rects; ///< Sampled (already-trimmed) rect in the atlas texture —
+                                                           ///< ready to use directly as a texture source rect.
+
+    std::vector<int>
+        tile_full_width; ///< Original (untrimmed) sprite canvas width, from spritepacker's source_width. Used to scale
+                         ///< pivot into pixels, since the trimmed rect alone can't recover it.
+
+    std::vector<int> tile_full_height; ///< Same, for source_height.
+
+    std::vector<int> tile_trim_x; ///< Offset from the untrimmed canvas's top-left corner to tile_rects' content, from
+                                  ///< spritepacker's trim_x.
+
+    std::vector<int> tile_trim_y; ///< Same, for trim_y.
+
+    std::vector<float> tile_pivot_x; ///< Anchor point as a fraction of the *full* (untrimmed) frame, left = 0. From
+                                     ///< spritepacker's pivot_x, converted from the trimmed-box basis it's authored in.
+
+    std::vector<float>
+        tile_pivot_y; ///< Same, for the vertical anchor, bottom = 0 (matching the isometric ground-contact convention
+                      ///< used elsewhere in this codebase) — inverted from spritepacker's pivot_y, which measures from
+                      ///< the top in raster (image-row) convention.
+
     std::vector<std::string> tile_names; ///< Sprite name from the atlas; used by tilesmith's palette.
 
     std::flat_map<std::string, TileAnimation> animations; ///< name → animation
+
     std::string material; ///< Default terrain-material tag (footstep/ambient audio selection); empty == none.
   };
 
@@ -85,28 +100,35 @@ namespace corundum::world::tilemap {
   /// entities (see TilemapLayer::depth_sorted).
   struct TilemapLayer {
     std::string name;
-    int z_index = 0;           ///< >= 0; clamped to 0 by loader if negative.
-    bool depth_sorted = false; ///< Only meaningful when z_index > 0. false (default): layer always
-                               ///< draws above all entities (rooftops, canopy, decals) — unchanged
-                               ///< legacy behavior. true: layer's tiles are depth-sorted against
-                               ///< entities and elevated ground tiles via iso_depth_key instead
-                               ///< (walls, pillars, other tall props players walk around/behind).
-    bool visible = true;       ///< When false, the renderer skips this layer entirely.
+
+    int z_index = 0; ///< >= 0; clamped to 0 by loader if negative.
+
+    bool depth_sorted = false; ///< Only meaningful when z_index > 0. false (default): layer always draws above all
+                               ///< entities (rooftops, canopy, decals) — unchanged legacy behavior. true: layer's tiles
+                               ///< are depth-sorted against entities and elevated ground tiles via iso_depth_key
+                               ///< instead (walls, pillars, other tall props players walk around/behind).
+
+    bool visible = true; ///< When false, the renderer skips this layer entirely.
+
     std::vector<TileId> tiles; ///< Row-major, size == map width * height; k_empty_tile for animated cells.
+
     std::flat_map<int, AnimatedCell> animated_cells; ///< cell_index (row*width+col) → resolved animation.
-    std::flat_map<int, uint8_t> flip_flags;          ///< cell_index → k_flip_h | k_flip_v; absent == no flip.
+
+    std::flat_map<int, uint8_t> flip_flags; ///< cell_index → k_flip_h | k_flip_v; absent == no flip.
+
     std::vector<uint8_t> elevation; ///< Per-tile elevation [0–255]; empty == all flat (optional for isometric).
-    std::flat_map<int, std::string> material_overrides; ///< cell_index → terrain-material tag, overriding the
-                                                        ///< owning tileset's default TilesetInfo::material for
-                                                        ///< that one cell (e.g. a snow-dusted patch of an
-                                                        ///< otherwise-stone floor); absent == use the tileset
-                                                        ///< default.
-    std::flat_map<int, RampAxis> ramps; ///< cell_index → axis this ramp tile bridges; absent == not a ramp.
-                                        ///< The elevation delta it bridges is inferred from its two
-                                        ///< axis-neighbors' elevation_at() values, never stored directly.
-    uint8_t max_elevation = 0;          ///< Maximum elevation value in this layer (0 if elevation is empty).
-                                        ///< Computed in bake_render_cache() by std::ranges::max_element on the
-                                        ///< elevation vector.
+
+    std::flat_map<int, std::string>
+        material_overrides; ///< cell_index → terrain-material tag, overriding the owning tileset's default
+                            ///< TilesetInfo::material for that one cell (e.g. a snow-dusted patch of an otherwise-stone
+                            ///< floor); absent == use the tileset default.
+
+    std::flat_map<int, RampAxis>
+        ramps; ///< cell_index → axis this ramp tile bridges; absent == not a ramp. The elevation delta it bridges is
+               ///< inferred from its two axis-neighbors' elevation_at() values, never stored directly.
+
+    uint8_t max_elevation = 0; ///< Maximum elevation value in this layer (0 if elevation is empty). Computed in
+                               ///< bake_render_cache() from the elevation vector.
 
     /// Sentinel for baked_animation_index meaning "this cell isn't animated".
     static constexpr uint32_t k_no_animation = std::numeric_limits<uint32_t>::max();
@@ -120,10 +142,11 @@ namespace corundum::world::tilemap {
     /// animated_cells map is compacted into dense storage at bake time so per-frame lookup is a
     /// flat array read instead of a std::flat_map probe. Populated by bake_render_cache().
     std::vector<uint32_t> baked_animation_index;
+
     std::vector<AnimatedCell> baked_animations; ///< Dense storage indexed by baked_animation_index.
 
-    /// Tile GID at (col, row); undefined behaviour if out of bounds.
-    [[nodiscard]] TileId at(int col, int row, int width) const noexcept {
+    /// Tile GID at (col, row); undefined behaviour if out of bounds. Prefer Tilemap::tile_at().
+    [[nodiscard]] TileId tile_at_unchecked(int col, int row, int width) const noexcept {
       return tiles[(static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col)];
     }
 
@@ -159,11 +182,11 @@ namespace corundum::world::tilemap {
   };
 
   /// One tileset entry in a map's tileset table.
-  /// first_gid is the GID assigned to local tile 0; tile_count == info.tile_count.
+  /// first_gid is the GID assigned to local tile 0; the tile count lives on info.
   struct TilemapTileset {
     TilesetInfo info;
+
     TileId first_gid = 0;
-    int tile_count = 0;
   };
 
   /// Returns the TilemapTileset that owns gid, or nullptr if gid is k_empty_tile
@@ -173,19 +196,16 @@ namespace corundum::world::tilemap {
                                                           TileId gid) noexcept {
     if (gid == k_empty_tile)
       return nullptr;
-    const TilemapTileset *result = nullptr;
-    for (const auto &ts : tilesets) {
-      if (ts.first_gid <= gid)
-        result = &ts;
-      else
-        break;
-    }
-    if (result == nullptr)
+    // tilesets are sorted ascending by first_gid (loader-guaranteed), so the owner is the last
+    // entry whose first_gid is <= gid.
+    const auto it = std::ranges::upper_bound(tilesets, gid, std::ranges::less{}, &TilemapTileset::first_gid);
+    if (it == tilesets.begin())
       return nullptr;
-    const int local_id = static_cast<int>(gid) - static_cast<int>(result->first_gid);
-    if (local_id >= result->tile_count)
+    const TilemapTileset &result = *(it - 1);
+    const int local_id = static_cast<int>(gid) - static_cast<int>(result.first_gid);
+    if (local_id >= result.info.tile_count)
       return nullptr;
-    return result;
+    return &result;
   }
 
   /// A tile's anchor point, as a fraction of its *full* (untrimmed) frame — horizontal measured from
@@ -194,14 +214,15 @@ namespace corundum::world::tilemap {
   /// (top=0) convention into this full-frame, bottom-origin one.
   struct TilePivot {
     float x = 0.5f;
+
     float y = 0.f;
   };
 
   /// Returns the pivot for @p local_id in @p info; {0.5, 0} if local_id is out of range.
   [[nodiscard]] inline TilePivot get_tile_pivot(const TilesetInfo &info, int local_id) noexcept {
-    if (local_id < 0 || static_cast<std::size_t>(local_id) >= info.tile_pivot_x.size())
-      return {};
     const auto i = static_cast<std::size_t>(local_id);
+    if (local_id < 0 || i >= info.tile_pivot_x.size() || i >= info.tile_pivot_y.size())
+      return {};
     return {.x = info.tile_pivot_x[i], .y = info.tile_pivot_y[i]};
   }
 
@@ -211,16 +232,20 @@ namespace corundum::world::tilemap {
   /// since the trimmed rect alone can't recover the original canvas size.
   struct TileFrameOffset {
     int trim_x = 0;
+
     int trim_y = 0;
+
     int full_width = 0;
+
     int full_height = 0;
   };
 
   /// Returns the frame offset/size for @p local_id in @p info; all-zero if local_id is out of range.
   [[nodiscard]] inline TileFrameOffset get_tile_frame_offset(const TilesetInfo &info, int local_id) noexcept {
-    if (local_id < 0 || static_cast<std::size_t>(local_id) >= info.tile_trim_x.size())
-      return {};
     const auto i = static_cast<std::size_t>(local_id);
+    if (local_id < 0 || i >= info.tile_trim_x.size() || i >= info.tile_trim_y.size() ||
+        i >= info.tile_full_width.size() || i >= info.tile_full_height.size())
+      return {};
     return {
         .trim_x = info.tile_trim_x[i],
         .trim_y = info.tile_trim_y[i],
@@ -231,23 +256,27 @@ namespace corundum::world::tilemap {
 
   /// Returns the source rect in the tileset texture for @p gid — spritepacker already trims and
   /// packs tightly, so this is a direct array read, not a computed grid cell.
-  /// @param ts Tileset entry that owns gid (caller must use find_tileset first).
+  /// @param tileset Tileset entry that owns gid (caller must use find_tileset first).
   /// @param gid Global tile ID.
   /// @return Source rectangle, in pixels, within the tileset texture for this tile; all-zero if gid
   ///         resolves to a local_id outside the tileset's range.
-  [[nodiscard]] inline corundum::core::math::IntRect tile_source_rect(const TilemapTileset &ts, TileId gid) noexcept {
-    const int local_id = static_cast<int>(gid) - static_cast<int>(ts.first_gid);
-    if (local_id < 0 || static_cast<std::size_t>(local_id) >= ts.info.tile_rects.size())
+  [[nodiscard]] inline corundum::core::math::IntRect tile_source_rect(const TilemapTileset &tileset,
+                                                                      TileId gid) noexcept {
+    const int local_id = static_cast<int>(gid) - static_cast<int>(tileset.first_gid);
+    if (local_id < 0 || static_cast<std::size_t>(local_id) >= tileset.info.tile_rects.size())
       return {};
-    return ts.info.tile_rects[static_cast<std::size_t>(local_id)];
+    return tileset.info.tile_rects[static_cast<std::size_t>(local_id)];
   }
 
   /// Axis-aligned rectangle in tile-grid space.
   /// Used as a temporary during loading; runtime collision uses CollisionRects (SoA).
   struct CollisionRect {
     float col = 0.f;
+
     float row = 0.f;
+
     float col_span = 0.f;
+
     float row_span = 0.f;
   };
 
@@ -259,10 +288,14 @@ namespace corundum::world::tilemap {
    * Construct from CollisionRects::view() or directly from stack arrays.
    */
   struct CollisionRectsView {
-    std::span<const float> cols;      ///< Left edges (tile columns).
-    std::span<const float> rows;      ///< Top edges (tile rows).
+    std::span<const float> cols; ///< Left edges (tile columns).
+
+    std::span<const float> rows; ///< Top edges (tile rows).
+
     std::span<const float> col_spans; ///< Horizontal extents in tiles.
+
     std::span<const float> row_spans; ///< Vertical extents in tiles.
+
     /// Per-rect elevation [0–255], same semantics as TilemapLayer::elevation; empty means
     /// "no elevation data for any rect in this view" and disables elevation filtering entirely.
     std::span<const uint8_t> elevations;
@@ -272,6 +305,21 @@ namespace corundum::world::tilemap {
       return cols.size();
     }
   };
+
+  namespace detail {
+    /// O(1) swap-and-pop erase of @p i across parallel SoA vectors; order is not preserved.
+    /// @pre every vector is non-empty, shares the same size, and i < size().
+    template <typename First, typename... Rest> void swap_pop_at(std::size_t i, First &first, Rest &...rest) noexcept {
+      const std::size_t last = first.size() - 1;
+      const auto apply = [i, last](auto &vector) {
+        if (i != last)
+          vector[i] = vector[last];
+        vector.pop_back();
+      };
+      apply(first);
+      (apply(rest), ...);
+    }
+  } // namespace detail
 
   /**
    * @brief Owned Structure-of-Arrays storage for collision rects in tile-grid space.
@@ -283,16 +331,19 @@ namespace corundum::world::tilemap {
    * @see CollisionRectsView for the non-owning counterpart passed to collision functions.
    */
   struct CollisionRects {
-    std::vector<float> cols;         ///< Left edges (tile columns).
-    std::vector<float> rows;         ///< Top edges (tile rows).
-    std::vector<float> col_spans;    ///< Horizontal extents in tiles.
-    std::vector<float> row_spans;    ///< Vertical extents in tiles.
+    std::vector<float> cols; ///< Left edges (tile columns).
+
+    std::vector<float> rows; ///< Top edges (tile rows).
+
+    std::vector<float> col_spans; ///< Horizontal extents in tiles.
+
+    std::vector<float> row_spans; ///< Vertical extents in tiles.
+
     std::vector<uint8_t> elevations; ///< Per-rect elevation [0–255]; see CollisionRectsView.
 
     /// Append one collision rect in tile-grid space.
     // elevation (uint8_t) sits next to float row_span; both are required so the append keeps the
     // SoA layout, and the two types are only convertible by implicit narrowing which callers avoid.
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void push_back(float col, float row, float col_span, float row_span, uint8_t elevation = 0) {
       cols.push_back(col);
       rows.push_back(row);
@@ -313,20 +364,8 @@ namespace corundum::world::tilemap {
 
     /// Remove the rect at index @p i in O(1) via swap-and-pop. Order is not preserved.
     /// @pre i < size()
-    void erase(std::size_t i) {
-      const std::size_t last = size() - 1;
-      if (i != last) {
-        cols[i] = cols[last];
-        rows[i] = rows[last];
-        col_spans[i] = col_spans[last];
-        row_spans[i] = row_spans[last];
-        elevations[i] = elevations[last];
-      }
-      cols.pop_back();
-      rows.pop_back();
-      col_spans.pop_back();
-      row_spans.pop_back();
-      elevations.pop_back();
+    void erase(std::size_t i) noexcept {
+      detail::swap_pop_at(i, cols, rows, col_spans, row_spans, elevations);
     }
   };
 
@@ -340,11 +379,16 @@ namespace corundum::world::tilemap {
 
   /// Non-owning Structure-of-Arrays view over diagonal collision triangle data in tile-grid space.
   struct CollisionTrianglesView {
-    std::span<const float> cols;       ///< Left edges (tile columns).
-    std::span<const float> rows;       ///< Top edges (tile rows).
-    std::span<const float> col_spans;  ///< Horizontal extents in tiles.
-    std::span<const float> row_spans;  ///< Vertical extents in tiles.
+    std::span<const float> cols; ///< Left edges (tile columns).
+
+    std::span<const float> rows; ///< Top edges (tile rows).
+
+    std::span<const float> col_spans; ///< Horizontal extents in tiles.
+
+    std::span<const float> row_spans; ///< Vertical extents in tiles.
+
     std::span<const TriangleCut> cuts; ///< Which corner is empty.
+
     /// Per-triangle elevation [0–255]; empty disables elevation filtering. See CollisionRectsView.
     std::span<const uint8_t> elevations;
 
@@ -361,11 +405,16 @@ namespace corundum::world::tilemap {
    * is identified by TriangleCut; the other half is solid.
    */
   struct CollisionTriangles {
-    std::vector<float> cols;         ///< Left edges (tile columns).
-    std::vector<float> rows;         ///< Top edges (tile rows).
-    std::vector<float> col_spans;    ///< Horizontal extents in tiles.
-    std::vector<float> row_spans;    ///< Vertical extents in tiles.
-    std::vector<TriangleCut> cuts;   ///< Which corner is empty.
+    std::vector<float> cols; ///< Left edges (tile columns).
+
+    std::vector<float> rows; ///< Top edges (tile rows).
+
+    std::vector<float> col_spans; ///< Horizontal extents in tiles.
+
+    std::vector<float> row_spans; ///< Vertical extents in tiles.
+
+    std::vector<TriangleCut> cuts; ///< Which corner is empty.
+
     std::vector<uint8_t> elevations; ///< Per-triangle elevation [0–255]; see CollisionTrianglesView.
 
     /// Append one diagonal collision triangle in tile-grid space.
@@ -397,38 +446,33 @@ namespace corundum::world::tilemap {
 
     /// Remove the triangle at index @p i in O(1) via swap-and-pop. Order is not preserved.
     /// @pre i < size()
-    void erase(std::size_t i) {
-      const std::size_t last = size() - 1;
-      if (i != last) {
-        cols[i] = cols[last];
-        rows[i] = rows[last];
-        col_spans[i] = col_spans[last];
-        row_spans[i] = row_spans[last];
-        cuts[i] = cuts[last];
-        elevations[i] = elevations[last];
-      }
-      cols.pop_back();
-      rows.pop_back();
-      col_spans.pop_back();
-      row_spans.pop_back();
-      cuts.pop_back();
-      elevations.pop_back();
+    void erase(std::size_t i) noexcept {
+      detail::swap_pop_at(i, cols, rows, col_spans, row_spans, cuts, elevations);
     }
   };
 
   /// Static multi-layer tile grid loaded from a JSON map file.
   struct Tilemap {
-    std::string path;                     ///< Source file path passed to load_tilemap().
+    std::string path; ///< Source file path passed to load_tilemap().
+
     std::vector<TilemapTileset> tilesets; ///< Sorted ascending by first_gid.
+
     int width = 0;
+
     int height = 0;
+
     int iso_diamond_w = 0; ///< Isometric world step width in pixels (diamond width). 0 = use frame_width.
+
     int iso_diamond_h = 0; ///< Isometric world step height in pixels (diamond height). 0 = iso_diamond_w / 2.
-    std::vector<TilemapLayer> layers;       ///< Index 0 is the bottom-most layer.
-    CollisionRects collisions;              ///< Impassable rects in tile-grid space; empty if absent.
+
+    std::vector<TilemapLayer> layers; ///< Index 0 is the bottom-most layer.
+
+    CollisionRects collisions; ///< Impassable rects in tile-grid space; empty if absent.
+
     CollisionTriangles collision_triangles; ///< Diagonal half-tile collision shapes; empty if absent.
 
     int max_tile_full_w = 0;
+
     int max_tile_full_h = 0;
 
     /// Effective isometric diamond width (world step), falling back to the first tileset's first
@@ -448,29 +492,39 @@ namespace corundum::world::tilemap {
       return diamond_w() / 2;
     }
 
+    /// Tile GID at (col, row) in @p layer; undefined behaviour if out of bounds.
+    /// @pre @p layer belongs to this Tilemap.
+    [[nodiscard]] TileId tile_at(const TilemapLayer &layer, int col, int row) const noexcept {
+      return layer.tile_at_unchecked(col, row, width);
+    }
+
     /// 2D mdspan view over @p layer's tile grid — rows × cols layout. Lives on Tilemap
     /// (not TilemapLayer) since width/height are Tilemap-owned; layer doesn't self-construct.
     /// @pre &layer must belong to this Tilemap's layers, and layer.tiles.size() == width * height.
     [[nodiscard]] auto layer_view(TilemapLayer &layer) const noexcept {
+      assert(layer.tiles.size() == static_cast<std::size_t>(width) * static_cast<std::size_t>(height) &&
+             "layer_view: layer.tiles must be width * height");
       return std::mdspan<TileId, std::dextents<std::size_t, 2>>(layer.tiles.data(), static_cast<std::size_t>(height),
                                                                 static_cast<std::size_t>(width));
     }
 
     /// Const overload of layer_view().
     [[nodiscard]] auto layer_view(const TilemapLayer &layer) const noexcept {
+      assert(layer.tiles.size() == static_cast<std::size_t>(width) * static_cast<std::size_t>(height) &&
+             "layer_view: layer.tiles must be width * height");
       return std::mdspan<const TileId, std::dextents<std::size_t, 2>>(
           layer.tiles.data(), static_cast<std::size_t>(height), static_cast<std::size_t>(width));
     }
   };
 
   /**
-   * @brief Check whether (col, row) is a valid tile index for @p tm.
+   * @brief Check whether (col, row) is a valid tile index for @p tilemap.
    *
    * @return true if col and row are both non-negative and less than the map's
    *         width/height respectively.
    */
-  [[nodiscard]] inline bool in_bounds(const Tilemap &tm, int col, int row) noexcept {
-    return col >= 0 && row >= 0 && col < tm.width && row < tm.height;
+  [[nodiscard]] inline bool in_bounds(const Tilemap &tilemap, int col, int row) noexcept {
+    return col >= 0 && row >= 0 && col < tilemap.width && row < tilemap.height;
   }
 
   /**
@@ -491,18 +545,20 @@ namespace corundum::world::tilemap {
    *       true for OOB cells), and interpolated_elevation_at relies on the 0
    *       fallback when sampling outside the map during interpolation.
    */
-  [[nodiscard]] inline int elevation_at(const Tilemap &tm, int col, int row) noexcept {
-    if (!in_bounds(tm, col, row))
+  [[nodiscard]] inline int elevation_at(const Tilemap &tilemap, int col, int row) noexcept {
+    if (!in_bounds(tilemap, col, row))
       return 0;
-    const auto uidx =
-        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width)) + static_cast<std::size_t>(col);
+    const std::size_t uidx =
+        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tilemap.width)) + static_cast<std::size_t>(col);
+    if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+      return 0;
+    const int idx = static_cast<int>(uidx);
     int result = 0;
-    for (const auto &layer : tm.layers) {
+    for (const auto &layer : tilemap.layers) {
       if (layer.z_index != 0 || !layer.visible)
         continue;
       if (uidx >= layer.elevation.size())
         continue;
-      const int idx = static_cast<int>(uidx);
       const bool has_tile =
           layer.animated_cells.contains(idx) || (uidx < layer.tiles.size() && layer.tiles[uidx] != k_empty_tile);
       if (!has_tile)
@@ -517,22 +573,24 @@ namespace corundum::world::tilemap {
    *
    * Same topmost-z_index==0-layer-with-a-tile resolution convention as elevation_at().
    *
-   * @param tm  The tilemap to query.
+   * @param tilemap The tilemap to query.
    * @param col Column index (0-based).
    * @param row Row index (0-based).
    * @return The axis this cell bridges, or std::nullopt if out of bounds, no z_index==0 layer
    *         has a tile there, or the cell isn't a ramp.
    */
-  [[nodiscard]] inline std::optional<RampAxis> ramp_axis_at(const Tilemap &tm, int col, int row) noexcept {
-    if (!in_bounds(tm, col, row))
+  [[nodiscard]] inline std::optional<RampAxis> ramp_axis_at(const Tilemap &tilemap, int col, int row) noexcept {
+    if (!in_bounds(tilemap, col, row))
       return std::nullopt;
     const std::size_t uidx =
-        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width)) + static_cast<std::size_t>(col);
+        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tilemap.width)) + static_cast<std::size_t>(col);
+    if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+      return std::nullopt;
+    const int idx = static_cast<int>(uidx);
     std::optional<RampAxis> result;
-    for (const auto &layer : tm.layers) {
+    for (const auto &layer : tilemap.layers) {
       if (layer.z_index != 0 || !layer.visible)
         continue;
-      const int idx = static_cast<int>(uidx);
       const bool has_tile =
           layer.animated_cells.contains(idx) || (uidx < layer.tiles.size() && layer.tiles[uidx] != k_empty_tile);
       if (!has_tile)
@@ -553,25 +611,25 @@ namespace corundum::world::tilemap {
    * rest of the map is unchanged. Single-map mode only — chunked/streamed World mode has no
    * caller for this yet and keeps the discrete per-tile elevation_at() lift.
    *
-   * @param tm    The tilemap to query.
-   * @param col_f Fractional column (e.g. an entity's world position in tile-grid units).
-   * @param row_f Fractional row.
+   * @param tilemap The tilemap to query.
+   * @param col_f   Fractional column (e.g. an entity's world position in tile-grid units).
+   * @param row_f   Fractional row.
    * @return Elevation, linearly interpolated across a ramp cell along its axis.
    */
-  [[nodiscard]] inline float interpolated_elevation_at(const Tilemap &tm, float col_f, float row_f) noexcept {
+  [[nodiscard]] inline float interpolated_elevation_at(const Tilemap &tilemap, float col_f, float row_f) noexcept {
     const int col = static_cast<int>(std::floor(col_f));
     const int row = static_cast<int>(std::floor(row_f));
-    const std::optional<RampAxis> axis = ramp_axis_at(tm, col, row);
+    const std::optional<RampAxis> axis = ramp_axis_at(tilemap, col, row);
     if (!axis)
-      return static_cast<float>(elevation_at(tm, col, row));
+      return static_cast<float>(elevation_at(tilemap, col, row));
     if (*axis == RampAxis::NorthSouth) {
       const float t = row_f - static_cast<float>(row); // 0 at the north edge, 1 at the south edge
-      return std::lerp(static_cast<float>(elevation_at(tm, col, row - 1)),
-                       static_cast<float>(elevation_at(tm, col, row + 1)), t);
+      return std::lerp(static_cast<float>(elevation_at(tilemap, col, row - 1)),
+                       static_cast<float>(elevation_at(tilemap, col, row + 1)), t);
     }
     const float t = col_f - static_cast<float>(col); // 0 at the west edge, 1 at the east edge
-    return std::lerp(static_cast<float>(elevation_at(tm, col - 1, row)),
-                     static_cast<float>(elevation_at(tm, col + 1, row)), t);
+    return std::lerp(static_cast<float>(elevation_at(tilemap, col - 1, row)),
+                     static_cast<float>(elevation_at(tilemap, col + 1, row)), t);
   }
 
   /**
@@ -584,7 +642,7 @@ namespace corundum::world::tilemap {
    * individual placed tile diverge from its tileset's default (e.g. a snow-dusted patch of an
    * otherwise-stone floor) without deriving the tag from the tile's visual art index.
    *
-   * @param tm  The tilemap to query.
+   * @param tilemap The tilemap to query.
    * @param col Column index (0-based, left to right).
    * @param row Row index (0-based, top to bottom).
    * @return The resolved material tag, or an empty string if out of bounds (use in_bounds() to
@@ -594,16 +652,16 @@ namespace corundum::world::tilemap {
    * @note Out-of-bounds → empty string is the intentional sentinel — see elevation_at() for the
    *       rationale that applies equally to material resolution.
    */
-  [[nodiscard]] inline std::string material_at(const Tilemap &tm, int col, int row) {
-    if (!in_bounds(tm, col, row))
+  [[nodiscard]] inline std::string material_at(const Tilemap &tilemap, int col, int row) {
+    if (!in_bounds(tilemap, col, row))
       return {};
     const std::size_t uidx =
-        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tm.width)) + static_cast<std::size_t>(col);
+        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tilemap.width)) + static_cast<std::size_t>(col);
     if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
       return {};
     const int idx = static_cast<int>(uidx);
     std::string result;
-    for (const auto &layer : tm.layers) {
+    for (const auto &layer : tilemap.layers) {
       if (layer.z_index != 0 || !layer.visible)
         continue;
       if (uidx >= layer.tiles.size())
@@ -621,8 +679,8 @@ namespace corundum::world::tilemap {
         const auto &frames = layer.animated_cells.at(idx).frame_gids;
         gid = frames.empty() ? k_empty_tile : frames[0];
       }
-      if (const TilemapTileset *ts = find_tileset(tm.tilesets, gid); ts != nullptr)
-        result = ts->info.material;
+      const TilemapTileset *tileset = find_tileset(tilemap.tilesets, gid);
+      result = tileset != nullptr ? tileset->info.material : std::string{};
     }
     return result;
   }
@@ -634,10 +692,10 @@ namespace corundum::world::tilemap {
    * Intended to be run explicitly before save/export (e.g. by an editor), not as a load-time gate —
    * @see corundum::world::tilemap::load_tilemap for load-time structural checks.
    *
-   * @param tm The tilemap to validate.
+   * @param tilemap The tilemap to validate.
    * @return One human-readable message per problem found, each naming the offending layer/cell/rect
    *         so an editor can point the author at a specific location. Empty if the map is valid.
    */
-  [[nodiscard]] std::vector<std::string> validate(const Tilemap &tm);
+  [[nodiscard]] std::vector<std::string> validate(const Tilemap &tilemap);
 
 } // namespace corundum::world::tilemap

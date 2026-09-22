@@ -51,7 +51,7 @@ namespace tools::tilesmith {
         return false;
       const auto &ts = state.map.tilesets[static_cast<std::size_t>(tileset_idx)];
       const TileId range_start = ts.first_gid;
-      const TileId range_end = static_cast<TileId>(static_cast<int>(ts.first_gid) + ts.tile_count);
+      const TileId range_end = static_cast<TileId>(static_cast<int>(ts.first_gid) + ts.info.tile_count);
       for (const auto &layer : state.map.layers) {
         for (TileId gid : layer.tiles) {
           if (gid >= range_start && gid < range_end)
@@ -84,13 +84,12 @@ namespace tools::tilesmith {
       TileId first_gid = 0;
       if (!state.map.tilesets.empty()) {
         const auto &last = state.map.tilesets.back();
-        first_gid = static_cast<TileId>(static_cast<int>(last.first_gid) + last.tile_count);
+        first_gid = static_cast<TileId>(static_cast<int>(last.first_gid) + last.info.tile_count);
       }
 
       TilemapTileset ts;
       ts.info = std::move(info);
       ts.first_gid = first_gid;
-      ts.tile_count = ts.info.tile_count;
 
       state.map.tilesets.push_back(std::move(ts));
 
@@ -116,7 +115,7 @@ namespace tools::tilesmith {
 
       const auto &removed_ts = state.map.tilesets[static_cast<std::size_t>(idx)];
       const int removed_first_gid = removed_ts.first_gid;
-      const int removed_count = removed_ts.tile_count;
+      const int removed_count = removed_ts.info.tile_count;
 
       // Destroy the GPU texture for this tileset
       host.textures().destroy(texture_store.textures[static_cast<std::size_t>(idx)].id);
@@ -376,7 +375,7 @@ namespace tools::tilesmith {
     corundum::world::tilemap::TilemapTileset &active_ts =
         state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
     const int sel_local_id = static_cast<int>(state.selected_gid) - static_cast<int>(ts.first_gid);
-    const bool sel_valid = sel_local_id >= 0 && sel_local_id < ts.tile_count;
+    const bool sel_valid = sel_local_id >= 0 && sel_local_id < ts.info.tile_count;
     if (sel_valid) {
       const auto &cell = layout[static_cast<std::size_t>(sel_local_id)];
       const float draw_y = static_cast<float>(cell.y) - state.palette_scroll_y;

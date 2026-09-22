@@ -495,13 +495,12 @@ namespace corundum::world::tilemap {
       TilemapTileset ts;
       ts.info = std::move(*tileset_result);
       ts.first_gid = static_cast<TileId>(first_gid);
-      ts.tile_count = ts.info.tile_count;
-      if (static_cast<uint32_t>(ts.first_gid) + static_cast<uint32_t>(ts.tile_count) >
+      if (static_cast<uint32_t>(ts.first_gid) + static_cast<uint32_t>(ts.info.tile_count) >
           static_cast<uint32_t>(k_empty_tile))
-        return std::unexpected(std::format("Tilemap '{}' tilesets[{}] GID range [{}, {}) exceeds reserved sentinel {}",
-                                           id, ti, ts.first_gid,
-                                           static_cast<uint32_t>(ts.first_gid) + static_cast<uint32_t>(ts.tile_count),
-                                           static_cast<int>(k_empty_tile)));
+        return std::unexpected(
+            std::format("Tilemap '{}' tilesets[{}] GID range [{}, {}) exceeds reserved sentinel {}", id, ti,
+                        ts.first_gid, static_cast<uint32_t>(ts.first_gid) + static_cast<uint32_t>(ts.info.tile_count),
+                        static_cast<int>(k_empty_tile)));
       tilesets.push_back(std::move(ts));
     }
 
@@ -515,7 +514,7 @@ namespace corundum::world::tilemap {
 
     // No duplicates; strict contiguity (no gaps, no overlaps).
     for (std::size_t i = 0; i + 1 < tilesets.size(); ++i) {
-      const TileId expected_next = tilesets[i].first_gid + static_cast<TileId>(tilesets[i].tile_count);
+      const TileId expected_next = tilesets[i].first_gid + static_cast<TileId>(tilesets[i].info.tile_count);
       if (tilesets[i].first_gid == tilesets[i + 1].first_gid)
         return std::unexpected(
             std::format("Tilemap '{}' tilesets have duplicate first_gid={}", id, tilesets[i].first_gid));
@@ -523,7 +522,7 @@ namespace corundum::world::tilemap {
         return std::unexpected(
             std::format("Tilemap '{}' tilesets are not contiguous: gap or overlap between first_gid={} "
                         "(tile_count={}) and first_gid={})",
-                        id, tilesets[i].first_gid, tilesets[i].tile_count, tilesets[i + 1].first_gid));
+                        id, tilesets[i].first_gid, tilesets[i].info.tile_count, tilesets[i + 1].first_gid));
     }
 
     // width, height

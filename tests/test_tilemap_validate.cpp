@@ -12,7 +12,6 @@ namespace {
   ctt::TilemapTileset make_tileset(ctt::TileId first_gid, int tile_count) {
     ctt::TilemapTileset ts;
     ts.first_gid = first_gid;
-    ts.tile_count = tile_count;
     ts.info.tile_count = tile_count;
     return ts;
   }

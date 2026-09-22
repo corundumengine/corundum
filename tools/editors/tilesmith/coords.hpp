@@ -233,9 +233,9 @@ namespace tools::tilesmith {
   [[nodiscard]] inline std::vector<PaletteCell>
   compute_palette_layout(const corundum::world::tilemap::TilemapTileset &ts, int available_w, float tile_scale) {
     std::vector<PaletteCell> cells;
-    cells.reserve(static_cast<std::size_t>(std::max(0, ts.tile_count)));
+    cells.reserve(static_cast<std::size_t>(std::max(0, ts.info.tile_count)));
     int cursor_x = 0, cursor_y = 0, row_h = 0;
-    for (int i = 0; i < ts.tile_count; ++i) {
+    for (int i = 0; i < ts.info.tile_count; ++i) {
       const auto &rect = ts.info.tile_rects[static_cast<std::size_t>(i)];
       const int w = std::max(1, static_cast<int>(static_cast<float>(rect.width) * tile_scale));
       const int h = std::max(1, static_cast<int>(static_cast<float>(rect.height) * tile_scale));
