@@ -36,7 +36,28 @@ namespace corundum::world {
     int target_chunk_col = -1;    ///< World-mode target chunk column (-1 = single-map portal).
     int target_chunk_row = -1;    ///< World-mode target chunk row.
     bool return_to_world = false; ///< Exit the current interior back to the configured overworld.
+
+    /// Value equality over every field — lets a consumer tell two triggers apart even
+    /// when they share a rect (e.g. the same cell at different elevations/targets).
+    [[nodiscard]] friend bool operator==(const Portal &, const Portal &) = default;
   };
+
+  /** @brief True when a tile-grid AABB overlaps @p portal's trigger rect.
+   *
+   * Both spaces are tile-grid and the test is half-open on every edge, so an AABB whose
+   * edge merely touches the portal's edge does not overlap. This is the single source of
+   * truth for portal-overlap geometry, shared by physics detection and @ref TransitionPrompt.
+   *
+   * @param portal Portal whose trigger rect (@c col, @c row, @c w, @c h) is tested.
+   * @param col0   Left edge of the AABB.
+   * @param col1   Right edge of the AABB.
+   * @param row0   Top edge of the AABB.
+   * @param row1   Bottom edge of the AABB.
+   */
+  [[nodiscard]] constexpr bool portal_overlaps(const Portal &portal, float col0, float col1, float row0,
+                                               float row1) noexcept {
+    return col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h;
+  }
 
   /**
    * @brief Pending map transition request produced when the player steps on a portal.

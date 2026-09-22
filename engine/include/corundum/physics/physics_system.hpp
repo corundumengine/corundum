@@ -66,7 +66,7 @@ namespace corundum::physics {
    *
    * Applies input, integrates velocity, converts iso↔Cartesian for collision
    * resolution against tile rects and triangles, resolves NPC body collisions,
-   * clamps to map bounds, and sets scene.pending_transition on portal overlap.
+   * clamps to map bounds, and arms scene.transition_prompt on portal overlap.
    *
    *  @param[in,out] transforms    SoA table; read/written for player movement.
    *  @param[in]     collisions    Collision bounding boxes for all entities.

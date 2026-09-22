@@ -13,6 +13,7 @@
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/pathfinding.hpp>
 #include <corundum/world/picking.hpp>
+#include <corundum/world/portals/portal.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
@@ -80,9 +81,7 @@ namespace corundum::physics {
         scene.transition_prompt.reset();
 
       for (const auto &portal : map.portals) {
-        const bool overlaps =
-            col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h;
-        if (!overlaps)
+        if (!corundum::world::portal_overlaps(portal, col0, col1, row0, row1))
           continue;
         if (!portal_elev_matches(map, portal, player_elev, elev_tolerance))
           continue;

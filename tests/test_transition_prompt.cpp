@@ -47,15 +47,15 @@ TEST_CASE("TransitionPrompt — MoveRight moves highlight to No and stays pendin
   CHECK(result == Step::Pending);
   CHECK_FALSE(prompt.confirm_selected());
 
-  prompt.step(with_only(corundum::input::Action::MoveLeft));
+  CHECK(prompt.step(with_only(corundum::input::Action::MoveLeft)) == Step::Pending);
   CHECK(prompt.confirm_selected());
 }
 
 TEST_CASE("TransitionPrompt — MoveUp/Down alias MoveLeft/Right") {
   TransitionPrompt prompt{make_portal()};
-  prompt.step(with_only(corundum::input::Action::MoveDown));
+  CHECK(prompt.step(with_only(corundum::input::Action::MoveDown)) == Step::Pending);
   CHECK_FALSE(prompt.confirm_selected());
-  prompt.step(with_only(corundum::input::Action::MoveUp));
+  CHECK(prompt.step(with_only(corundum::input::Action::MoveUp)) == Step::Pending);
   CHECK(prompt.confirm_selected());
 }
 
@@ -73,7 +73,7 @@ TEST_CASE("TransitionPrompt — Select on Yes confirms and exposes the stashed t
 
 TEST_CASE("TransitionPrompt — Select on No dismisses and latches declined") {
   TransitionPrompt prompt{make_portal()};
-  prompt.step(with_only(corundum::input::Action::MoveRight));
+  CHECK(prompt.step(with_only(corundum::input::Action::MoveRight)) == Step::Pending);
   REQUIRE_FALSE(prompt.confirm_selected());
 
   const Step result = prompt.step(with_only(corundum::input::Action::Select));
@@ -91,7 +91,7 @@ TEST_CASE("TransitionPrompt — Cancel dismisses from any highlight") {
   }
   {
     TransitionPrompt prompt{make_portal()};
-    prompt.step(with_only(corundum::input::Action::MoveRight));
+    CHECK(prompt.step(with_only(corundum::input::Action::MoveRight)) == Step::Pending);
     REQUIRE_FALSE(prompt.confirm_selected());
     const Step result = prompt.step(with_only(corundum::input::Action::Cancel));
     CHECK(result == Step::Dismissed);
@@ -101,7 +101,7 @@ TEST_CASE("TransitionPrompt — Cancel dismisses from any highlight") {
 
 TEST_CASE("TransitionPrompt — no input returns Pending") {
   TransitionPrompt prompt{make_portal()};
-  corundum::input::InputState input{};
+  const corundum::input::InputState input{};
   CHECK(prompt.step(input) == Step::Pending);
   CHECK(prompt.confirm_selected());
   CHECK_FALSE(prompt.declined());
@@ -116,6 +116,12 @@ TEST_CASE("TransitionPrompt — overlaps matches the arming portal's AABB") {
   CHECK(prompt.overlaps(12.5f, 13.5f, 13.5f, 13.5f));      // straddling left edge
   CHECK_FALSE(prompt.overlaps(10.f, 10.5f, 13.5f, 13.5f)); // clear to the left
   CHECK_FALSE(prompt.overlaps(13.5f, 13.5f, 11.f, 11.5f)); // clear above
+
+  // Half-open edges: merely touching the trigger rect does not count as overlap.
+  CHECK_FALSE(prompt.overlaps(14.f, 14.5f, 13.5f, 13.5f)); // col0 == rect right edge
+  CHECK_FALSE(prompt.overlaps(12.5f, 13.f, 13.5f, 13.5f)); // col1 == rect left edge
+  CHECK_FALSE(prompt.overlaps(13.5f, 13.5f, 14.f, 14.5f)); // row0 == rect bottom edge
+  CHECK_FALSE(prompt.overlaps(13.5f, 13.5f, 12.5f, 13.f)); // row1 == rect top edge
 }
 
 TEST_CASE("TransitionPrompt — guards matches the arming portal exactly") {
@@ -130,4 +136,9 @@ TEST_CASE("TransitionPrompt — guards matches the arming portal exactly") {
   Portal wider = portal;
   wider.w = 2.f;
   CHECK_FALSE(prompt.guards(wider));
+
+  // Same rect but a different trigger: still not the one this prompt guards.
+  Portal retargeted = portal;
+  retargeted.target_map = "tests/fixtures/tilemaps/other.json";
+  CHECK_FALSE(prompt.guards(retargeted));
 }

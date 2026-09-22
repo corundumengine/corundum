@@ -8,16 +8,27 @@
 
 namespace corundum::world {
 
+  namespace {
+    /** @brief Derive the transition stashed by @ref TransitionPrompt from its portal. */
+    MapTransition transition_from(const Portal &portal) {
+      return {
+          .target_map = portal.target_map,
+          .spawn_col = portal.spawn_col,
+          .spawn_row = portal.spawn_row,
+          .return_to_world = portal.return_to_world,
+      };
+    }
+  } // namespace
+
   TransitionPrompt::TransitionPrompt(const Portal &portal) noexcept
-      : rect_col_{portal.col}, rect_h_{portal.h}, rect_row_{portal.row}, rect_w_{portal.w},
-        transition_{portal.target_map, portal.spawn_col, portal.spawn_row, portal.return_to_world} {}
+      : portal_{portal}, transition_{transition_from(portal)} {}
 
   bool TransitionPrompt::overlaps(float col0, float col1, float row0, float row1) const noexcept {
-    return col1 > rect_col_ && col0 < rect_col_ + rect_w_ && row1 > rect_row_ && row0 < rect_row_ + rect_h_;
+    return portal_overlaps(portal_, col0, col1, row0, row1);
   }
 
   bool TransitionPrompt::guards(const Portal &portal) const noexcept {
-    return rect_col_ == portal.col && rect_row_ == portal.row && rect_w_ == portal.w && rect_h_ == portal.h;
+    return portal_ == portal;
   }
 
   TransitionPrompt::Step TransitionPrompt::step(const corundum::input::InputState &input) noexcept {
