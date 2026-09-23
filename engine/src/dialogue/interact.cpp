@@ -50,7 +50,6 @@ namespace corundum::dialogue {
   } // namespace
 
   void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions) {
-    using corundum::entities::EntityId;
     using corundum::entities::World;
 
     if (!scene.dialogue)
@@ -62,17 +61,15 @@ namespace corundum::dialogue {
 
     if (scene.dialogue_npc) {
       World &world = scene.world;
-      const EntityId npc = *scene.dialogue_npc;
-      if (scene.dialogue_npc_saved_facing && world.facings.has(npc))
-        world.facings.dir_ref(npc) = *scene.dialogue_npc_saved_facing;
-      if (scene.dialogue_npc_saved_anim && world.sprites.has(npc)) {
-        world.sprites.anim_id_ref(npc) = *scene.dialogue_npc_saved_anim;
-        world.sprites.frame_index_ref(npc) = 0;
+      const corundum::world::DialogueNpc &npc = *scene.dialogue_npc;
+      if (npc.saved_facing && world.facings.has(npc.entity))
+        world.facings.dir_ref(npc.entity) = *npc.saved_facing;
+      if (npc.saved_anim && world.sprites.has(npc.entity)) {
+        world.sprites.anim_id_ref(npc.entity) = *npc.saved_anim;
+        world.sprites.frame_index_ref(npc.entity) = 0;
       }
     }
     scene.dialogue_npc.reset();
-    scene.dialogue_npc_saved_facing.reset();
-    scene.dialogue_npc_saved_anim.reset();
     scene.dialogue.reset();
     scene.mode = corundum::world::GameMode::Exploring;
   }
@@ -126,12 +123,13 @@ namespace corundum::dialogue {
 
       const Direction toward_npc = dir_from_delta(npc_col - player_col, npc_row - player_row);
 
+      corundum::world::DialogueNpc npc{.entity = eid};
       if (world.facings.has(eid)) {
-        scene.dialogue_npc_saved_facing = world.facings.dir_of(eid);
+        npc.saved_facing = world.facings.dir_of(eid);
         const Direction face_player = corundum::core::opposite(toward_npc);
         world.facings.dir_ref(eid) = face_player;
         if (world.sprites.has(eid) && world.animations.has(eid)) {
-          scene.dialogue_npc_saved_anim = world.sprites.anim_id_ref(eid);
+          npc.saved_anim = world.sprites.anim_id_ref(eid);
           const AnimId dir_anim = to_anim(face_player);
           const bool has_dir_anim = world.animations.frame_count(eid, dir_anim) > 0;
           world.sprites.anim_id_ref(eid) = has_dir_anim ? dir_anim : AnimId::Default;
@@ -139,7 +137,7 @@ namespace corundum::dialogue {
         }
       }
 
-      scene.dialogue_npc = eid;
+      scene.dialogue_npc = npc;
       scene.dialogue.emplace(*graph, flags, quests, &graphs, scene.zone_id);
       scene.mode = corundum::world::GameMode::Dialogue;
       // Defensive: a click that both queued a path AND was close enough to trigger
