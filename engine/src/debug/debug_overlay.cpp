@@ -16,6 +16,7 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -43,6 +44,7 @@ namespace corundum::debug {
     constexpr uint32_t k_font_sz = 16;
     constexpr float k_line_h = 20.f;
     constexpr float k_pad = 8.f;
+    /// Minimum HUD panel width; the panel grows to fit its widest rendered line.
     constexpr float k_box_w = 360.f;
 
     constexpr float k_fps_ema_alpha = 0.05f;
@@ -92,6 +94,31 @@ namespace corundum::debug {
             .colour = colour,
         });
       }
+    }
+
+    /// Path of the map the player currently occupies: the single map's path, or the
+    /// active chunk containing the player in world mode. Empty when neither applies.
+    [[nodiscard]] std::string resolve_map_name(const render::RenderState &render, const entities::World &w,
+                                               entities::EntityId player) {
+      if (render.mode == render::RenderMode::SingleMap && !render.map_data.tilemap.path.empty())
+        return render.map_data.tilemap.path;
+
+      if (render.mode != render::RenderMode::World || render.chunks.active_empty())
+        return {};
+
+      const int chunk_size = render.manifest.chunk_size;
+      if (chunk_size <= 0 || !w.transforms.has(player))
+        return {};
+
+      const world::tilemap::ChunkCoord player_chunk{
+          .col = static_cast<int>(w.transforms.pos_col(player)) / chunk_size,
+          .row = static_cast<int>(w.transforms.pos_row(player)) / chunk_size,
+      };
+      for (const render::ChunkEntry &entry : render.chunks.active()) {
+        if (entry.coord == player_chunk)
+          return entry.tilemap.path;
+      }
+      return {};
     }
 
   } // namespace
@@ -224,30 +251,25 @@ namespace corundum::debug {
       player_dr = w.transforms.dr[di];
     }
 
+    // apply_input() normalises velocity in screen space, so on-screen speed is the
+    // direction-invariant quantity; the tile-space dc/dr it decomposes into are not
+    // (the isometric projection scales the two grid axes differently). Report both,
+    // each with its unit, so the component pair is not misread as a single speed.
+    const core::math::IsometricParams iso = resolve_isometric(render, cfg);
+    const bool have_iso = iso.half_tw > 0.f && iso.half_th > 0.f;
+    float screen_speed = 0.f;
+    if (have_iso) {
+      const core::math::Vec2 screen_delta = core::math::tile_to_screen_delta(player_dc, player_dr, iso);
+      screen_speed = std::hypot(screen_delta.x, screen_delta.y);
+    }
+
     const render::CollisionGeometry geo = render::current_collisions(render);
     const int collision_rects = static_cast<int>(geo.rects.size());
     const int collision_tris = static_cast<int>(geo.tris.size());
 
     const platform::RendererStats stats = r.stats();
 
-    std::string map_name;
-    if (render.mode == render::RenderMode::SingleMap && !render.map_data.tilemap.path.empty()) {
-      map_name = render.map_data.tilemap.path;
-    } else if (render.mode == render::RenderMode::World && !render.chunks.active_empty()) {
-      const int cs = render.manifest.chunk_size;
-      if (cs > 0 && w.transforms.has(p)) {
-        const world::tilemap::ChunkCoord c{
-            .col = static_cast<int>(w.transforms.pos_col(p)) / cs,
-            .row = static_cast<int>(w.transforms.pos_row(p)) / cs,
-        };
-        for (const render::ChunkEntry &entry : render.chunks.active()) {
-          if (entry.coord == c) {
-            map_name = entry.tilemap.path;
-            break;
-          }
-        }
-      }
-    }
+    const std::string map_name = resolve_map_name(render, w, p);
 
     // Format every line into one buffer, recording each line's start offset. The
     // buffer may reallocate as it grows, so offsets (not views) are kept and sliced
@@ -273,7 +295,12 @@ namespace corundum::debug {
     else
       std::format_to(std::back_inserter(begin_line(1)), "Grid:  (none)");
 
-    std::format_to(std::back_inserter(begin_line(2)), "Velocity:  dc ({:7.1f}), dr ({:7.1f})", player_dc, player_dr);
+    if (have_iso)
+      std::format_to(std::back_inserter(begin_line(2)), "Speed:  {:6.1f} px/s  ({:6.2f}, {:6.2f}) tile/s", screen_speed,
+                     player_dc, player_dr);
+    else
+      std::format_to(std::back_inserter(begin_line(2)), "Speed:  {:6.1f} tile/s  (dc {:6.2f}, dr {:6.2f})",
+                     std::hypot(player_dc, player_dr), player_dc, player_dr);
     if (w.facings.has(p))
       std::format_to(std::back_inserter(panel), "  {}", core::direction_name(w.facings.dir_of(p)));
 
@@ -296,19 +323,29 @@ namespace corundum::debug {
     else
       std::format_to(std::back_inserter(begin_line(7)), "Hover:  none");
 
+    const std::string_view panel_view{panel};
+    const auto line_at = [&panel_view, &line_offsets](std::size_t i) -> std::string_view {
+      const std::size_t end = (i + 1 < k_line_count) ? line_offsets[i + 1] : panel_view.size();
+      return panel_view.substr(line_offsets[i], end - line_offsets[i]);
+    };
+
+    // Size the background to the widest line — measure_text accounts for the active
+    // font's real advances — so a longer field never overflows the panel.
+    float content_w = k_box_w;
+    for (std::size_t i = 0; i < k_line_count; ++i)
+      content_w = std::max(content_w, r.measure_text(render.font_id, line_at(i), k_font_sz));
+
     r.draw(platform::DrawRect{
         .position = {.x = x - k_pad, .y = k_y - k_pad},
-        .size = {.x = k_box_w + (2.f * k_pad), .y = (static_cast<float>(k_line_count) * k_line_h) + (k_pad * 2.f)},
+        .size = {.x = content_w + (2.f * k_pad), .y = (static_cast<float>(k_line_count) * k_line_h) + (k_pad * 2.f)},
         .colour = k_hud_bg,
     });
 
-    const std::string_view panel_view{panel};
     float y = k_y;
     for (std::size_t i = 0; i < k_line_count; ++i) {
-      const std::size_t end = (i + 1 < k_line_count) ? line_offsets[i + 1] : panel.size();
       r.draw(platform::DrawText{
           .font_id = render.font_id,
-          .text = panel_view.substr(line_offsets[i], end - line_offsets[i]),
+          .text = line_at(i),
           .position = {.x = x, .y = y},
           .char_size = k_font_sz,
           .colour = k_hud_text,

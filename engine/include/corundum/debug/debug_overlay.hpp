@@ -130,7 +130,7 @@ namespace corundum::debug {
                                        float zoom, const render::RenderState &render, const entities::World &w,
                                        entities::EntityId player, core::math::IsometricParams iso) noexcept;
 
-    /** @brief Draw the top-right HUD text panel (FPS, grid, velocity, camera, stats). */
+    /** @brief Draw the top-right HUD text panel (FPS, grid, speed, camera, stats). */
     void draw_text_panel(platform::Renderer &r, const render::RenderState &render, const core::GameConfig &cfg,
                          const world::Scene &scene) const;
   };
