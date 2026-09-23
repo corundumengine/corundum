@@ -18,15 +18,18 @@ namespace corundum::world {
    * @brief Find a walkable path from @p start to @p goal, excluding @p start.
    *
    * @details A* over the 8-directional WalkabilityGraph (octile heuristic, cost 1.0
-   * cardinal / sqrt(2) diagonal), with two additional constraints beyond plain graph
+   * cardinal / sqrt(2) diagonal), with three additional constraints beyond plain graph
    * connectivity:
    *  - Corner-cutting is rejected: a diagonal step from a cell is only allowed if both
-   *    flanking cardinal steps from that same cell are also open.
+   *    flanking cardinal steps from that same cell are also open, and neither flanking
+   *    cell is itself blocked by collision geometry.
    *  - A candidate cell is rejected if any CollisionRect/CollisionTriangle whose
    *    elevation is within tolerance of that cell's own elevation overlaps it — the
    *    WalkabilityGraph alone has no notion of walls, only elevation deltas, so without
    *    this a path could route straight through a wall (the entity wouldn't clip
-   *    through it, but would visibly get stuck pushing against it mid-path).
+   *    through it, but would visibly get stuck pushing against it mid-path). The
+   *    tolerance is the same ramp-aware gate physics applies to the mover
+   *    (physics::compute_elevation_gate).
    *  - When @p npc_collisions and @p npc_transforms are both non-null, a candidate cell
    *    is also rejected if it overlaps any NPC's collision AABB, skipping @p exclude.
    *    This prevents the pathfinder from routing through other entities (which would
@@ -46,12 +49,15 @@ namespace corundum::world {
    * @param npc_collisions  Entity bounding-box table for dynamic NPC obstacle avoidance; nullptr = skip.
    * @param npc_transforms  Entity position table for dynamic NPC obstacle avoidance; nullptr = skip.
    * @param exclude         Entity the NPC scan ignores (the mover); EntityId::invalid() = skip none.
+   * @pre When @p npc_collisions is non-null, every entity it lists must also have a row in
+   *      @p npc_transforms — the NPC scan reads both tables; an entity missing from the
+   *      transform table is skipped rather than treated as an obstacle.
    * @return Ordered waypoints from the first step after @p start through @p goal.
    */
   [[nodiscard]] std::vector<TileCoord>
   find_path(const MapView &map, TileCoord start, TileCoord goal,
             const corundum::entities::CollisionTable *npc_collisions = nullptr,
             const corundum::entities::TransformTable *npc_transforms = nullptr,
-            corundum::entities::EntityId exclude = corundum::entities::EntityId::invalid()) noexcept;
+            corundum::entities::EntityId exclude = corundum::entities::EntityId::invalid());
 
 } // namespace corundum::world
