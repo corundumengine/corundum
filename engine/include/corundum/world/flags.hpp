@@ -21,7 +21,6 @@ namespace corundum::world {
   /** @brief True if @p name has been set at least once.
    *  @param[in] flags The flag store to query.
    *  @param[in] name  Flag name.
-   *  @return True when the flag count is >= 1.
    */
   [[nodiscard]] inline bool has_flag(const FlagStore &flags, const std::string &name) noexcept {
     const auto it = flags.find(name);
@@ -54,6 +53,15 @@ namespace corundum::world {
     return it != flags.end() ? it->second : 0;
   }
 
+  /** @brief The key prefix shared by every flag scoped to @p zone_id.
+   *
+   * @param zone_id The zone id to build the prefix for.
+   * @return `zone.<zone_id>.`, the prefix `scoped_flag_key` embeds and `reset_zone` erases.
+   */
+  [[nodiscard]] inline std::string zone_flag_prefix(std::string_view zone_id) {
+    return std::format("zone.{}.", zone_id);
+  }
+
   /** @brief Resolve a `local.<key>` flag reference to its zone-scoped key.
    *
    * `local.<key>` is authoring sugar for `zone.<zone_id>.<key>`. Bare keys and
@@ -68,7 +76,7 @@ namespace corundum::world {
     constexpr std::string_view k_local_prefix = "local.";
     if (zone_id.empty() || !key.starts_with(k_local_prefix))
       return std::string(key);
-    return std::format("zone.{}.{}", zone_id, key.substr(k_local_prefix.size()));
+    return std::format("{}{}", zone_flag_prefix(zone_id), key.substr(k_local_prefix.size()));
   }
 
   /** @brief Erase every zone-scoped flag belonging to @p zone_id (`zone.<id>.<key>`).
@@ -80,10 +88,12 @@ namespace corundum::world {
    * @param[in]     zone_id The zone whose scoped keys should be removed.
    */
   inline void reset_zone(FlagStore &flags, std::string_view zone_id) {
-    const std::string prefix = std::format("zone.{}.", zone_id);
-    auto it = flags.lower_bound(prefix);
-    while (it != flags.end() && it->first.starts_with(prefix))
-      it = flags.erase(it);
+    const std::string prefix{zone_flag_prefix(zone_id)};
+    const auto first = flags.lower_bound(prefix);
+    auto last = first;
+    while (last != flags.end() && last->first.starts_with(prefix))
+      ++last;
+    flags.erase(first, last);
   }
 
 } // namespace corundum::world
