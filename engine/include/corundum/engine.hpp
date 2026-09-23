@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+
+// Each include below supplies a complete type for an Engine member (or an inline
+// symbol the public API uses); do not slim this block.
 #include <corundum/audio/audio_system.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
