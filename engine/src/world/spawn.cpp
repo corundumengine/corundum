@@ -111,7 +111,7 @@ namespace corundum::world {
         } else {
           eid = spawn(world, position, velocity, sprite, DialogueRef{.graph_id = actor.dialogue_ref});
         }
-        world.animations.insert(eid);
+        world.animations.insert(eid, stats.frame_duration);
         world.animations.set_frame_counts(eid, stats.frame_counts);
         world.collisions.insert(eid, stats.col_span, stats.row_span);
 

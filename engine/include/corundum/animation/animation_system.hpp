@@ -34,7 +34,8 @@ namespace corundum::animation {
    *  @param[in]     iso            projection params converting velocity to screen speed.
    *  @param[in]     reference_speed screen speed (px/s) at which a clip plays at its authored rate.
    *  @param[in]     dt             fixed timestep in seconds.
-   *  @post Active sprite is the walk sheet while moving, idle sheet while still.
+   *  @post After the configured transition delay, the active sprite is the walk sheet
+   *        while moving and the idle sheet while still.
    *  @performance O(n) over active animation count. No heap allocation.
    */
   void update(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,

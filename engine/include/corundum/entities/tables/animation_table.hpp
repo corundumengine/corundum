@@ -15,30 +15,31 @@
 
 namespace corundum::entities {
 
+  /// Frame duration used when an animation row is inserted without an authored rate.
+  inline constexpr float k_default_frame_duration = 0.15f;
+
   /** @brief SoA table for the Animation component.
    *
    * Only entities with animated sprites appear here (player, NPCs). Static scenery
    * has no entry. `frame_counts` is a flat 2D buffer `[k_max × k_num_anim_ids]`; use
    * `frame_count(e, anim_id)` for lookup. `timer` and `frame_duration` are
-   * `alignas(16)` for auto-vectorisation.
+   * `alignas(k_cache_line)` and front-loaded so they never share a cache line with
+   * — or sit immediately before — the cold data below.
    */
   struct AnimationTable {
     static constexpr auto k_max = k_max_entities;
 
-    // ── Hot: timer / frame_duration tick every frame. Front-loaded so the cold data
-    // below never shares a cache line with — or sits immediately before — hot data. ──
     alignas(k_cache_line) std::array<float, k_max> timer{};
 
     alignas(k_cache_line) std::array<float, k_max> frame_duration{};
 
-    // ── Sparse index ───────────────────────────────────────────────
     SparseIndex<k_max> index;
 
-    // ── Lukewarm: frame_counts[entity_idx * k_num_anim_ids + anim_id] ──
-    // Read on animation transition; cached at spawn from character registry.
+    // frame_counts[dense_slot * k_num_anim_ids + anim_id]; read on animation
+    // transition, cached at spawn from character registry.
     std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::sprites::k_num_anim_ids> frame_counts{};
 
-    std::uint32_t count = 0;
+    std::uint32_t count{};
 
     /** @brief Contiguous span over playback timers for all live entities. */
     [[nodiscard]] auto active_timer(this auto &self) noexcept {
@@ -62,14 +63,15 @@ namespace corundum::entities {
       return index.has(e);
     }
 
-    /** @brief Add an animation row for @p e with default 0.15 s frame duration.
-     *  @param[in] e Entity (must not already be present).
+    /** @brief Add an animation row for @p e.
+     *  @param[in] e                 Entity (must not already be present).
+     *  @param[in] seconds_per_frame Authored seconds per frame; non-positive uses the default.
      *  @pre has(e) must be false.
      */
-    void insert(EntityId e) noexcept {
+    void insert(EntityId e, float seconds_per_frame = k_default_frame_duration) noexcept {
       index.insert(e, count, [&](auto slot) {
         timer[slot] = 0.f;
-        frame_duration[slot] = 0.15f;
+        frame_duration[slot] = seconds_per_frame > 0.f ? seconds_per_frame : k_default_frame_duration;
         auto *counts = &frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids];
         std::fill_n(counts, corundum::sprites::k_num_anim_ids, uint8_t{0});
       });
@@ -105,9 +107,11 @@ namespace corundum::entities {
      *  @param[in] e      Entity to query.
      *  @param[in] anim_id Animation clip ID.
      *  @pre has(e) must be true.
+     *  @pre anim_id must not be AnimId::Count (a sentinel, not a real clip).
      */
     [[nodiscard]] uint8_t frame_count(EntityId e, corundum::sprites::AnimId anim_id) const noexcept {
       assert(has(e));
+      assert(anim_id != corundum::sprites::AnimId::Count); // Count is a sentinel, not a real clip.
       const auto slot = index.dense_index(e);
       return frame_counts[(static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids) +
                           static_cast<uint8_t>(anim_id)];
