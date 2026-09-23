@@ -687,7 +687,8 @@ namespace corundum::world::tilemap {
 
   /**
    * @brief Validates a tilemap for author-time errors: orphaned tile references, duplicate layer
-   * names, and out-of-bounds collision geometry.
+   * names, layer tile-count mismatches, out-of-bounds collision geometry, and ramps whose
+   * axis-neighbors fall outside the map.
    *
    * Intended to be run explicitly before save/export (e.g. by an editor), not as a load-time gate —
    * @see corundum::world::tilemap::load_tilemap for load-time structural checks.
@@ -695,6 +696,9 @@ namespace corundum::world::tilemap {
    * @param tilemap The tilemap to validate.
    * @return One human-readable message per problem found, each naming the offending layer/cell/rect
    *         so an editor can point the author at a specific location. Empty if the map is valid.
+   *
+   * @note A non-positive width or height is reported as a single error and short-circuits the
+   *       remaining checks, which all index cells by width.
    */
   [[nodiscard]] std::vector<std::string> validate(const Tilemap &tilemap);
 

@@ -5,6 +5,8 @@
 
 #include <corundum/world/tilemap/tilemap.hpp>
 
+#include <cstddef>
+
 namespace ctt = corundum::world::tilemap;
 
 namespace {
@@ -26,6 +28,18 @@ namespace {
     layer.name = "ground";
     layer.z_index = 0;
     layer.tiles = {0, 1, 2, 3};
+    tm.layers.push_back(layer);
+    return tm;
+  }
+
+  ctt::Tilemap make_empty_map(int width, int height) {
+    ctt::Tilemap tm;
+    tm.width = width;
+    tm.height = height;
+
+    ctt::TilemapLayer layer;
+    layer.name = "ground";
+    layer.tiles.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), ctt::k_empty_tile);
     tm.layers.push_back(layer);
     return tm;
   }
@@ -118,4 +132,48 @@ TEST_CASE("validate — collision triangle extending past map bounds") {
   const auto errors = ctt::validate(tm);
   REQUIRE(errors.size() == 1);
   CHECK(errors[0].find("collision triangle") != std::string::npos);
+}
+
+TEST_CASE("validate — negative collision span is flagged") {
+  auto tm = make_valid_map();
+  tm.collisions.push_back(0.f, 0.f, -1.f, 1.f); // negative span never exceeds width, but is still invalid
+
+  CHECK(ctt::validate(tm).size() == 1);
+}
+
+TEST_CASE("validate — interior ramp with in-bounds axis neighbors") {
+  auto tm = make_empty_map(3, 3);
+  const int center = (1 * 3) + 1; // (col=1, row=1); both north and south neighbors exist
+  tm.layers[0].ramps[center] = ctt::RampAxis::NorthSouth;
+
+  CHECK(ctt::validate(tm).empty());
+}
+
+TEST_CASE("validate — ramp whose axis-neighbor is outside the map") {
+  auto tm = make_empty_map(3, 3);
+  const int top_center = 1; // (col=1, row=0); the north neighbor is off-map
+  tm.layers[0].ramps[top_center] = ctt::RampAxis::NorthSouth;
+
+  const auto errors = ctt::validate(tm);
+  REQUIRE(errors.size() == 1);
+  CHECK(errors[0].find("axis-neighbor") != std::string::npos);
+}
+
+TEST_CASE("validate — non-positive dimensions short-circuit with an error") {
+  ctt::Tilemap tm;
+  tm.width = 0;
+  tm.height = 0;
+
+  const auto errors = ctt::validate(tm);
+  REQUIRE(errors.size() == 1);
+  CHECK(errors[0].find("invalid map dimensions") != std::string::npos);
+}
+
+TEST_CASE("validate — layer tile count mismatch is flagged") {
+  auto tm = make_valid_map();
+  tm.layers[0].tiles.pop_back(); // 3 tiles for a 2x2 (4-cell) map
+
+  const auto errors = ctt::validate(tm);
+  REQUIRE(errors.size() == 1);
+  CHECK(errors[0].find("expected 4") != std::string::npos);
 }
