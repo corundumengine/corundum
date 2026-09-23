@@ -6,7 +6,6 @@
 #include <corundum/entities/components.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/world/scene.hpp>
-#include <corundum/world/tilemap/tilemap.hpp>
 
 #include <expected>
 #include <optional>
@@ -16,14 +15,18 @@ namespace corundum::render {
   struct RenderState;
 } // namespace corundum::render
 
+namespace corundum::world::tilemap {
+  struct Tilemap;
+} // namespace corundum::world::tilemap
+
 namespace corundum::world {
 
   /**
    * @brief Spawn the player and all actors into a fresh Scene.
    *
-   * @param cfg        Game configuration (tile scale, sprite scale).
+   * @param cfg        Game configuration; reads paths.spawn_points_dir and the player sprite/placement fields.
    * @param registry   Character registry for sprite ID lookups.
-   * @param tilemap    Loaded tilemap (used for tile dimensions and map stem).
+   * @param tilemap    Loaded tilemap; only its path stem names the per-map spawn-points file.
    * @param player_pos Tile-grid position for the player (col, row). Precedence (most specific
    *                  wins): explicit argument > per-map spawn_points "player" block >
    *                  game.json "player" col/row > built-in default (8, 8).
@@ -33,9 +36,8 @@ namespace corundum::world {
    *         or std::unexpected with an error description on failure.
    */
   [[nodiscard]] std::expected<Scene, std::string>
-  spawn_world(const corundum::core::GameConfig &cfg, const corundum::sprites::CharacterRegistry &registry,
-              const corundum::world::tilemap::Tilemap &tilemap,
-              std::optional<corundum::entities::Position> player_pos = std::nullopt, bool spawn_file_actors = true);
+  spawn_world(const core::GameConfig &cfg, const sprites::CharacterRegistry &registry, const tilemap::Tilemap &tilemap,
+              std::optional<entities::Position> player_pos = std::nullopt, bool spawn_file_actors = true);
 
   /**
    * @brief Reconcile per-chunk actor entities with the render layer's active
@@ -44,7 +46,7 @@ namespace corundum::world {
    *        coords), marks actors of unloaded chunks for deletion. No-op unless
    *        mode == World, chunks are loaded, and the player is free-roaming.
    */
-  void sync_chunk_actors(Scene &scene, const corundum::render::RenderState &render,
-                         const corundum::core::GameConfig &cfg, const corundum::sprites::CharacterRegistry &registry);
+  void sync_chunk_actors(Scene &scene, const render::RenderState &render, const core::GameConfig &cfg,
+                         const sprites::CharacterRegistry &registry);
 
 } // namespace corundum::world

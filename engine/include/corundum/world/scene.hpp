@@ -41,7 +41,11 @@ namespace corundum::world {
   struct ChunkActorSet {
     corundum::world::tilemap::ChunkCoord coord{};
 
-    std::vector<corundum::entities::EntityId> entities;
+    std::vector<corundum::entities::EntityId> entities{};
+
+    /// Set when the chunk's spawn file was read but spawning failed; the set stays tracked so the
+    /// load is not retried every frame while the chunk remains resident.
+    bool load_failed{};
   };
 
   /** @brief The NPC bound to the active dialogue, with the facing and animation saved when the conversation

@@ -175,6 +175,11 @@ namespace corundum::render {
              std::ranges::contains(pending_, c);
     }
 
+    /// True if @p c is resident in the active window (ignores chunks still pending).
+    [[nodiscard]] bool is_active(world::tilemap::ChunkCoord c) const noexcept {
+      return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; });
+    }
+
     /// Queue @p c for loading. Caller should check has(c) first to avoid duplicates
     /// (kept explicit rather than implicit to match the existing call-site logic).
     void enqueue_pending(world::tilemap::ChunkCoord c) {
