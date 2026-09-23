@@ -34,6 +34,9 @@ namespace corundum::world {
     float x_origin{0.f};        ///< Isometric x-shift so the leftmost tile lands at x = 0.
     float character_scale{1.f}; ///< Character/entity sprite render scale.
     float tile_scale{1.f};      ///< Tile render scale.
+    /// Tile-grid portals for the active map/world. In world mode this aliases
+    /// RenderState::agg_portals, rebuilt by rebuild_world_aggregates(); the span is
+    /// invalidated when that buffer is rebuilt.
     std::span<const corundum::world::Portal> portals;
     /// Single-map tilemap, used to look up an entity's own elevation for elevation-aware
     /// collision. Null in chunked/streamed World mode (use world_render + elevation_at_tile instead).
@@ -75,21 +78,27 @@ namespace corundum::world {
   /**
    * @brief Build a MapView from render state for the current frame's simulation step.
    *
-   * Reads tile dimensions, isometric math, and collision views from the render
-   * pipeline and packages them into the non-owning MapView consumed by update().
+   * Reads tile dimensions, isometric math, and the pre-built collision/portal views from
+   * the render pipeline and packages them into the non-owning MapView consumed by update().
    * Handles both single-map and multi-chunk render modes.
    *
    * @param[in] render Current render state (collision data, tilemap info).
    * @param[in] cfg    Game configuration (tile scale).
    * @return A fully-populated MapView ready for the simulation step.
+   * @pre In World mode, @p render has at least one active chunk and every active chunk
+   *      shares the same diamond size; world-mode collision, walkability and portal
+   *      aggregates have already been rebuilt by rebuild_world_aggregates().
+   * @note The returned view borrows @p render (collision spans, walkability graph, portal
+   *       span and the world_render pointer); any mutation of @p render, including the next
+   *       aggregate rebuild, invalidates it.
    */
-  [[nodiscard]] MapView build_map_view(render::RenderState &render, const core::GameConfig &cfg) noexcept;
+  [[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept;
 
   /**
    * @brief World bounds of a single (non-chunked) tilemap.
    *
-   * Single source of truth for the single-map extent; each axis scales by its own
-   * half extent so a non-square diamond yields distinct width and height.
+   * Thin wrapper over tilemap::world_bounds_for_tiles() using the tilemap's grid
+   * dimensions; that helper is the shared source of the extent formula.
    *
    * @param[in] tm      Tilemap whose grid dimensions define the bounds.
    * @param[in] half_tw Half the scaled diamond width.

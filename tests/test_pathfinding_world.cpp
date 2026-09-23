@@ -65,8 +65,7 @@ namespace {
     for (int i = 0; i < n; ++i)
       state.chunks.add_active(make_chunk(i, 0, mk(i)));
     state.chunks.set_last_center({.col = 0, .row = 0});
-    corundum::render::rebuild_collision(state);
-    corundum::render::rebuild_world_walkability(state, /*max_step_height=*/4);
+    corundum::render::rebuild_world_aggregates(state, /*max_step_height=*/4);
   }
 
   // MapView as build_map_view's world branch wires it (minus the iso math the pathfinder

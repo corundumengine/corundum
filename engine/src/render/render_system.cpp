@@ -272,6 +272,7 @@ namespace corundum::render {
     state.manifest = {};
     state.agg_collisions = {};
     state.agg_triangles = {};
+    state.agg_portals.clear();
     state.above_z_cache.clear();
 
     auto tm_result = corundum::world::tilemap::load_tilemap(tilemap_path);
@@ -366,8 +367,7 @@ namespace corundum::render {
       if (auto entry = load_chunk_entry(r, state, c, cfg))
         state.chunks.add_active(std::move(*entry));
     }
-    rebuild_collision(state);
-    rebuild_world_walkability(state, static_cast<int>(cfg.max_step_height));
+    rebuild_world_aggregates(state, static_cast<int>(cfg.max_step_height));
 
     const int diamond_w = state.chunks.active_at(0).tilemap.diamond_w();
     const int diamond_h = state.chunks.active_at(0).tilemap.diamond_h();
@@ -594,6 +594,27 @@ namespace corundum::render {
 
   namespace {
 
+    /// Rebuild @c state.agg_portals from the active chunks, offsetting each chunk-local
+    /// portal (and its chunk-target spawn) into global world tile coordinates.
+    void rebuild_world_portals(render::RenderState &state) {
+      state.agg_portals.clear();
+      const int chunk_size = state.manifest.chunk_size;
+      for (const auto &chunk : state.chunks.active()) {
+        const int ox{chunk.coord.col * chunk_size};
+        const int oy{chunk.coord.row * chunk_size};
+        for (const auto &portal : chunk.portals) {
+          state.agg_portals.push_back(portal);
+          corundum::world::Portal &agg = state.agg_portals.back();
+          agg.col += static_cast<float>(ox);
+          agg.row += static_cast<float>(oy);
+          if (agg.target_chunk_col >= 0 && agg.target_chunk_row >= 0) {
+            agg.spawn_col += agg.target_chunk_col * chunk_size;
+            agg.spawn_row += agg.target_chunk_row * chunk_size;
+          }
+        }
+      }
+    }
+
     /// Active chunk owning the global tile cell (gc, gr), or nullptr if outside the window.
     const render::ChunkEntry *chunk_owner_at(const render::RenderState &state, int gc, int gr,
                                              int chunk_size) noexcept {
@@ -698,6 +719,12 @@ namespace corundum::render {
     reopen_walkability_ramp_edges(state, g, chunk_size);
   }
 
+  void rebuild_world_aggregates(render::RenderState &state, int max_step_height) {
+    rebuild_collision(state);
+    rebuild_world_walkability(state, max_step_height);
+    rebuild_world_portals(state);
+  }
+
   // ── sync_active_chunks (internal) ────────────────────────────────────────────
 
   namespace {
@@ -758,10 +785,8 @@ namespace corundum::render {
         if (!state.chunks.has(c))
           state.chunks.enqueue_pending(c);
 
-      if (any_stale) {
-        rebuild_collision(state);
-        rebuild_world_walkability(state, static_cast<int>(cfg.max_step_height));
-      }
+      if (any_stale)
+        rebuild_world_aggregates(state, static_cast<int>(cfg.max_step_height));
     }
 
     // ── render_tile_layer (internal, shared by render_tilemap / render_chunk) ───
@@ -1249,8 +1274,7 @@ namespace corundum::render {
     if (auto entry = load_chunk_entry(r, state, c, cfg)) {
       std::println("[engine] Loading chunk ({}, {})", c.col, c.row);
       state.chunks.add_active(std::move(*entry));
-      rebuild_collision(state);
-      rebuild_world_walkability(state, static_cast<int>(cfg.max_step_height));
+      rebuild_world_aggregates(state, static_cast<int>(cfg.max_step_height));
       return true;
     }
     return false;

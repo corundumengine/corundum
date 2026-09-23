@@ -300,8 +300,8 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
-  // The cave-mouth portal lives in chunk (1,1) at local tile (5,5); build_map_view
-  // offsets it by the chunk origin (8,8), so it activates at world tile (13,13).
+  // The cave-mouth portal lives in chunk (1,1) at local tile (5,5); load_world's aggregate
+  // rebuild offsets it by the chunk origin (8,8), so it activates at world tile (13,13).
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
 
@@ -365,7 +365,7 @@ TEST_CASE("world transition — chunk-to-chunk portal still teleports, not a sce
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // chunk_0_0 hosts a chunk-to-chunk portal at local (2,2) targeting chunk (1,1) at local
-  // spawn (3,3); build_map_view offsets it to world (2,2) → spawn world (11,11).
+  // spawn (3,3); load_world's aggregate rebuild offsets it to world (2,2) → spawn world (11,11).
   move_player_to(engine, 2.f, 2.f);
   advance(engine);
 

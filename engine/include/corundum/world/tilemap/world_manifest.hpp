@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/isometric.hpp>
+#include <corundum/world/world_bounds.hpp>
 
 #include <expected>
 #include <filesystem>
@@ -31,6 +32,16 @@ namespace corundum::world::tilemap {
     /// (i.e. the full grid — no trimming needed).
     int tiles_wide{};
     int tiles_tall{};
+
+    /// Effective tile columns: @ref tiles_wide when positive, else the full chunk grid.
+    [[nodiscard]] int effective_tiles_wide() const noexcept {
+      return tiles_wide > 0 ? tiles_wide : chunks_wide * chunk_size;
+    }
+
+    /// Effective tile rows: @ref tiles_tall when positive, else the full chunk grid.
+    [[nodiscard]] int effective_tiles_tall() const noexcept {
+      return tiles_tall > 0 ? tiles_tall : chunks_tall * chunk_size;
+    }
 
     std::filesystem::path base_dir{}; ///< Directory containing manifest.json.
 
@@ -67,6 +78,14 @@ namespace corundum::world::tilemap {
   /// Used to offset Cartesian collision rects to absolute world positions.
   [[nodiscard]] std::pair<float, float> chunk_origin_px(ChunkCoord c, const WorldManifest &m, int tile_px,
                                                         float tile_scale) noexcept;
+
+  /// World-space extent of a @p tiles_wide × @p tiles_tall isometric grid, in display pixels.
+  ///
+  /// Shared by single-map and chunked bounds so the extent formula has one home. Each axis
+  /// scales by its own half extent, so a non-square diamond yields distinct width and height.
+  /// @pre half_tw > 0 and half_th > 0.
+  [[nodiscard]] corundum::world::WorldBounds world_bounds_for_tiles(int tiles_wide, int tiles_tall, float half_tw,
+                                                                    float half_th) noexcept;
 
   /// Total isometric world extent in display pixels (width, height).
   /// Uses the manifest's effective tile counts — tiles_wide/tiles_tall, or the full

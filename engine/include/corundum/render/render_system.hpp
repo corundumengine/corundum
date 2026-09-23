@@ -217,4 +217,14 @@ namespace corundum::render {
    */
   void rebuild_world_walkability(render::RenderState &state, int max_step_height);
 
+  /** @brief Rebuild every world-mode aggregate for the active chunk window.
+   *
+   * Runs rebuild_collision(), rebuild_world_walkability() and the portal aggregation in one
+   * step so the three stay in sync with the active chunk set. Call after any chunk mutation.
+   *
+   * @param[in,out] state           Render state in World mode.
+   * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
+   */
+  void rebuild_world_aggregates(render::RenderState &state, int max_step_height);
+
 } // namespace corundum::render

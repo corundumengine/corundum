@@ -252,8 +252,9 @@ namespace corundum::render {
    */
   struct RenderState {
     corundum::world::tilemap::CollisionRects agg_collisions{};
-    /// Aggregated portal buffer for world mode — cleared and repopulated by build_map_view
-    /// then returned as a span via MapView. Single-map mode passes map_data.portals directly.
+    /// Aggregated portal buffer for world mode — rebuilt by rebuild_world_aggregates()
+    /// alongside agg_collisions/agg_walkability, then returned as a span via MapView.
+    /// Single-map mode passes map_data.portals directly.
     std::vector<corundum::world::Portal> agg_portals;
     corundum::world::tilemap::CollisionTriangles agg_triangles{};
     /// Aggregated walkability graph spanning the active chunk window (world mode only).

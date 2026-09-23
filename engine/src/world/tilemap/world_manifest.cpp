@@ -4,6 +4,7 @@
 #include <cmath>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
+#include <corundum/world/world_bounds.hpp>
 #include <nlohmann/json_fwd.hpp>
 
 #include <algorithm>
@@ -125,11 +126,16 @@ namespace corundum::world::tilemap {
     return {static_cast<float>(c.col) * chunk_px, static_cast<float>(c.row) * chunk_px};
   }
 
+  WorldBounds world_bounds_for_tiles(int tiles_wide, int tiles_tall, float half_tw, float half_th) noexcept {
+    const float steps{static_cast<float>(tiles_wide + tiles_tall - 1)};
+    return {.width_px = steps * half_tw * 2.f, .height_px = steps * half_th * 2.f};
+  }
+
   std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept {
-    const int tw = m.tiles_wide > 0 ? m.tiles_wide : m.chunks_wide * m.chunk_size;
-    const int th = m.tiles_tall > 0 ? m.tiles_tall : m.chunks_tall * m.chunk_size;
-    const float steps = static_cast<float>(tw + th - 1);
-    return {steps * half_tw * 2.f, steps * half_th * 2.f};
+    const WorldBounds bounds{
+        world_bounds_for_tiles(m.effective_tiles_wide(), m.effective_tiles_tall(), half_tw, half_th),
+    };
+    return {bounds.width_px, bounds.height_px};
   }
 
   std::vector<ChunkCoord> active_chunk_coords(ChunkCoord center, int radius, const WorldManifest &m) {
