@@ -33,6 +33,10 @@
 
 namespace corundum {
 
+  namespace platform {
+    struct PlatformContext;
+  } // namespace platform
+
   /** @brief Game engine instance owning all system-level resources and game state.
    *
    * Owns systems directly (no virtual dispatch), the Scene (merged entity world +
@@ -111,8 +115,8 @@ namespace corundum {
     /** @brief Take ownership of a backend-created platform handle.
      *
      *  The platform::Handle already carries the backend's destruction function, so
-     *  these are plain moves. make_engine() and the NullPlatform test bundle use them
-     *  to satisfy initialize()'s non-null window/renderer precondition.
+     *  these are plain moves. adopt_platform() and the NullPlatform test bundle use
+     *  them to satisfy initialize()'s non-null window/renderer precondition.
      */
     void adopt_window(platform::Handle<platform::Window> value) noexcept {
       window = std::move(value);
@@ -125,6 +129,14 @@ namespace corundum {
     void adopt_renderer(platform::Handle<platform::Renderer> value) noexcept {
       renderer = std::move(value);
     }
+
+    /** @brief Take ownership of a complete platform bundle.
+     *
+     *  Moves the window, GPU context, renderer and audio backend out of @p platform in the
+     *  order initialize() and the main loop expect; @p platform is left empty. Pass a
+     *  platform::PlatformContext from create_platform().
+     */
+    void adopt_platform(platform::PlatformContext platform);
 
     /** @brief Initialise all systems and load game assets.
      *

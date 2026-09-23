@@ -8,20 +8,16 @@
 
 #include <expected>
 #include <format>
-#include <span>
 #include <string>
-#include <string_view>
 #include <utility>
 
 namespace corundum {
 
-  EngineOptions parse_engine_args(std::span<const char *const> args) {
-    EngineOptions config{};
-    for (const char *const arg : args) {
-      if (std::string_view(arg) == "--debug")
-        config.show_debug_hud = true;
-    }
-    return config;
+  void Engine::adopt_platform(platform::PlatformContext platform) {
+    adopt_window(std::move(platform.window));
+    adopt_gpu(std::move(platform.gpu));
+    adopt_renderer(std::move(platform.renderer));
+    audio.adopt_backend(std::move(platform.audio_backend));
   }
 
   std::expected<Engine, std::string> make_engine(const EngineOptions &options) {
@@ -31,16 +27,15 @@ namespace corundum {
 
     auto cfg = std::move(*cfg_result);
 
+    // load_game_config() rejects non-positive window dimensions, so the narrowing
+    // conversion to the platform's unsigned size arguments is safe.
     auto platform =
         platform::create_platform(static_cast<unsigned>(cfg.win_w), static_cast<unsigned>(cfg.win_h), cfg.window_title);
     if (!platform)
       return std::unexpected(std::format("create platform: {}", platform.error()));
 
     Engine engine{};
-    engine.adopt_window(std::move(platform->window));
-    engine.adopt_gpu(std::move(platform->gpu));
-    engine.adopt_renderer(std::move(platform->renderer));
-    engine.audio.adopt_backend(std::move(platform->audio_backend));
+    engine.adopt_platform(std::move(*platform));
     engine.hud.enabled = options.show_debug_hud;
 
     if (auto result = engine.initialize(std::move(cfg)); !result)

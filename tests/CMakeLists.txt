@@ -30,6 +30,7 @@ set(TEST_SOURCES
     test_elevation_gate.cpp
     test_engine_events.cpp
     test_engine_lifecycle.cpp
+    test_engine_options.cpp
     test_entity.cpp
     test_files.cpp
     test_follow_path.cpp
