@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <algorithm>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/dialogue/registry.hpp>
@@ -21,14 +20,14 @@
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 
-#include <array>
+#include <algorithm>
 #include <cstdint>
 
 namespace {
 
   void update_exploring(corundum::world::Scene &scene, const corundum::input::InputState &input,
                         const corundum::world::MapView &map, const corundum::core::GameConfig &cfg, float dt,
-                        float win_w, float win_h) {
+                        float win_w, float win_h, corundum::core::math::IsometricParams iso) {
     using corundum::entities::EntityId;
 
     auto &world = scene.world;
@@ -40,35 +39,27 @@ namespace {
     // Integrate all NPCs (player was already integrated inside update_player).
     // NPC velocities are zero today, but when AI gives them motion this establishes
     // a clear integration step separate from the player update.
-    for (uint16_t i = 0; i < world.transforms.count; ++i) {
-      const EntityId e = world.transforms.index.entities[i];
+    for (const EntityId e : world.transforms.active_entities()) {
       if (e != player)
         corundum::physics::integrate(world.transforms, e, dt);
     }
 
-    // One projection for the whole frame: animation speed scaling (screen-space
-    // velocity) and camera tracking (cell-center anchor) share the same params.
-    // elev_step here is pre-multiplied by tile_scale to match the renderer's
-    // already-scaled iso.elev_step (see compute_isometric_params()), so the
-    // camera tracks the entity's true screen position across zoom levels.
-    const corundum::core::math::IsometricParams iso{map.half_tw, map.half_th, map.x_origin,
-                                                    cfg.elevation_step_px * map.tile_scale};
-
     corundum::animation::update(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
                                 iso, cfg.player_speed, dt);
 
-    const auto p_slot = world.transforms.dense_index(player);
-    const float pc = world.transforms.col[p_slot];
-    const float pr = world.transforms.row[p_slot];
+    const std::uint32_t player_slot = world.transforms.dense_index(player);
+    const float player_col = world.transforms.col[player_slot];
+    const float player_row = world.transforms.row[player_slot];
     // Elevation term matches the renderer's entity path (render_system.cpp) so the camera tracks
     // the player's actual screen position — omitting it made the camera jitter relative to the
     // sprite while crossing a ramp. Null elevation_map (chunked/streamed World mode) isn't wired
     // up for elevation yet, so it falls back to 0, same as elsewhere in MapView consumers.
-    const float elev = corundum::world::elevation_at_tile(map, pc, pr);
+    const float elevation = corundum::world::elevation_at_tile(map, player_col, player_row);
     // Camera tracks the player's cell-center anchor (same as the sprite) so the
     // camera and actor stay in lockstep instead of drifting half_th apart.
-    const auto [pp_x, pp_y] = corundum::core::math::tile_to_world_center(pc, pr, elev, iso);
-    scene.camera.follow_player(pp_x, pp_y, map, win_w, win_h);
+    const auto [player_pos_x, player_pos_y] =
+        corundum::core::math::tile_to_world_center(player_col, player_row, elevation, iso);
+    scene.camera.follow_player(player_pos_x, player_pos_y, map, win_w, win_h);
   }
 
   // Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel
@@ -131,10 +122,10 @@ namespace {
   }
 
   /// Step a paused-on-inventory scene: Cancel returns to Exploring (pressing I
-  /// again is handled by the toggle above the mode switch); MoveUp/MoveDown wrap
-  /// the highlight within the held-item rows (the same count
-  /// build_inventory_lines renders). Not calling update_exploring here is what
-  /// pauses the player (same mechanism as Dialogue / Prompt).
+  /// again is handled by the toggle in update()); MoveUp/MoveDown wrap the highlight
+  /// within the held-item rows (the same count build_inventory_lines renders). Not
+  /// calling update_exploring here is what pauses the player (same mechanism as
+  /// Dialogue / Prompt). The held-item scan runs only when a move is pressed.
   void update_inventory(corundum::world::Scene &scene, const corundum::input::InputState &input,
                         const corundum::world::FlagStore &flags) {
     using corundum::input::Action;
@@ -144,6 +135,11 @@ namespace {
       return;
     }
 
+    const bool move_down = input.is_pressed(Action::MoveDown);
+    const bool move_up = input.is_pressed(Action::MoveUp);
+    if (!move_down && !move_up)
+      return;
+
     const int rows = static_cast<int>(
         std::ranges::count_if(flags, [](const auto &kv) { return corundum::item::is_held_item(kv.first, kv.second); }));
     if (rows <= 0) {
@@ -151,9 +147,9 @@ namespace {
       return;
     }
 
-    if (input.is_pressed(Action::MoveDown))
+    if (move_down)
       scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, +1, rows);
-    else if (input.is_pressed(Action::MoveUp))
+    else
       scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, -1, rows);
   }
 
@@ -161,21 +157,9 @@ namespace {
 
 namespace corundum::world {
 
-  void update(corundum::world::Scene &scene, const corundum::core::GameConfig &cfg,
-              const corundum::dialogue::Registry &graphs, const corundum::input::InputState &input, const MapView &map,
-              float dt, float win_w, float win_h, corundum::world::FlagStore &flags, const quest::Registry *quests) {
-    const auto actions = corundum::input::pressed_actions(input);
-
-    update_zoom(scene, input, cfg, dt, win_w, win_h);
-
-    const corundum::core::math::IsometricParams pick_iso{
-        .half_tw = map.half_tw,
-        .half_th = map.half_th,
-        .x_origin = map.x_origin,
-        .elev_step = cfg.elevation_step_px * map.tile_scale,
-    };
-    scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, pick_iso);
-
+  void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
+              const corundum::input::InputState &input, const MapView &map, float dt, float win_w, float win_h,
+              FlagStore &flags, const quest::Registry *quests) {
     if (input.is_pressed(input::Action::Inventory)) {
       if (scene.mode == GameMode::Exploring) {
         scene.mode = GameMode::Inventory;
@@ -185,10 +169,29 @@ namespace corundum::world {
       }
     }
 
+    // Camera zoom is only applied while free-roaming: update_exploring re-clamps the
+    // viewport via follow_player on the same step, which apply_zoom requires.
+    if (scene.mode == GameMode::Exploring)
+      update_zoom(scene, input, cfg, dt, win_w, win_h);
+
+    // One projection for the whole frame: animation speed scaling (screen-space velocity),
+    // camera tracking (cell-center anchor), and tile picking share the same params.
+    // elev_step is pre-multiplied by tile_scale to match the renderer's already-scaled
+    // iso.elev_step (see compute_isometric_params()).
+    const corundum::core::math::IsometricParams iso{
+        .half_tw = map.half_tw,
+        .half_th = map.half_th,
+        .x_origin = map.x_origin,
+        .elev_step = cfg.elevation_step_px * map.tile_scale,
+    };
+    scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, iso);
+
     switch (scene.mode) {
-      case corundum::world::GameMode::Dialogue:
+      case corundum::world::GameMode::Dialogue: {
+        const corundum::input::PressedActions actions = corundum::input::pressed_actions(input);
         corundum::dialogue::update_dialogue(scene, actions);
         break;
+      }
       case corundum::world::GameMode::Prompt:
         update_transition_prompt(scene, input);
         break;
@@ -196,8 +199,11 @@ namespace corundum::world {
         update_inventory(scene, input, flags);
         break;
       case corundum::world::GameMode::Exploring:
-        update_exploring(scene, input, map, cfg, dt, win_w, win_h);
-        corundum::dialogue::try_interact(scene, input, cfg, graphs, flags, quests);
+        update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
+        // update_exploring may have armed a portal prompt (mode → Prompt), whose
+        // try_interact @pre requires Exploring.
+        if (scene.mode == GameMode::Exploring)
+          corundum::dialogue::try_interact(scene, input, cfg, graphs, flags, quests);
         break;
     }
   }
