@@ -40,7 +40,6 @@ target_link_libraries(tilesmith
 )
 
 corundum_enable_warnings(tilesmith)
-set_target_properties(tilesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Spritesmith Editor ──────────────────────────────────────────────────────────
 add_executable(spritesmith
@@ -66,7 +65,6 @@ target_link_libraries(spritesmith
 )
 
 corundum_enable_warnings(spritesmith)
-set_target_properties(spritesmith PROPERTIES UNITY_BUILD OFF)
 
 # ── Loom Editor ─────────────────────────────────────────────────────────────────
 add_executable(loom
@@ -92,7 +90,6 @@ target_link_libraries(loom
 )
 
 corundum_enable_warnings(loom)
-set_target_properties(loom PROPERTIES UNITY_BUILD OFF)
 
 # ── Mapview Tool (headless) ─────────────────────────────────────────────────────
 # A CLI that renders a top-down overview PNG of a chunk-based world from its tilemaps.
@@ -119,4 +116,3 @@ target_link_libraries(mapview
 
 corundum_use_cxx23(mapview)
 corundum_enable_warnings(mapview)
-set_target_properties(mapview PROPERTIES UNITY_BUILD OFF)

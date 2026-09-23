@@ -79,10 +79,6 @@ corundum_enable_warnings(engine_platform_glfw)
 
 add_library(corundum::engine ALIAS engine_platform_glfw)
 
-# sokol_gfx.h lacks include guards — double-inclusion in a Unity batch
-# produces redefinition errors. Keep this target out of Unity builds.
-set_target_properties(engine_platform_glfw PROPERTIES UNITY_BUILD OFF)
-
 # ── Null backend (headless) ────────────────────────────────────────────────────
 # Header-only null platform backend (Window/GpuContext/Renderer no-ops) for
 # headless lifecycle tests in tests/test_engine_lifecycle.cpp. Has no

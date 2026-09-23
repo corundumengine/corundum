@@ -49,5 +49,3 @@ elseif(WIN32)
 else()
   target_compile_definitions(corundum_tool_host PUBLIC SOKOL_GLCORE)
 endif()
-
-set_target_properties(corundum_tool_host PROPERTIES UNITY_BUILD OFF)

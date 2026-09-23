@@ -157,10 +157,6 @@ target_compile_definitions(corundum_tests PRIVATE
     CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/tests/fixtures"
 )
 
-# Multiple test files share identical helper functions (write_file, temp_dir)
-# in anonymous namespaces — Unity batching produces redefinition errors.
-set_target_properties(corundum_tests PROPERTIES UNITY_BUILD OFF)
-
 # Enable CTest integration
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 doctest_discover_tests(corundum_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

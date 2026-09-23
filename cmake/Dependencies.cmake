@@ -12,10 +12,6 @@ include_guard(GLOBAL)
 set(FETCHCONTENT_QUIET FALSE)
 include(FetchContent)
 
-# Disable Unity builds for third-party code — external headers often lack
-# include guards or mix C/ObjC/C++ sources that don't batch cleanly.
-set(CMAKE_UNITY_BUILD OFF)
-
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git

@@ -30,6 +30,7 @@ set(ENGINE_SOURCES
     src/dialogue/validate.cpp
     src/dialogue/validate_refs.cpp
     src/engine.cpp
+    src/engine_factory.cpp
     src/engine_options.cpp
     src/input/input_system.cpp
     src/item/item.cpp
@@ -77,12 +78,6 @@ set(ENGINE_SOURCES
     src/world/update.cpp
 )
 
-# engine_factory.cpp references platform::create_platform in
-# engine_platform_glfw. In a Unity batch the linker can't skip it; keep it
-# standalone so the linker only pulls it in when make_engine() is actually
-# called.
-list(APPEND ENGINE_SOURCES src/engine_factory.cpp)
-
 add_library(engine STATIC ${ENGINE_SOURCES})
 
 # Public headers are in the 'include' folder; 'src' is private so internal
@@ -97,12 +92,6 @@ corundum_enable_warnings(engine)
 # Link dependencies that the engine itself needs
 target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json
                                    PUBLIC nlohmann_json_schema_validator::validator)
-
-# PCH — stable STL + third-party headers that are slow to parse
-target_precompile_headers(engine PRIVATE src/pch.hpp)
-
-# engine_factory.cpp must stay outside Unity batches (see above).
-set_source_files_properties(src/engine_factory.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 
 # Add the platform sub-module
 add_subdirectory(src/platform)
