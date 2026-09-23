@@ -8,7 +8,7 @@
 
 namespace corundum::world {
 
-  struct MapView; // defined in update.hpp — forward-declared to keep this header light.
+  struct MapView; // defined in map_view.hpp — forward-declared to keep this header light.
 
   /**
    * @brief A tile-grid coordinate.

@@ -23,6 +23,7 @@
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/transition.hpp>
 #include <corundum/world/update.hpp>
+#include <corundum/world/world_bounds.hpp>
 
 #include <charconv>
 #include <cstddef>
@@ -32,6 +33,7 @@
 #include <format>
 #include <print>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
@@ -43,7 +45,7 @@ namespace corundum {
     int event_int_arg(const dialogue::EventAction &ev, std::size_t idx, int fallback) noexcept {
       if (idx >= ev.args.size())
         return fallback;
-      int v = fallback;
+      int v{fallback};
       const std::string &s = ev.args[idx];
       std::from_chars(s.data(), s.data() + s.size(), v);
       return v;
@@ -106,7 +108,7 @@ namespace corundum {
       }
 
       std::expected<void, std::string> init_scene() {
-        const bool world_mode = !engine_->cfg.paths.world_manifest_path.empty();
+        const bool world_mode{!engine_->cfg.paths.world_manifest_path.empty()};
         return world_mode ? init_world_scene() : init_single_map_scene();
       }
 
@@ -131,23 +133,23 @@ namespace corundum {
         const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
                                                               engine_->cfg.tile_scale, engine_->cfg.elevation_step_px);
         const auto p_slot = engine_->scene.world.transforms.dense_index(engine_->scene.player);
-        const float player_col = engine_->scene.world.transforms.col[p_slot];
-        const float player_row = engine_->scene.world.transforms.row[p_slot];
+        const float player_col{engine_->scene.world.transforms.col[p_slot]};
+        const float player_row{engine_->scene.world.transforms.row[p_slot]};
         const auto iso_pos = core::math::tile_to_world(player_col, player_row, 0.f, iso);
 
-        const float map_extent = static_cast<float>(tilemap.width + tilemap.height - 1) * iso.half_tw * 2.f;
+        const world::WorldBounds bounds{world::single_map_bounds(tilemap, iso.half_tw, iso.half_th)};
 
-        apply_default_zoom_and_center(iso_pos.x, iso_pos.y, map_extent, map_extent);
+        apply_default_zoom_and_center(iso_pos.x, iso_pos.y, bounds);
         return {};
       }
 
       /// Set the configured default zoom, then center the camera on the target
       /// point via the shared Camera::center_on (formerly duplicated inline in
       /// init_world/init_single_map).
-      void apply_default_zoom_and_center(float target_x, float target_y, float world_w, float world_h) {
+      void apply_default_zoom_and_center(float target_x, float target_y, world::WorldBounds bounds) {
         engine_->scene.camera.zoom =
             std::clamp(engine_->cfg.default_zoom, engine_->cfg.min_zoom, engine_->cfg.max_zoom);
-        engine_->scene.camera.center_on(target_x, target_y, world_w, world_h, engine_->cfg.win_w, engine_->cfg.win_h);
+        engine_->scene.camera.center_on(target_x, target_y, bounds, engine_->cfg.win_w, engine_->cfg.win_h);
       }
 
       void init_audio() {
@@ -161,17 +163,17 @@ namespace corundum {
       }
 
       void load_dialogue_and_quests() {
-        int dialogue_loaded = 0;
+        int dialogue_loaded{0};
         if (!engine_->cfg.paths.dialogue_dir.empty())
           dialogue_loaded = engine_->graphs.load_all(engine_->cfg.paths.dialogue_dir);
         std::println("[engine] Loaded {} dialogue graphs from '{}'", dialogue_loaded, engine_->cfg.paths.dialogue_dir);
 
-        int quest_loaded = 0;
+        int quest_loaded{0};
         if (!engine_->cfg.paths.quests_dir.empty())
           quest_loaded = engine_->quests.load_all(engine_->cfg.paths.quests_dir);
         std::println("[engine] Loaded {} quests from '{}'", quest_loaded, engine_->cfg.paths.quests_dir);
 
-        int item_loaded = 0;
+        int item_loaded{0};
         if (!engine_->cfg.paths.items_dir.empty())
           item_loaded = engine_->items.load_all(engine_->cfg.paths.items_dir);
         std::println("[engine] Loaded {} items from '{}'", item_loaded, engine_->cfg.paths.items_dir);
@@ -229,7 +231,7 @@ namespace corundum {
     }
 
     void handle_take_item(Engine &engine, const dialogue::EventAction &ev) {
-      const std::string key = item_flag_key(ev.args[0]);
+      const std::string key{item_flag_key(ev.args[0])};
       if (const auto it = engine.flags.find(key); it != engine.flags.end()) {
         it->second -= event_int_arg(ev, 1, /*fallback=*/1);
         if (it->second <= 0)
@@ -289,10 +291,10 @@ namespace corundum {
 
     /// Result of one frame's fixed-step simulation, consumed by compute_interpolation_alpha().
     struct SimulationResult {
-      int steps_run = 0;
-      bool entities_deleted = false;
+      int steps_run{0};
+      bool entities_deleted{false};
       /// True when the drain exhausted its step budget and dropped queued simulation time.
-      bool budget_exhausted = false;
+      bool budget_exhausted{false};
     };
 
     /// Poll platform input and handle the Quit action.
@@ -316,12 +318,12 @@ namespace corundum {
 
     /// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
     /// simulation sheds the remaining time rather than compounding a backlog.
-    constexpr int k_max_steps_per_frame = 8;
+    constexpr int k_max_steps_per_frame{8};
 
     /// Drain the timer accumulator: run gameplay, dialogue events, the
     /// on_fixed_update hook, and deletion flushing once per fixed step.
     [[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
-      const int steps = engine.timer.take_steps(k_max_steps_per_frame);
+      const int steps{engine.timer.take_steps(k_max_steps_per_frame)};
       SimulationResult result{.steps_run = steps, .budget_exhausted = steps == k_max_steps_per_frame};
 
       for (int step_index = 0; step_index < steps; ++step_index) {
@@ -412,10 +414,10 @@ namespace corundum {
 
     process_input(*this);
 
-    const SimulationResult sim = run_fixed_steps(*this);
+    const SimulationResult sim{run_fixed_steps(*this)};
     world::handle_map_transition(*this);
 
-    const float alpha = compute_interpolation_alpha(timer, sim);
+    const float alpha{compute_interpolation_alpha(timer, sim)};
     render_frame(*this, alpha, sim.budget_exhausted);
 
     stream_world_chunks(*this);

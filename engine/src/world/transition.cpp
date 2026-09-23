@@ -7,9 +7,11 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/world/camera.hpp>
+#include <corundum/world/map_view.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <corundum/world/transition.hpp>
+#include <corundum/world/world_bounds.hpp>
 
 #include <algorithm>
 #include <cstdio>
@@ -77,8 +79,8 @@ namespace corundum::world {
       ///        anchor — the world-load path keeps the camera tracking the player
       ///        exactly); @c false uses @c tile_to_world (top-vertex anchor — the
       ///        cross-map path preserves its historical projection).
-      void frame_camera_on(const corundum::core::math::IsometricParams &iso, float col, float row, float world_w,
-                           float world_h, bool anchor_cell_center) noexcept;
+      void frame_camera_on(const corundum::core::math::IsometricParams &iso, float col, float row, WorldBounds bounds,
+                           bool anchor_cell_center) noexcept;
 
       /// @brief Common failure path: log @p err under @p context label, request
       ///        quit, and close the window.
@@ -88,8 +90,8 @@ namespace corundum::world {
     };
 
     std::pair<float, float> SceneTransitioner::viewport() const noexcept {
-      const float vw = engine_->window_width() > 0 ? static_cast<float>(engine_->window_width()) : engine_->cfg.win_w;
-      const float vh = engine_->window_height() > 0 ? static_cast<float>(engine_->window_height()) : engine_->cfg.win_h;
+      const float vw{engine_->window_width() > 0 ? static_cast<float>(engine_->window_width()) : engine_->cfg.win_w};
+      const float vh{engine_->window_height() > 0 ? static_cast<float>(engine_->window_height()) : engine_->cfg.win_h};
       return {vw, vh};
     }
 
@@ -98,12 +100,12 @@ namespace corundum::world {
     }
 
     void SceneTransitioner::frame_camera_on(const corundum::core::math::IsometricParams &iso, float col, float row,
-                                            float world_w, float world_h, bool anchor_cell_center) noexcept {
+                                            WorldBounds bounds, bool anchor_cell_center) noexcept {
       apply_default_zoom();
       const auto target = anchor_cell_center ? corundum::core::math::tile_to_world_center(col, row, 0.f, iso)
                                              : corundum::core::math::tile_to_world(col, row, 0, iso);
       const auto [vw, vh] = viewport();
-      engine_->scene.camera.center_on(target.x, target.y, world_w, world_h, vw, vh);
+      engine_->scene.camera.center_on(target.x, target.y, bounds, vw, vh);
     }
 
     void SceneTransitioner::fail(std::string_view context, std::string_view err) noexcept {
@@ -132,6 +134,7 @@ namespace corundum::world {
 
       const auto [world_width, world_height] =
           corundum::world::tilemap::world_bounds_iso(engine_->render.manifest, info.half_tw, info.half_th);
+      const WorldBounds bounds{.width_px = world_width, .height_px = world_height};
       // elev_step is pre-multiplied by tile_scale to match compute_isometric_params()
       // for consistency with the renderer's scaled iso.elev_step. Designated
       // initializers keep this robust to field-order changes in IsometricParams.
@@ -141,7 +144,7 @@ namespace corundum::world {
           .x_origin = info.x_origin,
           .elev_step = engine_->cfg.elevation_step_px * engine_->cfg.tile_scale,
       };
-      frame_camera_on(iso, spawn_pos.col, spawn_pos.row, world_width, world_height, /*anchor_cell_center=*/true);
+      frame_camera_on(iso, spawn_pos.col, spawn_pos.row, bounds, /*anchor_cell_center=*/true);
       return {};
     }
 
@@ -156,7 +159,7 @@ namespace corundum::world {
           // Re-enter the overworld, positioned at the exit portal's spawn tile (the
           // exit portal always carries one). A World→interior journey sets the marker;
           // entering an interior without ever leaving a world leaves it clear.
-          const bool can_return = engine_->entered_from_world || !engine_->cfg.paths.world_manifest_path.empty();
+          const bool can_return{engine_->entered_from_world || !engine_->cfg.paths.world_manifest_path.empty()};
           if (can_return) {
             engine_->entered_from_world = false;
             if (auto result =
@@ -221,8 +224,8 @@ namespace corundum::world {
       const auto iso =
           corundum::core::math::compute_isometric_params(new_tm.diamond_w(), new_tm.diamond_h(), new_tm.height,
                                                          engine_->cfg.tile_scale, engine_->cfg.elevation_step_px);
-      const float map_extent = static_cast<float>(new_tm.width + new_tm.height - 1) * iso.half_tw * 2.f;
-      frame_camera_on(iso, spawn.col, spawn.row, map_extent, map_extent, /*anchor_cell_center=*/false);
+      const WorldBounds bounds{single_map_bounds(new_tm, iso.half_tw, iso.half_th)};
+      frame_camera_on(iso, spawn.col, spawn.row, bounds, /*anchor_cell_center=*/false);
       return {};
     }
 

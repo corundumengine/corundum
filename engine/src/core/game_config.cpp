@@ -21,13 +21,13 @@ namespace corundum::core {
 
     /// Upper bound on the configured simulation rate. Real rates top out in the low hundreds, so
     /// anything past this is a corrupt or hand-edited config.
-    constexpr unsigned int k_max_simulation_fps = 1000;
+    constexpr unsigned int k_max_simulation_fps{1000};
 
     std::expected<unsigned int, std::string> get_positive_unsigned(const json &j, const std::string &key,
                                                                    unsigned int default_val, const fs::path &path) {
       if (!j.contains(key))
         return default_val;
-      int v = 0;
+      int v{0};
       try {
         v = j.at(key).get<int>();
       } catch (...) {
@@ -42,7 +42,7 @@ namespace corundum::core {
                                                          const fs::path &path) {
       if (!j.contains(key))
         return default_val;
-      float v = NAN;
+      float v{NAN};
       try {
         v = j.at(key).get<float>();
       } catch (...) {
@@ -80,7 +80,7 @@ namespace corundum::core {
       const auto get_uint = [&](const std::string &key, unsigned default_val) -> std::expected<unsigned, std::string> {
         if (!sub.contains(key))
           return default_val;
-        unsigned v = 0;
+        unsigned v{0};
         try {
           v = sub.at(key).get<unsigned>();
         } catch (...) {
@@ -92,7 +92,7 @@ namespace corundum::core {
       const auto get_pos_float = [&](const std::string &key, float default_val) -> std::expected<float, std::string> {
         if (!sub.contains(key))
           return default_val;
-        float v = NAN;
+        float v{NAN};
         try {
           v = sub.at(key).get<float>();
         } catch (...) {
@@ -133,7 +133,7 @@ namespace corundum::core {
       }
 
       if (sub.contains("panel_height_frac")) {
-        float frac = NAN;
+        float frac{NAN};
         try {
           frac = sub.at("panel_height_frac").get<float>();
         } catch (...) {
@@ -177,7 +177,7 @@ namespace corundum::core {
                                          float default_val) -> std::expected<float, std::string> {
         if (!sub.contains(key))
           return default_val;
-        float v = NAN;
+        float v{NAN};
         try {
           v = sub.at(key).get<float>();
         } catch (...) {
@@ -230,7 +230,7 @@ namespace corundum::core {
         cfg.win_h = *res;
       }
       if (j.contains("simulation_fps")) {
-        unsigned fr = 0;
+        unsigned fr{0};
         try {
           fr = j.at("simulation_fps").get<unsigned>();
         } catch (...) {
@@ -312,6 +312,8 @@ namespace corundum::core {
           return std::unexpected(res.error());
         cfg.default_zoom = *res;
       }
+      if (cfg.min_zoom > cfg.max_zoom)
+        return std::unexpected(std::format("game.json 'min_zoom' must be <= 'max_zoom': {}", path.string()));
       return {};
     }
 

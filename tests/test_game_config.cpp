@@ -204,6 +204,24 @@ TEST_CASE("load_game_config — elevation_step_px <= 0 returns error") {
   CHECK(!result.has_value());
 }
 
+TEST_CASE("load_game_config — min_zoom > max_zoom returns error") {
+  const auto dir = temp_dir("zoom_out_of_order");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"min_zoom": 4.0, "max_zoom": 2.0})");
+  auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — min_zoom == max_zoom is allowed") {
+  const auto dir = temp_dir("zoom_equal");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"min_zoom": 2.0, "max_zoom": 2.0})");
+  auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->min_zoom == doctest::Approx(2.0));
+  CHECK(result->max_zoom == doctest::Approx(2.0));
+}
+
 // ── String validation ─────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config — empty game_font returns error") {

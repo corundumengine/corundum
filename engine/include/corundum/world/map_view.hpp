@@ -6,6 +6,7 @@
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
+#include <corundum/world/world_bounds.hpp>
 
 #include <span>
 
@@ -24,26 +25,26 @@ namespace corundum::world {
   struct MapView {
     corundum::world::tilemap::CollisionRectsView collisions;
     corundum::world::tilemap::CollisionTrianglesView collision_triangles;
-    float world_w_px = 0.f;      ///< Total isometric world width in display pixels.
-    float world_h_px = 0.f;      ///< Total isometric world height in display pixels.
-    float world_w_tiles = 0.f;   ///< Total map width in tile-grid columns.
-    float world_h_tiles = 0.f;   ///< Total map height in tile-grid rows.
-    float half_tw = 0.f;         ///< Half the scaled diamond width; used for iso↔cart conversion.
-    float half_th = 0.f;         ///< Half the scaled diamond height; used for iso↔cart conversion.
-    float x_origin = 0.f;        ///< Isometric x-shift so the leftmost tile lands at x = 0.
-    float character_scale = 1.f; ///< Character/entity sprite render scale.
-    float tile_scale = 1.f;      ///< Tile render scale.
+    float world_w_px{0.f};      ///< Total isometric world width in display pixels.
+    float world_h_px{0.f};      ///< Total isometric world height in display pixels.
+    float world_w_tiles{0.f};   ///< Total map width in tile-grid columns.
+    float world_h_tiles{0.f};   ///< Total map height in tile-grid rows.
+    float half_tw{0.f};         ///< Half the scaled diamond width; used for iso↔cart conversion.
+    float half_th{0.f};         ///< Half the scaled diamond height; used for iso↔cart conversion.
+    float x_origin{0.f};        ///< Isometric x-shift so the leftmost tile lands at x = 0.
+    float character_scale{1.f}; ///< Character/entity sprite render scale.
+    float tile_scale{1.f};      ///< Tile render scale.
     std::span<const corundum::world::Portal> portals;
     /// Single-map tilemap, used to look up an entity's own elevation for elevation-aware
     /// collision. Null in chunked/streamed World mode (use world_render + elevation_at_tile instead).
-    const corundum::world::tilemap::Tilemap *elevation_map = nullptr;
+    const corundum::world::tilemap::Tilemap *elevation_map{nullptr};
     /// Walkability graph for movement gating across too-steep elevation edges. In single-map
     /// mode this is RenderState::map_walkability; in world mode it is RenderState::agg_walkability,
     /// a graph spanning the active chunk window (origin-offset into global tile coords).
-    const corundum::world::tilemap::WalkabilityGraph *walkability = nullptr;
+    const corundum::world::tilemap::WalkabilityGraph *walkability{nullptr};
     /// Active-chunk window for world-mode elevation lookups via elevation_under().
     /// Set by build_map_view() only in World render mode; nullptr in single-map mode.
-    const corundum::render::RenderState *world_render = nullptr;
+    const corundum::render::RenderState *world_render{nullptr};
   };
 
   /** @brief Elevation of the tile under (col_f, row_f) for any render mode.
@@ -83,5 +84,18 @@ namespace corundum::world {
    * @return A fully-populated MapView ready for the simulation step.
    */
   [[nodiscard]] MapView build_map_view(render::RenderState &render, const core::GameConfig &cfg) noexcept;
+
+  /**
+   * @brief World bounds of a single (non-chunked) tilemap.
+   *
+   * Single source of truth for the single-map extent; each axis scales by its own
+   * half extent so a non-square diamond yields distinct width and height.
+   *
+   * @param[in] tm      Tilemap whose grid dimensions define the bounds.
+   * @param[in] half_tw Half the scaled diamond width.
+   * @param[in] half_th Half the scaled diamond height.
+   * @return World width/height in display pixels.
+   */
+  [[nodiscard]] WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float half_th) noexcept;
 
 } // namespace corundum::world

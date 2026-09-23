@@ -8,6 +8,7 @@
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
+#include <corundum/world/world_bounds.hpp>
 
 #include <cmath>
 #include <span>
@@ -18,17 +19,17 @@ namespace corundum::world {
     if (render.mode == render::RenderMode::World) {
       const auto &first_tm = render.chunks.active_at(0).tilemap;
       const auto &manifest = render.manifest;
-      const int total_h = manifest.tiles_tall > 0 ? manifest.tiles_tall : manifest.chunks_tall * manifest.chunk_size;
+      const int total_h{manifest.tiles_tall > 0 ? manifest.tiles_tall : manifest.chunks_tall * manifest.chunk_size};
       const auto iso = core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h,
                                                             cfg.tile_scale, cfg.elevation_step_px);
       const auto [iso_w, iso_h] = world::tilemap::world_bounds_iso(manifest, iso.half_tw, iso.half_th);
-      const float total_w = manifest.tiles_wide > 0 ? static_cast<float>(manifest.tiles_wide)
-                                                    : static_cast<float>(manifest.chunks_wide * manifest.chunk_size);
+      const float total_w{manifest.tiles_wide > 0 ? static_cast<float>(manifest.tiles_wide)
+                                                  : static_cast<float>(manifest.chunks_wide * manifest.chunk_size)};
 
       render.agg_portals.clear();
       for (const auto &chunk : render.chunks.active()) {
-        const int ox = chunk.coord.col * manifest.chunk_size;
-        const int oy = chunk.coord.row * manifest.chunk_size;
+        const int ox{chunk.coord.col * manifest.chunk_size};
+        const int oy{chunk.coord.row * manifest.chunk_size};
         for (const auto &p : chunk.portals) {
           render.agg_portals.push_back(p);
           auto &agg = render.agg_portals.back();
@@ -60,11 +61,11 @@ namespace corundum::world {
     const auto &tm = render.map_data.tilemap;
     const auto iso = core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
                                                           cfg.elevation_step_px);
-    const float steps = static_cast<float>(tm.width + tm.height - 1);
+    const WorldBounds bounds{single_map_bounds(tm, iso.half_tw, iso.half_th)};
     return {.collisions = tm.collisions.view(),
             .collision_triangles = tm.collision_triangles.view(),
-            .world_w_px = steps * iso.half_tw * 2.f,
-            .world_h_px = steps * iso.half_th * 2.f,
+            .world_w_px = bounds.width_px,
+            .world_h_px = bounds.height_px,
             .world_w_tiles = static_cast<float>(tm.width),
             .world_h_tiles = static_cast<float>(tm.height),
             .half_tw = iso.half_tw,
@@ -77,18 +78,23 @@ namespace corundum::world {
             .walkability = &render.map_walkability};
   }
 
+  WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float half_th) noexcept {
+    const float steps{static_cast<float>(tm.width + tm.height - 1)};
+    return {.width_px = steps * half_tw * 2.f, .height_px = steps * half_th * 2.f};
+  }
+
   float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept {
-    if (map.world_render)
+    if (map.world_render != nullptr)
       return render::elevation_under(*map.world_render, col_f, row_f);
-    if (map.elevation_map)
+    if (map.elevation_map != nullptr)
       return corundum::world::tilemap::interpolated_elevation_at(*map.elevation_map, col_f, row_f);
     return 0.f;
   }
 
   int discrete_elevation_at(const MapView &map, int col, int row) noexcept {
-    if (map.elevation_map)
+    if (map.elevation_map != nullptr)
       return corundum::world::tilemap::elevation_at(*map.elevation_map, col, row);
-    if (map.world_render)
+    if (map.world_render != nullptr)
       return static_cast<int>(
           std::lround(render::elevation_under(*map.world_render, static_cast<float>(col), static_cast<float>(row))));
     return 0;

@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include <corundum/world/world_bounds.hpp>
+
 namespace corundum::world {
 
-  struct MapView; // defined in update.hpp — forward-declared to keep this header light.
+  struct MapView; // defined in map_view.hpp — forward-declared to keep this header light.
 
   /**
    * @brief Top-left world-pixel coordinate of the visible viewport.
@@ -17,22 +19,24 @@ namespace corundum::world {
   class Camera {
   public:
     /// Camera feel constants — tuned for feel, deliberately not GameConfig fields.
-    static constexpr float k_horiz_margin = 200.0f; ///< On-screen follow dead-zone width in px.
-    static constexpr float k_vert_margin = 150.0f;  ///< On-screen follow dead-zone height in px.
-    static constexpr float k_zoom_base = 1.1f;      ///< Multiplicative step per zoom notch.
+    static constexpr float k_horizontal_margin{200.0f}; ///< On-screen follow dead-zone width in px.
+    static constexpr float k_vertical_margin{150.0f};   ///< On-screen follow dead-zone height in px.
+    static constexpr float k_zoom_base{1.1f};           ///< Multiplicative step per zoom notch.
 
-    float x = 0.f;
-    float y = 0.f;
+    float x{0.f};
+    float y{0.f};
     /// Camera-level zoom factor; 1.0 = no zoom. Renderer-only projection scale —
     /// never baked into tile/collision/walkability projection math.
-    float zoom = 1.f;
+    float zoom{1.f};
 
     /**
      * @brief Update the camera position to follow a target with a dead zone.
      *
      * The camera only moves when the target crosses a dead zone around the
      * viewport centre. This prevents micro-jitter from small movements
-     * (idle animation, velocity rounding).
+     * (idle animation, velocity rounding). If the world is smaller than the
+     * effective viewport on an axis, the camera is centered on the world along
+     * that axis instead of clamped.
      *
      *  @param[in] player_x Target X world position in px.
      *  @param[in] player_y Target Y world position in px.
@@ -40,7 +44,8 @@ namespace corundum::world {
      *  @param[in] win_w    Viewport width in px.
      *  @param[in] win_h    Viewport height in px.
      *  @pre zoom > 0.
-     *  @post Camera is clamped so the viewport does not extend beyond the map.
+     *  @post The viewport does not extend beyond the map, unless the map is smaller
+     *        than the effective viewport, in which case it is centered on the map.
      *  @performance O(1). No heap allocation.
      */
     void follow_player(float player_x, float player_y, const MapView &map, float win_w, float win_h) noexcept;
@@ -59,6 +64,9 @@ namespace corundum::world {
      *  @param[in] anchor_y   Screen-space Y (window pixels) to keep fixed.
      *  @param[in] min_zoom   Lower clamp bound (GameConfig::min_zoom).
      *  @param[in] max_zoom   Upper clamp bound (GameConfig::max_zoom).
+     *  @pre zoom > 0, min_zoom > 0 and min_zoom <= max_zoom.
+     *  @note The camera position is not re-clamped to the world bounds; callers
+     *        re-clamp it via follow_player() or center_on() on the same step.
      *  @performance O(1). No heap allocation.
      */
     void apply_zoom(float zoom_delta, float anchor_x, float anchor_y, float min_zoom, float max_zoom) noexcept;
@@ -67,21 +75,20 @@ namespace corundum::world {
      * @brief Center the camera on a world-space point, clamped to the world bounds.
      *
      * Positions the viewport so (@p target_x, @p target_y) sits at its center,
-     * then clamps so the viewport does not extend beyond [0, world_w] × [0, world_h].
+     * then clamps so the viewport does not extend beyond [0, width_px] × [0, height_px].
      * If the world is smaller than the effective viewport on an axis, the camera
      * is centered on the world along that axis (matching follow_player's edge
      * behavior) instead of clamping.
      *
      *  @param[in] target_x World-space X to center on, in px.
      *  @param[in] target_y World-space Y to center on, in px.
-     *  @param[in] world_w  World width in px.
-     *  @param[in] world_h  World height in px.
+     *  @param[in] bounds   World width/height in px.
      *  @param[in] win_w    Viewport width in window px.
      *  @param[in] win_h    Viewport height in window px.
      *  @pre zoom > 0.
      *  @performance O(1). No heap allocation.
      */
-    void center_on(float target_x, float target_y, float world_w, float world_h, float win_w, float win_h) noexcept;
+    void center_on(float target_x, float target_y, WorldBounds bounds, float win_w, float win_h) noexcept;
   };
 
 } // namespace corundum::world
