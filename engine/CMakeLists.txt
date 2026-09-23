@@ -84,8 +84,9 @@ list(APPEND ENGINE_SOURCES src/engine_factory.cpp)
 
 add_library(engine STATIC ${ENGINE_SOURCES})
 
-# Public headers are in the 'include' folder.
-target_include_directories(engine PUBLIC include)
+# Public headers are in the 'include' folder; 'src' is private so internal
+# helpers (e.g. src/core/warn_log.hpp) are shareable between engine TUs.
+target_include_directories(engine PUBLIC include PRIVATE src)
 
 # C++23 is PUBLIC so it propagates to consumers; the warning policy is applied
 # explicitly per-target (PRIVATE flags, never inherited through links).

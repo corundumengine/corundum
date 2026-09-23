@@ -359,14 +359,21 @@ namespace corundum::render {
     // chunk. Each coordinate independently falls back to the centre so a half-specified
     // params (only one of spawn_col/spawn_row) is not silently ignored.
     const int cs = state.manifest.chunk_size;
-    const int spawn_tile_col = params.spawn_col.value_or(state.manifest.chunks_wide * cs / 2);
-    const int spawn_tile_row = params.spawn_row.value_or(state.manifest.chunks_tall * cs / 2);
-    const ChunkCoord window_center{.col = spawn_tile_col / cs, .row = spawn_tile_row / cs};
+    const int center_col = state.manifest.chunks_wide * cs / 2;
+    const int center_row = state.manifest.chunks_tall * cs / 2;
+    const float spawn_tile_col = params.spawn_col.value_or(static_cast<float>(center_col));
+    const float spawn_tile_row = params.spawn_row.value_or(static_cast<float>(center_row));
+    const ChunkCoord window_center{
+        .col = static_cast<int>(spawn_tile_col) / cs,
+        .row = static_cast<int>(spawn_tile_row) / cs,
+    };
     state.chunks.set_last_center(window_center);
     for (const ChunkCoord c : active_chunk_coords(window_center, render::ChunkWindow::k_radius, state.manifest)) {
       if (auto entry = load_chunk_entry(r, state, c, cfg))
         state.chunks.add_active(std::move(*entry));
     }
+    if (state.chunks.active_empty())
+      return std::unexpected(std::format("world '{}' loaded no chunks", cfg.paths.world_manifest_path));
     rebuild_world_aggregates(state, static_cast<int>(cfg.max_step_height));
 
     const int diamond_w = state.chunks.active_at(0).tilemap.diamond_w();
@@ -376,7 +383,7 @@ namespace corundum::render {
     const auto iso =
         core::math::compute_isometric_params(diamond_w, diamond_h, total_h, cfg.tile_scale, cfg.elevation_step_px);
 
-    const core::math::Vec2 spawn_pos{.x = static_cast<float>(spawn_tile_col), .y = static_cast<float>(spawn_tile_row)};
+    const core::math::Vec2 spawn_pos{.x = spawn_tile_col, .y = spawn_tile_row};
     std::println("[engine] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
     return WorldLoadInfo{
         .half_tw = iso.half_tw,

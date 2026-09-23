@@ -114,9 +114,9 @@ namespace corundum::render {
    *  overworld location spawns the player into a streamed chunk.
    */
   struct WorldLoadParams {
-    std::optional<int> spawn_col; ///< Overworld tile column; defaults to manifest centre.
+    std::optional<float> spawn_col; ///< Overworld tile column (may be fractional); defaults to manifest centre.
 
-    std::optional<int> spawn_row; ///< Overworld tile row; defaults to manifest centre.
+    std::optional<float> spawn_row; ///< Overworld tile row (may be fractional); defaults to manifest centre.
   };
 
   /** @brief Load the world manifest and initial chunks for world mode.
@@ -132,7 +132,7 @@ namespace corundum::render {
    *                         and re-centres the streaming window on that tile's chunk.
    *  @return WorldLoadInfo on success, or std::unexpected with an error message.
    *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
-   *  @post state.mode == RenderMode::World and state.chunks is non-empty.
+   *  @post state.mode == RenderMode::World and state.chunks is non-empty, or an error is returned.
    */
   [[nodiscard]] std::expected<WorldLoadInfo, std::string> load_world(corundum::platform::Renderer &r,
                                                                      render::RenderState &state,

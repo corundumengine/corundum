@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <algorithm>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/debug/debug_overlay.hpp>
@@ -18,12 +17,13 @@
 #include <corundum/quest/system.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
-#include <corundum/world/camera.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/transition.hpp>
 #include <corundum/world/update.hpp>
 #include <corundum/world/world_bounds.hpp>
+
+#include "core/warn_log.hpp"
 
 #include <charconv>
 #include <cstddef>
@@ -50,6 +50,8 @@ namespace corundum {
       std::from_chars(s.data(), s.data() + s.size(), v);
       return v;
     }
+
+    using corundum::detail::warn_log;
 
     void validate_quest_references(const corundum::dialogue::Registry &graphs, const corundum::quest::Registry &quests,
                                    const corundum::item::Registry &items) {
@@ -135,21 +137,11 @@ namespace corundum {
         const auto p_slot = engine_->scene.world.transforms.dense_index(engine_->scene.player);
         const float player_col{engine_->scene.world.transforms.col[p_slot]};
         const float player_row{engine_->scene.world.transforms.row[p_slot]};
-        const auto iso_pos = core::math::tile_to_world(player_col, player_row, 0.f, iso);
 
         const world::WorldBounds bounds{world::single_map_bounds(tilemap, iso.half_tw, iso.half_th)};
 
-        apply_default_zoom_and_center(iso_pos.x, iso_pos.y, bounds);
+        world::frame_camera_on(*engine_, iso, player_col, player_row, bounds, world::CameraAnchor::TopVertex);
         return {};
-      }
-
-      /// Set the configured default zoom, then center the camera on the target
-      /// point via the shared Camera::center_on (formerly duplicated inline in
-      /// init_world/init_single_map).
-      void apply_default_zoom_and_center(float target_x, float target_y, world::WorldBounds bounds) {
-        engine_->scene.camera.zoom =
-            std::clamp(engine_->cfg.default_zoom, engine_->cfg.min_zoom, engine_->cfg.max_zoom);
-        engine_->scene.camera.center_on(target_x, target_y, bounds, engine_->cfg.win_w, engine_->cfg.win_h);
       }
 
       void init_audio() {
@@ -183,17 +175,6 @@ namespace corundum {
 
       Engine *engine_;
     };
-
-    /// stderr logging that survives in noexcept contexts — std::println can throw
-    /// bad_alloc / length_error on allocation failure, so swallow to preserve the
-    /// caller's noexcept contract (best-effort logging).
-    template <typename... Args> void warn_log(std::format_string<Args...> fmt, Args &&...args) noexcept {
-      try {
-        std::println(stderr, fmt, std::forward<Args>(args)...);
-      } catch (...) {
-        return;
-      }
-    }
 
     /// Invoke the user-provided dialogue-event hook, swallowing any exceptions
     /// so the noexcept contract on the dispatch loop holds. Returns true iff

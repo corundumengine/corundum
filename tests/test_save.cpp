@@ -305,6 +305,38 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   fs::remove_all(p.parent_path());
 }
 
+TEST_CASE("save: world save/load preserves a fractional player position") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
+
+  // World-mode saves keep the player's sub-tile position: the spawn pipeline must not
+  // truncate it back to an integer tile.
+  auto &transforms = engine.scene.world.transforms;
+  transforms.pos_col(engine.scene.player) = 12.25f;
+  transforms.pos_row(engine.scene.player) = 3.75f;
+
+  const fs::path p = save_path("fractional_world");
+  fs::create_directories(p.parent_path());
+  REQUIRE(corundum::save::save_game(engine, p).has_value());
+
+  transforms.pos_col(engine.scene.player) = 1.f;
+  transforms.pos_row(engine.scene.player) = 1.f;
+
+  REQUIRE(corundum::save::load_game(engine, p).has_value());
+
+  const auto &restored = engine.scene.world.transforms;
+  CHECK(restored.pos_col(engine.scene.player) == doctest::Approx(12.25f));
+  CHECK(restored.pos_row(engine.scene.player) == doctest::Approx(3.75f));
+
+  engine.cleanup();
+  fs::remove_all(p.parent_path());
+}
+
 TEST_CASE("save: load_game refuses a save whose world manifest differs") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);

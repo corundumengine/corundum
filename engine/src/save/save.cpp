@@ -181,7 +181,9 @@ namespace corundum::save {
     // Rebuild the scene first: apply_spawn reads no flag state, so committing flags
     // only after it succeeds keeps a failed load from leaving the engine with the
     // save's flags but the previous scene.
-    auto spawn = world::apply_spawn(engine, state->mode, state->map_or_world_id, state->active_zone, state->player_col,
+    const corundum::world::SpawnMode spawn_mode =
+        state->mode == k_mode_world ? corundum::world::SpawnMode::World : corundum::world::SpawnMode::SingleMap;
+    auto spawn = world::apply_spawn(engine, spawn_mode, state->map_or_world_id, state->active_zone, state->player_col,
                                     state->player_row);
     if (!spawn)
       return std::unexpected(std::move(spawn).error());
