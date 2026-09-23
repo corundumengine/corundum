@@ -28,12 +28,12 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <expected>
 #include <format>
 #include <print>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <tuple>
 #include <utility>
 
@@ -41,14 +41,17 @@ namespace corundum {
 
   namespace {
 
-    /// Parse args[idx] as an int; returns `fallback` if absent or unparseable.
-    int event_int_arg(const dialogue::EventAction &ev, std::size_t idx, int fallback) noexcept {
-      if (idx >= ev.args.size())
+    /// Parse args[index] as an int; returns `fallback` if absent, unparseable, or only
+    /// partially numeric.
+    int event_int_arg(const dialogue::EventAction &ev, std::size_t index, int fallback) noexcept {
+      if (index >= ev.args.size())
         return fallback;
-      int v{fallback};
-      const std::string &s = ev.args[idx];
-      std::from_chars(s.data(), s.data() + s.size(), v);
-      return v;
+      const std::string &s = ev.args[index];
+      int value{fallback};
+      const auto [end, error] = std::from_chars(s.data(), s.data() + s.size(), value);
+      if (error != std::errc{} || end != s.data() + s.size())
+        return fallback;
+      return value;
     }
 
     using corundum::detail::warn_log;
@@ -57,9 +60,9 @@ namespace corundum {
                                    const corundum::item::Registry &items) {
       for (const auto &[id, graph] : graphs) {
         for (const auto &err : corundum::dialogue::validate_quest_refs(graph, quests, &items, &graphs))
-          std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
+          warn_log("[engine] WARN: dialogue '{}' {}", id, err);
         for (const auto &err : corundum::dialogue::validate_condition_quest_refs(graph, quests))
-          std::println(stderr, "[engine] WARN: dialogue '{}' {}", id, err);
+          warn_log("[engine] WARN: dialogue '{}' {}", id, err);
       }
     }
 
@@ -90,10 +93,10 @@ namespace corundum {
 
     private:
       std::expected<void, std::string> load_render_assets() {
-        std::expected<void, std::string> char_result;
-        char_result = engine_->characters.load_all(engine_->cfg.paths.sprites_dir);
-        if (!char_result)
-          return std::unexpected(char_result.error());
+        std::expected<void, std::string> characters_result;
+        characters_result = engine_->characters.load_all(engine_->cfg.paths.sprites_dir);
+        if (!characters_result)
+          return std::unexpected(characters_result.error());
         render::load_sprite_index(*engine_->renderer, engine_->render, engine_->characters);
 
         const auto font_path = std::format("{}/{}", engine_->cfg.paths.font_dir, engine_->cfg.paths.game_font);
@@ -110,12 +113,9 @@ namespace corundum {
       }
 
       std::expected<void, std::string> init_scene() {
-        const bool world_mode{!engine_->cfg.paths.world_manifest_path.empty()};
-        return world_mode ? init_world_scene() : init_single_map_scene();
-      }
-
-      std::expected<void, std::string> init_world_scene() {
-        return corundum::world::enter_world(*engine_, {});
+        if (!engine_->cfg.paths.world_manifest_path.empty())
+          return corundum::world::enter_world(*engine_, {});
+        return init_single_map_scene();
       }
 
       std::expected<void, std::string> init_single_map_scene() {
@@ -134,9 +134,9 @@ namespace corundum {
         const auto &tilemap = *engine_->active_tilemap();
         const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
                                                               engine_->cfg.tile_scale, engine_->cfg.elevation_step_px);
-        const auto p_slot = engine_->scene.world.transforms.dense_index(engine_->scene.player);
-        const float player_col{engine_->scene.world.transforms.col[p_slot]};
-        const float player_row{engine_->scene.world.transforms.row[p_slot]};
+        const std::uint32_t player_slot = engine_->scene.world.transforms.dense_index(engine_->scene.player);
+        const float player_col{engine_->scene.world.transforms.col[player_slot]};
+        const float player_row{engine_->scene.world.transforms.row[player_slot]};
 
         const world::WorldBounds bounds{world::single_map_bounds(tilemap, iso.half_tw, iso.half_th)};
 
@@ -176,32 +176,39 @@ namespace corundum {
       Engine *engine_;
     };
 
+    /// Outcome of consulting the user-provided dialogue-event hook.
+    enum class EventHookResult : std::uint8_t {
+      NotHandled, ///< No hook is installed, or it reported the event as unhandled.
+      Handled,    ///< The hook reported the event as handled.
+      Threw,      ///< The hook threw; already logged, and the event is left suppressed.
+    };
+
     /// Invoke the user-provided dialogue-event hook, swallowing any exceptions
-    /// so the noexcept contract on the dispatch loop holds. Returns true iff
-    /// the hook reported the event as handled.
-    bool invoke_event_hook(Engine &engine, const dialogue::EventAction &ev) noexcept {
+    /// so the noexcept contract on the dispatch loop holds. A throwing hook maps
+    /// to Threw so dispatch does not also report the event as unknown.
+    EventHookResult invoke_event_hook(Engine &engine, const dialogue::EventAction &ev) noexcept {
       if (!engine.on_event)
-        return false;
+        return EventHookResult::NotHandled;
       try {
-        return engine.on_event(engine, ev);
+        return engine.on_event(engine, ev) ? EventHookResult::Handled : EventHookResult::NotHandled;
       } catch (...) {
         warn_log("[engine] WARN: on_event handler threw on '{}'", ev.name);
-        return false;
+        return EventHookResult::Threw;
       }
     }
 
-    void handle_play_sound(Engine &engine, const dialogue::EventAction &ev) noexcept {
+    void handle_play_sound(Engine &engine, const dialogue::EventAction &ev) {
       const auto result = engine.audio.play_sound(ev.args[0]);
       if (!result)
         warn_log("[engine] WARN: {}", result.error());
     }
 
-    void handle_quest_start(quest::Runner &quest_runner, const dialogue::EventAction &ev) noexcept {
+    void handle_quest_start(quest::Runner &quest_runner, const dialogue::EventAction &ev) {
       if (auto result = quest_runner.start(ev.args[0]); !result)
         warn_log("[engine] WARN: {}", result.error());
     }
 
-    void handle_quest_advance(quest::Runner &quest_runner, const dialogue::EventAction &ev) noexcept {
+    void handle_quest_advance(quest::Runner &quest_runner, const dialogue::EventAction &ev) {
       if (auto result = quest_runner.advance(ev.args[0], ev.args[1]); !result)
         warn_log("[engine] WARN: {}", result.error());
     }
@@ -223,20 +230,23 @@ namespace corundum {
     void dispatch_dialogue_event(Engine &engine, quest::Runner &quest_runner,
                                  const dialogue::EventAction &ev) noexcept {
       try {
-        if (ev.name == "play_sound" && !ev.args.empty())
+        if (ev.name == "play_sound" && !ev.args.empty()) {
           handle_play_sound(engine, ev);
-        else if (ev.name == "quest_start" && !ev.args.empty())
+        } else if (ev.name == "quest_start" && !ev.args.empty()) {
           handle_quest_start(quest_runner, ev);
-        else if (ev.name == "quest_advance" && ev.args.size() >= 2)
+        } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
           handle_quest_advance(quest_runner, ev);
-        else if (ev.name == "give_item" && !ev.args.empty())
+        } else if (ev.name == "give_item" && !ev.args.empty()) {
           engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
-        else if (ev.name == "take_item" && !ev.args.empty())
+        } else if (ev.name == "take_item" && !ev.args.empty()) {
           handle_take_item(engine, ev);
-        else if (ev.name == "reputation" && ev.args.size() >= 2)
-          engine.flags["rep." + ev.args[0]] += event_int_arg(ev, 1, /*fallback=*/0);
-        else if (!invoke_event_hook(engine, ev))
+        } else if (ev.name == "reputation" && ev.args.size() >= 2) {
+          // A non-numeric value parses to 0; skip the write so no zero-valued rep flag is created.
+          if (const int delta = event_int_arg(ev, 1, /*fallback=*/0); delta != 0)
+            engine.flags["rep." + ev.args[0]] += delta;
+        } else if (invoke_event_hook(engine, ev) == EventHookResult::NotHandled) {
           warn_log("[engine] WARN: unknown dialogue event '{}'", ev.name);
+        }
       } catch (...) {
         // Skip events whose processing throws (e.g. allocation failure); preserves
         // the noexcept contract of process_dialogue_events.
@@ -267,8 +277,6 @@ namespace corundum {
   }
 
   namespace {
-
-    // ── Main-loop phases ───────────────────────────────────────────────────────
 
     /// Result of one frame's fixed-step simulation, consumed by compute_interpolation_alpha().
     struct SimulationResult {
@@ -304,8 +312,14 @@ namespace corundum {
     /// Drain the timer accumulator: run gameplay, dialogue events, the
     /// on_fixed_update hook, and deletion flushing once per fixed step.
     [[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
+      const float pending_time{engine.timer.accumulator};
       const int steps{engine.timer.take_steps(k_max_steps_per_frame)};
-      SimulationResult result{.steps_run = steps, .budget_exhausted = steps == k_max_steps_per_frame};
+      const float consumed{static_cast<float>(steps) * engine.timer.target_dt};
+      // take_steps() sheds whatever remains once it hits the cap; that remainder is dropped time.
+      SimulationResult result{
+          .steps_run = steps,
+          .budget_exhausted = steps == k_max_steps_per_frame && pending_time > consumed,
+      };
 
       for (int step_index = 0; step_index < steps; ++step_index) {
         engine.scene.elapsed_time += engine.timer.target_dt;
@@ -314,21 +328,24 @@ namespace corundum {
         // and the input edge must still be consumed: poll() only ORs presses in, so a press
         // latched here would fire the moment the world activates.
         if (engine.render.mode != render::RenderMode::World || !engine.render.chunks.active_empty()) {
-          const auto mv = world::build_map_view(engine.render, engine.cfg);
+          const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
           world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
-          world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, mv, engine.timer.target_dt,
+          // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
+          // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
+          world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, map_view, engine.timer.target_dt,
                         static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
                         engine.flags, &engine.quests);
-
-          engine.process_dialogue_events();
-          quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
-
-          invoke_fixed_update_hook(engine, engine.timer.target_dt);
-
-          // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
-          result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
-          entities::flush_deletions(engine.scene.world);
         }
+
+        // Dialogue, quests, and the hook run every step — including World mode with nothing
+        // streamed in — so queued work is never stranded while elapsed_time advances.
+        engine.process_dialogue_events();
+        quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
+        invoke_fixed_update_hook(engine, engine.timer.target_dt);
+
+        // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
+        result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
+        entities::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
       }
@@ -344,8 +361,9 @@ namespace corundum {
     /// captured — force alpha to 0 rather than interpolate against a stale or
     /// mismatched slot. Alpha is also 0 unless exactly one step ran, so multi-step
     /// (and zero-step) frames render current state.
-    [[nodiscard]] float compute_interpolation_alpha(const core::time::LoopTimer &timer, SimulationResult sim) noexcept {
-      return (sim.steps_run == 1 && !sim.entities_deleted) ? timer.alpha() : 0.f;
+    [[nodiscard]] float compute_interpolation_alpha(const core::time::LoopTimer &timer,
+                                                    SimulationResult simulation) noexcept {
+      return (simulation.steps_run == 1 && !simulation.entities_deleted) ? timer.alpha() : 0.f;
     }
 
     /// begin_frame → world/UI render → optional debug HUD → end_frame.
@@ -395,11 +413,13 @@ namespace corundum {
 
     process_input(*this);
 
-    const SimulationResult sim{run_fixed_steps(*this)};
+    const SimulationResult simulation{run_fixed_steps(*this)};
+    const bool transitioned{scene.pending_transition.has_value()};
     world::handle_map_transition(*this);
 
-    const float alpha{compute_interpolation_alpha(timer, sim)};
-    render_frame(*this, alpha, sim.budget_exhausted);
+    // A transition replaces the scene, so the prev-frame snapshot no longer matches any slot.
+    const float alpha{transitioned ? 0.f : compute_interpolation_alpha(timer, simulation)};
+    render_frame(*this, alpha, simulation.budget_exhausted);
 
     stream_world_chunks(*this);
     return true;

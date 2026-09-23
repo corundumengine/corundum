@@ -10,6 +10,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/debug/debug_overlay.hpp>
+#include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/registry.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/item/registry.hpp>
@@ -22,11 +23,13 @@
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/scene.hpp>
+#include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/transition.hpp>
 
 #include <expected>
 #include <functional>
 #include <string>
+#include <utility>
 
 namespace corundum {
 
@@ -36,8 +39,9 @@ namespace corundum {
    * game state), and all game assets. Lifecycle is intrinsic methods:
    *   initialize → run_loop → cleanup
    *
-   * Returned by value from make_engine() and must stay trivially movable;
-   * members must never store pointers or references into sibling members.
+   * Returned by value from make_engine() and must stay cheaply movable: it is
+   * move-constructed as a whole, so members must never store pointers or
+   * references into sibling members.
    *
    * @see initialize  One-time setup before the main loop.
    * @see run_loop    The main loop: input, fixed-step simulation, rendering.
@@ -48,24 +52,38 @@ namespace corundum {
     // renderer → gpu → window: sokol resources are released while the device is
     // still alive, and the device/window outlive the renderer.
     platform::Handle<platform::Window> window;
+
     platform::Handle<platform::GpuContext> gpu;
+
     platform::Handle<platform::Renderer> renderer;
 
     audio::AudioSystem audio;
+
     input::InputState input_state;
+
     render::RenderState render;
 
     core::GameConfig cfg;
+
     sprites::CharacterRegistry characters;
+
+    /// True while inside an interior reached from the overworld.
+    bool entered_from_world{false};
+
     corundum::world::FlagStore flags;
+
     dialogue::Registry graphs;
+
     item::Registry items;
+
     quest::Registry quests;
+
     world::Scene scene;
-    bool entered_from_world = false; ///< True while inside an interior reached from the overworld.
 
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
+
     debug::HudOverlay hud;
+
     core::time::LoopTimer timer{static_cast<float>(core::k_default_simulation_fps)};
 
     /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
@@ -128,7 +146,8 @@ namespace corundum {
      *          while (run_frame()) {}.
      *
      *  @pre initialize() must have returned successfully.
-     *  @performance No heap allocation during the frame.
+     *  @note Allocates only for dialogue-event item/flag bookkeeping and, in World
+     *        mode, for the one chunk streamed in per frame.
      */
     [[nodiscard]] bool run_frame() noexcept;
 
@@ -137,7 +156,7 @@ namespace corundum {
      *  Equivalent to while (run_frame()) {}.
      *
      *  @pre initialize() must have returned successfully.
-     *  @performance No heap allocation during the loop.
+     *  @note Allocation behaviour is that of run_frame(), once per iteration.
      */
     void run_loop() noexcept;
 
@@ -152,9 +171,9 @@ namespace corundum {
     /** @brief Process all pending dialogue EventActions (built-in dispatch + on_event hook).
      *
      *  Walks scene.pending_dialogue_events and dispatches built-in events
-     *  (play_sound, quest_start, quest_advance). For events not matched by built-in
-     *  dispatch, calls on_event if set. Unhandled events print a WARN. Clears the
-     *  pending list after processing.
+     *  (play_sound, quest_start, quest_advance, give_item, take_item, reputation). For
+     *  events not matched by built-in dispatch, calls on_event if set. Unhandled events
+     *  print a WARN. Clears the pending list after processing.
      *
      *  Exposed for testability — game code normally does not call this directly.
      */
@@ -202,9 +221,11 @@ namespace corundum {
     }
 
   private:
-    bool quit_ = false;     ///< Set by request_quit()/cleanup(); see quit_requested().
-    int window_height_ = 0; ///< Cached each frame by run_frame(); see window_height().
-    int window_width_ = 0;  ///< Cached each frame by run_frame(); see window_width().
+    bool quit_{false}; ///< Set by request_quit()/cleanup(); see quit_requested().
+
+    int window_height_{0}; ///< Cached each frame by run_frame(); see window_height().
+
+    int window_width_{0}; ///< Cached each frame by run_frame(); see window_width().
   };
 
 } // namespace corundum
