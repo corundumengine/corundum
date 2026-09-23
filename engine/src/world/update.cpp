@@ -168,8 +168,13 @@ namespace corundum::world {
 
     update_zoom(scene, input, cfg, dt, win_w, win_h);
 
-    scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map,
-                                                    cfg.elevation_step_px * map.tile_scale, scene.camera.zoom);
+    const corundum::core::math::IsometricParams pick_iso{
+        .half_tw = map.half_tw,
+        .half_th = map.half_th,
+        .x_origin = map.x_origin,
+        .elev_step = cfg.elevation_step_px * map.tile_scale,
+    };
+    scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, pick_iso);
 
     if (input.is_pressed(input::Action::Inventory)) {
       if (scene.mode == GameMode::Exploring) {

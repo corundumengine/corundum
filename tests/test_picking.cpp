@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <doctest/doctest.h>
 
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <utility>
@@ -15,6 +16,9 @@ using corundum::world::MapView;
 using corundum::world::pick_tile;
 using corundum::world::tilemap::Tilemap;
 using corundum::world::tilemap::TilemapLayer;
+
+// NOLINTBEGIN(bugprone-unchecked-optional-access): clang-tidy cannot see through doctest's
+// REQUIRE, which aborts the case before the value is dereferenced.
 
 namespace {
 
@@ -31,7 +35,7 @@ namespace {
     layer.name = "ground";
     layer.z_index = 0;
     layer.visible = true;
-    layer.tiles.assign(static_cast<std::size_t>(tm.width * tm.height), 1);
+    layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
     tm.layers.push_back(std::move(layer));
     return tm;
   }
@@ -43,8 +47,8 @@ namespace {
   // inverting (0,16) at elevation 0 gives fractional (0.5,0.5) -> floor (0,0).
   Tilemap make_overlap_map() {
     Tilemap tm = make_flat_map();
-    tm.layers[0].elevation.assign(static_cast<std::size_t>(tm.width * tm.height), 0);
-    tm.layers[0].elevation[1 * tm.width + 1] = 8;
+    tm.layers[0].elevation.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 0);
+    tm.layers[0].elevation[(1 * tm.width) + 1] = 8;
     return tm;
   }
 
@@ -57,15 +61,19 @@ namespace {
     return v;
   }
 
+  corundum::core::math::IsometricParams make_iso() {
+    return {.half_tw = k_half_tw, .half_th = k_half_th, .x_origin = 0.f, .elev_step = k_elev_step};
+  }
+
 } // namespace
 
 TEST_CASE("pick_tile — flat map resolves the tile under the cursor") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
-  const Camera camera{0.f, 0.f};
+  const Camera camera{.x = 0.f, .y = 0.f};
 
   // Center of flat tile (0,0) is world (0, 16) — see derivation above.
-  const auto result = pick_tile(0.f, 16.f, camera, map, k_elev_step, 1.f);
+  const auto result = pick_tile(0.f, 16.f, camera, map, make_iso());
   REQUIRE(result.has_value());
   CHECK(result->col == 0);
   CHECK(result->row == 0);
@@ -75,8 +83,8 @@ TEST_CASE("pick_tile — applies camera offset before inverting") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
   // Shift the camera so the same tile is now hit from a different window-space position.
-  const Camera camera{10.f, -5.f};
-  const auto result = pick_tile(0.f - 10.f, 16.f + 5.f, camera, map, k_elev_step, 1.f);
+  const Camera camera{.x = 10.f, .y = -5.f};
+  const auto result = pick_tile(0.f - 10.f, 16.f + 5.f, camera, map, make_iso());
   REQUIRE(result.has_value());
   CHECK(result->col == 0);
   CHECK(result->row == 0);
@@ -85,12 +93,12 @@ TEST_CASE("pick_tile — applies camera offset before inverting") {
 TEST_CASE("pick_tile — topmost-first: a raised tile wins over the lower cell it overhangs") {
   const Tilemap tm = make_overlap_map();
   const MapView map = make_view(tm);
-  const Camera camera{0.f, 0.f};
+  const Camera camera{.x = 0.f, .y = 0.f};
 
   // This screen point is claimed by both (0,0) [flat, real elevation 0] and (1,1)
   // [raised to 8, whose diamond visually overhangs this point]. The raised tile has
   // the larger iso_depth_key and must win.
-  const auto result = pick_tile(0.f, 16.f, camera, map, k_elev_step, 1.f);
+  const auto result = pick_tile(0.f, 16.f, camera, map, make_iso());
   REQUIRE(result.has_value());
   CHECK(result->col == 1);
   CHECK(result->row == 1);
@@ -99,19 +107,20 @@ TEST_CASE("pick_tile — topmost-first: a raised tile wins over the lower cell i
 TEST_CASE("pick_tile — out of bounds returns nullopt") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
-  const Camera camera{0.f, 0.f};
-  const auto result = pick_tile(10000.f, 10000.f, camera, map, k_elev_step, 1.f);
+  const Camera camera{.x = 0.f, .y = 0.f};
+  const auto result = pick_tile(10000.f, 10000.f, camera, map, make_iso());
   CHECK_FALSE(result.has_value());
 }
 
 TEST_CASE("pick_tile — zoom scales the screen-to-world conversion") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
-  const Camera camera{0.f, 0.f};
+  Camera camera{.x = 0.f, .y = 0.f};
+  camera.zoom = 2.f;
 
   // At 2x zoom, screen point (0, 32) maps to world (0, 16) — the same point that
   // (0, 16) maps to at zoom 1 — since world = screen / zoom + camera.
-  const auto result = pick_tile(0.f, 32.f, camera, map, k_elev_step, 2.f);
+  const auto result = pick_tile(0.f, 32.f, camera, map, make_iso());
   REQUIRE(result.has_value());
   CHECK(result->col == 0);
   CHECK(result->row == 0);
@@ -122,7 +131,27 @@ TEST_CASE("pick_tile — null elevation_map (World mode) returns nullopt") {
   map.half_tw = k_half_tw;
   map.half_th = k_half_th;
   map.elevation_map = nullptr;
-  const Camera camera{0.f, 0.f};
-  const auto result = pick_tile(0.f, 16.f, camera, map, k_elev_step, 1.f);
+  const Camera camera{.x = 0.f, .y = 0.f};
+  const auto result = pick_tile(0.f, 16.f, camera, map, make_iso());
   CHECK_FALSE(result.has_value());
 }
+
+TEST_CASE("pick_tile — non-positive zoom or degenerate iso params return nullopt") {
+  const Tilemap tm = make_flat_map();
+  const MapView map = make_view(tm);
+
+  Camera camera{.x = 0.f, .y = 0.f};
+  camera.zoom = 0.f;
+  CHECK_FALSE(pick_tile(0.f, 16.f, camera, map, make_iso()).has_value());
+
+  camera.zoom = 1.f;
+  const corundum::core::math::IsometricParams no_width{
+      .half_tw = 0.f,
+      .half_th = k_half_th,
+      .x_origin = 0.f,
+      .elev_step = k_elev_step,
+  };
+  CHECK_FALSE(pick_tile(0.f, 16.f, camera, map, no_width).has_value());
+}
+
+// NOLINTEND(bugprone-unchecked-optional-access)

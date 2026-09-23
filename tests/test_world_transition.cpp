@@ -8,6 +8,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/platform/null/null_platform.hpp>
@@ -25,6 +26,9 @@
 #include <utility>
 
 namespace fs = std::filesystem;
+
+// NOLINTBEGIN(bugprone-unchecked-optional-access): clang-tidy cannot see through doctest's
+// REQUIRE, which aborts the case before the value is dereferenced.
 
 namespace {
 
@@ -71,8 +75,8 @@ namespace {
 
   /// Run one fixed simulation step (physics + portal detection) with no input.
   void advance(corundum::Engine &engine) {
-    auto map = corundum::world::build_map_view(engine.render, engine.cfg);
-    corundum::input::InputState input{};
+    const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
+    const corundum::input::InputState input{};
     corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
                             static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
                             engine.flags, &engine.quests);
@@ -81,7 +85,7 @@ namespace {
   /// Run one fixed simulation step with a single action's `pressed` bit set. Used to drive
   /// the portal-confirm prompt's Select/Cancel path through update_transition_prompt().
   void advance_with(corundum::Engine &engine, corundum::input::Action action) {
-    auto map = corundum::world::build_map_view(engine.render, engine.cfg);
+    const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
     corundum::input::InputState input{};
     input.pressed.set(static_cast<std::size_t>(action));
     corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
@@ -208,7 +212,8 @@ TEST_CASE("world transition — World cross-map portal marks the journey and ent
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // Step onto the cave-mouth portal: a cross-map portal while in World mode.
-  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
 
   CHECK(engine.render.mode == RenderMode::SingleMap);
@@ -228,13 +233,15 @@ TEST_CASE("world transition — nested SingleMap cross-map does not clear the ma
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 
-  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
   REQUIRE(engine.entered_from_world);
 
   // A deeper interior (SingleMap → SingleMap) happens below the overworld boundary and
   // must not clear the journey marker.
-  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 5, 6, false};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = interior_path(fixtures), .spawn_col = 5, .spawn_row = 6, .return_to_world = false};
   handle_map_transition(engine);
 
   CHECK(engine.render.mode == RenderMode::SingleMap);
@@ -251,13 +258,15 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
-  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
   REQUIRE(engine.render.mode == RenderMode::SingleMap);
 
   // Exit the interior: a return_to_world portal bearing the overworld return tile (12,3),
   // which lies in chunk (1,0) — off the manifest centre (1,1), proving window re-centering.
-  engine.scene.pending_transition = MapTransition{"", 12, 3, true};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = "", .spawn_col = 12, .spawn_row = 3, .return_to_world = true};
   handle_map_transition(engine);
 
   CHECK(engine.render.mode == RenderMode::World);
@@ -281,7 +290,8 @@ TEST_CASE("world transition — single-map boot with a return_to_world portal is
   REQUIRE(engine.initialize(std::move(cfg)).has_value());
   REQUIRE(engine.render.mode == RenderMode::SingleMap);
 
-  engine.scene.pending_transition = MapTransition{"", 12, 3, true};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = "", .spawn_col = 12, .spawn_row = 3, .return_to_world = true};
   handle_map_transition(engine);
 
   // No overworld exists, so the portal is ignored rather than terminating the process.
@@ -393,8 +403,13 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
   // The camera is centred on the player tile (8,8); the viewport centre must fall on a tile.
   const float mouse_x = 160.f;
   const float mouse_y = 120.f;
-  const auto result = corundum::world::pick_tile(mouse_x, mouse_y, camera, map,
-                                                 engine.cfg.elevation_step_px * map.tile_scale, camera.zoom);
+  const corundum::core::math::IsometricParams pick_iso{
+      .half_tw = map.half_tw,
+      .half_th = map.half_th,
+      .x_origin = map.x_origin,
+      .elev_step = engine.cfg.elevation_step_px * map.tile_scale,
+  };
+  const auto result = corundum::world::pick_tile(mouse_x, mouse_y, camera, map, pick_iso);
 
   CHECK(result.has_value());
 
@@ -585,7 +600,8 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
 
   // Enter the interior via the existing path (no prompt step needed — the test focuses on the
   // return leg's prompt and confirm semantics, not the entry flow already covered above).
-  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
   REQUIRE(engine.render.mode == RenderMode::SingleMap);
   REQUIRE(engine.entered_from_world);
@@ -740,12 +756,14 @@ TEST_CASE("world transition — world actors return after an interior round-trip
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   // Enter the interior (records the world journey), then exit back to the overworld.
-  engine.scene.pending_transition = MapTransition{interior_path(fixtures), 1, 2, false};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
   REQUIRE(engine.render.mode == RenderMode::SingleMap);
   REQUIRE(engine.entered_from_world);
 
-  engine.scene.pending_transition = MapTransition{"", 12, 3, true};
+  engine.scene.pending_transition =
+      MapTransition{.target_map = "", .spawn_col = 12, .spawn_row = 3, .return_to_world = true};
   handle_map_transition(engine);
   REQUIRE(engine.render.mode == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
@@ -776,13 +794,14 @@ TEST_CASE("world streaming — actors spawn only for resident chunks") {
   CHECK(engine.scene.chunk_actors.size() == 3);
 
   // a30 lives in resident chunk (3,0); a00 lives in non-resident chunk (0,0).
-  const auto a30 = entity_at(engine, 4 + 3 * 8, 4);
+  const auto a30 = entity_at(engine, 4 + (3 * 8), 4);
   REQUIRE(a30.has_value());
   CHECK_FALSE(entity_at(engine, 2, 3).has_value());
 
   engine.cleanup();
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("world streaming — streaming a chunk out despawns its actors, streaming back respawns") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
@@ -792,7 +811,7 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   REQUIRE(player_tile(engine) == std::pair{20, 4});
 
   // Capture the boot a30 handle before any streaming churn.
-  const auto boot_a30 = entity_at(engine, 4 + 3 * 8, 4);
+  const auto boot_a30 = entity_at(engine, 4 + (3 * 8), 4);
   REQUIRE(boot_a30.has_value());
 
   // Walk the player west to tile 3, well inside chunk (0,0) relative to the recenter margin
@@ -810,7 +829,7 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   REQUIRE(west_a00.has_value());
   // Chunk (3,0) streamed out: its a30 actor is gone.
   CHECK_FALSE(engine.scene.world.entities.is_live(*boot_a30));
-  CHECK_FALSE(entity_at(engine, 4 + 3 * 8, 4).has_value());
+  CHECK_FALSE(entity_at(engine, 4 + (3 * 8), 4).has_value());
 
   // Walk back east to tile 20; the window recentres on chunk (2,0) and (3,0) reloads.
   move_player_to(engine, 20.f, 4.f);
@@ -819,13 +838,14 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
     REQUIRE(engine.run_frame());
   }
 
-  const auto back_a30 = entity_at(engine, 4 + 3 * 8, 4);
+  const auto back_a30 = entity_at(engine, 4 + (3 * 8), 4);
   REQUIRE(back_a30.has_value());
   CHECK(engine.scene.world.entities.is_live(*back_a30));
 
   engine.cleanup();
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("world streaming — the recenter margin scales with chunk_size, not a fixed tile count") {
   // The margin is 0.02 * chunk_size — 0.16 tiles for this fixture's 8-tile chunks. A player 1
   // tile into a new chunk is past it and must recentre, so chunk (0,0) streams in. A margin
@@ -851,3 +871,5 @@ TEST_CASE("world streaming — the recenter margin scales with chunk_size, not a
 
   engine.cleanup();
 }
+
+// NOLINTEND(bugprone-unchecked-optional-access)
