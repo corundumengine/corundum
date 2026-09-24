@@ -81,7 +81,7 @@ add_library(corundum::engine ALIAS engine_platform_glfw)
 
 # ── Null backend (headless) ────────────────────────────────────────────────────
 # Header-only null platform backend (Window/GpuContext/Renderer no-ops) for
-# headless lifecycle tests in tests/test_engine_lifecycle.cpp. Has no
+# headless lifecycle tests in engine/tests/test_engine_lifecycle.cpp. Has no
 # GLFW/sokol/FreeType dependency; consumers link `engine_platform_null` in
 # addition to `engine`.
 add_library(engine_platform_null INTERFACE)

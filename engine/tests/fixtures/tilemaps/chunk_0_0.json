@@ -8,6 +8,6 @@
     { "name": "ground", "tiles": ["0,0", "0,0"] }
   ],
   "tilesets": [
-    { "first_gid": 0, "source": "tests/fixtures/sprite_atlases/lifecycle_test_tileset.json" }
+    { "first_gid": 0, "source": "engine/tests/fixtures/sprite_atlases/lifecycle_test_tileset.json" }
   ]
 }

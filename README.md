@@ -26,7 +26,8 @@ cmake --build --preset format                              # clang-format all so
 scripts/run_tidy.sh <file> [more files...]                 # clang-tidy explicit files
 cmake --preset docs && cmake --build --preset docs         # Doxygen API docs → build/docs/html
 ctest --preset test                                        # run all tests
-build/tests/corundum_tests -tc="*name*"                    # run a single test
+build/engine/tests/corundum_tests -tc="*name*"              # run a single engine test
+build/tools/tests/corundum_tools_tests -tc="*name*"         # run a single tools test
 ```
 
 ### Toolchain
@@ -46,8 +47,9 @@ build/tools/loom           # Content editor (dialogue, quests, items)
 ## Test
 
 ```sh
-ctest --preset test                       # all tests
-build/tests/corundum_tests -tc="*name*"   # single test
+ctest --preset test                                  # all tests
+build/engine/tests/corundum_tests -tc="*name*"       # single engine test
+build/tools/tests/corundum_tools_tests -tc="*name*"  # single tools test
 ```
 
 ## Components
@@ -59,7 +61,8 @@ build/tests/corundum_tests -tc="*name*"   # single test
 | `engine/src/platform/sokol/`             | sokol_gfx + sokol_audio implementation units   |
 | `engine/include/corundum/platform/null/` | No-op platform stubs for headless testing      |
 | `tools/`                                 | Developer tools (Tilesmith, Spritesmith, Loom) |
-| `tests/`                                 | Unit tests (doctest)                           |
+| `engine/tests/`                          | Unit tests (doctest) — engine                   |
+| `tools/tests/`                           | Unit tests (doctest) — tools                    |
 
 ## Dependencies
 

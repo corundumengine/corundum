@@ -16,7 +16,7 @@
   "tilesets": [
     {
       "first_gid": 0,
-      "source": "tests/fixtures/sprite_atlases/lifecycle_test_tileset.json"
+      "source": "engine/tests/fixtures/sprite_atlases/lifecycle_test_tileset.json"
     }
   ]
 }

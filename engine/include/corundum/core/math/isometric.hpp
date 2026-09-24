@@ -65,7 +65,7 @@ namespace corundum::core::math {
    * sprite shifted one half-diamond below the cell center under this
    * codebase's TOP-vertex projection convention.  For sprite anchors, use
    * `half_th` directly (cell center) — the same convention already relied on
-   * by physics and picking (see tests/test_picking.cpp).
+   * by physics and picking (see engine/tests/test_picking.cpp).
    *
    * @param half_th  Half the scaled diamond height (from IsometricParams or equivalent).
    * @return The full cell height in screen pixels.

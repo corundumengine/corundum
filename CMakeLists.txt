@@ -30,5 +30,13 @@ endif()
 
 include(CTest)
 if(CORUNDUM_BUILD_TESTS)
-  add_subdirectory(tests)
+  add_subdirectory(engine/tests)
+  # tools/tests reads tilesmith's coords.hpp directly; gate it the same way engine/tests gates
+  # its internal-header tests, so a vendored/tools-less checkout skips it cleanly at configure
+  # time instead of hard-failing (today it would fail later, at compile time, the same way).
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools/editors/tilesmith/coords.hpp)
+    add_subdirectory(tools/tests)
+  else()
+    message(STATUS "tools tests skipped — tools/editors/tilesmith headers not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+  endif()
 endif()

@@ -16,7 +16,7 @@ namespace {
     p.row = 13.f;
     p.w = 1.f;
     p.h = 1.f;
-    p.target_map = "tests/fixtures/tilemaps/interior.json";
+    p.target_map = "engine/tests/fixtures/tilemaps/interior.json";
     p.spawn_col = 1;
     p.spawn_row = 2;
     p.return_to_world = false;
@@ -139,6 +139,6 @@ TEST_CASE("TransitionPrompt — guards matches the arming portal exactly") {
 
   // Same rect but a different trigger: still not the one this prompt guards.
   Portal retargeted = portal;
-  retargeted.target_map = "tests/fixtures/tilemaps/other.json";
+  retargeted.target_map = "engine/tests/fixtures/tilemaps/other.json";
   CHECK_FALSE(prompt.guards(retargeted));
 }

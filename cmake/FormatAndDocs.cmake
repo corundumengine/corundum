@@ -44,7 +44,7 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
   file(GLOB_RECURSE FORMAT_SOURCES
         "engine/src/**/*.cpp"
         "engine/include/corundum/**/*.hpp"
-        "tests/*.cpp"
+        "engine/tests/*.cpp"
         "tools/toolkit/**/*.cpp"
         "tools/toolkit/**/*.hpp"
         "tools/editors/**/*.cpp"
@@ -53,6 +53,7 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
         "tools/mapview/**/*.hpp"
         "tools/platform/**/*.cpp"
         "tools/platform/**/*.hpp"
+        "tools/tests/*.cpp"
     )
   add_custom_target(format_code
         COMMAND ${LLVM_CLANG_FORMAT} -i ${FORMAT_SOURCES}

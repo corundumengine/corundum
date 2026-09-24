@@ -42,13 +42,11 @@ set(TEST_SOURCES
     test_item_serialize.cpp
     test_json_io.cpp
     test_json_schema.cpp
-    test_layer_presets.cpp
     test_loop_timer.cpp
     test_material_at.cpp
     test_pathfinding.cpp
     test_pathfinding_world.cpp
     test_picking.cpp
-    test_picking_elevation.cpp
     test_portal_elevation.cpp
     test_portals.cpp
     test_quest.cpp
@@ -83,55 +81,55 @@ add_executable(corundum_tests ${TEST_SOURCES})
 # GLFW backend. When corundum is consumed as a vendored library (downstream
 # projects expose only engine/include/ on their include path) those internals
 # aren't reachable — gate the test off so the build doesn't break on sync.
-set(_font_atlas_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/font_atlas.hpp")
+set(_font_atlas_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/font_atlas.hpp")
 set(_font_atlas_fixture "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/fonts/NotoSans.ttf")
 if(EXISTS "${_font_atlas_header}" AND EXISTS "${_font_atlas_fixture}")
-    target_sources(corundum_tests PRIVATE
+  target_sources(corundum_tests PRIVATE
         test_font_atlas.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/font_atlas.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/font_atlas.cpp
     )
-    target_link_libraries(corundum_tests PRIVATE freetype)
-    target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw
+  target_link_libraries(corundum_tests PRIVATE freetype)
+  target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw
     )
 else()
-    message(STATUS "FontAtlas tests skipped — internal header or fixture font not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+  message(STATUS "FontAtlas tests skipped — internal header or fixture font not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # render_scale.hpp is a pure internal header; gate the test off when consuming corundum as a
 # vendored library, same rationale as the FontAtlas tests above.
-set(_render_scale_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/render_scale.hpp")
+set(_render_scale_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/render_scale.hpp")
 if(EXISTS "${_render_scale_header}")
-    target_sources(corundum_tests PRIVATE test_render_scale.cpp)
-    target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw
+  target_sources(corundum_tests PRIVATE test_render_scale.cpp)
+  target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw
     )
 else()
-    message(STATUS "render-scale tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+  message(STATUS "render-scale tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # texture_byte_size.hpp is likewise a pure internal header (the sokol upload wrapper that consumes it
 # is not linkable from tests); gate it the same way.
-set(_texture_byte_size_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw/texture_byte_size.hpp")
+set(_texture_byte_size_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/texture_byte_size.hpp")
 if(EXISTS "${_texture_byte_size_header}")
-    target_sources(corundum_tests PRIVATE test_texture_byte_size.cpp)
-    target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/platform/glfw
+  target_sources(corundum_tests PRIVATE test_texture_byte_size.cpp)
+  target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw
     )
 else()
-    message(STATUS "texture byte-size tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+  message(STATUS "texture byte-size tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # encoding.hpp is a pure internal header (the JSON spellings shared by the tilemap loader and
 # serializer); gate the test off when consuming corundum as a vendored library.
-set(_tilemap_encoding_header "${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/world/tilemap/encoding.hpp")
+set(_tilemap_encoding_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/world/tilemap/encoding.hpp")
 if(EXISTS "${_tilemap_encoding_header}")
-    target_sources(corundum_tests PRIVATE test_tilemap_encoding.cpp)
-    target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../engine/src/world/tilemap
+  target_sources(corundum_tests PRIVATE test_tilemap_encoding.cpp)
+  target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/world/tilemap
     )
 else()
-    message(STATUS "tilemap encoding tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+  message(STATUS "tilemap encoding tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # Link to engine and doctest. engine_platform_null is also pulled in so the
@@ -143,18 +141,13 @@ target_link_libraries(corundum_tests
         doctest::doctest
 )
 
-# Tilesmith-only test (test_picking_elevation) needs to read the editor's coord helpers.
-target_include_directories(corundum_tests PRIVATE
-    ${PROJECT_SOURCE_DIR}/tools/editors/tilesmith
-)
-
 # C++23 + warning policy propagate from engine_platform_null; keep them explicit.
 corundum_use_cxx23(corundum_tests)
 corundum_enable_warnings(corundum_tests)
 
 # Tell the lifecycle tests where to find their hand-crafted fixtures.
 target_compile_definitions(corundum_tests PRIVATE
-    CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/tests/fixtures"
+    CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/engine/tests/fixtures"
 )
 
 # Enable CTest integration

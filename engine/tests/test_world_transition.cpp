@@ -332,7 +332,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   CHECK_FALSE(enter.return_to_world);
   // The fixture portal authors the target as a repo-relative path, which load_map
   // resolves against the working directory (the repo root when running tests).
-  CHECK(enter.target_map == "tests/fixtures/tilemaps/interior.json");
+  CHECK(enter.target_map == "engine/tests/fixtures/tilemaps/interior.json");
   CHECK(enter.spawn_col == 1);
   CHECK(enter.spawn_row == 2);
 

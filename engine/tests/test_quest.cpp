@@ -145,7 +145,7 @@ namespace {
 // ── Loader ────────────────────────────────────────────────────────────────────
 
 TEST_CASE("quest loader: malformed done_condition is a load error") {
-  const std::string tmp = "tests/fixtures/_test_bad_done_condition.json";
+  const std::string tmp = "engine/tests/fixtures/_test_bad_done_condition.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -161,7 +161,7 @@ TEST_CASE("quest loader: malformed done_condition is a load error") {
 TEST_CASE("quest loader: empty done_condition is a load error") {
   // An empty expression compiles to constant-true, so accepting it would silently
   // complete the objective (and auto-advance its stage).
-  const std::string tmp = "tests/fixtures/_test_empty_done_condition.json";
+  const std::string tmp = "engine/tests/fixtures/_test_empty_done_condition.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -175,7 +175,7 @@ TEST_CASE("quest loader: empty done_condition is a load error") {
 }
 
 TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
-  const auto result = quest::load_quest("tests/fixtures/find_sword.json");
+  const auto result = quest::load_quest("engine/tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
   const auto &q = *result;
 
@@ -203,7 +203,7 @@ TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
 }
 
 TEST_CASE("quest loader: missing type field loads") {
-  const std::string tmp = "tests/fixtures/_test_no_type.json";
+  const std::string tmp = "engine/tests/fixtures/_test_no_type.json";
   {
     std::ofstream f(tmp);
     f << R"({"id":"x","name":"x","description":"","stages":[
@@ -216,7 +216,7 @@ TEST_CASE("quest loader: missing type field loads") {
 }
 
 TEST_CASE("quest loader: wrong type field warns but loads") {
-  const std::string tmp = "tests/fixtures/_test_wrong_type.json";
+  const std::string tmp = "engine/tests/fixtures/_test_wrong_type.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"dialogue","id":"x","name":"x","description":"","stages":[
@@ -229,7 +229,7 @@ TEST_CASE("quest loader: wrong type field warns but loads") {
 }
 
 TEST_CASE("quest loader: missing id fails") {
-  const std::string tmp = "tests/fixtures/_test_no_id.json";
+  const std::string tmp = "engine/tests/fixtures/_test_no_id.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
@@ -240,7 +240,7 @@ TEST_CASE("quest loader: missing id fails") {
 }
 
 TEST_CASE("quest loader: empty id fails") {
-  const std::string tmp = "tests/fixtures/_test_empty_id.json";
+  const std::string tmp = "engine/tests/fixtures/_test_empty_id.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
@@ -251,7 +251,7 @@ TEST_CASE("quest loader: empty id fails") {
 }
 
 TEST_CASE("quest loader: duplicate stage sequences rejected") {
-  const std::string tmp = "tests/fixtures/_test_dup_seq.json";
+  const std::string tmp = "engine/tests/fixtures/_test_dup_seq.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -265,7 +265,7 @@ TEST_CASE("quest loader: duplicate stage sequences rejected") {
 }
 
 TEST_CASE("quest loader: sequence <= 0 rejected") {
-  const std::string tmp = "tests/fixtures/_test_bad_seq.json";
+  const std::string tmp = "engine/tests/fixtures/_test_bad_seq.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -278,7 +278,7 @@ TEST_CASE("quest loader: sequence <= 0 rejected") {
 }
 
 TEST_CASE("quest loader: no resolved stage rejected") {
-  const std::string tmp = "tests/fixtures/_test_no_resolved.json";
+  const std::string tmp = "engine/tests/fixtures/_test_no_resolved.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -291,7 +291,7 @@ TEST_CASE("quest loader: no resolved stage rejected") {
 }
 
 TEST_CASE("quest loader: stage order disagreeing with sequences warns but loads") {
-  const std::string tmp = "tests/fixtures/_test_stage_order.json";
+  const std::string tmp = "engine/tests/fixtures/_test_stage_order.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -307,7 +307,7 @@ TEST_CASE("quest loader: stage order disagreeing with sequences warns but loads"
 }
 
 TEST_CASE("quest loader: failed flag auto-sets resolved") {
-  const std::string tmp = "tests/fixtures/_test_failed_flag.json";
+  const std::string tmp = "engine/tests/fixtures/_test_failed_flag.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -322,7 +322,7 @@ TEST_CASE("quest loader: failed flag auto-sets resolved") {
 }
 
 TEST_CASE("quest loader: advances_to parses and round-trips") {
-  const std::string tmp = "tests/fixtures/_test_advances_to.json";
+  const std::string tmp = "engine/tests/fixtures/_test_advances_to.json";
   {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
@@ -339,7 +339,7 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
   CHECK(result->stages[1].advances_to.empty());
 
   const auto j = quest::serialize(*result);
-  const auto tmp2 = std::filesystem::path("tests/fixtures/tmp_advances_to.json");
+  const auto tmp2 = std::filesystem::path("engine/tests/fixtures/tmp_advances_to.json");
   REQUIRE(corundum::core::write_json(tmp2, j).has_value());
   const auto reloaded = quest::load_quest(tmp2.string());
   REQUIRE(reloaded.has_value());
@@ -364,7 +364,7 @@ TEST_CASE("quest loader: keystone ember_of_greyhollow still loads clean") {
 }
 
 TEST_CASE("quest loader: invalid JSON returns error") {
-  const std::string tmp = "tests/fixtures/_test_bad_json.json";
+  const std::string tmp = "engine/tests/fixtures/_test_bad_json.json";
   {
     std::ofstream f(tmp);
     f << "not valid json";
@@ -772,7 +772,7 @@ TEST_CASE("registry load_all loads valid files, skips bad ones") {
   // Create temp dir with mixed files
   const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_registry";
   std::filesystem::create_directories(tmp_dir);
-  std::filesystem::copy_file("tests/fixtures/find_sword.json", tmp_dir / "find_sword.json",
+  std::filesystem::copy_file("engine/tests/fixtures/find_sword.json", tmp_dir / "find_sword.json",
                              std::filesystem::copy_options::overwrite_existing);
 
   // Bad file
@@ -1358,13 +1358,13 @@ TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)"
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
 TEST_CASE("quest serialize round-trips through load_quest") {
-  const auto result = quest::load_quest("tests/fixtures/find_sword.json");
+  const auto result = quest::load_quest("engine/tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
   const auto &q = *result;
 
   const auto j = quest::serialize(q);
 
-  const auto tmp = std::filesystem::path("tests/fixtures/tmp_find_sword.json");
+  const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_find_sword.json");
   const auto write_result = corundum::core::write_json(tmp, j);
   REQUIRE(write_result.has_value());
 
@@ -1397,7 +1397,7 @@ TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_conditi
   q.stages.push_back({.failed = true, .name = "failed", .resolved = true, .sequence = 3});
 
   const auto j = quest::serialize(q);
-  const auto tmp = std::filesystem::path("tests/fixtures/tmp_round_trip_all.json");
+  const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_round_trip_all.json");
   REQUIRE(corundum::core::write_json(tmp, j).has_value());
 
   const auto reloaded = quest::load_quest(tmp.string());
