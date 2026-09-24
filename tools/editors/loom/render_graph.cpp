@@ -51,7 +51,7 @@ namespace tools::loom {
 
     // ── Canvas pan/zoom ──
     if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
-      state.canvas.update(canvas_origin, canvas_size, /*zoom_to_cursor=*/true, k_min_scale, k_max_scale);
+      state.canvas.update(ImGui::GetIO(), canvas_origin, canvas_size, /*zoom_to_cursor=*/true);
 
     const auto n = static_cast<int>(state.graph.nodes.size());
     if (n == 0) {

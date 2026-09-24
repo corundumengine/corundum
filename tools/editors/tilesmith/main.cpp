@@ -70,7 +70,7 @@ using tools::tilesmith::TilesetView;
 static void center_camera(EditorState &state) noexcept {
   if (state.map.tilesets.empty())
     return;
-  state.canvas.scale = compute_tile_scale(state.map.diamond_w());
+  state.canvas.set_scale(compute_tile_scale(state.map.diamond_w()));
   const float half_tw = static_cast<float>(state.map.diamond_w()) * state.canvas.scale * 0.5f;
   const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
   const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw;

@@ -178,7 +178,7 @@ namespace tools::loom {
     char graph_speaker_buf_[256]{};
     char graph_actor_id_buf_[128]{};
     char graph_id_buf_[128]{};
-    corundum::toolkit::editor::CanvasController canvas;
+    corundum::toolkit::editor::CanvasController canvas{k_min_scale, k_max_scale};
     corundum::quest::Registry quest_registry;
     bool quests_loaded_ = false;
     corundum::dialogue::Registry graph_registry_;

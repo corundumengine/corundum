@@ -137,7 +137,7 @@ namespace tools::spritesmith {
     bool show_collision_box = false; ///< Draw collision rect overlay in the animation preview.
 
     // ---- Canvas view --------------------------------------------------------
-    corundum::toolkit::editor::CanvasController canvas;
+    corundum::toolkit::editor::CanvasController canvas{0.25f, 16.f};
 
     // ---- Hover state (updated on every mouse move) --------------------------
     int hover_col = -1; ///< Frame column under the cursor, or -1.

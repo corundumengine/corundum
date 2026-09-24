@@ -7,7 +7,6 @@
 #include "editor_state.hpp"
 #include "layout.hpp"
 #include "save.hpp"
-#include <algorithm>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/toolkit/editor/undo.hpp>
 #include <cstddef>
@@ -90,9 +89,9 @@ namespace tools::spritesmith {
         return;
       }
       if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd))
-        state.canvas.scale = std::min(state.canvas.scale * 1.25f, 16.f);
+        state.canvas.zoom_by(1.25f);
       if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract))
-        state.canvas.scale = std::max(state.canvas.scale / 1.25f, 0.25f);
+        state.canvas.zoom_by(1.f / 1.25f);
       if (state.mode == SheetMode::Atlas)
         handle_atlas_undo_redo(state);
     }
@@ -150,8 +149,8 @@ namespace tools::spritesmith {
     const int my = static_cast<int>(io.MousePos.y);
     const bool over_canvas = mx >= 0 && mx < CANVAS_W && my >= 0 && my < CANVAS_H;
 
-    state.canvas.update({0.f, 0.f}, {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
-                        /*zoom_to_cursor=*/true, 0.25f, 16.f);
+    state.canvas.update(io, {0.f, 0.f}, {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
+                        /*zoom_to_cursor=*/true);
     handle_save(state);
     handle_keyboard(state, running);
     if (!running)
