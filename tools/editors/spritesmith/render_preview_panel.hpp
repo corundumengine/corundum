@@ -5,14 +5,14 @@
 #include "editor_state.hpp"
 #include <corundum/platform/texture_cache.hpp>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::host {
   class ToolHost;
 }
 
 namespace tools::spritesmith {
 
   /// Render the permanent "Preview" section in the side panel.
-  void render_preview_panel(corundum::toolkit::ToolHost &host, const EditorState &state,
+  void render_preview_panel(corundum::toolkit::host::ToolHost &host, const EditorState &state,
                             const corundum::platform::TextureInfo &tex, float dt_seconds);
 
 } // namespace tools::spritesmith

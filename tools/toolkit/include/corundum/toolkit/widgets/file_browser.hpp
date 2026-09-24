@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::widgets {
 
   /**
    * @brief One selectable extension filter, e.g. {"Tilemap JSON", {"json"}}.
@@ -85,4 +85,4 @@ namespace corundum::toolkit {
    */
   [[nodiscard]] std::optional<std::filesystem::path> render_file_browser(FileBrowserState &fb);
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::widgets

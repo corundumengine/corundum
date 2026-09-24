@@ -11,7 +11,7 @@
 
 namespace tools::spritesmith {
 
-  void render_preview_panel(corundum::toolkit::ToolHost &host, const EditorState &state,
+  void render_preview_panel(corundum::toolkit::host::ToolHost &host, const EditorState &state,
                             const corundum::platform::TextureInfo &tex, float dt_seconds) {
     ImGui::SetNextWindowPos({static_cast<float>(CANVAS_W), static_cast<float>(PANEL_H)});
     ImGui::SetNextWindowSize({static_cast<float>(PANEL_W), static_cast<float>(PREVIEW_H)});

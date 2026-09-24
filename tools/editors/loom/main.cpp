@@ -29,9 +29,10 @@
 #include <string>
 #include <utility>
 
-using corundum::toolkit::ApplyEditorThemeRefined;
-using corundum::toolkit::load_theme;
-using corundum::toolkit::ThemeColors;
+using corundum::toolkit::widgets::ApplyEditorThemeRefined;
+using corundum::toolkit::widgets::load_theme;
+using corundum::toolkit::widgets::load_tool_fonts;
+using corundum::toolkit::widgets::ThemeColors;
 using tools::loom::action_open;
 using tools::loom::action_save;
 using tools::loom::action_save_as;
@@ -96,12 +97,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto cfg_result = corundum::toolkit::load_tool_config(argc, argv);
+  auto cfg_result = corundum::toolkit::host::load_tool_config(argc, argv);
   if (!cfg_result) {
     std::println(stderr, "[Loom] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::toolkit::ToolConfig cfg = std::move(*cfg_result);
+  corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
 
@@ -134,7 +135,7 @@ int main(int argc, char *argv[]) {
 
   const std::string title = app_title(state);
 
-  auto host_result = corundum::toolkit::ToolHost::create(
+  auto host_result = corundum::toolkit::host::ToolHost::create(
       {static_cast<int>(k_default_window_w), static_cast<int>(k_default_window_h), title});
   if (!host_result) {
     std::println(stderr, "[Loom] FATAL: {}", host_result.error());
@@ -216,7 +217,7 @@ int main(int argc, char *argv[]) {
       ImGui::EndMenuBar();
     }
 
-    if (auto picked = corundum::toolkit::render_file_browser(state.popups.save_browser)) {
+    if (auto picked = corundum::toolkit::widgets::render_file_browser(state.popups.save_browser)) {
       std::string path = picked->string();
       if (!path.ends_with(".json"))
         path += ".json";
@@ -235,7 +236,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    if (auto picked = corundum::toolkit::render_file_browser(state.popups.open_browser)) {
+    if (auto picked = corundum::toolkit::widgets::render_file_browser(state.popups.open_browser)) {
       auto result = load_file(state, picked->string());
       if (result) {
         host->set_title(app_title(state));

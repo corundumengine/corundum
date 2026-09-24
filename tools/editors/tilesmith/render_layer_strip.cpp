@@ -11,7 +11,7 @@
 
 namespace tools::tilesmith {
 
-  using namespace corundum::toolkit;
+  using namespace corundum::toolkit::widgets;
 
   void render_layer_strip(const EditorState &state, const ThemeColors &theme) {
     const int n_layers = static_cast<int>(state.map.layers.size());

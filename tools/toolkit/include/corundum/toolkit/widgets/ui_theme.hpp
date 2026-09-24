@@ -7,7 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::widgets {
 
   enum class TextRole { Active, Disabled, Normal, Muted, Accent, Success, Warning, Error };
 
@@ -33,4 +33,4 @@ namespace corundum::toolkit {
     ~ScopedTextColor();
   };
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::widgets

@@ -10,7 +10,7 @@
 
 #include <string>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::widgets {
 
   static ImVec4 HexToImVec4(const std::string &hex) {
     std::string h = hex[0] == '#' ? hex.substr(1) : hex;
@@ -127,4 +127,4 @@ namespace corundum::toolkit {
     ImGui::PopStyleColor();
   }
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::widgets

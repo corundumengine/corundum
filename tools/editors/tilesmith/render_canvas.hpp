@@ -8,7 +8,7 @@
 
 namespace tools::tilesmith {
 
-  using CanvasContext = corundum::toolkit::CanvasContext;
+  using CanvasContext = corundum::toolkit::editor::CanvasContext;
 
   /// Injected callback that renders all tilemap passes into the canvas.
   /// Constructed in main.cpp, which owns TilemapTextureStore.

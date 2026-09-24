@@ -18,7 +18,7 @@ namespace tools::spritesmith {
    * @param fonts  Loaded ImGui font handles.
    * @param theme  Semantic color theme.
    */
-  void render_side_panel(EditorState &state, const corundum::toolkit::FontHandles &fonts,
-                         const corundum::toolkit::ThemeColors &theme);
+  void render_side_panel(EditorState &state, const corundum::toolkit::widgets::FontHandles &fonts,
+                         const corundum::toolkit::widgets::ThemeColors &theme);
 
 } // namespace tools::spritesmith

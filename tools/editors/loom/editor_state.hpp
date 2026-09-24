@@ -32,8 +32,8 @@ namespace tools::loom {
   };
 
   struct PopupState {
-    corundum::toolkit::FileBrowserState save_browser;
-    corundum::toolkit::FileBrowserState open_browser;
+    corundum::toolkit::widgets::FileBrowserState save_browser;
+    corundum::toolkit::widgets::FileBrowserState open_browser;
     bool show_close_confirm = false;
   };
 
@@ -178,7 +178,7 @@ namespace tools::loom {
     char graph_speaker_buf_[256]{};
     char graph_actor_id_buf_[128]{};
     char graph_id_buf_[128]{};
-    corundum::toolkit::CanvasController canvas;
+    corundum::toolkit::editor::CanvasController canvas;
     corundum::quest::Registry quest_registry;
     bool quests_loaded_ = false;
     corundum::dialogue::Registry graph_registry_;

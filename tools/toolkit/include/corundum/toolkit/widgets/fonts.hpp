@@ -5,7 +5,7 @@
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <imgui.h>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::widgets {
 
   /// ImGui font handles loaded at startup.
   struct FontHandles {
@@ -24,6 +24,7 @@ namespace corundum::toolkit {
    * @param[in]  icons_size Font size for the icons font.
    * @return FontHandles struct (may have icon+UI, or just UI, or both null).
    */
-  [[nodiscard]] FontHandles load_tool_fonts(const ToolConfig &config, float ui_size = 18.f, float icons_size = 26.f);
+  [[nodiscard]] FontHandles load_tool_fonts(const corundum::toolkit::host::ToolConfig &config, float ui_size = 18.f,
+                                            float icons_size = 26.f);
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::widgets

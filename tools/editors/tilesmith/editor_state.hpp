@@ -44,7 +44,7 @@ namespace tools::tilesmith {
                                                        ///< height to scroll by — see compute_palette_layout()).
     int palette_tabbar_h = 28;                         ///< Measured ImGui tab bar height (updated each frame).
 
-    corundum::toolkit::CanvasController canvas;
+    corundum::toolkit::editor::CanvasController canvas;
     /// User-controlled zoom for the palette panel (independent of canvas zoom); 1 = native pixel
     /// size. Not auto-fit to any particular tile — packed tilesets can mix wildly different native
     /// sizes, so picking one "target" tile to fit would shrink or blow up everything else. Adjust
@@ -95,7 +95,7 @@ namespace tools::tilesmith {
     // Paint drag state
     bool painting_active = false; ///< True while a left-click paint/erase-mode drag is in progress.
 
-    corundum::toolkit::UndoStack<TilemapDoc> undo; ///< General undo/redo — see undo.hpp.
+    corundum::toolkit::editor::UndoStack<TilemapDoc> undo; ///< General undo/redo — see undo.hpp.
 
     // Portal state
     std::vector<corundum::world::Portal> portals; ///< Portals loaded from data/portals/{stem}.json.
@@ -115,8 +115,8 @@ namespace tools::tilesmith {
     std::vector<std::string> validation_errors;
 
     // Menu bar state (File > Open/Save As browsers, New Map dialog, exit/open confirmation)
-    corundum::toolkit::FileBrowserState open_browser;
-    corundum::toolkit::FileBrowserState save_browser;
+    corundum::toolkit::widgets::FileBrowserState open_browser;
+    corundum::toolkit::widgets::FileBrowserState save_browser;
     bool show_exit_confirm = false;
     bool show_open_confirm = false;
     std::filesystem::path pending_open_path;

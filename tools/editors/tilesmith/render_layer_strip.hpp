@@ -7,6 +7,6 @@
 
 namespace tools::tilesmith {
 
-  void render_layer_strip(const EditorState &state, const corundum::toolkit::ThemeColors &theme);
+  void render_layer_strip(const EditorState &state, const corundum::toolkit::widgets::ThemeColors &theme);
 
 } // namespace tools::tilesmith

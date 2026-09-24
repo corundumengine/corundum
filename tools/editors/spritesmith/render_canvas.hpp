@@ -8,7 +8,7 @@
 
 namespace tools::spritesmith {
 
-  using CanvasContext = corundum::toolkit::CanvasContext;
+  using CanvasContext = corundum::toolkit::editor::CanvasContext;
 
   /**
    * @brief Render the sprite sheet canvas with grid overlay.

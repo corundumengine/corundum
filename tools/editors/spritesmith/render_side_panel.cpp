@@ -525,8 +525,8 @@ namespace tools::spritesmith {
   // Public entry point
   // ---------------------------------------------------------------------------
 
-  void render_side_panel(EditorState &state, const corundum::toolkit::FontHandles & /*fonts*/,
-                         const corundum::toolkit::ThemeColors & /*theme*/) {
+  void render_side_panel(EditorState &state, const corundum::toolkit::widgets::FontHandles & /*fonts*/,
+                         const corundum::toolkit::widgets::ThemeColors & /*theme*/) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{8.f, 8.f});
     ImGui::SetNextWindowPos({static_cast<float>(CANVAS_W), 0.f});
     ImGui::SetNextWindowSize({static_cast<float>(PANEL_W), static_cast<float>(PANEL_H)});

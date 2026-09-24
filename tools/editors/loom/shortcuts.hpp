@@ -20,7 +20,8 @@ namespace tools::loom {
   using ShortcutAction = std::function<void()>;
   using ShortcutMap = std::flat_map<ImGuiKeyChord, ShortcutAction>;
 
-  inline void build_shortcuts(ShortcutMap &map, EditorState &state, corundum::toolkit::ToolHost &host, bool &running) {
+  inline void build_shortcuts(ShortcutMap &map, EditorState &state, corundum::toolkit::host::ToolHost &host,
+                              bool &running) {
     map.clear();
 
     auto apply_undo = [&](const DocSnapshot &snap) {

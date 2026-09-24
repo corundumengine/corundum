@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <string>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::host {
 
   /** @brief Configuration for editor tools, loaded via load_tool_config().
    *
@@ -47,4 +47,4 @@ namespace corundum::toolkit {
    */
   [[nodiscard]] std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]);
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::host

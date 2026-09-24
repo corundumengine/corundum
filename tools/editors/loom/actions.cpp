@@ -13,16 +13,16 @@ namespace tools::loom {
 
   void action_save_as(EditorState &state) {
     const auto start = state.file_path.empty() ? std::filesystem::current_path() : state.file_path.parent_path();
-    corundum::toolkit::open_save_browser(state.popups.save_browser, "Save As", start, {{"JSON", {"json"}}},
-                                         default_doc_name(state));
+    corundum::toolkit::widgets::open_save_browser(state.popups.save_browser, "Save As", start, {{"JSON", {"json"}}},
+                                                  default_doc_name(state));
   }
 
   void action_open(EditorState &state) {
     const auto start = state.file_path.empty() ? std::filesystem::current_path() : state.file_path.parent_path();
-    corundum::toolkit::open_file_browser(state.popups.open_browser, "Open", start, {{"JSON", {"json"}}});
+    corundum::toolkit::widgets::open_file_browser(state.popups.open_browser, "Open", start, {{"JSON", {"json"}}});
   }
 
-  void action_save(EditorState &state, corundum::toolkit::ToolHost &host) {
+  void action_save(EditorState &state, corundum::toolkit::host::ToolHost &host) {
     if (state.file_path.empty()) {
       action_save_as(state);
       return;

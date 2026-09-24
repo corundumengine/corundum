@@ -25,7 +25,7 @@ namespace tools::tilesmith {
       try_save(state);
     }
 
-    void do_open(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+    void do_open(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                  std::vector<TilesetView> &tileset_views, const std::filesystem::path &path) {
       state.map_path = path;
       try {
@@ -48,7 +48,7 @@ namespace tools::tilesmith {
     state.new_map_requested = true;
   }
 
-  void render_menu_bar(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+  void render_menu_bar(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views, bool &running) {
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("File")) {

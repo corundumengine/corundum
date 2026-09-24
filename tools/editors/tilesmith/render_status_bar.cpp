@@ -13,7 +13,7 @@
 
 namespace tools::tilesmith {
 
-  using namespace corundum::toolkit;
+  using namespace corundum::toolkit::widgets;
 
   namespace {
     /// Draws one status-bar segment in `role`'s color, preceded by a muted "|" separator (unless

@@ -24,9 +24,10 @@
 #include <string>
 #include <utility>
 
-using corundum::toolkit::ApplyEditorThemeRefined;
-using corundum::toolkit::load_theme;
-using corundum::toolkit::ThemeColors;
+using corundum::toolkit::widgets::ApplyEditorThemeRefined;
+using corundum::toolkit::widgets::load_theme;
+using corundum::toolkit::widgets::load_tool_fonts;
+using corundum::toolkit::widgets::ThemeColors;
 using tools::spritesmith::CanvasContext;
 using tools::spritesmith::EditorState;
 
@@ -34,7 +35,7 @@ using tools::spritesmith::EditorState;
 // Helpers
 // ---------------------------------------------------------------------------
 
-static void try_load_texture(corundum::toolkit::ToolHost &host, EditorState &state,
+static void try_load_texture(corundum::toolkit::host::ToolHost &host, EditorState &state,
                              corundum::platform::TextureInfo &texture, std::string &loaded_path) {
   if (state.image_path.empty())
     return;
@@ -64,7 +65,7 @@ static void try_load_texture(corundum::toolkit::ToolHost &host, EditorState &sta
   }
 }
 
-static void do_open(corundum::toolkit::ToolHost &host, EditorState &state, const std::filesystem::path &path) {
+static void do_open(corundum::toolkit::host::ToolHost &host, EditorState &state, const std::filesystem::path &path) {
   try {
     tools::spritesmith::load_sheet(state, path);
     state.dirty = false;
@@ -85,12 +86,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto cfg_result = corundum::toolkit::load_tool_config(argc, argv);
+  auto cfg_result = corundum::toolkit::host::load_tool_config(argc, argv);
   if (!cfg_result) {
     std::println(stderr, "[Spritesmith] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::toolkit::ToolConfig cfg = std::move(*cfg_result);
+  corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
   state.tile_diamond_w = cfg.tile_diamond_w;
@@ -108,7 +109,7 @@ int main(int argc, char *argv[]) {
                                 ? std::string("Spritesmith :: ") + std::filesystem::path(argv[1]).filename().string()
                                 : "Spritesmith :: Untitled";
 
-  auto host_result = corundum::toolkit::ToolHost::create(
+  auto host_result = corundum::toolkit::host::ToolHost::create(
       {tools::spritesmith::WINDOW_W, tools::spritesmith::WINDOW_H + tools::spritesmith::MENU_BAR_H, title});
   if (!host_result) {
     std::println(stderr, "[Spritesmith] FATAL: {}", host_result.error());
@@ -116,7 +117,7 @@ int main(int argc, char *argv[]) {
   }
   auto host = std::move(*host_result);
 
-  const corundum::toolkit::FontHandles fonts = load_tool_fonts(cfg);
+  const corundum::toolkit::widgets::FontHandles fonts = load_tool_fonts(cfg);
   ThemeColors theme = ApplyEditorThemeRefined();
   if (!cfg.theme_path.empty()) {
     if (auto t = load_theme(cfg.theme_path.string()))
@@ -181,8 +182,8 @@ int main(int argc, char *argv[]) {
       if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("Open Sheet...")) {
           const auto start = state.json_path.empty() ? std::filesystem::current_path() : state.json_path.parent_path();
-          corundum::toolkit::open_file_browser(state.open_browser, "Open Sprite Sheet", start,
-                                               {{"Sprite Sheet JSON", {"json"}}});
+          corundum::toolkit::widgets::open_file_browser(state.open_browser, "Open Sprite Sheet", start,
+                                                        {{"Sprite Sheet JSON", {"json"}}});
         }
         if (ImGui::MenuItem("Save", "Cmd+S"))
           action_save(state);
@@ -193,7 +194,7 @@ int main(int argc, char *argv[]) {
       ImGui::EndMenuBar();
     }
 
-    if (auto picked = corundum::toolkit::render_file_browser(state.open_browser)) {
+    if (auto picked = corundum::toolkit::widgets::render_file_browser(state.open_browser)) {
       if (state.dirty) {
         state.show_open_confirm = true;
         state.pending_open_path = *picked;
@@ -201,7 +202,7 @@ int main(int argc, char *argv[]) {
         do_open(*host, state, *picked);
       }
     }
-    if (auto picked = corundum::toolkit::render_file_browser(state.save_browser)) {
+    if (auto picked = corundum::toolkit::widgets::render_file_browser(state.save_browser)) {
       state.json_path = *picked;
       if (auto r = save_sheet(state); !r)
         std::println(stderr, "[Spritesmith] Save failed: {}", r.error());

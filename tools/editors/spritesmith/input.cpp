@@ -60,9 +60,9 @@ namespace tools::spritesmith {
         }
       };
       if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z))
-        apply_if(&corundum::toolkit::UndoStack<AtlasClipDoc>::redo);
+        apply_if(&corundum::toolkit::editor::UndoStack<AtlasClipDoc>::redo);
       else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
-        apply_if(&corundum::toolkit::UndoStack<AtlasClipDoc>::undo);
+        apply_if(&corundum::toolkit::editor::UndoStack<AtlasClipDoc>::undo);
     }
 
     void handle_save(EditorState &state) {

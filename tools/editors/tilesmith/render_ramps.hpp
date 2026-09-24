@@ -7,7 +7,7 @@
 
 namespace tools::tilesmith {
 
-  using CanvasContext = corundum::toolkit::CanvasContext;
+  using CanvasContext = corundum::toolkit::editor::CanvasContext;
 
   /**
    * @brief Draw a line across every ramp cell's own axis, on the active layer.

@@ -25,7 +25,7 @@
 
 using namespace corundum::platform;
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::host {
 
   struct ToolHost::Impl {
     std::unique_ptr<Window> window;
@@ -157,4 +157,4 @@ namespace corundum::toolkit {
     return impl_->textures->create(w, h, pixels.data(), WrapMode::Repeat);
   }
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::host

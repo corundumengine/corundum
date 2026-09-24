@@ -5,9 +5,9 @@
 #include <corundum/toolkit/widgets/fonts.hpp>
 #include <imgui.h>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::widgets {
 
-  FontHandles load_tool_fonts(const ToolConfig &config, float ui_size, float icons_size) {
+  FontHandles load_tool_fonts(const corundum::toolkit::host::ToolConfig &config, float ui_size, float icons_size) {
     ImGuiIO &io = ImGui::GetIO();
     io.Fonts->Clear();
 
@@ -21,4 +21,4 @@ namespace corundum::toolkit {
     return handles;
   }
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::widgets

@@ -130,8 +130,8 @@ namespace tools::spritesmith {
   void open_save_as_browser(EditorState &state) {
     const auto start = state.json_path.empty() ? std::filesystem::current_path() : state.json_path.parent_path();
     const std::string default_name = state.json_path.empty() ? state.sheet_id : state.json_path.filename().string();
-    corundum::toolkit::open_save_browser(state.save_browser, "Save Sprite Sheet As", start,
-                                         {{"Sprite Sheet JSON", {"json"}}}, default_name);
+    corundum::toolkit::widgets::open_save_browser(state.save_browser, "Save Sprite Sheet As", start,
+                                                  {{"Sprite Sheet JSON", {"json"}}}, default_name);
   }
 
   void action_save(EditorState &state) {

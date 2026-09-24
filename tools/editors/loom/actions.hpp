@@ -9,6 +9,6 @@ namespace tools::loom {
 
   void action_open(EditorState &state);
   void action_save_as(EditorState &state);
-  void action_save(EditorState &state, corundum::toolkit::ToolHost &host);
+  void action_save(EditorState &state, corundum::toolkit::host::ToolHost &host);
 
 } // namespace tools::loom

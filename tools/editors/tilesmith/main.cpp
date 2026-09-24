@@ -31,9 +31,10 @@
 #include <utility>
 #include <vector>
 
-using corundum::toolkit::ApplyEditorThemeRefined;
-using corundum::toolkit::load_theme;
-using corundum::toolkit::ThemeColors;
+using corundum::toolkit::widgets::ApplyEditorThemeRefined;
+using corundum::toolkit::widgets::load_theme;
+using corundum::toolkit::widgets::load_tool_fonts;
+using corundum::toolkit::widgets::ThemeColors;
 using tools::tilesmith::CanvasContext;
 using tools::tilesmith::EditorState;
 
@@ -47,7 +48,7 @@ using tools::tilesmith::TilesetView;
 // Helpers
 // ---------------------------------------------------------------------------
 
-// load_fonts replaced by corundum::toolkit::load_tool_fonts(config)
+// load_fonts replaced by corundum::toolkit::widgets::load_tool_fonts(config)
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -90,7 +91,7 @@ static void center_camera(EditorState &state) noexcept {
 
 namespace tools::tilesmith {
 
-  void finish_map_load(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+  void finish_map_load(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views) {
     corundum::world::tilemap::clear_tileset_cache();
 
@@ -131,12 +132,12 @@ int main(int argc, char *argv[]) {
   }
   const bool load_map_mode = (argc > 1);
 
-  auto cfg_result = corundum::toolkit::load_tool_config(argc, argv);
+  auto cfg_result = corundum::toolkit::host::load_tool_config(argc, argv);
   if (!cfg_result) {
     std::println(stderr, "[Tilesmith] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::toolkit::ToolConfig cfg = std::move(*cfg_result);
+  corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
   state.elev_step_px = cfg.elevation_step_px;
@@ -148,8 +149,8 @@ int main(int argc, char *argv[]) {
   const std::string initial_title =
       load_map_mode ? ("Tilesmith :: " + state.map_path.filename().string()) : "Tilesmith";
 
-  auto host_result =
-      corundum::toolkit::ToolHost::create({tools::tilesmith::WINDOW_W, tools::tilesmith::WINDOW_H, initial_title});
+  auto host_result = corundum::toolkit::host::ToolHost::create(
+      {tools::tilesmith::WINDOW_W, tools::tilesmith::WINDOW_H, initial_title});
   if (!host_result) {
     std::println(stderr, "[Tilesmith] FATAL: {}", host_result.error());
     return 1;
@@ -157,7 +158,7 @@ int main(int argc, char *argv[]) {
   auto host = std::move(*host_result);
 
   // Fonts must be loaded after ImGui context is created (inside ToolHost ctor).
-  [[maybe_unused]] corundum::toolkit::FontHandles fonts = load_tool_fonts(cfg);
+  [[maybe_unused]] corundum::toolkit::widgets::FontHandles fonts = load_tool_fonts(cfg);
 
   ThemeColors theme;
   if (!cfg.theme_path.empty()) {

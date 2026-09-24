@@ -7,7 +7,7 @@
 #include <functional>
 #include <imgui.h>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::editor {
 
   /// A shortcut action bound to a chord.
   using ShortcutAction = std::function<void()>;
@@ -27,9 +27,9 @@ namespace corundum::toolkit {
 
   /// Add common editor shortcuts (quit on Esc/Ctrl+Q) to @p map.
   /// Tools extend this with their own tool-specific bindings.
-  inline void add_default_shortcuts(ShortcutMap &map, ToolHost &host, bool &running) {
+  inline void add_default_shortcuts(ShortcutMap &map, corundum::toolkit::host::ToolHost &host, bool &running) {
     map[ImGuiMod_Ctrl | ImGuiKey_Q] = [&running]() { running = false; };
     map[ImGuiKey_Escape] = [&host]() { host.request_close(); };
   }
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::editor

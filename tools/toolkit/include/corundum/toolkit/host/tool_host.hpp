@@ -16,7 +16,7 @@ namespace corundum::platform {
   class GpuContext;
 }
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::host {
 
   /// Parameters for ToolHost creation.
   struct ToolHostDesc {
@@ -64,4 +64,4 @@ namespace corundum::toolkit {
     std::unique_ptr<Impl> impl_;
   };
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::host

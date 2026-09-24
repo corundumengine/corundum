@@ -11,11 +11,11 @@ namespace tools::tilesmith {
    * @brief Render the status bar at the bottom of the window.
    *
    * Shows the active layer name, selected tile, hover/mode info, dirty state, save hint, and exit
-   * hint as separately colored segments (see corundum::toolkit::TextRole).
+   * hint as separately colored segments (see corundum::toolkit::widgets::TextRole).
    *
    * @param state    Current editor state (read-only).
    * @param theme    Theme colors for per-segment text coloring.
    */
-  void render_status_bar(const EditorState &state, const corundum::toolkit::ThemeColors &theme);
+  void render_status_bar(const EditorState &state, const corundum::toolkit::widgets::ThemeColors &theme);
 
 } // namespace tools::tilesmith

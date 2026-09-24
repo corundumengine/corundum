@@ -16,7 +16,7 @@
 
 using json = nlohmann::json;
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::host {
 
   // ── CLI argument scanning ─────────────────────────────────────────────────────
 
@@ -90,4 +90,4 @@ namespace corundum::toolkit {
     return cfg;
   }
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::host

@@ -21,7 +21,7 @@ namespace tools::tilesmith {
    * @param tileset_views Tileset view data, rebuilt by File > Open / File > New Map.
    * @param running Set to false to trigger application exit (File > Exit, Save & Exit, etc).
    */
-  void render_menu_bar(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+  void render_menu_bar(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views, bool &running);
 
   /** @brief Request the unsaved-changes exit confirmation popup.
@@ -50,7 +50,7 @@ namespace tools::tilesmith {
    * Throws std::runtime_error on any load failure. Defined in main.cpp; used there for the
    * CLI-arg startup path and here for File > Open / New Map.
    */
-  void finish_map_load(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+  void finish_map_load(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views);
 
 } // namespace tools::tilesmith

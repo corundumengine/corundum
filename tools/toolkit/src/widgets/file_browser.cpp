@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-namespace corundum::toolkit {
+namespace corundum::toolkit::widgets {
 
   namespace {
     void copy_to_buf(char *buf, std::size_t buf_size, std::string_view s) {
@@ -139,4 +139,4 @@ namespace corundum::toolkit {
     return result;
   }
 
-} // namespace corundum::toolkit
+} // namespace corundum::toolkit::widgets
