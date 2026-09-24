@@ -2,7 +2,8 @@
 #
 # Everything is fetched at configure time via FetchContent (no find_package,
 # no manual installs). The only exception is OpenGL, which on Linux must come
-# from the system — handled in engine/src/platform/CMakeLists.txt.
+# from the system — handled in engine/src/platform/CMakeLists.txt. Test-only
+# dependencies (doctest) are gated by CORUNDUM_BUILD_TESTS.
 #
 # FETCHCONTENT_QUIET is forced to FALSE so dependency configure logs stay
 # visible — nothing here is skippable via -DCORUNDUM_FETCHCONTENT=OFF.
@@ -29,14 +30,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json_schema_validator)
 
-FetchContent_Declare(
-    doctest
-    GIT_REPOSITORY https://github.com/doctest/doctest
-    GIT_TAG        v2.5.3
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(doctest)
+if(CORUNDUM_BUILD_TESTS)
+    # Test-only dependency: skip the fetch entirely when tests are not built (consumers
+    # embedding corundum set CORUNDUM_BUILD_TESTS OFF — see AGENTS.md "Build options").
+    FetchContent_Declare(
+        doctest
+        GIT_REPOSITORY https://github.com/doctest/doctest
+        GIT_TAG        v2.5.3
+        GIT_SHALLOW    TRUE
+        GIT_PROGRESS   TRUE
+    )
+    FetchContent_MakeAvailable(doctest)
+endif()
 
 FetchContent_Declare(
     imgui
