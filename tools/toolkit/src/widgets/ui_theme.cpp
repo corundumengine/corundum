@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/json_io.hpp>
-#include <corundum/tool_host/ui_theme.hpp>
+#include <corundum/toolkit/widgets/ui_theme.hpp>
 #include <cstdint>
 #include <expected>
 #include <imgui.h>
@@ -10,7 +10,7 @@
 
 #include <string>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   static ImVec4 HexToImVec4(const std::string &hex) {
     std::string h = hex[0] == '#' ? hex.substr(1) : hex;
@@ -127,4 +127,4 @@ namespace corundum::tool_host {
     ImGui::PopStyleColor();
   }
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

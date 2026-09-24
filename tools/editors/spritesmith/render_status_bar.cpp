@@ -14,7 +14,7 @@ namespace tools::spritesmith {
 
   void render_status_bar(const EditorState &state) {
     const ImGuiIO &io = ImGui::GetIO();
-    ImGui::SetCursorPos({0.f, static_cast<float>(CANVAS_H)});
+    ImGui::SetCursorPos({0.f, static_cast<float>(CANVAS_H) + ImGui::GetFrameHeight()});
     ImGui::BeginChild("##statusbar", {io.DisplaySize.x, static_cast<float>(STATUS_H)}, false,
                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 

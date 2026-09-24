@@ -3,12 +3,12 @@
 
 #pragma once
 #include "editor_state.hpp"
-#include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
 #include <imgui.h>
 
 namespace tools::spritesmith {
 
-  using CanvasContext = corundum::tool_host::CanvasContext;
+  using CanvasContext = corundum::toolkit::CanvasContext;
 
   /**
    * @brief Render the sprite sheet canvas with grid overlay.

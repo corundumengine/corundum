@@ -6,12 +6,12 @@
 #include "layout.hpp"
 #include "render_anim_preview.hpp"
 #include <corundum/platform/texture_cache.hpp>
-#include <corundum/tool_host/tool_host.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
 #include <imgui.h>
 
 namespace tools::spritesmith {
 
-  void render_preview_panel(corundum::tool_host::ToolHost &host, const EditorState &state,
+  void render_preview_panel(corundum::toolkit::ToolHost &host, const EditorState &state,
                             const corundum::platform::TextureInfo &tex, float dt_seconds) {
     ImGui::SetNextWindowPos({static_cast<float>(CANVAS_W), static_cast<float>(PANEL_H)});
     ImGui::SetNextWindowSize({static_cast<float>(PANEL_W), static_cast<float>(PREVIEW_H)});

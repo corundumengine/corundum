@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "actions.hpp"
 #include "editor_state.hpp"
 #include "file_io.hpp"
 #include "layout.hpp"
@@ -15,10 +16,10 @@
 
 #include <algorithm>
 #include <corundum/dialogue/dialogue.hpp>
-#include <corundum/tool_host/fonts.hpp>
-#include <corundum/tool_host/tool_config.hpp>
-#include <corundum/tool_host/tool_host.hpp>
-#include <corundum/tool_host/ui_theme.hpp>
+#include <corundum/toolkit/host/tool_config.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
+#include <corundum/toolkit/widgets/fonts.hpp>
+#include <corundum/toolkit/widgets/ui_theme.hpp>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -28,9 +29,13 @@
 #include <string>
 #include <utility>
 
-using corundum::tool_host::ApplyEditorThemeRefined;
-using corundum::tool_host::load_theme;
-using corundum::tool_host::ThemeColors;
+using corundum::toolkit::ApplyEditorThemeRefined;
+using corundum::toolkit::load_theme;
+using corundum::toolkit::ThemeColors;
+using tools::loom::action_open;
+using tools::loom::action_save;
+using tools::loom::action_save_as;
+using tools::loom::app_title;
 using tools::loom::DocumentKind;
 using tools::loom::EditorState;
 using tools::loom::k_default_window_h;
@@ -84,59 +89,6 @@ static void new_item(EditorState &state) {
   state.undo_stack.clear();
 }
 
-static std::string app_title(const EditorState &state) {
-  std::string t = "Loom";
-  if (!state.file_path.empty()) {
-    t += " :: " + state.file_path.filename().string();
-  } else if (state.doc_type_ == DocumentKind::Quest) {
-    t += " :: Untitled Quest";
-  } else if (state.doc_type_ == DocumentKind::Item) {
-    t += " :: Untitled Item Batch";
-  } else {
-    t += " :: Untitled Dialogue";
-  }
-  return t;
-}
-
-static void action_save(EditorState &state, corundum::tool_host::ToolHost &host) {
-  if (state.file_path.empty()) {
-    auto default_name = default_doc_name(state);
-    std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
-                std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
-    state.popups.show_save_as = true;
-    return;
-  }
-
-  // Validate dialogue graphs before saving — show modal on errors
-  if (state.doc_type_ == DocumentKind::Dialogue) {
-    auto errors = corundum::dialogue::validate_graph(state.graph);
-    if (!errors.empty()) {
-      state.validation_errors_ = std::move(errors);
-      state.show_validation_modal_ = true;
-      return;
-    }
-  }
-
-  auto result = save_file(state);
-  if (result) {
-    state.dirty = false;
-    host.set_title(app_title(state));
-  } else {
-    state.toast.show(std::format("[Loom] Save error: {}", result.error()));
-  }
-}
-
-static void action_save_as(EditorState &state) {
-  auto default_name = default_doc_name(state);
-  std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
-              std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
-  state.popups.show_save_as = true;
-}
-
-static void action_open(EditorState &state) {
-  state.popups.show_open = true;
-}
-
 int main(int argc, char *argv[]) {
   if (argc > 2) {
     std::println(stderr, "Usage: loom [file.json]");
@@ -144,12 +96,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto cfg_result = corundum::tool_host::load_tool_config(argc, argv);
+  auto cfg_result = corundum::toolkit::load_tool_config(argc, argv);
   if (!cfg_result) {
     std::println(stderr, "[Loom] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::tool_host::ToolConfig cfg = std::move(*cfg_result);
+  corundum::toolkit::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
 
@@ -182,7 +134,7 @@ int main(int argc, char *argv[]) {
 
   const std::string title = app_title(state);
 
-  auto host_result = corundum::tool_host::ToolHost::create(
+  auto host_result = corundum::toolkit::ToolHost::create(
       {static_cast<int>(k_default_window_w), static_cast<int>(k_default_window_h), title});
   if (!host_result) {
     std::println(stderr, "[Loom] FATAL: {}", host_result.error());
@@ -264,66 +216,32 @@ int main(int argc, char *argv[]) {
       ImGui::EndMenuBar();
     }
 
-    // ── Save As popup ─────────────────────────────────────────────────────────
-    if (state.popups.show_save_as) {
-      ImGui::OpenPopup("Save As");
-      state.popups.show_save_as = false;
-    }
-    if (ImGui::BeginPopupModal("Save As", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      ImGui::Text("File path:");
-      ImGui::InputText("##savepath", state.popups.save_as_path_buf, sizeof(state.popups.save_as_path_buf));
-      if (ImGui::Button("Save") && state.popups.save_as_path_buf[0] != '\0') {
-        std::string path(state.popups.save_as_path_buf);
-        if (!path.ends_with(".json"))
-          path += ".json";
-        state.file_path = path;
-        if (state.doc_type_ == DocumentKind::Quest) {
-          state.quest_doc_.quest_id = std::filesystem::path(path).stem().string();
-        } else if (state.doc_type_ == DocumentKind::Dialogue) {
-          state.graph.graph_id = std::filesystem::path(path).stem().string();
-        }
-        auto result = save_file(state);
-        if (result) {
-          state.dirty = false;
-          host->set_title(app_title(state));
-          ImGui::CloseCurrentPopup();
-        } else {
-          state.toast.show(std::format("[Loom] Save error: {}", result.error()));
-        }
+    if (auto picked = corundum::toolkit::render_file_browser(state.popups.save_browser)) {
+      std::string path = picked->string();
+      if (!path.ends_with(".json"))
+        path += ".json";
+      state.file_path = path;
+      if (state.doc_type_ == DocumentKind::Quest) {
+        state.quest_doc_.quest_id = std::filesystem::path(path).stem().string();
+      } else if (state.doc_type_ == DocumentKind::Dialogue) {
+        state.graph.graph_id = std::filesystem::path(path).stem().string();
       }
-      ImGui::SameLine();
-      if (ImGui::Button("Cancel")) {
-        state.popups.save_as_path_buf[0] = '\0';
-        ImGui::CloseCurrentPopup();
+      auto result = save_file(state);
+      if (result) {
+        state.dirty = false;
+        host->set_title(app_title(state));
+      } else {
+        state.toast.show(std::format("[Loom] Save error: {}", result.error()));
       }
-      ImGui::EndPopup();
     }
 
-    // ── Open popup ────────────────────────────────────────────────────────────
-    if (state.popups.show_open) {
-      ImGui::OpenPopup("Open");
-      state.popups.show_open = false;
-    }
-    if (ImGui::BeginPopupModal("Open", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      ImGui::Text("File path:");
-      ImGui::InputText("##openpath", state.popups.open_path_buf, sizeof(state.popups.open_path_buf));
-      if (ImGui::Button("Open") && state.popups.open_path_buf[0] != '\0') {
-        std::string path(state.popups.open_path_buf);
-        auto result = load_file(state, path);
-        if (result) {
-          host->set_title(app_title(state));
-          std::memset(state.popups.open_path_buf, 0, sizeof(state.popups.open_path_buf));
-          ImGui::CloseCurrentPopup();
-        } else {
-          state.toast.show(std::format("[Loom] Load error: {}", result.error()));
-        }
+    if (auto picked = corundum::toolkit::render_file_browser(state.popups.open_browser)) {
+      auto result = load_file(state, picked->string());
+      if (result) {
+        host->set_title(app_title(state));
+      } else {
+        state.toast.show(std::format("[Loom] Load error: {}", result.error()));
       }
-      ImGui::SameLine();
-      if (ImGui::Button("Cancel")) {
-        std::memset(state.popups.open_path_buf, 0, sizeof(state.popups.open_path_buf));
-        ImGui::CloseCurrentPopup();
-      }
-      ImGui::EndPopup();
     }
 
     // ── Close confirmation popup ────────────────────────────────────────────

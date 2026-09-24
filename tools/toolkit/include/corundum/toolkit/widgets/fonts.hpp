@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/tool_host/tool_config.hpp>
+#include <corundum/toolkit/host/tool_config.hpp>
 #include <imgui.h>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   /// ImGui font handles loaded at startup.
   struct FontHandles {
@@ -26,4 +26,4 @@ namespace corundum::tool_host {
    */
   [[nodiscard]] FontHandles load_tool_fonts(const ToolConfig &config, float ui_size = 18.f, float icons_size = 26.f);
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

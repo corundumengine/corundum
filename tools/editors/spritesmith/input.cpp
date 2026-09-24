@@ -9,12 +9,11 @@
 #include "save.hpp"
 #include <algorithm>
 #include <corundum/sprites/sprite.hpp>
-#include <corundum/tool_host/undo.hpp>
+#include <corundum/toolkit/editor/undo.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <imgui.h>
 #include <optional>
-#include <print>
 #include <utility>
 
 namespace tools::spritesmith {
@@ -61,19 +60,16 @@ namespace tools::spritesmith {
         }
       };
       if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z))
-        apply_if(&corundum::tool_host::UndoStack<AtlasClipDoc>::redo);
+        apply_if(&corundum::toolkit::UndoStack<AtlasClipDoc>::redo);
       else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
-        apply_if(&corundum::tool_host::UndoStack<AtlasClipDoc>::undo);
+        apply_if(&corundum::toolkit::UndoStack<AtlasClipDoc>::undo);
     }
 
     void handle_save(EditorState &state) {
       const ImGuiIO &io = ImGui::GetIO();
       if (!io.KeyCtrl || !ImGui::IsKeyPressed(ImGuiKey_S))
         return;
-      if (auto r = save_sheet(state); !r)
-        std::println(stderr, "[Spritesmith] Save failed: {}", r.error());
-      else
-        std::println("[Spritesmith] Saved: {}", state.json_path.string());
+      action_save(state);
     }
 
     void handle_keyboard(EditorState &state, bool &running) {

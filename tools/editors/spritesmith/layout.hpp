@@ -9,6 +9,7 @@ namespace tools::spritesmith {
 
   constexpr int WINDOW_W = 1770;
   constexpr int WINDOW_H = 1000;
+  constexpr int MENU_BAR_H = 24; ///< Reserved for the File menu bar; ImGui sizes the real bar from the loaded font.
   constexpr int PANEL_W = 400;
   constexpr int STATUS_H = 26;
   constexpr int PREVIEW_H = 240;

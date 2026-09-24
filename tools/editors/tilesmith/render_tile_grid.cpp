@@ -9,7 +9,7 @@
 #include "tileset_view.hpp"
 #include <algorithm>
 #include <cmath>
-#include <corundum/tool_host/tool_host.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <cstddef>
@@ -67,7 +67,7 @@ namespace tools::tilesmith {
       return false;
     }
 
-    void do_add_tileset(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+    void do_add_tileset(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                         std::vector<TilesetView> &tileset_views, const std::string &source_path) {
       using corundum::world::tilemap::TileId;
       using corundum::world::tilemap::TilemapTileset;
@@ -106,7 +106,7 @@ namespace tools::tilesmith {
       state.dirty = true;
     }
 
-    void do_remove_tileset(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+    void do_remove_tileset(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                            std::vector<TilesetView> &tileset_views, int idx) {
       using corundum::world::tilemap::TileId;
 
@@ -141,7 +141,7 @@ namespace tools::tilesmith {
 
   } // namespace
 
-  void render_tile_grid(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+  void render_tile_grid(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                         std::vector<TilesetView> &tileset_views) {
     // Measure and render the tileset tab bar
     const float frame_h = ImGui::GetFrameHeight();

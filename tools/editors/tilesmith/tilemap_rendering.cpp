@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <corundum/core/math/isometric.hpp>
-#include <corundum/tool_host/tool_host.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -47,7 +47,7 @@ namespace tools::tilesmith {
     return *this;
   }
 
-  TilemapTextureStore load_tilemap_textures(corundum::tool_host::ToolHost &host,
+  TilemapTextureStore load_tilemap_textures(corundum::toolkit::ToolHost &host,
                                             const corundum::world::tilemap::Tilemap &map) {
     TilemapTextureStore store;
     store.host = &host;
@@ -61,7 +61,7 @@ namespace tools::tilesmith {
     return store;
   }
 
-  std::vector<TilesetView> rebuild_tileset_views(corundum::tool_host::ToolHost &host,
+  std::vector<TilesetView> rebuild_tileset_views(corundum::toolkit::ToolHost &host,
                                                  const corundum::world::tilemap::Tilemap &map,
                                                  const TilemapTextureStore &store) {
     std::vector<TilesetView> views;
@@ -73,7 +73,7 @@ namespace tools::tilesmith {
     return views;
   }
 
-  TileTextureView get_tile_texture(corundum::tool_host::ToolHost &host, const TilemapTextureStore &store,
+  TileTextureView get_tile_texture(corundum::toolkit::ToolHost &host, const TilemapTextureStore &store,
                                    const corundum::world::tilemap::Tilemap &map,
                                    corundum::world::tilemap::TileId gid) noexcept {
     const corundum::world::tilemap::TilemapTileset *ts = corundum::world::tilemap::find_tileset(map.tilesets, gid);
@@ -107,7 +107,7 @@ namespace tools::tilesmith {
 
   } // namespace
 
-  void render_tilemap(corundum::tool_host::ToolHost &host, CanvasContext ctx,
+  void render_tilemap(corundum::toolkit::ToolHost &host, CanvasContext ctx,
                       const corundum::world::tilemap::Tilemap &map, const TilemapTextureStore &store, float camera_x,
                       float camera_y, int z_index, float tile_scale, float elapsed_time, float elev_step) {
     const auto iso = corundum::core::math::compute_isometric_params(map.diamond_w(), map.diamond_h(), map.height,

@@ -13,7 +13,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_UNITY_BUILD OFF)
 
 # Options for consumer projects
-option(CORUNDUM_BUILD_TOOL_HOST "Build the ImGui+sokol host library for editor tools" ON)
 option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ON)
 option(CORUNDUM_BUILD_TESTS "Build unit tests" ON)
 option(CORUNDUM_BUILD_DOCS "Build Doxygen documentation" OFF)
@@ -25,9 +24,6 @@ include(cmake/Dependencies.cmake)
 
 # First-party targets
 add_subdirectory(engine)
-if(CORUNDUM_BUILD_TOOL_HOST)
-  add_subdirectory(tool_host)
-endif()
 if(CORUNDUM_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()

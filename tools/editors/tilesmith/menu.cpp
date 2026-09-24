@@ -8,8 +8,8 @@
 #include "tilemap_rendering.hpp"
 #include "tileset_view.hpp"
 #include "undo.hpp"
-#include <corundum/tool_host/file_browser.hpp>
-#include <corundum/tool_host/tool_host.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
+#include <corundum/toolkit/widgets/file_browser.hpp>
 #include <cstdio>
 #include <exception>
 #include <filesystem>
@@ -25,7 +25,7 @@ namespace tools::tilesmith {
       try_save(state);
     }
 
-    void do_open(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+    void do_open(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                  std::vector<TilesetView> &tileset_views, const std::filesystem::path &path) {
       state.map_path = path;
       try {
@@ -48,7 +48,7 @@ namespace tools::tilesmith {
     state.new_map_requested = true;
   }
 
-  void render_menu_bar(corundum::tool_host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
+  void render_menu_bar(corundum::toolkit::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views, bool &running) {
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("File")) {

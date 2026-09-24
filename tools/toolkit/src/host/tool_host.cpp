@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/platform/texture_cache.hpp>
-#include <corundum/tool_host/tool_host.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
 #include <imgui.h>
 
 #include <corundum/platform/gpu_context.hpp>
@@ -25,7 +25,7 @@
 
 using namespace corundum::platform;
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   struct ToolHost::Impl {
     std::unique_ptr<Window> window;
@@ -157,4 +157,4 @@ namespace corundum::tool_host {
     return impl_->textures->create(w, h, pixels.data(), WrapMode::Repeat);
   }
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

@@ -3,11 +3,11 @@
 
 #pragma once
 #include "editor_state.hpp"
-#include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
 
 namespace tools::tilesmith {
 
-  using MouseState = corundum::tool_host::MouseState;
+  using MouseState = corundum::toolkit::MouseState;
 
   /**
    * @brief Process all editor input for one frame using ImGui IO.

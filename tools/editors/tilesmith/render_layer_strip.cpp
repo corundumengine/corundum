@@ -4,14 +4,14 @@
 #include "render_layer_strip.hpp"
 #include "editor_state.hpp"
 #include "layout.hpp"
-#include <corundum/tool_host/ui_theme.hpp>
+#include <corundum/toolkit/widgets/ui_theme.hpp>
 #include <cstddef>
 #include <imgui.h>
 #include <string>
 
 namespace tools::tilesmith {
 
-  using namespace corundum::tool_host;
+  using namespace corundum::toolkit;
 
   void render_layer_strip(const EditorState &state, const ThemeColors &theme) {
     const int n_layers = static_cast<int>(state.map.layers.size());

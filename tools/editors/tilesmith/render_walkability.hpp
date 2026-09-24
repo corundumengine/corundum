@@ -3,11 +3,11 @@
 
 #pragma once
 #include "editor_state.hpp"
-#include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
 
 namespace tools::tilesmith {
 
-  using CanvasContext = corundum::tool_host::CanvasContext;
+  using CanvasContext = corundum::toolkit::CanvasContext;
 
   /**
    * @brief Render a highlighted line on every disconnected cardinal walkability

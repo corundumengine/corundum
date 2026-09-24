@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/tool_host/fonts.hpp>
-#include <corundum/tool_host/tool_config.hpp>
+#include <corundum/toolkit/host/tool_config.hpp>
+#include <corundum/toolkit/widgets/fonts.hpp>
 #include <imgui.h>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   FontHandles load_tool_fonts(const ToolConfig &config, float ui_size, float icons_size) {
     ImGuiIO &io = ImGui::GetIO();
@@ -21,4 +21,4 @@ namespace corundum::tool_host {
     return handles;
   }
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

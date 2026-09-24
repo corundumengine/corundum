@@ -5,8 +5,9 @@
 #include <array>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/sprites/sprite_atlas.hpp>
-#include <corundum/tool_host/canvas_controller.hpp>
-#include <corundum/tool_host/undo.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
+#include <corundum/toolkit/editor/undo.hpp>
+#include <corundum/toolkit/widgets/file_browser.hpp>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -79,6 +80,11 @@ namespace tools::spritesmith {
     std::filesystem::path json_path; ///< Output JSON path (empty = unsaved new file).
     bool dirty = false;              ///< True when unsaved changes exist.
 
+    corundum::toolkit::FileBrowserState open_browser;
+    corundum::toolkit::FileBrowserState save_browser;
+    bool show_open_confirm = false;
+    std::filesystem::path pending_open_path;
+
     // ---- Mode ----------------------------------------------------------------
     SheetMode mode = SheetMode::Character; ///< Active sheet type.
 
@@ -122,16 +128,16 @@ namespace tools::spritesmith {
     std::unordered_map<std::string, int> atlas_name_to_index;  ///< Sprite name -> atlas_sprites index.
     std::vector<AtlasAnimClip> atlas_clips;                    ///< Authored clips (sidecar-backed).
     int selected_atlas_clip = -1;                              ///< Index of the active clip, or -1.
-    bool atlas_clip_recording = false;                       ///< True while recording frames into selected_atlas_clip.
-    int hover_sprite = -1;                                   ///< atlas_sprites index under the cursor, or -1.
-    int selected_atlas_sprite = -1;                          ///< Focused entry in the sprite list panel, or -1.
-    corundum::tool_host::UndoStack<AtlasClipDoc> atlas_undo; ///< Undo/redo for atlas_clips edits.
+    bool atlas_clip_recording = false;                     ///< True while recording frames into selected_atlas_clip.
+    int hover_sprite = -1;                                 ///< atlas_sprites index under the cursor, or -1.
+    int selected_atlas_sprite = -1;                        ///< Focused entry in the sprite list panel, or -1.
+    corundum::toolkit::UndoStack<AtlasClipDoc> atlas_undo; ///< Undo/redo for atlas_clips edits.
 
     // ---- Preview overlays ---------------------------------------------------
     bool show_collision_box = false; ///< Draw collision rect overlay in the animation preview.
 
     // ---- Canvas view --------------------------------------------------------
-    corundum::tool_host::CanvasController canvas;
+    corundum::toolkit::CanvasController canvas;
 
     // ---- Hover state (updated on every mouse move) --------------------------
     int hover_col = -1; ///< Frame column under the cursor, or -1.

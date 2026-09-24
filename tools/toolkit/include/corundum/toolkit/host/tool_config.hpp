@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <string>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   /** @brief Configuration for editor tools, loaded via load_tool_config().
    *
@@ -39,7 +39,7 @@ namespace corundum::tool_host {
    *
    * All relative paths in the JSON are resolved against the config file's parent
    * directory. If font_path or theme_path point to a non-existent file, the
-   * helper falls back to tool_host/assets/{default} relative to the executable.
+   * helper falls back to tools/toolkit/assets/{default} relative to the executable.
    *
    * @param argc  Argument count from main().
    * @param argv  Argument vector from main().
@@ -47,4 +47,4 @@ namespace corundum::tool_host {
    */
   [[nodiscard]] std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]);
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

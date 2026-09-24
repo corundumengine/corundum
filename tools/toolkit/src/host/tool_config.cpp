@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/tool_host/tool_config.hpp>
+#include <corundum/toolkit/host/tool_config.hpp>
 #include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_io.hpp>
@@ -16,7 +16,7 @@
 
 using json = nlohmann::json;
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   // ── CLI argument scanning ─────────────────────────────────────────────────────
 
@@ -36,8 +36,8 @@ namespace corundum::tool_host {
                                                      const std::string &fallback_name) {
     if (!candidate.empty() && std::filesystem::exists(candidate))
       return candidate;
-    // Fallback relative to tool_host/assets/ (searched relative to CWD)
-    const auto fallback = std::filesystem::path("tool_host") / "assets" / fallback_name;
+    // Fallback relative to tools/toolkit/assets/ (searched relative to CWD)
+    const auto fallback = std::filesystem::path("tools") / "toolkit" / "assets" / fallback_name;
     if (std::filesystem::exists(fallback))
       return fallback;
     return candidate;
@@ -90,4 +90,4 @@ namespace corundum::tool_host {
     return cfg;
   }
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

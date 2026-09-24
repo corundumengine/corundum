@@ -1,7 +1,7 @@
 {
-    "font_path": "../tool_host/assets/NotoSans.ttf",
-    "icons_font_path": "../tool_host/assets/NotoSans.ttf",
-    "theme_path": "../tool_host/assets/editor_dark.json",
+    "font_path": "toolkit/assets/NotoSans.ttf",
+    "icons_font_path": "toolkit/assets/NotoSans.ttf",
+    "theme_path": "toolkit/assets/editor_dark.json",
     "quests_dir": "../keystone/data/quests",
     "dialogue_dir": "../keystone/data/dialogue",
     "elevation_step_px": 4,

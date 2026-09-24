@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/tool_host/tool_host.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
 #include <flat_map>
 #include <functional>
 #include <imgui.h>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   /// A shortcut action bound to a chord.
   using ShortcutAction = std::function<void()>;
@@ -32,4 +32,4 @@ namespace corundum::tool_host {
     map[ImGuiKey_Escape] = [&host]() { host.request_close(); };
   }
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

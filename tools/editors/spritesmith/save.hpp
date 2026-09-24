@@ -22,4 +22,14 @@ namespace tools::spritesmith {
    */
   [[nodiscard]] std::expected<void, std::string> save_sheet(EditorState &state);
 
+  /**
+   * @brief Open the Save As browser, pre-filled with a sensible default filename.
+   */
+  void open_save_as_browser(EditorState &state);
+
+  /**
+   * @brief Save if state.json_path is set; otherwise open the Save As browser instead of erroring.
+   */
+  void action_save(EditorState &state);
+
 } // namespace tools::spritesmith

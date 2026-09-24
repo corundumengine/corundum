@@ -30,8 +30,28 @@ namespace tools::spritesmith {
       return SheetMode::SpriteSheet;
     }
 
+    // Clears every mode's containers so a prior load can't stay reachable through the UI's
+    // Character/Sprite Sheet toggle. Called only after the incoming file validates, so a failed
+    // open leaves the current document intact.
+    void reset_mode_containers(EditorState &state) {
+      state.sprites.clear();
+      state.anim_clips.clear();
+      state.atlas_sprites.clear();
+      state.atlas_name_to_index.clear();
+      state.atlas_clips.clear();
+
+      state.selected_sprite = -1;
+      state.selected_clip = -1;
+      state.selected_atlas_clip = -1;
+      state.selected_atlas_sprite = -1;
+      state.hover_col = -1;
+      state.hover_row = -1;
+      state.hover_sprite = -1;
+    }
+
     void load_character(EditorState &state, const corundum::sprites::CharacterSheetData &data) {
       using namespace corundum::sprites;
+      reset_mode_containers(state);
       state.mode = SheetMode::Character;
       state.sheet_id = data.id;
       state.image_path = data.path;
@@ -42,7 +62,6 @@ namespace tools::spritesmith {
       state.spacing_x = data.spacing_x;
       state.spacing_y = data.spacing_y;
 
-      state.sprites.clear();
       state.sprites.reserve(data.sprites.size());
       for (const auto &entry : data.sprites) {
         SpriteDefinition sp;
@@ -63,6 +82,7 @@ namespace tools::spritesmith {
       if (!result)
         throw SheetLoadError(result.error());
       const auto &data = *result;
+      reset_mode_containers(state);
       state.mode = SheetMode::SpriteSheet;
       state.sheet_id = data.id;
       state.image_path = data.path;
@@ -75,7 +95,6 @@ namespace tools::spritesmith {
       state.spacing_x = data.spacing_x;
       state.spacing_y = data.spacing_y;
       state.anim_fps = data.anim_fps;
-      state.anim_clips.clear();
       for (const auto &clip : data.clips)
         state.anim_clips.push_back({clip.name, clip.frames});
     }
@@ -86,30 +105,34 @@ namespace tools::spritesmith {
         throw SheetLoadError(result.error());
       const auto &atlas = *result;
 
+      // Validate the sidecar before touching state — it can fail, and a failure must leave the
+      // current document intact rather than half-replaced.
+      corundum::sprites::AtlasClipsData sidecar;
+      const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(path);
+      if (std::filesystem::exists(sidecar_path)) {
+        auto clips_result = corundum::sprites::load_atlas_clips(sidecar_path);
+        if (!clips_result)
+          throw SheetLoadError(clips_result.error());
+        sidecar = std::move(*clips_result);
+      }
+
+      reset_mode_containers(state);
       state.mode = SheetMode::Atlas;
       state.image_path = atlas.path;
       state.image_pixel_w = atlas.width;
       state.image_pixel_h = atlas.height;
 
       state.atlas_sprites = atlas.sprites;
-      state.atlas_name_to_index.clear();
       for (int i = 0; i < static_cast<int>(state.atlas_sprites.size()); ++i)
         state.atlas_name_to_index[state.atlas_sprites[static_cast<std::size_t>(i)].name] = i;
 
-      state.atlas_clips.clear();
-      const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(path);
-      if (std::filesystem::exists(sidecar_path)) {
-        auto clips_result = corundum::sprites::load_atlas_clips(sidecar_path);
-        if (!clips_result)
-          throw SheetLoadError(clips_result.error());
-        for (const auto &clip : clips_result->clips) {
-          for (const auto &frame_name : clip.frames) {
-            if (!state.atlas_name_to_index.contains(frame_name))
-              std::println(stderr, "[Spritesmith] Warning: clip '{}' references unknown sprite '{}' (dangling)",
-                           clip.name, frame_name);
-          }
-          state.atlas_clips.push_back({clip.name, clip.fps, clip.frames});
+      for (const auto &clip : sidecar.clips) {
+        for (const auto &frame_name : clip.frames) {
+          if (!state.atlas_name_to_index.contains(frame_name))
+            std::println(stderr, "[Spritesmith] Warning: clip '{}' references unknown sprite '{}' (dangling)",
+                         clip.name, frame_name);
         }
+        state.atlas_clips.push_back({clip.name, clip.fps, clip.frames});
       }
 
       state.atlas_undo.clear();
@@ -128,7 +151,7 @@ namespace tools::spritesmith {
     } catch (const nlohmann::json::parse_error &e) {
       throw SheetLoadError(std::string("JSON parse error: ") + e.what());
     }
-    state.json_path = path;
+
     const SheetMode mode = detect_mode(j);
     if (mode == SheetMode::Atlas) {
       load_atlas_mode(state, path);
@@ -140,6 +163,10 @@ namespace tools::spritesmith {
     } else {
       load_sprite_sheet_mode(state, path);
     }
+
+    // Only commit json_path once the load has fully succeeded, so a failed open doesn't leave a
+    // later Save pointed at a file that was never actually loaded.
+    state.json_path = path;
   }
 
 } // namespace tools::spritesmith

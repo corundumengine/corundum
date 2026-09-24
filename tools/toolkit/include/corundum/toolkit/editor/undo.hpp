@@ -5,7 +5,7 @@
 #include <concepts>
 #include <vector>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   /** @brief Generic undo/redo stack for document-style edits.
    *
@@ -60,4 +60,4 @@ namespace corundum::tool_host {
     int cursor_ = -1;
   };
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit

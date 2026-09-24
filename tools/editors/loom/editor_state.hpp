@@ -8,7 +8,8 @@
 #include <corundum/item/item.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
-#include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
+#include <corundum/toolkit/widgets/file_browser.hpp>
 
 #include <cstddef>
 #include <cstring>
@@ -31,10 +32,8 @@ namespace tools::loom {
   };
 
   struct PopupState {
-    bool show_save_as = false;
-    char save_as_path_buf[512]{};
-    bool show_open = false;
-    char open_path_buf[512]{};
+    corundum::toolkit::FileBrowserState save_browser;
+    corundum::toolkit::FileBrowserState open_browser;
     bool show_close_confirm = false;
   };
 
@@ -179,7 +178,7 @@ namespace tools::loom {
     char graph_speaker_buf_[256]{};
     char graph_actor_id_buf_[128]{};
     char graph_id_buf_[128]{};
-    corundum::tool_host::CanvasController canvas;
+    corundum::toolkit::CanvasController canvas;
     corundum::quest::Registry quest_registry;
     bool quests_loaded_ = false;
     corundum::dialogue::Registry graph_registry_;

@@ -9,8 +9,8 @@
 #include <array>
 #include <corundum/sprites/atlas_clips.hpp>
 #include <corundum/sprites/sprite.hpp>
-#include <corundum/tool_host/fonts.hpp>
-#include <corundum/tool_host/ui_theme.hpp>
+#include <corundum/toolkit/widgets/fonts.hpp>
+#include <corundum/toolkit/widgets/ui_theme.hpp>
 #include <cstddef>
 #include <format>
 #include <imgui.h>
@@ -525,8 +525,8 @@ namespace tools::spritesmith {
   // Public entry point
   // ---------------------------------------------------------------------------
 
-  void render_side_panel(EditorState &state, const corundum::tool_host::FontHandles & /*fonts*/,
-                         const corundum::tool_host::ThemeColors & /*theme*/) {
+  void render_side_panel(EditorState &state, const corundum::toolkit::FontHandles & /*fonts*/,
+                         const corundum::toolkit::ThemeColors & /*theme*/) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{8.f, 8.f});
     ImGui::SetNextWindowPos({static_cast<float>(CANVAS_W), 0.f});
     ImGui::SetNextWindowSize({static_cast<float>(PANEL_W), static_cast<float>(PANEL_H)});

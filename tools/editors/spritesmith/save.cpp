@@ -10,9 +10,12 @@
 #include <corundum/sprites/character_sheet_serializer.hpp>
 #include <corundum/sprites/sprite_sheet_clips.hpp>
 #include <corundum/sprites/sprite_sheet_clips_serializer.hpp>
+#include <corundum/toolkit/widgets/file_browser.hpp>
 #include <expected>
+#include <filesystem>
 #include <format>
 #include <nlohmann/json_fwd.hpp>
+#include <print>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -122,6 +125,24 @@ namespace tools::spritesmith {
 
     state.dirty = false;
     return {};
+  }
+
+  void open_save_as_browser(EditorState &state) {
+    const auto start = state.json_path.empty() ? std::filesystem::current_path() : state.json_path.parent_path();
+    const std::string default_name = state.json_path.empty() ? state.sheet_id : state.json_path.filename().string();
+    corundum::toolkit::open_save_browser(state.save_browser, "Save Sprite Sheet As", start,
+                                         {{"Sprite Sheet JSON", {"json"}}}, default_name);
+  }
+
+  void action_save(EditorState &state) {
+    if (state.json_path.empty()) {
+      open_save_as_browser(state);
+      return;
+    }
+    if (auto r = save_sheet(state); !r)
+      std::println(stderr, "[Spritesmith] Save failed: {}", r.error());
+    else
+      std::println("[Spritesmith] Saved: {}", state.json_path.string());
   }
 
 } // namespace tools::spritesmith

@@ -3,8 +3,8 @@
 
 #pragma once
 #include "editor_state.hpp"
-#include <corundum/tool_host/fonts.hpp>
-#include <corundum/tool_host/ui_theme.hpp>
+#include <corundum/toolkit/widgets/fonts.hpp>
+#include <corundum/toolkit/widgets/ui_theme.hpp>
 
 namespace tools::spritesmith {
 
@@ -18,7 +18,7 @@ namespace tools::spritesmith {
    * @param fonts  Loaded ImGui font handles.
    * @param theme  Semantic color theme.
    */
-  void render_side_panel(EditorState &state, const corundum::tool_host::FontHandles &fonts,
-                         const corundum::tool_host::ThemeColors &theme);
+  void render_side_panel(EditorState &state, const corundum::toolkit::FontHandles &fonts,
+                         const corundum::toolkit::ThemeColors &theme);
 
 } // namespace tools::spritesmith

@@ -23,5 +23,6 @@ namespace tools::loom {
   [[nodiscard]] std::expected<void, std::string> save_file(const EditorState &state);
 
   [[nodiscard]] std::string default_doc_name(const EditorState &state);
+  [[nodiscard]] std::string app_title(const EditorState &state);
 
 } // namespace tools::loom

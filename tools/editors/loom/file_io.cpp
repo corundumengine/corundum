@@ -37,6 +37,20 @@ namespace tools::loom {
     return state.graph.graph_id + ".json";
   }
 
+  std::string app_title(const EditorState &state) {
+    std::string t = "Loom";
+    if (!state.file_path.empty()) {
+      t += " :: " + state.file_path.filename().string();
+    } else if (state.doc_type_ == DocumentKind::Quest) {
+      t += " :: Untitled Quest";
+    } else if (state.doc_type_ == DocumentKind::Item) {
+      t += " :: Untitled Item Batch";
+    } else {
+      t += " :: Untitled Dialogue";
+    }
+    return t;
+  }
+
   // ── Dialogue save/load ─────────────────────────────────────────────────────
 
   std::expected<void, std::string> save_graph(const EditorState &state) {

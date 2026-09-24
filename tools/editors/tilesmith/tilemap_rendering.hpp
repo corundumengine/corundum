@@ -5,22 +5,22 @@
 #include "tileset_view.hpp"
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/texture_cache.hpp>
-#include <corundum/tool_host/canvas_controller.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <vector>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
   class ToolHost;
 }
 
 namespace tools::tilesmith {
 
-  using CanvasContext = corundum::tool_host::CanvasContext;
+  using CanvasContext = corundum::toolkit::CanvasContext;
 
   /// Owns a texture ID for each tileset in a Tilemap, parallel to Tilemap::tilesets.
   struct TilemapTextureStore {
     std::vector<corundum::platform::TextureInfo> textures;
-    corundum::tool_host::ToolHost *host{nullptr};
+    corundum::toolkit::ToolHost *host{nullptr};
 
     TilemapTextureStore() = default;
     ~TilemapTextureStore();
@@ -44,22 +44,22 @@ namespace tools::tilesmith {
 
   /// Load each tileset PNG referenced by map.tilesets into a TilemapTextureStore.
   /// @throws std::runtime_error if any PNG cannot be opened.
-  [[nodiscard]] TilemapTextureStore load_tilemap_textures(corundum::tool_host::ToolHost &host,
+  [[nodiscard]] TilemapTextureStore load_tilemap_textures(corundum::toolkit::ToolHost &host,
                                                           const corundum::world::tilemap::Tilemap &map);
 
   /// Rebuild a TilesetView vector from map.tilesets and a parallel texture store.
-  [[nodiscard]] std::vector<TilesetView> rebuild_tileset_views(corundum::tool_host::ToolHost &host,
+  [[nodiscard]] std::vector<TilesetView> rebuild_tileset_views(corundum::toolkit::ToolHost &host,
                                                                const corundum::world::tilemap::Tilemap &map,
                                                                const TilemapTextureStore &store);
 
   /// Retrieve the texture and source rectangle for gid.
   /// @pre store.textures must be parallel to map.tilesets (guaranteed by load_tilemap_textures).
-  [[nodiscard]] TileTextureView get_tile_texture(corundum::tool_host::ToolHost &host, const TilemapTextureStore &store,
+  [[nodiscard]] TileTextureView get_tile_texture(corundum::toolkit::ToolHost &host, const TilemapTextureStore &store,
                                                  const corundum::world::tilemap::Tilemap &map,
                                                  corundum::world::tilemap::TileId gid) noexcept;
 
   /// Render a single z-index layer of map into the canvas draw list.
-  void render_tilemap(corundum::tool_host::ToolHost &host, CanvasContext ctx,
+  void render_tilemap(corundum::toolkit::ToolHost &host, CanvasContext ctx,
                       const corundum::world::tilemap::Tilemap &map, const TilemapTextureStore &store, float camera_x,
                       float camera_y, int z_index, float tile_scale, float elapsed_time, float elev_step);
 

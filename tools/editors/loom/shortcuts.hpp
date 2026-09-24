@@ -3,11 +3,12 @@
 
 #pragma once
 
+#include "actions.hpp"
 #include "editor_state.hpp"
 #include "file_io.hpp"
 #include "graph_layout.hpp"
 
-#include <corundum/tool_host/tool_host.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
 
 #include <flat_map>
 #include <format>
@@ -19,8 +20,7 @@ namespace tools::loom {
   using ShortcutAction = std::function<void()>;
   using ShortcutMap = std::flat_map<ImGuiKeyChord, ShortcutAction>;
 
-  inline void build_shortcuts(ShortcutMap &map, EditorState &state, corundum::tool_host::ToolHost &host,
-                              bool &running) {
+  inline void build_shortcuts(ShortcutMap &map, EditorState &state, corundum::toolkit::ToolHost &host, bool &running) {
     map.clear();
 
     auto apply_undo = [&](const DocSnapshot &snap) {
@@ -71,31 +71,11 @@ namespace tools::loom {
       host.set_title("Loom :: Untitled Quest");
     };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_O] = [&]() { state.popups.show_open = true; };
+    map[ImGuiMod_Ctrl | ImGuiKey_O] = [&]() { action_open(state); };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_S] = [&]() {
-      if (state.file_path.empty()) {
-        auto default_name = default_doc_name(state);
-        std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
-                    std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
-        state.popups.show_save_as = true;
-      } else {
-        auto result = save_file(state);
-        if (result) {
-          state.dirty = false;
-          host.set_title("Loom :: " + state.file_path.filename().string());
-        } else {
-          state.toast.show(std::format("[Loom] Save error: {}", result.error()));
-        }
-      }
-    };
+    map[ImGuiMod_Ctrl | ImGuiKey_S] = [&]() { action_save(state, host); };
 
-    map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S] = [&]() {
-      auto default_name = default_doc_name(state);
-      std::memcpy(state.popups.save_as_path_buf, default_name.c_str(),
-                  std::min(default_name.size(), sizeof(state.popups.save_as_path_buf) - 1));
-      state.popups.show_save_as = true;
-    };
+    map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S] = [&]() { action_save_as(state); };
 
     map[ImGuiMod_Ctrl | ImGuiKey_Q] = [&]() {
       if (state.dirty) {

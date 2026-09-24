@@ -4,7 +4,7 @@
 #include "render_status_bar.hpp"
 #include "editor_state.hpp"
 #include "layout.hpp"
-#include <corundum/tool_host/ui_theme.hpp>
+#include <corundum/toolkit/widgets/ui_theme.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <cstddef>
 #include <format>
@@ -13,7 +13,7 @@
 
 namespace tools::tilesmith {
 
-  using namespace corundum::tool_host;
+  using namespace corundum::toolkit;
 
   namespace {
     /// Draws one status-bar segment in `role`'s color, preceded by a muted "|" separator (unless

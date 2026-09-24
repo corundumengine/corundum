@@ -1,9 +1,11 @@
 # Developer tools: the tilesmith/spritesmith/loom GUI editors and the
 # headless mapview renderer. Each editor is a thin executable over
-# corundum::tool_host; C++23 arrives transitively through the target links,
+# corundum::toolkit; C++23 arrives transitively through the target links,
 # while the warning policy is applied explicitly per-target below.
 
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
+
+add_subdirectory(toolkit)
 
 # ── Tilesmith Editor ────────────────────────────────────────────────────────────
 add_executable(tilesmith
@@ -36,7 +38,7 @@ target_include_directories(tilesmith
 
 target_link_libraries(tilesmith
     PRIVATE
-        corundum::tool_host
+        corundum::toolkit
 )
 
 corundum_enable_warnings(tilesmith)
@@ -61,7 +63,7 @@ target_include_directories(spritesmith
 
 target_link_libraries(spritesmith
     PRIVATE
-        corundum::tool_host
+        corundum::toolkit
 )
 
 corundum_enable_warnings(spritesmith)
@@ -69,6 +71,7 @@ corundum_enable_warnings(spritesmith)
 # ── Loom Editor ─────────────────────────────────────────────────────────────────
 add_executable(loom
     editors/loom/main.cpp
+    editors/loom/actions.cpp
     editors/loom/file_io.cpp
     editors/loom/graph_layout.cpp
     editors/loom/render_graph.cpp
@@ -86,7 +89,7 @@ target_include_directories(loom
 
 target_link_libraries(loom
     PRIVATE
-        corundum::tool_host
+        corundum::toolkit
 )
 
 corundum_enable_warnings(loom)

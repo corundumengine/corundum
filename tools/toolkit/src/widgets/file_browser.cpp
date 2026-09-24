@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <corundum/core/files.hpp>
-#include <corundum/tool_host/file_browser.hpp>
+#include <corundum/toolkit/widgets/file_browser.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-namespace corundum::tool_host {
+namespace corundum::toolkit {
 
   namespace {
     void copy_to_buf(char *buf, std::size_t buf_size, std::string_view s) {
@@ -139,4 +139,4 @@ namespace corundum::tool_host {
     return result;
   }
 
-} // namespace corundum::tool_host
+} // namespace corundum::toolkit
