@@ -54,11 +54,10 @@ namespace corundum::platform::glfw {
     // controllers and platforms. Raw glfwGetJoystickButtons() indices vary by device
     // (one controller reported Y at raw index 4 and R1 at raw index 7), so binding
     // directly to those was unreliable.
-    constexpr std::array<Binding, 3> k_gamepad_button_bindings{
+    constexpr std::array<Binding, 2> k_gamepad_button_bindings{
         {
             {.code = GLFW_GAMEPAD_BUTTON_A, .action = Action::Select},
             {.code = GLFW_GAMEPAD_BUTTON_B, .action = Action::Cancel},
-            {.code = GLFW_GAMEPAD_BUTTON_START, .action = Action::Quit},
         },
     };
 
@@ -91,9 +90,8 @@ namespace corundum::platform::glfw {
       RightTrigger,
     };
     constexpr std::size_t k_gamepad_axis_source_count = 10;
-    constexpr std::size_t k_window_close_source = k_gamepad_axis_source_base + k_gamepad_axis_source_count;
 
-    static_assert(k_window_close_source < corundum::input::k_max_input_sources,
+    static_assert(k_gamepad_axis_source_base + k_gamepad_axis_source_count <= corundum::input::k_max_input_sources,
                   "input source indices must fit ActionResolver");
 
     constexpr Action action_for(GamepadAxisSource source) noexcept {
@@ -192,10 +190,6 @@ namespace corundum::platform::glfw {
 
   void translate_scroll(double yoffset, InputState &state) noexcept {
     state.scroll_delta_y += static_cast<float>(yoffset);
-  }
-
-  void translate_window_close(ActionResolver &resolver, InputState &state) noexcept {
-    resolver.update(k_window_close_source, Action::Quit, true, state);
   }
 
   void poll_gamepad(ActionResolver &resolver, InputState &state) noexcept {

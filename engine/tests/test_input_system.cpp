@@ -5,6 +5,7 @@
 
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_system.hpp>
+#include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/window.hpp>
 
 #include <cstddef>
@@ -15,6 +16,7 @@ namespace {
   using corundum::input::accumulate_input;
   using corundum::input::Action;
   using corundum::input::InputState;
+  using corundum::platform::PlatformEvents;
 
   /// Window double that records polls and surfaces a scripted InputState, mirroring how
   /// the GLFW backend accumulates its translated events into the caller's state.
@@ -22,6 +24,7 @@ namespace {
   public:
     int poll_count{};
     InputState scripted{};
+    PlatformEvents scripted_events{};
 
     [[nodiscard]] bool is_open() const override {
       return true;
@@ -29,9 +32,11 @@ namespace {
 
     void close() override {}
 
-    void poll_game_input(InputState &input) override {
+    void poll_game_input(InputState &input, PlatformEvents &events) override {
       ++poll_count;
       accumulate_input(input, scripted);
+      merge_events(events, scripted_events);
+      scripted_events = {};
     }
 
     [[nodiscard]] std::pair<int, int> size() const override {
@@ -50,11 +55,12 @@ namespace {
 TEST_CASE("poll — forwards to the window's poll_game_input once per call") {
   RecordingWindow window;
   corundum::input::InputState state{};
+  PlatformEvents events{};
 
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
   CHECK(window.poll_count == 1);
 
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
   CHECK(window.poll_count == 2);
 }
 
@@ -62,8 +68,9 @@ TEST_CASE("poll — a press raised by the window reaches the caller's state") {
   RecordingWindow window;
   window.scripted.pressed.set(static_cast<std::size_t>(Action::Select));
   corundum::input::InputState state{};
+  PlatformEvents events{};
 
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
 
   CHECK(state.is_pressed(Action::Select));
 }
@@ -73,8 +80,9 @@ TEST_CASE("poll — does not clear presses already latched in the state") {
   RecordingWindow window;
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::MoveUp));
+  PlatformEvents events{};
 
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
 
   CHECK(state.is_pressed(Action::MoveUp));
 }
@@ -82,11 +90,12 @@ TEST_CASE("poll — does not clear presses already latched in the state") {
 TEST_CASE("poll — repeated polls OR presses rather than replacing them") {
   RecordingWindow window;
   corundum::input::InputState state{};
+  PlatformEvents events{};
 
   window.scripted.pressed.set(static_cast<std::size_t>(Action::MoveUp));
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
   window.scripted.pressed.set(static_cast<std::size_t>(Action::Cancel));
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
 
   CHECK(state.is_pressed(Action::MoveUp));
   CHECK(state.is_pressed(Action::Cancel));
@@ -97,8 +106,9 @@ TEST_CASE("poll — overwrites held with the window's current key state") {
   window.scripted.held.set(static_cast<std::size_t>(Action::Select));
   corundum::input::InputState state{};
   state.held.set(static_cast<std::size_t>(Action::MoveUp));
+  PlatformEvents events{};
 
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
 
   CHECK(state.is_held(Action::Select));
   CHECK_FALSE(state.is_held(Action::MoveUp));
@@ -110,9 +120,27 @@ TEST_CASE("poll — accumulates the mouse click and scroll delta") {
   window.scripted.scroll_delta_y = 2.f;
   corundum::input::InputState state{};
   state.scroll_delta_y = 1.f;
+  PlatformEvents events{};
 
-  corundum::input::poll(state, window);
+  corundum::input::poll(state, window, events);
 
   CHECK(state.mouse_click_pressed);
   CHECK(state.scroll_delta_y == doctest::Approx(3.f));
+}
+
+TEST_CASE("poll — surfaces platform events queued by the window") {
+  RecordingWindow window;
+  window.scripted_events.focus_lost = true;
+  corundum::input::InputState state{};
+  PlatformEvents events{};
+
+  corundum::input::poll(state, window, events);
+
+  CHECK(events.focus_lost);
+  CHECK_FALSE(events.focus_gained);
+
+  // Events are one-shot: the next poll reports none.
+  PlatformEvents next{};
+  corundum::input::poll(state, window, next);
+  CHECK_FALSE(next.focus_lost);
 }

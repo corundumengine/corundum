@@ -30,6 +30,7 @@ namespace corundum::audio {
     cache_.clear();
     catalog_.clear();
     initialized_ = true;
+    backend_->set_paused(paused_);
     return {};
   }
 
@@ -95,6 +96,13 @@ namespace corundum::audio {
     if (!is_ready())
       return;
     backend_->set_master_volume(volume);
+  }
+
+  void AudioSystem::set_paused(bool paused) noexcept {
+    paused_ = paused;
+    if (!is_ready())
+      return;
+    backend_->set_paused(paused);
   }
 
 } // namespace corundum::audio

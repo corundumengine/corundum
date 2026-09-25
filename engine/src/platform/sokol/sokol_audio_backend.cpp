@@ -186,6 +186,10 @@ namespace corundum::platform::sokol {
         master_volume_ = std::clamp(volume, 0.0f, 1.0f);
       }
 
+      void set_paused(bool paused) override {
+        paused_.store(paused);
+      }
+
     private:
       /// @pre The caller holds mutex_.
       [[nodiscard]] bool has_clip(corundum::audio::SoundHandle handle) const noexcept {
@@ -236,6 +240,11 @@ namespace corundum::platform::sokol {
 
         std::memset(buffer, 0, static_cast<std::size_t>(num_frames) * num_channels * sizeof(float));
 
+        // Paused voices hold their position: the callback outputs silence and does
+        // not advance a cursor, so resume continues from the same sample.
+        if (self->paused_.load())
+          return;
+
         // The lock is held for the whole mix, so play()/set_master_volume() on the
         // game thread block until the callback returns. Fine at the current call
         // frequency; a command queue would be the fix if that changes.
@@ -258,6 +267,7 @@ namespace corundum::platform::sokol {
       std::vector<ActiveVoice> voices_;
       float master_volume_{1.0f};
       std::atomic<bool> valid_{false};
+      std::atomic<bool> paused_{false};
     };
 
   } // namespace

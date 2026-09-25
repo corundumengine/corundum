@@ -33,7 +33,12 @@ namespace {
       last_master_volume = volume;
     }
 
+    void set_paused(bool paused) override {
+      last_paused = paused;
+    }
+
     float last_master_volume = -1.f;
+    bool last_paused = false;
     std::vector<std::string> loaded_paths;
     std::vector<std::pair<corundum::audio::SoundHandle, bool>> played;
 
@@ -121,6 +126,20 @@ TEST_CASE("AudioSystem: set_master_volume is a no-op before initialize, forwarde
   REQUIRE(sys.initialize("data/sounds").has_value());
   sys.set_master_volume(0.7f);
   CHECK(stub->last_master_volume == 0.7f);
+}
+
+TEST_CASE("AudioSystem: set_paused is retained before initialize and applied once ready") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+
+  sys.set_paused(true);
+  CHECK_FALSE(stub->last_paused); // not initialised: swallowed
+
+  REQUIRE(sys.initialize("data/sounds").has_value());
+  CHECK(stub->last_paused); // the retained flag is re-applied
+
+  sys.set_paused(false);
+  CHECK_FALSE(stub->last_paused);
 }
 
 TEST_CASE("AudioSystem: destruction after init is RAII-safe and clears state") {

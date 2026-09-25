@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/input/actions.hpp>
+#include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/window.hpp>
 
 #include <utility>
@@ -12,7 +13,8 @@ namespace corundum::platform::null {
   /** @brief No-op Window for headless lifecycle tests.
    *
    * `open_` toggles between `is_open()` and `close()`. Stores dimensions so
-   * `size()` matches what the test sets. `poll_game_input` is a no-op.
+   * `size()` matches what the test sets. `poll_game_input` is a no-op for input,
+   * but emits whatever `scripted_events` a test has queued.
    */
   class NullWindow final : public corundum::platform::Window {
   public:
@@ -26,7 +28,10 @@ namespace corundum::platform::null {
       open_ = false;
     }
 
-    void poll_game_input(corundum::input::InputState & /*input*/) override {}
+    void poll_game_input(corundum::input::InputState & /*input*/, PlatformEvents &events) override {
+      merge_events(events, scripted_events);
+      scripted_events = {};
+    }
 
     [[nodiscard]] std::pair<int, int> size() const override {
       return {static_cast<int>(width_), static_cast<int>(height_)};
@@ -37,6 +42,13 @@ namespace corundum::platform::null {
     [[nodiscard]] void *native_handle() const override {
       return nullptr;
     }
+
+    /** @brief Events emitted on the next poll_game_input(), then cleared.
+     *
+     *  Tests set these to script focus, quit, and display changes the engine
+     *  would otherwise receive from a real host OS.
+     */
+    PlatformEvents scripted_events{};
 
   private:
     bool open_ = true;

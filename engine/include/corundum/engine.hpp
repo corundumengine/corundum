@@ -16,6 +16,7 @@
 #include <corundum/item/registry.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/handle.hpp>
+#include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/quest/registry.hpp>
@@ -26,6 +27,7 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/transition.hpp>
 
+#include <cstdint>
 #include <expected>
 #include <functional>
 #include <string>
@@ -36,6 +38,17 @@ namespace corundum {
   namespace platform {
     struct PlatformContext;
   } // namespace platform
+
+  /** @brief Simulation run state.
+   *
+   *  Running advances the fixed-step simulation. Paused holds it still and silences
+   *  audio; run_frame() still polls platform events while paused, so focus can be
+   *  regained and a quit request can still be observed.
+   */
+  enum class RunState : std::uint8_t {
+    Running,
+    Paused,
+  };
 
   /** @brief Game engine instance owning all system-level resources and game state.
    *
@@ -106,6 +119,14 @@ namespace corundum {
      *  same frame.
      */
     std::function<void(Engine &, float dt)> on_fixed_update;
+
+    /** @brief Hook called after the engine reacts to OS lifecycle events.
+     *
+     *  Invoked once per frame in which at least one PlatformEvents field is set,
+     *  after focus-loss/quit handling, so game code observes the resulting run
+     *  state. Default-empty; existing games are unaffected.
+     */
+    std::function<void(Engine &, const platform::PlatformEvents &)> on_platform_event;
 
     /** @brief Take ownership of a backend-created platform handle.
      *
@@ -217,6 +238,24 @@ namespace corundum {
       return quit_;
     }
 
+    /** @brief Current simulation run state. */
+    [[nodiscard]] RunState run_state() const noexcept {
+      return run_state_;
+    }
+
+    /** @brief True while the simulation is paused. */
+    [[nodiscard]] bool is_paused() const noexcept {
+      return run_state_ == RunState::Paused;
+    }
+
+    /** @brief Pause or resume the simulation and audio.
+     *
+     *  Resuming clears the loop timer's accumulator, so a pause (e.g. a focus loss)
+     *  does not queue a burst of catch-up fixed steps. Safe to call repeatedly; a
+     *  no-op when @p paused already matches the current state.
+     */
+    void set_paused(bool paused) noexcept;
+
     /** @brief Live window width in screen pixels (0 before the first frame). */
     [[nodiscard]] int window_width() const noexcept {
       return window_width_;
@@ -233,6 +272,8 @@ namespace corundum {
     int window_height_{0}; ///< Cached each frame by run_frame(); see window_height().
 
     int window_width_{0}; ///< Cached each frame by run_frame(); see window_width().
+
+    RunState run_state_{RunState::Running}; ///< Paused by focus loss; see set_paused().
   };
 
 } // namespace corundum

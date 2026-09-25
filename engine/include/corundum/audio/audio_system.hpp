@@ -62,6 +62,13 @@ namespace corundum::audio {
     /** @brief Set the global master volume in [0.0, 1.0]. No-op if not initialised. */
     void set_master_volume(float volume) noexcept;
 
+    /** @brief Pause or resume all audio output. No-op if not initialised.
+     *
+     *  The paused flag is retained, so a later initialize() re-applies it to the
+     *  backend rather than silently resuming.
+     */
+    void set_paused(bool paused) noexcept;
+
     /** @brief Load a JSON sound catalog mapping names to file paths.
      *
      *  Expects a flat JSON object: {"coin": "sfx/jingle_coin_01.ogg", ...}.
@@ -103,6 +110,8 @@ namespace corundum::audio {
     std::flat_map<std::string, std::string, std::less<>> catalog_;
 
     bool initialized_{false};
+
+    bool paused_{false};
 
     std::string sounds_dir_;
   };

@@ -3,14 +3,21 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/platform/null/null_platform.hpp>
+#include <corundum/platform/null/null_window.hpp>
+#include <corundum/platform/platform_events.hpp>
 #include <corundum/world/camera.hpp>
 
+#include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <functional>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace fs = std::filesystem;
@@ -42,6 +49,49 @@ namespace {
   void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
     corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
     corundum::platform::null::adopt_null_platform(engine, platform);
+  }
+
+  /// The concrete null window behind @p engine, so a test can script platform events.
+  [[nodiscard]] corundum::platform::null::NullWindow *null_window(const corundum::Engine &engine) {
+    return dynamic_cast<corundum::platform::null::NullWindow *>(engine.window.get());
+  }
+
+  /// Records every platform-event hook invocation for assertions.
+  struct EventRecorder {
+    int calls{0};
+    corundum::platform::PlatformEvents seen{};
+
+    void operator()(corundum::Engine & /*engine*/, const corundum::platform::PlatformEvents &events) {
+      ++calls;
+      seen = events;
+    }
+  };
+
+  /// Audio backend double that records pause transitions for the focus tests.
+  class RecordingAudioBackend final : public corundum::audio::AudioBackend {
+  public:
+    std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view /*path*/) override {
+      return 1u;
+    }
+
+    void play(corundum::audio::SoundHandle /*handle*/, float /*volume*/, bool /*loop*/) override {}
+
+    void set_master_volume(float /*volume*/) override {}
+
+    void set_paused(bool paused) override {
+      last_paused = paused;
+    }
+
+    bool last_paused{false};
+  };
+
+  /// Adopt a RecordingAudioBackend into @p engine's audio system; returns the
+  /// raw pointer for assertions (owned by the system).
+  [[nodiscard]] RecordingAudioBackend *adopt_recording_audio(corundum::Engine &engine) {
+    auto backend = std::make_unique<RecordingAudioBackend>();
+    RecordingAudioBackend *raw = backend.get();
+    engine.audio.adopt_backend(std::move(backend));
+    return raw;
   }
 
 } // namespace
@@ -181,6 +231,106 @@ TEST_CASE("lifecycle: single-map startup camera frames the map with per-axis bou
   constexpr float k_world_height{96.f};
   CHECK(engine.scene.camera.x == doctest::Approx((k_world_width - 320.f) * 0.5f));
   CHECK(engine.scene.camera.y == doctest::Approx((k_world_height - 240.f) * 0.5f));
+
+  engine.cleanup();
+}
+
+// ── 8. Focus loss pauses the simulation and audio ────────────────────────────
+
+TEST_CASE("lifecycle: focus loss stops fixed steps and pauses audio") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  const RecordingAudioBackend *audio = adopt_recording_audio(engine);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  // Queue a fixed step so a running engine would consume one.
+  engine.timer.accumulator = engine.timer.target_dt * 2.f;
+  const std::uint64_t steps_before = engine.timer.step_count;
+
+  null_window(engine)->scripted_events.focus_lost = true;
+  CHECK(engine.run_frame());
+
+  CHECK(engine.is_paused());
+  CHECK(audio->last_paused);
+  CHECK(engine.timer.step_count == steps_before); // simulation held still
+
+  // Still paused, and still no catch-up, on later frames with time queued.
+  engine.timer.accumulator = engine.timer.target_dt * 2.f;
+  CHECK(engine.run_frame());
+  CHECK(engine.timer.step_count == steps_before);
+
+  engine.cleanup();
+}
+
+// ── 9. Focus gain resumes without replaying the paused interval ──────────────
+
+TEST_CASE("lifecycle: focus gain resumes with no catch-up burst") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  const RecordingAudioBackend *audio = adopt_recording_audio(engine);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  null_window(engine)->scripted_events.focus_lost = true;
+  REQUIRE(engine.run_frame());
+  REQUIRE(engine.is_paused());
+
+  // Simulate a long pause having queued a large backlog, then regain focus.
+  engine.timer.accumulator = engine.timer.target_dt * 200.f;
+  const std::uint64_t steps_before = engine.timer.step_count;
+
+  null_window(engine)->scripted_events.focus_gained = true;
+  CHECK(engine.run_frame());
+
+  CHECK_FALSE(engine.is_paused());
+  CHECK_FALSE(audio->last_paused);
+  // The queued pause time was discarded rather than replayed as fixed steps.
+  CHECK(engine.timer.step_count <= steps_before + 1);
+
+  engine.cleanup();
+}
+
+// ── 10. quit_requested ends the frame; display changes reach the hook ─────────
+
+TEST_CASE("lifecycle: quit_requested ends run_frame") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  null_window(engine)->scripted_events.quit_requested = true;
+  CHECK_FALSE(engine.run_frame());
+  CHECK(engine.quit_requested());
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: on_platform_event hook observes display changes") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  EventRecorder recorder;
+  engine.on_platform_event = std::ref(recorder);
+
+  null_window(engine)->scripted_events.display_changed = true;
+  CHECK(engine.run_frame());
+  CHECK(recorder.calls == 1);
+  CHECK(recorder.seen.display_changed);
+
+  // A frame with no OS events does not invoke the hook.
+  CHECK(engine.run_frame());
+  CHECK(recorder.calls == 1);
 
   engine.cleanup();
 }

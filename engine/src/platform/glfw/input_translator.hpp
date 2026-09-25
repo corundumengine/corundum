@@ -27,9 +27,4 @@ namespace corundum::platform::glfw {
   /// has its sources released, so a disconnect cannot latch an action as held.
   void poll_gamepad(corundum::input::ActionResolver &resolver, corundum::input::InputState &state) noexcept;
 
-  /// Raise Action::Quit from a window-manager close request. Routed through the
-  /// translator (rather than writing InputState directly) so its source is tracked
-  /// like any other binding.
-  void translate_window_close(corundum::input::ActionResolver &resolver, corundum::input::InputState &state) noexcept;
-
 } // namespace corundum::platform::glfw

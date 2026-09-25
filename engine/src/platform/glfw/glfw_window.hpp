@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/input/actions.hpp>
+#include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/window.hpp>
 
 #include <cstdint>
@@ -40,7 +41,7 @@ namespace corundum::platform::glfw {
     [[nodiscard]] bool is_open() const override;
 
     void close() override;
-    void poll_game_input(corundum::input::InputState &input) override;
+    void poll_game_input(corundum::input::InputState &input, corundum::platform::PlatformEvents &events) override;
 
     /// @return {0, 0} once the underlying GLFW window no longer exists.
     [[nodiscard]] std::pair<int, int> size() const override;

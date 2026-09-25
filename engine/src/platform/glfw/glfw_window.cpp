@@ -6,6 +6,7 @@
 
 #include <corundum/input/action_resolver.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/platform/platform_events.hpp>
 
 #include <GLFW/glfw3.h>
 
@@ -41,6 +42,7 @@ namespace corundum::platform::glfw {
     struct WindowData {
       corundum::input::InputState input{};
       corundum::input::ActionResolver input_resolver{};
+      corundum::platform::PlatformEvents events{};
 
 #ifdef SOKOL_METAL
       MetalLayer *metal_layer{nullptr};
@@ -57,7 +59,35 @@ namespace corundum::platform::glfw {
     void window_close_callback(GLFWwindow *win) noexcept {
       auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
       if (data != nullptr) {
-        translate_window_close(data->input_resolver, data->input);
+        data->events.quit_requested = true;
+      }
+    }
+
+    void window_focus_callback(GLFWwindow *win, int focused) noexcept {
+      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
+      if (data == nullptr)
+        return;
+      if (focused == GLFW_TRUE)
+        data->events.focus_gained = true;
+      else
+        data->events.focus_lost = true;
+    }
+
+    void window_iconify_callback(GLFWwindow *win, int iconified) noexcept {
+      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
+      if (data == nullptr)
+        return;
+      // An iconified window has effectively lost focus; restoring it brings it back.
+      if (iconified == GLFW_TRUE)
+        data->events.focus_lost = true;
+      else
+        data->events.focus_gained = true;
+    }
+
+    void framebuffer_size_callback(GLFWwindow *win, int /*width*/, int /*height*/) noexcept {
+      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
+      if (data != nullptr) {
+        data->events.display_changed = true;
       }
     }
 
@@ -158,6 +188,9 @@ namespace corundum::platform::glfw {
       glfwSetMouseButtonCallback(impl_->win, mouse_button_callback);
       glfwSetScrollCallback(impl_->win, scroll_callback);
       glfwSetWindowCloseCallback(impl_->win, window_close_callback);
+      glfwSetWindowFocusCallback(impl_->win, window_focus_callback);
+      glfwSetWindowIconifyCallback(impl_->win, window_iconify_callback);
+      glfwSetFramebufferSizeCallback(impl_->win, framebuffer_size_callback);
 
 #ifdef SOKOL_METAL
       impl_->data.metal_layer = metal_setup_layer(impl_->win);
@@ -197,7 +230,7 @@ namespace corundum::platform::glfw {
       glfwSetWindowShouldClose(impl_->win, GLFW_TRUE);
   }
 
-  void GLFWWindow::poll_game_input(corundum::input::InputState &input) {
+  void GLFWWindow::poll_game_input(corundum::input::InputState &input, corundum::platform::PlatformEvents &events) {
     if (!impl_ || impl_->win == nullptr)
       return;
     corundum::input::clear_pressed(impl_->data.input);
@@ -209,6 +242,9 @@ namespace corundum::platform::glfw {
     impl_->data.input.mouse_x = static_cast<float>(mx);
     impl_->data.input.mouse_y = static_cast<float>(my);
     corundum::input::accumulate_input(input, impl_->data.input);
+
+    corundum::platform::merge_events(events, impl_->data.events);
+    impl_->data.events = {};
   }
 
   std::pair<int, int> GLFWWindow::size() const {

@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/input/actions.hpp>
+#include <corundum/platform/platform_events.hpp>
 
 #include <utility>
 
@@ -26,14 +27,15 @@ namespace corundum::platform {
     /** @brief Ask the window to close; is_open() reports it closed from the next query on. */
     virtual void close() = 0;
 
-    /** @brief Poll platform events, translate them to engine input, and append the result to @p input.
+    /** @brief Poll platform events, translate them to engine input, and report OS lifecycle events.
      *
      *  Presses already latched in @p input are left untouched — clearing them is the simulation
-     *  step's job, via input::clear_pressed.
+     *  step's job, via input::clear_pressed. Fields set in @p events are edge events observed
+     *  since the previous poll; the caller passes a fresh (default-constructed) struct each frame.
      *
      *  @pre This window must be open.
      */
-    virtual void poll_game_input(corundum::input::InputState &input) = 0;
+    virtual void poll_game_input(corundum::input::InputState &input, PlatformEvents &events) = 0;
 
     /** @brief Query the current window dimensions in logical screen coordinates.
      *

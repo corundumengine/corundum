@@ -12,7 +12,8 @@ doc — see the note at the end of the technical appendix.
 
 Re-run this doc as a review checklist whenever input behavior changes —
 several entries below capture real, non-obvious behavior (e.g. Cancel's
-hard-close semantics, Quit's three convergent sources) that's easy to get
+hard-close semantics, Quit's split between a player action and an OS
+event) that's easy to get
 wrong from memory.
 
 ## Part 1 — Player-Facing Reference
@@ -33,7 +34,7 @@ wrong from memory.
 
 - **Binding**: left mouse click, on a tile (not on/aimed at an NPC — see
   Interact below for that case).
-- **Effect**: computes a path via A* over the walkability graph from the
+- **Effect**: computes a path via A\* over the walkability graph from the
   player's current cell to the clicked tile, then walks it automatically.
   If the tile is unreachable (blocked by a wall, elevation cliff, or out
   of bounds), nothing happens — no path is queued. Canceled by any Move
@@ -50,7 +51,7 @@ wrong from memory.
   a keyboard/gamepad press has no "aim" concept, so it triggers on
   proximity alone — the first interactable NPC within radius, in entity
   iteration order (not necessarily the nearest one, if more than one NPC
-  happens to be in range at once). A mouse click *does* have a position,
+  happens to be in range at once). A mouse click _does_ have a position,
   so it additionally
   requires the click to land on the NPC's own tile; clicking elsewhere
   while merely standing near an NPC starts a walk instead, not a
@@ -62,7 +63,7 @@ wrong from memory.
 
 - **Bindings**: `Escape` (keyboard); gamepad button 1 (B/Circle).
 - **Effect**: has no effect outside dialogue. Inside dialogue, it's a
-  **hard close** — immediately ends the conversation from *either* a
+  **hard close** — immediately ends the conversation from _either_ a
   plain dialogue line or a Choice prompt. It does not "back up one step"
   or cancel just the current choice; the whole conversation ends.
 
@@ -76,7 +77,7 @@ wrong from memory.
 - **Note**: because a mouse click also raises this same action, **clicking
   anywhere on screen during dialogue also advances the current line or
   confirms the current choice** — there's no aim requirement inside
-  dialogue (unlike Interact, which only applies to the click that *starts*
+  dialogue (unlike Interact, which only applies to the click that _starts_
   a conversation). This is existing, currently-unchanged behavior — worth
   a deliberate decision later (keep as click-to-advance, or restrict to a
   dialogue-box click target), not altered by this pass.
@@ -90,10 +91,13 @@ wrong from memory.
 
 ### Quit
 
-- **Bindings**: `Q` (keyboard); gamepad button 7 (Start); the OS window
-  close button.
-- **Effect**: exits the game. All three sources are equivalent — they set
-  the same underlying signal, checked once per frame in the main loop.
+- **Bindings**: `Q` (keyboard); the OS window close button (a platform
+  event, not an `Action`).
+- **Effect**: exits the game. The keyboard binding raises `Action::Quit`;
+  the window close button raises `PlatformEvents::quit_requested`. Both
+  are checked once per frame in the main loop. Gamepad Start is
+  deliberately unbound — what Start does is a game-design decision, not a
+  hard-wired quit.
 
 ### Zoom
 
@@ -104,8 +108,8 @@ wrong from memory.
   `max_zoom` (`GameConfig`, default 0.5–3.0). Scroll up / `=` / R2 zooms
   in; scroll down / `-` / L2 zooms out.
 - **Anchor point — different for mouse vs. keyboard/gamepad,
-  deliberately**: scroll-wheel zoom keeps the world point *under the
-  mouse cursor* visually fixed (zooming toward/away from whatever you're
+  deliberately**: scroll-wheel zoom keeps the world point _under the
+  mouse cursor_ visually fixed (zooming toward/away from whatever you're
   pointing at). Keyboard/gamepad zoom has no cursor to aim with, so it
   anchors on the screen center instead.
 - **Note**: zoom is a pure camera-level transform — it does not change
@@ -118,7 +122,7 @@ Everything funnels through `corundum::input::InputState`
 (`engine/include/corundum/input/actions.hpp`): a `held`/`pressed` bitset
 pair over the `Action` enum (`MoveUp`, `MoveDown`, `MoveLeft`,
 `MoveRight`, `Select`, `Cancel`, `Quit`, `ZoomIn`, `ZoomOut`), plus three
-signals that deliberately sit *outside* the `Action` enum because they
+signals that deliberately sit _outside_ the `Action` enum because they
 carry information no discrete action has: `mouse_x`/`mouse_y`
 (continuous cursor position), `mouse_click_pressed` (a one-shot "the
 player clicked a screen point" flag, distinct from `Select`), and
@@ -129,12 +133,12 @@ not just "did it happen", so it can't be a discrete `Action` either).
 
 All in `engine/src/platform/glfw/input_translator.cpp`:
 
-| Table | Maps | Entries |
-|---|---|---|
-| `k_key_bindings` | GLFW key → `Action` | WASD/arrows → Move*; Enter/Space → Select; Escape → Cancel; Q → Quit; `=` → ZoomIn; `-` → ZoomOut |
-| `k_gamepad_button_bindings` | mapped gamepad button (`GLFW_GAMEPAD_BUTTON_*`) → `Action` | A → Select; B → Cancel; Start → Quit |
-| `k_mouse_bindings` | mouse button → `Action` | Left click → Select |
-| (inline in `poll_gamepad`) | stick/d-pad/trigger axes → `Action` | left stick + d-pad → Move*, radial deadzone 0.5 with a 0.3 per-axis floor; L2 trigger → ZoomOut, R2 trigger → ZoomIn, threshold 0.0 |
+| Table                       | Maps                                                       | Entries                                                                                                                              |
+| --------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `k_key_bindings`            | GLFW key → `Action`                                        | WASD/arrows → Move\*; Enter/Space → Select; Escape → Cancel; Q → Quit; `=` → ZoomIn; `-` → ZoomOut                                   |
+| `k_gamepad_button_bindings` | mapped gamepad button (`GLFW_GAMEPAD_BUTTON_*`) → `Action` | A → Select; B → Cancel                                                                                                               |
+| `k_mouse_bindings`          | mouse button → `Action`                                    | Left click → Select                                                                                                                  |
+| (inline in `poll_gamepad`)  | stick/d-pad/trigger axes → `Action`                        | left stick + d-pad → Move\*, radial deadzone 0.5 with a 0.3 per-axis floor; L2 trigger → ZoomOut, R2 trigger → ZoomIn, threshold 0.0 |
 
 Zoom is bound to the analog triggers (L2/R2), not the shoulder bumpers —
 GLFW's mapped gamepad API reports triggers as axes
@@ -151,7 +155,7 @@ binding above (both fire from the same physical click, deliberately).
 `translate_scroll()` from GLFW's scroll callback, since a continuous
 signed magnitude has no discrete `Action` to bind to.
 
-`poll_gamepad()` uses GLFW's *mapped* gamepad API
+`poll_gamepad()` uses GLFW's _mapped_ gamepad API
 (`glfwJoystickIsGamepad()` + `glfwGetGamepadState()`), not raw
 `glfwGetJoystickButtons()`/`glfwGetJoystickAxes()` indices. Raw button
 order varies per controller/platform (one tested controller reported its
@@ -175,7 +179,7 @@ and the stick and d-pad are independent sources for the same move
 actions. `corundum::input::ActionResolver`
 (`engine/include/corundum/input/action_resolver.hpp`) tracks which
 sources are active per action and derives `held`/`pressed` from that
-set: an action's `held` bit stays set until *every* source bound to it
+set: an action's `held` bit stays set until _every_ source bound to it
 is released, and a press edge fires only on the transition from no
 source active to at least one. This is what lets keyboard and gamepad
 share an action without one device's release clearing the other's
@@ -185,27 +189,34 @@ device disconnects, so a held bit cannot latch.
 
 ### Consumption sites (where each signal drives behavior)
 
-| Signal | Consumed at | Behavior |
-|---|---|---|
-| `Action::MoveUp/Down/Left/Right` | `physics_system.cpp::apply_input()` | World movement |
-| `Action::MoveUp/Down/Left/Right` | `physics_system.cpp::update_player()` | Cancels an active click-to-move path |
-| `Action::MoveUp/Down` | `dialogue/system.cpp::system()` (`NodeType::Choice`) | Choice cursor navigation |
-| `mouse_click_pressed` | `physics_system.cpp::update_player()` | Queues a click-to-move path via `find_path()` |
-| `Action::Select` | `dialogue_system.cpp::try_interact()` | Starts dialogue (proximity-only for keyboard/gamepad; proximity **and** click-aimed-at-NPC-tile for a click — see `mouse_click_pressed` check there) |
-| `Action::Select` | `dialogue/system.cpp::system()` (`NodeType::Talk`) | Advances the line |
-| `Action::Select` | `dialogue/system.cpp::system()` (`NodeType::Choice`) | Confirms the highlighted choice |
-| `Action::Cancel` | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`) |
-| `Action::Quit` | `engine.cpp`'s main loop | Sets `engine.quit` and closes the window |
-| `scroll_delta_y` | `world/update.cpp::update_zoom()` | `Camera::apply_zoom()`, anchored on the mouse cursor |
-| `Action::ZoomIn/ZoomOut` (held) | `world/update.cpp::update_zoom()` | `Camera::apply_zoom()`, anchored on the screen center, rate-limited by `k_zoom_rate_per_sec` and `dt` |
+| Signal                                        | Consumed at                                                               | Behavior                                                                                                                                             |
+| --------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Action::MoveUp/Down/Left/Right`              | `physics_system.cpp::apply_input()`                                       | World movement                                                                                                                                       |
+| `Action::MoveUp/Down/Left/Right`              | `physics_system.cpp::update_player()`                                     | Cancels an active click-to-move path                                                                                                                 |
+| `Action::MoveUp/Down`                         | `dialogue/system.cpp::system()` (`NodeType::Choice`)                      | Choice cursor navigation                                                                                                                             |
+| `mouse_click_pressed`                         | `physics_system.cpp::update_player()`                                     | Queues a click-to-move path via `find_path()`                                                                                                        |
+| `Action::Select`                              | `dialogue_system.cpp::try_interact()`                                     | Starts dialogue (proximity-only for keyboard/gamepad; proximity **and** click-aimed-at-NPC-tile for a click — see `mouse_click_pressed` check there) |
+| `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Talk`)                        | Advances the line                                                                                                                                    |
+| `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Choice`)                      | Confirms the highlighted choice                                                                                                                      |
+| `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`)                                                                                                                     |
+| `Action::Quit`                                | `engine.cpp`'s main loop                                                  | Sets `engine.quit` and closes the window                                                                                                             |
+| `PlatformEvents::quit_requested`              | `engine.cpp`'s main loop                                                  | Sets `engine.quit` from an OS window-close request                                                                                                   |
+| `PlatformEvents::focus_lost` / `focus_gained` | `engine.cpp`'s main loop                                                  | Pauses the simulation and audio on focus loss, resumes on focus gain                                                                                 |
+| `scroll_delta_y`                              | `world/update.cpp::update_zoom()`                                         | `Camera::apply_zoom()`, anchored on the mouse cursor                                                                                                 |
+| `Action::ZoomIn/ZoomOut` (held)               | `world/update.cpp::update_zoom()`                                         | `Camera::apply_zoom()`, anchored on the screen center, rate-limited by `k_zoom_rate_per_sec` and `dt`                                                |
 
-`Action::Quit`'s three sources (Q key, gamepad Start, OS window-close
-button) all raise the same `Action::Quit` through the `ActionResolver` —
-the window-close callback (`glfw_window.cpp`) calls
-`translate_window_close()` exactly like a key press would, so there's no
-separate immediate-exit path for player input. (A *different*,
-non-input-triggered exit path exists for unrecoverable map-load failures
-in `transition.cpp`, unrelated to any of the above.)
+`Action::Quit`'s keyboard source (the `Q` key) raises the action through
+the `ActionResolver` like any other binding. The OS window-close button is
+**not** an `Action`: the backend reports it as
+`PlatformEvents::quit_requested`, so an OS lifecycle event and a player
+intent never collapse into one signal. (A _different_, non-input-triggered
+exit path exists for unrecoverable map-load failures in `transition.cpp`,
+unrelated to any of the above.)
+
+The main loop also consumes `PlatformEvents::focus_lost` and
+`focus_gained`, pausing the simulation and audio while the window is
+unfocused and clearing the loop timer's accumulator on resume so the
+paused interval never replays as catch-up fixed steps.
 
 No manual camera pan, inventory, or pause-menu input exists yet — those
 aren't gaps in this doc, they're gaps in the game. Camera zoom (above)

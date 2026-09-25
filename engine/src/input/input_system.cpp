@@ -3,12 +3,13 @@
 
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_system.hpp>
+#include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/window.hpp>
 
 namespace corundum::input {
 
-  void poll(InputState &state, platform::Window &window) noexcept {
-    window.poll_game_input(state);
+  void poll(InputState &state, platform::Window &window, platform::PlatformEvents &events) noexcept {
+    window.poll_game_input(state, events);
   }
 
 } // namespace corundum::input

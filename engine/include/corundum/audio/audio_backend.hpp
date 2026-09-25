@@ -46,6 +46,16 @@ namespace corundum::audio {
      *  @param volume  Volume level in [0.0, 1.0].
      */
     virtual void set_master_volume(float volume) = 0;
+
+    /** @brief Pause or resume output without discarding playing sounds.
+     *
+     *  While paused the backend emits silence and holds each voice at its current
+     *  position, so resuming continues where playback stopped rather than jumping
+     *  ahead by the paused interval.
+     *
+     *  @param paused  True to pause output, false to resume.
+     */
+    virtual void set_paused(bool paused) = 0;
   };
 
 } // namespace corundum::audio

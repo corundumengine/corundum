@@ -11,6 +11,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_system.hpp>
 #include <corundum/item/item.hpp>
+#include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/quest/runner.hpp>
@@ -26,6 +27,7 @@
 #include "core/warn_log.hpp"
 
 #include <charconv>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -286,9 +288,37 @@ namespace corundum {
       bool budget_exhausted{false};
     };
 
-    /// Poll platform input and handle the Quit action.
+    /// Invoke the user-provided platform-event hook, swallowing any exceptions
+    /// so the frame's noexcept contract holds.
+    void invoke_platform_event_hook(Engine &engine, const platform::PlatformEvents &events) noexcept {
+      if (!engine.on_platform_event)
+        return;
+      try {
+        engine.on_platform_event(engine, events);
+      } catch (...) {
+        warn_log("[engine] WARN: on_platform_event handler threw");
+      }
+    }
+
+    /// Poll platform input and OS lifecycle events, applying focus/quit behaviour
+    /// and handing the frame to the on_platform_event hook.
     void process_input(Engine &engine) noexcept {
-      input::poll(engine.input_state, *engine.window);
+      platform::PlatformEvents events{};
+      input::poll(engine.input_state, *engine.window, events);
+
+      const bool any_event =
+          events.display_changed || events.focus_gained || events.focus_lost || events.quit_requested;
+      if (any_event) {
+        if (events.focus_lost && !engine.is_paused())
+          engine.set_paused(true);
+        // Handled after focus_lost so a same-frame loss-and-gain nets to running.
+        if (events.focus_gained && engine.is_paused())
+          engine.set_paused(false);
+        if (events.quit_requested)
+          engine.request_quit();
+        invoke_platform_event_hook(engine, events);
+      }
+
       if (engine.input_state.is_held(input::Action::Quit))
         engine.request_quit();
     }
@@ -387,9 +417,19 @@ namespace corundum {
     if (!window->is_open() || quit_)
       return false;
     std::tie(window_width_, window_height_) = window->size();
-    timer.tick();
 
     process_input(*this);
+    if (quit_)
+      return false;
+
+    // While paused the timer is deliberately not ticked: wall time spent paused must not
+    // queue catch-up fixed steps. Rendering still runs so a pause menu stays on screen.
+    if (is_paused()) {
+      render_frame(*this, timer.alpha(), /*budget_exhausted=*/false);
+      return true;
+    }
+
+    timer.tick();
 
     render::stream_world_chunks(*renderer, render, cfg, scene);
 
@@ -399,6 +439,20 @@ namespace corundum {
     render_frame(*this, timer.alpha(), simulation.budget_exhausted);
 
     return true;
+  }
+
+  void Engine::set_paused(bool paused) noexcept {
+    if (paused == is_paused())
+      return;
+
+    run_state_ = paused ? RunState::Paused : RunState::Running;
+    audio.set_paused(paused);
+
+    // Resuming must not replay the paused wall-clock interval as fixed steps.
+    if (!paused) {
+      timer.accumulator = 0.f;
+      timer.prev_time = std::chrono::steady_clock::now();
+    }
   }
 
   void Engine::cleanup() noexcept {
