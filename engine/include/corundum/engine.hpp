@@ -104,11 +104,6 @@ namespace corundum {
      *  and before entity deletions are flushed. @p dt is the fixed timestep
      *  (timer.target_dt). Entities marked for deletion here are drained the
      *  same frame.
-     *
-     *  @note Marking entities for deletion in this hook sets the deletion flag,
-     *  which forces this frame's interpolation alpha to 0 (see
-     *  compute_interpolation_alpha in engine.cpp) — by design, because slot
-     *  reuse from swap-and-pop invalidates the prev-transform snapshot.
      */
     std::function<void(Engine &, float dt)> on_fixed_update;
 

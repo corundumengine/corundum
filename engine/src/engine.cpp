@@ -279,10 +279,9 @@ namespace corundum {
 
   namespace {
 
-    /// Result of one frame's fixed-step simulation, consumed by compute_interpolation_alpha().
+    /// Result of one frame's fixed-step simulation.
     struct SimulationResult {
       int steps_run{0};
-      bool entities_deleted{false};
       /// True when the drain exhausted its step budget and dropped queued simulation time.
       bool budget_exhausted{false};
     };
@@ -323,6 +322,7 @@ namespace corundum {
       };
 
       for (int step_index = 0; step_index < steps; ++step_index) {
+        render::snapshot_previous_step(engine.render, engine.scene);
         engine.scene.elapsed_time += engine.timer.target_dt;
 
         // World mode with nothing streamed in has no actors to simulate, but time still advances
@@ -344,27 +344,12 @@ namespace corundum {
         quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
         invoke_fixed_update_hook(engine, engine.timer.target_dt);
 
-        // Deletions invalidate the prev_* slot snapshot (swap-and-pop) — see compute_interpolation_alpha().
-        result.entities_deleted = result.entities_deleted || engine.scene.world.pending_deletion_count > 0;
         entities::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
       }
 
       return result;
-    }
-
-    /// Interpolation factor for this frame's render.
-    ///
-    /// prev_col/prev_row are snapshotted by dense slot before the fixed-step loop
-    /// runs. flush_deletions() reassigns slots via swap-and-pop, so after any
-    /// deletion a snapshot slot could belong to a different entity than the one
-    /// captured — force alpha to 0 rather than interpolate against a stale or
-    /// mismatched slot. Alpha is also 0 unless exactly one step ran, so multi-step
-    /// (and zero-step) frames render current state.
-    [[nodiscard]] float compute_interpolation_alpha(const core::time::LoopTimer &timer,
-                                                    SimulationResult simulation) noexcept {
-      return (simulation.steps_run == 1 && !simulation.entities_deleted) ? timer.alpha() : 0.f;
     }
 
     /// begin_frame → world/UI render → optional debug HUD → end_frame.
@@ -409,18 +394,14 @@ namespace corundum {
     if (!window->is_open() || quit_)
       return false;
     std::tie(window_width_, window_height_) = window->size();
-    render::snapshot_prev_frame(render, scene);
     timer.tick();
 
     process_input(*this);
 
     const SimulationResult simulation{run_fixed_steps(*this)};
-    const bool transitioned{scene.pending_transition.has_value()};
+    // A transition re-snapshots through frame_camera_on, so the blend never spans two scenes.
     world::handle_map_transition(*this);
-
-    // A transition replaces the scene, so the prev-frame snapshot no longer matches any slot.
-    const float alpha{transitioned ? 0.f : compute_interpolation_alpha(timer, simulation)};
-    render_frame(*this, alpha, simulation.budget_exhausted);
+    render_frame(*this, timer.alpha(), simulation.budget_exhausted);
 
     stream_world_chunks(*this);
     return true;

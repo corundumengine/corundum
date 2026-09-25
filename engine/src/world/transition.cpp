@@ -58,6 +58,9 @@ namespace corundum::world {
     const float view_w = engine.window_width() > 0 ? static_cast<float>(engine.window_width()) : engine.cfg.win_w;
     const float view_h = engine.window_height() > 0 ? static_cast<float>(engine.window_height()) : engine.cfg.win_h;
     engine.scene.camera.center_on(target.x, target.y, bounds, view_w, view_h);
+    // The framed scene replaces whatever the interpolation snapshot held; restart the blend from
+    // it so the first frame doesn't sweep in from the previous scene (or from the origin at boot).
+    render::snapshot_previous_step(engine.render, engine.scene);
   }
 
   std::expected<void, std::string> enter_world(corundum::Engine &engine,

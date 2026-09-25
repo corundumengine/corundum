@@ -283,20 +283,20 @@ namespace corundum::render {
      *  (resized, never freed) so the depth sort touches no per-frame heap allocation. */
     std::vector<uint32_t> draw_order;
 
-    /** @brief Previous-frame camera x for render interpolation. */
+    /** @brief Camera x at the start of the latest fixed step, for render interpolation. */
     float prev_cam_x{0.f};
-    /** @brief Previous-frame camera y for render interpolation. */
+    /** @brief Camera y at the start of the latest fixed step, for render interpolation. */
     float prev_cam_y{0.f};
-    /** @brief Number of valid entries in prev_col/prev_row (entities that existed at the
-     *  start of this frame, before any mid-frame spawns). */
-    std::uint32_t prev_count{0};
-    /** @brief Previous-frame entity tile columns for render interpolation. Fixed-size:
-     *  bounded by k_max_entities, so no heap growth mid-frame. Only the first
-     *  prev_count entries hold a valid snapshot from before this frame. */
+    /** @brief Entity tile columns at the start of the latest fixed step, indexed by
+     *  EntityId::index (not dense slot) so a swap-and-pop removal never misattributes a
+     *  snapshot. An entry is valid only where prev_generation matches the entity's generation. */
     std::array<float, corundum::entities::k_max_entities> prev_col{};
-    /** @brief Previous-frame entity tile rows for render interpolation. See prev_col. */
+    /** @brief Generation of the entity each prev_col/prev_row entry was captured from; 0 (never
+     *  a live generation) marks an entry that was never written. */
+    std::array<std::uint32_t, corundum::entities::k_max_entities> prev_generation{};
+    /** @brief Entity tile rows at the start of the latest fixed step. See prev_col. */
     std::array<float, corundum::entities::k_max_entities> prev_row{};
-    /** @brief Previous-frame camera zoom for render interpolation. */
+    /** @brief Camera zoom at the start of the latest fixed step, for render interpolation. */
     float prev_zoom{1.f};
   };
 

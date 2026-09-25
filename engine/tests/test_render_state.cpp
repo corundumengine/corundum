@@ -9,9 +9,11 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/entities/entity.hpp>
 #include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <type_traits>
@@ -113,40 +115,67 @@ TEST_CASE("NullRenderer: stats() returns zero draw/quad/dropped counts and begin
   static_assert(std::is_same_v<decltype(renderer.stats()), corundum::platform::RendererStats>);
 }
 
-TEST_CASE("snapshot_prev_frame: copies live transforms and camera into prev_* fields") {
+TEST_CASE("snapshot_previous_step: keys entity positions by entity index and copies the camera") {
   corundum::Engine engine;
   corundum::entities::TransformTable &transforms = engine.scene.world.transforms;
-  transforms.col[0] = 3.5f;
-  transforms.row[0] = 7.25f;
-  transforms.col[1] = 10.f;
-  transforms.row[1] = 2.f;
-  transforms.count = 2;
+  const corundum::entities::EntityId a{.index = 5, .generation = 1};
+  const corundum::entities::EntityId b{.index = 2, .generation = 3};
+  transforms.insert(a, 3.5f, 7.25f, 0.f, 0.f);
+  transforms.insert(b, 10.f, 2.f, 0.f, 0.f);
   engine.scene.camera.x = 100.f;
   engine.scene.camera.y = 50.f;
   engine.scene.camera.zoom = 2.f;
 
-  corundum::render::snapshot_prev_frame(engine.render, engine.scene);
+  corundum::render::snapshot_previous_step(engine.render, engine.scene);
 
-  CHECK(engine.render.prev_count == 2);
-  CHECK(engine.render.prev_col[0] == 3.5f);
-  CHECK(engine.render.prev_row[0] == 7.25f);
-  CHECK(engine.render.prev_col[1] == 10.f);
-  CHECK(engine.render.prev_row[1] == 2.f);
+  CHECK(engine.render.prev_col[5] == 3.5f);
+  CHECK(engine.render.prev_row[5] == 7.25f);
+  CHECK(engine.render.prev_generation[5] == 1u);
+  CHECK(engine.render.prev_col[2] == 10.f);
+  CHECK(engine.render.prev_row[2] == 2.f);
+  CHECK(engine.render.prev_generation[2] == 3u);
   CHECK(engine.render.prev_cam_x == 100.f);
   CHECK(engine.render.prev_cam_y == 50.f);
   CHECK(engine.render.prev_zoom == 2.f);
 }
 
-TEST_CASE("render: alpha==0 renders the current camera, not the stale snapshot (multi-step/deletion frame)") {
+TEST_CASE("interpolated_tile_position: a swap-and-pop removal after the snapshot does not misattribute it") {
+  corundum::render::RenderState state;
+  corundum::world::Scene scene;
+  const corundum::entities::EntityId first{.index = 0, .generation = 1};
+  const corundum::entities::EntityId last{.index = 1, .generation = 1};
+  scene.world.transforms.insert(first, 0.f, 0.f, 0.f, 0.f);
+  scene.world.transforms.insert(last, 10.f, 10.f, 0.f, 0.f);
+  corundum::render::snapshot_previous_step(state, scene);
+
+  scene.world.transforms.remove(first); // swap-and-pop moves `last` into dense slot 0
+
+  const auto drawn = corundum::render::interpolated_tile_position(state, last, 12.f, 14.f, 0.5f);
+  CHECK(drawn.x == doctest::Approx(11.f));
+  CHECK(drawn.y == doctest::Approx(12.f));
+}
+
+TEST_CASE("interpolated_tile_position: no snapshot, or a recycled index, draws the current position") {
+  corundum::render::RenderState state;
+  const corundum::entities::EntityId fresh{.index = 3, .generation = 1};
+  const auto unsnapshotted = corundum::render::interpolated_tile_position(state, fresh, 4.f, 6.f, 0.5f);
+  CHECK(unsnapshotted.x == doctest::Approx(4.f));
+  CHECK(unsnapshotted.y == doctest::Approx(6.f));
+
+  state.prev_col[3] = 0.f;
+  state.prev_row[3] = 0.f;
+  state.prev_generation[3] = 1;
+  const corundum::entities::EntityId recycled{.index = 3, .generation = 2};
+  const auto drawn = corundum::render::interpolated_tile_position(state, recycled, 4.f, 6.f, 0.5f);
+  CHECK(drawn.x == doctest::Approx(4.f));
+  CHECK(drawn.y == doctest::Approx(6.f));
+}
+
+TEST_CASE("render: alpha 0 draws the start-of-step camera and alpha 1 the current camera") {
   namespace render_system = corundum::render;
 
   corundum::Engine engine;
   corundum::platform::null::NullRenderer renderer;
-
-  // Stale snapshot taken at the start of the frame vs. the camera the fixed steps have
-  // since advanced to. compute_interpolation_alpha() returns 0 on catch-up (2+ steps in
-  // one frame) and deletion frames; the entity path renders current state there, so the
-  // camera must too. Before the fix this collapsed to prev_cam_* (the stale snapshot).
   engine.render.prev_cam_x = 100.f;
   engine.render.prev_cam_y = 50.f;
   engine.render.prev_zoom = 2.f;
@@ -155,7 +184,11 @@ TEST_CASE("render: alpha==0 renders the current camera, not the stale snapshot (
   engine.scene.camera.zoom = 1.5f;
 
   render_system::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 0.f, 800, 600);
+  CHECK(renderer.last_camera_top_left().x == doctest::Approx(100.f));
+  CHECK(renderer.last_camera_top_left().y == doctest::Approx(50.f));
+  CHECK(renderer.last_zoom() == doctest::Approx(2.f));
 
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, 1.f, 800, 600);
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(140.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(80.f));
   CHECK(renderer.last_zoom() == doctest::Approx(1.5f));

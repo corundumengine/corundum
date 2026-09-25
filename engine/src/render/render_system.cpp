@@ -106,17 +106,28 @@ namespace corundum::render {
 
   void clean_up(render::RenderState & /*state*/) noexcept {}
 
-  void snapshot_prev_frame(render::RenderState &state, const corundum::world::Scene &scene) noexcept {
+  void snapshot_previous_step(render::RenderState &state, const corundum::world::Scene &scene) noexcept {
     const corundum::entities::TransformTable &transforms = scene.world.transforms;
-    const std::uint32_t n = transforms.count;
-    for (std::uint32_t i = 0; i < n; ++i) {
-      state.prev_col[i] = transforms.col[i];
-      state.prev_row[i] = transforms.row[i];
+    const auto entities = transforms.active_entities();
+    for (std::uint32_t slot = 0; slot < transforms.count; ++slot) {
+      const corundum::entities::EntityId e = entities[slot];
+      state.prev_col[e.index] = transforms.col[slot];
+      state.prev_row[e.index] = transforms.row[slot];
+      state.prev_generation[e.index] = e.generation;
     }
-    state.prev_count = n;
     state.prev_cam_x = scene.camera.x;
     state.prev_cam_y = scene.camera.y;
     state.prev_zoom = scene.camera.zoom;
+  }
+
+  core::math::Vec2 interpolated_tile_position(const render::RenderState &state, corundum::entities::EntityId e,
+                                              float col, float row, float alpha) noexcept {
+    if (e.index >= corundum::entities::k_max_entities || state.prev_generation[e.index] != e.generation)
+      return {.x = col, .y = row};
+    return {
+        .x = std::lerp(state.prev_col[e.index], col, alpha),
+        .y = std::lerp(state.prev_row[e.index], row, alpha),
+    };
   }
 
   // ── Internal helpers (forward decls) ─────────────────────────────────────────
@@ -426,17 +437,9 @@ namespace corundum::render {
       float zoom{1.f};
     };
 
-    /** @brief Blend the camera between the pre-frame snapshot and the current scene camera.
-     *
-     *  Only a normal single-step frame interpolates (0 < alpha < 1). alpha is 0 on catch-up
-     *  (2+ fixed steps in one frame) and deletion frames, where the entity path renders current
-     *  state too — interpolating the camera there would lag it one hitch behind the player.
-     */
+    /** @brief Blend the camera from its start-of-step snapshot to the current scene camera by @p alpha. */
     CameraBlend blend_camera(const render::RenderState &state, const corundum::world::Scene &scene,
                              float alpha) noexcept {
-      if (alpha <= 0.f || alpha >= 1.f)
-        return {.x = scene.camera.x, .y = scene.camera.y, .zoom = scene.camera.zoom};
-
       return {
           .x = std::lerp(state.prev_cam_x, scene.camera.x, alpha),
           .y = std::lerp(state.prev_cam_y, scene.camera.y, alpha),
@@ -1380,13 +1383,10 @@ namespace corundum::render {
           continue;
 
         const auto tr_slot = transforms.dense_index(e);
-        float col_f = transforms.col[tr_slot];
-        float row_f = transforms.row[tr_slot];
-
-        if (alpha > 0.f && alpha < 1.f && tr_slot < state.prev_count) {
-          col_f = state.prev_col[tr_slot] + ((col_f - state.prev_col[tr_slot]) * alpha);
-          row_f = state.prev_row[tr_slot] + ((row_f - state.prev_row[tr_slot]) * alpha);
-        }
+        const core::math::Vec2 drawn =
+            interpolated_tile_position(state, e, transforms.col[tr_slot], transforms.row[tr_slot], alpha);
+        const float col_f = drawn.x;
+        const float row_f = drawn.y;
 
         const auto result = state.sprite_index.get(sprites.sprite_id[i], sprites.anim_id[i], sprites.frame_index[i]);
         if (!result) [[unlikely]]

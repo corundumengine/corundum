@@ -3,6 +3,8 @@
 
 #pragma once
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/math/vec.hpp>
+#include <corundum/entities/entity.hpp>
 #include <corundum/render/render_state.hpp>
 
 #include <expected>
@@ -41,14 +43,24 @@ namespace corundum::render {
   /** @brief Release any render resources held by the state. */
   void clean_up(render::RenderState &state) noexcept;
 
-  /** @brief Snapshot current entity transforms and camera into the prev_* fields
-   *  for render interpolation.
-   *  @param[out] state  Render state whose prev_col/prev_row/prev_count and
-   *                     prev_cam_x/prev_cam_y/prev_zoom are overwritten.
-   *  @param[in]  scene  Scene providing the current transforms and camera.
-   *  @note Call once per frame, before running the fixed-timestep updates.
+  /** @brief Record the camera and every entity's tile position as the start of a fixed step.
+   *
+   *  The renderer blends from this snapshot to the current state by the loop's alpha. Call
+   *  immediately before each fixed step, and after a scene replacement (frame_camera_on does
+   *  this) so the next frame blends within the new scene rather than from the old one.
    */
-  void snapshot_prev_frame(render::RenderState &state, const corundum::world::Scene &scene) noexcept;
+  void snapshot_previous_step(render::RenderState &state, const corundum::world::Scene &scene) noexcept;
+
+  /** @brief Tile position of @p e to draw this frame.
+   *
+   *  Blends from @p e's start-of-step snapshot to (@p col, @p row) by @p alpha; returns
+   *  (@p col, @p row) unchanged when @p e has no snapshot (spawned since the step began, or its
+   *  index was recycled).
+   *  @param[in] alpha Fraction of a fixed step elapsed since the last step, in [0, 1].
+   */
+  [[nodiscard]] core::math::Vec2 interpolated_tile_position(const render::RenderState &state,
+                                                            corundum::entities::EntityId e, float col, float row,
+                                                            float alpha) noexcept;
 
   /** @brief Build the sprite-index lookup tables from the character registry.
    *  @param[in,out] r         Renderer for texture loading.

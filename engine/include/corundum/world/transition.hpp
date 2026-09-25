@@ -100,6 +100,7 @@ namespace corundum::world {
    *  @param[in]     bounds World extent in display pixels.
    *  @param[in]     anchor Which tile point to centre on.
    *  @pre cfg.min_zoom > 0, so the clamped default zoom is positive.
+   *  @note Also restarts render interpolation from the framed scene (snapshot_previous_step).
    */
   void frame_camera_on(corundum::Engine &engine, const corundum::core::math::IsometricParams &iso, float col, float row,
                        WorldBounds bounds, CameraAnchor anchor) noexcept;
