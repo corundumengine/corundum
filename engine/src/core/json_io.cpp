@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <string>
+#include <system_error>
 #include <vector>
 
 namespace corundum::core {
@@ -50,12 +51,28 @@ namespace corundum::core {
 
   std::expected<void, std::string> write_json(const std::filesystem::path &path, const nlohmann::json &j) {
     const ordered_json sorted = sort_keys(j);
-    std::ofstream f(path);
+    // Write beside the target and rename over it, so a crash or full disk mid-write leaves the
+    // previous file intact instead of truncated.
+    std::filesystem::path temp_path{path};
+    temp_path += ".tmp";
+
+    std::ofstream f(temp_path);
     if (!f)
-      return std::unexpected(std::format("cannot open for writing: {}", path.string()));
+      return std::unexpected(std::format("cannot open for writing: {}", temp_path.string()));
     f << sorted.dump(2) << '\n';
-    if (!f)
+    f.close();
+    std::error_code ignored;
+    if (!f) {
+      std::filesystem::remove(temp_path, ignored);
       return std::unexpected(std::format("write failed: {}", path.string()));
+    }
+
+    std::error_code rename_error;
+    std::filesystem::rename(temp_path, path, rename_error);
+    if (rename_error) {
+      std::filesystem::remove(temp_path, ignored);
+      return std::unexpected(std::format("cannot replace {}: {}", path.string(), rename_error.message()));
+    }
     return {};
   }
 

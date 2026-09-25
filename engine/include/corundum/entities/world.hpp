@@ -57,25 +57,33 @@ namespace corundum::entities {
   };
 
   /// Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
-  [[nodiscard]] inline EntityId spawn(World &w, Position pos, Velocity vel, Sprite spr) {
+  /// @return The new entity, or std::nullopt when the pool already holds k_max_entities.
+  [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr) {
+    if (w.entities.full())
+      return std::nullopt;
     const EntityId e = w.entities.create();
     w.transforms.insert(e, pos.col, pos.row, vel.dc, vel.dr);
     w.sprites.insert(e, spr.sprite_id, spr.anim_id, spr.frame_index);
     return e;
   }
 
-  /// Spawn a fully animated entity (player).
-  [[nodiscard]] inline EntityId spawn(World &w, Position pos, Velocity vel, Sprite spr, Animation anim) {
-    const EntityId e = spawn(w, pos, vel, spr);
-    w.animations.insert(e);
-    w.animations.set_frame_counts(e, anim.frame_counts);
+  /// Spawn a fully animated entity (player). @return std::nullopt when the pool is full.
+  [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr, Animation anim) {
+    const std::optional<EntityId> e = spawn(w, pos, vel, spr);
+    if (!e)
+      return std::nullopt;
+    w.animations.insert(*e);
+    w.animations.set_frame_counts(*e, anim.frame_counts);
     return e;
   }
 
-  /// Spawn an NPC that triggers a dialogue graph.
-  [[nodiscard]] inline EntityId spawn(World &w, Position pos, Velocity vel, Sprite spr, const DialogueRef &ref) {
-    const EntityId e = spawn(w, pos, vel, spr);
-    w.dialogue_refs.insert(e, ref.graph_id);
+  /// Spawn an NPC that triggers a dialogue graph. @return std::nullopt when the pool is full.
+  [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr,
+                                                     const DialogueRef &ref) {
+    const std::optional<EntityId> e = spawn(w, pos, vel, spr);
+    if (!e)
+      return std::nullopt;
+    w.dialogue_refs.insert(*e, ref.graph_id);
     return e;
   }
 
@@ -100,12 +108,15 @@ namespace corundum::entities {
    *
    * Safe to call mid-iteration — the entity remains live until flush_deletions().
    * Marking an entity that is already queued is ignored, so double-marking is safe.
+   * Marking a stale handle asserts in debug and is ignored in release.
    * @param[in,out] w World that owns @p e.
    * @param[in]     e A live entity to queue for removal.
    * @pre @p e must be live (returned by EntityManager::create() and not destroyed).
    */
   inline void mark_for_deletion(World &w, EntityId e) {
     assert(w.entities.is_live(e) && "mark_for_deletion: not a live entity");
+    if (!w.entities.is_live(e))
+      return; // release builds: a stale handle is ignored rather than queued
     assert(w.pending_deletion_count < k_max_entities && "pending_deletions full");
     for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
       if (w.pending_deletions[i] == e)
@@ -117,11 +128,13 @@ namespace corundum::entities {
    *
    * Call once per frame, after all system updates are complete, to safely apply
    * mid-frame deletion requests without invalidating active iterators.
+   * Entries despawned directly since they were marked are skipped.
    * @param[in,out] w World whose pending_deletions to drain.
    */
   inline void flush_deletions(World &w) {
     for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
-      despawn(w, w.pending_deletions[i]);
+      if (w.entities.is_live(w.pending_deletions[i]))
+        despawn(w, w.pending_deletions[i]);
     w.pending_deletion_count = 0;
   }
 

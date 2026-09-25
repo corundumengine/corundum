@@ -4,6 +4,7 @@
 #pragma once
 #include <array>
 #include <cassert>
+#include <corundum/core/verify.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
@@ -58,11 +59,12 @@ namespace corundum::entities {
     }
 
     /** @brief Allocate a fresh entity ID.
-     *  @pre Pool must not be full — check full() first.
+     *  @pre Pool must not be full — check full() first. Enforced in every build type: exhausting the
+     *       pool aborts rather than reading past the free list.
      *  @return A live entity ID with the current generation for the recyclable slot.
      */
     [[nodiscard]] EntityId create() noexcept {
-      assert(free_count_ > 0 && "Entity pool exhausted");
+      core::verify(free_count_ > 0, "entity pool exhausted (k_max_entities)");
       const std::uint32_t idx = free_list_[--free_count_];
       return {.index = idx, .generation = generations_[idx]};
     }

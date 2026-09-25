@@ -18,6 +18,7 @@ set(ENGINE_SOURCES
     src/core/json_schema.cpp
     src/core/schema_version.cpp
     src/core/user_data_dir.cpp
+    src/core/verify.cpp
     src/debug/debug_overlay.cpp
     src/dialogue/action.cpp
     src/dialogue/compiled_expr.cpp

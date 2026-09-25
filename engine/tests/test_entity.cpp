@@ -163,7 +163,8 @@ TEST_CASE("TransformTable swap-and-pop correctness") {
 TEST_CASE("World spawn and despawn") {
   World w;
   const EntityId e = spawn(w, Position{3.f, 4.f}, Velocity{0.5f, 0.f},
-                           Sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0});
+                           Sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0})
+                         .value();
   CHECK(e.valid());
   CHECK(w.entities.is_live(e));
   CHECK(w.transforms.has(e));
@@ -181,7 +182,8 @@ TEST_CASE("World spawn with Animation copies frame counts into the animation tab
   anim.frame_counts[static_cast<std::uint8_t>(corundum::sprites::AnimId::Default)] = 7;
 
   const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
-                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0}, anim);
+                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0}, anim)
+                         .value();
 
   CHECK(w.animations.has(e));
   CHECK(w.animations.frame_count(e, corundum::sprites::AnimId::Default) == 7);
@@ -191,9 +193,11 @@ TEST_CASE("World mark_for_deletion and flush_deletions") {
   World w;
 
   const EntityId e1 = spawn(w, Position{1.f, 2.f}, Velocity{},
-                            Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0});
+                            Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0})
+                          .value();
   const EntityId e2 = spawn(w, Position{3.f, 4.f}, Velocity{},
-                            Sprite{corundum::sprites::SpriteId{3}, corundum::sprites::AnimId::Default, 0});
+                            Sprite{corundum::sprites::SpriteId{3}, corundum::sprites::AnimId::Default, 0})
+                          .value();
 
   mark_for_deletion(w, e1);
   mark_for_deletion(w, e2);
@@ -211,7 +215,8 @@ TEST_CASE("World mark_for_deletion and flush_deletions") {
 TEST_CASE("World mark_for_deletion deduplicates double marks") {
   World w;
   const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
-                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0});
+                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0})
+                         .value();
   CHECK(w.entities.is_live(e));
 
   mark_for_deletion(w, e);
@@ -224,16 +229,29 @@ TEST_CASE("World mark_for_deletion deduplicates double marks") {
   CHECK(w.pending_deletion_count == 0);
 }
 
-TEST_CASE("EntityManager create pool full on fresh World with k_max_entities spawns") {
+TEST_CASE("World spawn fills the pool to k_max_entities, then reports it full") {
   World w;
-  std::uint32_t spawned = 0;
-  for (; spawned < k_max_entities; ++spawned) {
-    const EntityId e = spawn(w, Position{0.f, 0.f}, Velocity{},
-                             Sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0});
-    CHECK(e.valid());
-  }
+  const Sprite sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0};
+  for (std::uint32_t i = 0; i < k_max_entities; ++i)
+    REQUIRE(spawn(w, Position{0.f, 0.f}, Velocity{}, sprite).has_value());
+
   CHECK(w.entities.full());
-  CHECK(spawned == k_max_entities);
+  CHECK_FALSE(spawn(w, Position{0.f, 0.f}, Velocity{}, sprite).has_value());
+}
+
+TEST_CASE("World flush_deletions skips an entity despawned directly after it was marked") {
+  World w;
+  const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
+                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0})
+                         .value();
+  mark_for_deletion(w, e);
+  despawn(w, e);
+
+  flush_deletions(w);
+
+  CHECK_FALSE(w.entities.is_live(e));
+  CHECK(w.pending_deletion_count == 0);
+  CHECK(w.entities.alive() == 0u);
 }
 
 TEST_CASE("footprint_of — the box is centred on the tile the entity stands on") {

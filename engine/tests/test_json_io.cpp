@@ -139,3 +139,26 @@ TEST_CASE("write_json — reports an unopenable path") {
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("cannot open") != std::string::npos);
 }
+
+TEST_CASE("write_json — replaces an existing file and leaves no temp file behind") {
+  const auto dir = temp_dir("replace");
+  const auto path = dir / "out.json";
+  write_file(path, "old contents");
+
+  json j;
+  j["a"] = 1;
+  REQUIRE(corundum::core::write_json(path, j).has_value());
+
+  CHECK(read_file(path) == "{\n  \"a\": 1\n}\n");
+  CHECK_FALSE(fs::exists(dir / "out.json.tmp"));
+}
+
+TEST_CASE("write_json — a failed write leaves the existing file untouched") {
+  const auto dir = temp_dir("keep_on_failure");
+  const auto path = dir / "out.json";
+  write_file(path, "old contents");
+  fs::create_directories(dir / "out.json.tmp"); // a directory where the temp file must go makes the open fail
+
+  CHECK_FALSE(corundum::core::write_json(path, json::object()).has_value());
+  CHECK(read_file(path) == "old contents");
+}

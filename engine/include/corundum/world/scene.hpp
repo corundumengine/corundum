@@ -41,6 +41,11 @@ namespace corundum::world {
   struct ChunkActorSet {
     corundum::world::tilemap::ChunkCoord coord{};
 
+    /// Set when the chunk leaves the active window and its actors are queued for deletion. A set
+    /// that is not departed has already spawned (or failed) for the current residency, so it is
+    /// never re-read — even once gameplay has despawned every actor it spawned.
+    bool departed{};
+
     std::vector<corundum::entities::EntityId> entities{};
 
     /// Set when the chunk's spawn file was read but spawning failed; the set stays tracked so the

@@ -10,6 +10,7 @@ namespace corundum::core {
 
   /// Write a JSON value to @p path with sorted keys and 2-space indentation.
   /// Produces stable diffs — reordering fields in source code won't change output.
+  /// Writes to "<path>.tmp" and renames it over @p path, so a failed write never truncates an existing file.
   /// @returns ok on success, or an error message if the file could not be opened or written.
   [[nodiscard]] std::expected<void, std::string> write_json(const std::filesystem::path &path, const nlohmann::json &j);
 

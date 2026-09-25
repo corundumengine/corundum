@@ -89,10 +89,6 @@ namespace corundum::world {
       };
 
       for (const Actor &actor : actors) {
-        if (world.entities.full())
-          return fail(std::format("[engine] entity pool exhausted spawning actors (limit {})",
-                                  corundum::entities::k_max_entities));
-
         const Position position{
             .col = static_cast<float>(actor.col + col_off),
             .row = static_cast<float>(actor.row + row_off),
@@ -105,12 +101,14 @@ namespace corundum::world {
         const Sprite sprite{.sprite_id = sprite_id, .anim_id = AnimId::Default, .frame_index = 0};
         const Velocity velocity{};
 
-        EntityId eid;
-        if (actor.dialogue_ref.empty()) {
-          eid = spawn(world, position, velocity, sprite);
-        } else {
-          eid = spawn(world, position, velocity, sprite, DialogueRef{.graph_id = actor.dialogue_ref});
-        }
+        const std::optional<EntityId> spawned_id =
+            actor.dialogue_ref.empty()
+                ? spawn(world, position, velocity, sprite)
+                : spawn(world, position, velocity, sprite, DialogueRef{.graph_id = actor.dialogue_ref});
+        if (!spawned_id)
+          return fail(std::format("[engine] entity pool exhausted spawning actors (limit {})",
+                                  corundum::entities::k_max_entities));
+        const EntityId eid = *spawned_id;
         world.animations.insert(eid, stats.frame_duration);
         world.animations.set_frame_counts(eid, stats.frame_counts);
         world.collisions.insert(eid, stats.col_span, stats.row_span);
@@ -158,7 +156,11 @@ namespace corundum::world {
 
       const Sprite sprite{.sprite_id = idle_id, .anim_id = AnimId::Default, .frame_index = 0};
       const Velocity velocity{};
-      const EntityId player = spawn(world, spawn_pos, velocity, sprite, player_anim);
+      const std::optional<EntityId> spawned = spawn(world, spawn_pos, velocity, sprite, player_anim);
+      if (!spawned)
+        return std::unexpected(std::format("[engine] entity pool exhausted spawning the player (limit {})",
+                                           corundum::entities::k_max_entities));
+      const EntityId player = *spawned;
       world.collisions.insert(player, walk.col_span, walk.row_span);
       world.facings.insert(player, corundum::core::Direction::South);
       if (idle.frame_duration > 0.f)
@@ -188,19 +190,24 @@ namespace corundum::world {
       return std::ranges::any_of(entities, [&](EntityId eid) { return world.entities.is_live(eid); });
     }
 
-    /// Queue the actors of every chunk that has left the active window.
+    /// Queue the actors of every chunk that has left the active window, and flag its set departed.
     void despawn_departed_chunks(Scene &scene, const corundum::render::RenderState &render) {
-      for (const ChunkActorSet &set : scene.chunk_actors)
-        if (!render.chunks.is_active(set.coord))
-          mark_entities_for_deletion(scene.world, set.entities);
+      for (ChunkActorSet &set : scene.chunk_actors) {
+        if (render.chunks.is_active(set.coord))
+          continue;
+        mark_entities_for_deletion(scene.world, set.entities);
+        set.departed = true;
+      }
     }
 
-    /// Populate tracked sets for active chunks that are newly resident or were despawned on departure.
+    /// Spawn actors for active chunks with no tracked set, and respawn a departed chunk that has returned once its
+    /// previous actors are flushed. A resident, non-departed set is never re-read: it already spawned (or failed) for
+    /// this residency.
     void spawn_new_chunks(Scene &scene, const corundum::render::RenderState &render,
                           const corundum::core::GameConfig &cfg, const CharacterRegistry &registry, int chunk_size) {
       for (const auto &entry : render.chunks.active()) {
         const auto set = std::ranges::find(scene.chunk_actors, entry.coord, &ChunkActorSet::coord);
-        if (set != scene.chunk_actors.end() && (set->load_failed || any_live(scene.world, set->entities)))
+        if (set != scene.chunk_actors.end() && (!set->departed || any_live(scene.world, set->entities)))
           continue;
 
         const auto path = std::filesystem::path(cfg.paths.spawn_points_dir) /
@@ -213,6 +220,7 @@ namespace corundum::world {
           if (set != scene.chunk_actors.end()) {
             set->entities.clear();
             set->load_failed = true;
+            set->departed = false;
           } else {
             scene.chunk_actors.push_back(ChunkActorSet{.coord = entry.coord, .load_failed = true});
           }
@@ -222,6 +230,7 @@ namespace corundum::world {
         if (set != scene.chunk_actors.end()) {
           set->entities = std::move(*spawned);
           set->load_failed = false;
+          set->departed = false;
         } else {
           scene.chunk_actors.push_back(ChunkActorSet{.coord = entry.coord, .entities = std::move(*spawned)});
         }

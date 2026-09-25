@@ -444,6 +444,71 @@ TEST_CASE("sync_chunk_actors — chunk actor spawn failure rolls back and is not
   CHECK(scene.world.entities.alive() == 0u); // load_failed suppresses the retry
 }
 
+TEST_CASE("sync_chunk_actors — actors despawned by gameplay stay gone while their chunk is resident") {
+  const auto dir = temp_dir("sync_chunk_actors_no_resurrect");
+  const auto registry = make_registry(dir);
+  const auto spawn_dir = dir / "spawn_points";
+  write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"c00","col":1,"row":2,"sprite":"hero_walk"}]})");
+
+  const auto cfg = make_player_config(spawn_dir);
+  const auto render = make_world_render({{.col = 0, .row = 0}}, 16);
+  corundum::world::Scene scene;
+  corundum::world::sync_chunk_actors(scene, render, cfg, registry);
+  const auto c00 = corundum::entities::find_actor(scene.world, "c00");
+  REQUIRE(c00.has_value());
+
+  corundum::entities::mark_for_deletion(scene.world, *c00);
+  corundum::entities::flush_deletions(scene.world);
+  corundum::world::sync_chunk_actors(scene, render, cfg, registry);
+
+  CHECK_FALSE(corundum::entities::find_actor(scene.world, "c00").has_value());
+  CHECK(scene.world.entities.alive() == 0u);
+}
+
+TEST_CASE("sync_chunk_actors — a resident chunk's spawn file is read once, not every step") {
+  const auto dir = temp_dir("sync_chunk_actors_read_once");
+  const auto registry = make_registry(dir);
+  const auto spawn_dir = dir / "spawn_points";
+  fs::create_directories(spawn_dir);
+
+  const auto cfg = make_player_config(spawn_dir);
+  const auto render = make_world_render({{.col = 0, .row = 0}}, 16);
+  corundum::world::Scene scene;
+  corundum::world::sync_chunk_actors(scene, render, cfg, registry); // no file yet: tracked, empty
+  REQUIRE(scene.chunk_actors.size() == 1);
+
+  // A file that appears while the chunk stays resident proves the set is not re-read.
+  write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"late","col":1,"row":1,"sprite":"hero_walk"}]})");
+  corundum::world::sync_chunk_actors(scene, render, cfg, registry);
+
+  CHECK_FALSE(corundum::entities::find_actor(scene.world, "late").has_value());
+}
+
+TEST_CASE("sync_chunk_actors — a departed chunk that returns after the flush respawns its actors") {
+  const auto dir = temp_dir("sync_chunk_actors_return");
+  const auto registry = make_registry(dir);
+  const auto spawn_dir = dir / "spawn_points";
+  write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"c00","col":1,"row":2,"sprite":"hero_walk"}]})");
+  write_file(spawn_dir / "chunk_1_0.json", R"({"actors":[{"id":"c10","col":3,"row":4,"sprite":"hero_walk"}]})");
+
+  const auto cfg = make_player_config(spawn_dir);
+  auto render = make_world_render({{.col = 0, .row = 0}, {.col = 1, .row = 0}}, 16);
+  corundum::world::Scene scene;
+  corundum::world::sync_chunk_actors(scene, render, cfg, registry);
+
+  render.chunks.prune_active([](const corundum::render::ChunkEntry &e) { return e.coord.col == 0; });
+  corundum::world::sync_chunk_actors(scene, render, cfg, registry); // queues c10 for deletion
+  corundum::entities::flush_deletions(scene.world);
+  REQUIRE_FALSE(corundum::entities::find_actor(scene.world, "c10").has_value());
+
+  corundum::render::ChunkEntry returning;
+  returning.coord = {.col = 1, .row = 0};
+  render.chunks.add_active(std::move(returning));
+  corundum::world::sync_chunk_actors(scene, render, cfg, registry);
+
+  CHECK(corundum::entities::find_actor(scene.world, "c10").has_value());
+}
+
 TEST_CASE("sync_chunk_actors — no-op outside World mode") {
   const auto dir = temp_dir("sync_chunk_actors_single_map");
   const auto registry = make_registry(dir);
