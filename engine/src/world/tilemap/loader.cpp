@@ -4,6 +4,7 @@
 #include "encoding.hpp"
 
 #include <algorithm>
+#include <corundum/core/json_io.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/sprites/sprite_atlas.hpp>
 #include <corundum/world/tilemap/loader.hpp>
@@ -14,7 +15,6 @@
 #include <filesystem>
 #include <flat_map>
 #include <format>
-#include <fstream>
 #include <functional>
 #include <limits>
 #include <nlohmann/json.hpp>
@@ -49,31 +49,17 @@ namespace corundum::world::tilemap {
     ///         sidecar is treated as absent rather than failing the whole load.
     std::optional<json> read_sidecar(const fs::path &atlas_path) {
       const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
-      std::ifstream f(sidecar);
-      if (!f)
+      auto sc = corundum::core::read_json(sidecar);
+      if (!sc || !sc->is_object())
         return std::nullopt;
-      try {
-        auto sc = json::parse(f, nullptr, true, true);
-        if (!sc.is_object())
-          return std::nullopt;
-        return sc;
-      } catch (const json::exception &) {
-        return std::nullopt;
-      }
+      return *sc;
     }
 
     /// Parse @p path as JSON.
     /// @param label Asset kind for error messages (e.g. "tileset", "tilemap").
     /// @return The parsed document, or a "Cannot open" / "Malformed" message naming @p label.
     std::expected<json, std::string> parse_json_file(const fs::path &path, std::string_view label) {
-      std::ifstream file(path);
-      if (!file)
-        return std::unexpected(std::format("Cannot open {}: {}", label, path.string()));
-      try {
-        return json::parse(file, nullptr, true, true);
-      } catch (const json::exception &e) {
-        return std::unexpected(std::format("Malformed {} {}: {}", label, path.string(), e.what()));
-      }
+      return corundum::core::read_json(path, label);
     }
 
     /// Per-tile data resolved from a spritepacker atlas, plus the sprite-name → local-id lookup the

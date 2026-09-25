@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -76,14 +77,18 @@ namespace corundum::core {
     return {};
   }
 
-  std::expected<nlohmann::json, std::string> read_json(const std::filesystem::path &path) {
+  std::expected<nlohmann::json, std::string> read_json(const std::filesystem::path &path, std::string_view label) {
     std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("cannot open: {}", path.string()));
+    if (!f) {
+      if (label.empty())
+        return std::unexpected(std::format("cannot open: {}", path.string()));
+      return std::unexpected(std::format("cannot open {}: {}", label, path.string()));
+    }
     try {
       return nlohmann::json::parse(f, nullptr, true, true);
     } catch (const nlohmann::json::exception &e) {
-      return std::unexpected(std::format("malformed JSON in {}: {}", path.string(), e.what()));
+      const std::string_view kind = label.empty() ? "JSON" : label;
+      return std::unexpected(std::format("malformed {} in {}: {}", kind, path.string(), e.what()));
     }
   }
 

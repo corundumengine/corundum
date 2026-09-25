@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/json_io.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/sprites/atlas_clips.hpp>
 #include <corundum/sprites/atlas_clips_loader.hpp>
@@ -10,7 +11,6 @@
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <limits>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -87,16 +87,10 @@ namespace corundum::sprites {
   std::expected<AtlasClipsData, std::string> load_atlas_clips(const std::filesystem::path &path) {
     const std::string file = path.string();
 
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open atlas clips sidecar: {}", file));
-
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed atlas clips sidecar {}: {}", file, e.what()));
-    }
+    auto j_result = core::read_json(path, "atlas clips sidecar");
+    if (!j_result)
+      return std::unexpected(std::move(j_result).error());
+    json j = std::move(*j_result);
 
     auto prepared = core::prepare_schema_version(j, k_atlas_clips_schema_version, "Atlas clips sidecar", file,
                                                  migrate_atlas_clips_json);

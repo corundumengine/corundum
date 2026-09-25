@@ -3,10 +3,10 @@
 
 #include <cmath>
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/json_io.hpp>
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <string>
@@ -410,16 +410,10 @@ namespace corundum::core {
   } // namespace
 
   std::expected<GameConfig, std::string> load_game_config(const fs::path &path) {
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open game config: {}", path.string()));
-
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed game.json {}: {}", path.string(), e.what()));
-    }
+    auto j_result = read_json(path, "game.json");
+    if (!j_result)
+      return std::unexpected(std::move(j_result).error());
+    json j = std::move(*j_result);
 
     if (!j.is_object())
       return std::unexpected(std::format("game.json must be a JSON object: {}", path.string()));

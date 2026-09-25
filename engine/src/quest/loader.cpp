@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
@@ -14,7 +15,6 @@
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <print>
 #include <stdexcept>
@@ -105,17 +105,10 @@ namespace corundum::quest {
 
     /// Read @p path, migrate it forward, and return its schema-validated root.
     json load_validated_root(const std::string &path) {
-      std::ifstream f(path);
-      if (!f)
-        throw LoadError(std::format("cannot open quest file: {}", path));
-
-      json root = [&] {
-        try {
-          return json::parse(f, nullptr, true, true);
-        } catch (const json::exception &e) {
-          throw LoadError(std::format("malformed quest JSON in {}: {}", path, e.what()));
-        }
-      }();
+      auto root_result = core::read_json(path, "quest JSON");
+      if (!root_result)
+        throw LoadError(std::move(root_result).error());
+      json root = std::move(*root_result);
 
       // Schema version is read before validation so migrations run first.
       auto prepared =

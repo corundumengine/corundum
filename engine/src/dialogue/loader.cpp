@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/dialogue/action.hpp>
@@ -17,7 +18,6 @@
 #include <filesystem>
 #include <flat_map>
 #include <format>
-#include <fstream>
 #include <functional>
 #include <nlohmann/json.hpp>
 #include <print>
@@ -202,17 +202,10 @@ namespace corundum::dialogue {
 
     /// Read @p path and return its schema-validated root object.
     json load_validated_root(const std::string &path) {
-      std::ifstream file(path);
-      if (!file)
-        throw LoadError(std::format("cannot open dialogue file: {}", path));
-
-      json root = [&file, &path] {
-        try {
-          return json::parse(file, nullptr, true, true);
-        } catch (const json::exception &e) {
-          throw LoadError(std::format("malformed JSON in {}: {}", path, e.what()));
-        }
-      }();
+      auto root_result = core::read_json(path, "dialogue JSON");
+      if (!root_result)
+        throw LoadError(std::move(root_result).error());
+      json root = std::move(*root_result);
 
       // Schema version is read before validation so migrations run first.
       auto prepared =

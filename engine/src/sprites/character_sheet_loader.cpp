@@ -3,13 +3,13 @@
 
 #include <algorithm>
 #include <array>
+#include <corundum/core/json_io.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
@@ -105,16 +105,10 @@ namespace corundum::sprites {
   } // namespace
 
   std::expected<CharacterSheetData, std::string> load_character_sheet(const fs::path &path) {
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open sheet: {}", path.string()));
-
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed sheet {}: {}", path.string(), e.what()));
-    }
+    auto j_result = core::read_json(path, "sheet");
+    if (!j_result)
+      return std::unexpected(std::move(j_result).error());
+    json j = std::move(*j_result);
 
     const auto id = required_value<std::string>(j, "id", path);
     if (!id)

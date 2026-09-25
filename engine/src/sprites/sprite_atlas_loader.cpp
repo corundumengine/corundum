@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/json_io.hpp>
 #include <corundum/sprites/sprite_atlas.hpp>
 #include <nlohmann/json_fwd.hpp>
 
@@ -8,7 +9,6 @@
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_set>
@@ -222,16 +222,10 @@ namespace corundum::sprites {
   std::expected<SpriteAtlas, std::string> load_sprite_atlas(const fs::path &path) {
     const std::string file = path.string();
 
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open sprite atlas: {}", file));
-
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed sprite atlas {}: {}", file, e.what()));
-    }
+    auto j_result = core::read_json(path, "sprite atlas");
+    if (!j_result)
+      return std::unexpected(std::move(j_result).error());
+    json j = std::move(*j_result);
 
     if (!j.is_object())
       return std::unexpected(std::format("Sprite atlas '{}' must be a JSON object", file));

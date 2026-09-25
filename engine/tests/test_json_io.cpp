@@ -133,6 +133,27 @@ TEST_CASE("read_json — reports a missing file and malformed JSON") {
   }
 }
 
+TEST_CASE("read_json — a label names the document in both the missing-file and malformed errors") {
+  const auto dir = temp_dir("read_labelled_errors");
+
+  SUBCASE("missing file") {
+    const auto path = dir / "missing_item.json";
+    auto result = corundum::core::read_json(path, "item JSON");
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().find("cannot open item JSON") != std::string::npos);
+    CHECK(result.error().find(path.string()) != std::string::npos);
+  }
+
+  SUBCASE("malformed file") {
+    const auto path = dir / "bad_item.json";
+    write_file(path, "{ not valid json");
+    auto result = corundum::core::read_json(path, "item JSON");
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().find("malformed item JSON") != std::string::npos);
+    CHECK(result.error().find(path.string()) != std::string::npos);
+  }
+}
+
 TEST_CASE("write_json — reports an unopenable path") {
   const auto dir = temp_dir("write_error");
   auto result = corundum::core::write_json(dir / "missing_subdir" / "out.json", json::object());

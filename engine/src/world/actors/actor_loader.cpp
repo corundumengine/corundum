@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/direction.hpp>
+#include <corundum/core/json_io.hpp>
 #include <corundum/world/actors/actor.hpp>
 #include <cstddef>
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
@@ -143,16 +143,10 @@ namespace corundum::world {
     if (!std::filesystem::exists(path))
       return SpawnPoints{};
 
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open spawn points '{}'", path.string()));
-
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed spawn points {}: {}", path.string(), e.what()));
-    }
+    auto j_result = core::read_json(path, "spawn points");
+    if (!j_result)
+      return std::unexpected(std::move(j_result).error());
+    json j = std::move(*j_result);
 
     if (!j.is_object())
       return std::unexpected(std::format("Spawn points '{}' must be a JSON object", path.string()));

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/item/item.hpp>
 #include <corundum/item/loader.hpp>
@@ -11,7 +12,6 @@
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <print>
@@ -140,16 +140,10 @@ namespace corundum::item {
                                                                ItemCategory category) {
     const auto path_string = path.string();
 
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("cannot open item file: {}", path_string));
-
-    json root;
-    try {
-      root = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("malformed item JSON in {}: {}", path_string, e.what()));
-    }
+    auto root_result = core::read_json(path, "item JSON");
+    if (!root_result)
+      return std::unexpected(std::move(root_result).error());
+    json root = std::move(*root_result);
 
     if (!root.contains("schema_version"))
       return std::unexpected(std::format("item file '{}' missing 'schema_version'", path_string));

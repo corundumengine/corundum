@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <cmath>
+#include <corundum/core/json_io.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <corundum/world/world_bounds.hpp>
@@ -13,7 +14,6 @@
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
@@ -58,16 +58,10 @@ namespace corundum::world::tilemap {
   }
 
   std::expected<WorldManifest, std::string> load_world_manifest(const fs::path &path) {
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open world manifest: {}", path.string()));
-
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::exception &e) {
-      return std::unexpected(std::format("Malformed manifest {}: {}", path.string(), e.what()));
-    }
+    auto j_result = core::read_json(path, "manifest");
+    if (!j_result)
+      return std::unexpected(std::move(j_result).error());
+    json j = std::move(*j_result);
 
     WorldManifest m;
     const std::array required_fields{
