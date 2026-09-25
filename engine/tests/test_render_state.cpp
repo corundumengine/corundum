@@ -249,24 +249,34 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   CHECK(render_system::elevation_under(state, -0.5f, 0.f) == doctest::Approx(0.f));
 }
 
-TEST_CASE("load_one_pending_chunk: a freshly loaded chunk marks the chunk window dirty") {
+TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk window dirty") {
   namespace render_system = corundum::render;
   render_data::RenderState state;
   state.mode = render_data::RenderMode::World;
   state.manifest.chunk_size = 16;
-  state.manifest.chunks_wide = 1;
-  state.manifest.chunks_tall = 1;
+  state.manifest.chunks_wide = 3;
+  state.manifest.chunks_tall = 3;
   state.manifest.base_dir = std::filesystem::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "tilemaps";
-  state.chunks.enqueue_pending({.col = 0, .row = 0}); // resolves to base_dir/chunk_0_0.json
-  (void)state.chunks.consume_dirty();                 // simulate "already synced this frame" before the load
+
+  // One resident chunk, with isometric geometry set directly, so sync_active_chunks() can compute
+  // the window without a load_world() bootstrap; chunk (0,0) then streams in from the fixture.
+  render_data::ChunkEntry seed;
+  seed.coord = {.col = 1, .row = 1};
+  seed.tilemap = make_flat_map();
+  seed.tilemap.iso_diamond_w = 32;
+  state.chunks.set_last_center({.col = 1, .row = 1});
+  state.chunks.add_active(std::move(seed));
+  (void)state.chunks.consume_dirty(); // simulate "already synced this frame" before the load
+
+  corundum::world::Scene scene;
+  scene.world.transforms.insert(scene.player, 24.f, 24.f, 0.f, 0.f); // tile (24,24) -> chunk (1,1)
 
   corundum::platform::null::NullRenderer renderer;
   const corundum::core::GameConfig cfg{};
 
-  const bool loaded = render_system::load_one_pending_chunk(renderer, state, cfg);
+  render_system::stream_world_chunks(renderer, state, cfg, scene);
 
-  REQUIRE(loaded);
-  CHECK(state.chunks.active_size() == 1);
+  CHECK(state.chunks.active_size() == 2);
   CHECK(state.chunks.consume_dirty()); // fails before the fix
 }
 
@@ -362,4 +372,30 @@ TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-fron
                                [](const render_data::ChunkEntry &a, const render_data::ChunkEntry &b) {
                                  return std::pair{a.coord.row, a.coord.col} < std::pair{b.coord.row, b.coord.col};
                                }));
+}
+
+TEST_CASE("ChunkWindow — a failed chunk counts as known until clear()") {
+  render_data::ChunkWindow window;
+  const tilemap::ChunkCoord c{.col = 2, .row = 1};
+  CHECK_FALSE(window.has(c));
+
+  window.mark_failed(c);
+  CHECK(window.has(c));
+  CHECK_FALSE(window.is_active(c));
+
+  window.clear();
+  CHECK_FALSE(window.has(c));
+}
+
+TEST_CASE("ChunkWindow — prune_pending drops coords the window has left") {
+  render_data::ChunkWindow window;
+  window.enqueue_pending({.col = 1, .row = 0});
+  window.enqueue_pending({.col = 5, .row = 0});
+
+  window.prune_pending([](tilemap::ChunkCoord c) { return c.col < 3; });
+
+  tilemap::ChunkCoord out{};
+  REQUIRE(window.pop_pending(out));
+  CHECK(out.col == 1);
+  CHECK_FALSE(window.pop_pending(out));
 }

@@ -817,7 +817,7 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
   // Walk the player west to tile 3, well inside chunk (0,0) relative to the recenter margin
   // (0.02 * chunk_size = 0.16 tiles of an 8-tile chunk), so the window recentres on chunk
   // (0,0) and chunks (2,0)/(3,0) prune. Chunk (0,0) loads one-per-frame via
-  // load_one_pending_chunk.
+  // stream_world_chunks.
   move_player_to(engine, 3.f, 4.f);
   for (int i = 0; i < 30; ++i) {
     engine.timer.accumulator = engine.timer.target_dt;

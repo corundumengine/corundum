@@ -134,12 +134,12 @@ namespace corundum::render {
 
   namespace {
 
-    std::optional<render::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r,
-                                                       const render::RenderState &state,
-                                                       corundum::world::tilemap::ChunkCoord c,
-                                                       const corundum::core::GameConfig &cfg);
+    std::expected<render::ChunkEntry, std::string> load_chunk_entry(corundum::platform::Renderer &r,
+                                                                    const render::RenderState &state,
+                                                                    corundum::world::tilemap::ChunkCoord c,
+                                                                    const corundum::core::GameConfig &cfg);
 
-    void sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
+    bool sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
                             const corundum::world::Scene &scene);
 
     void render_tilemap(corundum::platform::Renderer &r, const render::RenderState &state, int z_index,
@@ -380,8 +380,13 @@ namespace corundum::render {
     };
     state.chunks.set_last_center(window_center);
     for (const ChunkCoord c : active_chunk_coords(window_center, render::ChunkWindow::k_radius, state.manifest)) {
-      if (auto entry = load_chunk_entry(r, state, c, cfg))
-        state.chunks.add_active(std::move(*entry));
+      auto entry = load_chunk_entry(r, state, c, cfg);
+      if (!entry) {
+        std::println(stderr, "[engine] WARN: chunk ({}, {}) skipped: {}", c.col, c.row, entry.error());
+        state.chunks.mark_failed(c);
+        continue;
+      }
+      state.chunks.add_active(std::move(*entry));
     }
     if (state.chunks.active_empty())
       return std::unexpected(std::format("world '{}' loaded no chunks", cfg.paths.world_manifest_path));
@@ -484,8 +489,6 @@ namespace corundum::render {
     const float zoom = camera.zoom;
 
     if (state.mode == render::RenderMode::World) {
-      sync_active_chunks(state, cfg, scene);
-
       r.set_world_view({.x = cam_x, .y = cam_y}, viewport, zoom);
       render_ground_layer(r, state, cfg, scene, alpha, cam_x, cam_y, zoom, win_w, win_h);
 
@@ -532,13 +535,13 @@ namespace corundum::render {
 
   namespace {
 
-    std::optional<render::ChunkEntry> load_chunk_entry(corundum::platform::Renderer &r,
-                                                       const render::RenderState &state,
-                                                       corundum::world::tilemap::ChunkCoord c,
-                                                       const corundum::core::GameConfig &cfg) {
+    std::expected<render::ChunkEntry, std::string> load_chunk_entry(corundum::platform::Renderer &r,
+                                                                    const render::RenderState &state,
+                                                                    corundum::world::tilemap::ChunkCoord c,
+                                                                    const corundum::core::GameConfig &cfg) {
       auto tm_result = corundum::world::tilemap::load_tilemap(state.manifest.chunk_path(c));
       if (!tm_result)
-        return std::nullopt;
+        return std::unexpected(std::move(tm_result).error());
       corundum::world::tilemap::Tilemap tilemap = std::move(*tm_result);
       std::vector<uint32_t> tex_ids;
       tex_ids.reserve(tilemap.tilesets.size());
@@ -630,10 +633,9 @@ namespace corundum::render {
                                              int chunk_size) noexcept {
       const int cc = static_cast<int>(std::floor(static_cast<float>(gc) / static_cast<float>(chunk_size)));
       const int cr = static_cast<int>(std::floor(static_cast<float>(gr) / static_cast<float>(chunk_size)));
-      for (const auto &e : state.chunks.active())
-        if (e.coord.col == cc && e.coord.row == cr)
-          return &e;
-      return nullptr;
+      const int32_t slot =
+          state.chunks.slot_at_offset(cc - state.chunks.last_center().col, cr - state.chunks.last_center().row);
+      return slot < 0 ? nullptr : &state.chunks.active_at(static_cast<std::size_t>(slot));
     }
 
     /// Elevation of the global tile cell (gc, gr); 0 when no active chunk owns it.
@@ -744,11 +746,14 @@ namespace corundum::render {
     /// chunk, 0.16 for an 8-tile one) rather than being tuned for a single chunk size.
     constexpr float k_recenter_margin_fraction = 0.02f;
 
-    void sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
+    /// Recenter the window on the player, drop chunks and pending loads it has left, and queue
+    /// newly needed chunks. @return true if any active chunk was removed. Does not rebuild the
+    /// aggregates.
+    bool sync_active_chunks(render::RenderState &state, const corundum::core::GameConfig &cfg,
                             const corundum::world::Scene &scene) {
       using namespace corundum::world::tilemap;
       if (state.chunks.active_empty())
-        return;
+        return false;
 
       const int diamond_w = state.chunks.active_at(0).tilemap.diamond_w();
       const int diamond_h = state.chunks.active_at(0).tilemap.diamond_h();
@@ -790,13 +795,14 @@ namespace corundum::render {
       };
 
       const bool any_stale = state.chunks.prune_active(in_desired);
+      state.chunks.prune_pending(
+          [&](ChunkCoord c) { return std::ranges::find(desired_span, c) != desired_span.end(); });
 
       for (const ChunkCoord c : desired_span)
         if (!state.chunks.has(c))
           state.chunks.enqueue_pending(c);
 
-      if (any_stale)
-        rebuild_world_aggregates(state, static_cast<int>(cfg.max_step_height));
+      return any_stale;
     }
 
     // ── render_tile_layer (internal, shared by render_tilemap / render_chunk) ───
@@ -1270,24 +1276,36 @@ namespace corundum::render {
 
   } // namespace
 
-  /// Elevation of the tile under (col_f, row_f), resolving world-mode chunk ownership as needed.
-  /// Returns 0 if no tilemap is loaded there (e.g. entity outside the loaded chunk radius).
-  ///
-  /// Single-map mode interpolates smoothly across a ramp cell (via interpolated_elevation_at)
-  /// so crossing one doesn't pop; chunked/streamed World mode keeps the discrete elevation_at()
-  /// lift for now — wiring ramp smoothing into chunked mode is a separate follow-up.
-  bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
-                              const corundum::core::GameConfig &cfg) {
-    corundum::world::tilemap::ChunkCoord c;
-    if (!state.chunks.pop_pending(c))
-      return false;
-    if (auto entry = load_chunk_entry(r, state, c, cfg)) {
-      std::println("[engine] Loading chunk ({}, {})", c.col, c.row);
+  namespace {
+
+    /// Load the front pending chunk into the active window. A chunk that fails to load is logged
+    /// and marked failed so it is never retried. @return true if a chunk became active.
+    bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
+                                const corundum::core::GameConfig &cfg) {
+      corundum::world::tilemap::ChunkCoord c{};
+      if (!state.chunks.pop_pending(c))
+        return false;
+      auto entry = load_chunk_entry(r, state, c, cfg);
+      if (!entry) {
+        std::println(stderr, "[engine] WARN: chunk ({}, {}) failed to load: {}", c.col, c.row, entry.error());
+        state.chunks.mark_failed(c);
+        return false;
+      }
+      std::println("[engine] Loaded chunk ({}, {})", c.col, c.row);
       state.chunks.add_active(std::move(*entry));
-      rebuild_world_aggregates(state, static_cast<int>(cfg.max_step_height));
       return true;
     }
-    return false;
+
+  } // namespace
+
+  void stream_world_chunks(corundum::platform::Renderer &r, render::RenderState &state,
+                           const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene) {
+    if (state.mode != render::RenderMode::World || state.chunks.active_empty())
+      return;
+    const bool pruned = sync_active_chunks(state, cfg, scene);
+    const bool loaded = load_one_pending_chunk(r, state, cfg);
+    if (pruned || loaded)
+      rebuild_world_aggregates(state, static_cast<int>(cfg.max_step_height));
   }
 
   float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept {

@@ -371,13 +371,6 @@ namespace corundum {
       engine.renderer->end_frame();
     }
 
-    /// World mode: load at most one pending chunk per frame — queues I/O between
-    /// frames so chunk-boundary loads don't hitch the render pass.
-    void stream_world_chunks(Engine &engine) noexcept {
-      if (engine.render.mode == render::RenderMode::World)
-        render::load_one_pending_chunk(*engine.renderer, engine.render, engine.cfg);
-    }
-
   } // namespace
 
   void Engine::run_loop() noexcept {
@@ -398,12 +391,13 @@ namespace corundum {
 
     process_input(*this);
 
+    render::stream_world_chunks(*renderer, render, cfg, scene);
+
     const SimulationResult simulation{run_fixed_steps(*this)};
     // A transition re-snapshots through frame_camera_on, so the blend never spans two scenes.
     world::handle_map_transition(*this);
     render_frame(*this, timer.alpha(), simulation.budget_exhausted);
 
-    stream_world_chunks(*this);
     return true;
   }
 

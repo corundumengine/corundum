@@ -196,7 +196,7 @@ TEST_CASE("chunk_at_iso — center tile with non-zero x_origin selects the cente
   // Bug: chunk_at_iso's inverse ignored x_origin. iso coords from tile_to_world()
   // include x_origin, so the recovered col_f was pc + (height-1)/2 — diagonal
   // shift away from the true chunk. Reproduces the engine caller's setup
-  // (sync_active_chunks in render_system.cpp) and asserts the correct center chunk
+  // (stream_world_chunks in render_system.cpp) and asserts the correct center chunk
   // is selected.
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_iso_x_origin");

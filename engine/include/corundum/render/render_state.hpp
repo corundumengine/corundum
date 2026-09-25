@@ -169,10 +169,10 @@ namespace corundum::render {
       return true;
     }
 
-    /// True if @p c is already active or already queued in pending.
+    /// True if @p c is active, queued in pending, or failed to load (see mark_failed()).
     [[nodiscard]] bool has(world::tilemap::ChunkCoord c) const noexcept {
       return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; }) ||
-             std::ranges::contains(pending_, c);
+             std::ranges::contains(pending_, c) || std::ranges::contains(failed_, c);
     }
 
     /// True if @p c is resident in the active window (ignores chunks still pending).
@@ -184,6 +184,18 @@ namespace corundum::render {
     /// (kept explicit rather than implicit to match the existing call-site logic).
     void enqueue_pending(world::tilemap::ChunkCoord c) {
       pending_.push_back(c);
+    }
+
+    /// Drop pending coords for which @p keep returns false — chunks the window moved away from
+    /// before they were loaded.
+    template <typename Keep> void prune_pending(Keep &&keep) {
+      std::erase_if(pending_, [&](world::tilemap::ChunkCoord c) { return !std::forward<Keep>(keep)(c); });
+    }
+
+    /// Record that @p c failed to load, so has() reports it and it is never re-queued. Failed
+    /// chunks stay failed until clear() (the next load_world()).
+    void mark_failed(world::tilemap::ChunkCoord c) {
+      failed_.push_back(c);
     }
 
     /// Pop the front of the pending queue into @p out.
@@ -200,6 +212,7 @@ namespace corundum::render {
     void clear() noexcept {
       active_.clear();
       pending_.clear();
+      failed_.clear();
       last_center_ = {};
       slot_by_offset_ = empty_slots();
       dirty_ = true;
@@ -243,6 +256,7 @@ namespace corundum::render {
 
     std::vector<ChunkEntry> active_;
     std::vector<world::tilemap::ChunkCoord> pending_;
+    std::vector<world::tilemap::ChunkCoord> failed_;
     world::tilemap::ChunkCoord last_center_{};
     std::array<int32_t, k_max_active_chunks> slot_by_offset_ = empty_slots();
     bool dirty_{true};

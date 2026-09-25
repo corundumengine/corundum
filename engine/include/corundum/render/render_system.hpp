@@ -178,19 +178,17 @@ namespace corundum::render {
    */
   [[nodiscard]] int first_chunk_tile_px(const render::RenderState &state) noexcept;
 
-  /** @brief Load one pending chunk into the active chunk window (state.chunks).
+  /** @brief Advance World-mode chunk streaming by one frame.
    *
-   * Removes and loads the first entry from the pending-chunks queue. Called
-   * between frames so the I/O does not hitch the render pass. Returns true
-   * if a chunk was loaded, false if the queue is empty.
-   *
-   * @param[in,out] r      Renderer for texture uploads.
-   * @param[in,out] state  Render state with pending_chunks queue.
-   * @param[in]     cfg    Game config for portal path resolution.
-   * @return True if a chunk was loaded, false if nothing to do.
+   * Recenters the chunk window on the player, drops chunks and pending loads the window has
+   * left, queues newly needed chunks, loads at most one pending chunk, and rebuilds the world
+   * aggregates (collision, walkability, portals) once if the active set changed. This is the only
+   * place world residency changes after load_world(); call it once per frame before the fixed
+   * steps, so the simulation always reads aggregates that match the resident chunks. No-op
+   * outside World mode or before any chunk is resident.
    */
-  bool load_one_pending_chunk(corundum::platform::Renderer &r, render::RenderState &state,
-                              const corundum::core::GameConfig &cfg);
+  void stream_world_chunks(corundum::platform::Renderer &r, render::RenderState &state,
+                           const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene);
 
   /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
    *
@@ -232,7 +230,8 @@ namespace corundum::render {
   /** @brief Rebuild every world-mode aggregate for the active chunk window.
    *
    * Runs rebuild_collision(), rebuild_world_walkability() and the portal aggregation in one
-   * step so the three stay in sync with the active chunk set. Call after any chunk mutation.
+   * step so the three stay in sync with the active chunk set. stream_world_chunks() and
+   * load_world() call it after chunk mutations.
    *
    * @param[in,out] state           Render state in World mode.
    * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
