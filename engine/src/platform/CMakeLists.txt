@@ -48,6 +48,10 @@ target_link_libraries(engine_platform_glfw
     PRIVATE glfw freetype
 )
 
+# The SOKOL_* graphics define is owned by cmake/Platform.cmake, shared with the
+# toolkit so both compile against the same API.
+target_link_libraries(engine_platform_glfw PRIVATE corundum::platform_config)
+
 # FreeType may bring in harfbuzz as a transitive dep without exposing it in
 # its INTERFACE_LINK_LIBRARIES. Link it explicitly so symbols resolve.
 if(TARGET harfbuzz)
@@ -64,12 +68,10 @@ if(APPLE)
         glfw/texture_cache.cpp
         PROPERTIES LANGUAGE OBJCXX
     )
-  target_compile_definitions(engine_platform_glfw PRIVATE SOKOL_METAL)
   target_link_libraries(engine_platform_glfw
         PRIVATE "-framework Metal" "-framework QuartzCore" "-framework AudioToolbox" "-framework CoreAudio"
     )
 else()
-  target_compile_definitions(engine_platform_glfw PRIVATE SOKOL_GLCORE)
   find_package(OpenGL REQUIRED)
   target_link_libraries(engine_platform_glfw PRIVATE OpenGL::GL)
 endif()

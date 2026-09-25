@@ -73,10 +73,13 @@ namespace corundum::toolkit::host {
     });
     ctx->impl_->simgui_ready = true;
 
-#ifdef SOKOL_METAL
-    const bool backend_ready = ImGui_ImplGlfw_InitForOther(ctx->impl_->glfw_win, true);
-#else
+    // Must match the sokol graphics define the toolkit was built with
+    // (corundum::platform_config): GLCore drives ImGui through OpenGL, while
+    // Metal and any custom backend use the API-agnostic "Other" path.
+#ifdef SOKOL_GLCORE
     const bool backend_ready = ImGui_ImplGlfw_InitForOpenGL(ctx->impl_->glfw_win, true);
+#else
+    const bool backend_ready = ImGui_ImplGlfw_InitForOther(ctx->impl_->glfw_win, true);
 #endif
     if (!backend_ready)
       return std::unexpected("ToolHost: ImGui GLFW backend init failed");

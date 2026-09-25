@@ -33,7 +33,7 @@ target_include_directories(corundum_toolkit
 )
 
 target_link_libraries(corundum_toolkit
-    PUBLIC engine_platform_glfw glfw
+    PUBLIC engine_platform_glfw glfw corundum::platform_config
 )
 
 # ImGui's own headers are not warning-clean, so this target never enables -Werror.
@@ -43,10 +43,5 @@ corundum_use_cxx23(corundum_toolkit)
 
 if(APPLE)
   set_source_files_properties(src/host/simgui_impl.cpp PROPERTIES LANGUAGE OBJCXX)
-  target_compile_definitions(corundum_toolkit PUBLIC SOKOL_METAL)
   target_link_libraries(corundum_toolkit PRIVATE "-framework Metal" "-framework QuartzCore")
-elseif(WIN32)
-  target_compile_definitions(corundum_toolkit PUBLIC SOKOL_D3D11)
-else()
-  target_compile_definitions(corundum_toolkit PUBLIC SOKOL_GLCORE)
 endif()

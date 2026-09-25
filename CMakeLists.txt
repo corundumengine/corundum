@@ -22,6 +22,10 @@ option(CORUNDUM_BUILD_DOCS "Build Doxygen documentation" OFF)
 include(cmake/FormatAndDocs.cmake)
 include(cmake/Dependencies.cmake)
 
+# Graphics-API selection (the sokol define) — one source of truth shared by the
+# engine backend and the toolkit. Must exist before the first-party targets.
+include(cmake/Platform.cmake)
+
 # First-party targets
 add_subdirectory(engine)
 if(CORUNDUM_BUILD_TOOLS)
