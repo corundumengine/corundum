@@ -8,6 +8,7 @@
 
 #include <expected>
 #include <format>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -20,7 +21,7 @@ namespace corundum {
     audio.adopt_backend(std::move(platform.audio_backend));
   }
 
-  std::expected<Engine, std::string> make_engine(const EngineOptions &options) {
+  std::expected<std::unique_ptr<Engine>, std::string> make_engine(const EngineOptions &options) {
     auto cfg_result = core::load_game_config(options.config_path);
     if (!cfg_result)
       return std::unexpected(std::format("load config '{}': {}", options.config_path, cfg_result.error()));
@@ -34,11 +35,11 @@ namespace corundum {
     if (!platform)
       return std::unexpected(std::format("create platform: {}", platform.error()));
 
-    Engine engine{};
-    engine.adopt_platform(std::move(*platform));
-    engine.hud.enabled = options.show_debug_hud;
+    auto engine = std::make_unique<Engine>();
+    engine->adopt_platform(std::move(*platform));
+    engine->hud.enabled = options.show_debug_hud;
 
-    if (auto result = engine.initialize(std::move(cfg)); !result)
+    if (auto result = engine->initialize(std::move(cfg)); !result)
       return std::unexpected(result.error());
 
     return engine;

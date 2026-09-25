@@ -306,9 +306,9 @@ TEST_CASE("spawn_world — explicit player_pos wins over per-map and game.json p
   auto scene = corundum::world::spawn_world(make_player_config(spawn_dir), registry, tilemap, explicit_pos);
   REQUIRE(scene.has_value());
 
-  CHECK(scene->world.transforms.pos_col(scene->player) == doctest::Approx(4.f));
-  CHECK(scene->world.transforms.pos_row(scene->player) == doctest::Approx(5.f));
-  CHECK(scene->zone_id == "village");
+  CHECK((*scene)->world.transforms.pos_col((*scene)->player) == doctest::Approx(4.f));
+  CHECK((*scene)->world.transforms.pos_row((*scene)->player) == doctest::Approx(5.f));
+  CHECK((*scene)->zone_id == "village");
 }
 
 TEST_CASE("spawn_world — per-map player block wins over the game.json default") {
@@ -321,8 +321,8 @@ TEST_CASE("spawn_world — per-map player block wins over the game.json default"
   auto scene = corundum::world::spawn_world(make_player_config(spawn_dir), registry, tilemap);
   REQUIRE(scene.has_value());
 
-  CHECK(scene->world.transforms.pos_col(scene->player) == doctest::Approx(1.5f));
-  CHECK(scene->world.transforms.pos_row(scene->player) == doctest::Approx(2.5f));
+  CHECK((*scene)->world.transforms.pos_col((*scene)->player) == doctest::Approx(1.5f));
+  CHECK((*scene)->world.transforms.pos_row((*scene)->player) == doctest::Approx(2.5f));
 }
 
 TEST_CASE("spawn_world — game.json placement is used when the spawn file has no player block") {
@@ -335,8 +335,8 @@ TEST_CASE("spawn_world — game.json placement is used when the spawn file has n
   auto scene = corundum::world::spawn_world(make_player_config(spawn_dir), registry, tilemap);
   REQUIRE(scene.has_value());
 
-  CHECK(scene->world.transforms.pos_col(scene->player) == doctest::Approx(9.f));
-  CHECK(scene->world.transforms.pos_row(scene->player) == doctest::Approx(9.f));
+  CHECK((*scene)->world.transforms.pos_col((*scene)->player) == doctest::Approx(9.f));
+  CHECK((*scene)->world.transforms.pos_row((*scene)->player) == doctest::Approx(9.f));
 }
 
 TEST_CASE("spawn_world — file actors spawn at their authored tiles and spawn_file_actors=false skips them") {
@@ -349,15 +349,15 @@ TEST_CASE("spawn_world — file actors spawn at their authored tiles and spawn_f
   const auto tilemap = make_tilemap(dir / "village.tmx");
   auto with_actors = corundum::world::spawn_world(make_player_config(spawn_dir), registry, tilemap);
   REQUIRE(with_actors.has_value());
-  const auto npc = corundum::entities::find_actor(with_actors->world, "npc");
+  const auto npc = corundum::entities::find_actor((*with_actors)->world, "npc");
   REQUIRE(npc.has_value());
-  CHECK(with_actors->world.transforms.pos_col(npc.value()) == doctest::Approx(3.f));
-  CHECK(with_actors->world.transforms.pos_row(npc.value()) == doctest::Approx(4.f));
+  CHECK((*with_actors)->world.transforms.pos_col(npc.value()) == doctest::Approx(3.f));
+  CHECK((*with_actors)->world.transforms.pos_row(npc.value()) == doctest::Approx(4.f));
 
   auto without_actors =
       corundum::world::spawn_world(make_player_config(spawn_dir), registry, tilemap, std::nullopt, false);
   REQUIRE(without_actors.has_value());
-  CHECK_FALSE(corundum::entities::find_actor(without_actors->world, "npc").has_value());
+  CHECK_FALSE(corundum::entities::find_actor((*without_actors)->world, "npc").has_value());
 }
 
 TEST_CASE("spawn_world — unknown player walk sprite is an error") {

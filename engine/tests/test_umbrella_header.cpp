@@ -8,14 +8,16 @@
 #include <doctest/doctest.h>
 
 #include <expected>
+#include <memory>
 #include <span>
 #include <string>
 #include <type_traits>
 
 static_assert(
     std::is_same_v<decltype(&corundum::parse_engine_args), corundum::EngineOptions (*)(std::span<const char *const>)>);
-static_assert(std::is_same_v<decltype(&corundum::make_engine),
-                             std::expected<corundum::Engine, std::string> (*)(const corundum::EngineOptions &)>);
+static_assert(
+    std::is_same_v<decltype(&corundum::make_engine),
+                   std::expected<std::unique_ptr<corundum::Engine>, std::string> (*)(const corundum::EngineOptions &)>);
 
 TEST_CASE("umbrella header re-exports the game-facing surface") {
   const corundum::EngineOptions options{};

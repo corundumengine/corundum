@@ -89,6 +89,7 @@ target_include_directories(engine PUBLIC include PRIVATE src)
 # explicitly per-target (PRIVATE flags, never inherited through links).
 corundum_use_cxx23(engine)
 corundum_enable_warnings(engine)
+corundum_limit_stack_frames(engine)
 
 # Link dependencies that the engine itself needs
 target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json

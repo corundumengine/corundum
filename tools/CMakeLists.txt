@@ -42,6 +42,7 @@ target_link_libraries(tilesmith
 )
 
 corundum_enable_warnings(tilesmith)
+corundum_limit_stack_frames(tilesmith)
 
 # ── Spritesmith Editor ──────────────────────────────────────────────────────────
 add_executable(spritesmith
@@ -67,6 +68,7 @@ target_link_libraries(spritesmith
 )
 
 corundum_enable_warnings(spritesmith)
+corundum_limit_stack_frames(spritesmith)
 
 # ── Loom Editor ─────────────────────────────────────────────────────────────────
 add_executable(loom
@@ -93,6 +95,7 @@ target_link_libraries(loom
 )
 
 corundum_enable_warnings(loom)
+corundum_limit_stack_frames(loom)
 
 # ── Mapview Tool (headless) ─────────────────────────────────────────────────────
 # A CLI that renders a top-down overview PNG of a chunk-based world from its tilemaps.
@@ -119,3 +122,4 @@ target_link_libraries(mapview
 
 corundum_use_cxx23(mapview)
 corundum_enable_warnings(mapview)
+corundum_limit_stack_frames(mapview)

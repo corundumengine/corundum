@@ -76,6 +76,7 @@ endif()
 
 corundum_use_cxx23(engine_platform_glfw)
 corundum_enable_warnings(engine_platform_glfw)
+corundum_limit_stack_frames(engine_platform_glfw)
 
 add_library(corundum::engine ALIAS engine_platform_glfw)
 

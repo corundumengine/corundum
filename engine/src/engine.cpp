@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <memory>
 #include <print>
 #include <string>
 #include <string_view>
@@ -125,11 +126,11 @@ namespace corundum {
         if (!map_result)
           return std::unexpected(std::move(map_result).error());
 
-        std::expected<world::Scene, std::string> scene_result;
-        scene_result = world::spawn_world(engine_->cfg, engine_->characters, *engine_->active_tilemap());
+        std::expected<std::unique_ptr<world::Scene>, std::string> scene_result =
+            world::spawn_world(engine_->cfg, engine_->characters, *engine_->active_tilemap());
         if (!scene_result)
           return std::unexpected(std::move(scene_result).error());
-        engine_->scene = std::move(*scene_result);
+        engine_->scene = std::move(**scene_result);
 
         const auto &tilemap = *engine_->active_tilemap();
         const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,

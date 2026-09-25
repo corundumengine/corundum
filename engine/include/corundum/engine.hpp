@@ -43,9 +43,9 @@ namespace corundum {
    * game state), and all game assets. Lifecycle is intrinsic methods:
    *   initialize → run_loop → cleanup
    *
-   * Returned by value from make_engine() and must stay cheaply movable: it is
-   * move-constructed as a whole, so members must never store pointers or
-   * references into sibling members.
+   * make_engine() heap-allocates it: the embedded entity World is ~0.5 MB and must never sit
+   * on a stack frame. Members must still never store pointers or references into sibling
+   * members.
    *
    * @see initialize  One-time setup before the main loop.
    * @see run_loop    The main loop: input, fixed-step simulation, rendering.

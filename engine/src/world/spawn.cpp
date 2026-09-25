@@ -25,6 +25,7 @@
 #include <expected>
 #include <filesystem>
 #include <format>
+#include <memory>
 #include <optional>
 #include <print>
 #include <string>
@@ -246,13 +247,13 @@ namespace corundum::world {
 
   } // namespace
 
-  std::expected<Scene, std::string> spawn_world(const corundum::core::GameConfig &cfg,
-                                                const corundum::sprites::CharacterRegistry &registry,
-                                                const corundum::world::tilemap::Tilemap &tilemap,
-                                                std::optional<corundum::entities::Position> player_pos,
-                                                bool spawn_file_actors) {
-    Scene scene;
-    World &world = scene.world;
+  std::expected<std::unique_ptr<Scene>, std::string> spawn_world(const corundum::core::GameConfig &cfg,
+                                                                 const corundum::sprites::CharacterRegistry &registry,
+                                                                 const corundum::world::tilemap::Tilemap &tilemap,
+                                                                 std::optional<corundum::entities::Position> player_pos,
+                                                                 bool spawn_file_actors) {
+    auto scene = std::make_unique<Scene>();
+    World &world = scene->world;
 
     const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
     const auto actors_path = std::filesystem::path(cfg.paths.spawn_points_dir) / (map_stem + ".json");
@@ -289,8 +290,8 @@ namespace corundum::world {
         return std::unexpected(spawned.error());
     }
 
-    scene.zone_id = map_stem;
-    scene.player = *player;
+    scene->zone_id = map_stem;
+    scene->player = *player;
     return scene;
   }
 

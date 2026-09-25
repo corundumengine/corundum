@@ -22,3 +22,12 @@ endfunction()
 function(corundum_use_cxx23 target)
   target_compile_features(${target} PUBLIC cxx_std_23)
 endfunction()
+
+# Shipping code must never put an Engine, Scene or entities::World (each ~0.5 MB) on the stack:
+# Windows' default main-thread stack is 1 MB. -Werror turns an oversized frame into a build
+# error. Not applied to test targets, which build Engines as locals and run on 8 MB stacks.
+function(corundum_limit_stack_frames target)
+  if(NOT MSVC)
+    target_compile_options(${target} PRIVATE -Wframe-larger-than=131072)
+  endif()
+endfunction()

@@ -5,6 +5,7 @@
 #include <corundum/engine.hpp>
 
 #include <expected>
+#include <memory>
 #include <span>
 #include <string>
 
@@ -45,13 +46,15 @@ namespace corundum {
    *  failure the caller receives an error description and no resources leak.
    *
    *  @param[in] options Resolved command-line options.
-   *  @return A fully-initialised Engine on success, or an error message.
+   *  @return A fully-initialised, heap-allocated Engine on success, or an error message.
+   *          Heap-allocated because Engine embeds the ~0.5 MB entity World, which must
+   *          never sit on a stack frame (Windows' default main-thread stack is 1 MB).
    *  @note load_game_config() rejects non-positive window dimensions, so the
    *        narrowing conversion to the platform's unsigned size arguments is safe.
    *  @post On success the Engine is ready for Engine::run(). On failure the window
    *        is closed, audio is shut down, and the Engine (and the platform objects
    *        it owns) is destroyed.
    */
-  [[nodiscard]] std::expected<Engine, std::string> make_engine(const EngineOptions &options);
+  [[nodiscard]] std::expected<std::unique_ptr<Engine>, std::string> make_engine(const EngineOptions &options);
 
 } // namespace corundum

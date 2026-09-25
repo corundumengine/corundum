@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <expected>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -71,11 +72,11 @@ namespace corundum::world {
     const corundum::render::WorldLoadInfo &info = *world_result;
     const corundum::entities::Position spawn_pos{.col = info.spawn_world_pos.x, .row = info.spawn_world_pos.y};
 
-    std::expected<Scene, std::string> scene_result =
+    std::expected<std::unique_ptr<Scene>, std::string> scene_result =
         world::spawn_world(engine.cfg, engine.characters, engine.render.chunks.active_at(0).tilemap, spawn_pos, false);
     if (!scene_result)
       return std::unexpected(std::move(scene_result).error());
-    engine.scene = std::move(*scene_result);
+    engine.scene = std::move(**scene_result);
     engine.scene.zone_id = world_zone_id(engine.render.manifest, engine.cfg.paths.world_manifest_path);
     world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
 
@@ -159,11 +160,11 @@ namespace corundum::world {
 
     const corundum::world::tilemap::Tilemap &new_tilemap = *engine.active_tilemap();
     const entities::Position spawn{.col = col, .row = row};
-    std::expected<Scene, std::string> scene_result =
+    std::expected<std::unique_ptr<Scene>, std::string> scene_result =
         world::spawn_world(engine.cfg, engine.characters, new_tilemap, spawn);
     if (!scene_result)
       return std::unexpected(std::move(scene_result).error());
-    engine.scene = std::move(*scene_result);
+    engine.scene = std::move(**scene_result);
     if (!zone.empty())
       engine.scene.zone_id = std::string(zone);
 

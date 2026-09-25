@@ -8,6 +8,7 @@
 #include <corundum/world/scene.hpp>
 
 #include <expected>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -32,10 +33,10 @@ namespace corundum::world {
    *                  game.json "player" col/row > built-in default (8, 8).
    * @param spawn_file_actors When false, skip spawning actors from the single-file
    *                  spawn-points data (world mode streams actors per-chunk instead).
-   * @return Scene containing the populated world and player EntityId,
-   *         or std::unexpected with an error description on failure.
+   * @return Heap-allocated Scene (it embeds the ~0.5 MB entity World) with the populated
+   *         world and player EntityId, or std::unexpected with an error description on failure.
    */
-  [[nodiscard]] std::expected<Scene, std::string>
+  [[nodiscard]] std::expected<std::unique_ptr<Scene>, std::string>
   spawn_world(const core::GameConfig &cfg, const sprites::CharacterRegistry &registry, const tilemap::Tilemap &tilemap,
               std::optional<entities::Position> player_pos = std::nullopt, bool spawn_file_actors = true);
 
