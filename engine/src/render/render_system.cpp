@@ -267,7 +267,12 @@ namespace corundum::render {
     // NinePatchBorder lays the frame out as a uniform 3×3 grid. A cell is the size of the
     // upper_left frame — one frame in some atlases, but multi-frame in others (the shipped
     // border uses 2×2-frame 32px cells), so the span must come from the frame, not frame_width.
-    const IntRect ul = make_rect("upper_left");
+    IntRect ul{};
+    try {
+      ul = make_rect("upper_left");
+    } catch (const nlohmann::json::exception &e) {
+      return std::unexpected(std::format("[renderer] malformed UI assets '{}': {}", path, e.what()));
+    }
     state.dialog_box.border.tile_w = ul.width;
     state.dialog_box.border.tile_h = ul.height;
 

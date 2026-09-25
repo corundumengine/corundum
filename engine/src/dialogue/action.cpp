@@ -102,6 +102,40 @@ namespace corundum::dialogue {
       }
     };
 
+    /// Parse a function call's argument list; the cursor is on the opening '('. @p name is the
+    /// identifier that preceded it.
+    EventAction parse_call(ParseCursor &ctx, std::string name) {
+      ctx.consume(); // '('
+      EventAction ev;
+      ev.name = std::move(name);
+
+      ctx.skip_ws();
+      while (!ctx.at_end() && ctx.peek() != ')') {
+        std::string arg;
+        if (ctx.peek() == '\'') {
+          arg = ctx.read_quoted();
+        } else if (std::isdigit(static_cast<unsigned char>(ctx.peek())) != 0 ||
+                   (ctx.peek() == '-' && ctx.pos + 1 < ctx.src.size() &&
+                    std::isdigit(static_cast<unsigned char>(ctx.src[ctx.pos + 1])) != 0)) {
+          arg = std::to_string(ctx.read_int());
+        } else {
+          arg = ctx.read_ident();
+          if (arg.empty())
+            throw std::runtime_error(std::format("unexpected character '{}' in function arguments", ctx.peek()));
+        }
+        ev.args.push_back(std::move(arg));
+        ctx.skip_ws();
+        if (ctx.peek() == ',') {
+          ctx.consume();
+          ctx.skip_ws();
+        }
+      }
+      if (ctx.peek() != ')')
+        throw std::runtime_error("expected ')' to close function call");
+      ctx.consume();
+      return ev;
+    }
+
     Action parse_impl(std::string_view src) {
       ParseCursor ctx{.src = src};
       ctx.skip_ws();
@@ -109,42 +143,15 @@ namespace corundum::dialogue {
       if (ctx.at_end())
         throw std::runtime_error("empty action string");
 
-      const auto name = ctx.read_ident();
+      auto name = ctx.read_ident();
       if (name.empty())
         throw std::runtime_error("expected identifier");
 
       ctx.skip_ws();
 
       // Function call: name(args...)
-      if (ctx.peek() == '(') {
-        ctx.consume();
-        EventAction ev;
-        ev.name = name;
-
-        ctx.skip_ws();
-        while (!ctx.at_end() && ctx.peek() != ')') {
-          std::string arg;
-          if (ctx.peek() == '\'') {
-            arg = ctx.read_quoted();
-          } else if (std::isdigit(static_cast<unsigned char>(ctx.peek())) != 0 ||
-                     (ctx.peek() == '-' && ctx.pos + 1 < ctx.src.size() &&
-                      std::isdigit(static_cast<unsigned char>(ctx.src[ctx.pos + 1])) != 0)) {
-            arg = std::to_string(ctx.read_int());
-          } else {
-            arg = ctx.read_ident();
-          }
-          ev.args.push_back(std::move(arg));
-          ctx.skip_ws();
-          if (ctx.peek() == ',') {
-            ctx.consume();
-            ctx.skip_ws();
-          }
-        }
-        if (ctx.peek() != ')')
-          throw std::runtime_error("expected ')' to close function call");
-        ctx.consume();
-        return ev;
-      }
+      if (ctx.peek() == '(')
+        return parse_call(ctx, std::move(name));
 
       // Assignment: name op value
       StateAction sa;

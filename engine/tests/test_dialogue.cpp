@@ -39,77 +39,83 @@
 //   n2      (Talk)  → end
 //   n_already_paid (Talk) → end
 //   n_bye   (Talk)  → end
-static corundum::dialogue::Graph make_innkeeper_graph() {
-  using namespace corundum::dialogue;
+namespace {
 
-  Graph g;
-  g.graph_id = "innkeeper_intro";
-  g.speaker = "Innkeeper";
-  g.variables = {{"gold", 10}};
+  corundum::dialogue::Graph make_innkeeper_graph() {
+    using namespace corundum::dialogue;
 
-  auto push = [&g](Node n) {
-    g.id_to_index[n.id] = g.nodes.size();
-    g.nodes.push_back(std::move(n));
-  };
+    Graph g;
+    g.graph_id = "innkeeper_intro";
+    g.speaker = "Innkeeper";
+    g.variables = {{"gold", 10}};
 
-  { // n0 — talk
-    Node n;
-    n.id = "n0";
-    n.type = NodeType::Talk;
-    n.text = "Welcome, traveller. What brings you here?";
-    n.next_id = "n1";
-    push(std::move(n));
-  }
-  { // n1 — choice
-    Node n;
-    n.id = "n1";
-    n.type = NodeType::Choice;
-    n.choices = {
-        {.label = "I need a room.",
-         .target_id = "n_pay",
-         .condition = *compile("gold >= 5 && !paid_innkeeper"),
-         .actions = {"gold -= 5", "paid_innkeeper = true"},
-         .sequence = SequenceMode::Once},
-        {.label = "I need a room.", .target_id = "n_already_paid", .condition = *compile("paid_innkeeper == true")},
-        {.label = "Just passing through.", .target_id = "n_bye"},
+    const auto push = [&g](Node n) {
+      g.id_to_index[n.id] = g.nodes.size();
+      g.nodes.push_back(std::move(n));
     };
-    push(std::move(n));
-  }
-  { // n_pay — event
-    Node n;
-    n.id = "n_pay";
-    n.type = NodeType::Event;
-    n.next_id = "n2";
-    n.actions = {"play_sound('coin')"};
-    push(std::move(n));
-  }
-  { // n2 — talk
-    Node n;
-    n.id = "n2";
-    n.type = NodeType::Talk;
-    n.text = "That'll be 5 gold pieces. Right this way.";
-    n.next_id = "end";
-    push(std::move(n));
-  }
-  { // n_already_paid — talk
-    Node n;
-    n.id = "n_already_paid";
-    n.type = NodeType::Talk;
-    n.text = "You've already paid. Your room is the last one on the left. Sleep well.";
-    n.next_id = "end";
-    push(std::move(n));
-  }
-  { // n_bye — talk
-    Node n;
-    n.id = "n_bye";
-    n.type = NodeType::Talk;
-    n.text = "Safe travels then. Watch the road south.";
-    n.next_id = "end";
-    push(std::move(n));
+
+    { // n0 — talk
+      Node n;
+      n.id = "n0";
+      n.type = NodeType::Talk;
+      n.text = "Welcome, traveller. What brings you here?";
+      n.next_id = "n1";
+      push(std::move(n));
+    }
+    { // n1 — choice
+      Node n;
+      n.id = "n1";
+      n.type = NodeType::Choice;
+      n.choices = {
+          {
+              .label = "I need a room.",
+              .target_id = "n_pay",
+              .condition = *compile("gold >= 5 && !paid_innkeeper"),
+              .actions = {"gold -= 5", "paid_innkeeper = true"},
+              .sequence = SequenceMode::Once,
+          },
+          {.label = "I need a room.", .target_id = "n_already_paid", .condition = *compile("paid_innkeeper == true")},
+          {.label = "Just passing through.", .target_id = "n_bye"},
+      };
+      push(std::move(n));
+    }
+    { // n_pay — event
+      Node n;
+      n.id = "n_pay";
+      n.type = NodeType::Event;
+      n.next_id = "n2";
+      n.actions = {"play_sound('coin')"};
+      push(std::move(n));
+    }
+    { // n2 — talk
+      Node n;
+      n.id = "n2";
+      n.type = NodeType::Talk;
+      n.text = "That'll be 5 gold pieces. Right this way.";
+      n.next_id = "end";
+      push(std::move(n));
+    }
+    { // n_already_paid — talk
+      Node n;
+      n.id = "n_already_paid";
+      n.type = NodeType::Talk;
+      n.text = "You've already paid. Your room is the last one on the left. Sleep well.";
+      n.next_id = "end";
+      push(std::move(n));
+    }
+    { // n_bye — talk
+      Node n;
+      n.id = "n_bye";
+      n.type = NodeType::Talk;
+      n.text = "Safe travels then. Watch the road south.";
+      n.next_id = "end";
+      push(std::move(n));
+    }
+
+    return g;
   }
 
-  return g;
-}
+} // namespace
 
 // ── Shared graph/test helpers ────────────────────────────────────────────────
 
@@ -119,6 +125,15 @@ namespace {
   void push_node(corundum::dialogue::Graph &g, corundum::dialogue::Node n) {
     g.id_to_index[n.id] = g.nodes.size();
     g.nodes.push_back(std::move(n));
+  }
+
+  /// Source text of a compiled choice condition, or empty when the edge has none. The optional
+  /// access lives here behind an early-return guard rather than inside a CHECK, which
+  /// bugprone-unchecked-optional-access cannot reason about through the doctest macro.
+  std::string_view condition_source(const corundum::dialogue::ChoiceEdge &edge) {
+    if (!edge.condition.has_value())
+      return {};
+    return edge.condition->source();
   }
 
   corundum::input::PressedActions select_press() {
@@ -184,6 +199,14 @@ TEST_CASE("parse_action: event call with multiple args") {
 
 TEST_CASE("parse_action: parse error returns ActionError") {
   auto r = corundum::dialogue::parse_action("???");
+  CHECK_FALSE(r.has_value());
+  CHECK_FALSE(r.error().message.empty());
+}
+
+TEST_CASE("parse_action: an operator where an argument is expected is rejected, not looped on") {
+  // Regression: the argument loop used to accept the empty token read_ident() returns for a
+  // non-identifier character without advancing the cursor, so it spun forever on input like this.
+  const auto r = corundum::dialogue::parse_action("paid_innkeeper(= true");
   CHECK_FALSE(r.has_value());
   CHECK_FALSE(r.error().message.empty());
 }
@@ -313,7 +336,7 @@ TEST_CASE("visible_choices: condition gates on expression") {
 
   // paid set
   flags["paid"] = 1;
-  auto v3 = corundum::dialogue::visible_choices(n, flags, "");
+  const auto v3 = corundum::dialogue::visible_choices(n, flags, "");
   REQUIRE(v3.size() == 3);
 }
 
@@ -332,7 +355,7 @@ TEST_CASE("visible_choices: Once sequence hides after traversal") {
   const auto graph_id = std::string_view("g");
 
   // Both visible before traversal
-  auto before = visible_choices(n, flags, graph_id);
+  const auto before = visible_choices(n, flags, graph_id);
   REQUIRE(before.size() == 2);
 
   // Simulate taking the Once edge — set its once-flag
@@ -479,7 +502,7 @@ TEST_CASE("registry load_all count matches size with duplicate ids") {
   }
 
   corundum::dialogue::Registry reg;
-  int loaded = reg.load_all(tmp_dir);
+  const int loaded = reg.load_all(tmp_dir);
   CHECK(loaded == 1);
   CHECK(reg.size() == 1);
   std::filesystem::remove_all(tmp_dir);
@@ -500,7 +523,7 @@ TEST_CASE("visible_choices: quest-gated choice hidden (not errored) when registr
       {.label = "Gated by quest stage.", .target_id = "b", .condition = *compile("quest_is_at(ember, done)")},
   };
 
-  corundum::world::FlagStore flags;
+  const corundum::world::FlagStore flags;
 
   const auto visible = visible_choices(n, flags, "any_graph");
   REQUIRE(visible.size() == 1);
@@ -564,10 +587,10 @@ TEST_CASE("load_graph parses innkeeper.json correctly") {
   REQUIRE(n1 != nullptr);
   CHECK(n1->type == corundum::dialogue::NodeType::Choice);
   CHECK(n1->choices.size() == 3);
-  CHECK(n1->choices[0].condition->source() == "gold >= 5 && !paid_innkeeper");
+  CHECK(condition_source(n1->choices[0]) == "gold >= 5 && !paid_innkeeper");
   CHECK(n1->choices[0].actions[0] == "gold -= 5");
   CHECK(n1->choices[0].sequence == corundum::dialogue::SequenceMode::Once);
-  CHECK(n1->choices[1].condition->source() == "paid_innkeeper == true");
+  CHECK(condition_source(n1->choices[1]) == "paid_innkeeper == true");
 
   const auto *n_pay = g.find("n_pay");
   REQUIRE(n_pay != nullptr);
@@ -1136,7 +1159,7 @@ TEST_CASE("actor_id: loads from JSON and round-trips through serialize") {
   CHECK(j["actor_id"].get<std::string>() == "brann");
 
   const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_actor_dialogue.json");
-  auto write_result = corundum::core::write_json(tmp, j);
+  const auto write_result = corundum::core::write_json(tmp, j);
   REQUIRE(write_result.has_value());
 
   const auto reloaded = corundum::dialogue::load_graph(tmp.string());
@@ -1224,7 +1247,7 @@ TEST_CASE("Talk once: loads from JSON and round-trips through serialize") {
   CHECK(j["nodes"][0]["once"].get<bool>() == true);
 
   const auto tmp2 = std::filesystem::path("engine/tests/fixtures/tmp_once_talk.json");
-  auto write_result = corundum::core::write_json(tmp2, j);
+  const auto write_result = corundum::core::write_json(tmp2, j);
   REQUIRE(write_result.has_value());
 
   const auto reloaded = corundum::dialogue::load_graph(tmp2.string());
@@ -1254,7 +1277,7 @@ TEST_CASE("dialogue serialize round-trips through load_graph") {
   const auto j = corundum::dialogue::serialize(g);
 
   const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_innkeeper.json");
-  auto write_result = corundum::core::write_json(tmp, j);
+  const auto write_result = corundum::core::write_json(tmp, j);
   REQUIRE(write_result.has_value());
 
   const auto reloaded = corundum::dialogue::load_graph(tmp.string());
@@ -1275,7 +1298,7 @@ TEST_CASE("dialogue serialize round-trips through load_graph") {
   REQUIRE(n1 != nullptr);
   CHECK(n1->type == corundum::dialogue::NodeType::Choice);
   CHECK(n1->choices.size() == 3);
-  CHECK(n1->choices[0].condition->source() == "gold >= 5 && !paid_innkeeper");
+  CHECK(condition_source(n1->choices[0]) == "gold >= 5 && !paid_innkeeper");
   CHECK(n1->choices[0].actions[0] == "gold -= 5");
   CHECK(n1->choices[0].sequence == corundum::dialogue::SequenceMode::Once);
 
