@@ -33,7 +33,10 @@ set(ENGINE_SOURCES
     src/engine.cpp
     src/engine_factory.cpp
     src/engine_options.cpp
+    src/input/bindings.cpp
+    src/input/input_mapper.cpp
     src/input/input_system.cpp
+    src/input/physical_input.cpp
     src/item/item.cpp
     src/item/serialize.cpp
     src/physics/collision.cpp

@@ -16,6 +16,7 @@ set(TEST_SOURCES
     test_animation_system.cpp
     test_atlas_clips.cpp
     test_audio.cpp
+    test_bindings.cpp
     test_camera.cpp
     test_character_registry.cpp
     test_character_sheet_loader.cpp
@@ -36,6 +37,7 @@ set(TEST_SOURCES
     test_follow_path.cpp
     test_game_config.cpp
     test_handle.cpp
+    test_input_mapper.cpp
     test_input_system.cpp
     test_iso_math.cpp
     test_item_loader.cpp
@@ -46,6 +48,7 @@ set(TEST_SOURCES
     test_material_at.cpp
     test_pathfinding.cpp
     test_pathfinding_world.cpp
+    test_physical_input.cpp
     test_picking.cpp
     test_portal_elevation.cpp
     test_portals.cpp

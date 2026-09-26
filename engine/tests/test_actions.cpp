@@ -178,6 +178,20 @@ TEST_CASE("ZoomIn/ZoomOut — behave like any other held action") {
   CHECK_FALSE(state.is_held(Action::ZoomOut));
 }
 
+// ── consume_press ──────────────────────────────────────────────────────────────
+
+TEST_CASE("consume_press — clears the edge once and leaves held alone") {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(Action::Select));
+  state.held.set(static_cast<std::size_t>(Action::Select));
+
+  CHECK(state.consume_press(Action::Select));
+  CHECK_FALSE(state.is_pressed(Action::Select));
+  CHECK(state.is_held(Action::Select));
+
+  CHECK_FALSE(state.consume_press(Action::Select));
+}
+
 TEST_CASE("ZoomIn/ZoomOut — participate in pressed_actions like any other action") {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::ZoomOut));

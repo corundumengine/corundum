@@ -23,8 +23,10 @@ namespace corundum::input {
     ZoomIn,
     ZoomOut,
     Inventory,
-    QuickSave, ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
-    QuickLoad, ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
+    QuickSave,        ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
+    QuickLoad,        ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
+    ToggleFullscreen, ///< Switch windowed ↔ borderless fullscreen (F11 on desktop). The engine consumes the press
+                      ///< before the fixed steps run, so game code never sees it.
     Count,
   };
 
@@ -130,6 +132,20 @@ namespace corundum::input {
      */
     [[nodiscard]] bool is_pressed(Action action) const noexcept {
       return pressed[static_cast<std::size_t>(action)];
+    }
+
+    /**
+     * @brief Clear @p action's press edge, reporting whether it was set.
+     *
+     * For a consumer that must act on a press exactly once while the same state is read on several
+     * frames, such as the engine's own actions, which it handles before the fixed steps run.
+     * @param action The input action to consume.
+     * @return true if @p action was pressed.
+     */
+    [[nodiscard]] bool consume_press(Action action) noexcept {
+      const bool was_pressed{pressed[static_cast<std::size_t>(action)]};
+      pressed[static_cast<std::size_t>(action)] = false;
+      return was_pressed;
     }
   };
 
