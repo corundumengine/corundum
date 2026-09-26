@@ -37,7 +37,9 @@ namespace corundum::platform {
 
   /** @brief Create a platform-specific Window only (no renderer or audio).
    *
-   * The window is fully initialised and ready for GPU context creation.
+   * The window is fully initialised and ready for GPU context creation, but starts hidden so the
+   * OS never composites an unpainted surface while assets load. Call Window::show() once the first
+   * frame is ready.
    *
    * @param[in] width   Initial window width in pixels.
    * @param[in] height  Initial window height in pixels.
@@ -47,6 +49,9 @@ namespace corundum::platform {
                                                                                   std::string_view title);
 
   /** @brief Create a platform-specific Window, GPU context, Renderer and AudioBackend.
+   *
+   * The window starts hidden; see create_window(). Call Window::show() once the first frame is
+   * ready.
    *
    * @param[in] width   Initial window width in pixels.
    * @param[in] height  Initial window height in pixels.

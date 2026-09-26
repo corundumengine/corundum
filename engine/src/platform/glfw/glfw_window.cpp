@@ -4,8 +4,8 @@
 #include "glfw_window.hpp"
 #include "input_translator.hpp"
 
-#include <corundum/input/action_resolver.hpp>
-#include <corundum/input/actions.hpp>
+#include <corundum/input/input_mapper.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/platform_events.hpp>
 
 #include <GLFW/glfw3.h>
@@ -14,6 +14,8 @@
 #include "glfw_window_metal.h"
 #endif
 
+#include <bit>
+#include <cstdint>
 #include <expected>
 #include <memory>
 #include <string>
@@ -40,8 +42,16 @@ namespace corundum::platform::glfw {
     }
 
     struct WindowData {
-      corundum::input::InputState input{};
-      corundum::input::ActionResolver input_resolver{};
+      /// Engine input sink, set only for the duration of poll_game_input. Callbacks fired by another
+      /// event pump (a tool's own glfwPollEvents) find it null and drop the event.
+      corundum::input::InputMapper *mapper{nullptr};
+
+      /// Joystick id whose state drives input, or -1 while no gamepad is connected.
+      int active_gamepad{-1};
+
+      /// Bit j is set while joystick j is a mapped gamepad; diffed each poll to report hot-plug.
+      std::uint32_t gamepads_present{};
+
       corundum::platform::PlatformEvents events{};
 
 #ifdef SOKOL_METAL
@@ -50,10 +60,11 @@ namespace corundum::platform::glfw {
     };
 
     void key_callback(GLFWwindow *win, int key, int /*scancode*/, int action, int /*mods*/) noexcept {
-      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
-      if (data != nullptr) {
-        translate_key(key, action, data->input_resolver, data->input);
-      }
+      const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
+      if (data == nullptr || data->mapper == nullptr || action == GLFW_REPEAT)
+        return;
+      if (const auto engine_key = to_key(key))
+        data->mapper->key(*engine_key, action == GLFW_PRESS);
     }
 
     void window_close_callback(GLFWwindow *win) noexcept {
@@ -92,17 +103,66 @@ namespace corundum::platform::glfw {
     }
 
     void mouse_button_callback(GLFWwindow *win, int button, int action, int /*mods*/) noexcept {
-      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
-      if (data != nullptr) {
-        translate_mouse_button(button, action, data->input_resolver, data->input);
-      }
+      const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
+      if (data == nullptr || data->mapper == nullptr)
+        return;
+      if (const auto engine_button = to_mouse_button(button))
+        data->mapper->mouse_button(*engine_button, action == GLFW_PRESS);
     }
 
     void scroll_callback(GLFWwindow *win, double /*xoffset*/, double yoffset) noexcept {
-      auto *data = static_cast<WindowData *>(glfwGetWindowUserPointer(win));
-      if (data != nullptr) {
-        translate_scroll(yoffset, data->input);
+      const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
+      if (data != nullptr && data->mapper != nullptr)
+        data->mapper->scroll(static_cast<float>(yoffset));
+    }
+
+    /// The bit for @p joystick in a gamepad-presence mask.
+    constexpr std::uint32_t joystick_bit(int joystick) noexcept {
+      return 1u << static_cast<unsigned>(joystick);
+    }
+
+    /// Bitmask of the joystick ids that are currently mapped gamepads.
+    std::uint32_t connected_gamepads() noexcept {
+      std::uint32_t mask{};
+      for (int joystick = GLFW_JOYSTICK_1; joystick <= GLFW_JOYSTICK_LAST; ++joystick) {
+        if (glfwJoystickIsGamepad(joystick) == GLFW_TRUE)
+          mask |= joystick_bit(joystick);
       }
+      return mask;
+    }
+
+    /// Report gamepad hot-plug edges and feed the active pad to @p mapper. The active pad stays
+    /// active while connected; when it goes, the lowest-numbered remaining pad takes over. Only
+    /// mapped gamepads count: an unmapped joystick has no portable button layout to bind.
+    void poll_gamepads(WindowData &data, corundum::input::InputMapper &mapper) noexcept {
+      std::uint32_t present{connected_gamepads()};
+      GLFWgamepadstate state{};
+      bool read{false};
+
+      // A pad that vanishes between the presence scan and its state read counts as gone: its
+      // disconnect is reported, and the next remaining pad takes over this same poll, so input never
+      // drops out while another pad is connected. Each failed read clears a bit, so this terminates.
+      while (!read && present != 0) {
+        if (data.active_gamepad < 0 || (present & joystick_bit(data.active_gamepad)) == 0)
+          data.active_gamepad = std::countr_zero(present);
+        read = glfwGetGamepadState(data.active_gamepad, &state) == GLFW_TRUE;
+        if (!read)
+          present &= ~joystick_bit(data.active_gamepad);
+      }
+      if (present == 0)
+        data.active_gamepad = -1;
+
+      if ((present & ~data.gamepads_present) != 0)
+        data.events.controller_connected = true;
+      if ((data.gamepads_present & ~present) != 0)
+        data.events.controller_disconnected = true;
+      data.gamepads_present = present;
+
+      if (!read) {
+        mapper.gamepad_absent();
+        return;
+      }
+      mapper.gamepad(to_gamepad_state(state));
     }
 
 #ifdef SOKOL_METAL
@@ -171,6 +231,10 @@ namespace corundum::platform::glfw {
   GLFWWindow::GLFWWindow(unsigned width, unsigned height, std::string_view title) : impl_{std::make_unique<Impl>()} {
     glfwDefaultWindowHints();
 
+    // Created hidden; the owner reveals the window after the first frame is on screen, so the OS
+    // never composites an unpainted window while assets load.
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+
 #ifdef SOKOL_METAL
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #else
@@ -191,6 +255,8 @@ namespace corundum::platform::glfw {
       glfwSetWindowFocusCallback(impl_->win, window_focus_callback);
       glfwSetWindowIconifyCallback(impl_->win, window_iconify_callback);
       glfwSetFramebufferSizeCallback(impl_->win, framebuffer_size_callback);
+      // Pads already connected at startup are not hot-plug events.
+      impl_->data.gamepads_present = connected_gamepads();
 
 #ifdef SOKOL_METAL
       impl_->data.metal_layer = metal_setup_layer(impl_->win);
@@ -230,18 +296,25 @@ namespace corundum::platform::glfw {
       glfwSetWindowShouldClose(impl_->win, GLFW_TRUE);
   }
 
-  void GLFWWindow::poll_game_input(corundum::input::InputState &input, corundum::platform::PlatformEvents &events) {
+  void GLFWWindow::show() {
+    if (impl_ && impl_->win != nullptr)
+      glfwShowWindow(impl_->win);
+  }
+
+  void GLFWWindow::poll_game_input(corundum::input::InputMapper &mapper, corundum::platform::PlatformEvents &events) {
     if (!impl_ || impl_->win == nullptr)
       return;
-    corundum::input::clear_pressed(impl_->data.input);
+
+    impl_->data.mapper = &mapper;
     glfwPollEvents();
-    poll_gamepad(impl_->data.input_resolver, impl_->data.input);
-    double mx = 0.0;
-    double my = 0.0;
-    glfwGetCursorPos(impl_->win, &mx, &my);
-    impl_->data.input.mouse_x = static_cast<float>(mx);
-    impl_->data.input.mouse_y = static_cast<float>(my);
-    corundum::input::accumulate_input(input, impl_->data.input);
+    impl_->data.mapper = nullptr;
+
+    poll_gamepads(impl_->data, mapper);
+
+    double cursor_x{};
+    double cursor_y{};
+    glfwGetCursorPos(impl_->win, &cursor_x, &cursor_y);
+    mapper.cursor(static_cast<float>(cursor_x), static_cast<float>(cursor_y));
 
     corundum::platform::merge_events(events, impl_->data.events);
     impl_->data.events = {};
@@ -266,6 +339,19 @@ namespace corundum::platform::glfw {
     glfwMakeContextCurrent(impl_->win);
     glfwSwapInterval(enabled ? 1 : 0);
 #endif
+  }
+
+  std::string GLFWWindow::input_label(corundum::input::PhysicalInput input) const {
+    if (input.device == corundum::input::InputDevice::Keyboard) {
+      // Layout-aware for printable keys only; GLFW returns null for the rest.
+      if (const char *name = glfwGetKeyName(static_cast<int>(input.code), 0); name != nullptr) {
+        std::string label{name};
+        if (label.size() == 1 && label[0] >= 'a' && label[0] <= 'z')
+          label[0] = static_cast<char>(label[0] - 'a' + 'A');
+        return label;
+      }
+    }
+    return std::string{corundum::input::name_of(input)};
   }
 
   void *GLFWWindow::native_handle() const noexcept {

@@ -304,11 +304,9 @@ namespace corundum {
     /// and handing the frame to the on_platform_event hook.
     void process_input(Engine &engine) noexcept {
       platform::PlatformEvents events{};
-      input::poll(engine.input_state, *engine.window, events);
+      input::poll(engine.input_mapper, engine.input_state, *engine.window, events);
 
-      const bool any_event =
-          events.display_changed || events.focus_gained || events.focus_lost || events.quit_requested;
-      if (any_event) {
+      if (platform::has_any_event(events)) {
         if (events.focus_lost && !engine.is_paused())
           engine.set_paused(true);
         // Handled after focus_lost so a same-frame loss-and-gain nets to running.
@@ -426,6 +424,7 @@ namespace corundum {
     // queue catch-up fixed steps. Rendering still runs so a pause menu stays on screen.
     if (is_paused()) {
       render_frame(*this, timer.alpha(), /*budget_exhausted=*/false);
+      reveal_window();
       return true;
     }
 
@@ -437,8 +436,16 @@ namespace corundum {
     // A transition re-snapshots through frame_camera_on, so the blend never spans two scenes.
     world::handle_map_transition(*this);
     render_frame(*this, timer.alpha(), simulation.budget_exhausted);
+    reveal_window();
 
     return true;
+  }
+
+  void Engine::reveal_window() noexcept {
+    if (window_shown_)
+      return;
+    window_shown_ = true;
+    window->show();
   }
 
   void Engine::set_paused(bool paused) noexcept {

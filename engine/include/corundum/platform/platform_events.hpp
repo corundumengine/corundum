@@ -16,6 +16,12 @@ namespace corundum::platform {
    *       the window, not what the player pressed.
    */
   struct PlatformEvents {
+    /** @brief True when a mapped gamepad was connected this poll. */
+    bool controller_connected{};
+
+    /** @brief True when a mapped gamepad was disconnected this poll. */
+    bool controller_disconnected{};
+
     /** @brief True when the drawable size, scale, or monitor changed this poll. */
     bool display_changed{};
 
@@ -38,10 +44,18 @@ namespace corundum::platform {
    *  @param[in]     source      Events to fold in.
    */
   inline void merge_events(PlatformEvents &destination, const PlatformEvents &source) noexcept {
+    destination.controller_connected = destination.controller_connected || source.controller_connected;
+    destination.controller_disconnected = destination.controller_disconnected || source.controller_disconnected;
     destination.display_changed = destination.display_changed || source.display_changed;
     destination.focus_gained = destination.focus_gained || source.focus_gained;
     destination.focus_lost = destination.focus_lost || source.focus_lost;
     destination.quit_requested = destination.quit_requested || source.quit_requested;
+  }
+
+  /** @brief True when any field of @p events is set. */
+  [[nodiscard]] inline bool has_any_event(const PlatformEvents &events) noexcept {
+    return events.controller_connected || events.controller_disconnected || events.display_changed ||
+           events.focus_gained || events.focus_lost || events.quit_requested;
   }
 
 } // namespace corundum::platform

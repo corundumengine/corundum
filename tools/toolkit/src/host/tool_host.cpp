@@ -92,6 +92,16 @@ namespace corundum::toolkit::host {
     using clock = std::chrono::steady_clock;
     auto prev = clock::now();
 
+    // The window is created hidden; reveal it once a frame has been presented so the tool never
+    // shows a blank window while it finishes setup.
+    bool window_shown = false;
+    const auto reveal = [&] {
+      if (!window_shown) {
+        window_shown = true;
+        impl_->window->show();
+      }
+    };
+
     while (!impl_->should_close && !glfwWindowShouldClose(impl_->glfw_win)) {
       glfwPollEvents();
 
@@ -100,8 +110,10 @@ namespace corundum::toolkit::host {
       prev = now;
 
       auto [fb_w, fb_h] = impl_->gpu_ctx->framebuffer_size();
-      if (fb_w == 0 || fb_h == 0)
+      if (fb_w == 0 || fb_h == 0) {
+        reveal();
         continue;
+      }
 
       auto [win_w, win_h] = impl_->gpu_ctx->window_size();
       const float dpi = win_w > 0 ? static_cast<float>(fb_w) / static_cast<float>(win_w) : 1.f;
@@ -118,11 +130,13 @@ namespace corundum::toolkit::host {
 
       if (!impl_->gpu_ctx->begin_default_pass({30, 30, 35, 255})) {
         ImGui::EndFrame();
+        reveal();
         continue;
       }
 
       simgui_render();
       impl_->gpu_ctx->end_frame();
+      reveal();
     }
   }
 

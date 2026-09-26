@@ -2,29 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/input/action_resolver.hpp>
-#include <corundum/input/actions.hpp>
+#include <corundum/input/physical_input.hpp>
+
+#include <optional>
+
+struct GLFWgamepadstate;
 
 namespace corundum::platform::glfw {
 
-  /// Translate a GLFW key event into engine input state changes.
-  /// Rising-edge detection is delegated to @p resolver, so releasing one binding of
-  /// an Action never clears another binding that is still held. GLFW_REPEAT is ignored.
-  void translate_key(int key, int action, corundum::input::ActionResolver &resolver,
-                     corundum::input::InputState &state) noexcept;
+  /** @brief The engine key for a GLFW key token; nullopt for GLFW_KEY_UNKNOWN. */
+  [[nodiscard]] std::optional<corundum::input::Key> to_key(int glfw_key) noexcept;
 
-  /// Translate a GLFW mouse button event into engine input state changes.
-  /// Same rising-edge semantics as translate_key. Left click maps to Action::Select,
-  /// reused (not a parallel concept) so click-to-move and NPC interaction share one signal.
-  void translate_mouse_button(int button, int action, corundum::input::ActionResolver &resolver,
-                              corundum::input::InputState &state) noexcept;
+  /** @brief The engine mouse button for a GLFW button; nullopt for buttons the engine does not name. */
+  [[nodiscard]] std::optional<corundum::input::MouseButton> to_mouse_button(int glfw_button) noexcept;
 
-  /// Accumulate a GLFW scroll event into InputState::scroll_delta_y.
-  void translate_scroll(double yoffset, corundum::input::InputState &state) noexcept;
-
-  /// Fold the first connected gamepad, if any, into @p state via @p resolver.
-  /// Call once per frame after glfwPollEvents(). A gamepad that is missing or unmapped
-  /// has its sources released, so a disconnect cannot latch an action as held.
-  void poll_gamepad(corundum::input::ActionResolver &resolver, corundum::input::InputState &state) noexcept;
+  /** @brief Copy a GLFW gamepad snapshot into the engine's device-neutral form. */
+  [[nodiscard]] corundum::input::GamepadState to_gamepad_state(const GLFWgamepadstate &state) noexcept;
 
 } // namespace corundum::platform::glfw

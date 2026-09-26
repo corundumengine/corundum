@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/input/actions.hpp>
+#include <corundum/input/input_mapper.hpp>
 #include <corundum/platform/platform_events.hpp>
 
 namespace corundum::platform {
@@ -13,11 +14,14 @@ namespace corundum::input {
 
   /** @brief Read pending input and OS lifecycle events from @p window.
    *
-   * Forwards to @c Window::poll_game_input, which translates this frame's input events and
+   * Brackets @c Window::poll_game_input between @c mapper.begin_poll() and
+   * @c mapper.end_poll(state), which translates this frame's input events and
    * reports the OS events it observed since the previous poll. Held flags are overwritten with
    * the window's current key state; pressed flags, the mouse click, and the scroll delta
    * accumulate, so a press survives every render frame that runs no fixed step.
    *
+   *  @param[in,out] mapper  Binding table and translation state; the window feeds it this poll's
+   *                         physical input.
    *  @param[in,out] state   Snapshot accumulated into; this call does not clear it.
    *  @param[in]     window  Source window; must be open.
    *  @param[out]    events  Freshly-observed OS lifecycle events; caller supplies a fresh struct.
@@ -26,6 +30,7 @@ namespace corundum::input {
    *       latched press is re-observed on every subsequent read.
    *  @thread_safety Must be called from the main thread only.
    */
-  void poll(InputState &state, platform::Window &window, platform::PlatformEvents &events) noexcept;
+  void poll(InputMapper &mapper, InputState &state, platform::Window &window,
+            platform::PlatformEvents &events) noexcept;
 
 } // namespace corundum::input

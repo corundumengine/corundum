@@ -13,6 +13,7 @@
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/registry.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/input/input_mapper.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/handle.hpp>
@@ -65,6 +66,9 @@ namespace corundum {
    * @see cleanup     Resource teardown after the main loop.
    */
   struct Engine {
+    // Declared first: Scene's 64-byte alignment packs cleanly at offset 0 and keeps the rest dense.
+    world::Scene scene;
+
     // Declared window → gpu → renderer so reverse-order destruction is
     // renderer → gpu → window: sokol resources are released while the device is
     // still alive, and the device/window outlive the renderer.
@@ -78,14 +82,14 @@ namespace corundum {
 
     input::InputState input_state;
 
+    /// Physical input → Action translation and the live binding table; see input::InputMapper.
+    input::InputMapper input_mapper;
+
     render::RenderState render;
 
     core::GameConfig cfg;
 
     sprites::CharacterRegistry characters;
-
-    /// True while inside an interior reached from the overworld.
-    bool entered_from_world{false};
 
     corundum::world::FlagStore flags;
 
@@ -94,8 +98,6 @@ namespace corundum {
     item::Registry items;
 
     quest::Registry quests;
-
-    world::Scene scene;
 
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
 
@@ -127,6 +129,9 @@ namespace corundum {
      *  state. Default-empty; existing games are unaffected.
      */
     std::function<void(Engine &, const platform::PlatformEvents &)> on_platform_event;
+
+    /// True while inside an interior reached from the overworld.
+    bool entered_from_world{false};
 
     /** @brief Take ownership of a backend-created platform handle.
      *
@@ -267,6 +272,13 @@ namespace corundum {
     }
 
   private:
+    /** @brief Reveal the window once the first frame is on screen; see Window::show().
+     *
+     *  The window is created hidden, so the player never watches a blank window while assets load.
+     *  Idempotent: only the first call reaches the platform.
+     */
+    void reveal_window() noexcept;
+
     bool quit_{false}; ///< Set by request_quit()/cleanup(); see quit_requested().
 
     int window_height_{0}; ///< Cached each frame by run_frame(); see window_height().
@@ -274,6 +286,8 @@ namespace corundum {
     int window_width_{0}; ///< Cached each frame by run_frame(); see window_width().
 
     RunState run_state_{RunState::Running}; ///< Paused by focus loss; see set_paused().
+
+    bool window_shown_{false}; ///< Set by reveal_window(); true once the window has been shown.
   };
 
 } // namespace corundum

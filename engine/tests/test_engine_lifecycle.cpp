@@ -137,6 +137,24 @@ TEST_CASE("lifecycle: initialize failure runs cleanup so the window is closed") 
   CHECK_FALSE(engine.window->is_open());
 }
 
+TEST_CASE("lifecycle: the window is revealed only after the first frame is presented") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  // Asset loading happens with the window hidden, so the OS never composites a blank window.
+  CHECK_FALSE(null_window(engine)->visible);
+
+  engine.timer.accumulator = engine.timer.target_dt * 2.f;
+  CHECK(engine.run_frame());
+  CHECK(null_window(engine)->visible);
+
+  engine.cleanup();
+}
+
 // ── 4. Double cleanup safe; run_frame/run_loop after cleanup return false ────
 
 TEST_CASE("lifecycle: cleanup is idempotent and post-cleanup run_frame returns false") {
