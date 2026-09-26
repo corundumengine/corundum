@@ -41,7 +41,6 @@ namespace corundum::input {
             {Action::Inventory, "Inventory"},
             {Action::QuickSave, "QuickSave"},
             {Action::QuickLoad, "QuickLoad"},
-            {Action::ToggleFullscreen, "ToggleFullscreen"},
         },
     };
 
@@ -66,7 +65,6 @@ namespace corundum::input {
         {.action = Action::ZoomOut, .input = physical(Key::Minus)},
         {.action = Action::QuickSave, .input = physical(Key::F5)},
         {.action = Action::QuickLoad, .input = physical(Key::F9)},
-        {.action = Action::ToggleFullscreen, .input = physical(Key::F11)},
         {.action = Action::Select, .input = physical(MouseButton::Left)},
         {.action = Action::Select, .input = physical(GamepadControl::A)},
         {.action = Action::Cancel, .input = physical(GamepadControl::B)},

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/core/window_mode.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/platform_events.hpp>
 
@@ -59,6 +60,16 @@ namespace corundum::platform {
 
     /** @brief Enable or disable vertical synchronisation. */
     virtual void set_vsync(bool enabled) = 0;
+
+    /** @brief Switch between windowed and borderless fullscreen on the monitor the window mostly covers.
+     *
+     *  Returning to Windowed restores the position and size the window had before going fullscreen.
+     *  A no-op when @p mode is already current.
+     */
+    virtual void set_window_mode(core::WindowMode mode) = 0;
+
+    /** @brief The current window mode. */
+    [[nodiscard]] virtual core::WindowMode window_mode() const = 0;
 
     /** @brief Label for @p input as printed on the player's hardware, for prompts and a controls menu.
      *

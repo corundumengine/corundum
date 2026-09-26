@@ -29,6 +29,12 @@ namespace corundum::debug {
     const world::Scene *scene = nullptr;
     const core::time::LoopTimer *timer = nullptr;
 
+    /** @brief Live window size in logical points, the same viewport the main render uses.
+     *
+     *  World-space debug geometry is projected with this, so it must be the live size, not
+     *  GameConfig::win_w/win_h (the initial size, which diverges after a mode switch). */
+    core::math::Vec2 viewport{};
+
     /** @brief True when this frame's fixed-step drain exhausted its budget and dropped queued time. */
     bool step_budget_exhausted = false;
   };
@@ -132,7 +138,7 @@ namespace corundum::debug {
 
     /** @brief Draw the top-right HUD text panel (FPS, grid, speed, camera, stats). */
     void draw_text_panel(platform::Renderer &r, const render::RenderState &render, const core::GameConfig &cfg,
-                         const world::Scene &scene) const;
+                         const world::Scene &scene, core::math::Vec2 viewport) const;
   };
 
 } // namespace corundum::debug

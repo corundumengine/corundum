@@ -4,11 +4,13 @@
 #include <cmath>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
+#include <corundum/core/window_mode.hpp>
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -249,6 +251,26 @@ namespace corundum::core {
         } catch (...) {
           return std::unexpected(std::format("game.json 'vsync' must be a boolean: {}", path.string()));
         }
+      }
+      if (j.contains("window_mode")) {
+        const json &value = j.at("window_mode");
+        const std::optional<core::WindowMode> mode =
+            value.is_string() ? core::parse_window_mode(value.get<std::string>()) : std::nullopt;
+        if (!mode)
+          return std::unexpected(
+              std::format(R"(game.json 'window_mode' must be "windowed" or "fullscreen": {})", path.string()));
+        cfg.window_mode = *mode;
+      }
+      if (j.contains("render_scale")) {
+        float scale{NAN};
+        try {
+          scale = j.at("render_scale").get<float>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'render_scale' has wrong type: {}", path.string()));
+        }
+        if (scale <= 0.f)
+          return std::unexpected(std::format("game.json 'render_scale' must be > 0: {}", path.string()));
+        cfg.render_scale = scale;
       }
       return {};
     }

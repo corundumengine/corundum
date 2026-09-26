@@ -5,17 +5,22 @@
 
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/window_mode.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/input/actions.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/null/null_platform.hpp>
 #include <corundum/platform/null/null_window.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/world/camera.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -94,6 +99,19 @@ namespace {
     return raw;
   }
 
+  /// Press A on the gamepad (making it the last-used device), then remove the pad and report the
+  /// disconnect, leaving the engine paused for PauseReason::Controller.
+  void disconnect_active_controller(corundum::Engine &engine) {
+    corundum::input::GamepadState pressed{};
+    pressed.buttons[static_cast<std::size_t>(corundum::input::GamepadControl::A)] = true;
+    null_window(engine)->gamepad = pressed;
+    static_cast<void>(engine.run_frame());
+
+    null_window(engine)->gamepad = std::nullopt;
+    null_window(engine)->scripted_events.controller_disconnected = true;
+    static_cast<void>(engine.run_frame());
+  }
+
 } // namespace
 
 // ── 1. Precondition guard ────────────────────────────────────────────────────
@@ -115,7 +133,7 @@ TEST_CASE("lifecycle: initialize succeeds with NullPlatform and a fixture GameCo
   REQUIRE(fs::is_directory(fixtures));
 
   corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
+  const std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
   REQUIRE(result.has_value());
   CHECK(engine.window->is_open());
   engine.cleanup();
@@ -132,7 +150,7 @@ TEST_CASE("lifecycle: initialize failure runs cleanup so the window is closed") 
   corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
   cfg.paths.sprites_dir = (fixtures / "no_such_sprites_dir").string();
 
-  std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
+  const std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
   REQUIRE_FALSE(result.has_value());
   CHECK_FALSE(engine.window->is_open());
 }
@@ -349,6 +367,176 @@ TEST_CASE("lifecycle: on_platform_event hook observes display changes") {
   // A frame with no OS events does not invoke the hook.
   CHECK(engine.run_frame());
   CHECK(recorder.calls == 1);
+
+  engine.cleanup();
+}
+
+// ── 11. Window mode ──────────────────────────────────────────────────────────
+
+TEST_CASE("lifecycle: the configured window mode is applied when the window is first revealed") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  cfg.window_mode = corundum::core::WindowMode::Fullscreen;
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  // Deferred until after show(): entering fullscreen while the window is hidden leaves it hidden
+  // on macOS, so the mode is applied by reveal_window() on the first frame.
+  CHECK_FALSE(null_window(engine)->visible);
+  CHECK(engine.window->window_mode() == corundum::core::WindowMode::Windowed);
+
+  CHECK(engine.run_frame());
+  CHECK(null_window(engine)->visible);
+  CHECK(engine.window->window_mode() == corundum::core::WindowMode::Fullscreen);
+
+  engine.cleanup();
+}
+
+// ── 12. Pause reasons ────────────────────────────────────────────────────────
+
+TEST_CASE("lifecycle: a game pause survives a focus round-trip") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  engine.pause(corundum::PauseReason::Game);
+
+  null_window(engine)->scripted_events.focus_lost = true;
+  CHECK(engine.run_frame());
+
+  null_window(engine)->scripted_events.focus_gained = true;
+  CHECK(engine.run_frame());
+
+  CHECK(engine.is_paused());
+  CHECK(engine.is_paused_for(corundum::PauseReason::Game));
+  CHECK_FALSE(engine.is_paused_for(corundum::PauseReason::Focus));
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: losing the active controller pauses") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  disconnect_active_controller(engine);
+
+  CHECK(engine.is_paused_for(corundum::PauseReason::Controller));
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: reconnecting the controller resumes") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  disconnect_active_controller(engine);
+  REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
+
+  null_window(engine)->gamepad = corundum::input::GamepadState{};
+  null_window(engine)->scripted_events.controller_connected = true;
+  CHECK(engine.run_frame());
+
+  CHECK_FALSE(engine.is_paused());
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: a keyboard press resumes a controller pause") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  disconnect_active_controller(engine);
+  REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
+
+  null_window(engine)->scripted_keys.emplace_back(corundum::input::Key::Enter, true);
+  CHECK(engine.run_frame());
+
+  CHECK_FALSE(engine.is_paused());
+  // The resuming press is consumed by resume(), not routed to the game.
+  CHECK_FALSE(engine.input_state.is_pressed(corundum::input::Action::Select));
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: a disconnect while playing on keyboard does not pause") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  null_window(engine)->scripted_keys.emplace_back(corundum::input::Key::W, true);
+  null_window(engine)->gamepad = corundum::input::GamepadState{};
+  CHECK(engine.run_frame());
+
+  null_window(engine)->gamepad = std::nullopt;
+  null_window(engine)->scripted_events.controller_disconnected = true;
+  CHECK(engine.run_frame());
+
+  CHECK_FALSE(engine.is_paused());
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: resume drops presses latched while paused") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  null_window(engine)->scripted_events.focus_lost = true;
+  REQUIRE(engine.run_frame());
+
+  null_window(engine)->scripted_keys.emplace_back(corundum::input::Key::Escape, true);
+  REQUIRE(engine.run_frame());
+  REQUIRE(engine.input_state.is_pressed(corundum::input::Action::Cancel));
+
+  null_window(engine)->scripted_events.focus_gained = true;
+  CHECK(engine.run_frame());
+
+  CHECK_FALSE(engine.input_state.is_pressed(corundum::input::Action::Cancel));
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: cursor movement does not resume a controller pause") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  disconnect_active_controller(engine);
+  REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
+
+  null_window(engine)->cursor = {100.f, 50.f};
+  CHECK(engine.run_frame());
+  null_window(engine)->cursor = {200.f, 80.f};
+  CHECK(engine.run_frame());
+
+  CHECK(engine.is_paused_for(corundum::PauseReason::Controller));
+  CHECK(engine.input_state.mouse_x == 200.f);
 
   engine.cleanup();
 }

@@ -237,8 +237,9 @@ namespace corundum::debug {
   }
 
   void HudOverlay::draw_text_panel(platform::Renderer &r, const render::RenderState &render,
-                                   const core::GameConfig &cfg, const world::Scene &scene) const {
-    const float x = cfg.win_w - k_box_w - k_pad;
+                                   const core::GameConfig &cfg, const world::Scene &scene,
+                                   core::math::Vec2 viewport) const {
+    const float x = viewport.x - k_box_w - k_pad;
 
     const entities::World &w = scene.world;
     const entities::EntityId p = scene.player;
@@ -370,7 +371,7 @@ namespace corundum::debug {
     const core::GameConfig &cfg = *input.cfg;
     const world::Scene &scene = *input.scene;
 
-    const core::math::Vec2 viewport{.x = cfg.win_w, .y = cfg.win_h};
+    const core::math::Vec2 viewport = input.viewport;
     const core::math::Vec2 camera{.x = scene.camera.x, .y = scene.camera.y};
 
     const core::math::IsometricParams iso = resolve_isometric(render, cfg);
@@ -380,7 +381,7 @@ namespace corundum::debug {
     draw_player_marker(r, camera, viewport, scene.camera.zoom, render, scene.world, scene.player, iso);
     draw_entity_footprints(r, camera, viewport, scene.camera.zoom, render, scene.world, scene.player, iso);
 
-    draw_text_panel(r, render, cfg, scene);
+    draw_text_panel(r, render, cfg, scene, viewport);
   }
 
 } // namespace corundum::debug

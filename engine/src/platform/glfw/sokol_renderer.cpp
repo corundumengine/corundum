@@ -176,6 +176,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       std::expected<uint32_t, std::string> load_font(std::string_view path) override;
       void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
       void reset_screen_view() override;
+      void set_render_scale(float scale) override;
       bool begin_frame(core::math::Colour clear_colour) override;
       void end_frame() override;
       void draw(const DrawSprite &cmd) override;
@@ -440,19 +441,23 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
     void SokolRenderer::update_screen_scale() noexcept {
       const auto [win_w, win_h] = gpu_ctx_.window_size();
-      const auto [fb_w, fb_h] = gpu_ctx_.framebuffer_size();
+      const auto [fb_w, fb_h] = gpu_ctx_.render_size();
       screen_scale_ = derive_screen_scale(fb_w, fb_h, win_w, win_h);
+    }
+
+    void SokolRenderer::set_render_scale(float scale) {
+      gpu_ctx_.set_render_scale(scale);
     }
 
     void SokolRenderer::rebuild_proj() noexcept {
       if (world_view_active_) {
         proj_ = make_ortho(cam_x_, cam_x_ + (vp_w_ / zoom_), cam_y_, cam_y_ + (vp_h_ / zoom_));
       } else {
-        // Screen space spans the physical framebuffer, matching the sokol swapchain built in
+        // Screen space spans the internal render target, matching the sokol swapchain built in
         // GpuContext::begin_default_pass(). draw() scales incoming logical-point positions by the
         // cached screen_scale_ so callers keep working in logical window points; only the emitted
-        // geometry (and the baked font atlases, see ensure_metrics) is physical-resolution.
-        const auto [fb_w, fb_h] = gpu_ctx_.framebuffer_size();
+        // geometry (and the baked font atlases, see ensure_metrics) is render-target-resolution.
+        const auto [fb_w, fb_h] = gpu_ctx_.render_size();
         proj_ = make_ortho(0.f, static_cast<float>(fb_w), 0.f, static_cast<float>(fb_h));
       }
     }

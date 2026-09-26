@@ -58,6 +58,17 @@ namespace corundum::platform {
      */
     void end_frame();
 
+    /** @brief Set the scale of the internal render target relative to the logical window size.
+     *
+     *  The render target is `logical * scale` clamped to the physical framebuffer, so 1.0 renders
+     *  one pixel per logical point and the display's content scale renders at native resolution.
+     *  Clamped to a supported range; see core::compute_render_resolution().
+     */
+    void set_render_scale(float scale) noexcept;
+
+    /** @brief Internal render-target size in pixels (see set_render_scale()). */
+    [[nodiscard]] std::pair<int, int> render_size() const noexcept;
+
     /** @brief Logical window size in screen coordinates. */
     [[nodiscard]] std::pair<int, int> window_size() const noexcept;
 

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/core/window_mode.hpp>
+
 #include <expected>
 #include <filesystem>
 #include <string>
@@ -118,6 +120,16 @@ namespace corundum::core {
 
     /** @brief Initial width of the game window in pixels. */
     float win_w = 800.f;
+
+    /** @brief Window mode at startup, before any user setting applies ("window_mode" in game.json). */
+    WindowMode window_mode{WindowMode::Windowed};
+
+    /** @brief Internal render scale relative to the logical window size ("render_scale" in game.json).
+     *
+     *  The game renders to a target of `logical * render_scale` pixels and the display up-scales it,
+     *  so fill cost is decoupled from the panel's pixel count. 1.0 renders one pixel per logical
+     *  point; the display's content scale (2.0 on a Retina panel) renders at native resolution. */
+    float render_scale = 1.f;
 
     /** @brief Window title shown in the OS title bar. */
     std::string window_title = "Corundum Engine";

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/core/window_mode.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/window.hpp>
@@ -49,6 +50,10 @@ namespace corundum::platform::glfw {
     [[nodiscard]] std::pair<int, int> size() const override;
 
     void set_vsync(bool enabled) override;
+
+    void set_window_mode(corundum::core::WindowMode mode) override;
+
+    [[nodiscard]] corundum::core::WindowMode window_mode() const override;
 
     [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override;
 

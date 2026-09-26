@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "glfw_window.hpp"
+#include <corundum/core/render_resolution.hpp>
 #include <corundum/platform/gpu_context.hpp>
 
 #include <sokol_gfx.h>
@@ -12,6 +13,7 @@
 
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <print>
@@ -30,10 +32,16 @@ namespace corundum::platform {
     /// only; routine warnings would be noise on the game's stderr.
     constexpr uint32_t k_max_reported_log_level = 1;
 
+    /// Supported range for the internal render scale, so a bad config cannot ask for a zero-size
+    /// target or an absurd supersample. The upper bound is generous enough for a 3x panel.
+    constexpr float k_min_render_scale = 0.125f;
+    constexpr float k_max_render_scale = 4.f;
+
   } // namespace
 
   struct GpuContext::Impl {
     GLFWwindow *window{nullptr};
+    float render_scale{1.f};
 #ifdef SOKOL_METAL
     MetalLayer *metal_layer{nullptr};
     const void *metal_drawable{nullptr};
@@ -57,6 +65,10 @@ namespace corundum::platform {
 
     auto ctx = std::unique_ptr<GpuContext>(new GpuContext());
     ctx->impl_->window = raw;
+    // Default to native resolution: tools drive begin_default_pass() directly and never call
+    // set_render_scale(), so the platform must not silently lower their resolution. The game lowers
+    // it through Renderer::set_render_scale() from its config.
+    ctx->impl_->render_scale = ctx->dpi_scale();
 
 #ifdef SOKOL_METAL
     // Borrowed wrapper: the window holds its own owning handle to this layer, so this one only
@@ -102,9 +114,7 @@ namespace corundum::platform {
   }
 
   bool GpuContext::begin_default_pass(core::math::Colour clear) {
-    int fb_w{};
-    int fb_h{};
-    glfwGetFramebufferSize(impl_->window, &fb_w, &fb_h);
+    const auto [fb_w, fb_h] = render_size();
     if (fb_w <= 0 || fb_h <= 0) {
       // Minimized or otherwise zero-sized window: no render target this frame.
       impl_->pass_active = false;
@@ -177,6 +187,18 @@ namespace corundum::platform {
     int h{};
     glfwGetFramebufferSize(impl_->window, &w, &h);
     return {w, h};
+  }
+
+  void GpuContext::set_render_scale(float scale) noexcept {
+    impl_->render_scale = std::clamp(scale, k_min_render_scale, k_max_render_scale);
+  }
+
+  std::pair<int, int> GpuContext::render_size() const noexcept {
+    const auto [win_w, win_h] = window_size();
+    const auto [fb_w, fb_h] = framebuffer_size();
+    const core::RenderResolution resolution =
+        core::compute_render_resolution(win_w, win_h, fb_w, fb_h, impl_->render_scale);
+    return {resolution.width, resolution.height};
   }
 
   float GpuContext::dpi_scale() const noexcept {

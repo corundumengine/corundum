@@ -3,6 +3,7 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
+#include <corundum/core/window_mode.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/validate_refs.hpp>
@@ -10,6 +11,7 @@
 #include <corundum/entities/world.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_system.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/item/item.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -81,6 +83,9 @@ namespace corundum {
         engine_->cfg = std::move(cfg);
         engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
         engine_->window->set_vsync(engine_->cfg.vsync);
+        // Set before the first frame, while the font atlases are still unbaked: they rasterise at the
+        // render scale and are cached per (font, size).
+        engine_->renderer->set_render_scale(engine_->cfg.render_scale);
 
         if (auto result = load_render_assets(); !result)
           return result;
@@ -300,22 +305,34 @@ namespace corundum {
       }
     }
 
-    /// Poll platform input and OS lifecycle events, applying focus/quit behaviour
-    /// and handing the frame to the on_platform_event hook.
+    /// Pause when the player loses their only controller mid-play; resume once a pad is back or
+    /// they have pressed something on the keyboard or mouse instead.
+    void update_controller_pause(Engine &engine, const platform::PlatformEvents &events) noexcept {
+      const input::InputMapper &mapper{engine.input_mapper};
+      const bool playing_on_gamepad{mapper.last_device() == input::InputDevice::Gamepad};
+      if (events.controller_disconnected && playing_on_gamepad && !mapper.gamepad_connected())
+        engine.pause(PauseReason::Controller);
+      else if (engine.is_paused_for(PauseReason::Controller) && (mapper.gamepad_connected() || !playing_on_gamepad))
+        engine.resume(PauseReason::Controller);
+    }
+
+    /// Poll platform input and OS lifecycle events, apply focus, controller and quit behaviour,
+    /// then hand the frame to the on_platform_event hook.
     void process_input(Engine &engine) noexcept {
       platform::PlatformEvents events{};
       input::poll(engine.input_mapper, engine.input_state, *engine.window, events);
 
-      if (platform::has_any_event(events)) {
-        if (events.focus_lost && !engine.is_paused())
-          engine.set_paused(true);
-        // Handled after focus_lost so a same-frame loss-and-gain nets to running.
-        if (events.focus_gained && engine.is_paused())
-          engine.set_paused(false);
-        if (events.quit_requested)
-          engine.request_quit();
+      if (events.focus_lost)
+        engine.pause(PauseReason::Focus);
+      // Handled after focus_lost so a same-frame loss-and-gain nets to running.
+      if (events.focus_gained)
+        engine.resume(PauseReason::Focus);
+      if (events.quit_requested)
+        engine.request_quit();
+      update_controller_pause(engine, events);
+
+      if (platform::has_any_event(events))
         invoke_platform_event_hook(engine, events);
-      }
 
       if (engine.input_state.is_held(input::Action::Quit))
         engine.request_quit();
@@ -392,6 +409,8 @@ namespace corundum {
           .cfg = &engine.cfg,
           .scene = &engine.scene,
           .timer = &engine.timer,
+          .viewport = {.x = static_cast<float>(engine.window_width()),
+                       .y = static_cast<float>(engine.window_height()),},
           .step_budget_exhausted = budget_exhausted,
       };
       engine.hud.render(*engine.renderer, hud_input);
@@ -446,20 +465,28 @@ namespace corundum {
       return;
     window_shown_ = true;
     window->show();
+    // Enter the configured mode only after the window is visible: glfwSetWindowMonitor on a hidden
+    // window leaves it permanently hidden on macOS, and a later show() cannot recover it.
+    window->set_window_mode(cfg.window_mode);
   }
 
-  void Engine::set_paused(bool paused) noexcept {
-    if (paused == is_paused())
+  void Engine::pause(PauseReason reason) noexcept {
+    const bool was_paused{is_paused()};
+    pause_reasons_[static_cast<std::size_t>(reason)] = true;
+    if (!was_paused)
+      audio.set_paused(true);
+  }
+
+  void Engine::resume(PauseReason reason) noexcept {
+    const bool was_paused{is_paused()};
+    pause_reasons_[static_cast<std::size_t>(reason)] = false;
+    if (!was_paused || is_paused())
       return;
 
-    run_state_ = paused ? RunState::Paused : RunState::Running;
-    audio.set_paused(paused);
-
-    // Resuming must not replay the paused wall-clock interval as fixed steps.
-    if (!paused) {
-      timer.accumulator = 0.f;
-      timer.prev_time = std::chrono::steady_clock::now();
-    }
+    audio.set_paused(false);
+    timer.accumulator = 0.f;
+    timer.prev_time = std::chrono::steady_clock::now();
+    input::clear_pressed(input_state);
   }
 
   void Engine::cleanup() noexcept {
@@ -471,6 +498,11 @@ namespace corundum {
 
   void Engine::request_quit() noexcept {
     quit_ = true;
+  }
+
+  void Engine::toggle_fullscreen() const noexcept {
+    const bool fullscreen{window->window_mode() == core::WindowMode::Fullscreen};
+    window->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
   }
 
 } // namespace corundum

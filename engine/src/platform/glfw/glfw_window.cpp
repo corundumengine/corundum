@@ -4,6 +4,7 @@
 #include "glfw_window.hpp"
 #include "input_translator.hpp"
 
+#include <corundum/core/window_mode.hpp>
 #include <corundum/input/input_mapper.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/platform_events.hpp>
@@ -14,10 +15,13 @@
 #include "glfw_window_metal.h"
 #endif
 
+#include <algorithm>
 #include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -41,6 +45,17 @@ namespace corundum::platform::glfw {
         glfwTerminate();
     }
 
+    /// A window's position and size in screen coordinates.
+    struct WindowRect {
+      int height{};
+
+      int width{};
+
+      int x{};
+
+      int y{};
+    };
+
     struct WindowData {
       /// Engine input sink, set only for the duration of poll_game_input. Callbacks fired by another
       /// event pump (a tool's own glfwPollEvents) find it null and drop the event.
@@ -51,6 +66,9 @@ namespace corundum::platform::glfw {
 
       /// Bit j is set while joystick j is a mapped gamepad; diffed each poll to report hot-plug.
       std::uint32_t gamepads_present{};
+
+      /// Windowed placement saved on entering fullscreen, restored on leaving it.
+      WindowRect windowed_rect{};
 
       corundum::platform::PlatformEvents events{};
 
@@ -165,6 +183,38 @@ namespace corundum::platform::glfw {
       mapper.gamepad(to_gamepad_state(state));
     }
 
+    /// The monitor overlapping most of @p win, falling back to the primary monitor.
+    GLFWmonitor *monitor_for_window(GLFWwindow *win) noexcept {
+      int window_x{};
+      int window_y{};
+      int window_w{};
+      int window_h{};
+      glfwGetWindowPos(win, &window_x, &window_y);
+      glfwGetWindowSize(win, &window_w, &window_h);
+
+      int count{};
+      GLFWmonitor **monitors = glfwGetMonitors(&count);
+      GLFWmonitor *best = glfwGetPrimaryMonitor();
+      int best_area{0};
+      for (GLFWmonitor *monitor : std::span(monitors, static_cast<std::size_t>(count))) {
+        const GLFWvidmode *video = glfwGetVideoMode(monitor);
+        if (video == nullptr)
+          continue;
+        int monitor_x{};
+        int monitor_y{};
+        glfwGetMonitorPos(monitor, &monitor_x, &monitor_y);
+        const int overlap_w =
+            std::max(0, std::min(window_x + window_w, monitor_x + video->width) - std::max(window_x, monitor_x));
+        const int overlap_h =
+            std::max(0, std::min(window_y + window_h, monitor_y + video->height) - std::max(window_y, monitor_y));
+        if (overlap_w * overlap_h > best_area) {
+          best_area = overlap_w * overlap_h;
+          best = monitor;
+        }
+      }
+      return best;
+    }
+
 #ifdef SOKOL_METAL
     void content_scale_callback(GLFWwindow *win, float /*xscale*/, float /*yscale*/) noexcept {
       const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
@@ -257,6 +307,8 @@ namespace corundum::platform::glfw {
       glfwSetFramebufferSizeCallback(impl_->win, framebuffer_size_callback);
       // Pads already connected at startup are not hot-plug events.
       impl_->data.gamepads_present = connected_gamepads();
+      // Borderless fullscreen should stay visible behind other windows on alt-tab, not minimise.
+      glfwSetWindowAttrib(impl_->win, GLFW_AUTO_ICONIFY, GLFW_FALSE);
 
 #ifdef SOKOL_METAL
       impl_->data.metal_layer = metal_setup_layer(impl_->win);
@@ -352,6 +404,36 @@ namespace corundum::platform::glfw {
       }
     }
     return std::string{corundum::input::name_of(input)};
+  }
+
+  void GLFWWindow::set_window_mode(corundum::core::WindowMode mode) {
+    if (!impl_ || impl_->win == nullptr || mode == window_mode())
+      return;
+
+    GLFWwindow *win = impl_->win;
+    WindowRect &rect = impl_->data.windowed_rect;
+    if (mode == corundum::core::WindowMode::Fullscreen) {
+      GLFWmonitor *monitor = monitor_for_window(win);
+      const GLFWvidmode *video = monitor != nullptr ? glfwGetVideoMode(monitor) : nullptr;
+      if (video == nullptr)
+        return;
+      glfwGetWindowPos(win, &rect.x, &rect.y);
+      glfwGetWindowSize(win, &rect.width, &rect.height);
+      // Borderless: request the monitor's current mode exactly, refresh rate included, so GLFW keeps
+      // it. GLFW_DONT_CARE for the rate would let GLFW pick the closest mode by size, which can be a
+      // different rate, and that is a mode switch.
+      glfwSetWindowMonitor(win, monitor, 0, 0, video->width, video->height, video->refreshRate);
+    } else {
+      glfwSetWindowMonitor(win, nullptr, rect.x, rect.y, rect.width, rect.height, GLFW_DONT_CARE);
+    }
+    impl_->data.events.display_changed = true;
+  }
+
+  corundum::core::WindowMode GLFWWindow::window_mode() const {
+    if (!impl_ || impl_->win == nullptr)
+      return corundum::core::WindowMode::Windowed;
+    return glfwGetWindowMonitor(impl_->win) != nullptr ? corundum::core::WindowMode::Fullscreen
+                                                       : corundum::core::WindowMode::Windowed;
   }
 
   void *GLFWWindow::native_handle() const noexcept {

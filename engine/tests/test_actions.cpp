@@ -21,7 +21,7 @@ TEST_CASE("is_held — returns true after setting held bit") {
 }
 
 TEST_CASE("is_held — returns false for unset bit") {
-  corundum::input::InputState state{};
+  const corundum::input::InputState state{};
   CHECK_FALSE(state.is_held(Action::Select));
 }
 
@@ -32,7 +32,7 @@ TEST_CASE("is_pressed — returns true after setting pressed bit") {
 }
 
 TEST_CASE("is_pressed — returns false for unset bit") {
-  corundum::input::InputState state{};
+  const corundum::input::InputState state{};
   CHECK_FALSE(state.is_pressed(Action::Cancel));
 }
 
@@ -60,7 +60,7 @@ TEST_CASE("clear_pressed — does not affect held flags") {
 // ── pressed_actions ──────────────────────────────────────────────────────────
 
 TEST_CASE("pressed_actions — returns empty when no actions pressed") {
-  corundum::input::InputState state{};
+  const corundum::input::InputState state{};
   const auto result = pressed_actions(state);
   CHECK(result.empty());
   CHECK(result.size() == 0);
@@ -176,20 +176,6 @@ TEST_CASE("ZoomIn/ZoomOut — behave like any other held action") {
   state.held.set(static_cast<std::size_t>(Action::ZoomIn));
   CHECK(state.is_held(Action::ZoomIn));
   CHECK_FALSE(state.is_held(Action::ZoomOut));
-}
-
-// ── consume_press ──────────────────────────────────────────────────────────────
-
-TEST_CASE("consume_press — clears the edge once and leaves held alone") {
-  corundum::input::InputState state{};
-  state.pressed.set(static_cast<std::size_t>(Action::Select));
-  state.held.set(static_cast<std::size_t>(Action::Select));
-
-  CHECK(state.consume_press(Action::Select));
-  CHECK_FALSE(state.is_pressed(Action::Select));
-  CHECK(state.is_held(Action::Select));
-
-  CHECK_FALSE(state.consume_press(Action::Select));
 }
 
 TEST_CASE("ZoomIn/ZoomOut — participate in pressed_actions like any other action") {

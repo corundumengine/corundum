@@ -108,6 +108,17 @@ namespace corundum::platform {
     /// Return to screen-space drawing, where coordinates are logical window points.
     virtual void reset_screen_view() = 0;
 
+    /** @brief Request the internal render resolution as a scale of the logical window size.
+     *
+     *  The game renders to a target of `logical * scale` pixels and the display up-scales it, so
+     *  fill cost is decoupled from the panel's pixel count. 1.0 renders one pixel per logical point;
+     *  the display's content scale (2.0 on a Retina panel) renders at native resolution. Call before
+     *  the first frame, while font atlases are still unbaked.
+     *
+     *  A backend that cannot honour the requested scale ignores it; the default is a no-op.
+     */
+    virtual void set_render_scale(float /*scale*/) {}
+
     /** @brief Start a frame's default render pass, clearing to @p clear_colour.
      *
      *  @return @c true if the pass was started; @c false if the frame was skipped because

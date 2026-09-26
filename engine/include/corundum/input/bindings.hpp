@@ -35,7 +35,7 @@ namespace corundum::input {
   /** @brief The engine's default desktop bindings. */
   [[nodiscard]] Bindings default_bindings();
 
-  /** @brief Stable JSON name of @p action: its enumerator spelling ("MoveUp", "ToggleFullscreen"). */
+  /** @brief Stable JSON name of @p action: its enumerator spelling ("MoveUp", "ZoomIn"). */
   [[nodiscard]] std::string_view action_name(Action action) noexcept;
 
   /** @brief Inverse of action_name(); nullopt for an unknown name or "Count". */

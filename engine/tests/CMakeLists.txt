@@ -53,6 +53,7 @@ set(TEST_SOURCES
     test_portal_elevation.cpp
     test_portals.cpp
     test_quest.cpp
+    test_render_resolution.cpp
     test_render_state.cpp
     test_save.cpp
     test_schema_version.cpp

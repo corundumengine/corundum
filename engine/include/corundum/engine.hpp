@@ -28,6 +28,8 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/transition.hpp>
 
+#include <bitset>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <functional>
@@ -42,13 +44,26 @@ namespace corundum {
 
   /** @brief Simulation run state.
    *
-   *  Running advances the fixed-step simulation. Paused holds it still and silences
-   *  audio; run_frame() still polls platform events while paused, so focus can be
-   *  regained and a quit request can still be observed.
+   *  Running advances the fixed-step simulation. Paused, while any PauseReason holds, keeps it
+   *  still and silences audio; run_frame() still polls platform events and renders while paused.
    */
   enum class RunState : std::uint8_t {
     Running,
     Paused,
+  };
+
+  /** @brief Why the simulation is paused. Several can hold at once; the engine runs only when none do.
+   *
+   *  Controller clears on a press, not on movement: moving the mouse or brushing the desk is not the
+   *  player choosing to continue on keyboard and mouse. Like every resume, the press that clears it is
+   *  consumed and does not act in the game, even when it is the fullscreen key.
+   */
+  enum class PauseReason : std::uint8_t {
+    Focus,      ///< The window lost focus or was minimised; cleared when focus returns.
+    Controller, ///< The active gamepad disconnected with no pad left; cleared on reconnect or a keyboard/mouse
+                ///< press.
+    Game,       ///< Requested by game code (e.g. a pause menu); only game code clears it.
+    Count,
   };
 
   /** @brief Game engine instance owning all system-level resources and game state.
@@ -125,8 +140,8 @@ namespace corundum {
     /** @brief Hook called after the engine reacts to OS lifecycle events.
      *
      *  Invoked once per frame in which at least one PlatformEvents field is set,
-     *  after focus-loss/quit handling, so game code observes the resulting run
-     *  state. Default-empty; existing games are unaffected.
+     *  after focus, controller and quit handling, so game code observes the
+     *  resulting run state. Default-empty; existing games are unaffected.
      */
     std::function<void(Engine &, const platform::PlatformEvents &)> on_platform_event;
 
@@ -220,6 +235,13 @@ namespace corundum {
      */
     void request_quit() noexcept;
 
+    /** @brief Switch the window between windowed and borderless fullscreen.
+     *
+     *  For an options menu or game code, applied from a safe point (e.g. the title screen), not
+     *  mid-gameplay. initialize() applies GameConfig::window_mode directly.
+     */
+    void toggle_fullscreen() const noexcept;
+
     /** @brief Tear down resources after the main loop exits.
      *
      *  Shuts down audio and closes the window. Safe to call multiple times; after
@@ -243,23 +265,32 @@ namespace corundum {
       return quit_;
     }
 
-    /** @brief Current simulation run state. */
+    /** @brief Current simulation run state: Paused while any PauseReason holds. */
     [[nodiscard]] RunState run_state() const noexcept {
-      return run_state_;
+      return is_paused() ? RunState::Paused : RunState::Running;
     }
 
-    /** @brief True while the simulation is paused. */
+    /** @brief True while any PauseReason holds. */
     [[nodiscard]] bool is_paused() const noexcept {
-      return run_state_ == RunState::Paused;
+      return pause_reasons_.any();
     }
 
-    /** @brief Pause or resume the simulation and audio.
+    /** @brief True while @p reason holds. */
+    [[nodiscard]] bool is_paused_for(PauseReason reason) const noexcept {
+      return pause_reasons_[static_cast<std::size_t>(reason)];
+    }
+
+    /** @brief Add @p reason; the first reason pauses the simulation and audio. Idempotent. */
+    void pause(PauseReason reason) noexcept;
+
+    /** @brief Remove @p reason. Idempotent.
      *
-     *  Resuming clears the loop timer's accumulator, so a pause (e.g. a focus loss)
-     *  does not queue a burst of catch-up fixed steps. Safe to call repeatedly; a
-     *  no-op when @p paused already matches the current state.
+     *  Removing the last reason resumes. The loop timer's accumulator is cleared so the paused
+     *  interval is not replayed as catch-up steps, and presses latched while paused are dropped, so
+     *  the click that refocused the window or the key that dismissed a prompt does not also act in
+     *  the game.
      */
-    void set_paused(bool paused) noexcept;
+    void resume(PauseReason reason) noexcept;
 
     /** @brief Live window width in screen pixels (0 before the first frame). */
     [[nodiscard]] int window_width() const noexcept {
@@ -272,10 +303,12 @@ namespace corundum {
     }
 
   private:
-    /** @brief Reveal the window once the first frame is on screen; see Window::show().
+    /** @brief Reveal the window once the first frame is on screen, then apply the configured mode.
      *
      *  The window is created hidden, so the player never watches a blank window while assets load.
-     *  Idempotent: only the first call reaches the platform.
+     *  GameConfig::window_mode is applied here rather than during initialize() because entering
+     *  fullscreen while the window is still hidden leaves it hidden on macOS. Idempotent: only the
+     *  first call reaches the platform.
      */
     void reveal_window() noexcept;
 
@@ -285,7 +318,7 @@ namespace corundum {
 
     int window_width_{0}; ///< Cached each frame by run_frame(); see window_width().
 
-    RunState run_state_{RunState::Running}; ///< Paused by focus loss; see set_paused().
+    std::bitset<static_cast<std::size_t>(PauseReason::Count)> pause_reasons_{}; ///< See pause()/resume().
 
     bool window_shown_{false}; ///< Set by reveal_window(); true once the window has been shown.
   };

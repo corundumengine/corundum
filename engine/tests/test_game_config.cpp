@@ -6,9 +6,11 @@
 #include "temp_dir.hpp"
 
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/window_mode.hpp>
 
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <string_view>
 
 namespace fs = std::filesystem;
@@ -32,7 +34,7 @@ using corundum::core::load_game_config;
 // ── File errors ──────────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config — missing file returns error") {
-  auto result = load_game_config("/nonexistent/path/game.json");
+  const auto result = load_game_config("/nonexistent/path/game.json");
   CHECK(!result.has_value());
 }
 
@@ -40,7 +42,7 @@ TEST_CASE("load_game_config — malformed JSON returns error") {
   const auto dir = temp_dir("malformed");
   const auto p = dir / "game.json";
   write_file(p, "{bad json");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -52,7 +54,7 @@ TEST_CASE("load_game_config — // and /* */ comments are ignored") {
     "window_title": "Commented", /* inline */
     "simulation_fps": 30
   })");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   CHECK(result->window_title == "Commented");
   CHECK(result->simulation_fps == 30);
@@ -62,7 +64,7 @@ TEST_CASE("load_game_config — JSON array (not object) returns error") {
   const auto dir = temp_dir("array");
   const auto p = dir / "game.json";
   write_file(p, "[]");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -82,7 +84,7 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
             "margin": 15.0, "line_spacing": 28.0, "panel_height_frac": 0.4
         }
     })");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.win_w == doctest::Approx(1280.f));
@@ -112,7 +114,7 @@ TEST_CASE("load_game_config — partial JSON overrides only specified fields") {
   const auto dir = temp_dir("partial");
   const auto p = dir / "game.json";
   write_file(p, R"({"win_w": 1024.0, "player_speed": 300.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.win_w == doctest::Approx(1024.f));
@@ -128,7 +130,7 @@ TEST_CASE("load_game_config — win_w <= 0 returns error") {
   const auto dir = temp_dir("win_w_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"win_w": 0.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -136,7 +138,7 @@ TEST_CASE("load_game_config — win_h <= 0 returns error") {
   const auto dir = temp_dir("win_h_neg");
   const auto p = dir / "game.json";
   write_file(p, R"({"win_h": -1.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -144,7 +146,7 @@ TEST_CASE("load_game_config — simulation_fps = 0 returns error") {
   const auto dir = temp_dir("simulation_fps_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"simulation_fps": 0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -152,7 +154,7 @@ TEST_CASE("load_game_config — simulation_fps above the supported maximum retur
   const auto dir = temp_dir("simulation_fps_too_large");
   const auto p = dir / "game.json";
   write_file(p, R"({"simulation_fps": 100000})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -160,7 +162,7 @@ TEST_CASE("load_game_config — player_speed <= 0 returns error") {
   const auto dir = temp_dir("player_speed_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"player_speed": 0.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -168,7 +170,7 @@ TEST_CASE("load_game_config — character_scale == 0 returns error") {
   const auto dir = temp_dir("character_scale_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"character_scale": 0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -176,7 +178,7 @@ TEST_CASE("load_game_config — tile_scale == 0 returns error") {
   const auto dir = temp_dir("tile_scale_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"tile_scale": 0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -184,7 +186,7 @@ TEST_CASE("load_game_config — character_scale negative returns error") {
   const auto dir = temp_dir("character_scale_neg");
   const auto p = dir / "game.json";
   write_file(p, R"({"character_scale": -1})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -192,7 +194,7 @@ TEST_CASE("load_game_config — interact_radius <= 0 returns error") {
   const auto dir = temp_dir("interact_radius_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"interact_radius": 0.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -200,7 +202,7 @@ TEST_CASE("load_game_config — elevation_step_px <= 0 returns error") {
   const auto dir = temp_dir("elevation_step_px_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"elevation_step_px": 0.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -208,7 +210,7 @@ TEST_CASE("load_game_config — min_zoom > max_zoom returns error") {
   const auto dir = temp_dir("zoom_out_of_order");
   const auto p = dir / "game.json";
   write_file(p, R"({"min_zoom": 4.0, "max_zoom": 2.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -216,7 +218,7 @@ TEST_CASE("load_game_config — min_zoom == max_zoom is allowed") {
   const auto dir = temp_dir("zoom_equal");
   const auto p = dir / "game.json";
   write_file(p, R"({"min_zoom": 2.0, "max_zoom": 2.0})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   CHECK(result->min_zoom == doctest::Approx(2.0));
   CHECK(result->max_zoom == doctest::Approx(2.0));
@@ -228,7 +230,7 @@ TEST_CASE("load_game_config — empty game_font returns error") {
   const auto dir = temp_dir("empty_game_font");
   const auto p = dir / "game.json";
   write_file(p, R"({"game_font": ""})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -236,7 +238,7 @@ TEST_CASE("load_game_config — empty font_dir returns error") {
   const auto dir = temp_dir("empty_font_dir");
   const auto p = dir / "game.json";
   write_file(p, R"({"font_dir": ""})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -244,7 +246,7 @@ TEST_CASE("load_game_config — empty tilemap_path returns error") {
   const auto dir = temp_dir("empty_tilemap_path");
   const auto p = dir / "game.json";
   write_file(p, R"({"tilemap_path": ""})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -252,7 +254,7 @@ TEST_CASE("load_game_config — empty sprites_dir returns error") {
   const auto dir = temp_dir("empty_sprites_dir");
   const auto p = dir / "game.json";
   write_file(p, R"({"sprites_dir": ""})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -260,7 +262,7 @@ TEST_CASE("load_game_config — empty dialogue_dir returns error") {
   const auto dir = temp_dir("empty_dialogue_dir");
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_dir": ""})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -270,7 +272,7 @@ TEST_CASE("load_game_config — panel_height_frac = 0 returns error") {
   const auto dir = temp_dir("phf_zero");
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": {"panel_height_frac": 0.0}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -278,7 +280,7 @@ TEST_CASE("load_game_config — panel_height_frac = 1 returns error") {
   const auto dir = temp_dir("phf_one");
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": {"panel_height_frac": 1.0}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -286,7 +288,7 @@ TEST_CASE("load_game_config — panel_height_frac > 1 returns error") {
   const auto dir = temp_dir("phf_over");
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": {"panel_height_frac": 1.5}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -296,7 +298,7 @@ TEST_CASE("load_game_config — absent dialogue_render uses defaults") {
   const auto dir = temp_dir("no_dr");
   const auto p = dir / "game.json";
   write_file(p, "{}");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.dialogue_render.font_size_body == 22u);
@@ -307,7 +309,7 @@ TEST_CASE("load_game_config — partial dialogue_render merges with defaults") {
   const auto dir = temp_dir("partial_dr");
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": {"font_size_body": 28}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.dialogue_render.font_size_body == 28u);
@@ -319,7 +321,7 @@ TEST_CASE("load_game_config — dialogue_render not an object returns error") {
   const auto dir = temp_dir("dr_not_obj");
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": 42})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -329,7 +331,7 @@ TEST_CASE("load_game_config — quests_dir defaults to data/quests when absent")
   const auto dir = temp_dir("default_quests");
   const auto p = dir / "game.json";
   write_file(p, "{}");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.paths.quests_dir == "data/quests");
@@ -339,7 +341,7 @@ TEST_CASE("load_game_config — resource directories default to the standard pro
   const auto dir = temp_dir("default_resource_dirs");
   const auto p = dir / "game.json";
   write_file(p, "{}");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.paths.font_dir == "assets/fonts");
@@ -355,7 +357,7 @@ TEST_CASE("load_game_config — unknown top-level key is silently ignored") {
   const auto dir = temp_dir("unknown_key");
   const auto p = dir / "game.json";
   write_file(p, R"({"win_w": 1024.0, "future_feature": true})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.win_w == doctest::Approx(1024.f));
@@ -367,7 +369,7 @@ TEST_CASE("load_game_config — absent player block uses defaults") {
   const auto dir = temp_dir("no_player");
   const auto p = dir / "game.json";
   write_file(p, "{}");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.player.walk_sprite == "player_walk");
@@ -387,7 +389,7 @@ TEST_CASE("load_game_config — full player block parsed") {
       "row": 3.0
     }
   })");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.player.walk_sprite == "hero_walk");
@@ -402,7 +404,7 @@ TEST_CASE("load_game_config — partial player block merges with defaults") {
   write_file(p, R"({
     "player": { "walk_sprite": "hero_walk" }
   })");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
   CHECK(cfg.player.walk_sprite == "hero_walk");
@@ -415,7 +417,7 @@ TEST_CASE("load_game_config — player not an object returns error") {
   const auto dir = temp_dir("player_not_obj");
   const auto p = dir / "game.json";
   write_file(p, R"({"player": 42})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -423,7 +425,7 @@ TEST_CASE("load_game_config — player empty walk_sprite returns error") {
   const auto dir = temp_dir("player_empty_walk");
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"walk_sprite": ""}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -431,7 +433,7 @@ TEST_CASE("load_game_config — player empty idle_sprite returns error") {
   const auto dir = temp_dir("player_empty_idle");
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"idle_sprite": ""}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -439,7 +441,7 @@ TEST_CASE("load_game_config — player negative col returns error") {
   const auto dir = temp_dir("player_neg_col");
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"col": -1.0}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -447,7 +449,7 @@ TEST_CASE("load_game_config — player negative row returns error") {
   const auto dir = temp_dir("player_neg_row");
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"row": -0.5}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }
 
@@ -455,6 +457,82 @@ TEST_CASE("load_game_config — player col wrong type returns error") {
   const auto dir = temp_dir("player_col_type");
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"col": "abc"}})");
-  auto result = load_game_config(p);
+  const auto result = load_game_config(p);
   CHECK(!result.has_value());
+}
+
+// ── window_mode ───────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — window_mode fullscreen parses") {
+  const auto dir = temp_dir("window_mode_fullscreen");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"window_mode": "fullscreen"})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->window_mode == corundum::core::WindowMode::Fullscreen);
+}
+
+TEST_CASE("load_game_config — absent window_mode defaults to windowed") {
+  const auto dir = temp_dir("window_mode_absent");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->window_mode == corundum::core::WindowMode::Windowed);
+}
+
+TEST_CASE("load_game_config — unknown window_mode returns error") {
+  const auto dir = temp_dir("window_mode_unknown");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"window_mode": "borderless"})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("window_mode") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — non-string window_mode returns error") {
+  const auto dir = temp_dir("window_mode_type");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"window_mode": true})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("window_mode") != std::string::npos);
+}
+
+// ── render_scale ────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — render_scale parses") {
+  const auto dir = temp_dir("render_scale");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"render_scale": 0.5})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->render_scale == doctest::Approx(0.5f));
+}
+
+TEST_CASE("load_game_config — absent render_scale defaults to 1") {
+  const auto dir = temp_dir("render_scale_absent");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->render_scale == doctest::Approx(1.f));
+}
+
+TEST_CASE("load_game_config — non-positive render_scale returns error") {
+  const auto dir = temp_dir("render_scale_zero");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"render_scale": 0})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("render_scale") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — render_scale wrong type returns error") {
+  const auto dir = temp_dir("render_scale_type");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"render_scale": "big"})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("render_scale") != std::string::npos);
 }

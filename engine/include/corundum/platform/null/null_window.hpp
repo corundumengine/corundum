@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/core/window_mode.hpp>
 #include <corundum/input/input_mapper.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/platform_events.hpp>
@@ -58,6 +59,14 @@ namespace corundum::platform::null {
 
     void set_vsync(bool /*enabled*/) override {}
 
+    void set_window_mode(core::WindowMode mode) override {
+      mode_ = mode;
+    }
+
+    [[nodiscard]] core::WindowMode window_mode() const override {
+      return mode_;
+    }
+
     [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override {
       return std::string{corundum::input::name_of(input)};
     }
@@ -89,6 +98,7 @@ namespace corundum::platform::null {
     bool open_ = true;
     unsigned width_;
     unsigned height_;
+    core::WindowMode mode_{core::WindowMode::Windowed};
   };
 
 } // namespace corundum::platform::null

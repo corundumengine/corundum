@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/core/window_mode.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_mapper.hpp>
 #include <corundum/input/input_system.hpp>
@@ -60,6 +61,12 @@ namespace {
     }
 
     void set_vsync(bool /*enabled*/) override {}
+
+    void set_window_mode(corundum::core::WindowMode /*mode*/) override {}
+
+    [[nodiscard]] corundum::core::WindowMode window_mode() const override {
+      return corundum::core::WindowMode::Windowed;
+    }
 
     [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override {
       return std::string{corundum::input::name_of(input)};

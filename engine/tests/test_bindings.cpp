@@ -47,8 +47,6 @@ TEST_CASE("bindings: defaults") {
   const Bindings defaults = default_bindings();
   CHECK(defaults.size() <= k_max_input_sources);
   CHECK(std::ranges::find(defaults, Binding{.action = Action::MoveUp, .input = physical(Key::W)}) != defaults.end());
-  CHECK(std::ranges::find(defaults, Binding{.action = Action::ToggleFullscreen, .input = physical(Key::F11)}) !=
-        defaults.end());
   CHECK(std::ranges::find(defaults, Binding{.action = Action::Select, .input = physical(GamepadControl::A)}) !=
         defaults.end());
 
