@@ -1,13 +1,3 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Pin the C/C++/Objective-C++ toolchain to Homebrew LLVM.
-#
-# Referenced from every CMakePresets.json entry via
-#   "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/llvm-clang.cmake"
-#
-# CMake loads this file before project() runs. We set CMAKE_*_COMPILER
-# cache variables directly so compiler detection picks them up.
-# ─────────────────────────────────────────────────────────────────────────────
-
 if(DEFINED _LLVM_CLANG_CMAKE_LOADED)
   return()
 endif()
@@ -24,9 +14,15 @@ elseif(EXISTS "/usr/local/opt/llvm/bin/clang")
 endif()
 
 if(_llvm_bin)
-  set(CMAKE_C_COMPILER      "${_llvm_bin}/clang"   CACHE FILEPATH "C compiler")
-  set(CMAKE_CXX_COMPILER    "${_llvm_bin}/clang++" CACHE FILEPATH "C++ compiler")
-  set(CMAKE_OBJC_COMPILER   "${_llvm_bin}/clang"   CACHE FILEPATH "Objective-C compiler")
-  set(CMAKE_OBJCXX_COMPILER "${_llvm_bin}/clang++" CACHE FILEPATH "Objective-C++ compiler")
+  # Toolchain files run before project(), so CMAKE_EXECUTABLE_SUFFIX isn't available yet.
+  set(_exe_suffix "")
+  if(CMAKE_HOST_WIN32)
+    set(_exe_suffix ".exe")
+  endif()
+
+  set(CMAKE_C_COMPILER      "${_llvm_bin}/clang${_exe_suffix}"   CACHE FILEPATH "C compiler")
+  set(CMAKE_CXX_COMPILER    "${_llvm_bin}/clang++${_exe_suffix}" CACHE FILEPATH "C++ compiler")
+  set(CMAKE_OBJC_COMPILER   "${_llvm_bin}/clang${_exe_suffix}"   CACHE FILEPATH "Objective-C compiler")
+  set(CMAKE_OBJCXX_COMPILER "${_llvm_bin}/clang++${_exe_suffix}" CACHE FILEPATH "Objective-C++ compiler")
   message(STATUS "LLVM toolchain: ${_llvm_bin}")
 endif()
