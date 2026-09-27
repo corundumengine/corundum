@@ -95,6 +95,7 @@ if(EXISTS "${_font_atlas_header}" AND EXISTS "${_font_atlas_fixture}")
     )
   target_link_libraries(corundum_tests PRIVATE freetype)
   target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw
     )
 else()
@@ -135,6 +136,18 @@ if(EXISTS "${_tilemap_encoding_header}")
     )
 else()
   message(STATUS "tilemap encoding tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
+# warn_log.hpp is an internal engine header; gate the test off when consuming
+# corundum as a vendored library.
+set(_warn_log_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/core/warn_log.hpp")
+if(EXISTS "${_warn_log_header}")
+  target_sources(corundum_tests PRIVATE test_warn_log.cpp)
+  target_include_directories(corundum_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/core
+    )
+else()
+  message(STATUS "warn_log tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # Link to engine and doctest. engine_platform_null is also pulled in so the

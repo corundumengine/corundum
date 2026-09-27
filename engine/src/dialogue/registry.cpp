@@ -5,9 +5,9 @@
 #include <corundum/dialogue/loader.hpp>
 #include <corundum/dialogue/registry.hpp>
 
-#include <cstdio>
+#include "core/warn_log.hpp"
+
 #include <filesystem>
-#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,7 +17,7 @@ namespace corundum::dialogue {
   int Registry::load_all(const std::filesystem::path &dir) {
     const auto entries = corundum::core::list_dir_entries(dir, {.extensions = {"json"}});
     if (!entries) {
-      std::println(stderr, "[dialogue] cannot read dialogue directory '{}': {}", dir.string(), entries.error());
+      corundum::detail::warn_log("[dialogue] cannot read dialogue directory '{}': {}", dir.string(), entries.error());
       return 0;
     }
 
@@ -28,13 +28,13 @@ namespace corundum::dialogue {
 
       auto result = load_graph(entry.path);
       if (!result) {
-        std::println(stderr, "[dialogue] skipping '{}': {}", entry.name, result.error());
+        corundum::detail::warn_log("[dialogue] skipping '{}': {}", entry.name, result.error());
         continue;
       }
 
       const std::string id = result->graph_id;
       if (graphs_.contains(id)) {
-        std::println(stderr, "[dialogue] duplicate graph id '{}' — '{}' is shadowed", id, entry.name);
+        corundum::detail::warn_log("[dialogue] duplicate graph id '{}' — '{}' is shadowed", id, entry.name);
       } else {
         graphs_.emplace(id, std::move(*result));
         ++loaded;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "sokol_renderer.hpp"
+#include "core/warn_log.hpp"
 #include "font_atlas.hpp"
 #include "render_scale.hpp"
 #include "sokol_texture_upload.hpp"
@@ -24,7 +25,6 @@
 #include <cstdint>
 #include <expected>
 #include <memory>
-#include <print>
 #include <span>
 #include <string>
 #include <string_view>
@@ -298,7 +298,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
       if (FT_Init_FreeType(&ft_lib_) != 0) {
         ft_lib_ = nullptr;
-        std::println(stderr, "[sokol] FT_Init_FreeType failed");
+        corundum::detail::warn_log("[sokol] FT_Init_FreeType failed");
       }
 
       update_screen_scale();
@@ -374,10 +374,10 @@ fragment float4 fs_main(Varyings in [[stage_in]],
                       sg_query_image_state(white_tex_) == SG_RESOURCESTATE_VALID &&
                       sg_query_sampler_state(sampler_) == SG_RESOURCESTATE_VALID;
       if (!ok) {
-        std::println(stderr, "[sokol] renderer GPU init failed (shader={} pipeline={} vbuf={} tex={} sampler={})",
-                     int(sg_query_shader_state(pipeline_shader_)), int(sg_query_pipeline_state(pipeline_)),
-                     int(sg_query_buffer_state(vertex_buf_)), int(sg_query_image_state(white_tex_)),
-                     int(sg_query_sampler_state(sampler_)));
+        corundum::detail::warn_log("[sokol] renderer GPU init failed (shader={} pipeline={} vbuf={} tex={} sampler={})",
+                                   int(sg_query_shader_state(pipeline_shader_)),
+                                   int(sg_query_pipeline_state(pipeline_)), int(sg_query_buffer_state(vertex_buf_)),
+                                   int(sg_query_image_state(white_tex_)), int(sg_query_sampler_state(sampler_)));
         gpu_init_failed_ = true;
         return;
       }
@@ -403,7 +403,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
         const uint32_t physical_size = physical_font_size(char_size, screen_scale_.y);
         std::expected<BakedSize, std::string> baked = font_atlases_[font_id]->bake(physical_size);
         if (!baked) {
-          std::println(stderr, "[sokol] {}", baked.error());
+          corundum::detail::warn_log("[sokol] {}", baked.error());
           failed_keys_.insert(key);
           return nullptr;
         }
@@ -433,7 +433,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       if (atlas->image.id == 0) {
         // Keep the CPU pixels so a later frame can retry the upload, but stop retrying on
         // every draw call so a permanently failing device doesn't flood stderr.
-        std::println(stderr, "[sokol] font atlas upload failed (font={} size={})", font_id, char_size);
+        corundum::detail::warn_log("[sokol] font atlas upload failed (font={} size={})", font_id, char_size);
         failed_keys_.insert(key);
         return nullptr;
       }
@@ -632,7 +632,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       gpu_ctx_.end_frame();
 
       if (dropped_quads_this_frame_ > 0)
-        std::println(stderr, "[sokol] dropped {} quads this frame (cap {})", dropped_quads_this_frame_, k_max_quads);
+        corundum::detail::warn_log("[sokol] dropped {} quads this frame (cap {})", dropped_quads_this_frame_,
+                                   k_max_quads);
       last_stats_ = {
           .draw_calls = draw_calls_this_frame_,
           .quads = static_cast<uint32_t>(quad_count_),

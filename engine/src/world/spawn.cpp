@@ -17,17 +17,17 @@
 #include <corundum/world/actors/actor.hpp>
 #include <corundum/world/scene.hpp>
 
+#include "core/warn_log.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <memory>
 #include <optional>
-#include <print>
 #include <string>
 #include <utility>
 #include <vector>
@@ -216,8 +216,8 @@ namespace corundum::world {
         auto spawned = spawn_actors_from_file(scene.world, registry, path, entry.coord.col * chunk_size,
                                               entry.coord.row * chunk_size);
         if (!spawned) {
-          std::println(stderr, "[engine] WARN: chunk ({}, {}) actors skipped: {}", entry.coord.col, entry.coord.row,
-                       spawned.error());
+          corundum::detail::warn_log("[engine] WARN: chunk ({}, {}) actors skipped: {}", entry.coord.col,
+                                     entry.coord.row, spawned.error());
           if (set != scene.chunk_actors.end()) {
             set->entities.clear();
             set->load_failed = true;
@@ -265,9 +265,10 @@ namespace corundum::world {
 
     if (spawn_file_actors) {
       if (!std::filesystem::exists(actors_path))
-        std::println("[engine] 0 actors (no spawn points file at '{}')", actors_path.string());
+        corundum::detail::info_log("[engine] 0 actors (no spawn points file at '{}')", actors_path.string());
       else
-        std::println("[engine] Loaded {} actors from '{}'", spawn_points.actors.size(), actors_path.string());
+        corundum::detail::info_log("[engine] Loaded {} actors from '{}'", spawn_points.actors.size(),
+                                   actors_path.string());
     }
 
     // Spawn position precedence: explicit arg > per-map spawn_points > game.json > built-in (8,8).

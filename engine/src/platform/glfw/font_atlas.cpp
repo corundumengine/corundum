@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "font_atlas.hpp"
+#include "core/warn_log.hpp"
 
 #include <cstdint>
-#include <cstdio>
 #include <ft2build.h> // NOLINT(misc-include-cleaner): shim that defines FT_FREETYPE_H
 #include <string_view>
 #include <utility>
@@ -17,7 +17,6 @@
 #include <cstring>
 #include <expected>
 #include <format>
-#include <print>
 
 namespace corundum::platform::glfw {
   namespace {
@@ -177,7 +176,7 @@ namespace corundum::platform::glfw {
 
     path = std::string{font_path};
     if (FT_New_Face(lib, path.c_str(), 0, &face) != 0) {
-      std::println(stderr, "[font_atlas] FT_New_Face failed for '{}'", path);
+      corundum::detail::warn_log("[font_atlas] FT_New_Face failed for '{}'", path);
       return false;
     }
     return true;

@@ -9,14 +9,14 @@
 #include <corundum/quest/quest.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "core/warn_log.hpp"
+
 #include <cstddef>
-#include <cstdio>
 #include <exception>
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
-#include <print>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -122,8 +122,8 @@ namespace corundum::quest {
 
       // The "type" field is optional — directory context already tells us the type.
       if (root.contains("type") && root["type"].is_string() && root["type"] != "quest")
-        std::println(stderr, R"([warning] quest file {} has type "{}" instead of "quest")", path,
-                     root["type"].get<std::string>());
+        corundum::detail::warn_log(R"([warning] quest file {} has type "{}" instead of "quest")", path,
+                                   root["type"].get<std::string>());
 
       return root;
     }
@@ -150,7 +150,7 @@ namespace corundum::quest {
       if (!validation.ok())
         throw LoadError(std::format("[{}] {}", k_ctx, validation.errors.front()));
       for (const auto &warning : validation.warnings)
-        std::println(stderr, "[warning] quest {}: {}", path, warning);
+        corundum::detail::warn_log("[warning] quest {}: {}", path, warning);
 
       return quest;
     }

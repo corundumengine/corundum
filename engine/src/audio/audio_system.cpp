@@ -7,10 +7,11 @@
 
 #include <corundum/core/json_io.hpp>
 
+#include "core/warn_log.hpp"
+
 #include <expected>
 #include <format>
 #include <nlohmann/json.hpp>
-#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -53,13 +54,13 @@ namespace corundum::audio {
 
     auto json_result = core::read_json(catalog_path);
     if (!json_result) {
-      std::println("[audio] WARN: Sound catalog unavailable ({}): {}", catalog_path, json_result.error());
+      corundum::detail::warn_log("[audio] WARN: Sound catalog unavailable ({}): {}", catalog_path, json_result.error());
       return;
     }
     const nlohmann::json &j = *json_result;
 
     if (!j.is_object()) {
-      std::println("[audio] WARN: Sound catalog must be a JSON object: {}", catalog_path);
+      corundum::detail::warn_log("[audio] WARN: Sound catalog must be a JSON object: {}", catalog_path);
       return;
     }
 
@@ -70,7 +71,7 @@ namespace corundum::audio {
       catalog_.emplace(key, value.get<std::string>());
     }
 
-    std::println("[audio] Loaded {} sound catalog entries", catalog_.size());
+    corundum::detail::info_log("[audio] Loaded {} sound catalog entries", catalog_.size());
   }
 
   std::expected<void, std::string> AudioSystem::play_sound(std::string_view name, float volume, bool loop) {

@@ -5,9 +5,9 @@
 #include <corundum/quest/loader.hpp>
 #include <corundum/quest/registry.hpp>
 
-#include <cstdio>
+#include "core/warn_log.hpp"
+
 #include <filesystem>
-#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,7 +17,7 @@ namespace corundum::quest {
   int Registry::load_all(const std::filesystem::path &dir) {
     const auto entries = core::list_dir_entries(dir, {.extensions = {"json"}});
     if (!entries) {
-      std::println(stderr, "[quest] cannot read quest directory '{}': {}", dir.string(), entries.error());
+      corundum::detail::warn_log("[quest] cannot read quest directory '{}': {}", dir.string(), entries.error());
       return 0;
     }
 
@@ -28,13 +28,13 @@ namespace corundum::quest {
 
       auto result = load_quest(entry.path);
       if (!result) {
-        std::println(stderr, "[quest] skipping '{}': {}", entry.name, result.error());
+        corundum::detail::warn_log("[quest] skipping '{}': {}", entry.name, result.error());
         continue;
       }
 
       const std::string_view id = result->quest_id;
       if (quests_.contains(id)) {
-        std::println(stderr, "[quest] duplicate quest id '{}' — '{}' is shadowed", id, entry.name);
+        corundum::detail::warn_log("[quest] duplicate quest id '{}' — '{}' is shadowed", id, entry.name);
       } else {
         quests_.emplace(std::string(id), std::move(*result));
         ++loaded;

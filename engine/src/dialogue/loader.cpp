@@ -10,9 +10,10 @@
 #include <corundum/dialogue/loader.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "core/warn_log.hpp"
+
 #include <algorithm>
 #include <cstddef>
-#include <cstdio>
 #include <exception>
 #include <expected>
 #include <filesystem>
@@ -20,7 +21,6 @@
 #include <format>
 #include <functional>
 #include <nlohmann/json.hpp>
-#include <print>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -219,8 +219,8 @@ namespace corundum::dialogue {
 
       // The "type" field is optional — directory context already tells us the type.
       if (root.contains("type") && root["type"].is_string() && root["type"] != "graph" && root["type"] != "dialogue")
-        std::println(stderr, R"([warning] dialogue file {} has type "{}" instead of "graph")", path,
-                     root["type"].get<std::string>());
+        corundum::detail::warn_log(R"([warning] dialogue file {} has type "{}" instead of "graph")", path,
+                                   root["type"].get<std::string>());
 
       return root;
     }

@@ -35,7 +35,6 @@
 #include <expected>
 #include <format>
 #include <memory>
-#include <print>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -153,7 +152,7 @@ namespace corundum {
         std::expected<void, std::string> audio_result;
         audio_result = engine_->audio.initialize(engine_->cfg.paths.sounds_dir);
         if (!audio_result) {
-          std::println("[engine] WARN: Audio init failed — {}", audio_result.error());
+          corundum::detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
           return;
         }
         engine_->audio.load_catalog(engine_->cfg.paths.sounds_catalog);
@@ -163,17 +162,17 @@ namespace corundum {
         int dialogue_loaded{0};
         if (!engine_->cfg.paths.dialogue_dir.empty())
           dialogue_loaded = engine_->graphs.load_all(engine_->cfg.paths.dialogue_dir);
-        std::println("[engine] Loaded {} dialogue graphs from '{}'", dialogue_loaded, engine_->cfg.paths.dialogue_dir);
+        corundum::detail::info_log("[engine] Loaded {} dialogue graphs from '{}'", dialogue_loaded, engine_->cfg.paths.dialogue_dir);
 
         int quest_loaded{0};
         if (!engine_->cfg.paths.quests_dir.empty())
           quest_loaded = engine_->quests.load_all(engine_->cfg.paths.quests_dir);
-        std::println("[engine] Loaded {} quests from '{}'", quest_loaded, engine_->cfg.paths.quests_dir);
+        corundum::detail::info_log("[engine] Loaded {} quests from '{}'", quest_loaded, engine_->cfg.paths.quests_dir);
 
         int item_loaded{0};
         if (!engine_->cfg.paths.items_dir.empty())
           item_loaded = engine_->items.load_all(engine_->cfg.paths.items_dir);
-        std::println("[engine] Loaded {} items from '{}'", item_loaded, engine_->cfg.paths.items_dir);
+        corundum::detail::info_log("[engine] Loaded {} items from '{}'", item_loaded, engine_->cfg.paths.items_dir);
 
         validate_quest_references(engine_->graphs, engine_->quests, engine_->items);
       }

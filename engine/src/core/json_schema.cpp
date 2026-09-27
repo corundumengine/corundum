@@ -4,11 +4,10 @@
 #include <corundum/core/json_schema.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include <cstdio>
+#include "core/warn_log.hpp"
+
 #include <exception>
 #include <expected>
-#include <format>
-#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -180,7 +179,7 @@ namespace corundum::core {
     try {
       validator_.set_root_schema(schema_json);
     } catch (const std::exception &e) {
-      std::println(stderr, "[schema] fatal: {}", e.what());
+      corundum::detail::warn_log("[schema] fatal: {}", e.what());
       std::terminate();
     }
   }
@@ -207,7 +206,7 @@ namespace corundum::core {
   SchemaValidator SchemaCatalog::compile_or_terminate(std::string_view schema_json) {
     auto result = SchemaValidator::from_string(schema_json);
     if (!result) {
-      std::println(stderr, "[schema] fatal: {}", result.error());
+      corundum::detail::warn_log("[schema] fatal: {}", result.error());
       std::terminate();
     }
     return std::move(*result);

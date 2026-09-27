@@ -37,6 +37,7 @@ add_library(engine_platform_glfw STATIC ${PLATFORM_GLFW_SOURCES})
 target_include_directories(engine_platform_glfw
     PRIVATE
         ${sokol_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 target_include_directories(engine_platform_glfw
     SYSTEM PRIVATE

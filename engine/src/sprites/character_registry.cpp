@@ -5,11 +5,13 @@
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/sprite.hpp>
-#include <cstdio>
+
+#include "core/warn_log.hpp"
+
+#include <cstddef>
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <print>
 #include <string>
 #include <utility>
 #include <vector>
@@ -94,10 +96,10 @@ namespace corundum::sprites {
     // the log rather than discovered in play.
     for (const auto &entry : data.sprites) {
       if (!entry.footprint_authored)
-        std::println(stderr,
-                     "[engine] WARN: sprite '{}/{}' declares no complete footprint; using {:.2f} x {:.2f} tiles "
-                     "— set one in spritesmith",
-                     data.id, entry.name, entry.footprint_col_span, entry.footprint_row_span);
+        corundum::detail::warn_log(
+            "[engine] WARN: sprite '{}/{}' declares no complete footprint; using {:.2f} x {:.2f} tiles "
+            "— set one in spritesmith",
+            data.id, entry.name, entry.footprint_col_span, entry.footprint_row_span);
     }
 
     for (auto &entry : data.sprites) {

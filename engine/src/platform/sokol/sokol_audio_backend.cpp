@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "sokol_audio_backend.hpp"
+#include "core/warn_log.hpp"
 
 #define STB_VORBIS_IMPLEMENTATION
 #ifdef __clang__
@@ -19,12 +20,11 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <expected>
+#include <format>
 #include <memory>
 #include <mutex>
-#include <print>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -131,15 +131,15 @@ namespace corundum::platform::sokol {
         desc.logger.func = [](const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
                               const char *file, void *) {
           if (level <= k_max_reported_log_level)
-            std::println(stderr, "[{}] item={} ({}:{}) {}", tag ? tag : "saudio", item_id, file ? file : "?", line,
-                         msg ? msg : "");
+            corundum::detail::warn_log("[{}] item={} ({}:{}) {}", tag ? tag : "saudio", item_id, file ? file : "?",
+                                       line, msg ? msg : "");
         };
 
         saudio_setup(&desc);
         valid_.store(saudio_isvalid());
 
         if (!valid_.load())
-          std::println("[audio] WARN: saudio_setup() failed — audio disabled");
+          corundum::detail::warn_log("[audio] WARN: saudio_setup() failed — audio disabled");
       }
 
       SokolAudioBackend(const SokolAudioBackend &) = delete;

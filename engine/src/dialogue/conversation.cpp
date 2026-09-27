@@ -9,10 +9,10 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/world/flags.hpp>
 
+#include "core/warn_log.hpp"
+
 #include <algorithm>
 #include <cstddef>
-#include <cstdio>
-#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -150,17 +150,18 @@ namespace corundum::dialogue {
       if (ev.name == "goto_graph") {
         diverted = true;
         if (graphs_ == nullptr || ev.args.size() < 2) {
-          std::println(stderr, "[dialogue] goto_graph needs 'graph_id' and 'node_id'");
+          corundum::detail::warn_log("[dialogue] goto_graph needs 'graph_id' and 'node_id'");
           return true;
         }
         const Graph *target_graph = graphs_->find(ev.args[0]);
         if (target_graph == nullptr) {
-          std::println(stderr, "[dialogue] goto_graph references unknown graph '{}'", ev.args[0]);
+          corundum::detail::warn_log("[dialogue] goto_graph references unknown graph '{}'", ev.args[0]);
           return true;
         }
         const Node *target_node = target_graph->find(ev.args[1]);
         if (target_node == nullptr || target_node->type == NodeType::End) {
-          std::println(stderr, "[dialogue] goto_graph references unknown node '{}' in '{}'", ev.args[1], ev.args[0]);
+          corundum::detail::warn_log("[dialogue] goto_graph references unknown node '{}' in '{}'", ev.args[1],
+                                     ev.args[0]);
           return true;
         }
 
@@ -192,8 +193,8 @@ namespace corundum::dialogue {
     int hops = 0;
     while (active_ && (graph_ != nullptr)) {
       if (++hops > k_max_event_hops) {
-        std::println(stderr, "[dialogue] event chain exceeds {} hops in '{}' — cycle detected, aborting",
-                     k_max_event_hops, graph_->graph_id);
+        corundum::detail::warn_log("[dialogue] event chain exceeds {} hops in '{}' — cycle detected, aborting",
+                                   k_max_event_hops, graph_->graph_id);
         reset();
         return;
       }

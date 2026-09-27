@@ -8,13 +8,13 @@
 #include <corundum/item/registry.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include <cstdio>
+#include "core/warn_log.hpp"
+
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
 #include <optional>
-#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -166,16 +166,15 @@ namespace corundum::item {
     for (const auto &elem : items_arr) {
       json element = elem;
       if (element.contains("category"))
-        std::println(stderr,
-                     "[item] '{}': explicit 'category' is overridden by the folder; use category folders "
-                     "instead of writing 'category' by hand",
-                     path_string);
+        corundum::detail::warn_log("[item] '{}': explicit 'category' is overridden by the folder; use category folders "
+                                   "instead of writing 'category' by hand",
+                                   path_string);
       // The category folder is authoritative; inject it before validating.
       element["category"] = to_string(category);
 
       auto validation = core::schema_catalog().item_schema().validate(element);
       if (!validation) {
-        std::println(stderr, "[item] skipping invalid item in '{}': {}", path_string, validation.error());
+        corundum::detail::warn_log("[item] skipping invalid item in '{}': {}", path_string, validation.error());
         continue;
       }
 
@@ -189,7 +188,7 @@ namespace corundum::item {
     int loaded = 0;
 
     if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
-      std::println(stderr, "[item] no item directory at '{}'", dir.string());
+      corundum::detail::warn_log("[item] no item directory at '{}'", dir.string());
       return loaded;
     }
 
@@ -199,8 +198,8 @@ namespace corundum::item {
 
       const auto category = category_from_dir_name(category_entry.path().filename().string());
       if (!category) {
-        std::println(stderr, "[item] unknown category folder '{}', skipping",
-                     category_entry.path().filename().string());
+        corundum::detail::warn_log("[item] unknown category folder '{}', skipping",
+                                   category_entry.path().filename().string());
         continue;
       }
 
@@ -210,15 +209,15 @@ namespace corundum::item {
 
         auto result = load_item_file(file_entry.path(), *category);
         if (!result) {
-          std::println(stderr, "[item] skipping '{}': {}", file_entry.path().filename().string(), result.error());
+          corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.path().filename().string(), result.error());
           continue;
         }
 
         for (auto &item : *result) {
           const std::string id = item.id;
           if (items_.contains(id)) {
-            std::println(stderr, "[item] duplicate item id '{}' — '{}' is shadowed", id,
-                         file_entry.path().filename().string());
+            corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id,
+                                       file_entry.path().filename().string());
           } else {
             items_.emplace(id, std::move(item));
             ++loaded;

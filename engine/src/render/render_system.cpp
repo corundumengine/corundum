@@ -26,9 +26,10 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
 
+#include "core/warn_log.hpp"
+
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <expected>
 #include <limits>
 #include <nlohmann/json.hpp>
@@ -42,7 +43,6 @@
 #include <iterator>
 #include <numeric>
 #include <optional>
-#include <print>
 #include <ranges>
 #include <span>
 #include <string>
@@ -178,7 +178,7 @@ namespace corundum::render {
       if (result.has_value()) {
         sheet_tex[sheet_id] = result.value();
       } else {
-        std::println(stderr, "[renderer] WARNING: could not load texture '{}'", sheet.path);
+        corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", sheet.path);
         sheet_tex[sheet_id] = 0;
       }
     }
@@ -231,7 +231,7 @@ namespace corundum::render {
                                                   std::string_view path) {
     auto j_result = corundum::core::read_json(path);
     if (!j_result) {
-      std::println(stderr, "[renderer] WARNING: could not load '{}': {}", path, j_result.error());
+      corundum::detail::warn_log("[renderer] WARNING: could not load '{}': {}", path, j_result.error());
       return {};
     }
     const nlohmann::json &j = *j_result;
@@ -260,7 +260,7 @@ namespace corundum::render {
     if (result.has_value()) {
       state.dialog_box.border.texture_id = result.value();
     } else {
-      std::println(stderr, "[renderer] WARNING: could not load texture '{}'", tex_path);
+      corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", tex_path);
       state.dialog_box.border.texture_id = 0;
     }
 
@@ -303,7 +303,7 @@ namespace corundum::render {
       if (result.has_value()) {
         tex_ids.push_back(result.value());
       } else {
-        std::println(stderr, "[renderer] WARNING: could not load texture '{}'", ts.info.path);
+        corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", ts.info.path);
         tex_ids.push_back(0);
       }
     }
@@ -321,9 +321,9 @@ namespace corundum::render {
     if (!portals)
       return std::unexpected(portals.error());
     if (!std::filesystem::exists(portals_file))
-      std::println("[engine] 0 portals (no portals file at '{}')", portals_file);
+      corundum::detail::info_log("[engine] 0 portals (no portals file at '{}')", portals_file);
     else
-      std::println("[engine] Loaded {} portals from '{}'", portals->size(), portals_file);
+      corundum::detail::info_log("[engine] Loaded {} portals from '{}'", portals->size(), portals_file);
 
     state.map_walkability =
         corundum::world::tilemap::build_walkability_graph(tilemap, static_cast<int>(cfg.max_step_height));
@@ -360,8 +360,8 @@ namespace corundum::render {
         return std::unexpected(manifest_result.error());
       state.manifest = std::move(*manifest_result);
     }
-    std::println("[engine] World manifest: {}×{} chunks of {}×{} tiles", state.manifest.chunks_wide,
-                 state.manifest.chunks_tall, state.manifest.chunk_size, state.manifest.chunk_size);
+    corundum::detail::info_log("[engine] World manifest: {}×{} chunks of {}×{} tiles", state.manifest.chunks_wide,
+                               state.manifest.chunks_tall, state.manifest.chunk_size, state.manifest.chunk_size);
 
     // Chunk streaming keeps a fixed ChunkWindow::k_side × k_side window, so this bound holds
     // for the life of the world regardless of which chunks are currently active.
@@ -387,7 +387,7 @@ namespace corundum::render {
     for (const ChunkCoord c : active_chunk_coords(window_center, render::ChunkWindow::k_radius, state.manifest)) {
       auto entry = load_chunk_entry(r, state, c, cfg);
       if (!entry) {
-        std::println(stderr, "[engine] WARN: chunk ({}, {}) skipped: {}", c.col, c.row, entry.error());
+        corundum::detail::warn_log("[engine] WARN: chunk ({}, {}) skipped: {}", c.col, c.row, entry.error());
         state.chunks.mark_failed(c);
         continue;
       }
@@ -405,7 +405,7 @@ namespace corundum::render {
         core::math::compute_isometric_params(diamond_w, diamond_h, total_h, cfg.tile_scale, cfg.elevation_step_px);
 
     const core::math::Vec2 spawn_pos{.x = spawn_tile_col, .y = spawn_tile_row};
-    std::println("[engine] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
+    corundum::detail::info_log("[engine] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
     return WorldLoadInfo{
         .half_tw = iso.half_tw,
         .half_th = iso.half_th,
@@ -555,7 +555,7 @@ namespace corundum::render {
         if (result.has_value()) {
           tex_ids.push_back(result.value());
         } else {
-          std::println(stderr, "[renderer] WARNING: could not load texture '{}'", ts.info.path);
+          corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", ts.info.path);
           tex_ids.push_back(0);
         }
       }
@@ -575,7 +575,7 @@ namespace corundum::render {
         if (result.has_value())
           portals = std::move(*result);
         else
-          std::println(stderr, "[engine] WARN: portals for chunk {} skipped: {}", stem, result.error());
+          corundum::detail::warn_log("[engine] WARN: portals for chunk {} skipped: {}", stem, result.error());
       }
 
       return render::ChunkEntry{
@@ -1292,11 +1292,11 @@ namespace corundum::render {
         return false;
       auto entry = load_chunk_entry(r, state, c, cfg);
       if (!entry) {
-        std::println(stderr, "[engine] WARN: chunk ({}, {}) failed to load: {}", c.col, c.row, entry.error());
+        corundum::detail::warn_log("[engine] WARN: chunk ({}, {}) failed to load: {}", c.col, c.row, entry.error());
         state.chunks.mark_failed(c);
         return false;
       }
-      std::println("[engine] Loaded chunk ({}, {})", c.col, c.row);
+      corundum::detail::info_log("[engine] Loaded chunk ({}, {})", c.col, c.row);
       state.chunks.add_active(std::move(*entry));
       return true;
     }

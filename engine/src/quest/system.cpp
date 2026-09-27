@@ -6,10 +6,10 @@
 #include <corundum/quest/system.hpp>
 #include <corundum/world/flags.hpp>
 
+#include "core/warn_log.hpp"
+
 #include <algorithm>
-#include <cstdio>
 #include <format>
-#include <print>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,15 +41,15 @@ namespace corundum::quest {
 
   void start(const Quest &quest, corundum::world::FlagStore &flags) {
     if (quest.stages.empty()) {
-      std::println(stderr, R"([quest] start("{}"): quest has no stages)", quest.quest_id);
+      corundum::detail::warn_log(R"([quest] start("{}"): quest has no stages)", quest.quest_id);
       return;
     }
     const int first_sequence = quest.stages[0].sequence;
     // A non-positive sequence collides with the "not started" sentinel, so the quest
     // could never report as started. Only reachable for an unvalidated Registry::add quest.
     if (first_sequence <= 0) {
-      std::println(stderr, R"([quest] start("{}"): first stage "{}" has sequence {}, which must be positive)",
-                   quest.quest_id, quest.stages[0].name, first_sequence);
+      corundum::detail::warn_log(R"([quest] start("{}"): first stage "{}" has sequence {}, which must be positive)",
+                                 quest.quest_id, quest.stages[0].name, first_sequence);
       return;
     }
     const auto key = quest_flag_key(quest.quest_id);
@@ -62,15 +62,15 @@ namespace corundum::quest {
   void advance(const Quest &quest, std::string_view stage_name, corundum::world::FlagStore &flags) {
     const auto *stage = quest.find_stage(stage_name);
     if (stage == nullptr) {
-      std::println(stderr, R"([quest] advance("{}", "{}"): stage not found)", quest.quest_id, stage_name);
+      corundum::detail::warn_log(R"([quest] advance("{}", "{}"): stage not found)", quest.quest_id, stage_name);
       return;
     }
 #ifndef NDEBUG
     if (const auto *current = current_stage(quest, flags); current != nullptr) {
       const bool auto_target = current->auto_advance_to.has_value() && *current->auto_advance_to == stage_name;
       if (!current->advances_to.empty() && !auto_target && !std::ranges::contains(current->advances_to, stage_name)) {
-        std::println(stderr, R"([quest] advance("{}", "{}"): "{}" not listed in stage "{}" advances_to)",
-                     quest.quest_id, stage_name, stage_name, current->name);
+        corundum::detail::warn_log(R"([quest] advance("{}", "{}"): "{}" not listed in stage "{}" advances_to)",
+                                   quest.quest_id, stage_name, stage_name, current->name);
       }
     }
 #endif

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "core/warn_log.hpp"
 #include "glfw_window.hpp"
 #include <corundum/core/render_resolution.hpp>
 #include <corundum/platform/gpu_context.hpp>
@@ -15,8 +16,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstdio>
-#include <print>
 
 namespace corundum::platform {
 
@@ -88,8 +87,8 @@ namespace corundum::platform {
     sdesc.logger.func = [](const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
                            const char *file, void *) {
       if (level <= k_max_reported_log_level)
-        std::println(stderr, "[{}] item={} ({}:{}) {}", tag ? tag : "sg", item_id, file ? file : "?", line,
-                     msg ? msg : "");
+        corundum::detail::warn_log("[{}] item={} ({}:{}) {}", tag ? tag : "sg", item_id, file ? file : "?", line,
+                                   msg ? msg : "");
     };
     sg_setup(&sdesc);
     if (!sg_isvalid())
