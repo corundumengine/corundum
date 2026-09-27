@@ -18,6 +18,7 @@ if(_llvm_bin)
   set(_exe_suffix "")
   if(CMAKE_HOST_WIN32)
     set(_exe_suffix ".exe")
+    set(CMAKE_RC_COMPILER "${_llvm_bin}/llvm-rc${_exe_suffix}" CACHE FILEPATH "Resource compiler")
   endif()
 
   set(CMAKE_C_COMPILER      "${_llvm_bin}/clang${_exe_suffix}"   CACHE FILEPATH "C compiler")
