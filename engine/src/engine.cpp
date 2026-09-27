@@ -83,9 +83,6 @@ namespace corundum {
         engine_->cfg = std::move(cfg);
         engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
         engine_->window->set_vsync(engine_->cfg.vsync);
-        // Set before the first frame, while the font atlases are still unbaked: they rasterise at the
-        // render scale and are cached per (font, size).
-        engine_->renderer->set_render_scale(engine_->cfg.render_scale);
 
         if (auto result = load_render_assets(); !result)
           return result;
@@ -421,6 +418,9 @@ namespace corundum {
   } // namespace
 
   void Engine::run_loop() noexcept {
+    // Measure the first frame from the start of the loop, so asset-load time during initialize() is not
+    // replayed as a burst of catch-up fixed steps.
+    timer.prev_time = std::chrono::steady_clock::now();
     while (run_frame()) {
     }
   }

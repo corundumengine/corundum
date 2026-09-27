@@ -176,7 +176,6 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       std::expected<uint32_t, std::string> load_font(std::string_view path) override;
       void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
       void reset_screen_view() override;
-      void set_render_scale(float scale) override;
       bool begin_frame(core::math::Colour clear_colour) override;
       void end_frame() override;
       void draw(const DrawSprite &cmd) override;
@@ -279,6 +278,11 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     // upload guard in ensure_uploaded() relies on.
 
     SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx) : gpu_ctx_(gpu_ctx) {
+      // The game renders at the logical window resolution: one render pixel per window point, up-scaled
+      // by the display. That keeps fill cost decoupled from a high-DPI panel's pixel count with no
+      // per-system tuning. Tools drive GpuContext directly and keep its native default.
+      gpu_ctx_.set_render_scale(1.f);
+
       // GPU resources (shader, pipeline, vertex buffer, sampler, white texture) are
       // created lazily on the first begin_frame() so that shader/pipeline compilation —
       // a costly Metal step on cold start — no longer blocks make_engine()/create_platform().
@@ -441,12 +445,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
     void SokolRenderer::update_screen_scale() noexcept {
       const auto [win_w, win_h] = gpu_ctx_.window_size();
-      const auto [fb_w, fb_h] = gpu_ctx_.render_size();
-      screen_scale_ = derive_screen_scale(fb_w, fb_h, win_w, win_h);
-    }
-
-    void SokolRenderer::set_render_scale(float scale) {
-      gpu_ctx_.set_render_scale(scale);
+      const auto [render_w, render_h] = gpu_ctx_.render_size();
+      screen_scale_ = derive_screen_scale(render_w, render_h, win_w, win_h);
     }
 
     void SokolRenderer::rebuild_proj() noexcept {

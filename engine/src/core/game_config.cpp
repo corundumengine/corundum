@@ -261,17 +261,6 @@ namespace corundum::core {
               std::format(R"(game.json 'window_mode' must be "windowed" or "fullscreen": {})", path.string()));
         cfg.window_mode = *mode;
       }
-      if (j.contains("render_scale")) {
-        float scale{NAN};
-        try {
-          scale = j.at("render_scale").get<float>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'render_scale' has wrong type: {}", path.string()));
-        }
-        if (scale <= 0.f)
-          return std::unexpected(std::format("game.json 'render_scale' must be > 0: {}", path.string()));
-        cfg.render_scale = scale;
-      }
       return {};
     }
 

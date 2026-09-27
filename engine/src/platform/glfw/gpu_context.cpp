@@ -32,8 +32,8 @@ namespace corundum::platform {
     /// only; routine warnings would be noise on the game's stderr.
     constexpr uint32_t k_max_reported_log_level = 1;
 
-    /// Supported range for the internal render scale, so a bad config cannot ask for a zero-size
-    /// target or an absurd supersample. The upper bound is generous enough for a 3x panel.
+    /// Supported range for the internal render scale, so a caller cannot ask for a zero-size target
+    /// or an absurd supersample. The upper bound is generous enough for a 3x panel.
     constexpr float k_min_render_scale = 0.125f;
     constexpr float k_max_render_scale = 4.f;
 
@@ -65,9 +65,8 @@ namespace corundum::platform {
 
     auto ctx = std::unique_ptr<GpuContext>(new GpuContext());
     ctx->impl_->window = raw;
-    // Default to native resolution: tools drive begin_default_pass() directly and never call
-    // set_render_scale(), so the platform must not silently lower their resolution. The game lowers
-    // it through Renderer::set_render_scale() from its config.
+    // Default to native resolution: tools drive begin_default_pass() directly and keep it. The game
+    // renderer lowers itself to the logical resolution (SokolRenderer's constructor).
     ctx->impl_->render_scale = ctx->dpi_scale();
 
 #ifdef SOKOL_METAL
