@@ -349,8 +349,12 @@ namespace corundum::platform::glfw {
   }
 
   void GLFWWindow::show() {
-    if (impl_ && impl_->win != nullptr)
+    if (impl_ && impl_->win != nullptr) {
       glfwShowWindow(impl_->win);
+      // Take focus on first reveal so the game is frontmost. An inactive window is throttled by the
+      // OS, which shows up as judder.
+      glfwFocusWindow(impl_->win);
+    }
   }
 
   void GLFWWindow::poll_game_input(corundum::input::InputMapper &mapper, corundum::platform::PlatformEvents &events) {
