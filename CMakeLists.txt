@@ -2,8 +2,12 @@ cmake_minimum_required(VERSION 3.28)
 project(
   CorundumEngine
   VERSION 0.1.0
-  LANGUAGES CXX OBJCXX
+  LANGUAGES CXX
 )
+
+if(APPLE)
+  enable_language(OBJCXX)
+endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
