@@ -57,7 +57,7 @@ namespace corundum::save {
    *  @param state The state to serialize.
    *  @return The JSON document; save_game() writes it via core::write_json, which
    *          sorts keys for stable diffs. */
-  [[nodiscard]] nlohmann::json to_json(const SaveState &state);
+  [[nodiscard]] nlohmann::json serialize(const SaveState &state);
 
   /** @brief Deserialize a SaveState from JSON.
    *
@@ -65,10 +65,10 @@ namespace corundum::save {
    * migration chain for older versions, and applies defaults to any missing
    * field. Unknown flag keys are preserved verbatim.
    *
-   * @param j The JSON document produced by to_json (or an older format).
+   * @param j The JSON document produced by serialize (or an older format).
    * @return The deserialized state, or an error message.
    */
-  [[nodiscard]] std::expected<SaveState, std::string> from_json(const nlohmann::json &j);
+  [[nodiscard]] std::expected<SaveState, std::string> parse(const nlohmann::json &j);
 
   /** @brief Migrate a save JSON document in place from @p from_version to the current format.
    *

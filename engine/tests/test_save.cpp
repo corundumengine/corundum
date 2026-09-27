@@ -5,7 +5,11 @@
 
 #include "temp_dir.hpp"
 #include <corundum/render/render_state.hpp>
-#include <nlohmann/json.hpp>
+
+// json_fwd.hpp is include-cleaner's provider for nlohmann::json; json.hpp is still
+// required to construct json values (the forward header is incomplete).
+#include <nlohmann/json.hpp> // NOLINT(misc-include-cleaner): constructors live in json.hpp
+#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
@@ -70,9 +74,9 @@ namespace {
 
 } // namespace
 
-// ── to_json / from_json ───────────────────────────────────────────────────────
+// ── serialize / parse ─────────────────────────────────────────────────────────
 
-TEST_CASE("save: to_json/from_json round-trips a state with an unknown flag key verbatim") {
+TEST_CASE("save: serialize/parse round-trips a state with an unknown flag key verbatim") {
   corundum::save::SaveState s;
   s.version = corundum::save::k_save_version;
   s.game_id = "test_game";
@@ -86,8 +90,8 @@ TEST_CASE("save: to_json/from_json round-trips a state with an unknown flag key 
   s.flags["zone.cave.chest"] = 1;
   s.flags["foo.bar"] = 42; // unknown key — must survive the round trip
 
-  const auto j = corundum::save::to_json(s);
-  const auto back = corundum::save::from_json(j);
+  const auto j = corundum::save::serialize(s);
+  const auto back = corundum::save::parse(j);
   REQUIRE(back.has_value());
 
   CHECK(back->game_id == "test_game");
@@ -103,7 +107,7 @@ TEST_CASE("save: to_json/from_json round-trips a state with an unknown flag key 
   CHECK(back->flags.size() == 3);
 }
 
-TEST_CASE("save: from_json fills defaults for a v1 fixture missing later fields") {
+TEST_CASE("save: parse fills defaults for a v1 fixture missing later fields") {
   const json j = {
       {"version", 1},
       {"game_id", "test_game"},
@@ -111,7 +115,7 @@ TEST_CASE("save: from_json fills defaults for a v1 fixture missing later fields"
       {"flags", {{"foo.bar", 7}}},
   };
 
-  const auto state = corundum::save::from_json(j);
+  const auto state = corundum::save::parse(j);
   REQUIRE(state.has_value());
   CHECK(state->map_or_world_id.empty());
   CHECK(state->active_zone.empty());
@@ -123,52 +127,52 @@ TEST_CASE("save: from_json fills defaults for a v1 fixture missing later fields"
 
 TEST_CASE("save: a save with a newer version than the engine supports is refused") {
   const json j = {{"version", 999}, {"game_id", "test_game"}, {"mode", "single_map"}};
-  const auto state = corundum::save::from_json(j);
+  const auto state = corundum::save::parse(j);
   REQUIRE_FALSE(state.has_value());
   CHECK(state.error().find("newer") != std::string::npos);
 }
 
 TEST_CASE("save: a non-object save JSON is refused") {
-  const auto state = corundum::save::from_json(json::array({1, 2, 3}));
+  const auto state = corundum::save::parse(json::array({1, 2, 3}));
   REQUIRE_FALSE(state.has_value());
 }
 
-TEST_CASE("save: from_json rejects a field with the wrong JSON type") {
+TEST_CASE("save: parse rejects a field with the wrong JSON type") {
   const json j = {
       {"version", 1},
       {"game_id", 42}, // must be a string
       {"mode", "single_map"},
   };
 
-  const auto state = corundum::save::from_json(j);
+  const auto state = corundum::save::parse(j);
   REQUIRE_FALSE(state.has_value());
   CHECK(state.error().find("game_id") != std::string::npos);
 }
 
-TEST_CASE("save: from_json rejects a non-numeric player position") {
+TEST_CASE("save: parse rejects a non-numeric player position") {
   const json j = {
       {"version", 1},
       {"mode", "single_map"},
       {"player_col", "five"},
   };
 
-  const auto state = corundum::save::from_json(j);
+  const auto state = corundum::save::parse(j);
   REQUIRE_FALSE(state.has_value());
   CHECK(state.error().find("player_col") != std::string::npos);
 }
 
-TEST_CASE("save: from_json rejects a non-integer version") {
+TEST_CASE("save: parse rejects a non-integer version") {
   const json j = {{"version", "one"}, {"mode", "single_map"}};
 
-  const auto state = corundum::save::from_json(j);
+  const auto state = corundum::save::parse(j);
   REQUIRE_FALSE(state.has_value());
   CHECK(state.error().find("version") != std::string::npos);
 }
 
-TEST_CASE("save: from_json rejects an unknown mode") {
+TEST_CASE("save: parse rejects an unknown mode") {
   const json j = {{"version", 1}, {"mode", "overworld"}};
 
-  const auto state = corundum::save::from_json(j);
+  const auto state = corundum::save::parse(j);
   REQUIRE_FALSE(state.has_value());
   CHECK(state.error().find("mode") != std::string::npos);
 }
@@ -182,7 +186,7 @@ TEST_CASE("save: load_game refuses a save for a different game_id") {
   corundum::save::SaveState s;
   s.game_id = "other_game";
   const fs::path p = save_path("wrong_game");
-  write_save_file(p, corundum::save::to_json(s));
+  write_save_file(p, corundum::save::serialize(s));
 
   const auto result = corundum::save::load_game(engine, p);
   REQUIRE_FALSE(result.has_value());
@@ -352,7 +356,7 @@ TEST_CASE("save: load_game refuses a save whose world manifest differs") {
   s.map_or_world_id = "some/other/world/manifest.json";
 
   const fs::path p = save_path("wrong_world");
-  write_save_file(p, corundum::save::to_json(s));
+  write_save_file(p, corundum::save::serialize(s));
 
   const auto result = corundum::save::load_game(engine, p);
   REQUIRE_FALSE(result.has_value());
@@ -382,7 +386,7 @@ TEST_CASE("save: a failed load leaves the engine's flags untouched") {
   s.map_or_world_id = (fixtures / "tilemaps/does_not_exist.json").string();
 
   const fs::path p = save_path("failed_load");
-  write_save_file(p, corundum::save::to_json(s));
+  write_save_file(p, corundum::save::serialize(s));
 
   const auto result = corundum::save::load_game(engine, p);
   REQUIRE_FALSE(result.has_value());

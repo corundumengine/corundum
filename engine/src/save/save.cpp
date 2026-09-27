@@ -58,7 +58,7 @@ namespace corundum::save {
 
   } // namespace
 
-  nlohmann::json to_json(const SaveState &state) {
+  nlohmann::json serialize(const SaveState &state) {
     nlohmann::json j;
     j["version"] = state.version;
     j["game_id"] = state.game_id;
@@ -82,7 +82,7 @@ namespace corundum::save {
     return {};
   }
 
-  std::expected<SaveState, std::string> from_json(const nlohmann::json &j) {
+  std::expected<SaveState, std::string> parse(const nlohmann::json &j) {
     if (!j.is_object())
       return std::unexpected("save JSON must be an object");
 
@@ -157,7 +157,7 @@ namespace corundum::save {
     state.entered_from_world = engine.entered_from_world;
     state.flags = engine.flags;
 
-    return core::write_json(path, to_json(state));
+    return core::write_json(path, serialize(state));
   }
 
   std::expected<void, std::string> load_game(Engine &engine, const std::filesystem::path &path) {
@@ -165,7 +165,7 @@ namespace corundum::save {
     if (!json_result)
       return std::unexpected(std::move(json_result).error());
 
-    auto state = from_json(*json_result);
+    auto state = parse(*json_result);
     if (!state)
       return std::unexpected(std::move(state).error());
 

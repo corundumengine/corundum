@@ -69,6 +69,7 @@ set(TEST_SOURCES
     test_ui_draw.cpp
     test_umbrella_header.cpp
     test_user_data_dir.cpp
+    test_user_settings.cpp
     test_utf8.cpp
     test_walkability.cpp
     test_word_wrap.cpp
