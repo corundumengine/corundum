@@ -80,9 +80,36 @@ namespace corundum::platform::glfw {
     constexpr int k_max_vertices = k_max_quads * 6;
     constexpr int k_vertex_buf_size = k_max_vertices * static_cast<int>(sizeof(Vertex));
 
-    // Shader source is MSL only: these are compiled by the Metal backend. A D3D11/GLCore port needs its
-    // own source strings and a matching `glsl_uniforms` mapping for the projection block.
+    // Shader source and descriptor bindings are per-backend: MSL for Metal (macOS), GLSL for the
+    // GLCore backend used on Windows/Linux. The GL backend resolves individual uniform locations,
+    // so it needs the `glsl_uniforms` member list plus a `glsl_name` for the texture/sampler pair
+    // that Metal takes from the shader's own binding qualifiers.
 
+#ifdef SOKOL_GLCORE
+    constexpr const char *k_vs_src = R"(#version 330 core
+layout(location = 0) in vec2 position;
+layout(location = 1) in vec2 texcoord;
+layout(location = 2) in vec4 color;
+uniform mat4 proj;
+out vec2 v_texcoord;
+out vec4 v_color;
+void main() {
+    gl_Position = proj * vec4(position, 0.0, 1.0);
+    v_texcoord = texcoord;
+    v_color = color;
+}
+)";
+
+    constexpr const char *k_fs_src = R"(#version 330 core
+in vec2 v_texcoord;
+in vec4 v_color;
+uniform sampler2D tex;
+out vec4 frag_color;
+void main() {
+    frag_color = texture(tex, v_texcoord) * v_color;
+}
+)";
+#else
     constexpr const char *k_vs_src = R"(
 #include <metal_stdlib>
 using namespace metal;
@@ -120,6 +147,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     return tex.sample(samp, in.texcoord) * in.color;
 }
 )";
+#endif
 
     void emit_quad(std::vector<Vertex> &out, float px, float py, float pw, float ph, float u0, float v0, float u1,
                    float v1, float r, float g, float b, float a) {
@@ -316,17 +344,22 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       shdesc.fragment_func.entry = "fs_main";
       shdesc.uniform_blocks[0].stage = SG_SHADERSTAGE_VERTEX;
       shdesc.uniform_blocks[0].size = sizeof(float) * 16;
-      shdesc.uniform_blocks[0].msl_buffer_n = 0;
       shdesc.views[0].texture.stage = SG_SHADERSTAGE_FRAGMENT;
       shdesc.views[0].texture.image_type = SG_IMAGETYPE_2D;
       shdesc.views[0].texture.sample_type = SG_IMAGESAMPLETYPE_FLOAT;
-      shdesc.views[0].texture.msl_texture_n = 0;
       shdesc.samplers[0].stage = SG_SHADERSTAGE_FRAGMENT;
       shdesc.samplers[0].sampler_type = SG_SAMPLERTYPE_FILTERING;
-      shdesc.samplers[0].msl_sampler_n = 0;
       shdesc.texture_sampler_pairs[0].stage = SG_SHADERSTAGE_FRAGMENT;
       shdesc.texture_sampler_pairs[0].view_slot = 0;
       shdesc.texture_sampler_pairs[0].sampler_slot = 0;
+#ifdef SOKOL_GLCORE
+      shdesc.uniform_blocks[0].glsl_uniforms[0] = {.type = SG_UNIFORMTYPE_MAT4, .array_count = 1, .glsl_name = "proj"};
+      shdesc.texture_sampler_pairs[0].glsl_name = "tex";
+#else
+      shdesc.uniform_blocks[0].msl_buffer_n = 0;
+      shdesc.views[0].texture.msl_texture_n = 0;
+      shdesc.samplers[0].msl_sampler_n = 0;
+#endif
       pipeline_shader_ = sg_make_shader(&shdesc);
 
       sg_pipeline_desc pdesc{};
