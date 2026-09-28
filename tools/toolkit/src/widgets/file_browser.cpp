@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <algorithm>
 #include <corundum/core/files.hpp>
 #include <corundum/toolkit/widgets/file_browser.hpp>
+#include <corundum/toolkit/widgets/text_buffer.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
@@ -11,6 +11,7 @@
 #include <imgui.h>
 #include <optional>
 #include <print>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -18,12 +19,6 @@
 namespace corundum::toolkit::widgets {
 
   namespace {
-    void copy_to_buf(char *buf, std::size_t buf_size, std::string_view s) {
-      const std::size_t n = std::min(s.size(), buf_size - 1);
-      std::copy_n(s.data(), n, buf);
-      buf[n] = '\0';
-    }
-
     bool matches_filters(const std::filesystem::path &p, const std::vector<FileBrowserFilter> &filters) {
       if (filters.empty())
         return true;
@@ -55,6 +50,27 @@ namespace corundum::toolkit::widgets {
       fb.current_dir = dir;
       refresh_entries(fb);
     }
+
+    void render_entries(FileBrowserState &fb, std::optional<std::filesystem::path> &result) {
+      ImGui::BeginChild("##entries", ImVec2{0.f, -ImGui::GetFrameHeightWithSpacing() * 2.f}, ImGuiChildFlags_Borders);
+      for (std::size_t i = 0; i < fb.entries.size(); ++i) {
+        const auto &e = fb.entries[i];
+        const std::string label = e.is_dir ? ("[dir] " + e.name) : e.name;
+        if (ImGui::Selectable(label.c_str(), std::cmp_equal(fb.selected_entry, i),
+                              ImGuiSelectableFlags_AllowDoubleClick)) {
+          fb.selected_entry = static_cast<int>(i);
+          if (!e.is_dir)
+            copy_to_buffer(fb.name_buf, sizeof(fb.name_buf), e.name);
+          if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+            if (e.is_dir)
+              navigate(fb, e.path);
+            else if (fb.mode == FileBrowserMode::Open)
+              result = e.path;
+          }
+        }
+      }
+      ImGui::EndChild();
+    }
   } // namespace
 
   void open_file_browser(FileBrowserState &fb, std::string_view title, const std::filesystem::path &start_dir,
@@ -73,7 +89,7 @@ namespace corundum::toolkit::widgets {
     fb.mode = FileBrowserMode::Save;
     fb.title = title;
     fb.filters = std::move(filters);
-    copy_to_buf(fb.name_buf, sizeof(fb.name_buf), default_name);
+    copy_to_buffer(fb.name_buf, sizeof(fb.name_buf), default_name);
     navigate(fb, std::filesystem::is_directory(start_dir) ? start_dir : std::filesystem::current_path());
   }
 
@@ -92,24 +108,7 @@ namespace corundum::toolkit::widgets {
       ImGui::TextUnformatted(fb.current_dir.string().c_str());
 
       ImGui::Separator();
-      ImGui::BeginChild("##entries", ImVec2{0.f, -ImGui::GetFrameHeightWithSpacing() * 2.f}, ImGuiChildFlags_Borders);
-      for (std::size_t i = 0; i < fb.entries.size(); ++i) {
-        const auto &e = fb.entries[i];
-        const std::string label = e.is_dir ? ("[dir] " + e.name) : e.name;
-        if (ImGui::Selectable(label.c_str(), fb.selected_entry == static_cast<int>(i),
-                              ImGuiSelectableFlags_AllowDoubleClick)) {
-          fb.selected_entry = static_cast<int>(i);
-          if (!e.is_dir)
-            copy_to_buf(fb.name_buf, sizeof(fb.name_buf), e.name);
-          if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            if (e.is_dir)
-              navigate(fb, e.path);
-            else if (fb.mode == FileBrowserMode::Open)
-              result = e.path;
-          }
-        }
-      }
-      ImGui::EndChild();
+      render_entries(fb, result);
 
       if (fb.mode == FileBrowserMode::Save) {
         ImGui::SetNextItemWidth(-80.f);

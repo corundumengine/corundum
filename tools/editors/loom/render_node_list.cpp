@@ -6,8 +6,10 @@
 #include "graph_layout.hpp"
 #include "node_type_traits.hpp"
 #include <corundum/dialogue/dialogue.hpp>
+#include <corundum/toolkit/widgets/text_buffer.hpp>
 
-#include <cstring>
+#include <array>
+#include <cstddef>
 #include <imgui.h>
 #include <string_view>
 #include <utility>
@@ -16,25 +18,23 @@ namespace tools::loom {
 
   namespace {} // namespace
 
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): flat editor UI routine.
   void render_node_list(EditorState &state) {
     const auto avail = ImGui::GetContentRegionAvail();
     ImGui::BeginChild("##nodes_panel", {state.node_list_width_, avail.y}, ImGuiChildFlags_None,
                       ImGuiWindowFlags_NoScrollbar);
 
-    if (state.graph.graph_id != std::string_view(state.graph_id_buf_)) {
-      std::strncpy(state.graph_id_buf_, state.graph.graph_id.c_str(), sizeof(state.graph_id_buf_) - 1);
-      state.graph_id_buf_[sizeof(state.graph_id_buf_) - 1] = '\0';
-    }
-    if (state.graph.speaker != std::string_view(state.graph_speaker_buf_)) {
-      std::strncpy(state.graph_speaker_buf_, state.graph.speaker.c_str(), sizeof(state.graph_speaker_buf_) - 1);
-      state.graph_speaker_buf_[sizeof(state.graph_speaker_buf_) - 1] = '\0';
-    }
-    if (state.graph.actor_id != std::string_view(state.graph_actor_id_buf_)) {
-      std::strncpy(state.graph_actor_id_buf_, state.graph.actor_id.c_str(), sizeof(state.graph_actor_id_buf_) - 1);
-      state.graph_actor_id_buf_[sizeof(state.graph_actor_id_buf_) - 1] = '\0';
-    }
+    if (state.graph.graph_id != std::string_view(state.graph_id_buf_))
+      corundum::toolkit::widgets::copy_to_buffer(state.graph_id_buf_, sizeof(state.graph_id_buf_),
+                                                 state.graph.graph_id);
+    if (state.graph.speaker != std::string_view(state.graph_speaker_buf_))
+      corundum::toolkit::widgets::copy_to_buffer(state.graph_speaker_buf_, sizeof(state.graph_speaker_buf_),
+                                                 state.graph.speaker);
+    if (state.graph.actor_id != std::string_view(state.graph_actor_id_buf_))
+      corundum::toolkit::widgets::copy_to_buffer(state.graph_actor_id_buf_, sizeof(state.graph_actor_id_buf_),
+                                                 state.graph.actor_id);
 
-    ImGui::Text("Graph ID:");
+    ImGui::TextUnformatted("Graph ID:");
     ImGui::SameLine();
     ImGui::InputText("##graph_id", state.graph_id_buf_, sizeof(state.graph_id_buf_));
     if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -43,7 +43,7 @@ namespace tools::loom {
       state.dirty = true;
     }
 
-    ImGui::Text("Speaker:");
+    ImGui::TextUnformatted("Speaker:");
     ImGui::SameLine();
     ImGui::InputText("##graph_speaker", state.graph_speaker_buf_, sizeof(state.graph_speaker_buf_));
     if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -52,7 +52,7 @@ namespace tools::loom {
       state.dirty = true;
     }
 
-    ImGui::Text("Actor ID:");
+    ImGui::TextUnformatted("Actor ID:");
     ImGui::SameLine();
     ImGui::InputText("##graph_actor_id", state.graph_actor_id_buf_, sizeof(state.graph_actor_id_buf_));
     if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -72,7 +72,7 @@ namespace tools::loom {
 
     ImGui::BeginChild("##nodelist", {0.f, avail_h});
 
-    for (int i = 0; i < static_cast<int>(state.graph.nodes.size()); ++i) {
+    for (int i = 0; std::cmp_less(i, state.graph.nodes.size()); ++i) {
       const auto &node = state.graph.nodes[i];
       const bool is_selected = (i == state.selected_node);
 
@@ -100,8 +100,11 @@ namespace tools::loom {
       }
       ImGui::PopStyleColor(3);
 
-      if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", (label + " [" + node_label(node.type) + "]").c_str());
+      if (ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip();
+        ImGui::TextUnformatted((label + " [" + node_label(node.type) + "]").c_str());
+        ImGui::EndTooltip();
+      }
 
       ImGui::PopID();
     }
@@ -115,11 +118,11 @@ namespace tools::loom {
     }
 
     if (ImGui::BeginPopupModal("Add Node", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      ImGui::Text("Node ID:");
+      ImGui::TextUnformatted("Node ID:");
       ImGui::InputText("##new_id", state.add_node_id_buf, sizeof(state.add_node_id_buf));
 
-      static const char *types[] = {"Talk", "Choice", "Event", "End"};
-      ImGui::Combo("Type", &state.add_node_type, types, 4);
+      constexpr std::array<const char *, 4> k_types{"Talk", "Choice", "Event", "End"};
+      ImGui::Combo("Type", &state.add_node_type, k_types.data(), static_cast<int>(k_types.size()));
 
       if (ImGui::Button("Create") && state.add_node_id_buf[0] != '\0') {
         state.push_undo_snapshot();
@@ -141,20 +144,19 @@ namespace tools::loom {
       ImGui::EndPopup();
     }
 
-    if (state.selected_node >= 0 && state.selected_node < static_cast<int>(state.graph.nodes.size())) {
-      if (!ImGui::IsAnyItemActive() && ImGui::IsKeyPressed(ImGuiKey_Delete) &&
-          ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
-        state.push_undo_snapshot();
-        auto &nodes = state.graph.nodes;
-        const auto idx = static_cast<std::size_t>(state.selected_node);
-        state.graph.id_to_index.erase(nodes[idx].id);
-        nodes.erase(nodes.begin() + idx);
-        for (std::size_t j = idx; j < nodes.size(); ++j)
-          state.graph.id_to_index[nodes[j].id] = j;
-        state.selected_node = -1;
-        state.dirty = true;
-        recompute_layout(state.graph, state.layout, state.graph_width_);
-      }
+    if (state.selected_node >= 0 && std::cmp_less(state.selected_node, state.graph.nodes.size()) &&
+        !ImGui::IsAnyItemActive() && ImGui::IsKeyPressed(ImGuiKey_Delete) &&
+        ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+      state.push_undo_snapshot();
+      auto &nodes = state.graph.nodes;
+      const auto idx = static_cast<std::size_t>(state.selected_node);
+      state.graph.id_to_index.erase(nodes[idx].id);
+      nodes.erase(nodes.begin() + static_cast<std::ptrdiff_t>(idx));
+      for (std::size_t j = idx; j < nodes.size(); ++j)
+        state.graph.id_to_index[nodes[j].id] = j;
+      state.selected_node = -1;
+      state.dirty = true;
+      recompute_layout(state.graph, state.layout, state.graph_width_);
     }
   }
 

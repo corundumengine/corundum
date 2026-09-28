@@ -14,6 +14,7 @@ add_executable(corundum_tools_tests
     test_picking_elevation.cpp
     test_layer_presets.cpp
     test_spritesmith_coords.cpp
+    test_text_buffer.cpp
     test_tilesmith_palette.cpp
     test_tool_config.cpp
     test_undo_stack.cpp

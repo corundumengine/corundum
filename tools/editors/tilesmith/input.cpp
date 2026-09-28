@@ -16,16 +16,17 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <corundum/toolkit/widgets/text_buffer.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <format>
 #include <imgui.h>
 #include <optional>
 #include <print>
+#include <utility>
 
 namespace tools::tilesmith {
 
@@ -69,7 +70,7 @@ namespace tools::tilesmith {
       state.col_drag_cur_win_y = win_y;
     }
 
-    void commit_collision_rect(EditorState &state) noexcept {
+    void commit_collision_rect(EditorState &state) {
       if (!state.collision_dragging || state.map.tilesets.empty())
         return;
       const int tw = state.map.diamond_w();
@@ -103,7 +104,7 @@ namespace tools::tilesmith {
       push_undo_checkpoint(state);
     }
 
-    void place_triangle_at(EditorState &state, int win_x, int win_y) noexcept {
+    void place_triangle_at(EditorState &state, int win_x, int win_y) {
       if (state.map.tilesets.empty())
         return;
       const auto tc = editor_screen_to_tile(win_x, win_y, state);
@@ -111,12 +112,12 @@ namespace tools::tilesmith {
         return;
       const float col = static_cast<float>(tc->col);
       const float row = static_cast<float>(tc->row);
-      constexpr float col_span = 1.f;
-      constexpr float row_span = 1.f;
+      constexpr float k_col_span = 1.f;
+      constexpr float k_row_span = 1.f;
       auto &tris = state.map.collision_triangles;
       for (std::size_t i = 0; i < tris.size(); ++i) {
-        if (tris.cols[i] == col && tris.rows[i] == row && tris.col_spans[i] == col_span &&
-            tris.row_spans[i] == row_span) {
+        if (tris.cols[i] == col && tris.rows[i] == row && tris.col_spans[i] == k_col_span &&
+            tris.row_spans[i] == k_row_span) {
           // Exact cell match: same cut is a no-op; different cut updates in place rather than
           // stacking a second triangle (compare with the half-open `>= && <` test in
           // remove_triangle_at — that one checks "click is anywhere inside the cell").
@@ -129,7 +130,7 @@ namespace tools::tilesmith {
         }
       }
       const uint8_t elev = static_cast<uint8_t>(corundum::world::tilemap::elevation_at(state.map, tc->col, tc->row));
-      tris.push_back(col, row, col_span, row_span, state.collision_tri_cut, elev);
+      tris.push_back(col, row, k_col_span, k_row_span, state.collision_tri_cut, elev);
       state.dirty = true;
       push_undo_checkpoint(state);
     }
@@ -220,7 +221,7 @@ namespace tools::tilesmith {
       }
     }
 
-    void commit_portal_rect(EditorState &state) noexcept {
+    void commit_portal_rect(EditorState &state) {
       if (!state.portal_dragging || state.map.tilesets.empty())
         return;
       state.portal_dragging = false;
@@ -289,17 +290,19 @@ namespace tools::tilesmith {
     }
 
     // ── Layer properties popup state ─────────────────────────────────────────
-    bool layer_rename_requested = false;    ///< True when user double-clicked a layer.
-    int layer_rename_idx = -1;              ///< Index of the layer being edited.
-    char layer_rename_buf[256] = {};        ///< Buffer for the layer name.
-    int layer_props_z_index = 0;            ///< Buffer for the layer's z_index, edited in the popup.
-    bool layer_props_depth_sorted = false;  ///< Buffer for the layer's depth_sorted flag.
-    bool layer_add_popup_requested = false; ///< True when the "+" button was clicked.
+    // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): TU-local editor UI state.
+    bool layer_rename_requested = false;      ///< True when user double-clicked a layer.
+    int layer_rename_idx = -1;                ///< Index of the layer being edited.
+    std::array<char, 256> layer_rename_buf{}; ///< Buffer for the layer name.
+    int layer_props_z_index = 0;              ///< Buffer for the layer's z_index, edited in the popup.
+    bool layer_props_depth_sorted = false;    ///< Buffer for the layer's depth_sorted flag.
+    bool layer_add_popup_requested = false;   ///< True when the "+" button was clicked.
 
     // ── Fill-blocked popup state ─────────────────────────────────────────────
     bool show_fill_blocked_popup = false; ///< True when F was pressed on a non-ground layer.
+    // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-    void add_layer(EditorState &state, LayerPreset preset) noexcept {
+    void add_layer(EditorState &state, LayerPreset preset) {
       state.map.layers.push_back(make_layer_from_preset(preset, state.map.width, state.map.height, state.map.layers));
       state.dirty = true;
       push_undo_checkpoint(state);
@@ -310,27 +313,29 @@ namespace tools::tilesmith {
         return;
       const int idx = state.active_layer;
       state.map.layers.erase(state.map.layers.begin() + idx);
-      if (state.active_layer >= static_cast<int>(state.map.layers.size()))
+      if (std::cmp_greater_equal(state.active_layer, state.map.layers.size()))
         state.active_layer = static_cast<int>(state.map.layers.size()) - 1;
       state.dirty = true;
       push_undo_checkpoint(state);
     }
 
-    void handle_palette_click(EditorState &state, int win_x, int win_y) noexcept {
+    void handle_palette_click(EditorState &state, int win_x, int win_y) {
       const int panel_x = win_x - CANVAS_W;
       const int panel_y = win_y - k_menu_h;
 
       const int n_layers = static_cast<int>(state.map.layers.size());
-      const int layer_strip_h = LAYER_TITLE_H + n_layers * LAYER_ROW_H;
+      const int layer_strip_h = LAYER_TITLE_H + (n_layers * LAYER_ROW_H);
       if (panel_y < LAYER_TITLE_H) {
         const float btn_y = (static_cast<float>(LAYER_TITLE_H) - LAYER_BTN_H) * 0.5f;
-        if (panel_x >= LAYER_BTN_ADD_X && panel_x < LAYER_BTN_ADD_X + LAYER_BTN_W && panel_y >= btn_y &&
-            panel_y < btn_y + LAYER_BTN_H) {
+        const float panel_x_f = static_cast<float>(panel_x);
+        const float panel_y_f = static_cast<float>(panel_y);
+        if (panel_x_f >= LAYER_BTN_ADD_X && panel_x_f < LAYER_BTN_ADD_X + LAYER_BTN_W && panel_y_f >= btn_y &&
+            panel_y_f < btn_y + LAYER_BTN_H) {
           layer_add_popup_requested = true;
           return;
         }
-        if (panel_x >= LAYER_BTN_DEL_X && panel_x < LAYER_BTN_DEL_X + LAYER_BTN_W && panel_y >= btn_y &&
-            panel_y < btn_y + LAYER_BTN_H) {
+        if (panel_x_f >= LAYER_BTN_DEL_X && panel_x_f < LAYER_BTN_DEL_X + LAYER_BTN_W && panel_y_f >= btn_y &&
+            panel_y_f < btn_y + LAYER_BTN_H) {
           delete_layer(state);
           return;
         }
@@ -342,9 +347,8 @@ namespace tools::tilesmith {
           if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && panel_x < PALETTE_W - 24) {
             layer_rename_requested = true;
             layer_rename_idx = idx;
-            std::strncpy(layer_rename_buf, state.map.layers[static_cast<std::size_t>(idx)].name.c_str(),
-                         sizeof(layer_rename_buf) - 1);
-            layer_rename_buf[sizeof(layer_rename_buf) - 1] = '\0';
+            corundum::toolkit::widgets::copy_to_buffer(layer_rename_buf.data(), layer_rename_buf.size(),
+                                                       state.map.layers[static_cast<std::size_t>(idx)].name);
             layer_props_z_index = state.map.layers[static_cast<std::size_t>(idx)].z_index;
             layer_props_depth_sorted = state.map.layers[static_cast<std::size_t>(idx)].depth_sorted;
             return;
@@ -353,8 +357,9 @@ namespace tools::tilesmith {
             state.map.layers[static_cast<std::size_t>(idx)].visible =
                 !state.map.layers[static_cast<std::size_t>(idx)].visible;
             push_undo_checkpoint(state);
-          } else
+          } else {
             state.active_layer = idx;
+          }
         }
         return;
       }
@@ -374,6 +379,7 @@ namespace tools::tilesmith {
 
   } // namespace
 
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): flat input-dispatch routine.
   void handle_input(EditorState &state, MouseState &mouse, bool &running) {
     const ImGuiIO &io = ImGui::GetIO();
     const int mx = static_cast<int>(io.MousePos.x);
@@ -450,19 +456,19 @@ namespace tools::tilesmith {
 
       if (state.show_collisions && state.triangle_collision_mode) {
         using Cut = corundum::world::tilemap::TriangleCut;
-        constexpr std::array<Cut, 4> order{Cut::NorthWest, Cut::NorthEast, Cut::SouthEast, Cut::SouthWest};
+        constexpr std::array<Cut, 4> k_order{Cut::NorthWest, Cut::NorthEast, Cut::SouthEast, Cut::SouthWest};
         if (ImGui::IsKeyPressed(ImGuiKey_RightBracket)) {
           for (int k = 0; k < 4; ++k) {
-            if (state.collision_tri_cut == order[k]) {
-              state.collision_tri_cut = order[(k + 1) % 4];
+            if (state.collision_tri_cut == k_order[k]) {
+              state.collision_tri_cut = k_order[(k + 1) % 4];
               break;
             }
           }
         }
         if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
           for (int k = 0; k < 4; ++k) {
-            if (state.collision_tri_cut == order[k]) {
-              state.collision_tri_cut = order[(k + 3) % 4];
+            if (state.collision_tri_cut == k_order[k]) {
+              state.collision_tri_cut = k_order[(k + 3) % 4];
               break;
             }
           }
@@ -475,12 +481,11 @@ namespace tools::tilesmith {
         if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket))
           state.selected_elevation =
               static_cast<uint8_t>(std::max(0, static_cast<int>(state.selected_elevation) - step));
-      } else if (state.show_ramps) {
-        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
-          using corundum::world::tilemap::RampAxis;
-          state.selected_ramp_axis =
-              state.selected_ramp_axis == RampAxis::NorthSouth ? RampAxis::EastWest : RampAxis::NorthSouth;
-        }
+      } else if (state.show_ramps &&
+                 (ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket))) {
+        using corundum::world::tilemap::RampAxis;
+        state.selected_ramp_axis =
+            state.selected_ramp_axis == RampAxis::NorthSouth ? RampAxis::EastWest : RampAxis::NorthSouth;
       }
 
       if (ImGui::IsKeyPressed(ImGuiKey_P))
@@ -495,10 +500,9 @@ namespace tools::tilesmith {
       if (ImGui::IsKeyPressed(ImGuiKey_W))
         state.show_walkability = !state.show_walkability;
 
-      if (ImGui::IsKeyPressed(ImGuiKey_F) && !io.KeyCtrl) {
-        if (!fill_ground_layer(state, state.selected_gid, state.selected_flip))
-          show_fill_blocked_popup = true;
-      }
+      if (ImGui::IsKeyPressed(ImGuiKey_F) && !io.KeyCtrl &&
+          !fill_ground_layer(state, state.selected_gid, state.selected_flip))
+        show_fill_blocked_popup = true;
 
       if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z))
         apply_redo(state);
@@ -506,7 +510,7 @@ namespace tools::tilesmith {
         apply_undo(state);
 
       if ((ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) && state.show_portals &&
-          state.selected_portal >= 0 && state.selected_portal < static_cast<int>(state.portals.size())) {
+          state.selected_portal >= 0 && std::cmp_less(state.selected_portal, state.portals.size())) {
         state.portals.erase(state.portals.begin() + state.selected_portal);
         state.selected_portal = -1;
         state.dirty = true;
@@ -522,10 +526,11 @@ namespace tools::tilesmith {
       if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !state.map.layers.empty())
         state.active_layer = (state.active_layer + 1) % static_cast<int>(state.map.layers.size());
 
-      constexpr ImGuiKey num_keys[] = {ImGuiKey_1, ImGuiKey_2, ImGuiKey_3, ImGuiKey_4, ImGuiKey_5,
-                                       ImGuiKey_6, ImGuiKey_7, ImGuiKey_8, ImGuiKey_9};
+      constexpr std::array<ImGuiKey, 9> k_num_keys{
+          ImGuiKey_1, ImGuiKey_2, ImGuiKey_3, ImGuiKey_4, ImGuiKey_5, ImGuiKey_6, ImGuiKey_7, ImGuiKey_8, ImGuiKey_9,
+      };
       for (int i = 0; i < 9; ++i) {
-        if (ImGui::IsKeyPressed(num_keys[i]) && i < static_cast<int>(state.map.layers.size())) {
+        if (ImGui::IsKeyPressed(k_num_keys[static_cast<std::size_t>(i)]) && std::cmp_less(i, state.map.layers.size())) {
           state.active_layer = i;
           break;
         }
@@ -566,8 +571,9 @@ namespace tools::tilesmith {
           if (over_canvas) {
             paint_or_erase(state, mx, my, false);
             state.painting_active = true;
-          } else if (over_panel)
+          } else if (over_panel) {
             handle_palette_click(state, mx, my);
+          }
         }
       }
     }
@@ -575,17 +581,19 @@ namespace tools::tilesmith {
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !popup_or_modal_open) {
       mouse.right_held = true;
       if (over_canvas) {
-        if (state.show_portals)
+        if (state.show_portals) {
           begin_portal_drag(state, mx, my);
-        else if (state.show_collisions) {
-          if (!remove_triangle_at(state, mx, my))
+        } else if (state.show_collisions) {
+          if (!remove_triangle_at(state, mx, my)) {
             remove_collision_at(state, mx, my);
-        } else if (state.show_elevation)
+          }
+        } else if (state.show_elevation) {
           paint_or_erase_elevation(state, mx, my, true);
-        else if (state.show_ramps)
+        } else if (state.show_ramps) {
           paint_or_erase_ramp(state, mx, my, true);
-        else
+        } else {
           begin_erase_drag(state, mx, my);
+        }
       }
     }
 
@@ -645,8 +653,8 @@ namespace tools::tilesmith {
     const bool wheel_over_palette = over_panel && io.MouseWheel != 0.f && !state.map.tilesets.empty();
     if (wheel_over_palette && io.KeyCtrl) {
       constexpr float k_zoom_step = 0.1f;
-      state.palette_tile_scale =
-          std::clamp(state.palette_tile_scale + io.MouseWheel * k_zoom_step, k_palette_min_scale, k_palette_max_scale);
+      state.palette_tile_scale = std::clamp(state.palette_tile_scale + (io.MouseWheel * k_zoom_step),
+                                            k_palette_min_scale, k_palette_max_scale);
     } else if (wheel_over_palette) {
       const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
       const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
@@ -665,10 +673,11 @@ namespace tools::tilesmith {
     }
 
     if (ImGui::BeginPopupModal("Add Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      constexpr LayerPreset presets[] = {LayerPreset::Ground, LayerPreset::FloorDetail, LayerPreset::Water,
-                                         LayerPreset::Walls,  LayerPreset::Roof,        LayerPreset::Decor,
-                                         LayerPreset::Blank};
-      for (const LayerPreset preset : presets) {
+      constexpr std::array<LayerPreset, 7> k_presets{
+          LayerPreset::Ground, LayerPreset::FloorDetail, LayerPreset::Water, LayerPreset::Walls,
+          LayerPreset::Roof,   LayerPreset::Decor,       LayerPreset::Blank,
+      };
+      for (const LayerPreset preset : k_presets) {
         if (ImGui::Selectable(std::string(layer_preset_label(preset)).c_str())) {
           add_layer(state, preset);
           ImGui::CloseCurrentPopup();
@@ -688,12 +697,11 @@ namespace tools::tilesmith {
 
     if (ImGui::BeginPopupModal("Rename Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
       ImGui::TextUnformatted("Layer name:");
-      ImGui::InputText("##rename", layer_rename_buf, sizeof(layer_rename_buf));
+      ImGui::InputText("##rename", layer_rename_buf.data(), layer_rename_buf.size());
 
       ImGui::TextUnformatted("Z-index:");
       ImGui::InputInt("##zindex", &layer_props_z_index);
-      if (layer_props_z_index < 0)
-        layer_props_z_index = 0;
+      layer_props_z_index = std::max(layer_props_z_index, 0);
 
       ImGui::BeginDisabled(layer_props_z_index == 0);
       ImGui::Checkbox("Depth-sort with entities", &layer_props_depth_sorted);
@@ -705,7 +713,7 @@ namespace tools::tilesmith {
       if (ImGui::Button("Ok", ImVec2{120.f, 0.f})) {
         if (layer_rename_buf[0] != '\0') {
           auto &layer = state.map.layers[static_cast<std::size_t>(layer_rename_idx)];
-          layer.name = layer_rename_buf;
+          layer.name = layer_rename_buf.data();
           layer.z_index = layer_props_z_index;
           layer.depth_sorted = layer_props_depth_sorted;
           state.dirty = true;
@@ -730,11 +738,14 @@ namespace tools::tilesmith {
     }
 
     if (ImGui::BeginPopupModal("Validation Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): ImGui's printf-style API is varargs.
       ImGui::TextColored(ImVec4{1.f, .6f, 0.f, 1.f},
                          "%zu problem(s) found in this map:", state.validation_errors.size());
       ImGui::Spacing();
-      for (const auto &msg : state.validation_errors)
+      for (const auto &msg : state.validation_errors) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): ImGui's printf-style API is varargs.
         ImGui::BulletText("%s", msg.c_str());
+      }
       ImGui::Spacing();
       ImGui::Separator();
       ImGui::Spacing();
