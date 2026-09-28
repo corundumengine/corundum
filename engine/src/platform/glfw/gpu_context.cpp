@@ -81,8 +81,6 @@ namespace corundum::platform {
     sdesc.environment.metal.device = metal_device(ctx->impl_->metal_layer);
     if (sdesc.environment.metal.device == nullptr)
       return std::unexpected("GpuContext::create: Metal layer has no device");
-#else
-    sdesc.environment.gl.default_framebuffer = 0;
 #endif
     sdesc.logger.func = [](const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
                            const char *file, void *) {
