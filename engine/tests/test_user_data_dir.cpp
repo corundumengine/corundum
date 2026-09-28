@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/core/environment.hpp>
 #include <corundum/core/user_data_dir.hpp>
 
 #include <cstdlib>
@@ -21,12 +22,14 @@ namespace {
     std::optional<std::string> saved;
 
     /// Removes the variable for the guard's lifetime.
-    explicit EnvGuard(std::string_view variable_name) : name(variable_name), saved(read_env(name)) {
+    explicit EnvGuard(std::string_view variable_name)
+        : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
       unset_env(name);
     }
 
     /// Sets the variable to @p value for the guard's lifetime.
-    EnvGuard(std::string_view variable_name, const std::string &value) : name(variable_name), saved(read_env(name)) {
+    EnvGuard(std::string_view variable_name, const std::string &value)
+        : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
       set_env(name, value);
     }
 
@@ -43,13 +46,6 @@ namespace {
     EnvGuard &operator=(EnvGuard &&) = delete;
 
   private:
-    [[nodiscard]] static std::optional<std::string> read_env(const std::string &variable_name) {
-      const char *const value = std::getenv(variable_name.c_str());
-      if (value == nullptr)
-        return std::nullopt;
-      return std::string(value);
-    }
-
     // setenv/unsetenv are POSIX, declared by the platform's <stdlib.h>.
     // include-cleaner's only accepted header for them is Darwin's private
     // <_stdlib.h>, which is not portable.
@@ -82,6 +78,14 @@ namespace {
 TEST_CASE("user_data_dir — empty app_name is rejected") {
   const auto result = corundum::core::user_data_dir("");
   CHECK_FALSE(result.has_value());
+}
+
+TEST_CASE("read_env reports unset variables as absent and set ones as their value") {
+  const EnvGuard unset("CORUNDUM_TEST_ENV_ABSENT");
+  CHECK_FALSE(corundum::core::read_env("CORUNDUM_TEST_ENV_ABSENT").has_value());
+
+  const EnvGuard set("CORUNDUM_TEST_ENV_PRESENT", "value");
+  CHECK(corundum::core::read_env("CORUNDUM_TEST_ENV_PRESENT") == std::optional<std::string>("value"));
 }
 
 #ifdef __APPLE__

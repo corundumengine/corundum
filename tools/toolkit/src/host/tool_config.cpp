@@ -4,13 +4,14 @@
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include <corundum/core/environment.hpp>
 #include <corundum/core/json_io.hpp>
 
-#include <cstdlib>
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -18,19 +19,15 @@ using json = nlohmann::json;
 
 namespace corundum::toolkit::host {
 
-  // ── CLI argument scanning ─────────────────────────────────────────────────────
-
   static std::filesystem::path find_config_path(int argc, char *argv[]) {
     for (int i = 1; i < argc - 1; ++i) {
       if (std::string_view(argv[i]) == "--config")
         return argv[i + 1];
     }
-    if (const char *env = std::getenv("CORUNDUM_TOOLS_CONFIG"))
-      return env;
+    if (const std::optional<std::string> env = corundum::core::read_env("CORUNDUM_TOOLS_CONFIG"))
+      return *env;
     return "tools/tools.json";
   }
-
-  // ── Fallback: check if a file exists; return the path or a default ────────────
 
   static std::filesystem::path resolve_with_fallback(const std::filesystem::path &candidate,
                                                      const std::string &fallback_name) {
@@ -42,8 +39,6 @@ namespace corundum::toolkit::host {
       return fallback;
     return candidate;
   }
-
-  // ── Public API ────────────────────────────────────────────────────────────────
 
   std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]) {
     auto config_path = find_config_path(argc, argv);

@@ -12,6 +12,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 set(ENGINE_SOURCES
     src/animation/animation_system.cpp
     src/audio/audio_system.cpp
+    src/core/environment.cpp
     src/core/files.cpp
     src/core/game_config.cpp
     src/core/json_io.cpp

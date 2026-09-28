@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/environment.hpp>
 #include <corundum/core/user_data_dir.hpp>
-#include <cstdlib>
 #include <expected>
 #include <filesystem>
 #include <optional>
@@ -18,11 +18,11 @@ namespace corundum::core {
     // XDG base-directory rule requires ignoring a relative path, and skipping
     // one keeps this function's absolute-path guarantee.
     [[nodiscard]] std::optional<std::filesystem::path> env_dir(const char *name) {
-      const char *const value = std::getenv(name);
-      if (value == nullptr || value[0] == '\0')
+      const std::optional<std::string> value = read_env(name);
+      if (!value || value->empty())
         return std::nullopt;
 
-      std::filesystem::path path(value);
+      std::filesystem::path path(*value);
       if (!path.is_absolute())
         return std::nullopt;
       return path;

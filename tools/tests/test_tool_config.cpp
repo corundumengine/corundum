@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/core/environment.hpp>
 #include <corundum/toolkit/host/tool_config.hpp>
 
 #include <cstdlib>
@@ -58,9 +59,7 @@ namespace {
   /// Set an environment variable for the test's duration and restore the prior value.
   class ScopedEnv {
   public:
-    ScopedEnv(const char *name, const std::string &value) : name_(name) {
-      if (const char *prior = std::getenv(name))
-        prior_ = prior;
+    ScopedEnv(const char *name, const std::string &value) : name_(name), prior_(corundum::core::read_env(name)) {
       set(value);
     }
 
