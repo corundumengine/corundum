@@ -75,6 +75,15 @@ if(APPLE)
 else()
   find_package(OpenGL REQUIRED)
   target_link_libraries(engine_platform_glfw PRIVATE OpenGL::GL)
+
+  if(UNIX)
+    # sokol_audio's Linux/BSD backend talks to ALSA directly. Like OpenGL it is
+    # a system library with nothing to fetch, so it is found rather than
+    # vendored; without the link, sokol_audio_impl.cpp compiles but the final
+    # executable has undefined snd_* references.
+    find_package(ALSA REQUIRED)
+    target_link_libraries(engine_platform_glfw PRIVATE ALSA::ALSA)
+  endif()
 endif()
 
 corundum_use_cxx23(engine_platform_glfw)

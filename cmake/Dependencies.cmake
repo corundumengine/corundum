@@ -1,9 +1,10 @@
 # Third-party dependencies.
 #
 # Everything is fetched at configure time via FetchContent (no find_package,
-# no manual installs). The only exception is OpenGL, which on Linux must come
-# from the system — handled in engine/src/platform/CMakeLists.txt. Test-only
-# dependencies (doctest) are gated by CORUNDUM_BUILD_TESTS.
+# no manual installs). The only exceptions are the Linux system libraries that
+# cannot be fetched — OpenGL (GLCore) and ALSA (sokol_audio) — both found and
+# linked in engine/src/platform/CMakeLists.txt. Test-only dependencies (doctest)
+# are gated by CORUNDUM_BUILD_TESTS.
 #
 # FETCHCONTENT_QUIET is forced to FALSE so dependency configure logs stay
 # visible — nothing here is skippable via -DCORUNDUM_FETCHCONTENT=OFF.

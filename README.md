@@ -44,6 +44,20 @@ sudo apt install libc++-21-dev libc++abi-21-dev   # match your llvm version
 
 Requires CMake 4.3+ and a C++23 compiler. Dependencies (nlohmann/json, ImGui, GLFW, sokol, stb, FreeType, doctest) are fetched automatically via FetchContent.
 
+### Linux prerequisites
+
+GLFW and sokol also need system packages that FetchContent cannot provide: X11/Wayland and OpenGL for the window and renderer, and ALSA for sokol's audio backend. Along with the libc++ packages above:
+
+```sh
+sudo apt install \
+  pkg-config \
+  libgl-dev libasound2-dev \
+  libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev \
+  libwayland-dev wayland-protocols libxkbcommon-dev
+```
+
+`cmake --preset debug` fails configure if one is missing — GLFW and the platform `find_package` calls name the package.
+
 ## Run
 
 ```sh
