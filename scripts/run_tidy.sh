@@ -6,8 +6,9 @@
 #   scripts/run_tidy.sh --build-dir build-release <file> ...
 #
 # clang-tidy is resolved like CMake does: $LLVM_PREFIX, then the Homebrew LLVM
-# prefixes, then PATH. The compile DB lives in the given build dir (default
-# build/, matching the debug preset).
+# prefixes, then the distro LLVM under /usr/lib/llvm-*, then PATH. Keep this in
+# sync with cmake/ResolveLLVMPrefix.cmake. The compile DB lives in the given
+# build dir (default build/, matching the debug preset).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,6 +29,10 @@ resolve_clang_tidy() {
   local candidates=()
   [[ -n "${LLVM_PREFIX:-}" ]] && candidates+=("$LLVM_PREFIX/bin/clang-tidy")
   candidates+=("/opt/homebrew/opt/llvm/bin/clang-tidy" "/usr/local/opt/llvm/bin/clang-tidy")
+  # Highest-numbered distro LLVM on Linux, matching cmake/ResolveLLVMPrefix.cmake.
+  while IFS= read -r candidate; do
+    [[ -n "$candidate" ]] && candidates+=("$candidate")
+  done < <(compgen -G "/usr/lib/llvm-*/bin/clang-tidy" | sort -V -r || true)
   for candidate in "${candidates[@]}"; do
     [[ -x "$candidate" ]] && { echo "$candidate"; return; }
   done

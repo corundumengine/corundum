@@ -32,7 +32,15 @@ build/tools/tests/corundum_tools_tests -tc="*name*"         # run a single tools
 
 ### Toolchain
 
-The compiler is pinned to **Homebrew LLVM** (`brew install llvm`) via `cmake/llvm-clang.cmake`. Resolution order: explicit `LLVM_PREFIX` cache variable → `$LLVM_PREFIX` env var → `/opt/homebrew/opt/llvm` (Apple Silicon) → `/usr/local/opt/llvm` (Intel Mac) → PATH fallback. `clang-format` is resolved with `find_program` using `HINTS ${LLVM_PREFIX}/bin`; `scripts/run_tidy.sh` resolves `clang-tidy` with the same search order, so no PATH juggling is needed. Override the prefix with `cmake -DLLVM_PREFIX=/path/to/llvm ...` or `LLVM_PREFIX=... cmake ...`.
+The compiler is pinned to **LLVM** — Homebrew `llvm` on macOS (`brew install llvm`), `llvm-21` (or newer) from your distro or [apt.llvm.org](https://apt.llvm.org) on Linux — via `cmake/llvm-clang.cmake`. Resolution order: explicit `LLVM_PREFIX` cache variable → `$LLVM_PREFIX` env var → `/opt/homebrew/opt/llvm` (Apple Silicon) → `/usr/local/opt/llvm` (Intel Mac) → `/usr/lib/llvm-*` (Linux, newest first) → PATH. Configure reports the compiler it selected and fails if it is older than clang 19 or cannot build the engine's C++23 headers. Override the prefix with `cmake -DLLVM_PREFIX=/path/to/llvm ...` or `LLVM_PREFIX=... cmake ...`.
+
+corundum builds against **libc++ on every platform**. On Linux, clang defaults to the host libstdc++, which lacks `<mdspan>`, `<flat_map>` and `<print>` before GCC 15; `cmake/llvm-clang.cmake` applies `-stdlib=libc++` to the compile and link lines so Linux and macOS share one standard library. Install it before configuring:
+
+```sh
+sudo apt install libc++-21-dev libc++abi-21-dev   # match your llvm version
+```
+
+`cmake/ToolchainChecks.cmake` probes for those headers and stops configure with an actionable message if the library is missing. `clang-format` and `clang-tidy` resolve through the same prefix order (`cmake/ResolveLLVMPrefix.cmake`), so no PATH juggling is needed.
 
 Requires CMake 4.3+ and a C++23 compiler. Dependencies (nlohmann/json, ImGui, GLFW, sokol, stb, FreeType, doctest) are fetched automatically via FetchContent.
 

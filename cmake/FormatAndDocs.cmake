@@ -15,24 +15,14 @@ include_guard(GLOBAL)
 # (idempotent — Dependencies.cmake includes it again later).
 include(FetchContent)
 
-# Resolve LLVM_PREFIX: explicit cache variable → $LLVM_PREFIX env → Homebrew
-# prefixes. (The compiler itself is pinned in CMakePresets.json via
-# cmake/llvm-clang.cmake; this only locates the bundled clang-format/doxygen.)
-if(NOT DEFINED LLVM_PREFIX)
-  if(DEFINED ENV{LLVM_PREFIX})
-    set(LLVM_PREFIX "$ENV{LLVM_PREFIX}")
-  elseif(EXISTS "/opt/homebrew/opt/llvm/bin/clang-format")
-    set(LLVM_PREFIX "/opt/homebrew/opt/llvm")
-  elseif(EXISTS "/usr/local/opt/llvm/bin/clang-format")
-    set(LLVM_PREFIX "/usr/local/opt/llvm")
-  else()
-    set(LLVM_PREFIX "")
-  endif()
-endif()
-set(LLVM_PREFIX "${LLVM_PREFIX}" CACHE PATH "LLVM install prefix")
+# clang-format comes from the same LLVM install as the compiler, so resolve the
+# prefix through the shared resolver and never re-derive it here.
+include("${CMAKE_CURRENT_LIST_DIR}/ResolveLLVMPrefix.cmake")
+corundum_resolve_llvm_prefix(_corundum_llvm_prefix)
+set(LLVM_PREFIX "${_corundum_llvm_prefix}" CACHE PATH "LLVM install prefix")
 
 find_program(LLVM_CLANG_FORMAT clang-format
-    HINTS "${LLVM_PREFIX}/bin"
+    HINTS "${_corundum_llvm_prefix}/bin"
     REQUIRED
     DOC "clang-format from LLVM")
 

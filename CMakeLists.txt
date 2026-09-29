@@ -21,6 +21,10 @@ option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ON)
 option(CORUNDUM_BUILD_TESTS "Build unit tests" ON)
 option(CORUNDUM_BUILD_DOCS "Build Doxygen documentation" OFF)
 
+# Fail fast on a toolchain that can't build the engine's C++23 library surface,
+# before any developer target or dependency fetch runs.
+include(cmake/ToolchainChecks.cmake)
+
 # Developer targets (format_code, build_docs). Included before Dependencies.cmake
 # so the REQUIRED clang-format check fails fast instead of after dependency fetches.
 include(cmake/FormatAndDocs.cmake)
@@ -45,6 +49,7 @@ if(CORUNDUM_BUILD_TESTS)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools/editors/tilesmith/coords.hpp)
     add_subdirectory(tools/tests)
   else()
-    message(STATUS "tools tests skipped — tools/editors/tilesmith headers not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+    message(STATUS
+            "tools tests skipped — tools/editors/tilesmith headers not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
   endif()
 endif()
