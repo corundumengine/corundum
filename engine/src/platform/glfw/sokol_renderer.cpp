@@ -306,10 +306,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     // upload guard in ensure_uploaded() relies on.
 
     SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx) : gpu_ctx_(gpu_ctx) {
-      // The game renders at the logical window resolution: one render pixel per window point, up-scaled
-      // by the display. That keeps fill cost decoupled from a high-DPI panel's pixel count with no
-      // per-system tuning. Tools drive GpuContext directly and keep its native default.
-      gpu_ctx_.set_render_scale(1.f);
+      // The render-target scale is chosen per backend in update_screen_scale(); tools drive
+      // GpuContext directly and keep its native default.
 
       // GPU resources (shader, pipeline, vertex buffer, sampler, white texture) are
       // created lazily on the first begin_frame() so that shader/pipeline compilation —
@@ -478,6 +476,19 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
     void SokolRenderer::update_screen_scale() noexcept {
       const auto [win_w, win_h] = gpu_ctx_.window_size();
+#ifdef SOKOL_METAL
+      // Metal's CAMetalLayer up-scales the drawable to the view, so the game renders one pixel per
+      // logical point and the fill cost stays decoupled from a high-DPI panel's pixel count. Tools
+      // drive GpuContext directly and keep its native default.
+      gpu_ctx_.set_render_scale(1.f);
+#else
+      // GLCore has no layer to up-scale: the default framebuffer is the full physical one, so a
+      // logical-resolution render target would only shrink the viewport into the bottom-left corner
+      // of a high-DPI window. Raise the scale to the framebuffer/window ratio instead;
+      // compute_render_resolution() clamps the result to the framebuffer on each axis.
+      const auto [fb_w, fb_h] = gpu_ctx_.framebuffer_size();
+      gpu_ctx_.set_render_scale(native_render_scale(fb_w, fb_h, win_w, win_h));
+#endif
       const auto [render_w, render_h] = gpu_ctx_.render_size();
       screen_scale_ = derive_screen_scale(render_w, render_h, win_w, win_h);
     }

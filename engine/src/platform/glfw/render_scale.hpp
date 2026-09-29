@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -26,6 +27,24 @@ namespace corundum::platform::glfw {
     const float sx = win_w > 0 ? static_cast<float>(fb_w) / static_cast<float>(win_w) : 1.f;
     const float sy = win_h > 0 ? static_cast<float>(fb_h) / static_cast<float>(win_h) : 1.f;
     return {.x = sx, .y = sy};
+  }
+
+  /** @brief Render scale that makes the internal render target span the physical framebuffer.
+   *
+   * GLCore has no layer to up-scale a logical-resolution drawable (unlike Metal's CAMetalLayer), so
+   * the game must render at the framebuffer size or its viewport lands in the corner of a high-DPI
+   * window. The per-axis framebuffer/window ratio is the content scale; the larger axis is returned
+   * and compute_render_resolution() clamps it to the framebuffer per axis, so one scalar covers
+   * both. Half a pixel is added to each ratio so integer truncation cannot leave a one-pixel strip.
+   *
+   * @pre All sizes are >= 0.
+   * @return At least 1.0; 1.0 on a degenerate (zero-size) logical axis.
+   */
+  [[nodiscard]] constexpr float native_render_scale(int fb_w, int fb_h, int win_w, int win_h) noexcept {
+    const auto axis = [](int physical, int logical) -> float {
+      return logical > 0 ? (static_cast<float>(physical) + 0.5f) / static_cast<float>(logical) : 1.f;
+    };
+    return std::max({axis(fb_w, win_w), axis(fb_h, win_h), 1.f});
   }
 
   /** @brief Rasterisation size in physical pixels for a logical font size.

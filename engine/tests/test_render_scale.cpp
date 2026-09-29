@@ -5,7 +5,11 @@
 
 #include "render_scale.hpp"
 
+#include <corundum/core/render_resolution.hpp>
+
+using corundum::core::compute_render_resolution;
 using corundum::platform::glfw::derive_screen_scale;
+using corundum::platform::glfw::native_render_scale;
 using corundum::platform::glfw::physical_font_size;
 using corundum::platform::glfw::to_logical;
 
@@ -29,6 +33,39 @@ TEST_CASE("derive_screen_scale: degenerate logical size falls back to 1") {
   const auto degenerate = derive_screen_scale(0, 0, 0, 0);
   CHECK(degenerate.x == doctest::Approx(1.f));
   CHECK(degenerate.y == doctest::Approx(1.f));
+}
+
+TEST_CASE("native_render_scale: reaches the framebuffer on a high-DPI display") {
+  const float scale = native_render_scale(2560, 1440, 1280, 720); // 2x panel
+  const auto resolution = compute_render_resolution(1280, 720, 2560, 1440, scale);
+  CHECK(resolution.width == 2560);
+  CHECK(resolution.height == 1440);
+}
+
+TEST_CASE("native_render_scale: reaches a fractional-scaled framebuffer") {
+  const float scale = native_render_scale(1200, 900, 800, 600); // 1.5x panel
+  const auto resolution = compute_render_resolution(800, 600, 1200, 900, scale);
+  CHECK(resolution.width == 1200);
+  CHECK(resolution.height == 900);
+}
+
+TEST_CASE("native_render_scale: mismatched axes still cover the framebuffer") {
+  // The larger ratio is returned; the smaller axis clamps to its own framebuffer size.
+  const float scale = native_render_scale(2000, 900, 1000, 800);
+  const auto resolution = compute_render_resolution(1000, 800, 2000, 900, scale);
+  CHECK(resolution.width == 2000);
+  CHECK(resolution.height == 900);
+}
+
+TEST_CASE("native_render_scale: identity when framebuffer matches the window") {
+  const float scale = native_render_scale(1280, 720, 1280, 720);
+  const auto resolution = compute_render_resolution(1280, 720, 1280, 720, scale);
+  CHECK(resolution.width == 1280);
+  CHECK(resolution.height == 720);
+}
+
+TEST_CASE("native_render_scale: degenerate window falls back to 1") {
+  CHECK(native_render_scale(0, 0, 0, 0) == doctest::Approx(1.f));
 }
 
 TEST_CASE("physical_font_size rounds to the nearest physical pixel") {
