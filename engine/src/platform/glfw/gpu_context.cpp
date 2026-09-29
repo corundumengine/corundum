@@ -3,21 +3,21 @@
 
 #include "core/warn_log.hpp"
 #include "glfw_window.hpp"
+#include "gpu_backend.hpp"
 #include <corundum/core/render_resolution.hpp>
 #include <corundum/platform/gpu_context.hpp>
 
 #include <sokol_gfx.h>
 
-#ifdef SOKOL_METAL
-#include "metal/glfw_window_metal.h"
-#endif
-
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
 #include <cstdint>
+#include <format>
 
 namespace corundum::platform {
+
+  namespace gpu_backend = glfw::gpu_backend;
 
   namespace {
 
@@ -40,11 +40,12 @@ namespace corundum::platform {
 
   struct GpuContext::Impl {
     GLFWwindow *window{nullptr};
+
+    /// Backend device/swapchain seam for this context; null when the backend needs no separate state.
+    gpu_backend::Context *backend{nullptr};
+
     float render_scale{1.f};
-#ifdef SOKOL_METAL
-    MetalLayer *metal_layer{nullptr};
-    const void *metal_drawable{nullptr};
-#endif
+
     bool pass_active{false};
   };
 
@@ -68,20 +69,14 @@ namespace corundum::platform {
     // renderer lowers itself to the logical resolution (SokolRenderer's constructor).
     ctx->impl_->render_scale = ctx->dpi_scale();
 
-#ifdef SOKOL_METAL
-    // Borrowed wrapper: the window holds its own owning handle to this layer, so this one only
-    // needs metal_teardown_layer() to free the wrapper.
-    ctx->impl_->metal_layer = metal_get_layer(raw);
-    if (ctx->impl_->metal_layer == nullptr)
-      return std::unexpected("GpuContext::create: failed to get Metal layer");
-#endif
+    auto backend = gpu_backend::create(raw);
+    if (!backend)
+      return std::unexpected(std::format("GpuContext::create: {}", backend.error()));
+    ctx->impl_->backend = *backend;
 
     sg_desc sdesc{};
-#ifdef SOKOL_METAL
-    sdesc.environment.metal.device = metal_device(ctx->impl_->metal_layer);
-    if (sdesc.environment.metal.device == nullptr)
-      return std::unexpected("GpuContext::create: Metal layer has no device");
-#endif
+    if (auto configured = gpu_backend::configure_sokol(sdesc, ctx->impl_->backend); !configured)
+      return std::unexpected(std::format("GpuContext::create: {}", configured.error()));
     sdesc.logger.func = [](const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
                            const char *file, void *) {
       if (level <= k_max_reported_log_level)
@@ -102,11 +97,7 @@ namespace corundum::platform {
       if (sg_isvalid())
         sg_shutdown();
     }
-#ifdef SOKOL_METAL
-    metal_release_drawable(impl_->metal_drawable);
-    if (impl_->metal_layer != nullptr)
-      metal_teardown_layer(impl_->metal_layer);
-#endif
+    gpu_backend::destroy(impl_->backend);
   }
 
   bool GpuContext::begin_default_pass(core::math::Colour clear) {
@@ -132,21 +123,10 @@ namespace corundum::platform {
     swapchain.sample_count = 1;
     swapchain.depth_format = SG_PIXELFORMAT_NONE;
 
-#ifdef SOKOL_METAL
-    // The layer latches drawableSize once it has vended a drawable, so it has to be resized
-    // to match the pass dimensions every frame.
-    metal_set_drawable_size(impl_->metal_layer, fb_w, fb_h);
-    metal_release_drawable(impl_->metal_drawable);
-    impl_->metal_drawable = metal_next_drawable(impl_->metal_layer);
-    swapchain.color_format = SG_PIXELFORMAT_BGRA8;
-    swapchain.metal.current_drawable = impl_->metal_drawable;
-    if (swapchain.metal.current_drawable == nullptr) {
+    if (!gpu_backend::begin_pass(swapchain, impl_->backend, fb_w, fb_h)) {
       impl_->pass_active = false;
       return false;
     }
-#else
-    swapchain.color_format = SG_PIXELFORMAT_RGBA8;
-#endif
 
     sg_pass pass{};
     pass.action = action;
@@ -162,13 +142,7 @@ namespace corundum::platform {
     impl_->pass_active = false;
     sg_end_pass();
     sg_commit();
-#ifdef SOKOL_METAL
-    // sg_commit() presents and drops sokol's reference, so the retained drawable is free to go.
-    metal_release_drawable(impl_->metal_drawable);
-    impl_->metal_drawable = nullptr;
-#else
-    glfwSwapBuffers(impl_->window);
-#endif
+    gpu_backend::end_pass(impl_->backend, impl_->window);
   }
 
   std::pair<int, int> GpuContext::window_size() const noexcept {

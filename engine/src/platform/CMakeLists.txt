@@ -31,9 +31,12 @@ if(APPLE)
   # that include it must be compiled as Objective-C++.
   list(APPEND PLATFORM_GLFW_SOURCES
         glfw/metal/glfw_window_metal.mm
+        glfw/metal/gpu_backend.mm
         glfw/metal/window_graphics.mm)
 else()
-  list(APPEND PLATFORM_GLFW_SOURCES glfw/glcore/window_graphics.cpp)
+  list(APPEND PLATFORM_GLFW_SOURCES
+        glfw/glcore/gpu_backend.cpp
+        glfw/glcore/window_graphics.cpp)
 endif()
 
 add_library(engine_platform_glfw STATIC ${PLATFORM_GLFW_SOURCES})
