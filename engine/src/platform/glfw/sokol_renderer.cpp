@@ -38,24 +38,48 @@ namespace corundum::platform::glfw {
 
   namespace {
 
-    // Column-major orthographic projection, Y-down (top-left origin).
-    std::array<float, 16> make_ortho(float l, float r, float t, float b) noexcept {
+    /**
+     * @brief Orthographic projection mapping the rect (@p l..@p r, @p top..@p bottom) onto the
+     *        normalized device cube, in column-major (shader `mat4`) order.
+     *
+     * Y points down: @p top is the smaller (upper) coordinate and @p bottom the larger, so the
+     * Y scale is negative and larger Y values map downward. Z collapses to -1 — the renderer is
+     * 2D and orders draws itself, so there is no depth range.
+     *
+     * @param l,r     Horizontal bounds; @p l is the left edge.
+     * @param bottom  Lower edge (the larger Y in this top-left-origin space).
+     * @param top     Upper edge (the smaller Y).
+     */
+    std::array<float, 16> make_ortho(float l, float r, float bottom, float top) noexcept {
+      const float scale_x = 2.f / (r - l);
+      const float scale_y = 2.f / (top - bottom); // Negative: maps larger Y downward.
+      const float translate_x = -(r + l) / (r - l);
+      const float translate_y = -(top + bottom) / (top - bottom);
+
+      // Columns, not rows — the shader consumes this column-major.
       return {
           {
-              2.f / (r - l),
+              // Column 0: X scale.
+              scale_x,
               0.f,
               0.f,
               0.f,
+
+              // Column 1: Y scale.
               0.f,
-              2.f / (t - b),
+              scale_y,
               0.f,
               0.f,
+
+              // Column 2: depth collapse; every vertex lands at z = -1, so there is no depth test.
               0.f,
               0.f,
               -1.f,
               0.f,
-              -(r + l) / (r - l),
-              -(t + b) / (t - b),
+
+              // Column 3: translation to the rect center, and homogeneous w.
+              translate_x,
+              translate_y,
               0.f,
               1.f,
           },
@@ -407,14 +431,14 @@ namespace corundum::platform::glfw {
 
     void SokolRenderer::rebuild_proj() noexcept {
       if (world_view_active_) {
-        proj_ = make_ortho(cam_x_, cam_x_ + (vp_w_ / zoom_), cam_y_, cam_y_ + (vp_h_ / zoom_));
+        proj_ = make_ortho(cam_x_, cam_x_ + (vp_w_ / zoom_), cam_y_ + (vp_h_ / zoom_), cam_y_);
       } else {
         // Screen space spans the internal render target, matching the sokol swapchain built in
         // GpuContext::begin_default_pass(). draw() scales incoming logical-point positions by the
         // cached screen_scale_ so callers keep working in logical window points; only the emitted
         // geometry (and the baked font atlases, see ensure_metrics) is render-target-resolution.
         const auto [fb_w, fb_h] = gpu_ctx_.render_size();
-        proj_ = make_ortho(0.f, static_cast<float>(fb_w), 0.f, static_cast<float>(fb_h));
+        proj_ = make_ortho(0.f, static_cast<float>(fb_w), static_cast<float>(fb_h), 0.f);
       }
     }
 
