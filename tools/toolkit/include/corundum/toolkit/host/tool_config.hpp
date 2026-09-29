@@ -35,11 +35,11 @@ namespace corundum::toolkit::host {
    * Resolution chain:
    *   1. --config <path> from command line
    *   2. CORUNDUM_TOOLS_CONFIG environment variable
-   *   3. ./tools.json (CWD-relative)
+   *   3. tools/tools.json (CWD-relative)
    *
    * All relative paths in the JSON are resolved against the config file's parent
-   * directory. If font_path or theme_path point to a non-existent file, the
-   * helper falls back to tools/toolkit/assets/{default} relative to the executable.
+   * directory. If font_path, icons_font_path or theme_path point to a non-existent
+   * file, the helper falls back to tools/toolkit/assets/{default} relative to the CWD.
    *
    * @param argc  Argument count from main().
    * @param argv  Argument vector from main().
