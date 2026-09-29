@@ -8,6 +8,7 @@
 #include <corundum/audio/audio_system.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/core/rng.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/dialogue/action.hpp>
@@ -119,6 +120,10 @@ namespace corundum {
     debug::HudOverlay hud;
 
     core::time::LoopTimer timer{static_cast<float>(core::k_default_simulation_fps)};
+
+    /** @brief Deterministic gameplay RNG, seeded at startup. All gameplay randomness must come from
+     *  here so a run is reproducible from its seed. */
+    core::Rng rng;
 
     /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
      *

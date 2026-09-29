@@ -9,6 +9,7 @@
 #include <corundum/core/json_io.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/world/scene.hpp>
 #include <corundum/world/transition.hpp>
 
 #include <expected>
@@ -152,6 +153,10 @@ namespace corundum::save {
     }
 
     state.active_zone = engine.scene.zone_id;
+
+    if (!world::player_present(engine.scene))
+      return std::unexpected("save_game: no player entity");
+
     state.player_col = engine.scene.world.transforms.pos_col(engine.scene.player);
     state.player_row = engine.scene.world.transforms.pos_row(engine.scene.player);
     state.entered_from_world = engine.entered_from_world;

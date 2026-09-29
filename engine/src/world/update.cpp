@@ -32,9 +32,12 @@ namespace {
 
     auto &world = scene.world;
     const EntityId player = scene.player;
+    const bool has_player = player_present(scene);
 
-    corundum::physics::update_player(world.transforms, world.collisions, player, input, cfg.player_speed, map, scene,
-                                     dt);
+    if (has_player) {
+      corundum::physics::update_player(world.transforms, world.collisions, player, input, cfg.player_speed, map, scene,
+                                       dt);
+    }
 
     // Integrate all NPCs (player was already integrated inside update_player).
     // NPC velocities are zero today, but when AI gives them motion this establishes
@@ -46,6 +49,9 @@ namespace {
 
     corundum::animation::update(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
                                 iso, cfg.player_speed, dt);
+
+    if (!has_player)
+      return;
 
     const std::uint32_t player_slot = world.transforms.dense_index(player);
     const float player_col = world.transforms.col[player_slot];

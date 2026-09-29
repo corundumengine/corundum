@@ -106,4 +106,12 @@ namespace corundum::world {
     std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
   };
 
+  /** @brief True when scene.player names a live entity with a transform.
+   *
+   *  The player may legitimately be absent (death, possession, a party swap), so callers that
+   *  read the player's transform must check this first. */
+  [[nodiscard]] inline bool player_present(const Scene &scene) noexcept {
+    return scene.world.transforms.has(scene.player);
+  }
+
 } // namespace corundum::world

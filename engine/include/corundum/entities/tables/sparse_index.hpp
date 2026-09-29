@@ -3,10 +3,11 @@
 
 #pragma once
 #include <array>
-#include <cassert>
+#include <corundum/core/verify.hpp>
 #include <corundum/entities/entity.hpp>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <span>
 #include <utility>
 
@@ -35,8 +36,19 @@ namespace corundum::entities {
       return s != k_invalid && entities[s] == e;
     }
 
+    /** @brief Dense slot of @p e.
+     *  @pre has(e) must be true; enforced in every build type.
+     *  @return Index into this table's dense payload arrays. */
     [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept {
-      assert(has(e));
+      const bool present = has(e);
+      core::verify(present, "SparseIndex::dense_index: stale or foreign EntityId");
+      return sparse[e.index];
+    }
+
+    /** @brief Dense slot of @p e, or nullopt when @p e is stale, foreign or absent. Never aborts. */
+    [[nodiscard]] std::optional<std::uint32_t> try_dense_index(EntityId e) const noexcept {
+      if (!has(e))
+        return std::nullopt;
       return sparse[e.index];
     }
 
@@ -47,9 +59,11 @@ namespace corundum::entities {
     /// Insert spine: allocates a dense slot, links the sparse index, then
     /// calls @p write(slot) to let the table initialise its payload.
     /// @p count is the table's own count member (incremented after the write).
+    /// @pre @p e's index is in range and @p e is not already present; both enforced in
+    ///      every build type.
     template <typename Fn> void insert(EntityId e, std::uint32_t &count, Fn &&write) noexcept {
-      assert(e.index < KMax && "SparseIndex::insert: EntityId index out of range");
-      assert(!has(e));
+      core::verify(e.index < KMax, "SparseIndex::insert: EntityId index out of range");
+      core::verify(!has(e), "SparseIndex::insert: EntityId already present");
       const auto i = e.index;
       const auto slot = count;
       sparse[i] = slot;
@@ -61,8 +75,9 @@ namespace corundum::entities {
     /// Remove spine: swap-and-pop. Calls @p swap(slot, last) so the table
     /// can copy its own payload arrays, then invalidates the removed slot.
     /// @p count is the table's own count member (decremented after the swap).
+    /// @pre has(e) must be true; enforced in every build type.
     template <typename Fn> void remove(EntityId e, std::uint32_t &count, Fn &&swap) noexcept {
-      assert(has(e));
+      core::verify(has(e), "SparseIndex::remove: EntityId not present");
       const auto i = e.index;
       const auto slot = sparse[i];
       const auto last = count - 1;

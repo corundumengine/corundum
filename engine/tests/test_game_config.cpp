@@ -498,3 +498,33 @@ TEST_CASE("load_game_config — non-string window_mode returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("window_mode") != std::string::npos);
 }
+
+// ── rng_seed ──────────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — rng_seed parses as an unsigned integer") {
+  const auto dir = temp_dir("rng_seed");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"rng_seed": 42})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  REQUIRE(result->rng_seed.has_value());
+  CHECK(result->rng_seed == 42u);
+}
+
+TEST_CASE("load_game_config — absent rng_seed leaves the seed unset") {
+  const auto dir = temp_dir("rng_seed_absent");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK_FALSE(result->rng_seed.has_value());
+}
+
+TEST_CASE("load_game_config — non-integer rng_seed returns an error") {
+  const auto dir = temp_dir("rng_seed_type");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"rng_seed": "forty-two"})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("rng_seed") != std::string::npos);
+}

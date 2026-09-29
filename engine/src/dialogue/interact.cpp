@@ -86,6 +86,10 @@ namespace corundum::dialogue {
     if (!input.is_pressed(corundum::input::Action::Select))
       return;
 
+    // A despawned player has no position to measure interaction range from.
+    if (!corundum::world::player_present(scene))
+      return;
+
     // A mouse click also raises Select (so click-to-interact can exist at all), but
     // unlike a keyboard/gamepad press it carries a screen position — require it to
     // actually be aimed at the NPC, not just "a click happened while nearby" (that

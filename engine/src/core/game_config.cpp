@@ -438,6 +438,17 @@ namespace corundum::core {
       cfg.game_id = std::move(*res);
     }
 
+    if (j.contains("rng_seed")) {
+      const json &value = j.at("rng_seed");
+      if (!value.is_number_integer() && !value.is_number_unsigned())
+        return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
+      try {
+        cfg.rng_seed = value.get<std::uint64_t>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
+      }
+    }
+
     if (auto err = parse_window_settings(j, cfg, path); !err)
       return std::unexpected(err.error());
     if (auto err = parse_gameplay_settings(j, cfg, path); !err)

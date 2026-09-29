@@ -760,6 +760,10 @@ namespace corundum::render {
       if (state.chunks.active_empty())
         return false;
 
+      // A despawned player means no one to recenter on; leave the window where it is.
+      if (!corundum::world::player_present(scene))
+        return false;
+
       const int diamond_w = state.chunks.active_at(0).tilemap.diamond_w();
       const int diamond_h = state.chunks.active_at(0).tilemap.diamond_h();
       const int total_h = state.manifest.tiles_tall > 0 ? state.manifest.tiles_tall

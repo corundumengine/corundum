@@ -42,6 +42,10 @@ namespace corundum::platform::null {
         mapper.key(key, down);
       scripted_keys.clear();
 
+      for (const auto &[button, down] : scripted_mouse)
+        mapper.mouse_button(button, down);
+      scripted_mouse.clear();
+
       if (gamepad)
         mapper.gamepad(*gamepad);
       else
@@ -86,6 +90,9 @@ namespace corundum::platform::null {
 
     /** @brief Key transitions fed on the next poll_game_input(), then cleared. */
     std::vector<std::pair<corundum::input::Key, bool>> scripted_keys;
+
+    /** @brief Mouse-button transitions fed on the next poll_game_input(), then cleared. */
+    std::vector<std::pair<corundum::input::MouseButton, bool>> scripted_mouse;
 
     /** @brief Events emitted on the next poll_game_input(), then cleared.
      *

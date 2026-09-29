@@ -35,6 +35,7 @@
 #include <expected>
 #include <format>
 #include <memory>
+#include <random>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -82,6 +83,13 @@ namespace corundum {
         engine_->cfg = std::move(cfg);
         engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
         engine_->window->set_vsync(engine_->cfg.vsync);
+
+        const std::uint64_t rng_seed = engine_->cfg.rng_seed.value_or([] {
+          std::random_device rd;
+          return (static_cast<std::uint64_t>(rd()) << 32U) | static_cast<std::uint64_t>(rd());
+        }());
+        engine_->rng = core::Rng{rng_seed};
+        corundum::detail::info_log("[engine] RNG seed {}", rng_seed);
 
         if (auto result = load_render_assets(); !result)
           return result;

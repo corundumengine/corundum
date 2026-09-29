@@ -78,7 +78,7 @@ namespace corundum::entities {
      *  @param[in] id Entity handle returned by create().
      */
     void destroy(EntityId id) noexcept {
-      assert(id.index < k_max_entities && "Entity ID out of range");
+      core::verify(id.index < k_max_entities, "Entity ID out of range");
       if (id.generation != generations_[id.index])
         return; // Already destroyed or stale handle — no-op.
       assert(free_count_ < k_max_entities && "Double-destroy detected");

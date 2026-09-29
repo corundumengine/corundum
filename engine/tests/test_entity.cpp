@@ -10,14 +10,39 @@
 #include <corundum/sprites/sprite.hpp>
 #include <cstdint>
 #include <doctest/doctest.h>
+#include <optional>
 
 using namespace corundum::entities;
 using corundum::entities::Position;
 using corundum::entities::Sprite;
 using corundum::entities::Velocity;
 
+namespace {
+
+  /// A one-frame sprite using the default animation, pointing at @p sprite_id. Cases that need a
+  /// Sprite but don't care which art it names use this instead of repeating its three fields.
+  Sprite default_sprite(corundum::sprites::SpriteId sprite_id) {
+    return Sprite{.sprite_id = sprite_id, .anim_id = corundum::sprites::AnimId::Default, .frame_index = 0};
+  }
+
+  /// Spawn with the standard components, requiring success. The pool-exhaustion case exercises the
+  /// failure path directly, so every other case here can assume a free slot.
+  EntityId spawn_or_require(World &w, Position pos, Velocity vel, Sprite spr) {
+    const std::optional<EntityId> id = spawn(w, pos, vel, spr);
+    REQUIRE(id.has_value());
+    return id.value_or(EntityId::invalid());
+  }
+
+  EntityId spawn_or_require(World &w, Position pos, Velocity vel, Sprite spr, Animation anim) {
+    const std::optional<EntityId> id = spawn(w, pos, vel, spr, anim);
+    REQUIRE(id.has_value());
+    return id.value_or(EntityId::invalid());
+  }
+
+} // namespace
+
 TEST_CASE("EntityId default is invalid") {
-  EntityId e{};
+  const EntityId e{};
   CHECK_FALSE(e.valid());
   CHECK(e == EntityId::invalid());
 }
@@ -130,6 +155,48 @@ TEST_CASE("TransformTable stale EntityId rejected") {
   mgr.destroy(e2);
 }
 
+TEST_CASE("TransformTable try_dense_index returns the slot for a live entity") {
+  EntityManager mgr;
+  TransformTable table;
+
+  const EntityId e = mgr.create();
+  table.insert(e, 1.f, 2.f, 3.f, 4.f);
+
+  const std::optional<std::uint32_t> slot = table.try_dense_index(e);
+  REQUIRE(slot.has_value());
+  CHECK(slot == table.dense_index(e));
+
+  table.remove(e);
+  mgr.destroy(e);
+}
+
+TEST_CASE("TransformTable try_dense_index rejects a stale handle after slot reuse") {
+  EntityManager mgr;
+  TransformTable table;
+
+  const EntityId a = mgr.create();
+  table.insert(a, 1.f, 2.f, 0.f, 0.f);
+  table.remove(a);
+  mgr.destroy(a);
+
+  const EntityId b = mgr.create();
+  CHECK(b.index == a.index);
+  CHECK(b.generation != a.generation);
+  table.insert(b, 5.f, 6.f, 0.f, 0.f);
+
+  CHECK_FALSE(table.try_dense_index(a).has_value());
+  CHECK_FALSE(table.has(a));
+  CHECK(table.try_dense_index(b).has_value());
+
+  table.remove(b);
+  mgr.destroy(b);
+}
+
+TEST_CASE("TransformTable try_dense_index rejects an invalid handle") {
+  const TransformTable table;
+  CHECK_FALSE(table.try_dense_index(EntityId::invalid()).has_value());
+}
+
 TEST_CASE("TransformTable swap-and-pop correctness") {
   EntityManager mgr;
   TransformTable table;
@@ -162,9 +229,10 @@ TEST_CASE("TransformTable swap-and-pop correctness") {
 
 TEST_CASE("World spawn and despawn") {
   World w;
-  const EntityId e = spawn(w, Position{3.f, 4.f}, Velocity{0.5f, 0.f},
-                           Sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0})
-                         .value();
+  const Position pos{.col = 3.f, .row = 4.f};
+  const Velocity vel{.dc = 0.5f, .dr = 0.f};
+  const EntityId e = spawn_or_require(w, pos, vel, default_sprite(corundum::sprites::SpriteId{1}));
+
   CHECK(e.valid());
   CHECK(w.entities.is_live(e));
   CHECK(w.transforms.has(e));
@@ -181,9 +249,9 @@ TEST_CASE("World spawn with Animation copies frame counts into the animation tab
   Animation anim{};
   anim.frame_counts[static_cast<std::uint8_t>(corundum::sprites::AnimId::Default)] = 7;
 
-  const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
-                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0}, anim)
-                         .value();
+  const Position pos{.col = 1.f, .row = 2.f};
+  const Velocity vel{};
+  const EntityId e = spawn_or_require(w, pos, vel, default_sprite(corundum::sprites::SpriteId{2}), anim);
 
   CHECK(w.animations.has(e));
   CHECK(w.animations.frame_count(e, corundum::sprites::AnimId::Default) == 7);
@@ -192,12 +260,11 @@ TEST_CASE("World spawn with Animation copies frame counts into the animation tab
 TEST_CASE("World mark_for_deletion and flush_deletions") {
   World w;
 
-  const EntityId e1 = spawn(w, Position{1.f, 2.f}, Velocity{},
-                            Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0})
-                          .value();
-  const EntityId e2 = spawn(w, Position{3.f, 4.f}, Velocity{},
-                            Sprite{corundum::sprites::SpriteId{3}, corundum::sprites::AnimId::Default, 0})
-                          .value();
+  const Position pos1{.col = 1.f, .row = 2.f};
+  const Position pos2{.col = 3.f, .row = 4.f};
+  const Velocity vel{};
+  const EntityId e1 = spawn_or_require(w, pos1, vel, default_sprite(corundum::sprites::SpriteId{2}));
+  const EntityId e2 = spawn_or_require(w, pos2, vel, default_sprite(corundum::sprites::SpriteId{3}));
 
   mark_for_deletion(w, e1);
   mark_for_deletion(w, e2);
@@ -214,9 +281,9 @@ TEST_CASE("World mark_for_deletion and flush_deletions") {
 
 TEST_CASE("World mark_for_deletion deduplicates double marks") {
   World w;
-  const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
-                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0})
-                         .value();
+  const Position pos{.col = 1.f, .row = 2.f};
+  const Velocity vel{};
+  const EntityId e = spawn_or_require(w, pos, vel, default_sprite(corundum::sprites::SpriteId{2}));
   CHECK(w.entities.is_live(e));
 
   mark_for_deletion(w, e);
@@ -231,19 +298,19 @@ TEST_CASE("World mark_for_deletion deduplicates double marks") {
 
 TEST_CASE("World spawn fills the pool to k_max_entities, then reports it full") {
   World w;
-  const Sprite sprite{corundum::sprites::SpriteId{1}, corundum::sprites::AnimId::Default, 0};
+  const Sprite sprite = default_sprite(corundum::sprites::SpriteId{1});
   for (std::uint32_t i = 0; i < k_max_entities; ++i)
-    REQUIRE(spawn(w, Position{0.f, 0.f}, Velocity{}, sprite).has_value());
+    REQUIRE(spawn(w, Position{.col = 0.f, .row = 0.f}, Velocity{}, sprite).has_value());
 
   CHECK(w.entities.full());
-  CHECK_FALSE(spawn(w, Position{0.f, 0.f}, Velocity{}, sprite).has_value());
+  CHECK_FALSE(spawn(w, Position{.col = 0.f, .row = 0.f}, Velocity{}, sprite).has_value());
 }
 
 TEST_CASE("World flush_deletions skips an entity despawned directly after it was marked") {
   World w;
-  const EntityId e = spawn(w, Position{1.f, 2.f}, Velocity{},
-                           Sprite{corundum::sprites::SpriteId{2}, corundum::sprites::AnimId::Default, 0})
-                         .value();
+  const Position pos{.col = 1.f, .row = 2.f};
+  const Velocity vel{};
+  const EntityId e = spawn_or_require(w, pos, vel, default_sprite(corundum::sprites::SpriteId{2}));
   mark_for_deletion(w, e);
   despawn(w, e);
 

@@ -4,8 +4,10 @@
 #pragma once
 #include <corundum/core/window_mode.hpp>
 
+#include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace corundum::core {
@@ -107,6 +109,10 @@ namespace corundum::core {
      *  Written into saves via `game_id` and compared on load to refuse loading
      *  a save across games. Absent from game.json → empty string (no guard). */
     std::string game_id;
+
+    /** @brief Fixed seed for Engine::rng, for reproducible runs. Absent → one draw from
+     *  std::random_device at startup (logged). */
+    std::optional<std::uint64_t> rng_seed{};
 
     /** @brief Target fixed-update rate for the simulation, in Hz. Rendering is paced independently by
      *  vsync, so this neither caps nor follows the display rate. */
