@@ -31,11 +31,12 @@ namespace corundum::platform::glfw {
 
   /** @brief Render scale that makes the internal render target span the physical framebuffer.
    *
-   * GLCore has no layer to up-scale a logical-resolution drawable (unlike Metal's CAMetalLayer), so
-   * the game must render at the framebuffer size or its viewport lands in the corner of a high-DPI
-   * window. The per-axis framebuffer/window ratio is the content scale; the larger axis is returned
-   * and compute_render_resolution() clamps it to the framebuffer per axis, so one scalar covers
-   * both. Half a pixel is added to each ratio so integer truncation cannot leave a one-pixel strip.
+   * A backend that presents the framebuffer directly, with no layer to up-scale a
+   * logical-resolution drawable, must render at the framebuffer size or its viewport lands in the
+   * corner of a high-DPI window. The per-axis framebuffer/window ratio is the content scale; the
+   * larger axis is returned and compute_render_resolution() clamps it to the framebuffer per axis,
+   * so one scalar covers both. Half a pixel is added to each ratio so integer truncation cannot
+   * leave a one-pixel strip.
    *
    * @pre All sizes are >= 0.
    * @return At least 1.0; 1.0 on a degenerate (zero-size) logical axis.

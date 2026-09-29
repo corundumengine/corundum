@@ -24,10 +24,16 @@ set(PLATFORM_GLFW_SOURCES
     sokol/sokol_audio_impl.cpp
     sokol/sokol_audio_backend.cpp
 )
+# The graphics-API seam is a build-time choice: exactly one of these translation units links, so
+# the shared window code carries no Metal/GLCore conditional.
 if(APPLE)
   # sokol_gfx.h uses #import on macOS; the implementation and renderer files
   # that include it must be compiled as Objective-C++.
-  list(APPEND PLATFORM_GLFW_SOURCES glfw/glfw_window_metal.mm)
+  list(APPEND PLATFORM_GLFW_SOURCES
+        glfw/metal/glfw_window_metal.mm
+        glfw/metal/window_graphics.mm)
+else()
+  list(APPEND PLATFORM_GLFW_SOURCES glfw/glcore/window_graphics.cpp)
 endif()
 
 add_library(engine_platform_glfw STATIC ${PLATFORM_GLFW_SOURCES})
@@ -38,6 +44,7 @@ target_include_directories(engine_platform_glfw
     PRIVATE
         ${sokol_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw
 )
 target_include_directories(engine_platform_glfw
     SYSTEM PRIVATE

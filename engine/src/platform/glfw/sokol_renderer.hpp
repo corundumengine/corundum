@@ -24,8 +24,8 @@ namespace corundum::platform::glfw {
    *
    * @return Owning pointer to the initialised Renderer.
    *
-   * @note The shader sources are Metal (MSL) only, matching the current macOS/Metal
-   *       support in GpuContext; the D3D11 and GLCore paths are not implemented yet.
+   * @note Shader sources and descriptor bindings are per-backend, provided by the translation
+   *       unit selected for the build.
    */
   [[nodiscard]] std::unique_ptr<corundum::platform::Renderer>
   make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx);

@@ -9,7 +9,7 @@
 #include <sokol_gfx.h>
 
 #ifdef SOKOL_METAL
-#include "glfw_window_metal.h"
+#include "metal/glfw_window_metal.h"
 #endif
 
 #include <GLFW/glfw3.h>

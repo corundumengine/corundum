@@ -3,6 +3,7 @@
 
 #include "glfw_window.hpp"
 #include "input_translator.hpp"
+#include "window_graphics.hpp"
 
 #include <corundum/core/window_mode.hpp>
 #include <corundum/input/input_mapper.hpp>
@@ -10,10 +11,6 @@
 #include <corundum/platform/platform_events.hpp>
 
 #include <GLFW/glfw3.h>
-
-#ifdef SOKOL_METAL
-#include "glfw_window_metal.h"
-#endif
 
 #include <algorithm>
 #include <bit>
@@ -72,9 +69,8 @@ namespace corundum::platform::glfw {
 
       corundum::platform::PlatformEvents events{};
 
-#ifdef SOKOL_METAL
-      MetalLayer *metal_layer{nullptr};
-#endif
+      /// Backend graphics seam for this window; null when the backend needs no separate object.
+      window_graphics::Context *context{nullptr};
     };
 
     void key_callback(GLFWwindow *win, int key, int /*scancode*/, int action, int /*mods*/) noexcept {
@@ -215,14 +211,11 @@ namespace corundum::platform::glfw {
       return best;
     }
 
-#ifdef SOKOL_METAL
     void content_scale_callback(GLFWwindow *win, float /*xscale*/, float /*yscale*/) noexcept {
       const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
-      if (data != nullptr && data->metal_layer != nullptr) {
-        metal_sync_contents_scale(data->metal_layer, win);
-      }
+      if (data != nullptr)
+        window_graphics::sync_content_scale(data->context, win);
     }
-#endif
   } // namespace
 
   struct GLFWWindow::Impl {
@@ -281,17 +274,10 @@ namespace corundum::platform::glfw {
   GLFWWindow::GLFWWindow(unsigned width, unsigned height, std::string_view title) : impl_{std::make_unique<Impl>()} {
     glfwDefaultWindowHints();
 
-    // Created hidden; the owner reveals the window after the first frame is on screen, so the OS
-    // never composites an unpainted window while assets load.
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-
-#ifdef SOKOL_METAL
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-#else
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#endif
+    // Start hidden so the OS never composites an unpainted surface while assets load; a backend
+    // whose platform cannot present a hidden window starts visible instead (see window_graphics).
+    glfwWindowHint(GLFW_VISIBLE, window_graphics::can_present_hidden() ? GLFW_FALSE : GLFW_TRUE);
+    window_graphics::apply_creation_hints();
 
     impl_->win = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), std::string{title}.c_str(),
                                   nullptr, nullptr);
@@ -310,27 +296,19 @@ namespace corundum::platform::glfw {
       // Borderless fullscreen should stay visible behind other windows on alt-tab, not minimise.
       glfwSetWindowAttrib(impl_->win, GLFW_AUTO_ICONIFY, GLFW_FALSE);
 
-#ifdef SOKOL_METAL
-      impl_->data.metal_layer = metal_setup_layer(impl_->win);
+      impl_->data.context = window_graphics::create(impl_->win);
       glfwSetWindowContentScaleCallback(impl_->win, content_scale_callback);
-#else
-      glfwMakeContextCurrent(impl_->win);
-#endif
     }
   }
 
   GLFWWindow::~GLFWWindow() {
     if (impl_) {
       if (impl_->win != nullptr) {
-#ifdef SOKOL_METAL
-        if (impl_->data.metal_layer != nullptr) {
-          // Destroying the window below can drive the content-scale callback, so stop it
-          // reaching the handle before the handle is freed.
-          MetalLayer *layer = impl_->data.metal_layer;
-          impl_->data.metal_layer = nullptr;
-          metal_teardown_layer(layer);
-        }
-#endif
+        // Destroying the window below can drive the content-scale callback, so drop the context
+        // reference before the context is freed.
+        window_graphics::Context *context = impl_->data.context;
+        impl_->data.context = nullptr;
+        window_graphics::destroy(context);
         glfwDestroyWindow(impl_->win);
       }
       glfw_term_if_done();
@@ -388,13 +366,7 @@ namespace corundum::platform::glfw {
   void GLFWWindow::set_vsync(bool enabled) {
     if (!impl_ || impl_->win == nullptr)
       return;
-#ifdef SOKOL_METAL
-    if (impl_->data.metal_layer != nullptr)
-      metal_set_display_sync(impl_->data.metal_layer, enabled ? 1 : 0);
-#else
-    glfwMakeContextCurrent(impl_->win);
-    glfwSwapInterval(enabled ? 1 : 0);
-#endif
+    window_graphics::set_vsync(impl_->data.context, impl_->win, enabled);
   }
 
   std::string GLFWWindow::input_label(corundum::input::PhysicalInput input) const {
