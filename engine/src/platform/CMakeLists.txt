@@ -32,10 +32,12 @@ if(APPLE)
   list(APPEND PLATFORM_GLFW_SOURCES
         glfw/metal/glfw_window_metal.mm
         glfw/metal/gpu_backend.mm
+        glfw/metal/render_backend.mm
         glfw/metal/window_graphics.mm)
 else()
   list(APPEND PLATFORM_GLFW_SOURCES
         glfw/glcore/gpu_backend.cpp
+        glfw/glcore/render_backend.cpp
         glfw/glcore/window_graphics.cpp)
 endif()
 

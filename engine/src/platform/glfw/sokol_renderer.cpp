@@ -4,6 +4,7 @@
 #include "sokol_renderer.hpp"
 #include "core/warn_log.hpp"
 #include "font_atlas.hpp"
+#include "render_backend.hpp"
 #include "render_scale.hpp"
 #include "sokol_texture_upload.hpp"
 
@@ -79,75 +80,6 @@ namespace corundum::platform::glfw {
     constexpr int k_max_quads = 16384;
     constexpr int k_max_vertices = k_max_quads * 6;
     constexpr int k_vertex_buf_size = k_max_vertices * static_cast<int>(sizeof(Vertex));
-
-    // Shader source and descriptor bindings are per-backend: MSL for Metal (macOS), GLSL for the
-    // GLCore backend used on Windows/Linux. The GL backend resolves individual uniform locations,
-    // so it needs the `glsl_uniforms` member list plus a `glsl_name` for the texture/sampler pair
-    // that Metal takes from the shader's own binding qualifiers.
-
-#ifdef SOKOL_GLCORE
-    constexpr const char *k_vs_src = R"(#version 330 core
-layout(location = 0) in vec2 position;
-layout(location = 1) in vec2 texcoord;
-layout(location = 2) in vec4 color;
-uniform mat4 proj;
-out vec2 v_texcoord;
-out vec4 v_color;
-void main() {
-    gl_Position = proj * vec4(position, 0.0, 1.0);
-    v_texcoord = texcoord;
-    v_color = color;
-}
-)";
-
-    constexpr const char *k_fs_src = R"(#version 330 core
-in vec2 v_texcoord;
-in vec4 v_color;
-uniform sampler2D tex;
-out vec4 frag_color;
-void main() {
-    frag_color = texture(tex, v_texcoord) * v_color;
-}
-)";
-#else
-    constexpr const char *k_vs_src = R"(
-#include <metal_stdlib>
-using namespace metal;
-struct Vertex {
-    float2 position [[attribute(0)]];
-    float2 texcoord [[attribute(1)]];
-    float4 color    [[attribute(2)]];
-};
-struct Varyings {
-    float4 clip_pos [[position]];
-    float2 texcoord;
-    float4 color;
-};
-struct UB { float4x4 proj; };
-vertex Varyings vs_main(Vertex in [[stage_in]], constant UB& ub [[buffer(0)]]) {
-    Varyings out;
-    out.clip_pos = ub.proj * float4(in.position, 0.0, 1.0);
-    out.texcoord = in.texcoord;
-    out.color = in.color;
-    return out;
-}
-)";
-
-    constexpr const char *k_fs_src = R"(
-#include <metal_stdlib>
-using namespace metal;
-struct Varyings {
-    float4 clip_pos [[position]];
-    float2 texcoord;
-    float4 color;
-};
-fragment float4 fs_main(Varyings in [[stage_in]],
-                        texture2d<float> tex [[texture(0)]],
-                        sampler samp [[sampler(0)]]) {
-    return tex.sample(samp, in.texcoord) * in.color;
-}
-)";
-#endif
 
     void emit_quad(std::vector<Vertex> &out, float px, float py, float pw, float ph, float u0, float v0, float u1,
                    float v1, float r, float g, float b, float a) {
@@ -311,7 +243,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
       // GPU resources (shader, pipeline, vertex buffer, sampler, white texture) are
       // created lazily on the first begin_frame() so that shader/pipeline compilation —
-      // a costly Metal step on cold start — no longer blocks make_engine()/create_platform().
+      // a costly step on some backends' cold start — no longer blocks make_engine()/create_platform().
       // The window can then appear before any shader work happens. Textures and fonts
       // loaded during initialize() call only sg_make_image / FreeType (which need the
       // sokol device from GpuContext, already set up) and never this pipeline.
@@ -336,10 +268,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
         return;
 
       sg_shader_desc shdesc{};
-      shdesc.vertex_func.source = k_vs_src;
-      shdesc.fragment_func.source = k_fs_src;
-      shdesc.vertex_func.entry = "vs_main";
-      shdesc.fragment_func.entry = "fs_main";
+      shdesc.vertex_func.source = render_backend::vertex_shader_source();
+      shdesc.fragment_func.source = render_backend::fragment_shader_source();
       shdesc.uniform_blocks[0].stage = SG_SHADERSTAGE_VERTEX;
       shdesc.uniform_blocks[0].size = sizeof(float) * 16;
       shdesc.views[0].texture.stage = SG_SHADERSTAGE_FRAGMENT;
@@ -350,14 +280,7 @@ fragment float4 fs_main(Varyings in [[stage_in]],
       shdesc.texture_sampler_pairs[0].stage = SG_SHADERSTAGE_FRAGMENT;
       shdesc.texture_sampler_pairs[0].view_slot = 0;
       shdesc.texture_sampler_pairs[0].sampler_slot = 0;
-#ifdef SOKOL_GLCORE
-      shdesc.uniform_blocks[0].glsl_uniforms[0] = {.type = SG_UNIFORMTYPE_MAT4, .array_count = 1, .glsl_name = "proj"};
-      shdesc.texture_sampler_pairs[0].glsl_name = "tex";
-#else
-      shdesc.uniform_blocks[0].msl_buffer_n = 0;
-      shdesc.views[0].texture.msl_texture_n = 0;
-      shdesc.samplers[0].msl_sampler_n = 0;
-#endif
+      render_backend::configure_shader(shdesc);
       pipeline_shader_ = sg_make_shader(&shdesc);
 
       sg_pipeline_desc pdesc{};
@@ -476,19 +399,8 @@ fragment float4 fs_main(Varyings in [[stage_in]],
 
     void SokolRenderer::update_screen_scale() noexcept {
       const auto [win_w, win_h] = gpu_ctx_.window_size();
-#ifdef SOKOL_METAL
-      // Metal's CAMetalLayer up-scales the drawable to the view, so the game renders one pixel per
-      // logical point and the fill cost stays decoupled from a high-DPI panel's pixel count. Tools
-      // drive GpuContext directly and keep its native default.
-      gpu_ctx_.set_render_scale(1.f);
-#else
-      // GLCore has no layer to up-scale: the default framebuffer is the full physical one, so a
-      // logical-resolution render target would only shrink the viewport into the bottom-left corner
-      // of a high-DPI window. Raise the scale to the framebuffer/window ratio instead;
-      // compute_render_resolution() clamps the result to the framebuffer on each axis.
       const auto [fb_w, fb_h] = gpu_ctx_.framebuffer_size();
-      gpu_ctx_.set_render_scale(native_render_scale(fb_w, fb_h, win_w, win_h));
-#endif
+      gpu_ctx_.set_render_scale(render_backend::render_scale(fb_w, fb_h, win_w, win_h));
       const auto [render_w, render_h] = gpu_ctx_.render_size();
       screen_scale_ = derive_screen_scale(render_w, render_h, win_w, win_h);
     }
