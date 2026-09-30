@@ -11,13 +11,14 @@
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/input/actions.hpp>
-#include <corundum/platform/null/null_platform.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <corundum/world/transition.hpp>
 #include <corundum/world/update.hpp>
+
+#include "world_transition_fixtures.hpp"
 
 #include <expected>
 #include <filesystem>
@@ -32,22 +33,9 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
-    corundum::core::GameConfig cfg{};
-    cfg.window_title = "world_transition_test";
-    cfg.win_w = 320.f;
-    cfg.win_h = 240.f;
-    cfg.paths.sprites_dir = (fixtures / "sprites").string();
-    cfg.paths.font_dir = (fixtures / "fonts").string();
-    cfg.paths.game_font = "missing.ttf"; // NullRenderer ignores file existence
-    cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
-    cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-    cfg.paths.portals_dir = (fixtures / "portals").string();
-    cfg.paths.dialogue_dir.clear();
-    cfg.paths.quests_dir.clear();
-    cfg.paths.sounds_dir.clear();
-    return cfg;
-  }
+  using corundum::test::adopt_platform;
+  using corundum::test::advance_with;
+  using corundum::test::make_world_config;
 
   /// Like make_world_config but with the 5×1 streaming-world manifest.
   corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
@@ -55,11 +43,6 @@ namespace {
     cfg.window_title = "streaming_test";
     cfg.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
     return cfg;
-  }
-
-  void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
-    corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(w, h);
-    corundum::platform::null::adopt_null_platform(engine, platform);
   }
 
   /// Read the player's tile col/row from the scene transforms.
@@ -77,17 +60,6 @@ namespace {
   void advance(corundum::Engine &engine) {
     const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
     const corundum::input::InputState input{};
-    corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
-                            static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
-                            engine.flags, &engine.quests);
-  }
-
-  /// Run one fixed simulation step with a single action's `pressed` bit set. Used to drive
-  /// the portal-confirm prompt's Select/Cancel path through update_transition_prompt().
-  void advance_with(corundum::Engine &engine, corundum::input::Action action) {
-    const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
-    corundum::input::InputState input{};
-    input.pressed.set(static_cast<std::size_t>(action));
     corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
                             static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
                             engine.flags, &engine.quests);
@@ -143,62 +115,6 @@ TEST_CASE("world transition — boot lands in World mode at the manifest centre"
   CHECK_FALSE(engine.entered_from_world);
   // World zone id comes from the manifest's directory name.
   CHECK(engine.scene.zone_id == "transition");
-
-  engine.cleanup();
-}
-
-TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move the cursor") {
-  corundum::Engine engine{};
-  adopt_platform(engine, 320, 240);
-
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
-  using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Exploring);
-  REQUIRE(engine.scene.inventory_cursor == 0);
-
-  // Three held items → three rows to wrap within.
-  engine.flags["item.a"] = 1;
-  engine.flags["item.b"] = 2;
-  engine.flags["item.c"] = 1;
-
-  // Press I: Exploring → Inventory, cursor reset.
-  advance_with(engine, corundum::input::Action::Inventory);
-  CHECK(engine.scene.mode == GameMode::Inventory);
-  CHECK(engine.scene.inventory_cursor == 0);
-
-  // Arrows move the highlight while paused.
-  advance_with(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.mode == GameMode::Inventory);
-  CHECK(engine.scene.inventory_cursor == 1);
-  advance_with(engine, corundum::input::Action::MoveUp);
-  CHECK(engine.scene.inventory_cursor == 0);
-
-  // Down past the last row wraps to the first (dialogue choice-list behaviour).
-  advance_with(engine, corundum::input::Action::MoveDown);
-  advance_with(engine, corundum::input::Action::MoveDown);
-  advance_with(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.inventory_cursor == 0);
-
-  // Up past the first row wraps to the last.
-  advance_with(engine, corundum::input::Action::MoveUp);
-  CHECK(engine.scene.inventory_cursor == 2);
-
-  // Press I again: Inventory → Exploring.
-  advance_with(engine, corundum::input::Action::Inventory);
-  CHECK(engine.scene.mode == GameMode::Exploring);
-
-  // Esc also closes an open panel.
-  advance_with(engine, corundum::input::Action::Inventory);
-  REQUIRE(engine.scene.mode == GameMode::Inventory);
-  advance_with(engine, corundum::input::Action::Cancel);
-  CHECK(engine.scene.mode == GameMode::Exploring);
-
-  // Opening again resets the cursor to the top.
-  advance_with(engine, corundum::input::Action::MoveDown);
-  advance_with(engine, corundum::input::Action::Inventory);
-  CHECK(engine.scene.mode == GameMode::Inventory);
-  CHECK(engine.scene.inventory_cursor == 0);
 
   engine.cleanup();
 }

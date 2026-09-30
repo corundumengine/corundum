@@ -11,12 +11,10 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/platform/null/null_renderer.hpp>
-#include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -103,16 +101,6 @@ TEST_CASE("active_tilemap: World mode returns nullptr even with chunks loaded") 
   engine.render.chunks.add_active(std::move(chunk));
 
   CHECK(engine.active_tilemap() == nullptr);
-}
-
-TEST_CASE("NullRenderer: stats() returns zero draw/quad/dropped counts and begin_frame reports success") {
-  corundum::platform::null::NullRenderer renderer;
-  CHECK(renderer.stats().draw_calls == 0);
-  CHECK(renderer.stats().quads == 0);
-  CHECK(renderer.stats().dropped_quads == 0);
-  CHECK(renderer.begin_frame({}));
-
-  static_assert(std::is_same_v<decltype(renderer.stats()), corundum::platform::RendererStats>);
 }
 
 TEST_CASE("snapshot_previous_step: keys entity positions by entity index and copies the camera") {

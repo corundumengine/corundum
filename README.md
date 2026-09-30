@@ -75,14 +75,14 @@ build/tools/tests/corundum_tools_tests -tc="*name*"  # single tools test
 
 ## Components
 
-| Directory                                | Purpose                                        |
-| ---------------------------------------- | ---------------------------------------------- |
-| `engine/`                                | Pure C++23 core library                        |
-| `engine/src/platform/glfw/`              | GLFW windowing and sokol_gfx renderer          |
-| `engine/src/platform/sokol/`             | sokol_gfx + sokol_audio implementation units   |
-| `engine/include/corundum/platform/null/` | No-op platform stubs for headless testing      |
-| `tools/`                                 | Developer tools (Tilesmith, Spritesmith, Loom) |
-| `engine/tests/`                          | Unit tests (doctest) — engine                   |
+| Directory                                | Purpose                                         |
+| ---------------------------------------- | ----------------------------------------------- |
+| `engine/`                                | Pure C++23 core library                         |
+| `engine/src/platform/glfw/`              | GLFW windowing and sokol_gfx renderer           |
+| `engine/src/platform/sokol/`             | sokol_gfx + sokol_audio implementation units    |
+| `engine/include/corundum/platform/null/` | No-op platform stubs for headless testing       |
+| `tools/`                                 | Developer tools (Tilesmith, Spritesmith, Loom)  |
+| `engine/tests/`                          | Unit tests (doctest) — grouped by engine module |
 | `tools/tests/`                           | Unit tests (doctest) — tools                    |
 
 ## Dependencies

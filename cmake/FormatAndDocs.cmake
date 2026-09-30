@@ -34,7 +34,7 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
   file(GLOB_RECURSE FORMAT_SOURCES
         "engine/src/**/*.cpp"
         "engine/include/corundum/**/*.hpp"
-        "engine/tests/*.cpp"
+        "engine/tests/**/*.cpp"
         "tools/toolkit/**/*.cpp"
         "tools/toolkit/**/*.hpp"
         "tools/editors/**/*.cpp"

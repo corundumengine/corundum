@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/platform/handle.hpp>
+#include <corundum/platform/null/null_renderer.hpp>
+#include <corundum/platform/renderer.hpp>
 
 #include <doctest/doctest.h>
 
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 using corundum::platform::BackendDeleter;
@@ -132,4 +135,14 @@ TEST_CASE("BackendDeleter: a default-constructed deleter carries no function and
   CHECK(inert.destroy == nullptr);
 
   inert(nullptr); // must not dispatch through a null function pointer
+}
+
+TEST_CASE("NullRenderer: stats() returns zero draw/quad/dropped counts and begin_frame reports success") {
+  corundum::platform::null::NullRenderer renderer;
+  CHECK(renderer.stats().draw_calls == 0);
+  CHECK(renderer.stats().quads == 0);
+  CHECK(renderer.stats().dropped_quads == 0);
+  CHECK(renderer.begin_frame({}));
+
+  static_assert(std::is_same_v<decltype(renderer.stats()), corundum::platform::RendererStats>);
 }
