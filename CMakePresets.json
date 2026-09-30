@@ -31,18 +31,6 @@
       }
     },
     {
-      "name": "relwithdebinfo",
-      "displayName": "RelWithDebInfo (optimised + debug symbols)",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-relwithdebinfo",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
-        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/llvm-clang.cmake"
-      }
-    },
-    {
       "name": "debug-sanitized",
       "displayName": "Debug (ASan + UBSan)",
       "generator": "Ninja",
@@ -81,10 +69,6 @@
       "configurePreset": "release"
     },
     {
-      "name": "relwithdebinfo",
-      "configurePreset": "relwithdebinfo"
-    },
-    {
       "name": "debug-sanitized",
       "configurePreset": "debug-sanitized",
       "verbose": true
@@ -112,13 +96,6 @@
     {
       "name": "release",
       "configurePreset": "release",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "relwithdebinfo",
-      "configurePreset": "relwithdebinfo",
       "output": {
         "outputOnFailure": true
       }

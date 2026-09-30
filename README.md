@@ -20,7 +20,6 @@ Follow development on [the devlog](https://corundumengine.com/blog/).
 ```sh
 cmake --preset debug && cmake --build --preset build       # configure + build (debug)
 cmake --build --preset release                             # optimised build → build-release/
-cmake --build --preset relwithdebinfo                      # optimised + debug symbols
 cmake --build --preset debug-sanitized                     # ASan + UBSan → build-sanitized/
 cmake --build --preset format                              # clang-format all sources
 scripts/run_tidy.sh <file> [more files...]                 # clang-tidy explicit files
