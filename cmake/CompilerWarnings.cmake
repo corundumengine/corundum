@@ -1,8 +1,8 @@
 # Per-target compiler settings for first-party targets: language standard and
 # warning policy.
 #
-# -Werror is mandatory for first-party C++: the compiler is pinned to Homebrew
-# LLVM clang, and warnings are treated as errors in CI and local builds alike.
+# -Werror is mandatory for first-party C++: the compiler is pinned to LLVM
+# clang, and warnings are treated as errors in CI and local builds alike.
 # These flags are applied per-target (never globally) via
 # `corundum_enable_warnings(<target>)` so third-party dependencies and
 # generated code are unaffected.

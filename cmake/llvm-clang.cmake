@@ -4,12 +4,14 @@
 # There is no silent fallback to an arbitrary system compiler.
 #
 # Prefix resolution lives in ResolveLLVMPrefix.cmake (shared with clang-format
-# and run_tidy.sh): -DLLVM_PREFIX > $LLVM_PREFIX > Homebrew > /usr/lib/llvm-*.
+# and run_tidy.sh): -DLLVM_PREFIX > $LLVM_PREFIX > common macOS prefixes >
+# LLVM's default Windows install > /usr/lib/llvm-*.
 #
-# Linux note: clang defaults to the host libstdc++, which lacks corundum's
-# C++23 library surface (<mdspan>, <flat_map>, <print>) before GCC 15. libc++ is
-# forced on every platform so macOS and Linux compile the same standard library;
-# install it with `apt install libc++-21-dev libc++abi-21-dev`.
+# Standard library: libc++ on macOS (system default) and Linux (forced); the
+# MSVC STL on Windows. clang's Linux default is the host libstdc++, which lacks
+# corundum's C++23 library surface (<mdspan>, <flat_map>, <print>) before GCC 15,
+# so -stdlib=libc++ is forced on Linux to match macOS; install it with
+# `apt install libc++-21-dev libc++abi-21-dev`.
 #
 # ToolchainChecks.cmake verifies that surface after project().
 if(DEFINED _CORUNDUM_LLVM_CLANG_CMAKE_LOADED)

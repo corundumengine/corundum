@@ -3,7 +3,7 @@
 # file before Dependencies.cmake so a missing clang-format fails fast.
 #
 # clang-format is resolved by find_program with HINTS so the target works
-# whether or not Homebrew LLVM is on PATH (same search order as
+# whether or not LLVM is on PATH (same search order as
 # scripts/run_tidy.sh). clang-tidy itself lives in scripts/run_tidy.sh — it
 # takes an explicit file list, so the per-file diagnostics you get from clangd
 # in the editor stay the primary flow.

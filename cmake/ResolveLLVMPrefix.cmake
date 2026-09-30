@@ -4,7 +4,8 @@
 # in each consumer let them drift.
 #
 # Resolution order: explicit `-DLLVM_PREFIX` (cache) > `$LLVM_PREFIX` (env) >
-# Homebrew on macOS > the highest-numbered distro LLVM under /usr/lib/llvm-*.
+# common macOS LLVM prefixes > LLVM's default install on Windows > the
+# highest-numbered distro LLVM under /usr/lib/llvm-*.
 #
 # corundum_resolve_llvm_prefix(<out-var>) returns the prefix, or an empty string
 # when none is known — callers then fall back to PATH and report what they use.
@@ -23,8 +24,16 @@ function(corundum_resolve_llvm_prefix out_var)
     return()
   endif()
 
-  foreach(candidate /opt/homebrew/opt/llvm /usr/local/opt/llvm)
-    if(EXISTS "${candidate}/bin/clang++")
+  # Toolchain files run before project(), so CMAKE_EXECUTABLE_SUFFIX is not set.
+  set(_corundum_exe_suffix "")
+  if(CMAKE_HOST_WIN32)
+    set(_corundum_exe_suffix ".exe")
+  endif()
+
+  # Common macOS LLVM prefixes — other macOS installs resolve via LLVM_PREFIX or
+  # PATH — plus LLVM's official installer default on Windows.
+  foreach(candidate /opt/homebrew/opt/llvm /usr/local/opt/llvm "C:/Program Files/LLVM")
+    if(EXISTS "${candidate}/bin/clang++${_corundum_exe_suffix}")
       set(${out_var} "${candidate}" PARENT_SCOPE)
       return()
     endif()

@@ -5,8 +5,8 @@
 #   scripts/run_tidy.sh <file> [more files...]
 #   scripts/run_tidy.sh --build-dir build-release <file> ...
 #
-# clang-tidy is resolved like CMake does: $LLVM_PREFIX, then the Homebrew LLVM
-# prefixes, then the distro LLVM under /usr/lib/llvm-*, then PATH. Keep this in
+# clang-tidy is resolved like CMake does: $LLVM_PREFIX, then the common macOS
+# LLVM prefixes, then the distro LLVM under /usr/lib/llvm-*, then PATH. Keep this in
 # sync with cmake/ResolveLLVMPrefix.cmake. The compile DB lives in the given
 # build dir (default build/, matching the debug preset).
 set -euo pipefail
@@ -41,7 +41,7 @@ resolve_clang_tidy() {
 
 clang_tidy="$(resolve_clang_tidy || true)"
 if [[ -z "$clang_tidy" ]]; then
-  echo "error: clang-tidy not found (install Homebrew LLVM: brew install llvm)" >&2
+  echo "error: clang-tidy not found (install LLVM, or set LLVM_PREFIX to its prefix)" >&2
   exit 1
 fi
 
