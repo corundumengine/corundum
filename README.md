@@ -2,6 +2,7 @@
 
 [![C++23](https://img.shields.io/badge/c%2B%2B-23-blue.svg)](https://isocpp.org/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/corundumengine/corundum/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/corundumengine/corundum/actions/workflows/ci.yml)
 
 <p align="center">
   <a href="https://corundumengine.com">
@@ -31,10 +32,10 @@ your own games: APIs, file formats and tools change without notice.
 | Platform              | Toolchain                         | Graphics        | Status                       |
 | --------------------- | --------------------------------- | --------------- | ---------------------------- |
 | macOS (Apple Silicon) | LLVM, libc++                      | Metal           | Primary development platform |
-| Windows 11            | LLVM clang++ (MSVC ABI), MSVC STL | OpenGL (GLCore) | Runs; tested manually        |
-| Ubuntu (LLVM 21)      | LLVM clang++, libc++              | OpenGL (GLCore) | Runs; tested manually        |
+| Windows 11            | LLVM clang++ (MSVC ABI), MSVC STL | OpenGL (GLCore) | Built and tested in CI       |
+| Ubuntu (LLVM 21)      | LLVM clang++, libc++              | OpenGL (GLCore) | Built and tested in CI       |
 
-There is no CI yet, so every platform is verified by hand.
+CI builds and tests all three platforms on every push and pull request.
 
 ## Tools
 
