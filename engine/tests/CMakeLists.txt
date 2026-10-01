@@ -217,10 +217,6 @@ target_compile_definitions(corundum_tests PRIVATE
     CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR="${PROJECT_SOURCE_DIR}/engine/tests/fixtures"
 )
 
-# MSVC forward-declares std::basic_ostream, so doctest's generic stringifier
-# cannot stream a std::string_view there; force the real standard headers.
-target_compile_definitions(corundum_tests PRIVATE DOCTEST_CONFIG_USE_STD_HEADERS)
-
 # Enable CTest integration
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 doctest_discover_tests(corundum_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
