@@ -42,6 +42,11 @@ if(CORUNDUM_BUILD_TESTS)
         GIT_PROGRESS   TRUE
     )
     FetchContent_MakeAvailable(doctest)
+
+    # MSVC forward-declares std::basic_ostream, so doctest's generic stringifier
+    # cannot stream a std::string_view there; force the real standard headers for
+    # every test target (one place, so a new target can't miss it).
+    target_compile_definitions(doctest INTERFACE DOCTEST_CONFIG_USE_STD_HEADERS)
 endif()
 
 FetchContent_Declare(
