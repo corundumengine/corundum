@@ -24,6 +24,8 @@
 #include <corundum/quest/registry.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/sprites/character_registry.hpp>
+#include <corundum/ui/menu.hpp>
+#include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/scene.hpp>
@@ -43,6 +45,10 @@ namespace corundum {
   namespace platform {
     struct PlatformContext;
   } // namespace platform
+
+  namespace input {
+    struct InputIntent;
+  } // namespace input
 
   /** @brief Simulation run state.
    *
@@ -123,6 +129,12 @@ namespace corundum {
     /** @brief Transient on-screen notifications, rendered bottom-left and aged by the fixed
      *  timestep. Engine quest events enqueue here; game code calls notify() for its own cues. */
     ui::ToastQueue toasts;
+
+    /** @brief Pause-menu selection state; rendered in GameMode::Menu. */
+    ui::MenuState menu;
+
+    /** @brief Settings-screen state; rendered in GameMode::Settings. */
+    ui::SettingsState settings_screen;
 
     core::time::LoopTimer timer{static_cast<float>(core::k_default_simulation_fps)};
 
@@ -236,6 +248,17 @@ namespace corundum {
      *  Exposed for testability — game code normally does not call this directly.
      */
     void process_dialogue_events() noexcept;
+
+    /** @brief Step the engine-owned Menu/Settings screens for one fixed step.
+     *
+     *  Opens the pause menu from Exploring on Action::Menu, then routes @p intent to the screen
+     *  on top of the UI stack. Returns true when an engine screen owned the step, so the caller
+     *  skips the world update — which is what pauses the simulation.
+     *
+     *  Exposed for testability; run_frame() calls it once per fixed step through
+     *  run_fixed_steps().
+     */
+    [[nodiscard]] bool update_engine_screens(const input::InputIntent &intent);
 
     /** @brief Enqueue a transient on-screen notification with the default colour.
      *

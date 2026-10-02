@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/core/utf8.hpp>
 #include <corundum/dialogue/conversation.hpp>
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -16,6 +17,38 @@
 
 namespace corundum::ui {
 
+  namespace {
+
+    /// The longest prefix of @p text that fits @p budget codepoints, and how many codepoints
+    /// that prefix consumed. Returns an empty prefix (and 0) when the budget is exhausted.
+    std::pair<std::string_view, int> reveal_prefix(std::string_view text, int budget) {
+      if (budget <= 0)
+        return {std::string_view{}, 0};
+      std::size_t offset = 0;
+      int count = 0;
+      while (offset < text.size() && count < budget) {
+        (void)corundum::core::decode_utf8(text, offset);
+        ++count;
+      }
+      return {text.substr(0, offset), count};
+    }
+
+  } // namespace
+
+  void dialog_box_advance(DialogBoxState &ds, const dialogue::Conversation &conversation, float dt) {
+    if (!conversation.is_active()) {
+      ds.reveal_chars = 0.f;
+      ds.reveal_node_id.clear();
+      return;
+    }
+    if (const std::string_view node = conversation.current_node_id(); node != ds.reveal_node_id) {
+      ds.reveal_node_id.assign(node);
+      ds.reveal_chars = 0.f;
+    }
+    if (ds.reveal_chars_per_second > 0.f)
+      ds.reveal_chars += ds.reveal_chars_per_second * dt;
+  }
+
   void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &r,
                          core::math::Vec2 viewport) {
     if (!conversation.is_active()) {
@@ -24,6 +57,10 @@ namespace corundum::ui {
     }
 
     const std::string_view graph_id = conversation.graph_id();
+    if (const std::string_view node = conversation.current_node_id(); node != ds.reveal_node_id) {
+      ds.reveal_node_id.assign(node);
+      ds.reveal_chars = 0.f;
+    }
 
     // Choice visibility is condition-evaluated (flags/quests), so a node visited twice can
     // present a different set of choices. The cache key must include it even when the graph,
@@ -80,12 +117,20 @@ namespace corundum::ui {
       case dialogue::NodeType::Talk: {
         draw_str(lay.speaker, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
         float y = py + inset + spacing;
+        const bool reveal = ds.reveal_chars_per_second > 0.f;
+        int remaining = static_cast<int>(ds.reveal_chars);
         for (const auto &line : lay.body_lines) {
           if (line.empty()) {
             y += spacing;
             continue;
           }
-          draw_str(line, ds.style.font_size_body, ds.style.body, px + inset, y);
+          if (reveal) {
+            const auto [prefix, consumed] = reveal_prefix(line, remaining);
+            remaining -= consumed;
+            draw_str(prefix, ds.style.font_size_body, ds.style.body, px + inset, y);
+          } else {
+            draw_str(line, ds.style.font_size_body, ds.style.body, px + inset, y);
+          }
           y += spacing;
         }
         draw_str("[Select] Continue   [Cancel] Close", ds.style.font_size_prompt, ds.style.choice, px + inset,

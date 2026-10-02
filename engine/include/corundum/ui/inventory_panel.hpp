@@ -22,6 +22,10 @@ namespace corundum::ui {
     int count = 0;
 
     std::string name;
+
+    /// Flavor text shown as a tooltip under the list for the highlighted row; empty when the
+    /// item has no definition or no description.
+    std::string description{};
   };
 
   /** @brief Collect the player's held items from the FlagStore.

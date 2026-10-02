@@ -91,6 +91,9 @@
       "configurePreset": "debug",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 0
       }
     },
     {
@@ -98,6 +101,9 @@
       "configurePreset": "release",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 0
       }
     },
     {
@@ -105,6 +111,9 @@
       "configurePreset": "debug-sanitized",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 0
       }
     }
   ]

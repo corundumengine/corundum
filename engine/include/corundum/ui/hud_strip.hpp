@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/ui/dialog_box.hpp>
@@ -37,9 +36,13 @@ namespace corundum::ui {
 
   /** @brief Draw the persistent HUD as a small top-left box: gold plus the active objective.
    *
-   *  Pure render. The caller skips it while a full-screen modal is up.
+   *  Pure render. The box is drawn as an opaque fill (panel_fill()) plus a nine-patch frame
+   *  (panel_frame()) — separate calls so the fill can be opaque, unlike the modal panels' shared
+   *  translucent style.bg, which would tint the world showing through the always-on HUD. The
+   *  caller skips the HUD while a screen is open.
    *
-   *  @param r      Platform renderer; receives a DrawRect, the nine-patch border, and one DrawText.
+   *  @param r      Platform renderer; receives one DrawRect, the border's DrawSprite commands,
+   *                then one DrawText.
    *  @param style  Dialog text style (font id/size/colours).
    *  @param border Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
    *  @param data   Content derived by build_hud_strip().

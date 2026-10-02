@@ -67,6 +67,9 @@ namespace {
     settings.bindings = corundum::input::default_bindings();
     corundum::input::rebind(settings.bindings, Action::MoveUp, physical(Key::W), physical(Key::Q));
     settings.window_mode = WindowMode::Fullscreen;
+    settings.master_volume = 0.4f;
+    settings.text_speed = 2.f;
+    settings.ui_scale = 1.25f;
     return settings;
   }
 
@@ -118,6 +121,41 @@ TEST_CASE("settings: serialize/parse round-trips") {
   REQUIRE(parsed.has_value());
   CHECK(parsed->bindings == settings.bindings);
   CHECK(parsed->window_mode == settings.window_mode);
+  CHECK(parsed->master_volume == doctest::Approx(settings.master_volume));
+  CHECK(parsed->text_speed == doctest::Approx(settings.text_speed));
+  CHECK(parsed->ui_scale == doctest::Approx(settings.ui_scale));
+}
+
+TEST_CASE("settings: a v1 document migrates and keeps the new-field defaults") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  engine.cfg.dialogue_render = {}; // baseline sizes for the ui_scale assertion
+
+  const auto dir = temp_dir("v1_migration");
+  const auto path = dir / "settings.json";
+  write_file(path, R"({"schema_version": 1, "window_mode": "fullscreen"})");
+
+  const auto loaded = corundum::settings::load(engine, path);
+  REQUIRE(loaded.has_value());
+  CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
+  CHECK(engine.audio.master_volume() == doctest::Approx(1.f));
+  CHECK(engine.render.text_speed == doctest::Approx(1.f));
+  CHECK(engine.render.ui_scale == doctest::Approx(1.f));
+}
+
+TEST_CASE("settings: out-of-range volume and UI scale are clamped") {
+  const nlohmann::json root = {{"schema_version", 2}, {"master_volume", 5.f}, {"ui_scale", 0.1f}};
+  const auto parsed = corundum::settings::parse(root, UserSettings{});
+  REQUIRE(parsed.has_value());
+  CHECK(parsed->master_volume == doctest::Approx(1.f));
+  CHECK(parsed->ui_scale == doctest::Approx(0.75f));
+}
+
+TEST_CASE("settings: a non-numeric volume is rejected") {
+  const nlohmann::json root = {{"schema_version", 2}, {"master_volume", "loud"}};
+  const auto parsed = corundum::settings::parse(root, UserSettings{});
+  REQUIRE_FALSE(parsed.has_value());
+  CHECK(parsed.error().find("master_volume") != std::string::npos);
 }
 
 TEST_CASE("settings: an absent field keeps its default") {
@@ -206,7 +244,7 @@ TEST_CASE("settings: a newer schema version is rejected and leaves the engine un
 
   const auto dir = temp_dir("newer_schema");
   const auto path = dir / "settings.json";
-  write_file(path, R"({"schema_version": 2, "window_mode": "fullscreen"})");
+  write_file(path, R"({"schema_version": 3, "window_mode": "fullscreen"})");
 
   const auto loaded = corundum::settings::load(engine, path);
   REQUIRE_FALSE(loaded.has_value());

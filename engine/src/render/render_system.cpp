@@ -15,6 +15,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/item/registry.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
@@ -29,6 +30,7 @@
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
+#include <corundum/world/ui_stack.hpp>
 
 #include "core/warn_log.hpp"
 
@@ -422,13 +424,17 @@ namespace corundum::render {
 
   void configure_dialog_style(render::RenderState &state, const corundum::core::GameConfig &cfg) {
     const auto &dr = cfg.dialogue_render;
+    const float scale = state.ui_scale;
+    const auto scaled = [scale](unsigned size) {
+      return static_cast<unsigned>(std::lround(static_cast<float>(size) * scale));
+    };
     state.dialog_box.style = corundum::ui::DialogBoxStyle{
         .font_id = state.font_id,
-        .font_size_speaker = dr.font_size_speaker,
-        .font_size_body = dr.font_size_body,
-        .font_size_prompt = dr.font_size_prompt,
-        .margin = dr.margin,
-        .line_spacing = dr.line_spacing,
+        .font_size_speaker = scaled(dr.font_size_speaker),
+        .font_size_body = scaled(dr.font_size_body),
+        .font_size_prompt = scaled(dr.font_size_prompt),
+        .margin = dr.margin * scale,
+        .line_spacing = dr.line_spacing * scale,
         .panel_height_frac = dr.panel_height_frac,
         .bg = {.r = 10, .g = 10, .b = 20, .a = 220},
         .speaker = {.r = 180, .g = 160, .b = 255, .a = 255},
@@ -436,6 +442,7 @@ namespace corundum::render {
         .choice = {.r = 180, .g = 180, .b = 180, .a = 255},
         .selected = {.r = 255, .g = 230, .b = 100, .a = 255},
     };
+    state.dialog_box.reveal_chars_per_second = corundum::ui::k_base_reveal_chars_per_second * state.text_speed;
   }
 
   // ── render ───────────────────────────────────────────────────────────────────
@@ -470,10 +477,11 @@ namespace corundum::render {
                                 const corundum::item::Registry *items, const corundum::quest::Registry *quests,
                                 const corundum::ui::ToastQueue *toasts, const corundum::core::math::Vec2 &viewport,
                                 corundum::input::InputDevice last_device) {
-      const bool modal_active = scene.dialogue.has_value() ||
-                                (scene.transition_prompt && !scene.transition_prompt->declined()) ||
-                                scene.ui.contains(corundum::world::GameMode::Inventory) ||
-                                scene.ui.contains(corundum::world::GameMode::Journal);
+      const bool modal_active =
+          scene.dialogue.has_value() || (scene.transition_prompt && !scene.transition_prompt->declined()) ||
+          scene.ui.contains(corundum::world::GameMode::Inventory) ||
+          scene.ui.contains(corundum::world::GameMode::Journal) || scene.ui.contains(corundum::world::GameMode::Menu) ||
+          scene.ui.contains(corundum::world::GameMode::Settings);
 
       if (!modal_active && quests != nullptr)
         corundum::ui::hud_strip_render(r, state.dialog_box.style, state.dialog_box.border,

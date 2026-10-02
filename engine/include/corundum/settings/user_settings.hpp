@@ -22,13 +22,22 @@ namespace corundum::core {
 namespace corundum::settings {
 
   /** @brief Current schema version of settings.json. */
-  constexpr int k_user_settings_schema_version = 1;
+  constexpr int k_user_settings_schema_version = 2;
 
   /** @brief The player's own preferences, persisted per user in settings.json. */
   struct UserSettings {
     input::Bindings bindings;
 
     core::WindowMode window_mode{core::WindowMode::Windowed};
+
+    /// Master audio volume in [0, 1].
+    float master_volume{1.f};
+
+    /// Dialogue text-reveal multiplier; 0 reveals instantly (see ui::k_text_speed_presets).
+    float text_speed{1.f};
+
+    /// Font and margin scale applied to the in-game screens; 1 is the game.json size.
+    float ui_scale{1.f};
   };
 
   /** @brief settings.json document: schema_version, window_mode, and bindings (see input::serialize). */

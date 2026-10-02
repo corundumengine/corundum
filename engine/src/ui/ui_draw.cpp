@@ -15,10 +15,18 @@ namespace corundum::ui {
     return r.measure_text(style.font_id, k_choice_cursor, style.font_size_body);
   }
 
+  void panel_fill(platform::Renderer &r, core::math::Colour bg, core::math::Vec2 pos, core::math::Vec2 size) {
+    r.draw(platform::DrawRect{.position = pos, .size = size, .colour = bg});
+  }
+
+  void panel_frame(platform::Renderer &r, const NinePatchBorder &border, core::math::Vec2 pos, core::math::Vec2 size) {
+    nine_patch_render(r, border, pos.x, pos.y, size.x, size.y);
+  }
+
   void panel_chrome(platform::Renderer &r, core::math::Colour bg, const NinePatchBorder &border, core::math::Vec2 pos,
                     core::math::Vec2 size) {
-    r.draw(platform::DrawRect{.position = pos, .size = size, .colour = bg});
-    nine_patch_render(r, border, pos.x, pos.y, size.x, size.y);
+    panel_fill(r, bg, pos, size);
+    panel_frame(r, border, pos, size);
   }
 
   void draw_option(platform::Renderer &r, const DialogBoxStyle &style, std::string_view label, core::math::Vec2 pos,

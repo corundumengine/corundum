@@ -291,6 +291,14 @@ namespace corundum::render {
     RenderMode mode{RenderMode::None};
     SpriteFrameIndex sprite_index;
 
+    /// Font/margin scale applied by configure_dialog_style(); 1 = the game.json sizes. Set from
+    /// UserSettings::ui_scale.
+    float ui_scale{1.f};
+
+    /// Dialogue text-reveal multiplier applied to k_base_reveal_chars_per_second; 0 = instant.
+    /// Set from UserSettings::text_speed.
+    float text_speed{1.f};
+
     std::vector<int> above_z_cache;
     std::vector<DepthEntry> draw_list;
     /** @brief Indices into draw_list, sorted by depth each frame. Reused across frames

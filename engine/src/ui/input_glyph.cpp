@@ -38,6 +38,12 @@ namespace corundum::ui {
           return "I";
         case Action::Journal:
           return "J";
+        case Action::Menu:
+          return "Esc";
+        case Action::TabNext:
+          return "]";
+        case Action::TabPrev:
+          return "[";
         case Action::QuickSave:
           return "F5";
         case Action::QuickLoad:
@@ -75,6 +81,12 @@ namespace corundum::ui {
           return "B";
         case Action::Journal:
           return "Y";
+        case Action::Menu:
+          return "Start";
+        case Action::TabNext:
+          return "R1";
+        case Action::TabPrev:
+          return "L1";
         case Action::MoveUp:
           return "D-Up";
         case Action::MoveDown:

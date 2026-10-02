@@ -13,6 +13,10 @@
 
 namespace corundum::ui {
 
+  /// Reveal rate (codepoints per second) at text_speed 1.0, before the ui scale's font size
+  /// adjustment; Text Speed presets multiply it.
+  inline constexpr float k_base_reveal_chars_per_second = 45.f;
+
   /// Visual configuration for a dialogue box. Pure data — no behaviour.
   struct DialogBoxStyle {
     uint32_t font_id{0};
@@ -58,7 +62,24 @@ namespace corundum::ui {
     core::math::Vec2 last_viewport{};
 
     std::optional<DialogLayout> layout;
+
+    /// Node the current reveal progress belongs to; a change resets reveal_chars.
+    std::string reveal_node_id;
+
+    /// Codepoints revealed so far for the current Talk body.
+    float reveal_chars{};
+
+    /// Reveal rate in codepoints per second; 0 or less reveals instantly. Set from
+    /// RenderState::text_speed by configure_dialog_style().
+    float reveal_chars_per_second{};
   };
+
+  /// Advance the typewriter reveal of the current Talk body by @p dt seconds.
+  ///
+  /// Resets the reveal when the conversation switches node, and is a no-op while the
+  /// conversation is inactive or the reveal rate is zero (instant text). Called once per fixed
+  /// step so reveal speed is independent of the render rate.
+  void dialog_box_advance(DialogBoxState &ds, const dialogue::Conversation &conversation, float dt);
 
   /// Recompute layout if the current node, graph, viewport, or visible-choice set changed, then mark visible.
   /// Hides the box (leaving the cache intact) when the conversation is inactive.

@@ -18,6 +18,8 @@ namespace corundum::input {
     intent.select = state.is_pressed(Action::Select);
     intent.activate = state.is_pressed(Action::Activate) || state.is_pressed(Action::Select);
     intent.back = state.is_pressed(Action::Cancel);
+    intent.next_tab = state.is_pressed(Action::TabNext);
+    intent.prev_tab = state.is_pressed(Action::TabPrev);
 
     if (state.is_pressed(Action::MoveLeft))
       --intent.navigate_x;

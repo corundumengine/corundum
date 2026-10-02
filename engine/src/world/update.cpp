@@ -246,6 +246,11 @@ namespace corundum::world {
         if (scene.mode() == GameMode::Exploring)
           corundum::dialogue::try_interact(scene, intent, cfg, graphs, flags, quests);
         break;
+      case corundum::world::GameMode::Menu:
+      case corundum::world::GameMode::Settings:
+        // Engine-level screens, stepped by Engine::run_fixed_steps(); world::update is not called
+        // for them. Listed so the GameMode switch stays exhaustive.
+        break;
     }
   }
 

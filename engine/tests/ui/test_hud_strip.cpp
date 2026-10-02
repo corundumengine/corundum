@@ -3,17 +3,20 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/platform/renderer.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
+#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/hud_strip.hpp>
 #include <corundum/world/flags.hpp>
 
 #include "ui/recording_renderer.hpp"
 
+#include <cstddef>
 #include <string>
-#include <utility>
+#include <variant>
 
 namespace {
 
@@ -31,7 +34,7 @@ namespace {
 } // namespace
 
 TEST_CASE("build_hud_strip: gold with no started quests") {
-  corundum::quest::Registry quests;
+  const corundum::quest::Registry quests;
   FlagStore flags;
   flags["gold"] = 50;
 
@@ -71,7 +74,7 @@ TEST_CASE("build_hud_strip: a completed quest is not reported as the active obje
 // doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
 // test's logic — dominates this metric.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST_CASE("hud_strip_render: chrome plus one line with gold and the active objective") {
+TEST_CASE("hud_strip_render: an opaque panel plus one line with gold and the objective") {
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
@@ -82,11 +85,13 @@ TEST_CASE("hud_strip_render: chrome plus one line with gold and the active objec
   data.objective = "Find the shrine";
 
   RecordingRenderer r;
-  corundum::ui::hud_strip_render(r, {}, make_border(), data);
+  const corundum::ui::DialogBoxStyle style{};
+  corundum::ui::hud_strip_render(r, style, make_border(), data);
 
-  // Chrome (1 rect + 8 sprites) then the single text line.
+  // The fill rect, the border's 8 sprites, then the single text line.
   REQUIRE(r.log.size() == 10);
-  CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[0]));
+  const auto &fill = std::get<corundum::platform::DrawRect>(r.log[0]);
+  CHECK(fill.colour.a == 255); // opaque: a translucent fill would tint the world behind it
   for (std::size_t i = 1; i < 9; ++i)
     CHECK(std::holds_alternative<corundum::platform::DrawSprite>(r.log[i]));
 

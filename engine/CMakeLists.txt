@@ -68,8 +68,10 @@ set(ENGINE_SOURCES
     src/ui/input_glyph.cpp
     src/ui/inventory_panel.cpp
     src/ui/journal.cpp
+    src/ui/menu.cpp
     src/ui/nine_patch.cpp
     src/ui/prompt_box.cpp
+    src/ui/settings.cpp
     src/ui/toast.cpp
     src/ui/ui_draw.cpp
     src/world/actors/actor_loader.cpp

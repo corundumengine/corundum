@@ -33,6 +33,8 @@ TEST_CASE("make_input_intent: empty state decodes to an all-false intent") {
   CHECK_FALSE(intent.select);
   CHECK_FALSE(intent.activate);
   CHECK_FALSE(intent.back);
+  CHECK_FALSE(intent.next_tab);
+  CHECK_FALSE(intent.prev_tab);
   CHECK_FALSE(intent.cursor_clicked);
   CHECK(intent.last_device == InputDevice::Gamepad);
 }
@@ -68,6 +70,16 @@ TEST_CASE("make_input_intent: Activate raises activate without select") {
 
 TEST_CASE("make_input_intent: Cancel decodes to back") {
   CHECK(intent_with(Action::Cancel).back);
+}
+
+TEST_CASE("make_input_intent: TabNext and TabPrev decode to their own flags") {
+  const InputIntent next = intent_with(Action::TabNext);
+  CHECK(next.next_tab);
+  CHECK_FALSE(next.prev_tab);
+
+  const InputIntent prev = intent_with(Action::TabPrev);
+  CHECK(prev.prev_tab);
+  CHECK_FALSE(prev.next_tab);
 }
 
 TEST_CASE("make_input_intent: carries cursor, click, and scroll") {

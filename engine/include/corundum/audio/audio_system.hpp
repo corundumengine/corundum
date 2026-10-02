@@ -62,6 +62,11 @@ namespace corundum::audio {
     /** @brief Set the global master volume in [0.0, 1.0]. No-op if not initialised. */
     void set_master_volume(float volume) noexcept;
 
+    /** @brief The last master volume set, in [0.0, 1.0]. Defaults to 1.0. */
+    [[nodiscard]] float master_volume() const noexcept {
+      return master_volume_;
+    }
+
     /** @brief Pause or resume all audio output. No-op if not initialised.
      *
      *  The paused flag is retained, so a later initialize() re-applies it to the
@@ -112,6 +117,8 @@ namespace corundum::audio {
     bool initialized_{false};
 
     bool paused_{false};
+
+    float master_volume_{1.f};
 
     std::string sounds_dir_;
   };

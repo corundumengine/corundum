@@ -3,6 +3,7 @@
 
 #include <corundum/ui/hud_strip.hpp>
 
+#include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/ui/dialog_box.hpp>
@@ -66,11 +67,19 @@ namespace corundum::ui {
     const float text_w = r.measure_text(style.font_id, line, style.font_size_body);
     const float row_w = std::max(k_min_w, text_w + (pad_x * 2.f));
 
-    panel_chrome(r, style.bg, border, {.x = k_margin, .y = k_margin}, {.x = row_w, .y = row_h});
+    // Background and frame are separate calls: the HUD is persistent, so its fill is fully
+    // opaque — the dialogue box's translucent style.bg would tint the world showing through it
+    // for the whole session.
+    core::math::Colour hud_bg = style.bg;
+    hud_bg.a = 255;
+    const core::math::Vec2 panel_pos{.x = k_margin, .y = k_margin};
+    const core::math::Vec2 panel_size{.x = row_w, .y = row_h};
+    panel_fill(r, hud_bg, panel_pos, panel_size);
+    panel_frame(r, border, panel_pos, panel_size);
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = line,
-        .position = {.x = k_margin + pad_x, .y = k_margin + pad_y},
+        .position = {.x = panel_pos.x + pad_x, .y = panel_pos.y + pad_y},
         .char_size = style.font_size_body,
         .colour = style.body,
     });

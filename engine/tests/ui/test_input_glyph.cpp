@@ -19,12 +19,18 @@ TEST_CASE("input_glyph: keyboard uses the key name") {
   CHECK(input_glyph(Action::Cancel, InputDevice::Keyboard) == "Esc");
   CHECK(input_glyph(Action::Journal, InputDevice::Keyboard) == "J");
   CHECK(input_glyph(Action::Select, InputDevice::Keyboard) == "Enter");
+  CHECK(input_glyph(Action::Menu, InputDevice::Keyboard) == "Esc");
+  CHECK(input_glyph(Action::TabNext, InputDevice::Keyboard) == "]");
+  CHECK(input_glyph(Action::TabPrev, InputDevice::Keyboard) == "[");
 }
 
 TEST_CASE("input_glyph: gamepad uses the button name") {
   CHECK(input_glyph(Action::Cancel, InputDevice::Gamepad) == "B");
   CHECK(input_glyph(Action::Journal, InputDevice::Gamepad) == "Y");
   CHECK(input_glyph(Action::Activate, InputDevice::Gamepad) == "A");
+  CHECK(input_glyph(Action::Menu, InputDevice::Gamepad) == "Start");
+  CHECK(input_glyph(Action::TabNext, InputDevice::Gamepad) == "R1");
+  CHECK(input_glyph(Action::TabPrev, InputDevice::Gamepad) == "L1");
 }
 
 TEST_CASE("input_glyph: mouse names the button") {

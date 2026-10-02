@@ -11,6 +11,7 @@
 #include <corundum/world/flags.hpp>
 
 #include <corundum/ui/ui_draw.hpp>
+#include <corundum/ui/word_wrap.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -57,6 +58,33 @@ namespace corundum::ui {
     bool show_group_header(item::ItemCategory category, bool has_non_misc) noexcept {
       return category != item::ItemCategory::Misc || has_non_misc;
     }
+
+    /// Wrap a row's description to the tooltip's reading width; empty when there is none.
+    std::vector<std::string> wrap_description(std::string_view description, const platform::Renderer &r,
+                                              const DialogBoxStyle &style) {
+      if (description.empty())
+        return {};
+      constexpr float k_max_description_width = 360.f;
+      const auto measure = [&](std::string_view text) {
+        return r.measure_text(style.font_id, text, style.font_size_body);
+      };
+      return wrap_text(description, k_max_description_width, measure);
+    }
+
+    /// Draw the wrapped tooltip starting at (@p x, @p y).
+    void draw_description(platform::Renderer &r, const DialogBoxStyle &style,
+                          const std::vector<std::string> &description_lines, float x, float y, float line_height) {
+      for (const std::string &line : description_lines) {
+        r.draw(platform::DrawText{
+            .font_id = style.font_id,
+            .text = line,
+            .position = {.x = x, .y = y},
+            .char_size = style.font_size_body,
+            .colour = style.choice,
+        });
+        y += line_height;
+      }
+    }
   } // namespace
 
   std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
@@ -71,6 +99,7 @@ namespace corundum::ui {
           .category = def != nullptr ? def->category : item::ItemCategory::Misc,
           .count = count,
           .name = def != nullptr ? def->name : std::string{id},
+          .description = def != nullptr ? def->description : std::string{},
       });
     }
     std::ranges::sort(lines, {}, [](const InventoryLine &l) { return std::tuple{l.category, l.name}; });
@@ -91,6 +120,9 @@ namespace corundum::ui {
     const float header_line_h = std::max(body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
     const float cursor_w = cursor_advance(r, style);
     const float title_w = r.measure_text(style.font_id, k_panel_header, style.font_size_speaker);
+    const auto measure_body = [&](std::string_view text) {
+      return r.measure_text(style.font_id, text, style.font_size_body);
+    };
 
     // Build one label per row and group consecutive rows by category. Input is sorted by
     // (category, name), so equal categories are already adjacent.
@@ -123,12 +155,26 @@ namespace corundum::ui {
     if (lines.empty())
       content_w = std::max(content_w, r.measure_text(style.font_id, k_empty_label, style.font_size_body));
 
+    // The highlighted row's flavor text is a footer tooltip under the list. Wrap it to a
+    // comfortable reading width and widen the panel if a line needs it.
+    const int clamped_cursor = lines.empty() ? -1 : std::clamp(cursor, 0, static_cast<int>(lines.size()) - 1);
+    const std::vector<std::string> description_lines =
+        clamped_cursor >= 0 ? wrap_description(lines[static_cast<std::size_t>(clamped_cursor)].description, r, style)
+                            : std::vector<std::string>{};
+    float description_w = 0.f;
+    for (const std::string &line : description_lines)
+      description_w = std::max(description_w, measure_body(line));
+    content_w = std::max(content_w, description_w);
+
     const float panel_w = std::max(k_min_w, content_w + (k_pad_x * 2.f));
     const float body_rows = static_cast<float>(labels.empty() ? 1 : labels.size());
     // One gap between adjacent groups (there is no gap before the first or after the last).
     const float group_gaps = header_count > 0 ? static_cast<float>(header_count - 1) * k_group_gap : 0.f;
+    const float description_gap = description_lines.empty() ? 0.f : k_header_gap;
+    const float description_h = static_cast<float>(description_lines.size()) * body_line_h;
     const float panel_h = (k_pad_y * 2.f) + header_line_h + k_header_gap + (body_rows * body_line_h) +
-                          (static_cast<float>(header_count) * header_line_h) + group_gaps;
+                          (static_cast<float>(header_count) * header_line_h) + group_gaps + description_gap +
+                          description_h;
 
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
@@ -160,7 +206,6 @@ namespace corundum::ui {
       return;
     }
 
-    const int clamped_cursor = std::clamp(cursor, 0, static_cast<int>(lines.size()) - 1);
     const float row_x = panel_x + k_pad_x;
     for (std::size_t group_index = 0; group_index < groups.size(); ++group_index) {
       const Group &group = groups[group_index];
@@ -188,6 +233,9 @@ namespace corundum::ui {
       if (group_index + 1 < groups.size())
         y += k_group_gap;
     }
+
+    if (!description_lines.empty())
+      draw_description(r, style, description_lines, panel_x + k_pad_x, y + k_header_gap, body_line_h);
   }
 
 } // namespace corundum::ui

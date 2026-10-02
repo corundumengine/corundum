@@ -3,6 +3,7 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/dialogue/action.hpp>
@@ -10,6 +11,8 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/input/bindings.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/input/input_system.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/item/item.hpp>
@@ -22,15 +25,21 @@
 #include <corundum/quest/system.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/settings/user_settings.hpp>
+#include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/menu.hpp>
+#include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/transition.hpp>
+#include <corundum/world/ui_stack.hpp>
 #include <corundum/world/update.hpp>
 #include <corundum/world/world_bounds.hpp>
 
 #include "core/warn_log.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cstddef>
@@ -38,6 +47,7 @@
 #include <expected>
 #include <format>
 #include <memory>
+#include <optional>
 #include <random>
 #include <string>
 #include <string_view>
@@ -396,12 +406,165 @@ namespace corundum {
       }
     }
 
+    /// Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
+    /// row lands on the first, Up past the first lands on the last. @p count must be > 0.
+    int wrap_cursor(int current, int delta, int count) noexcept {
+      return (current + delta + count) % count;
+    }
+
+    /// Live values the Settings screen shows, read from the engine each frame it renders.
+    ui::SettingsValues settings_values(const Engine &engine) {
+      return ui::SettingsValues{
+          .master_volume = engine.audio.master_volume(),
+          .text_speed = engine.render.text_speed,
+          .ui_scale = engine.render.ui_scale,
+          .window_mode = engine.window->window_mode(),
+      };
+    }
+
+    /// Re-derive the dialogue style after an edit to ui_scale or text_speed.
+    void refresh_dialog_style(Engine &engine) {
+      render::configure_dialog_style(engine.render, engine.cfg);
+    }
+
+    /// True when @p input is the conventional Back press during a rebind capture. Capture
+    /// swallows every press before it reaches the action bitsets, so Back must be recognised
+    /// from the captured physical input itself.
+    bool is_cancel_capture(input::PhysicalInput input) noexcept {
+      return (input.device == input::InputDevice::Keyboard &&
+              input.code == static_cast<std::uint16_t>(input::Key::Escape)) ||
+             (input.device == input::InputDevice::Gamepad &&
+              input.code == static_cast<std::uint16_t>(input::GamepadControl::B));
+    }
+
+    /// Apply the change for a Left/Right press on a General-tab row.
+    void adjust_general_row(Engine &engine, ui::SettingsGeneralRow row, int direction) {
+      switch (row) {
+        case ui::SettingsGeneralRow::Volume:
+          engine.audio.set_master_volume(
+              std::clamp(engine.audio.master_volume() + (static_cast<float>(direction) * ui::k_master_volume_step), 0.f,
+                         1.f));
+          break;
+        case ui::SettingsGeneralRow::TextSpeed:
+          engine.render.text_speed = direction > 0 ? ui::next_text_speed(engine.render.text_speed)
+                                                   : ui::prev_text_speed(engine.render.text_speed);
+          refresh_dialog_style(engine);
+          break;
+        case ui::SettingsGeneralRow::UiScale:
+          engine.render.ui_scale =
+              std::clamp(engine.render.ui_scale + (static_cast<float>(direction) * ui::k_ui_scale_step),
+                         ui::k_ui_scale_min, ui::k_ui_scale_max);
+          refresh_dialog_style(engine);
+          break;
+        case ui::SettingsGeneralRow::WindowMode:
+        case ui::SettingsGeneralRow::Count:
+          break; // Window mode toggles on Activate, not on Left/Right.
+      }
+    }
+
+    /// Bind @p captured to the action under the Controls cursor, replacing that action's existing
+    /// binding on the same device class (so a keyboard rebind does not add a second key row).
+    void rebind_captured(Engine &engine, input::PhysicalInput captured) {
+      const auto action = static_cast<input::Action>(engine.settings_screen.cursor);
+      input::Bindings bindings = engine.input_mapper.bindings();
+      for (const input::PhysicalInput existing : input::inputs_for(bindings, action)) {
+        if (existing.device == captured.device)
+          input::unbind(bindings, action, existing);
+      }
+      input::bind(bindings, action, captured);
+      if (auto result = engine.input_mapper.set_bindings(std::move(bindings)); !result)
+        warn_log("[engine] WARN: rebind failed: {}", result.error());
+    }
+
+    /// Step the pause menu: Back/Menu closes it; Up/Down move the selection; Activate runs the
+    /// highlighted command.
+    void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
+        engine.scene.ui.pop();
+        return;
+      }
+      if (intent.navigate_y != 0)
+        engine.menu.cursor = wrap_cursor(engine.menu.cursor, intent.navigate_y, ui::k_menu_command_count);
+      if (!intent.activate)
+        return;
+
+      switch (ui::menu_command_at(engine.menu.cursor)) {
+        case ui::MenuCommand::Resume:
+          engine.scene.ui.pop();
+          break;
+        case ui::MenuCommand::Settings:
+          engine.settings_screen = {};
+          engine.scene.ui.push(world::GameMode::Settings);
+          break;
+        case ui::MenuCommand::Quit:
+          engine.request_quit();
+          break;
+      }
+    }
+
+    /// Step the Settings screen. While the Controls tab is capturing a rebind, every other
+    /// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, and the
+    /// cursor edits the focused row.
+    void update_settings(Engine &engine, const input::InputIntent &intent) {
+      ui::SettingsState &state = engine.settings_screen;
+
+      if (state.rebinding) {
+        if (const std::optional<input::PhysicalInput> captured = engine.input_mapper.take_captured()) {
+          if (is_cancel_capture(*captured))
+            engine.input_mapper.cancel_capture();
+          else
+            rebind_captured(engine, *captured);
+          state.rebinding = false;
+        }
+        return;
+      }
+
+      if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
+        engine.scene.ui.pop();
+        return;
+      }
+
+      if (intent.next_tab || intent.prev_tab) {
+        const int direction = intent.next_tab ? 1 : -1;
+        const int tabs = ui::k_settings_tab_count;
+        state.tab = static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs);
+        state.cursor = 0;
+        state.scroll = 0;
+        return;
+      }
+
+      const int row_count = ui::settings_row_count(state.tab);
+      const int visible_rows = std::min(row_count, ui::k_settings_max_visible_rows);
+      if (intent.navigate_y != 0) {
+        state.cursor = wrap_cursor(state.cursor, intent.navigate_y, row_count);
+        ui::settings_scroll_to_cursor(state, row_count, visible_rows);
+        return;
+      }
+
+      if (state.tab == ui::SettingsTab::General) {
+        const auto row = static_cast<ui::SettingsGeneralRow>(state.cursor);
+        if (intent.navigate_x != 0) {
+          adjust_general_row(engine, row, intent.navigate_x);
+        } else if (intent.activate && row == ui::SettingsGeneralRow::WindowMode) {
+          const bool fullscreen = engine.window->window_mode() == core::WindowMode::Fullscreen;
+          engine.window->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
+        }
+      } else if (intent.activate) {
+        engine.input_mapper.begin_capture();
+        state.rebinding = true;
+      }
+    }
+
     /// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
     /// simulation sheds the remaining time rather than compounding a backlog.
     constexpr int k_max_steps_per_frame{8};
 
     /// Drain the timer accumulator: run gameplay, dialogue events, the
     /// on_fixed_update hook, and deletion flushing once per fixed step.
+    ///
+    /// Simulation work is intentionally not wrapped — a throw here (allocation failure in an
+    /// engine UI screen) is fatal, not recoverable.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     [[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
       const float pending_time{engine.timer.accumulator};
       const int steps{engine.timer.take_steps(k_max_steps_per_frame)};
@@ -414,29 +577,44 @@ namespace corundum {
 
       for (int step_index = 0; step_index < steps; ++step_index) {
         render::snapshot_previous_step(engine.render, engine.scene);
-        engine.scene.elapsed_time += engine.timer.target_dt;
 
-        // World mode with nothing streamed in has no actors to simulate, but time still advances
-        // and the input edge must still be consumed: poll() only ORs presses in, so a press
-        // latched here would fire the moment the world activates.
-        if (engine.render.mode != render::RenderMode::World || !engine.render.chunks.active_empty()) {
-          const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
-          world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
-          // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
-          // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
-          world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, map_view, engine.timer.target_dt,
-                        static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
-                        engine.flags, &engine.quests, engine.input_mapper.last_device());
+        const input::InputIntent intent =
+            input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+        // The engine-owned Menu/Settings screens own the step while open, which is what pauses the
+        // simulation — no world update, dialogue dispatch, quest tick, or on_fixed_update while a
+        // menu is up. Call it unconditionally: it has side effects (opening the menu) even when no
+        // screen ends up active. Opening the pause menu happens here because Esc doubles as
+        // Cancel — opening consumes the step so the same press cannot also close the fresh menu.
+        const bool engine_screen_active = engine.update_engine_screens(intent);
+
+        if (!engine_screen_active) {
+          engine.scene.elapsed_time += engine.timer.target_dt;
+
+          // World mode with nothing streamed in has no actors to simulate, but time still advances
+          // and the input edge must still be consumed: poll() only ORs presses in, so a press
+          // latched here would fire the moment the world activates.
+          if (engine.render.mode != render::RenderMode::World || !engine.render.chunks.active_empty()) {
+            const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
+            world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
+            // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
+            // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
+            world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, map_view,
+                          engine.timer.target_dt, static_cast<float>(engine.window_width()),
+                          static_cast<float>(engine.window_height()), engine.flags, &engine.quests,
+                          engine.input_mapper.last_device());
+          }
+
+          // Dialogue, quests, and the hook run every step — including World mode with nothing
+          // streamed in — so queued work is never stranded while elapsed_time advances.
+          engine.process_dialogue_events();
+          engine.toasts.update(engine.timer.target_dt);
+          if (engine.scene.dialogue)
+            ui::dialog_box_advance(engine.render.dialog_box, *engine.scene.dialogue, engine.timer.target_dt);
+          quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
+          invoke_fixed_update_hook(engine, engine.timer.target_dt);
+
+          entities::flush_deletions(engine.scene.world);
         }
-
-        // Dialogue, quests, and the hook run every step — including World mode with nothing
-        // streamed in — so queued work is never stranded while elapsed_time advances.
-        engine.process_dialogue_events();
-        engine.toasts.update(engine.timer.target_dt);
-        quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
-        invoke_fixed_update_hook(engine, engine.timer.target_dt);
-
-        entities::flush_deletions(engine.scene.world);
 
         input::clear_pressed(engine.input_state);
       }
@@ -451,6 +629,27 @@ namespace corundum {
       render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items,
                      &engine.quests, &engine.toasts, alpha, engine.window_width(), engine.window_height(),
                      engine.input_mapper.last_device());
+
+      // The engine-owned Menu/Settings screens draw over the world overlays. They live here rather
+      // than inside render::render so they can read the live bindings and audio volume without
+      // threading those through the render signature.
+      const corundum::core::math::Vec2 viewport{
+          .x = static_cast<float>(engine.window_width()),
+          .y = static_cast<float>(engine.window_height()),
+      };
+      switch (engine.scene.mode()) {
+        case world::GameMode::Menu:
+          ui::menu_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
+                                engine.menu, viewport, engine.input_mapper.last_device());
+          break;
+        case world::GameMode::Settings:
+          ui::settings_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
+                                    engine.settings_screen, settings_values(engine), engine.input_mapper.bindings(),
+                                    viewport, engine.input_mapper.last_device());
+          break;
+        default:
+          break;
+      }
 
       const debug::OverlayInput hud_input{
           .render_state = &engine.render,
@@ -470,6 +669,29 @@ namespace corundum {
     }
 
   } // namespace
+
+  bool Engine::update_engine_screens(const input::InputIntent &intent) {
+    using world::GameMode;
+
+    bool opened_menu = false;
+    if (input_state.is_pressed(input::Action::Menu) && scene.mode() == GameMode::Exploring) {
+      scene.ui.push(GameMode::Menu);
+      menu.cursor = 0;
+      opened_menu = true;
+    }
+
+    const GameMode mode = scene.mode();
+    if (mode != GameMode::Menu && mode != GameMode::Settings)
+      return false;
+
+    if (!opened_menu) {
+      if (mode == GameMode::Menu)
+        update_pause_menu(*this, intent);
+      else
+        update_settings(*this, intent);
+    }
+    return true;
+  }
 
   void Engine::run_loop() noexcept {
     // Measure the first frame from the start of the loop, so asset-load time during initialize() is not

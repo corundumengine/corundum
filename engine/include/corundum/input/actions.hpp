@@ -25,6 +25,9 @@ namespace corundum::input {
     ZoomOut,
     Inventory,
     Journal,
+    Menu,      ///< Pause/system menu toggle (Esc / gamepad Start).
+    TabNext,   ///< Next settings/journal tab (E / gamepad R1).
+    TabPrev,   ///< Previous settings/journal tab (Q / gamepad L1).
     QuickSave, ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
     QuickLoad, ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
     Count,

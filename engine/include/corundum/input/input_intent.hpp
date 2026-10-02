@@ -36,6 +36,12 @@ namespace corundum::input {
     /** @brief Action::Cancel was pressed this step. */
     bool back{};
 
+    /** @brief Action::TabNext was pressed this step (settings/journal tab forward). */
+    bool next_tab{};
+
+    /** @brief Action::TabPrev was pressed this step (settings/journal tab back). */
+    bool prev_tab{};
+
     /** @brief Cursor position in window pixels. */
     float cursor_x{};
 

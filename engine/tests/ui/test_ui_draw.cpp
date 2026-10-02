@@ -83,6 +83,35 @@ TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border 
   CHECK(std::holds_alternative<DrawRect>(r.log[0]));
 }
 
+TEST_CASE("ui_draw: panel_fill emits exactly one DrawRect") {
+  RecordingRenderer r;
+  const corundum::core::math::Colour bg{.r = 20, .g = 20, .b = 20, .a = 200};
+  const corundum::core::math::Vec2 pos{.x = 10.f, .y = 20.f};
+  const corundum::core::math::Vec2 size{.x = 100.f, .y = 60.f};
+
+  corundum::ui::panel_fill(r, bg, pos, size);
+
+  REQUIRE(r.log.size() == 1);
+  const DrawRect &rect = std::get<DrawRect>(r.log[0]);
+  CHECK(rect.position.x == pos.x);
+  CHECK(rect.position.y == pos.y);
+  CHECK(rect.size.x == size.x);
+  CHECK(rect.size.y == size.y);
+  CHECK(rect.colour.r == bg.r);
+  CHECK(rect.colour.a == bg.a);
+}
+
+TEST_CASE("ui_draw: panel_frame emits only the border's sprites, with no fill") {
+  RecordingRenderer r;
+  const corundum::ui::NinePatchBorder border = make_border();
+
+  corundum::ui::panel_frame(r, border, {.x = 10.f, .y = 20.f}, {.x = 100.f, .y = 60.f});
+
+  REQUIRE(r.log.size() == 8);
+  for (const auto &call : r.log)
+    CHECK(std::holds_alternative<DrawSprite>(call));
+}
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("ui_draw: nine_patch_render emits corners and correctly stretched edges") {
   RecordingRenderer r;
@@ -748,6 +777,47 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
 
 // ── build_inventory_lines ────────────────────────────────────────────────────
 
+// doctest's CHECK macros expand to control flow, so the assertion count — not the test's logic —
+// dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_CASE("inventory_panel_render: the highlighted row's description draws as a footer tooltip") {
+  const corundum::ui::NinePatchBorder border = make_border();
+  const corundum::ui::DialogBoxStyle style{};
+  const std::vector<corundum::ui::InventoryLine> lines = {
+      {.count = 1, .name = "Salt", .description = "A pinch of river salt."},
+      {.count = 1, .name = "Hammer", .description = "Osric's heirloom."},
+  };
+  const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
+
+  // Cursor 0 draws the first row's description, not the second's.
+  RecordingRenderer r;
+  corundum::ui::inventory_panel_render(r, style, border, lines, 0, viewport);
+  bool first_description = false;
+  bool second_description = false;
+  for (const auto &call : r.log) {
+    if (const auto *text = std::get_if<DrawText>(&call); text != nullptr) {
+      first_description = first_description || text->text == "A pinch of river salt.";
+      second_description = second_description || text->text == "Osric's heirloom.";
+    }
+  }
+  CHECK(first_description);
+  CHECK_FALSE(second_description);
+
+  // Moving the cursor to the second row swaps the tooltip.
+  RecordingRenderer r2;
+  corundum::ui::inventory_panel_render(r2, style, border, lines, 1, viewport);
+  bool second_now = false;
+  bool first_now = false;
+  for (const auto &call : r2.log) {
+    if (const auto *text = std::get_if<DrawText>(&call); text != nullptr) {
+      second_now = second_now || text->text == "Osric's heirloom.";
+      first_now = first_now || text->text == "A pinch of river salt.";
+    }
+  }
+  CHECK(second_now);
+  CHECK_FALSE(first_now);
+}
+
 TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by name, falls back to id") {
   corundum::world::FlagStore flags;
   flags["item.a"] = 2;
@@ -759,6 +829,7 @@ TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by
   corundum::item::Item a;
   a.id = "a";
   a.name = "Apple";
+  a.description = "Crisp and red.";
   items.add(std::move(a));
 
   const auto lines = corundum::ui::build_inventory_lines(flags, items);
@@ -766,8 +837,10 @@ TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].name == "Apple");
   CHECK(lines[0].count == 2);
+  CHECK(lines[0].description == "Crisp and red.");
   CHECK(lines[1].name == "c");
   CHECK(lines[1].count == 1);
+  CHECK(lines[1].description.empty()); // no definition → no tooltip
 }
 
 TEST_CASE("build_inventory_lines: groups items by category, ordering by (category, name)") {

@@ -147,6 +147,66 @@ TEST_CASE("bindings: parsing fills action gaps from defaults without duplicating
   CHECK(std::ranges::find(move_up, physical(Key::Up)) == move_up.end());
 }
 
+TEST_CASE("bindings: parsing an older file restores a new action's shared keyboard default") {
+  const Bindings defaults = default_bindings();
+
+  // An older settings file predating Action::Menu: every default row except Menu's. Escape is
+  // already bound to Cancel, but that is an intended shared default, so Menu must still get it.
+  nlohmann::json array = nlohmann::json::array();
+  for (const nlohmann::json &row : serialize(defaults)) {
+    if (row.at("action").get<std::string>() != "Menu")
+      array.push_back(row);
+  }
+
+  const auto parsed = parse_bindings(array, defaults);
+  REQUIRE(parsed.has_value());
+  const std::vector<PhysicalInput> menu = inputs_for(*parsed, Action::Menu);
+  CHECK(std::ranges::find(menu, physical(Key::Escape)) != menu.end());
+  CHECK(std::ranges::find(menu, physical(GamepadControl::Start)) != menu.end());
+  // Cancel keeps Escape too.
+  const std::vector<PhysicalInput> cancel = inputs_for(*parsed, Action::Cancel);
+  CHECK(std::ranges::find(cancel, physical(Key::Escape)) != cancel.end());
+}
+
+TEST_CASE("bindings: parsing restores a shared default missing from a partially-populated action") {
+  const Bindings defaults = default_bindings();
+
+  // Simulates a file saved after Menu lost its keyboard row but kept Start.
+  nlohmann::json array = nlohmann::json::array();
+  for (const nlohmann::json &row : serialize(defaults)) {
+    const bool is_menu_escape =
+        row.at("action").get<std::string>() == "Menu" && row.at("input").get<std::string>() == "Escape";
+    if (!is_menu_escape)
+      array.push_back(row);
+  }
+
+  const auto parsed = parse_bindings(array, defaults);
+  REQUIRE(parsed.has_value());
+  const std::vector<PhysicalInput> menu = inputs_for(*parsed, Action::Menu);
+  CHECK(std::ranges::find(menu, physical(Key::Escape)) != menu.end());
+  CHECK(std::ranges::find(menu, physical(GamepadControl::Start)) != menu.end());
+}
+
+TEST_CASE("bindings: a deliberate partial unbind of a shared key persists") {
+  const Bindings defaults = default_bindings();
+
+  // The player rebound Cancel off Escape (now H) but left its other rows. Escape stays off Cancel.
+  nlohmann::json array = nlohmann::json::array();
+  for (const nlohmann::json &row : serialize(defaults)) {
+    if (row.at("action").get<std::string>() == "Cancel")
+      continue;
+    array.push_back(row);
+  }
+  array.push_back({{"action", "Cancel"}, {"device", "keyboard"}, {"input", "H"}});
+  array.push_back({{"action", "Cancel"}, {"device", "gamepad"}, {"input", "B"}});
+
+  const auto parsed = parse_bindings(array, defaults);
+  REQUIRE(parsed.has_value());
+  const std::vector<PhysicalInput> cancel = inputs_for(*parsed, Action::Cancel);
+  CHECK(std::ranges::find(cancel, physical(Key::Escape)) == cancel.end());
+  CHECK(std::ranges::find(cancel, physical(Key::H)) != cancel.end());
+}
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("bindings: parse errors name the offending entry") {
   const Bindings defaults = default_bindings();

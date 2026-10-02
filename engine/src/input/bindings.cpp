@@ -41,6 +41,9 @@ namespace corundum::input {
             {Action::ZoomOut, "ZoomOut"},
             {Action::Inventory, "Inventory"},
             {Action::Journal, "Journal"},
+            {Action::Menu, "Menu"},
+            {Action::TabNext, "TabNext"},
+            {Action::TabPrev, "TabPrev"},
             {Action::QuickSave, "QuickSave"},
             {Action::QuickLoad, "QuickLoad"},
         },
@@ -66,6 +69,11 @@ namespace corundum::input {
         {.action = Action::Quit, .input = physical(Key::Q)},
         {.action = Action::Inventory, .input = physical(Key::I)},
         {.action = Action::Journal, .input = physical(Key::J)},
+        // Esc doubles as Cancel; the pause menu opens only from Exploring, and its own Cancel
+        // path closes it, so the shared key never opens and closes in the same step.
+        {.action = Action::Menu, .input = physical(Key::Escape)},
+        {.action = Action::TabPrev, .input = physical(Key::LeftBracket)},
+        {.action = Action::TabNext, .input = physical(Key::RightBracket)},
         {.action = Action::ZoomIn, .input = physical(Key::Equal)}, // '=' doubles as '+' without needing Shift
         {.action = Action::ZoomOut, .input = physical(Key::Minus)},
         {.action = Action::QuickSave, .input = physical(Key::F5)},
@@ -75,6 +83,9 @@ namespace corundum::input {
         {.action = Action::Activate, .input = physical(MouseButton::Left)},
         {.action = Action::Activate, .input = physical(GamepadControl::A)},
         {.action = Action::Cancel, .input = physical(GamepadControl::B)},
+        {.action = Action::Menu, .input = physical(GamepadControl::Start)},
+        {.action = Action::TabPrev, .input = physical(GamepadControl::LeftBumper)},
+        {.action = Action::TabNext, .input = physical(GamepadControl::RightBumper)},
         {.action = Action::Journal, .input = physical(GamepadControl::Y)},
         {.action = Action::MoveUp, .input = physical(GamepadControl::LeftStickUp)},
         {.action = Action::MoveUp, .input = physical(GamepadControl::DpadUp)},
@@ -162,6 +173,46 @@ namespace corundum::input {
       return {};
     }
 
+    /// Restore the defaults a file omitted, preserving deliberate partial unbinds. See
+    /// parse_bindings()'s contract for the exact rules.
+    void fill_missing_defaults(Bindings &result, const Bindings &defaults) {
+      // Whether an action was bound *before* any defaults were restored decides whether its plain
+      // defaults are restored as a group; without the snapshot, restoring the first one would make
+      // the action look present and suppress the rest.
+      std::array<bool, k_action_count> originally_present{};
+      for (const Binding &row : result)
+        originally_present[static_cast<std::size_t>(row.action)] = true;
+
+      for (const Binding &default_row : defaults) {
+        if (std::ranges::find(result, default_row) != result.end())
+          continue; // this exact row is already present
+
+        const Action action = default_row.action;
+        const bool device_has_binding = std::ranges::any_of(result, [&default_row, action](const Binding &row) {
+          return row.action == action && row.input.device == default_row.input.device;
+        });
+        // The input is shared between two actions by the defaults themselves (Escape = Cancel +
+        // Menu; Enter/Space/left mouse/A = Select + Activate): restore it for a device the action
+        // has nothing on, but never over a bind the player already has on that device.
+        const bool shared_by_default = std::ranges::any_of(defaults, [&default_row](const Binding &row) {
+          return row.action != default_row.action && row.input == default_row.input;
+        });
+        if (shared_by_default) {
+          if (!device_has_binding)
+            result.push_back(default_row);
+          continue;
+        }
+
+        // A plain default is only restored when the action had no rows at all, so a deliberate
+        // partial unbind survives; an input assigned to another action is never stolen back.
+        const bool input_on_other = std::ranges::any_of(result, [&default_row](const Binding &row) {
+          return row.action != default_row.action && row.input == default_row.input;
+        });
+        if (!originally_present[static_cast<std::size_t>(action)] && !input_on_other)
+          result.push_back(default_row);
+      }
+    }
+
   } // namespace
 
   std::expected<Bindings, std::string> parse_bindings(const nlohmann::json &array, const Bindings &defaults) {
@@ -195,21 +246,7 @@ namespace corundum::input {
         result.push_back(row);
     }
 
-    for (std::size_t action_index = 0; action_index < k_action_count; ++action_index) {
-      const auto action = static_cast<Action>(action_index);
-      const bool present = std::ranges::any_of(result, [action](const Binding &row) { return row.action == action; });
-      if (present)
-        continue;
-
-      for (const Binding &default_row : defaults) {
-        if (default_row.action != action)
-          continue;
-        const bool input_bound =
-            std::ranges::any_of(result, [&default_row](const Binding &row) { return row.input == default_row.input; });
-        if (!input_bound)
-          result.push_back(default_row);
-      }
-    }
+    fill_missing_defaults(result, defaults);
 
     if (result.size() > k_max_input_sources)
       return std::unexpected(

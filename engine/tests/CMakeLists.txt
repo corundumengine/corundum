@@ -87,6 +87,7 @@ set(TEST_SOURCES
     root/test_engine_options.cpp
     root/test_inventory_toggle.cpp
     root/test_journal_toggle.cpp
+    root/test_pause_menu.cpp
     root/test_player_absent.cpp
     root/test_umbrella_header.cpp
 
@@ -107,9 +108,12 @@ set(TEST_SOURCES
     sprites/test_sprite_sheet_clips.cpp
 
     # ui
+    ui/test_dialog_reveal.cpp
     ui/test_hud_strip.cpp
     ui/test_input_glyph.cpp
     ui/test_journal.cpp
+    ui/test_menu.cpp
+    ui/test_settings.cpp
     ui/test_toast.cpp
     ui/test_ui_draw.cpp
     ui/test_word_wrap.cpp

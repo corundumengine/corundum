@@ -25,12 +25,31 @@ namespace corundum::ui {
    */
   [[nodiscard]] float cursor_advance(const platform::Renderer &r, const DialogBoxStyle &style);
 
-  /** @brief Fill @p rect with @p bg then draw @p border around it — the shared
-   *         chrome of every nine-patch modal panel.
-   *  @param r       Renderer; receives one DrawRect then the border's DrawSprite commands.
+  /** @brief Fill @p pos/@p size with @p bg — the tint behind a panel's frame.
+   *
+   *  A translucent @p bg lets the scene show through and tint the panel; an opaque one makes a
+   *  solid box. Kept separate from panel_frame() so a caller can draw either alone.
+   *  @param r    Renderer; emits one DrawRect.
+   *  @param bg   Fill colour.
+   *  @param pos  Top-left in screen pixels.
+   *  @param size Width/height in screen pixels.
+   */
+  void panel_fill(platform::Renderer &r, core::math::Colour bg, core::math::Vec2 pos, core::math::Vec2 size);
+
+  /** @brief Draw the @p border nine-patch frame around @p pos/@p size, with no fill.
+   *
+   *  A zero texture_id or non-positive cell size skips the frame.
+   *  @param r      Renderer; emits the border's DrawSprite commands.
+   *  @param border Nine-patch frame texture/tile dims.
+   *  @param pos    Top-left in screen pixels.
+   *  @param size   Width/height in screen pixels.
+   */
+  void panel_frame(platform::Renderer &r, const NinePatchBorder &border, core::math::Vec2 pos, core::math::Vec2 size);
+
+  /** @brief panel_fill() then panel_frame() — the shared chrome of every nine-patch modal panel.
+   *  @param r       Renderer; emits one DrawRect then the border's DrawSprite commands.
    *  @param bg      Panel fill colour (e.g. DialogBoxStyle::bg).
-   *  @param border  Nine-patch frame; a zero texture_id or non-positive cell size skips only
-   *                 the frame, leaving the fill rect intact.
+   *  @param border  Nine-patch frame.
    *  @param pos     Top-left of the panel in screen pixels.
    *  @param size    Panel width/height in screen pixels.
    */

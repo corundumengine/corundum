@@ -66,10 +66,14 @@ namespace corundum::input {
 
   /** @brief Parse a serialize() array, filling gaps from @p defaults.
    *
-   *  Any action with no row in @p array receives its @p defaults rows, except those whose input is
-   *  already bound, so a newly added Action works with an older file. The consequence is that
-   *  "this action has no inputs" cannot be persisted: an action the player fully unbound comes back
-   *  with its defaults on the next load. Partial unbinds persist. A controls menu should therefore
+   *  A missing default row is restored so a newly added Action works with an older file. A plain
+   *  default is only restored for an action with no rows at all, so a deliberate partial unbind
+   *  survives a load. An input the defaults themselves share across actions (Escape = Cancel +
+   *  Menu; Enter/Space/left mouse/A = Select + Activate) is restored for any device the action has
+   *  no bindings on, since that overlap is intentional rather than a conflict.
+   *
+   *  The consequence is that "this action has no inputs" cannot be persisted: an action the player
+   *  fully unbound comes back with its defaults on the next load. A controls menu should therefore
    *  forbid emptying an action, or accept this behaviour. Exact duplicate rows collapse to one.
    *
    *  @return The table, or an error naming the offending entry's index when @p array is not an

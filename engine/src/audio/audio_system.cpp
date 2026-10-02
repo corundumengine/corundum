@@ -32,6 +32,7 @@ namespace corundum::audio {
     catalog_.clear();
     initialized_ = true;
     backend_->set_paused(paused_);
+    backend_->set_master_volume(master_volume_);
     return {};
   }
 
@@ -94,6 +95,7 @@ namespace corundum::audio {
   }
 
   void AudioSystem::set_master_volume(float volume) noexcept {
+    master_volume_ = volume;
     if (!is_ready())
       return;
     backend_->set_master_volume(volume);
