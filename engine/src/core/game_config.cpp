@@ -5,8 +5,10 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/window_mode.hpp>
+#include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <flat_map>
 #include <format>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -418,6 +420,31 @@ namespace corundum::core {
       return {};
     }
 
+    std::expected<std::flat_map<std::string, int>, std::string> parse_starting_flags(const json &j,
+                                                                                     const fs::path &path) {
+      std::flat_map<std::string, int> flags;
+      if (!j.contains("starting_flags"))
+        return flags;
+
+      const json &sub = j.at("starting_flags");
+      if (!sub.is_object())
+        return std::unexpected(std::format("game.json 'starting_flags' must be an object: {}", path.string()));
+
+      for (const auto &[key, value] : sub.items()) {
+        if (key.empty())
+          return std::unexpected(std::format("game.json 'starting_flags' keys must not be empty: {}", path.string()));
+        if (!value.is_number_integer())
+          return std::unexpected(
+              std::format("game.json 'starting_flags.{}' must be an integer: {}", key, path.string()));
+        try {
+          flags.insert_or_assign(key, value.get<int>());
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'starting_flags.{}' is out of range: {}", key, path.string()));
+        }
+      }
+      return flags;
+    }
+
   } // namespace
 
   std::expected<GameConfig, std::string> load_game_config(const fs::path &path) {
@@ -477,6 +504,13 @@ namespace corundum::core {
       if (!res)
         return std::unexpected(res.error());
       cfg.player = std::move(*res);
+    }
+
+    {
+      auto res = parse_starting_flags(j, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.starting_flags = std::move(*res);
     }
 
     return cfg;

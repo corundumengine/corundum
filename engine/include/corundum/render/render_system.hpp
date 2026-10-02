@@ -32,6 +32,10 @@ namespace corundum::item {
   class Registry;
 }
 
+namespace corundum::ui {
+  class ToastQueue;
+}
+
 namespace corundum::render {
 
   /** @brief Initialise render state (pre-reserves entity draw-list buffer).
@@ -158,19 +162,22 @@ namespace corundum::render {
   void configure_dialog_style(render::RenderState &state, const corundum::core::GameConfig &cfg);
 
   /** @brief Render the entire visible frame.
-   *  @param[in,out] r      Renderer for all draw calls.
-   *  @param[in,out] state  Render state (chunk streaming may modify active set).
-   *  @param[in]     cfg    Game config.
-   *  @param[in]     scene  Scene (camera, entities, dialogue mode).
-   *  @param[in]     flags  Persistent game flags for conditional dialogue rendering.
-   *  @param[in]     items  Loaded item registry for display names in the inventory panel; null hides it.
-   *  @param[in]     alpha  Interpolation factor in [0,1] for render smoothing.
-   *  @param[in]     win_w  Live window width in screen pixels.
-   *  @param[in]     win_h  Live window height in screen pixels.
+   *  @param[in,out] r       Renderer for all draw calls.
+   *  @param[in,out] state   Render state (chunk streaming may modify active set).
+   *  @param[in]     cfg     Game config.
+   *  @param[in]     scene   Scene (camera, entities, dialogue mode).
+   *  @param[in]     flags   Persistent game flags for conditional dialogue rendering.
+   *  @param[in]     items   Loaded item registry for display names in the inventory panel; null hides it.
+   *  @param[in]     quests  Loaded quest registry for the journal and HUD strip; null hides both.
+   *  @param[in]     toasts  Live notification queue to stack bottom-left; null hides toasts.
+   *  @param[in]     alpha   Interpolation factor in [0,1] for render smoothing.
+   *  @param[in]     win_w   Live window width in screen pixels.
+   *  @param[in]     win_h   Live window height in screen pixels.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::item::Registry *items, float alpha, int win_w, int win_h);
+              const corundum::item::Registry *items, const corundum::quest::Registry *quests,
+              const corundum::ui::ToastQueue *toasts, float alpha, int win_w, int win_h);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

@@ -528,3 +528,44 @@ TEST_CASE("load_game_config — non-integer rng_seed returns an error") {
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("rng_seed") != std::string::npos);
 }
+
+// ── starting_flags ────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — starting_flags parses integer values") {
+  const auto dir = temp_dir("starting_flags");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"starting_flags": {"gold": 50, "rep.village": -2, "intro_seen": 1}})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  REQUIRE(result->starting_flags.size() == 3);
+  CHECK(result->starting_flags.at("gold") == 50);
+  CHECK(result->starting_flags.at("rep.village") == -2);
+  CHECK(result->starting_flags.at("intro_seen") == 1);
+}
+
+TEST_CASE("load_game_config — absent starting_flags leaves the map empty") {
+  const auto dir = temp_dir("starting_flags_absent");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->starting_flags.empty());
+}
+
+TEST_CASE("load_game_config — non-object starting_flags returns an error") {
+  const auto dir = temp_dir("starting_flags_not_obj");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"starting_flags": [1, 2]})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("starting_flags") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — non-integer starting_flags value returns an error") {
+  const auto dir = temp_dir("starting_flags_value_type");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"starting_flags": {"gold": "lots"}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("starting_flags.gold") != std::string::npos);
+}

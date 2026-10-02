@@ -63,9 +63,12 @@ set(ENGINE_SOURCES
     src/sprites/sprite_sheet_clips_loader.cpp
     src/sprites/sprite_sheet_clips_serializer.cpp
     src/ui/dialog_box.cpp
+    src/ui/hud_strip.cpp
     src/ui/inventory_panel.cpp
+    src/ui/journal.cpp
     src/ui/nine_patch.cpp
     src/ui/prompt_box.cpp
+    src/ui/toast.cpp
     src/ui/ui_draw.cpp
     src/world/actors/actor_loader.cpp
     src/world/camera.cpp

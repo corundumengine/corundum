@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <flat_map>
 #include <optional>
 #include <string>
 
@@ -169,6 +170,12 @@ namespace corundum::core {
 
     /** @brief Player identity and default placement. */
     PlayerConfig player{};
+
+    /** @brief Flag values seeded into the FlagStore during initialize(), before the first frame.
+     *
+     *  Lets a project author its starting state (gold, reputation, "intro_seen") in data rather
+     *  than code. Absent or empty means no flags are seeded. */
+    std::flat_map<std::string, int> starting_flags{};
   };
 
   /// Parses game.json at @p path and returns a validated GameConfig.

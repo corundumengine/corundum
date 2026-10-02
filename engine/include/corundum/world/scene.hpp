@@ -21,10 +21,10 @@
 
 namespace corundum::world {
 
-  /** @brief Whether the player is free-roaming, locked into a dialogue session, paused on a portal-confirm prompt, or
-   * browsing the inventory panel.
+  /** @brief Whether the player is free-roaming, locked into a dialogue session, paused on a portal-confirm prompt,
+   * browsing the inventory panel, or reading the quest journal.
    */
-  enum class GameMode : std::uint8_t { Exploring, Dialogue, Prompt, Inventory };
+  enum class GameMode : std::uint8_t { Exploring, Dialogue, Prompt, Inventory, Journal };
 
   /** @brief All game-world data for a running session.
    *
@@ -96,6 +96,10 @@ namespace corundum::world {
     /// Highlighted row while mode == GameMode::Inventory; wrapped against the held-item count by
     /// update_inventory().
     int inventory_cursor{};
+
+    /// Highlighted row while mode == GameMode::Journal; wrapped against the started-quest count by
+    /// update_journal().
+    int journal_cursor{};
 
     GameMode mode{GameMode::Exploring};
 

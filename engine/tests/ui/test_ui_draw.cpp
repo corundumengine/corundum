@@ -23,6 +23,8 @@
 #include <corundum/ui/prompt_box.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
+#include "ui/recording_renderer.hpp"
+
 #include <deque>
 #include <expected>
 #include <string>
@@ -31,81 +33,11 @@
 #include <variant>
 #include <vector>
 
-namespace {
-
-  using corundum::platform::DrawRect;
-  using corundum::platform::DrawSprite;
-  using corundum::platform::DrawText;
-
-  /// Records every draw call into one ordered log so tests can assert both
-  /// counts and ordering. measure_text mirrors the null backend's per-glyph
-  /// width so tests don't depend on real font metrics.
-  class RecordingRenderer final : public corundum::platform::Renderer {
-  public:
-    using DrawCall = std::variant<DrawRect, DrawSprite, DrawText>;
-    std::vector<DrawCall> log{};
-    // DrawText::text is a string_view that may point into temporaries that die
-    // when the render call returns (e.g. formatted inventory labels); the real
-    // renderer consumes it synchronously, but this recorder must keep it alive.
-    // A deque (not vector) keeps references to stored strings stable across
-    // push_back, since the recorded DrawText views point into this container.
-    std::deque<std::string> text_owner{};
-
-    std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override {
-      return 1u;
-    }
-
-    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override {
-      return 2u;
-    }
-
-    void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
-                        float /*zoom*/) override {}
-
-    void reset_screen_view() override {}
-
-    bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override {
-      return true;
-    }
-
-    void end_frame() override {}
-
-    void draw(const DrawSprite &cmd) override {
-      log.emplace_back(cmd);
-    }
-
-    void draw(const DrawText &cmd) override {
-      text_owner.emplace_back(cmd.text);
-      DrawText copy = cmd;
-      copy.text = text_owner.back();
-      log.emplace_back(copy);
-    }
-
-    void draw(const DrawRect &cmd) override {
-      log.emplace_back(cmd);
-    }
-
-    void draw(const corundum::platform::DrawLine & /*cmd*/) override {}
-
-    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text,
-                                     uint32_t /*char_size*/) const override {
-      return static_cast<float>(text.size()) * 8.f;
-    }
-
-    [[nodiscard]] corundum::platform::RendererStats stats() const override {
-      return {};
-    }
-  };
-
-  corundum::ui::NinePatchBorder make_border() {
-    corundum::ui::NinePatchBorder b{};
-    b.texture_id = 1u;
-    b.tile_w = 4;
-    b.tile_h = 4;
-    return b;
-  }
-
-} // namespace
+using corundum::platform::DrawRect;
+using corundum::platform::DrawSprite;
+using corundum::platform::DrawText;
+using corundum::test::make_border;
+using corundum::test::RecordingRenderer;
 
 // doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
 // test's logic — dominates this metric.

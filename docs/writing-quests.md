@@ -8,10 +8,10 @@ Quests are JSON files in `data/quests/` (or wherever `quests_dir` points in `gam
 
 A quest is a sequence of stages, and progress is one integer in the flag store under `quest.{id}`. That integer tells you which stage the player is on:
 
-| Flag value | Meaning |
-|---|---|
-| `0` (absent) | Quest not yet started |
-| A stage's `sequence` | Quest is active on that stage |
+| Flag value                    | Meaning                             |
+| ----------------------------- | ----------------------------------- |
+| `0` (absent)                  | Quest not yet started               |
+| A stage's `sequence`          | Quest is active on that stage       |
 | A resolved stage's `sequence` | Quest is over (completed or failed) |
 
 Dialogue conditions, the journal, NPC reactions: everything reads from this one integer. Nothing else to track.
@@ -20,14 +20,28 @@ Dialogue conditions, the journal, NPC reactions: everything reads from this one 
 
 The engine derives a typed `quest::Lifecycle` from the flag value:
 
-| Status | Meaning |
-|---|---|
-| `NotStarted` | The `quest.{id}` flag is absent or 0. |
-| `Active` | On a stage that isn't resolved or failed. |
-| `Completed` | On a resolved, non-failed stage. |
-| `Failed` | On a failed stage (failed stages are also resolved). |
+| Status       | Meaning                                              |
+| ------------ | ---------------------------------------------------- |
+| `NotStarted` | The `quest.{id}` flag is absent or 0.                |
+| `Active`     | On a stage that isn't resolved or failed.            |
+| `Completed`  | On a resolved, non-failed stage.                     |
+| `Failed`     | On a failed stage (failed stages are also resolved). |
 
 You rarely touch the enum when authoring. Dialogue conditions use the `quest_is_*` helpers instead (see [Quest condition helpers](#quest-condition-helpers)).
+
+### Seeding starting state
+
+A quest that gates on `gold`, `rep.<faction>`, or a boolean flag needs those
+flags to exist before the player can satisfy them. Author them in `game.json`:
+
+```json
+"starting_flags": { "gold": 50, "rep.village": 1, "intro_seen": 1 }
+```
+
+`Engine::initialize()` writes each entry into the FlagStore after the
+quest/item/dialogue registries load and before the first frame, so a fresh save
+starts with exactly the state a tester needs. Keys are arbitrary flag names;
+values are integers (negative allowed).
 
 ---
 
@@ -67,15 +81,15 @@ You rarely touch the enum when authoring. Dialogue conditions use the `quest_is_
 
 Each stage is one point in the quest's progress.
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `name` | string | yes | Identifier used in dialogue actions (e.g. `"start"`, `"return"`, `"failed"`) |
-| `sequence` | integer | yes | Written to the flag store. Must be > 0 and unique within the quest. |
-| `resolved` | boolean | no | `true` marks the stage as an ending. Defaults to `false`. |
-| `failed` | boolean | no | `true` marks the stage as a failure ending. Implies `resolved`. Defaults to `false`. |
-| `objectives` | array | yes | Journal lines shown while this stage is active. An empty array is fine. |
-| `advances_to` | array | no | Stage names this stage may legally advance to. Declared and load-validated only; see [Legal transitions](#legal-transitions-advances_to). |
-| `auto_advance_to` | string | no | A single stage name to advance to once this stage's conditioned objectives are all done. |
+| Field             | Type    | Required | Description                                                                                                                               |
+| ----------------- | ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`            | string  | yes      | Identifier used in dialogue actions (e.g. `"start"`, `"return"`, `"failed"`)                                                              |
+| `sequence`        | integer | yes      | Written to the flag store. Must be > 0 and unique within the quest.                                                                       |
+| `resolved`        | boolean | no       | `true` marks the stage as an ending. Defaults to `false`.                                                                                 |
+| `failed`          | boolean | no       | `true` marks the stage as a failure ending. Implies `resolved`. Defaults to `false`.                                                      |
+| `objectives`      | array   | yes      | Journal lines shown while this stage is active. An empty array is fine.                                                                   |
+| `advances_to`     | array   | no       | Stage names this stage may legally advance to. Declared and load-validated only; see [Legal transitions](#legal-transitions-advances_to). |
+| `auto_advance_to` | string  | no       | A single stage name to advance to once this stage's conditioned objectives are all done.                                                  |
 
 ### Stage sequences
 
@@ -98,10 +112,10 @@ Objectives are the lines shown in the journal while a stage is active.
 }
 ```
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `text` | string | yes | The line shown in the journal |
-| `done_condition` | string | no | A flag expression; when true, the objective is shown as completed |
+| Field            | Type   | Required | Description                                                       |
+| ---------------- | ------ | -------- | ----------------------------------------------------------------- |
+| `text`           | string | yes      | The line shown in the journal                                     |
+| `done_condition` | string | no       | A flag expression; when true, the objective is shown as completed |
 
 `done_condition` uses the same expression syntax as dialogue conditions: `flag_name >= value`, `quest_is_at(...)`, and so on. It's compiled once at load, and a malformed expression is a hard load error. The journal checks the objective off automatically.
 
@@ -167,12 +181,12 @@ This sets `quest.find_sword` to the sequence of the stage named `"return"`. You 
 
 ### Quest condition helpers
 
-| Helper | Meaning |
-|---|---|
-| `quest_is_started(quest_id)` | The `quest.<id>` flag is set (any stage, including completed) |
-| `quest_is_resolved(quest_id)` | The quest is on a resolved stage (completed or failed) |
-| `quest_is_failed(quest_id)` | The quest ended in failure |
-| `quest_is_at(quest_id, stage_name)` | The quest is at a specific named stage |
+| Helper                              | Meaning                                                       |
+| ----------------------------------- | ------------------------------------------------------------- |
+| `quest_is_started(quest_id)`        | The `quest.<id>` flag is set (any stage, including completed) |
+| `quest_is_resolved(quest_id)`       | The quest is on a resolved stage (completed or failed)        |
+| `quest_is_failed(quest_id)`         | The quest ended in failure                                    |
+| `quest_is_at(quest_id, stage_name)` | The quest is at a specific named stage                        |
 
 ```json
 { "condition": "quest_is_at(find_sword, complete_helped)" }
@@ -338,13 +352,13 @@ Wire it to whatever causes the failure: a death trigger, an expired timer, a dia
 
 ## Naming conventions
 
-| Thing | Convention | Example |
-|---|---|---|
-| Quest `id` | `snake_case` | `find_sword`, `escort_merchant` |
-| Stage `name` | `snake_case` | `start`, `return`, `complete_helped`, `failed` |
-| Flag store key | Auto-generated | `quest.find_sword` |
-| Quest file | `{quest_id}.json` | `find_sword.json` |
-| Condition helpers | `quest_is_<state>` | `quest_is_started`, `quest_is_at` |
+| Thing             | Convention         | Example                                        |
+| ----------------- | ------------------ | ---------------------------------------------- |
+| Quest `id`        | `snake_case`       | `find_sword`, `escort_merchant`                |
+| Stage `name`      | `snake_case`       | `start`, `return`, `complete_helped`, `failed` |
+| Flag store key    | Auto-generated     | `quest.find_sword`                             |
+| Quest file        | `{quest_id}.json`  | `find_sword.json`                              |
+| Condition helpers | `quest_is_<state>` | `quest_is_started`, `quest_is_at`              |
 
 ---
 

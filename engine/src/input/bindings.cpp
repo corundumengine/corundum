@@ -39,6 +39,7 @@ namespace corundum::input {
             {Action::ZoomIn, "ZoomIn"},
             {Action::ZoomOut, "ZoomOut"},
             {Action::Inventory, "Inventory"},
+            {Action::Journal, "Journal"},
             {Action::QuickSave, "QuickSave"},
             {Action::QuickLoad, "QuickLoad"},
         },
@@ -61,6 +62,7 @@ namespace corundum::input {
         {.action = Action::Cancel, .input = physical(Key::Escape)},
         {.action = Action::Quit, .input = physical(Key::Q)},
         {.action = Action::Inventory, .input = physical(Key::I)},
+        {.action = Action::Journal, .input = physical(Key::J)},
         {.action = Action::ZoomIn, .input = physical(Key::Equal)}, // '=' doubles as '+' without needing Shift
         {.action = Action::ZoomOut, .input = physical(Key::Minus)},
         {.action = Action::QuickSave, .input = physical(Key::F5)},
@@ -68,6 +70,7 @@ namespace corundum::input {
         {.action = Action::Select, .input = physical(MouseButton::Left)},
         {.action = Action::Select, .input = physical(GamepadControl::A)},
         {.action = Action::Cancel, .input = physical(GamepadControl::B)},
+        {.action = Action::Journal, .input = physical(GamepadControl::Y)},
         {.action = Action::MoveUp, .input = physical(GamepadControl::LeftStickUp)},
         {.action = Action::MoveUp, .input = physical(GamepadControl::DpadUp)},
         {.action = Action::MoveDown, .input = physical(GamepadControl::LeftStickDown)},

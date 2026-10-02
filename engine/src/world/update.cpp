@@ -7,6 +7,7 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/item/item.hpp>
+#include <corundum/ui/journal.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
@@ -159,6 +160,38 @@ namespace {
       scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, -1, rows);
   }
 
+  /// Step a paused-on-journal scene: Cancel (or pressing J again, handled by the toggle in
+  /// update()) returns to Exploring; MoveUp/MoveDown wrap the highlight within the started-quest
+  /// rows (the same list build_journal_entries renders). Like inventory, not calling
+  /// update_exploring is what pauses the player.
+  void update_journal(corundum::world::Scene &scene, const corundum::input::InputState &input,
+                      const corundum::quest::Registry *quests, const corundum::world::FlagStore &flags) {
+    using corundum::input::Action;
+
+    if (input.is_pressed(Action::Cancel)) {
+      scene.mode = corundum::world::GameMode::Exploring;
+      return;
+    }
+
+    const bool move_down = input.is_pressed(Action::MoveDown);
+    const bool move_up = input.is_pressed(Action::MoveUp);
+    if (!move_down && !move_up)
+      return;
+
+    const int rows = quests != nullptr
+                         ? static_cast<int>(corundum::ui::build_journal_entries(*quests, flags, scene.zone_id).size())
+                         : 0;
+    if (rows <= 0) {
+      scene.journal_cursor = 0;
+      return;
+    }
+
+    if (move_down)
+      scene.journal_cursor = wrap_cursor(scene.journal_cursor, +1, rows);
+    else
+      scene.journal_cursor = wrap_cursor(scene.journal_cursor, -1, rows);
+  }
+
 } // namespace
 
 namespace corundum::world {
@@ -171,6 +204,15 @@ namespace corundum::world {
         scene.mode = GameMode::Inventory;
         scene.inventory_cursor = 0;
       } else if (scene.mode == GameMode::Inventory) {
+        scene.mode = GameMode::Exploring;
+      }
+    }
+
+    if (input.is_pressed(input::Action::Journal)) {
+      if (scene.mode == GameMode::Exploring) {
+        scene.mode = GameMode::Journal;
+        scene.journal_cursor = 0;
+      } else if (scene.mode == GameMode::Journal) {
         scene.mode = GameMode::Exploring;
       }
     }
@@ -203,6 +245,9 @@ namespace corundum::world {
         break;
       case corundum::world::GameMode::Inventory:
         update_inventory(scene, input, flags);
+        break;
+      case corundum::world::GameMode::Journal:
+        update_journal(scene, input, quests, flags);
         break;
       case corundum::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);

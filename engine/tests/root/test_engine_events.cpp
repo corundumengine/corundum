@@ -82,6 +82,109 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
   CHECK(corundum::world::has_flag(engine.flags, "quest.test_quest"));
 }
 
+TEST_CASE("engine events: quest_start enqueues a start toast with the quest name") {
+  corundum::Engine engine;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember of Greyhollow";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  engine.quests.add(std::move(q));
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"quest_start", {"ember"}});
+  engine.process_dialogue_events();
+
+  REQUIRE(engine.toasts.size() == 1);
+  CHECK(engine.toasts.at(0).text == "Quest started: Ember of Greyhollow");
+}
+
+TEST_CASE("engine events: re-starting an underway quest does not toast again") {
+  corundum::Engine engine;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  engine.quests.add(std::move(q));
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"quest_start", {"ember"}});
+  engine.process_dialogue_events();
+  REQUIRE(engine.toasts.size() == 1);
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"quest_start", {"ember"}});
+  engine.process_dialogue_events();
+  CHECK(engine.toasts.size() == 1);
+}
+
+TEST_CASE("engine events: quest_advance to a live stage toasts an update") {
+  corundum::Engine engine;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "investigate", .sequence = 2});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 3});
+  engine.quests.add(std::move(q));
+  engine.flags["quest.ember"] = 1;
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"quest_advance", {"ember", "investigate"}});
+  engine.process_dialogue_events();
+
+  REQUIRE(engine.toasts.size() == 1);
+  CHECK(engine.toasts.at(0).text == "Quest updated: Ember");
+  CHECK(engine.toasts.at(0).colour.r == corundum::ui::k_toast_updated_colour.r);
+}
+
+TEST_CASE("engine events: quest_advance to a resolved stage toasts completion") {
+  corundum::Engine engine;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  engine.quests.add(std::move(q));
+  engine.flags["quest.ember"] = 1;
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"quest_advance", {"ember", "done"}});
+  engine.process_dialogue_events();
+
+  REQUIRE(engine.toasts.size() == 1);
+  CHECK(engine.toasts.at(0).text == "Quest complete: Ember");
+}
+
+TEST_CASE("engine events: quest_advance to a failed stage toasts failure") {
+  corundum::Engine engine;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.failed = true, .name = "lost", .resolved = true, .sequence = 2});
+  engine.quests.add(std::move(q));
+  engine.flags["quest.ember"] = 1;
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"quest_advance", {"ember", "lost"}});
+  engine.process_dialogue_events();
+
+  REQUIRE(engine.toasts.size() == 1);
+  CHECK(engine.toasts.at(0).text == "Quest failed: Ember");
+}
+
+TEST_CASE("engine events: an unknown advance stage does not toast") {
+  corundum::Engine engine;
+  corundum::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  engine.quests.add(std::move(q));
+  engine.flags["quest.ember"] = 1;
+
+  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"quest_advance", {"ember", "nope"}});
+  engine.process_dialogue_events();
+
+  CHECK(engine.toasts.empty());
+}
+
 TEST_CASE("engine events: give_item adds item.<id> count to flags") {
   corundum::Engine engine;
   engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{"give_item", {"gold", "5"}});

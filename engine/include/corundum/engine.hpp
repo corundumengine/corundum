@@ -24,6 +24,7 @@
 #include <corundum/quest/registry.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/sprites/character_registry.hpp>
+#include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -118,6 +119,10 @@ namespace corundum {
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
 
     debug::HudOverlay hud;
+
+    /** @brief Transient on-screen notifications, rendered bottom-left and aged by the fixed
+     *  timestep. Engine quest events enqueue here; game code calls notify() for its own cues. */
+    ui::ToastQueue toasts;
 
     core::time::LoopTimer timer{static_cast<float>(core::k_default_simulation_fps)};
 
@@ -231,6 +236,21 @@ namespace corundum {
      *  Exposed for testability — game code normally does not call this directly.
      */
     void process_dialogue_events() noexcept;
+
+    /** @brief Enqueue a transient on-screen notification with the default colour.
+     *
+     *  Drawn bottom-left and auto-dismissed after ui::k_toast_ttl_seconds. The engine enqueues
+     *  quest-start/update/complete/failed messages itself; this is for game-specific cues.
+     *
+     *  @param text Message to display.
+     */
+    void notify(std::string text);
+
+    /** @brief Enqueue a transient on-screen notification in @p colour.
+     *  @param text   Message to display.
+     *  @param colour Text colour; use one of the ui::k_toast_*_colour constants for the standard tints.
+     */
+    void notify(std::string text, core::math::Colour colour);
 
     /** @brief Request a graceful shutdown.
      *

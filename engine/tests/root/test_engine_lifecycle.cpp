@@ -540,3 +540,32 @@ TEST_CASE("lifecycle: cursor movement does not resume a controller pause") {
 
   engine.cleanup();
 }
+
+TEST_CASE("lifecycle: starting_flags are seeded into the FlagStore during initialize") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  cfg.starting_flags = {{"gold", 50}, {"rep.village", -1}, {"intro_seen", 1}};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  CHECK(corundum::world::visit_count(engine.flags, "gold") == 50);
+  CHECK(corundum::world::visit_count(engine.flags, "rep.village") == -1);
+  CHECK(corundum::world::visit_count(engine.flags, "intro_seen") == 1);
+
+  engine.cleanup();
+}
+
+TEST_CASE("lifecycle: an empty starting_flags config seeds nothing") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+
+  CHECK(corundum::world::visit_count(engine.flags, "gold") == 0);
+
+  engine.cleanup();
+}

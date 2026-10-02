@@ -49,6 +49,9 @@ TEST_CASE("bindings: defaults") {
   CHECK(std::ranges::find(defaults, Binding{.action = Action::MoveUp, .input = physical(Key::W)}) != defaults.end());
   CHECK(std::ranges::find(defaults, Binding{.action = Action::Select, .input = physical(GamepadControl::A)}) !=
         defaults.end());
+  CHECK(std::ranges::find(defaults, Binding{.action = Action::Journal, .input = physical(Key::J)}) != defaults.end());
+  CHECK(std::ranges::find(defaults, Binding{.action = Action::Journal, .input = physical(GamepadControl::Y)}) !=
+        defaults.end());
 
   const std::vector<PhysicalInput> expected{
       physical(Key::W),

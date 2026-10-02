@@ -16,10 +16,13 @@
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
+#include <corundum/quest/quest.hpp>
 #include <corundum/quest/runner.hpp>
+#include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/ui/toast.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/transition.hpp>
@@ -100,6 +103,7 @@ namespace corundum {
         init_audio();
         render::configure_dialog_style(engine_->render, engine_->cfg);
         load_dialogue_and_quests();
+        apply_starting_flags();
         return {};
       }
 
@@ -185,6 +189,14 @@ namespace corundum {
         validate_quest_references(engine_->graphs, engine_->quests, engine_->items);
       }
 
+      /// Seed GameConfig::starting_flags into the FlagStore after the registries load, before
+      /// the first frame. Runs inside initialize()'s success path, so a project's authored
+      /// starting state (gold, reputation, "intro_seen") is in place before gameplay begins.
+      void apply_starting_flags() {
+        for (const auto &[key, value] : engine_->cfg.starting_flags)
+          engine_->flags[key] = value;
+      }
+
       Engine *engine_;
     };
 
@@ -215,14 +227,43 @@ namespace corundum {
         warn_log("[engine] WARN: {}", result.error());
     }
 
-    void handle_quest_start(quest::Runner &quest_runner, const dialogue::EventAction &ev) {
-      if (auto result = quest_runner.start(ev.args[0]); !result)
+    void handle_quest_start(Engine &engine, quest::Runner &quest_runner, const dialogue::EventAction &ev) {
+      const bool already_started = quest::get_stage(ev.args[0], engine.flags) > 0;
+      if (auto result = quest_runner.start(ev.args[0]); !result) {
         warn_log("[engine] WARN: {}", result.error());
+        return;
+      }
+      if (already_started)
+        return;
+      if (const quest::Quest *quest = engine.quests.find(ev.args[0]); quest != nullptr)
+        engine.notify(std::format("Quest started: {}", quest->name), ui::k_toast_default_colour);
     }
 
-    void handle_quest_advance(quest::Runner &quest_runner, const dialogue::EventAction &ev) {
-      if (auto result = quest_runner.advance(ev.args[0], ev.args[1]); !result)
+    void handle_quest_advance(Engine &engine, quest::Runner &quest_runner, const dialogue::EventAction &ev) {
+      const int stage_before = quest::get_stage(ev.args[0], engine.flags);
+      if (auto result = quest_runner.advance(ev.args[0], ev.args[1]); !result) {
         warn_log("[engine] WARN: {}", result.error());
+        return;
+      }
+      // advance() reports ok even when the stage name was unknown (a logged no-op), so only
+      // notify when the stage integer actually moved.
+      if (quest::get_stage(ev.args[0], engine.flags) == stage_before)
+        return;
+      const quest::Quest *quest = engine.quests.find(ev.args[0]);
+      if (quest == nullptr)
+        return;
+      switch (quest::lifecycle(*quest, engine.flags)) {
+        case quest::Lifecycle::Completed:
+          engine.notify(std::format("Quest complete: {}", quest->name), ui::k_toast_complete_colour);
+          break;
+        case quest::Lifecycle::Failed:
+          engine.notify(std::format("Quest failed: {}", quest->name), ui::k_toast_failed_colour);
+          break;
+        case quest::Lifecycle::Active:
+        case quest::Lifecycle::NotStarted:
+          engine.notify(std::format("Quest updated: {}", quest->name), ui::k_toast_updated_colour);
+          break;
+      }
     }
 
     /// The FlagStore key holding an item's runtime count (`item.<id>`).
@@ -245,9 +286,9 @@ namespace corundum {
         if (ev.name == "play_sound" && !ev.args.empty()) {
           handle_play_sound(engine, ev);
         } else if (ev.name == "quest_start" && !ev.args.empty()) {
-          handle_quest_start(quest_runner, ev);
+          handle_quest_start(engine, quest_runner, ev);
         } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
-          handle_quest_advance(quest_runner, ev);
+          handle_quest_advance(engine, quest_runner, ev);
         } else if (ev.name == "give_item" && !ev.args.empty()) {
           engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
         } else if (ev.name == "take_item" && !ev.args.empty()) {
@@ -390,6 +431,7 @@ namespace corundum {
         // Dialogue, quests, and the hook run every step — including World mode with nothing
         // streamed in — so queued work is never stranded while elapsed_time advances.
         engine.process_dialogue_events();
+        engine.toasts.update(engine.timer.target_dt);
         quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
         invoke_fixed_update_hook(engine, engine.timer.target_dt);
 
@@ -405,8 +447,8 @@ namespace corundum {
     void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
-      render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items, alpha,
-                     engine.window_width(), engine.window_height());
+      render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items,
+                     &engine.quests, &engine.toasts, alpha, engine.window_width(), engine.window_height());
 
       const debug::OverlayInput hud_input{
           .render_state = &engine.render,
@@ -505,6 +547,14 @@ namespace corundum {
 
   void Engine::request_quit() noexcept {
     quit_ = true;
+  }
+
+  void Engine::notify(std::string text) {
+    toasts.notify(std::move(text));
+  }
+
+  void Engine::notify(std::string text, core::math::Colour colour) {
+    toasts.notify(std::move(text), colour);
   }
 
   void Engine::toggle_fullscreen() const noexcept {

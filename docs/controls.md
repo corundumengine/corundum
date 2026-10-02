@@ -99,6 +99,20 @@ wrong from memory.
   deliberately unbound — what Start does is a game-design decision, not a
   hard-wired quit.
 
+### Inventory
+
+- **Bindings**: `I` (keyboard). No gamepad binding yet.
+- **Effect**: toggles the inventory panel. Opening it pauses the player; `I`
+  again or `Esc` closes it. Move Up/Down move the highlighted item row,
+  wrapping circularly.
+
+### Journal (Quest Log)
+
+- **Bindings**: `J` (keyboard); gamepad Y/Triangle.
+- **Effect**: toggles the quest journal. Opening it pauses the player; `J`
+  again or `Esc` closes it. Move Up/Down move the highlighted quest row
+  (Active first, then Completed, then Failed), wrapping circularly.
+
 ### Zoom
 
 - **Bindings**: mouse scroll wheel (one wheel notch per step); `=`/`-`
@@ -121,7 +135,8 @@ wrong from memory.
 Everything funnels through `corundum::input::InputState`
 (`engine/include/corundum/input/actions.hpp`): a `held`/`pressed` bitset
 pair over the `Action` enum (`MoveUp`, `MoveDown`, `MoveLeft`,
-`MoveRight`, `Select`, `Cancel`, `Quit`, `ZoomIn`, `ZoomOut`), plus three
+`MoveRight`, `Select`, `Cancel`, `Quit`, `ZoomIn`, `ZoomOut`,
+`Inventory`, `Journal`, `QuickSave`, `QuickLoad`), plus three
 signals that deliberately sit _outside_ the `Action` enum because they
 carry information no discrete action has: `mouse_x`/`mouse_y`
 (continuous cursor position), `mouse_click_pressed` (a one-shot "the
@@ -131,14 +146,15 @@ not just "did it happen", so it can't be a discrete `Action` either).
 
 ### Binding tables (where defaults are declared)
 
-All in `engine/src/platform/glfw/input_translator.cpp`:
-
-| Table                       | Maps                                                       | Entries                                                                                                                              |
-| --------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `k_key_bindings`            | GLFW key → `Action`                                        | WASD/arrows → Move\*; Enter/Space → Select; Escape → Cancel; Q → Quit; `=` → ZoomIn; `-` → ZoomOut                                   |
-| `k_gamepad_button_bindings` | mapped gamepad button (`GLFW_GAMEPAD_BUTTON_*`) → `Action` | A → Select; B → Cancel                                                                                                               |
-| `k_mouse_bindings`          | mouse button → `Action`                                    | Left click → Select                                                                                                                  |
-| (inline in `poll_gamepad`)  | stick/d-pad/trigger axes → `Action`                        | left stick + d-pad → Move\*, radial deadzone 0.5 with a 0.3 per-axis floor; L2 trigger → ZoomOut, R2 trigger → ZoomIn, threshold 0.0 |
+The default binding table is built by `default_bindings()`
+(`engine/src/input/bindings.cpp`): each row pairs an `Action` with one
+`PhysicalInput` (a `Key`, `MouseButton`, or `GamepadControl`). Movement is
+WASD/arrows plus the left stick and D-pad; Select is Enter/Space, mouse-left
+and gamepad A; Cancel is Escape and gamepad B; Inventory is `I`; Journal is
+`J` and gamepad Y; Quit is `Q`; ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2;
+QuickSave/QuickLoad are F5/F9. The GLFW backend only translates GLFW tokens
+to `PhysicalInput` (`engine/src/platform/glfw/input_translator.cpp`) and holds
+no bindings of its own.
 
 Zoom is bound to the analog triggers (L2/R2), not the shoulder bumpers —
 GLFW's mapped gamepad API reports triggers as axes
@@ -199,6 +215,8 @@ device disconnects, so a held bit cannot latch.
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Talk`)                        | Advances the line                                                                                                                                    |
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Choice`)                      | Confirms the highlighted choice                                                                                                                      |
 | `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`)                                                                                                                     |
+| `Action::Inventory`                           | `world/update.cpp::update()`                                              | Toggles `GameMode::Inventory`; `update_inventory()` navigates and closes it                                                                          |
+| `Action::Journal`                             | `world/update.cpp::update()`                                              | Toggles `GameMode::Journal`; `update_journal()` navigates and closes it                                                                              |
 | `Action::Quit`                                | `engine.cpp`'s main loop                                                  | Sets `engine.quit` and closes the window                                                                                                             |
 | `PlatformEvents::quit_requested`              | `engine.cpp`'s main loop                                                  | Sets `engine.quit` from an OS window-close request                                                                                                   |
 | `PlatformEvents::focus_lost` / `focus_gained` | `engine.cpp`'s main loop                                                  | Pauses the simulation and audio on focus loss, resumes on focus gain                                                                                 |
@@ -218,7 +236,6 @@ The main loop also consumes `PlatformEvents::focus_lost` and
 unfocused and clearing the loop timer's accumulator on resume so the
 paused interval never replays as catch-up fixed steps.
 
-No manual camera pan, inventory, or pause-menu input exists yet — those
-aren't gaps in this doc, they're gaps in the game. Camera zoom (above)
-is the one exception: the camera itself is still a pure follow-cam with
-no player-controlled panning.
+No manual camera pan input exists yet — that isn't a gap in this doc, it's a
+gap in the game. Camera zoom (above) is the one exception: the camera itself
+is still a pure follow-cam with no player-controlled panning.
