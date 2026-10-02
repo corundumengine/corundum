@@ -47,8 +47,7 @@ CheckOptions:
   - key: modernize-use-auto.MinTypeNameLength
     value: '8'
     # Only flag `auto` for genuinely long type names; short ones like `float`/`int`
-    # stay explicit (AGENTS.md: "auto only for iterators, template contexts where no
-    # alternative works, or when it clearly improves readability").
+    # stay explicit
 
   - key: readability-identifier-naming.VariableCase
     value: lower_case
