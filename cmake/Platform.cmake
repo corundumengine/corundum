@@ -5,8 +5,7 @@
 # use (the bug that had the toolkit on D3D11 while sokol_gfx built for GLCore).
 #
 # Backend per platform: Metal on macOS, GLCore on Windows and Linux. GLCore is
-# the least-churn choice because the toolkit's ImGui backend is OpenGL; see
-# AGENTS.md "Architecture".
+# the least-churn choice because the toolkit's ImGui backend is OpenGL.
 
 include_guard(GLOBAL)
 
