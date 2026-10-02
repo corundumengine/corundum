@@ -9,11 +9,12 @@
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/world.hpp>
-#include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/scene.hpp>
+#include <corundum/world/ui_stack.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -49,13 +50,13 @@ namespace corundum::dialogue {
 
   } // namespace
 
-  void update_dialogue(corundum::world::Scene &scene, const corundum::input::PressedActions &actions) {
+  void update_dialogue(corundum::world::Scene &scene, const corundum::input::InputIntent &intent) {
     using corundum::entities::World;
 
     if (!scene.dialogue)
       return;
 
-    scene.pending_dialogue_events = scene.dialogue->update(actions);
+    scene.pending_dialogue_events = scene.dialogue->update(intent);
     if (scene.dialogue->is_active())
       return;
 
@@ -71,10 +72,10 @@ namespace corundum::dialogue {
     }
     scene.dialogue_npc.reset();
     scene.dialogue.reset();
-    scene.mode = corundum::world::GameMode::Exploring;
+    scene.ui.pop();
   }
 
-  void try_interact(corundum::world::Scene &scene, const corundum::input::InputState &input,
+  void try_interact(corundum::world::Scene &scene, const corundum::input::InputIntent &intent,
                     const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
                     corundum::world::FlagStore &flags, const quest::Registry *quests) {
     using corundum::dialogue::Graph;
@@ -83,20 +84,20 @@ namespace corundum::dialogue {
     using corundum::entities::Position;
     using corundum::entities::World;
 
-    if (!input.is_pressed(corundum::input::Action::Select))
+    if (!intent.activate)
       return;
 
     // A despawned player has no position to measure interaction range from.
     if (!corundum::world::player_present(scene))
       return;
 
-    // A mouse click also raises Select (so click-to-interact can exist at all), but
+    // A mouse click also raises the activate intent (so click-to-interact can exist at all), but
     // unlike a keyboard/gamepad press it carries a screen position — require it to
     // actually be aimed at the NPC, not just "a click happened while nearby" (that
     // would otherwise make every click-to-move near an NPC accidentally start
     // dialogue). Keyboard/gamepad presses have no aim concept, so proximity alone
     // remains the gate for them, same as before.
-    const bool via_click = input.mouse_click_pressed;
+    const bool via_click = intent.cursor_clicked;
 
     World &world = scene.world;
     const std::uint32_t player_slot = world.transforms.dense_index(scene.player);
@@ -143,7 +144,7 @@ namespace corundum::dialogue {
 
       scene.dialogue_npc = npc;
       scene.dialogue.emplace(*graph, flags, quests, &graphs, scene.zone_id);
-      scene.mode = corundum::world::GameMode::Dialogue;
+      scene.ui.push(corundum::world::GameMode::Dialogue);
       // Defensive: a click that both queued a path AND was close enough to trigger
       // interact (same frame) would otherwise leave that path to silently resume once
       // the conversation ends, walking the player toward wherever they clicked to start it.

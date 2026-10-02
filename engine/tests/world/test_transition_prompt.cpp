@@ -5,6 +5,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
 
@@ -23,10 +24,10 @@ namespace {
     return p;
   }
 
-  corundum::input::InputState with_only(corundum::input::Action action) {
+  corundum::input::InputIntent with_only(corundum::input::Action action) {
     corundum::input::InputState input{};
     input.pressed.set(static_cast<std::size_t>(action));
-    return input;
+    return corundum::input::make_input_intent(input, corundum::input::InputDevice::Keyboard);
   }
 
 } // namespace
@@ -101,7 +102,7 @@ TEST_CASE("TransitionPrompt — Cancel dismisses from any highlight") {
 
 TEST_CASE("TransitionPrompt — no input returns Pending") {
   TransitionPrompt prompt{make_portal()};
-  const corundum::input::InputState input{};
+  const corundum::input::InputIntent input{};
   CHECK(prompt.step(input) == Step::Pending);
   CHECK(prompt.confirm_selected());
   CHECK_FALSE(prompt.declined());

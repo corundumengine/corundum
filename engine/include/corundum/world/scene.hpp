@@ -13,18 +13,13 @@
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
+#include <corundum/world/ui_stack.hpp>
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace corundum::world {
-
-  /** @brief Whether the player is free-roaming, locked into a dialogue session, paused on a portal-confirm prompt,
-   * browsing the inventory panel, or reading the quest journal.
-   */
-  enum class GameMode : std::uint8_t { Exploring, Dialogue, Prompt, Inventory, Journal };
 
   /** @brief All game-world data for a running session.
    *
@@ -101,13 +96,20 @@ namespace corundum::world {
     /// update_journal().
     int journal_cursor{};
 
-    GameMode mode{GameMode::Exploring};
+    /// Stack of open UI screens; top() is GameMode::Exploring while it is empty. Push to open a
+    /// screen, pop (Cancel) to peel one layer.
+    UIStack ui;
 
     corundum::entities::EntityId player{};
 
     Camera camera;
 
     std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
+
+    /// The screen currently on top of the UI stack, or GameMode::Exploring when none is open.
+    [[nodiscard]] GameMode mode() const noexcept {
+      return ui.top();
+    }
   };
 
   /** @brief True when scene.player names a live entity with a transform.

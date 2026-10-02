@@ -94,7 +94,7 @@ namespace corundum::physics {
         if (scene.transition_prompt && scene.transition_prompt->declined() && scene.transition_prompt->guards(portal))
           continue;
         scene.transition_prompt.emplace(portal);
-        scene.mode = corundum::world::GameMode::Prompt;
+        scene.ui.push(corundum::world::GameMode::Prompt);
         return;
       }
     }

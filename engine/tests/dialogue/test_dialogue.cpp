@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/dialogue/compiled_expr.hpp>
-#include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/item/item.hpp>
 #include <corundum/quest/quest.hpp>
 #include <doctest/doctest.h>
@@ -136,11 +136,10 @@ namespace {
     return edge.condition->source();
   }
 
-  corundum::input::PressedActions select_press() {
-    corundum::input::PressedActions select{};
-    select.actions[0] = corundum::input::Action::Select;
-    select.count = 1;
-    return select;
+  corundum::input::InputIntent select_press() {
+    corundum::input::InputIntent intent{};
+    intent.select = true;
+    return intent;
   }
 
 } // namespace

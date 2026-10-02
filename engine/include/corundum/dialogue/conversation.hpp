@@ -5,7 +5,7 @@
 
 #include <corundum/dialogue/action.hpp>
 #include <corundum/dialogue/dialogue.hpp>
-#include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <cstddef>
@@ -73,10 +73,10 @@ namespace corundum::dialogue {
      * and resumes there (or ends the dialogue when the stack is empty). Neither requires
      * `graphs` to be non-null — a `goto_graph` without the registry warns and is dropped.
      *
-     * @param actions Input actions for this frame.
+     * @param intent Abstract navigational intent for this frame.
      * @return All EventActions emitted this step, for the platform to dispatch.
      */
-    [[nodiscard]] std::vector<EventAction> update(const input::PressedActions &actions);
+    [[nodiscard]] std::vector<EventAction> update(const input::InputIntent &intent);
 
     // ── Read-only queries for the presentation layer ──
 
@@ -144,10 +144,10 @@ namespace corundum::dialogue {
     void flush_events(std::vector<EventAction> &pending);
 
     /// Handle a Talk node: Cancel closes; Select (or a previously-shown once-node) advances.
-    void handle_talk(const Node &node, const input::PressedActions &actions);
+    void handle_talk(const Node &node, const input::InputIntent &intent);
 
     /// Handle a Choice node: cursor movement, selection (executing the edge's actions), Cancel.
-    void handle_choice(const Node &node, const input::PressedActions &actions, std::vector<EventAction> &pending);
+    void handle_choice(const Node &node, const input::InputIntent &intent, std::vector<EventAction> &pending);
 
     /// Handle an Event node: execute its actions and advance unless a divert consumes the flow.
     void handle_event(const Node &node, std::vector<EventAction> &pending);

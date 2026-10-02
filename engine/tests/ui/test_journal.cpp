@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/quest/status.hpp>
@@ -138,9 +139,9 @@ TEST_CASE("journal_panel_render: chrome, title, lifecycle headers, then one opti
 
   corundum::ui::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f});
 
-  // Chrome (1 rect + 8 sprites) + title + "Active" header + (cursor + name + objective)
-  // + "Completed" header + (cursor + name).
-  REQUIRE(r.log.size() == 9 + 1 + 1 + 3 + 1 + 2);
+  // Chrome (1 rect + 8 sprites) + title + footer hint + "Active" header
+  // + (cursor + name + objective) + "Completed" header + (cursor + name).
+  REQUIRE(r.log.size() == 9 + 1 + 1 + 1 + 3 + 1 + 2);
   CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[0]));
 
   std::vector<std::string> texts;
@@ -148,15 +149,28 @@ TEST_CASE("journal_panel_render: chrome, title, lifecycle headers, then one opti
     if (std::holds_alternative<corundum::platform::DrawText>(call))
       texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
 
-  REQUIRE(texts.size() == 8);
+  REQUIRE(texts.size() == 9);
   CHECK(texts[0] == "Journal");
-  CHECK(texts[1] == "Active");
-  CHECK(texts[2] == "> ");
-  CHECK(texts[3] == "Ember");
-  CHECK(texts[4] == "Find the shrine");
-  CHECK(texts[5] == "Completed");
-  CHECK(texts[6] == "  ");
-  CHECK(texts[7] == "Salt");
+  CHECK(texts[1] == "Esc / J Close");
+  CHECK(texts[2] == "Active");
+  CHECK(texts[3] == "> ");
+  CHECK(texts[4] == "Ember");
+  CHECK(texts[5] == "Find the shrine");
+  CHECK(texts[6] == "Completed");
+  CHECK(texts[7] == "  ");
+  CHECK(texts[8] == "Salt");
+}
+
+TEST_CASE("journal_panel_render: the footer hint follows the last-used device") {
+  using corundum::test::make_border;
+  using corundum::test::RecordingRenderer;
+
+  RecordingRenderer r;
+  corundum::ui::journal_panel_render(r, {}, make_border(), {}, 0, {.x = 1280.f, .y = 720.f},
+                                     corundum::input::InputDevice::Gamepad);
+
+  const auto &footer = std::get<corundum::platform::DrawText>(r.log[10]);
+  CHECK(footer.text == "B / Y Close");
 }
 
 TEST_CASE("journal_panel_render: empty journal renders the placeholder line") {
@@ -166,9 +180,9 @@ TEST_CASE("journal_panel_render: empty journal renders the placeholder line") {
   RecordingRenderer r;
   corundum::ui::journal_panel_render(r, {}, make_border(), {}, 0, {.x = 1280.f, .y = 720.f});
 
-  REQUIRE(r.log.size() == 9 + 1 + 1);
+  REQUIRE(r.log.size() == 9 + 1 + 1 + 1);
   const auto &title = std::get<corundum::platform::DrawText>(r.log[9]);
-  const auto &empty = std::get<corundum::platform::DrawText>(r.log[10]);
+  const auto &empty = std::get<corundum::platform::DrawText>(r.log[11]);
   CHECK(title.text == "Journal");
   CHECK(empty.text == "(no quests)");
 }

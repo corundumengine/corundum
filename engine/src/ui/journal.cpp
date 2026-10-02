@@ -4,17 +4,21 @@
 #include <corundum/ui/journal.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/input/actions.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/quest/quest.hpp>
 #include <corundum/quest/status.hpp>
 #include <corundum/quest/system.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <algorithm>
 #include <cstddef>
+#include <format>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -89,12 +93,14 @@ namespace corundum::ui {
   }
 
   void journal_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
-                            const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport) {
+                            const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport,
+                            input::InputDevice last_device) {
     constexpr float k_min_w = 260.f;
     constexpr float k_pad_x = 24.f;
     constexpr float k_pad_y = 16.f;
     constexpr float k_header_gap = 10.f;
     constexpr float k_group_gap = 8.f;
+    constexpr float k_footer_gap = 12.f;
     constexpr std::string_view k_title = "Journal";
     constexpr std::string_view k_empty = "(no quests)";
 
@@ -103,12 +109,16 @@ namespace corundum::ui {
     const float cursor_w = cursor_advance(r, style);
     const float objective_indent = cursor_w + 8.f;
     const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
+    // Footer hint reflects whichever device the player last used (ui::input_glyph).
+    const std::string footer = std::format("{} / {} Close", input_glyph(input::Action::Cancel, last_device),
+                                           input_glyph(input::Action::Journal, last_device));
+    const float footer_w = r.measure_text(style.font_id, footer, style.font_size_body);
 
     // Walk the (already lifecycle-sorted) entries once to size the panel: group count, total
     // height, and the widest body line.
     std::size_t group_count = 0;
     std::size_t objective_rows = 0;
-    float widest = std::max(title_w, r.measure_text(style.font_id, k_empty, style.font_size_body));
+    float widest = std::max({title_w, r.measure_text(style.font_id, k_empty, style.font_size_body), footer_w});
     quest::Lifecycle last_section = quest::Lifecycle::NotStarted;
     for (std::size_t i = 0; i < entries.size(); ++i) {
       const JournalEntry &entry = entries[i];
@@ -128,7 +138,7 @@ namespace corundum::ui {
     const float body_rows = static_cast<float>(entries.size() + objective_rows);
     const float group_gaps = group_count > 0 ? static_cast<float>(group_count - 1) * k_group_gap : 0.f;
     const float panel_h = (k_pad_y * 2.f) + header_line_h + k_header_gap + (body_rows * body_line_h) +
-                          (static_cast<float>(group_count) * header_line_h) + group_gaps;
+                          (static_cast<float>(group_count) * header_line_h) + group_gaps + k_footer_gap + body_line_h;
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
@@ -142,6 +152,15 @@ namespace corundum::ui {
         .position = {.x = title_x, .y = title_y},
         .char_size = style.font_size_speaker,
         .colour = style.speaker,
+    });
+
+    // Footer is bottom-anchored, so it draws before the body — the empty branch can return early.
+    r.draw(platform::DrawText{
+        .font_id = style.font_id,
+        .text = footer,
+        .position = {.x = panel_x + ((panel_w - footer_w) * 0.5f), .y = panel_y + panel_h - k_pad_y - body_line_h},
+        .char_size = style.font_size_body,
+        .colour = style.choice,
     });
 
     float y = title_y + header_line_h + k_header_gap;

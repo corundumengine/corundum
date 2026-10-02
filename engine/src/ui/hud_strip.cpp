@@ -43,6 +43,7 @@ namespace corundum::ui {
     constexpr float k_pad_x = 12.f;
     constexpr float k_pad_y = 8.f;
     constexpr float k_margin = 16.f;
+    constexpr float k_min_w = 220.f;
     constexpr std::string_view k_separator = "    ";
 
     std::string line = std::format("Gold: {}", data.gold);
@@ -55,16 +56,21 @@ namespace corundum::ui {
       }
     }
 
+    // Text must clear the nine-patch corners, whose cells are drawn at natural size; the
+    // dialogue box insets content the same way (dialog_layout.hpp's `max(margin, tile)`).
+    const float pad_x = std::max(k_pad_x, static_cast<float>(border.tile_w));
+    const float pad_y = std::max(k_pad_y, static_cast<float>(border.tile_h));
+
     const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
-    const float row_h = line_h + (k_pad_y * 2.f);
+    const float row_h = line_h + (pad_y * 2.f);
     const float text_w = r.measure_text(style.font_id, line, style.font_size_body);
-    const float row_w = text_w + (k_pad_x * 2.f);
+    const float row_w = std::max(k_min_w, text_w + (pad_x * 2.f));
 
     panel_chrome(r, style.bg, border, {.x = k_margin, .y = k_margin}, {.x = row_w, .y = row_h});
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = line,
-        .position = {.x = k_margin + k_pad_x, .y = k_margin + k_pad_y},
+        .position = {.x = k_margin + pad_x, .y = k_margin + pad_y},
         .char_size = style.font_size_body,
         .colour = style.body,
     });

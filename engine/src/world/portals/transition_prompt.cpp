@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/input/input_intent.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
-
-#include <corundum/input/actions.hpp>
 
 namespace corundum::world {
 
@@ -31,22 +30,20 @@ namespace corundum::world {
     return portal_ == portal;
   }
 
-  TransitionPrompt::Step TransitionPrompt::step(const corundum::input::InputState &input) noexcept {
-    using corundum::input::Action;
-
+  TransitionPrompt::Step TransitionPrompt::step(const corundum::input::InputIntent &intent) noexcept {
     // Left/Up → Yes, Right/Down → No. Only two options, so no wrap needed.
-    if (input.is_pressed(Action::MoveLeft) || input.is_pressed(Action::MoveUp))
+    if (intent.navigate_x < 0 || intent.navigate_y < 0)
       confirm_selected_ = true;
-    if (input.is_pressed(Action::MoveRight) || input.is_pressed(Action::MoveDown))
+    if (intent.navigate_x > 0 || intent.navigate_y > 0)
       confirm_selected_ = false;
 
-    if (input.is_pressed(Action::Select)) {
+    if (intent.select) {
       if (confirm_selected_)
         return Step::Confirmed;
       declined_ = true;
       return Step::Dismissed;
     }
-    if (input.is_pressed(Action::Cancel)) {
+    if (intent.back) {
       declined_ = true;
       return Step::Dismissed;
     }

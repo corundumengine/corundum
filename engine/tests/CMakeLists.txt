@@ -52,6 +52,7 @@ set(TEST_SOURCES
     input/test_action_resolver.cpp
     input/test_actions.cpp
     input/test_bindings.cpp
+    input/test_input_intent.cpp
     input/test_input_mapper.cpp
     input/test_input_system.cpp
     input/test_physical_input.cpp
@@ -107,6 +108,7 @@ set(TEST_SOURCES
 
     # ui
     ui/test_hud_strip.cpp
+    ui/test_input_glyph.cpp
     ui/test_journal.cpp
     ui/test_toast.cpp
     ui/test_ui_draw.cpp
@@ -124,6 +126,7 @@ set(TEST_SOURCES
     world/test_tilemap_loader.cpp
     world/test_tilemap_validate.cpp
     world/test_transition_prompt.cpp
+    world/test_ui_stack.cpp
     world/test_world_manifest.cpp
     world/test_world_transition.cpp
 )

@@ -6,12 +6,11 @@
 #include <corundum/dialogue/dialogue.hpp>
 #include <corundum/dialogue/query.hpp>
 #include <corundum/dialogue/registry.hpp>
-#include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/world/flags.hpp>
 
 #include "core/warn_log.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -26,10 +25,6 @@ namespace corundum::dialogue {
 
     int wrap(int current, int delta, int count) {
       return (current + delta + count) % count;
-    }
-
-    bool pressed(const corundum::input::PressedActions &actions, corundum::input::Action action) {
-      return std::ranges::contains(actions, action);
     }
 
   } // namespace
@@ -210,14 +205,14 @@ namespace corundum::dialogue {
     }
   }
 
-  void Conversation::handle_talk(const Node &node, const input::PressedActions &actions) {
-    if (pressed(actions, corundum::input::Action::Cancel)) {
+  void Conversation::handle_talk(const Node &node, const input::InputIntent &intent) {
+    if (intent.back) {
       reset();
       return;
     }
 
     if (!node.once) {
-      if (pressed(actions, corundum::input::Action::Select))
+      if (intent.select)
         go_to(advance(*graph_, node));
       return;
     }
@@ -229,13 +224,13 @@ namespace corundum::dialogue {
       return;
     }
 
-    if (pressed(actions, corundum::input::Action::Select)) {
+    if (intent.select) {
       corundum::world::set_flag(*flags_, once_key);
       go_to(advance(*graph_, node));
     }
   }
 
-  void Conversation::handle_choice(const Node &node, const input::PressedActions &actions,
+  void Conversation::handle_choice(const Node &node, const input::InputIntent &intent,
                                    std::vector<EventAction> &pending) {
     const std::vector<std::size_t> visible = visible_choices(node, *flags_, graph_->graph_id, quests_, zone_id_);
     const int count = static_cast<int>(visible.size());
@@ -248,12 +243,12 @@ namespace corundum::dialogue {
     if (selected_choice_ >= count)
       selected_choice_ = count - 1;
 
-    if (pressed(actions, corundum::input::Action::MoveUp))
+    if (intent.navigate_y < 0)
       selected_choice_ = wrap(selected_choice_, -1, count);
-    if (pressed(actions, corundum::input::Action::MoveDown))
+    if (intent.navigate_y > 0)
       selected_choice_ = wrap(selected_choice_, +1, count);
 
-    if (pressed(actions, corundum::input::Action::Select)) {
+    if (intent.select) {
       const std::size_t full_index = visible[static_cast<std::size_t>(selected_choice_)];
       const ChoiceEdge &edge = node.choices[full_index];
 
@@ -271,7 +266,7 @@ namespace corundum::dialogue {
       go_to(advance(*graph_, node, static_cast<int>(full_index)));
     }
 
-    if (pressed(actions, corundum::input::Action::Cancel))
+    if (intent.back)
       reset();
   }
 
@@ -287,7 +282,7 @@ namespace corundum::dialogue {
 
   // ── Conversation public API ───────────────────────────────────────────────────
 
-  std::vector<EventAction> Conversation::update(const input::PressedActions &actions) {
+  std::vector<EventAction> Conversation::update(const input::InputIntent &intent) {
     std::vector<EventAction> pending;
 
     if (!active_ || (graph_ == nullptr))
@@ -301,10 +296,10 @@ namespace corundum::dialogue {
 
     switch (node->type) {
       case NodeType::Talk:
-        handle_talk(*node, actions);
+        handle_talk(*node, intent);
         break;
       case NodeType::Choice:
-        handle_choice(*node, actions, pending);
+        handle_choice(*node, intent, pending);
         break;
       case NodeType::Event:
         handle_event(*node, pending);

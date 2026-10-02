@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/quest/status.hpp>
@@ -51,8 +52,10 @@ namespace corundum::ui {
    *  @param entries  Journal rows to display, as build_journal_entries() produces.
    *  @param cursor   Highlighted row index into @p entries; clamped into range locally.
    *  @param viewport Screen size in pixels; the panel is centered within this.
+   *  @param last_device Device of the player's most recent press; picks the footer glyphs.
    */
   void journal_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
-                            const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport);
+                            const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport,
+                            input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::ui

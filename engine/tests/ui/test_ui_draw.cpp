@@ -3,7 +3,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/dialogue/compiled_expr.hpp>
-#include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/world/flags.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -477,9 +477,8 @@ TEST_CASE("dialog_box_update: an ended conversation hides the box") {
   REQUIRE(ds.layout.has_value());
 
   // The Talk node's next is "end", so Select closes the conversation.
-  corundum::input::PressedActions select{};
-  select.actions[0] = corundum::input::Action::Select;
-  select.count = 1;
+  corundum::input::InputIntent select{};
+  select.select = true;
   static_cast<void>(conversation.update(select));
   CHECK_FALSE(conversation.is_active());
 

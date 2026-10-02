@@ -6,12 +6,15 @@
 #include <corundum/dialogue/registry.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/item/item.hpp>
 #include <corundum/ui/journal.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
 #include <corundum/world/scene.hpp>
+#include <corundum/world/ui_stack.hpp>
 #include <corundum/world/update.hpp>
 
 #include <corundum/animation/animation_system.hpp>
@@ -95,26 +98,25 @@ namespace {
   /// prompt latched as declined), or Pending (stay paused). The physics system resets
   /// the prompt once the player walks off the portal rect, so re-entering starts with
   /// Yes highlighted again.
-  void update_transition_prompt(corundum::world::Scene &scene, const corundum::input::InputState &input) {
-    using corundum::world::GameMode;
+  void update_transition_prompt(corundum::world::Scene &scene, const corundum::input::InputIntent &intent) {
     using Step = corundum::world::TransitionPrompt::Step;
 
     if (!scene.transition_prompt) {
-      // Defensive: a stale Prompt mode with no candidate should not block the player.
-      scene.mode = GameMode::Exploring;
+      // Defensive: a stale Prompt layer with no candidate should not block the player.
+      scene.ui.pop();
       return;
     }
 
-    switch (scene.transition_prompt->step(input)) {
+    switch (scene.transition_prompt->step(intent)) {
       case Step::Confirmed:
         scene.pending_transition = scene.transition_prompt->transition();
         scene.transition_prompt.reset();
         scene.path.clear(); // don't auto-walk back onto the trigger
-        scene.mode = GameMode::Exploring;
+        scene.ui.pop();
         break;
       case Step::Dismissed:
         scene.path.clear();
-        scene.mode = GameMode::Exploring;
+        scene.ui.pop();
         break;
       case Step::Pending:
         break;
@@ -128,23 +130,20 @@ namespace {
     return (current + delta + count) % count;
   }
 
-  /// Step a paused-on-inventory scene: Cancel returns to Exploring (pressing I
-  /// again is handled by the toggle in update()); MoveUp/MoveDown wrap the highlight
-  /// within the held-item rows (the same count build_inventory_lines renders). Not
-  /// calling update_exploring here is what pauses the player (same mechanism as
-  /// Dialogue / Prompt). The held-item scan runs only when a move is pressed.
-  void update_inventory(corundum::world::Scene &scene, const corundum::input::InputState &input,
+  /// Step a paused-on-inventory scene: Cancel returns to the mode beneath (Exploring when only
+  /// this layer is open); MoveUp/MoveDown wrap the highlight within the held-item rows (the same
+  /// count build_inventory_lines renders). Not calling update_exploring here is what pauses the
+  /// player (same mechanism as Dialogue / Prompt). The held-item scan runs only when a move is
+  /// pressed.
+  void update_inventory(corundum::world::Scene &scene, const corundum::input::InputIntent &intent,
                         const corundum::world::FlagStore &flags) {
-    using corundum::input::Action;
-
-    if (input.is_pressed(Action::Cancel)) {
-      scene.mode = corundum::world::GameMode::Exploring;
+    if (intent.back) {
+      scene.ui.pop();
       return;
     }
 
-    const bool move_down = input.is_pressed(Action::MoveDown);
-    const bool move_up = input.is_pressed(Action::MoveUp);
-    if (!move_down && !move_up)
+    const int delta = intent.navigate_y;
+    if (delta == 0)
       return;
 
     const int rows = static_cast<int>(
@@ -154,28 +153,22 @@ namespace {
       return;
     }
 
-    if (move_down)
-      scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, +1, rows);
-    else
-      scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, -1, rows);
+    scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, delta, rows);
   }
 
   /// Step a paused-on-journal scene: Cancel (or pressing J again, handled by the toggle in
-  /// update()) returns to Exploring; MoveUp/MoveDown wrap the highlight within the started-quest
-  /// rows (the same list build_journal_entries renders). Like inventory, not calling
-  /// update_exploring is what pauses the player.
-  void update_journal(corundum::world::Scene &scene, const corundum::input::InputState &input,
+  /// update()) returns to the mode beneath; MoveUp/MoveDown wrap the highlight within the
+  /// started-quest rows (the same list build_journal_entries renders). Like inventory, not
+  /// calling update_exploring is what pauses the player.
+  void update_journal(corundum::world::Scene &scene, const corundum::input::InputIntent &intent,
                       const corundum::quest::Registry *quests, const corundum::world::FlagStore &flags) {
-    using corundum::input::Action;
-
-    if (input.is_pressed(Action::Cancel)) {
-      scene.mode = corundum::world::GameMode::Exploring;
+    if (intent.back) {
+      scene.ui.pop();
       return;
     }
 
-    const bool move_down = input.is_pressed(Action::MoveDown);
-    const bool move_up = input.is_pressed(Action::MoveUp);
-    if (!move_down && !move_up)
+    const int delta = intent.navigate_y;
+    if (delta == 0)
       return;
 
     const int rows = quests != nullptr
@@ -186,10 +179,7 @@ namespace {
       return;
     }
 
-    if (move_down)
-      scene.journal_cursor = wrap_cursor(scene.journal_cursor, +1, rows);
-    else
-      scene.journal_cursor = wrap_cursor(scene.journal_cursor, -1, rows);
+    scene.journal_cursor = wrap_cursor(scene.journal_cursor, delta, rows);
   }
 
 } // namespace
@@ -198,28 +188,30 @@ namespace corundum::world {
 
   void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
               const corundum::input::InputState &input, const MapView &map, float dt, float win_w, float win_h,
-              FlagStore &flags, const quest::Registry *quests) {
+              FlagStore &flags, const quest::Registry *quests, input::InputDevice last_device) {
+    const input::InputIntent intent = input::make_input_intent(input, last_device);
+
     if (input.is_pressed(input::Action::Inventory)) {
-      if (scene.mode == GameMode::Exploring) {
-        scene.mode = GameMode::Inventory;
+      if (scene.mode() == GameMode::Exploring) {
+        scene.ui.push(GameMode::Inventory);
         scene.inventory_cursor = 0;
-      } else if (scene.mode == GameMode::Inventory) {
-        scene.mode = GameMode::Exploring;
+      } else if (scene.mode() == GameMode::Inventory) {
+        scene.ui.pop();
       }
     }
 
     if (input.is_pressed(input::Action::Journal)) {
-      if (scene.mode == GameMode::Exploring) {
-        scene.mode = GameMode::Journal;
+      if (scene.mode() == GameMode::Exploring) {
+        scene.ui.push(GameMode::Journal);
         scene.journal_cursor = 0;
-      } else if (scene.mode == GameMode::Journal) {
-        scene.mode = GameMode::Exploring;
+      } else if (scene.mode() == GameMode::Journal) {
+        scene.ui.pop();
       }
     }
 
     // Camera zoom is only applied while free-roaming: update_exploring re-clamps the
     // viewport via follow_player on the same step, which apply_zoom requires.
-    if (scene.mode == GameMode::Exploring)
+    if (scene.mode() == GameMode::Exploring)
       update_zoom(scene, input, cfg, dt, win_w, win_h);
 
     // One projection for the whole frame: animation speed scaling (screen-space velocity),
@@ -234,27 +226,25 @@ namespace corundum::world {
     };
     scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, iso);
 
-    switch (scene.mode) {
-      case corundum::world::GameMode::Dialogue: {
-        const corundum::input::PressedActions actions = corundum::input::pressed_actions(input);
-        corundum::dialogue::update_dialogue(scene, actions);
+    switch (scene.mode()) {
+      case corundum::world::GameMode::Dialogue:
+        corundum::dialogue::update_dialogue(scene, intent);
         break;
-      }
       case corundum::world::GameMode::Prompt:
-        update_transition_prompt(scene, input);
+        update_transition_prompt(scene, intent);
         break;
       case corundum::world::GameMode::Inventory:
-        update_inventory(scene, input, flags);
+        update_inventory(scene, intent, flags);
         break;
       case corundum::world::GameMode::Journal:
-        update_journal(scene, input, quests, flags);
+        update_journal(scene, intent, quests, flags);
         break;
       case corundum::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
         // update_exploring may have armed a portal prompt (mode → Prompt), whose
         // try_interact @pre requires Exploring.
-        if (scene.mode == GameMode::Exploring)
-          corundum::dialogue::try_interact(scene, input, cfg, graphs, flags, quests);
+        if (scene.mode() == GameMode::Exploring)
+          corundum::dialogue::try_interact(scene, intent, cfg, graphs, flags, quests);
         break;
     }
   }

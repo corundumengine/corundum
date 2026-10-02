@@ -35,6 +35,7 @@ set(ENGINE_SOURCES
     src/engine_factory.cpp
     src/engine_options.cpp
     src/input/bindings.cpp
+    src/input/input_intent.cpp
     src/input/input_mapper.cpp
     src/input/input_system.cpp
     src/input/physical_input.cpp
@@ -64,6 +65,7 @@ set(ENGINE_SOURCES
     src/sprites/sprite_sheet_clips_serializer.cpp
     src/ui/dialog_box.cpp
     src/ui/hud_strip.cpp
+    src/ui/input_glyph.cpp
     src/ui/inventory_panel.cpp
     src/ui/journal.cpp
     src/ui/nine_patch.cpp

@@ -5,6 +5,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/render/render_state.hpp>
 
 #include <expected>
@@ -173,11 +174,13 @@ namespace corundum::render {
    *  @param[in]     alpha   Interpolation factor in [0,1] for render smoothing.
    *  @param[in]     win_w   Live window width in screen pixels.
    *  @param[in]     win_h   Live window height in screen pixels.
+   *  @param[in]     last_device Device of the player's most recent press, for on-screen glyph hints.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
               const corundum::item::Registry *items, const corundum::quest::Registry *quests,
-              const corundum::ui::ToastQueue *toasts, float alpha, int win_w, int win_h);
+              const corundum::ui::ToastQueue *toasts, float alpha, int win_w, int win_h,
+              input::InputDevice last_device = input::InputDevice::Keyboard);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

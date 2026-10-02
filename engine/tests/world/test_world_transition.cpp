@@ -233,7 +233,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
 
   // Stepping onto the portal pauses the player on a confirm prompt — no automatic transition.
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK_FALSE(engine.scene.transition_prompt->declined());
   REQUIRE_FALSE(engine.scene.pending_transition.has_value());
@@ -241,7 +241,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
 
   // Confirm — now the candidate transitions into the actual pending_transition.
   advance_with(engine, corundum::input::Action::Select);
-  REQUIRE(engine.scene.mode == GameMode::Exploring);
+  REQUIRE(engine.scene.mode() == GameMode::Exploring);
   REQUIRE(engine.scene.pending_transition.has_value());
   REQUIRE_FALSE(engine.scene.transition_prompt.has_value());
   const auto enter = *engine.scene.pending_transition;
@@ -261,7 +261,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   // inside the interior, walk onto its return_to_world portal at tile (0,0).
   move_player_to(engine, 0.f, 0.f);
   advance(engine);
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->transition().return_to_world);
   REQUIRE(engine.entered_from_world); // marker survives the interior step
@@ -345,7 +345,7 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   advance(engine);
 
   using corundum::world::GameMode;
-  CHECK(engine.scene.mode == GameMode::Prompt);
+  CHECK(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK_FALSE(engine.scene.transition_prompt->declined());
   CHECK(engine.scene.transition_prompt->confirm_selected()); // default highlight: Yes
@@ -382,7 +382,7 @@ TEST_CASE("world transition — a portal arms only from its own tile") {
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
 
   engine.cleanup();
@@ -443,11 +443,11 @@ TEST_CASE("world transition — Select on the prompt promotes the stashed transi
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
 
   advance_with(engine, corundum::input::Action::Select);
 
-  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
   REQUIRE(engine.scene.pending_transition.has_value());
   CHECK_FALSE(engine.scene.transition_prompt.has_value());
 
@@ -472,17 +472,17 @@ TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
 
   advance_with(engine, corundum::input::Action::Cancel);
-  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->declined());
   CHECK_FALSE(engine.scene.pending_transition.has_value());
 
   // Still standing on the portal: advance() must NOT re-arm the prompt or set pending_transition.
   advance(engine);
-  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
   CHECK_FALSE(engine.scene.pending_transition.has_value());
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->declined());
@@ -499,7 +499,7 @@ TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until 
   // Walk back on: the prompt re-arms.
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
-  CHECK(engine.scene.mode == GameMode::Prompt);
+  CHECK(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK_FALSE(engine.scene.transition_prompt->declined());
 
@@ -526,14 +526,14 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   move_player_to(engine, 0.f, 0.f);
   advance(engine);
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->transition().return_to_world);
   CHECK_FALSE(engine.scene.pending_transition.has_value());
 
   advance_with(engine, corundum::input::Action::Select);
   REQUIRE(engine.scene.pending_transition.has_value());
-  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
 
   handle_map_transition(engine);
   CHECK(engine.render.mode == RenderMode::World);
@@ -555,19 +555,19 @@ TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->confirm_selected());
 
   // Right → No highlighted, still in prompt, no transition yet.
   advance_with(engine, corundum::input::Action::MoveRight);
-  CHECK(engine.scene.mode == GameMode::Prompt);
+  CHECK(engine.scene.mode() == GameMode::Prompt);
   CHECK_FALSE(engine.scene.transition_prompt->confirm_selected());
   CHECK_FALSE(engine.scene.pending_transition.has_value());
 
   // Left → Yes highlighted again.
   advance_with(engine, corundum::input::Action::MoveLeft);
-  CHECK(engine.scene.mode == GameMode::Prompt);
+  CHECK(engine.scene.mode() == GameMode::Prompt);
   CHECK(engine.scene.transition_prompt->confirm_selected());
   CHECK_FALSE(engine.scene.pending_transition.has_value());
 
@@ -591,13 +591,13 @@ TEST_CASE("world transition — Select on No backs out like Cancel") {
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
 
   advance_with(engine, corundum::input::Action::MoveRight);
   REQUIRE_FALSE(engine.scene.transition_prompt->confirm_selected());
 
   advance_with(engine, corundum::input::Action::Select);
-  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->declined());
   CHECK_FALSE(engine.scene.pending_transition.has_value());
@@ -616,7 +616,7 @@ TEST_CASE("world transition — re-arming the prompt resets Yes as the default h
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt->confirm_selected());
 
   // Move the highlight to No, then cancel — physics clears the prompt once the player walks off.
@@ -632,7 +632,7 @@ TEST_CASE("world transition — re-arming the prompt resets Yes as the default h
 
   move_player_to(engine, 13.f, 13.f);
   advance(engine);
-  REQUIRE(engine.scene.mode == GameMode::Prompt);
+  REQUIRE(engine.scene.mode() == GameMode::Prompt);
   REQUIRE(engine.scene.transition_prompt.has_value());
   CHECK(engine.scene.transition_prompt->confirm_selected()); // Yes again, not carried over
 

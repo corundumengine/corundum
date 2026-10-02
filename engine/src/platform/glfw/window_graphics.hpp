@@ -6,7 +6,7 @@
 // The window's graphics-API integration: the one seam that differs between graphics backends. The
 // shared window code calls only these; exactly one backend translation unit compiles and links per
 // build, selected in engine/src/platform/CMakeLists.txt, so glfw_window.cpp carries no graphics-API
-// conditional. See AGENTS.md "Architecture".
+// conditional.
 
 struct GLFWwindow;
 

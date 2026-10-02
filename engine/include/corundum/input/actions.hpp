@@ -18,6 +18,7 @@ namespace corundum::input {
     MoveLeft,
     MoveRight,
     Select,
+    Activate, ///< World/UI "use this thing" intent, distinct from the dialogue/confirm Select.
     Cancel,
     Quit,
     ZoomIn,

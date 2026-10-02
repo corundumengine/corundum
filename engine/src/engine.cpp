@@ -174,7 +174,8 @@ namespace corundum {
         int dialogue_loaded{0};
         if (!engine_->cfg.paths.dialogue_dir.empty())
           dialogue_loaded = engine_->graphs.load_all(engine_->cfg.paths.dialogue_dir);
-        corundum::detail::info_log("[engine] Loaded {} dialogue graphs from '{}'", dialogue_loaded, engine_->cfg.paths.dialogue_dir);
+        corundum::detail::info_log("[engine] Loaded {} dialogue graphs from '{}'", dialogue_loaded,
+                                   engine_->cfg.paths.dialogue_dir);
 
         int quest_loaded{0};
         if (!engine_->cfg.paths.quests_dir.empty())
@@ -425,7 +426,7 @@ namespace corundum {
           // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
           world::update(engine.scene, engine.cfg, engine.graphs, engine.input_state, map_view, engine.timer.target_dt,
                         static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
-                        engine.flags, &engine.quests);
+                        engine.flags, &engine.quests, engine.input_mapper.last_device());
         }
 
         // Dialogue, quests, and the hook run every step — including World mode with nothing
@@ -448,15 +449,19 @@ namespace corundum {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
       render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items,
-                     &engine.quests, &engine.toasts, alpha, engine.window_width(), engine.window_height());
+                     &engine.quests, &engine.toasts, alpha, engine.window_width(), engine.window_height(),
+                     engine.input_mapper.last_device());
 
       const debug::OverlayInput hud_input{
           .render_state = &engine.render,
           .cfg = &engine.cfg,
           .scene = &engine.scene,
           .timer = &engine.timer,
-          .viewport = {.x = static_cast<float>(engine.window_width()),
-                       .y = static_cast<float>(engine.window_height()),},
+          .viewport =
+              {
+                  .x = static_cast<float>(engine.window_width()),
+                  .y = static_cast<float>(engine.window_height()),
+              },
           .step_budget_exhausted = budget_exhausted,
       };
       engine.hud.render(*engine.renderer, hud_input);

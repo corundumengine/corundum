@@ -302,7 +302,7 @@ namespace corundum::world {
       return;
     if (render.chunks.active_empty())
       return;
-    if (scene.mode != GameMode::Exploring)
+    if (scene.mode() != GameMode::Exploring)
       return; // don't churn actors mid-dialogue / mid-prompt
 
     const int chunk_size = render.manifest.chunk_size;

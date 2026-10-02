@@ -7,7 +7,7 @@
 #include <corundum/world/portals/portal.hpp>
 
 namespace corundum::input {
-  struct InputState;
+  struct InputIntent;
 } // namespace corundum::input
 
 namespace corundum::world {
@@ -59,7 +59,7 @@ namespace corundum::world {
     /** @brief Advance one fixed step. Left/Right (Up/Down aliased) move the
      *  highlight; Select commits it (Confirmed) or backs out (Dismissed);
      *  Cancel always Dismisses. Dismiss also latches @ref declined. */
-    [[nodiscard]] Step step(const corundum::input::InputState &input) noexcept;
+    [[nodiscard]] Step step(const corundum::input::InputIntent &intent) noexcept;
 
   private:
     bool confirm_selected_ = true;

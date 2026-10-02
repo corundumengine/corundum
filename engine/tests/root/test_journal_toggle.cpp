@@ -44,7 +44,7 @@ TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel close
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   using corundum::world::GameMode;
-  REQUIRE(engine.scene.mode == GameMode::Exploring);
+  REQUIRE(engine.scene.mode() == GameMode::Exploring);
 
   // The fixture config loads no quests; register two started quests here.
   add_started_quest(engine, "ember", "Ember");
@@ -52,7 +52,7 @@ TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel close
 
   // Press J: Exploring → Journal, cursor reset.
   advance_with(engine, corundum::input::Action::Journal);
-  CHECK(engine.scene.mode == GameMode::Journal);
+  CHECK(engine.scene.mode() == GameMode::Journal);
   CHECK(engine.scene.journal_cursor == 0);
 
   // Arrows move, wrapping over the two started quests.
@@ -65,13 +65,13 @@ TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel close
 
   // Press J again: Journal → Exploring.
   advance_with(engine, corundum::input::Action::Journal);
-  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
 
   // Esc closes it too.
   advance_with(engine, corundum::input::Action::Journal);
-  REQUIRE(engine.scene.mode == GameMode::Journal);
+  REQUIRE(engine.scene.mode() == GameMode::Journal);
   advance_with(engine, corundum::input::Action::Cancel);
-  CHECK(engine.scene.mode == GameMode::Exploring);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
 
   engine.cleanup();
 }
@@ -85,7 +85,7 @@ TEST_CASE("journal — an empty journal opens without a cursor move crashing") {
   using corundum::world::GameMode;
 
   advance_with(engine, corundum::input::Action::Journal);
-  REQUIRE(engine.scene.mode == GameMode::Journal);
+  REQUIRE(engine.scene.mode() == GameMode::Journal);
 
   advance_with(engine, corundum::input::Action::MoveDown);
   CHECK(engine.scene.journal_cursor == 0);
