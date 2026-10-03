@@ -88,4 +88,4 @@ jobs:
         run: cmake --build --preset build
 
       - name: Test
-        run: ctest --preset test
+        run: ctest --preset test-ci

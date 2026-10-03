@@ -93,6 +93,16 @@
         "outputOnFailure": true
       },
       "execution": {
+        "jobs": 0
+      }
+    },
+    {
+      "name": "test-ci",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
         "jobs": 4
       }
     },
@@ -103,7 +113,7 @@
         "outputOnFailure": true
       },
       "execution": {
-        "jobs": 4
+        "jobs": 0
       }
     },
     {
@@ -113,7 +123,7 @@
         "outputOnFailure": true
       },
       "execution": {
-        "jobs": 4
+        "jobs": 0
       }
     }
   ]
