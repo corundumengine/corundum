@@ -9,6 +9,7 @@
 #include <corundum/core/window_mode.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
+#include <corundum/gameplay/dialogue/interact.hpp>
 #include <corundum/gameplay/dialogue/validate_refs.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
@@ -31,6 +32,7 @@
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/screen_registry.hpp>
 #include <corundum/settings/user_settings.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
@@ -43,7 +45,9 @@
 #include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/gameplay/screens/loot.hpp>
 #include <corundum/gameplay/screens/map.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/ui/menu.hpp>
+#include <corundum/ui/prompt_box.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
@@ -65,6 +69,7 @@
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <random>
@@ -362,7 +367,7 @@ namespace corundum {
     void handle_open_container(Engine &engine, const gameplay::dialogue::EventAction &ev) {
       engine.active_container_id = ev.args[0];
       engine.loot_screen = {};
-      engine.scene.ui.push(world::GameMode::Loot);
+      engine.scene.ui.push(gameplay::screens::Loot);
     }
 
     /// Open a merchant's barter screen (`open_shop('id')`). Unknown ids warn and are ignored.
@@ -373,7 +378,7 @@ namespace corundum {
       }
       engine.active_shop_id = ev.args[0];
       engine.barter_screen = {};
-      engine.scene.ui.push(world::GameMode::Barter);
+      engine.scene.ui.push(gameplay::screens::Barter);
     }
 
     void dispatch_dialogue_event(Engine &engine, gameplay::quest::Runner &quest_runner,
@@ -430,6 +435,7 @@ namespace corundum {
       cleanup();
       return std::unexpected(result.error());
     }
+    register_screens();
     return {};
   }
 
@@ -515,10 +521,10 @@ namespace corundum {
     /// The keyboard hotkeys that open a hub tab directly (I/J/C/M).
     constexpr std::array<HubTabAction, 4> k_hub_tab_actions{
         {
-            {.action = input::Action::Inventory, .mode = world::GameMode::Inventory},
-            {.action = input::Action::Journal, .mode = world::GameMode::Journal},
-            {.action = input::Action::Codex, .mode = world::GameMode::Codex},
-            {.action = input::Action::Map, .mode = world::GameMode::Map},
+            {.action = input::Action::Inventory, .mode = gameplay::screens::Inventory},
+            {.action = input::Action::Journal, .mode = gameplay::screens::Journal},
+            {.action = input::Action::Codex, .mode = gameplay::screens::Codex},
+            {.action = input::Action::Map, .mode = gameplay::screens::Map},
         },
     };
 
@@ -538,22 +544,22 @@ namespace corundum {
     void open_hub_tab(Engine &engine, world::GameMode mode) {
       engine.scene.last_hub_mode = mode;
       switch (mode) {
-        case world::GameMode::Inventory:
+        case gameplay::screens::Inventory:
           engine.scene.inventory_cursor = 0;
           // Built once here rather than every render frame: the inventory is read-only and the
           // simulation is paused while it is open, so there is no mutation to invalidate it.
           engine.scene.inventory_lines = gameplay::screens::build_inventory_lines(engine.flags, engine.items);
           break;
-        case world::GameMode::Journal:
+        case gameplay::screens::Journal:
           engine.scene.journal_cursor = 0;
           break;
-        case world::GameMode::Codex:
+        case gameplay::screens::Codex:
           engine.codex_screen.cursor = 0;
           engine.codex_screen.scroll = 0.f;
           gameplay::screens::codex_mark_dirty(engine.codex_screen);
           gameplay::screens::refresh_codex(engine.codex_screen, engine.codex, engine.flags);
           break;
-        case world::GameMode::Map:
+        case gameplay::screens::Map:
           engine.map_screen.cursor = 0;
           break;
         default:
@@ -972,8 +978,13 @@ namespace corundum {
                           engine.input_mapper.last_device());
           }
 
-          // Dialogue, quests, and the hook run every step — including World mode with nothing
-          // streamed in — so queued work is never stranded while elapsed_time advances.
+          // Registered systems (the gameplay dialogue update) run every step — including World
+          // mode with nothing streamed in — so queued work is never stranded while elapsed_time
+          // advances. They run after world::update and before dialogue-event processing.
+          for (const std::function<void(Engine &, float)> &system : engine.fixed_step_systems)
+            system(engine, engine.timer.target_dt);
+
+          // Quests and the game hook run after the registered systems.
           engine.process_dialogue_events();
           if (engine.scene.dialogue)
             gameplay::screens::dialog_box_advance(engine.dialog_box, *engine.scene.dialogue, engine.timer.target_dt,
@@ -990,98 +1001,258 @@ namespace corundum {
       return result;
     }
 
-    /// begin_frame → world/UI render → optional debug HUD → end_frame.
+    /// Gameplay HUD strip: hidden while any modal is up. The engine already gates the Hud layer
+    /// on an empty UI stack and no transition prompt; the dialogue check is defensive.
+    void render_hud_strip(const Engine &engine, platform::Renderer &r, core::math::Vec2 /*viewport*/) {
+      if (engine.scene.dialogue)
+        return;
+      gameplay::screens::hud_strip_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                          gameplay::screens::build_hud_strip(engine.flags, engine.quests,
+                                                                             engine.scene.zone_id));
+    }
+
+    /// Modal dialogue box: a self-gated layer hook that draws exactly while a conversation is active.
+    void render_dialogue_box(Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (engine.scene.dialogue)
+        gameplay::screens::dialog_box_update(engine.dialog_box, *engine.scene.dialogue, r, viewport,
+                                             engine.render.panel_skin, engine.render.text_speed);
+      else
+        gameplay::screens::dialog_box_hide(engine.dialog_box);
+      gameplay::screens::dialog_box_render(engine.dialog_box, r, engine.render.panel_skin);
+    }
+
+    void render_inventory(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      gameplay::screens::inventory_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                                engine.scene.inventory_lines, engine.scene.inventory_cursor, viewport);
+    }
+
+    void render_journal(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      gameplay::screens::journal_panel_render(
+          r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+          gameplay::screens::build_journal_entries(engine.quests, engine.flags, engine.scene.zone_id),
+          engine.scene.journal_cursor, viewport, engine.input_mapper.last_device());
+    }
+
+    void render_codex(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (engine.scene.mode() != gameplay::screens::Codex)
+        return;
+      gameplay::screens::codex_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                            engine.codex_screen.entries, engine.codex_screen.cursor,
+                                            engine.codex_screen.scroll, viewport, engine.input_mapper.last_device());
+    }
+
+    void render_map(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (engine.scene.mode() != gameplay::screens::Map)
+        return;
+      gameplay::screens::map_panel_render(
+          r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+          gameplay::screens::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id),
+          engine.map_screen.cursor, viewport, engine.input_mapper.last_device());
+    }
+
+    void render_loot(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (engine.scene.mode() != gameplay::screens::Loot)
+        return;
+      const std::string container_name =
+          engine.active_container_id.empty() ? std::string{"Container"} : engine.active_container_id;
+      gameplay::screens::loot_panel_render(
+          r, engine.render.panel_skin.style, engine.render.panel_skin.border, container_name,
+          gameplay::screens::build_item_lines(engine.flags, engine.items,
+                                              gameplay::item::container_flag_prefix(engine.active_container_id)),
+          gameplay::screens::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix),
+          engine.loot_screen, viewport, engine.input_mapper.last_device());
+    }
+
+    void render_barter(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (engine.scene.mode() != gameplay::screens::Barter)
+        return;
+      const gameplay::shop::Shop *shop = engine.shops.find(engine.active_shop_id);
+      if (shop == nullptr)
+        return;
+      const int reputation =
+          shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
+      const std::vector<gameplay::screens::BarterLine> lines =
+          engine.barter_screen.tab == gameplay::screens::BarterTab::Buy
+              ? gameplay::screens::build_barter_stock(*shop, engine.items, reputation)
+              : gameplay::screens::build_barter_sell_lines(*shop, engine.items, engine.flags);
+      gameplay::screens::barter_panel_render(
+          r, engine.render.panel_skin.style, engine.render.panel_skin.border, shop->name,
+          world::visit_count(engine.flags, std::string{gameplay::screens::k_gold_flag}), lines, engine.barter_screen,
+          viewport, engine.input_mapper.last_device());
+    }
+
+    /// The hub tab strip draws over every hub panel, in the top margin so it never overlaps one.
+    void render_hub_strip(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (!gameplay::screens::is_hub_mode(engine.scene.mode()))
+        return;
+      gameplay::screens::hub_tab_strip_render(r, engine.render.panel_skin.style, engine.scene.mode(), viewport,
+                                              engine.input_mapper.last_device());
+    }
+
+    void render_menu(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      ui::menu_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.menu, viewport,
+                            engine.input_mapper.last_device());
+    }
+
+    void render_settings(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      ui::settings_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.settings_screen,
+                                settings_values(engine), engine.input_mapper.bindings(), viewport,
+                                engine.input_mapper.last_device());
+    }
+
+    /// begin_frame → world → layered overlays (HUD, toasts, modals, screens, hub) → debug HUD →
+    /// end_frame. The overlay order is fixed; each registered hook gates on its own state.
     // std::format with a literal format string cannot throw at run time, and a throw from the
     // frame path is intentionally fatal (noexcept).
     // NOLINTNEXTLINE(bugprone-exception-escape)
     void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
-      render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests,
-                     &engine.toasts, engine.dialog_box, alpha, engine.window_width(), engine.window_height(),
-                     engine.input_mapper.last_device());
 
-      // The engine-owned Menu/Settings screens draw over the world overlays. They live here rather
-      // than inside render::render so they can read the live bindings and audio volume without
-      // threading those through the render signature.
+      platform::Renderer &r = *engine.renderer;
+      render::render(r, engine.render, engine.cfg, engine.scene, alpha, engine.window_width(),
+                     engine.window_height());
+
       const corundum::core::math::Vec2 viewport{
           .x = static_cast<float>(engine.window_width()),
           .y = static_cast<float>(engine.window_height()),
       };
-      switch (engine.scene.mode()) {
-        case world::GameMode::Codex:
-          gameplay::screens::codex_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                 engine.codex_screen.entries, engine.codex_screen.cursor, engine.codex_screen.scroll,
-                                 viewport, engine.input_mapper.last_device());
-          break;
-        case world::GameMode::Map:
-          gameplay::screens::map_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                               gameplay::screens::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id),
-                               engine.map_screen.cursor, viewport, engine.input_mapper.last_device());
-          break;
-        case world::GameMode::Loot: {
-          const std::string container_name =
-              engine.active_container_id.empty() ? std::string{"Container"} : engine.active_container_id;
-          gameplay::screens::loot_panel_render(
-              *engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, container_name,
-              gameplay::screens::build_item_lines(engine.flags, engine.items,
-                                   gameplay::item::container_flag_prefix(engine.active_container_id)),
-              gameplay::screens::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix), engine.loot_screen, viewport,
-              engine.input_mapper.last_device());
-          break;
-        }
-        case world::GameMode::Barter: {
-          const gameplay::shop::Shop *shop = engine.shops.find(engine.active_shop_id);
-          if (shop == nullptr)
-            break;
-          const int reputation =
-              shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
-          const std::vector<gameplay::screens::BarterLine> lines = engine.barter_screen.tab == gameplay::screens::BarterTab::Buy
-                                                        ? gameplay::screens::build_barter_stock(*shop, engine.items, reputation)
-                                                        : gameplay::screens::build_barter_sell_lines(*shop, engine.items, engine.flags);
-          gameplay::screens::barter_panel_render(*engine.renderer, engine.render.panel_skin.style,
-                                  engine.render.panel_skin.border, shop->name,
-                                  world::visit_count(engine.flags, std::string{gameplay::screens::k_gold_flag}), lines,
-                                  engine.barter_screen, viewport, engine.input_mapper.last_device());
-          break;
-        }
-        case world::GameMode::Menu:
-          ui::menu_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                engine.menu, viewport, engine.input_mapper.last_device());
-          break;
-        case world::GameMode::Settings:
-          ui::settings_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                    engine.settings_screen, settings_values(engine), engine.input_mapper.bindings(),
-                                    viewport, engine.input_mapper.last_device());
-          break;
-        default:
-          break;
+      const bool screen_open = !engine.scene.ui.empty();
+      const bool transition_showing =
+          engine.scene.transition_prompt && !engine.scene.transition_prompt->declined();
+
+      // 2. Gameplay HUD, only while nothing is modal.
+      if (!screen_open && !transition_showing)
+        engine.screens.render_layer(RenderLayer::Hud, engine, r, viewport);
+
+      // 3. Engine toasts.
+      engine.toasts.render(r, engine.render.panel_skin.style, viewport);
+
+      // 4a. Engine-owned transition prompt, drawn whenever pending regardless of mode.
+      if (transition_showing) {
+        const std::string_view question =
+            engine.scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
+        ui::prompt_box_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, question,
+                              engine.scene.transition_prompt->confirm_selected(), viewport);
       }
 
-      // The hub tab strip draws over every hub panel, in the top margin so it never overlaps one.
-      if (world::is_hub_mode(engine.scene.mode())) {
-        gameplay::screens::hub_tab_strip_render(*engine.renderer, engine.render.panel_skin.style, engine.scene.mode(), viewport,
-                                 engine.input_mapper.last_device());
-      }
+      // 4b. Unconditional modal hooks (the dialogue box gates on its active conversation).
+      engine.screens.render_layer(RenderLayer::Modal, engine, r, viewport);
 
+      // 4c. The top mode's own screen, if it registered a render hook.
+      if (const ScreenSpec *spec = engine.screens.find(engine.scene.mode()); spec != nullptr && spec->render)
+        spec->render(engine, r, viewport);
+
+      // 5. Hub panels, then the hub tab strip.
+      engine.screens.render_layer(RenderLayer::HubPanel, engine, r, viewport);
+      engine.screens.render_layer(RenderLayer::HubStrip, engine, r, viewport);
+
+      // 6. Debug HUD, always last.
       const debug::OverlayInput hud_input{
           .render_state = &engine.render,
           .cfg = &engine.cfg,
           .scene = &engine.scene,
           .timer = &engine.timer,
-          .viewport =
-              {
-                  .x = static_cast<float>(engine.window_width()),
-                  .y = static_cast<float>(engine.window_height()),
-              },
+          .viewport = viewport,
           .step_budget_exhausted = budget_exhausted,
       };
-      engine.hud.render(*engine.renderer, hud_input);
+      engine.hud.render(r, hud_input);
 
       engine.renderer->end_frame();
     }
 
   } // namespace
+
+  void Engine::register_screens() {
+    using gameplay::screens::Barter;
+    using gameplay::screens::Codex;
+    using gameplay::screens::Dialogue;
+    using gameplay::screens::Inventory;
+    using gameplay::screens::Journal;
+    using gameplay::screens::Loot;
+    using gameplay::screens::Map;
+
+    // Engine-owned screens. They capture nothing and read the Engine& argument.
+    screens.add(world::GameMode::Menu,
+                ScreenSpec{
+                    .owns_step = true,
+                    .update = [](Engine &engine, const input::InputIntent &intent) { update_pause_menu(engine, intent); },
+                    .render = [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+                      render_menu(engine, r, viewport);
+                    },
+                });
+    screens.add(world::GameMode::Settings,
+                ScreenSpec{
+                    .owns_step = true,
+                    .update = [](Engine &engine, const input::InputIntent &intent) { update_settings(engine, intent); },
+                    .render = [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+                      render_settings(engine, r, viewport);
+                    },
+                });
+
+    // Temporary gameplay registrations (Session 2A — gameplay still lives in this target).
+    // Session 2B moves these onto gameplay::Gameplay, whose hooks capture that owner instead
+    // of reading Engine. Dialogue is not step-owning: the world step still runs so dialogue
+    // events and quests keep ticking.
+    screens.add(Dialogue, ScreenSpec{.owns_step = false});
+    screens.add(Inventory, ScreenSpec{
+                               .owns_step = true,
+                               .update = [](Engine &engine, const input::InputIntent &intent) {
+                                 update_inventory(engine, intent);
+                               },
+                               .render = [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+                                 render_inventory(engine, r, viewport);
+                               },
+                           });
+    screens.add(Journal, ScreenSpec{
+                             .owns_step = true,
+                             .update = [](Engine &engine, const input::InputIntent &intent) {
+                               update_journal(engine, intent);
+                             },
+                             .render = [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+                               render_journal(engine, r, viewport);
+                             },
+                         });
+    screens.add(Codex, ScreenSpec{
+                           .owns_step = true,
+                           .update = [](Engine &engine, const input::InputIntent &intent) { update_codex(engine, intent); },
+                       });
+    screens.add(Map, ScreenSpec{
+                         .owns_step = true,
+                         .update = [](Engine &engine, const input::InputIntent &intent) { update_map(engine, intent); },
+                     });
+    screens.add(Loot, ScreenSpec{
+                          .owns_step = true,
+                          .update = [](Engine &engine, const input::InputIntent &intent) { update_loot(engine, intent); },
+                      });
+    screens.add(Barter, ScreenSpec{
+                            .owns_step = true,
+                            .update = [](Engine &engine, const input::InputIntent &intent) { update_barter(engine, intent); },
+                        });
+
+    fixed_step_systems.emplace_back([](Engine &engine, float) {
+      if (engine.scene.mode() == Dialogue)
+        gameplay::dialogue::update_dialogue(
+            engine.scene, input::make_input_intent(engine.input_state, engine.input_mapper.last_device()));
+    });
+
+    // Render layers, in paint order. Each hook gates on its own state.
+    screens.add_layer(RenderLayer::Hud, [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      render_hud_strip(engine, r, viewport);
+    });
+    screens.add_layer(RenderLayer::Modal, [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      render_dialogue_box(engine, r, viewport);
+    });
+    screens.add_layer(RenderLayer::HubPanel, [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      render_codex(engine, r, viewport);
+      render_map(engine, r, viewport);
+      render_loot(engine, r, viewport);
+      render_barter(engine, r, viewport);
+    });
+    screens.add_layer(RenderLayer::HubStrip, [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+      render_hub_strip(engine, r, viewport);
+    });
+  }
 
   bool Engine::update_engine_screens(const input::InputIntent &intent) {
     using world::GameMode;
@@ -1090,7 +1261,7 @@ namespace corundum {
     // select a tab directly. The hub is not a GameMode of its own — it is the convention that the
     // top of the UI stack is one of Inventory/Journal/Codex/Map. Opening, switching or closing
     // consumes the step so the same press cannot also act on the fresh screen.
-    const bool on_hub_tab = world::is_hub_mode(scene.mode());
+    const bool on_hub_tab = gameplay::screens::is_hub_mode(scene.mode());
     if (input_state.is_pressed(input::Action::Hub)) {
       if (on_hub_tab) {
         scene.ui.pop();
@@ -1133,34 +1304,14 @@ namespace corundum {
       return true;
     }
 
-    switch (scene.mode()) {
-      case GameMode::Inventory:
-        update_inventory(*this, intent);
-        return true;
-      case GameMode::Journal:
-        update_journal(*this, intent);
-        return true;
-      case GameMode::Codex:
-        update_codex(*this, intent);
-        return true;
-      case GameMode::Map:
-        update_map(*this, intent);
-        return true;
-      case GameMode::Loot:
-        update_loot(*this, intent);
-        return true;
-      case GameMode::Barter:
-        update_barter(*this, intent);
-        return true;
-      case GameMode::Menu:
-        update_pause_menu(*this, intent);
-        return true;
-      case GameMode::Settings:
-        update_settings(*this, intent);
-        return true;
-      default:
-        return false;
-    }
+    // Dispatch the top mode's screen. Only a step-owning screen reports the step as taken;
+    // a non-step-owning extension mode (Dialogue) leaves the world step running.
+    const ScreenSpec *spec = screens.find(scene.mode());
+    if (spec == nullptr || !spec->owns_step)
+      return false;
+    if (spec->update)
+      spec->update(*this, intent);
+    return true;
   }
 
   void Engine::run_loop() noexcept {

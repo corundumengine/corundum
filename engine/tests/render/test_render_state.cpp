@@ -171,15 +171,12 @@ TEST_CASE("render: alpha 0 draws the start-of-step camera and alpha 1 the curren
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  corundum::gameplay::screens::DialogBoxState dialog_box{};
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, nullptr, dialog_box,
-                        0.f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.f, 800, 600);
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(100.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(50.f));
   CHECK(renderer.last_zoom() == doctest::Approx(2.f));
 
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, nullptr, dialog_box,
-                        1.f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 1.f, 800, 600);
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(140.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(80.f));
   CHECK(renderer.last_zoom() == doctest::Approx(1.5f));
@@ -198,9 +195,7 @@ TEST_CASE("render: a normal single-step frame still blends the camera between sn
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  corundum::gameplay::screens::DialogBoxState dialog_box{};
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, engine.flags, nullptr, nullptr, dialog_box,
-                        0.5f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.5f, 800, 600);
 
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(120.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(65.f));

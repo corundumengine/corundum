@@ -9,6 +9,7 @@
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/location/location.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -26,6 +27,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
+  namespace screens = corundum::gameplay::screens;
 
   bool press(corundum::Engine &engine, corundum::input::Action action) {
     corundum::input::InputState state{};
@@ -51,7 +53,7 @@ TEST_CASE("codex: the Codex action opens the screen and Cancel closes it") {
 
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
   CHECK(press(engine, corundum::input::Action::Codex));
-  CHECK(engine.scene.mode() == GameMode::Codex);
+  CHECK(engine.scene.mode() == screens::Codex);
   REQUIRE(engine.codex_screen.entries.size() == 1);
   CHECK(engine.codex_screen.entries[0].title == "Greyhollow");
 
@@ -75,7 +77,7 @@ TEST_CASE("map: Activate on a discovered world location arms a return-to-world t
   corundum::world::set_flag(engine.flags, corundum::gameplay::location::discovery_flag_key("village"));
 
   press(engine, corundum::input::Action::Map);
-  REQUIRE(engine.scene.mode() == GameMode::Map);
+  REQUIRE(engine.scene.mode() == screens::Map);
 
   press(engine, corundum::input::Action::Activate);
   CHECK(engine.scene.mode() == GameMode::Exploring);
@@ -94,9 +96,9 @@ TEST_CASE("loot: Activate moves one unit from the container to the player") {
   engine.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
   engine.active_container_id = "chest";
   engine.flags[std::string{corundum::gameplay::item::container_item_flag_key("chest", "salt")}] = 2;
-  engine.scene.ui.push(GameMode::Loot);
+  engine.scene.ui.push(screens::Loot);
 
-  REQUIRE(engine.scene.mode() == GameMode::Loot);
+  REQUIRE(engine.scene.mode() == screens::Loot);
   press(engine, corundum::input::Action::Activate);
   CHECK(corundum::world::visit_count(engine.flags, std::string{"container.chest.item.salt"}) == 1);
   CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 1);
@@ -126,10 +128,10 @@ TEST_CASE("barter: buying spends gold and grants the item") {
           },
   });
   engine.active_shop_id = "corvin";
-  engine.scene.ui.push(GameMode::Barter);
+  engine.scene.ui.push(screens::Barter);
   engine.flags[std::string{corundum::gameplay::screens::k_gold_flag}] = 20;
 
-  REQUIRE(engine.scene.mode() == GameMode::Barter);
+  REQUIRE(engine.scene.mode() == screens::Barter);
   press(engine, corundum::input::Action::Activate);
   CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 1);
   CHECK(corundum::world::visit_count(engine.flags, std::string{corundum::gameplay::screens::k_gold_flag}) == 15);

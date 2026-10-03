@@ -95,6 +95,7 @@ set(TEST_SOURCES
     root/test_pause_menu.cpp
     root/test_phase_d_screens.cpp
     root/test_player_absent.cpp
+    root/test_screen_registry.cpp
     root/test_umbrella_header.cpp
 
     # save

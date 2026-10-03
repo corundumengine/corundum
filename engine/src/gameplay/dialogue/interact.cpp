@@ -9,6 +9,7 @@
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/dialogue/interact.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/flags.hpp>
@@ -144,7 +145,7 @@ namespace corundum::gameplay::dialogue {
 
       scene.dialogue_npc = npc;
       scene.dialogue.emplace(*graph, flags, quests, &graphs, scene.zone_id);
-      scene.ui.push(corundum::world::GameMode::Dialogue);
+      scene.ui.push(corundum::gameplay::screens::Dialogue);
       // Defensive: a click that both queued a path AND was close enough to trigger
       // interact (same frame) would otherwise leave that path to silently resume once
       // the conversation ends, walking the player toward wherever they clicked to start it.

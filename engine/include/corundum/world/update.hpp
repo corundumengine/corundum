@@ -19,10 +19,12 @@ namespace corundum::world {
   /**
    * @brief Advance game state by one fixed timestep.
    *
-   * Dispatches on the current mode: steps the active dialogue, the portal-confirm prompt,
-   * or drives exploring physics. Inventory, Journal and the other hub/system screens are
-   * stepped by Engine::update_engine_screens() instead, so this is not called for them.
-   * Writes a pending_transition into @p scene when the player steps on a portal.
+   * Dispatches on the current engine-owned mode: steps the portal-confirm prompt
+   * or drives exploring physics. Extension modes and the engine screens fall to a
+   * no-op default — step-owning screens skip world::update entirely, and a
+   * non-step-owning extension mode (Dialogue) does its per-step work from a
+   * fixed_step_systems entry. Writes a pending_transition into @p scene when the
+   * player steps on a portal.
    *
    * @param scene       All mutable game-world state.
    * @param cfg         Immutable game configuration.

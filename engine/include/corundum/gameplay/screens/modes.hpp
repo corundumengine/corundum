@@ -1,0 +1,42 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
+#include <corundum/world/ui_stack.hpp>
+
+namespace corundum::gameplay::screens {
+
+  /** @brief Gameplay screens, defined from world::k_first_extension_mode so the engine
+   *  runtime never has to name them.
+   *
+   *  Named like enum constants (not engine constexpr constants) because that is what they
+   *  stand in for: each is a GameMode value.
+   *
+   *  @note Each must push its layer when it opens; see the UIStack invariant. */
+  // NOLINTBEGIN(readability-identifier-naming): these are GameMode values, not engine constants.
+  inline constexpr world::GameMode Dialogue{static_cast<world::GameMode>(world::k_first_extension_mode + 0)};
+
+  inline constexpr world::GameMode Inventory{static_cast<world::GameMode>(world::k_first_extension_mode + 1)};
+
+  inline constexpr world::GameMode Journal{static_cast<world::GameMode>(world::k_first_extension_mode + 2)};
+
+  inline constexpr world::GameMode Codex{static_cast<world::GameMode>(world::k_first_extension_mode + 3)};
+
+  inline constexpr world::GameMode Map{static_cast<world::GameMode>(world::k_first_extension_mode + 4)};
+
+  inline constexpr world::GameMode Loot{static_cast<world::GameMode>(world::k_first_extension_mode + 5)};
+
+  inline constexpr world::GameMode Barter{static_cast<world::GameMode>(world::k_first_extension_mode + 6)};
+  // NOLINTEND(readability-identifier-naming)
+
+  /** @brief True when @p mode is one of the four screens reachable from the menu hub.
+   *
+   *  The hub has no GameMode of its own: it is the convention that `UIStack::top()` is one of
+   *  these four, which a single gamepad Hub button (or the I/J/C/M keyboard hotkeys) opens and
+   *  switches between.
+   */
+  [[nodiscard]] constexpr bool is_hub_mode(world::GameMode mode) noexcept {
+    return mode == Inventory || mode == Journal || mode == Codex || mode == Map;
+  }
+
+} // namespace corundum::gameplay::screens

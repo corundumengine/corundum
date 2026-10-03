@@ -6,6 +6,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/system.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/world/scene.hpp>
@@ -25,6 +26,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
+  namespace screens = corundum::gameplay::screens;
 
   /// Route one physical action press through the engine's UI step. Journal is an engine-owned hub
   /// tab, stepped by Engine, not world::update.
@@ -64,7 +66,7 @@ TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel close
 
   // Press J: Exploring → Journal, cursor reset.
   press(engine, corundum::input::Action::Journal);
-  CHECK(engine.scene.mode() == GameMode::Journal);
+  CHECK(engine.scene.mode() == screens::Journal);
   CHECK(engine.scene.journal_cursor == 0);
 
   // Arrows move, wrapping over the two started quests.
@@ -81,7 +83,7 @@ TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel close
 
   // Esc closes it too.
   press(engine, corundum::input::Action::Journal);
-  REQUIRE(engine.scene.mode() == GameMode::Journal);
+  REQUIRE(engine.scene.mode() == screens::Journal);
   press(engine, corundum::input::Action::Cancel);
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
@@ -96,7 +98,7 @@ TEST_CASE("journal — an empty journal opens without a cursor move crashing") {
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 
   press(engine, corundum::input::Action::Journal);
-  REQUIRE(engine.scene.mode() == GameMode::Journal);
+  REQUIRE(engine.scene.mode() == screens::Journal);
 
   press(engine, corundum::input::Action::MoveDown);
   CHECK(engine.scene.journal_cursor == 0);

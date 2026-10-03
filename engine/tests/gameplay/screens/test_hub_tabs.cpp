@@ -23,14 +23,15 @@ namespace {
   using corundum::gameplay::screens::hub_tab_strip;
   using corundum::test::RecordingRenderer;
   using corundum::world::GameMode;
+  namespace screens = corundum::gameplay::screens;
 
 } // namespace
 
 TEST_CASE("hub_tab_label: names the four tabs and nothing else") {
-  CHECK(hub_tab_label(GameMode::Inventory) == "Inventory");
-  CHECK(hub_tab_label(GameMode::Journal) == "Journal");
-  CHECK(hub_tab_label(GameMode::Codex) == "Codex");
-  CHECK(hub_tab_label(GameMode::Map) == "Map");
+  CHECK(hub_tab_label(screens::Inventory) == "Inventory");
+  CHECK(hub_tab_label(screens::Journal) == "Journal");
+  CHECK(hub_tab_label(screens::Codex) == "Codex");
+  CHECK(hub_tab_label(screens::Map) == "Map");
   CHECK(hub_tab_label(GameMode::Exploring).empty());
   CHECK(hub_tab_label(GameMode::Menu).empty());
 }
@@ -62,7 +63,7 @@ TEST_CASE("hub_tab_strip: tabs are ordered, non-overlapping and centered") {
 TEST_CASE("hub_tab_strip_render: draws the bumper hints, all four labels, and highlights active") {
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
-  corundum::gameplay::screens::hub_tab_strip_render(r, style, GameMode::Codex, {.x = 1280.f, .y = 720.f},
+  corundum::gameplay::screens::hub_tab_strip_render(r, style, screens::Codex, {.x = 1280.f, .y = 720.f},
                                                     corundum::input::InputDevice::Keyboard);
 
   std::vector<std::string> texts;
@@ -90,7 +91,7 @@ TEST_CASE("hub_tab_strip_render: draws the bumper hints, all four labels, and hi
 TEST_CASE("hub_tab_strip_render: the bumper hints follow the last-used device") {
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
-  corundum::gameplay::screens::hub_tab_strip_render(r, style, GameMode::Inventory, {.x = 1280.f, .y = 720.f},
+  corundum::gameplay::screens::hub_tab_strip_render(r, style, screens::Inventory, {.x = 1280.f, .y = 720.f},
                                                     corundum::input::InputDevice::Gamepad);
 
   const auto &prev = std::get<corundum::platform::DrawText>(r.log.front());

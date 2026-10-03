@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/world/scene.hpp>
@@ -21,6 +22,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
+  namespace screens = corundum::gameplay::screens;
 
   /// Route one physical action press through the engine's UI step, exactly as the fixed-step
   /// loop does. Inventory is an engine-owned hub tab, stepped by Engine, not world::update, so
@@ -51,12 +53,12 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
 
   // Press I: Exploring → Inventory, cursor reset.
   press(engine, corundum::input::Action::Inventory);
-  CHECK(engine.scene.mode() == GameMode::Inventory);
+  CHECK(engine.scene.mode() == screens::Inventory);
   CHECK(engine.scene.inventory_cursor == 0);
 
   // Arrows move the highlight while paused.
   press(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.mode() == GameMode::Inventory);
+  CHECK(engine.scene.mode() == screens::Inventory);
   CHECK(engine.scene.inventory_cursor == 1);
   press(engine, corundum::input::Action::MoveUp);
   CHECK(engine.scene.inventory_cursor == 0);
@@ -77,14 +79,14 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
 
   // Esc also closes an open panel.
   press(engine, corundum::input::Action::Inventory);
-  REQUIRE(engine.scene.mode() == GameMode::Inventory);
+  REQUIRE(engine.scene.mode() == screens::Inventory);
   press(engine, corundum::input::Action::Cancel);
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
   // Opening again resets the cursor to the top.
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::Inventory);
-  CHECK(engine.scene.mode() == GameMode::Inventory);
+  CHECK(engine.scene.mode() == screens::Inventory);
   CHECK(engine.scene.inventory_cursor == 0);
 
   engine.cleanup();
@@ -101,7 +103,7 @@ TEST_CASE("inventory — rows are built once on open and not rebuilt while it st
   engine.flags["item.b"] = 1;
 
   press(engine, corundum::input::Action::Inventory);
-  REQUIRE(engine.scene.mode() == GameMode::Inventory);
+  REQUIRE(engine.scene.mode() == screens::Inventory);
   REQUIRE(engine.scene.inventory_lines.size() == 2);
 
   // The inventory is read-only while open: a flag mutated from outside must not change the

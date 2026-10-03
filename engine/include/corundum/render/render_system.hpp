@@ -5,9 +5,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
-#include <corundum/input/physical_input.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/world/flags.hpp>
 
 #include <cstdint>
 #include <expected>
@@ -26,18 +24,6 @@ namespace corundum::sprites {
 namespace corundum::world {
   struct Scene;
 }
-
-namespace corundum::gameplay::quest {
-  class Registry;
-}
-
-namespace corundum::gameplay::screens {
-  struct DialogBoxState;
-}
-
-namespace corundum::ui {
-  class ToastQueue;
-} // namespace corundum::ui
 
 namespace corundum::render {
 
@@ -164,25 +150,18 @@ namespace corundum::render {
    */
   void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &cfg);
 
-  /** @brief Render the entire visible frame.
+  /** @brief Render the world for one frame; the caller owns screen-space overlays.
    *  @param[in,out] r       Renderer for all draw calls.
    *  @param[in,out] state   Render state (chunk streaming may modify active set).
    *  @param[in]     cfg     Game config.
    *  @param[in]     scene   Scene (camera, entities, dialogue mode).
-   *  @param[in]     flags   Persistent game flags for conditional dialogue rendering.
-   *  @param[in]     quests  Loaded quest registry for the journal and HUD strip; null hides both.
-   *  @param[in]     toasts  Live notification queue to stack bottom-left; null hides toasts.
-   *  @param[in,out] dialog_box  Dialogue-box state; updated and drawn as the modal overlay.
    *  @param[in]     alpha   Interpolation factor in [0,1] for render smoothing.
    *  @param[in]     win_w   Live window width in screen pixels.
    *  @param[in]     win_h   Live window height in screen pixels.
-   *  @param[in]     last_device Device of the player's most recent press, for on-screen glyph hints.
+   *  @post The renderer's view is reset to screen space, ready for overlay drawing.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::gameplay::quest::Registry *quests, const corundum::ui::ToastQueue *toasts,
-              corundum::gameplay::screens::DialogBoxState &dialog_box, float alpha, int win_w, int win_h,
-              input::InputDevice last_device = input::InputDevice::Keyboard);
+              const corundum::world::Scene &scene, float alpha, int win_w, int win_h);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

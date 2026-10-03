@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/gameplay/screens/hub_tabs.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/input/actions.hpp>
@@ -28,13 +29,13 @@ namespace corundum::gameplay::screens {
 
   std::string_view hub_tab_label(world::GameMode mode) noexcept {
     switch (mode) {
-      case world::GameMode::Inventory:
+      case Inventory:
         return "Inventory";
-      case world::GameMode::Journal:
+      case Journal:
         return "Journal";
-      case world::GameMode::Codex:
+      case Codex:
         return "Codex";
-      case world::GameMode::Map:
+      case Map:
         return "Map";
       default:
         return {};

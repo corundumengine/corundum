@@ -8,6 +8,7 @@
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
@@ -89,8 +90,8 @@ namespace corundum::world {
 
     float elapsed_time{0.f};
 
-    /// Highlighted row while mode == GameMode::Inventory; wrapped against the held-item count by
-    /// update_inventory().
+    /// Highlighted row while mode == gameplay::screens::Inventory; wrapped against the held-item
+    /// count by update_inventory().
     int inventory_cursor{};
 
     /// Held-item rows of the Inventory hub tab, rebuilt when the tab is opened or switched to.
@@ -98,12 +99,12 @@ namespace corundum::world {
     /// per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation").
     std::vector<corundum::gameplay::screens::InventoryLine> inventory_lines;
 
-    /// Highlighted row while mode == GameMode::Journal; wrapped against the started-quest count by
-    /// update_journal().
+    /// Highlighted row while mode == gameplay::screens::Journal; wrapped against the
+    /// started-quest count by update_journal().
     int journal_cursor{};
 
     /// Hub tab the Hub button (gamepad Y) reopens; the last tab that was opened or switched to.
-    GameMode last_hub_mode{GameMode::Inventory};
+    GameMode last_hub_mode{gameplay::screens::Inventory};
 
     /// Stack of open UI screens; top() is GameMode::Exploring while it is empty. Push to open a
     /// screen, pop (Cancel) to peel one layer.

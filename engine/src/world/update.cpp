@@ -147,9 +147,6 @@ namespace corundum::world {
     scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, iso);
 
     switch (scene.mode()) {
-      case corundum::world::GameMode::Dialogue:
-        corundum::gameplay::dialogue::update_dialogue(scene, intent);
-        break;
       case corundum::world::GameMode::Prompt:
         update_transition_prompt(scene, intent);
         break;
@@ -160,16 +157,11 @@ namespace corundum::world {
         if (scene.mode() == GameMode::Exploring)
           corundum::gameplay::dialogue::try_interact(scene, intent, cfg, graphs, flags, quests);
         break;
-      case corundum::world::GameMode::Inventory:
-      case corundum::world::GameMode::Journal:
-      case corundum::world::GameMode::Menu:
-      case corundum::world::GameMode::Settings:
-      case corundum::world::GameMode::Codex:
-      case corundum::world::GameMode::Map:
-      case corundum::world::GameMode::Loot:
-      case corundum::world::GameMode::Barter:
-        // Engine-level screens, stepped by Engine::run_fixed_steps(); world::update is not called
-        // for them. Listed so the GameMode switch stays exhaustive.
+      default:
+        // Extension modes and the engine screens (Menu, Settings) run no engine world
+        // simulation here: step-owning screens skip world::update entirely, and a
+        // non-step-owning extension mode (Dialogue) does its per-step work from a
+        // fixed_step_systems entry. In particular Dialogue must never run update_exploring.
         break;
     }
   }

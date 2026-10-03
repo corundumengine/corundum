@@ -25,6 +25,7 @@
 #include <corundum/platform/window.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/render/render_state.hpp>
+#include <corundum/screen_registry.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/gameplay/screens/barter.hpp>
@@ -47,6 +48,7 @@
 #include <functional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace corundum {
 
@@ -209,6 +211,24 @@ namespace corundum {
      */
     std::function<void(Engine &, const platform::PlatformEvents &)> on_platform_event;
 
+    /** @brief Screen specs keyed by GameMode, plus the ordered render-layer hooks.
+     *
+     *  Engine-owned screens (Menu, Settings) register here during initialize(); gameplay
+     *  screens register from the same call. Dispatch happens in update_engine_screens() and
+     *  the layered render sequence in render_frame().
+     */
+    ScreenRegistry screens;
+
+    /** @brief Extra per-fixed-step systems, run in registration order before on_fixed_update.
+     *
+     *  This is the slot for engine-runtime systems and framework systems — never the game's
+     *  own hook. on_fixed_update stays the game's single slot. Each entry is a
+     *  `void(Engine&, float dt)` callable; the gameplay framework registers exactly one system
+     *  (dialogue update). Registered once, at initialize time, so the std::function storage
+     *  allocates only then.
+     */
+    std::vector<std::function<void(Engine &, float)>> fixed_step_systems;
+
     /// True while inside an interior reached from the overworld.
     bool entered_from_world{false};
 
@@ -258,6 +278,10 @@ namespace corundum {
      *          while (run_frame()) {}.
      *
      *  @pre initialize() must have returned successfully.
+     *  @post If no step-owning screen was on top during a fixed step, both fixed_step_systems
+     *        and on_fixed_update ran. If a step-owning screen was on top, neither ran, and
+     *        world::update, dialogue-event processing, the quest tick and deletion flushing
+     *        were skipped. This holds whatever the top GameMode is.
      *  @note Allocates only for dialogue-event item/flag bookkeeping and, in World
      *        mode, for the one chunk streamed in per frame.
      */
@@ -291,11 +315,12 @@ namespace corundum {
      */
     void process_dialogue_events() noexcept;
 
-    /** @brief Step the engine-owned Menu/Settings screens for one fixed step.
+    /** @brief Step the top screen through the registry for one fixed step.
      *
-     *  Opens the pause menu from Exploring on Action::Menu, then routes @p intent to the screen
-     *  on top of the UI stack. Returns true when an engine screen owned the step, so the caller
-     *  skips the world update — which is what pauses the simulation.
+     *  Handles the menu hub and pause-menu open/close input (which consumes the step), then
+     *  dispatches the top mode's ScreenSpec::update. Returns true only for a registered mode
+     *  whose spec owns the step, so the caller skips world::update and the rest of the
+     *  simulation — which is what pauses the world while a menu is open.
      *
      *  Exposed for testability; run_frame() calls it once per fixed step through
      *  run_fixed_steps().
@@ -401,6 +426,13 @@ namespace corundum {
      *  first call reaches the platform.
      */
     void reveal_window() noexcept;
+
+    /** @brief Register the engine-owned and gameplay screen specs and render-layer hooks.
+     *
+     *  Called once from initialize(). The gameplay registrations are temporary for Session 2A
+     *  (gameplay still lives in the engine target); Session 2B moves them onto
+     *  gameplay::Gameplay. */
+    void register_screens();
 
     bool quit_{false}; ///< Set by request_quit()/cleanup(); see quit_requested().
 

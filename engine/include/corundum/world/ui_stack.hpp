@@ -8,34 +8,30 @@
 
 namespace corundum::world {
 
+  /** @brief First GameMode value reserved for extensions.
+   *
+   *  The engine runtime owns the enumerators below; the gameplay framework defines its own
+   *  modes (Dialogue, Inventory, Journal, ...) as constexpr GameMode values from this base,
+   *  so UIStack::top() and Scene::mode() may return a value no engine switch names.
+   */
+  inline constexpr std::uint8_t k_first_extension_mode = 16;
+
   /** @brief Which screen owns the current fixed step.
    *
    *  Exploring is the base state — it is represented by an empty UIStack, not a pushed
-   *  layer — so top() returns it whenever no screen is open.
+   *  layer — so top() returns it whenever no screen is open. Values from
+   *  k_first_extension_mode upward are extension modes, not engine enumerators.
+   *
+   *  Invariant: every open modal pushes a UIStack layer. Extension modes must push a layer
+   *  too — the HUD-layer gate and UIStack-based step gating trust that an open modal means a
+   *  non-empty stack, so a mode that does not push silently re-enables the HUD under itself.
    */
   enum class GameMode : std::uint8_t {
-    Exploring,
-    Dialogue,
-    Prompt,
-    Inventory,
-    Journal,
-    Codex,
-    Map,
-    Loot,
-    Barter,
-    Menu,
-    Settings,
+    Exploring, ///< Base state; represented by an empty UIStack, never a pushed layer.
+    Prompt,    ///< Portal-confirm prompt.
+    Menu,      ///< Pause menu.
+    Settings,  ///< In-game settings screen.
   };
-
-  /** @brief True when @p mode is one of the four screens reachable from the menu hub.
-   *
-   *  The hub has no GameMode of its own: it is the convention that `UIStack::top()` is one of
-   *  these four, which a single gamepad Hub button (or the I/J/C/M keyboard hotkeys) opens and
-   *  switches between.
-   */
-  [[nodiscard]] constexpr bool is_hub_mode(GameMode mode) noexcept {
-    return mode == GameMode::Inventory || mode == GameMode::Journal || mode == GameMode::Codex || mode == GameMode::Map;
-  }
 
   /** @brief The ordered stack of open UI screens, top last.
    *

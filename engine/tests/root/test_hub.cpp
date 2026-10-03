@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
@@ -29,6 +30,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
+  namespace screens = corundum::gameplay::screens;
 
   /// Route one physical action press through the engine's UI step, exactly as the fixed-step
   /// loop does. The hub tabs are engine-owned, so the shared advance_with() helper cannot drive
@@ -55,20 +57,20 @@ TEST_CASE("hub: each hotkey opens its own tab and the same hotkey closes it") {
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
 
   CHECK(press(engine, corundum::input::Action::Inventory));
-  CHECK(engine.scene.mode() == GameMode::Inventory);
+  CHECK(engine.scene.mode() == screens::Inventory);
 
   // A different hotkey switches tabs in one step.
   CHECK(press(engine, corundum::input::Action::Codex));
-  CHECK(engine.scene.mode() == GameMode::Codex);
+  CHECK(engine.scene.mode() == screens::Codex);
 
   // The active tab's own hotkey closes the hub.
   CHECK(press(engine, corundum::input::Action::Codex));
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
   CHECK(press(engine, corundum::input::Action::Journal));
-  CHECK(engine.scene.mode() == GameMode::Journal);
+  CHECK(engine.scene.mode() == screens::Journal);
   CHECK(press(engine, corundum::input::Action::Map));
-  CHECK(engine.scene.mode() == GameMode::Map);
+  CHECK(engine.scene.mode() == screens::Map);
   CHECK(press(engine, corundum::input::Action::Map));
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
@@ -81,8 +83,8 @@ TEST_CASE("hub: the Hub button opens the last tab and closes when one is on top"
 
   // No tab opened yet: Hub opens the default, Inventory.
   CHECK(press(engine, corundum::input::Action::Hub));
-  CHECK(engine.scene.mode() == GameMode::Inventory);
-  CHECK(engine.scene.last_hub_mode == GameMode::Inventory);
+  CHECK(engine.scene.mode() == screens::Inventory);
+  CHECK(engine.scene.last_hub_mode == screens::Inventory);
 
   // Hub again closes the hub.
   CHECK(press(engine, corundum::input::Action::Hub));
@@ -92,7 +94,7 @@ TEST_CASE("hub: the Hub button opens the last tab and closes when one is on top"
   press(engine, corundum::input::Action::Journal);
   press(engine, corundum::input::Action::Cancel);
   CHECK(press(engine, corundum::input::Action::Hub));
-  CHECK(engine.scene.mode() == GameMode::Journal);
+  CHECK(engine.scene.mode() == screens::Journal);
 
   engine.cleanup();
 }
@@ -101,21 +103,21 @@ TEST_CASE("hub: TabNext/TabPrev cycle the four tabs with wrap-around") {
   corundum::Engine engine{};
   init_engine(engine);
   press(engine, corundum::input::Action::Inventory);
-  REQUIRE(engine.scene.mode() == GameMode::Inventory);
+  REQUIRE(engine.scene.mode() == screens::Inventory);
 
   press(engine, corundum::input::Action::TabNext);
-  CHECK(engine.scene.mode() == GameMode::Journal);
+  CHECK(engine.scene.mode() == screens::Journal);
   press(engine, corundum::input::Action::TabNext);
-  CHECK(engine.scene.mode() == GameMode::Codex);
+  CHECK(engine.scene.mode() == screens::Codex);
   press(engine, corundum::input::Action::TabNext);
-  CHECK(engine.scene.mode() == GameMode::Map);
+  CHECK(engine.scene.mode() == screens::Map);
   // Wrap forward back to the first tab.
   press(engine, corundum::input::Action::TabNext);
-  CHECK(engine.scene.mode() == GameMode::Inventory);
+  CHECK(engine.scene.mode() == screens::Inventory);
   // Wrap backward to the last tab.
   press(engine, corundum::input::Action::TabPrev);
-  CHECK(engine.scene.mode() == GameMode::Map);
-  CHECK(engine.scene.last_hub_mode == GameMode::Map);
+  CHECK(engine.scene.mode() == screens::Map);
+  CHECK(engine.scene.last_hub_mode == screens::Map);
 
   engine.cleanup();
 }
@@ -148,11 +150,11 @@ TEST_CASE("hub: does not open over dialogue, prompt, menu, loot or barter") {
   engine.active_shop_id = "shop";
 
   for (const GameMode screen : {
-           GameMode::Dialogue,
+           screens::Dialogue,
            GameMode::Prompt,
            GameMode::Menu,
-           GameMode::Loot,
-           GameMode::Barter,
+           screens::Loot,
+           screens::Barter,
            GameMode::Settings,
        }) {
     engine.scene.ui.clear();
@@ -178,10 +180,10 @@ TEST_CASE("hub: opens in World mode with no resident chunks") {
   // Engine-owned tabs do not depend on world::update, so an empty chunk window cannot strand
   // them (the old world::update dispatch was gated on chunks being resident).
   press(engine, corundum::input::Action::Inventory);
-  CHECK(engine.scene.mode() == GameMode::Inventory);
+  CHECK(engine.scene.mode() == screens::Inventory);
   press(engine, corundum::input::Action::Cancel);
   press(engine, corundum::input::Action::Journal);
-  CHECK(engine.scene.mode() == GameMode::Journal);
+  CHECK(engine.scene.mode() == screens::Journal);
 
   engine.cleanup();
 }
@@ -214,7 +216,7 @@ TEST_CASE("hub: a pre-hub binding with gamepad Y on Journal still opens the Jour
 
   const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
   CHECK(engine.update_engine_screens(intent));
-  CHECK(engine.scene.mode() == GameMode::Journal);
+  CHECK(engine.scene.mode() == screens::Journal);
 
   engine.cleanup();
 }

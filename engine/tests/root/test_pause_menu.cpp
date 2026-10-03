@@ -5,6 +5,7 @@
 
 #include <corundum/core/window_mode.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -32,6 +33,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
+  namespace screens = corundum::gameplay::screens;
 
   /// Route one physical action press through the engine's UI step, exactly as the fixed-step
   /// loop does. The Menu/Settings screens are stepped by Engine, not world::update, so the
@@ -83,11 +85,11 @@ TEST_CASE("pause menu: Menu opens it, Menu and Cancel both close it") {
 TEST_CASE("pause menu: does not open over another screen") {
   corundum::Engine engine{};
   init_engine(engine);
-  engine.scene.ui.push(GameMode::Journal);
+  engine.scene.ui.push(screens::Journal);
 
   // Journal is an engine screen now, so it owns the step; the menu must still not open over it.
   press(engine, corundum::input::Action::Menu);
-  CHECK(engine.scene.mode() == GameMode::Journal);
+  CHECK(engine.scene.mode() == screens::Journal);
 
   engine.cleanup();
 }

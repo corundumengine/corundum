@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -16,10 +17,10 @@ namespace corundum::gameplay::screens {
 
   /** @brief The four screens reachable from the menu hub, in tab order. */
   inline constexpr std::array<world::GameMode, 4> k_hub_tab_modes{
-      world::GameMode::Inventory,
-      world::GameMode::Journal,
-      world::GameMode::Codex,
-      world::GameMode::Map,
+      Inventory,
+      Journal,
+      Codex,
+      Map,
   };
 
   /** @brief Display label for hub tab @p mode; empty when @p mode is not a hub tab. */
