@@ -4,12 +4,12 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/shop/shop.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
 
@@ -144,7 +144,7 @@ TEST_CASE("hub: does not open over dialogue, prompt, menu, loot or barter") {
   init_engine(engine);
   // Loot and barter close themselves when their target is unset, so give them a target.
   engine.active_container_id = "chest";
-  engine.shops.add(corundum::shop::Shop{.id = "shop", .name = "Shop"});
+  engine.shops.add(corundum::gameplay::shop::Shop{.id = "shop", .name = "Shop"});
   engine.active_shop_id = "shop";
 
   for (const GameMode screen : {

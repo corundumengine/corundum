@@ -22,9 +22,6 @@ set(TEST_SOURCES
     # audio
     audio/test_audio.cpp
 
-    # codex
-    codex/test_codex.cpp
-
     # core
     core/test_direction.cpp
     core/test_files.cpp
@@ -42,14 +39,20 @@ set(TEST_SOURCES
     # debug
     debug/test_debug_overlay.cpp
 
-    # dialogue
-    dialogue/test_compiled_expr.cpp
-    dialogue/test_dialogue.cpp
-    dialogue/test_zone_scope.cpp
-
     # entities
     entities/test_actor_id_table.cpp
     entities/test_entity.cpp
+
+    # gameplay
+    gameplay/codex/test_codex.cpp
+    gameplay/dialogue/test_compiled_expr.cpp
+    gameplay/dialogue/test_dialogue.cpp
+    gameplay/dialogue/test_zone_scope.cpp
+    gameplay/item/test_item_loader.cpp
+    gameplay/item/test_item_serialize.cpp
+    gameplay/location/test_location.cpp
+    gameplay/quest/test_quest.cpp
+    gameplay/shop/test_shop.cpp
 
     # input
     input/test_action_resolver.cpp
@@ -59,13 +62,6 @@ set(TEST_SOURCES
     input/test_input_mapper.cpp
     input/test_input_system.cpp
     input/test_physical_input.cpp
-
-    # item
-    item/test_item_loader.cpp
-    item/test_item_serialize.cpp
-
-    # location
-    location/test_location.cpp
 
     # physics
     physics/test_collision.cpp
@@ -77,9 +73,6 @@ set(TEST_SOURCES
     # platform
     platform/test_handle.cpp
     platform/test_texture_slot_table.cpp
-
-    # quest
-    quest/test_quest.cpp
 
     # render
     render/test_chunk_collision_aggregate.cpp
@@ -104,9 +97,6 @@ set(TEST_SOURCES
 
     # settings
     settings/test_user_settings.cpp
-
-    # shop
-    shop/test_shop.cpp
 
     # sprites
     sprites/test_anim_id.cpp

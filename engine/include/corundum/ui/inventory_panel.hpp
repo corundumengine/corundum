@@ -3,7 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
-#include <corundum/item/registry.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -18,7 +18,7 @@ namespace corundum::ui {
   /// One row of the inventory list: the item's category, held count, and display name
   /// (falls back to the raw id).
   struct InventoryLine {
-    corundum::item::ItemCategory category = corundum::item::ItemCategory::Misc;
+    corundum::gameplay::item::ItemCategory category = corundum::gameplay::item::ItemCategory::Misc;
 
     int count = 0;
 
@@ -42,21 +42,21 @@ namespace corundum::ui {
    * items cluster in a stable display order.
    */
   [[nodiscard]] std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
-                                                                 const corundum::item::Registry &items);
+                                                                 const corundum::gameplay::item::Registry &items);
 
   /** @brief Collect items held under @p flag_prefix from the FlagStore.
    *
    *  Generalization of build_inventory_lines(): every key starting with @p flag_prefix whose
    *  count is positive becomes a row, with the prefix stripped to resolve the item definition.
-   *  Pass item::k_flag_prefix for the player's inventory or
-   *  item::container_flag_prefix(id) for a container's contents.
+   *  Pass gameplay::item::k_flag_prefix for the player's inventory or
+   *  gameplay::item::container_flag_prefix(id) for a container's contents.
    *
    *  @param flags       Active FlagStore.
    *  @param items       Loaded item registry; unknown ids fall back to the raw id.
    *  @param flag_prefix Key prefix to treat as held items.
    */
   [[nodiscard]] std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &flags,
-                                                            const corundum::item::Registry &items,
+                                                            const corundum::gameplay::item::Registry &items,
                                                             std::string_view flag_prefix);
 
   /** @brief Draw a centered inventory panel listing the held items, grouped by category.

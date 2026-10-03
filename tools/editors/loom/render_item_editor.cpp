@@ -4,7 +4,7 @@
 #include "render_item_editor.hpp"
 #include "editor_state.hpp"
 
-#include <corundum/item/item.hpp>
+#include <corundum/gameplay/item/item.hpp>
 
 #include <algorithm>
 #include <cstring>
@@ -18,27 +18,27 @@ namespace tools::loom {
   namespace {
 
     /** @brief A blank item matching the document's category, with its payload set. */
-    corundum::item::Item make_blank_item(corundum::item::ItemCategory category) {
-      corundum::item::Item item;
+    corundum::gameplay::item::Item make_blank_item(corundum::gameplay::item::ItemCategory category) {
+      corundum::gameplay::item::Item item;
       item.category = category;
       switch (category) {
-        case corundum::item::ItemCategory::Weapon:
-          item.weapon = corundum::item::WeaponData{};
+        case corundum::gameplay::item::ItemCategory::Weapon:
+          item.weapon = corundum::gameplay::item::WeaponData{};
           break;
-        case corundum::item::ItemCategory::Apparel:
-          item.apparel = corundum::item::ApparelData{};
+        case corundum::gameplay::item::ItemCategory::Apparel:
+          item.apparel = corundum::gameplay::item::ApparelData{};
           break;
-        case corundum::item::ItemCategory::Potion:
-          item.potion = corundum::item::PotionData{};
+        case corundum::gameplay::item::ItemCategory::Potion:
+          item.potion = corundum::gameplay::item::PotionData{};
           break;
-        case corundum::item::ItemCategory::Misc:
+        case corundum::gameplay::item::ItemCategory::Misc:
           break;
       }
       return item;
     }
 
     /** @brief Collect inline validation warnings for the batch. */
-    std::vector<std::string> item_validation_warnings(const std::vector<corundum::item::Item> &items) {
+    std::vector<std::string> item_validation_warnings(const std::vector<corundum::gameplay::item::Item> &items) {
       std::vector<std::string> warnings;
       for (std::size_t i = 0; i < items.size(); ++i) {
         if (items[i].id.empty())
@@ -64,7 +64,7 @@ namespace tools::loom {
     ImGui::BeginChild("##item_list", {state.node_list_width_, avail.y}, ImGuiChildFlags_None,
                       ImGuiWindowFlags_NoScrollbar);
 
-    ImGui::Text("Items (%s)", corundum::item::to_string(state.item_category_).data());
+    ImGui::Text("Items (%s)", corundum::gameplay::item::to_string(state.item_category_).data());
     ImGui::Separator();
 
     const auto avail_h = ImGui::GetContentRegionAvail().y;
@@ -115,7 +115,8 @@ namespace tools::loom {
     ImGui::Separator();
 
     // Category is fixed by the batch folder — read-only.
-    ImGui::TextDisabled("Category: %s (fixed by folder)", corundum::item::to_string(state.item_category_).data());
+    ImGui::TextDisabled("Category: %s (fixed by folder)",
+                        corundum::gameplay::item::to_string(state.item_category_).data());
 
     if (state.selected_item_ >= 0 && state.selected_item_ < static_cast<int>(state.item_doc_.size())) {
       auto &item = state.item_doc_[state.selected_item_];
@@ -163,20 +164,21 @@ namespace tools::loom {
       ImGui::SeparatorText("Payload");
 
       switch (state.item_category_) {
-        case corundum::item::ItemCategory::Weapon: {
+        case corundum::gameplay::item::ItemCategory::Weapon: {
           int damage = item.weapon ? item.weapon->damage : 0;
           if (ImGui::InputInt("Damage", &damage)) {
             state.push_undo_snapshot();
-            item.weapon = corundum::item::WeaponData{std::max(0, damage)};
+            item.weapon = corundum::gameplay::item::WeaponData{std::max(0, damage)};
             state.dirty = true;
           }
           break;
         }
-        case corundum::item::ItemCategory::Apparel: {
+        case corundum::gameplay::item::ItemCategory::Apparel: {
           int defense = item.apparel ? item.apparel->defense : 0;
           if (ImGui::InputInt("Defense", &defense)) {
             state.push_undo_snapshot();
-            item.apparel = corundum::item::ApparelData{std::max(0, defense), item.apparel ? item.apparel->slot : ""};
+            item.apparel =
+                corundum::gameplay::item::ApparelData{std::max(0, defense), item.apparel ? item.apparel->slot : ""};
             state.dirty = true;
           }
 
@@ -188,12 +190,13 @@ namespace tools::loom {
           ImGui::InputText("Slot", slot_buf, sizeof(slot_buf));
           if (ImGui::IsItemDeactivatedAfterEdit()) {
             state.push_undo_snapshot();
-            item.apparel = corundum::item::ApparelData{item.apparel ? item.apparel->defense : 0, std::string(slot_buf)};
+            item.apparel =
+                corundum::gameplay::item::ApparelData{item.apparel ? item.apparel->defense : 0, std::string(slot_buf)};
             state.dirty = true;
           }
           break;
         }
-        case corundum::item::ItemCategory::Potion: {
+        case corundum::gameplay::item::ItemCategory::Potion: {
           char effect_buf[128];
           std::memset(effect_buf, 0, sizeof(effect_buf));
           if (item.potion)
@@ -202,19 +205,20 @@ namespace tools::loom {
           ImGui::InputText("Effect", effect_buf, sizeof(effect_buf));
           if (ImGui::IsItemDeactivatedAfterEdit()) {
             state.push_undo_snapshot();
-            item.potion = corundum::item::PotionData{std::string(effect_buf), item.potion ? item.potion->magnitude : 0};
+            item.potion =
+                corundum::gameplay::item::PotionData{std::string(effect_buf), item.potion ? item.potion->magnitude : 0};
             state.dirty = true;
           }
 
           int magnitude = item.potion ? item.potion->magnitude : 0;
           if (ImGui::InputInt("Magnitude", &magnitude)) {
             state.push_undo_snapshot();
-            item.potion = corundum::item::PotionData{item.potion ? item.potion->effect : "", magnitude};
+            item.potion = corundum::gameplay::item::PotionData{item.potion ? item.potion->effect : "", magnitude};
             state.dirty = true;
           }
           break;
         }
-        case corundum::item::ItemCategory::Misc:
+        case corundum::gameplay::item::ItemCategory::Misc:
           ImGui::TextDisabled("No payload for misc items.");
           break;
       }

@@ -12,8 +12,6 @@ include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 set(ENGINE_SOURCES
     src/animation/animation_system.cpp
     src/audio/audio_system.cpp
-    src/codex/loader.cpp
-    src/codex/registry.cpp
     src/core/environment.cpp
     src/core/files.cpp
     src/core/game_config.cpp
@@ -23,43 +21,45 @@ set(ENGINE_SOURCES
     src/core/user_data_dir.cpp
     src/core/verify.cpp
     src/debug/debug_overlay.cpp
-    src/dialogue/action.cpp
-    src/dialogue/compiled_expr.cpp
-    src/dialogue/conversation.cpp
-    src/dialogue/interact.cpp
-    src/dialogue/loader.cpp
-    src/dialogue/query.cpp
-    src/dialogue/registry.cpp
-    src/dialogue/serialize.cpp
-    src/dialogue/validate.cpp
-    src/dialogue/validate_refs.cpp
     src/engine.cpp
     src/engine_factory.cpp
     src/engine_options.cpp
+    src/gameplay/codex/loader.cpp
+    src/gameplay/codex/registry.cpp
+    src/gameplay/dialogue/action.cpp
+    src/gameplay/dialogue/compiled_expr.cpp
+    src/gameplay/dialogue/conversation.cpp
+    src/gameplay/dialogue/interact.cpp
+    src/gameplay/dialogue/loader.cpp
+    src/gameplay/dialogue/query.cpp
+    src/gameplay/dialogue/registry.cpp
+    src/gameplay/dialogue/serialize.cpp
+    src/gameplay/dialogue/validate.cpp
+    src/gameplay/dialogue/validate_refs.cpp
+    src/gameplay/item/item.cpp
+    src/gameplay/item/serialize.cpp
+    src/gameplay/location/loader.cpp
+    src/gameplay/location/registry.cpp
+    src/gameplay/quest/loader.cpp
+    src/gameplay/quest/registry.cpp
+    src/gameplay/quest/runner.cpp
+    src/gameplay/quest/serialize.cpp
+    src/gameplay/quest/status.cpp
+    src/gameplay/quest/system.cpp
+    src/gameplay/quest/validate.cpp
+    src/gameplay/shop/loader.cpp
+    src/gameplay/shop/registry.cpp
     src/input/bindings.cpp
     src/input/input_intent.cpp
     src/input/input_mapper.cpp
     src/input/input_system.cpp
     src/input/physical_input.cpp
-    src/item/item.cpp
-    src/item/serialize.cpp
-    src/location/loader.cpp
-    src/location/registry.cpp
     src/physics/collision.cpp
     src/physics/physics_system.cpp
     src/physics/walkability.cpp
-    src/quest/loader.cpp
-    src/quest/registry.cpp
-    src/quest/runner.cpp
-    src/quest/serialize.cpp
-    src/quest/status.cpp
-    src/quest/system.cpp
-    src/quest/validate.cpp
     src/render/render_system.cpp
     src/save/save.cpp
     src/settings/user_settings.cpp
-    src/shop/loader.cpp
-    src/shop/registry.cpp
     src/sprites/atlas_clips.cpp
     src/sprites/atlas_clips_loader.cpp
     src/sprites/atlas_clips_serializer.cpp

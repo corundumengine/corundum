@@ -27,11 +27,7 @@ namespace corundum::world {
   struct Scene;
 }
 
-namespace corundum::quest {
-  class Registry;
-}
-
-namespace corundum::item {
+namespace corundum::gameplay::quest {
   class Registry;
 }
 
@@ -179,8 +175,8 @@ namespace corundum::render {
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::quest::Registry *quests, const corundum::ui::ToastQueue *toasts, float alpha, int win_w,
-              int win_h, input::InputDevice last_device = input::InputDevice::Keyboard);
+              const corundum::gameplay::quest::Registry *quests, const corundum::ui::ToastQueue *toasts, float alpha,
+              int win_w, int win_h, input::InputDevice last_device = input::InputDevice::Keyboard);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

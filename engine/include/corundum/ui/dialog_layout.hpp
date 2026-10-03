@@ -4,8 +4,8 @@
 #pragma once
 #include <algorithm>
 #include <corundum/core/math/vec.hpp>
-#include <corundum/dialogue/conversation.hpp>
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/ui/choice_cursor.hpp>
 #include <corundum/ui/word_wrap.hpp>
 #include <cstddef>
@@ -43,7 +43,7 @@ namespace corundum::ui {
 
     int selected_choice{0};
 
-    dialogue::NodeType node_type{dialogue::NodeType::End};
+    gameplay::dialogue::NodeType node_type{gameplay::dialogue::NodeType::End};
   };
 
   /// True when @p layout's choices carry @p indices in order. Labels are a pure function of
@@ -79,7 +79,7 @@ namespace corundum::ui {
   // margin/panel_height_frac are both viewport-scaled floats; a value struct would over-abstract
   // this single call site.
   template <typename MeasureFn>
-  [[nodiscard]] DialogLayout build_layout(const dialogue::Conversation &conversation, float margin,
+  [[nodiscard]] DialogLayout build_layout(const gameplay::dialogue::Conversation &conversation, float margin,
                                           float panel_height_frac, int border_tile_w, core::math::Vec2 viewport,
                                           const MeasureFn &measure) {
     const float panel_h = viewport.y * panel_height_frac;
@@ -88,7 +88,7 @@ namespace corundum::ui {
     const float panel_w = viewport.x - (margin * 2.f);
     const float inset = std::max(margin, static_cast<float>(border_tile_w));
 
-    const dialogue::NodeType type = conversation.node_type();
+    const gameplay::dialogue::NodeType type = conversation.node_type();
 
     DialogLayout layout{
         .panel_pos = {.x = panel_x, .y = panel_y},
@@ -101,9 +101,9 @@ namespace corundum::ui {
     layout.speaker = conversation.speaker();
 
     const float text_w = std::max(0.f, panel_w - (inset * 2.f));
-    if (type == dialogue::NodeType::Talk) {
+    if (type == gameplay::dialogue::NodeType::Talk) {
       layout.body_lines = ui::wrap_text(conversation.current_text(), text_w, measure);
-    } else if (type == dialogue::NodeType::Choice) {
+    } else if (type == gameplay::dialogue::NodeType::Choice) {
       // The cursor column lives inside the text width; measuring it keeps the wrap budget
       // equal to the label's actual drawable width.
       const float choice_w = std::max(0.f, text_w - measure(k_choice_cursor));

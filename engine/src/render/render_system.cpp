@@ -15,8 +15,8 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/quest/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/hud_strip.hpp>
@@ -473,8 +473,9 @@ namespace corundum::render {
      */
     void render_screen_overlays(corundum::platform::Renderer &r, render::RenderState &state,
                                 const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-                                const corundum::quest::Registry *quests, const corundum::ui::ToastQueue *toasts,
-                                const corundum::core::math::Vec2 &viewport, corundum::input::InputDevice last_device) {
+                                const corundum::gameplay::quest::Registry *quests,
+                                const corundum::ui::ToastQueue *toasts, const corundum::core::math::Vec2 &viewport,
+                                corundum::input::InputDevice last_device) {
       const bool modal_active =
           scene.dialogue.has_value() || (scene.transition_prompt && !scene.transition_prompt->declined()) ||
           scene.ui.contains(corundum::world::GameMode::Inventory) ||
@@ -518,8 +519,8 @@ namespace corundum::render {
 
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::quest::Registry *quests, const corundum::ui::ToastQueue *toasts, float alpha, int win_w,
-              int win_h, corundum::input::InputDevice last_device) {
+              const corundum::gameplay::quest::Registry *quests, const corundum::ui::ToastQueue *toasts, float alpha,
+              int win_w, int win_h, corundum::input::InputDevice last_device) {
     const corundum::core::math::Vec2 viewport{.x = static_cast<float>(win_w), .y = static_cast<float>(win_h)};
     const CameraBlend camera = blend_camera(state, scene, alpha);
     const float cam_x = camera.x;

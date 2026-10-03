@@ -4,9 +4,9 @@
 #include <corundum/ui/barter.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/item/item.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/item/item.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
@@ -28,10 +28,10 @@ namespace corundum::ui {
     /// Reputation is clamped to this many points of discount, so rep 50+ is the best price.
     constexpr int k_max_discount_percent = 50;
 
-    int base_price_of(const shop::StockEntry &entry, const item::Registry &items) {
+    int base_price_of(const gameplay::shop::StockEntry &entry, const gameplay::item::Registry &items) {
       if (entry.price > 0)
         return entry.price;
-      const item::Item *definition = items.find(entry.item);
+      const gameplay::item::Item *definition = items.find(entry.item);
       return definition != nullptr ? definition->price : 0;
     }
 
@@ -50,11 +50,12 @@ namespace corundum::ui {
     return std::max(0, static_cast<int>(std::lround(static_cast<float>(base_price) * buy_rate)));
   }
 
-  std::vector<BarterLine> build_barter_stock(const shop::Shop &shop, const item::Registry &items, int reputation) {
+  std::vector<BarterLine> build_barter_stock(const gameplay::shop::Shop &shop, const gameplay::item::Registry &items,
+                                             int reputation) {
     std::vector<BarterLine> lines;
     lines.reserve(shop.stock.size());
-    for (const shop::StockEntry &entry : shop.stock) {
-      const item::Item *definition = items.find(entry.item);
+    for (const gameplay::shop::StockEntry &entry : shop.stock) {
+      const gameplay::item::Item *definition = items.find(entry.item);
       lines.push_back(BarterLine{
           .count = 0,
           .id = entry.item,
@@ -65,15 +66,16 @@ namespace corundum::ui {
     return lines;
   }
 
-  std::vector<BarterLine> build_barter_sell_lines(const shop::Shop &shop, const item::Registry &items,
+  std::vector<BarterLine> build_barter_sell_lines(const gameplay::shop::Shop &shop,
+                                                  const gameplay::item::Registry &items,
                                                   const world::FlagStore &flags) {
     std::vector<BarterLine> lines;
     for (const auto &[key, count] : flags) {
-      if (count <= 0 || !key.starts_with(item::k_flag_prefix))
+      if (count <= 0 || !key.starts_with(gameplay::item::k_flag_prefix))
         continue;
       std::string_view id{key};
-      id.remove_prefix(item::k_flag_prefix.size());
-      const item::Item *definition = items.find(id);
+      id.remove_prefix(gameplay::item::k_flag_prefix.size());
+      const gameplay::item::Item *definition = items.find(id);
       if (definition == nullptr || definition->price <= 0)
         continue;
       lines.push_back(BarterLine{

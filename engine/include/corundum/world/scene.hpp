@@ -3,10 +3,10 @@
 
 #pragma once
 #include <corundum/core/direction.hpp>
-#include <corundum/dialogue/action.hpp>
-#include <corundum/dialogue/conversation.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/world.hpp>
+#include <corundum/gameplay/dialogue/action.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/inventory_panel.hpp>
 #include <corundum/world/camera.hpp>
@@ -76,12 +76,12 @@ namespace corundum::world {
     std::string zone_id;
 
     /// Active dialogue conversation; disengaged while not in a dialogue. Owned here so
-    /// the presentation layer can query it read-only; stepped by dialogue::update_dialogue.
-    std::optional<corundum::dialogue::Conversation> dialogue;
+    /// the presentation layer can query it read-only; stepped by gameplay::dialogue::update_dialogue.
+    std::optional<corundum::gameplay::dialogue::Conversation> dialogue;
 
     std::optional<DialogueNpc> dialogue_npc;
 
-    std::vector<corundum::dialogue::EventAction> pending_dialogue_events;
+    std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
 
     std::optional<MapTransition> pending_transition;
 

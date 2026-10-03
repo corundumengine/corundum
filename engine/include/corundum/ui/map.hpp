@@ -3,8 +3,8 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/location/registry.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/location/registry.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -31,7 +31,7 @@ namespace corundum::ui {
    *  set when the location's zone equals @p zone_id, so the map can mark where the player is.
    *  The row count is what the map cursor wraps against.
    */
-  [[nodiscard]] std::vector<MapEntry> build_map_entries(const location::Registry &registry,
+  [[nodiscard]] std::vector<MapEntry> build_map_entries(const gameplay::location::Registry &registry,
                                                         const world::FlagStore &flags, std::string_view zone_id = {});
 
   /** @brief Map-screen state: the highlighted row only. */

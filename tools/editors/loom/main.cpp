@@ -12,10 +12,10 @@
 #include "render_quest_editor.hpp"
 #include "shortcuts.hpp"
 #include "validate_quest_refs.hpp"
-#include <corundum/item/item.hpp>
+#include <corundum/gameplay/item/item.hpp>
 
 #include <algorithm>
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/toolkit/widgets/fonts.hpp>
@@ -78,7 +78,7 @@ static void new_item(EditorState &state) {
   state.graph = {};
   state.quest_doc_ = {};
   state.item_doc_.clear();
-  state.item_category_ = corundum::item::ItemCategory::Misc;
+  state.item_category_ = corundum::gameplay::item::ItemCategory::Misc;
   state.item_doc_.emplace_back();
   state.layout.clear();
   state.file_path.clear();

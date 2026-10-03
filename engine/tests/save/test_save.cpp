@@ -13,11 +13,11 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/status.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/platform/null/null_platform.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/registry.hpp>
-#include <corundum/quest/status.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -262,7 +262,7 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
 
   // Register a quest and advance it to its resolved ending.
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "save_q";
   q.name = "Save Quest";
   q.description = "";
@@ -270,10 +270,10 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
   engine.quests.add(std::move(q));
 
-  corundum::quest::start(*engine.quests.find("save_q"), engine.flags);
-  corundum::quest::advance(*engine.quests.find("save_q"), "complete", engine.flags);
-  REQUIRE(corundum::quest::lifecycle(*engine.quests.find("save_q"), engine.flags) ==
-          corundum::quest::Lifecycle::Completed);
+  corundum::gameplay::quest::start(*engine.quests.find("save_q"), engine.flags);
+  corundum::gameplay::quest::advance(*engine.quests.find("save_q"), "complete", engine.flags);
+  REQUIRE(corundum::gameplay::quest::lifecycle(*engine.quests.find("save_q"), engine.flags) ==
+          corundum::gameplay::quest::Lifecycle::Completed);
 
   // Zone-scoped and NPC state, plus a non-central player position (chunk (1,0)).
   engine.flags["zone.transition.gate"] = 1;
@@ -294,8 +294,8 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   REQUIRE(corundum::save::load_game(engine, p).has_value());
 
   // Quest stage, zone/NPC flags, and player position are restored.
-  CHECK(corundum::quest::lifecycle(*engine.quests.find("save_q"), engine.flags) ==
-        corundum::quest::Lifecycle::Completed);
+  CHECK(corundum::gameplay::quest::lifecycle(*engine.quests.find("save_q"), engine.flags) ==
+        corundum::gameplay::quest::Lifecycle::Completed);
   CHECK(engine.flags["zone.transition.gate"] == 1);
   CHECK(engine.flags["npc.brann.alive"] == 1);
 

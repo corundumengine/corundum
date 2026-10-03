@@ -1,18 +1,18 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/dialogue/action.hpp>
+#include <corundum/gameplay/dialogue/action.hpp>
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/registry.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/world/flags.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace dialogue = corundum::dialogue;
+namespace dialogue = corundum::gameplay::dialogue;
 
 TEST_CASE("engine events: on_event hook handles custom event and returns true") {
   corundum::Engine engine;
@@ -68,7 +68,7 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
   pending.push_back(dialogue::EventAction{"quest_start", {"test_quest"}});
 
   {
-    corundum::quest::Quest q;
+    corundum::gameplay::quest::Quest q;
     q.quest_id = "test_quest";
     q.name = "Test Quest";
     q.stages.push_back({.name = "start", .sequence = 1});
@@ -84,7 +84,7 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
 
 TEST_CASE("engine events: quest_start enqueues a start toast with the quest name") {
   corundum::Engine engine;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember of Greyhollow";
   q.stages.push_back({.name = "start", .sequence = 1});
@@ -100,7 +100,7 @@ TEST_CASE("engine events: quest_start enqueues a start toast with the quest name
 
 TEST_CASE("engine events: re-starting an underway quest does not toast again") {
   corundum::Engine engine;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
   q.stages.push_back({.name = "start", .sequence = 1});
@@ -118,7 +118,7 @@ TEST_CASE("engine events: re-starting an underway quest does not toast again") {
 
 TEST_CASE("engine events: quest_advance to a live stage toasts an update") {
   corundum::Engine engine;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
   q.stages.push_back({.name = "start", .sequence = 1});
@@ -137,7 +137,7 @@ TEST_CASE("engine events: quest_advance to a live stage toasts an update") {
 
 TEST_CASE("engine events: quest_advance to a resolved stage toasts completion") {
   corundum::Engine engine;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
   q.stages.push_back({.name = "start", .sequence = 1});
@@ -154,7 +154,7 @@ TEST_CASE("engine events: quest_advance to a resolved stage toasts completion") 
 
 TEST_CASE("engine events: quest_advance to a failed stage toasts failure") {
   corundum::Engine engine;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
   q.stages.push_back({.name = "start", .sequence = 1});
@@ -171,7 +171,7 @@ TEST_CASE("engine events: quest_advance to a failed stage toasts failure") {
 
 TEST_CASE("engine events: an unknown advance stage does not toast") {
   corundum::Engine engine;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
   q.stages.push_back({.name = "start", .sequence = 1});

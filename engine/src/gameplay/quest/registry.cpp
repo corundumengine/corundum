@@ -1,0 +1,52 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+#include <corundum/core/files.hpp>
+#include <corundum/gameplay/quest/loader.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
+
+#include "core/warn_log.hpp"
+
+#include <filesystem>
+#include <string>
+#include <string_view>
+#include <utility>
+
+namespace corundum::gameplay::quest {
+
+  int Registry::load_all(const std::filesystem::path &dir) {
+    const auto entries = core::list_dir_entries(dir, {.extensions = {"json"}});
+    if (!entries) {
+      corundum::detail::warn_log("[quest] cannot read quest directory '{}': {}", dir.string(), entries.error());
+      return 0;
+    }
+
+    int loaded = 0;
+    for (const auto &entry : *entries) {
+      if (entry.is_dir)
+        continue;
+
+      auto result = load_quest(entry.path);
+      if (!result) {
+        corundum::detail::warn_log("[quest] skipping '{}': {}", entry.name, result.error());
+        continue;
+      }
+
+      const std::string_view id = result->quest_id;
+      if (quests_.contains(id)) {
+        corundum::detail::warn_log("[quest] duplicate quest id '{}' — '{}' is shadowed", id, entry.name);
+      } else {
+        quests_.emplace(std::string(id), std::move(*result));
+        ++loaded;
+      }
+    }
+
+    return loaded;
+  }
+
+  const Quest *Registry::find(std::string_view quest_id) const {
+    const auto it = quests_.find(quest_id);
+    return it != quests_.end() ? &it->second : nullptr;
+  }
+
+} // namespace corundum::gameplay::quest

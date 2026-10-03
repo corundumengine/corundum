@@ -3,7 +3,7 @@
 
 #include "actions.hpp"
 #include "file_io.hpp"
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/toolkit/widgets/file_browser.hpp>
 #include <filesystem>
 #include <format>
@@ -29,7 +29,7 @@ namespace tools::loom {
     }
 
     if (state.doc_type_ == DocumentKind::Dialogue) {
-      auto errors = corundum::dialogue::validate_graph(state.graph);
+      auto errors = corundum::gameplay::dialogue::validate_graph(state.graph);
       if (!errors.empty()) {
         state.validation_errors_ = std::move(errors);
         state.show_validation_modal_ = true;

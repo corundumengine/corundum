@@ -3,14 +3,14 @@
 
 #pragma once
 
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 
 #include <cstddef>
 #include <imgui.h>
 
 namespace tools::loom {
 
-  using corundum::dialogue::NodeType;
+  using corundum::gameplay::dialogue::NodeType;
 
   struct NodeTypeTraits {
     const char *label;

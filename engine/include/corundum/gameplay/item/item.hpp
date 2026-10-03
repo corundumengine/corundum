@@ -1,0 +1,87 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
+
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+
+namespace corundum::gameplay::item {
+
+  /** @brief Current on-disk item batch file format version; every batch file must declare it. */
+  inline constexpr int k_item_schema_version = 1;
+
+  /** @brief What kind of thing an item is; drives inventory grouping. */
+  enum class ItemCategory : uint8_t { Apparel, Misc, Potion, Weapon };
+
+  /** @brief Parse a category name ("weapon", "apparel", ...). Unknown or absent → Misc. */
+  [[nodiscard]] ItemCategory category_from_string(std::string_view name) noexcept;
+  /** @brief Canonical serialized form of a category, matching the JSON schema enum. */
+  [[nodiscard]] std::string_view to_string(ItemCategory category) noexcept;
+
+  /** @brief On-disk directory name for a category's batch files under data/items/. */
+  [[nodiscard]] std::string_view category_dir_name(ItemCategory category) noexcept;
+  /** @brief Parse a category directory name ("weapons", "apparel", ...). Unknown → nullopt. */
+  [[nodiscard]] std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept;
+
+  /** @brief FlagStore key prefix for an item's runtime count: `item.<id>`. */
+  inline constexpr std::string_view k_flag_prefix = "item.";
+
+  /** @brief True when @p flag_key names a held item and @p count is positive.
+   *
+   *  Sole authority for which FlagStore rows the inventory treats as held items;
+   *  both the row count (cursor wrapping) and the rendered list go through it.
+   */
+  [[nodiscard]] constexpr bool is_held_item(std::string_view flag_key, int count) noexcept {
+    return flag_key.starts_with(k_flag_prefix) && count > 0;
+  }
+
+  /** @brief Strip the `item.` prefix from @p flag_key.
+   *  @pre is_held_item(flag_key, count) returned true for @p flag_key.
+   */
+  [[nodiscard]] constexpr std::string_view item_id_from_flag(std::string_view flag_key) noexcept {
+    flag_key.remove_prefix(k_flag_prefix.size());
+    return flag_key;
+  }
+
+  /** @brief Category payload for clothing/armour. */
+  struct ApparelData {
+    int defense = 0;
+    std::string slot; // free-form for now (e.g. "head", "body") — no equip system exists
+                      // yet to define a closed slot set.
+  };
+
+  /** @brief Category payload for consumables. */
+  struct PotionData {
+    std::string effect; // free-form identifier, e.g. "heal" — read by game code via
+                        // on_event/on_fixed_update, same convention as the existing
+                        // "give_item"/"reputation" EventActions.
+    int magnitude = 0;
+  };
+
+  /** @brief Category payload for weapons. */
+  struct WeaponData {
+    int damage = 0;
+  };
+
+  /** @brief A static item definition loaded from data/items/<category>/<file>.json.
+   *
+   *  The category folder is authoritative: the loader injects Item::category from it.
+   *  The filename inside a category folder is author-chosen (grouped however the
+   *  author likes) and carries no meaning the engine parses.
+   *  Runtime quantity is tracked separately as an "item.<id>" count in the FlagStore. */
+  struct Item {
+    std::optional<ApparelData> apparel{}; ///< Populated when category is Apparel.
+    ItemCategory category = ItemCategory::Misc;
+    std::string description{};          ///< Flavor / tooltip text.
+    std::string icon{};                 ///< Optional icon reference (unused in MVP; reserved).
+    std::string id{};                   ///< Unique key.
+    std::string name{};                 ///< Display name.
+    std::optional<PotionData> potion{}; ///< Populated when category is Potion.
+    int price{};                        ///< Base gold value; 0 means not for sale. Shops may override per stock entry.
+    std::optional<WeaponData> weapon{}; ///< Populated when category is Weapon.
+  };
+
+} // namespace corundum::gameplay::item

@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/math/vec.hpp>
-#include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/gameplay/dialogue/compiled_expr.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/world/flags.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <doctest/doctest.h>
 
-#include <corundum/dialogue/conversation.hpp>
-#include <corundum/dialogue/dialogue.hpp>
-#include <corundum/item/item.hpp>
-#include <corundum/item/registry.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/registry.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/inventory_panel.hpp>
@@ -397,8 +397,9 @@ namespace {
   // Builds a Talk graph with the requested graph_id, speaker, and a node literally
   // named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
   // id but have different speakers.
-  corundum::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker, std::string talk_text) {
-    using namespace corundum::dialogue;
+  corundum::gameplay::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker,
+                                                      std::string talk_text) {
+    using namespace corundum::gameplay::dialogue;
     Graph g;
     g.graph_id = std::move(graph_id);
     g.speaker = std::move(speaker);
@@ -415,8 +416,8 @@ namespace {
   // Builds a Choice graph where the second option is gated by quest_is_at.
   // Used to verify that threading the quest registry through dialog_box_update
   // yields the gated choice in the layout (not hidden by a parse failure).
-  corundum::dialogue::Graph make_choice_graph_with_quest_gate() {
-    using namespace corundum::dialogue;
+  corundum::gameplay::dialogue::Graph make_choice_graph_with_quest_gate() {
+    using namespace corundum::gameplay::dialogue;
     Graph g;
     g.graph_id = "gated";
     g.speaker = "Gatekeeper";
@@ -434,8 +435,8 @@ namespace {
 
   // Builds a Choice graph whose second option is gated by a plain boolean flag,
   // for exercising a visibility change at an otherwise unchanged node.
-  corundum::dialogue::Graph make_flag_gated_choice_graph() {
-    using namespace corundum::dialogue;
+  corundum::gameplay::dialogue::Graph make_flag_gated_choice_graph() {
+    using namespace corundum::gameplay::dialogue;
     Graph g;
     g.graph_id = "flag_gated";
     g.speaker = "Gatekeeper";
@@ -468,7 +469,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   corundum::world::FlagStore flags;
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
-  const corundum::dialogue::Conversation innkeeper_conversation{innkeeper, flags};
+  const corundum::gameplay::dialogue::Conversation innkeeper_conversation{innkeeper, flags};
   corundum::ui::dialog_box_update(ds, innkeeper_conversation, r, viewport);
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
@@ -477,7 +478,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   // NOLINTEND(bugprone-unchecked-optional-access)
 
   // Cancel and switch NPCs.
-  const corundum::dialogue::Conversation villager_conversation{villager, flags};
+  const corundum::gameplay::dialogue::Conversation villager_conversation{villager, flags};
   corundum::ui::dialog_box_update(ds, villager_conversation, r, viewport);
 
   REQUIRE(ds.layout.has_value());
@@ -500,7 +501,7 @@ TEST_CASE("dialog_box_update: an ended conversation hides the box") {
   corundum::world::FlagStore flags;
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
-  corundum::dialogue::Conversation conversation{graph, flags};
+  corundum::gameplay::dialogue::Conversation conversation{graph, flags};
   corundum::ui::dialog_box_update(ds, conversation, r, viewport);
   REQUIRE(ds.visible);
   REQUIRE(ds.layout.has_value());
@@ -525,8 +526,8 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   corundum::ui::DialogBoxState ds{};
   ds.border = make_border();
 
-  corundum::quest::Registry quests;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
   q.stages.push_back({.name = "start", .sequence = 1});
@@ -537,7 +538,7 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
 
   corundum::world::FlagStore flags;
   flags["quest.ember"] = 2; // matches stage "done" (sequence 2)
-  const corundum::dialogue::Conversation conversation{graph, flags, &quests};
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags, &quests};
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
   corundum::ui::dialog_box_update(ds, conversation, r, viewport);
@@ -562,7 +563,7 @@ TEST_CASE("dialog_box_update: a vertical-only viewport change rebuilds the panel
 
   const auto graph = make_talk_graph("innkeeper_intro", "Innkeeper", "Welcome, traveller.");
   corundum::world::FlagStore flags;
-  const corundum::dialogue::Conversation conversation{graph, flags};
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
   corundum::ui::dialog_box_update(ds, conversation, r, {.x = 1280.f, .y = 720.f});
   REQUIRE(ds.layout.has_value());
@@ -591,7 +592,7 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
 
   const auto graph = make_flag_gated_choice_graph();
   corundum::world::FlagStore flags;
-  const corundum::dialogue::Conversation conversation{graph, flags};
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   corundum::ui::dialog_box_update(ds, conversation, r, viewport);
@@ -616,7 +617,7 @@ TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped
   // Regression: the layout kept only the first wrapped line of a choice label, silently
   // truncating any option too long for the panel.
   RecordingRenderer r;
-  using namespace corundum::dialogue;
+  using namespace corundum::gameplay::dialogue;
 
   Graph graph;
   graph.graph_id = "wrapped";
@@ -628,7 +629,7 @@ TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped
   graph.nodes.push_back(std::move(node));
 
   corundum::world::FlagStore flags;
-  const corundum::dialogue::Conversation conversation{graph, flags};
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
   // Narrow viewport: choice_w = 200 - 2*20 (margin) - 2*20 (inset) - 16 (cursor) = 104px,
   // i.e. 13 glyphs at the recorder's 8px each.
@@ -661,7 +662,7 @@ TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colou
   layout.panel_pos = {.x = 0.f, .y = 0.f};
   layout.panel_size = {.x = 400.f, .y = 200.f};
   layout.inset = 10.f;
-  layout.node_type = corundum::dialogue::NodeType::Choice;
+  layout.node_type = corundum::gameplay::dialogue::NodeType::Choice;
   layout.choices = {
       corundum::ui::ChoiceLayout{.index = 0, .lines = {"first line", "second line"}},
       corundum::ui::ChoiceLayout{.index = 1, .lines = {"other"}},
@@ -825,8 +826,8 @@ TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by
   flags["item.c"] = 1;  // unknown to the registry → id fallback
   flags["quest.x"] = 3; // non-item key → ignored
 
-  corundum::item::Registry items;
-  corundum::item::Item a;
+  corundum::gameplay::item::Registry items;
+  corundum::gameplay::item::Item a;
   a.id = "a";
   a.name = "Apple";
   a.description = "Crisp and red.";
@@ -844,7 +845,7 @@ TEST_CASE("build_inventory_lines: skips zero counts and non-item flags, sorts by
 }
 
 TEST_CASE("build_inventory_lines: groups items by category, ordering by (category, name)") {
-  using corundum::item::ItemCategory;
+  using corundum::gameplay::item::ItemCategory;
 
   corundum::world::FlagStore flags;
   flags["item.zzz"] = 1; // Misc — category order puts it second
@@ -852,20 +853,20 @@ TEST_CASE("build_inventory_lines: groups items by category, ordering by (categor
   flags["item.mmm"] = 1; // Apparel
   flags["item.bbb"] = 1; // Potion
 
-  corundum::item::Registry items;
-  corundum::item::Item weapon;
+  corundum::gameplay::item::Registry items;
+  corundum::gameplay::item::Item weapon;
   weapon.id = "aaa";
   weapon.name = "Axe";
   weapon.category = ItemCategory::Weapon;
   items.add(std::move(weapon));
 
-  corundum::item::Item apparel;
+  corundum::gameplay::item::Item apparel;
   apparel.id = "mmm";
   apparel.name = "Cloak";
   apparel.category = ItemCategory::Apparel;
   items.add(std::move(apparel));
 
-  corundum::item::Item potion;
+  corundum::gameplay::item::Item potion;
   potion.id = "bbb";
   potion.name = "Draught";
   potion.category = ItemCategory::Potion;
@@ -889,7 +890,7 @@ TEST_CASE("build_inventory_lines: groups items by category, ordering by (categor
 // test's logic — dominates this metric.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: category groups draw one header per group, in category order") {
-  using corundum::item::ItemCategory;
+  using corundum::gameplay::item::ItemCategory;
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
@@ -931,7 +932,7 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
 }
 
 TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
-  using corundum::item::ItemCategory;
+  using corundum::gameplay::item::ItemCategory;
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
@@ -955,7 +956,7 @@ TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
 }
 
 TEST_CASE("inventory_panel_render: panel width reserves the cursor column and header width") {
-  using corundum::item::ItemCategory;
+  using corundum::gameplay::item::ItemCategory;
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::DialogBoxStyle style{};
@@ -974,7 +975,7 @@ TEST_CASE("inventory_panel_render: panel width reserves the cursor column and he
 }
 
 TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row height") {
-  using corundum::item::ItemCategory;
+  using corundum::gameplay::item::ItemCategory;
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border();
   corundum::ui::DialogBoxStyle style{};

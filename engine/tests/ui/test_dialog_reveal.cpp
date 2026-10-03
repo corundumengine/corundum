@@ -3,8 +3,8 @@
 
 #include <doctest/doctest.h>
 
-#include <corundum/dialogue/conversation.hpp>
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/world/flags.hpp>
@@ -18,8 +18,8 @@
 
 namespace {
 
-  corundum::dialogue::Graph make_talk_graph(std::string text) {
-    using namespace corundum::dialogue;
+  corundum::gameplay::dialogue::Graph make_talk_graph(std::string text) {
+    using namespace corundum::gameplay::dialogue;
     Graph g;
     g.graph_id = "reveal_test";
     g.speaker = "NPC";
@@ -53,8 +53,8 @@ namespace {
 
 TEST_CASE("dialog reveal: a zero rate draws the full body immediately") {
   corundum::world::FlagStore flags;
-  const corundum::dialogue::Graph graph = make_talk_graph("Hello world");
-  const corundum::dialogue::Conversation conversation{graph, flags};
+  const corundum::gameplay::dialogue::Graph graph = make_talk_graph("Hello world");
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
   corundum::ui::DialogBoxState box{};
   box.style.font_id = 2;
@@ -69,8 +69,8 @@ TEST_CASE("dialog reveal: a zero rate draws the full body immediately") {
 
 TEST_CASE("dialog reveal: advance reveals a codepoint prefix of the body") {
   corundum::world::FlagStore flags;
-  const corundum::dialogue::Graph graph = make_talk_graph("Hello world");
-  const corundum::dialogue::Conversation conversation{graph, flags};
+  const corundum::gameplay::dialogue::Graph graph = make_talk_graph("Hello world");
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
   corundum::ui::DialogBoxState box{};
   box.style.font_id = 2;
@@ -91,8 +91,8 @@ TEST_CASE("dialog reveal: advance reveals a codepoint prefix of the body") {
 
 TEST_CASE("dialog reveal: switching node resets the reveal") {
   corundum::world::FlagStore flags;
-  const corundum::dialogue::Graph graph = make_talk_graph("Hello world");
-  const corundum::dialogue::Conversation conversation{graph, flags};
+  const corundum::gameplay::dialogue::Graph graph = make_talk_graph("Hello world");
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
   corundum::ui::DialogBoxState box{};
   box.style.font_id = 2;

@@ -4,12 +4,12 @@
 #include <corundum/ui/journal.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/status.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/status.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -31,29 +31,29 @@ namespace corundum::ui {
 
     /// Section display order: Active, then Completed, then Failed. NotStarted is unreachable
     /// here because build_journal_entries() only sees started quests.
-    int lifecycle_rank(quest::Lifecycle lifecycle) noexcept {
+    int lifecycle_rank(gameplay::quest::Lifecycle lifecycle) noexcept {
       switch (lifecycle) {
-        case quest::Lifecycle::Active:
+        case gameplay::quest::Lifecycle::Active:
           return 0;
-        case quest::Lifecycle::Completed:
+        case gameplay::quest::Lifecycle::Completed:
           return 1;
-        case quest::Lifecycle::Failed:
+        case gameplay::quest::Lifecycle::Failed:
           return 2;
-        case quest::Lifecycle::NotStarted:
+        case gameplay::quest::Lifecycle::NotStarted:
           return 3;
       }
       return 3;
     }
 
-    std::string_view lifecycle_header(quest::Lifecycle lifecycle) noexcept {
+    std::string_view lifecycle_header(gameplay::quest::Lifecycle lifecycle) noexcept {
       switch (lifecycle) {
-        case quest::Lifecycle::Active:
+        case gameplay::quest::Lifecycle::Active:
           return "Active";
-        case quest::Lifecycle::Completed:
+        case gameplay::quest::Lifecycle::Completed:
           return "Completed";
-        case quest::Lifecycle::Failed:
+        case gameplay::quest::Lifecycle::Failed:
           return "Failed";
-        case quest::Lifecycle::NotStarted:
+        case gameplay::quest::Lifecycle::NotStarted:
           return "Unknown";
       }
       return "Unknown";
@@ -61,12 +61,13 @@ namespace corundum::ui {
 
     /// First not-yet-done objective of the current stage, falling back to the first objective,
     /// or empty when the stage declares none.
-    std::string current_objective(const quest::Quest &quest, const world::FlagStore &flags,
-                                  const quest::Registry &quests, std::string_view zone_id) {
-      const std::vector<quest::ObjectiveView> views = quest::objectives(quest, flags, &quests, zone_id);
+    std::string current_objective(const gameplay::quest::Quest &quest, const world::FlagStore &flags,
+                                  const gameplay::quest::Registry &quests, std::string_view zone_id) {
+      const std::vector<gameplay::quest::ObjectiveView> views =
+          gameplay::quest::objectives(quest, flags, &quests, zone_id);
       if (views.empty())
         return {};
-      for (const quest::ObjectiveView &view : views) {
+      for (const gameplay::quest::ObjectiveView &view : views) {
         if (!view.done)
           return std::string(view.text);
       }
@@ -75,16 +76,16 @@ namespace corundum::ui {
 
   } // namespace
 
-  std::vector<JournalEntry> build_journal_entries(const quest::Registry &quests, const world::FlagStore &flags,
-                                                  std::string_view zone_id) {
+  std::vector<JournalEntry> build_journal_entries(const gameplay::quest::Registry &quests,
+                                                  const world::FlagStore &flags, std::string_view zone_id) {
     std::vector<JournalEntry> entries;
-    for (const quest::Quest *quest : quest::started_quests(quests, flags)) {
+    for (const gameplay::quest::Quest *quest : gameplay::quest::started_quests(quests, flags)) {
       if (quest == nullptr)
         continue;
       entries.push_back(JournalEntry{
           .name = quest->name,
           .objective = current_objective(*quest, flags, quests, zone_id),
-          .lifecycle = quest::lifecycle(*quest, flags),
+          .lifecycle = gameplay::quest::lifecycle(*quest, flags),
       });
     }
     std::ranges::sort(
@@ -119,7 +120,7 @@ namespace corundum::ui {
     std::size_t group_count = 0;
     std::size_t objective_rows = 0;
     float widest = std::max({title_w, r.measure_text(style.font_id, k_empty, style.font_size_body), footer_w});
-    quest::Lifecycle last_section = quest::Lifecycle::NotStarted;
+    gameplay::quest::Lifecycle last_section = gameplay::quest::Lifecycle::NotStarted;
     for (std::size_t i = 0; i < entries.size(); ++i) {
       const JournalEntry &entry = entries[i];
       if (i == 0 || entry.lifecycle != last_section) {
@@ -179,7 +180,7 @@ namespace corundum::ui {
     const int clamped_cursor = std::clamp(cursor, 0, static_cast<int>(entries.size()) - 1);
     const float row_x = panel_x + k_pad_x;
     for (std::size_t i = 0; i < entries.size();) {
-      const quest::Lifecycle section = entries[i].lifecycle;
+      const gameplay::quest::Lifecycle section = entries[i].lifecycle;
       const std::string_view header = lifecycle_header(section);
       const float header_w = r.measure_text(style.font_id, header, style.font_size_speaker);
       r.draw(platform::DrawText{

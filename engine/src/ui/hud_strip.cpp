@@ -4,8 +4,8 @@
 #include <corundum/ui/hud_strip.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/quest/status.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/quest/status.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/journal.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -19,12 +19,13 @@
 
 namespace corundum::ui {
 
-  HudStripData build_hud_strip(const world::FlagStore &flags, const quest::Registry &quests, std::string_view zone_id) {
+  HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
+                               std::string_view zone_id) {
     HudStripData data{};
     data.gold = world::visit_count(flags, std::string{k_gold_flag});
 
     for (const JournalEntry &entry : build_journal_entries(quests, flags, zone_id)) {
-      if (entry.lifecycle != quest::Lifecycle::Active)
+      if (entry.lifecycle != gameplay::quest::Lifecycle::Active)
         continue;
       data.has_quest = true;
       data.quest_name = entry.name;

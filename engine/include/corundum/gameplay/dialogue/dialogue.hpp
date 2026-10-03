@@ -1,0 +1,148 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
+
+#include <corundum/gameplay/dialogue/compiled_expr.hpp>
+
+#include <cstdint>
+#include <flat_map>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace corundum::gameplay::dialogue {
+
+  /** @brief Current on-disk dialogue format version. Absent field == version 1. */
+  constexpr int k_dialogue_schema_version = 1;
+
+  /**
+   * @brief Classifies the role of a node in the dialogue graph.
+   *
+   * Talk   — NPC speaks; one outgoing edge (next_id).
+   * Choice — Player picks from 1-N labelled edges.
+   * Event  — Executes actions silently, no UI; advances to next_id automatically.
+   * End    — Conversation terminates; no edges.
+   */
+  enum class NodeType : uint8_t { Talk, Choice, Event, End };
+
+  /**
+   * @brief Controls how often a choice edge is available across repeated visits
+   * to the same Choice node.
+   *
+   * None   — Always available (default).
+   * Once   — Available once; hidden after being taken.
+   * Cycle  — Rotates with other Cycle choices on this node; one is visible per
+   *          visit, cycling round-robin by visit count.
+   * Random — One choice from the Random pool on this node is shown per visit,
+   *          selected deterministically from a hash of (graph, node, visit count).
+   */
+  enum class SequenceMode : uint8_t { None, Once, Cycle, Random };
+
+  /**
+   * @brief A single outgoing edge from a Choice node.
+   */
+  struct ChoiceEdge {
+    std::string label;     ///< Displayed to the player.
+    std::string target_id; ///< ID of the destination node.
+
+    /// Optional compiled boolean expression evaluated against the FlagStore.
+    /// The edge is hidden when the expression evaluates to false. An absent
+    /// condition means the edge is always visible. Compiled once at load —
+    /// loaders reject expressions that do not compile.
+    std::optional<CompiledExpr> condition = std::nullopt;
+
+    /// Action strings executed when this edge is taken.
+    /// State mutations are applied immediately; engine hook calls are returned
+    /// to the platform for dispatch.
+    std::vector<std::string> actions = {};
+
+    /// Sequencing behaviour across repeated visits to this Choice node.
+    SequenceMode sequence = SequenceMode::None;
+
+    /// If set, this edge is only offered after the current Choice node has been
+    /// visited at least N times (N >= 1).
+    std::optional<int> min_visits = std::nullopt;
+  };
+
+  /**
+   * @brief One node in the dialogue graph.
+   */
+  struct Node {
+    std::string id; ///< Unique within the graph.
+    NodeType type = NodeType::End;
+
+    std::string text;    ///< Body text (Talk nodes only).
+    std::string next_id; ///< Target node id (Talk and Event nodes).
+
+    /// If true (Talk nodes only), the line is shown once; on a later visit the
+    /// node is skipped straight to next_id. Persists via a FlagStore once-key.
+    bool once = false;
+
+    std::vector<ChoiceEdge> choices; ///< Choice options (Choice nodes only).
+
+    /// Action strings executed when this Event node is processed.
+    std::vector<std::string> actions = {};
+
+    /// Arbitrary key-value pairs passed through to the presentation layer.
+    /// Ignored by core dialogue logic.
+    // C++23: flat_map — cold, read-only after load; sorted contiguous pairs hit fewer cache lines
+    std::flat_map<std::string, std::string> metadata;
+  };
+
+  /**
+   * @brief Loaded and validated dialogue graph. Owns its nodes.
+   *
+   * id_to_index is built once at load time for O(log n) binary-search lookup
+   * without pointer instability across node vector reallocation.
+   */
+  struct Graph {
+    /**
+     * @brief Optional stable NPC identifier this graph is attached to.
+     *
+     * Lets quest and divert logic resolve graph <-> NPC (e.g. match a
+     * spawn-points "id" from `ActorIdTable`). Empty when unset; optional.
+     */
+    std::string actor_id;
+    /** @brief On-disk format version; 1 for legacy files without the field. */
+    int schema_version = k_dialogue_schema_version;
+    std::string graph_id;
+    std::string speaker;
+    std::vector<Node> nodes;
+
+    // C++23: flat_map — built once, then read-only; sorted contiguous keys hit
+    // fewer cache lines per lookup than a hash bucket chain
+    std::flat_map<std::string, std::size_t> id_to_index;
+
+    /// Default variable values loaded from the JSON "variables" object.
+    /// Copied into the FlagStore on dialogue start without overwriting
+    /// already-set values from prior sessions.
+    // C++23: flat_map — small set of named ints; sorted iteration is predictable
+    std::flat_map<std::string, int> variables;
+
+    /**
+     * @brief Find a node by id.
+     * @param id Node identifier to look up.
+     * @return Pointer to the node, or nullptr if not found.
+     */
+    [[nodiscard]] const Node *find(const std::string &id) const noexcept {
+      const auto it = id_to_index.find(id);
+      return (it != id_to_index.end()) ? &nodes[it->second] : nullptr;
+    }
+  };
+
+  /**
+   * @brief Validate semantic correctness of a loaded dialogue graph.
+   *
+   * Checks that all edge targets (next_id, choice target_id) refer to nodes
+   * that exist in the graph, and that there are no event-node cycles (which
+   * would cause infinite loops at runtime). The special "end" target is always
+   * valid.
+   *
+   * @param[in] graph  A fully-loaded dialogue graph.
+   * @return A list of error messages; empty if the graph is valid.
+   */
+  [[nodiscard]] std::vector<std::string> validate_graph(const Graph &graph);
+
+} // namespace corundum::gameplay::dialogue

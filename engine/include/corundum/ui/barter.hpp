@@ -3,10 +3,10 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/shop/shop.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/world/flags.hpp>
@@ -49,14 +49,15 @@ namespace corundum::ui {
    *  A stock entry with no explicit price uses the item definition's price. Rows keep the
    *  shop's authored order (the order a merchant's shelves read in).
    */
-  [[nodiscard]] std::vector<BarterLine> build_barter_stock(const shop::Shop &shop, const item::Registry &items,
-                                                           int reputation);
+  [[nodiscard]] std::vector<BarterLine> build_barter_stock(const gameplay::shop::Shop &shop,
+                                                           const gameplay::item::Registry &items, int reputation);
 
   /** @brief Build the Sell rows: every item the player holds that has a value.
    *
    *  Items with a base price of 0 are omitted (they cannot be sold). Sorted by name.
    */
-  [[nodiscard]] std::vector<BarterLine> build_barter_sell_lines(const shop::Shop &shop, const item::Registry &items,
+  [[nodiscard]] std::vector<BarterLine> build_barter_sell_lines(const gameplay::shop::Shop &shop,
+                                                                const gameplay::item::Registry &items,
                                                                 const world::FlagStore &flags);
 
   /** @brief Barter-screen state: active tab and the highlighted row within it. */

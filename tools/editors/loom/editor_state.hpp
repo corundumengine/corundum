@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include <corundum/dialogue/dialogue.hpp>
-#include <corundum/dialogue/registry.hpp>
-#include <corundum/item/item.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/registry.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/registry.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/toolkit/editor/canvas_controller.hpp>
 #include <corundum/toolkit/widgets/file_browser.hpp>
 
@@ -89,9 +89,9 @@ namespace tools::loom {
   };
 
   struct DocSnapshot {
-    corundum::dialogue::Graph graph;
-    corundum::quest::Quest quest;
-    std::vector<corundum::item::Item> item_doc;
+    corundum::gameplay::dialogue::Graph graph;
+    corundum::gameplay::quest::Quest quest;
+    std::vector<corundum::gameplay::item::Item> item_doc;
     DocumentKind doc_type = DocumentKind::Dialogue;
     int selected_node = -1;
     int selected_stage = -1;
@@ -158,10 +158,10 @@ namespace tools::loom {
 
     DocumentKind doc_type_ = DocumentKind::Dialogue;
 
-    corundum::dialogue::Graph graph;
-    corundum::quest::Quest quest_doc_;
-    std::vector<corundum::item::Item> item_doc_;
-    corundum::item::ItemCategory item_category_ = corundum::item::ItemCategory::Misc;
+    corundum::gameplay::dialogue::Graph graph;
+    corundum::gameplay::quest::Quest quest_doc_;
+    std::vector<corundum::gameplay::item::Item> item_doc_;
+    corundum::gameplay::item::ItemCategory item_category_ = corundum::gameplay::item::ItemCategory::Misc;
 
     int selected_node = -1;
     int selected_stage_ = -1;
@@ -179,9 +179,9 @@ namespace tools::loom {
     char graph_actor_id_buf_[128]{};
     char graph_id_buf_[128]{};
     corundum::toolkit::editor::CanvasController canvas{k_min_scale, k_max_scale};
-    corundum::quest::Registry quest_registry;
+    corundum::gameplay::quest::Registry quest_registry;
     bool quests_loaded_ = false;
-    corundum::dialogue::Registry graph_registry_;
+    corundum::gameplay::dialogue::Registry graph_registry_;
     bool graphs_loaded_ = false;
     PopupState popups;
     InspectorState inspector_bufs;
@@ -215,9 +215,9 @@ namespace tools::loom {
    * malformed expression keeps the raw text in @p edit for inline feedback
    * instead of committing. Only a real mutation pushes an undo snapshot.
    */
-  inline void commit_condition(EditorState &state, std::optional<corundum::dialogue::CompiledExpr> &slot,
+  inline void commit_condition(EditorState &state, std::optional<corundum::gameplay::dialogue::CompiledExpr> &slot,
                                const std::string &raw, CondEditState &edit, int owner) {
-    auto compiled = corundum::dialogue::compile(raw);
+    auto compiled = corundum::gameplay::dialogue::compile(raw);
     if (!compiled) {
       edit = {.active = true, .owner = owner, .error = compiled.error().message, .text = raw};
       return;

@@ -1,0 +1,17 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
+#include <corundum/gameplay/quest/quest.hpp>
+
+#include <nlohmann/json_fwd.hpp>
+
+namespace corundum::gameplay::quest {
+
+  /** @brief Serialize an in-memory Quest to JSON matching the engine's quest schema.
+   *  @param quest A fully-constructed quest document.
+   *  @return nlohmann::json object suitable for write_json().
+   */
+  [[nodiscard]] nlohmann::json serialize(const Quest &quest);
+
+} // namespace corundum::gameplay::quest

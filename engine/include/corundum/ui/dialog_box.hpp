@@ -3,7 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
-#include <corundum/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_layout.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -79,12 +79,12 @@ namespace corundum::ui {
   /// Resets the reveal when the conversation switches node, and is a no-op while the
   /// conversation is inactive or the reveal rate is zero (instant text). Called once per fixed
   /// step so reveal speed is independent of the render rate.
-  void dialog_box_advance(DialogBoxState &ds, const dialogue::Conversation &conversation, float dt);
+  void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, float dt);
 
   /// Recompute layout if the current node, graph, viewport, or visible-choice set changed, then mark visible.
   /// Hides the box (leaving the cache intact) when the conversation is inactive.
-  void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &r,
-                         core::math::Vec2 viewport);
+  void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation,
+                         platform::Renderer &r, core::math::Vec2 viewport);
 
   /// Emit platform::DrawRect, nine-patch border, and platform::DrawText commands for the current frame.
   /// No-op when ds.visible is false or layout is absent.

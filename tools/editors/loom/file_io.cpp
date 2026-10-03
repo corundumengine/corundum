@@ -4,16 +4,16 @@
 #include "file_io.hpp"
 #include "editor_state.hpp"
 #include "graph_layout.hpp"
-#include <corundum/item/item.hpp>
+#include <corundum/gameplay/item/item.hpp>
 #include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_io.hpp>
-#include <corundum/dialogue/loader.hpp>
-#include <corundum/dialogue/serialize.hpp>
-#include <corundum/item/loader.hpp>
-#include <corundum/item/serialize.hpp>
-#include <corundum/quest/loader.hpp>
-#include <corundum/quest/serialize.hpp>
+#include <corundum/gameplay/dialogue/loader.hpp>
+#include <corundum/gameplay/dialogue/serialize.hpp>
+#include <corundum/gameplay/item/loader.hpp>
+#include <corundum/gameplay/item/serialize.hpp>
+#include <corundum/gameplay/quest/loader.hpp>
+#include <corundum/gameplay/quest/serialize.hpp>
 
 #include <expected>
 #include <format>
@@ -56,11 +56,11 @@ namespace tools::loom {
   std::expected<void, std::string> save_graph(const EditorState &state) {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
-    return corundum::core::write_json(state.file_path, corundum::dialogue::serialize(state.graph));
+    return corundum::core::write_json(state.file_path, corundum::gameplay::dialogue::serialize(state.graph));
   }
 
   std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path) {
-    auto result = corundum::dialogue::load_graph(path);
+    auto result = corundum::gameplay::dialogue::load_graph(path);
     if (!result)
       return std::unexpected(result.error());
 
@@ -85,15 +85,16 @@ namespace tools::loom {
       return std::unexpected("No file path set. Use Save As.");
 
     // Never write a quest the loader would reject — the file format is a contract.
-    const corundum::quest::ValidationResult validation = corundum::quest::validate(state.quest_doc_);
+    const corundum::gameplay::quest::ValidationResult validation =
+        corundum::gameplay::quest::validate(state.quest_doc_);
     if (!validation.ok())
       return std::unexpected(validation.errors.front());
 
-    return corundum::core::write_json(state.file_path, corundum::quest::serialize(state.quest_doc_));
+    return corundum::core::write_json(state.file_path, corundum::gameplay::quest::serialize(state.quest_doc_));
   }
 
   std::expected<void, std::string> load_quest_file(EditorState &state, const std::string &path) {
-    auto result = corundum::quest::load_quest(path);
+    auto result = corundum::gameplay::quest::load_quest(path);
     if (!result)
       return std::unexpected(result.error());
 
@@ -115,17 +116,17 @@ namespace tools::loom {
     if (state.file_path.empty())
       return std::unexpected("No file path set. Use Save As.");
     return corundum::core::write_json(state.file_path,
-                                      corundum::item::serialize(state.item_doc_, state.item_category_));
+                                      corundum::gameplay::item::serialize(state.item_doc_, state.item_category_));
   }
 
   std::expected<void, std::string> load_item_file_doc(EditorState &state, const std::string &path) {
     const auto category_name = std::filesystem::path(path).parent_path().filename().string();
-    const auto category = corundum::item::category_from_dir_name(category_name);
+    const auto category = corundum::gameplay::item::category_from_dir_name(category_name);
     if (!category)
       return std::unexpected(
           std::format("'{}' is not an item category folder (expected weapons/apparel/potions/misc)", category_name));
 
-    auto result = corundum::item::load_item_file(path, *category);
+    auto result = corundum::gameplay::item::load_item_file(path, *category);
     if (!result)
       return std::unexpected(result.error());
 

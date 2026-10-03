@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/quest/registry.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/world/flags.hpp>
@@ -34,7 +34,7 @@ namespace corundum::ui {
    *  @param quests  Loaded quest registry.
    *  @param zone_id Current zone; `local.<key>` objective conditions resolve against it.
    */
-  [[nodiscard]] HudStripData build_hud_strip(const world::FlagStore &flags, const quest::Registry &quests,
+  [[nodiscard]] HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
                                              std::string_view zone_id = {});
 
   /** @brief Draw the persistent HUD as a small top-left box: gold plus the active objective.

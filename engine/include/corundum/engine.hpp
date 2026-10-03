@@ -6,26 +6,26 @@
 // Each include below supplies a complete type for an Engine member (or an inline
 // symbol the public API uses); do not slim this block.
 #include <corundum/audio/audio_system.hpp>
-#include <corundum/codex/registry.hpp>
+#include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/rng.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/debug/debug_overlay.hpp>
-#include <corundum/dialogue/action.hpp>
-#include <corundum/dialogue/registry.hpp>
+#include <corundum/gameplay/dialogue/action.hpp>
+#include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_mapper.hpp>
-#include <corundum/item/registry.hpp>
-#include <corundum/location/registry.hpp>
+#include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/location/registry.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/handle.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
-#include <corundum/quest/registry.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/shop/registry.hpp>
+#include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/ui/barter.hpp>
 #include <corundum/ui/codex.hpp>
@@ -123,17 +123,17 @@ namespace corundum {
 
     corundum::world::FlagStore flags;
 
-    dialogue::Registry graphs;
+    gameplay::dialogue::Registry graphs;
 
-    item::Registry items;
+    gameplay::item::Registry items;
 
-    codex::Registry codex;
+    gameplay::codex::Registry codex;
 
-    location::Registry locations;
+    gameplay::location::Registry locations;
 
-    quest::Registry quests;
+    gameplay::quest::Registry quests;
 
-    shop::Registry shops;
+    gameplay::shop::Registry shops;
 
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
 
@@ -179,7 +179,7 @@ namespace corundum {
      *  mark the event as handled (suppresses the unknown-event WARN).
      *  Default-empty; existing games are unaffected.
      */
-    std::function<bool(Engine &, const dialogue::EventAction &)> on_event;
+    std::function<bool(Engine &, const gameplay::dialogue::EventAction &)> on_event;
 
     /** @brief Hook called once per fixed step after world / dialogue-event processing.
      *

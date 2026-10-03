@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/codex/codex.hpp>
-#include <corundum/codex/registry.hpp>
+#include <corundum/gameplay/codex/codex.hpp>
+#include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/debug/debug_overlay.hpp>
-#include <corundum/dialogue/action.hpp>
-#include <corundum/dialogue/validate_refs.hpp>
+#include <corundum/gameplay/dialogue/action.hpp>
+#include <corundum/gameplay/dialogue/validate_refs.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/input/actions.hpp>
@@ -17,22 +17,22 @@
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/input_system.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/item/container.hpp>
-#include <corundum/item/item.hpp>
-#include <corundum/location/location.hpp>
-#include <corundum/location/registry.hpp>
+#include <corundum/gameplay/item/container.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/location/location.hpp>
+#include <corundum/gameplay/location/registry.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/runner.hpp>
-#include <corundum/quest/status.hpp>
-#include <corundum/quest/system.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/runner.hpp>
+#include <corundum/gameplay/quest/status.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/settings/user_settings.hpp>
-#include <corundum/shop/registry.hpp>
-#include <corundum/shop/shop.hpp>
+#include <corundum/gameplay/shop/registry.hpp>
+#include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/ui/barter.hpp>
 #include <corundum/ui/codex.hpp>
 #include <corundum/ui/dialog_box.hpp>
@@ -80,7 +80,7 @@ namespace corundum {
 
     /// Parse args[index] as an int; returns `fallback` if absent, unparseable, or only
     /// partially numeric.
-    int event_int_arg(const dialogue::EventAction &ev, std::size_t index, int fallback) noexcept {
+    int event_int_arg(const gameplay::dialogue::EventAction &ev, std::size_t index, int fallback) noexcept {
       if (index >= ev.args.size())
         return fallback;
       const std::string &s = ev.args[index];
@@ -93,12 +93,12 @@ namespace corundum {
 
     using corundum::detail::warn_log;
 
-    void validate_quest_references(const corundum::dialogue::Registry &graphs, const corundum::quest::Registry &quests,
-                                   const corundum::item::Registry &items) {
+    void validate_quest_references(const corundum::gameplay::dialogue::Registry &graphs, const corundum::gameplay::quest::Registry &quests,
+                                   const corundum::gameplay::item::Registry &items) {
       for (const auto &[id, graph] : graphs) {
-        for (const auto &err : corundum::dialogue::validate_quest_refs(graph, quests, &items, &graphs))
+        for (const auto &err : corundum::gameplay::dialogue::validate_quest_refs(graph, quests, &items, &graphs))
           warn_log("[engine] WARN: dialogue '{}' {}", id, err);
-        for (const auto &err : corundum::dialogue::validate_condition_quest_refs(graph, quests))
+        for (const auto &err : corundum::gameplay::dialogue::validate_condition_quest_refs(graph, quests))
           warn_log("[engine] WARN: dialogue '{}' {}", id, err);
       }
     }
@@ -235,7 +235,7 @@ namespace corundum {
 
         validate_quest_references(engine_->graphs, engine_->quests, engine_->items);
         for (const auto &[shop_id, shop] : engine_->shops) {
-          for (const shop::StockEntry &entry : shop.stock) {
+          for (const gameplay::shop::StockEntry &entry : shop.stock) {
             if (engine_->items.find(entry.item) == nullptr)
               warn_log("[engine] WARN: shop '{}' stocks unknown item '{}'", shop_id, entry.item);
           }
@@ -263,7 +263,7 @@ namespace corundum {
     /// Invoke the user-provided dialogue-event hook, swallowing any exceptions
     /// so the noexcept contract on the dispatch loop holds. A throwing hook maps
     /// to Threw so dispatch does not also report the event as unknown.
-    EventHookResult invoke_event_hook(Engine &engine, const dialogue::EventAction &ev) noexcept {
+    EventHookResult invoke_event_hook(Engine &engine, const gameplay::dialogue::EventAction &ev) noexcept {
       if (!engine.on_event)
         return EventHookResult::NotHandled;
       try {
@@ -274,46 +274,46 @@ namespace corundum {
       }
     }
 
-    void handle_play_sound(Engine &engine, const dialogue::EventAction &ev) {
+    void handle_play_sound(Engine &engine, const gameplay::dialogue::EventAction &ev) {
       const auto result = engine.audio.play_sound(ev.args[0]);
       if (!result)
         warn_log("[engine] WARN: {}", result.error());
     }
 
-    void handle_quest_start(Engine &engine, quest::Runner &quest_runner, const dialogue::EventAction &ev) {
-      const bool already_started = quest::get_stage(ev.args[0], engine.flags) > 0;
+    void handle_quest_start(Engine &engine, gameplay::quest::Runner &quest_runner, const gameplay::dialogue::EventAction &ev) {
+      const bool already_started = gameplay::quest::get_stage(ev.args[0], engine.flags) > 0;
       if (auto result = quest_runner.start(ev.args[0]); !result) {
         warn_log("[engine] WARN: {}", result.error());
         return;
       }
       if (already_started)
         return;
-      if (const quest::Quest *quest = engine.quests.find(ev.args[0]); quest != nullptr)
+      if (const gameplay::quest::Quest *quest = engine.quests.find(ev.args[0]); quest != nullptr)
         engine.notify(std::format("Quest started: {}", quest->name), ui::k_toast_default_colour);
     }
 
-    void handle_quest_advance(Engine &engine, quest::Runner &quest_runner, const dialogue::EventAction &ev) {
-      const int stage_before = quest::get_stage(ev.args[0], engine.flags);
+    void handle_quest_advance(Engine &engine, gameplay::quest::Runner &quest_runner, const gameplay::dialogue::EventAction &ev) {
+      const int stage_before = gameplay::quest::get_stage(ev.args[0], engine.flags);
       if (auto result = quest_runner.advance(ev.args[0], ev.args[1]); !result) {
         warn_log("[engine] WARN: {}", result.error());
         return;
       }
       // advance() reports ok even when the stage name was unknown (a logged no-op), so only
       // notify when the stage integer actually moved.
-      if (quest::get_stage(ev.args[0], engine.flags) == stage_before)
+      if (gameplay::quest::get_stage(ev.args[0], engine.flags) == stage_before)
         return;
-      const quest::Quest *quest = engine.quests.find(ev.args[0]);
+      const gameplay::quest::Quest *quest = engine.quests.find(ev.args[0]);
       if (quest == nullptr)
         return;
-      switch (quest::lifecycle(*quest, engine.flags)) {
-        case quest::Lifecycle::Completed:
+      switch (gameplay::quest::lifecycle(*quest, engine.flags)) {
+        case gameplay::quest::Lifecycle::Completed:
           engine.notify(std::format("Quest complete: {}", quest->name), ui::k_toast_complete_colour);
           break;
-        case quest::Lifecycle::Failed:
+        case gameplay::quest::Lifecycle::Failed:
           engine.notify(std::format("Quest failed: {}", quest->name), ui::k_toast_failed_colour);
           break;
-        case quest::Lifecycle::Active:
-        case quest::Lifecycle::NotStarted:
+        case gameplay::quest::Lifecycle::Active:
+        case gameplay::quest::Lifecycle::NotStarted:
           engine.notify(std::format("Quest updated: {}", quest->name), ui::k_toast_updated_colour);
           break;
       }
@@ -321,10 +321,10 @@ namespace corundum {
 
     /// The FlagStore key holding an item's runtime count (`item.<id>`).
     std::string item_flag_key(std::string_view id) {
-      return std::format("{}{}", item::k_flag_prefix, id);
+      return std::format("{}{}", gameplay::item::k_flag_prefix, id);
     }
 
-    void handle_take_item(Engine &engine, const dialogue::EventAction &ev) {
+    void handle_take_item(Engine &engine, const gameplay::dialogue::EventAction &ev) {
       const std::string key{item_flag_key(ev.args[0])};
       if (const auto it = engine.flags.find(key); it != engine.flags.end()) {
         it->second -= event_int_arg(ev, 1, /*fallback=*/1);
@@ -335,37 +335,37 @@ namespace corundum {
 
     /// Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
     /// cache stale, and notify only when the entry was not already unlocked.
-    void handle_unlock_codex(Engine &engine, const dialogue::EventAction &ev) {
-      const std::string key{codex::flag_key(ev.args[0])};
+    void handle_unlock_codex(Engine &engine, const gameplay::dialogue::EventAction &ev) {
+      const std::string key{gameplay::codex::flag_key(ev.args[0])};
       ui::codex_mark_dirty(engine.codex_screen);
       if (world::has_flag(engine.flags, key))
         return;
       world::set_flag(engine.flags, key);
-      if (const codex::CodexEntry *entry = engine.codex.find(ev.args[0]); entry != nullptr)
+      if (const gameplay::codex::CodexEntry *entry = engine.codex.find(ev.args[0]); entry != nullptr)
         engine.notify(std::format("Codex updated: {}", entry->title), ui::k_toast_default_colour);
     }
 
     /// Discover a fast-travel location (`discover_location('id')`): set its discovery flag and
     /// notify only when it was not already known.
-    void handle_discover_location(Engine &engine, const dialogue::EventAction &ev) {
-      const std::string key{location::discovery_flag_key(ev.args[0])};
+    void handle_discover_location(Engine &engine, const gameplay::dialogue::EventAction &ev) {
+      const std::string key{gameplay::location::discovery_flag_key(ev.args[0])};
       if (world::has_flag(engine.flags, key))
         return;
       world::set_flag(engine.flags, key);
-      if (const location::Location *location = engine.locations.find(ev.args[0]); location != nullptr)
+      if (const gameplay::location::Location *location = engine.locations.find(ev.args[0]); location != nullptr)
         engine.notify(std::format("Location discovered: {}", location->name), ui::k_toast_default_colour);
     }
 
     /// Open a container's two-pane loot screen (`open_container('id')`). The screen is pushed onto
     /// the UI stack so closing it returns to whatever was beneath (dialogue included).
-    void handle_open_container(Engine &engine, const dialogue::EventAction &ev) {
+    void handle_open_container(Engine &engine, const gameplay::dialogue::EventAction &ev) {
       engine.active_container_id = ev.args[0];
       engine.loot_screen = {};
       engine.scene.ui.push(world::GameMode::Loot);
     }
 
     /// Open a merchant's barter screen (`open_shop('id')`). Unknown ids warn and are ignored.
-    void handle_open_shop(Engine &engine, const dialogue::EventAction &ev) {
+    void handle_open_shop(Engine &engine, const gameplay::dialogue::EventAction &ev) {
       if (engine.shops.find(ev.args[0]) == nullptr) {
         warn_log("[engine] WARN: open_shop unknown shop '{}'", ev.args[0]);
         return;
@@ -375,8 +375,8 @@ namespace corundum {
       engine.scene.ui.push(world::GameMode::Barter);
     }
 
-    void dispatch_dialogue_event(Engine &engine, quest::Runner &quest_runner,
-                                 const dialogue::EventAction &ev) noexcept {
+    void dispatch_dialogue_event(Engine &engine, gameplay::quest::Runner &quest_runner,
+                                 const gameplay::dialogue::EventAction &ev) noexcept {
       try {
         if (ev.name == "play_sound" && !ev.args.empty()) {
           handle_play_sound(engine, ev);
@@ -413,7 +413,7 @@ namespace corundum {
   } // namespace
 
   void Engine::process_dialogue_events() noexcept {
-    quest::Runner quest_runner{quests, flags};
+    gameplay::quest::Runner quest_runner{quests, flags};
     for (const auto &ev : scene.pending_dialogue_events)
       dispatch_dialogue_event(*this, quest_runner, ev);
     scene.pending_dialogue_events.clear();
@@ -794,7 +794,7 @@ namespace corundum {
         return;
       }
 
-      const location::Location *location = engine.locations.find(selected.id);
+      const gameplay::location::Location *location = engine.locations.find(selected.id);
       if (location == nullptr)
         return;
       world::MapTransition transition{
@@ -833,7 +833,7 @@ namespace corundum {
         return;
       }
 
-      const std::string container_prefix = item::container_flag_prefix(engine.active_container_id);
+      const std::string container_prefix = gameplay::item::container_flag_prefix(engine.active_container_id);
       if (intent.navigate_x != 0) {
         engine.loot_screen.pane =
             engine.loot_screen.pane == ui::LootPane::Container ? ui::LootPane::Player : ui::LootPane::Container;
@@ -844,7 +844,7 @@ namespace corundum {
       const std::vector<ui::InventoryLine> container_lines =
           ui::build_item_lines(engine.flags, engine.items, container_prefix);
       const std::vector<ui::InventoryLine> player_lines =
-          ui::build_item_lines(engine.flags, engine.items, item::k_flag_prefix);
+          ui::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix);
       const std::vector<ui::InventoryLine> &lines = container_active ? container_lines : player_lines;
       const int rows = static_cast<int>(lines.size());
 
@@ -855,7 +855,7 @@ namespace corundum {
 
       const ui::InventoryLine &selected = lines[static_cast<std::size_t>(
           std::clamp(engine.loot_screen.cursor, 0, rows - 1))];
-      const std::string container_key = item::container_item_flag_key(engine.active_container_id, selected.id);
+      const std::string container_key = gameplay::item::container_item_flag_key(engine.active_container_id, selected.id);
       const std::string player_key = item_flag_key(selected.id);
       if (container_active) {
         adjust_flag(engine.flags, container_key, -1);
@@ -875,7 +875,7 @@ namespace corundum {
         return;
       }
 
-      const shop::Shop *shop = engine.shops.find(engine.active_shop_id);
+      const gameplay::shop::Shop *shop = engine.shops.find(engine.active_shop_id);
       if (shop == nullptr) {
         engine.scene.ui.pop();
         return;
@@ -976,7 +976,7 @@ namespace corundum {
           engine.process_dialogue_events();
           if (engine.scene.dialogue)
             ui::dialog_box_advance(engine.render.dialog_box, *engine.scene.dialogue, engine.timer.target_dt);
-          quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
+          gameplay::quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
           invoke_fixed_update_hook(engine, engine.timer.target_dt);
 
           entities::flush_deletions(engine.scene.world);
@@ -1020,13 +1020,13 @@ namespace corundum {
           ui::loot_panel_render(
               *engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border, container_name,
               ui::build_item_lines(engine.flags, engine.items,
-                                   item::container_flag_prefix(engine.active_container_id)),
-              ui::build_item_lines(engine.flags, engine.items, item::k_flag_prefix), engine.loot_screen, viewport,
+                                   gameplay::item::container_flag_prefix(engine.active_container_id)),
+              ui::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix), engine.loot_screen, viewport,
               engine.input_mapper.last_device());
           break;
         }
         case world::GameMode::Barter: {
-          const shop::Shop *shop = engine.shops.find(engine.active_shop_id);
+          const gameplay::shop::Shop *shop = engine.shops.find(engine.active_shop_id);
           if (shop == nullptr)
             break;
           const int reputation =

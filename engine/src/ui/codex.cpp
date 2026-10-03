@@ -3,8 +3,8 @@
 
 #include <corundum/ui/codex.hpp>
 
-#include <corundum/codex/codex.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -29,25 +29,26 @@ namespace corundum::ui {
 
   namespace {
 
-    std::string_view category_label(const codex::CodexEntry &entry) noexcept {
+    std::string_view category_label(const gameplay::codex::CodexEntry &entry) noexcept {
       return entry.category.empty() ? std::string_view{"Lore"} : std::string_view{entry.category};
     }
 
   } // namespace
 
-  std::vector<codex::CodexEntry> build_codex_entries(const codex::Registry &registry, const world::FlagStore &flags) {
-    std::vector<codex::CodexEntry> entries;
+  std::vector<gameplay::codex::CodexEntry> build_codex_entries(const gameplay::codex::Registry &registry,
+                                                               const world::FlagStore &flags) {
+    std::vector<gameplay::codex::CodexEntry> entries;
     for (const auto &[id, entry] : registry) {
-      if (world::has_flag(flags, codex::flag_key(id)))
+      if (world::has_flag(flags, gameplay::codex::flag_key(id)))
         entries.push_back(entry);
     }
-    std::ranges::sort(entries, {}, [](const codex::CodexEntry &entry) {
+    std::ranges::sort(entries, {}, [](const gameplay::codex::CodexEntry &entry) {
       return std::tuple{std::string{category_label(entry)}, entry.title};
     });
     return entries;
   }
 
-  void refresh_codex(CodexState &state, const codex::Registry &registry, const world::FlagStore &flags) {
+  void refresh_codex(CodexState &state, const gameplay::codex::Registry &registry, const world::FlagStore &flags) {
     if (!state.dirty)
       return;
     state.entries = build_codex_entries(registry, flags);
@@ -56,7 +57,7 @@ namespace corundum::ui {
   }
 
   void codex_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
-                          const std::vector<codex::CodexEntry> &entries, int cursor, float scroll,
+                          const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
                           core::math::Vec2 viewport, input::InputDevice last_device) {
     constexpr float k_pad = 20.f;
     constexpr std::string_view k_title = "Codex";
@@ -159,7 +160,7 @@ namespace corundum::ui {
       y += line_h;
     }
 
-    const codex::CodexEntry &selected = entries[static_cast<std::size_t>(clamped_cursor)];
+    const gameplay::codex::CodexEntry &selected = entries[static_cast<std::size_t>(clamped_cursor)];
     const float body_line_h = line_h;
     const std::vector<std::string> body_lines = wrap_text(selected.body, body_w, [&](std::string_view text) {
       return r.measure_text(style.font_id, text, style.font_size_body);

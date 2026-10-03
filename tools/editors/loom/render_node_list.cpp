@@ -5,7 +5,7 @@
 #include "editor_state.hpp"
 #include "graph_layout.hpp"
 #include "node_type_traits.hpp"
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/toolkit/widgets/text_buffer.hpp>
 
 #include <array>
@@ -79,9 +79,9 @@ namespace tools::loom {
       ImGui::PushID(i);
 
       std::string label;
-      if (node.type == corundum::dialogue::NodeType::Talk)
+      if (node.type == corundum::gameplay::dialogue::NodeType::Talk)
         label = state.graph.speaker.empty() ? node.id : state.graph.speaker + ": " + node.text.substr(0, 30);
-      else if (node.type == corundum::dialogue::NodeType::Choice)
+      else if (node.type == corundum::gameplay::dialogue::NodeType::Choice)
         label = node.choices.empty() ? node.id : node.choices[0].label.substr(0, 30);
       else
         label = node.id;
@@ -126,9 +126,9 @@ namespace tools::loom {
 
       if (ImGui::Button("Create") && state.add_node_id_buf[0] != '\0') {
         state.push_undo_snapshot();
-        corundum::dialogue::Node new_node;
+        corundum::gameplay::dialogue::Node new_node;
         new_node.id = state.add_node_id_buf;
-        new_node.type = static_cast<corundum::dialogue::NodeType>(state.add_node_type);
+        new_node.type = static_cast<corundum::gameplay::dialogue::NodeType>(state.add_node_type);
         state.graph.id_to_index[new_node.id] = state.graph.nodes.size();
         state.graph.nodes.push_back(std::move(new_node));
         state.dirty = true;

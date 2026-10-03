@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <corundum/dialogue/action.hpp> // dialogue::EventAction
+#include <corundum/gameplay/dialogue/action.hpp> // gameplay::dialogue::EventAction
 #include <corundum/engine.hpp>          // IWYU pragma: export
 #include <corundum/engine_factory.hpp>  // IWYU pragma: export
 #include <corundum/world/flags.hpp>     // world::set_flag
@@ -20,6 +20,6 @@ namespace corundum {
    * remaining nested-namespace names into corundum::; add a name only when a
    * caller exists.
    */
-  using dialogue::EventAction;
+  using gameplay::dialogue::EventAction;
   using world::set_flag;
 } // namespace corundum

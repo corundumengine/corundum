@@ -3,10 +3,10 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/status.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/quest/registry.hpp>
-#include <corundum/quest/status.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/world/flags.hpp>
@@ -21,7 +21,7 @@ namespace corundum::ui {
   struct JournalEntry {
     std::string name{};
     std::string objective{};
-    quest::Lifecycle lifecycle{quest::Lifecycle::NotStarted};
+    gameplay::quest::Lifecycle lifecycle{gameplay::quest::Lifecycle::NotStarted};
   };
 
   /** @brief Build the journal rows for every started quest.
@@ -36,8 +36,9 @@ namespace corundum::ui {
    *  @param zone_id Current zone; `local.<key>` objective conditions resolve against it.
    *  @return One entry per started quest, empty when none are started.
    */
-  [[nodiscard]] std::vector<JournalEntry>
-  build_journal_entries(const quest::Registry &quests, const world::FlagStore &flags, std::string_view zone_id = {});
+  [[nodiscard]] std::vector<JournalEntry> build_journal_entries(const gameplay::quest::Registry &quests,
+                                                                const world::FlagStore &flags,
+                                                                std::string_view zone_id = {});
 
   /** @brief Draw a centered journal panel listing the started-quest rows, grouped by lifecycle.
    *

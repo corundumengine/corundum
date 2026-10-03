@@ -3,12 +3,12 @@
 
 #include <doctest/doctest.h>
 
-#include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/gameplay/dialogue/compiled_expr.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/status.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/registry.hpp>
-#include <corundum/quest/status.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/ui/journal.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -24,8 +24,8 @@ namespace {
   using corundum::world::FlagStore;
 
   /// Two-stage quest: a non-resolved start with one bare objective, then a resolved end.
-  corundum::quest::Quest make_two_stage_quest(std::string id, std::string name) {
-    corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest make_two_stage_quest(std::string id, std::string name) {
+    corundum::gameplay::quest::Quest q;
     q.quest_id = std::move(id);
     q.name = std::move(name);
     q.stages.push_back({.name = "start", .objectives = {{.text = "Find the shrine"}}, .sequence = 1});
@@ -35,13 +35,13 @@ namespace {
 
   /// Advance @p id to its second (resolved) stage.
   void complete(FlagStore &flags, std::string_view quest_id) {
-    flags[corundum::quest::quest_flag_key(quest_id)] = 2;
+    flags[corundum::gameplay::quest::quest_flag_key(quest_id)] = 2;
   }
 
 } // namespace
 
 TEST_CASE("build_journal_entries: no started quests yields an empty list") {
-  corundum::quest::Registry quests;
+  corundum::gameplay::quest::Registry quests;
   quests.add(make_two_stage_quest("ember", "Ember of Greyhollow"));
 
   const auto entries = corundum::ui::build_journal_entries(quests, {});
@@ -49,13 +49,13 @@ TEST_CASE("build_journal_entries: no started quests yields an empty list") {
 }
 
 TEST_CASE("build_journal_entries: name, lifecycle, and current objective per started quest") {
-  corundum::quest::Registry quests;
+  corundum::gameplay::quest::Registry quests;
   quests.add(make_two_stage_quest("ember", "Ember of Greyhollow"));
   quests.add(make_two_stage_quest("salt", "Debt of Salt"));
 
   FlagStore flags;
-  corundum::quest::start(*quests.find("ember"), flags);
-  corundum::quest::start(*quests.find("salt"), flags);
+  corundum::gameplay::quest::start(*quests.find("ember"), flags);
+  corundum::gameplay::quest::start(*quests.find("salt"), flags);
   complete(flags, "salt");
 
   const auto entries = corundum::ui::build_journal_entries(quests, flags);
@@ -63,30 +63,31 @@ TEST_CASE("build_journal_entries: name, lifecycle, and current objective per sta
 
   // Active sorts before Completed, regardless of id order.
   CHECK(entries[0].name == "Ember of Greyhollow");
-  CHECK(entries[0].lifecycle == corundum::quest::Lifecycle::Active);
+  CHECK(entries[0].lifecycle == corundum::gameplay::quest::Lifecycle::Active);
   CHECK(entries[0].objective == "Find the shrine");
 
   CHECK(entries[1].name == "Debt of Salt");
-  CHECK(entries[1].lifecycle == corundum::quest::Lifecycle::Completed);
+  CHECK(entries[1].lifecycle == corundum::gameplay::quest::Lifecycle::Completed);
 }
 
 TEST_CASE("build_journal_entries: current objective skips done objectives and falls back to the first") {
-  corundum::quest::Registry quests;
-  corundum::quest::Quest q;
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
-  q.stages.push_back({.name = "start",
-                      .objectives =
-                          {
-                              {.done_condition = *corundum::dialogue::compile("first_done >= 1"), .text = "First"},
-                              {.text = "Second"},
-                          },
-                      .sequence = 1});
+  q.stages.push_back(
+      {.name = "start",
+       .objectives =
+           {
+               {.done_condition = *corundum::gameplay::dialogue::compile("first_done >= 1"), .text = "First"},
+               {.text = "Second"},
+           },
+       .sequence = 1});
   q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
   quests.add(std::move(q));
 
   FlagStore flags;
-  corundum::quest::start(*quests.find("ember"), flags);
+  corundum::gameplay::quest::start(*quests.find("ember"), flags);
 
   // First objective not yet done → reported even though "Second" is also pending.
   CHECK(corundum::ui::build_journal_entries(quests, flags)[0].objective == "First");
@@ -96,12 +97,12 @@ TEST_CASE("build_journal_entries: current objective skips done objectives and fa
 }
 
 TEST_CASE("build_journal_entries: groups by lifecycle section order, then by name") {
-  corundum::quest::Registry quests;
+  corundum::gameplay::quest::Registry quests;
   quests.add(make_two_stage_quest("a_completed", "A Completed"));
   quests.add(make_two_stage_quest("b_active", "B Active"));
 
   // Build the failed quest with a genuine failed ending stage.
-  corundum::quest::Quest failed;
+  corundum::gameplay::quest::Quest failed;
   failed.quest_id = "c_failed";
   failed.name = "C Failed";
   failed.stages.push_back({.name = "start", .sequence = 1});
@@ -109,17 +110,17 @@ TEST_CASE("build_journal_entries: groups by lifecycle section order, then by nam
   quests.add(std::move(failed));
 
   FlagStore flags;
-  corundum::quest::start(*quests.find("a_completed"), flags);
+  corundum::gameplay::quest::start(*quests.find("a_completed"), flags);
   complete(flags, "a_completed");
-  corundum::quest::start(*quests.find("b_active"), flags);
-  corundum::quest::start(*quests.find("c_failed"), flags);
-  flags[corundum::quest::quest_flag_key("c_failed")] = 2;
+  corundum::gameplay::quest::start(*quests.find("b_active"), flags);
+  corundum::gameplay::quest::start(*quests.find("c_failed"), flags);
+  flags[corundum::gameplay::quest::quest_flag_key("c_failed")] = 2;
 
   const auto entries = corundum::ui::build_journal_entries(quests, flags);
   REQUIRE(entries.size() == 3);
-  CHECK(entries[0].lifecycle == corundum::quest::Lifecycle::Active);
-  CHECK(entries[1].lifecycle == corundum::quest::Lifecycle::Completed);
-  CHECK(entries[2].lifecycle == corundum::quest::Lifecycle::Failed);
+  CHECK(entries[0].lifecycle == corundum::gameplay::quest::Lifecycle::Active);
+  CHECK(entries[1].lifecycle == corundum::gameplay::quest::Lifecycle::Completed);
+  CHECK(entries[2].lifecycle == corundum::gameplay::quest::Lifecycle::Failed);
 }
 
 // doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
@@ -133,8 +134,8 @@ TEST_CASE("journal_panel_render: chrome, title, lifecycle headers, then one opti
   const corundum::ui::DialogBoxStyle style{};
 
   std::vector<corundum::ui::JournalEntry> entries = {
-      {.name = "Ember", .objective = "Find the shrine", .lifecycle = corundum::quest::Lifecycle::Active},
-      {.name = "Salt", .objective = "", .lifecycle = corundum::quest::Lifecycle::Completed},
+      {.name = "Ember", .objective = "Find the shrine", .lifecycle = corundum::gameplay::quest::Lifecycle::Active},
+      {.name = "Salt", .objective = "", .lifecycle = corundum::gameplay::quest::Lifecycle::Completed},
   };
 
   corundum::ui::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f});

@@ -3,11 +3,11 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/status.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/registry.hpp>
-#include <corundum/quest/status.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/hud_strip.hpp>
 #include <corundum/world/flags.hpp>
@@ -22,8 +22,8 @@ namespace {
 
   using corundum::world::FlagStore;
 
-  corundum::quest::Quest make_active_quest() {
-    corundum::quest::Quest q;
+  corundum::gameplay::quest::Quest make_active_quest() {
+    corundum::gameplay::quest::Quest q;
     q.quest_id = "ember";
     q.name = "Ember of Greyhollow";
     q.stages.push_back({.name = "start", .objectives = {{.text = "Find the shrine"}}, .sequence = 1});
@@ -34,7 +34,7 @@ namespace {
 } // namespace
 
 TEST_CASE("build_hud_strip: gold with no started quests") {
-  const corundum::quest::Registry quests;
+  const corundum::gameplay::quest::Registry quests;
   FlagStore flags;
   flags["gold"] = 50;
 
@@ -44,12 +44,12 @@ TEST_CASE("build_hud_strip: gold with no started quests") {
 }
 
 TEST_CASE("build_hud_strip: reports the active quest's name and current objective") {
-  corundum::quest::Registry quests;
+  corundum::gameplay::quest::Registry quests;
   quests.add(make_active_quest());
 
   FlagStore flags;
   flags["gold"] = 12;
-  corundum::quest::start(*quests.find("ember"), flags);
+  corundum::gameplay::quest::start(*quests.find("ember"), flags);
 
   const auto data = corundum::ui::build_hud_strip(flags, quests);
   CHECK(data.gold == 12);
@@ -59,13 +59,13 @@ TEST_CASE("build_hud_strip: reports the active quest's name and current objectiv
 }
 
 TEST_CASE("build_hud_strip: a completed quest is not reported as the active objective") {
-  corundum::quest::Registry quests;
+  corundum::gameplay::quest::Registry quests;
   quests.add(make_active_quest());
 
   FlagStore flags;
   flags["gold"] = 0;
-  corundum::quest::start(*quests.find("ember"), flags);
-  flags[corundum::quest::quest_flag_key("ember")] = 2; // resolved stage
+  corundum::gameplay::quest::start(*quests.find("ember"), flags);
+  flags[corundum::gameplay::quest::quest_flag_key("ember")] = 2; // resolved stage
 
   const auto data = corundum::ui::build_hud_strip(flags, quests);
   CHECK_FALSE(data.has_quest);

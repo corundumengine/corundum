@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/codex/registry.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
@@ -24,8 +24,8 @@ namespace corundum::ui {
    *  @param flags    Active FlagStore.
    *  @return One entry per unlocked codex entry, empty when none are unlocked.
    */
-  [[nodiscard]] std::vector<codex::CodexEntry> build_codex_entries(const codex::Registry &registry,
-                                                                   const world::FlagStore &flags);
+  [[nodiscard]] std::vector<gameplay::codex::CodexEntry> build_codex_entries(const gameplay::codex::Registry &registry,
+                                                                             const world::FlagStore &flags);
 
   /** @brief Codex-screen state: the highlighted row and the cached unlocked-entry list.
    *
@@ -42,11 +42,11 @@ namespace corundum::ui {
     bool dirty{true};
 
     /// Cached unlocked entries, ordered by (category, title).
-    std::vector<codex::CodexEntry> entries{};
+    std::vector<gameplay::codex::CodexEntry> entries{};
   };
 
   /** @brief Rebuild @p state's cached rows when they are stale. No-cost when not dirty. */
-  void refresh_codex(CodexState &state, const codex::Registry &registry, const world::FlagStore &flags);
+  void refresh_codex(CodexState &state, const gameplay::codex::Registry &registry, const world::FlagStore &flags);
 
   /** @brief Mark @p state's cached rows stale (call on open and on every codex unlock). */
   inline void codex_mark_dirty(CodexState &state) noexcept {
@@ -68,7 +68,7 @@ namespace corundum::ui {
    *  @param last_device Device of the player's most recent press; picks the footer glyphs.
    */
   void codex_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
-                          const std::vector<codex::CodexEntry> &entries, int cursor, float scroll,
+                          const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
                           core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::ui

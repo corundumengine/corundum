@@ -4,10 +4,10 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
-#include <corundum/quest/quest.hpp>
-#include <corundum/quest/system.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
 
@@ -39,13 +39,13 @@ namespace {
   /// Register a two-stage quest and start it, so the journal has one Active row.
   void add_started_quest(corundum::Engine &engine, std::string id, std::string name) {
     const std::string quest_id = id;
-    corundum::quest::Quest q;
+    corundum::gameplay::quest::Quest q;
     q.quest_id = std::move(id);
     q.name = std::move(name);
     q.stages.push_back({.name = "start", .objectives = {{.text = "Do the thing"}}, .sequence = 1});
     q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
     engine.quests.add(std::move(q));
-    corundum::quest::start(*engine.quests.find(quest_id), engine.flags);
+    corundum::gameplay::quest::start(*engine.quests.find(quest_id), engine.flags);
   }
 
 } // namespace

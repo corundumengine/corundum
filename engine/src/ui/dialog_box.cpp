@@ -3,8 +3,8 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/utf8.hpp>
-#include <corundum/dialogue/conversation.hpp>
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/dialog_layout.hpp>
@@ -35,7 +35,7 @@ namespace corundum::ui {
 
   } // namespace
 
-  void dialog_box_advance(DialogBoxState &ds, const dialogue::Conversation &conversation, float dt) {
+  void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, float dt) {
     if (!conversation.is_active()) {
       ds.reveal_chars = 0.f;
       ds.reveal_node_id.clear();
@@ -49,8 +49,8 @@ namespace corundum::ui {
       ds.reveal_chars += ds.reveal_chars_per_second * dt;
   }
 
-  void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &r,
-                         core::math::Vec2 viewport) {
+  void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation,
+                         platform::Renderer &r, core::math::Vec2 viewport) {
     if (!conversation.is_active()) {
       ds.visible = false;
       return;
@@ -66,7 +66,7 @@ namespace corundum::ui {
     // present a different set of choices. The cache key must include it even when the graph,
     // node, and viewport are unchanged — e.g. ending and restarting the same graph after
     // quest progress, or a goto_graph loop back through this node.
-    const bool choices_changed = ds.layout && conversation.node_type() == dialogue::NodeType::Choice &&
+    const bool choices_changed = ds.layout && conversation.node_type() == gameplay::dialogue::NodeType::Choice &&
                                  !choices_match(*ds.layout, conversation.visible_choice_indices());
 
     const bool stale = !ds.layout || conversation.current_node_id() != ds.last_node_id ||
@@ -114,7 +114,7 @@ namespace corundum::ui {
     };
 
     switch (lay.node_type) {
-      case dialogue::NodeType::Talk: {
+      case gameplay::dialogue::NodeType::Talk: {
         draw_str(lay.speaker, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
         float y = py + inset + spacing;
         const bool reveal = ds.reveal_chars_per_second > 0.f;
@@ -137,7 +137,7 @@ namespace corundum::ui {
                  y + (spacing / 2.f));
         break;
       }
-      case dialogue::NodeType::Choice: {
+      case gameplay::dialogue::NodeType::Choice: {
         const std::string_view header = lay.speaker.empty() ? std::string_view{"Choose:"} : lay.speaker;
         draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
         float y = py + inset + spacing;
@@ -152,10 +152,10 @@ namespace corundum::ui {
         }
         break;
       }
-      case dialogue::NodeType::End:
+      case gameplay::dialogue::NodeType::End:
         draw_str("[Select] Close", ds.style.font_size_body, ds.style.choice, px + inset, py + inset);
         break;
-      case dialogue::NodeType::Event:
+      case gameplay::dialogue::NodeType::Event:
         break;
       default:
         std::unreachable();

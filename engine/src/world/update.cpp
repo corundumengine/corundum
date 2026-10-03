@@ -3,8 +3,8 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
-#include <corundum/dialogue/registry.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
@@ -16,8 +16,8 @@
 #include <corundum/world/update.hpp>
 
 #include <corundum/animation/animation_system.hpp>
-#include <corundum/dialogue/interact.hpp>
 #include <corundum/entities/world.hpp>
+#include <corundum/gameplay/dialogue/interact.hpp>
 #include <corundum/physics/physics_system.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
@@ -124,9 +124,9 @@ namespace {
 
 namespace corundum::world {
 
-  void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::dialogue::Registry &graphs,
+  void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::gameplay::dialogue::Registry &graphs,
               const corundum::input::InputState &input, const MapView &map, float dt, float win_w, float win_h,
-              FlagStore &flags, const quest::Registry *quests, input::InputDevice last_device) {
+              FlagStore &flags, const gameplay::quest::Registry *quests, input::InputDevice last_device) {
     const input::InputIntent intent = input::make_input_intent(input, last_device);
 
     // Camera zoom is only applied while free-roaming: update_exploring re-clamps the
@@ -148,7 +148,7 @@ namespace corundum::world {
 
     switch (scene.mode()) {
       case corundum::world::GameMode::Dialogue:
-        corundum::dialogue::update_dialogue(scene, intent);
+        corundum::gameplay::dialogue::update_dialogue(scene, intent);
         break;
       case corundum::world::GameMode::Prompt:
         update_transition_prompt(scene, intent);
@@ -158,7 +158,7 @@ namespace corundum::world {
         // update_exploring may have armed a portal prompt (mode → Prompt), whose
         // try_interact @pre requires Exploring.
         if (scene.mode() == GameMode::Exploring)
-          corundum::dialogue::try_interact(scene, intent, cfg, graphs, flags, quests);
+          corundum::gameplay::dialogue::try_interact(scene, intent, cfg, graphs, flags, quests);
         break;
       case corundum::world::GameMode::Inventory:
       case corundum::world::GameMode::Journal:

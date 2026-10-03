@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/math/vec.hpp>
-#include <corundum/item/item.hpp>
-#include <corundum/item/registry.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/inventory_panel.hpp>
@@ -28,17 +28,17 @@ namespace corundum::ui {
     constexpr std::string_view k_panel_header = "Inventory";
     constexpr std::string_view k_empty_label = "(empty)";
 
-    /// UI display name for a category. Deliberately separate from item::to_string(),
+    /// UI display name for a category. Deliberately separate from gameplay::item::to_string(),
     /// which is the lowercase serialized/schema form, not presentation text.
-    std::string_view category_display_name(item::ItemCategory category) noexcept {
+    std::string_view category_display_name(gameplay::item::ItemCategory category) noexcept {
       switch (category) {
-        case item::ItemCategory::Apparel:
+        case gameplay::item::ItemCategory::Apparel:
           return "Apparel";
-        case item::ItemCategory::Misc:
+        case gameplay::item::ItemCategory::Misc:
           return "Misc";
-        case item::ItemCategory::Potion:
+        case gameplay::item::ItemCategory::Potion:
           return "Potion";
-        case item::ItemCategory::Weapon:
+        case gameplay::item::ItemCategory::Weapon:
           return "Weapon";
       }
       return "Misc";
@@ -46,7 +46,7 @@ namespace corundum::ui {
 
     /// A run of consecutive rows sharing one category (input is sorted by (category, name)).
     struct Group {
-      item::ItemCategory category = item::ItemCategory::Misc;
+      gameplay::item::ItemCategory category = gameplay::item::ItemCategory::Misc;
 
       std::size_t first = 0; ///< Index of the group's first label in the labels vector.
 
@@ -55,8 +55,8 @@ namespace corundum::ui {
 
     /// Headers are drawn for every category once any non-Misc row is present; an all-Misc
     /// inventory omits them so a handful of un-categorized items don't look over-organized.
-    bool show_group_header(item::ItemCategory category, bool has_non_misc) noexcept {
-      return category != item::ItemCategory::Misc || has_non_misc;
+    bool show_group_header(gameplay::item::ItemCategory category, bool has_non_misc) noexcept {
+      return category != gameplay::item::ItemCategory::Misc || has_non_misc;
     }
 
     /// Wrap a row's description to the tooltip's reading width; empty when there is none.
@@ -88,7 +88,8 @@ namespace corundum::ui {
   } // namespace
 
   std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &flags,
-                                              const corundum::item::Registry &items, std::string_view flag_prefix) {
+                                              const corundum::gameplay::item::Registry &items,
+                                              std::string_view flag_prefix) {
     std::vector<InventoryLine> lines;
     for (const auto &[key, count] : flags) {
       if (count <= 0 || !key.starts_with(flag_prefix))
@@ -97,9 +98,9 @@ namespace corundum::ui {
       id.remove_prefix(flag_prefix.size());
       if (id.empty())
         continue;
-      const item::Item *def = items.find(id);
+      const gameplay::item::Item *def = items.find(id);
       lines.push_back(InventoryLine{
-          .category = def != nullptr ? def->category : item::ItemCategory::Misc,
+          .category = def != nullptr ? def->category : gameplay::item::ItemCategory::Misc,
           .count = count,
           .name = def != nullptr ? def->name : std::string{id},
           .description = def != nullptr ? def->description : std::string{},
@@ -111,8 +112,8 @@ namespace corundum::ui {
   }
 
   std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
-                                                   const corundum::item::Registry &items) {
-    return build_item_lines(flags, items, item::k_flag_prefix);
+                                                   const corundum::gameplay::item::Registry &items) {
+    return build_item_lines(flags, items, gameplay::item::k_flag_prefix);
   }
 
   void inventory_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
@@ -148,7 +149,7 @@ namespace corundum::ui {
     }
 
     const bool has_non_misc =
-        std::ranges::any_of(groups, [](const Group &g) { return g.category != item::ItemCategory::Misc; });
+        std::ranges::any_of(groups, [](const Group &g) { return g.category != gameplay::item::ItemCategory::Misc; });
 
     // Width must fit the title, the per-row cursor prefix plus the widest label, and the
     // widest group header.

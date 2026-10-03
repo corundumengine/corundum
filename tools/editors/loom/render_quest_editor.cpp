@@ -6,7 +6,7 @@
 #include "render_keys_panel.hpp"
 
 #include <algorithm>
-#include <corundum/quest/quest.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
 
 #include <cstring>
 #include <imgui.h>
@@ -286,7 +286,8 @@ namespace tools::loom {
 
     // ── Validation section at bottom of editor ──
     ImGui::Separator();
-    const corundum::quest::ValidationResult validation = corundum::quest::validate(state.quest_doc_);
+    const corundum::gameplay::quest::ValidationResult validation =
+        corundum::gameplay::quest::validate(state.quest_doc_);
     for (const auto &msg : validation.errors)
       ImGui::TextColored(k_warning_col, "  %s", msg.c_str());
     for (const auto &msg : validation.warnings)

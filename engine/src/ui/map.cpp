@@ -4,9 +4,9 @@
 #include <corundum/ui/map.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/location/location.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/location/location.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
@@ -22,11 +22,11 @@
 
 namespace corundum::ui {
 
-  std::vector<MapEntry> build_map_entries(const location::Registry &registry, const world::FlagStore &flags,
+  std::vector<MapEntry> build_map_entries(const gameplay::location::Registry &registry, const world::FlagStore &flags,
                                           std::string_view zone_id) {
     std::vector<MapEntry> entries;
     for (const auto &[id, location] : registry) {
-      if (!world::has_flag(flags, location::discovery_flag_key(id)))
+      if (!world::has_flag(flags, gameplay::location::discovery_flag_key(id)))
         continue;
       entries.push_back(MapEntry{
           .id = location.id,

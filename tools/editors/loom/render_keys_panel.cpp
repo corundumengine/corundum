@@ -3,11 +3,11 @@
 
 #include "render_keys_panel.hpp"
 #include "editor_state.hpp"
-#include <corundum/dialogue/dialogue.hpp>
-#include <corundum/quest/quest.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
 
-#include <corundum/dialogue/action.hpp>
-#include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/gameplay/dialogue/action.hpp>
+#include <corundum/gameplay/dialogue/compiled_expr.hpp>
 
 #include <imgui.h>
 #include <set>
@@ -19,15 +19,15 @@ namespace tools::loom {
   namespace {
 
     void collect_action_lhs(const std::string &action_str, std::set<std::string> &keys) {
-      auto parsed = corundum::dialogue::parse_action(action_str);
+      auto parsed = corundum::gameplay::dialogue::parse_action(action_str);
       if (!parsed)
         return;
-      const auto *sa = std::get_if<corundum::dialogue::StateAction>(&*parsed);
+      const auto *sa = std::get_if<corundum::gameplay::dialogue::StateAction>(&*parsed);
       if (sa != nullptr)
         keys.insert(sa->var);
     }
 
-    void collect_graph_keys(const corundum::dialogue::Graph &graph, std::set<std::string> &keys) {
+    void collect_graph_keys(const corundum::gameplay::dialogue::Graph &graph, std::set<std::string> &keys) {
       for (const auto &node : graph.nodes) {
         for (const auto &action_str : node.actions)
           collect_action_lhs(action_str, keys);
@@ -42,7 +42,7 @@ namespace tools::loom {
       }
     }
 
-    void collect_quest_keys(const corundum::quest::Quest &quest, std::set<std::string> &keys) {
+    void collect_quest_keys(const corundum::gameplay::quest::Quest &quest, std::set<std::string> &keys) {
       for (const auto &stage : quest.stages) {
         for (const auto &objective : stage.objectives) {
           if (objective.done_condition) {

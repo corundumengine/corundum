@@ -6,9 +6,9 @@
 #include "graph_layout.hpp"
 #include "node_type_traits.hpp"
 #include "render_keys_panel.hpp"
-#include <corundum/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
 
-#include <corundum/dialogue/compiled_expr.hpp>
+#include <corundum/gameplay/dialogue/compiled_expr.hpp>
 #include <corundum/toolkit/widgets/text_buffer.hpp>
 
 #include <array>
@@ -33,7 +33,7 @@ namespace tools::loom {
     constexpr auto k_warning_col = ImVec4{1.f, 0.6f, 0.f, 1.f};
 
     /// Seed a condition InputText buffer, honouring a pending failed edit.
-    void seed_cond_buf(const std::optional<corundum::dialogue::CompiledExpr> &slot, char *buf, int buf_size,
+    void seed_cond_buf(const std::optional<corundum::gameplay::dialogue::CompiledExpr> &slot, char *buf, int buf_size,
                        const CondEditState &edit, int owner) {
       if (edit.active && edit.owner == owner)
         copy_to_buffer(buf, static_cast<std::size_t>(buf_size), edit.text);
@@ -236,7 +236,7 @@ namespace tools::loom {
       }
     }
 
-    void render_talk_editor(corundum::dialogue::Node &node, EditorState &state) {
+    void render_talk_editor(corundum::gameplay::dialogue::Node &node, EditorState &state) {
       ImGui::InputTextMultiline("Text", state.inspector_bufs.text_buf, sizeof(state.inspector_bufs.text_buf),
                                 {400.f, 80.f});
       if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -281,7 +281,7 @@ namespace tools::loom {
     }
 
     // NOLINTNEXTLINE(readability-function-cognitive-complexity): flat editor UI routine.
-    void render_choice_editor(corundum::dialogue::Node &node, EditorState &state) {
+    void render_choice_editor(corundum::gameplay::dialogue::Node &node, EditorState &state) {
       for (int i = 0; std::cmp_less(i, node.choices.size()); ++i) {
         auto &ch = node.choices[i];
         ImGui::PushID(i);
@@ -328,7 +328,7 @@ namespace tools::loom {
         ImGui::Combo("Sequence", &local_seq, k_seq_labels.data(), static_cast<int>(k_seq_labels.size()));
         if (ImGui::IsItemDeactivatedAfterEdit()) {
           state.push_undo_snapshot();
-          ch.sequence = static_cast<corundum::dialogue::SequenceMode>(local_seq);
+          ch.sequence = static_cast<corundum::gameplay::dialogue::SequenceMode>(local_seq);
           state.dirty = true;
         }
 
@@ -380,7 +380,7 @@ namespace tools::loom {
       }
     }
 
-    void render_event_editor(corundum::dialogue::Node &node, EditorState &state) {
+    void render_event_editor(corundum::gameplay::dialogue::Node &node, EditorState &state) {
       ImGui::InputText("Next Node", state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf));
       if (ImGui::IsItemDeactivatedAfterEdit()) {
         state.push_undo_snapshot();
@@ -450,19 +450,19 @@ namespace tools::loom {
     ImGui::Separator();
 
     switch (node.type) {
-      case corundum::dialogue::NodeType::Talk:
+      case corundum::gameplay::dialogue::NodeType::Talk:
         copy_to_buffer(state.inspector_bufs.text_buf, sizeof(state.inspector_bufs.text_buf), node.text);
         copy_to_buffer(state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf), node.next_id);
         render_talk_editor(node, state);
         break;
-      case corundum::dialogue::NodeType::Choice:
+      case corundum::gameplay::dialogue::NodeType::Choice:
         render_choice_editor(node, state);
         break;
-      case corundum::dialogue::NodeType::Event:
+      case corundum::gameplay::dialogue::NodeType::Event:
         copy_to_buffer(state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf), node.next_id);
         render_event_editor(node, state);
         break;
-      case corundum::dialogue::NodeType::End:
+      case corundum::gameplay::dialogue::NodeType::End:
         ImGui::TextUnformatted("No editable properties.");
         break;
       default:
