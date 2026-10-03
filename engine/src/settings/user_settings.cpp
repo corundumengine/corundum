@@ -121,7 +121,7 @@ namespace corundum::settings {
     engine.audio.set_master_volume(settings.master_volume);
     engine.render.text_speed = settings.text_speed;
     engine.render.ui_scale = settings.ui_scale;
-    render::configure_dialog_style(engine.render, engine.cfg);
+    render::configure_panel_style(engine.render, engine.cfg);
     return {};
   }
 

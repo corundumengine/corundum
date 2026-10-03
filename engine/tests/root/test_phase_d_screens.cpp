@@ -8,11 +8,10 @@
 #include <corundum/gameplay/item/container.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/location/location.hpp>
+#include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
-#include <corundum/input/bindings.hpp>
 #include <corundum/input/input_intent.hpp>
-#include <corundum/ui/hud_strip.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/ui_stack.hpp>
 
@@ -66,7 +65,13 @@ TEST_CASE("map: Activate on a discovered world location arms a return-to-world t
   corundum::Engine engine{};
   init_engine(engine);
   engine.locations.add(corundum::gameplay::location::Location{
-      .col = 40.f, .id = "village", .name = "Greyhollow", .return_to_world = true, .row = 32.f, .zone = "village"});
+      .col = 40.f,
+      .id = "village",
+      .name = "Greyhollow",
+      .return_to_world = true,
+      .row = 32.f,
+      .zone = "village",
+  });
   corundum::world::set_flag(engine.flags, corundum::gameplay::location::discovery_flag_key("village"));
 
   press(engine, corundum::input::Action::Map);
@@ -109,24 +114,31 @@ TEST_CASE("barter: buying spends gold and grants the item") {
   corundum::Engine engine{};
   init_engine(engine);
   engine.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
-  engine.shops.add(
-      corundum::gameplay::shop::Shop{.id = "corvin",
-                                     .name = "Corvin's Salt",
-                                     .stock = {corundum::gameplay::shop::StockEntry{.item = "salt", .price = 5}}});
+  engine.shops.add(corundum::gameplay::shop::Shop{
+      .id = "corvin",
+      .name = "Corvin's Salt",
+      .stock =
+          {
+              corundum::gameplay::shop::StockEntry{
+                  .item = "salt",
+                  .price = 5,
+              },
+          },
+  });
   engine.active_shop_id = "corvin";
   engine.scene.ui.push(GameMode::Barter);
-  engine.flags[std::string{corundum::ui::k_gold_flag}] = 20;
+  engine.flags[std::string{corundum::gameplay::screens::k_gold_flag}] = 20;
 
   REQUIRE(engine.scene.mode() == GameMode::Barter);
   press(engine, corundum::input::Action::Activate);
   CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 1);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{corundum::ui::k_gold_flag}) == 15);
+  CHECK(corundum::world::visit_count(engine.flags, std::string{corundum::gameplay::screens::k_gold_flag}) == 15);
 
   // Switch to Sell and trade it back for half its base price (buy_rate defaults to 0.5).
   press(engine, corundum::input::Action::TabNext);
   press(engine, corundum::input::Action::Activate);
   CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 0);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{corundum::ui::k_gold_flag}) == 20);
+  CHECK(corundum::world::visit_count(engine.flags, std::string{corundum::gameplay::screens::k_gold_flag}) == 20);
 
   engine.cleanup();
 }

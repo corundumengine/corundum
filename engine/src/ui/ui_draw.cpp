@@ -4,14 +4,14 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/choice_cursor.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <string_view>
 
 namespace corundum::ui {
 
-  float cursor_advance(const platform::Renderer &r, const DialogBoxStyle &style) {
+  float cursor_advance(const platform::Renderer &r, const PanelStyle &style) {
     return r.measure_text(style.font_id, k_choice_cursor, style.font_size_body);
   }
 
@@ -29,7 +29,7 @@ namespace corundum::ui {
     panel_frame(r, border, pos, size);
   }
 
-  void draw_option(platform::Renderer &r, const DialogBoxStyle &style, std::string_view label, core::math::Vec2 pos,
+  void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_view label, core::math::Vec2 pos,
                    bool selected, bool show_cursor) {
     // The advance is always cursor_advance (measured against k_choice_cursor) so the label
     // column lines up whether or not the option is selected or draws its cursor.

@@ -4,10 +4,10 @@
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -16,12 +16,12 @@
 #include <corundum/core/json_io.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/screens/hud_strip.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
+#include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
-#include <corundum/ui/hud_strip.hpp>
-#include <corundum/ui/inventory_panel.hpp>
-#include <corundum/ui/journal.hpp>
 #include <corundum/ui/prompt_box.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -263,10 +263,10 @@ namespace corundum::render {
 
     auto result = r.load_texture(tex_path);
     if (result.has_value()) {
-      state.dialog_box.border.texture_id = result.value();
+      state.panel_skin.border.texture_id = result.value();
     } else {
       corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", tex_path);
-      state.dialog_box.border.texture_id = 0;
+      state.panel_skin.border.texture_id = 0;
     }
 
     // NinePatchBorder lays the frame out as a uniform 3×3 grid. A cell is the size of the
@@ -278,8 +278,8 @@ namespace corundum::render {
     } catch (const nlohmann::json::exception &e) {
       return std::unexpected(std::format("[renderer] malformed UI assets '{}': {}", path, e.what()));
     }
-    state.dialog_box.border.tile_w = ul.width;
-    state.dialog_box.border.tile_h = ul.height;
+    state.panel_skin.border.tile_w = ul.width;
+    state.panel_skin.border.tile_h = ul.height;
 
     return {};
   }
@@ -419,15 +419,15 @@ namespace corundum::render {
     };
   }
 
-  // ── configure_dialog_style ──────────────────────────────────────────────────
+  // ── configure_panel_style ───────────────────────────────────────────────────
 
-  void configure_dialog_style(render::RenderState &state, const corundum::core::GameConfig &cfg) {
+  void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &cfg) {
     const auto &dr = cfg.dialogue_render;
     const float scale = state.ui_scale;
     const auto scaled = [scale](unsigned size) {
       return static_cast<unsigned>(std::lround(static_cast<float>(size) * scale));
     };
-    state.dialog_box.style = corundum::ui::DialogBoxStyle{
+    state.panel_skin.style = corundum::ui::PanelStyle{
         .font_id = state.font_id,
         .font_size_speaker = scaled(dr.font_size_speaker),
         .font_size_body = scaled(dr.font_size_body),
@@ -441,7 +441,6 @@ namespace corundum::render {
         .choice = {.r = 180, .g = 180, .b = 180, .a = 255},
         .selected = {.r = 255, .g = 230, .b = 100, .a = 255},
     };
-    state.dialog_box.reveal_chars_per_second = corundum::ui::k_base_reveal_chars_per_second * state.text_speed;
   }
 
   // ── render ───────────────────────────────────────────────────────────────────
@@ -471,11 +470,12 @@ namespace corundum::render {
      *  active full-screen modal (dialogue, transition prompt, inventory, or journal).
      *  @pre The renderer's view is already reset to screen space.
      */
-    void render_screen_overlays(corundum::platform::Renderer &r, render::RenderState &state,
+    void render_screen_overlays(corundum::platform::Renderer &r, const render::RenderState &state,
                                 const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
                                 const corundum::gameplay::quest::Registry *quests,
-                                const corundum::ui::ToastQueue *toasts, const corundum::core::math::Vec2 &viewport,
-                                corundum::input::InputDevice last_device) {
+                                const corundum::ui::ToastQueue *toasts,
+                                corundum::gameplay::screens::DialogBoxState &dialog_box,
+                                const corundum::core::math::Vec2 &viewport, corundum::input::InputDevice last_device) {
       const bool modal_active =
           scene.dialogue.has_value() || (scene.transition_prompt && !scene.transition_prompt->declined()) ||
           scene.ui.contains(corundum::world::GameMode::Inventory) ||
@@ -485,33 +485,36 @@ namespace corundum::render {
           scene.ui.contains(corundum::world::GameMode::Menu) || scene.ui.contains(corundum::world::GameMode::Settings);
 
       if (!modal_active && quests != nullptr)
-        corundum::ui::hud_strip_render(r, state.dialog_box.style, state.dialog_box.border,
-                                       corundum::ui::build_hud_strip(flags, *quests, scene.zone_id));
+        corundum::gameplay::screens::hud_strip_render(
+            r, state.panel_skin.style, state.panel_skin.border,
+            corundum::gameplay::screens::build_hud_strip(flags, *quests, scene.zone_id));
 
       if (toasts != nullptr)
-        toasts->render(r, state.dialog_box.style, viewport);
+        toasts->render(r, state.panel_skin.style, viewport);
 
       if (scene.dialogue)
-        corundum::ui::dialog_box_update(state.dialog_box, *scene.dialogue, r, viewport);
+        corundum::gameplay::screens::dialog_box_update(dialog_box, *scene.dialogue, r, viewport, state.panel_skin,
+                                                       state.text_speed);
       else
-        corundum::ui::dialog_box_hide(state.dialog_box);
-      corundum::ui::dialog_box_render(state.dialog_box, r);
+        corundum::gameplay::screens::dialog_box_hide(dialog_box);
+      corundum::gameplay::screens::dialog_box_render(dialog_box, r, state.panel_skin);
 
       if (scene.transition_prompt && !scene.transition_prompt->declined()) {
         const std::string_view question = scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
-        corundum::ui::prompt_box_render(r, state.dialog_box.style, state.dialog_box.border, question,
+        corundum::ui::prompt_box_render(r, state.panel_skin.style, state.panel_skin.border, question,
                                         scene.transition_prompt->confirm_selected(), viewport);
       }
 
       if (scene.mode() == corundum::world::GameMode::Inventory) {
-        corundum::ui::inventory_panel_render(r, state.dialog_box.style, state.dialog_box.border, scene.inventory_lines,
-                                             scene.inventory_cursor, viewport);
+        corundum::gameplay::screens::inventory_panel_render(r, state.panel_skin.style, state.panel_skin.border,
+                                                            scene.inventory_lines, scene.inventory_cursor, viewport);
       }
 
       if (scene.mode() == corundum::world::GameMode::Journal && quests != nullptr) {
-        corundum::ui::journal_panel_render(r, state.dialog_box.style, state.dialog_box.border,
-                                           corundum::ui::build_journal_entries(*quests, flags, scene.zone_id),
-                                           scene.journal_cursor, viewport, last_device);
+        corundum::gameplay::screens::journal_panel_render(
+            r, state.panel_skin.style, state.panel_skin.border,
+            corundum::gameplay::screens::build_journal_entries(*quests, flags, scene.zone_id), scene.journal_cursor,
+            viewport, last_device);
       }
     }
 
@@ -519,8 +522,9 @@ namespace corundum::render {
 
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::gameplay::quest::Registry *quests, const corundum::ui::ToastQueue *toasts, float alpha,
-              int win_w, int win_h, corundum::input::InputDevice last_device) {
+              const corundum::gameplay::quest::Registry *quests, const corundum::ui::ToastQueue *toasts,
+              corundum::gameplay::screens::DialogBoxState &dialog_box, float alpha, int win_w, int win_h,
+              corundum::input::InputDevice last_device) {
     const corundum::core::math::Vec2 viewport{.x = static_cast<float>(win_w), .y = static_cast<float>(win_h)};
     const CameraBlend camera = blend_camera(state, scene, alpha);
     const float cam_x = camera.x;
@@ -556,7 +560,7 @@ namespace corundum::render {
     }
 
     r.reset_screen_view();
-    render_screen_overlays(r, state, scene, flags, quests, toasts, viewport, last_device);
+    render_screen_overlays(r, state, scene, flags, quests, toasts, dialog_box, viewport, last_device);
   }
 
   /// Returns the full (untrimmed) frame width of the first tile in the active chunk's first

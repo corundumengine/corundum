@@ -9,9 +9,9 @@
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
@@ -162,7 +162,7 @@ namespace corundum::ui {
 
   } // namespace
 
-  void settings_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
                              const SettingsState &state, const SettingsValues &values, const input::Bindings &bindings,
                              core::math::Vec2 viewport, input::InputDevice last_device) {
     constexpr float k_min_w = 320.f;

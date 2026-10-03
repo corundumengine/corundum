@@ -5,8 +5,8 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
@@ -30,7 +30,7 @@ namespace corundum::ui {
     std::erase_if(toasts_, [](const Toast &toast) { return toast.remaining <= 0.f; });
   }
 
-  void ToastQueue::render(platform::Renderer &r, const DialogBoxStyle &style, core::math::Vec2 viewport) const {
+  void ToastQueue::render(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport) const {
     if (toasts_.empty())
       return;
 

@@ -7,13 +7,14 @@
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/ui/choice_cursor.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/word_wrap.hpp>
 #include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /// One visible dialogue choice: the index into the node's full choice list and its label
   /// pre-wrapped into the lines the renderer draws in order (at least one, possibly empty).
@@ -70,19 +71,16 @@ namespace corundum::ui {
   /// values Conversation reports while inactive.
   ///
   /// @param conversation Active dialogue conversation.
-  /// @param margin        Panel margin in pixels; also the minimum inset, so text clears the border.
-  /// @param panel_height_frac Fraction of the viewport height for the panel.
+  /// @param style         Panel style; its margin and panel_height_frac drive the frame.
   /// @param border_tile_w Tile width of the nine-patch border (determines inset).
   /// @param viewport      Viewport dimensions in pixels.
   /// @param measure       Callable (std::string_view) -> float returning rendered width.
-  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-  // margin/panel_height_frac are both viewport-scaled floats; a value struct would over-abstract
-  // this single call site.
   template <typename MeasureFn>
-  [[nodiscard]] DialogLayout build_layout(const gameplay::dialogue::Conversation &conversation, float margin,
-                                          float panel_height_frac, int border_tile_w, core::math::Vec2 viewport,
+  [[nodiscard]] DialogLayout build_layout(const gameplay::dialogue::Conversation &conversation,
+                                          const ui::PanelStyle &style, int border_tile_w, core::math::Vec2 viewport,
                                           const MeasureFn &measure) {
-    const float panel_h = viewport.y * panel_height_frac;
+    const float margin = style.margin;
+    const float panel_h = viewport.y * style.panel_height_frac;
     const float panel_y = viewport.y - panel_h - margin;
     const float panel_x = margin;
     const float panel_w = viewport.x - (margin * 2.f);
@@ -106,7 +104,7 @@ namespace corundum::ui {
     } else if (type == gameplay::dialogue::NodeType::Choice) {
       // The cursor column lives inside the text width; measuring it keeps the wrap budget
       // equal to the label's actual drawable width.
-      const float choice_w = std::max(0.f, text_w - measure(k_choice_cursor));
+      const float choice_w = std::max(0.f, text_w - measure(ui::k_choice_cursor));
       const std::vector<std::size_t> indices = conversation.visible_choice_indices();
       layout.choices.reserve(indices.size());
       for (const std::size_t index : indices) {
@@ -120,6 +118,4 @@ namespace corundum::ui {
     return layout;
   }
 
-  // NOLINTEND(bugprone-easily-swappable-parameters)
-
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

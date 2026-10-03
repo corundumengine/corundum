@@ -47,6 +47,15 @@ set(ENGINE_SOURCES
     src/gameplay/quest/status.cpp
     src/gameplay/quest/system.cpp
     src/gameplay/quest/validate.cpp
+    src/gameplay/screens/barter.cpp
+    src/gameplay/screens/codex.cpp
+    src/gameplay/screens/dialog_box.cpp
+    src/gameplay/screens/hub_tabs.cpp
+    src/gameplay/screens/hud_strip.cpp
+    src/gameplay/screens/inventory_panel.cpp
+    src/gameplay/screens/journal.cpp
+    src/gameplay/screens/loot.cpp
+    src/gameplay/screens/map.cpp
     src/gameplay/shop/loader.cpp
     src/gameplay/shop/registry.cpp
     src/input/bindings.cpp
@@ -69,16 +78,7 @@ set(ENGINE_SOURCES
     src/sprites/sprite_atlas_loader.cpp
     src/sprites/sprite_sheet_clips_loader.cpp
     src/sprites/sprite_sheet_clips_serializer.cpp
-    src/ui/barter.cpp
-    src/ui/codex.cpp
-    src/ui/dialog_box.cpp
-    src/ui/hud_strip.cpp
-    src/ui/hub_tabs.cpp
     src/ui/input_glyph.cpp
-    src/ui/inventory_panel.cpp
-    src/ui/journal.cpp
-    src/ui/loot.cpp
-    src/ui/map.cpp
     src/ui/menu.cpp
     src/ui/nine_patch.cpp
     src/ui/prompt_box.cpp

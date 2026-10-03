@@ -4,8 +4,8 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 
 #include <string_view>
 
@@ -26,7 +26,7 @@ namespace corundum::ui {
    * @param yes_selected  True if the Yes option is highlighted; false for No.
    * @param viewport      Screen size in pixels; the box is centered within this.
    */
-  void prompt_box_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void prompt_box_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
                          std::string_view question, bool yes_selected, core::math::Vec2 viewport);
 
 } // namespace corundum::ui

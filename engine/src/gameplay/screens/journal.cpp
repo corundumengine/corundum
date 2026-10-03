@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/ui/journal.hpp>
+#include <corundum/gameplay/screens/journal.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
@@ -10,9 +10,9 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   namespace {
 
@@ -93,7 +93,7 @@ namespace corundum::ui {
     return entries;
   }
 
-  void journal_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void journal_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                             const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport,
                             input::InputDevice last_device) {
     constexpr float k_min_w = 260.f;
@@ -107,12 +107,12 @@ namespace corundum::ui {
 
     const float body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
     const float header_line_h = std::max(body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
-    const float cursor_w = cursor_advance(r, style);
+    const float cursor_w = ui::cursor_advance(r, style);
     const float objective_indent = cursor_w + 8.f;
     const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
     // Footer hint reflects whichever device the player last used (ui::input_glyph). Journal is a
     // hub tab now, so both Cancel and the Hub toggle close it; show the universal Cancel glyph.
-    const std::string footer = std::format("{} Close", input_glyph(input::Action::Cancel, last_device));
+    const std::string footer = std::format("{} Close", ui::input_glyph(input::Action::Cancel, last_device));
     const float footer_w = r.measure_text(style.font_id, footer, style.font_size_body);
 
     // Walk the (already lifecycle-sorted) entries once to size the panel: group count, total
@@ -143,7 +143,7 @@ namespace corundum::ui {
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
+    ui::panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
 
     const float title_x = panel_x + ((panel_w - title_w) * 0.5f);
     const float title_y = panel_y + k_pad_y;
@@ -194,7 +194,7 @@ namespace corundum::ui {
 
       while (i < entries.size() && entries[i].lifecycle == section) {
         const JournalEntry &entry = entries[i];
-        draw_option(r, style, entry.name, {.x = row_x, .y = y}, std::cmp_equal(i, clamped_cursor));
+        ui::draw_option(r, style, entry.name, {.x = row_x, .y = y}, std::cmp_equal(i, clamped_cursor));
         y += body_line_h;
         if (!entry.objective.empty()) {
           r.draw(platform::DrawText{
@@ -214,4 +214,4 @@ namespace corundum::ui {
     }
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

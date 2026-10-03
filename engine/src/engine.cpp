@@ -19,6 +19,7 @@
 #include <corundum/input/physical_input.hpp>
 #include <corundum/gameplay/item/container.hpp>
 #include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/location/location.hpp>
 #include <corundum/gameplay/location/registry.hpp>
 #include <corundum/platform/platform_events.hpp>
@@ -33,15 +34,15 @@
 #include <corundum/settings/user_settings.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
-#include <corundum/ui/barter.hpp>
-#include <corundum/ui/codex.hpp>
-#include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/hub_tabs.hpp>
-#include <corundum/ui/hud_strip.hpp>
-#include <corundum/ui/inventory_panel.hpp>
-#include <corundum/ui/journal.hpp>
-#include <corundum/ui/loot.hpp>
-#include <corundum/ui/map.hpp>
+#include <corundum/gameplay/screens/barter.hpp>
+#include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/gameplay/screens/dialog_box.hpp>
+#include <corundum/gameplay/screens/hub_tabs.hpp>
+#include <corundum/gameplay/screens/hud_strip.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
+#include <corundum/gameplay/screens/journal.hpp>
+#include <corundum/gameplay/screens/loot.hpp>
+#include <corundum/gameplay/screens/map.hpp>
 #include <corundum/ui/menu.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
@@ -130,7 +131,7 @@ namespace corundum {
           return result;
 
         init_audio();
-        render::configure_dialog_style(engine_->render, engine_->cfg);
+        render::configure_panel_style(engine_->render, engine_->cfg);
         load_content_registries();
         apply_starting_flags();
         return {};
@@ -337,7 +338,7 @@ namespace corundum {
     /// cache stale, and notify only when the entry was not already unlocked.
     void handle_unlock_codex(Engine &engine, const gameplay::dialogue::EventAction &ev) {
       const std::string key{gameplay::codex::flag_key(ev.args[0])};
-      ui::codex_mark_dirty(engine.codex_screen);
+      gameplay::screens::codex_mark_dirty(engine.codex_screen);
       if (world::has_flag(engine.flags, key))
         return;
       world::set_flag(engine.flags, key);
@@ -524,13 +525,13 @@ namespace corundum {
     /// Next hub tab relative to @p mode by @p direction (+1 / -1), wrapping.
     world::GameMode cycle_hub_tab(world::GameMode mode, int direction) noexcept {
       std::size_t index = 0;
-      for (std::size_t i = 0; i < ui::k_hub_tab_modes.size(); ++i) {
-        if (ui::k_hub_tab_modes[i] == mode)
+      for (std::size_t i = 0; i < gameplay::screens::k_hub_tab_modes.size(); ++i) {
+        if (gameplay::screens::k_hub_tab_modes[i] == mode)
           index = i;
       }
-      const auto count = static_cast<int>(ui::k_hub_tab_modes.size());
+      const auto count = static_cast<int>(gameplay::screens::k_hub_tab_modes.size());
       const int next = (((static_cast<int>(index) + direction) % count) + count) % count;
-      return ui::k_hub_tab_modes[static_cast<std::size_t>(next)];
+      return gameplay::screens::k_hub_tab_modes[static_cast<std::size_t>(next)];
     }
 
     /// Reset a hub tab's open-time state: its cursor, and any cache the tab owns.
@@ -541,7 +542,7 @@ namespace corundum {
           engine.scene.inventory_cursor = 0;
           // Built once here rather than every render frame: the inventory is read-only and the
           // simulation is paused while it is open, so there is no mutation to invalidate it.
-          engine.scene.inventory_lines = ui::build_inventory_lines(engine.flags, engine.items);
+          engine.scene.inventory_lines = gameplay::screens::build_inventory_lines(engine.flags, engine.items);
           break;
         case world::GameMode::Journal:
           engine.scene.journal_cursor = 0;
@@ -549,8 +550,8 @@ namespace corundum {
         case world::GameMode::Codex:
           engine.codex_screen.cursor = 0;
           engine.codex_screen.scroll = 0.f;
-          ui::codex_mark_dirty(engine.codex_screen);
-          ui::refresh_codex(engine.codex_screen, engine.codex, engine.flags);
+          gameplay::screens::codex_mark_dirty(engine.codex_screen);
+          gameplay::screens::refresh_codex(engine.codex_screen, engine.codex, engine.flags);
           break;
         case world::GameMode::Map:
           engine.map_screen.cursor = 0;
@@ -596,7 +597,7 @@ namespace corundum {
       if (delta == 0)
         return;
       const int rows =
-          static_cast<int>(ui::build_journal_entries(engine.quests, engine.flags, engine.scene.zone_id).size());
+          static_cast<int>(gameplay::screens::build_journal_entries(engine.quests, engine.flags, engine.scene.zone_id).size());
       if (rows <= 0) {
         engine.scene.journal_cursor = 0;
         return;
@@ -616,7 +617,7 @@ namespace corundum {
 
     /// Re-derive the dialogue style after an edit to ui_scale or text_speed.
     void refresh_dialog_style(Engine &engine) {
-      render::configure_dialog_style(engine.render, engine.cfg);
+      render::configure_panel_style(engine.render, engine.cfg);
     }
 
     /// True when @p input is the conventional Back press during a rebind capture. Capture
@@ -752,8 +753,8 @@ namespace corundum {
     /// first step after an open or unlock (dirty-flagged). The Codex hotkey is handled by the hub
     /// table, which toggles this tab off before this step would run.
     void update_codex(Engine &engine, const input::InputIntent &intent) {
-      ui::CodexState &state = engine.codex_screen;
-      ui::refresh_codex(state, engine.codex, engine.flags);
+      gameplay::screens::CodexState &state = engine.codex_screen;
+      gameplay::screens::refresh_codex(state, engine.codex, engine.flags);
 
       if (intent.back) {
         engine.scene.ui.pop();
@@ -779,15 +780,15 @@ namespace corundum {
         return;
       }
 
-      const std::vector<ui::MapEntry> entries =
-          ui::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id);
+      const std::vector<gameplay::screens::MapEntry> entries =
+          gameplay::screens::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id);
       const int rows = static_cast<int>(entries.size());
       if (intent.navigate_y != 0 && rows > 0)
         engine.map_screen.cursor = wrap_cursor(engine.map_screen.cursor, intent.navigate_y, rows);
       if (!intent.activate || rows == 0)
         return;
 
-      const ui::MapEntry &selected = entries[static_cast<std::size_t>(
+      const gameplay::screens::MapEntry &selected = entries[static_cast<std::size_t>(
           std::clamp(engine.map_screen.cursor, 0, rows - 1))];
       if (selected.current) {
         engine.notify("You are already here");
@@ -836,16 +837,16 @@ namespace corundum {
       const std::string container_prefix = gameplay::item::container_flag_prefix(engine.active_container_id);
       if (intent.navigate_x != 0) {
         engine.loot_screen.pane =
-            engine.loot_screen.pane == ui::LootPane::Container ? ui::LootPane::Player : ui::LootPane::Container;
+            engine.loot_screen.pane == gameplay::screens::LootPane::Container ? gameplay::screens::LootPane::Player : gameplay::screens::LootPane::Container;
         engine.loot_screen.cursor = 0;
       }
 
-      const bool container_active = engine.loot_screen.pane == ui::LootPane::Container;
-      const std::vector<ui::InventoryLine> container_lines =
-          ui::build_item_lines(engine.flags, engine.items, container_prefix);
-      const std::vector<ui::InventoryLine> player_lines =
-          ui::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix);
-      const std::vector<ui::InventoryLine> &lines = container_active ? container_lines : player_lines;
+      const bool container_active = engine.loot_screen.pane == gameplay::screens::LootPane::Container;
+      const std::vector<gameplay::screens::InventoryLine> container_lines =
+          gameplay::screens::build_item_lines(engine.flags, engine.items, container_prefix);
+      const std::vector<gameplay::screens::InventoryLine> player_lines =
+          gameplay::screens::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix);
+      const std::vector<gameplay::screens::InventoryLine> &lines = container_active ? container_lines : player_lines;
       const int rows = static_cast<int>(lines.size());
 
       if (intent.navigate_y != 0 && rows > 0)
@@ -853,7 +854,7 @@ namespace corundum {
       if (!intent.activate || rows == 0)
         return;
 
-      const ui::InventoryLine &selected = lines[static_cast<std::size_t>(
+      const gameplay::screens::InventoryLine &selected = lines[static_cast<std::size_t>(
           std::clamp(engine.loot_screen.cursor, 0, rows - 1))];
       const std::string container_key = gameplay::item::container_item_flag_key(engine.active_container_id, selected.id);
       const std::string player_key = item_flag_key(selected.id);
@@ -883,15 +884,15 @@ namespace corundum {
 
       if (intent.next_tab || intent.prev_tab || intent.navigate_x != 0) {
         engine.barter_screen.tab =
-            engine.barter_screen.tab == ui::BarterTab::Buy ? ui::BarterTab::Sell : ui::BarterTab::Buy;
+            engine.barter_screen.tab == gameplay::screens::BarterTab::Buy ? gameplay::screens::BarterTab::Sell : gameplay::screens::BarterTab::Buy;
         engine.barter_screen.cursor = 0;
       }
 
       const int reputation =
           shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
-      const std::vector<ui::BarterLine> lines = engine.barter_screen.tab == ui::BarterTab::Buy
-                                                    ? ui::build_barter_stock(*shop, engine.items, reputation)
-                                                    : ui::build_barter_sell_lines(*shop, engine.items, engine.flags);
+      const std::vector<gameplay::screens::BarterLine> lines = engine.barter_screen.tab == gameplay::screens::BarterTab::Buy
+                                                    ? gameplay::screens::build_barter_stock(*shop, engine.items, reputation)
+                                                    : gameplay::screens::build_barter_sell_lines(*shop, engine.items, engine.flags);
       const int rows = static_cast<int>(lines.size());
 
       if (intent.navigate_y != 0 && rows > 0)
@@ -899,10 +900,10 @@ namespace corundum {
       if (!intent.activate || rows == 0)
         return;
 
-      const ui::BarterLine &selected = lines[static_cast<std::size_t>(
+      const gameplay::screens::BarterLine &selected = lines[static_cast<std::size_t>(
           std::clamp(engine.barter_screen.cursor, 0, rows - 1))];
-      int gold = world::visit_count(engine.flags, std::string{ui::k_gold_flag});
-      if (engine.barter_screen.tab == ui::BarterTab::Buy) {
+      int gold = world::visit_count(engine.flags, std::string{gameplay::screens::k_gold_flag});
+      if (engine.barter_screen.tab == gameplay::screens::BarterTab::Buy) {
         if (selected.unit_price > gold) {
           engine.notify("Not enough gold");
           return;
@@ -915,7 +916,7 @@ namespace corundum {
         gold += selected.unit_price;
         adjust_flag(engine.flags, item_flag_key(selected.id), -1);
       }
-      engine.flags[std::string{ui::k_gold_flag}] = gold;
+      engine.flags[std::string{gameplay::screens::k_gold_flag}] = gold;
     }
 
     /// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
@@ -975,7 +976,8 @@ namespace corundum {
           // streamed in — so queued work is never stranded while elapsed_time advances.
           engine.process_dialogue_events();
           if (engine.scene.dialogue)
-            ui::dialog_box_advance(engine.render.dialog_box, *engine.scene.dialogue, engine.timer.target_dt);
+            gameplay::screens::dialog_box_advance(engine.dialog_box, *engine.scene.dialogue, engine.timer.target_dt,
+                                   engine.render.text_speed);
           gameplay::quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
           invoke_fixed_update_hook(engine, engine.timer.target_dt);
 
@@ -989,11 +991,14 @@ namespace corundum {
     }
 
     /// begin_frame → world/UI render → optional debug HUD → end_frame.
+    // std::format with a literal format string cannot throw at run time, and a throw from the
+    // frame path is intentionally fatal (noexcept).
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
       render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests,
-                     &engine.toasts, alpha, engine.window_width(), engine.window_height(),
+                     &engine.toasts, engine.dialog_box, alpha, engine.window_width(), engine.window_height(),
                      engine.input_mapper.last_device());
 
       // The engine-owned Menu/Settings screens draw over the world overlays. They live here rather
@@ -1005,23 +1010,23 @@ namespace corundum {
       };
       switch (engine.scene.mode()) {
         case world::GameMode::Codex:
-          ui::codex_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
+          gameplay::screens::codex_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                  engine.codex_screen.entries, engine.codex_screen.cursor, engine.codex_screen.scroll,
                                  viewport, engine.input_mapper.last_device());
           break;
         case world::GameMode::Map:
-          ui::map_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
-                               ui::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id),
+          gameplay::screens::map_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                               gameplay::screens::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id),
                                engine.map_screen.cursor, viewport, engine.input_mapper.last_device());
           break;
         case world::GameMode::Loot: {
           const std::string container_name =
               engine.active_container_id.empty() ? std::string{"Container"} : engine.active_container_id;
-          ui::loot_panel_render(
-              *engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border, container_name,
-              ui::build_item_lines(engine.flags, engine.items,
+          gameplay::screens::loot_panel_render(
+              *engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, container_name,
+              gameplay::screens::build_item_lines(engine.flags, engine.items,
                                    gameplay::item::container_flag_prefix(engine.active_container_id)),
-              ui::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix), engine.loot_screen, viewport,
+              gameplay::screens::build_item_lines(engine.flags, engine.items, gameplay::item::k_flag_prefix), engine.loot_screen, viewport,
               engine.input_mapper.last_device());
           break;
         }
@@ -1031,21 +1036,21 @@ namespace corundum {
             break;
           const int reputation =
               shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
-          const std::vector<ui::BarterLine> lines = engine.barter_screen.tab == ui::BarterTab::Buy
-                                                        ? ui::build_barter_stock(*shop, engine.items, reputation)
-                                                        : ui::build_barter_sell_lines(*shop, engine.items, engine.flags);
-          ui::barter_panel_render(*engine.renderer, engine.render.dialog_box.style,
-                                  engine.render.dialog_box.border, shop->name,
-                                  world::visit_count(engine.flags, std::string{ui::k_gold_flag}), lines,
+          const std::vector<gameplay::screens::BarterLine> lines = engine.barter_screen.tab == gameplay::screens::BarterTab::Buy
+                                                        ? gameplay::screens::build_barter_stock(*shop, engine.items, reputation)
+                                                        : gameplay::screens::build_barter_sell_lines(*shop, engine.items, engine.flags);
+          gameplay::screens::barter_panel_render(*engine.renderer, engine.render.panel_skin.style,
+                                  engine.render.panel_skin.border, shop->name,
+                                  world::visit_count(engine.flags, std::string{gameplay::screens::k_gold_flag}), lines,
                                   engine.barter_screen, viewport, engine.input_mapper.last_device());
           break;
         }
         case world::GameMode::Menu:
-          ui::menu_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
+          ui::menu_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                 engine.menu, viewport, engine.input_mapper.last_device());
           break;
         case world::GameMode::Settings:
-          ui::settings_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
+          ui::settings_panel_render(*engine.renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                     engine.settings_screen, settings_values(engine), engine.input_mapper.bindings(),
                                     viewport, engine.input_mapper.last_device());
           break;
@@ -1055,7 +1060,7 @@ namespace corundum {
 
       // The hub tab strip draws over every hub panel, in the top margin so it never overlaps one.
       if (world::is_hub_mode(engine.scene.mode())) {
-        ui::hub_tab_strip_render(*engine.renderer, engine.render.dialog_box.style, engine.scene.mode(), viewport,
+        gameplay::screens::hub_tab_strip_render(*engine.renderer, engine.render.panel_skin.style, engine.scene.mode(), viewport,
                                  engine.input_mapper.last_device());
       }
 

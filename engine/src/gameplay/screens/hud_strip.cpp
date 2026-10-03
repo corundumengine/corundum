@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/ui/hud_strip.hpp>
+#include <corundum/gameplay/screens/hud_strip.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/quest/status.hpp>
+#include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/journal.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -17,7 +17,7 @@
 #include <string>
 #include <string_view>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
                                std::string_view zone_id) {
@@ -35,7 +35,7 @@ namespace corundum::ui {
     return data;
   }
 
-  void hud_strip_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void hud_strip_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                         const HudStripData &data) {
     constexpr float k_pad_x = 12.f;
     constexpr float k_pad_y = 8.f;
@@ -70,8 +70,8 @@ namespace corundum::ui {
     hud_bg.a = 255;
     const core::math::Vec2 panel_pos{.x = k_margin, .y = k_margin};
     const core::math::Vec2 panel_size{.x = row_w, .y = row_h};
-    panel_fill(r, hud_bg, panel_pos, panel_size);
-    panel_frame(r, border, panel_pos, panel_size);
+    ui::panel_fill(r, hud_bg, panel_pos, panel_size);
+    ui::panel_frame(r, border, panel_pos, panel_size);
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = line,
@@ -81,4 +81,4 @@ namespace corundum::ui {
     });
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

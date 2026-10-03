@@ -7,8 +7,8 @@
 #include <corundum/entities/world.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/sprites/sprite.hpp>
-#include <corundum/ui/inventory_panel.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -96,7 +96,7 @@ namespace corundum::world {
     /// Held-item rows of the Inventory hub tab, rebuilt when the tab is opened or switched to.
     /// The inventory is read-only and the simulation is paused while it is open, so there is no
     /// per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation").
-    std::vector<corundum::ui::InventoryLine> inventory_lines;
+    std::vector<corundum::gameplay::screens::InventoryLine> inventory_lines;
 
     /// Highlighted row while mode == GameMode::Journal; wrapped against the started-quest count by
     /// update_journal().

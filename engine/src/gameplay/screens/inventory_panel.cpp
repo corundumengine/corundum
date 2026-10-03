@@ -4,10 +4,10 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <corundum/ui/ui_draw.hpp>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   namespace {
     constexpr std::string_view k_panel_header = "Inventory";
@@ -61,18 +61,18 @@ namespace corundum::ui {
 
     /// Wrap a row's description to the tooltip's reading width; empty when there is none.
     std::vector<std::string> wrap_description(std::string_view description, const platform::Renderer &r,
-                                              const DialogBoxStyle &style) {
+                                              const ui::PanelStyle &style) {
       if (description.empty())
         return {};
       constexpr float k_max_description_width = 360.f;
       const auto measure = [&](std::string_view text) {
         return r.measure_text(style.font_id, text, style.font_size_body);
       };
-      return wrap_text(description, k_max_description_width, measure);
+      return ui::wrap_text(description, k_max_description_width, measure);
     }
 
     /// Draw the wrapped tooltip starting at (@p x, @p y).
-    void draw_description(platform::Renderer &r, const DialogBoxStyle &style,
+    void draw_description(platform::Renderer &r, const ui::PanelStyle &style,
                           const std::vector<std::string> &description_lines, float x, float y, float line_height) {
       for (const std::string &line : description_lines) {
         r.draw(platform::DrawText{
@@ -116,7 +116,7 @@ namespace corundum::ui {
     return build_item_lines(flags, items, gameplay::item::k_flag_prefix);
   }
 
-  void inventory_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                               const std::vector<InventoryLine> &lines, int cursor, core::math::Vec2 viewport) {
     constexpr float k_min_w = 220.f;
     constexpr float k_pad_x = 24.f;
@@ -128,7 +128,7 @@ namespace corundum::ui {
     // The panel title and group headers use the (usually larger) speaker font, so they
     // need a taller row than body text.
     const float header_line_h = std::max(body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
-    const float cursor_w = cursor_advance(r, style);
+    const float cursor_w = ui::cursor_advance(r, style);
     const float title_w = r.measure_text(style.font_id, k_panel_header, style.font_size_speaker);
     const auto measure_body = [&](std::string_view text) {
       return r.measure_text(style.font_id, text, style.font_size_body);
@@ -189,7 +189,7 @@ namespace corundum::ui {
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
+    ui::panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
 
     const float header_x = panel_x + ((panel_w - title_w) * 0.5f);
     const float header_y = panel_y + k_pad_y;
@@ -236,7 +236,7 @@ namespace corundum::ui {
 
       for (std::size_t row = 0; row < group.count; ++row) {
         const std::size_t index = group.first + row;
-        draw_option(r, style, labels[index], {.x = row_x, .y = y}, std::cmp_equal(index, clamped_cursor));
+        ui::draw_option(r, style, labels[index], {.x = row_x, .y = y}, std::cmp_equal(index, clamped_cursor));
         y += body_line_h;
       }
 
@@ -248,4 +248,4 @@ namespace corundum::ui {
       draw_description(r, style, description_lines, panel_x + k_pad_x, y + k_header_gap, body_line_h);
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

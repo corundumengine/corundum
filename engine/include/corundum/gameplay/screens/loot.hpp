@@ -3,20 +3,21 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/inventory_panel.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /** @brief Which pane of the loot screen owns the cursor. */
-  enum class LootPane : int {
+  enum class LootPane : std::uint8_t {
     Container = 0,
     Player = 1,
   };
@@ -43,9 +44,9 @@ namespace corundum::ui {
    *  @param viewport       Screen size in pixels; the panel is centered within this.
    *  @param last_device    Device of the player's most recent press; picks the footer glyphs.
    */
-  void loot_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void loot_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          std::string_view container_name, const std::vector<InventoryLine> &container,
                          const std::vector<InventoryLine> &player, const LootState &state, core::math::Vec2 viewport,
                          input::InputDevice last_device = input::InputDevice::Keyboard);
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

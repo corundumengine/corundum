@@ -43,6 +43,10 @@ endif()
 include(CTest)
 if(CORUNDUM_BUILD_TESTS)
   add_subdirectory(engine/tests)
+  # Enforces the layer boundary: the engine runtime never references gameplay. See
+  # cmake/CheckLayering.cmake.
+  add_test(NAME layering
+           COMMAND ${CMAKE_COMMAND} -DROOT=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/CheckLayering.cmake)
   # tools/tests reads tilesmith's coords.hpp directly; gate it the same way engine/tests gates
   # its internal-header tests, so a vendored/tools-less checkout skips it cleanly at configure
   # time instead of hard-failing (today it would fail later, at compile time, the same way).

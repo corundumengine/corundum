@@ -7,17 +7,16 @@
 #include <corundum/gameplay/location/loader.hpp>
 #include <corundum/gameplay/location/location.hpp>
 #include <corundum/gameplay/location/registry.hpp>
-#include <corundum/ui/map.hpp>
+#include <corundum/gameplay/screens/map.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <filesystem>
 #include <fstream>
-#include <string>
 #include <string_view>
+#include <vector>
 
 namespace fs = std::filesystem;
 namespace location = corundum::gameplay::location;
-namespace ui = corundum::ui;
 
 namespace {
 
@@ -89,7 +88,8 @@ TEST_CASE("build_map_entries: only discovered locations, marked current by zone"
   corundum::world::set_flag(flags, location::discovery_flag_key("village"));
   corundum::world::set_flag(flags, location::discovery_flag_key("cave"));
 
-  const std::vector<ui::MapEntry> entries = ui::build_map_entries(registry, flags, "village");
+  const std::vector<corundum::gameplay::screens::MapEntry> entries =
+      corundum::gameplay::screens::build_map_entries(registry, flags, "village");
   REQUIRE(entries.size() == 2);
   CHECK(entries[0].name == "Cave Mouth"); // name order
   CHECK_FALSE(entries[0].current);

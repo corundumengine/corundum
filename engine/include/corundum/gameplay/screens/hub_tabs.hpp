@@ -5,14 +5,14 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/ui_stack.hpp>
 
 #include <array>
 #include <cstddef>
 #include <string_view>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /** @brief The four screens reachable from the menu hub, in tab order. */
   inline constexpr std::array<world::GameMode, 4> k_hub_tab_modes{
@@ -46,7 +46,7 @@ namespace corundum::ui {
   };
 
   /** @brief Compute hub strip geometry for @p viewport. */
-  [[nodiscard]] HubTabStrip hub_tab_strip(const platform::Renderer &r, const DialogBoxStyle &style,
+  [[nodiscard]] HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &style,
                                           core::math::Vec2 viewport);
 
   /** @brief Draw the hub tab strip with @p active highlighted, flanked by the bumper glyphs.
@@ -59,7 +59,7 @@ namespace corundum::ui {
    *  @param viewport    Screen size in pixels.
    *  @param last_device Device of the player's most recent press; picks the bumper glyphs.
    */
-  void hub_tab_strip_render(platform::Renderer &r, const DialogBoxStyle &style, world::GameMode active,
+  void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
                             core::math::Vec2 viewport, input::InputDevice last_device);
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

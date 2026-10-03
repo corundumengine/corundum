@@ -9,7 +9,7 @@
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/ui/dialog_box.hpp>
+#include <corundum/render/render_state.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
@@ -199,15 +199,13 @@ TEST_CASE("settings: Left/Right edits master volume, text speed, and UI scale") 
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::MoveRight);
   CHECK(engine.render.text_speed == doctest::Approx(2.0f));
-  CHECK(engine.render.dialog_box.reveal_chars_per_second ==
-        doctest::Approx(corundum::ui::k_base_reveal_chars_per_second * 2.f));
 
-  // Row 2: UI Scale (default 1.0) — advances the font sizes and margins in the dialog style.
+  // Row 2: UI Scale (default 1.0) — advances the font sizes and margins in the panel style.
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::MoveRight);
   CHECK(engine.render.ui_scale == doctest::Approx(1.25f));
-  CHECK(engine.render.dialog_box.style.font_size_body == 28); // lround(22 * 1.25)
-  CHECK(engine.render.dialog_box.style.line_spacing == doctest::Approx(40.f));
+  CHECK(engine.render.panel_skin.style.font_size_body == 28); // lround(22 * 1.25)
+  CHECK(engine.render.panel_skin.style.line_spacing == doctest::Approx(40.f));
 
   // Row 3: Window Mode toggles on Activate.
   press(engine, corundum::input::Action::MoveDown);

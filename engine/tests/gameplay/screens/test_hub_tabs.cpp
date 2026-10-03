@@ -4,13 +4,13 @@
 #include <doctest/doctest.h>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/hub_tabs.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/ui_stack.hpp>
 
-#include "recording_renderer.hpp"
+#include "ui/recording_renderer.hpp"
 
 #include <cstddef>
 #include <string>
@@ -19,9 +19,9 @@
 
 namespace {
 
+  using corundum::gameplay::screens::hub_tab_label;
+  using corundum::gameplay::screens::hub_tab_strip;
   using corundum::test::RecordingRenderer;
-  using corundum::ui::hub_tab_label;
-  using corundum::ui::hub_tab_strip;
   using corundum::world::GameMode;
 
 } // namespace
@@ -40,7 +40,7 @@ TEST_CASE("hub_tab_label: names the four tabs and nothing else") {
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("hub_tab_strip: tabs are ordered, non-overlapping and centered") {
   RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style{};
+  const corundum::ui::PanelStyle style{};
   const auto strip = hub_tab_strip(r, style, {.x = 1280.f, .y = 720.f});
 
   REQUIRE(strip.tabs.size() == 4);
@@ -61,9 +61,9 @@ TEST_CASE("hub_tab_strip: tabs are ordered, non-overlapping and centered") {
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("hub_tab_strip_render: draws the bumper hints, all four labels, and highlights active") {
   RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style{};
-  corundum::ui::hub_tab_strip_render(r, style, GameMode::Codex, {.x = 1280.f, .y = 720.f},
-                                     corundum::input::InputDevice::Keyboard);
+  const corundum::ui::PanelStyle style{};
+  corundum::gameplay::screens::hub_tab_strip_render(r, style, GameMode::Codex, {.x = 1280.f, .y = 720.f},
+                                                    corundum::input::InputDevice::Keyboard);
 
   std::vector<std::string> texts;
   for (const auto &call : r.log)
@@ -89,9 +89,9 @@ TEST_CASE("hub_tab_strip_render: draws the bumper hints, all four labels, and hi
 
 TEST_CASE("hub_tab_strip_render: the bumper hints follow the last-used device") {
   RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style{};
-  corundum::ui::hub_tab_strip_render(r, style, GameMode::Inventory, {.x = 1280.f, .y = 720.f},
-                                     corundum::input::InputDevice::Gamepad);
+  const corundum::ui::PanelStyle style{};
+  corundum::gameplay::screens::hub_tab_strip_render(r, style, GameMode::Inventory, {.x = 1280.f, .y = 720.f},
+                                                    corundum::input::InputDevice::Gamepad);
 
   const auto &prev = std::get<corundum::platform::DrawText>(r.log.front());
   const auto &next = std::get<corundum::platform::DrawText>(r.log.back());

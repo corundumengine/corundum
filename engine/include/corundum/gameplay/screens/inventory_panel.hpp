@@ -5,15 +5,15 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /// One row of the inventory list: the item's category, held count, and display name
   /// (falls back to the raw id).
@@ -77,7 +77,7 @@ namespace corundum::ui {
    * @pre @p lines is sorted by (category, name), as build_inventory_lines() produces — grouping
    *      assumes rows of equal category are consecutive.
    */
-  void inventory_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                               const std::vector<InventoryLine> &lines, int cursor, core::math::Vec2 viewport);
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

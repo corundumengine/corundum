@@ -7,18 +7,19 @@
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /** @brief Which side of the barter screen is active. */
-  enum class BarterTab : int {
+  enum class BarterTab : std::uint8_t {
     Buy = 0,
     Sell = 1,
   };
@@ -81,9 +82,9 @@ namespace corundum::ui {
    *  @param viewport    Screen size in pixels; the panel is centered within this.
    *  @param last_device Device of the player's most recent press; picks the footer glyphs.
    */
-  void barter_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void barter_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                            std::string_view shop_name, int gold, const std::vector<BarterLine> &lines,
                            const BarterState &state, core::math::Vec2 viewport,
                            input::InputDevice last_device = input::InputDevice::Keyboard);
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

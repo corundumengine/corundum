@@ -8,8 +8,10 @@
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/gameplay/quest/system.hpp>
+#include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/ui/journal.hpp>
+#include <corundum/platform/renderer.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include "ui/recording_renderer.hpp"
@@ -17,6 +19,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace {
@@ -44,7 +47,7 @@ TEST_CASE("build_journal_entries: no started quests yields an empty list") {
   corundum::gameplay::quest::Registry quests;
   quests.add(make_two_stage_quest("ember", "Ember of Greyhollow"));
 
-  const auto entries = corundum::ui::build_journal_entries(quests, {});
+  const auto entries = corundum::gameplay::screens::build_journal_entries(quests, {});
   CHECK(entries.empty());
 }
 
@@ -58,7 +61,7 @@ TEST_CASE("build_journal_entries: name, lifecycle, and current objective per sta
   corundum::gameplay::quest::start(*quests.find("salt"), flags);
   complete(flags, "salt");
 
-  const auto entries = corundum::ui::build_journal_entries(quests, flags);
+  const auto entries = corundum::gameplay::screens::build_journal_entries(quests, flags);
   REQUIRE(entries.size() == 2);
 
   // Active sorts before Completed, regardless of id order.
@@ -75,14 +78,15 @@ TEST_CASE("build_journal_entries: current objective skips done objectives and fa
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
   q.name = "Ember";
-  q.stages.push_back(
-      {.name = "start",
-       .objectives =
-           {
-               {.done_condition = *corundum::gameplay::dialogue::compile("first_done >= 1"), .text = "First"},
-               {.text = "Second"},
-           },
-       .sequence = 1});
+  q.stages.push_back({
+      .name = "start",
+      .objectives =
+          {
+              {.done_condition = *corundum::gameplay::dialogue::compile("first_done >= 1"), .text = "First"},
+              {.text = "Second"},
+          },
+      .sequence = 1,
+  });
   q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
   quests.add(std::move(q));
 
@@ -90,10 +94,10 @@ TEST_CASE("build_journal_entries: current objective skips done objectives and fa
   corundum::gameplay::quest::start(*quests.find("ember"), flags);
 
   // First objective not yet done → reported even though "Second" is also pending.
-  CHECK(corundum::ui::build_journal_entries(quests, flags)[0].objective == "First");
+  CHECK(corundum::gameplay::screens::build_journal_entries(quests, flags)[0].objective == "First");
 
   flags["first_done"] = 1;
-  CHECK(corundum::ui::build_journal_entries(quests, flags)[0].objective == "Second");
+  CHECK(corundum::gameplay::screens::build_journal_entries(quests, flags)[0].objective == "Second");
 }
 
 TEST_CASE("build_journal_entries: groups by lifecycle section order, then by name") {
@@ -116,7 +120,7 @@ TEST_CASE("build_journal_entries: groups by lifecycle section order, then by nam
   corundum::gameplay::quest::start(*quests.find("c_failed"), flags);
   flags[corundum::gameplay::quest::quest_flag_key("c_failed")] = 2;
 
-  const auto entries = corundum::ui::build_journal_entries(quests, flags);
+  const auto entries = corundum::gameplay::screens::build_journal_entries(quests, flags);
   REQUIRE(entries.size() == 3);
   CHECK(entries[0].lifecycle == corundum::gameplay::quest::Lifecycle::Active);
   CHECK(entries[1].lifecycle == corundum::gameplay::quest::Lifecycle::Completed);
@@ -131,14 +135,14 @@ TEST_CASE("journal_panel_render: chrome, title, lifecycle headers, then one opti
   using corundum::test::RecordingRenderer;
 
   RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style{};
+  const corundum::ui::PanelStyle style{};
 
-  std::vector<corundum::ui::JournalEntry> entries = {
+  const std::vector<corundum::gameplay::screens::JournalEntry> entries = {
       {.name = "Ember", .objective = "Find the shrine", .lifecycle = corundum::gameplay::quest::Lifecycle::Active},
       {.name = "Salt", .objective = "", .lifecycle = corundum::gameplay::quest::Lifecycle::Completed},
   };
 
-  corundum::ui::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f});
+  corundum::gameplay::screens::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f});
 
   // Chrome (1 rect + 8 sprites) + title + footer hint + "Active" header
   // + (cursor + name + objective) + "Completed" header + (cursor + name).
@@ -167,8 +171,10 @@ TEST_CASE("journal_panel_render: the footer hint follows the last-used device") 
   using corundum::test::RecordingRenderer;
 
   RecordingRenderer r;
-  corundum::ui::journal_panel_render(r, {}, make_border(), {}, 0, {.x = 1280.f, .y = 720.f},
-                                     corundum::input::InputDevice::Gamepad);
+  const corundum::ui::PanelStyle style{};
+  const std::vector<corundum::gameplay::screens::JournalEntry> entries{};
+  corundum::gameplay::screens::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f},
+                                                    corundum::input::InputDevice::Gamepad);
 
   const auto &footer = std::get<corundum::platform::DrawText>(r.log[10]);
   CHECK(footer.text == "B Close");
@@ -179,7 +185,9 @@ TEST_CASE("journal_panel_render: empty journal renders the placeholder line") {
   using corundum::test::RecordingRenderer;
 
   RecordingRenderer r;
-  corundum::ui::journal_panel_render(r, {}, make_border(), {}, 0, {.x = 1280.f, .y = 720.f});
+  const corundum::ui::PanelStyle style{};
+  const std::vector<corundum::gameplay::screens::JournalEntry> entries{};
+  corundum::gameplay::screens::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f});
 
   REQUIRE(r.log.size() == 9 + 1 + 1 + 1);
   const auto &title = std::get<corundum::platform::DrawText>(r.log[9]);

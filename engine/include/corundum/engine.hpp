@@ -27,10 +27,11 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
-#include <corundum/ui/barter.hpp>
-#include <corundum/ui/codex.hpp>
-#include <corundum/ui/loot.hpp>
-#include <corundum/ui/map.hpp>
+#include <corundum/gameplay/screens/barter.hpp>
+#include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/gameplay/screens/dialog_box.hpp>
+#include <corundum/gameplay/screens/loot.hpp>
+#include <corundum/gameplay/screens/map.hpp>
 #include <corundum/ui/menu.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
@@ -95,6 +96,10 @@ namespace corundum {
    * @see run_loop    The main loop: input, fixed-step simulation, rendering.
    * @see cleanup     Resource teardown after the main loop.
    */
+  // Member order is deliberate — Scene first for 64-byte alignment, window→gpu→renderer for
+  // reverse-order teardown, and the rest grouped by subsystem. Reordering for the 64 bytes the
+  // check finds would interleave private state and defeat that grouping on a ~0.5 MB heap object.
+  // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
   struct Engine {
     // Declared first: Scene's 64-byte alignment packs cleanly at offset 0 and keeps the rest dense.
     world::Scene scene;
@@ -147,22 +152,28 @@ namespace corundum {
     ui::MenuState menu;
 
     /** @brief Codex-screen state: highlighted row and the dirty-flagged unlocked-entry cache. */
-    ui::CodexState codex_screen;
+    gameplay::screens::CodexState codex_screen;
 
     /** @brief Map-screen state: highlighted fast-travel destination. */
-    ui::MapState map_screen;
+    gameplay::screens::MapState map_screen;
 
     /** @brief Loot-screen state: active pane and highlighted row. */
-    ui::LootState loot_screen;
+    gameplay::screens::LootState loot_screen;
 
     /** @brief Barter-screen state: active tab and highlighted row. */
-    ui::BarterState barter_screen;
+    gameplay::screens::BarterState barter_screen;
 
     /** @brief Container whose contents the loot screen shows; empty when no loot screen is open. */
     std::string active_container_id;
 
     /** @brief Shop the barter screen trades with; empty when no barter screen is open. */
     std::string active_shop_id;
+
+    /** @brief Dialogue-box reveal/layout state; stepped in the fixed loop and drawn as a modal.
+     *
+     *  Temporary engine member: Session 2B moves it onto gameplay::Gameplay. The style and
+     *  border live in RenderState::panel_skin, shared with every other panel. */
+    gameplay::screens::DialogBoxState dialog_box;
 
     /** @brief Settings-screen state; rendered in GameMode::Settings. */
     ui::SettingsState settings_screen;

@@ -7,9 +7,9 @@
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/gameplay/quest/system.hpp>
+#include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/hud_strip.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include "ui/recording_renderer.hpp"
@@ -38,7 +38,7 @@ TEST_CASE("build_hud_strip: gold with no started quests") {
   FlagStore flags;
   flags["gold"] = 50;
 
-  const auto data = corundum::ui::build_hud_strip(flags, quests);
+  const auto data = corundum::gameplay::screens::build_hud_strip(flags, quests);
   CHECK(data.gold == 50);
   CHECK_FALSE(data.has_quest);
 }
@@ -51,7 +51,7 @@ TEST_CASE("build_hud_strip: reports the active quest's name and current objectiv
   flags["gold"] = 12;
   corundum::gameplay::quest::start(*quests.find("ember"), flags);
 
-  const auto data = corundum::ui::build_hud_strip(flags, quests);
+  const auto data = corundum::gameplay::screens::build_hud_strip(flags, quests);
   CHECK(data.gold == 12);
   CHECK(data.has_quest);
   CHECK(data.quest_name == "Ember of Greyhollow");
@@ -67,7 +67,7 @@ TEST_CASE("build_hud_strip: a completed quest is not reported as the active obje
   corundum::gameplay::quest::start(*quests.find("ember"), flags);
   flags[corundum::gameplay::quest::quest_flag_key("ember")] = 2; // resolved stage
 
-  const auto data = corundum::ui::build_hud_strip(flags, quests);
+  const auto data = corundum::gameplay::screens::build_hud_strip(flags, quests);
   CHECK_FALSE(data.has_quest);
 }
 
@@ -78,15 +78,15 @@ TEST_CASE("hud_strip_render: an opaque panel plus one line with gold and the obj
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  corundum::ui::HudStripData data{};
+  corundum::gameplay::screens::HudStripData data{};
   data.gold = 50;
   data.has_quest = true;
   data.quest_name = "Ember";
   data.objective = "Find the shrine";
 
   RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style{};
-  corundum::ui::hud_strip_render(r, style, make_border(), data);
+  const corundum::ui::PanelStyle style{};
+  corundum::gameplay::screens::hud_strip_render(r, style, make_border(), data);
 
   // The fill rect, the border's 8 sprites, then the single text line.
   REQUIRE(r.log.size() == 10);

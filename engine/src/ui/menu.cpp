@@ -7,9 +7,9 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
@@ -44,7 +44,7 @@ namespace corundum::ui {
     }
   }
 
-  void menu_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void menu_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
                          const MenuState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
     constexpr float k_min_w = 220.f;
     constexpr float k_pad_x = 28.f;

@@ -52,6 +52,11 @@ set(TEST_SOURCES
     gameplay/item/test_item_serialize.cpp
     gameplay/location/test_location.cpp
     gameplay/quest/test_quest.cpp
+    gameplay/screens/test_dialog_reveal.cpp
+    gameplay/screens/test_hub_tabs.cpp
+    gameplay/screens/test_hud_strip.cpp
+    gameplay/screens/test_journal.cpp
+    gameplay/screens/test_screen_draw.cpp
     gameplay/shop/test_shop.cpp
 
     # input
@@ -109,11 +114,7 @@ set(TEST_SOURCES
     sprites/test_sprite_sheet_clips.cpp
 
     # ui
-    ui/test_dialog_reveal.cpp
-    ui/test_hud_strip.cpp
-    ui/test_hub_tabs.cpp
     ui/test_input_glyph.cpp
-    ui/test_journal.cpp
     ui/test_menu.cpp
     ui/test_settings.cpp
     ui/test_toast.cpp

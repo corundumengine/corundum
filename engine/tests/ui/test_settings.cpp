@@ -7,7 +7,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/settings.hpp>
 
 #include "ui/recording_renderer.hpp"
@@ -25,8 +25,8 @@ namespace {
     return false;
   }
 
-  corundum::ui::DialogBoxStyle make_style() {
-    corundum::ui::DialogBoxStyle style{};
+  corundum::ui::PanelStyle make_style() {
+    corundum::ui::PanelStyle style{};
     style.font_id = 2;
     return style;
   }
@@ -76,7 +76,7 @@ TEST_CASE("settings_scroll_to_cursor follows the cursor past the visible window"
 
 TEST_CASE("settings: General tab renders the row labels and their values") {
   corundum::test::RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style = make_style();
+  const corundum::ui::PanelStyle style = make_style();
   const corundum::ui::SettingsState state{};
   const corundum::ui::SettingsValues values{
       .master_volume = 0.5f,
@@ -103,7 +103,7 @@ TEST_CASE("settings: General tab renders the row labels and their values") {
 
 TEST_CASE("settings: Controls tab renders action names and their bound inputs") {
   corundum::test::RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style = make_style();
+  const corundum::ui::PanelStyle style = make_style();
   corundum::ui::SettingsState state{};
   state.tab = corundum::ui::SettingsTab::Controls;
   state.cursor = static_cast<int>(corundum::input::Action::MoveUp);
@@ -118,7 +118,7 @@ TEST_CASE("settings: Controls tab renders action names and their bound inputs") 
 
 TEST_CASE("settings: the row being rebound shows the capture prompt") {
   corundum::test::RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style = make_style();
+  const corundum::ui::PanelStyle style = make_style();
   corundum::ui::SettingsState state{};
   state.tab = corundum::ui::SettingsTab::Controls;
   state.cursor = static_cast<int>(corundum::input::Action::MoveUp);

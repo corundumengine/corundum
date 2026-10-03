@@ -4,8 +4,8 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 
 #include <string_view>
 
@@ -23,7 +23,7 @@ namespace corundum::ui {
    *  @param style Supplies font_id and font_size_body.
    *  @return Width in pixels reserved for the cursor prefix.
    */
-  [[nodiscard]] float cursor_advance(const platform::Renderer &r, const DialogBoxStyle &style);
+  [[nodiscard]] float cursor_advance(const platform::Renderer &r, const PanelStyle &style);
 
   /** @brief Fill @p pos/@p size with @p bg — the tint behind a panel's frame.
    *
@@ -48,7 +48,7 @@ namespace corundum::ui {
 
   /** @brief panel_fill() then panel_frame() — the shared chrome of every nine-patch modal panel.
    *  @param r       Renderer; emits one DrawRect then the border's DrawSprite commands.
-   *  @param bg      Panel fill colour (e.g. DialogBoxStyle::bg).
+   *  @param bg      Panel fill colour (e.g. PanelStyle::bg).
    *  @param border  Nine-patch frame.
    *  @param pos     Top-left of the panel in screen pixels.
    *  @param size    Panel width/height in screen pixels.
@@ -70,7 +70,7 @@ namespace corundum::ui {
    *                     Pass false for continuation lines of a wrapped option so they keep
    *                     the selected colour without repeating the cursor.
    */
-  void draw_option(platform::Renderer &r, const DialogBoxStyle &style, std::string_view label, core::math::Vec2 pos,
+  void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_view label, core::math::Vec2 pos,
                    bool selected, bool show_cursor = true);
 
 } // namespace corundum::ui

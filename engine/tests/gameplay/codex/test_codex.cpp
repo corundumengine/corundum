@@ -7,17 +7,17 @@
 #include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/gameplay/codex/loader.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
-#include <corundum/ui/codex.hpp>
+#include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace fs = std::filesystem;
 namespace codex = corundum::gameplay::codex;
-namespace ui = corundum::ui;
 
 namespace {
 
@@ -95,7 +95,7 @@ TEST_CASE("build_codex_entries: only unlocked entries, ordered by (category, tit
   corundum::world::set_flag(flags, codex::flag_key("a"));
   corundum::world::set_flag(flags, codex::flag_key("m"));
 
-  const std::vector<codex::CodexEntry> entries = ui::build_codex_entries(registry, flags);
+  const std::vector<codex::CodexEntry> entries = corundum::gameplay::screens::build_codex_entries(registry, flags);
   REQUIRE(entries.size() == 3);
   CHECK(entries[0].title == "Mu");    // category "Lore" sorts before "Places"
   CHECK(entries[1].title == "Alpha"); // then title order within Places
@@ -107,18 +107,18 @@ TEST_CASE("refresh_codex: rebuilds only while dirty") {
   registry.add(codex::CodexEntry{.id = "a", .title = "A"});
 
   corundum::world::FlagStore flags;
-  ui::CodexState state{};
-  ui::refresh_codex(state, registry, flags);
+  corundum::gameplay::screens::CodexState state{};
+  corundum::gameplay::screens::refresh_codex(state, registry, flags);
   CHECK(state.entries.empty());
   CHECK_FALSE(state.dirty);
 
   // An unlock without marking dirty is deliberately not observed — the cache stands.
   corundum::world::set_flag(flags, codex::flag_key("a"));
-  ui::refresh_codex(state, registry, flags);
+  corundum::gameplay::screens::refresh_codex(state, registry, flags);
   CHECK(state.entries.empty());
 
-  ui::codex_mark_dirty(state);
-  ui::refresh_codex(state, registry, flags);
+  corundum::gameplay::screens::codex_mark_dirty(state);
+  corundum::gameplay::screens::refresh_codex(state, registry, flags);
   REQUIRE(state.entries.size() == 1);
   CHECK(state.entries[0].title == "A");
 }

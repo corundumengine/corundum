@@ -7,15 +7,15 @@
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /** @brief One selectable journal row: a started quest's name, lifecycle, and current objective. */
   struct JournalEntry {
@@ -55,8 +55,8 @@ namespace corundum::ui {
    *  @param viewport Screen size in pixels; the panel is centered within this.
    *  @param last_device Device of the player's most recent press; picks the footer glyphs.
    */
-  void journal_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void journal_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                             const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport,
                             input::InputDevice last_device = input::InputDevice::Keyboard);
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

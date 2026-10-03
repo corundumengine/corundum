@@ -55,7 +55,7 @@ namespace corundum::core {
     const std::uint64_t old_state = s_.state;
     s_.state = (old_state * 6364136223846793005ULL) + s_.inc;
     const auto xorshifted = static_cast<std::uint32_t>(((old_state >> 18U) ^ old_state) >> 27U);
-    const std::uint32_t rotation = static_cast<std::uint32_t>(old_state >> 59U);
+    const auto rotation = static_cast<std::uint32_t>(old_state >> 59U);
     return (xorshifted >> rotation) | (xorshifted << ((0U - rotation) & 31U));
   }
 

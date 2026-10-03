@@ -5,17 +5,18 @@
 #include <corundum/core/utf8.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/screens/dialog_box.hpp>
+#include <corundum/gameplay/screens/dialog_layout.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
-#include <corundum/ui/dialog_layout.hpp>
 
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <cstddef>
 #include <string_view>
 #include <utility>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   namespace {
 
@@ -35,7 +36,8 @@ namespace corundum::ui {
 
   } // namespace
 
-  void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, float dt) {
+  void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, float dt,
+                          float text_speed) {
     if (!conversation.is_active()) {
       ds.reveal_chars = 0.f;
       ds.reveal_node_id.clear();
@@ -45,12 +47,15 @@ namespace corundum::ui {
       ds.reveal_node_id.assign(node);
       ds.reveal_chars = 0.f;
     }
-    if (ds.reveal_chars_per_second > 0.f)
-      ds.reveal_chars += ds.reveal_chars_per_second * dt;
+    const float reveal_chars_per_second = k_base_reveal_chars_per_second * text_speed;
+    if (reveal_chars_per_second > 0.f)
+      ds.reveal_chars += reveal_chars_per_second * dt;
   }
 
   void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation,
-                         platform::Renderer &r, core::math::Vec2 viewport) {
+                         platform::Renderer &r, core::math::Vec2 viewport, const ui::PanelSkin &skin,
+                         float text_speed) {
+    ds.reveal_active = k_base_reveal_chars_per_second * text_speed > 0.f;
     if (!conversation.is_active()) {
       ds.visible = false;
       return;
@@ -75,11 +80,10 @@ namespace corundum::ui {
 
     if (stale) {
       const auto measure = [&](std::string_view text) -> float {
-        return r.measure_text(ds.style.font_id, text, ds.style.font_size_body);
+        return r.measure_text(skin.style.font_id, text, skin.style.font_size_body);
       };
 
-      ds.layout =
-          build_layout(conversation, ds.style.margin, ds.style.panel_height_frac, ds.border.tile_w, viewport, measure);
+      ds.layout = build_layout(conversation, skin.style, skin.border.tile_w, viewport, measure);
       ds.last_graph_id = graph_id;
       ds.last_node_id = conversation.current_node_id();
       ds.last_viewport = viewport;
@@ -90,7 +94,7 @@ namespace corundum::ui {
     ds.visible = true;
   }
 
-  void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r) {
+  void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r, const ui::PanelSkin &skin) {
     if (!ds.visible || !ds.layout)
       return;
 
@@ -98,14 +102,14 @@ namespace corundum::ui {
     const float px = lay.panel_pos.x;
     const float py = lay.panel_pos.y;
     const float inset = lay.inset;
-    const float spacing = ds.style.line_spacing;
+    const float spacing = skin.style.line_spacing;
 
-    panel_chrome(r, ds.style.bg, ds.border, lay.panel_pos, lay.panel_size);
+    ui::panel_chrome(r, skin.style.bg, skin.border, lay.panel_pos, lay.panel_size);
 
     const auto draw_str = [&](std::string_view text, unsigned size, core::math::Colour col, float x, float y) {
       if (!text.empty())
         r.draw(platform::DrawText{
-            .font_id = ds.style.font_id,
+            .font_id = skin.style.font_id,
             .text = text,
             .position = {.x = x, .y = y},
             .char_size = size,
@@ -115,45 +119,44 @@ namespace corundum::ui {
 
     switch (lay.node_type) {
       case gameplay::dialogue::NodeType::Talk: {
-        draw_str(lay.speaker, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
+        draw_str(lay.speaker, skin.style.font_size_speaker, skin.style.speaker, px + inset, py + inset);
         float y = py + inset + spacing;
-        const bool reveal = ds.reveal_chars_per_second > 0.f;
         int remaining = static_cast<int>(ds.reveal_chars);
         for (const auto &line : lay.body_lines) {
           if (line.empty()) {
             y += spacing;
             continue;
           }
-          if (reveal) {
+          if (ds.reveal_active) {
             const auto [prefix, consumed] = reveal_prefix(line, remaining);
             remaining -= consumed;
-            draw_str(prefix, ds.style.font_size_body, ds.style.body, px + inset, y);
+            draw_str(prefix, skin.style.font_size_body, skin.style.body, px + inset, y);
           } else {
-            draw_str(line, ds.style.font_size_body, ds.style.body, px + inset, y);
+            draw_str(line, skin.style.font_size_body, skin.style.body, px + inset, y);
           }
           y += spacing;
         }
-        draw_str("[Select] Continue   [Cancel] Close", ds.style.font_size_prompt, ds.style.choice, px + inset,
+        draw_str("[Select] Continue   [Cancel] Close", skin.style.font_size_prompt, skin.style.choice, px + inset,
                  y + (spacing / 2.f));
         break;
       }
       case gameplay::dialogue::NodeType::Choice: {
         const std::string_view header = lay.speaker.empty() ? std::string_view{"Choose:"} : lay.speaker;
-        draw_str(header, ds.style.font_size_speaker, ds.style.speaker, px + inset, py + inset);
+        draw_str(header, skin.style.font_size_speaker, skin.style.speaker, px + inset, py + inset);
         float y = py + inset + spacing;
         for (std::size_t i = 0; i < lay.choices.size(); ++i) {
           const bool is_sel = std::cmp_equal(i, lay.selected_choice);
           for (std::size_t line = 0; line < lay.choices[i].lines.size(); ++line) {
             // Every line keeps the selected colour; only the first carries the cursor, so
             // continuation lines are drawn as cursorless with the same hanging indent.
-            draw_option(r, ds.style, lay.choices[i].lines[line], {.x = px + inset, .y = y}, is_sel, line == 0);
+            ui::draw_option(r, skin.style, lay.choices[i].lines[line], {.x = px + inset, .y = y}, is_sel, line == 0);
             y += spacing;
           }
         }
         break;
       }
       case gameplay::dialogue::NodeType::End:
-        draw_str("[Select] Close", ds.style.font_size_body, ds.style.choice, px + inset, py + inset);
+        draw_str("[Select] Close", skin.style.font_size_body, skin.style.choice, px + inset, py + inset);
         break;
       case gameplay::dialogue::NodeType::Event:
         break;
@@ -162,4 +165,4 @@ namespace corundum::ui {
     }
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

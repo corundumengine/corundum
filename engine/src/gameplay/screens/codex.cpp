@@ -1,22 +1,22 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/ui/codex.hpp>
+#include <corundum/gameplay/screens/codex.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/codex/codex.hpp>
+#include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/ui/word_wrap.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <format>
 #include <string>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   namespace {
 
@@ -56,7 +56,7 @@ namespace corundum::ui {
     state.cursor = std::clamp(state.cursor, 0, std::max(0, static_cast<int>(state.entries.size()) - 1));
   }
 
-  void codex_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                           const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
                           core::math::Vec2 viewport, input::InputDevice last_device) {
     constexpr float k_pad = 20.f;
@@ -72,7 +72,7 @@ namespace corundum::ui {
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
+    ui::panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
 
     const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
     r.draw(platform::DrawText{
@@ -83,8 +83,9 @@ namespace corundum::ui {
         .colour = style.speaker,
     });
 
-    const std::string footer = std::format("{} Select   {} Close", input_glyph(input::Action::Activate, last_device),
-                                           input_glyph(input::Action::Cancel, last_device));
+    const std::string footer =
+        std::format("{} Select   {} Close", ui::input_glyph(input::Action::Activate, last_device),
+                    ui::input_glyph(input::Action::Cancel, last_device));
     const float footer_w = r.measure_text(style.font_id, footer, style.font_size_body);
     r.draw(platform::DrawText{
         .font_id = style.font_id,
@@ -125,7 +126,7 @@ namespace corundum::ui {
 
     std::vector<Row> rows;
     std::string_view last_category;
-    for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
+    for (int i = 0; std::cmp_less(i, entries.size()); ++i) {
       const std::string_view category = category_label(entries[static_cast<std::size_t>(i)]);
       if (rows.empty() || category != last_category) {
         rows.push_back(Row{.header = true, .text = std::string(category)});
@@ -141,10 +142,10 @@ namespace corundum::ui {
     int first_row =
         std::clamp(cursor_row - visible_rows + 1, 0, std::max(0, static_cast<int>(rows.size()) - visible_rows));
     if (cursor_row < first_row)
-      first_row = cursor_row;
+      first_row = std::min(cursor_row, first_row);
 
     float y = content_top;
-    for (int i = first_row; i < static_cast<int>(rows.size()) && i < first_row + visible_rows; ++i) {
+    for (int i = first_row; std::cmp_less(i, rows.size()) && i < first_row + visible_rows; ++i) {
       const Row &row = rows[static_cast<std::size_t>(i)];
       if (row.header) {
         r.draw(platform::DrawText{
@@ -155,14 +156,14 @@ namespace corundum::ui {
             .colour = style.speaker,
         });
       } else {
-        draw_option(r, style, row.text, {.x = list_x, .y = y}, row.entry_index == clamped_cursor);
+        ui::draw_option(r, style, row.text, {.x = list_x, .y = y}, row.entry_index == clamped_cursor);
       }
       y += line_h;
     }
 
     const gameplay::codex::CodexEntry &selected = entries[static_cast<std::size_t>(clamped_cursor)];
     const float body_line_h = line_h;
-    const std::vector<std::string> body_lines = wrap_text(selected.body, body_w, [&](std::string_view text) {
+    const std::vector<std::string> body_lines = ui::wrap_text(selected.body, body_w, [&](std::string_view text) {
       return r.measure_text(style.font_id, text, style.font_size_body);
     });
 
@@ -179,7 +180,7 @@ namespace corundum::ui {
         .colour = style.speaker,
     });
     body_y += header_h;
-    for (int i = first_body; i < static_cast<int>(body_lines.size()) && i < first_body + visible_body; ++i) {
+    for (int i = first_body; std::cmp_less(i, body_lines.size()) && i < first_body + visible_body; ++i) {
       r.draw(platform::DrawText{
           .font_id = style.font_id,
           .text = body_lines[static_cast<std::size_t>(i)],
@@ -191,4 +192,4 @@ namespace corundum::ui {
     }
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

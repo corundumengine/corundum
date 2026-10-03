@@ -6,14 +6,14 @@
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /** @brief Every unlocked codex entry, ordered by (category, title).
    *
@@ -67,8 +67,8 @@ namespace corundum::ui {
    *  @param viewport    Screen size in pixels; the panel is centered within this.
    *  @param last_device Device of the player's most recent press; picks the footer glyphs.
    */
-  void codex_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                           const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
                           core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

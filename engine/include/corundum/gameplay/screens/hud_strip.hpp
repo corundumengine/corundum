@@ -4,14 +4,14 @@
 #pragma once
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
 #include <string_view>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   /** @brief FlagStore key holding the player's currency. */
   inline constexpr std::string_view k_gold_flag = "gold";
@@ -50,7 +50,7 @@ namespace corundum::ui {
    *  @param border Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
    *  @param data   Content derived by build_hud_strip().
    */
-  void hud_strip_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void hud_strip_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                         const HudStripData &data);
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

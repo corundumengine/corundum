@@ -4,7 +4,7 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/panel_style.hpp>
 
 #include <cstddef>
 #include <string>
@@ -59,7 +59,7 @@ namespace corundum::ui {
      *  @param style    Dialog text style (font id/sizes/colours) for the message text.
      *  @param viewport Screen size in pixels; toasts anchor to its bottom-left corner.
      *  @pre The renderer's view is screen space. */
-    void render(platform::Renderer &r, const DialogBoxStyle &style, core::math::Vec2 viewport) const;
+    void render(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport) const;
 
     /** @brief True when no toast is live. */
     [[nodiscard]] bool empty() const noexcept {

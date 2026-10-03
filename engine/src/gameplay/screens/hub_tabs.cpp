@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/ui/hub_tabs.hpp>
+#include <corundum/gameplay/screens/hub_tabs.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/ui_stack.hpp>
 
 #include <algorithm>
@@ -16,7 +16,7 @@
 #include <cstddef>
 #include <string_view>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   namespace {
 
@@ -41,7 +41,7 @@ namespace corundum::ui {
     }
   }
 
-  HubTabStrip hub_tab_strip(const platform::Renderer &r, const DialogBoxStyle &style, core::math::Vec2 viewport) {
+  HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport) {
     HubTabStrip strip{};
     strip.line_height = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
     strip.y = k_top_margin;
@@ -62,11 +62,11 @@ namespace corundum::ui {
     return strip;
   }
 
-  void hub_tab_strip_render(platform::Renderer &r, const DialogBoxStyle &style, world::GameMode active,
+  void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
                             core::math::Vec2 viewport, input::InputDevice last_device) {
     const HubTabStrip strip = hub_tab_strip(r, style, viewport);
-    const std::string_view prev = input_glyph(input::Action::TabPrev, last_device);
-    const std::string_view next = input_glyph(input::Action::TabNext, last_device);
+    const std::string_view prev = ui::input_glyph(input::Action::TabPrev, last_device);
+    const std::string_view next = ui::input_glyph(input::Action::TabNext, last_device);
 
     const float prev_w = r.measure_text(style.font_id, prev, style.font_size_prompt);
     r.draw(platform::DrawText{
@@ -97,4 +97,4 @@ namespace corundum::ui {
     });
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

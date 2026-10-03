@@ -3,8 +3,8 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/prompt_box.hpp>
 
 #include <corundum/ui/ui_draw.hpp>
@@ -14,7 +14,7 @@
 
 namespace corundum::ui {
 
-  void prompt_box_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void prompt_box_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
                          std::string_view question, bool yes_selected, core::math::Vec2 viewport) {
     constexpr float k_min_w = 200.f;
     constexpr float k_pad_x = 32.f;

@@ -1,26 +1,29 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/ui/map.hpp>
+#include <corundum/gameplay/screens/map.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/location/location.hpp>
+#include <corundum/gameplay/location/registry.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <format>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   std::vector<MapEntry> build_map_entries(const gameplay::location::Registry &registry, const world::FlagStore &flags,
                                           std::string_view zone_id) {
@@ -38,7 +41,7 @@ namespace corundum::ui {
     return entries;
   }
 
-  void map_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void map_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                         const std::vector<MapEntry> &entries, int cursor, core::math::Vec2 viewport,
                         input::InputDevice last_device) {
     constexpr float k_min_w = 280.f;
@@ -53,12 +56,15 @@ namespace corundum::ui {
     const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 6.f);
     const float title_h = std::max(line_h, static_cast<float>(style.font_size_speaker) + 6.f);
 
-    const std::string footer = std::format("{} Travel   {} Close", input_glyph(input::Action::Activate, last_device),
-                                           input_glyph(input::Action::Cancel, last_device));
+    const std::string footer =
+        std::format("{} Travel   {} Close", ui::input_glyph(input::Action::Activate, last_device),
+                    ui::input_glyph(input::Action::Cancel, last_device));
 
-    float widest = std::max({r.measure_text(style.font_id, k_title, style.font_size_speaker),
-                             r.measure_text(style.font_id, k_empty, style.font_size_body),
-                             r.measure_text(style.font_id, footer, style.font_size_body)});
+    float widest = std::max({
+        r.measure_text(style.font_id, k_title, style.font_size_speaker),
+        r.measure_text(style.font_id, k_empty, style.font_size_body),
+        r.measure_text(style.font_id, footer, style.font_size_body),
+    });
     for (const MapEntry &entry : entries) {
       const std::string label = entry.current ? entry.name + std::string(k_here) : entry.name;
       widest = std::max(widest, r.measure_text(style.font_id, label, style.font_size_body));
@@ -71,7 +77,7 @@ namespace corundum::ui {
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
+    ui::panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
 
     const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
     const float title_y = panel_y + k_pad_y;
@@ -86,8 +92,11 @@ namespace corundum::ui {
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = footer,
-        .position = {.x = panel_x + ((panel_w - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
-                     .y = panel_y + panel_h - k_pad_y - line_h},
+        .position =
+            {
+                .x = panel_x + ((panel_w - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
+                .y = panel_y + panel_h - k_pad_y - line_h,
+            },
         .char_size = style.font_size_body,
         .colour = style.choice,
     });
@@ -108,9 +117,9 @@ namespace corundum::ui {
     for (std::size_t i = 0; i < entries.size(); ++i) {
       const MapEntry &entry = entries[i];
       const std::string label = entry.current ? entry.name + std::string(k_here) : entry.name;
-      draw_option(r, style, label, {.x = panel_x + k_pad_x, .y = y}, std::cmp_equal(i, clamped_cursor));
+      ui::draw_option(r, style, label, {.x = panel_x + k_pad_x, .y = y}, std::cmp_equal(i, clamped_cursor));
       y += line_h;
     }
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

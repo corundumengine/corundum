@@ -57,10 +57,10 @@ TEST_CASE("load_ui_assets — border cell size comes from the upper_left frame's
   const auto result = corundum::render::load_ui_assets(renderer, state, manifest.string());
 
   REQUIRE(result.has_value());
-  CHECK(state.dialog_box.border.texture_id == corundum::platform::null::k_dummy_handle);
+  CHECK(state.panel_skin.border.texture_id == corundum::platform::null::k_dummy_handle);
   // 2×2 frames of 16px = a 32px cell; the nine-patch derives the 96px grid from this.
-  CHECK(state.dialog_box.border.tile_w == 32);
-  CHECK(state.dialog_box.border.tile_h == 32);
+  CHECK(state.panel_skin.border.tile_w == 32);
+  CHECK(state.panel_skin.border.tile_h == 32);
 }
 
 TEST_CASE("load_ui_assets — a missing manifest is a non-fatal no-op") {
@@ -69,5 +69,5 @@ TEST_CASE("load_ui_assets — a missing manifest is a non-fatal no-op") {
   const auto result = corundum::render::load_ui_assets(renderer, state, "/nonexistent/borders.json");
 
   CHECK(result.has_value());
-  CHECK(state.dialog_box.border.texture_id == 0);
+  CHECK(state.panel_skin.border.texture_id == 0);
 }

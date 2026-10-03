@@ -31,9 +31,13 @@ namespace corundum::gameplay::quest {
   class Registry;
 }
 
+namespace corundum::gameplay::screens {
+  struct DialogBoxState;
+}
+
 namespace corundum::ui {
   class ToastQueue;
-}
+} // namespace corundum::ui
 
 namespace corundum::render {
 
@@ -85,7 +89,7 @@ namespace corundum::render {
 
   /** @brief Load shared UI textures (dialog box border, etc.).
    *  @param[in,out] r     Renderer for texture creation.
-   *  @param[out]    state Render state; dialog_box border is configured.
+   *  @param[out]    state Render state; panel_skin border is configured.
    *  @param[in]     path  Borders manifest to read; the border cell size is taken from the
    *                       upper_left frame, so multi-frame cells are supported.
    *  @return ok on success, or an error string on failure.
@@ -154,11 +158,11 @@ namespace corundum::render {
                                                                      const corundum::core::GameConfig &cfg,
                                                                      const WorldLoadParams &params = {});
 
-  /** @brief Apply dialog style (colours, fonts, spacing) from game config.
-   *  @param[out] state  Render state; dialog_box style is configured.
+  /** @brief Apply panel style (colours, fonts, spacing) from game config.
+   *  @param[out] state  Render state; panel_skin style is configured.
    *  @param[in]  cfg    Game config with dialogue_render settings.
    */
-  void configure_dialog_style(render::RenderState &state, const corundum::core::GameConfig &cfg);
+  void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &cfg);
 
   /** @brief Render the entire visible frame.
    *  @param[in,out] r       Renderer for all draw calls.
@@ -168,6 +172,7 @@ namespace corundum::render {
    *  @param[in]     flags   Persistent game flags for conditional dialogue rendering.
    *  @param[in]     quests  Loaded quest registry for the journal and HUD strip; null hides both.
    *  @param[in]     toasts  Live notification queue to stack bottom-left; null hides toasts.
+   *  @param[in,out] dialog_box  Dialogue-box state; updated and drawn as the modal overlay.
    *  @param[in]     alpha   Interpolation factor in [0,1] for render smoothing.
    *  @param[in]     win_w   Live window width in screen pixels.
    *  @param[in]     win_h   Live window height in screen pixels.
@@ -175,8 +180,9 @@ namespace corundum::render {
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::gameplay::quest::Registry *quests, const corundum::ui::ToastQueue *toasts, float alpha,
-              int win_w, int win_h, input::InputDevice last_device = input::InputDevice::Keyboard);
+              const corundum::gameplay::quest::Registry *quests, const corundum::ui::ToastQueue *toasts,
+              corundum::gameplay::screens::DialogBoxState &dialog_box, float alpha, int win_w, int win_h,
+              input::InputDevice last_device = input::InputDevice::Keyboard);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

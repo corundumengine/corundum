@@ -4,8 +4,8 @@
 #include <doctest/doctest.h>
 
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/menu.hpp>
+#include <corundum/ui/panel_style.hpp>
 
 #include "ui/recording_renderer.hpp"
 
@@ -22,8 +22,8 @@ namespace {
     return false;
   }
 
-  corundum::ui::DialogBoxStyle make_style() {
-    corundum::ui::DialogBoxStyle style{};
+  corundum::ui::PanelStyle make_style() {
+    corundum::ui::PanelStyle style{};
     style.font_id = 2;
     return style;
   }
@@ -39,7 +39,7 @@ TEST_CASE("menu_command_at maps rows to commands") {
 
 TEST_CASE("menu: renders the title, every command row, and the footer") {
   corundum::test::RecordingRenderer r;
-  const corundum::ui::DialogBoxStyle style = make_style();
+  const corundum::ui::PanelStyle style = make_style();
   const corundum::ui::MenuState state{};
 
   corundum::ui::menu_panel_render(r, style, corundum::test::make_border(), state, {.x = 800.f, .y = 600.f});

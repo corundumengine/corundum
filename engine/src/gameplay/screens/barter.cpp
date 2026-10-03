@@ -1,17 +1,20 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/ui/barter.hpp>
+#include <corundum/gameplay/screens/barter.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
+#include <corundum/world/flags.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -19,9 +22,10 @@
 #include <format>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
-namespace corundum::ui {
+namespace corundum::gameplay::screens {
 
   namespace {
 
@@ -89,7 +93,7 @@ namespace corundum::ui {
     return lines;
   }
 
-  void barter_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void barter_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                            std::string_view shop_name, int gold, const std::vector<BarterLine> &lines,
                            const BarterState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
     constexpr float k_min_w = 340.f;
@@ -100,19 +104,21 @@ namespace corundum::ui {
 
     const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 6.f);
     const float title_h = std::max(line_h, static_cast<float>(style.font_size_speaker) + 6.f);
-    const float cursor_w = cursor_advance(r, style);
+    const float cursor_w = ui::cursor_advance(r, style);
 
     const std::string tabs = "Buy    Sell";
     const std::string gold_line = std::format("Gold: {}", gold);
-    const std::string footer =
-        std::format("{} Trade   {} Tab   {} Close", input_glyph(input::Action::Activate, last_device),
-                    input_glyph(input::Action::TabNext, last_device), input_glyph(input::Action::Cancel, last_device));
+    const std::string footer = std::format(
+        "{} Trade   {} Tab   {} Close", ui::input_glyph(input::Action::Activate, last_device),
+        ui::input_glyph(input::Action::TabNext, last_device), ui::input_glyph(input::Action::Cancel, last_device));
 
-    float widest = std::max({r.measure_text(style.font_id, shop_name, style.font_size_speaker),
-                             r.measure_text(style.font_id, tabs, style.font_size_body),
-                             r.measure_text(style.font_id, gold_line, style.font_size_body),
-                             r.measure_text(style.font_id, footer, style.font_size_body),
-                             r.measure_text(style.font_id, k_empty, style.font_size_body)});
+    float widest = std::max({
+        r.measure_text(style.font_id, shop_name, style.font_size_speaker),
+        r.measure_text(style.font_id, tabs, style.font_size_body),
+        r.measure_text(style.font_id, gold_line, style.font_size_body),
+        r.measure_text(style.font_id, footer, style.font_size_body),
+        r.measure_text(style.font_id, k_empty, style.font_size_body),
+    });
     std::vector<std::string> labels;
     labels.reserve(lines.size());
     for (const BarterLine &line : lines) {
@@ -129,7 +135,7 @@ namespace corundum::ui {
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
+    ui::panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
 
     r.draw(platform::DrawText{
         .font_id = style.font_id,
@@ -141,8 +147,11 @@ namespace corundum::ui {
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = gold_line,
-        .position = {.x = panel_x + panel_w - k_pad_x - r.measure_text(style.font_id, gold_line, style.font_size_body),
-                     .y = panel_y + k_pad_y},
+        .position =
+            {
+                .x = panel_x + panel_w - k_pad_x - r.measure_text(style.font_id, gold_line, style.font_size_body),
+                .y = panel_y + k_pad_y,
+            },
         .char_size = style.font_size_body,
         .colour = style.choice,
     });
@@ -169,8 +178,11 @@ namespace corundum::ui {
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = footer,
-        .position = {.x = panel_x + ((panel_w - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
-                     .y = panel_y + panel_h - k_pad_y - line_h},
+        .position =
+            {
+                .x = panel_x + ((panel_w - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
+                .y = panel_y + panel_h - k_pad_y - line_h,
+            },
         .char_size = style.font_size_body,
         .colour = style.choice,
     });
@@ -189,9 +201,9 @@ namespace corundum::ui {
 
     const int clamped_cursor = std::clamp(state.cursor, 0, static_cast<int>(labels.size()) - 1);
     for (std::size_t i = 0; i < labels.size(); ++i) {
-      draw_option(r, style, labels[i], {.x = panel_x + k_pad_x, .y = y}, std::cmp_equal(i, clamped_cursor));
+      ui::draw_option(r, style, labels[i], {.x = panel_x + k_pad_x, .y = y}, std::cmp_equal(i, clamped_cursor));
       y += line_h;
     }
   }
 
-} // namespace corundum::ui
+} // namespace corundum::gameplay::screens

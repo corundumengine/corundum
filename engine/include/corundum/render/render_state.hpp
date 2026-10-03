@@ -5,7 +5,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/sprites/sprite.hpp>
-#include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
@@ -281,7 +281,7 @@ namespace corundum::render {
     /// single-map mode, which uses map_walkability instead.
     corundum::world::tilemap::WalkabilityGraph agg_walkability{};
     ChunkWindow chunks{};
-    corundum::ui::DialogBoxState dialog_box{};
+    corundum::ui::PanelSkin panel_skin{};
     uint32_t font_id{0};
     corundum::world::tilemap::WorldManifest manifest{};
     MapData map_data{};
@@ -291,7 +291,7 @@ namespace corundum::render {
     RenderMode mode{RenderMode::None};
     SpriteFrameIndex sprite_index;
 
-    /// Font/margin scale applied by configure_dialog_style(); 1 = the game.json sizes. Set from
+    /// Font/margin scale applied by configure_panel_style(); 1 = the game.json sizes. Set from
     /// UserSettings::ui_scale.
     float ui_scale{1.f};
 

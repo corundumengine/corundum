@@ -5,8 +5,9 @@
 
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include "ui/recording_renderer.hpp"
@@ -56,13 +57,14 @@ TEST_CASE("dialog reveal: a zero rate draws the full body immediately") {
   const corundum::gameplay::dialogue::Graph graph = make_talk_graph("Hello world");
   const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
-  corundum::ui::DialogBoxState box{};
-  box.style.font_id = 2;
-  box.reveal_chars_per_second = 0.f;
+  corundum::gameplay::screens::DialogBoxState box{};
+  corundum::ui::PanelSkin skin{};
+  skin.style.font_id = 2;
+  const float text_speed = 0.f;
 
   corundum::test::RecordingRenderer r;
-  corundum::ui::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f});
-  corundum::ui::dialog_box_render(box, r);
+  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
+  corundum::gameplay::screens::dialog_box_render(box, r, skin);
 
   CHECK(contains_text(r, "Hello world"));
 }
@@ -72,19 +74,20 @@ TEST_CASE("dialog reveal: advance reveals a codepoint prefix of the body") {
   const corundum::gameplay::dialogue::Graph graph = make_talk_graph("Hello world");
   const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
-  corundum::ui::DialogBoxState box{};
-  box.style.font_id = 2;
-  box.reveal_chars_per_second = 10.f;
+  corundum::gameplay::screens::DialogBoxState box{};
+  corundum::ui::PanelSkin skin{};
+  skin.style.font_id = 2;
+  const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
   corundum::test::RecordingRenderer r;
-  corundum::ui::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f});
+  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
   REQUIRE(box.reveal_chars == doctest::Approx(0.f));
 
-  corundum::ui::dialog_box_advance(box, conversation, 0.2f);
-  corundum::ui::dialog_box_advance(box, conversation, 0.3f);
+  corundum::gameplay::screens::dialog_box_advance(box, conversation, 0.2f, text_speed);
+  corundum::gameplay::screens::dialog_box_advance(box, conversation, 0.3f, text_speed);
   REQUIRE(box.reveal_chars == doctest::Approx(5.f));
 
-  corundum::ui::dialog_box_render(box, r);
+  corundum::gameplay::screens::dialog_box_render(box, r, skin);
   CHECK(contains_text(r, "Hello"));
   CHECK_FALSE(contains_text(r, "Hello world"));
 }
@@ -94,17 +97,18 @@ TEST_CASE("dialog reveal: switching node resets the reveal") {
   const corundum::gameplay::dialogue::Graph graph = make_talk_graph("Hello world");
   const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
-  corundum::ui::DialogBoxState box{};
-  box.style.font_id = 2;
-  box.reveal_chars_per_second = 10.f;
+  corundum::gameplay::screens::DialogBoxState box{};
+  corundum::ui::PanelSkin skin{};
+  skin.style.font_id = 2;
+  const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
   corundum::test::RecordingRenderer r;
-  corundum::ui::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f});
-  corundum::ui::dialog_box_advance(box, conversation, 1.f);
+  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
+  corundum::gameplay::screens::dialog_box_advance(box, conversation, 1.f, text_speed);
   REQUIRE(box.reveal_chars > 0.f);
 
   // A stale reveal marker simulates the conversation having moved to a new node.
   box.reveal_node_id = "some_other_node";
-  corundum::ui::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f});
+  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
   CHECK(box.reveal_chars == doctest::Approx(0.f));
 }

@@ -6,10 +6,10 @@
 #include "temp_dir.hpp"
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/shop/loader.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
-#include <corundum/ui/barter.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <filesystem>
@@ -20,7 +20,6 @@
 
 namespace fs = std::filesystem;
 namespace shop = corundum::gameplay::shop;
-namespace ui = corundum::ui;
 
 namespace {
 
@@ -85,20 +84,20 @@ TEST_CASE("shop loader: rejects out-of-range buy rate") {
 }
 
 TEST_CASE("barter price: reputation discounts buy price, clamped and floored at 1") {
-  CHECK(ui::barter_buy_price(100, 0) == 100);
-  CHECK(ui::barter_buy_price(100, 25) == 75);
-  CHECK(ui::barter_buy_price(100, 50) == 50);
-  CHECK(ui::barter_buy_price(100, 90) == 50); // clamped to +50%
-  CHECK(ui::barter_buy_price(100, -20) == 100);
-  CHECK(ui::barter_buy_price(1, 50) == 1); // never free
-  CHECK(ui::barter_buy_price(0, 50) == 0);
+  CHECK(corundum::gameplay::screens::barter_buy_price(100, 0) == 100);
+  CHECK(corundum::gameplay::screens::barter_buy_price(100, 25) == 75);
+  CHECK(corundum::gameplay::screens::barter_buy_price(100, 50) == 50);
+  CHECK(corundum::gameplay::screens::barter_buy_price(100, 90) == 50); // clamped to +50%
+  CHECK(corundum::gameplay::screens::barter_buy_price(100, -20) == 100);
+  CHECK(corundum::gameplay::screens::barter_buy_price(1, 50) == 1); // never free
+  CHECK(corundum::gameplay::screens::barter_buy_price(0, 50) == 0);
 }
 
 TEST_CASE("barter sell price: scales base by buy rate") {
-  CHECK(ui::barter_sell_price(10, 0.5f) == 5);
-  CHECK(ui::barter_sell_price(10, 0.4f) == 4);
-  CHECK(ui::barter_sell_price(10, 0.f) == 0);
-  CHECK(ui::barter_sell_price(0, 0.5f) == 0);
+  CHECK(corundum::gameplay::screens::barter_sell_price(10, 0.5f) == 5);
+  CHECK(corundum::gameplay::screens::barter_sell_price(10, 0.4f) == 4);
+  CHECK(corundum::gameplay::screens::barter_sell_price(10, 0.f) == 0);
+  CHECK(corundum::gameplay::screens::barter_sell_price(0, 0.5f) == 0);
 }
 
 TEST_CASE("build_barter_stock: explicit price overrides, absent falls back to item price") {
@@ -109,7 +108,8 @@ TEST_CASE("build_barter_stock: explicit price overrides, absent falls back to it
       .stock = {shop::StockEntry{.item = "salt", .price = 5}, shop::StockEntry{.item = "hammer"}},
   };
 
-  const std::vector<ui::BarterLine> lines = ui::build_barter_stock(shop, items, 0);
+  const std::vector<corundum::gameplay::screens::BarterLine> lines =
+      corundum::gameplay::screens::build_barter_stock(shop, items, 0);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].id == "salt");
   CHECK(lines[0].name == "Salt");
@@ -117,7 +117,8 @@ TEST_CASE("build_barter_stock: explicit price overrides, absent falls back to it
   CHECK(lines[1].unit_price == 40);
 
   // Reputation discounts the price: max(1, 5 - 5*50/100) = 3.
-  const std::vector<ui::BarterLine> cheap = ui::build_barter_stock(shop, items, 50);
+  const std::vector<corundum::gameplay::screens::BarterLine> cheap =
+      corundum::gameplay::screens::build_barter_stock(shop, items, 50);
   CHECK(cheap[0].unit_price == 3);
 }
 
@@ -131,7 +132,8 @@ TEST_CASE("build_barter_sell_lines: only priced held items, priced by buy rate")
   flags["item.hammer"] = 1;
   flags["item.trinket"] = 1; // price 0 -> omitted
 
-  const std::vector<ui::BarterLine> lines = ui::build_barter_sell_lines(shop, items, flags);
+  const std::vector<corundum::gameplay::screens::BarterLine> lines =
+      corundum::gameplay::screens::build_barter_sell_lines(shop, items, flags);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].name == "Osric's Hammer");
   CHECK(lines[0].count == 1);

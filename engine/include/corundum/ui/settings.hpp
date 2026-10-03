@@ -7,8 +7,8 @@
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/dialog_box.hpp>
 #include <corundum/ui/nine_patch.hpp>
+#include <corundum/ui/panel_style.hpp>
 
 #include <array>
 #include <cstdint>
@@ -115,7 +115,7 @@ namespace corundum::ui {
    *  @param viewport    Screen size in pixels; the panel is centered within this.
    *  @param last_device Device of the player's most recent press; picks the footer glyphs.
    */
-  void settings_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,
+  void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
                              const SettingsState &state, const SettingsValues &values, const input::Bindings &bindings,
                              core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 
