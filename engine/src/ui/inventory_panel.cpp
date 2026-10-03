@@ -87,23 +87,32 @@ namespace corundum::ui {
     }
   } // namespace
 
-  std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
-                                                   const corundum::item::Registry &items) {
+  std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &flags,
+                                              const corundum::item::Registry &items, std::string_view flag_prefix) {
     std::vector<InventoryLine> lines;
     for (const auto &[key, count] : flags) {
-      if (!item::is_held_item(key, count))
+      if (count <= 0 || !key.starts_with(flag_prefix))
         continue;
-      const std::string_view id = item::item_id_from_flag(key);
+      std::string_view id{key};
+      id.remove_prefix(flag_prefix.size());
+      if (id.empty())
+        continue;
       const item::Item *def = items.find(id);
       lines.push_back(InventoryLine{
           .category = def != nullptr ? def->category : item::ItemCategory::Misc,
           .count = count,
           .name = def != nullptr ? def->name : std::string{id},
           .description = def != nullptr ? def->description : std::string{},
+          .id = std::string{id},
       });
     }
     std::ranges::sort(lines, {}, [](const InventoryLine &l) { return std::tuple{l.category, l.name}; });
     return lines;
+  }
+
+  std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
+                                                   const corundum::item::Registry &items) {
+    return build_item_lines(flags, items, item::k_flag_prefix);
   }
 
   void inventory_panel_render(platform::Renderer &r, const DialogBoxStyle &style, const NinePatchBorder &border,

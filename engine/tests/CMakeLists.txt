@@ -22,6 +22,9 @@ set(TEST_SOURCES
     # audio
     audio/test_audio.cpp
 
+    # codex
+    codex/test_codex.cpp
+
     # core
     core/test_direction.cpp
     core/test_files.cpp
@@ -61,6 +64,9 @@ set(TEST_SOURCES
     item/test_item_loader.cpp
     item/test_item_serialize.cpp
 
+    # location
+    location/test_location.cpp
+
     # physics
     physics/test_collision.cpp
     physics/test_elevation_gate.cpp
@@ -88,6 +94,7 @@ set(TEST_SOURCES
     root/test_inventory_toggle.cpp
     root/test_journal_toggle.cpp
     root/test_pause_menu.cpp
+    root/test_phase_d_screens.cpp
     root/test_player_absent.cpp
     root/test_umbrella_header.cpp
 
@@ -96,6 +103,9 @@ set(TEST_SOURCES
 
     # settings
     settings/test_user_settings.cpp
+
+    # shop
+    shop/test_shop.cpp
 
     # sprites
     sprites/test_anim_id.cpp

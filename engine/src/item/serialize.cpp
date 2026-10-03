@@ -21,6 +21,8 @@ namespace corundum::item {
         j["description"] = item.description;
       if (!item.icon.empty())
         j["icon"] = item.icon;
+      if (item.price != 0)
+        j["price"] = item.price;
       return j;
     }
 

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/codex/loader.hpp>
+#include <corundum/codex/registry.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
@@ -15,7 +17,10 @@
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/input_system.hpp>
 #include <corundum/input/physical_input.hpp>
+#include <corundum/item/container.hpp>
 #include <corundum/item/item.hpp>
+#include <corundum/location/loader.hpp>
+#include <corundum/location/registry.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
@@ -26,11 +31,15 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/settings/user_settings.hpp>
+#include <corundum/shop/loader.hpp>
+#include <corundum/shop/registry.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/hud_strip.hpp>
 #include <corundum/ui/menu.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/map_view.hpp>
+#include <corundum/world/portals/portal.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/transition.hpp>
 #include <corundum/world/ui_stack.hpp>
@@ -54,6 +63,7 @@
 #include <system_error>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace corundum {
 
@@ -112,7 +122,7 @@ namespace corundum {
 
         init_audio();
         render::configure_dialog_style(engine_->render, engine_->cfg);
-        load_dialogue_and_quests();
+        load_content_registries();
         apply_starting_flags();
         return {};
       }
@@ -180,7 +190,7 @@ namespace corundum {
         engine_->audio.load_catalog(engine_->cfg.paths.sounds_catalog);
       }
 
-      void load_dialogue_and_quests() {
+      void load_content_registries() {
         int dialogue_loaded{0};
         if (!engine_->cfg.paths.dialogue_dir.empty())
           dialogue_loaded = engine_->graphs.load_all(engine_->cfg.paths.dialogue_dir);
@@ -197,7 +207,30 @@ namespace corundum {
           item_loaded = engine_->items.load_all(engine_->cfg.paths.items_dir);
         corundum::detail::info_log("[engine] Loaded {} items from '{}'", item_loaded, engine_->cfg.paths.items_dir);
 
+        int codex_loaded{0};
+        if (!engine_->cfg.paths.codex_dir.empty())
+          codex_loaded = engine_->codex.load_all(engine_->cfg.paths.codex_dir);
+        corundum::detail::info_log("[engine] Loaded {} codex entries from '{}'", codex_loaded,
+                                   engine_->cfg.paths.codex_dir);
+
+        int location_loaded{0};
+        if (!engine_->cfg.paths.locations_dir.empty())
+          location_loaded = engine_->locations.load_all(engine_->cfg.paths.locations_dir);
+        corundum::detail::info_log("[engine] Loaded {} locations from '{}'", location_loaded,
+                                   engine_->cfg.paths.locations_dir);
+
+        int shop_loaded{0};
+        if (!engine_->cfg.paths.shops_dir.empty())
+          shop_loaded = engine_->shops.load_all(engine_->cfg.paths.shops_dir);
+        corundum::detail::info_log("[engine] Loaded {} shops from '{}'", shop_loaded, engine_->cfg.paths.shops_dir);
+
         validate_quest_references(engine_->graphs, engine_->quests, engine_->items);
+        for (const auto &[shop_id, shop] : engine_->shops) {
+          for (const shop::StockEntry &entry : shop.stock) {
+            if (engine_->items.find(entry.item) == nullptr)
+              warn_log("[engine] WARN: shop '{}' stocks unknown item '{}'", shop_id, entry.item);
+          }
+        }
       }
 
       /// Seed GameConfig::starting_flags into the FlagStore after the registries load, before
@@ -291,6 +324,48 @@ namespace corundum {
       }
     }
 
+    /// Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
+    /// cache stale, and notify only when the entry was not already unlocked.
+    void handle_unlock_codex(Engine &engine, const dialogue::EventAction &ev) {
+      const std::string key{codex::flag_key(ev.args[0])};
+      ui::codex_mark_dirty(engine.codex_screen);
+      if (world::has_flag(engine.flags, key))
+        return;
+      world::set_flag(engine.flags, key);
+      if (const codex::CodexEntry *entry = engine.codex.find(ev.args[0]); entry != nullptr)
+        engine.notify(std::format("Codex updated: {}", entry->title), ui::k_toast_default_colour);
+    }
+
+    /// Discover a fast-travel location (`discover_location('id')`): set its discovery flag and
+    /// notify only when it was not already known.
+    void handle_discover_location(Engine &engine, const dialogue::EventAction &ev) {
+      const std::string key{location::discovery_flag_key(ev.args[0])};
+      if (world::has_flag(engine.flags, key))
+        return;
+      world::set_flag(engine.flags, key);
+      if (const location::Location *location = engine.locations.find(ev.args[0]); location != nullptr)
+        engine.notify(std::format("Location discovered: {}", location->name), ui::k_toast_default_colour);
+    }
+
+    /// Open a container's two-pane loot screen (`open_container('id')`). The screen is pushed onto
+    /// the UI stack so closing it returns to whatever was beneath (dialogue included).
+    void handle_open_container(Engine &engine, const dialogue::EventAction &ev) {
+      engine.active_container_id = ev.args[0];
+      engine.loot_screen = {};
+      engine.scene.ui.push(world::GameMode::Loot);
+    }
+
+    /// Open a merchant's barter screen (`open_shop('id')`). Unknown ids warn and are ignored.
+    void handle_open_shop(Engine &engine, const dialogue::EventAction &ev) {
+      if (engine.shops.find(ev.args[0]) == nullptr) {
+        warn_log("[engine] WARN: open_shop unknown shop '{}'", ev.args[0]);
+        return;
+      }
+      engine.active_shop_id = ev.args[0];
+      engine.barter_screen = {};
+      engine.scene.ui.push(world::GameMode::Barter);
+    }
+
     void dispatch_dialogue_event(Engine &engine, quest::Runner &quest_runner,
                                  const dialogue::EventAction &ev) noexcept {
       try {
@@ -304,6 +379,14 @@ namespace corundum {
           engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
         } else if (ev.name == "take_item" && !ev.args.empty()) {
           handle_take_item(engine, ev);
+        } else if (ev.name == "unlock_codex" && !ev.args.empty()) {
+          handle_unlock_codex(engine, ev);
+        } else if (ev.name == "discover_location" && !ev.args.empty()) {
+          handle_discover_location(engine, ev);
+        } else if (ev.name == "open_container" && !ev.args.empty()) {
+          handle_open_container(engine, ev);
+        } else if (ev.name == "open_shop" && !ev.args.empty()) {
+          handle_open_shop(engine, ev);
         } else if (ev.name == "reputation" && ev.args.size() >= 2) {
           // A non-numeric value parses to 0; skip the write so no zero-valued rep flag is created.
           if (const int delta = event_int_arg(ev, 1, /*fallback=*/0); delta != 0)
@@ -555,6 +638,175 @@ namespace corundum {
       }
     }
 
+    /// Step the Codex screen: Back/C closes it, Up/Down move the highlighted entry, and the
+    /// scroll wheel scrolls the detail body. Rows are refreshed from the registry + flags on the
+    /// first step after an open or unlock (dirty-flagged).
+    void update_codex(Engine &engine, const input::InputIntent &intent) {
+      ui::CodexState &state = engine.codex_screen;
+      ui::refresh_codex(state, engine.codex, engine.flags);
+
+      if (intent.back || engine.input_state.is_pressed(input::Action::Codex)) {
+        engine.scene.ui.pop();
+        return;
+      }
+
+      const int rows = static_cast<int>(state.entries.size());
+      if (intent.navigate_y != 0) {
+        if (rows > 0)
+          state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
+        state.scroll = 0.f;
+      }
+      if (intent.scroll_y != 0.f)
+        state.scroll = std::max(0.f, state.scroll - intent.scroll_y);
+    }
+
+    /// Step the Map screen: Back/M closes it, Up/Down move the highlighted destination, and
+    /// Activate fast-travels. A destination already in the active zone is a no-op.
+    void update_map(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back || engine.input_state.is_pressed(input::Action::Map)) {
+        engine.scene.ui.pop();
+        return;
+      }
+
+      const std::vector<ui::MapEntry> entries =
+          ui::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id);
+      const int rows = static_cast<int>(entries.size());
+      if (intent.navigate_y != 0 && rows > 0)
+        engine.map_screen.cursor = wrap_cursor(engine.map_screen.cursor, intent.navigate_y, rows);
+      if (!intent.activate || rows == 0)
+        return;
+
+      const ui::MapEntry &selected = entries[static_cast<std::size_t>(
+          std::clamp(engine.map_screen.cursor, 0, rows - 1))];
+      if (selected.current) {
+        engine.notify("You are already here");
+        return;
+      }
+
+      const location::Location *location = engine.locations.find(selected.id);
+      if (location == nullptr)
+        return;
+      world::MapTransition transition{
+          .spawn_col = static_cast<int>(location->col),
+          .spawn_row = static_cast<int>(location->row),
+          .return_to_world = location->return_to_world || location->map.empty(),
+      };
+      if (!transition.return_to_world)
+        transition.target_map = location->map;
+      engine.scene.pending_transition = std::move(transition);
+      engine.scene.ui.pop();
+    }
+
+    /// Add @p delta to @p key's count, creating it when positive and erasing it once it reaches
+    /// zero. Keeps the FlagStore free of zero-valued rows (matching item grant/take semantics).
+    void adjust_flag(world::FlagStore &flags, const std::string &key, int delta) {
+      if (delta == 0)
+        return;
+      const auto it = flags.find(key);
+      if (it == flags.end()) {
+        if (delta > 0)
+          flags.emplace(key, delta);
+        return;
+      }
+      it->second += delta;
+      if (it->second <= 0)
+        flags.erase(it);
+    }
+
+    /// Step the loot screen: Back closes, Left/Right switch the active pane, Up/Down move the
+    /// row, and Activate moves one unit of the highlighted item to the other holder.
+    void update_loot(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back) {
+        engine.active_container_id.clear();
+        engine.scene.ui.pop();
+        return;
+      }
+
+      const std::string container_prefix = item::container_flag_prefix(engine.active_container_id);
+      if (intent.navigate_x != 0) {
+        engine.loot_screen.pane =
+            engine.loot_screen.pane == ui::LootPane::Container ? ui::LootPane::Player : ui::LootPane::Container;
+        engine.loot_screen.cursor = 0;
+      }
+
+      const bool container_active = engine.loot_screen.pane == ui::LootPane::Container;
+      const std::vector<ui::InventoryLine> container_lines =
+          ui::build_item_lines(engine.flags, engine.items, container_prefix);
+      const std::vector<ui::InventoryLine> player_lines =
+          ui::build_item_lines(engine.flags, engine.items, item::k_flag_prefix);
+      const std::vector<ui::InventoryLine> &lines = container_active ? container_lines : player_lines;
+      const int rows = static_cast<int>(lines.size());
+
+      if (intent.navigate_y != 0 && rows > 0)
+        engine.loot_screen.cursor = wrap_cursor(engine.loot_screen.cursor, intent.navigate_y, rows);
+      if (!intent.activate || rows == 0)
+        return;
+
+      const ui::InventoryLine &selected = lines[static_cast<std::size_t>(
+          std::clamp(engine.loot_screen.cursor, 0, rows - 1))];
+      const std::string container_key = item::container_item_flag_key(engine.active_container_id, selected.id);
+      const std::string player_key = item_flag_key(selected.id);
+      if (container_active) {
+        adjust_flag(engine.flags, container_key, -1);
+        adjust_flag(engine.flags, player_key, 1);
+      } else {
+        adjust_flag(engine.flags, player_key, -1);
+        adjust_flag(engine.flags, container_key, 1);
+      }
+    }
+
+    /// Step the barter screen: Back closes, Left/Right or Tab switch Buy/Sell, Up/Down move the
+    /// row, and Activate performs the trade.
+    void update_barter(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back) {
+        engine.active_shop_id.clear();
+        engine.scene.ui.pop();
+        return;
+      }
+
+      const shop::Shop *shop = engine.shops.find(engine.active_shop_id);
+      if (shop == nullptr) {
+        engine.scene.ui.pop();
+        return;
+      }
+
+      if (intent.next_tab || intent.prev_tab || intent.navigate_x != 0) {
+        engine.barter_screen.tab =
+            engine.barter_screen.tab == ui::BarterTab::Buy ? ui::BarterTab::Sell : ui::BarterTab::Buy;
+        engine.barter_screen.cursor = 0;
+      }
+
+      const int reputation =
+          shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
+      const std::vector<ui::BarterLine> lines = engine.barter_screen.tab == ui::BarterTab::Buy
+                                                    ? ui::build_barter_stock(*shop, engine.items, reputation)
+                                                    : ui::build_barter_sell_lines(*shop, engine.items, engine.flags);
+      const int rows = static_cast<int>(lines.size());
+
+      if (intent.navigate_y != 0 && rows > 0)
+        engine.barter_screen.cursor = wrap_cursor(engine.barter_screen.cursor, intent.navigate_y, rows);
+      if (!intent.activate || rows == 0)
+        return;
+
+      const ui::BarterLine &selected = lines[static_cast<std::size_t>(
+          std::clamp(engine.barter_screen.cursor, 0, rows - 1))];
+      int gold = world::visit_count(engine.flags, std::string{ui::k_gold_flag});
+      if (engine.barter_screen.tab == ui::BarterTab::Buy) {
+        if (selected.unit_price > gold) {
+          engine.notify("Not enough gold");
+          return;
+        }
+        gold -= selected.unit_price;
+        adjust_flag(engine.flags, item_flag_key(selected.id), 1);
+      } else {
+        if (selected.unit_price <= 0 || selected.count <= 0)
+          return;
+        gold += selected.unit_price;
+        adjust_flag(engine.flags, item_flag_key(selected.id), -1);
+      }
+      engine.flags[std::string{ui::k_gold_flag}] = gold;
+    }
+
     /// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
     /// simulation sheds the remaining time rather than compounding a backlog.
     constexpr int k_max_steps_per_frame{8};
@@ -638,6 +890,42 @@ namespace corundum {
           .y = static_cast<float>(engine.window_height()),
       };
       switch (engine.scene.mode()) {
+        case world::GameMode::Codex:
+          ui::codex_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
+                                 engine.codex_screen.entries, engine.codex_screen.cursor, engine.codex_screen.scroll,
+                                 viewport, engine.input_mapper.last_device());
+          break;
+        case world::GameMode::Map:
+          ui::map_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
+                               ui::build_map_entries(engine.locations, engine.flags, engine.scene.zone_id),
+                               engine.map_screen.cursor, viewport, engine.input_mapper.last_device());
+          break;
+        case world::GameMode::Loot: {
+          const std::string container_name =
+              engine.active_container_id.empty() ? std::string{"Container"} : engine.active_container_id;
+          ui::loot_panel_render(
+              *engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border, container_name,
+              ui::build_item_lines(engine.flags, engine.items,
+                                   item::container_flag_prefix(engine.active_container_id)),
+              ui::build_item_lines(engine.flags, engine.items, item::k_flag_prefix), engine.loot_screen, viewport,
+              engine.input_mapper.last_device());
+          break;
+        }
+        case world::GameMode::Barter: {
+          const shop::Shop *shop = engine.shops.find(engine.active_shop_id);
+          if (shop == nullptr)
+            break;
+          const int reputation =
+              shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
+          const std::vector<ui::BarterLine> lines = engine.barter_screen.tab == ui::BarterTab::Buy
+                                                        ? ui::build_barter_stock(*shop, engine.items, reputation)
+                                                        : ui::build_barter_sell_lines(*shop, engine.items, engine.flags);
+          ui::barter_panel_render(*engine.renderer, engine.render.dialog_box.style,
+                                  engine.render.dialog_box.border, shop->name,
+                                  world::visit_count(engine.flags, std::string{ui::k_gold_flag}), lines,
+                                  engine.barter_screen, viewport, engine.input_mapper.last_device());
+          break;
+        }
         case world::GameMode::Menu:
           ui::menu_panel_render(*engine.renderer, engine.render.dialog_box.style, engine.render.dialog_box.border,
                                 engine.menu, viewport, engine.input_mapper.last_device());
@@ -673,24 +961,55 @@ namespace corundum {
   bool Engine::update_engine_screens(const input::InputIntent &intent) {
     using world::GameMode;
 
-    bool opened_menu = false;
+    // Opening a screen consumes the step: the same press that opened it must not also be
+    // routed to the fresh screen (C would open then immediately close the codex).
+    bool opened_screen = false;
     if (input_state.is_pressed(input::Action::Menu) && scene.mode() == GameMode::Exploring) {
       scene.ui.push(GameMode::Menu);
       menu.cursor = 0;
-      opened_menu = true;
+      opened_screen = true;
     }
 
-    const GameMode mode = scene.mode();
-    if (mode != GameMode::Menu && mode != GameMode::Settings)
-      return false;
+    if (input_state.is_pressed(input::Action::Codex) && scene.mode() == GameMode::Exploring) {
+      scene.ui.push(GameMode::Codex);
+      codex_screen.cursor = 0;
+      codex_screen.scroll = 0.f;
+      ui::codex_mark_dirty(codex_screen);
+      ui::refresh_codex(codex_screen, codex, flags);
+      opened_screen = true;
+    }
 
-    if (!opened_menu) {
-      if (mode == GameMode::Menu)
+    if (input_state.is_pressed(input::Action::Map) && scene.mode() == GameMode::Exploring) {
+      scene.ui.push(GameMode::Map);
+      map_screen.cursor = 0;
+      opened_screen = true;
+    }
+
+    if (opened_screen)
+      return true;
+
+    switch (scene.mode()) {
+      case GameMode::Codex:
+        update_codex(*this, intent);
+        return true;
+      case GameMode::Map:
+        update_map(*this, intent);
+        return true;
+      case GameMode::Loot:
+        update_loot(*this, intent);
+        return true;
+      case GameMode::Barter:
+        update_barter(*this, intent);
+        return true;
+      case GameMode::Menu:
         update_pause_menu(*this, intent);
-      else
+        return true;
+      case GameMode::Settings:
         update_settings(*this, intent);
+        return true;
+      default:
+        return false;
     }
-    return true;
   }
 
   void Engine::run_loop() noexcept {

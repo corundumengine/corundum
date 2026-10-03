@@ -10,6 +10,7 @@
 #include <corundum/world/flags.hpp>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace corundum::ui {
@@ -21,11 +22,15 @@ namespace corundum::ui {
 
     int count = 0;
 
-    std::string name;
+    std::string name{};
 
     /// Flavor text shown as a tooltip under the list for the highlighted row; empty when the
     /// item has no definition or no description.
     std::string description{};
+
+    /// Item id the row was built from, with the flag prefix stripped; useful to look up the
+    /// row's definition or move it between holders.
+    std::string id{};
   };
 
   /** @brief Collect the player's held items from the FlagStore.
@@ -38,6 +43,21 @@ namespace corundum::ui {
    */
   [[nodiscard]] std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
                                                                  const corundum::item::Registry &items);
+
+  /** @brief Collect items held under @p flag_prefix from the FlagStore.
+   *
+   *  Generalization of build_inventory_lines(): every key starting with @p flag_prefix whose
+   *  count is positive becomes a row, with the prefix stripped to resolve the item definition.
+   *  Pass item::k_flag_prefix for the player's inventory or
+   *  item::container_flag_prefix(id) for a container's contents.
+   *
+   *  @param flags       Active FlagStore.
+   *  @param items       Loaded item registry; unknown ids fall back to the raw id.
+   *  @param flag_prefix Key prefix to treat as held items.
+   */
+  [[nodiscard]] std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &flags,
+                                                            const corundum::item::Registry &items,
+                                                            std::string_view flag_prefix);
 
   /** @brief Draw a centered inventory panel listing the held items, grouped by category.
    *

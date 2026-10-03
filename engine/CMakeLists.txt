@@ -12,6 +12,8 @@ include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 set(ENGINE_SOURCES
     src/animation/animation_system.cpp
     src/audio/audio_system.cpp
+    src/codex/loader.cpp
+    src/codex/registry.cpp
     src/core/environment.cpp
     src/core/files.cpp
     src/core/game_config.cpp
@@ -41,6 +43,8 @@ set(ENGINE_SOURCES
     src/input/physical_input.cpp
     src/item/item.cpp
     src/item/serialize.cpp
+    src/location/loader.cpp
+    src/location/registry.cpp
     src/physics/collision.cpp
     src/physics/physics_system.cpp
     src/physics/walkability.cpp
@@ -54,6 +58,8 @@ set(ENGINE_SOURCES
     src/render/render_system.cpp
     src/save/save.cpp
     src/settings/user_settings.cpp
+    src/shop/loader.cpp
+    src/shop/registry.cpp
     src/sprites/atlas_clips.cpp
     src/sprites/atlas_clips_loader.cpp
     src/sprites/atlas_clips_serializer.cpp
@@ -63,11 +69,15 @@ set(ENGINE_SOURCES
     src/sprites/sprite_atlas_loader.cpp
     src/sprites/sprite_sheet_clips_loader.cpp
     src/sprites/sprite_sheet_clips_serializer.cpp
+    src/ui/barter.cpp
+    src/ui/codex.cpp
     src/ui/dialog_box.cpp
     src/ui/hud_strip.cpp
     src/ui/input_glyph.cpp
     src/ui/inventory_panel.cpp
     src/ui/journal.cpp
+    src/ui/loot.cpp
+    src/ui/map.cpp
     src/ui/menu.cpp
     src/ui/nine_patch.cpp
     src/ui/prompt_box.cpp

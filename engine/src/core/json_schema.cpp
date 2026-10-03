@@ -151,6 +151,7 @@ namespace corundum::core {
     "name":        { "type": "string", "minLength": 1 },
     "description": { "type": "string" },
     "icon":        { "type": "string" },
+    "price":       { "type": "integer", "minimum": 0 },
     "category":    { "type": "string", "enum": ["weapon", "apparel", "potion", "misc"] },
     "weapon":      { "type": "object", "properties": { "damage": { "type": "integer", "minimum": 0 } } },
     "apparel":     { "type": "object", "properties": { "slot": { "type": "string" }, "defense": { "type": "integer", "minimum": 0 } } },
@@ -161,6 +162,99 @@ namespace corundum::core {
     { "if": { "required": ["category"], "properties": { "category": { "const": "apparel" } } }, "then": { "required": ["apparel"] } },
     { "if": { "required": ["category"], "properties": { "category": { "const": "potion"  } } }, "then": { "required": ["potion"], "properties": { "potion": { "required": ["effect"] } } } }
   ]
+})";
+
+    constexpr std::string_view k_codex_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/codex",
+  "type": "object",
+  "required": ["entries"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id":       { "type": "string", "minLength": 1 },
+        "title":    { "type": "string", "minLength": 1 },
+        "category": { "type": "string" },
+        "body":     { "type": "string" }
+      }
+    }
+  }
+})";
+
+    constexpr std::string_view k_location_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/location",
+  "type": "object",
+  "required": ["locations"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "locations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/location" }
+    }
+  },
+  "definitions": {
+    "location": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id":              { "type": "string", "minLength": 1 },
+        "name":            { "type": "string", "minLength": 1 },
+        "zone":            { "type": "string" },
+        "map":             { "type": "string" },
+        "col":             { "type": "number", "minimum": 0 },
+        "row":             { "type": "number", "minimum": 0 },
+        "return_to_world": { "type": "boolean" }
+      }
+    }
+  }
+})";
+
+    constexpr std::string_view k_shop_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/shop",
+  "type": "object",
+  "required": ["shops"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "shops": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/shop" }
+    }
+  },
+  "definitions": {
+    "shop": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id":       { "type": "string", "minLength": 1 },
+        "name":     { "type": "string", "minLength": 1 },
+        "faction":  { "type": "string" },
+        "buy_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "stock": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/stock" }
+        }
+      }
+    },
+    "stock": {
+      "type": "object",
+      "required": ["item"],
+      "properties": {
+        "item":  { "type": "string", "minLength": 1 },
+        "price": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
 })";
 
   } // namespace
@@ -200,6 +294,9 @@ namespace corundum::core {
     c.dialogue_ = SchemaCatalog::compile_or_terminate(k_dialogue_graph_schema);
     c.quest_ = SchemaCatalog::compile_or_terminate(k_quest_schema);
     c.item_ = SchemaCatalog::compile_or_terminate(k_item_schema);
+    c.codex_ = SchemaCatalog::compile_or_terminate(k_codex_schema);
+    c.location_ = SchemaCatalog::compile_or_terminate(k_location_schema);
+    c.shop_ = SchemaCatalog::compile_or_terminate(k_shop_schema);
     return c;
   }
 
@@ -222,6 +319,18 @@ namespace corundum::core {
 
   const SchemaValidator &SchemaCatalog::item_schema() const noexcept {
     return item_;
+  }
+
+  const SchemaValidator &SchemaCatalog::codex_schema() const noexcept {
+    return codex_;
+  }
+
+  const SchemaValidator &SchemaCatalog::location_schema() const noexcept {
+    return location_;
+  }
+
+  const SchemaValidator &SchemaCatalog::shop_schema() const noexcept {
+    return shop_;
   }
 
   const SchemaCatalog &schema_catalog() noexcept {

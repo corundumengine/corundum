@@ -248,6 +248,10 @@ namespace corundum::world {
         break;
       case corundum::world::GameMode::Menu:
       case corundum::world::GameMode::Settings:
+      case corundum::world::GameMode::Codex:
+      case corundum::world::GameMode::Map:
+      case corundum::world::GameMode::Loot:
+      case corundum::world::GameMode::Barter:
         // Engine-level screens, stepped by Engine::run_fixed_steps(); world::update is not called
         // for them. Listed so the GameMode switch stays exhaustive.
         break;

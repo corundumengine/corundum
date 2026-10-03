@@ -25,6 +25,8 @@ namespace corundum::input {
     ZoomOut,
     Inventory,
     Journal,
+    Codex,     ///< Lore/codex screen toggle (C / gamepad X).
+    Map,       ///< World map / fast-travel screen toggle (M / gamepad Back).
     Menu,      ///< Pause/system menu toggle (Esc / gamepad Start).
     TabNext,   ///< Next settings/journal tab (E / gamepad R1).
     TabPrev,   ///< Previous settings/journal tab (Q / gamepad L1).

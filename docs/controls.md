@@ -113,6 +113,34 @@ wrong from memory.
   again or `Esc` closes it. Move Up/Down move the highlighted quest row
   (Active first, then Completed, then Failed), wrapping circularly.
 
+### Codex (Lore)
+
+- **Bindings**: `C` (keyboard); gamepad X/Square.
+- **Effect**: toggles the codex. Opening it pauses the player; `C` again or
+  `Esc` closes it. Move Up/Down move the highlighted entry (grouped by
+  category); the selected entry's body is wrapped in the detail pane and the
+  scroll wheel scrolls it. Only entries unlocked via `unlock_codex`/a
+  `codex.<id>` flag appear.
+
+### Map / Fast Travel
+
+- **Bindings**: `M` (keyboard); gamepad Back/Select.
+- **Effect**: toggles the world map. Opening it pauses the player; `M` again or
+  `Esc` closes it. Move Up/Down move the highlighted destination (only
+  discovered `location.<id>.discovered` locations appear); Enter/Space/gamepad A
+  fast-travels there. Travelling to the zone you are already in is a no-op.
+
+### Loot and Barter (contextual)
+
+- **Opened from dialogue**, not by a dedicated key: `open_container('id')`
+  opens the two-pane loot screen and `open_shop('id')` opens the barter screen.
+- **Loot**: Left/Right switch the container/player pane; Up/Down move the row;
+  Enter/Space/gamepad A moves one unit of the highlighted item to the other
+  holder; `Esc` closes.
+- **Barter**: Left/Right or TabNext/TabPrev switch the Buy/Sell tab; Up/Down
+  move the row; Enter/Space/gamepad A buys (spending gold, with a
+  `rep.<faction>` discount) or sells at the shop's `buy_rate`; `Esc` closes.
+
 ### Zoom
 
 - **Bindings**: mouse scroll wheel (one wheel notch per step); `=`/`-`
@@ -143,6 +171,9 @@ carry information no discrete action has: `mouse_x`/`mouse_y`
 player clicked a screen point" flag, distinct from `Select`), and
 `scroll_delta_y` (accumulated wheel delta this poll cycle — "how much",
 not just "did it happen", so it can't be a discrete `Action` either).
+The enum also carries the screen toggles `Inventory`, `Journal`, `Codex`,
+`Map`, `Menu`, `TabNext`/`TabPrev`, and `Activate` (the world/UI "use this
+thing" intent, distinct from the dialogue/confirm `Select`).
 
 ### Binding tables (where defaults are declared)
 
@@ -151,7 +182,8 @@ The default binding table is built by `default_bindings()`
 `PhysicalInput` (a `Key`, `MouseButton`, or `GamepadControl`). Movement is
 WASD/arrows plus the left stick and D-pad; Select is Enter/Space, mouse-left
 and gamepad A; Cancel is Escape and gamepad B; Inventory is `I`; Journal is
-`J` and gamepad Y; Quit is `Q`; ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2;
+`J` and gamepad Y; Codex is `C` and gamepad X; Map is `M` and gamepad Back;
+Quit is `Q`; ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2;
 QuickSave/QuickLoad are F5/F9. The GLFW backend only translates GLFW tokens
 to `PhysicalInput` (`engine/src/platform/glfw/input_translator.cpp`) and holds
 no bindings of its own.
@@ -217,6 +249,8 @@ device disconnects, so a held bit cannot latch.
 | `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`)                                                                                                                     |
 | `Action::Inventory`                           | `world/update.cpp::update()`                                              | Toggles `GameMode::Inventory`; `update_inventory()` navigates and closes it                                                                          |
 | `Action::Journal`                             | `world/update.cpp::update()`                                              | Toggles `GameMode::Journal`; `update_journal()` navigates and closes it                                                                              |
+| `Action::Codex`                               | `engine.cpp::Engine::update_engine_screens()`                             | Toggles `GameMode::Codex`; `update_codex()` navigates and closes it                                                                                  |
+| `Action::Map`                                 | `engine.cpp::Engine::update_engine_screens()`                             | Toggles `GameMode::Map`; `update_map()` navigates and fast-travels on Activate                                                                       |
 | `Action::Quit`                                | `engine.cpp`'s main loop                                                  | Sets `engine.quit` and closes the window                                                                                                             |
 | `PlatformEvents::quit_requested`              | `engine.cpp`'s main loop                                                  | Sets `engine.quit` from an OS window-close request                                                                                                   |
 | `PlatformEvents::focus_lost` / `focus_gained` | `engine.cpp`'s main loop                                                  | Pauses the simulation and audio on focus loss, resumes on focus gain                                                                                 |

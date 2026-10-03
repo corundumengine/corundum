@@ -39,6 +39,9 @@ namespace corundum::core {
   /// only the per-game file names (game_font, ui_font, icons_font, tilemap_path) require explicit
   /// values.
   struct ResourcePaths {
+    /** @brief Directory containing codex lore batch files. Defaults to "data/codex". */
+    std::string codex_dir{"data/codex"};
+
     /** @brief Directory containing dialogue data files. Defaults to "data/dialogue". */
     std::string dialogue_dir{"data/dialogue"};
 
@@ -54,11 +57,17 @@ namespace corundum::core {
     /** @brief Directory containing item data files. Defaults to "data/items". */
     std::string items_dir{"data/items"};
 
+    /** @brief Directory containing fast-travel location batch files. Defaults to "data/locations". */
+    std::string locations_dir{"data/locations"};
+
     /** @brief Directory containing portal definitions. Defaults to "data/portals". */
     std::string portals_dir{"data/portals"};
 
     /** @brief Directory containing quest data files. Defaults to "data/quests". */
     std::string quests_dir{"data/quests"};
+
+    /** @brief Directory containing shop batch files. Defaults to "data/shops". */
+    std::string shops_dir{"data/shops"};
 
     /** @brief Optional JSON catalog mapping sound names to file paths (relative to sounds_dir).
      *  Example: {"coin": "sfx/jingle_coin_01.ogg"}. Empty → names resolve to "{name}.ogg". */

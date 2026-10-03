@@ -45,8 +45,9 @@ namespace corundum::core {
   };
 
   /// Owns the pre-built SchemaValidators for every asset format the engine
-  /// validates (dialogue graphs, quests, items). Each validator is compiled once
-  /// from its embedded schema at construction and reused for every document.
+  /// validates (dialogue graphs, quests, items, codex entries, fast-travel
+  /// locations, shops). Each validator is compiled once from its embedded schema
+  /// at construction and reused for every document.
   ///
   /// @note Not safe for concurrent use (see SchemaValidator). Construct via
   ///       schema_catalog() once; do not create multiple catalogs.
@@ -71,6 +72,18 @@ namespace corundum::core {
     /// @return Reference to the validator compiled from the embedded item schema.
     [[nodiscard]] const SchemaValidator &item_schema() const noexcept;
 
+    /// Returns the pre-built validator for codex batch JSON files.
+    /// @return Reference to the validator compiled from the embedded codex schema.
+    [[nodiscard]] const SchemaValidator &codex_schema() const noexcept;
+
+    /// Returns the pre-built validator for location batch JSON files.
+    /// @return Reference to the validator compiled from the embedded location schema.
+    [[nodiscard]] const SchemaValidator &location_schema() const noexcept;
+
+    /// Returns the pre-built validator for shop batch JSON files.
+    /// @return Reference to the validator compiled from the embedded shop schema.
+    [[nodiscard]] const SchemaValidator &shop_schema() const noexcept;
+
   private:
     friend const SchemaCatalog &schema_catalog() noexcept;
 
@@ -90,6 +103,9 @@ namespace corundum::core {
     SchemaValidator dialogue_;
     SchemaValidator quest_;
     SchemaValidator item_;
+    SchemaValidator codex_;
+    SchemaValidator location_;
+    SchemaValidator shop_;
   };
 
   /// Returns the engine-wide schema catalog, constructed once on first call

@@ -298,6 +298,10 @@ These call engine functions. String arguments use single quotes.
 | `give_item('item_id'[, count])` | Add `count` (default 1) to the `item.<id>` flag |
 | `take_item('item_id'[, count])` | Subtract `count` (default 1) from the `item.<id>` flag; the flag is removed at 0 |
 | `reputation('faction_id', amount)` | Add `amount` to the `rep.<id>` flag |
+| `unlock_codex('entry_id')` | Unlock a codex entry (sets the `codex.<id>` flag) and toast it |
+| `discover_location('location_id')` | Discover a fast-travel location (sets `location.<id>.discovered`) and toast it |
+| `open_container('container_id')` | Open the two-pane loot screen for `container.<id>.item.*` |
+| `open_shop('shop_id')` | Open the merchant barter screen for a `data/shops/*.json` shop |
 
 ```json
 "actions": [
@@ -530,6 +534,10 @@ Engine hooks:   play_sound('name')
                 give_item('item_id'[, count])
                 take_item('item_id'[, count])
                 reputation('faction_id', amount)
+                unlock_codex('entry_id')
+                discover_location('location_id')
+                open_container('container_id')
+                open_shop('shop_id')
 
 Divert actions: goto_graph('graph_id', 'node_id')
                 return_graph()

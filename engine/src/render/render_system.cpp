@@ -480,8 +480,10 @@ namespace corundum::render {
       const bool modal_active =
           scene.dialogue.has_value() || (scene.transition_prompt && !scene.transition_prompt->declined()) ||
           scene.ui.contains(corundum::world::GameMode::Inventory) ||
-          scene.ui.contains(corundum::world::GameMode::Journal) || scene.ui.contains(corundum::world::GameMode::Menu) ||
-          scene.ui.contains(corundum::world::GameMode::Settings);
+          scene.ui.contains(corundum::world::GameMode::Journal) ||
+          scene.ui.contains(corundum::world::GameMode::Codex) || scene.ui.contains(corundum::world::GameMode::Map) ||
+          scene.ui.contains(corundum::world::GameMode::Loot) || scene.ui.contains(corundum::world::GameMode::Barter) ||
+          scene.ui.contains(corundum::world::GameMode::Menu) || scene.ui.contains(corundum::world::GameMode::Settings);
 
       if (!modal_active && quests != nullptr)
         corundum::ui::hud_strip_render(r, state.dialog_box.style, state.dialog_box.border,

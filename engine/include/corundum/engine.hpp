@@ -6,6 +6,7 @@
 // Each include below supplies a complete type for an Engine member (or an inline
 // symbol the public API uses); do not slim this block.
 #include <corundum/audio/audio_system.hpp>
+#include <corundum/codex/registry.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/rng.hpp>
@@ -16,6 +17,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_mapper.hpp>
 #include <corundum/item/registry.hpp>
+#include <corundum/location/registry.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/handle.hpp>
 #include <corundum/platform/platform_events.hpp>
@@ -23,7 +25,12 @@
 #include <corundum/platform/window.hpp>
 #include <corundum/quest/registry.hpp>
 #include <corundum/render/render_state.hpp>
+#include <corundum/shop/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
+#include <corundum/ui/barter.hpp>
+#include <corundum/ui/codex.hpp>
+#include <corundum/ui/loot.hpp>
+#include <corundum/ui/map.hpp>
 #include <corundum/ui/menu.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
@@ -120,7 +127,13 @@ namespace corundum {
 
     item::Registry items;
 
+    codex::Registry codex;
+
+    location::Registry locations;
+
     quest::Registry quests;
+
+    shop::Registry shops;
 
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
 
@@ -132,6 +145,24 @@ namespace corundum {
 
     /** @brief Pause-menu selection state; rendered in GameMode::Menu. */
     ui::MenuState menu;
+
+    /** @brief Codex-screen state: highlighted row and the dirty-flagged unlocked-entry cache. */
+    ui::CodexState codex_screen;
+
+    /** @brief Map-screen state: highlighted fast-travel destination. */
+    ui::MapState map_screen;
+
+    /** @brief Loot-screen state: active pane and highlighted row. */
+    ui::LootState loot_screen;
+
+    /** @brief Barter-screen state: active tab and highlighted row. */
+    ui::BarterState barter_screen;
+
+    /** @brief Container whose contents the loot screen shows; empty when no loot screen is open. */
+    std::string active_container_id;
+
+    /** @brief Shop the barter screen trades with; empty when no barter screen is open. */
+    std::string active_shop_id;
 
     /** @brief Settings-screen state; rendered in GameMode::Settings. */
     ui::SettingsState settings_screen;

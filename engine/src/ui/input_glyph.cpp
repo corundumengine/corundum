@@ -38,6 +38,10 @@ namespace corundum::ui {
           return "I";
         case Action::Journal:
           return "J";
+        case Action::Codex:
+          return "C";
+        case Action::Map:
+          return "M";
         case Action::Menu:
           return "Esc";
         case Action::TabNext:
@@ -81,6 +85,10 @@ namespace corundum::ui {
           return "B";
         case Action::Journal:
           return "Y";
+        case Action::Codex:
+          return "X";
+        case Action::Map:
+          return "Back";
         case Action::Menu:
           return "Start";
         case Action::TabNext:

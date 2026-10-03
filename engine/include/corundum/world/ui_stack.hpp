@@ -13,7 +13,19 @@ namespace corundum::world {
    *  Exploring is the base state — it is represented by an empty UIStack, not a pushed
    *  layer — so top() returns it whenever no screen is open.
    */
-  enum class GameMode : std::uint8_t { Exploring, Dialogue, Prompt, Inventory, Journal, Menu, Settings };
+  enum class GameMode : std::uint8_t {
+    Exploring,
+    Dialogue,
+    Prompt,
+    Inventory,
+    Journal,
+    Codex,
+    Map,
+    Loot,
+    Barter,
+    Menu,
+    Settings
+  };
 
   /** @brief The ordered stack of open UI screens, top last.
    *

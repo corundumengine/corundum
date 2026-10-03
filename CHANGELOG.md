@@ -9,6 +9,21 @@ while the major version is 0, the public API may change between minor releases.
 
 ## Unreleased
 
+Phase D of the UI & quest architecture plan — the depth screens, backed by
+flags and static content registries:
+
+- **Codex**: `data/codex/*.json` lore entries, unlocked via `unlock_codex('id')`
+  or a `codex.<id>` flag, shown in a two-pane codex screen (`C` / gamepad X)
+  with a dirty-flagged cache of unlocked entries.
+- **Map / fast-travel**: `data/locations/*.json` destinations, discovered via
+  `discover_location('id')` or `location.<id>.discovered`, shown in a map screen
+  (`M` / gamepad Back) that arms a scene transition on Activate.
+- **Loot / container**: `open_container('id')` dialogue event opens a two-pane
+  transfer screen over flags stored under `container.<id>.item.<item>`.
+- **Barter / merchant**: `data/shops/*.json` merchants opened with
+  `open_shop('id')`; buy/sell two-tab screen with `rep.<faction>` buy discounts
+  and an item `price` field added to the item format.
+
 ## 0.2.0 - 2026-09-30
 
 The first milestone: a working isometric RPG engine, from the frame loop and

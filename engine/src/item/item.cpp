@@ -69,6 +69,9 @@ namespace corundum::item {
       if (root.contains("icon"))
         item.icon = root["icon"].get<std::string>();
 
+      if (root.contains("price"))
+        item.price = root["price"].get<int>();
+
       // Schema guarantees: category enum, and the payload object present when category
       // is declared. Absent category → Misc, absent payload → defaulted struct.
       item.category = parse_category(root);

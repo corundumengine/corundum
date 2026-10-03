@@ -73,14 +73,15 @@ namespace corundum::item {
    *  author likes) and carries no meaning the engine parses.
    *  Runtime quantity is tracked separately as an "item.<id>" count in the FlagStore. */
   struct Item {
-    std::optional<ApparelData> apparel; ///< Populated when category is Apparel.
+    std::optional<ApparelData> apparel{}; ///< Populated when category is Apparel.
     ItemCategory category = ItemCategory::Misc;
-    std::string description;          ///< Flavor / tooltip text.
-    std::string icon;                 ///< Optional icon reference (unused in MVP; reserved).
-    std::string id;                   ///< Unique key.
-    std::string name;                 ///< Display name.
-    std::optional<PotionData> potion; ///< Populated when category is Potion.
-    std::optional<WeaponData> weapon; ///< Populated when category is Weapon.
+    std::string description{};          ///< Flavor / tooltip text.
+    std::string icon{};                 ///< Optional icon reference (unused in MVP; reserved).
+    std::string id{};                   ///< Unique key.
+    std::string name{};                 ///< Display name.
+    std::optional<PotionData> potion{}; ///< Populated when category is Potion.
+    int price{};                        ///< Base gold value; 0 means not for sale. Shops may override per stock entry.
+    std::optional<WeaponData> weapon{}; ///< Populated when category is Weapon.
   };
 
 } // namespace corundum::item

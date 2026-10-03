@@ -19,11 +19,6 @@
 
 namespace corundum::ui {
 
-  namespace {
-    /// FlagStore key holding the player's currency.
-    constexpr std::string_view k_gold_flag = "gold";
-  } // namespace
-
   HudStripData build_hud_strip(const world::FlagStore &flags, const quest::Registry &quests, std::string_view zone_id) {
     HudStripData data{};
     data.gold = world::visit_count(flags, std::string{k_gold_flag});

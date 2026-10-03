@@ -13,6 +13,9 @@
 
 namespace corundum::ui {
 
+  /** @brief FlagStore key holding the player's currency. */
+  inline constexpr std::string_view k_gold_flag = "gold";
+
   /** @brief The persistent one-line HUD's content: gold and the tracked active quest. */
   struct HudStripData {
     int gold{};
