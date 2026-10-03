@@ -20,8 +20,9 @@ namespace corundum::world {
    * @brief Advance game state by one fixed timestep.
    *
    * Dispatches on the current mode: steps the active dialogue, the portal-confirm prompt,
-   * or the inventory, or drives exploring physics. Writes a pending_transition into
-   * @p scene when the player steps on a portal.
+   * or drives exploring physics. Inventory, Journal and the other hub/system screens are
+   * stepped by Engine::update_engine_screens() instead, so this is not called for them.
+   * Writes a pending_transition into @p scene when the player steps on a portal.
    *
    * @param scene       All mutable game-world state.
    * @param cfg         Immutable game configuration.

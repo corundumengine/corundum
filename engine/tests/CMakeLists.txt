@@ -91,6 +91,7 @@ set(TEST_SOURCES
     root/test_engine_events.cpp
     root/test_engine_lifecycle.cpp
     root/test_engine_options.cpp
+    root/test_hub.cpp
     root/test_inventory_toggle.cpp
     root/test_journal_toggle.cpp
     root/test_pause_menu.cpp
@@ -120,6 +121,7 @@ set(TEST_SOURCES
     # ui
     ui/test_dialog_reveal.cpp
     ui/test_hud_strip.cpp
+    ui/test_hub_tabs.cpp
     ui/test_input_glyph.cpp
     ui/test_journal.cpp
     ui/test_menu.cpp

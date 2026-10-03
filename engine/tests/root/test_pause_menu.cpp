@@ -85,7 +85,8 @@ TEST_CASE("pause menu: does not open over another screen") {
   init_engine(engine);
   engine.scene.ui.push(GameMode::Journal);
 
-  CHECK_FALSE(press(engine, corundum::input::Action::Menu));
+  // Journal is an engine screen now, so it owns the step; the menu must still not open over it.
+  press(engine, corundum::input::Action::Menu);
   CHECK(engine.scene.mode() == GameMode::Journal);
 
   engine.cleanup();

@@ -5,10 +5,13 @@
 
 #include <corundum/engine.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/input/input_intent.hpp>
 #include <corundum/world/scene.hpp>
+#include <corundum/world/ui_stack.hpp>
 
 #include "world_transition_fixtures.hpp"
 
+#include <cstddef>
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -16,8 +19,19 @@ namespace fs = std::filesystem;
 namespace {
 
   using corundum::test::adopt_platform;
-  using corundum::test::advance_with;
   using corundum::test::make_world_config;
+  using corundum::world::GameMode;
+
+  /// Route one physical action press through the engine's UI step, exactly as the fixed-step
+  /// loop does. Inventory is an engine-owned hub tab, stepped by Engine, not world::update, so
+  /// the shared advance_with() helper cannot drive it.
+  bool press(corundum::Engine &engine, corundum::input::Action action) {
+    corundum::input::InputState state{};
+    state.pressed.set(static_cast<std::size_t>(action));
+    engine.input_state = state;
+    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+    return engine.update_engine_screens(intent);
+  }
 
 } // namespace
 
@@ -27,7 +41,6 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
-  using corundum::world::GameMode;
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
   REQUIRE(engine.scene.inventory_cursor == 0);
 
@@ -37,42 +50,70 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   engine.flags["item.c"] = 1;
 
   // Press I: Exploring → Inventory, cursor reset.
-  advance_with(engine, corundum::input::Action::Inventory);
+  press(engine, corundum::input::Action::Inventory);
   CHECK(engine.scene.mode() == GameMode::Inventory);
   CHECK(engine.scene.inventory_cursor == 0);
 
   // Arrows move the highlight while paused.
-  advance_with(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
   CHECK(engine.scene.mode() == GameMode::Inventory);
   CHECK(engine.scene.inventory_cursor == 1);
-  advance_with(engine, corundum::input::Action::MoveUp);
+  press(engine, corundum::input::Action::MoveUp);
   CHECK(engine.scene.inventory_cursor == 0);
 
   // Down past the last row wraps to the first (dialogue choice-list behaviour).
-  advance_with(engine, corundum::input::Action::MoveDown);
-  advance_with(engine, corundum::input::Action::MoveDown);
-  advance_with(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
   CHECK(engine.scene.inventory_cursor == 0);
 
   // Up past the first row wraps to the last.
-  advance_with(engine, corundum::input::Action::MoveUp);
+  press(engine, corundum::input::Action::MoveUp);
   CHECK(engine.scene.inventory_cursor == 2);
 
   // Press I again: Inventory → Exploring.
-  advance_with(engine, corundum::input::Action::Inventory);
+  press(engine, corundum::input::Action::Inventory);
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
   // Esc also closes an open panel.
-  advance_with(engine, corundum::input::Action::Inventory);
+  press(engine, corundum::input::Action::Inventory);
   REQUIRE(engine.scene.mode() == GameMode::Inventory);
-  advance_with(engine, corundum::input::Action::Cancel);
+  press(engine, corundum::input::Action::Cancel);
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
   // Opening again resets the cursor to the top.
-  advance_with(engine, corundum::input::Action::MoveDown);
-  advance_with(engine, corundum::input::Action::Inventory);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::Inventory);
   CHECK(engine.scene.mode() == GameMode::Inventory);
   CHECK(engine.scene.inventory_cursor == 0);
+
+  engine.cleanup();
+}
+
+TEST_CASE("inventory — rows are built once on open and not rebuilt while it stays open") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+
+  engine.flags["item.a"] = 1;
+  engine.flags["item.b"] = 1;
+
+  press(engine, corundum::input::Action::Inventory);
+  REQUIRE(engine.scene.mode() == GameMode::Inventory);
+  REQUIRE(engine.scene.inventory_lines.size() == 2);
+
+  // The inventory is read-only while open: a flag mutated from outside must not change the
+  // cached rows until the tab is reopened (the whole point of building once on open).
+  engine.flags["item.c"] = 1;
+  press(engine, corundum::input::Action::MoveDown);
+  CHECK(engine.scene.inventory_lines.size() == 2);
+
+  // Reopening rebuilds from the current flags.
+  press(engine, corundum::input::Action::Cancel);
+  press(engine, corundum::input::Action::Inventory);
+  CHECK(engine.scene.inventory_lines.size() == 3);
 
   engine.cleanup();
 }

@@ -50,8 +50,17 @@ TEST_CASE("bindings: defaults") {
   CHECK(std::ranges::find(defaults, Binding{.action = Action::Select, .input = physical(GamepadControl::A)}) !=
         defaults.end());
   CHECK(std::ranges::find(defaults, Binding{.action = Action::Journal, .input = physical(Key::J)}) != defaults.end());
-  CHECK(std::ranges::find(defaults, Binding{.action = Action::Journal, .input = physical(GamepadControl::Y)}) !=
+  CHECK(std::ranges::find(defaults, Binding{.action = Action::Hub, .input = physical(GamepadControl::Y)}) !=
         defaults.end());
+  // The hub replaces the per-screen gamepad buttons: only Hub opens the four menu tabs on a pad.
+  CHECK(inputs_for(defaults, Action::Journal).size() == 1);
+  CHECK(inputs_for(defaults, Action::Codex).size() == 1);
+  CHECK(inputs_for(defaults, Action::Map).size() == 1);
+  CHECK(inputs_for(defaults, Action::Inventory).size() == 1);
+  CHECK(std::ranges::find(defaults, Binding{.action = Action::SubTabPrev,
+                                            .input = physical(GamepadControl::LeftTrigger)}) != defaults.end());
+  CHECK(std::ranges::find(defaults, Binding{.action = Action::SubTabNext,
+                                            .input = physical(GamepadControl::RightTrigger)}) != defaults.end());
   CHECK(std::ranges::find(defaults, Binding{.action = Action::Activate, .input = physical(Key::Enter)}) !=
         defaults.end());
   CHECK(std::ranges::find(defaults, Binding{.action = Action::Activate, .input = physical(GamepadControl::A)}) !=

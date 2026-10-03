@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/codex/loader.hpp>
+#include <corundum/codex/codex.hpp>
 #include <corundum/codex/registry.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
@@ -19,7 +19,7 @@
 #include <corundum/input/physical_input.hpp>
 #include <corundum/item/container.hpp>
 #include <corundum/item/item.hpp>
-#include <corundum/location/loader.hpp>
+#include <corundum/location/location.hpp>
 #include <corundum/location/registry.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -31,13 +31,21 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/settings/user_settings.hpp>
-#include <corundum/shop/loader.hpp>
 #include <corundum/shop/registry.hpp>
+#include <corundum/shop/shop.hpp>
+#include <corundum/ui/barter.hpp>
+#include <corundum/ui/codex.hpp>
 #include <corundum/ui/dialog_box.hpp>
+#include <corundum/ui/hub_tabs.hpp>
 #include <corundum/ui/hud_strip.hpp>
+#include <corundum/ui/inventory_panel.hpp>
+#include <corundum/ui/journal.hpp>
+#include <corundum/ui/loot.hpp>
+#include <corundum/ui/map.hpp>
 #include <corundum/ui/menu.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
+#include <corundum/world/flags.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/spawn.hpp>
@@ -49,6 +57,7 @@
 #include "core/warn_log.hpp"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <chrono>
 #include <cstddef>
@@ -495,6 +504,106 @@ namespace corundum {
       return (current + delta + count) % count;
     }
 
+    /// One row of the menu hub's action → tab table.
+    struct HubTabAction {
+      input::Action action{};
+
+      world::GameMode mode{};
+    };
+
+    /// The keyboard hotkeys that open a hub tab directly (I/J/C/M).
+    constexpr std::array<HubTabAction, 4> k_hub_tab_actions{
+        {
+            {.action = input::Action::Inventory, .mode = world::GameMode::Inventory},
+            {.action = input::Action::Journal, .mode = world::GameMode::Journal},
+            {.action = input::Action::Codex, .mode = world::GameMode::Codex},
+            {.action = input::Action::Map, .mode = world::GameMode::Map},
+        },
+    };
+
+    /// Next hub tab relative to @p mode by @p direction (+1 / -1), wrapping.
+    world::GameMode cycle_hub_tab(world::GameMode mode, int direction) noexcept {
+      std::size_t index = 0;
+      for (std::size_t i = 0; i < ui::k_hub_tab_modes.size(); ++i) {
+        if (ui::k_hub_tab_modes[i] == mode)
+          index = i;
+      }
+      const auto count = static_cast<int>(ui::k_hub_tab_modes.size());
+      const int next = (((static_cast<int>(index) + direction) % count) + count) % count;
+      return ui::k_hub_tab_modes[static_cast<std::size_t>(next)];
+    }
+
+    /// Reset a hub tab's open-time state: its cursor, and any cache the tab owns.
+    void open_hub_tab(Engine &engine, world::GameMode mode) {
+      engine.scene.last_hub_mode = mode;
+      switch (mode) {
+        case world::GameMode::Inventory:
+          engine.scene.inventory_cursor = 0;
+          // Built once here rather than every render frame: the inventory is read-only and the
+          // simulation is paused while it is open, so there is no mutation to invalidate it.
+          engine.scene.inventory_lines = ui::build_inventory_lines(engine.flags, engine.items);
+          break;
+        case world::GameMode::Journal:
+          engine.scene.journal_cursor = 0;
+          break;
+        case world::GameMode::Codex:
+          engine.codex_screen.cursor = 0;
+          engine.codex_screen.scroll = 0.f;
+          ui::codex_mark_dirty(engine.codex_screen);
+          ui::refresh_codex(engine.codex_screen, engine.codex, engine.flags);
+          break;
+        case world::GameMode::Map:
+          engine.map_screen.cursor = 0;
+          break;
+        default:
+          break;
+      }
+    }
+
+    /// Replace the top hub layer with @p mode (tab switch), reselecting that tab's state.
+    void switch_hub_tab(Engine &engine, world::GameMode mode) {
+      engine.scene.ui.pop();
+      engine.scene.ui.push(mode);
+      open_hub_tab(engine, mode);
+    }
+
+    /// Step the Inventory hub tab: Cancel closes it; Up/Down wrap the highlight within the cached
+    /// held-item rows.
+    void update_inventory(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back) {
+        engine.scene.ui.pop();
+        return;
+      }
+      const int delta = intent.navigate_y;
+      if (delta == 0)
+        return;
+      const int rows = static_cast<int>(engine.scene.inventory_lines.size());
+      if (rows <= 0) {
+        engine.scene.inventory_cursor = 0;
+        return;
+      }
+      engine.scene.inventory_cursor = wrap_cursor(engine.scene.inventory_cursor, delta, rows);
+    }
+
+    /// Step the Journal hub tab: Cancel closes it; Up/Down wrap the highlight within the
+    /// started-quest rows.
+    void update_journal(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back) {
+        engine.scene.ui.pop();
+        return;
+      }
+      const int delta = intent.navigate_y;
+      if (delta == 0)
+        return;
+      const int rows =
+          static_cast<int>(ui::build_journal_entries(engine.quests, engine.flags, engine.scene.zone_id).size());
+      if (rows <= 0) {
+        engine.scene.journal_cursor = 0;
+        return;
+      }
+      engine.scene.journal_cursor = wrap_cursor(engine.scene.journal_cursor, delta, rows);
+    }
+
     /// Live values the Settings screen shows, read from the engine each frame it renders.
     ui::SettingsValues settings_values(const Engine &engine) {
       return ui::SettingsValues{
@@ -638,14 +747,15 @@ namespace corundum {
       }
     }
 
-    /// Step the Codex screen: Back/C closes it, Up/Down move the highlighted entry, and the
+    /// Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, and the
     /// scroll wheel scrolls the detail body. Rows are refreshed from the registry + flags on the
-    /// first step after an open or unlock (dirty-flagged).
+    /// first step after an open or unlock (dirty-flagged). The Codex hotkey is handled by the hub
+    /// table, which toggles this tab off before this step would run.
     void update_codex(Engine &engine, const input::InputIntent &intent) {
       ui::CodexState &state = engine.codex_screen;
       ui::refresh_codex(state, engine.codex, engine.flags);
 
-      if (intent.back || engine.input_state.is_pressed(input::Action::Codex)) {
+      if (intent.back) {
         engine.scene.ui.pop();
         return;
       }
@@ -660,10 +770,11 @@ namespace corundum {
         state.scroll = std::max(0.f, state.scroll - intent.scroll_y);
     }
 
-    /// Step the Map screen: Back/M closes it, Up/Down move the highlighted destination, and
-    /// Activate fast-travels. A destination already in the active zone is a no-op.
+    /// Step the Map hub tab: Cancel closes it, Up/Down move the highlighted destination, and
+    /// Activate fast-travels. A destination already in the active zone is a no-op. The Map hotkey
+    /// is handled by the hub table, which toggles this tab off before this step would run.
     void update_map(Engine &engine, const input::InputIntent &intent) {
-      if (intent.back || engine.input_state.is_pressed(input::Action::Map)) {
+      if (intent.back) {
         engine.scene.ui.pop();
         return;
       }
@@ -839,6 +950,10 @@ namespace corundum {
         // Cancel — opening consumes the step so the same press cannot also close the fresh menu.
         const bool engine_screen_active = engine.update_engine_screens(intent);
 
+        // Transient UI keeps aging while a screen pauses the simulation, so a toast raised just
+        // before opening a screen still expires instead of freezing on display.
+        engine.toasts.update(engine.timer.target_dt);
+
         if (!engine_screen_active) {
           engine.scene.elapsed_time += engine.timer.target_dt;
 
@@ -859,7 +974,6 @@ namespace corundum {
           // Dialogue, quests, and the hook run every step — including World mode with nothing
           // streamed in — so queued work is never stranded while elapsed_time advances.
           engine.process_dialogue_events();
-          engine.toasts.update(engine.timer.target_dt);
           if (engine.scene.dialogue)
             ui::dialog_box_advance(engine.render.dialog_box, *engine.scene.dialogue, engine.timer.target_dt);
           quest::tick_quests(engine.quests, engine.flags, engine.scene.zone_id);
@@ -878,8 +992,8 @@ namespace corundum {
     void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
       if (!engine.renderer->begin_frame(engine.clear_colour))
         return;
-      render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.items,
-                     &engine.quests, &engine.toasts, alpha, engine.window_width(), engine.window_height(),
+      render::render(*engine.renderer, engine.render, engine.cfg, engine.scene, engine.flags, &engine.quests,
+                     &engine.toasts, alpha, engine.window_width(), engine.window_height(),
                      engine.input_mapper.last_device());
 
       // The engine-owned Menu/Settings screens draw over the world overlays. They live here rather
@@ -939,6 +1053,12 @@ namespace corundum {
           break;
       }
 
+      // The hub tab strip draws over every hub panel, in the top margin so it never overlaps one.
+      if (world::is_hub_mode(engine.scene.mode())) {
+        ui::hub_tab_strip_render(*engine.renderer, engine.render.dialog_box.style, engine.scene.mode(), viewport,
+                                 engine.input_mapper.last_device());
+      }
+
       const debug::OverlayInput hud_input{
           .render_state = &engine.render,
           .cfg = &engine.cfg,
@@ -961,34 +1081,60 @@ namespace corundum {
   bool Engine::update_engine_screens(const input::InputIntent &intent) {
     using world::GameMode;
 
-    // Opening a screen consumes the step: the same press that opened it must not also be
-    // routed to the fresh screen (C would open then immediately close the codex).
-    bool opened_screen = false;
+    // The menu hub: one gamepad button (Hub) toggles the last-used tab, and the I/J/C/M hotkeys
+    // select a tab directly. The hub is not a GameMode of its own — it is the convention that the
+    // top of the UI stack is one of Inventory/Journal/Codex/Map. Opening, switching or closing
+    // consumes the step so the same press cannot also act on the fresh screen.
+    const bool on_hub_tab = world::is_hub_mode(scene.mode());
+    if (input_state.is_pressed(input::Action::Hub)) {
+      if (on_hub_tab) {
+        scene.ui.pop();
+        return true;
+      }
+      if (scene.mode() == GameMode::Exploring) {
+        open_hub_tab(*this, scene.last_hub_mode);
+        scene.ui.push(scene.last_hub_mode);
+        return true;
+      }
+    }
+    for (const HubTabAction &row : k_hub_tab_actions) {
+      if (!input_state.is_pressed(row.action))
+        continue;
+      if (scene.mode() == row.mode) {
+        scene.ui.pop();
+        return true;
+      }
+      if (on_hub_tab) {
+        switch_hub_tab(*this, row.mode);
+        return true;
+      }
+      if (scene.mode() == GameMode::Exploring) {
+        open_hub_tab(*this, row.mode);
+        scene.ui.push(row.mode);
+        return true;
+      }
+      // Another screen (dialogue, prompt, menu, loot, barter) is on top: the hotkey does nothing.
+    }
+
+    // While a hub tab is on top, TabNext/TabPrev cycle the four tabs by replacing the top layer;
+    // the newly active screen's step runs below.
+    if (on_hub_tab && (intent.next_tab || intent.prev_tab))
+      switch_hub_tab(*this, cycle_hub_tab(scene.mode(), intent.next_tab ? 1 : -1));
+
+    // Opening the pause menu consumes the step (the Esc that opens it is also Cancel).
     if (input_state.is_pressed(input::Action::Menu) && scene.mode() == GameMode::Exploring) {
       scene.ui.push(GameMode::Menu);
       menu.cursor = 0;
-      opened_screen = true;
-    }
-
-    if (input_state.is_pressed(input::Action::Codex) && scene.mode() == GameMode::Exploring) {
-      scene.ui.push(GameMode::Codex);
-      codex_screen.cursor = 0;
-      codex_screen.scroll = 0.f;
-      ui::codex_mark_dirty(codex_screen);
-      ui::refresh_codex(codex_screen, codex, flags);
-      opened_screen = true;
-    }
-
-    if (input_state.is_pressed(input::Action::Map) && scene.mode() == GameMode::Exploring) {
-      scene.ui.push(GameMode::Map);
-      map_screen.cursor = 0;
-      opened_screen = true;
-    }
-
-    if (opened_screen)
       return true;
+    }
 
     switch (scene.mode()) {
+      case GameMode::Inventory:
+        update_inventory(*this, intent);
+        return true;
+      case GameMode::Journal:
+        update_journal(*this, intent);
+        return true;
       case GameMode::Codex:
         update_codex(*this, intent);
         return true;

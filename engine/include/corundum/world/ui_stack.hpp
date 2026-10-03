@@ -24,8 +24,18 @@ namespace corundum::world {
     Loot,
     Barter,
     Menu,
-    Settings
+    Settings,
   };
+
+  /** @brief True when @p mode is one of the four screens reachable from the menu hub.
+   *
+   *  The hub has no GameMode of its own: it is the convention that `UIStack::top()` is one of
+   *  these four, which a single gamepad Hub button (or the I/J/C/M keyboard hotkeys) opens and
+   *  switches between.
+   */
+  [[nodiscard]] constexpr bool is_hub_mode(GameMode mode) noexcept {
+    return mode == GameMode::Inventory || mode == GameMode::Journal || mode == GameMode::Codex || mode == GameMode::Map;
+  }
 
   /** @brief The ordered stack of open UI screens, top last.
    *

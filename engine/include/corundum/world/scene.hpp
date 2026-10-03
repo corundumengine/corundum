@@ -8,6 +8,7 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <corundum/ui/inventory_panel.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -92,9 +93,17 @@ namespace corundum::world {
     /// update_inventory().
     int inventory_cursor{};
 
+    /// Held-item rows of the Inventory hub tab, rebuilt when the tab is opened or switched to.
+    /// The inventory is read-only and the simulation is paused while it is open, so there is no
+    /// per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation").
+    std::vector<corundum::ui::InventoryLine> inventory_lines;
+
     /// Highlighted row while mode == GameMode::Journal; wrapped against the started-quest count by
     /// update_journal().
     int journal_cursor{};
+
+    /// Hub tab the Hub button (gamepad Y) reopens; the last tab that was opened or switched to.
+    GameMode last_hub_mode{GameMode::Inventory};
 
     /// Stack of open UI screens; top() is GameMode::Exploring while it is empty. Push to open a
     /// screen, pop (Cancel) to peel one layer.

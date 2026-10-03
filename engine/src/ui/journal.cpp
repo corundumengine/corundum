@@ -109,9 +109,9 @@ namespace corundum::ui {
     const float cursor_w = cursor_advance(r, style);
     const float objective_indent = cursor_w + 8.f;
     const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
-    // Footer hint reflects whichever device the player last used (ui::input_glyph).
-    const std::string footer = std::format("{} / {} Close", input_glyph(input::Action::Cancel, last_device),
-                                           input_glyph(input::Action::Journal, last_device));
+    // Footer hint reflects whichever device the player last used (ui::input_glyph). Journal is a
+    // hub tab now, so both Cancel and the Hub toggle close it; show the universal Cancel glyph.
+    const std::string footer = std::format("{} Close", input_glyph(input::Action::Cancel, last_device));
     const float footer_w = r.measure_text(style.font_id, footer, style.font_size_body);
 
     // Walk the (already lifecycle-sorted) entries once to size the panel: group count, total

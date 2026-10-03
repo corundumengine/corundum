@@ -8,8 +8,6 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/item/item.hpp>
-#include <corundum/ui/journal.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
@@ -24,7 +22,6 @@
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 
-#include <algorithm>
 #include <cstdint>
 
 namespace {
@@ -123,65 +120,6 @@ namespace {
     }
   }
 
-  /// Modulo wrap of a list cursor, matching the dialogue choice-list cursor
-  /// (dialogue/conversation.cpp): Down past the last row lands on the first, Up past
-  /// the first lands on the last. `count` must be > 0.
-  int wrap_cursor(int current, int delta, int count) noexcept {
-    return (current + delta + count) % count;
-  }
-
-  /// Step a paused-on-inventory scene: Cancel returns to the mode beneath (Exploring when only
-  /// this layer is open); MoveUp/MoveDown wrap the highlight within the held-item rows (the same
-  /// count build_inventory_lines renders). Not calling update_exploring here is what pauses the
-  /// player (same mechanism as Dialogue / Prompt). The held-item scan runs only when a move is
-  /// pressed.
-  void update_inventory(corundum::world::Scene &scene, const corundum::input::InputIntent &intent,
-                        const corundum::world::FlagStore &flags) {
-    if (intent.back) {
-      scene.ui.pop();
-      return;
-    }
-
-    const int delta = intent.navigate_y;
-    if (delta == 0)
-      return;
-
-    const int rows = static_cast<int>(
-        std::ranges::count_if(flags, [](const auto &kv) { return corundum::item::is_held_item(kv.first, kv.second); }));
-    if (rows <= 0) {
-      scene.inventory_cursor = 0;
-      return;
-    }
-
-    scene.inventory_cursor = wrap_cursor(scene.inventory_cursor, delta, rows);
-  }
-
-  /// Step a paused-on-journal scene: Cancel (or pressing J again, handled by the toggle in
-  /// update()) returns to the mode beneath; MoveUp/MoveDown wrap the highlight within the
-  /// started-quest rows (the same list build_journal_entries renders). Like inventory, not
-  /// calling update_exploring is what pauses the player.
-  void update_journal(corundum::world::Scene &scene, const corundum::input::InputIntent &intent,
-                      const corundum::quest::Registry *quests, const corundum::world::FlagStore &flags) {
-    if (intent.back) {
-      scene.ui.pop();
-      return;
-    }
-
-    const int delta = intent.navigate_y;
-    if (delta == 0)
-      return;
-
-    const int rows = quests != nullptr
-                         ? static_cast<int>(corundum::ui::build_journal_entries(*quests, flags, scene.zone_id).size())
-                         : 0;
-    if (rows <= 0) {
-      scene.journal_cursor = 0;
-      return;
-    }
-
-    scene.journal_cursor = wrap_cursor(scene.journal_cursor, delta, rows);
-  }
-
 } // namespace
 
 namespace corundum::world {
@@ -190,24 +128,6 @@ namespace corundum::world {
               const corundum::input::InputState &input, const MapView &map, float dt, float win_w, float win_h,
               FlagStore &flags, const quest::Registry *quests, input::InputDevice last_device) {
     const input::InputIntent intent = input::make_input_intent(input, last_device);
-
-    if (input.is_pressed(input::Action::Inventory)) {
-      if (scene.mode() == GameMode::Exploring) {
-        scene.ui.push(GameMode::Inventory);
-        scene.inventory_cursor = 0;
-      } else if (scene.mode() == GameMode::Inventory) {
-        scene.ui.pop();
-      }
-    }
-
-    if (input.is_pressed(input::Action::Journal)) {
-      if (scene.mode() == GameMode::Exploring) {
-        scene.ui.push(GameMode::Journal);
-        scene.journal_cursor = 0;
-      } else if (scene.mode() == GameMode::Journal) {
-        scene.ui.pop();
-      }
-    }
 
     // Camera zoom is only applied while free-roaming: update_exploring re-clamps the
     // viewport via follow_player on the same step, which apply_zoom requires.
@@ -233,12 +153,6 @@ namespace corundum::world {
       case corundum::world::GameMode::Prompt:
         update_transition_prompt(scene, intent);
         break;
-      case corundum::world::GameMode::Inventory:
-        update_inventory(scene, intent, flags);
-        break;
-      case corundum::world::GameMode::Journal:
-        update_journal(scene, intent, quests, flags);
-        break;
       case corundum::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
         // update_exploring may have armed a portal prompt (mode → Prompt), whose
@@ -246,6 +160,8 @@ namespace corundum::world {
         if (scene.mode() == GameMode::Exploring)
           corundum::dialogue::try_interact(scene, intent, cfg, graphs, flags, quests);
         break;
+      case corundum::world::GameMode::Inventory:
+      case corundum::world::GameMode::Journal:
       case corundum::world::GameMode::Menu:
       case corundum::world::GameMode::Settings:
       case corundum::world::GameMode::Codex:

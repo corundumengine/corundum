@@ -23,15 +23,18 @@ namespace corundum::input {
     Quit,
     ZoomIn,
     ZoomOut,
-    Inventory,
-    Journal,
-    Codex,     ///< Lore/codex screen toggle (C / gamepad X).
-    Map,       ///< World map / fast-travel screen toggle (M / gamepad Back).
-    Menu,      ///< Pause/system menu toggle (Esc / gamepad Start).
-    TabNext,   ///< Next settings/journal tab (E / gamepad R1).
-    TabPrev,   ///< Previous settings/journal tab (Q / gamepad L1).
-    QuickSave, ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
-    QuickLoad, ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
+    Inventory,  ///< Inventory hotkey (I). Opens the hub on the Inventory tab.
+    Journal,    ///< Journal hotkey (J). Opens the hub on the Journal tab.
+    Codex,      ///< Codex hotkey (C). Opens the hub on the Codex tab.
+    Map,        ///< Map/fast-travel hotkey (M). Opens the hub on the Map tab.
+    Menu,       ///< Pause/system menu toggle (Esc / gamepad Start).
+    Hub,        ///< Menu-hub toggle (gamepad Y). Opens the last hub tab; closes it when one is on top.
+    TabNext,    ///< Next tab: settings pages, barter Buy/Sell, hub tabs (] / gamepad R1).
+    TabPrev,    ///< Previous tab: settings pages, barter Buy/Sell, hub tabs ([ / gamepad L1).
+    SubTabNext, ///< Next sub-tab inside a hub tab: journal Active/Completed/Failed (. / gamepad R2).
+    SubTabPrev, ///< Previous sub-tab inside a hub tab: journal Active/Completed/Failed (, / gamepad L2).
+    QuickSave,  ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
+    QuickLoad,  ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
     Count,
   };
 

@@ -36,10 +36,10 @@ namespace corundum::input {
     /** @brief Action::Cancel was pressed this step. */
     bool back{};
 
-    /** @brief Action::TabNext was pressed this step (settings/journal tab forward). */
+    /** @brief Action::TabNext was pressed this step (settings pages, barter Buy/Sell, hub tabs). */
     bool next_tab{};
 
-    /** @brief Action::TabPrev was pressed this step (settings/journal tab back). */
+    /** @brief Action::TabPrev was pressed this step (settings pages, barter Buy/Sell, hub tabs). */
     bool prev_tab{};
 
     /** @brief Cursor position in window pixels. */

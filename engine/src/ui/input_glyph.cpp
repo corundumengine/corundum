@@ -44,10 +44,16 @@ namespace corundum::ui {
           return "M";
         case Action::Menu:
           return "Esc";
+        case Action::Hub:
+          return "?"; // gamepad-only; keyboard opens hub tabs with I/J/C/M
         case Action::TabNext:
           return "]";
         case Action::TabPrev:
           return "[";
+        case Action::SubTabNext:
+          return ".";
+        case Action::SubTabPrev:
+          return ",";
         case Action::QuickSave:
           return "F5";
         case Action::QuickLoad:
@@ -83,18 +89,18 @@ namespace corundum::ui {
           return "A";
         case Action::Cancel:
           return "B";
-        case Action::Journal:
+        case Action::Hub:
           return "Y";
-        case Action::Codex:
-          return "X";
-        case Action::Map:
-          return "Back";
         case Action::Menu:
           return "Start";
         case Action::TabNext:
           return "R1";
         case Action::TabPrev:
           return "L1";
+        case Action::SubTabNext:
+          return "R2";
+        case Action::SubTabPrev:
+          return "L2";
         case Action::MoveUp:
           return "D-Up";
         case Action::MoveDown:

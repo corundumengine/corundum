@@ -7,7 +7,9 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/render/render_state.hpp>
+#include <corundum/world/flags.hpp>
 
+#include <cstdint>
 #include <expected>
 #include <optional>
 #include <string>
@@ -168,7 +170,6 @@ namespace corundum::render {
    *  @param[in]     cfg     Game config.
    *  @param[in]     scene   Scene (camera, entities, dialogue mode).
    *  @param[in]     flags   Persistent game flags for conditional dialogue rendering.
-   *  @param[in]     items   Loaded item registry for display names in the inventory panel; null hides it.
    *  @param[in]     quests  Loaded quest registry for the journal and HUD strip; null hides both.
    *  @param[in]     toasts  Live notification queue to stack bottom-left; null hides toasts.
    *  @param[in]     alpha   Interpolation factor in [0,1] for render smoothing.
@@ -178,9 +179,8 @@ namespace corundum::render {
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, const corundum::world::FlagStore &flags,
-              const corundum::item::Registry *items, const corundum::quest::Registry *quests,
-              const corundum::ui::ToastQueue *toasts, float alpha, int win_w, int win_h,
-              input::InputDevice last_device = input::InputDevice::Keyboard);
+              const corundum::quest::Registry *quests, const corundum::ui::ToastQueue *toasts, float alpha, int win_w,
+              int win_h, input::InputDevice last_device = input::InputDevice::Keyboard);
 
   /** @brief Tile width in source pixels of the first tileset in the first active chunk.
    *  @param[in] state  Render state.

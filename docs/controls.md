@@ -99,35 +99,56 @@ wrong from memory.
   deliberately unbound — what Start does is a game-design decision, not a
   hard-wired quit.
 
+### Menu Hub (Inventory / Journal / Codex / Map)
+
+- **Bindings**: gamepad Y/Triangle (Hub); keyboard `I` / `J` / `C` / `M`
+  select a tab directly.
+- **Effect**: the four menu screens live behind one hub screen with top-level
+  tabs. On a gamepad, **Hub** opens the hub on the last tab you used and
+  closes it when a tab is already open; on a keyboard, each of `I`/`J`/`C`/`M`
+  opens or switches to its own tab (and closes it when it is already on top).
+  `Cancel` closes whichever tab is showing.
+- **Tab switching**: the shoulder bumpers `L1`/`R1` cycle Inventory → Journal →
+  Codex → Map and wrap. On the keyboard `[` / `]` do the same.
+- **Scope**: the hub opens only from free-roam (Exploring) or when a tab is
+  already on top. It does not open over dialogue, a transition prompt, the
+  pause menu, the settings screen, loot or barter. Loot and barter are opened
+  from dialogue interactions, not from the hub.
+- **Note**: the four screens below describe each tab's own navigation; the
+  hotkey/button above reaches it.
+
 ### Inventory
 
-- **Bindings**: `I` (keyboard). No gamepad binding yet.
-- **Effect**: toggles the inventory panel. Opening it pauses the player; `I`
-  again or `Esc` closes it. Move Up/Down move the highlighted item row,
-  wrapping circularly.
+- **Bindings**: `I` (keyboard) opens the hub on the Inventory tab; gamepad Hub
+  (Y) then bumpers to reach it.
+- **Effect**: opening it pauses the player; `I` again or `Esc` closes it. Move
+  Up/Down move the highlighted item row, wrapping circularly. The row list is
+  built once when the tab opens (the inventory is read-only while paused).
 
 ### Journal (Quest Log)
 
-- **Bindings**: `J` (keyboard); gamepad Y/Triangle.
-- **Effect**: toggles the quest journal. Opening it pauses the player; `J`
-  again or `Esc` closes it. Move Up/Down move the highlighted quest row
-  (Active first, then Completed, then Failed), wrapping circularly.
+- **Bindings**: `J` (keyboard) opens the hub on the Journal tab; gamepad Hub
+  (Y) then bumpers.
+- **Effect**: opening it pauses the player; `J` again or `Esc` closes it. Move
+  Up/Down move the highlighted quest row (Active first, then Completed, then
+  Failed), wrapping circularly.
 
 ### Codex (Lore)
 
-- **Bindings**: `C` (keyboard); gamepad X/Square.
-- **Effect**: toggles the codex. Opening it pauses the player; `C` again or
-  `Esc` closes it. Move Up/Down move the highlighted entry (grouped by
-  category); the selected entry's body is wrapped in the detail pane and the
-  scroll wheel scrolls it. Only entries unlocked via `unlock_codex`/a
-  `codex.<id>` flag appear.
+- **Bindings**: `C` (keyboard) opens the hub on the Codex tab; gamepad Hub (Y)
+  then bumpers.
+- **Effect**: opening it pauses the player; `C` again or `Esc` closes it. Move
+  Up/Down move the highlighted entry (grouped by category); the selected
+  entry's body is wrapped in the detail pane and the scroll wheel scrolls it.
+  Only entries unlocked via `unlock_codex`/a `codex.<id>` flag appear.
 
 ### Map / Fast Travel
 
-- **Bindings**: `M` (keyboard); gamepad Back/Select.
-- **Effect**: toggles the world map. Opening it pauses the player; `M` again or
-  `Esc` closes it. Move Up/Down move the highlighted destination (only
-  discovered `location.<id>.discovered` locations appear); Enter/Space/gamepad A
+- **Bindings**: `M` (keyboard) opens the hub on the Map tab; gamepad Hub (Y)
+  then bumpers.
+- **Effect**: opening it pauses the player; `M` again or `Esc` closes it. Move
+  Up/Down move the highlighted destination (only discovered
+  `location.<id>.discovered` locations appear); Enter/Space/gamepad A
   fast-travels there. Travelling to the zone you are already in is a no-op.
 
 ### Loot and Barter (contextual)
@@ -181,10 +202,12 @@ The default binding table is built by `default_bindings()`
 (`engine/src/input/bindings.cpp`): each row pairs an `Action` with one
 `PhysicalInput` (a `Key`, `MouseButton`, or `GamepadControl`). Movement is
 WASD/arrows plus the left stick and D-pad; Select is Enter/Space, mouse-left
-and gamepad A; Cancel is Escape and gamepad B; Inventory is `I`; Journal is
-`J` and gamepad Y; Codex is `C` and gamepad X; Map is `M` and gamepad Back;
-Quit is `Q`; ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2;
-QuickSave/QuickLoad are F5/F9. The GLFW backend only translates GLFW tokens
+and gamepad A; Cancel is Escape and gamepad B; the four menu tabs are reached
+with `I`/`J`/`C`/`M` on the keyboard and gamepad Y (`Action::Hub`), with
+`TabNext`/`TabPrev` on `]`/`[` and the shoulder bumpers; `SubTabNext`/`SubTabPrev`
+are `.`/`,` and the analog triggers (shared with zoom); Quit is `Q`;
+ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2; QuickSave/QuickLoad are F5/F9.
+The GLFW backend only translates GLFW tokens
 to `PhysicalInput` (`engine/src/platform/glfw/input_translator.cpp`) and holds
 no bindings of its own.
 
@@ -247,10 +270,12 @@ device disconnects, so a held bit cannot latch.
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Talk`)                        | Advances the line                                                                                                                                    |
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Choice`)                      | Confirms the highlighted choice                                                                                                                      |
 | `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`)                                                                                                                     |
-| `Action::Inventory`                           | `world/update.cpp::update()`                                              | Toggles `GameMode::Inventory`; `update_inventory()` navigates and closes it                                                                          |
-| `Action::Journal`                             | `world/update.cpp::update()`                                              | Toggles `GameMode::Journal`; `update_journal()` navigates and closes it                                                                              |
-| `Action::Codex`                               | `engine.cpp::Engine::update_engine_screens()`                             | Toggles `GameMode::Codex`; `update_codex()` navigates and closes it                                                                                  |
-| `Action::Map`                                 | `engine.cpp::Engine::update_engine_screens()`                             | Toggles `GameMode::Map`; `update_map()` navigates and fast-travels on Activate                                                                       |
+| `Action::Inventory`                           | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Inventory hub tab; `update_inventory()` navigates and closes it                                                             |
+| `Action::Journal`                             | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Journal hub tab; `update_journal()` navigates and closes it                                                                 |
+| `Action::Hub`                                 | `engine.cpp::update_engine_screens()`                                     | Toggles the menu hub on `Scene::last_hub_mode`                                                                                                         |
+| `Action::Codex`                               | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Codex hub tab; `update_codex()` navigates and closes it                                                                     |
+| `Action::Map`                                 | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Map hub tab; `update_map()` navigates and fast-travels on Activate                                                          |
+| `Action::TabNext/TabPrev`                     | `engine.cpp::update_engine_screens()`                                     | Cycles the four hub tabs when one is on top; settings pages and barter Buy/Sell keep their own handling                                                 |
 | `Action::Quit`                                | `engine.cpp`'s main loop                                                  | Sets `engine.quit` and closes the window                                                                                                             |
 | `PlatformEvents::quit_requested`              | `engine.cpp`'s main loop                                                  | Sets `engine.quit` from an OS window-close request                                                                                                   |
 | `PlatformEvents::focus_lost` / `focus_gained` | `engine.cpp`'s main loop                                                  | Pauses the simulation and audio on focus loss, resumes on focus gain                                                                                 |

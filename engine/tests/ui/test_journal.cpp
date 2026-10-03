@@ -151,7 +151,7 @@ TEST_CASE("journal_panel_render: chrome, title, lifecycle headers, then one opti
 
   REQUIRE(texts.size() == 9);
   CHECK(texts[0] == "Journal");
-  CHECK(texts[1] == "Esc / J Close");
+  CHECK(texts[1] == "Esc Close");
   CHECK(texts[2] == "Active");
   CHECK(texts[3] == "> ");
   CHECK(texts[4] == "Ember");
@@ -170,7 +170,7 @@ TEST_CASE("journal_panel_render: the footer hint follows the last-used device") 
                                      corundum::input::InputDevice::Gamepad);
 
   const auto &footer = std::get<corundum::platform::DrawText>(r.log[10]);
-  CHECK(footer.text == "B / Y Close");
+  CHECK(footer.text == "B Close");
 }
 
 TEST_CASE("journal_panel_render: empty journal renders the placeholder line") {

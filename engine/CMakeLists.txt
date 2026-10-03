@@ -73,6 +73,7 @@ set(ENGINE_SOURCES
     src/ui/codex.cpp
     src/ui/dialog_box.cpp
     src/ui/hud_strip.cpp
+    src/ui/hub_tabs.cpp
     src/ui/input_glyph.cpp
     src/ui/inventory_panel.cpp
     src/ui/journal.cpp

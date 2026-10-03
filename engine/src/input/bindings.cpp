@@ -29,15 +29,27 @@ namespace corundum::input {
 
     constexpr std::array<std::pair<Action, std::string_view>, k_action_count> k_action_names{
         {
-            {Action::MoveUp, "MoveUp"},       {Action::MoveDown, "MoveDown"},
-            {Action::MoveLeft, "MoveLeft"},   {Action::MoveRight, "MoveRight"},
-            {Action::Select, "Select"},       {Action::Activate, "Activate"},
-            {Action::Cancel, "Cancel"},       {Action::Quit, "Quit"},
-            {Action::ZoomIn, "ZoomIn"},       {Action::ZoomOut, "ZoomOut"},
-            {Action::Inventory, "Inventory"}, {Action::Journal, "Journal"},
-            {Action::Codex, "Codex"},         {Action::Map, "Map"},
-            {Action::Menu, "Menu"},           {Action::TabNext, "TabNext"},
-            {Action::TabPrev, "TabPrev"},     {Action::QuickSave, "QuickSave"},
+            {Action::MoveUp, "MoveUp"},
+            {Action::MoveDown, "MoveDown"},
+            {Action::MoveLeft, "MoveLeft"},
+            {Action::MoveRight, "MoveRight"},
+            {Action::Select, "Select"},
+            {Action::Activate, "Activate"},
+            {Action::Cancel, "Cancel"},
+            {Action::Quit, "Quit"},
+            {Action::ZoomIn, "ZoomIn"},
+            {Action::ZoomOut, "ZoomOut"},
+            {Action::Inventory, "Inventory"},
+            {Action::Journal, "Journal"},
+            {Action::Codex, "Codex"},
+            {Action::Map, "Map"},
+            {Action::Menu, "Menu"},
+            {Action::Hub, "Hub"},
+            {Action::TabNext, "TabNext"},
+            {Action::TabPrev, "TabPrev"},
+            {Action::SubTabNext, "SubTabNext"},
+            {Action::SubTabPrev, "SubTabPrev"},
+            {Action::QuickSave, "QuickSave"},
             {Action::QuickLoad, "QuickLoad"},
         },
     };
@@ -69,6 +81,8 @@ namespace corundum::input {
         {.action = Action::Menu, .input = physical(Key::Escape)},
         {.action = Action::TabPrev, .input = physical(Key::LeftBracket)},
         {.action = Action::TabNext, .input = physical(Key::RightBracket)},
+        {.action = Action::SubTabPrev, .input = physical(Key::Comma)},
+        {.action = Action::SubTabNext, .input = physical(Key::Period)},
         {.action = Action::ZoomIn, .input = physical(Key::Equal)}, // '=' doubles as '+' without needing Shift
         {.action = Action::ZoomOut, .input = physical(Key::Minus)},
         {.action = Action::QuickSave, .input = physical(Key::F5)},
@@ -81,9 +95,13 @@ namespace corundum::input {
         {.action = Action::Menu, .input = physical(GamepadControl::Start)},
         {.action = Action::TabPrev, .input = physical(GamepadControl::LeftBumper)},
         {.action = Action::TabNext, .input = physical(GamepadControl::RightBumper)},
-        {.action = Action::Journal, .input = physical(GamepadControl::Y)},
-        {.action = Action::Codex, .input = physical(GamepadControl::X)},
-        {.action = Action::Map, .input = physical(GamepadControl::Back)},
+        // Hub is the one gamepad button for the four menu screens; the I/J/C/M keyboard hotkeys
+        // open a tab directly. Journal/Codex/Map stay in this table so a settings file saved
+        // before the hub (gamepad Y still bound to Journal) opens the hub on the Journal tab:
+        // fill_missing_defaults() will not steal Y back for Hub while Journal holds it.
+        {.action = Action::Hub, .input = physical(GamepadControl::Y)},
+        {.action = Action::SubTabPrev, .input = physical(GamepadControl::LeftTrigger)},
+        {.action = Action::SubTabNext, .input = physical(GamepadControl::RightTrigger)},
         {.action = Action::MoveUp, .input = physical(GamepadControl::LeftStickUp)},
         {.action = Action::MoveUp, .input = physical(GamepadControl::DpadUp)},
         {.action = Action::MoveDown, .input = physical(GamepadControl::LeftStickDown)},
