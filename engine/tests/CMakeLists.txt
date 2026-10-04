@@ -43,22 +43,8 @@ set(TEST_SOURCES
     entities/test_actor_id_table.cpp
     entities/test_entity.cpp
 
-    # gameplay
-    gameplay/codex/test_codex.cpp
-    gameplay/dialogue/test_compiled_expr.cpp
-    gameplay/dialogue/test_dialogue.cpp
-    gameplay/dialogue/test_zone_scope.cpp
-    gameplay/item/test_item_loader.cpp
-    gameplay/item/test_item_serialize.cpp
-    gameplay/location/test_location.cpp
-    gameplay/quest/test_quest.cpp
-    gameplay/screens/test_dialog_reveal.cpp
-    gameplay/screens/test_hub_tabs.cpp
-    gameplay/screens/test_hud_strip.cpp
-    gameplay/screens/test_journal.cpp
-    gameplay/screens/test_screen_draw.cpp
-    gameplay/shop/test_shop.cpp
-    gameplay/test_gameplay_umbrella_header.cpp
+    # gameplay tests are built into corundum_gameplay_tests by
+    # engine/tests/gameplay/CMakeLists.txt, not this binary.
 
     # input
     input/test_action_resolver.cpp
@@ -87,20 +73,11 @@ set(TEST_SOURCES
     render/test_world_walkability.cpp
 
     # root
-    root/test_engine_events.cpp
-    root/test_engine_lifecycle.cpp
     root/test_engine_options.cpp
-    root/test_hub.cpp
-    root/test_inventory_toggle.cpp
-    root/test_journal_toggle.cpp
-    root/test_pause_menu.cpp
-    root/test_phase_d_screens.cpp
     root/test_player_absent.cpp
-    root/test_screen_registry.cpp
     root/test_umbrella_header.cpp
 
-    # save
-    save/test_save.cpp
+    # save tests live in the gameplay binary (they build a Gameplay).
 
     # settings
     settings/test_user_settings.cpp
@@ -136,7 +113,6 @@ set(TEST_SOURCES
     world/test_tilemap_loader.cpp
     world/test_tilemap_validate.cpp
     world/test_transition_prompt.cpp
-    world/test_ui_stack.cpp
     world/test_world_manifest.cpp
     world/test_world_transition.cpp
 )
@@ -237,3 +213,7 @@ target_compile_definitions(corundum_tests PRIVATE
 # Enable CTest integration
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 doctest_discover_tests(corundum_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+# Gameplay tests build a separate binary that links corundum_gameplay, so the
+# engine binary above stays free of the gameplay framework.
+add_subdirectory(gameplay)

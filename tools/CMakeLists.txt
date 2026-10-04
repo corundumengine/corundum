@@ -92,6 +92,7 @@ target_include_directories(loom
 target_link_libraries(loom
     PRIVATE
         corundum::toolkit
+        corundum_gameplay
 )
 
 corundum_enable_warnings(loom)

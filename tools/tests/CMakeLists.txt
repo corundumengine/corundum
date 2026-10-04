@@ -1,7 +1,8 @@
 # Unit tests for tools/-scoped, non-UI logic: tilesmith coordinate math and palette
 # layout (coords.hpp, layer_presets.hpp), spritesmith coordinate math (coords.hpp), the
 # toolkit UndoStack, and the tool-config loader. All pure logic with no ImGui/GLFW
-# dependency. Same link policy as engine/tests: doctest + engine_platform_null only.
+# dependency. Same link policy as engine/tests: doctest + engine_platform_null (and
+# corundum_gameplay, so a tools test can reach gameplay content the way loom does).
 
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
@@ -25,6 +26,7 @@ add_executable(corundum_tools_tests
 
 target_link_libraries(corundum_tools_tests
     PRIVATE
+        corundum_gameplay
         engine_platform_null
         doctest::doctest
 )
