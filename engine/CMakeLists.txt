@@ -36,6 +36,7 @@ set(ENGINE_SOURCES
     src/gameplay/dialogue/serialize.cpp
     src/gameplay/dialogue/validate.cpp
     src/gameplay/dialogue/validate_refs.cpp
+    src/gameplay/gameplay.cpp
     src/gameplay/item/item.cpp
     src/gameplay/item/serialize.cpp
     src/gameplay/location/loader.cpp
@@ -47,6 +48,7 @@ set(ENGINE_SOURCES
     src/gameplay/quest/status.cpp
     src/gameplay/quest/system.cpp
     src/gameplay/quest/validate.cpp
+    src/gameplay/runtime.cpp
     src/gameplay/screens/barter.cpp
     src/gameplay/screens/codex.cpp
     src/gameplay/screens/dialog_box.cpp

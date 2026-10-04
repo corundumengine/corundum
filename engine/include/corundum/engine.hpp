@@ -6,33 +6,21 @@
 // Each include below supplies a complete type for an Engine member (or an inline
 // symbol the public API uses); do not slim this block.
 #include <corundum/audio/audio_system.hpp>
-#include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/rng.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/debug/debug_overlay.hpp>
-#include <corundum/gameplay/dialogue/action.hpp>
-#include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_mapper.hpp>
-#include <corundum/gameplay/item/registry.hpp>
-#include <corundum/gameplay/location/registry.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/handle.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
-#include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/screen_registry.hpp>
-#include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
-#include <corundum/gameplay/screens/barter.hpp>
-#include <corundum/gameplay/screens/codex.hpp>
-#include <corundum/gameplay/screens/dialog_box.hpp>
-#include <corundum/gameplay/screens/loot.hpp>
-#include <corundum/gameplay/screens/map.hpp>
 #include <corundum/ui/menu.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
@@ -130,18 +118,6 @@ namespace corundum {
 
     corundum::world::FlagStore flags;
 
-    gameplay::dialogue::Registry graphs;
-
-    gameplay::item::Registry items;
-
-    gameplay::codex::Registry codex;
-
-    gameplay::location::Registry locations;
-
-    gameplay::quest::Registry quests;
-
-    gameplay::shop::Registry shops;
-
     core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
 
     debug::HudOverlay hud;
@@ -153,30 +129,6 @@ namespace corundum {
     /** @brief Pause-menu selection state; rendered in GameMode::Menu. */
     ui::MenuState menu;
 
-    /** @brief Codex-screen state: highlighted row and the dirty-flagged unlocked-entry cache. */
-    gameplay::screens::CodexState codex_screen;
-
-    /** @brief Map-screen state: highlighted fast-travel destination. */
-    gameplay::screens::MapState map_screen;
-
-    /** @brief Loot-screen state: active pane and highlighted row. */
-    gameplay::screens::LootState loot_screen;
-
-    /** @brief Barter-screen state: active tab and highlighted row. */
-    gameplay::screens::BarterState barter_screen;
-
-    /** @brief Container whose contents the loot screen shows; empty when no loot screen is open. */
-    std::string active_container_id;
-
-    /** @brief Shop the barter screen trades with; empty when no barter screen is open. */
-    std::string active_shop_id;
-
-    /** @brief Dialogue-box reveal/layout state; stepped in the fixed loop and drawn as a modal.
-     *
-     *  Temporary engine member: Session 2B moves it onto gameplay::Gameplay. The style and
-     *  border live in RenderState::panel_skin, shared with every other panel. */
-    gameplay::screens::DialogBoxState dialog_box;
-
     /** @brief Settings-screen state; rendered in GameMode::Settings. */
     ui::SettingsState settings_screen;
 
@@ -186,20 +138,12 @@ namespace corundum {
      *  here so a run is reproducible from its seed. */
     core::Rng rng;
 
-    /** @brief Hook for custom dialogue EventActions not handled by the built-in dispatch.
+    /** @brief Hook called once per fixed step after the registered fixed_step_systems.
      *
-     *  Called for every EventAction in the pending queue. Return @c true to
-     *  mark the event as handled (suppresses the unknown-event WARN).
-     *  Default-empty; existing games are unaffected.
-     */
-    std::function<bool(Engine &, const gameplay::dialogue::EventAction &)> on_event;
-
-    /** @brief Hook called once per fixed step after world / dialogue-event processing.
-     *
-     *  Invoked inside the fixed-timestep loop, after process_dialogue_events()
-     *  and before entity deletions are flushed. @p dt is the fixed timestep
-     *  (timer.target_dt). Entities marked for deletion here are drained the
-     *  same frame.
+     *  Invoked inside the fixed-timestep loop, after every fixed_step_systems entry
+     *  (including gameplay's dialogue/event/quest tick) and before entity deletions are
+     *  flushed. @p dt is the fixed timestep (timer.target_dt). Entities marked for deletion
+     *  here are drained the same frame.
      */
     std::function<void(Engine &, float dt)> on_fixed_update;
 
@@ -213,9 +157,10 @@ namespace corundum {
 
     /** @brief Screen specs keyed by GameMode, plus the ordered render-layer hooks.
      *
-     *  Engine-owned screens (Menu, Settings) register here during initialize(); gameplay
-     *  screens register from the same call. Dispatch happens in update_engine_screens() and
-     *  the layered render sequence in render_frame().
+     *  Engine-owned screens (Menu, Settings) register here during initialize(); the gameplay
+     *  framework registers its own screens and layer hooks when gameplay::Gameplay is constructed
+     *  over the engine. Dispatch happens in update_engine_screens() and the layered render
+     *  sequence in render_frame().
      */
     ScreenRegistry screens;
 
@@ -224,10 +169,20 @@ namespace corundum {
      *  This is the slot for engine-runtime systems and framework systems — never the game's
      *  own hook. on_fixed_update stays the game's single slot. Each entry is a
      *  `void(Engine&, float dt)` callable; the gameplay framework registers exactly one system
-     *  (dialogue update). Registered once, at initialize time, so the std::function storage
-     *  allocates only then.
+     *  (dialogue update, event processing and the quest tick). Registered once, at construction
+     *  time, so the std::function storage allocates only then.
      */
     std::vector<std::function<void(Engine &, float)>> fixed_step_systems;
+
+    /** @brief Input hooks consulted by update_engine_screens() before ScreenRegistry dispatch.
+     *
+     *  An engine/framework system registers here to claim a step for a screen it opens or
+     *  switches (the gameplay framework registers the menu hub here). Each entry runs in
+     *  registration order and returns true to consume the step; the game's own slots are
+     *  unaffected. Registered once, at initialize time, so the std::function storage allocates
+     *  only then.
+     */
+    std::vector<std::function<bool(Engine &, const input::InputIntent &)>> screen_input_hooks;
 
     /// True while inside an interior reached from the overworld.
     bool entered_from_world{false};
@@ -280,8 +235,9 @@ namespace corundum {
      *  @pre initialize() must have returned successfully.
      *  @post If no step-owning screen was on top during a fixed step, both fixed_step_systems
      *        and on_fixed_update ran. If a step-owning screen was on top, neither ran, and
-     *        world::update, dialogue-event processing, the quest tick and deletion flushing
-     *        were skipped. This holds whatever the top GameMode is.
+     *        world::update and deletion flushing were skipped — which in turn skips the
+     *        gameplay fixed-step system's dialogue update, event processing and quest tick.
+     *        This holds whatever the top GameMode is.
      *  @note Allocates only for dialogue-event item/flag bookkeeping and, in World
      *        mode, for the one chunk streamed in per frame.
      */
@@ -304,23 +260,13 @@ namespace corundum {
      */
     void run() noexcept;
 
-    /** @brief Process all pending dialogue EventActions (built-in dispatch + on_event hook).
-     *
-     *  Walks scene.pending_dialogue_events and dispatches built-in events
-     *  (play_sound, quest_start, quest_advance, give_item, take_item, reputation). For
-     *  events not matched by built-in dispatch, calls on_event if set. Unhandled events
-     *  print a WARN. Clears the pending list after processing.
-     *
-     *  Exposed for testability — game code normally does not call this directly.
-     */
-    void process_dialogue_events() noexcept;
-
     /** @brief Step the top screen through the registry for one fixed step.
      *
-     *  Handles the menu hub and pause-menu open/close input (which consumes the step), then
-     *  dispatches the top mode's ScreenSpec::update. Returns true only for a registered mode
-     *  whose spec owns the step, so the caller skips world::update and the rest of the
-     *  simulation — which is what pauses the world while a menu is open.
+     *  Runs the registered screen_input_hooks (which may consume the step by opening or
+     *  switching a screen), then handles the pause-menu open input, then dispatches the top
+     *  mode's ScreenSpec::update. Returns true only for a registered mode whose spec owns the
+     *  step, so the caller skips world::update and the rest of the simulation — which is what
+     *  pauses the world while a menu is open.
      *
      *  Exposed for testability; run_frame() calls it once per fixed step through
      *  run_fixed_steps().
@@ -427,11 +373,10 @@ namespace corundum {
      */
     void reveal_window() noexcept;
 
-    /** @brief Register the engine-owned and gameplay screen specs and render-layer hooks.
+    /** @brief Register the engine-owned screen specs.
      *
-     *  Called once from initialize(). The gameplay registrations are temporary for Session 2A
-     *  (gameplay still lives in the engine target); Session 2B moves them onto
-     *  gameplay::Gameplay. */
+     *  Called once from initialize(). The gameplay framework registers its own screens,
+     *  fixed-step system and layer hooks when gameplay::Gameplay is constructed over the engine. */
     void register_screens();
 
     bool quit_{false}; ///< Set by request_quit()/cleanup(); see quit_requested().

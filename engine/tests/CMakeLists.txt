@@ -58,6 +58,7 @@ set(TEST_SOURCES
     gameplay/screens/test_journal.cpp
     gameplay/screens/test_screen_draw.cpp
     gameplay/shop/test_shop.cpp
+    gameplay/test_gameplay_umbrella_header.cpp
 
     # input
     input/test_action_resolver.cpp

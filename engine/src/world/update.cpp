@@ -4,11 +4,9 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/entities/entity.hpp>
-#include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/world/flags.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/transition_prompt.hpp>
 #include <corundum/world/scene.hpp>
@@ -17,7 +15,6 @@
 
 #include <corundum/animation/animation_system.hpp>
 #include <corundum/entities/world.hpp>
-#include <corundum/gameplay/dialogue/interact.hpp>
 #include <corundum/physics/physics_system.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
@@ -124,9 +121,8 @@ namespace {
 
 namespace corundum::world {
 
-  void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::gameplay::dialogue::Registry &graphs,
-              const corundum::input::InputState &input, const MapView &map, float dt, float win_w, float win_h,
-              FlagStore &flags, const gameplay::quest::Registry *quests, input::InputDevice last_device) {
+  void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::input::InputState &input,
+              const MapView &map, float dt, float win_w, float win_h, input::InputDevice last_device) {
     const input::InputIntent intent = input::make_input_intent(input, last_device);
 
     // Camera zoom is only applied while free-roaming: update_exploring re-clamps the
@@ -152,10 +148,6 @@ namespace corundum::world {
         break;
       case corundum::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
-        // update_exploring may have armed a portal prompt (mode → Prompt), whose
-        // try_interact @pre requires Exploring.
-        if (scene.mode() == GameMode::Exploring)
-          corundum::gameplay::dialogue::try_interact(scene, intent, cfg, graphs, flags, quests);
         break;
       default:
         // Extension modes and the engine screens (Menu, Settings) run no engine world

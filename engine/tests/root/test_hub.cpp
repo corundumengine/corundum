@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
@@ -54,6 +55,8 @@ namespace {
 TEST_CASE("hub: each hotkey opens its own tab and the same hotkey closes it") {
   corundum::Engine engine{};
   init_engine(engine);
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
 
   CHECK(press(engine, corundum::input::Action::Inventory));
@@ -80,6 +83,8 @@ TEST_CASE("hub: each hotkey opens its own tab and the same hotkey closes it") {
 TEST_CASE("hub: the Hub button opens the last tab and closes when one is on top") {
   corundum::Engine engine{};
   init_engine(engine);
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
 
   // No tab opened yet: Hub opens the default, Inventory.
   CHECK(press(engine, corundum::input::Action::Hub));
@@ -102,6 +107,8 @@ TEST_CASE("hub: the Hub button opens the last tab and closes when one is on top"
 TEST_CASE("hub: TabNext/TabPrev cycle the four tabs with wrap-around") {
   corundum::Engine engine{};
   init_engine(engine);
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
   press(engine, corundum::input::Action::Inventory);
   REQUIRE(engine.scene.mode() == screens::Inventory);
 
@@ -125,6 +132,8 @@ TEST_CASE("hub: TabNext/TabPrev cycle the four tabs with wrap-around") {
 TEST_CASE("hub: Cancel closes whichever tab is on top") {
   corundum::Engine engine{};
   init_engine(engine);
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
 
   for (const corundum::input::Action open : {
            corundum::input::Action::Inventory,
@@ -144,10 +153,11 @@ TEST_CASE("hub: Cancel closes whichever tab is on top") {
 TEST_CASE("hub: does not open over dialogue, prompt, menu, loot or barter") {
   corundum::Engine engine{};
   init_engine(engine);
+  corundum::gameplay::Gameplay gameplay{engine};
   // Loot and barter close themselves when their target is unset, so give them a target.
-  engine.active_container_id = "chest";
-  engine.shops.add(corundum::gameplay::shop::Shop{.id = "shop", .name = "Shop"});
-  engine.active_shop_id = "shop";
+  gameplay.active_container_id = "chest";
+  gameplay.shops.add(corundum::gameplay::shop::Shop{.id = "shop", .name = "Shop"});
+  gameplay.active_shop_id = "shop";
 
   for (const GameMode screen : {
            screens::Dialogue,
@@ -173,6 +183,8 @@ TEST_CASE("hub: does not open over dialogue, prompt, menu, loot or barter") {
 TEST_CASE("hub: opens in World mode with no resident chunks") {
   corundum::Engine engine{};
   init_engine(engine);
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
   engine.render.chunks.clear();
   REQUIRE(engine.render.chunks.active_empty());
@@ -192,6 +204,8 @@ TEST_CASE("hub: opens in World mode with no resident chunks") {
 TEST_CASE("hub: a pre-hub binding with gamepad Y on Journal still opens the Journal tab") {
   corundum::Engine engine{};
   init_engine(engine);
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
 
   // Simulate a settings file saved before the hub existed: no Hub row, and Journal still owns
   // gamepad Y. parse_bindings() must leave that in place rather than stealing Y for Hub.

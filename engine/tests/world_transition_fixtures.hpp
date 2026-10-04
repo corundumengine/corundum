@@ -47,9 +47,8 @@ namespace corundum::test {
     const auto map = world::build_map_view(engine.render, engine.cfg);
     input::InputState input{};
     input.pressed.set(static_cast<std::size_t>(action));
-    world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
-                  static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()), engine.flags,
-                  &engine.quests);
+    world::update(engine.scene, engine.cfg, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
+                  static_cast<float>(engine.window_height()), engine.input_mapper.last_device());
   }
 
 } // namespace corundum::test

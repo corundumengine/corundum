@@ -5,6 +5,7 @@
 
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/codex/codex.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/item/container.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/location/location.hpp>
@@ -48,14 +49,15 @@ namespace {
 TEST_CASE("codex: the Codex action opens the screen and Cancel closes it") {
   corundum::Engine engine{};
   init_engine(engine);
-  engine.codex.add(corundum::gameplay::codex::CodexEntry{.id = "village", .title = "Greyhollow"});
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.codex.add(corundum::gameplay::codex::CodexEntry{.id = "village", .title = "Greyhollow"});
   corundum::world::set_flag(engine.flags, corundum::gameplay::codex::flag_key("village"));
 
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
   CHECK(press(engine, corundum::input::Action::Codex));
   CHECK(engine.scene.mode() == screens::Codex);
-  REQUIRE(engine.codex_screen.entries.size() == 1);
-  CHECK(engine.codex_screen.entries[0].title == "Greyhollow");
+  REQUIRE(gameplay.codex_screen.entries.size() == 1);
+  CHECK(gameplay.codex_screen.entries[0].title == "Greyhollow");
 
   press(engine, corundum::input::Action::Cancel);
   CHECK(engine.scene.mode() == GameMode::Exploring);
@@ -66,7 +68,8 @@ TEST_CASE("codex: the Codex action opens the screen and Cancel closes it") {
 TEST_CASE("map: Activate on a discovered world location arms a return-to-world transition") {
   corundum::Engine engine{};
   init_engine(engine);
-  engine.locations.add(corundum::gameplay::location::Location{
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.locations.add(corundum::gameplay::location::Location{
       .col = 40.f,
       .id = "village",
       .name = "Greyhollow",
@@ -93,8 +96,9 @@ TEST_CASE("map: Activate on a discovered world location arms a return-to-world t
 TEST_CASE("loot: Activate moves one unit from the container to the player") {
   corundum::Engine engine{};
   init_engine(engine);
-  engine.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
-  engine.active_container_id = "chest";
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
+  gameplay.active_container_id = "chest";
   engine.flags[std::string{corundum::gameplay::item::container_item_flag_key("chest", "salt")}] = 2;
   engine.scene.ui.push(screens::Loot);
 
@@ -115,8 +119,9 @@ TEST_CASE("loot: Activate moves one unit from the container to the player") {
 TEST_CASE("barter: buying spends gold and grants the item") {
   corundum::Engine engine{};
   init_engine(engine);
-  engine.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
-  engine.shops.add(corundum::gameplay::shop::Shop{
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
+  gameplay.shops.add(corundum::gameplay::shop::Shop{
       .id = "corvin",
       .name = "Corvin's Salt",
       .stock =
@@ -127,7 +132,7 @@ TEST_CASE("barter: buying spends gold and grants the item") {
               },
           },
   });
-  engine.active_shop_id = "corvin";
+  gameplay.active_shop_id = "corvin";
   engine.scene.ui.push(screens::Barter);
   engine.flags[std::string{corundum::gameplay::screens::k_gold_flag}] = 20;
 

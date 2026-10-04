@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -43,6 +44,8 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
   REQUIRE(engine.scene.inventory_cursor == 0);
 
@@ -98,6 +101,8 @@ TEST_CASE("inventory — rows are built once on open and not rebuilt while it st
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
 
   engine.flags["item.a"] = 1;
   engine.flags["item.b"] = 1;

@@ -16,6 +16,7 @@
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <corundum/world/transition.hpp>
+#include <corundum/world/ui_stack.hpp>
 #include <corundum/world/update.hpp>
 
 #include "world_transition_fixtures.hpp"
@@ -60,9 +61,8 @@ namespace {
   void advance(corundum::Engine &engine) {
     const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
     const corundum::input::InputState input{};
-    corundum::world::update(engine.scene, engine.cfg, engine.graphs, input, map, 1.f / 60.f,
-                            static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
-                            engine.flags, &engine.quests);
+    corundum::world::update(engine.scene, engine.cfg, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
+                            static_cast<float>(engine.window_height()), engine.input_mapper.last_device());
   }
 
   /// Drive fixed steps until the queued click-to-move path empties. Capped, so a path that

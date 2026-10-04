@@ -13,6 +13,7 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/quest/status.hpp>
@@ -259,6 +260,7 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   REQUIRE(fs::is_directory(fixtures));
 
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
 
   // Register a quest and advance it to its resolved ending.
@@ -268,11 +270,11 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   q.description = "";
   q.stages.push_back({.name = "start", .sequence = 1});
   q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
-  engine.quests.add(std::move(q));
+  gameplay.quests.add(std::move(q));
 
-  corundum::gameplay::quest::start(*engine.quests.find("save_q"), engine.flags);
-  corundum::gameplay::quest::advance(*engine.quests.find("save_q"), "complete", engine.flags);
-  REQUIRE(corundum::gameplay::quest::lifecycle(*engine.quests.find("save_q"), engine.flags) ==
+  corundum::gameplay::quest::start(*gameplay.quests.find("save_q"), engine.flags);
+  corundum::gameplay::quest::advance(*gameplay.quests.find("save_q"), "complete", engine.flags);
+  REQUIRE(corundum::gameplay::quest::lifecycle(*gameplay.quests.find("save_q"), engine.flags) ==
           corundum::gameplay::quest::Lifecycle::Completed);
 
   // Zone-scoped and NPC state, plus a non-central player position (chunk (1,0)).
@@ -294,7 +296,7 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   REQUIRE(corundum::save::load_game(engine, p).has_value());
 
   // Quest stage, zone/NPC flags, and player position are restored.
-  CHECK(corundum::gameplay::quest::lifecycle(*engine.quests.find("save_q"), engine.flags) ==
+  CHECK(corundum::gameplay::quest::lifecycle(*gameplay.quests.find("save_q"), engine.flags) ==
         corundum::gameplay::quest::Lifecycle::Completed);
   CHECK(engine.flags["zone.transition.gate"] == 1);
   CHECK(engine.flags["npc.brann.alive"] == 1);
@@ -316,6 +318,8 @@ TEST_CASE("save: world save/load preserves a fractional player position") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
 
   // World-mode saves keep the player's sub-tile position: the spawn pipeline must not
@@ -348,6 +352,8 @@ TEST_CASE("save: load_game refuses a save whose world manifest differs") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
 
   corundum::save::SaveState s;

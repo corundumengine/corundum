@@ -19,12 +19,7 @@ endif()
 
 # Transitional violations — engine files that still reach into gameplay. Empty in 2E.
 set(ALLOWLIST
-    engine/include/corundum/corundum.hpp
-    engine/include/corundum/engine.hpp
     engine/include/corundum/world/scene.hpp
-    engine/include/corundum/world/update.hpp
-    engine/src/engine.cpp
-    engine/src/world/update.cpp
 )
 
 file(GLOB_RECURSE engine_files

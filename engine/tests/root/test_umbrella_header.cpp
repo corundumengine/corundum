@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Compile-time guard for the game-facing surface: if a re-exported name in
-// corundum/corundum.hpp is renamed or dropped, this TU stops compiling.
+// Compile-time guard for the engine-only game-facing surface: if a re-exported name in
+// corundum/corundum.hpp is renamed or dropped, this TU stops compiling. Gameplay names live in
+// corundum/gameplay/gameplay.hpp and are guarded by test_gameplay_umbrella_header.cpp.
 
 #include <corundum/corundum.hpp>
 #include <doctest/doctest.h>
@@ -19,12 +20,11 @@ static_assert(
     std::is_same_v<decltype(&corundum::make_engine),
                    std::expected<std::unique_ptr<corundum::Engine>, std::string> (*)(const corundum::EngineOptions &)>);
 
-TEST_CASE("umbrella header re-exports the game-facing surface") {
+TEST_CASE("umbrella header re-exports the engine-facing surface") {
   const corundum::EngineOptions options{};
   corundum::Engine engine{};
-  const corundum::EventAction action{.name = "set_flag", .args = {"example"}};
 
-  corundum::set_flag(engine.flags, action.args[0]);
+  corundum::set_flag(engine.flags, "example");
 
   CHECK(options.config_path == "data/game.json");
   CHECK(engine.flags.contains("example"));
