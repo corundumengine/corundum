@@ -41,6 +41,10 @@ add_executable(corundum_gameplay_tests
     world/test_ui_stack.cpp
 )
 
+# Test helpers share anonymous-namespace names with the engine suite; opt out of
+# unity builds even when a parent project enables them globally.
+set_property(TARGET corundum_gameplay_tests PROPERTY UNITY_BUILD OFF)
+
 # Shared fixtures (temp_dir.hpp, world_transition_fixtures.hpp,
 # ui/recording_renderer.hpp) live at the engine/tests root and are included with
 # a bare "..." path from both the gameplay folders and the moved root tests.

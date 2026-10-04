@@ -27,7 +27,7 @@ namespace corundum::gameplay::screens {
   /// Computed layout for one dialogue frame. Pure data — no renderer dependency.
   ///
   /// Every field carries a default member initializer: build_layout designated-initializes
-  /// DialogLayout, and -Wmissing-designated-field-initializers (compiled with -Werror)
+  /// DialogLayout, and -Wmissing-designated-field-initializers (compiled with warnings-as-errors)
   /// requires each field to have one.
   struct DialogLayout {
     core::math::Vec2 panel_pos{};

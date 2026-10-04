@@ -24,6 +24,10 @@ add_executable(corundum_tools_tests
     ${PROJECT_SOURCE_DIR}/tools/toolkit/src/host/tool_config.cpp
 )
 
+# Test helpers share anonymous-namespace names with the other suites; opt out of
+# unity builds even when a parent project enables them globally.
+set_property(TARGET corundum_tools_tests PROPERTY UNITY_BUILD OFF)
+
 target_link_libraries(corundum_tools_tests
     PRIVATE
         corundum_gameplay

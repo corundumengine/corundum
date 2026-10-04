@@ -92,7 +92,7 @@ jobs:
         run: cmake --build --preset build
 
       - name: Test
-        run: ctest --preset test-ci
+        run: ctest --preset test -j 4
 
       - name: Prune old ccache caches
         if: github.ref == 'refs/heads/main'

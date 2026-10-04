@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 4.3)
 project(
   CorundumEngine
   VERSION 0.2.0
@@ -9,16 +9,11 @@ if(APPLE)
   enable_language(OBJCXX)
 endif()
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# Force unity builds off even when a parent project enables them globally: several
-# first-party targets don't batch cleanly (sokol_gfx.h lacks include guards, test
-# helpers share anonymous-namespace names, engine_factory must stay its own object).
-set(CMAKE_UNITY_BUILD OFF)
-
-# Options for consumer projects
-option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ON)
-option(CORUNDUM_BUILD_TESTS "Build unit tests" ON)
+# Options for consumer projects. Default to ON only when corundum is the top-level
+# project: an embedding parent (add_subdirectory/FetchContent) that wants tests or
+# tools must ask for them explicitly rather than inherit them.
+option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ${PROJECT_IS_TOP_LEVEL})
+option(CORUNDUM_BUILD_TESTS "Build unit tests" ${PROJECT_IS_TOP_LEVEL})
 option(CORUNDUM_BUILD_DOCS "Build Doxygen documentation" OFF)
 
 # Fail fast on a toolchain that can't build the engine's C++23 library surface,

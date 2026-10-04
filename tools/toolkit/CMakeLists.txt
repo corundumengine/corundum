@@ -36,7 +36,9 @@ target_link_libraries(corundum_toolkit
     PUBLIC engine_platform_glfw glfw corundum::platform_config
 )
 
-# ImGui's own headers are not warning-clean, so this target never enables -Werror.
+# ImGui's own headers are not warning-clean, so exempt this target from the
+# project-wide warnings-as-errors policy (CMAKE_COMPILE_WARNING_AS_ERROR).
+set_target_properties(corundum_toolkit PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
 target_compile_definitions(corundum_toolkit PUBLIC SOKOL_IMGUI_NO_SOKOL_APP)
 
 corundum_use_cxx23(corundum_toolkit)

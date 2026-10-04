@@ -43,8 +43,13 @@ endif()
 
 add_library(engine_platform_glfw STATIC ${PLATFORM_GLFW_SOURCES})
 
+# sokol_gfx.h lacks include guards, so it cannot be batched into a unity translation
+# unit. Opt out even when a parent project enables unity builds globally.
+set_property(TARGET engine_platform_glfw PROPERTY UNITY_BUILD OFF)
+
 # stb is third-party: SYSTEM keeps its warnings and clang-tidy findings out of
-# this target, which builds under -Werror (see CompilerWarnings.cmake).
+# this target, which builds under the project's warnings-as-errors policy
+# (CMAKE_COMPILE_WARNING_AS_ERROR in the base configure preset).
 target_include_directories(engine_platform_glfw
     PRIVATE
         ${sokol_SOURCE_DIR}

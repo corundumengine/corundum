@@ -110,7 +110,8 @@ add_executable(mapview
 )
 
 # stb is third-party: SYSTEM keeps its warnings and clang-tidy findings out of this
-# target, which builds under -Werror (see engine/src/platform/CMakeLists.txt).
+# target, which builds under the project's warnings-as-errors policy
+# (CMAKE_COMPILE_WARNING_AS_ERROR in the base configure preset).
 target_include_directories(mapview
     SYSTEM PRIVATE
         ${stb_SOURCE_DIR}

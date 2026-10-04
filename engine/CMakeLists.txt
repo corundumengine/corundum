@@ -73,6 +73,12 @@ set(ENGINE_SOURCES
 
 add_library(engine STATIC ${ENGINE_SOURCES})
 
+# engine_factory must stay its own object: a parent project may enable unity builds
+# globally, and batching it with engine.cpp would fuse the factory entry point into
+# the wrong translation unit. Only this file opts out, so the rest of the engine can
+# still batch when the developer asks for it.
+set_source_files_properties(src/engine_factory.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+
 # Public headers are in the 'include' folder; 'src' is private so internal
 # helpers (e.g. src/core/warn_log.hpp) are shareable between engine TUs.
 target_include_directories(engine PUBLIC include PRIVATE src)

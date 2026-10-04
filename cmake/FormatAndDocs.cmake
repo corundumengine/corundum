@@ -47,7 +47,7 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
     )
   add_custom_target(format_code
         COMMAND ${LLVM_CLANG_FORMAT} -i ${FORMAT_SOURCES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         COMMENT "Running ${LLVM_CLANG_FORMAT} on all source files"
         VERBATIM
     )
@@ -66,14 +66,14 @@ if(CORUNDUM_BUILD_DOCS)
     )
     FetchContent_MakeAvailable(doxygen_awesome_css)
 
-    set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Doxyfile.in ${DOXYGEN_OUT} @ONLY)
+    set(DOXYGEN_OUT ${PROJECT_BINARY_DIR}/Doxyfile)
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/Doxyfile.in ${DOXYGEN_OUT} @ONLY)
     add_custom_target(build_docs
           COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
           COMMAND ${CMAKE_COMMAND} -E copy_if_different
-              ${CMAKE_CURRENT_SOURCE_DIR}/branding/logo.png
-              ${CMAKE_BINARY_DIR}/docs/html/branding/logo.png
-          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+              ${PROJECT_SOURCE_DIR}/branding/logo.png
+              ${PROJECT_BINARY_DIR}/docs/html/branding/logo.png
+          WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
           COMMENT "Generating Doxygen API documentation for engine/"
           VERBATIM
       )

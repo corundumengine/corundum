@@ -120,6 +120,10 @@ set(TEST_SOURCES
 # The test executable
 add_executable(corundum_tests ${TEST_SOURCES})
 
+# Test helpers share anonymous-namespace names, so these translation units cannot be
+# batched into a unity unit. Opt out even when a parent enables unity builds globally.
+set_property(TARGET corundum_tests PROPERTY UNITY_BUILD OFF)
+
 # Test sources include shared helpers (temp_dir.hpp) with a bare "..." path.
 target_include_directories(corundum_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
