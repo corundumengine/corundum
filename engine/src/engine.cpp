@@ -556,8 +556,16 @@ namespace corundum {
         return true;
     }
 
-    // Opening the pause menu consumes the step (the Esc that opens it is also Cancel).
-    if (input_state.is_pressed(input::Action::Menu) && scene.mode() == world::GameMode::Exploring) {
+    // The pause menu opens over any screen: Resume pops the single layer it pushed and reveals
+    // whatever was beneath (a hub tab, dialogue, loot or barter). One physical press may raise
+    // both Menu and Cancel (Esc), so with a screen open the press is left to that screen's own
+    // back handling rather than opening the menu and closing it again the same step; from an
+    // empty stack there is nothing to close and both are true, so the menu opens. Menu and
+    // Settings consume Menu themselves (to close, or to capture a rebind), so the menu never
+    // opens over either.
+    const bool menu_pressed = input_state.is_pressed(input::Action::Menu);
+    const bool top_handles_menu = scene.mode() == world::GameMode::Menu || scene.mode() == world::GameMode::Settings;
+    if (menu_pressed && !top_handles_menu && (scene.ui.empty() || !intent.back)) {
       scene.ui.push(world::GameMode::Menu);
       menu.cursor = 0;
       return true;

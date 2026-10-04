@@ -99,6 +99,22 @@ wrong from memory.
   deliberately unbound — what Start does is a game-design decision, not a
   hard-wired quit.
 
+### Pause Menu
+
+- **Bindings**: gamepad Start; keyboard `Esc` (which also raises
+  `Action::Cancel`).
+- **Effect**: opens the pause menu (Resume / Settings / Quit) over whatever
+  is showing. Resume pops the single layer the menu pushed, revealing the
+  screen beneath — a hub tab, dialogue, loot or barter — instead of
+  clearing back to free-roam. Start or `Esc` closes the menu.
+- **Esc vs. an open screen**: `Esc` raises both `Cancel` and `Menu`, so an
+  open screen consumes the press as its own back action (closing the tab,
+  dialogue, loot or barter) and the menu does not open. From free-roam
+  there is nothing to close, so `Esc` opens the menu.
+- **Settings**: Start over the settings screen closes settings back to the
+  menu; a press being captured for a rebind is consumed by the capture and
+  never opens the menu.
+
 ### Menu Hub (Inventory / Journal / Codex / Map)
 
 - **Bindings**: gamepad Y/Triangle (Hub); keyboard `I` / `J` / `C` / `M`
@@ -271,6 +287,7 @@ device disconnects, so a held bit cannot latch.
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Choice`)                      | Confirms the highlighted choice                                                                                                                      |
 | `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`)                                                                                                                     |
 | `Action::Inventory`                           | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Inventory hub tab; `update_inventory()` navigates and closes it                                                             |
+| `Action::Menu`                                | `engine.cpp::update_engine_screens()`                                     | Opens the pause menu over any screen (or from free-roam); `update_pause_menu()`/`update_settings()` also close on it, and an open screen's back handling wins a shared press |
 | `Action::Journal`                             | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Journal hub tab; `update_journal()` navigates and closes it                                                                 |
 | `Action::Hub`                                 | `engine.cpp::update_engine_screens()`                                     | Toggles the menu hub on `Scene::last_hub_mode`                                                                                                         |
 | `Action::Codex`                               | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Codex hub tab; `update_codex()` navigates and closes it                                                                     |

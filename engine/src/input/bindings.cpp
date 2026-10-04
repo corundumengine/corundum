@@ -76,8 +76,9 @@ namespace corundum::input {
         {.action = Action::Journal, .input = physical(Key::J)},
         {.action = Action::Codex, .input = physical(Key::C)},
         {.action = Action::Map, .input = physical(Key::M)},
-        // Esc doubles as Cancel; the pause menu opens only from Exploring, and its own Cancel
-        // path closes it, so the shared key never opens and closes in the same step.
+        // Esc doubles as Cancel; with a screen open its back handling gets the press (the
+        // menu-open path treats a same-step Cancel as a close), so the shared key never opens
+        // and closes the menu in one step. With no screen open Esc opens the pause menu.
         {.action = Action::Menu, .input = physical(Key::Escape)},
         {.action = Action::TabPrev, .input = physical(Key::LeftBracket)},
         {.action = Action::TabNext, .input = physical(Key::RightBracket)},

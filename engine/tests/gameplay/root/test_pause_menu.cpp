@@ -5,6 +5,9 @@
 
 #include <corundum/core/window_mode.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
@@ -26,6 +29,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -44,6 +48,33 @@ namespace {
     engine.input_state = state;
     const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
     return engine.update_engine_screens(intent);
+  }
+
+  /// Route Escape — which the default bindings raise as both Cancel and Menu — through the UI
+  /// step, so an open screen's back handling wins over opening the pause menu on the same press.
+  bool press_escape(corundum::Engine &engine) {
+    corundum::input::InputState state{};
+    state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Cancel));
+    state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Menu));
+    engine.input_state = state;
+    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+    return engine.update_engine_screens(intent);
+  }
+
+  corundum::gameplay::dialogue::Graph make_talk_graph() {
+    using namespace corundum::gameplay::dialogue;
+    Graph graph;
+    graph.graph_id = "pause_menu_over_screens";
+    graph.speaker = "NPC";
+
+    Node node;
+    node.id = "n0";
+    node.type = NodeType::Talk;
+    node.text = "Hello";
+    node.next_id = "end";
+    graph.id_to_index[node.id] = graph.nodes.size();
+    graph.nodes.push_back(std::move(node));
+    return graph;
   }
 
   void init_engine(corundum::Engine &engine) {
@@ -82,14 +113,109 @@ TEST_CASE("pause menu: Menu opens it, Menu and Cancel both close it") {
   engine.cleanup();
 }
 
-TEST_CASE("pause menu: does not open over another screen") {
+TEST_CASE("pause menu: Start opens it over an open hub tab, Esc closes the tab instead") {
   corundum::Engine engine{};
   init_engine(engine);
-  engine.scene.ui.push(screens::Journal);
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the hub input hook.
+  corundum::gameplay::Gameplay gameplay{engine};
 
-  // Journal is an engine screen now, so it owns the step; the menu must still not open over it.
-  press(engine, corundum::input::Action::Menu);
+  press(engine, corundum::input::Action::Journal);
+  REQUIRE(engine.scene.mode() == screens::Journal);
+
+  // Start (Menu without Cancel) stacks the pause menu over the tab; Resume reveals the same tab
+  // rather than resetting to Exploring, because the tab layer was only covered, never popped.
+  CHECK(press(engine, corundum::input::Action::Menu));
+  CHECK(engine.scene.mode() == GameMode::Menu);
+  press(engine, corundum::input::Action::Select);
   CHECK(engine.scene.mode() == screens::Journal);
+
+  // Esc raises Cancel and Menu together: the tab's own back handling wins and no menu opens.
+  CHECK(press_escape(engine));
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: Start opens over dialogue and Resume returns to it") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  // The conversation holds a non-owning pointer to the graph, so it must outlive the test.
+  const corundum::gameplay::dialogue::Graph graph = make_talk_graph();
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.dialogue.emplace(graph, engine.flags);
+  engine.scene.ui.push(screens::Dialogue);
+  REQUIRE(engine.scene.mode() == screens::Dialogue);
+
+  CHECK(press(engine, corundum::input::Action::Menu));
+  CHECK(engine.scene.mode() == GameMode::Menu);
+
+  press(engine, corundum::input::Action::Select);
+  CHECK(engine.scene.mode() == screens::Dialogue);
+  CHECK(gameplay.dialogue->is_active());
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: Esc over dialogue closes the dialogue without opening the menu") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  // The conversation holds a non-owning pointer to the graph, so it must outlive the test.
+  const corundum::gameplay::dialogue::Graph graph = make_talk_graph();
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.dialogue.emplace(graph, engine.flags);
+  engine.scene.ui.push(screens::Dialogue);
+  REQUIRE(engine.scene.mode() == screens::Dialogue);
+
+  // The engine step must not open a menu; the dialogue's own back handling runs in the fixed
+  // step afterward and closes the conversation.
+  CHECK_FALSE(press_escape(engine));
+  CHECK(engine.scene.mode() == screens::Dialogue);
+  gameplay.fixed_step(1.f / 60.f);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+  CHECK_FALSE(gameplay.dialogue.has_value());
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: Menu with it already open closes it without growing the stack") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  press(engine, corundum::input::Action::Menu);
+  REQUIRE(engine.scene.mode() == GameMode::Menu);
+  REQUIRE(engine.scene.ui.size() == 1);
+
+  press(engine, corundum::input::Action::Menu);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+  CHECK(engine.scene.ui.empty());
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: Menu over the settings screen closes settings") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  open_settings(engine);
+  REQUIRE(engine.scene.mode() == GameMode::Settings);
+
+  press(engine, corundum::input::Action::Menu);
+  CHECK(engine.scene.mode() == GameMode::Menu);
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: a rebind-capture press never opens the menu") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  open_settings(engine);
+  press(engine, corundum::input::Action::TabNext);
+  REQUIRE(engine.settings_screen.tab == corundum::ui::SettingsTab::Controls);
+  press(engine, corundum::input::Action::Select);
+  REQUIRE(engine.settings_screen.rebinding);
+
+  // The press the settings screen is capturing must not also open the pause menu over it.
+  press(engine, corundum::input::Action::Menu);
+  CHECK(engine.scene.mode() == GameMode::Settings);
+  CHECK(engine.scene.ui.size() == 2);
 
   engine.cleanup();
 }
