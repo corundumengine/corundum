@@ -36,7 +36,7 @@ if(CORUNDUM_BUILD_TOOLS)
 endif()
 
 include(CTest)
-if(CORUNDUM_BUILD_TESTS)
+if(BUILD_TESTING AND CORUNDUM_BUILD_TESTS)
   add_subdirectory(engine/tests)
   # Enforces the layer boundary: the engine runtime never references gameplay. See
   # cmake/CheckLayering.cmake.

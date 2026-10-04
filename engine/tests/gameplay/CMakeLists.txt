@@ -8,8 +8,6 @@
 
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
-enable_testing()
-
 add_executable(corundum_gameplay_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../main.cpp
     codex/test_codex.cpp

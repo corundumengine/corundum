@@ -8,8 +8,7 @@
 # separately below.
 
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
-
-enable_testing()
+include(${PROJECT_SOURCE_DIR}/cmake/InternalHeaderTest.cmake)
 
 # All first-party test translation units, grouped by the engine module they
 # exercise. The five gated tests are added by the target_sources blocks below.
@@ -132,6 +131,9 @@ target_include_directories(corundum_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # GLFW backend. When corundum is consumed as a vendored library (downstream
 # projects expose only engine/include/ on their include path) those internals
 # aren't reachable — gate the test off so the build doesn't break on sync.
+#
+# Kept separate from corundum_add_internal_header_test: this test also checks
+# the fixture font, links freetype, and needs two include directories.
 set(_font_atlas_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/font_atlas.hpp")
 set(_font_atlas_fixture "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/fonts/NotoSans.ttf")
 if(EXISTS "${_font_atlas_header}" AND EXISTS "${_font_atlas_fixture}")
@@ -148,53 +150,26 @@ else()
   message(STATUS "FontAtlas tests skipped — internal header or fixture font not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
-# render_scale.hpp is a pure internal header; gate the test off when consuming corundum as a
-# vendored library, same rationale as the FontAtlas tests above.
-set(_render_scale_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/render_scale.hpp")
-if(EXISTS "${_render_scale_header}")
-  target_sources(corundum_tests PRIVATE platform/test_render_scale.cpp)
-  target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw
-    )
-else()
-  message(STATUS "render-scale tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
+# These internal-header tests need only the header and its own directory.
+corundum_add_internal_header_test(corundum_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/render_scale.hpp"
+    platform/test_render_scale.cpp
+    "render-scale tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 
-# texture_byte_size.hpp is likewise a pure internal header (the sokol upload wrapper that consumes it
-# is not linkable from tests); gate it the same way.
-set(_texture_byte_size_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/texture_byte_size.hpp")
-if(EXISTS "${_texture_byte_size_header}")
-  target_sources(corundum_tests PRIVATE platform/test_texture_byte_size.cpp)
-  target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw
-    )
-else()
-  message(STATUS "texture byte-size tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
+corundum_add_internal_header_test(corundum_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/texture_byte_size.hpp"
+    platform/test_texture_byte_size.cpp
+    "texture byte-size tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 
-# encoding.hpp is a pure internal header (the JSON spellings shared by the tilemap loader and
-# serializer); gate the test off when consuming corundum as a vendored library.
-set(_tilemap_encoding_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/world/tilemap/encoding.hpp")
-if(EXISTS "${_tilemap_encoding_header}")
-  target_sources(corundum_tests PRIVATE world/test_tilemap_encoding.cpp)
-  target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/world/tilemap
-    )
-else()
-  message(STATUS "tilemap encoding tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
+corundum_add_internal_header_test(corundum_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/world/tilemap/encoding.hpp"
+    world/test_tilemap_encoding.cpp
+    "tilemap encoding tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 
-# warn_log.hpp is an internal engine header; gate the test off when consuming
-# corundum as a vendored library.
-set(_warn_log_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/core/warn_log.hpp")
-if(EXISTS "${_warn_log_header}")
-  target_sources(corundum_tests PRIVATE core/test_warn_log.cpp)
-  target_include_directories(corundum_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/core
-    )
-else()
-  message(STATUS "warn_log tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
+corundum_add_internal_header_test(corundum_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/core/warn_log.hpp"
+    core/test_warn_log.cpp
+    "warn_log tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Link to engine and doctest. engine_platform_null is also pulled in so the
 # lifecycle tests can adopt a null Window/GpuContext/Renderer — it adds no

@@ -6,10 +6,6 @@
 
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
-# Kept for parity with engine/tests, and for the case where BUILD_TESTING=OFF but
-# CORUNDUM_BUILD_TESTS=ON — include(CTest) then never calls enable_testing().
-enable_testing()
-
 add_executable(corundum_tools_tests
     main.cpp
     test_picking_elevation.cpp
