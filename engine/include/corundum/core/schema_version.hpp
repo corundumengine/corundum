@@ -11,6 +11,11 @@
 
 namespace corundum::core {
 
+  /// @note Pre-1.0 there is no backward-compatibility requirement, so do **not** author migration
+  /// steps for shipped asset formats. When a format changes incompatibly, bump the asset's schema
+  /// version and let older documents be rejected. This hook and its unit tests exist so the
+  /// mechanism is ready after 1.0, not as a tool for pre-1.0 format churn.
+  ///
   /// A migration step that rewrites an asset document in place from @p from_version
   /// toward the current version, returning the version it reached. Steps run in
   /// ascending order and must never be edited once shipped, since already-migrated

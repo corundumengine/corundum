@@ -73,16 +73,6 @@ namespace corundum::save {
     return j;
   }
 
-  std::expected<void, std::string> migrate(nlohmann::json & /*j*/, int from_version) {
-    if (from_version < 1)
-      return std::unexpected(std::format("save has invalid version {}", from_version));
-    // Future versions append migration steps here, in order:
-    //   if (from_version < 2) { /* rewrite v1 fields into v2 shape */ from_version = 2; }
-    // Existing steps must never be edited once shipped, since already-migrated
-    // files may depend on the exact transformation a step performed.
-    return {};
-  }
-
   std::expected<SaveState, std::string> parse(const nlohmann::json &j) {
     if (!j.is_object())
       return std::unexpected("save JSON must be an object");
@@ -90,44 +80,34 @@ namespace corundum::save {
     if (j.contains("version") && !j["version"].is_number_integer())
       return std::unexpected("save 'version' must be an integer");
     const int version = j.value("version", 1);
-    if (version > k_save_version)
-      return std::unexpected(
-          std::format("save version {} is newer than supported version {}", version, k_save_version));
-
-    nlohmann::json migrated = j;
-    if (auto result = migrate(migrated, version); !result)
-      return std::unexpected(std::move(result).error());
-    // When migrate() gains real steps, verify here that the document actually reached
-    // k_save_version — a no-op migration would otherwise let an old save parse as the current
-    // format. prepare_schema_version enforces this for asset documents; for save, decide whether
-    // to check `migrated["version"]` (steps bump the field) or have migrate() return the version
-    // it reached.
+    if (version != k_save_version)
+      return std::unexpected(std::format("save version {} is not supported (expected {})", version, k_save_version));
 
     SaveState s;
     s.version = k_save_version;
 
-    if (auto result = read_field(migrated, "game_id", s.game_id); !result)
+    if (auto result = read_field(j, "game_id", s.game_id); !result)
       return std::unexpected(std::move(result).error());
-    if (auto result = read_field(migrated, "mode", s.mode); !result)
+    if (auto result = read_field(j, "mode", s.mode); !result)
       return std::unexpected(std::move(result).error());
-    if (auto result = read_field(migrated, "map_or_world_id", s.map_or_world_id); !result)
+    if (auto result = read_field(j, "map_or_world_id", s.map_or_world_id); !result)
       return std::unexpected(std::move(result).error());
-    if (auto result = read_field(migrated, "active_zone", s.active_zone); !result)
+    if (auto result = read_field(j, "active_zone", s.active_zone); !result)
       return std::unexpected(std::move(result).error());
-    if (auto result = read_field(migrated, "player_col", s.player_col); !result)
+    if (auto result = read_field(j, "player_col", s.player_col); !result)
       return std::unexpected(std::move(result).error());
-    if (auto result = read_field(migrated, "player_row", s.player_row); !result)
+    if (auto result = read_field(j, "player_row", s.player_row); !result)
       return std::unexpected(std::move(result).error());
-    if (auto result = read_field(migrated, "entered_from_world", s.entered_from_world); !result)
+    if (auto result = read_field(j, "entered_from_world", s.entered_from_world); !result)
       return std::unexpected(std::move(result).error());
 
     if (s.mode != k_mode_single_map && s.mode != k_mode_world)
       return std::unexpected(std::format("save 'mode' must be '{}' or '{}'", k_mode_single_map, k_mode_world));
 
-    if (migrated.contains("flags")) {
-      if (!migrated["flags"].is_object())
+    if (j.contains("flags")) {
+      if (!j["flags"].is_object())
         return std::unexpected("save 'flags' must be an object");
-      for (const auto &[key, value] : migrated["flags"].items()) {
+      for (const auto &[key, value] : j["flags"].items()) {
         if (!value.is_number_integer())
           return std::unexpected(std::format("save flag '{}' must be an integer", key));
         s.flags.emplace(key, value.get<int>());

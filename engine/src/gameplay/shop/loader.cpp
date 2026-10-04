@@ -20,10 +20,6 @@ namespace corundum::gameplay::shop {
 
   namespace {
 
-    std::expected<int, std::string> migrate_shop_json(json & /*root*/, int from_version, const std::string & /*path*/) {
-      return from_version;
-    }
-
     Shop parse_shop(const json &element) {
       Shop shop;
       shop.id = element["id"].get<std::string>();
@@ -54,9 +50,7 @@ namespace corundum::gameplay::shop {
       return std::unexpected(std::move(root_result).error());
     json root = std::move(*root_result);
 
-    if (auto prepared =
-            core::prepare_schema_version(root, k_shop_schema_version, "Shop", path_string, migrate_shop_json);
-        !prepared)
+    if (auto prepared = core::prepare_schema_version(root, k_shop_schema_version, "Shop", path_string, {}); !prepared)
       return std::unexpected(std::move(prepared).error());
 
     if (auto validated = core::schema_catalog().shop_schema().validate(root); !validated)

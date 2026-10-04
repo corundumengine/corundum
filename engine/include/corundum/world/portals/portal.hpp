@@ -78,7 +78,7 @@ namespace corundum::world {
    * Expects an object with a "portals" array, each entry giving a tile-grid rect
    * (col, row, w, h) — the same coordinate space tilesmith authors and saves them
    * in, so no conversion happens at load time. An optional "schema_version" field
-   * is read and migrated before the entries are parsed; an absent field is treated
+   * is checked before the entries are parsed; an absent field is treated
    * as version 1. The legacy "target_chunk_x"/"target_chunk_y" spellings are still
    * accepted and normalised onto target_chunk_col/target_chunk_row.
    *

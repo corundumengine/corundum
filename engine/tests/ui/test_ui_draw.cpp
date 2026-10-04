@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <doctest/doctest.h>
 
+#include <array>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -371,4 +372,65 @@ TEST_CASE("prompt_box_render: panel respects the minimum width and grows for a l
     const float q_w = r.measure_text(style.font_id, long_question, style.font_size_body);
     CHECK(std::get<DrawRect>(r.log[0]).size.x == q_w + 64.f); // content + 2 × k_pad_x
   }
+}
+
+TEST_CASE("hovered_row: uniform list hits inside rows and misses outside them") {
+  const corundum::ui::ListHit list{
+      .row_pos = {.x = 100.f, .y = 50.f},
+      .row_width = 200.f,
+      .row_height = 20.f,
+      .first_row = 0,
+      .visible_rows = 3,
+  };
+
+  CHECK(corundum::ui::hovered_row({.x = 150.f, .y = 55.f}, list) == 0);
+  CHECK(corundum::ui::hovered_row({.x = 150.f, .y = 75.f}, list) == 1);
+  CHECK(corundum::ui::hovered_row({.x = 150.f, .y = 95.f}, list) == 2);
+  // Between the last drawn row and the list bottom.
+  CHECK(corundum::ui::hovered_row({.x = 150.f, .y = 115.f}, list) == -1);
+  // Left and right of the row band.
+  CHECK(corundum::ui::hovered_row({.x = 99.f, .y = 55.f}, list) == -1);
+  CHECK(corundum::ui::hovered_row({.x = 301.f, .y = 55.f}, list) == -1);
+  // Above the first row.
+  CHECK(corundum::ui::hovered_row({.x = 150.f, .y = 40.f}, list) == -1);
+}
+
+TEST_CASE("hovered_row: a scroll offset returns absolute row indices") {
+  const corundum::ui::ListHit list{
+      .row_pos = {.x = 0.f, .y = 200.f},
+      .row_width = 100.f,
+      .row_height = 10.f,
+      .first_row = 5,
+      .visible_rows = 2,
+  };
+
+  CHECK(corundum::ui::hovered_row({.x = 10.f, .y = 205.f}, list) == 5);
+  CHECK(corundum::ui::hovered_row({.x = 10.f, .y = 215.f}, list) == 6);
+  CHECK(corundum::ui::hovered_row({.x = 10.f, .y = 225.f}, list) == -1);
+}
+
+TEST_CASE("hovered_row: an empty or degenerate list hits nothing") {
+  CHECK(corundum::ui::hovered_row({.x = 0.f, .y = 0.f}, corundum::ui::ListHit{}) == -1);
+  CHECK(corundum::ui::hovered_row({.x = 0.f, .y = 0.f},
+                                  corundum::ui::ListHit{.row_width = 10.f, .row_height = 0.f, .visible_rows = 3}) ==
+        -1);
+}
+
+TEST_CASE("hovered_row: non-uniform RowRects map to their index") {
+  const std::array<corundum::ui::RowRect, 2> rows = {
+      corundum::ui::RowRect{.pos = {.x = 0.f, .y = 10.f}, .width = 50.f, .height = 20.f},
+      corundum::ui::RowRect{.pos = {.x = 0.f, .y = 50.f}, .width = 50.f, .height = 20.f},
+  };
+  CHECK(corundum::ui::hovered_row({.x = 5.f, .y = 15.f}, rows) == 0);
+  CHECK(corundum::ui::hovered_row({.x = 5.f, .y = 55.f}, rows) == 1);
+  // The gap between the two rows.
+  CHECK(corundum::ui::hovered_row({.x = 5.f, .y = 40.f}, rows) == -1);
+}
+
+TEST_CASE("scroll_row_delta: wheel up moves up one row per notch and truncates fractions") {
+  CHECK(corundum::ui::scroll_row_delta(0.f) == 0);
+  CHECK(corundum::ui::scroll_row_delta(1.f) == -1);
+  CHECK(corundum::ui::scroll_row_delta(-1.f) == 1);
+  CHECK(corundum::ui::scroll_row_delta(1.9f) == -1);
+  CHECK(corundum::ui::scroll_row_delta(-0.4f) == 0);
 }

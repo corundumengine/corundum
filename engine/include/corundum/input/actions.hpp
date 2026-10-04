@@ -108,6 +108,16 @@ namespace corundum::input {
     float mouse_x{};
     float mouse_y{};
     /**
+     * @brief Cursor position at the previous poll cycle.
+     *
+     * make_input_intent() compares these against @c mouse_x/@c mouse_y to raise
+     * InputIntent::mouse_moved, so a screen only shifts focus for a real movement and not
+     * merely because a pointer happens to rest over a row. InputMapper::end_poll() copies
+     * the outgoing position into them before accumulating this poll.
+     */
+    float prev_mouse_x{};
+    float prev_mouse_y{};
+    /**
      * @brief True only on the frame the left mouse button was pressed.
      *
      * Deliberately separate from Action::Select (also bound to the mouse button for

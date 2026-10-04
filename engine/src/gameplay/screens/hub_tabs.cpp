@@ -63,6 +63,17 @@ namespace corundum::gameplay::screens {
     return strip;
   }
 
+  int hub_tab_at(const HubTabStrip &strip, core::math::Vec2 cursor) noexcept {
+    if (cursor.y < strip.y || cursor.y > strip.y + strip.line_height)
+      return -1;
+    for (std::size_t i = 0; i < strip.tabs.size(); ++i) {
+      const HubTabRect &tab = strip.tabs[i];
+      if (cursor.x >= tab.pos.x && cursor.x <= tab.pos.x + tab.width)
+        return static_cast<int>(i);
+    }
+    return -1;
+  }
+
   void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
                             core::math::Vec2 viewport, input::InputDevice last_device) {
     const HubTabStrip strip = hub_tab_strip(r, style, viewport);

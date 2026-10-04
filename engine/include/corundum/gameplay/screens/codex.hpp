@@ -8,6 +8,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
@@ -52,6 +53,29 @@ namespace corundum::gameplay::screens {
   inline void codex_mark_dirty(CodexState &state) noexcept {
     state.dirty = true;
   }
+
+  /** @brief One visible list row of the codex, flattened for hit-testing. */
+  struct CodexListRow {
+    ui::RowRect rect{};
+
+    int entry_index{-1}; ///< Entry the row selects, or -1 for a category header (not selectable).
+  };
+
+  /** @brief Screen-space geometry of the codex panel, shared by render and mouse hit-testing. */
+  struct CodexLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    ui::RowRect body_rect{}; ///< Right-hand detail pane; wheel over it scrolls the body.
+
+    std::vector<CodexListRow> list_rows{}; ///< Only the rows currently visible, in draw order.
+  };
+
+  /** @brief Compute the codex panel's visible geometry for @p viewport. */
+  [[nodiscard]] CodexLayout codex_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+                                               const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
+                                               core::math::Vec2 viewport, input::InputDevice last_device);
 
   /** @brief Draw the codex as a centered two-pane panel: unlocked entries left, body right.
    *

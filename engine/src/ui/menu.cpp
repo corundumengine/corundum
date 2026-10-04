@@ -19,6 +19,23 @@
 
 namespace corundum::ui {
 
+  namespace {
+
+    constexpr float k_menu_min_w = 220.f;
+    constexpr float k_menu_pad_x = 28.f;
+    constexpr float k_menu_pad_y = 18.f;
+    constexpr float k_menu_title_gap = 12.f;
+    constexpr float k_menu_footer_gap = 14.f;
+    constexpr std::string_view k_menu_title = "Paused";
+
+    /// Footer hint, using the last-used device's glyphs.
+    std::string menu_footer(input::InputDevice last_device) {
+      return std::format("{} Select   {} Close", input_glyph(input::Action::Activate, last_device),
+                         input_glyph(input::Action::Cancel, last_device));
+    }
+
+  } // namespace
+
   std::string_view menu_command_label(MenuCommand command) noexcept {
     switch (command) {
       case MenuCommand::Resume:
@@ -44,43 +61,55 @@ namespace corundum::ui {
     }
   }
 
-  void menu_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
-                         const MenuState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
-    constexpr float k_min_w = 220.f;
-    constexpr float k_pad_x = 28.f;
-    constexpr float k_pad_y = 18.f;
-    constexpr float k_title_gap = 12.f;
-    constexpr float k_footer_gap = 14.f;
-    constexpr std::string_view k_title = "Paused";
-
+  MenuLayout menu_panel_layout(const platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport,
+                               input::InputDevice last_device) {
     const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 6.f);
     const float title_h = std::max(line_h, static_cast<float>(style.font_size_speaker) + 6.f);
     const float cursor_w = cursor_advance(r, style);
 
-    const std::string footer = std::format("{} Select   {} Close", input_glyph(input::Action::Activate, last_device),
-                                           input_glyph(input::Action::Cancel, last_device));
+    const std::string footer = menu_footer(last_device);
 
-    float widest = std::max(r.measure_text(style.font_id, k_title, style.font_size_speaker),
+    float widest = std::max(r.measure_text(style.font_id, k_menu_title, style.font_size_speaker),
                             r.measure_text(style.font_id, footer, style.font_size_body));
     for (int row = 0; row < k_menu_command_count; ++row) {
       widest = std::max(widest, cursor_w + r.measure_text(style.font_id, menu_command_label(menu_command_at(row)),
                                                           style.font_size_body));
     }
 
-    const float panel_w = std::max(k_min_w, widest + (k_pad_x * 2.f));
-    const float panel_h = (k_pad_y * 2.f) + title_h + k_title_gap +
-                          (static_cast<float>(k_menu_command_count) * line_h) + k_footer_gap + line_h;
+    const float panel_w = std::max(k_menu_min_w, widest + (k_menu_pad_x * 2.f));
+    const float panel_h = (k_menu_pad_y * 2.f) + title_h + k_menu_title_gap +
+                          (static_cast<float>(k_menu_command_count) * line_h) + k_menu_footer_gap + line_h;
     const float panel_x = (viewport.x - panel_w) * 0.5f;
     const float panel_y = (viewport.y - panel_h) * 0.5f;
 
-    panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
+    MenuLayout layout{};
+    layout.panel_pos = {.x = panel_x, .y = panel_y};
+    layout.panel_size = {.x = panel_w, .y = panel_h};
+    layout.rows = ui::ListHit{
+        .row_pos = {.x = panel_x + k_menu_pad_x, .y = panel_y + k_menu_pad_y + title_h + k_menu_title_gap},
+        .row_width = panel_w - (k_menu_pad_x * 2.f),
+        .row_height = line_h,
+        .first_row = 0,
+        .visible_rows = k_menu_command_count,
+    };
+    return layout;
+  }
 
-    const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
-    const float title_y = panel_y + k_pad_y;
+  void menu_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
+                         const MenuState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
+    const MenuLayout layout = menu_panel_layout(r, style, viewport, last_device);
+    const float line_h = layout.rows.row_height;
+
+    const std::string footer = menu_footer(last_device);
+
+    panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
+
+    const float title_w = r.measure_text(style.font_id, k_menu_title, style.font_size_speaker);
+    const float title_y = layout.panel_pos.y + k_menu_pad_y;
     r.draw(platform::DrawText{
         .font_id = style.font_id,
-        .text = k_title,
-        .position = {.x = panel_x + ((panel_w - title_w) * 0.5f), .y = title_y},
+        .text = k_menu_title,
+        .position = {.x = layout.panel_pos.x + ((layout.panel_size.x - title_w) * 0.5f), .y = title_y},
         .char_size = style.font_size_speaker,
         .colour = style.speaker,
     });
@@ -90,17 +119,18 @@ namespace corundum::ui {
         .text = footer,
         .position =
             {
-                .x = panel_x + ((panel_w - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
-                .y = panel_y + panel_h - k_pad_y - line_h,
+                .x = layout.panel_pos.x +
+                     ((layout.panel_size.x - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
+                .y = layout.panel_pos.y + layout.panel_size.y - k_menu_pad_y - line_h,
             },
         .char_size = style.font_size_body,
         .colour = style.choice,
     });
 
     const int clamped_cursor = std::clamp(state.cursor, 0, k_menu_command_count - 1);
-    float y = title_y + title_h + k_title_gap;
+    float y = layout.rows.row_pos.y;
     for (int row = 0; row < k_menu_command_count; ++row) {
-      draw_option(r, style, menu_command_label(menu_command_at(row)), {.x = panel_x + k_pad_x, .y = y},
+      draw_option(r, style, menu_command_label(menu_command_at(row)), {.x = layout.rows.row_pos.x, .y = y},
                   row == clamped_cursor);
       y += line_h;
     }

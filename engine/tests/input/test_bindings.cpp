@@ -273,3 +273,11 @@ TEST_CASE("bindings: parse errors name the offending entry") {
     CHECK(result.error().find(std::to_string(k_max_input_sources)) != std::string::npos);
   }
 }
+
+TEST_CASE("bindings: Cancel includes the right mouse button") {
+  const Bindings defaults = default_bindings();
+  const std::vector<PhysicalInput> cancel = inputs_for(defaults, Action::Cancel);
+  CHECK(std::ranges::find(cancel, physical(corundum::input::MouseButton::Right)) != cancel.end());
+  CHECK(std::ranges::find(cancel, physical(Key::Escape)) != cancel.end());
+  CHECK(std::ranges::find(cancel, physical(GamepadControl::B)) != cancel.end());
+}

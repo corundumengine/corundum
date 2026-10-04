@@ -9,6 +9,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 
 #include <array>
 #include <cstdint>
@@ -101,6 +102,27 @@ namespace corundum::ui {
 
   /** @brief Adjust @p state.scroll so row @p state.cursor is visible within @p visible_rows. */
   void settings_scroll_to_cursor(SettingsState &state, int row_count, int visible_rows) noexcept;
+
+  /** @brief Screen-space geometry of the settings panel, shared by render and mouse hit-testing. */
+  struct SettingsLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    std::array<ui::RowRect, k_settings_tab_count> tabs{};
+
+    ui::ListHit rows{};
+  };
+
+  /** @brief Compute the settings panel's geometry for @p viewport.
+   *
+   *  Takes the same live @p values and @p bindings as the render so the measured panel width
+   *  (which depends on the longest displayed value) matches exactly.
+   */
+  [[nodiscard]] SettingsLayout settings_panel_layout(const platform::Renderer &r, const PanelStyle &style,
+                                                     const SettingsState &state, const SettingsValues &values,
+                                                     const input::Bindings &bindings, core::math::Vec2 viewport,
+                                                     input::InputDevice last_device);
 
   /** @brief Draw the centered settings panel: General / Controls tabs and the active page's rows.
    *

@@ -29,13 +29,6 @@ namespace corundum::settings {
 
   namespace {
 
-    /// v1 → v2 added the optional master_volume / text_speed / ui_scale fields. They are
-    /// optional, so a v1 document needs no rewrite; the step only advances the version stamp.
-    std::expected<int, std::string> migrate_to_v2(nlohmann::json & /*root*/, int /*from_version*/,
-                                                  const std::string & /*path*/) {
-      return k_user_settings_schema_version;
-    }
-
     /// Read an optional numeric field, rejecting a present-but-non-numeric value; leaves
     /// @p out unchanged when the field is absent.
     std::expected<void, std::string> read_optional_float(const nlohmann::json &root, std::string_view key, float &out) {
@@ -138,8 +131,8 @@ namespace corundum::settings {
     if (!root->is_object())
       return std::unexpected("settings must be a JSON object");
 
-    if (std::expected<void, std::string> prepared = core::prepare_schema_version(
-            *root, k_user_settings_schema_version, "User settings", path.string(), migrate_to_v2);
+    if (std::expected<void, std::string> prepared =
+            core::prepare_schema_version(*root, k_user_settings_schema_version, "User settings", path.string(), {});
         !prepared)
       return std::unexpected(prepared.error());
 

@@ -23,11 +23,6 @@ namespace corundum::gameplay::codex {
 
   namespace {
 
-    std::expected<int, std::string> migrate_codex_json(json & /*root*/, int from_version,
-                                                       const std::string & /*path*/) {
-      return from_version;
-    }
-
     CodexEntry parse_entry(const json &element) {
       CodexEntry entry;
       entry.id = element["id"].get<std::string>();
@@ -49,9 +44,7 @@ namespace corundum::gameplay::codex {
       return std::unexpected(std::move(root_result).error());
     json root = std::move(*root_result);
 
-    if (auto prepared =
-            core::prepare_schema_version(root, k_codex_schema_version, "Codex", path_string, migrate_codex_json);
-        !prepared)
+    if (auto prepared = core::prepare_schema_version(root, k_codex_schema_version, "Codex", path_string, {}); !prepared)
       return std::unexpected(std::move(prepared).error());
 
     if (auto validated = core::schema_catalog().codex_schema().validate(root); !validated)

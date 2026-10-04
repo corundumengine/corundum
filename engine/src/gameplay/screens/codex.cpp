@@ -33,6 +33,99 @@ namespace corundum::gameplay::screens {
       return entry.category.empty() ? std::string_view{"Lore"} : std::string_view{entry.category};
     }
 
+    /// One flattened list row: a category header or a selectable entry.
+    struct CodexRow {
+      bool header{false};
+
+      std::string_view text{};
+
+      int entry_index{};
+    };
+
+    struct CodexGeometry {
+      float line_h{};
+      float header_h{};
+      float panel_x{};
+      float panel_y{};
+      float panel_w{};
+      float panel_h{};
+      float content_top{};
+      float content_bottom{};
+      float list_x{};
+      float list_w{};
+      float body_x{};
+      float body_w{};
+      int first_row{};
+      int visible_rows{};
+      int clamped_cursor{};
+      std::vector<CodexRow> rows;
+    };
+
+    /// Flatten entries into header/entry rows and scroll the window to keep @p cursor visible.
+    std::vector<CodexRow> build_codex_rows(const std::vector<gameplay::codex::CodexEntry> &entries) {
+      std::vector<CodexRow> rows;
+      std::string_view last_category;
+      for (int i = 0; std::cmp_less(i, entries.size()); ++i) {
+        const std::string_view category = category_label(entries[static_cast<std::size_t>(i)]);
+        if (rows.empty() || category != last_category) {
+          rows.push_back(CodexRow{.header = true, .text = category, .entry_index = -1});
+          last_category = category;
+        }
+        rows.push_back(CodexRow{.header = false, .text = entries[static_cast<std::size_t>(i)].title, .entry_index = i});
+      }
+      return rows;
+    }
+
+    /// Whether @p index is a currently-drawn row: inside both the scroll window and the row list.
+    bool codex_row_visible(const CodexGeometry &geometry, int index) noexcept {
+      return index < geometry.first_row + geometry.visible_rows && std::cmp_less(index, geometry.rows.size());
+    }
+
+    /// Screen y of drawn row @p index.
+    float codex_row_y(const CodexGeometry &geometry, int index) noexcept {
+      return geometry.content_top + (static_cast<float>(index - geometry.first_row) * geometry.line_h);
+    }
+
+    CodexGeometry compute_codex_geometry(const ui::PanelStyle &style,
+                                         const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
+                                         core::math::Vec2 viewport) {
+      constexpr float k_pad = 20.f;
+      constexpr float k_split_frac = 0.42f;
+
+      CodexGeometry geometry{};
+      geometry.line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
+      geometry.header_h = std::max(geometry.line_h, static_cast<float>(style.font_size_speaker) + 4.f);
+      geometry.panel_w = std::max(480.f, viewport.x * 0.8f);
+      geometry.panel_h = std::max(280.f, viewport.y * 0.75f);
+      geometry.panel_x = (viewport.x - geometry.panel_w) * 0.5f;
+      geometry.panel_y = (viewport.y - geometry.panel_h) * 0.5f;
+      geometry.content_top = geometry.panel_y + k_pad + geometry.header_h + k_pad;
+      geometry.content_bottom = geometry.panel_y + geometry.panel_h - k_pad - geometry.line_h - k_pad;
+      geometry.list_w = geometry.panel_w * k_split_frac;
+      geometry.list_x = geometry.panel_x + k_pad;
+      geometry.body_x = geometry.panel_x + geometry.list_w + k_pad;
+      geometry.body_w = geometry.panel_w - geometry.list_w - (k_pad * 2.f);
+
+      geometry.clamped_cursor = std::clamp(cursor, 0, std::max(0, static_cast<int>(entries.size()) - 1));
+      geometry.rows = build_codex_rows(entries);
+      if (geometry.rows.empty())
+        return geometry;
+
+      const int cursor_row =
+          static_cast<int>(std::ranges::find_if(geometry.rows,
+                                                [&](const CodexRow &row) {
+                                                  return !row.header && row.entry_index == geometry.clamped_cursor;
+                                                }) -
+                           geometry.rows.begin());
+      geometry.visible_rows =
+          std::max(1, static_cast<int>((geometry.content_bottom - geometry.content_top) / geometry.line_h));
+      geometry.first_row = std::clamp(cursor_row - geometry.visible_rows + 1, 0,
+                                      std::max(0, static_cast<int>(geometry.rows.size()) - geometry.visible_rows));
+      if (cursor_row < geometry.first_row)
+        geometry.first_row = std::min(cursor_row, geometry.first_row);
+      return geometry;
+    }
+
   } // namespace
 
   std::vector<gameplay::codex::CodexEntry> build_codex_entries(const gameplay::codex::Registry &registry,
@@ -56,29 +149,51 @@ namespace corundum::gameplay::screens {
     state.cursor = std::clamp(state.cursor, 0, std::max(0, static_cast<int>(state.entries.size()) - 1));
   }
 
+  CodexLayout codex_panel_layout(const platform::Renderer & /*r*/, const ui::PanelStyle &style,
+                                 const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
+                                 core::math::Vec2 viewport, input::InputDevice /*last_device*/) {
+    const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
+
+    CodexLayout layout{};
+    layout.panel_pos = {.x = geometry.panel_x, .y = geometry.panel_y};
+    layout.panel_size = {.x = geometry.panel_w, .y = geometry.panel_h};
+    layout.body_rect = ui::RowRect{
+        .pos = {.x = geometry.body_x, .y = geometry.content_top},
+        .width = geometry.body_w,
+        .height = geometry.content_bottom - geometry.content_top,
+    };
+    for (int i = geometry.first_row; codex_row_visible(geometry, i); ++i) {
+      const CodexRow &row = geometry.rows[static_cast<std::size_t>(i)];
+      layout.list_rows.push_back(CodexListRow{
+          .rect =
+              ui::RowRect{
+                  .pos = {.x = geometry.list_x, .y = codex_row_y(geometry, i)},
+                  .width = geometry.list_w,
+                  .height = geometry.line_h,
+              },
+          .entry_index = row.header ? -1 : row.entry_index,
+      });
+    }
+    return layout;
+  }
+
   void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                           const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
                           core::math::Vec2 viewport, input::InputDevice last_device) {
     constexpr float k_pad = 20.f;
     constexpr std::string_view k_title = "Codex";
     constexpr std::string_view k_empty = "(no entries)";
-    constexpr float k_split_frac = 0.42f;
 
-    const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
-    const float header_h = std::max(line_h, static_cast<float>(style.font_size_speaker) + 4.f);
+    const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
 
-    const float panel_w = std::max(480.f, viewport.x * 0.8f);
-    const float panel_h = std::max(280.f, viewport.y * 0.75f);
-    const float panel_x = (viewport.x - panel_w) * 0.5f;
-    const float panel_y = (viewport.y - panel_h) * 0.5f;
-
-    ui::panel_chrome(r, style.bg, border, {.x = panel_x, .y = panel_y}, {.x = panel_w, .y = panel_h});
+    ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
+                     {.x = geometry.panel_w, .y = geometry.panel_h});
 
     const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = k_title,
-        .position = {.x = panel_x + ((panel_w - title_w) * 0.5f), .y = panel_y + k_pad},
+        .position = {.x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f), .y = geometry.panel_y + k_pad},
         .char_size = style.font_size_speaker,
         .colour = style.speaker,
     });
@@ -90,105 +205,69 @@ namespace corundum::gameplay::screens {
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = footer,
-        .position = {.x = panel_x + ((panel_w - footer_w) * 0.5f), .y = panel_y + panel_h - k_pad - line_h},
+        .position =
+            {
+                .x = geometry.panel_x + ((geometry.panel_w - footer_w) * 0.5f),
+                .y = geometry.panel_y + geometry.panel_h - k_pad - geometry.line_h,
+            },
         .char_size = style.font_size_body,
         .colour = style.choice,
     });
-
-    const float content_top = panel_y + k_pad + header_h + k_pad;
-    const float content_bottom = panel_y + panel_h - k_pad - line_h - k_pad;
-    const float list_w = panel_w * k_split_frac;
-    const float list_x = panel_x + k_pad;
-    const float body_x = panel_x + list_w + k_pad;
-    const float body_w = panel_w - list_w - (k_pad * 2.f);
 
     if (entries.empty()) {
       r.draw(platform::DrawText{
           .font_id = style.font_id,
           .text = k_empty,
-          .position = {.x = list_x, .y = content_top},
+          .position = {.x = geometry.list_x, .y = geometry.content_top},
           .char_size = style.font_size_body,
           .colour = style.choice,
       });
       return;
     }
 
-    const int clamped_cursor = std::clamp(cursor, 0, static_cast<int>(entries.size()) - 1);
-    const int visible_rows = std::max(1, static_cast<int>((content_bottom - content_top) / line_h));
-
-    // A flat row list of category headers and entry labels lets the list window scroll as one
-    // sequence while the cursor still indexes entries.
-    struct Row {
-      bool header{false};
-      std::string text{};
-      int entry_index{};
-    };
-
-    std::vector<Row> rows;
-    std::string_view last_category;
-    for (int i = 0; std::cmp_less(i, entries.size()); ++i) {
-      const std::string_view category = category_label(entries[static_cast<std::size_t>(i)]);
-      if (rows.empty() || category != last_category) {
-        rows.push_back(Row{.header = true, .text = std::string(category)});
-        last_category = category;
-      }
-      rows.push_back(Row{.header = false, .text = entries[static_cast<std::size_t>(i)].title, .entry_index = i});
-    }
-
-    const int cursor_row = static_cast<int>(
-        std::ranges::find_if(
-            rows, [clamped_cursor](const Row &row) { return !row.header && row.entry_index == clamped_cursor; }) -
-        rows.begin());
-    int first_row =
-        std::clamp(cursor_row - visible_rows + 1, 0, std::max(0, static_cast<int>(rows.size()) - visible_rows));
-    if (cursor_row < first_row)
-      first_row = std::min(cursor_row, first_row);
-
-    float y = content_top;
-    for (int i = first_row; std::cmp_less(i, rows.size()) && i < first_row + visible_rows; ++i) {
-      const Row &row = rows[static_cast<std::size_t>(i)];
+    for (int i = geometry.first_row; codex_row_visible(geometry, i); ++i) {
+      const CodexRow &row = geometry.rows[static_cast<std::size_t>(i)];
+      const float y = codex_row_y(geometry, i);
       if (row.header) {
         r.draw(platform::DrawText{
             .font_id = style.font_id,
             .text = row.text,
-            .position = {.x = list_x, .y = y},
+            .position = {.x = geometry.list_x, .y = y},
             .char_size = style.font_size_speaker,
             .colour = style.speaker,
         });
       } else {
-        ui::draw_option(r, style, row.text, {.x = list_x, .y = y}, row.entry_index == clamped_cursor);
+        ui::draw_option(r, style, row.text, {.x = geometry.list_x, .y = y}, row.entry_index == geometry.clamped_cursor);
       }
-      y += line_h;
     }
 
-    const gameplay::codex::CodexEntry &selected = entries[static_cast<std::size_t>(clamped_cursor)];
-    const float body_line_h = line_h;
-    const std::vector<std::string> body_lines = ui::wrap_text(selected.body, body_w, [&](std::string_view text) {
-      return r.measure_text(style.font_id, text, style.font_size_body);
-    });
+    const gameplay::codex::CodexEntry &selected = entries[static_cast<std::size_t>(geometry.clamped_cursor)];
+    const std::vector<std::string> body_lines =
+        ui::wrap_text(selected.body, geometry.body_w,
+                      [&](std::string_view text) { return r.measure_text(style.font_id, text, style.font_size_body); });
 
-    const int visible_body = std::max(1, static_cast<int>((content_bottom - content_top) / body_line_h));
+    const int visible_body = geometry.visible_rows;
     const float max_scroll = std::max(0.f, static_cast<float>(body_lines.size()) - static_cast<float>(visible_body));
     const int first_body = std::clamp(static_cast<int>(scroll), 0, static_cast<int>(max_scroll));
 
-    float body_y = content_top;
+    float body_y = geometry.content_top;
     r.draw(platform::DrawText{
         .font_id = style.font_id,
         .text = selected.title,
-        .position = {.x = body_x, .y = body_y},
+        .position = {.x = geometry.body_x, .y = body_y},
         .char_size = style.font_size_speaker,
         .colour = style.speaker,
     });
-    body_y += header_h;
+    body_y += geometry.header_h;
     for (int i = first_body; std::cmp_less(i, body_lines.size()) && i < first_body + visible_body; ++i) {
       r.draw(platform::DrawText{
           .font_id = style.font_id,
           .text = body_lines[static_cast<std::size_t>(i)],
-          .position = {.x = body_x, .y = body_y},
+          .position = {.x = geometry.body_x, .y = body_y},
           .char_size = style.font_size_body,
           .colour = style.body,
       });
-      body_y += body_line_h;
+      body_y += geometry.line_h;
     }
   }
 

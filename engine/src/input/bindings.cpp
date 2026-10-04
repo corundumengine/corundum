@@ -71,6 +71,7 @@ namespace corundum::input {
         {.action = Action::Activate, .input = physical(Key::Enter)},
         {.action = Action::Activate, .input = physical(Key::Space)},
         {.action = Action::Cancel, .input = physical(Key::Escape)},
+        {.action = Action::Cancel, .input = physical(MouseButton::Right)},
         {.action = Action::Quit, .input = physical(Key::Q)},
         {.action = Action::Inventory, .input = physical(Key::I)},
         {.action = Action::Journal, .input = physical(Key::J)},

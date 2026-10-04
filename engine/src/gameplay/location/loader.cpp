@@ -20,11 +20,6 @@ namespace corundum::gameplay::location {
 
   namespace {
 
-    std::expected<int, std::string> migrate_location_json(json & /*root*/, int from_version,
-                                                          const std::string & /*path*/) {
-      return from_version;
-    }
-
     Location parse_location(const json &element) {
       Location location;
       location.id = element["id"].get<std::string>();
@@ -52,8 +47,7 @@ namespace corundum::gameplay::location {
       return std::unexpected(std::move(root_result).error());
     json root = std::move(*root_result);
 
-    if (auto prepared = core::prepare_schema_version(root, k_location_schema_version, "Location", path_string,
-                                                     migrate_location_json);
+    if (auto prepared = core::prepare_schema_version(root, k_location_schema_version, "Location", path_string, {});
         !prepared)
       return std::unexpected(std::move(prepared).error());
 

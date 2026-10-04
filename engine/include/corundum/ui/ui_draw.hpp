@@ -7,9 +7,58 @@
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 
+#include <span>
 #include <string_view>
 
 namespace corundum::ui {
+
+  /** @brief Screen-space hit rectangle of one selectable row. */
+  struct RowRect {
+    core::math::Vec2 pos{};
+
+    float width{};
+
+    float height{};
+  };
+
+  /** @brief Screen-space hit geometry of a uniform vertical option list.
+   *
+   *  Shared by a screen's render and its mouse handling so the two cannot disagree about where
+   *  a row is. Coordinates are logical window points (ui_scale is baked into the panel style),
+   *  exactly the space InputIntent::cursor_x/cursor_y use.
+   */
+  struct ListHit {
+    core::math::Vec2 row_pos{}; ///< Top-left of the first visible row's hit rectangle.
+
+    float row_width{}; ///< Hit width of every row.
+
+    float row_height{}; ///< Row stride.
+
+    int first_row{}; ///< Index of the topmost visible row (a scroll offset).
+
+    int visible_rows{}; ///< Number of rows actually drawn.
+  };
+
+  /** @brief Index of the row under @p cursor in a uniform list, or -1.
+   *
+   *  A cursor on a row's edges counts as inside. @p list.visible_rows entries starting at
+   *  @p list.first_row are hit; the returned index is absolute (already includes the offset).
+   */
+  [[nodiscard]] int hovered_row(core::math::Vec2 cursor, const ListHit &list) noexcept;
+
+  /** @brief Index of the RowRect under @p cursor, or -1.
+   *
+   *  For lists whose rows have non-uniform y (group headers interleaved with options), which
+   *  a uniform ListHit cannot describe.
+   */
+  [[nodiscard]] int hovered_row(core::math::Vec2 cursor, std::span<const RowRect> rows) noexcept;
+
+  /** @brief Whole rows a scroll delta should move a list cursor.
+   *
+   *  Positive wheel (away from the user) moves focus toward the top of the list, matching how
+   *  the codex body scrolls. Fractional deltas truncate toward zero.
+   */
+  [[nodiscard]] int scroll_row_delta(float scroll_y) noexcept;
 
   /** @brief Horizontal advance of the choice cursor column — the x-offset at which a
    *         draw_option() label begins.

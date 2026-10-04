@@ -24,16 +24,6 @@ namespace corundum::sprites {
 
   namespace {
 
-    /// Migration step for sprite-sheet clips documents. No migrations exist yet — schema_version 1
-    /// is both the legacy (absent-field) form and the current format — so this returns @p
-    /// from_version unchanged. Future steps advance @p from_version and are never edited once
-    /// shipped; leaving this stub unchanged after a version bump fails loudly (the caller rejects a
-    /// result below the current version).
-    std::expected<int, std::string> migrate_sprite_sheet_clips_json(json & /*root*/, int from_version,
-                                                                    const std::string & /*file*/) {
-      return from_version;
-    }
-
     /// Read a required integer field as int, rejecting a missing field, a wrong type, or a value
     /// outside int range. Values are checked here rather than left to nlohmann, whose get<int>()
     /// throws on a wrong type and narrows an out-of-range integer.
@@ -166,8 +156,7 @@ namespace corundum::sprites {
     if (!j.is_object())
       return std::unexpected(std::format("Sprite sheet '{}' must be a JSON object", file));
 
-    auto prepared = core::prepare_schema_version(j, k_sprite_sheet_clips_schema_version, "Sprite sheet", file,
-                                                 migrate_sprite_sheet_clips_json);
+    auto prepared = core::prepare_schema_version(j, k_sprite_sheet_clips_schema_version, "Sprite sheet", file, {});
     if (!prepared)
       return std::unexpected(std::move(prepared).error());
 

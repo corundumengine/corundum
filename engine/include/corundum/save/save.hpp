@@ -61,26 +61,13 @@ namespace corundum::save {
 
   /** @brief Deserialize a SaveState from JSON.
    *
-   * Refuses a version newer than k_save_version with a clear message, runs the
-   * migration chain for older versions, and applies defaults to any missing
+   * Refuses any version but k_save_version, and applies defaults to any missing
    * field. Unknown flag keys are preserved verbatim.
    *
-   * @param j The JSON document produced by serialize (or an older format).
+   * @param j The JSON document produced by serialize.
    * @return The deserialized state, or an error message.
    */
   [[nodiscard]] std::expected<SaveState, std::string> parse(const nlohmann::json &j);
-
-  /** @brief Migrate a save JSON document in place from @p from_version to the current format.
-   *
-   * No migrations exist yet — version 1 is both the legacy (absent-field) format
-   * and the current format, so this is a no-op today. Future steps are appended
-   * in order and never edited once shipped.
-   *
-   * @param j            The save document to rewrite in place.
-   * @param from_version The version the document was saved at.
-   * @return ok, or an error for an invalid from_version.
-   */
-  [[nodiscard]] std::expected<void, std::string> migrate(nlohmann::json &j, int from_version);
 
   /** @brief Write the engine's current state to a save file.
    *

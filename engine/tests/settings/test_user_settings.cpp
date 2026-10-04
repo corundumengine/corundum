@@ -126,23 +126,6 @@ TEST_CASE("settings: serialize/parse round-trips") {
   CHECK(parsed->ui_scale == doctest::Approx(settings.ui_scale));
 }
 
-TEST_CASE("settings: a v1 document migrates and keeps the new-field defaults") {
-  corundum::Engine engine{};
-  adopt_platform(engine, 320, 240);
-  engine.cfg.dialogue_render = {}; // baseline sizes for the ui_scale assertion
-
-  const auto dir = temp_dir("v1_migration");
-  const auto path = dir / "settings.json";
-  write_file(path, R"({"schema_version": 1, "window_mode": "fullscreen"})");
-
-  const auto loaded = corundum::settings::load(engine, path);
-  REQUIRE(loaded.has_value());
-  CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
-  CHECK(engine.audio.master_volume() == doctest::Approx(1.f));
-  CHECK(engine.render.text_speed == doctest::Approx(1.f));
-  CHECK(engine.render.ui_scale == doctest::Approx(1.f));
-}
-
 TEST_CASE("settings: out-of-range volume and UI scale are clamped") {
   const nlohmann::json root = {{"schema_version", 2}, {"master_volume", 5.f}, {"ui_scale", 0.1f}};
   const auto parsed = corundum::settings::parse(root, UserSettings{});
@@ -238,18 +221,22 @@ TEST_CASE("settings: save/load round-trips bindings and window mode") {
   CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
 }
 
-TEST_CASE("settings: a newer schema version is rejected and leaves the engine unchanged") {
+TEST_CASE("settings: a newer schema version is rejected and the engine keeps its defaults") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
   const auto dir = temp_dir("newer_schema");
   const auto path = dir / "settings.json";
-  write_file(path, R"({"schema_version": 3, "window_mode": "fullscreen"})");
+  // A v2 file written before the right-mouse Cancel default shipped. There is no migration, so
+  // it is refused and the defaults (which include the new binding) stand.
+  write_file(path, R"({"schema_version": 2, "window_mode": "fullscreen"})");
 
   const auto loaded = corundum::settings::load(engine, path);
   REQUIRE_FALSE(loaded.has_value());
-  CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
   CHECK(engine.window->window_mode() == WindowMode::Windowed);
+  const std::vector<corundum::input::PhysicalInput> cancel =
+      corundum::input::inputs_for(engine.input_mapper.bindings(), Action::Cancel);
+  CHECK(std::ranges::find(cancel, physical(corundum::input::MouseButton::Right)) != cancel.end());
 }
 
 TEST_CASE("settings: an oversized binding table is rejected and leaves the engine unchanged") {

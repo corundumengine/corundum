@@ -10,8 +10,8 @@
 namespace corundum::world::tilemap {
 
   /// Current tilemap JSON schema version. A map file with no "schema_version" field is treated as
-  /// version 1 (the original, pre-versioning format). Bump this and add a step to migrate_tilemap_json
-  /// (loader.cpp) whenever a schema change requires upgrading old map files at load time.
+  /// version 1 (the original, pre-versioning format). Pre-1.0, bump this whenever a schema change
+  /// would break old map files; older versions are rejected at load time rather than migrated.
   constexpr int k_tilemap_schema_version = 1;
 
   /// Load a tileset from its JSON source file — a spritepacker atlas JSON (schema_version 2),

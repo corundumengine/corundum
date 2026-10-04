@@ -280,21 +280,7 @@ namespace corundum::world::tilemap {
     return tiles.info;
   }
 
-  /// Migrates a tilemap JSON object in place from @p from_version up to k_tilemap_schema_version,
-  /// applying each version-to-version step in sequence and returning the version reached. No
-  /// migrations exist yet — schema_version 1 is both the legacy (absent-field) format and the
-  /// current format — so this returns @p from_version unchanged. When k_tilemap_schema_version is
-  /// raised, append a step and advance @p from_version with it, e.g.:
-  ///   if (from_version < 2) { /* rewrite v1 fields into v2 shape */ from_version = 2; }
-  /// The caller rejects a result below the current version, so leaving this stub unchanged after a
-  /// bump fails loudly rather than mis-parsing an old file. Existing steps must never be edited
-  /// once shipped, since already-migrated files may depend on the exact transformation a step
-  /// performed.
   namespace {
-
-    std::expected<int, std::string> migrate_tilemap_json(json & /*j*/, int from_version, const std::string & /*path*/) {
-      return from_version;
-    }
 
     /// Split @p row_str into comma-separated integers, rejecting a count other than @p width.
     /// @param what Human-readable locator (e.g. "layer 'ground' row 3") prefixed to any error.
@@ -343,8 +329,7 @@ namespace corundum::world::tilemap {
       return std::unexpected(std::move(parsed.error()));
     json &j = *parsed;
 
-    auto prepared =
-        core::prepare_schema_version(j, k_tilemap_schema_version, "Tilemap", path.string(), migrate_tilemap_json);
+    auto prepared = core::prepare_schema_version(j, k_tilemap_schema_version, "Tilemap", path.string(), {});
     if (!prepared)
       return std::unexpected(prepared.error());
 

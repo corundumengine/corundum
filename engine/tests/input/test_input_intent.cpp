@@ -96,3 +96,29 @@ TEST_CASE("make_input_intent: carries cursor, click, and scroll") {
   CHECK(intent.scroll_y == 2.f);
   CHECK(intent.last_device == InputDevice::Mouse);
 }
+
+TEST_CASE("make_input_intent: SubTabNext and SubTabPrev decode to their own flags") {
+  const InputIntent next = intent_with(Action::SubTabNext);
+  CHECK(next.next_sub_tab);
+  CHECK_FALSE(next.prev_sub_tab);
+
+  const InputIntent prev = intent_with(Action::SubTabPrev);
+  CHECK(prev.prev_sub_tab);
+  CHECK_FALSE(prev.next_sub_tab);
+}
+
+TEST_CASE("make_input_intent: mouse_moved is raised only when the cursor position changed") {
+  InputState still{};
+  still.mouse_x = 10.f;
+  still.mouse_y = 20.f;
+  still.prev_mouse_x = 10.f;
+  still.prev_mouse_y = 20.f;
+  CHECK_FALSE(make_input_intent(still, InputDevice::Mouse).mouse_moved);
+
+  InputState moved{};
+  moved.mouse_x = 11.f;
+  moved.mouse_y = 20.f;
+  moved.prev_mouse_x = 10.f;
+  moved.prev_mouse_y = 20.f;
+  CHECK(make_input_intent(moved, InputDevice::Mouse).mouse_moved);
+}

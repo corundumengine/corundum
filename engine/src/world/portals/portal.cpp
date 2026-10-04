@@ -20,15 +20,6 @@ namespace corundum::world {
 
   namespace {
 
-    /// Migration step for portals documents. No migrations exist yet — schema_version 1
-    /// is both the legacy (absent-field) format and the current format — so this returns
-    /// @p from_version unchanged. A future version bump must advance it and never edit a
-    /// shipped step, or prepare_schema_version rejects the result as an incomplete migration.
-    std::expected<int, std::string> migrate_portals_json(json & /*root*/, int from_version,
-                                                         const std::string & /*path*/) {
-      return from_version;
-    }
-
     /// Trigger rectangle in tile-grid units, prior to the float conversion Portal stores.
     struct PortalRect {
       int col = 0;
@@ -164,8 +155,7 @@ namespace corundum::world {
       return std::unexpected(std::move(parsed).error());
     json j = std::move(*parsed);
 
-    auto prepared =
-        corundum::core::prepare_schema_version(j, k_portals_schema_version, "Portals", path_str, migrate_portals_json);
+    auto prepared = corundum::core::prepare_schema_version(j, k_portals_schema_version, "Portals", path_str, {});
     if (!prepared)
       return std::unexpected(std::move(prepared).error());
 

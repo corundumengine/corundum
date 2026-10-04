@@ -24,6 +24,7 @@
 #include <corundum/ui/prompt_box.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
+#include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/spawn.hpp>
@@ -250,6 +251,12 @@ namespace corundum {
       };
     }
 
+    /// The window's size in logical points, the space panels and the cursor share.
+    core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
+      const auto [width, height] = engine.window->size();
+      return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
+    }
+
     /// Re-derive the dialogue style after an edit to ui_scale or text_speed.
     void refresh_dialog_style(Engine &engine) {
       render::configure_panel_style(engine.render, engine.cfg);
@@ -304,13 +311,26 @@ namespace corundum {
         warn_log("[engine] WARN: rebind failed: {}", result.error());
     }
 
-    /// Step the pause menu: Back/Menu closes it; Up/Down move the selection; Activate runs the
-    /// highlighted command.
+    /// Step the pause menu: Back/Menu closes it; Up/Down move the selection; a hovered row takes
+    /// focus on a real mouse move or click; Activate runs the highlighted command.
     void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
       if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
         engine.scene.ui.pop();
         return;
       }
+
+      if (intent.mouse_moved || intent.cursor_clicked || intent.scroll_y != 0.f) {
+        const ui::MenuLayout layout = ui::menu_panel_layout(
+            *engine.renderer, engine.render.panel_skin.style, screen_viewport(engine), engine.input_mapper.last_device());
+        const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
+        if (intent.mouse_moved || intent.cursor_clicked) {
+          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+            engine.menu.cursor = hovered;
+        }
+        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+          engine.menu.cursor = wrap_cursor(engine.menu.cursor, steps, ui::k_menu_command_count);
+      }
+
       if (intent.navigate_y != 0)
         engine.menu.cursor = wrap_cursor(engine.menu.cursor, intent.navigate_y, ui::k_menu_command_count);
       if (!intent.activate)
@@ -330,9 +350,55 @@ namespace corundum {
       }
     }
 
+    /// Switch the settings tab to @p tab, resetting the cursor and scroll.
+    void switch_settings_tab(ui::SettingsState &state, ui::SettingsTab tab) noexcept {
+      state.tab = tab;
+      state.cursor = 0;
+      state.scroll = 0;
+    }
+
+    /// Apply mouse intent to the settings screen: a click on a tab switches to it, the wheel over
+    /// the tabs cycles them, a hovered row (on a real move or click) takes focus, and the wheel
+    /// over the list moves the cursor. Returns true when the pointer switched tabs and the step
+    /// should be consumed.
+    bool apply_settings_pointer(const Engine &engine, ui::SettingsState &state, const input::InputIntent &intent) {
+      if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
+        return false;
+
+      const ui::SettingsLayout layout = ui::settings_panel_layout(
+          *engine.renderer, engine.render.panel_skin.style, state, settings_values(engine),
+          engine.input_mapper.bindings(), screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
+
+      if (const int hovered_tab = ui::hovered_row(cursor, layout.tabs); hovered_tab >= 0) {
+        if (intent.cursor_clicked) {
+          switch_settings_tab(state, static_cast<ui::SettingsTab>(hovered_tab));
+          return true;
+        }
+        if (intent.scroll_y != 0.f) {
+          const int direction = intent.scroll_y > 0.f ? -1 : 1;
+          const int tabs = ui::k_settings_tab_count;
+          switch_settings_tab(state,
+                              static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
+          return true;
+        }
+      }
+
+      if (intent.mouse_moved || intent.cursor_clicked) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+          state.cursor = hovered;
+      }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0) {
+        const int row_count = ui::settings_row_count(state.tab);
+        state.cursor = wrap_cursor(state.cursor, steps, row_count);
+        ui::settings_scroll_to_cursor(state, row_count, std::min(row_count, ui::k_settings_max_visible_rows));
+      }
+      return false;
+    }
+
     /// Step the Settings screen. While the Controls tab is capturing a rebind, every other
-    /// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, and the
-    /// cursor edits the focused row.
+    /// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, the
+    /// cursor edits the focused row, and the pointer can click a tab or a row.
     void update_settings(Engine &engine, const input::InputIntent &intent) {
       ui::SettingsState &state = engine.settings_screen;
 
@@ -352,12 +418,14 @@ namespace corundum {
         return;
       }
 
+      if (apply_settings_pointer(engine, state, intent))
+        return;
+
       if (intent.next_tab || intent.prev_tab) {
         const int direction = intent.next_tab ? 1 : -1;
         const int tabs = ui::k_settings_tab_count;
-        state.tab = static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs);
-        state.cursor = 0;
-        state.scroll = 0;
+        switch_settings_tab(state,
+                            static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
         return;
       }
 

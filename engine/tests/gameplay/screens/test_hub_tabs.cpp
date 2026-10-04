@@ -5,6 +5,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/screens/hub_tabs.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -98,4 +99,23 @@ TEST_CASE("hub_tab_strip_render: the bumper hints follow the last-used device") 
   const auto &next = std::get<corundum::platform::DrawText>(r.log.back());
   CHECK(prev.text == "L1");
   CHECK(next.text == "R1");
+}
+
+TEST_CASE("hub_tab_at: maps a cursor to the tab it is over, or -1") {
+  RecordingRenderer r;
+  const corundum::ui::PanelStyle style{};
+  const auto strip = hub_tab_strip(r, style, {.x = 1280.f, .y = 720.f});
+
+  for (std::size_t i = 0; i < strip.tabs.size(); ++i) {
+    const float cx = strip.tabs[i].pos.x + (strip.tabs[i].width * 0.5f);
+    const float cy = strip.y + (strip.line_height * 0.5f);
+    CHECK(hub_tab_at(strip, {.x = cx, .y = cy}) == static_cast<int>(i));
+  }
+
+  // Between two tabs, below the strip, and past the last tab all miss.
+  const float first_right = strip.tabs[0].pos.x + strip.tabs[0].width;
+  const float between = first_right + ((strip.tabs[1].pos.x - first_right) * 0.5f);
+  CHECK(hub_tab_at(strip, {.x = between, .y = strip.y + 1.f}) == -1);
+  CHECK(hub_tab_at(strip, {.x = strip.tabs[0].pos.x, .y = strip.y + strip.line_height + 20.f}) == -1);
+  CHECK(hub_tab_at(strip, {.x = strip.tabs.back().pos.x + strip.tabs.back().width + 50.f, .y = strip.y + 1.f}) == -1);
 }

@@ -76,6 +76,10 @@ namespace corundum::input {
   }
 
   void InputMapper::end_poll(InputState &destination) const noexcept {
+    // Latch this poll's starting position as the baseline for the next intent, before accumulate
+    // overwrites it. A screen then only moves focus when the cursor actually moved.
+    destination.prev_mouse_x = destination.mouse_x;
+    destination.prev_mouse_y = destination.mouse_y;
     accumulate_input(destination, poll_state_);
   }
 

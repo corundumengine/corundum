@@ -50,6 +50,9 @@ namespace corundum::gameplay::screens {
   [[nodiscard]] HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &style,
                                           core::math::Vec2 viewport);
 
+  /** @brief Index of the tab under @p cursor in @p strip, or -1 when the cursor is outside every tab. */
+  [[nodiscard]] int hub_tab_at(const HubTabStrip &strip, core::math::Vec2 cursor) noexcept;
+
   /** @brief Draw the hub tab strip with @p active highlighted, flanked by the bumper glyphs.
    *
    *  Drawn in the top margin so it never overlaps the centered hub panels.

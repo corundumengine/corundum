@@ -41,19 +41,6 @@ namespace corundum::gameplay::dialogue {
 
     constexpr std::string_view k_asset_label = "Dialogue";
 
-    /// Migrates a dialogue graph JSON object in place from @p from_version up to
-    /// k_dialogue_schema_version, returning the version reached. No migrations exist
-    /// yet — schema_version 1 is both the legacy (absent-field) format and the
-    /// current format — so this returns @p from_version unchanged. Future steps
-    /// advance @p from_version and are never edited once shipped; leaving this stub
-    /// unchanged after a version bump fails loudly (the caller rejects a result below
-    /// the current version).
-    std::expected<int, std::string> migrate_graph_json(json & /*j*/, int from_version, const std::string & /*path*/) {
-      return from_version;
-    }
-
-    // ── Internal helpers ───────────────────────────────────────────────────────
-
     NodeType parse_type(const std::string &raw) {
       if (raw == "talk")
         return NodeType::Talk;
@@ -207,9 +194,8 @@ namespace corundum::gameplay::dialogue {
         throw LoadError(std::move(root_result).error());
       json root = std::move(*root_result);
 
-      // Schema version is read before validation so migrations run first.
-      auto prepared =
-          core::prepare_schema_version(root, k_dialogue_schema_version, k_asset_label, path, migrate_graph_json);
+      // Schema version is checked before validation.
+      auto prepared = core::prepare_schema_version(root, k_dialogue_schema_version, k_asset_label, path, {});
       if (!prepared)
         throw LoadError(std::move(prepared).error());
 
@@ -230,7 +216,7 @@ namespace corundum::gameplay::dialogue {
 
       // Schema guarantees: id is present and non-empty.
       Graph graph;
-      // The root was migrated to the current shape, so this describes the loaded data.
+      // The document's schema version was checked; this records the current format.
       graph.schema_version = k_dialogue_schema_version;
       graph.graph_id = root["id"].get<std::string>();
 

@@ -9,6 +9,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
@@ -39,6 +40,20 @@ namespace corundum::gameplay::screens {
   [[nodiscard]] std::vector<JournalEntry> build_journal_entries(const gameplay::quest::Registry &quests,
                                                                 const world::FlagStore &flags,
                                                                 std::string_view zone_id = {});
+
+  /** @brief Screen-space geometry of the journal panel, shared by render and mouse hit-testing. */
+  struct JournalLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    std::vector<ui::RowRect> rows{}; ///< One hit rect per entry of @p entries, in draw order.
+  };
+
+  /** @brief Compute the journal panel's geometry for @p viewport. */
+  [[nodiscard]] JournalLayout journal_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+                                                   const std::vector<JournalEntry> &entries, int cursor,
+                                                   core::math::Vec2 viewport, input::InputDevice last_device);
 
   /** @brief Draw a centered journal panel listing the started-quest rows, grouped by lifecycle.
    *

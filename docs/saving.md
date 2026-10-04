@@ -1,6 +1,6 @@
 # Saving
 
-Corundum's save system writes player state to a versioned JSON file, with a migration chain for when the format changes. There's no auto-save. Your game calls `save_game()` when it's time to save.
+Corundum's save system writes player state to a versioned JSON file. There's no auto-save. Your game calls `save_game()` when it's time to save.
 
 ## Overview
 
@@ -9,7 +9,7 @@ Two pieces do the work:
 1. **`SaveState`:** a struct that holds everything being saved
 2. **`corundum::save::save_game()` / `load_game()`:** the functions that write and read it
 
-Save files carry a version. Loading an older file runs the migration chain up to the current version.
+Save files carry a version. A file whose version is not the engine's current version is refused, not migrated — pre-1.0 Corundum makes no backward-compatibility promise, so a format change means bumping the version and letting old saves fail.
 
 ## SaveState
 
@@ -79,20 +79,11 @@ corundum::save::load_game(
 
 It rebuilds the scene at the saved location through the transition machinery (`enter_world` for world mode, `load_map` for single-map mode) and only then restores the saved flags and return-journey marker, so a failed load leaves the running game untouched. NPCs respawn from their spawn-point data; any per-NPC state you keep in `npc.<id>.*` flags comes back verbatim along with everything else (the engine doesn't reconstruct NPC state from those flags by itself).
 
-## Migration
+## Versioning
 
-Save files carry an integer `version` (currently `1`). On load:
+Save files carry an integer `version` (currently `1`). On load, the version must equal the engine's `k_save_version`; anything else — older or newer — fails with a clear message. The absent-field form reads as version 1.
 
-1. If the version matches the engine's, use the file as-is.
-2. If it's older, run the migration chain from that version forward.
-3. If it's newer than the engine supports, loading fails with a clear message.
-
-Migrations live in `corundum::save::migrate(nlohmann::json &j, int from_version)`, which rewrites the document in place. There are no migrations yet. Version 1 is both the legacy (absent-field) format and the current one, so it's a no-op today. Future steps get appended in order and are never edited once shipped:
-
-```cpp
-// Future steps append here, in order:
-//   if (from_version < 2) { /* rewrite v1 fields into v2 shape */ from_version = 2; }
-```
+There is deliberately no migration chain before 1.0: when the save format changes, bump `k_save_version` and let old saves be refused. See `prepare_schema_version`'s note in `core/schema_version.hpp` for the same policy on asset documents.
 
 ## Unknown Keys (Forward Compatibility)
 
@@ -105,7 +96,7 @@ That's what lets you add new flags in an update without breaking old saves. Docu
 On load, the engine:
 
 1. Reads and parses the save JSON
-2. Validates the fields, the version, and runs any migrations
+2. Validates the fields and the version
 3. Checks the save's `game_id` matches the running game, and (in world mode) that its world manifest matches (a mismatch is an error)
 4. Rebuilds the scene at the saved location via the transition machinery (`enter_world` for world mode, `load_map` for single-map mode)
 5. Replaces the engine's flags with the saved flags and restores the active zone and the return-journey marker
@@ -117,7 +108,7 @@ Loading can fail in a few ways, each returning an error string:
 - File not found or unreadable
 - Malformed JSON, or a field with the wrong JSON type
 - Save `mode` is neither `single_map` nor `world`
-- Save version newer than the engine supports
+- Save version differs from the engine's
 - Save `game_id` differs from the running game, or (in world mode) the world manifest differs
 - The map/world can't be loaded at the saved spawn point
 
@@ -161,4 +152,4 @@ When adding save functionality:
 - [ ] Document your custom save keys
 - [ ] Test loading your save with the current engine version
 - [ ] Test saving from the current engine version
-- [ ] Bump `k_save_version` and add a migration step before shipping a format change
+- [ ] Bump `k_save_version` before shipping a format change (old saves are refused, not migrated)

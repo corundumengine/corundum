@@ -8,6 +8,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 
 #include <cstdint>
 #include <string>
@@ -28,6 +29,28 @@ namespace corundum::gameplay::screens {
 
     LootPane pane{LootPane::Container};
   };
+
+  /** @brief Screen-space geometry of the loot screen, shared by render and mouse hit-testing. */
+  struct LootLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    ui::RowRect container_pane{};
+
+    ui::RowRect player_pane{};
+
+    ui::ListHit container_rows{};
+
+    ui::ListHit player_rows{};
+  };
+
+  /** @brief Compute the loot panel's geometry for @p viewport. */
+  [[nodiscard]] LootLayout loot_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+                                             std::string_view container_name,
+                                             const std::vector<InventoryLine> &container,
+                                             const std::vector<InventoryLine> &player, core::math::Vec2 viewport,
+                                             input::InputDevice last_device);
 
   /** @brief Draw the two-pane loot transfer screen: container contents left, inventory right.
    *

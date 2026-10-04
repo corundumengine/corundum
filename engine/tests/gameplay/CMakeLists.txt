@@ -26,6 +26,7 @@ add_executable(corundum_gameplay_tests
     root/test_inventory_toggle.cpp
     root/test_journal_toggle.cpp
     root/test_modal_top_draw.cpp
+    root/test_mouse_ui.cpp
     root/test_pause_menu.cpp
     root/test_phase_d_screens.cpp
     root/test_screen_registry.cpp

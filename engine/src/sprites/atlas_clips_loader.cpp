@@ -23,16 +23,6 @@ namespace corundum::sprites {
 
   namespace {
 
-    /// Migrates an atlas clips sidecar in place up to k_atlas_clips_schema_version, returning the
-    /// version reached. No migrations exist yet — schema_version 1 is both the legacy (absent-field)
-    /// format and the current format — so this returns @p from_version unchanged. Future steps
-    /// advance @p from_version and are never edited once shipped; leaving this stub unchanged after
-    /// a version bump fails loudly (the caller rejects a result below the current version).
-    std::expected<int, std::string> migrate_atlas_clips_json(json & /*j*/, int from_version,
-                                                             const std::string & /*path*/) {
-      return from_version;
-    }
-
     /** @brief Validate and parse one entry of the sidecar's "clips" array.
      *
      * @param clip_json  The clip object; all field types are checked before extraction.
@@ -92,8 +82,7 @@ namespace corundum::sprites {
       return std::unexpected(std::move(j_result).error());
     json j = std::move(*j_result);
 
-    auto prepared = core::prepare_schema_version(j, k_atlas_clips_schema_version, "Atlas clips sidecar", file,
-                                                 migrate_atlas_clips_json);
+    auto prepared = core::prepare_schema_version(j, k_atlas_clips_schema_version, "Atlas clips sidecar", file, {});
     if (!prepared)
       return std::unexpected(std::move(prepared).error());
 

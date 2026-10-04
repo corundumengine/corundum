@@ -7,6 +7,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 
 #include <cstdint>
 #include <string_view>
@@ -34,6 +35,19 @@ namespace corundum::ui {
   struct MenuState {
     int cursor{};
   };
+
+  /** @brief Screen-space geometry of the pause menu, shared by render and mouse hit-testing. */
+  struct MenuLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    ui::ListHit rows{};
+  };
+
+  /** @brief Compute the pause menu's panel and row geometry for @p viewport. */
+  [[nodiscard]] MenuLayout menu_panel_layout(const platform::Renderer &r, const PanelStyle &style,
+                                             core::math::Vec2 viewport, input::InputDevice last_device);
 
   /** @brief Draw the centered pause menu with Resume / Settings / Quit rows.
    *

@@ -61,7 +61,10 @@ wrong from memory.
 
 ### Cancel / Close Dialogue
 
-- **Bindings**: `Escape` (keyboard); gamepad button 1 (B/Circle).
+- **Bindings**: `Escape` (keyboard); gamepad button 1 (B/Circle);
+  right mouse button. Once a screen is open, the right mouse button is the
+  universal Back — it closes a hub tab, the pause menu, settings, loot or
+  barter exactly as `Escape`/B does.
 - **Effect**: has no effect outside dialogue. Inside dialogue, it's a
   **hard close** — immediately ends the conversation from _either_ a
   plain dialogue line or a Choice prompt. It does not "back up one step"
@@ -102,7 +105,10 @@ wrong from memory.
 ### Pause Menu
 
 - **Bindings**: gamepad Start; keyboard `Esc` (which also raises
-  `Action::Cancel`).
+  `Action::Cancel`). The menu is **not** opened by the mouse, but once it is
+  open it is fully mouse-operable: the mouse hovering moves the highlight, a
+  left click selects the hovered row, the wheel moves one row per notch, and a
+  right click backs out.
 - **Effect**: opens the pause menu (Resume / Settings / Quit) over whatever
   is showing. Resume pops the single layer the menu pushed, revealing the
   screen beneath — a hub tab, dialogue, loot or barter — instead of
@@ -125,7 +131,15 @@ wrong from memory.
   opens or switches to its own tab (and closes it when it is already on top).
   `Cancel` closes whichever tab is showing.
 - **Tab switching**: the shoulder bumpers `L1`/`R1` cycle Inventory → Journal →
-  Codex → Map and wrap. On the keyboard `[` / `]` do the same.
+  Codex → Map and wrap. On the keyboard `[` / `]` do the same. The mouse can
+  also click a tab in the strip to select it, or scroll over the strip to
+  cycle tabs.
+
+### PageUp / PageDown
+
+- **Not provided**. Lists page with the wheel or by holding a movement key;
+  there is no dedicated page-up/page-down binding. This is a deliberate
+  omission, recorded here so it is not mistaken for an oversight.
 - **Scope**: the hub opens only from free-roam (Exploring) or when a tab is
   already on top. It does not open over dialogue, a transition prompt, the
   pause menu, the settings screen, loot or barter. Loot and barter are opened
@@ -140,6 +154,10 @@ wrong from memory.
 - **Effect**: opening it pauses the player; `I` again or `Esc` closes it. Move
   Up/Down move the highlighted item row, wrapping circularly. The row list is
   built once when the tab opens (the inventory is read-only while paused).
+- **Mouse**: hovering a row moves the highlight to it, a left click selects
+  it, and the wheel moves one row per notch. Focus shifts only on real mouse
+  movement, so opening the tab with the pointer already over a row does not
+  jump the highlight.
 
 ### Journal (Quest Log)
 
@@ -148,6 +166,8 @@ wrong from memory.
 - **Effect**: opening it pauses the player; `J` again or `Esc` closes it. Move
   Up/Down move the highlighted quest row (Active first, then Completed, then
   Failed), wrapping circularly.
+- **Mouse**: hovering a quest row moves the highlight to it, a left click
+  selects it, and the wheel moves one row per notch.
 
 ### Codex (Lore)
 
@@ -157,6 +177,9 @@ wrong from memory.
   Up/Down move the highlighted entry (grouped by category); the selected
   entry's body is wrapped in the detail pane and the scroll wheel scrolls it.
   Only entries unlocked via `unlock_codex`/a `codex.<id>` flag appear.
+- **Mouse**: hovering a list row moves the highlight to it, a left click
+  selects it, and the wheel moves one row per notch when the pointer is over
+  the list or scrolls the body when it is over the detail pane.
 
 ### Map / Fast Travel
 
@@ -166,6 +189,8 @@ wrong from memory.
   Up/Down move the highlighted destination (only discovered
   `location.<id>.discovered` locations appear); Enter/Space/gamepad A
   fast-travels there. Travelling to the zone you are already in is a no-op.
+- **Mouse**: hovering a destination moves the highlight to it, and a left
+  click travels there.
 
 ### Loot and Barter (contextual)
 
@@ -173,10 +198,15 @@ wrong from memory.
   opens the two-pane loot screen and `open_shop('id')` opens the barter screen.
 - **Loot**: Left/Right switch the container/player pane; Up/Down move the row;
   Enter/Space/gamepad A moves one unit of the highlighted item to the other
-  holder; `Esc` closes.
+  holder; `Esc` closes. With the mouse, hovering a pane switches to it and
+  hovering a row moves the highlight, a left click transfers the hovered item,
+  and the wheel moves one row per notch.
 - **Barter**: Left/Right or TabNext/TabPrev switch the Buy/Sell tab; Up/Down
   move the row; Enter/Space/gamepad A buys (spending gold, with a
   `rep.<faction>` discount) or sells at the shop's `buy_rate`; `Esc` closes.
+  With the mouse, clicking a Buy/Sell label switches the tab, hovering a row
+  moves the highlight, a left click trades the hovered item, and the wheel
+  moves one row per notch or cycles the tab over the labels.
 
 ### Zoom
 
@@ -204,7 +234,9 @@ pair over the `Action` enum (`MoveUp`, `MoveDown`, `MoveLeft`,
 `Inventory`, `Journal`, `QuickSave`, `QuickLoad`), plus three
 signals that deliberately sit _outside_ the `Action` enum because they
 carry information no discrete action has: `mouse_x`/`mouse_y`
-(continuous cursor position), `mouse_click_pressed` (a one-shot "the
+(continuous cursor position), `prev_mouse_x`/`prev_mouse_y` (the previous
+poll's position, the baseline `InputIntent::mouse_moved` compares against),
+`mouse_click_pressed` (a one-shot "the
 player clicked a screen point" flag, distinct from `Select`), and
 `scroll_delta_y` (accumulated wheel delta this poll cycle — "how much",
 not just "did it happen", so it can't be a discrete `Action` either).
@@ -218,7 +250,7 @@ The default binding table is built by `default_bindings()`
 (`engine/src/input/bindings.cpp`): each row pairs an `Action` with one
 `PhysicalInput` (a `Key`, `MouseButton`, or `GamepadControl`). Movement is
 WASD/arrows plus the left stick and D-pad; Select is Enter/Space, mouse-left
-and gamepad A; Cancel is Escape and gamepad B; the four menu tabs are reached
+and gamepad A; Cancel is Escape, mouse-right and gamepad B; the four menu tabs are reached
 with `I`/`J`/`C`/`M` on the keyboard and gamepad Y (`Action::Hub`), with
 `TabNext`/`TabPrev` on `]`/`[` and the shoulder bumpers; `SubTabNext`/`SubTabPrev`
 are `.`/`,` and the analog triggers (shared with zoom); Quit is `Q`;
@@ -285,7 +317,7 @@ device disconnects, so a held bit cannot latch.
 | `Action::Select`                              | `dialogue_system.cpp::try_interact()`                                     | Starts dialogue (proximity-only for keyboard/gamepad; proximity **and** click-aimed-at-NPC-tile for a click — see `mouse_click_pressed` check there) |
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Talk`)                        | Advances the line                                                                                                                                    |
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Choice`)                      | Confirms the highlighted choice                                                                                                                      |
-| `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`)                                                                                                                     |
+| `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`); with a hub tab, menu, settings, loot or barter open it pops that layer (right mouse button or `Esc`/B) |
 | `Action::Inventory`                           | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Inventory hub tab; `update_inventory()` navigates and closes it                                                             |
 | `Action::Menu`                                | `engine.cpp::update_engine_screens()`                                     | Opens the pause menu over any screen (or from free-roam); `update_pause_menu()`/`update_settings()` also close on it, and an open screen's back handling wins a shared press |
 | `Action::Journal`                             | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Journal hub tab; `update_journal()` navigates and closes it                                                                 |

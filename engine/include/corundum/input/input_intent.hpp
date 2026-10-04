@@ -42,10 +42,23 @@ namespace corundum::input {
     /** @brief Action::TabPrev was pressed this step (settings pages, barter Buy/Sell, hub tabs). */
     bool prev_tab{};
 
+    /** @brief Action::SubTabNext was pressed this step (Journal Active/Completed/Failed). */
+    bool next_sub_tab{};
+
+    /** @brief Action::SubTabPrev was pressed this step (Journal Active/Completed/Failed). */
+    bool prev_sub_tab{};
+
     /** @brief Cursor position in window pixels. */
     float cursor_x{};
 
     float cursor_y{};
+
+    /** @brief True when the cursor moved since the previous poll cycle.
+     *
+     *  Screens shift a list's focus to the hovered row only when this or @c cursor_clicked is
+     *  true, so opening a screen with the pointer resting over a row never steals focus from
+     *  keyboard or gamepad navigation. */
+    bool mouse_moved{};
 
     /** @brief Accumulated scroll wheel delta this step (positive = away from the user). */
     float scroll_y{};

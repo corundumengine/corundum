@@ -22,7 +22,7 @@ namespace corundum::core {
 namespace corundum::settings {
 
   /** @brief Current schema version of settings.json. */
-  constexpr int k_user_settings_schema_version = 2;
+  constexpr int k_user_settings_schema_version = 1;
 
   /** @brief The player's own preferences, persisted per user in settings.json. */
   struct UserSettings {

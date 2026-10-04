@@ -8,6 +8,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
@@ -38,6 +39,20 @@ namespace corundum::gameplay::screens {
   struct MapState {
     int cursor{};
   };
+
+  /** @brief Screen-space geometry of the map panel, shared by render and mouse hit-testing. */
+  struct MapLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    ui::ListHit rows{};
+  };
+
+  /** @brief Compute the map panel's geometry for @p viewport. */
+  [[nodiscard]] MapLayout map_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+                                           const std::vector<MapEntry> &entries, core::math::Vec2 viewport,
+                                           input::InputDevice last_device);
 
   /** @brief Draw the world map as a centered list of discovered fast-travel destinations.
    *

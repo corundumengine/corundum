@@ -7,6 +7,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
 #include <string>
@@ -58,6 +59,24 @@ namespace corundum::gameplay::screens {
   [[nodiscard]] std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &flags,
                                                             const corundum::gameplay::item::Registry &items,
                                                             std::string_view flag_prefix);
+
+  /** @brief Screen-space geometry of the inventory panel, shared by render and mouse hit-testing. */
+  struct InventoryLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    std::vector<ui::RowRect> rows{}; ///< One hit rect per entry of @p lines, in draw order.
+  };
+
+  /** @brief Compute the inventory panel's geometry for @p viewport.
+   *
+   *  @p cursor matters because the highlighted row's description forms a footer whose height
+   *  shifts the panel; pass the cursor the render will use.
+   */
+  [[nodiscard]] InventoryLayout inventory_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+                                                       const std::vector<InventoryLine> &lines, int cursor,
+                                                       core::math::Vec2 viewport);
 
   /** @brief Draw a centered inventory panel listing the held items, grouped by category.
    *

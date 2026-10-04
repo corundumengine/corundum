@@ -9,8 +9,10 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -67,6 +69,23 @@ namespace corundum::gameplay::screens {
 
     BarterTab tab{BarterTab::Buy};
   };
+
+  /** @brief Screen-space geometry of the barter screen, shared by render and mouse hit-testing. */
+  struct BarterLayout {
+    core::math::Vec2 panel_pos{};
+
+    core::math::Vec2 panel_size{};
+
+    std::array<ui::RowRect, 2> tabs{}; ///< Buy then Sell.
+
+    ui::ListHit rows{};
+  };
+
+  /** @brief Compute the barter panel's geometry for @p viewport. */
+  [[nodiscard]] BarterLayout barter_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+                                                 std::string_view shop_name, int gold,
+                                                 const std::vector<BarterLine> &lines, const BarterState &state,
+                                                 core::math::Vec2 viewport, input::InputDevice last_device);
 
   /** @brief Draw the barter screen: shop name, gold, and the active tab's priced rows.
    *

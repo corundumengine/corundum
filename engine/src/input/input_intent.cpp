@@ -15,11 +15,14 @@ namespace corundum::input {
     intent.cursor_y = state.mouse_y;
     intent.scroll_y = state.scroll_delta_y;
     intent.cursor_clicked = state.mouse_click_pressed;
+    intent.mouse_moved = state.mouse_x != state.prev_mouse_x || state.mouse_y != state.prev_mouse_y;
     intent.select = state.is_pressed(Action::Select);
     intent.activate = state.is_pressed(Action::Activate) || state.is_pressed(Action::Select);
     intent.back = state.is_pressed(Action::Cancel);
     intent.next_tab = state.is_pressed(Action::TabNext);
     intent.prev_tab = state.is_pressed(Action::TabPrev);
+    intent.next_sub_tab = state.is_pressed(Action::SubTabNext);
+    intent.prev_sub_tab = state.is_pressed(Action::SubTabPrev);
 
     if (state.is_pressed(Action::MoveLeft))
       --intent.navigate_x;

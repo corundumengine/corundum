@@ -40,6 +40,7 @@
 #include <corundum/screen_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/toast.hpp>
+#include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/scene.hpp>
@@ -256,6 +257,33 @@ namespace corundum::gameplay {
       return (current + delta + count) % count;
     }
 
+    /// The window's size in logical points, the space panels and the cursor share.
+    core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
+      const auto [width, height] = engine.window->size();
+      return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
+    }
+
+    /// Whether @p cursor lies inside the half-open screen-space @p rect.
+    bool cursor_in(core::math::Vec2 cursor, const ui::RowRect &rect) noexcept {
+      return cursor.x >= rect.pos.x && cursor.x <= rect.pos.x + rect.width && cursor.y >= rect.pos.y &&
+             cursor.y <= rect.pos.y + rect.height;
+    }
+
+    /// The cursor's current position as a point.
+    core::math::Vec2 intent_cursor(const input::InputIntent &intent) noexcept {
+      return {.x = intent.cursor_x, .y = intent.cursor_y};
+    }
+
+    /// True when the step carries pointer or wheel motion a screen should react to.
+    bool pointer_active(const input::InputIntent &intent) noexcept {
+      return intent.mouse_moved || intent.cursor_clicked || intent.scroll_y != 0.f;
+    }
+
+    /// True when the cursor should re-focus the row it is over: a real move or a click.
+    bool pointer_focus(const input::InputIntent &intent) noexcept {
+      return intent.mouse_moved || intent.cursor_clicked;
+    }
+
     /** @brief Ratio above which the dominant axis is considered "cardinal" rather than diagonal
      *  when computing facing direction. */
     constexpr float k_cardinal_dominance_ratio = 2.f;
@@ -308,7 +336,7 @@ namespace corundum::gameplay {
     }
 
     /// Reset a hub tab's open-time state: its cursor, and any cache the tab owns.
-    void open_hub_tab(Engine &engine, Gameplay &gameplay, world::GameMode mode) {
+    void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode) {
       gameplay.last_hub_mode = mode;
       switch (mode) {
         case screens::Inventory:
@@ -339,6 +367,31 @@ namespace corundum::gameplay {
       engine.scene.ui.pop();
       engine.scene.ui.push(mode);
       open_hub_tab(engine, gameplay, mode);
+    }
+
+    /// Handle a click or wheel over the hub tab strip. Returns true when the step was consumed.
+    bool handle_hub_strip_pointer(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      if (!pointer_active(intent))
+        return false;
+
+      const screens::HubTabStrip strip =
+          screens::hub_tab_strip(*engine.renderer, engine.render.panel_skin.style, screen_viewport(engine));
+      const int tab = screens::hub_tab_at(strip, intent_cursor(intent));
+      if (tab < 0)
+        return false;
+
+      const world::GameMode mode = screens::k_hub_tab_modes[static_cast<std::size_t>(tab)];
+      if (intent.cursor_clicked) {
+        if (mode != engine.scene.mode())
+          switch_hub_tab(engine, gameplay, mode);
+        return true;
+      }
+      if (intent.scroll_y != 0.f) {
+        const int direction = intent.scroll_y > 0.f ? -1 : 1;
+        switch_hub_tab(engine, gameplay, cycle_hub_tab(engine.scene.mode(), direction));
+        return true;
+      }
+      return false;
     }
 
     /// The gameplay framework's pre-dispatch input hook: handles the menu hub's open/close/switch
@@ -382,6 +435,11 @@ namespace corundum::gameplay {
         // Another screen (dialogue, prompt, menu, loot, barter) is on top: the hotkey does nothing.
       }
 
+      // While a hub tab is on top, the tab strip is directly clickable and the wheel over it
+      // cycles tabs; a click on the active tab is a no-op.
+      if (on_hub_tab && handle_hub_strip_pointer(engine, gameplay, intent))
+        return true;
+
       // While a hub tab is on top, TabNext/TabPrev cycle the four tabs by replacing the top layer;
       // the engine dispatches the newly active screen's step after this hook returns false.
       if (on_hub_tab && (intent.next_tab || intent.prev_tab))
@@ -389,17 +447,31 @@ namespace corundum::gameplay {
       return false;
     }
 
-    /// Step the Inventory hub tab: Cancel closes it; Up/Down wrap the highlight within the cached
-    /// held-item rows.
+    /// Step the Inventory hub tab: Cancel closes it; a hovered row takes focus on a real mouse
+    /// move or click; the wheel moves one row per notch; Up/Down wrap the highlight.
     void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         engine.scene.ui.pop();
         return;
       }
+      const int rows = static_cast<int>(gameplay.inventory_lines.size());
+
+      if (pointer_active(intent)) {
+        const screens::InventoryLayout layout =
+            screens::inventory_panel_layout(*engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines,
+                                            gameplay.inventory_cursor, screen_viewport(engine));
+        const core::math::Vec2 cursor = intent_cursor(intent);
+        if (pointer_focus(intent)) {
+          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+            gameplay.inventory_cursor = hovered;
+        }
+        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+          gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, steps, rows);
+      }
+
       const int delta = intent.navigate_y;
       if (delta == 0)
         return;
-      const int rows = static_cast<int>(gameplay.inventory_lines.size());
       if (rows <= 0) {
         gameplay.inventory_cursor = 0;
         return;
@@ -407,18 +479,33 @@ namespace corundum::gameplay {
       gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, delta, rows);
     }
 
-    /// Step the Journal hub tab: Cancel closes it; Up/Down wrap the highlight within the
-    /// started-quest rows.
+    /// Step the Journal hub tab: Cancel closes it; a hovered row takes focus on a real mouse move
+    /// or click; the wheel moves one row per notch; Up/Down wrap the highlight.
     void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         engine.scene.ui.pop();
         return;
       }
+      const std::vector<screens::JournalEntry> entries =
+          screens::build_journal_entries(gameplay.quests, engine.flags, engine.scene.zone_id);
+      const int rows = static_cast<int>(entries.size());
+
+      if (pointer_active(intent)) {
+        const screens::JournalLayout layout = screens::journal_panel_layout(
+            *engine.renderer, engine.render.panel_skin.style, entries, gameplay.journal_cursor, screen_viewport(engine),
+            engine.input_mapper.last_device());
+        const core::math::Vec2 cursor = intent_cursor(intent);
+        if (pointer_focus(intent)) {
+          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+            gameplay.journal_cursor = hovered;
+        }
+        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+          gameplay.journal_cursor = wrap_cursor(gameplay.journal_cursor, steps, rows);
+      }
+
       const int delta = intent.navigate_y;
       if (delta == 0)
         return;
-      const int rows =
-          static_cast<int>(screens::build_journal_entries(gameplay.quests, engine.flags, engine.scene.zone_id).size());
       if (rows <= 0) {
         gameplay.journal_cursor = 0;
         return;
@@ -426,10 +513,11 @@ namespace corundum::gameplay {
       gameplay.journal_cursor = wrap_cursor(gameplay.journal_cursor, delta, rows);
     }
 
-    /// Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, and the
-    /// scroll wheel scrolls the detail body. Rows are refreshed from the registry + flags on the
-    /// first step after an open or unlock (dirty-flagged). The Codex hotkey is handled by the hub
-    /// table, which toggles this tab off before this step would run.
+    /// Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, the wheel
+    /// over the list moves the cursor and over the detail body scrolls it, and a hovered list row
+    /// takes focus on a real mouse move or click. Rows are refreshed from the registry + flags on
+    /// the first step after an open or unlock (dirty-flagged). The Codex hotkey is handled by the
+    /// hub table, which toggles this tab off before this step would run.
     void update_codex(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       screens::CodexState &state = gameplay.codex_screen;
       screens::refresh_codex(state, gameplay.codex, engine.flags);
@@ -440,17 +528,40 @@ namespace corundum::gameplay {
       }
 
       const int rows = static_cast<int>(state.entries.size());
+      if (pointer_active(intent)) {
+        const screens::CodexLayout layout =
+            screens::codex_panel_layout(*engine.renderer, engine.render.panel_skin.style, state.entries, state.cursor,
+                                        screen_viewport(engine), engine.input_mapper.last_device());
+        const core::math::Vec2 cursor = intent_cursor(intent);
+        if (pointer_focus(intent)) {
+          for (const screens::CodexListRow &row : layout.list_rows) {
+            if (row.entry_index >= 0 && cursor_in(cursor, row.rect)) {
+              state.cursor = row.entry_index;
+              state.scroll = 0.f;
+              break;
+            }
+          }
+        }
+        if (intent.scroll_y != 0.f) {
+          if (cursor_in(cursor, layout.body_rect)) {
+            state.scroll = std::max(0.f, state.scroll - intent.scroll_y);
+          } else if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0) {
+            state.cursor = wrap_cursor(state.cursor, steps, rows);
+            state.scroll = 0.f;
+          }
+        }
+      }
+
       if (intent.navigate_y != 0) {
         if (rows > 0)
           state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
         state.scroll = 0.f;
       }
-      if (intent.scroll_y != 0.f)
-        state.scroll = std::max(0.f, state.scroll - intent.scroll_y);
     }
 
-    /// Step the Map hub tab: Cancel closes it, Up/Down move the highlighted destination, and
-    /// Activate fast-travels. A destination already in the active zone is a no-op.
+    /// Step the Map hub tab: Cancel closes it, a hovered row takes focus on a real mouse move or
+    /// click, Up/Down and the wheel move the highlighted destination, and Activate fast-travels.
+    /// A destination already in the active zone is a no-op.
     void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         engine.scene.ui.pop();
@@ -460,6 +571,20 @@ namespace corundum::gameplay {
       const std::vector<screens::MapEntry> entries =
           screens::build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id);
       const int rows = static_cast<int>(entries.size());
+
+      if (pointer_active(intent)) {
+        const screens::MapLayout layout =
+            screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries,
+                                      screen_viewport(engine), engine.input_mapper.last_device());
+        const core::math::Vec2 cursor = intent_cursor(intent);
+        if (pointer_focus(intent)) {
+          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+            gameplay.map_screen.cursor = hovered;
+        }
+        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+          gameplay.map_screen.cursor = wrap_cursor(gameplay.map_screen.cursor, steps, rows);
+      }
+
       if (intent.navigate_y != 0 && rows > 0)
         gameplay.map_screen.cursor = wrap_cursor(gameplay.map_screen.cursor, intent.navigate_y, rows);
       if (!intent.activate || rows == 0)
@@ -502,8 +627,42 @@ namespace corundum::gameplay {
         flags.erase(it);
     }
 
-    /// Step the loot screen: Back closes, Left/Right switch the active pane, Up/Down move the
-    /// row, and Activate moves one unit of the highlighted item to the other holder.
+    /// Apply mouse intent to the loot screen: hovering a pane switches to it, hovering a row (on a
+    /// real move or click) focuses it, and the wheel moves one row per notch.
+    void apply_loot_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+                            std::string_view container_name, const std::vector<screens::InventoryLine> &container_lines,
+                            const std::vector<screens::InventoryLine> &player_lines) {
+      if (!pointer_active(intent))
+        return;
+
+      const screens::LootLayout layout =
+          screens::loot_panel_layout(*engine.renderer, engine.render.panel_skin.style, container_name, container_lines,
+                                     player_lines, screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor = intent_cursor(intent);
+
+      if (pointer_focus(intent)) {
+        const bool over_player = cursor_in(cursor, layout.player_pane);
+        if (over_player || cursor_in(cursor, layout.container_pane)) {
+          const screens::LootPane pane = over_player ? screens::LootPane::Player : screens::LootPane::Container;
+          if (gameplay.loot_screen.pane != pane) {
+            gameplay.loot_screen.pane = pane;
+            gameplay.loot_screen.cursor = 0;
+          }
+          if (const int hovered = ui::hovered_row(cursor, over_player ? layout.player_rows : layout.container_rows);
+              hovered >= 0)
+            gameplay.loot_screen.cursor = hovered;
+        }
+      }
+
+      const int active_rows = static_cast<int>(
+          (gameplay.loot_screen.pane == screens::LootPane::Container ? container_lines : player_lines).size());
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && active_rows > 0)
+        gameplay.loot_screen.cursor = wrap_cursor(gameplay.loot_screen.cursor, steps, active_rows);
+    }
+
+    /// Step the loot screen: Back closes, Left/Right or a click switch the active pane, a hovered
+    /// row takes focus on a real mouse move or click, the wheel moves one row per notch, and
+    /// Activate moves one unit of the highlighted item to the other holder.
     void update_loot(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         gameplay.active_container_id.clear();
@@ -511,7 +670,13 @@ namespace corundum::gameplay {
         return;
       }
 
-      const std::string container_prefix = item::container_flag_prefix(gameplay.active_container_id);
+      const std::string container_name =
+          gameplay.active_container_id.empty() ? std::string{"Container"} : gameplay.active_container_id;
+      const std::vector<screens::InventoryLine> container_lines = screens::build_item_lines(
+          engine.flags, gameplay.items, item::container_flag_prefix(gameplay.active_container_id));
+      const std::vector<screens::InventoryLine> player_lines =
+          screens::build_item_lines(engine.flags, gameplay.items, item::k_flag_prefix);
+
       if (intent.navigate_x != 0) {
         gameplay.loot_screen.pane = gameplay.loot_screen.pane == screens::LootPane::Container
                                         ? screens::LootPane::Player
@@ -519,11 +684,9 @@ namespace corundum::gameplay {
         gameplay.loot_screen.cursor = 0;
       }
 
+      apply_loot_pointer(engine, gameplay, intent, container_name, container_lines, player_lines);
+
       const bool container_active = gameplay.loot_screen.pane == screens::LootPane::Container;
-      const std::vector<screens::InventoryLine> container_lines =
-          screens::build_item_lines(engine.flags, gameplay.items, container_prefix);
-      const std::vector<screens::InventoryLine> player_lines =
-          screens::build_item_lines(engine.flags, gameplay.items, item::k_flag_prefix);
       const std::vector<screens::InventoryLine> &lines = container_active ? container_lines : player_lines;
       const int rows = static_cast<int>(lines.size());
 
@@ -545,8 +708,54 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Step the barter screen: Back closes, Left/Right or Tab switch Buy/Sell, Up/Down move the
-    /// row, and Activate performs the trade.
+    /// Flip the barter Buy/Sell tab and reset its row cursor.
+    void toggle_barter_tab(Gameplay &gameplay) noexcept {
+      gameplay.barter_screen.tab =
+          gameplay.barter_screen.tab == screens::BarterTab::Buy ? screens::BarterTab::Sell : screens::BarterTab::Buy;
+      gameplay.barter_screen.cursor = 0;
+    }
+
+    /// Apply mouse intent to the barter screen. Returns true when the pointer switched tabs and
+    /// the step should be consumed without also trading.
+    bool apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+                              const shop::Shop &shop, const std::vector<screens::BarterLine> &lines) {
+      if (!pointer_active(intent))
+        return false;
+
+      const screens::BarterLayout layout = screens::barter_panel_layout(
+          *engine.renderer, engine.render.panel_skin.style, shop.name,
+          world::visit_count(engine.flags, std::string{screens::k_gold_flag}), lines, gameplay.barter_screen,
+          screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      const bool over_tabs = cursor_in(cursor, layout.tabs[0]) || cursor_in(cursor, layout.tabs[1]);
+
+      if (intent.cursor_clicked && over_tabs) {
+        const screens::BarterTab clicked =
+            cursor_in(cursor, layout.tabs[0]) ? screens::BarterTab::Buy : screens::BarterTab::Sell;
+        if (clicked != gameplay.barter_screen.tab) {
+          gameplay.barter_screen.tab = clicked;
+          gameplay.barter_screen.cursor = 0;
+        }
+        return true;
+      }
+      if (intent.scroll_y != 0.f && over_tabs) {
+        toggle_barter_tab(gameplay);
+        return true;
+      }
+
+      if (pointer_focus(intent)) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+          gameplay.barter_screen.cursor = hovered;
+      }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && !lines.empty())
+        gameplay.barter_screen.cursor =
+            wrap_cursor(gameplay.barter_screen.cursor, steps, static_cast<int>(lines.size()));
+      return false;
+    }
+
+    /// Step the barter screen: Back closes, Left/Right, Tab or a click switch Buy/Sell, a hovered
+    /// row takes focus on a real mouse move or click, the wheel moves one row per notch (or
+    /// switches tabs over the tab strip), and Activate performs the trade.
     void update_barter(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         gameplay.active_shop_id.clear();
@@ -560,12 +769,6 @@ namespace corundum::gameplay {
         return;
       }
 
-      if (intent.next_tab || intent.prev_tab || intent.navigate_x != 0) {
-        gameplay.barter_screen.tab =
-            gameplay.barter_screen.tab == screens::BarterTab::Buy ? screens::BarterTab::Sell : screens::BarterTab::Buy;
-        gameplay.barter_screen.cursor = 0;
-      }
-
       const int reputation =
           shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
       const std::vector<screens::BarterLine> lines =
@@ -573,6 +776,12 @@ namespace corundum::gameplay {
               ? screens::build_barter_stock(*shop, gameplay.items, reputation)
               : screens::build_barter_sell_lines(*shop, gameplay.items, engine.flags);
       const int rows = static_cast<int>(lines.size());
+
+      if (intent.next_tab || intent.prev_tab || intent.navigate_x != 0)
+        toggle_barter_tab(gameplay);
+
+      if (apply_barter_pointer(engine, gameplay, intent, *shop, lines))
+        return;
 
       if (intent.navigate_y != 0 && rows > 0)
         gameplay.barter_screen.cursor = wrap_cursor(gameplay.barter_screen.cursor, intent.navigate_y, rows);

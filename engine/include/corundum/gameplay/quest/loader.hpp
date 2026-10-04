@@ -13,9 +13,8 @@ namespace corundum::gameplay::quest {
   /**
    * @brief Load and validate a quest from a JSON file.
    *
-   * Migrates the file to the current schema version first, then rejects it if
-   * the version is newer than the engine supports, if it fails schema
-   * validation, or if it violates a `quest::validate` invariant (see that
+   * Rejects the file if its schema version is not the current one, if it
+   * fails schema validation, or if it violates a `quest::validate` invariant (see that
    * function's contract). Non-fatal diagnostics — a `type` field other than
    * "quest", or a stage list whose order disagrees with its sequence integers
    * — are printed to stderr and do not fail the load.

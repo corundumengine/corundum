@@ -126,11 +126,15 @@ TEST_CASE("save: parse fills defaults for a v1 fixture missing later fields") {
   CHECK(state->flags.at("foo.bar") == 7);
 }
 
-TEST_CASE("save: a save with a newer version than the engine supports is refused") {
-  const json j = {{"version", 999}, {"game_id", "test_game"}, {"mode", "single_map"}};
-  const auto state = corundum::save::parse(j);
-  REQUIRE_FALSE(state.has_value());
-  CHECK(state.error().find("newer") != std::string::npos);
+TEST_CASE("save: a save with a different version than the engine supports is refused") {
+  const json newer = {{"version", 999}, {"game_id", "test_game"}, {"mode", "single_map"}};
+  const auto from_newer = corundum::save::parse(newer);
+  REQUIRE_FALSE(from_newer.has_value());
+  CHECK(from_newer.error().find("version") != std::string::npos);
+
+  // There is no migration path: an older version is refused just as a newer one is.
+  const json older = {{"version", 0}, {"game_id", "test_game"}, {"mode", "single_map"}};
+  CHECK_FALSE(corundum::save::parse(older).has_value());
 }
 
 TEST_CASE("save: a non-object save JSON is refused") {

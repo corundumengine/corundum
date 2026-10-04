@@ -36,16 +36,6 @@ namespace corundum::gameplay::quest {
     constexpr std::string_view k_ctx = "quest";
     constexpr std::string_view k_asset_label = "Quest";
 
-    /// Migrates a quest JSON object in place from @p from_version up to
-    /// k_quest_schema_version, returning the version reached. No migrations exist yet —
-    /// schema_version 1 is both the legacy (absent-field) format and the current format
-    /// — so this returns @p from_version unchanged. Future steps advance @p from_version
-    /// and are never edited once shipped; leaving this stub unchanged after a version
-    /// bump fails loudly (the caller rejects a result below the current version).
-    std::expected<int, std::string> migrate_quest_json(json & /*j*/, int from_version, const std::string & /*path*/) {
-      return from_version;
-    }
-
     Objective parse_objective(const json &obj_json, const std::string &ctx) {
       // Schema guarantees: text is present.
       Objective obj;
@@ -103,16 +93,15 @@ namespace corundum::gameplay::quest {
       return stage;
     }
 
-    /// Read @p path, migrate it forward, and return its schema-validated root.
+    /// Read @p path, check its schema version, and return its schema-validated root.
     json load_validated_root(const std::string &path) {
       auto root_result = core::read_json(path, "quest JSON");
       if (!root_result)
         throw LoadError(std::move(root_result).error());
       json root = std::move(*root_result);
 
-      // Schema version is read before validation so migrations run first.
-      auto prepared =
-          core::prepare_schema_version(root, k_quest_schema_version, k_asset_label, path, migrate_quest_json);
+      // Schema version is checked before validation.
+      auto prepared = core::prepare_schema_version(root, k_quest_schema_version, k_asset_label, path, {});
       if (!prepared)
         throw LoadError(std::move(prepared).error());
 
@@ -134,7 +123,7 @@ namespace corundum::gameplay::quest {
 
       // Schema guarantees: id, name, description are present; id and name are non-empty.
       Quest quest;
-      // The root was migrated to the current shape, so this describes the loaded data.
+      // The document's schema version was checked; this records the current format.
       quest.schema_version = k_quest_schema_version;
       quest.quest_id = root["id"].get<std::string>();
       quest.name = root["name"].get<std::string>();
