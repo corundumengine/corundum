@@ -132,24 +132,23 @@ TEST_CASE("mouse: the wheel moves the pause-menu selection one row per notch") {
   engine.cleanup();
 }
 
-TEST_CASE("mouse: right-click backs out of the pause menu and a hub tab") {
-  {
-    corundum::Engine engine{};
-    init_engine(engine);
-    REQUIRE(press(engine, corundum::input::Action::Menu));
-    REQUIRE(press_right_mouse(engine));
-    CHECK(engine.scene.mode() == GameMode::Exploring);
-    engine.cleanup();
-  }
-  {
-    corundum::Engine engine{};
-    init_engine(engine);
-    const corundum::gameplay::Gameplay gameplay{engine};
-    REQUIRE(press(engine, corundum::input::Action::Inventory));
-    REQUIRE(press_right_mouse(engine));
-    CHECK(engine.scene.mode() == GameMode::Exploring);
-    engine.cleanup();
-  }
+TEST_CASE("mouse: right-click backs out of the pause menu") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  REQUIRE(press(engine, corundum::input::Action::Menu));
+  REQUIRE(press_right_mouse(engine));
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+  engine.cleanup();
+}
+
+TEST_CASE("mouse: right-click backs out of a hub tab") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  const corundum::gameplay::Gameplay gameplay{engine};
+  REQUIRE(press(engine, corundum::input::Action::Inventory));
+  REQUIRE(press_right_mouse(engine));
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+  engine.cleanup();
 }
 
 TEST_CASE("mouse: hovering an inventory row moves focus, and the wheel steps the cursor") {
