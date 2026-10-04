@@ -72,6 +72,14 @@ void metal_sync_contents_scale(const MetalLayer *layer, struct GLFWwindow *win);
  */
 void metal_set_drawable_size(const MetalLayer *layer, int width, int height);
 
+/** @brief Tag @p layer's drawables as sRGB for macOS color matching.
+ *
+ * A drawable with no colorspace tag has its values taken as already being in the display's native
+ * space, so a wide-gamut Display P3 panel misreads the engine's sRGB output as P3 and oversaturates
+ * it. No-op if @p layer is null.
+ */
+void metal_set_colorspace_srgb(const MetalLayer *layer);
+
 /** @brief Release the resources @p layer owns and free the handle; no-op if @p layer is null.
  *
  * A handle from metal_setup_layer() releases the CAMetalLayer; one from metal_get_layer()

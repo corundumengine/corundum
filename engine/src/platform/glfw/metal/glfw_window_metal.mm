@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
+#import <CoreGraphics/CGColorSpace.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
@@ -59,6 +60,10 @@ MetalLayer *metal_setup_layer(GLFWwindow *win) {
 
     handle->layer = layer;
     handle->ownership = MetalLayer::Ownership::Owned;
+
+    // Tag the drawable sRGB so a wide-gamut P3 display doesn't misread the engine's output as P3.
+    metal_set_colorspace_srgb(handle.get());
+
     return handle.release();
   }
 }
@@ -143,11 +148,27 @@ void metal_set_drawable_size(const MetalLayer *layer, int width, int height) {
   layer->layer.drawableSize = CGSizeMake(width, height);
 }
 
+void metal_set_colorspace_srgb(const MetalLayer *layer) {
+  if (layer == nullptr || layer->layer == nullptr)
+    return;
+
+  CGColorSpaceRef colorspace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+  if (colorspace == nullptr)
+    return;
+
+  // CAMetalLayer retains the colorspace, so the layer keeps its own reference after this call.
+  layer->layer.colorspace = colorspace;
+  CFRelease(colorspace);
+}
+
 // NOLINTNEXTLINE(misc-const-correctness): consumes @p layer and frees it.
 void metal_teardown_layer(MetalLayer *layer) {
   @autoreleasepool {
     if (layer == nullptr)
       return;
+
+    if (layer->layer != nullptr)
+      layer->layer.colorspace = nil;
 
     if (layer->ownership == MetalLayer::Ownership::Owned && layer->layer != nullptr)
       CFRelease((__bridge CFTypeRef)layer->layer);
