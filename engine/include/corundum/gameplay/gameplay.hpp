@@ -21,6 +21,7 @@
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
+#include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/gameplay/screens/loot.hpp>
 #include <corundum/gameplay/screens/map.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
@@ -116,9 +117,9 @@ namespace corundum::gameplay {
      *  no per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation"). */
     std::vector<screens::InventoryLine> inventory_lines;
 
-    /** @brief Highlighted row while the Journal hub tab is open; wrapped against the started-quest
-     *  count by the tab's update. */
-    int journal_cursor{};
+    /** @brief State of the Journal hub tab: its active sub-tab and highlighted row. The cursor
+     *  wraps against the rows of the active sub-tab. */
+    screens::JournalState journal_screen;
 
     /** @brief Hub tab the Hub button (gamepad Y) reopens; the last tab that was opened or switched
      *  to. */

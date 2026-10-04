@@ -8,6 +8,7 @@
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
+#include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -200,6 +201,31 @@ TEST_CASE("mouse: clicking a hub tab switches to it and the wheel cycles tabs") 
   // Wheel up over the strip cycles to the previous tab.
   step_mouse(engine, map_tab, map_tab, /*clicked=*/false, /*scroll=*/1.f);
   CHECK(engine.scene.mode() == screens::Codex);
+
+  engine.cleanup();
+}
+
+TEST_CASE("mouse: clicking a journal sub-tab and the wheel over the strip switch sub-tabs") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  const corundum::gameplay::Gameplay gameplay{engine};
+  REQUIRE(press(engine, corundum::input::Action::Journal));
+
+  const screens::JournalLayout layout =
+      screens::journal_panel_layout(*engine.renderer, engine.render.panel_skin.style, {}, gameplay.journal_screen,
+                                    viewport(engine), engine.input_mapper.last_device());
+  const auto &completed = layout.sub_tabs[1];
+  const corundum::core::math::Vec2 completed_tab{
+      .x = completed.pos.x + (completed.width * 0.5f),
+      .y = completed.pos.y + (completed.height * 0.5f),
+  };
+
+  step_mouse(engine, completed_tab, {.x = completed_tab.x - 10.f, .y = completed_tab.y}, /*clicked=*/true);
+  CHECK(gameplay.journal_screen.tab == screens::JournalTab::Completed);
+
+  // Wheel up over the strip cycles to the previous sub-tab.
+  step_mouse(engine, completed_tab, completed_tab, /*clicked=*/false, /*scroll=*/1.f);
+  CHECK(gameplay.journal_screen.tab == screens::JournalTab::Active);
 
   engine.cleanup();
 }

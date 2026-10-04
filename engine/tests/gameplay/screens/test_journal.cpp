@@ -25,6 +25,7 @@
 namespace {
 
   using corundum::world::FlagStore;
+  namespace screens = corundum::gameplay::screens;
 
   /// Two-stage quest: a non-resolved start with one bare objective, then a resolved end.
   corundum::gameplay::quest::Quest make_two_stage_quest(std::string id, std::string name) {
@@ -41,39 +42,52 @@ namespace {
     flags[corundum::gameplay::quest::quest_flag_key(quest_id)] = 2;
   }
 
+  /// Every text payload the recording renderer received, in draw order.
+  std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer &r) {
+    std::vector<std::string> texts;
+    for (const auto &call : r.log)
+      if (std::holds_alternative<corundum::platform::DrawText>(call))
+        texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
+    return texts;
+  }
+
 } // namespace
 
 TEST_CASE("build_journal_entries: no started quests yields an empty list") {
   corundum::gameplay::quest::Registry quests;
   quests.add(make_two_stage_quest("ember", "Ember of Greyhollow"));
 
-  const auto entries = corundum::gameplay::screens::build_journal_entries(quests, {});
+  const auto entries = screens::build_journal_entries(quests, {}, screens::JournalTab::Active);
   CHECK(entries.empty());
 }
 
-TEST_CASE("build_journal_entries: name, lifecycle, and current objective per started quest") {
+TEST_CASE("build_journal_entries: filters to the requested lifecycle tab") {
   corundum::gameplay::quest::Registry quests;
   quests.add(make_two_stage_quest("ember", "Ember of Greyhollow"));
   quests.add(make_two_stage_quest("salt", "Debt of Salt"));
+  quests.add(make_two_stage_quest("ash", "Ashen Road"));
 
   FlagStore flags;
   corundum::gameplay::quest::start(*quests.find("ember"), flags);
   corundum::gameplay::quest::start(*quests.find("salt"), flags);
+  corundum::gameplay::quest::start(*quests.find("ash"), flags);
   complete(flags, "salt");
 
-  const auto entries = corundum::gameplay::screens::build_journal_entries(quests, flags);
-  REQUIRE(entries.size() == 2);
+  const auto active = screens::build_journal_entries(quests, flags, screens::JournalTab::Active);
+  REQUIRE(active.size() == 2);
+  CHECK(active[0].name == "Ashen Road");
+  CHECK(active[0].lifecycle == corundum::gameplay::quest::Lifecycle::Active);
+  CHECK(active[0].objective == "Find the shrine");
 
-  // Active sorts before Completed, regardless of id order.
-  CHECK(entries[0].name == "Ember of Greyhollow");
-  CHECK(entries[0].lifecycle == corundum::gameplay::quest::Lifecycle::Active);
-  CHECK(entries[0].objective == "Find the shrine");
+  const auto completed = screens::build_journal_entries(quests, flags, screens::JournalTab::Completed);
+  REQUIRE(completed.size() == 1);
+  CHECK(completed[0].name == "Debt of Salt");
 
-  CHECK(entries[1].name == "Debt of Salt");
-  CHECK(entries[1].lifecycle == corundum::gameplay::quest::Lifecycle::Completed);
+  const auto failed = screens::build_journal_entries(quests, flags, screens::JournalTab::Failed);
+  CHECK(failed.empty());
 }
 
-TEST_CASE("build_journal_entries: current objective skips done objectives and falls back to the first") {
+TEST_CASE("build_journal_entries: carries the full objective checklist and tracked mark") {
   corundum::gameplay::quest::Registry quests;
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -92,78 +106,117 @@ TEST_CASE("build_journal_entries: current objective skips done objectives and fa
 
   FlagStore flags;
   corundum::gameplay::quest::start(*quests.find("ember"), flags);
-
-  // First objective not yet done → reported even though "Second" is also pending.
-  CHECK(corundum::gameplay::screens::build_journal_entries(quests, flags)[0].objective == "First");
-
   flags["first_done"] = 1;
-  CHECK(corundum::gameplay::screens::build_journal_entries(quests, flags)[0].objective == "Second");
+  corundum::world::set_flag(flags, corundum::gameplay::quest::tracked_flag_key("ember"));
+
+  const auto entries = screens::build_journal_entries(quests, flags, screens::JournalTab::Active);
+  REQUIRE(entries.size() == 1);
+  CHECK(entries[0].tracked);
+  CHECK(entries[0].objective == "Second");
+  REQUIRE(entries[0].objectives.size() == 2);
+  CHECK(entries[0].objectives[0].text == "First");
+  CHECK(entries[0].objectives[0].done);
+  CHECK(entries[0].objectives[1].text == "Second");
+  CHECK_FALSE(entries[0].objectives[1].done);
 }
 
-TEST_CASE("build_journal_entries: groups by lifecycle section order, then by name") {
-  corundum::gameplay::quest::Registry quests;
-  quests.add(make_two_stage_quest("a_completed", "A Completed"));
-  quests.add(make_two_stage_quest("b_active", "B Active"));
-
-  // Build the failed quest with a genuine failed ending stage.
-  corundum::gameplay::quest::Quest failed;
-  failed.quest_id = "c_failed";
-  failed.name = "C Failed";
-  failed.stages.push_back({.name = "start", .sequence = 1});
-  failed.stages.push_back({.failed = true, .name = "lost", .resolved = true, .sequence = 2});
-  quests.add(std::move(failed));
-
-  FlagStore flags;
-  corundum::gameplay::quest::start(*quests.find("a_completed"), flags);
-  complete(flags, "a_completed");
-  corundum::gameplay::quest::start(*quests.find("b_active"), flags);
-  corundum::gameplay::quest::start(*quests.find("c_failed"), flags);
-  flags[corundum::gameplay::quest::quest_flag_key("c_failed")] = 2;
-
-  const auto entries = corundum::gameplay::screens::build_journal_entries(quests, flags);
-  REQUIRE(entries.size() == 3);
-  CHECK(entries[0].lifecycle == corundum::gameplay::quest::Lifecycle::Active);
-  CHECK(entries[1].lifecycle == corundum::gameplay::quest::Lifecycle::Completed);
-  CHECK(entries[2].lifecycle == corundum::gameplay::quest::Lifecycle::Failed);
+TEST_CASE("cycle_journal_tab: wraps both ways") {
+  CHECK(screens::cycle_journal_tab(screens::JournalTab::Active, 1) == screens::JournalTab::Completed);
+  CHECK(screens::cycle_journal_tab(screens::JournalTab::Failed, 1) == screens::JournalTab::Active);
+  CHECK(screens::cycle_journal_tab(screens::JournalTab::Active, -1) == screens::JournalTab::Failed);
 }
 
 // doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
 // test's logic — dominates this metric.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-TEST_CASE("journal_panel_render: chrome, title, lifecycle headers, then one option row per quest") {
+TEST_CASE("journal_panel_render: sub-tab strip, then the highlighted quest's checklist") {
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
 
-  const std::vector<corundum::gameplay::screens::JournalEntry> entries = {
-      {.name = "Ember", .objective = "Find the shrine", .lifecycle = corundum::gameplay::quest::Lifecycle::Active},
-      {.name = "Salt", .objective = "", .lifecycle = corundum::gameplay::quest::Lifecycle::Completed},
+  const std::vector<screens::JournalEntry> entries = {
+      {
+          .id = "ember",
+          .name = "Ember",
+          .objective = "Find the shrine",
+          .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
+          .objectives = {{.text = "Find the shrine", .done = false}, {.text = "Return home", .done = true}},
+      },
+      {
+          .id = "salt",
+          .name = "Salt",
+          .objective = "",
+          .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
+      },
   };
+  const screens::JournalState state{};
 
-  corundum::gameplay::screens::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f});
+  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  // Chrome (1 rect + 8 sprites) + title + footer hint + "Active" header
-  // + (cursor + name + objective) + "Completed" header + (cursor + name).
-  REQUIRE(r.log.size() == 9 + 1 + 1 + 1 + 3 + 1 + 2);
+  // Chrome (1 rect + 8 sprites) + title + 3 sub-tabs + footer + (cursor + name) + 2 checklists
+  // (each its mark + text) + (cursor + name) for the unhighlighted second row.
+  REQUIRE(r.log.size() == 9 + 1 + 3 + 1 + 2 + 4 + 2);
   CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[0]));
 
-  std::vector<std::string> texts;
-  for (const auto &call : r.log)
-    if (std::holds_alternative<corundum::platform::DrawText>(call))
-      texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
-
-  REQUIRE(texts.size() == 9);
+  const std::vector<std::string> texts = recorded_texts(r);
+  REQUIRE(texts.size() == 13);
   CHECK(texts[0] == "Journal");
-  CHECK(texts[1] == "Esc Close");
-  CHECK(texts[2] == "Active");
-  CHECK(texts[3] == "> ");
-  CHECK(texts[4] == "Ember");
-  CHECK(texts[5] == "Find the shrine");
-  CHECK(texts[6] == "Completed");
-  CHECK(texts[7] == "  ");
-  CHECK(texts[8] == "Salt");
+  CHECK(texts[1] == "Active");
+  CHECK(texts[2] == "Completed");
+  CHECK(texts[3] == "Failed");
+  CHECK(texts[4] == "Enter Track   . Tabs   Esc Close");
+  CHECK(texts[5] == "> ");
+  CHECK(texts[6] == "Ember");
+  CHECK(texts[7] == "[ ] ");
+  CHECK(texts[8] == "Find the shrine");
+  CHECK(texts[9] == "[x] ");
+  CHECK(texts[10] == "Return home");
+  CHECK(texts[11] == "  ");
+  CHECK(texts[12] == "Salt");
+}
+
+TEST_CASE("journal_panel_render: a tracked quest carries a mark, others keep the one objective line") {
+  using corundum::test::make_border;
+  using corundum::test::RecordingRenderer;
+
+  RecordingRenderer r;
+  const corundum::ui::PanelStyle style{};
+
+  const std::vector<screens::JournalObjective> shrine_objectives = {
+      {.text = "Find the shrine", .done = false},
+  };
+  const std::vector<screens::JournalEntry> entries = {
+      {
+          .id = "ember",
+          .name = "Ember",
+          .objective = "Find the shrine",
+          .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
+          .tracked = true,
+          .objectives = shrine_objectives,
+      },
+      {
+          .id = "salt",
+          .name = "Salt",
+          .objective = "Pay the debt",
+          .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
+      },
+  };
+  const screens::JournalState state{};
+
+  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+
+  const std::vector<std::string> texts = recorded_texts(r);
+  // Title, 3 sub-tabs, footer, then row 0 (tracked + highlighted checklist), row 1 single objective.
+  REQUIRE(texts.size() == 12);
+  CHECK(texts[5] == "> ");
+  CHECK(texts[6] == "* Ember");
+  CHECK(texts[7] == "[ ] ");
+  CHECK(texts[8] == "Find the shrine");
+  CHECK(texts[9] == "  ");
+  CHECK(texts[10] == "Salt");
+  CHECK(texts[11] == "Pay the debt");
 }
 
 TEST_CASE("journal_panel_render: the footer hint follows the last-used device") {
@@ -172,26 +225,28 @@ TEST_CASE("journal_panel_render: the footer hint follows the last-used device") 
 
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
-  const std::vector<corundum::gameplay::screens::JournalEntry> entries{};
-  corundum::gameplay::screens::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f},
-                                                    corundum::input::InputDevice::Gamepad);
+  const std::vector<screens::JournalEntry> entries{};
+  const screens::JournalState state{};
+  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f},
+                                corundum::input::InputDevice::Gamepad);
 
-  const auto &footer = std::get<corundum::platform::DrawText>(r.log[10]);
-  CHECK(footer.text == "B Close");
+  const std::vector<std::string> texts = recorded_texts(r);
+  CHECK(texts[4] == "A Track   R2 Tabs   B Close");
 }
 
-TEST_CASE("journal_panel_render: empty journal renders the placeholder line") {
+TEST_CASE("journal_panel_render: empty tab renders the placeholder line") {
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
-  const std::vector<corundum::gameplay::screens::JournalEntry> entries{};
-  corundum::gameplay::screens::journal_panel_render(r, style, make_border(), entries, 0, {.x = 1280.f, .y = 720.f});
+  const std::vector<screens::JournalEntry> entries{};
+  const screens::JournalState state{};
+  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  REQUIRE(r.log.size() == 9 + 1 + 1 + 1);
-  const auto &title = std::get<corundum::platform::DrawText>(r.log[9]);
-  const auto &empty = std::get<corundum::platform::DrawText>(r.log[11]);
-  CHECK(title.text == "Journal");
-  CHECK(empty.text == "(no quests)");
+  REQUIRE(r.log.size() == 9 + 1 + 3 + 1 + 1);
+  const std::vector<std::string> texts = recorded_texts(r);
+  REQUIRE(texts.size() == 6);
+  CHECK(texts[0] == "Journal");
+  CHECK(texts[5] == "(no quests)");
 }

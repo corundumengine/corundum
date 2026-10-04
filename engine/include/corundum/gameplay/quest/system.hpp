@@ -28,6 +28,20 @@ namespace corundum::gameplay::quest {
   }
 
   /**
+   * @brief Build the FlagStore key marking a quest as the player's tracked quest.
+   *
+   * The key is "quest.{quest_id}.tracked" and does not collide with the
+   * "quest.{quest_id}" stage key, whose exact-name lookups never match it. A
+   * quest is tracked while the flag is present; clear it to stop tracking.
+   *
+   * @param quest_id The quest's machine-readable identifier.
+   * @return The flag key string.
+   */
+  [[nodiscard]] inline std::string tracked_flag_key(std::string_view quest_id) {
+    return std::format("{}.tracked", quest_flag_key(quest_id));
+  }
+
+  /**
    * @brief Read the current stage sequence for a quest.
    *
    * @param quest_id The quest's machine-readable identifier.

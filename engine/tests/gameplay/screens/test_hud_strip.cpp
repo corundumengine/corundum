@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <string>
+#include <utility>
 #include <variant>
 
 namespace {
@@ -69,6 +70,48 @@ TEST_CASE("build_hud_strip: a completed quest is not reported as the active obje
 
   const auto data = corundum::gameplay::screens::build_hud_strip(flags, quests);
   CHECK_FALSE(data.has_quest);
+}
+
+TEST_CASE("build_hud_strip: the tracked quest wins over the first active one") {
+  corundum::gameplay::quest::Registry quests;
+  quests.add(make_active_quest());
+  corundum::gameplay::quest::Quest salt;
+  salt.quest_id = "salt";
+  salt.name = "Debt of Salt";
+  salt.stages.push_back({.name = "start", .objectives = {{.text = "Pay it"}}, .sequence = 1});
+  salt.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  quests.add(std::move(salt));
+
+  FlagStore flags;
+  corundum::gameplay::quest::start(*quests.find("ember"), flags);
+  corundum::gameplay::quest::start(*quests.find("salt"), flags);
+
+  // Alphabetically "Debt of Salt" would lead; tracking Ember pins it instead.
+  corundum::world::set_flag(flags, corundum::gameplay::quest::tracked_flag_key("ember"));
+  const auto tracked = corundum::gameplay::screens::build_hud_strip(flags, quests);
+  CHECK(tracked.has_quest);
+  CHECK(tracked.quest_name == "Ember of Greyhollow");
+}
+
+TEST_CASE("build_hud_strip: falls back to the first active quest once the tracked quest completes") {
+  corundum::gameplay::quest::Registry quests;
+  quests.add(make_active_quest());
+  corundum::gameplay::quest::Quest salt;
+  salt.quest_id = "salt";
+  salt.name = "Debt of Salt";
+  salt.stages.push_back({.name = "start", .objectives = {{.text = "Pay it"}}, .sequence = 1});
+  salt.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  quests.add(std::move(salt));
+
+  FlagStore flags;
+  corundum::gameplay::quest::start(*quests.find("ember"), flags);
+  corundum::gameplay::quest::start(*quests.find("salt"), flags);
+  corundum::world::set_flag(flags, corundum::gameplay::quest::tracked_flag_key("ember"));
+  flags[corundum::gameplay::quest::quest_flag_key("ember")] = 2; // tracked quest now complete
+
+  const auto data = corundum::gameplay::screens::build_hud_strip(flags, quests);
+  CHECK(data.has_quest);
+  CHECK(data.quest_name == "Debt of Salt");
 }
 
 // doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the

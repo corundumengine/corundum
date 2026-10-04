@@ -26,9 +26,10 @@ namespace corundum::gameplay::screens {
 
   /** @brief Derive the HUD strip from the flag store and quest registry.
    *
-   *  Gold is the `gold` flag. The active quest is the first quest in Active lifecycle order —
-   *  a placeholder until the tracked-quest model (`quest.<id>.tracked`) lands; `objective` is
-   *  that quest's current-stage first objective.
+   *  Gold is the `gold` flag. The reported quest is the tracked Active quest
+   *  (`quest.<id>.tracked`), falling back to the first Active quest by name when nothing is
+   *  tracked; `objective` is that quest's current-stage first objective. Nothing is reported when
+   *  the tracked quest is no longer Active and no other Active quest exists.
    *
    *  @param flags   Active FlagStore.
    *  @param quests  Loaded quest registry.

@@ -8,6 +8,7 @@
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/gameplay/quest/system.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
 #include <string>
@@ -122,6 +123,44 @@ TEST_CASE("engine events: re-starting an underway quest does not toast again") {
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
   gameplay.process_events();
   CHECK(engine.toasts.size() == 1);
+}
+
+TEST_CASE("engine events: quest_start auto-tracks the quest when nothing else is tracked") {
+  corundum::Engine engine;
+  corundum::gameplay::Gameplay gameplay{engine};
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  gameplay.quests.add(std::move(q));
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
+  gameplay.process_events();
+
+  CHECK(corundum::world::has_flag(engine.flags, corundum::gameplay::quest::tracked_flag_key("ember")));
+}
+
+TEST_CASE("engine events: quest_start does not override an existing tracked quest") {
+  corundum::Engine engine;
+  corundum::gameplay::Gameplay gameplay{engine};
+  for (const std::string &id : {std::string{"ember"}, std::string{"salt"}}) {
+    corundum::gameplay::quest::Quest q;
+    q.quest_id = id;
+    q.name = id;
+    q.stages.push_back({.name = "start", .sequence = 1});
+    q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+    gameplay.quests.add(std::move(q));
+  }
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"salt"}});
+  gameplay.process_events();
+  REQUIRE(corundum::world::has_flag(engine.flags, corundum::gameplay::quest::tracked_flag_key("salt")));
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
+  gameplay.process_events();
+
+  CHECK(corundum::world::has_flag(engine.flags, corundum::gameplay::quest::tracked_flag_key("salt")));
+  CHECK_FALSE(corundum::world::has_flag(engine.flags, corundum::gameplay::quest::tracked_flag_key("ember")));
 }
 
 TEST_CASE("engine events: quest_advance to a live stage toasts an update") {

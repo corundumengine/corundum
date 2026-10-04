@@ -17,12 +17,13 @@
 #include <corundum/world/flags.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <span>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -30,42 +31,32 @@ namespace corundum::gameplay::screens {
 
   namespace {
 
-    /// Section display order: Active, then Completed, then Failed. NotStarted is unreachable
-    /// here because build_journal_entries() only sees started quests.
-    int lifecycle_rank(gameplay::quest::Lifecycle lifecycle) noexcept {
-      switch (lifecycle) {
-        case gameplay::quest::Lifecycle::Active:
-          return 0;
-        case gameplay::quest::Lifecycle::Completed:
-          return 1;
-        case gameplay::quest::Lifecycle::Failed:
-          return 2;
-        case gameplay::quest::Lifecycle::NotStarted:
-          return 3;
+    constexpr float k_journal_min_w = 260.f;
+    constexpr float k_journal_pad_x = 24.f;
+    constexpr float k_journal_pad_y = 16.f;
+    constexpr float k_journal_gap = 10.f;
+    constexpr float k_journal_sub_tab_gap = 18.f;
+    constexpr float k_journal_footer_gap = 12.f;
+    constexpr std::string_view k_journal_title = "Journal";
+    constexpr std::string_view k_journal_empty = "(no quests)";
+    constexpr std::string_view k_objective_done = "[x] ";
+    constexpr std::string_view k_objective_pending = "[ ] ";
+
+    /// True when @p lifecycle belongs to the section @p tab names.
+    bool tab_matches(JournalTab tab, gameplay::quest::Lifecycle lifecycle) noexcept {
+      switch (tab) {
+        case JournalTab::Active:
+          return lifecycle == gameplay::quest::Lifecycle::Active;
+        case JournalTab::Completed:
+          return lifecycle == gameplay::quest::Lifecycle::Completed;
+        case JournalTab::Failed:
+          return lifecycle == gameplay::quest::Lifecycle::Failed;
       }
-      return 3;
+      return false;
     }
 
-    std::string_view lifecycle_header(gameplay::quest::Lifecycle lifecycle) noexcept {
-      switch (lifecycle) {
-        case gameplay::quest::Lifecycle::Active:
-          return "Active";
-        case gameplay::quest::Lifecycle::Completed:
-          return "Completed";
-        case gameplay::quest::Lifecycle::Failed:
-          return "Failed";
-        case gameplay::quest::Lifecycle::NotStarted:
-          return "Unknown";
-      }
-      return "Unknown";
-    }
-
-    /// First not-yet-done objective of the current stage, falling back to the first objective,
-    /// or empty when the stage declares none.
-    std::string current_objective(const gameplay::quest::Quest &quest, const world::FlagStore &flags,
-                                  const gameplay::quest::Registry &quests, std::string_view zone_id) {
-      const std::vector<gameplay::quest::ObjectiveView> views =
-          gameplay::quest::objectives(quest, flags, &quests, zone_id);
+    /// Current objective label: first not-yet-done entry, falling back to the first, or empty.
+    std::string current_objective(std::span<const gameplay::quest::ObjectiveView> views) {
       if (views.empty())
         return {};
       for (const gameplay::quest::ObjectiveView &view : views) {
@@ -75,28 +66,19 @@ namespace corundum::gameplay::screens {
       return std::string(views.front().text);
     }
 
-    constexpr float k_journal_min_w = 260.f;
-    constexpr float k_journal_pad_x = 24.f;
-    constexpr float k_journal_pad_y = 16.f;
-    constexpr float k_journal_header_gap = 10.f;
-    constexpr float k_journal_group_gap = 8.f;
-    constexpr float k_journal_footer_gap = 12.f;
-    constexpr std::string_view k_journal_title = "Journal";
-    constexpr std::string_view k_journal_empty = "(no quests)";
-
-    /// One line of the panel's vertical draw sequence.
+    /// One line of the panel's vertical draw sequence, with y relative to the body top.
     struct JournalDrawRow {
-      enum class Kind : std::uint8_t { Header, Option, Objective };
+      enum class Kind : std::uint8_t { Option, Objective, Checklist };
 
       Kind kind{Kind::Option};
 
-      std::string_view text{}; ///< Header/objective text; options read entries[index].name.
+      std::string_view text{}; ///< Objective/checklist text; options read entries[index].name.
 
-      std::size_t index{};
+      std::size_t index{}; ///< Entry index for Option rows.
 
-      float x{};
+      bool checked{false}; ///< Checklist done mark.
 
-      float y{};
+      float y{}; ///< Offset from the body top.
     };
 
     struct JournalGeometry {
@@ -107,126 +89,164 @@ namespace corundum::gameplay::screens {
       float panel_w{};
       float panel_h{};
       float title_y{};
+      float sub_tab_y{};
       float body_top{};
       float row_x{};
       float objective_indent{};
       int clamped_cursor{};
       std::string footer{};
-      std::vector<JournalDrawRow> draw_rows;
+      std::array<ui::RowRect, k_journal_tabs.size()> sub_tabs{};
+      std::vector<JournalDrawRow> draw_rows{};
     };
 
     JournalGeometry compute_journal_geometry(const platform::Renderer &r, const ui::PanelStyle &style,
-                                             const std::vector<JournalEntry> &entries, int cursor,
+                                             const std::vector<JournalEntry> &entries, const JournalState &state,
                                              core::math::Vec2 viewport, input::InputDevice last_device) {
       JournalGeometry geometry{};
       geometry.body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
       geometry.header_line_h = std::max(geometry.body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
       const float cursor_w = ui::cursor_advance(r, style);
       geometry.objective_indent = cursor_w + 8.f;
+      geometry.clamped_cursor = std::clamp(state.cursor, 0, std::max(0, static_cast<int>(entries.size()) - 1));
+
       const float title_w = r.measure_text(style.font_id, k_journal_title, style.font_size_speaker);
-      geometry.footer = std::format("{} Close", ui::input_glyph(input::Action::Cancel, last_device));
+      geometry.footer = std::format(
+          "{} Track   {} Tabs   {} Close", ui::input_glyph(input::Action::Activate, last_device),
+          ui::input_glyph(input::Action::SubTabNext, last_device), ui::input_glyph(input::Action::Cancel, last_device));
       const float footer_w = r.measure_text(style.font_id, geometry.footer, style.font_size_body);
 
-      std::size_t group_count = 0;
-      std::size_t objective_rows = 0;
-      float widest =
-          std::max({title_w, r.measure_text(style.font_id, k_journal_empty, style.font_size_body), footer_w});
-      gameplay::quest::Lifecycle last_section = gameplay::quest::Lifecycle::NotStarted;
+      std::array<float, k_journal_tabs.size()> sub_tab_widths{};
+      float sub_tabs_total = 0.f;
+      for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
+        sub_tab_widths[i] =
+            r.measure_text(style.font_id, journal_tab_label(k_journal_tabs[i]), style.font_size_speaker);
+        sub_tabs_total += sub_tab_widths[i];
+      }
+      sub_tabs_total += k_journal_sub_tab_gap * static_cast<float>(k_journal_tabs.size() - 1);
+
+      float widest = std::max(
+          {title_w, r.measure_text(style.font_id, k_journal_empty, style.font_size_body), footer_w, sub_tabs_total});
+
+      // Build the body rows first: their height sets the panel height (x depends on panel width,
+      // so it is applied after the panel is centered). The highlighted entry expands to its full
+      // checklist; every other row keeps the single current-objective line.
+      float body_height = 0.f;
       for (std::size_t i = 0; i < entries.size(); ++i) {
         const JournalEntry &entry = entries[i];
-        if (i == 0 || entry.lifecycle != last_section) {
-          ++group_count;
-          last_section = entry.lifecycle;
-        }
         widest = std::max(widest, cursor_w + r.measure_text(style.font_id, entry.name, style.font_size_body));
-        if (!entry.objective.empty()) {
-          ++objective_rows;
+        geometry.draw_rows.push_back(
+            JournalDrawRow{.kind = JournalDrawRow::Kind::Option, .index = i, .y = body_height});
+        body_height += geometry.body_line_h;
+
+        const bool highlighted = std::cmp_equal(i, static_cast<std::size_t>(geometry.clamped_cursor));
+        if (highlighted && !entry.objectives.empty()) {
+          for (const JournalObjective &objective : entry.objectives) {
+            const std::string_view mark = objective.done ? k_objective_done : k_objective_pending;
+            widest =
+                std::max(widest, geometry.objective_indent + r.measure_text(style.font_id, mark, style.font_size_body) +
+                                     r.measure_text(style.font_id, objective.text, style.font_size_body));
+            geometry.draw_rows.push_back(JournalDrawRow{
+                .kind = JournalDrawRow::Kind::Checklist,
+                .text = objective.text,
+                .checked = objective.done,
+                .y = body_height,
+            });
+            body_height += geometry.body_line_h;
+          }
+        } else if (!entry.objective.empty()) {
           widest = std::max(widest, geometry.objective_indent +
                                         r.measure_text(style.font_id, entry.objective, style.font_size_body));
+          geometry.draw_rows.push_back(
+              JournalDrawRow{.kind = JournalDrawRow::Kind::Objective, .text = entry.objective, .y = body_height});
+          body_height += geometry.body_line_h;
         }
       }
 
       geometry.panel_w = std::max(k_journal_min_w, widest + (k_journal_pad_x * 2.f));
-      const float body_rows = static_cast<float>(entries.size() + objective_rows);
-      const float group_gaps = group_count > 0 ? static_cast<float>(group_count - 1) * k_journal_group_gap : 0.f;
-      geometry.panel_h = (k_journal_pad_y * 2.f) + geometry.header_line_h + k_journal_header_gap +
-                         (body_rows * geometry.body_line_h) +
-                         (static_cast<float>(group_count) * geometry.header_line_h) + group_gaps +
-                         k_journal_footer_gap + geometry.body_line_h;
+      geometry.panel_h = (k_journal_pad_y * 2.f) + geometry.header_line_h + k_journal_gap + geometry.header_line_h +
+                         k_journal_gap + body_height + k_journal_footer_gap + geometry.body_line_h;
       geometry.panel_x = (viewport.x - geometry.panel_w) * 0.5f;
       geometry.panel_y = (viewport.y - geometry.panel_h) * 0.5f;
       geometry.title_y = geometry.panel_y + k_journal_pad_y;
-      geometry.body_top = geometry.title_y + geometry.header_line_h + k_journal_header_gap;
+      geometry.sub_tab_y = geometry.title_y + geometry.header_line_h + k_journal_gap;
+      geometry.body_top = geometry.sub_tab_y + geometry.header_line_h + k_journal_gap;
       geometry.row_x = geometry.panel_x + k_journal_pad_x;
-      geometry.clamped_cursor = std::clamp(cursor, 0, std::max(0, static_cast<int>(entries.size()) - 1));
 
-      float y = geometry.body_top;
-      for (std::size_t i = 0; i < entries.size();) {
-        const gameplay::quest::Lifecycle section = entries[i].lifecycle;
-        geometry.draw_rows.push_back(JournalDrawRow{
-            .kind = JournalDrawRow::Kind::Header,
-            .text = lifecycle_header(section),
-            .y = y,
-        });
-        y += geometry.header_line_h;
-
-        while (i < entries.size() && entries[i].lifecycle == section) {
-          geometry.draw_rows.push_back(JournalDrawRow{
-              .kind = JournalDrawRow::Kind::Option,
-              .index = i,
-              .x = geometry.row_x,
-              .y = y,
-          });
-          y += geometry.body_line_h;
-          if (!entries[i].objective.empty()) {
-            geometry.draw_rows.push_back(JournalDrawRow{
-                .kind = JournalDrawRow::Kind::Objective,
-                .text = entries[i].objective,
-                .x = geometry.row_x + geometry.objective_indent,
-                .y = y,
-            });
-            y += geometry.body_line_h;
-          }
-          ++i;
-        }
-
-        if (i < entries.size())
-          y += k_journal_group_gap;
+      float x = geometry.panel_x + ((geometry.panel_w - sub_tabs_total) * 0.5f);
+      for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
+        geometry.sub_tabs[i] = ui::RowRect{
+            .pos = {.x = x, .y = geometry.sub_tab_y},
+            .width = sub_tab_widths[i],
+            .height = geometry.header_line_h,
+        };
+        x += sub_tab_widths[i] + k_journal_sub_tab_gap;
       }
       return geometry;
     }
 
   } // namespace
 
+  std::string_view journal_tab_label(JournalTab tab) noexcept {
+    switch (tab) {
+      case JournalTab::Active:
+        return "Active";
+      case JournalTab::Completed:
+        return "Completed";
+      case JournalTab::Failed:
+        return "Failed";
+    }
+    return "Unknown";
+  }
+
+  JournalTab cycle_journal_tab(JournalTab tab, int direction) noexcept {
+    const auto count = static_cast<int>(k_journal_tabs.size());
+    const int index = static_cast<int>(tab);
+    const int next = (((index + direction) % count) + count) % count;
+    return k_journal_tabs[static_cast<std::size_t>(next)];
+  }
+
   std::vector<JournalEntry> build_journal_entries(const gameplay::quest::Registry &quests,
-                                                  const world::FlagStore &flags, std::string_view zone_id) {
+                                                  const world::FlagStore &flags, JournalTab tab,
+                                                  std::string_view zone_id) {
     std::vector<JournalEntry> entries;
     for (const gameplay::quest::Quest *quest : gameplay::quest::started_quests(quests, flags)) {
       if (quest == nullptr)
         continue;
-      entries.push_back(JournalEntry{
-          .name = quest->name,
-          .objective = current_objective(*quest, flags, quests, zone_id),
-          .lifecycle = gameplay::quest::lifecycle(*quest, flags),
-      });
+      const gameplay::quest::Lifecycle lifecycle = gameplay::quest::lifecycle(*quest, flags);
+      if (!tab_matches(tab, lifecycle))
+        continue;
+
+      const std::vector<gameplay::quest::ObjectiveView> views =
+          gameplay::quest::objectives(*quest, flags, &quests, zone_id);
+
+      JournalEntry entry{};
+      entry.id = quest->quest_id;
+      entry.name = quest->name;
+      entry.objective = current_objective(views);
+      entry.lifecycle = lifecycle;
+      entry.tracked = world::has_flag(flags, gameplay::quest::tracked_flag_key(quest->quest_id));
+      entry.objectives.reserve(views.size());
+      for (const gameplay::quest::ObjectiveView &view : views)
+        entry.objectives.push_back(JournalObjective{.text = std::string(view.text), .done = view.done});
+      entries.push_back(std::move(entry));
     }
-    std::ranges::sort(
-        entries, {}, [](const JournalEntry &entry) { return std::tuple{lifecycle_rank(entry.lifecycle), entry.name}; });
+    std::ranges::sort(entries, {}, &JournalEntry::name);
     return entries;
   }
 
   JournalLayout journal_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
-                                     const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport,
-                                     input::InputDevice last_device) {
-    const JournalGeometry geometry = compute_journal_geometry(r, style, entries, cursor, viewport, last_device);
+                                     const std::vector<JournalEntry> &entries, const JournalState &state,
+                                     core::math::Vec2 viewport, input::InputDevice last_device) {
+    const JournalGeometry geometry = compute_journal_geometry(r, style, entries, state, viewport, last_device);
     JournalLayout layout{};
     layout.panel_pos = {.x = geometry.panel_x, .y = geometry.panel_y};
     layout.panel_size = {.x = geometry.panel_w, .y = geometry.panel_h};
+    layout.sub_tabs = geometry.sub_tabs;
     for (const JournalDrawRow &row : geometry.draw_rows) {
       if (row.kind != JournalDrawRow::Kind::Option)
         continue;
       layout.rows.push_back(ui::RowRect{
-          .pos = {.x = geometry.row_x, .y = row.y},
+          .pos = {.x = geometry.row_x, .y = geometry.body_top + row.y},
           .width = geometry.panel_w - (k_journal_pad_x * 2.f),
           .height = geometry.body_line_h,
       });
@@ -235,9 +255,9 @@ namespace corundum::gameplay::screens {
   }
 
   void journal_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const std::vector<JournalEntry> &entries, int cursor, core::math::Vec2 viewport,
-                            input::InputDevice last_device) {
-    const JournalGeometry geometry = compute_journal_geometry(r, style, entries, cursor, viewport, last_device);
+                            const std::vector<JournalEntry> &entries, const JournalState &state,
+                            core::math::Vec2 viewport, input::InputDevice last_device) {
+    const JournalGeometry geometry = compute_journal_geometry(r, style, entries, state, viewport, last_device);
     const float title_w = r.measure_text(style.font_id, k_journal_title, style.font_size_speaker);
     const float footer_w = r.measure_text(style.font_id, geometry.footer, style.font_size_body);
 
@@ -251,6 +271,17 @@ namespace corundum::gameplay::screens {
         .char_size = style.font_size_speaker,
         .colour = style.speaker,
     });
+
+    // Sub-tab strip: Active / Completed / Failed, the active one highlighted.
+    for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
+      r.draw(platform::DrawText{
+          .font_id = style.font_id,
+          .text = journal_tab_label(k_journal_tabs[i]),
+          .position = geometry.sub_tabs[i].pos,
+          .char_size = style.font_size_speaker,
+          .colour = k_journal_tabs[i] == state.tab ? style.speaker : style.choice,
+      });
+    }
 
     // Footer is bottom-anchored, so it draws before the body — the empty branch can return early.
     r.draw(platform::DrawText{
@@ -270,11 +301,7 @@ namespace corundum::gameplay::screens {
       r.draw(platform::DrawText{
           .font_id = style.font_id,
           .text = k_journal_empty,
-          .position =
-              {
-                  .x = geometry.panel_x + ((geometry.panel_w - empty_w) * 0.5f),
-                  .y = geometry.body_top,
-              },
+          .position = {.x = geometry.panel_x + ((geometry.panel_w - empty_w) * 0.5f), .y = geometry.body_top},
           .char_size = style.font_size_body,
           .colour = style.choice,
       });
@@ -283,30 +310,46 @@ namespace corundum::gameplay::screens {
 
     for (const JournalDrawRow &row : geometry.draw_rows) {
       switch (row.kind) {
-        case JournalDrawRow::Kind::Header: {
-          const float header_w = r.measure_text(style.font_id, row.text, style.font_size_speaker);
-          r.draw(platform::DrawText{
-              .font_id = style.font_id,
-              .text = row.text,
-              .position = {.x = geometry.panel_x + ((geometry.panel_w - header_w) * 0.5f), .y = row.y},
-              .char_size = style.font_size_speaker,
-              .colour = style.speaker,
-          });
-          break;
-        }
-        case JournalDrawRow::Kind::Option:
-          ui::draw_option(r, style, entries[row.index].name, {.x = row.x, .y = row.y},
+        case JournalDrawRow::Kind::Option: {
+          const JournalEntry &entry = entries[row.index];
+          const std::string label = entry.tracked ? std::format("* {}", entry.name) : entry.name;
+          ui::draw_option(r, style, label, {.x = geometry.row_x, .y = geometry.body_top + row.y},
                           std::cmp_equal(row.index, static_cast<std::size_t>(geometry.clamped_cursor)));
           break;
+        }
         case JournalDrawRow::Kind::Objective:
           r.draw(platform::DrawText{
               .font_id = style.font_id,
               .text = row.text,
-              .position = {.x = row.x, .y = row.y},
+              .position = {.x = geometry.row_x + geometry.objective_indent, .y = geometry.body_top + row.y},
               .char_size = style.font_size_body,
               .colour = style.choice,
           });
           break;
+        case JournalDrawRow::Kind::Checklist: {
+          const std::string_view mark = row.checked ? k_objective_done : k_objective_pending;
+          const core::math::Colour colour = row.checked ? style.body : style.choice;
+          const float mark_x = geometry.row_x + geometry.objective_indent;
+          r.draw(platform::DrawText{
+              .font_id = style.font_id,
+              .text = mark,
+              .position = {.x = mark_x, .y = geometry.body_top + row.y},
+              .char_size = style.font_size_body,
+              .colour = colour,
+          });
+          r.draw(platform::DrawText{
+              .font_id = style.font_id,
+              .text = row.text,
+              .position =
+                  {
+                      .x = mark_x + r.measure_text(style.font_id, mark, style.font_size_body),
+                      .y = geometry.body_top + row.y,
+                  },
+              .char_size = style.font_size_body,
+              .colour = colour,
+          });
+          break;
+        }
       }
     }
   }

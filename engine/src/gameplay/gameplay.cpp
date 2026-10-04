@@ -128,8 +128,17 @@ namespace corundum::gameplay {
       }
       if (already_started)
         return;
-      if (const quest::Quest *quest = gameplay.quests.find(ev.args[0]); quest != nullptr)
+      const quest::Quest *quest = gameplay.quests.find(ev.args[0]);
+      if (quest != nullptr)
         engine.notify(std::format("Quest started: {}", quest->name), ui::k_toast_default_colour);
+      // Auto-track the newly started quest only when nothing else is tracked, so the HUD has a
+      // default without overriding a quest the player pinned by hand.
+      const bool any_tracked = std::ranges::any_of(
+          quest::started_quests(gameplay.quests, engine.flags), [&engine](const quest::Quest *started) {
+            return started != nullptr && world::has_flag(engine.flags, quest::tracked_flag_key(started->quest_id));
+          });
+      if (!any_tracked)
+        world::set_flag(engine.flags, quest::tracked_flag_key(ev.args[0]));
     }
 
     void handle_quest_advance(Engine &engine, const Gameplay &gameplay, quest::Runner &quest_runner,
@@ -346,7 +355,7 @@ namespace corundum::gameplay {
           gameplay.inventory_lines = screens::build_inventory_lines(engine.flags, gameplay.items);
           break;
         case screens::Journal:
-          gameplay.journal_cursor = 0;
+          gameplay.journal_screen.cursor = 0;
           break;
         case screens::Codex:
           gameplay.codex_screen.cursor = 0;
@@ -479,38 +488,98 @@ namespace corundum::gameplay {
       gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, delta, rows);
     }
 
-    /// Step the Journal hub tab: Cancel closes it; a hovered row takes focus on a real mouse move
-    /// or click; the wheel moves one row per notch; Up/Down wrap the highlight.
+    /// Switch the journal to @p tab, resetting the row cursor when it changes.
+    void select_journal_tab(screens::JournalState &state, screens::JournalTab tab) noexcept {
+      if (state.tab == tab)
+        return;
+      state.tab = tab;
+      state.cursor = 0;
+    }
+
+    /// Toggle tracking on @p entry: tracking it clears the flag on every other started quest.
+    /// Only an Active quest is trackable.
+    void toggle_journal_track(Engine &engine, const Gameplay &gameplay, const screens::JournalEntry &entry) {
+      if (entry.lifecycle != quest::Lifecycle::Active)
+        return;
+      const std::string key = quest::tracked_flag_key(entry.id);
+      if (world::has_flag(engine.flags, key)) {
+        world::clear_flag(engine.flags, key);
+        return;
+      }
+      for (const quest::Quest *started : quest::started_quests(gameplay.quests, engine.flags)) {
+        if (started != nullptr)
+          world::clear_flag(engine.flags, quest::tracked_flag_key(started->quest_id));
+      }
+      world::set_flag(engine.flags, key);
+    }
+
+    /// Apply mouse intent to the journal: a click on the sub-tab strip selects a tab, the wheel
+    /// over it cycles sub-tabs, a hovered row takes focus on a real mouse move or click, and the
+    /// wheel moves one row per notch. Returns true when the pointer switched tabs and the step
+    /// should be consumed without also activating a row.
+    bool apply_journal_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+                               const std::vector<screens::JournalEntry> &entries) {
+      if (!pointer_active(intent))
+        return false;
+
+      screens::JournalState &state = gameplay.journal_screen;
+      const screens::JournalLayout layout =
+          screens::journal_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state,
+                                        screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      if (const int sub = ui::hovered_row(cursor, layout.sub_tabs); sub >= 0) {
+        if (intent.cursor_clicked) {
+          select_journal_tab(state, screens::k_journal_tabs[static_cast<std::size_t>(sub)]);
+          return true;
+        }
+        if (intent.scroll_y != 0.f) {
+          select_journal_tab(state, screens::cycle_journal_tab(state.tab, intent.scroll_y > 0.f ? -1 : 1));
+          return true;
+        }
+      }
+      if (pointer_focus(intent)) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+          state.cursor = hovered;
+      }
+      const int rows = static_cast<int>(entries.size());
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+        state.cursor = wrap_cursor(state.cursor, steps, rows);
+      return false;
+    }
+
+    /// Step the Journal hub tab: Cancel closes it; SubTabNext/Prev cycle sub-tabs (resetting the
+    /// cursor); a click on the sub-tab strip selects a tab and the wheel over it cycles; a hovered
+    /// row takes focus on a real mouse move or click; the wheel moves one row per notch; Activate
+    /// toggles tracking on the highlighted Active quest; Up/Down wrap the highlight.
     void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      screens::JournalState &state = gameplay.journal_screen;
       if (intent.back) {
         engine.scene.ui.pop();
         return;
       }
-      const std::vector<screens::JournalEntry> entries =
-          screens::build_journal_entries(gameplay.quests, engine.flags, engine.scene.zone_id);
-      const int rows = static_cast<int>(entries.size());
 
-      if (pointer_active(intent)) {
-        const screens::JournalLayout layout = screens::journal_panel_layout(
-            *engine.renderer, engine.render.panel_skin.style, entries, gameplay.journal_cursor, screen_viewport(engine),
-            engine.input_mapper.last_device());
-        const core::math::Vec2 cursor = intent_cursor(intent);
-        if (pointer_focus(intent)) {
-          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-            gameplay.journal_cursor = hovered;
-        }
-        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
-          gameplay.journal_cursor = wrap_cursor(gameplay.journal_cursor, steps, rows);
+      if (intent.next_sub_tab || intent.prev_sub_tab)
+        select_journal_tab(state, screens::cycle_journal_tab(state.tab, intent.next_sub_tab ? 1 : -1));
+
+      const std::vector<screens::JournalEntry> entries =
+          screens::build_journal_entries(gameplay.quests, engine.flags, state.tab, engine.scene.zone_id);
+      if (apply_journal_pointer(engine, gameplay, intent, entries))
+        return;
+
+      const int rows = static_cast<int>(entries.size());
+      if (intent.activate && rows > 0) {
+        const std::size_t index = static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1));
+        toggle_journal_track(engine, gameplay, entries[index]);
       }
 
       const int delta = intent.navigate_y;
       if (delta == 0)
         return;
       if (rows <= 0) {
-        gameplay.journal_cursor = 0;
+        state.cursor = 0;
         return;
       }
-      gameplay.journal_cursor = wrap_cursor(gameplay.journal_cursor, delta, rows);
+      state.cursor = wrap_cursor(state.cursor, delta, rows);
     }
 
     /// Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, the wheel
@@ -839,8 +908,9 @@ namespace corundum::gameplay {
     void render_journal(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
                         core::math::Vec2 viewport) {
       screens::journal_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                    screens::build_journal_entries(gameplay.quests, engine.flags, engine.scene.zone_id),
-                                    gameplay.journal_cursor, viewport, engine.input_mapper.last_device());
+                                    screens::build_journal_entries(gameplay.quests, engine.flags,
+                                                                   gameplay.journal_screen.tab, engine.scene.zone_id),
+                                    gameplay.journal_screen, viewport, engine.input_mapper.last_device());
     }
 
     void render_codex(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,

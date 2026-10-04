@@ -16,6 +16,7 @@
 #include <format>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace corundum::gameplay::screens {
 
@@ -24,13 +25,13 @@ namespace corundum::gameplay::screens {
     HudStripData data{};
     data.gold = world::visit_count(flags, std::string{k_gold_flag});
 
-    for (const JournalEntry &entry : build_journal_entries(quests, flags, zone_id)) {
-      if (entry.lifecycle != gameplay::quest::Lifecycle::Active)
-        continue;
+    const std::vector<JournalEntry> active = build_journal_entries(quests, flags, JournalTab::Active, zone_id);
+    if (!active.empty()) {
+      const auto tracked = std::ranges::find_if(active, &JournalEntry::tracked);
+      const JournalEntry &chosen = tracked != active.end() ? *tracked : active.front();
       data.has_quest = true;
-      data.quest_name = entry.name;
-      data.objective = entry.objective;
-      break;
+      data.quest_name = chosen.name;
+      data.objective = chosen.objective;
     }
     return data;
   }
