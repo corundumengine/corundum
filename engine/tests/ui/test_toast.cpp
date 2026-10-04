@@ -53,6 +53,26 @@ TEST_CASE("ToastQueue: a burst past the visible cap drops the oldest entries") {
   CHECK(queue.at(0).text == "toast 2");
 }
 
+TEST_CASE("ToastQueue: a repeated message refreshes the existing toast") {
+  corundum::ui::ToastQueue queue;
+  queue.notify("Not enough gold");
+  queue.update(2.f);
+  REQUIRE(queue.size() == 1);
+  CHECK(queue.at(0).remaining == doctest::Approx(corundum::ui::k_toast_ttl_seconds - 2.f));
+
+  queue.notify("Not enough gold");
+  REQUIRE(queue.size() == 1);
+  CHECK(queue.at(0).remaining == doctest::Approx(corundum::ui::k_toast_ttl_seconds));
+}
+
+TEST_CASE("ToastQueue: the same text in a different colour is not deduplicated") {
+  corundum::ui::ToastQueue queue;
+  queue.notify("Quest updated");
+  queue.notify("Quest updated", corundum::ui::k_toast_failed_colour);
+
+  REQUIRE(queue.size() == 2);
+}
+
 TEST_CASE("ToastQueue: clear drops every toast") {
   corundum::ui::ToastQueue queue;
   queue.notify("a");

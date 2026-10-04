@@ -13,6 +13,9 @@ namespace corundum::gameplay::shop {
 
   /** @brief One item a shop offers, with an optional price override.
    *
+   *  Stock is static by design: the quantity a merchant carries is not tracked or decremented
+   *  when the player buys, so a shop's inventory is effectively infinite.
+   *
    *  A @c price of 0 means "use the item definition's own price". */
   struct StockEntry {
     std::string item{}; ///< Item id.

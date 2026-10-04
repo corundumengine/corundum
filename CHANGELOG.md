@@ -9,38 +9,6 @@ while the major version is 0, the public API may change between minor releases.
 
 ## Unreleased
 
-Phase D of the UI & quest architecture plan — the depth screens, backed by
-flags and static content registries:
-
-- **Codex**: `data/codex/*.json` lore entries, unlocked via `unlock_codex('id')`
-  or a `codex.<id>` flag, shown in a two-pane codex screen (`C` / gamepad X)
-  with a dirty-flagged cache of unlocked entries.
-- **Map / fast-travel**: `data/locations/*.json` destinations, discovered via
-  `discover_location('id')` or `location.<id>.discovered`, shown in a map screen
-  (`M` / gamepad Back) that arms a scene transition on Activate.
-- **Loot / container**: `open_container('id')` dialogue event opens a two-pane
-  transfer screen over flags stored under `container.<id>.item.<item>`.
-- **Barter / merchant**: `data/shops/*.json` merchants opened with
-  `open_shop('id')`; buy/sell two-tab screen with `rep.<faction>` buy discounts
-  and an item `price` field added to the item format.
-
-### Changed
-
-- **Gameplay split from the engine runtime** (source-breaking for embedders).
-  The CRPG systems (`dialogue`, `quest`, `item`, `codex`, `shop`, `location`)
-  and the screens that present them now live under `corundum/gameplay/...` in
-  namespace `corundum::gameplay` (screens in `corundum::gameplay::screens`),
-  built as the `corundum_gameplay` CMake target over `engine`. `Engine` no
-  longer owns gameplay and no longer exposes `on_event` /
-  `process_dialogue_events`; the framework owns them through
-  `gameplay::Gameplay`, paired with the engine in `gameplay::Runtime` and
-  created with `gameplay::make_runtime(options)`. `corundum/corundum.hpp` no
-  longer re-exports `EventAction` (it lives in
-  `corundum/gameplay/gameplay.hpp`). `world::GameMode` is open: values from
-  `world::k_first_extension_mode` (16) upward are reserved for extensions.
-  Update include paths, namespaces and the entry point; keystone shows the new
-  shape.
-
 ## 0.2.0 - 2026-09-30
 
 The first milestone: a working isometric RPG engine, from the frame loop and

@@ -46,6 +46,8 @@ namespace corundum::ui {
   class ToastQueue {
   public:
     /** @brief Enqueue @p text, to be shown for k_toast_ttl_seconds.
+     *  A live toast with identical text and colour has its lifetime reset rather than a duplicate
+     *  being stacked.
      *  @param text   Message to display.
      *  @param colour Text colour; defaults to k_toast_default_colour. */
     void notify(std::string text, core::math::Colour colour = k_toast_default_colour);

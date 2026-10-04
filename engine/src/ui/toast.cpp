@@ -18,6 +18,17 @@
 namespace corundum::ui {
 
   void ToastQueue::notify(std::string text, core::math::Colour colour) {
+    // Repeating an identical live message refreshes the existing toast rather than stacking
+    // duplicates (e.g. spamming an action that keeps reporting the same condition).
+    const auto same_message = [&](const Toast &toast) {
+      return toast.text == text && toast.colour.r == colour.r && toast.colour.g == colour.g &&
+             toast.colour.b == colour.b && toast.colour.a == colour.a;
+    };
+    if (const auto existing = std::ranges::find_if(toasts_, same_message); existing != toasts_.end()) {
+      existing->remaining = k_toast_ttl_seconds;
+      return;
+    }
+
     toasts_.push_back(Toast{.text = std::move(text), .colour = colour, .remaining = k_toast_ttl_seconds});
     if (toasts_.size() > k_toast_max_visible)
       toasts_.erase(toasts_.begin(),
