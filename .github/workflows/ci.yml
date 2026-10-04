@@ -20,6 +20,9 @@ jobs:
   build-and-test:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: write
     strategy:
       fail-fast: false
       matrix:
@@ -80,6 +83,7 @@ jobs:
         with:
           key: ${{ runner.os }}-llvm${{ steps.llvm.outputs.major }}-ccache
           restore-keys: ${{ runner.os }}-
+          max-size: 300M
 
       - name: Configure
         run: cmake --preset debug
@@ -89,3 +93,18 @@ jobs:
 
       - name: Test
         run: ctest --preset test-ci
+
+      - name: Prune old ccache caches
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ids=$(gh cache list \
+            --key "ccache-${{ runner.os }}-" \
+            --ref "${{ github.ref }}" \
+            --sort created_at --order desc --limit 100 \
+            --json id --jq '.[1:][].id')
+          if [ -n "$ids" ]; then
+            echo "$ids" | xargs -n1 gh cache delete
+          fi
