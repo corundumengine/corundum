@@ -9,6 +9,8 @@ while the major version is 0, the public API may change between minor releases.
 
 ## Unreleased
 
+Active development in progress.
+
 ## 0.2.0 - 2026-09-30
 
 The first milestone: a working isometric RPG engine, from the frame loop and
