@@ -27,11 +27,13 @@ namespace corundum {
   /** @brief Paint-order buckets for self-gated render hooks.
    *
    *  The engine draws them in declaration order: Hud (only while no screen is open), Modal
-   *  overlays (the dialogue box), then hub paint. Each hook gates on its own state.
+   *  overlays (the dialogue box), then hub paint. Each hook gates on its own state and, for a
+   *  modal overlay, on being the top-of-stack mode, so a screen pushed over it does not
+   *  double-draw.
    */
   enum class RenderLayer : std::uint8_t {
     Hud,      ///< Gameplay HUD strip; only while no screen is open and no prompt is showing.
-    Modal,    ///< Modal overlays that gate on their own state (the dialogue box).
+    Modal,    ///< Modal overlays (the dialogue box).
     HubPanel, ///< Hub panels drawn above the tab strip (Codex, Map, Loot, Barter).
     HubStrip, ///< Hub tab strip.
     Count,

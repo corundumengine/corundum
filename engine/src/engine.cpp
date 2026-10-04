@@ -500,7 +500,8 @@ namespace corundum {
                               engine.scene.transition_prompt->confirm_selected(), viewport);
       }
 
-      // 4b. Unconditional modal hooks (the dialogue box gates on its active conversation).
+      // 4b. Modal hooks, each gated on its own state and on being the top-of-stack mode
+      // (the dialogue box hides while a screen is pushed over it).
       engine.screens.render_layer(RenderLayer::Modal, engine, r, viewport);
 
       // 4c. The top mode's own screen, if it registered a render hook.

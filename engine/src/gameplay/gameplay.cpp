@@ -608,9 +608,12 @@ namespace corundum::gameplay {
                                 screens::build_hud_strip(engine.flags, gameplay.quests, engine.scene.zone_id));
     }
 
-    /// Modal dialogue box: a self-gated layer hook that draws exactly while a conversation is active.
-    void render_dialogue(Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
-      if (gameplay.dialogue)
+    /// Modal dialogue box: draws only while a conversation is active and Dialogue is the top
+    /// mode, so a screen pushed over it (the pause menu) never double-draws. Hiding clears
+    /// visibility only — the cached layout and reveal progress are untouched, so popping the
+    /// screen above restores the box exactly.
+    void render_dialogue(const Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (gameplay.dialogue && engine.scene.mode() == screens::Dialogue)
         screens::dialog_box_update(gameplay.dialog_box, *gameplay.dialogue, r, viewport, engine.render.panel_skin,
                                    engine.render.text_speed);
       else
