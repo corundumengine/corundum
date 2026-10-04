@@ -68,6 +68,12 @@ This captures the render mode, active map/world, zone, player position, return-j
 
 The engine never calls `save_game()` on its own. Your game picks the moment: a menu action, a checkpoint, quitting.
 
+The pause menu's **Save** and **Load** entries likewise do not save or load anything themselves.
+They raise `Action::QuickSave` / `Action::QuickLoad`, deferred by one fixed step so the menu's
+Activate press does not also reach the simulation. The game observes those actions in its
+`on_fixed_update` hook and decides which file to write or read, and what — if anything — to show.
+The engine cannot observe the result of a game's save, so it raises no toast for either entry.
+
 ### Loading
 
 ```cpp

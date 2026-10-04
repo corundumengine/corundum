@@ -14,6 +14,7 @@
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/render/render_state.hpp>
+#include <corundum/ui/menu.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
@@ -379,6 +380,105 @@ TEST_CASE("settings: Activate on the Controls tab captures the next input as a r
   CHECK(std::ranges::find(still_move_up, corundum::input::physical(corundum::input::Key::K)) != still_move_up.end());
   CHECK(std::ranges::find(still_move_up, corundum::input::physical(corundum::input::Key::Escape)) ==
         still_move_up.end());
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: rows are Resume / Settings / Save / Load / Quit") {
+  using corundum::ui::MenuCommand;
+  CHECK(corundum::ui::k_menu_command_count == 5);
+  CHECK(corundum::ui::menu_command_at(0) == MenuCommand::Resume);
+  CHECK(corundum::ui::menu_command_at(1) == MenuCommand::Settings);
+  CHECK(corundum::ui::menu_command_at(2) == MenuCommand::Save);
+  CHECK(corundum::ui::menu_command_at(3) == MenuCommand::Load);
+  CHECK(corundum::ui::menu_command_at(4) == MenuCommand::Quit);
+  CHECK(corundum::ui::menu_command_label(MenuCommand::Save) == "Save");
+  CHECK(corundum::ui::menu_command_label(MenuCommand::Load) == "Load");
+}
+
+// The Save/Load entries do not save or load themselves; they raise QuickSave/QuickLoad one fixed
+// step later so the menu's own Activate press cannot reach the simulation. The game observes the
+// raised action in on_fixed_update.
+// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+// logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_CASE("pause menu: Save closes the menu and raises QuickSave exactly once") {
+  corundum::Engine engine{};
+  init_engine(engine);
+
+  int quick_saves = 0;
+  int quick_loads = 0;
+  engine.on_fixed_update = [&](corundum::Engine &e, float) {
+    if (e.input_state.is_pressed(corundum::input::Action::QuickSave))
+      ++quick_saves;
+    if (e.input_state.is_pressed(corundum::input::Action::QuickLoad))
+      ++quick_loads;
+  };
+
+  press(engine, corundum::input::Action::Menu);
+  press(engine, corundum::input::Action::MoveDown); // Resume → Settings
+  press(engine, corundum::input::Action::MoveDown); // Settings → Save
+  REQUIRE(engine.menu.cursor == 2);
+  press(engine, corundum::input::Action::Select);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+  CHECK(quick_saves == 0); // not promoted until a screen-free fixed step runs
+
+  engine.timer.accumulator = engine.timer.target_dt;
+  REQUIRE(engine.run_frame());
+  CHECK(quick_saves == 1);
+  CHECK(quick_loads == 0);
+
+  engine.timer.accumulator = engine.timer.target_dt;
+  REQUIRE(engine.run_frame());
+  CHECK(quick_saves == 1); // observed exactly once, then cleared
+
+  engine.cleanup();
+}
+
+// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+// logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_CASE("pause menu: Load closes the menu and raises QuickLoad exactly once") {
+  corundum::Engine engine{};
+  init_engine(engine);
+
+  int quick_loads = 0;
+  engine.on_fixed_update = [&](corundum::Engine &e, float) {
+    if (e.input_state.is_pressed(corundum::input::Action::QuickLoad))
+      ++quick_loads;
+  };
+
+  press(engine, corundum::input::Action::Menu);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown); // Save → Load
+  REQUIRE(engine.menu.cursor == 3);
+  press(engine, corundum::input::Action::Select);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+
+  engine.timer.accumulator = engine.timer.target_dt;
+  REQUIRE(engine.run_frame());
+  CHECK(quick_loads == 1);
+
+  engine.timer.accumulator = engine.timer.target_dt;
+  REQUIRE(engine.run_frame());
+  CHECK(quick_loads == 1);
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: Save with no on_fixed_update hook does not crash") {
+  corundum::Engine engine{};
+  init_engine(engine);
+
+  press(engine, corundum::input::Action::Menu);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::Select);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+
+  engine.timer.accumulator = engine.timer.target_dt;
+  CHECK(engine.run_frame());
 
   engine.cleanup();
 }

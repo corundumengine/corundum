@@ -125,7 +125,7 @@ TEST_CASE("mouse: the wheel moves the pause-menu selection one row per notch") {
   REQUIRE(press(engine, corundum::input::Action::Menu));
 
   step_mouse(engine, {.x = 0.f, .y = 0.f}, {.x = 0.f, .y = 0.f}, /*clicked=*/false, /*scroll=*/1.f);
-  CHECK(engine.menu.cursor == 2); // wheel up wraps to the last row
+  CHECK(engine.menu.cursor == 4); // wheel up wraps to the last row (Quit)
   step_mouse(engine, {.x = 0.f, .y = 0.f}, {.x = 0.f, .y = 0.f}, /*clicked=*/false, /*scroll=*/-1.f);
   CHECK(engine.menu.cursor == 0);
 

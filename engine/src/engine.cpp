@@ -344,6 +344,14 @@ namespace corundum {
           engine.settings_screen = {};
           engine.scene.ui.push(world::GameMode::Settings);
           break;
+        case ui::MenuCommand::Save:
+          engine.scene.ui.pop();
+          engine.raise_action_next_step(input::Action::QuickSave);
+          break;
+        case ui::MenuCommand::Load:
+          engine.scene.ui.pop();
+          engine.raise_action_next_step(input::Action::QuickLoad);
+          break;
         case ui::MenuCommand::Quit:
           engine.request_quit();
           break;
@@ -642,8 +650,17 @@ namespace corundum {
     // Dispatch the top mode's screen. Only a step-owning screen reports the step as taken;
     // a non-step-owning extension mode (Dialogue) leaves the world step running.
     const ScreenSpec *spec = screens.find(scene.mode());
-    if (spec == nullptr || !spec->owns_step)
+    if (spec == nullptr || !spec->owns_step) {
+      // No screen owns this step, so a deferred action may run now. Promote it here rather
+      // than in run_fixed_steps() to keep the pending slot private and keep the "only when no
+      // screen owns the step" rule in one place. clear_pressed() at the end of the step drops
+      // it again once every consumer has seen it.
+      if (pending_action_) {
+        input_state.pressed.set(static_cast<std::size_t>(*pending_action_));
+        pending_action_.reset();
+      }
       return false;
+    }
     if (spec->update)
       spec->update(*this, intent);
     return true;
@@ -738,6 +755,12 @@ namespace corundum {
 
   void Engine::notify(std::string text, core::math::Colour colour) {
     toasts.notify(std::move(text), colour);
+  }
+
+  void Engine::raise_action_next_step(input::Action action) noexcept {
+    if (static_cast<std::size_t>(action) >= input::k_action_count)
+      return;
+    pending_action_ = action;
   }
 
   void Engine::toggle_fullscreen() const noexcept {

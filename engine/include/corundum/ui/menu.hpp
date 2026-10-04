@@ -18,11 +18,13 @@ namespace corundum::ui {
   enum class MenuCommand : std::uint8_t {
     Resume,
     Settings,
+    Save,
+    Load,
     Quit,
   };
 
   /** @brief Number of pause-menu rows. */
-  inline constexpr int k_menu_command_count = 3;
+  inline constexpr int k_menu_command_count = 5;
 
   /** @brief Display label for @p command. */
   [[nodiscard]] std::string_view menu_command_label(MenuCommand command) noexcept;
@@ -49,7 +51,7 @@ namespace corundum::ui {
   [[nodiscard]] MenuLayout menu_panel_layout(const platform::Renderer &r, const PanelStyle &style,
                                              core::math::Vec2 viewport, input::InputDevice last_device);
 
-  /** @brief Draw the centered pause menu with Resume / Settings / Quit rows.
+  /** @brief Draw the centered pause menu with Resume / Settings / Save / Load / Quit rows.
    *
    *  Pure render, like inventory_panel_render. Only invoked while GameMode::Menu is on top of
    *  the UI stack.

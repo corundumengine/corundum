@@ -109,10 +109,14 @@ wrong from memory.
   open it is fully mouse-operable: the mouse hovering moves the highlight, a
   left click selects the hovered row, the wheel moves one row per notch, and a
   right click backs out.
-- **Effect**: opens the pause menu (Resume / Settings / Quit) over whatever
+- **Effect**: opens the pause menu (Resume / Settings / Save / Load / Quit) over whatever
   is showing. Resume pops the single layer the menu pushed, revealing the
   screen beneath — a hub tab, dialogue, loot or barter — instead of
   clearing back to free-roam. Start or `Esc` closes the menu.
+- **Save / Load**: the two entries raise `Action::QuickSave` / `Action::QuickLoad`, deferred by
+  one fixed step so the menu's own Activate press cannot also reach the simulation. The engine
+  never writes or reads a save file itself; the game observes those actions in
+  `on_fixed_update` and decides what to save, load and show. See `saving.md`.
 - **Esc vs. an open screen**: `Esc` raises both `Cancel` and `Menu`, so an
   open screen consumes the press as its own back action (closing the tab,
   dialogue, loot or barter) and the menu does not open. From free-roam

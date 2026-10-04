@@ -34,7 +34,9 @@ TEST_CASE("menu_command_at maps rows to commands") {
   using corundum::ui::MenuCommand;
   CHECK(corundum::ui::menu_command_at(0) == MenuCommand::Resume);
   CHECK(corundum::ui::menu_command_at(1) == MenuCommand::Settings);
-  CHECK(corundum::ui::menu_command_at(2) == MenuCommand::Quit);
+  CHECK(corundum::ui::menu_command_at(2) == MenuCommand::Save);
+  CHECK(corundum::ui::menu_command_at(3) == MenuCommand::Load);
+  CHECK(corundum::ui::menu_command_at(4) == MenuCommand::Quit);
 }
 
 TEST_CASE("menu: renders the title, every command row, and the footer") {
@@ -47,6 +49,8 @@ TEST_CASE("menu: renders the title, every command row, and the footer") {
   CHECK(contains_text(r, "Paused"));
   CHECK(contains_text(r, "Resume"));
   CHECK(contains_text(r, "Settings"));
+  CHECK(contains_text(r, "Save"));
+  CHECK(contains_text(r, "Load"));
   CHECK(contains_text(r, "Quit"));
   CHECK(contains_text(r, "Enter Select   Esc Close"));
 }

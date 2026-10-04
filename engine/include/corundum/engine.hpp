@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <expected>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -288,6 +289,22 @@ namespace corundum {
      */
     void notify(std::string text, core::math::Colour colour);
 
+    /** @brief Queue @p action to be raised on the next fixed step that no screen owns.
+     *
+     *  For screen code that must hand an intent to the simulation without mutating
+     *  input_state directly (e.g. the pause menu's Save/Load entries raise QuickSave/QuickLoad).
+     *  The slot holds one action (last write wins) and lives outside input_state, so
+     *  clear_pressed() cannot drop it. update_engine_screens() promotes it into
+     *  input_state.pressed at the first step whose top screen does not own the step, keeping it
+     *  pending while a step-owning screen (the pause menu, a hub tab, settings) is open. A
+     *  lower bound of one step of latency is deliberate: the action is observed by
+     *  fixed_step_systems and on_fixed_update on the step after it is raised, never by a
+     *  screen's own Activate handling.
+     *
+     *  @param action Action to raise; ignored when it is not a valid Action index.
+     */
+    void raise_action_next_step(input::Action action) noexcept;
+
     /** @brief Request a graceful shutdown.
      *
      *  Sets the quit flag; the next iteration of run_loop() will exit the main
@@ -380,6 +397,9 @@ namespace corundum {
     void register_screens();
 
     bool quit_{false}; ///< Set by request_quit()/cleanup(); see quit_requested().
+
+    /** @brief One-slot action queued by raise_action_next_step(); promoted in update_engine_screens(). */
+    std::optional<input::Action> pending_action_{};
 
     int window_height_{0}; ///< Cached each frame by run_frame(); see window_height().
 

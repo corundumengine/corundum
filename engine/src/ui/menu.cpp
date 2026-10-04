@@ -42,6 +42,10 @@ namespace corundum::ui {
         return "Resume";
       case MenuCommand::Settings:
         return "Settings";
+      case MenuCommand::Save:
+        return "Save";
+      case MenuCommand::Load:
+        return "Load";
       case MenuCommand::Quit:
         return "Quit";
     }
@@ -55,6 +59,10 @@ namespace corundum::ui {
       case 1:
         return MenuCommand::Settings;
       case 2:
+        return MenuCommand::Save;
+      case 3:
+        return MenuCommand::Load;
+      case 4:
         return MenuCommand::Quit;
       default:
         return MenuCommand::Resume;
