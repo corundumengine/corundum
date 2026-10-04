@@ -43,6 +43,7 @@ using corundum::input::rebind;
 using corundum::input::serialize;
 using corundum::input::unbind;
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("bindings: defaults") {
   const Bindings defaults = default_bindings();
   CHECK(defaults.size() <= k_max_input_sources);
@@ -53,10 +54,15 @@ TEST_CASE("bindings: defaults") {
   CHECK(std::ranges::find(defaults, Binding{.action = Action::Hub, .input = physical(GamepadControl::Y)}) !=
         defaults.end());
   // The hub replaces the per-screen gamepad buttons: only Hub opens the four menu tabs on a pad.
-  CHECK(inputs_for(defaults, Action::Journal).size() == 1);
-  CHECK(inputs_for(defaults, Action::Codex).size() == 1);
-  CHECK(inputs_for(defaults, Action::Map).size() == 1);
-  CHECK(inputs_for(defaults, Action::Inventory).size() == 1);
+  // Each hotkey keeps exactly its one keyboard binding and gains no gamepad row.
+  const auto keyboard_only = [&](Action action) {
+    const std::vector<PhysicalInput> inputs = inputs_for(defaults, action);
+    return inputs.size() == 1 && inputs.front().device == InputDevice::Keyboard;
+  };
+  CHECK(keyboard_only(Action::Journal));
+  CHECK(keyboard_only(Action::Codex));
+  CHECK(keyboard_only(Action::Map));
+  CHECK(keyboard_only(Action::Inventory));
   CHECK(std::ranges::find(defaults, Binding{.action = Action::SubTabPrev,
                                             .input = physical(GamepadControl::LeftTrigger)}) != defaults.end());
   CHECK(std::ranges::find(defaults, Binding{.action = Action::SubTabNext,

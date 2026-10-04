@@ -111,6 +111,13 @@ TEST_CASE("inventory — rows are built once on open and not rebuilt while it st
   REQUIRE(engine.scene.mode() == screens::Inventory);
   REQUIRE(gameplay.inventory_lines.size() == 2);
 
+  // Run two real fixed steps with the tab open. The cached vector must be the same object
+  // (same address) after stepping, not merely the same size: the step path never rebuilds it.
+  const auto *const cached_lines = &gameplay.inventory_lines;
+  engine.timer.accumulator = 2.f * engine.timer.target_dt;
+  REQUIRE(engine.run_frame());
+  CHECK(&gameplay.inventory_lines == cached_lines);
+
   // The inventory is read-only while open: a flag mutated from outside must not change the
   // cached rows until the tab is reopened (the whole point of building once on open).
   engine.flags["item.c"] = 1;
