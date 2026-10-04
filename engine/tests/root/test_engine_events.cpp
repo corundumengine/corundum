@@ -20,7 +20,7 @@ namespace dialogue = corundum::gameplay::dialogue;
 TEST_CASE("engine events: on_event hook handles custom event and returns true") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  auto &pending = engine.scene.pending_dialogue_events;
+  auto &pending = gameplay.pending_dialogue_events;
 
   pending.push_back(dialogue::EventAction{.name = "my_custom_event", .args = {"arg1", "arg2"}});
 
@@ -49,7 +49,7 @@ TEST_CASE("engine events: on_event hook handles custom event and returns true") 
 TEST_CASE("engine events: on_event hook returning false falls through to WARN") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  auto &pending = engine.scene.pending_dialogue_events;
+  auto &pending = gameplay.pending_dialogue_events;
 
   pending.push_back(dialogue::EventAction{.name = "my_custom_event", .args = {"arg1"}});
 
@@ -69,7 +69,7 @@ TEST_CASE("engine events: on_event hook unset — pending cleared and built-in d
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
 
-  auto &pending = engine.scene.pending_dialogue_events;
+  auto &pending = gameplay.pending_dialogue_events;
   pending.push_back(dialogue::EventAction{.name = "unhandled_event", .args = {}});
   pending.push_back(dialogue::EventAction{.name = "quest_start", .args = {"test_quest"}});
 
@@ -98,7 +98,7 @@ TEST_CASE("engine events: quest_start enqueues a start toast with the quest name
   q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
   gameplay.quests.add(std::move(q));
 
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
   gameplay.process_events();
 
   REQUIRE(engine.toasts.size() == 1);
@@ -115,11 +115,11 @@ TEST_CASE("engine events: re-starting an underway quest does not toast again") {
   q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
   gameplay.quests.add(std::move(q));
 
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
   gameplay.process_events();
   REQUIRE(engine.toasts.size() == 1);
 
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_start", .args = {"ember"}});
   gameplay.process_events();
   CHECK(engine.toasts.size() == 1);
 }
@@ -136,7 +136,7 @@ TEST_CASE("engine events: quest_advance to a live stage toasts an update") {
   gameplay.quests.add(std::move(q));
   engine.flags["quest.ember"] = 1;
 
-  engine.scene.pending_dialogue_events.push_back(
+  gameplay.pending_dialogue_events.push_back(
       dialogue::EventAction{.name = "quest_advance", .args = {"ember", "investigate"}});
   gameplay.process_events();
 
@@ -156,8 +156,7 @@ TEST_CASE("engine events: quest_advance to a resolved stage toasts completion") 
   gameplay.quests.add(std::move(q));
   engine.flags["quest.ember"] = 1;
 
-  engine.scene.pending_dialogue_events.push_back(
-      dialogue::EventAction{.name = "quest_advance", .args = {"ember", "done"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_advance", .args = {"ember", "done"}});
   gameplay.process_events();
 
   REQUIRE(engine.toasts.size() == 1);
@@ -175,8 +174,7 @@ TEST_CASE("engine events: quest_advance to a failed stage toasts failure") {
   gameplay.quests.add(std::move(q));
   engine.flags["quest.ember"] = 1;
 
-  engine.scene.pending_dialogue_events.push_back(
-      dialogue::EventAction{.name = "quest_advance", .args = {"ember", "lost"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_advance", .args = {"ember", "lost"}});
   gameplay.process_events();
 
   REQUIRE(engine.toasts.size() == 1);
@@ -194,8 +192,7 @@ TEST_CASE("engine events: an unknown advance stage does not toast") {
   gameplay.quests.add(std::move(q));
   engine.flags["quest.ember"] = 1;
 
-  engine.scene.pending_dialogue_events.push_back(
-      dialogue::EventAction{.name = "quest_advance", .args = {"ember", "nope"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "quest_advance", .args = {"ember", "nope"}});
   gameplay.process_events();
 
   CHECK(engine.toasts.empty());
@@ -204,7 +201,7 @@ TEST_CASE("engine events: an unknown advance stage does not toast") {
 TEST_CASE("engine events: give_item adds item.<id> count to flags") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "give_item", .args = {"gold", "5"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "give_item", .args = {"gold", "5"}});
   gameplay.process_events();
 
   CHECK(engine.flags["item.gold"] == 5);
@@ -213,7 +210,7 @@ TEST_CASE("engine events: give_item adds item.<id> count to flags") {
 TEST_CASE("engine events: give_item without a count defaults to +1") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "give_item", .args = {"salt"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "give_item", .args = {"salt"}});
   gameplay.process_events();
 
   CHECK(engine.flags["item.salt"] == 1);
@@ -224,11 +221,11 @@ TEST_CASE("engine events: take_item subtracts and erases the key at or below zer
   corundum::gameplay::Gameplay gameplay{engine};
   engine.flags["item.gold"] = 5;
 
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "take_item", .args = {"gold", "2"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "take_item", .args = {"gold", "2"}});
   gameplay.process_events();
   CHECK(engine.flags["item.gold"] == 3);
 
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "take_item", .args = {"gold", "10"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "take_item", .args = {"gold", "10"}});
   gameplay.process_events();
   CHECK(!engine.flags.contains("item.gold"));
 }
@@ -236,7 +233,7 @@ TEST_CASE("engine events: take_item subtracts and erases the key at or below zer
 TEST_CASE("engine events: take_item on a missing item is a no-op") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "take_item", .args = {"gold", "1"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "take_item", .args = {"gold", "1"}});
   gameplay.process_events();
 
   CHECK(!engine.flags.contains("item.gold"));
@@ -245,9 +242,8 @@ TEST_CASE("engine events: take_item on a missing item is a no-op") {
 TEST_CASE("engine events: reputation accumulates rep.<faction> and can go negative") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  engine.scene.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "3"}});
-  engine.scene.pending_dialogue_events.push_back(
-      dialogue::EventAction{.name = "reputation", .args = {"village", "-1"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "3"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "-1"}});
   gameplay.process_events();
 
   CHECK(engine.flags["rep.village"] == 2);

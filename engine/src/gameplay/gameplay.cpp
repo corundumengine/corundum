@@ -1,12 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/direction.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/entities/entity.hpp>
+#include <corundum/entities/world.hpp>
 #include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
-#include <corundum/gameplay/dialogue/interact.hpp>
+#include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/dialogue/dialogue_npc.hpp>
 #include <corundum/gameplay/dialogue/validate_refs.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/item/container.hpp>
@@ -33,6 +38,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/screen_registry.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -44,9 +50,11 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -248,6 +256,28 @@ namespace corundum::gameplay {
       return (current + delta + count) % count;
     }
 
+    /** @brief Ratio above which the dominant axis is considered "cardinal" rather than diagonal
+     *  when computing facing direction. */
+    constexpr float k_cardinal_dominance_ratio = 2.f;
+
+    /// Classify a tile-grid displacement (dx=Δcol, dy=Δrow) into the nearest screen-space
+    /// Direction. The isometric projection rotates the grid axes 45° relative to screen space,
+    /// so tile-cardinal directions (pure dc/dr) map to screen-intercardinal and vice versa:
+    ///   Tile SE (+,+) → screen South,  Tile NW (-,-) → screen North,
+    ///   Tile NE (+,-) → screen East,   Tile SW (-,+) → screen West.
+    [[nodiscard]] corundum::core::Direction dir_from_delta(float dx, float dy) noexcept {
+      using corundum::core::Direction;
+      const float ax = std::abs(dx);
+      const float ay = std::abs(dy);
+      if (ay > k_cardinal_dominance_ratio * ax)
+        return dy > 0.f ? Direction::SouthWest : Direction::NorthEast;
+      if (ax > k_cardinal_dominance_ratio * ay)
+        return dx > 0.f ? Direction::SouthEast : Direction::NorthWest;
+      if (dx > 0.f)
+        return dy > 0.f ? Direction::South : Direction::East;
+      return dy > 0.f ? Direction::West : Direction::North;
+    }
+
     /// One row of the menu hub's action → tab table.
     struct HubTabAction {
       input::Action action{};
@@ -279,16 +309,16 @@ namespace corundum::gameplay {
 
     /// Reset a hub tab's open-time state: its cursor, and any cache the tab owns.
     void open_hub_tab(Engine &engine, Gameplay &gameplay, world::GameMode mode) {
-      engine.scene.last_hub_mode = mode;
+      gameplay.last_hub_mode = mode;
       switch (mode) {
         case screens::Inventory:
-          engine.scene.inventory_cursor = 0;
+          gameplay.inventory_cursor = 0;
           // Built once here rather than every render frame: the inventory is read-only and the
           // simulation is paused while it is open, so there is no mutation to invalidate it.
-          engine.scene.inventory_lines = screens::build_inventory_lines(engine.flags, gameplay.items);
+          gameplay.inventory_lines = screens::build_inventory_lines(engine.flags, gameplay.items);
           break;
         case screens::Journal:
-          engine.scene.journal_cursor = 0;
+          gameplay.journal_cursor = 0;
           break;
         case screens::Codex:
           gameplay.codex_screen.cursor = 0;
@@ -328,8 +358,8 @@ namespace corundum::gameplay {
           return true;
         }
         if (engine.scene.mode() == GameMode::Exploring) {
-          open_hub_tab(engine, gameplay, engine.scene.last_hub_mode);
-          engine.scene.ui.push(engine.scene.last_hub_mode);
+          open_hub_tab(engine, gameplay, gameplay.last_hub_mode);
+          engine.scene.ui.push(gameplay.last_hub_mode);
           return true;
         }
       }
@@ -361,7 +391,7 @@ namespace corundum::gameplay {
 
     /// Step the Inventory hub tab: Cancel closes it; Up/Down wrap the highlight within the cached
     /// held-item rows.
-    void update_inventory(Engine &engine, const input::InputIntent &intent) {
+    void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         engine.scene.ui.pop();
         return;
@@ -369,17 +399,17 @@ namespace corundum::gameplay {
       const int delta = intent.navigate_y;
       if (delta == 0)
         return;
-      const int rows = static_cast<int>(engine.scene.inventory_lines.size());
+      const int rows = static_cast<int>(gameplay.inventory_lines.size());
       if (rows <= 0) {
-        engine.scene.inventory_cursor = 0;
+        gameplay.inventory_cursor = 0;
         return;
       }
-      engine.scene.inventory_cursor = wrap_cursor(engine.scene.inventory_cursor, delta, rows);
+      gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, delta, rows);
     }
 
     /// Step the Journal hub tab: Cancel closes it; Up/Down wrap the highlight within the
     /// started-quest rows.
-    void update_journal(Engine &engine, const Gameplay &gameplay, const input::InputIntent &intent) {
+    void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         engine.scene.ui.pop();
         return;
@@ -390,10 +420,10 @@ namespace corundum::gameplay {
       const int rows =
           static_cast<int>(screens::build_journal_entries(gameplay.quests, engine.flags, engine.scene.zone_id).size());
       if (rows <= 0) {
-        engine.scene.journal_cursor = 0;
+        gameplay.journal_cursor = 0;
         return;
       }
-      engine.scene.journal_cursor = wrap_cursor(engine.scene.journal_cursor, delta, rows);
+      gameplay.journal_cursor = wrap_cursor(gameplay.journal_cursor, delta, rows);
     }
 
     /// Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, and the
@@ -568,32 +598,11 @@ namespace corundum::gameplay {
       engine.flags[std::string{screens::k_gold_flag}] = gold;
     }
 
-    /// The gameplay fixed-step system: dialogue update, event processing, dialogue-box advance,
-    /// and the quest tick. Runs after world::update and before Engine::on_fixed_update.
-    void fixed_step(Engine &engine, Gameplay &gameplay, float dt) {
-      const input::InputIntent intent = input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-
-      if (engine.scene.mode() == screens::Dialogue) {
-        dialogue::update_dialogue(engine.scene, intent);
-      } else if (engine.scene.mode() == world::GameMode::Exploring) {
-        // Interaction lives here rather than in world::update so the engine runtime never names
-        // a gameplay registry; the guard matches update_exploring's portal-prompt hand-off.
-        dialogue::try_interact(engine.scene, intent, engine.cfg, gameplay.graphs, engine.flags, &gameplay.quests);
-      }
-
-      gameplay.process_events();
-
-      if (engine.scene.dialogue)
-        screens::dialog_box_advance(gameplay.dialog_box, *engine.scene.dialogue, dt, engine.render.text_speed);
-
-      quest::tick_quests(gameplay.quests, engine.flags, engine.scene.zone_id);
-    }
-
     /// Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
     /// empty UI stack and no transition prompt; the dialogue check is defensive.
     void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
                     core::math::Vec2 /*viewport*/) {
-      if (engine.scene.dialogue)
+      if (gameplay.dialogue)
         return;
       screens::hud_strip_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                 screens::build_hud_strip(engine.flags, gameplay.quests, engine.scene.zone_id));
@@ -601,24 +610,25 @@ namespace corundum::gameplay {
 
     /// Modal dialogue box: a self-gated layer hook that draws exactly while a conversation is active.
     void render_dialogue(Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
-      if (engine.scene.dialogue)
-        screens::dialog_box_update(gameplay.dialog_box, *engine.scene.dialogue, r, viewport, engine.render.panel_skin,
+      if (gameplay.dialogue)
+        screens::dialog_box_update(gameplay.dialog_box, *gameplay.dialogue, r, viewport, engine.render.panel_skin,
                                    engine.render.text_speed);
       else
         screens::dialog_box_hide(gameplay.dialog_box);
       screens::dialog_box_render(gameplay.dialog_box, r, engine.render.panel_skin);
     }
 
-    void render_inventory(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+    void render_inventory(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                          core::math::Vec2 viewport) {
       screens::inventory_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                      engine.scene.inventory_lines, engine.scene.inventory_cursor, viewport);
+                                      gameplay.inventory_lines, gameplay.inventory_cursor, viewport);
     }
 
     void render_journal(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
                         core::math::Vec2 viewport) {
       screens::journal_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                     screens::build_journal_entries(gameplay.quests, engine.flags, engine.scene.zone_id),
-                                    engine.scene.journal_cursor, viewport, engine.input_mapper.last_device());
+                                    gameplay.journal_cursor, viewport, engine.input_mapper.last_device());
     }
 
     void render_codex(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -731,13 +741,15 @@ namespace corundum::gameplay {
       using world::GameMode;
 
       engine.screens.add(screens::Dialogue, ScreenSpec{.owns_step = false});
-      engine.screens.add(screens::Inventory,
-                         ScreenSpec{
-                             .owns_step = true,
-                             .update = [](Engine &e, const input::InputIntent &intent) { update_inventory(e, intent); },
-                             .render = [](Engine &e, platform::Renderer &r,
-                                          core::math::Vec2 viewport) { render_inventory(e, r, viewport); },
-                         });
+      engine.screens.add(
+          screens::Inventory,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &e,
+                                    const input::InputIntent &intent) { update_inventory(e, gameplay, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_inventory(e, gameplay, r, viewport); },
+          });
       engine.screens.add(
           screens::Journal,
           ScreenSpec{
@@ -773,7 +785,7 @@ namespace corundum::gameplay {
                                                   },
                                           });
 
-      engine.fixed_step_systems.emplace_back([&gameplay](Engine &e, float dt) { fixed_step(e, gameplay, dt); });
+      engine.fixed_step_systems.emplace_back([&gameplay](Engine &, float dt) { gameplay.fixed_step(dt); });
 
       engine.screen_input_hooks.emplace_back(
           [&gameplay](Engine &e, const input::InputIntent &intent) { return handle_hub_input(e, gameplay, intent); });
@@ -806,9 +818,103 @@ namespace corundum::gameplay {
 
   void Gameplay::process_events() noexcept {
     quest::Runner quest_runner{quests, engine_->flags};
-    for (const auto &ev : engine_->scene.pending_dialogue_events)
+    for (const auto &ev : pending_dialogue_events)
       dispatch_dialogue_event(*this, *engine_, quest_runner, ev);
-    engine_->scene.pending_dialogue_events.clear();
+    pending_dialogue_events.clear();
+  }
+
+  void Gameplay::fixed_step(float dt) {
+    Engine &engine = *engine_;
+    const input::InputIntent intent = input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+
+    // Interaction is a one-frame pulse: read and clear it unconditionally so an unconsumed value
+    // (no target in range, wrong mode) never persists into the next step.
+    const std::optional<corundum::entities::EntityId> interaction = engine.scene.pending_interaction;
+    engine.scene.pending_interaction.reset();
+
+    if (engine.scene.mode() == screens::Dialogue) {
+      update_dialogue(intent);
+    } else if (engine.scene.mode() == world::GameMode::Exploring && interaction) {
+      try_interact(*interaction);
+    }
+
+    process_events();
+
+    if (dialogue)
+      screens::dialog_box_advance(dialog_box, *dialogue, dt, engine.render.text_speed);
+
+    quest::tick_quests(quests, engine.flags, engine.scene.zone_id);
+  }
+
+  void Gameplay::update_dialogue(const input::InputIntent &intent) {
+    if (!dialogue)
+      return;
+
+    pending_dialogue_events = dialogue->update(intent);
+    if (dialogue->is_active())
+      return;
+
+    if (dialogue_npc) {
+      corundum::entities::World &world = engine_->scene.world;
+      const dialogue::DialogueNpc &npc = *dialogue_npc;
+      if (npc.saved_facing && world.facings.has(npc.entity))
+        world.facings.dir_ref(npc.entity) = *npc.saved_facing;
+      if (npc.saved_anim && world.sprites.has(npc.entity)) {
+        world.sprites.anim_id_ref(npc.entity) = *npc.saved_anim;
+        world.sprites.frame_index_ref(npc.entity) = 0;
+      }
+    }
+    dialogue_npc.reset();
+    dialogue.reset();
+    engine_->scene.ui.pop();
+  }
+
+  void Gameplay::try_interact(corundum::entities::EntityId target) {
+    using corundum::core::Direction;
+    using corundum::sprites::AnimId;
+    using corundum::sprites::to_anim;
+
+    corundum::world::Scene &scene = engine_->scene;
+    corundum::entities::World &world = scene.world;
+    if (!corundum::world::player_present(scene))
+      return;
+    if (!world.dialogue_refs.has(target) || !world.transforms.has(target))
+      return;
+
+    const dialogue::Graph *const graph = graphs.find(world.dialogue_refs.get_graph_id(target));
+    if (graph == nullptr)
+      return;
+
+    const std::uint32_t player_slot = world.transforms.dense_index(scene.player);
+    const float player_col = world.transforms.col[player_slot];
+    const float player_row = world.transforms.row[player_slot];
+    const std::uint32_t npc_slot = world.transforms.dense_index(target);
+    const float npc_col = world.transforms.col[npc_slot];
+    const float npc_row = world.transforms.row[npc_slot];
+
+    const Direction toward_npc = dir_from_delta(npc_col - player_col, npc_row - player_row);
+
+    dialogue::DialogueNpc npc{.entity = target};
+    if (world.facings.has(target)) {
+      npc.saved_facing = world.facings.dir_of(target);
+      const Direction face_player = corundum::core::opposite(toward_npc);
+      world.facings.dir_ref(target) = face_player;
+      if (world.sprites.has(target) && world.animations.has(target)) {
+        npc.saved_anim = world.sprites.anim_id_ref(target);
+        const AnimId dir_anim = to_anim(face_player);
+        const bool has_dir_anim = world.animations.frame_count(target, dir_anim) > 0;
+        world.sprites.anim_id_ref(target) = has_dir_anim ? dir_anim : AnimId::Default;
+        world.sprites.frame_index_ref(target) = 0;
+      }
+    }
+
+    dialogue_npc = npc;
+    dialogue.emplace(*graph, engine_->flags, &quests, &graphs, scene.zone_id);
+    scene.ui.push(screens::Dialogue);
+    // Defensive: a click that both queued a path AND was close enough to trigger interact (same
+    // frame) would otherwise leave that path to silently resume once the conversation ends,
+    // walking the player toward wherever they clicked to start it.
+    scene.path.clear();
   }
 
 } // namespace corundum::gameplay

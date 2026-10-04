@@ -17,10 +17,8 @@ if(NOT DEFINED ROOT)
   message(FATAL_ERROR "CheckLayering: pass -DROOT=<repo root>")
 endif()
 
-# Transitional violations — engine files that still reach into gameplay. Empty in 2E.
-set(ALLOWLIST
-    engine/include/corundum/world/scene.hpp
-)
+# No transitional violations: the engine runtime is clean of corundum/gameplay.
+set(ALLOWLIST)
 
 file(GLOB_RECURSE engine_files
     "${ROOT}/engine/include/corundum/*.hpp"

@@ -29,7 +29,6 @@ set(ENGINE_SOURCES
     src/gameplay/dialogue/action.cpp
     src/gameplay/dialogue/compiled_expr.cpp
     src/gameplay/dialogue/conversation.cpp
-    src/gameplay/dialogue/interact.cpp
     src/gameplay/dialogue/loader.cpp
     src/gameplay/dialogue/query.cpp
     src/gameplay/dialogue/registry.cpp

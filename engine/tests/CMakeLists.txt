@@ -126,6 +126,7 @@ set(TEST_SOURCES
     # world
     world/test_camera.cpp
     world/test_elevation_at.cpp
+    world/test_interaction_target.cpp
     world/test_material_at.cpp
     world/test_pathfinding.cpp
     world/test_pathfinding_world.cpp

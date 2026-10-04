@@ -10,6 +10,8 @@
 #include <corundum/engine_factory.hpp> // IWYU pragma: export
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/gameplay/dialogue/action.hpp> // IWYU pragma: export
+#include <corundum/gameplay/dialogue/conversation.hpp>
+#include <corundum/gameplay/dialogue/dialogue_npc.hpp>
 #include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/location/registry.hpp>
@@ -18,19 +20,28 @@
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/gameplay/screens/loot.hpp>
 #include <corundum/gameplay/screens/map.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/world/flags.hpp> // IWYU pragma: export
+#include <corundum/world/ui_stack.hpp>
 
 #include <functional>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace corundum {
 
   struct Engine;
 
 } // namespace corundum
+
+namespace corundum::input {
+  struct InputIntent;
+}
 
 namespace corundum::gameplay {
 
@@ -87,6 +98,32 @@ namespace corundum::gameplay {
     /** @brief Dialogue-box reveal/layout state; stepped by the gameplay fixed-step system. */
     screens::DialogBoxState dialog_box;
 
+    /** @brief Active dialogue conversation; disengaged while not in a dialogue. Owned here so the
+     *  presentation layer can query it read-only; stepped by the gameplay fixed-step system. */
+    std::optional<dialogue::Conversation> dialogue;
+
+    /** @brief The NPC bound to the active dialogue, saved so its facing/animation can be restored. */
+    std::optional<dialogue::DialogueNpc> dialogue_npc;
+
+    /** @brief Dialogue events emitted by the current step, consumed by process_events(). */
+    std::vector<dialogue::EventAction> pending_dialogue_events;
+
+    /** @brief Highlighted row while the Inventory hub tab is open; wrapped against inventory_lines. */
+    int inventory_cursor{};
+
+    /** @brief Held-item rows of the Inventory hub tab, rebuilt when the tab is opened or switched
+     *  to. The inventory is read-only and the simulation is paused while it is open, so there is
+     *  no per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation"). */
+    std::vector<screens::InventoryLine> inventory_lines;
+
+    /** @brief Highlighted row while the Journal hub tab is open; wrapped against the started-quest
+     *  count by the tab's update. */
+    int journal_cursor{};
+
+    /** @brief Hub tab the Hub button (gamepad Y) reopens; the last tab that was opened or switched
+     *  to. */
+    world::GameMode last_hub_mode{screens::Inventory};
+
     /** @brief Container whose contents the loot screen shows; empty when no loot screen is open. */
     std::string active_container_id;
 
@@ -101,12 +138,35 @@ namespace corundum::gameplay {
 
     /** @brief Process every pending dialogue EventAction (built-in dispatch + on_event).
      *
-     *  Clears scene.pending_dialogue_events after processing. Exposed for testability; the
-     *  gameplay fixed-step system calls it once per step.
+     *  Clears pending_dialogue_events after processing. Exposed for testability; fixed_step()
+     *  calls it once per step.
      */
     void process_events() noexcept;
 
+    /** @brief The gameplay framework's per-fixed-step entry point: dialogue update or
+     *  interaction hand-off, event processing, dialogue-box advance, then the quest tick.
+     *
+     *  Registered as the engine's single gameplay fixed-step system, so the engine runtime never
+     *  names a gameplay registry. Runs after world::update and before the game's
+     *  on_fixed_update.
+     */
+    void fixed_step(float dt);
+
   private:
+    /** @brief Advance the active dialogue conversation, restoring the bound NPC's facing and
+     *  animation when it ends and closing the Dialogue screen.
+     *
+     *  @pre The top UI mode is screens::Dialogue.
+     */
+    void update_dialogue(const input::InputIntent &intent);
+
+    /** @brief Start a dialogue with @p target: bind it, face it toward the player, and open the
+     *  Dialogue screen. A target with no loaded graph is ignored.
+     *
+     *  @pre The top UI mode is Exploring and @p target names a live interactable entity.
+     */
+    void try_interact(corundum::entities::EntityId target);
+
     Engine *engine_{nullptr};
   };
 

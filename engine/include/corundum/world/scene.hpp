@@ -2,14 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-#include <corundum/core/direction.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/world.hpp>
-#include <corundum/gameplay/dialogue/action.hpp>
-#include <corundum/gameplay/dialogue/conversation.hpp>
-#include <corundum/gameplay/screens/inventory_panel.hpp>
-#include <corundum/gameplay/screens/modes.hpp>
-#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -50,19 +44,6 @@ namespace corundum::world {
     bool load_failed{};
   };
 
-  /** @brief The NPC bound to the active dialogue, with the facing and animation saved when the conversation
-   * began so they can be restored when it ends.
-   *
-   * The saved values are set only when the NPC had the corresponding component at bind time.
-   */
-  struct DialogueNpc {
-    corundum::entities::EntityId entity{};
-
-    std::optional<corundum::sprites::AnimId> saved_anim{};
-
-    std::optional<corundum::core::Direction> saved_facing{};
-  };
-
   struct Scene {
     corundum::entities::World world;
 
@@ -76,35 +57,20 @@ namespace corundum::world {
     /// resolve to `zone.<zone_id>.<key>` against this value.
     std::string zone_id;
 
-    /// Active dialogue conversation; disengaged while not in a dialogue. Owned here so
-    /// the presentation layer can query it read-only; stepped by gameplay::dialogue::update_dialogue.
-    std::optional<corundum::gameplay::dialogue::Conversation> dialogue;
-
-    std::optional<DialogueNpc> dialogue_npc;
-
-    std::vector<corundum::gameplay::dialogue::EventAction> pending_dialogue_events;
+    /// Interact target resolved for the current fixed step: the entity the player's Activate
+    /// press targeted, or nullopt when it targeted nothing.
+    ///
+    /// @note A one-frame pulse, not a latch. The gameplay fixed-step system reads and clears it
+    ///       unconditionally at the start of its step, so an unconsumed value (no NPC in range,
+    ///       wrong mode) is discarded rather than persisting to the next step. Only the engine's
+    ///       exploring input handler writes it.
+    std::optional<corundum::entities::EntityId> pending_interaction;
 
     std::optional<MapTransition> pending_transition;
 
     std::optional<TransitionPrompt> transition_prompt;
 
     float elapsed_time{0.f};
-
-    /// Highlighted row while mode == gameplay::screens::Inventory; wrapped against the held-item
-    /// count by update_inventory().
-    int inventory_cursor{};
-
-    /// Held-item rows of the Inventory hub tab, rebuilt when the tab is opened or switched to.
-    /// The inventory is read-only and the simulation is paused while it is open, so there is no
-    /// per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation").
-    std::vector<corundum::gameplay::screens::InventoryLine> inventory_lines;
-
-    /// Highlighted row while mode == gameplay::screens::Journal; wrapped against the
-    /// started-quest count by update_journal().
-    int journal_cursor{};
-
-    /// Hub tab the Hub button (gamepad Y) reopens; the last tab that was opened or switched to.
-    GameMode last_hub_mode{gameplay::screens::Inventory};
 
     /// Stack of open UI screens; top() is GameMode::Exploring while it is empty. Push to open a
     /// screen, pop (Cancel) to peel one layer.

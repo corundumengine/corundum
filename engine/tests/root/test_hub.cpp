@@ -89,7 +89,7 @@ TEST_CASE("hub: the Hub button opens the last tab and closes when one is on top"
   // No tab opened yet: Hub opens the default, Inventory.
   CHECK(press(engine, corundum::input::Action::Hub));
   CHECK(engine.scene.mode() == screens::Inventory);
-  CHECK(engine.scene.last_hub_mode == screens::Inventory);
+  CHECK(gameplay.last_hub_mode == screens::Inventory);
 
   // Hub again closes the hub.
   CHECK(press(engine, corundum::input::Action::Hub));
@@ -124,7 +124,7 @@ TEST_CASE("hub: TabNext/TabPrev cycle the four tabs with wrap-around") {
   // Wrap backward to the last tab.
   press(engine, corundum::input::Action::TabPrev);
   CHECK(engine.scene.mode() == screens::Map);
-  CHECK(engine.scene.last_hub_mode == screens::Map);
+  CHECK(gameplay.last_hub_mode == screens::Map);
 
   engine.cleanup();
 }

@@ -47,7 +47,7 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
-  REQUIRE(engine.scene.inventory_cursor == 0);
+  REQUIRE(gameplay.inventory_cursor == 0);
 
   // Three held items → three rows to wrap within.
   engine.flags["item.a"] = 1;
@@ -57,24 +57,24 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   // Press I: Exploring → Inventory, cursor reset.
   press(engine, corundum::input::Action::Inventory);
   CHECK(engine.scene.mode() == screens::Inventory);
-  CHECK(engine.scene.inventory_cursor == 0);
+  CHECK(gameplay.inventory_cursor == 0);
 
   // Arrows move the highlight while paused.
   press(engine, corundum::input::Action::MoveDown);
   CHECK(engine.scene.mode() == screens::Inventory);
-  CHECK(engine.scene.inventory_cursor == 1);
+  CHECK(gameplay.inventory_cursor == 1);
   press(engine, corundum::input::Action::MoveUp);
-  CHECK(engine.scene.inventory_cursor == 0);
+  CHECK(gameplay.inventory_cursor == 0);
 
   // Down past the last row wraps to the first (dialogue choice-list behaviour).
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.inventory_cursor == 0);
+  CHECK(gameplay.inventory_cursor == 0);
 
   // Up past the first row wraps to the last.
   press(engine, corundum::input::Action::MoveUp);
-  CHECK(engine.scene.inventory_cursor == 2);
+  CHECK(gameplay.inventory_cursor == 2);
 
   // Press I again: Inventory → Exploring.
   press(engine, corundum::input::Action::Inventory);
@@ -90,7 +90,7 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::Inventory);
   CHECK(engine.scene.mode() == screens::Inventory);
-  CHECK(engine.scene.inventory_cursor == 0);
+  CHECK(gameplay.inventory_cursor == 0);
 
   engine.cleanup();
 }
@@ -109,18 +109,18 @@ TEST_CASE("inventory — rows are built once on open and not rebuilt while it st
 
   press(engine, corundum::input::Action::Inventory);
   REQUIRE(engine.scene.mode() == screens::Inventory);
-  REQUIRE(engine.scene.inventory_lines.size() == 2);
+  REQUIRE(gameplay.inventory_lines.size() == 2);
 
   // The inventory is read-only while open: a flag mutated from outside must not change the
   // cached rows until the tab is reopened (the whole point of building once on open).
   engine.flags["item.c"] = 1;
   press(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.inventory_lines.size() == 2);
+  CHECK(gameplay.inventory_lines.size() == 2);
 
   // Reopening rebuilds from the current flags.
   press(engine, corundum::input::Action::Cancel);
   press(engine, corundum::input::Action::Inventory);
-  CHECK(engine.scene.inventory_lines.size() == 3);
+  CHECK(gameplay.inventory_lines.size() == 3);
 
   engine.cleanup();
 }

@@ -3,6 +3,7 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
+#include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -20,6 +21,7 @@
 #include <corundum/world/picking.hpp>
 
 #include <cstdint>
+#include <optional>
 
 namespace {
 
@@ -117,6 +119,57 @@ namespace {
     }
   }
 
+  /// Resolve this step's interact press into the entity it targets, or nullopt when no
+  /// interactable is in range. The engine owns the generic targeting (proximity plus click aim);
+  /// gameplay owns whether the target actually starts a dialogue, since it holds the graph
+  /// registry. A mouse click must be aimed at the target's tile; a keyboard/gamepad press is
+  /// gated on proximity alone.
+  [[nodiscard]] std::optional<corundum::entities::EntityId>
+  pick_interaction_target(const corundum::world::Scene &scene, const corundum::core::GameConfig &cfg,
+                          const corundum::input::InputIntent &intent) {
+    using corundum::entities::distance;
+    using corundum::entities::EntityId;
+    using corundum::entities::Position;
+
+    if (!intent.activate)
+      return std::nullopt;
+
+    // A despawned player has no position to measure interaction range from.
+    if (!corundum::world::player_present(scene))
+      return std::nullopt;
+
+    const bool via_click = intent.cursor_clicked;
+    const corundum::entities::World &world = scene.world;
+    const std::uint32_t player_slot = world.transforms.dense_index(scene.player);
+    const float player_col = world.transforms.col[player_slot];
+    const float player_row = world.transforms.row[player_slot];
+
+    std::optional<EntityId> best;
+    float best_distance = cfg.interact_radius;
+    for (const EntityId eid : world.dialogue_refs.active_entities()) {
+      if (!world.transforms.has(eid))
+        continue;
+
+      const std::uint32_t npc_slot = world.transforms.dense_index(eid);
+      const float npc_col = world.transforms.col[npc_slot];
+      const float npc_row = world.transforms.row[npc_slot];
+      const float npc_distance =
+          distance(Position{.col = player_col, .row = player_row}, Position{.col = npc_col, .row = npc_row});
+      if (npc_distance > best_distance)
+        continue;
+
+      if (via_click) {
+        const corundum::world::TileCoord npc_tile{.col = static_cast<int>(npc_col), .row = static_cast<int>(npc_row)};
+        if (!scene.hovered_tile || *scene.hovered_tile != npc_tile)
+          continue;
+      }
+
+      best = eid;
+      best_distance = npc_distance;
+    }
+    return best;
+  }
+
 } // namespace
 
 namespace corundum::world {
@@ -148,6 +201,9 @@ namespace corundum::world {
         break;
       case corundum::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
+        // The engine's exploring input handler records the generic interact target; the gameplay
+        // fixed-step system consumes the one-frame pulse (see Scene::pending_interaction).
+        scene.pending_interaction = pick_interaction_target(scene, cfg, intent);
         break;
       default:
         // Extension modes and the engine screens (Menu, Settings) run no engine world

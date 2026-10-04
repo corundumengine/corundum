@@ -70,15 +70,15 @@ TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel close
   // Press J: Exploring → Journal, cursor reset.
   press(engine, corundum::input::Action::Journal);
   CHECK(engine.scene.mode() == screens::Journal);
-  CHECK(engine.scene.journal_cursor == 0);
+  CHECK(gameplay.journal_cursor == 0);
 
   // Arrows move, wrapping over the two started quests.
   press(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.journal_cursor == 1);
+  CHECK(gameplay.journal_cursor == 1);
   press(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.journal_cursor == 0);
+  CHECK(gameplay.journal_cursor == 0);
   press(engine, corundum::input::Action::MoveUp);
-  CHECK(engine.scene.journal_cursor == 1);
+  CHECK(gameplay.journal_cursor == 1);
 
   // Press J again: Journal → Exploring.
   press(engine, corundum::input::Action::Journal);
@@ -106,7 +106,7 @@ TEST_CASE("journal — an empty journal opens without a cursor move crashing") {
   REQUIRE(engine.scene.mode() == screens::Journal);
 
   press(engine, corundum::input::Action::MoveDown);
-  CHECK(engine.scene.journal_cursor == 0);
+  CHECK(gameplay.journal_cursor == 0);
 
   engine.cleanup();
 }
