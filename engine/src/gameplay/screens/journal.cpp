@@ -14,6 +14,7 @@
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/styled_text.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -106,28 +107,33 @@ namespace corundum::gameplay::screens {
       JournalGeometry geometry{};
       geometry.body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
       geometry.header_line_h = std::max(geometry.body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
-      const float cursor_w = ui::cursor_advance(r, style);
+      const float cursor_w = ui::cursor_advance(r, style, ui::FontRole::Quest);
       geometry.objective_indent = cursor_w + 8.f;
       geometry.clamped_cursor = std::clamp(state.cursor, 0, std::max(0, static_cast<int>(entries.size()) - 1));
 
-      const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-      const float title_w = r.measure_text(font_id, k_journal_title, style.font_size_speaker);
+      const ui::FontFamily &fonts = style.family(ui::FontRole::Quest);
+      const std::uint32_t regular = fonts.get(ui::FontStyle::Regular);
+      const std::uint32_t bold = fonts.get(ui::FontStyle::Bold);
+      const auto measure_objective = [&](std::string_view text) {
+        return ui::measure_styled(r, fonts, ui::parse_styled(text), style.font_size_body);
+      };
+      const float title_w = r.measure_text(bold, k_journal_title, style.font_size_speaker);
       geometry.footer = std::format(
           "{} Track   {} Tabs   {} Close", ui::input_glyph(input::Action::Activate, last_device),
           ui::input_glyph(input::Action::SubTabNext, last_device), ui::input_glyph(input::Action::Cancel, last_device));
-      const float footer_w = r.measure_text(font_id, geometry.footer, style.font_size_body);
+      const float footer_w = r.measure_text(regular, geometry.footer, style.font_size_body);
 
       std::array<float, k_journal_tabs.size()> sub_tab_widths{};
       float sub_tabs_total = 0.f;
       for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
-        sub_tab_widths[i] = r.measure_text(font_id, journal_tab_label(k_journal_tabs[i]), style.font_size_speaker);
+        sub_tab_widths[i] = r.measure_text(regular, journal_tab_label(k_journal_tabs[i]), style.font_size_speaker);
         sub_tabs_total += sub_tab_widths[i];
       }
       sub_tabs_total += k_journal_sub_tab_gap * static_cast<float>(k_journal_tabs.size() - 1);
 
       float widest = std::max({
           title_w,
-          r.measure_text(font_id, k_journal_empty, style.font_size_body),
+          r.measure_text(regular, k_journal_empty, style.font_size_body),
           footer_w,
           sub_tabs_total,
       });
@@ -138,7 +144,7 @@ namespace corundum::gameplay::screens {
       float body_height = 0.f;
       for (std::size_t i = 0; i < entries.size(); ++i) {
         const JournalEntry &entry = entries[i];
-        widest = std::max(widest, cursor_w + r.measure_text(font_id, entry.name, style.font_size_body));
+        widest = std::max(widest, cursor_w + r.measure_text(bold, entry.name, style.font_size_body));
         geometry.draw_rows.push_back(
             JournalDrawRow{.kind = JournalDrawRow::Kind::Option, .index = i, .y = body_height});
         body_height += geometry.body_line_h;
@@ -147,8 +153,9 @@ namespace corundum::gameplay::screens {
         if (highlighted && !entry.objectives.empty()) {
           for (const JournalObjective &objective : entry.objectives) {
             const std::string_view mark = objective.done ? k_objective_done : k_objective_pending;
-            widest = std::max(widest, geometry.objective_indent + r.measure_text(font_id, mark, style.font_size_body) +
-                                          r.measure_text(font_id, objective.text, style.font_size_body));
+            const float objective_w = measure_objective(objective.text);
+            widest = std::max(widest, geometry.objective_indent + r.measure_text(regular, mark, style.font_size_body) +
+                                          objective_w);
             geometry.draw_rows.push_back(JournalDrawRow{
                 .kind = JournalDrawRow::Kind::Checklist,
                 .text = objective.text,
@@ -158,8 +165,8 @@ namespace corundum::gameplay::screens {
             body_height += geometry.body_line_h;
           }
         } else if (!entry.objective.empty()) {
-          widest = std::max(widest,
-                            geometry.objective_indent + r.measure_text(font_id, entry.objective, style.font_size_body));
+          const float objective_w = measure_objective(entry.objective);
+          widest = std::max(widest, geometry.objective_indent + objective_w);
           geometry.draw_rows.push_back(
               JournalDrawRow{.kind = JournalDrawRow::Kind::Objective, .text = entry.objective, .y = body_height});
           body_height += geometry.body_line_h;
@@ -262,15 +269,19 @@ namespace corundum::gameplay::screens {
                             const std::vector<JournalEntry> &entries, const JournalState &state,
                             core::math::Vec2 viewport, input::InputDevice last_device) {
     const JournalGeometry geometry = compute_journal_geometry(r, style, entries, state, viewport, last_device);
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-    const float title_w = r.measure_text(font_id, k_journal_title, style.font_size_speaker);
-    const float footer_w = r.measure_text(font_id, geometry.footer, style.font_size_body);
+    const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);
+    const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
+    const std::uint32_t quest_regular = quest_fonts.get(ui::FontStyle::Regular);
+    const std::uint32_t ui_regular = ui_fonts.get(ui::FontStyle::Regular);
+    const std::uint32_t ui_bold = ui_fonts.get(ui::FontStyle::Bold);
+    const float title_w = r.measure_text(ui_bold, k_journal_title, style.font_size_speaker);
+    const float footer_w = r.measure_text(ui_regular, geometry.footer, style.font_size_body);
 
     ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                      {.x = geometry.panel_w, .y = geometry.panel_h});
 
     r.draw(platform::DrawText{
-        .font_id = font_id,
+        .font_id = ui_bold,
         .text = k_journal_title,
         .position = {.x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f), .y = geometry.title_y},
         .char_size = style.font_size_speaker,
@@ -280,7 +291,7 @@ namespace corundum::gameplay::screens {
     // Sub-tab strip: Active / Completed / Failed, the active one highlighted.
     for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
       r.draw(platform::DrawText{
-          .font_id = font_id,
+          .font_id = ui_regular,
           .text = journal_tab_label(k_journal_tabs[i]),
           .position = geometry.sub_tabs[i].pos,
           .char_size = style.font_size_speaker,
@@ -290,7 +301,7 @@ namespace corundum::gameplay::screens {
 
     // Footer is bottom-anchored, so it draws before the body — the empty branch can return early.
     r.draw(platform::DrawText{
-        .font_id = font_id,
+        .font_id = ui_regular,
         .text = geometry.footer,
         .position =
             {
@@ -302,9 +313,9 @@ namespace corundum::gameplay::screens {
     });
 
     if (entries.empty()) {
-      const float empty_w = r.measure_text(font_id, k_journal_empty, style.font_size_body);
+      const float empty_w = r.measure_text(ui_regular, k_journal_empty, style.font_size_body);
       r.draw(platform::DrawText{
-          .font_id = font_id,
+          .font_id = ui_regular,
           .text = k_journal_empty,
           .position = {.x = geometry.panel_x + ((geometry.panel_w - empty_w) * 0.5f), .y = geometry.body_top},
           .char_size = style.font_size_body,
@@ -318,41 +329,29 @@ namespace corundum::gameplay::screens {
         case JournalDrawRow::Kind::Option: {
           const JournalEntry &entry = entries[row.index];
           const std::string label = entry.tracked ? std::format("* {}", entry.name) : entry.name;
-          ui::draw_option(r, style, label, {.x = geometry.row_x, .y = geometry.body_top + row.y},
+          ui::draw_option(r, style, ui::FontRole::Quest, ui::FontStyle::Bold, label,
+                          {.x = geometry.row_x, .y = geometry.body_top + row.y},
                           std::cmp_equal(row.index, static_cast<std::size_t>(geometry.clamped_cursor)));
           break;
         }
         case JournalDrawRow::Kind::Objective:
-          r.draw(platform::DrawText{
-              .font_id = font_id,
-              .text = row.text,
-              .position = {.x = geometry.row_x + geometry.objective_indent, .y = geometry.body_top + row.y},
-              .char_size = style.font_size_body,
-              .colour = style.choice,
-          });
+          ui::draw_styled(r, quest_fonts, ui::parse_styled(row.text), style.font_size_body, style.choice,
+                          {.x = geometry.row_x + geometry.objective_indent, .y = geometry.body_top + row.y});
           break;
         case JournalDrawRow::Kind::Checklist: {
           const std::string_view mark = row.checked ? k_objective_done : k_objective_pending;
           const core::math::Colour colour = row.checked ? style.body : style.choice;
           const float mark_x = geometry.row_x + geometry.objective_indent;
           r.draw(platform::DrawText{
-              .font_id = font_id,
+              .font_id = quest_regular,
               .text = mark,
               .position = {.x = mark_x, .y = geometry.body_top + row.y},
               .char_size = style.font_size_body,
               .colour = colour,
           });
-          r.draw(platform::DrawText{
-              .font_id = font_id,
-              .text = row.text,
-              .position =
-                  {
-                      .x = mark_x + r.measure_text(font_id, mark, style.font_size_body),
-                      .y = geometry.body_top + row.y,
-                  },
-              .char_size = style.font_size_body,
-              .colour = colour,
-          });
+          ui::draw_styled(
+              r, quest_fonts, ui::parse_styled(row.text), style.font_size_body, colour,
+              {.x = mark_x + r.measure_text(quest_regular, mark, style.font_size_body), .y = geometry.body_top + row.y});
           break;
         }
       }

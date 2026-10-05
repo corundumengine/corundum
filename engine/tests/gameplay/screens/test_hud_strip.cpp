@@ -9,6 +9,7 @@
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
@@ -128,16 +129,30 @@ TEST_CASE("hud_strip_render: an opaque panel plus one line with gold and the obj
   data.objective = "Find the shrine";
 
   RecordingRenderer r;
-  const corundum::ui::PanelStyle style{};
+  corundum::ui::PanelStyle style{};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)] = {.ids = {1u, 2u, 3u, 4u}};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
   corundum::gameplay::screens::hud_strip_render(r, style, make_border(), data);
 
-  // The fill rect, the border's 8 sprites, then the single text line.
-  REQUIRE(r.log.size() == 10);
+  // The fill rect, the border's 8 sprites, then the line: gold (UI) + separator + the tracked
+  // quest name and objective (Quest), each its own draw so the quest portion can use its role.
+  REQUIRE(r.log.size() == 9 + 5);
   const auto &fill = std::get<corundum::platform::DrawRect>(r.log[0]);
   CHECK(fill.colour.a == 255); // opaque: a translucent fill would tint the world behind it
   for (std::size_t i = 1; i < 9; ++i)
     CHECK(std::holds_alternative<corundum::platform::DrawSprite>(r.log[i]));
 
-  const auto &line = std::get<corundum::platform::DrawText>(r.log[9]);
-  CHECK(line.text == "Gold: 50    Ember - Find the shrine");
+  const auto draw_text = [&](std::size_t i) -> const corundum::platform::DrawText & {
+    return std::get<corundum::platform::DrawText>(r.log[i]);
+  };
+  CHECK(draw_text(9).text == "Gold: 50");
+  CHECK(draw_text(10).text == "    ");
+  CHECK(draw_text(11).text == "Ember");
+  CHECK(draw_text(12).text == " - ");
+  CHECK(draw_text(13).text == "Find the shrine");
+
+  // Gold uses the UI regular face; the quest name is bold and the objective regular, both Quest.
+  CHECK(draw_text(9).font_id == 1u);
+  CHECK(draw_text(11).font_id == 6u);
+  CHECK(draw_text(13).font_id == 5u);
 }

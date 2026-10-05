@@ -11,6 +11,7 @@
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/prompt_box.hpp>
+#include <corundum/ui/styled_text.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include "ui/recording_renderer.hpp"
@@ -436,4 +437,53 @@ TEST_CASE("scroll_row_delta: wheel up moves up one row per notch and truncates f
   CHECK(corundum::ui::scroll_row_delta(-1.f) == 1);
   CHECK(corundum::ui::scroll_row_delta(1.9f) == -1);
   CHECK(corundum::ui::scroll_row_delta(-0.4f) == 0);
+}
+
+TEST_CASE("ui_draw: draw_option with a role and style draws the label in that face") {
+  RecordingRenderer r;
+  corundum::ui::PanelStyle style{};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
+
+  const float advance = corundum::ui::cursor_advance(r, style, corundum::ui::FontRole::Quest);
+  corundum::ui::draw_option(r, style, corundum::ui::FontRole::Quest, corundum::ui::FontStyle::Bold, "Ember",
+                            {.x = 4.f, .y = 9.f}, true);
+
+  REQUIRE(r.log.size() == 2);
+  const auto &cursor = std::get<DrawText>(r.log[0]);
+  const auto &label = std::get<DrawText>(r.log[1]);
+  CHECK(cursor.text == "> ");
+  CHECK(cursor.font_id == 5u); // role regular, not the bold label face
+  CHECK(label.text == "Ember");
+  CHECK(label.font_id == 6u); // requested bold
+  CHECK(label.position.x == 4.f + advance);
+}
+
+TEST_CASE("ui_draw: measure_styled sums each run at its own style") {
+  RecordingRenderer r;
+  const corundum::ui::FontFamily family{.ids = {5u, 6u, 7u, 8u}};
+  const auto runs = corundum::ui::parse_styled("a **bb** c");
+  // RecordingRenderer measures every glyph at 8px, so the total is 8 * character count.
+  CHECK(corundum::ui::measure_styled(r, family, runs, 22) == doctest::Approx(8.f * 6.f));
+}
+
+TEST_CASE("ui_draw: draw_styled advances x across runs and uses each run's face") {
+  RecordingRenderer r;
+  const corundum::ui::FontFamily family{.ids = {5u, 6u, 7u, 8u}};
+  const auto runs = corundum::ui::parse_styled("a **bb** c");
+
+  corundum::ui::draw_styled(r, family, runs, 22, corundum::core::math::Colour{.r = 10}, {.x = 3.f, .y = 4.f});
+
+  REQUIRE(r.log.size() == 3);
+  const auto &first = std::get<DrawText>(r.log[0]);
+  const auto &second = std::get<DrawText>(r.log[1]);
+  const auto &third = std::get<DrawText>(r.log[2]);
+  CHECK(first.text == "a ");
+  CHECK(first.font_id == 5u);
+  CHECK(first.position.x == 3.f);
+  CHECK(second.text == "bb");
+  CHECK(second.font_id == 6u);
+  CHECK(second.position.x == 3.f + 16.f); // "a " is two glyphs
+  CHECK(third.text == " c");
+  CHECK(third.font_id == 5u);
+  CHECK(third.position.x == 3.f + 16.f + 16.f);
 }

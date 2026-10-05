@@ -8,13 +8,20 @@
 #include <corundum/gameplay/codex/loader.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
+
+#include "ui/recording_renderer.hpp"
 
 namespace fs = std::filesystem;
 namespace codex = corundum::gameplay::codex;
@@ -121,4 +128,40 @@ TEST_CASE("refresh_codex: rebuilds only while dirty") {
   corundum::gameplay::screens::refresh_codex(state, registry, flags);
   REQUIRE(state.entries.size() == 1);
   CHECK(state.entries[0].title == "A");
+}
+
+TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family styles") {
+  using corundum::test::make_border;
+  using corundum::test::RecordingRenderer;
+
+  RecordingRenderer r;
+  corundum::ui::PanelStyle style{};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)] = {.ids = {10u, 11u, 12u, 13u}};
+
+  const std::vector<codex::CodexEntry> entries = {
+      codex::CodexEntry{.body = "A **quiet** village.", .id = "village", .title = "Greyhollow"},
+  };
+
+  corundum::gameplay::screens::codex_panel_render(r, style, make_border(), entries, 0, 0.f, {.x = 1280.f, .y = 720.f});
+
+  const auto find_text = [&](std::string_view text) -> const corundum::platform::DrawText * {
+    for (const auto &call : r.log) {
+      if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
+        return drawn;
+    }
+    return nullptr;
+  };
+
+  const auto *title = find_text("Codex");
+  REQUIRE(title != nullptr);
+  CHECK(title->font_id == 11u); // UI Bold
+
+  const auto *bold = find_text("quiet");
+  const auto *regular = find_text("A ");
+  REQUIRE(bold != nullptr);
+  REQUIRE(regular != nullptr);
+  CHECK(bold->font_id == 6u);               // Quest Bold
+  CHECK(regular->font_id == 5u);            // Quest Regular
+  CHECK(find_text("**quiet**") == nullptr); // markup stripped from the drawn text
 }

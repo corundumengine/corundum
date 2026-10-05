@@ -11,11 +11,13 @@
 #include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
 #include "ui/recording_renderer.hpp"
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -49,6 +51,15 @@ namespace {
       if (std::holds_alternative<corundum::platform::DrawText>(call))
         texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
     return texts;
+  }
+
+  /// The recorded DrawText with exactly @p text, or nullptr.
+  const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view text) {
+    for (const auto &call : r.log) {
+      if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
+        return drawn;
+    }
+    return nullptr;
   }
 
 } // namespace
@@ -249,4 +260,58 @@ TEST_CASE("journal_panel_render: empty tab renders the placeholder line") {
   REQUIRE(texts.size() == 6);
   CHECK(texts[0] == "Journal");
   CHECK(texts[5] == "(no quests)");
+}
+
+TEST_CASE("journal_panel_render: objective markup draws per-style Quest segments") {
+  using corundum::test::make_border;
+  using corundum::test::RecordingRenderer;
+
+  RecordingRenderer r;
+  corundum::ui::PanelStyle style{};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
+
+  const std::vector<screens::JournalEntry> entries = {
+      {
+          .id = "ember",
+          .name = "Ember",
+          .objective = "",
+          .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
+          .objectives = {{.text = "**Find** the shrine", .done = false}},
+      },
+  };
+  const screens::JournalState state{};
+
+  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+
+  const auto *bold = find_text(r, "Find");
+  const auto *regular = find_text(r, " the shrine");
+  REQUIRE(bold != nullptr);
+  REQUIRE(regular != nullptr);
+  CHECK(bold->font_id == 6u);    // Quest Bold
+  CHECK(regular->font_id == 5u); // Quest Regular
+}
+
+TEST_CASE("journal_panel_render: the quest list row uses the Quest family") {
+  using corundum::test::make_border;
+  using corundum::test::RecordingRenderer;
+
+  RecordingRenderer r;
+  corundum::ui::PanelStyle style{};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
+
+  const std::vector<screens::JournalEntry> entries = {
+      {
+          .id = "ember",
+          .name = "Ember",
+          .objective = "",
+          .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
+      },
+  };
+  const screens::JournalState state{};
+
+  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+
+  const auto *name = find_text(r, "Ember");
+  REQUIRE(name != nullptr);
+  CHECK(name->font_id == 6u); // Quest Bold
 }

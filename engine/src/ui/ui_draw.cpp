@@ -8,9 +8,9 @@
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/styled_text.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <span>
 #include <string_view>
 
@@ -45,8 +45,8 @@ namespace corundum::ui {
     return -static_cast<int>(scroll_y);
   }
 
-  float cursor_advance(const platform::Renderer &r, const PanelStyle &style) {
-    return r.measure_text(style.family(FontRole::Ui).get(FontStyle::Regular), k_choice_cursor, style.font_size_body);
+  float cursor_advance(const platform::Renderer &r, const PanelStyle &style, FontRole role) {
+    return r.measure_text(style.family(role).get(FontStyle::Regular), k_choice_cursor, style.font_size_body);
   }
 
   void panel_fill(platform::Renderer &r, core::math::Colour bg, core::math::Vec2 pos, core::math::Vec2 size) {
@@ -65,27 +65,83 @@ namespace corundum::ui {
 
   void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_view label, core::math::Vec2 pos,
                    bool selected, bool show_cursor) {
-    // The advance is always cursor_advance (measured against k_choice_cursor) so the label
-    // column lines up whether or not the option is selected or draws its cursor.
-    const float cursor_w = cursor_advance(r, style);
-    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    draw_option(r, style, FontRole::Ui, FontStyle::Regular, label, pos, selected, show_cursor);
+  }
+
+  void draw_option(platform::Renderer &r, const PanelStyle &style, FontRole role, FontStyle label_style,
+                   std::string_view label, core::math::Vec2 pos, bool selected, bool show_cursor) {
+    // The advance always uses the role's regular face so the label column lines up whether or
+    // not the label itself is bold, and whether or not the option is selected.
+    const float cursor_w = cursor_advance(r, style, role);
+    const FontFamily &family = style.family(role);
     const std::string_view cursor = (selected && show_cursor) ? k_choice_cursor : k_cursor_unselected;
     const core::math::Colour col = selected ? style.selected : style.choice;
 
     r.draw(platform::DrawText{
-        .font_id = font_id,
+        .font_id = family.get(FontStyle::Regular),
         .text = cursor,
         .position = pos,
         .char_size = style.font_size_body,
         .colour = col,
     });
     r.draw(platform::DrawText{
-        .font_id = font_id,
+        .font_id = family.get(label_style),
         .text = label,
         .position = {.x = pos.x + cursor_w, .y = pos.y},
         .char_size = style.font_size_body,
         .colour = col,
     });
+  }
+
+  namespace {
+
+    template <class Run>
+    float measure_styled_runs(const platform::Renderer &r, const FontFamily &family, std::span<const Run> runs,
+                              unsigned char_size) {
+      float width{0.f};
+      for (const Run &run : runs)
+        width += r.measure_text(family.get(run.style), run.text, char_size);
+      return width;
+    }
+
+    template <class Run>
+    void draw_styled_runs(platform::Renderer &r, const FontFamily &family, std::span<const Run> runs,
+                          unsigned char_size, core::math::Colour colour, core::math::Vec2 pos) {
+      float x = pos.x;
+      for (const Run &run : runs) {
+        if (run.text.empty())
+          continue;
+        r.draw(platform::DrawText{
+            .font_id = family.get(run.style),
+            .text = run.text,
+            .position = {.x = x, .y = pos.y},
+            .char_size = char_size,
+            .colour = colour,
+        });
+        x += r.measure_text(family.get(run.style), run.text, char_size);
+      }
+    }
+
+  } // namespace
+
+  float measure_styled(const platform::Renderer &r, const FontFamily &family, std::span<const StyledRun> runs,
+                       unsigned char_size) {
+    return measure_styled_runs(r, family, runs, char_size);
+  }
+
+  float measure_styled(const platform::Renderer &r, const FontFamily &family, std::span<const StyledSegment> segments,
+                       unsigned char_size) {
+    return measure_styled_runs(r, family, segments, char_size);
+  }
+
+  void draw_styled(platform::Renderer &r, const FontFamily &family, std::span<const StyledRun> runs, unsigned char_size,
+                   core::math::Colour colour, core::math::Vec2 pos) {
+    draw_styled_runs(r, family, runs, char_size, colour, pos);
+  }
+
+  void draw_styled(platform::Renderer &r, const FontFamily &family, std::span<const StyledSegment> segments,
+                   unsigned char_size, core::math::Colour colour, core::math::Vec2 pos) {
+    draw_styled_runs(r, family, segments, char_size, colour, pos);
   }
 
 } // namespace corundum::ui

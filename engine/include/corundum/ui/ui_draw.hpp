@@ -4,8 +4,10 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/styled_text.hpp>
 
 #include <span>
 #include <string_view>
@@ -60,19 +62,21 @@ namespace corundum::ui {
    */
   [[nodiscard]] int scroll_row_delta(float scroll_y) noexcept;
 
-  /** @brief Horizontal advance of the choice cursor column — the x-offset at which a
-   *         draw_option() label begins.
+  /** @brief Horizontal advance of the choice cursor column — the x-offset at which an
+   *         option's label begins.
    *
-   *  Measured against the selected cursor (k_choice_cursor) regardless of selection, so a
-   *  selected and an unselected option reserve the same column. Callers that lay out
-   *  several columns (prompt/inventory) use this instead of re-measuring the glyph, keeping
-   *  the one definition of the advance beside draw_option().
+   *  Measured against the role's regular face and the selected cursor (k_choice_cursor)
+   *  regardless of selection, so a selected and an unselected option reserve the same column.
+   *  Callers that lay out several columns (prompt/inventory) use this instead of re-measuring
+   *  the glyph, keeping the one definition of the advance beside draw_option().
    *
    *  @param r     Renderer used for font metrics.
-   *  @param style Supplies the UI font family and font_size_body.
+   *  @param style Supplies the role's font family and font_size_body.
+   *  @param role  Font role the option is drawn in; defaults to the UI role.
    *  @return Width in pixels reserved for the cursor prefix.
    */
-  [[nodiscard]] float cursor_advance(const platform::Renderer &r, const PanelStyle &style);
+  [[nodiscard]] float cursor_advance(const platform::Renderer &r, const PanelStyle &style,
+                                     FontRole role = FontRole::Ui);
 
   /** @brief Fill @p pos/@p size with @p bg — the tint behind a panel's frame.
    *
@@ -121,5 +125,40 @@ namespace corundum::ui {
    */
   void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_view label, core::math::Vec2 pos,
                    bool selected, bool show_cursor = true);
+
+  /** @brief draw_option() in an explicit @p role and @p label_style, for role-owned lists.
+   *
+   *  The cursor is always drawn in @p role's regular face; only @p label uses @p label_style.
+   *  Used by the quest-role screens (journal, codex) so their list rows follow the Quest
+   *  family while every other list keeps the UI defaults.
+   *
+   *  @param r           Renderer; receives two DrawText commands (cursor, then label).
+   *  @param style       Supplies the requested family, font_size_body, and colours.
+   *  @param role        Font role for the row.
+   *  @param label_style Style the label is drawn in (e.g. Bold for a title).
+   *  @param label       Option text; drawn verbatim (no wrapping).
+   *  @param pos         Top-left where the cursor starts.
+   *  @param selected    True → style.selected; false → style.choice.
+   *  @param show_cursor Pass false for continuation lines of a wrapped option.
+   */
+  void draw_option(platform::Renderer &r, const PanelStyle &style, FontRole role, FontStyle label_style,
+                   std::string_view label, core::math::Vec2 pos, bool selected, bool show_cursor = true);
+
+  /** @brief Rendered width of @p runs at @p char_size, each measured in its own style. */
+  [[nodiscard]] float measure_styled(const platform::Renderer &r, const FontFamily &family,
+                                     std::span<const StyledRun> runs, unsigned char_size);
+
+  /** @brief Rendered width of @p segments at @p char_size, each measured in its own style. */
+  [[nodiscard]] float measure_styled(const platform::Renderer &r, const FontFamily &family,
+                                     std::span<const StyledSegment> segments, unsigned char_size);
+
+  /** @brief Draws @p runs left-to-right from @p pos, advancing x by each run's measured width. */
+  void draw_styled(platform::Renderer &r, const FontFamily &family, std::span<const StyledRun> runs, unsigned char_size,
+                   core::math::Colour colour, core::math::Vec2 pos);
+
+  /** @brief Draws @p segments left-to-right from @p pos. @c segment.x is ignored in favour of the
+   *         accumulated measured width, so the layout matches wrap_styled(). */
+  void draw_styled(platform::Renderer &r, const FontFamily &family, std::span<const StyledSegment> segments,
+                   unsigned char_size, core::math::Colour colour, core::math::Vec2 pos);
 
 } // namespace corundum::ui

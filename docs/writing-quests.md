@@ -157,6 +157,33 @@ An empty `advances_to` (the default) keeps the old behaviour: any stage name is 
 
 ---
 
+## Emphasizing text
+
+Objective `text` strings accept an inline markdown-lite markup, so a journal line can mix regular, bold and italic type. The same rules apply to codex entry bodies. Quest and stage names are plain text and take no markup.
+
+| Markup | Result |
+|---|---|
+| `*italic*` | *italic* |
+| `**bold**` | **bold** |
+| `***bold italic***` | ***bold italic*** |
+| `\*` | a literal asterisk |
+| `\\` | a literal backslash |
+
+The opening and closing delimiters must match: `*` closes `*`, `**` closes `**`, `***` closes `***`. Only those three combinations exist, and they do not nest. A delimiter with no matching close is shown as literal text rather than swallowing the rest of the line.
+
+A backslash escapes only `*` and `\`; before anything else it is a literal backslash, so `\n` is a backslash followed by an `n`, not a line break. Use a real newline (or `\n` in the JSON string) for a hard line break.
+
+```json
+{
+  "text": "Reach the **ruined** shrine before *nightfall*",
+  "done_condition": "at_shrine >= 1"
+}
+```
+
+Quest and journal text draws in the Quest font family; see `fonts` in `game.json`. A family may supply separate bold and italic files, and a missing style falls back to the closest one the family does have with a warning logged at startup. Font sizes are role-independent, so bold text is not larger than regular.
+
+---
+
 ## Wiring quests to dialogue
 
 Quests are started and advanced through dialogue actions. No code needed.
