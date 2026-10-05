@@ -73,7 +73,6 @@ TEST_CASE("modal draw: the dialogue box hides under a pushed screen and resumes 
   REQUIRE(gameplay.dialogue->is_active());
 
   engine.render.panel_skin.border = make_border();
-  engine.render.panel_skin.style.font_id = 2;
   engine.render.text_speed = 0.f; // reveal instantly so the full body is drawn
 
   const corundum::core::math::Vec2 viewport{.x = 320.f, .y = 240.f};

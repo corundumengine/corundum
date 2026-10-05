@@ -64,14 +64,16 @@ namespace corundum::render {
   void load_sprite_index(corundum::platform::Renderer &r, render::RenderState &state,
                          const corundum::sprites::CharacterRegistry &registry);
 
-  /** @brief Load a TrueType font into the renderer and register it.
+  /** @brief Load every role's font family into the renderer and store the resolved ids.
    *  @param[in,out] r      Renderer for font atlas creation.
-   *  @param[out]    state  Render state; state.font_id is set on success.
-   *  @param[in]     path   Filesystem path to the .ttf file.
-   *  @return The font ID on success, or std::unexpected with an error message.
+   *  @param[out]    state  Render state; state.fonts is populated on success.
+   *  @param[in]     paths  Resource paths supplying font_dir and the per-role file names.
+   *  @return ok on success, or an error string if a required regular face fails to load.
+   *  @post Each FontFamily's optional styles fall back to the closest present face; the
+   *        first font id the renderer hands out (1) is reserved, so 0 always means unloaded.
    */
-  [[nodiscard]] std::expected<uint32_t, std::string> load_font(corundum::platform::Renderer &r,
-                                                               render::RenderState &state, const std::string &path);
+  [[nodiscard]] std::expected<void, std::string> load_fonts(corundum::platform::Renderer &r, render::RenderState &state,
+                                                            const corundum::core::ResourcePaths &paths);
 
   /** @brief Load shared UI textures (dialog box border, etc.).
    *  @param[in,out] r     Renderer for texture creation.

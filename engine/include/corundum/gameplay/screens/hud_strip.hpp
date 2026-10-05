@@ -47,7 +47,7 @@ namespace corundum::gameplay::screens {
    *
    *  @param r      Platform renderer; receives one DrawRect, the border's DrawSprite commands,
    *                then one DrawText.
-   *  @param style  Dialog text style (font id/size/colours).
+   *  @param style  Dialog text style (font, size, colour).
    *  @param border Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
    *  @param data   Content derived by build_hud_strip().
    */

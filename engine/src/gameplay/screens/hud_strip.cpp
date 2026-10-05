@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/gameplay/screens/hud_strip.hpp>
+#include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/quest/status.hpp>
@@ -13,6 +14,7 @@
 #include <corundum/world/flags.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -61,7 +63,8 @@ namespace corundum::gameplay::screens {
 
     const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
     const float row_h = line_h + (pad_y * 2.f);
-    const float text_w = r.measure_text(style.font_id, line, style.font_size_body);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const float text_w = r.measure_text(font_id, line, style.font_size_body);
     const float row_w = std::max(k_min_w, text_w + (pad_x * 2.f));
 
     // Background and frame are separate calls: the HUD is persistent, so its fill is fully
@@ -74,7 +77,7 @@ namespace corundum::gameplay::screens {
     ui::panel_fill(r, hud_bg, panel_pos, panel_size);
     ui::panel_frame(r, border, panel_pos, panel_size);
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = line,
         .position = {.x = panel_pos.x + pad_x, .y = panel_pos.y + pad_y},
         .char_size = style.font_size_body,

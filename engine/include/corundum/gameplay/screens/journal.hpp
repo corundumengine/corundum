@@ -111,7 +111,7 @@ namespace corundum::gameplay::screens {
    *  is active.
    *
    *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
-   *  @param style       Dialog text style (font id/sizes/colours); reused so the journal matches dialogue.
+   *  @param style       Dialog text style (font, size, colour); reused so the journal matches dialogue.
    *  @param border      Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
    *  @param entries     Journal rows to display, as build_journal_entries() produces.
    *  @param state       Active sub-tab and highlighted row index into @p entries (clamped locally).

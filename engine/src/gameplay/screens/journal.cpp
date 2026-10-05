@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/gameplay/screens/journal.hpp>
+#include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
@@ -109,23 +110,27 @@ namespace corundum::gameplay::screens {
       geometry.objective_indent = cursor_w + 8.f;
       geometry.clamped_cursor = std::clamp(state.cursor, 0, std::max(0, static_cast<int>(entries.size()) - 1));
 
-      const float title_w = r.measure_text(style.font_id, k_journal_title, style.font_size_speaker);
+      const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      const float title_w = r.measure_text(font_id, k_journal_title, style.font_size_speaker);
       geometry.footer = std::format(
           "{} Track   {} Tabs   {} Close", ui::input_glyph(input::Action::Activate, last_device),
           ui::input_glyph(input::Action::SubTabNext, last_device), ui::input_glyph(input::Action::Cancel, last_device));
-      const float footer_w = r.measure_text(style.font_id, geometry.footer, style.font_size_body);
+      const float footer_w = r.measure_text(font_id, geometry.footer, style.font_size_body);
 
       std::array<float, k_journal_tabs.size()> sub_tab_widths{};
       float sub_tabs_total = 0.f;
       for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
-        sub_tab_widths[i] =
-            r.measure_text(style.font_id, journal_tab_label(k_journal_tabs[i]), style.font_size_speaker);
+        sub_tab_widths[i] = r.measure_text(font_id, journal_tab_label(k_journal_tabs[i]), style.font_size_speaker);
         sub_tabs_total += sub_tab_widths[i];
       }
       sub_tabs_total += k_journal_sub_tab_gap * static_cast<float>(k_journal_tabs.size() - 1);
 
-      float widest = std::max(
-          {title_w, r.measure_text(style.font_id, k_journal_empty, style.font_size_body), footer_w, sub_tabs_total});
+      float widest = std::max({
+          title_w,
+          r.measure_text(font_id, k_journal_empty, style.font_size_body),
+          footer_w,
+          sub_tabs_total,
+      });
 
       // Build the body rows first: their height sets the panel height (x depends on panel width,
       // so it is applied after the panel is centered). The highlighted entry expands to its full
@@ -133,7 +138,7 @@ namespace corundum::gameplay::screens {
       float body_height = 0.f;
       for (std::size_t i = 0; i < entries.size(); ++i) {
         const JournalEntry &entry = entries[i];
-        widest = std::max(widest, cursor_w + r.measure_text(style.font_id, entry.name, style.font_size_body));
+        widest = std::max(widest, cursor_w + r.measure_text(font_id, entry.name, style.font_size_body));
         geometry.draw_rows.push_back(
             JournalDrawRow{.kind = JournalDrawRow::Kind::Option, .index = i, .y = body_height});
         body_height += geometry.body_line_h;
@@ -142,9 +147,8 @@ namespace corundum::gameplay::screens {
         if (highlighted && !entry.objectives.empty()) {
           for (const JournalObjective &objective : entry.objectives) {
             const std::string_view mark = objective.done ? k_objective_done : k_objective_pending;
-            widest =
-                std::max(widest, geometry.objective_indent + r.measure_text(style.font_id, mark, style.font_size_body) +
-                                     r.measure_text(style.font_id, objective.text, style.font_size_body));
+            widest = std::max(widest, geometry.objective_indent + r.measure_text(font_id, mark, style.font_size_body) +
+                                          r.measure_text(font_id, objective.text, style.font_size_body));
             geometry.draw_rows.push_back(JournalDrawRow{
                 .kind = JournalDrawRow::Kind::Checklist,
                 .text = objective.text,
@@ -154,8 +158,8 @@ namespace corundum::gameplay::screens {
             body_height += geometry.body_line_h;
           }
         } else if (!entry.objective.empty()) {
-          widest = std::max(widest, geometry.objective_indent +
-                                        r.measure_text(style.font_id, entry.objective, style.font_size_body));
+          widest = std::max(widest,
+                            geometry.objective_indent + r.measure_text(font_id, entry.objective, style.font_size_body));
           geometry.draw_rows.push_back(
               JournalDrawRow{.kind = JournalDrawRow::Kind::Objective, .text = entry.objective, .y = body_height});
           body_height += geometry.body_line_h;
@@ -258,14 +262,15 @@ namespace corundum::gameplay::screens {
                             const std::vector<JournalEntry> &entries, const JournalState &state,
                             core::math::Vec2 viewport, input::InputDevice last_device) {
     const JournalGeometry geometry = compute_journal_geometry(r, style, entries, state, viewport, last_device);
-    const float title_w = r.measure_text(style.font_id, k_journal_title, style.font_size_speaker);
-    const float footer_w = r.measure_text(style.font_id, geometry.footer, style.font_size_body);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const float title_w = r.measure_text(font_id, k_journal_title, style.font_size_speaker);
+    const float footer_w = r.measure_text(font_id, geometry.footer, style.font_size_body);
 
     ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                      {.x = geometry.panel_w, .y = geometry.panel_h});
 
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = k_journal_title,
         .position = {.x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f), .y = geometry.title_y},
         .char_size = style.font_size_speaker,
@@ -275,7 +280,7 @@ namespace corundum::gameplay::screens {
     // Sub-tab strip: Active / Completed / Failed, the active one highlighted.
     for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = journal_tab_label(k_journal_tabs[i]),
           .position = geometry.sub_tabs[i].pos,
           .char_size = style.font_size_speaker,
@@ -285,7 +290,7 @@ namespace corundum::gameplay::screens {
 
     // Footer is bottom-anchored, so it draws before the body — the empty branch can return early.
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = geometry.footer,
         .position =
             {
@@ -297,9 +302,9 @@ namespace corundum::gameplay::screens {
     });
 
     if (entries.empty()) {
-      const float empty_w = r.measure_text(style.font_id, k_journal_empty, style.font_size_body);
+      const float empty_w = r.measure_text(font_id, k_journal_empty, style.font_size_body);
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = k_journal_empty,
           .position = {.x = geometry.panel_x + ((geometry.panel_w - empty_w) * 0.5f), .y = geometry.body_top},
           .char_size = style.font_size_body,
@@ -319,7 +324,7 @@ namespace corundum::gameplay::screens {
         }
         case JournalDrawRow::Kind::Objective:
           r.draw(platform::DrawText{
-              .font_id = style.font_id,
+              .font_id = font_id,
               .text = row.text,
               .position = {.x = geometry.row_x + geometry.objective_indent, .y = geometry.body_top + row.y},
               .char_size = style.font_size_body,
@@ -331,18 +336,18 @@ namespace corundum::gameplay::screens {
           const core::math::Colour colour = row.checked ? style.body : style.choice;
           const float mark_x = geometry.row_x + geometry.objective_indent;
           r.draw(platform::DrawText{
-              .font_id = style.font_id,
+              .font_id = font_id,
               .text = mark,
               .position = {.x = mark_x, .y = geometry.body_top + row.y},
               .char_size = style.font_size_body,
               .colour = colour,
           });
           r.draw(platform::DrawText{
-              .font_id = style.font_id,
+              .font_id = font_id,
               .text = row.text,
               .position =
                   {
-                      .x = mark_x + r.measure_text(style.font_id, mark, style.font_size_body),
+                      .x = mark_x + r.measure_text(font_id, mark, style.font_size_body),
                       .y = geometry.body_top + row.y,
                   },
               .char_size = style.font_size_body,

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/menu.hpp>
 
 #include <corundum/core/math/vec.hpp>
@@ -13,6 +14,7 @@
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -76,12 +78,13 @@ namespace corundum::ui {
     const float cursor_w = cursor_advance(r, style);
 
     const std::string footer = menu_footer(last_device);
+    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
 
-    float widest = std::max(r.measure_text(style.font_id, k_menu_title, style.font_size_speaker),
-                            r.measure_text(style.font_id, footer, style.font_size_body));
+    float widest = std::max(r.measure_text(font_id, k_menu_title, style.font_size_speaker),
+                            r.measure_text(font_id, footer, style.font_size_body));
     for (int row = 0; row < k_menu_command_count; ++row) {
-      widest = std::max(widest, cursor_w + r.measure_text(style.font_id, menu_command_label(menu_command_at(row)),
-                                                          style.font_size_body));
+      widest = std::max(
+          widest, cursor_w + r.measure_text(font_id, menu_command_label(menu_command_at(row)), style.font_size_body));
     }
 
     const float panel_w = std::max(k_menu_min_w, widest + (k_menu_pad_x * 2.f));
@@ -109,13 +112,14 @@ namespace corundum::ui {
     const float line_h = layout.rows.row_height;
 
     const std::string footer = menu_footer(last_device);
+    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
 
     panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 
-    const float title_w = r.measure_text(style.font_id, k_menu_title, style.font_size_speaker);
+    const float title_w = r.measure_text(font_id, k_menu_title, style.font_size_speaker);
     const float title_y = layout.panel_pos.y + k_menu_pad_y;
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = k_menu_title,
         .position = {.x = layout.panel_pos.x + ((layout.panel_size.x - title_w) * 0.5f), .y = title_y},
         .char_size = style.font_size_speaker,
@@ -123,12 +127,12 @@ namespace corundum::ui {
     });
 
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = footer,
         .position =
             {
                 .x = layout.panel_pos.x +
-                     ((layout.panel_size.x - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
+                     ((layout.panel_size.x - r.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
                 .y = layout.panel_pos.y + layout.panel_size.y - k_menu_pad_y - line_h,
             },
         .char_size = style.font_size_body,

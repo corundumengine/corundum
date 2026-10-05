@@ -58,7 +58,7 @@ namespace corundum::ui {
 
     /** @brief Draw the live toasts stacked bottom-left.
      *  @param r        Platform renderer; receives a background DrawRect and a DrawText per toast.
-     *  @param style    Dialog text style (font id/sizes/colours) for the message text.
+     *  @param style    Dialog text style (font, size, colour) for the message text.
      *  @param viewport Screen size in pixels; toasts anchor to its bottom-left corner.
      *  @pre The renderer's view is screen space. */
     void render(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport) const;

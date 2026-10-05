@@ -69,7 +69,7 @@ namespace corundum::ui {
    *  the one definition of the advance beside draw_option().
    *
    *  @param r     Renderer used for font metrics.
-   *  @param style Supplies font_id and font_size_body.
+   *  @param style Supplies the UI font family and font_size_body.
    *  @return Width in pixels reserved for the cursor prefix.
    */
   [[nodiscard]] float cursor_advance(const platform::Renderer &r, const PanelStyle &style);
@@ -111,7 +111,7 @@ namespace corundum::ui {
    *  The label always begins at `pos.x + cursor_advance(r, style)`.
    *
    *  @param r           Renderer; receives two DrawText commands (cursor, then label).
-   *  @param style       Supplies font_id, font_size_body, and the selected/choice colours.
+   *  @param style       Supplies the UI font family, font_size_body, and the selected/choice colours.
    *  @param label       Option text; drawn verbatim (no wrapping).
    *  @param pos         Top-left where the cursor starts.
    *  @param selected    True → style.selected; false → style.choice.

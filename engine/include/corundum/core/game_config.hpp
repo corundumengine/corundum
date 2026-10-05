@@ -3,7 +3,9 @@
 
 #pragma once
 #include <corundum/core/window_mode.hpp>
+#include <corundum/ui/font_family.hpp>
 
+#include <array>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -36,8 +38,7 @@ namespace corundum::core {
 
   /// Contains all file paths required by the game engine and logic. Directory fields default to
   /// the standard project layout so a project following convention needs a near-empty game.json;
-  /// only the per-game file names (game_font, ui_font, icons_font, tilemap_path) require explicit
-  /// values.
+  /// only the per-game file names (the "fonts" families and tilemap_path) require explicit values.
   struct ResourcePaths {
     /** @brief Directory containing codex lore batch files. Defaults to "data/codex". */
     std::string codex_dir{"data/codex"};
@@ -48,11 +49,9 @@ namespace corundum::core {
     /** @brief Directory containing all fonts. Defaults to "assets/fonts". */
     std::string font_dir{"assets/fonts"};
 
-    /** @brief Path to the primary game font file. */
-    std::string game_font;
-
-    /** @brief Path to the icons font file. */
-    std::string icons_font;
+    /** @brief Per-role font families, indexed by ui::FontRole. A family's bold/italic files are
+     *  optional; its regular file is required. */
+    std::array<ui::FontFamilyPaths, ui::k_font_role_count> fonts{};
 
     /** @brief Directory containing item data files. Defaults to "data/items". */
     std::string items_dir{"data/items"};
@@ -84,9 +83,6 @@ namespace corundum::core {
 
     /** @brief Path to the main tilemap asset. */
     std::string tilemap_path;
-
-    /** @brief Path to the UI-specific font file. */
-    std::string ui_font;
 
     /** @brief Path to the world manifest JSON. Empty → single-tilemap mode. */
     std::string world_manifest_path;

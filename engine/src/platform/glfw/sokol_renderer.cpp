@@ -278,6 +278,10 @@ namespace corundum::platform::glfw {
       // through the existing range/id check without drawing texture 0 by accident.
       textures_.push_back({});
 
+      // Reserve index 0 as the invalid font sentinel too, so a default-constructed
+      // FontFamily (all zeros) can never collide with a real loaded font.
+      font_atlases_.push_back(nullptr);
+
       if (FT_Init_FreeType(&ft_lib_) != 0) {
         ft_lib_ = nullptr;
         corundum::detail::warn_log("[sokol] FT_Init_FreeType failed");

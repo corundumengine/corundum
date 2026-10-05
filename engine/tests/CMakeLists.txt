@@ -67,6 +67,7 @@ set(TEST_SOURCES
 
     # render
     render/test_chunk_collision_aggregate.cpp
+    render/test_font_families.cpp
     render/test_render_state.cpp
     render/test_ui_assets.cpp
     render/test_world_walkability.cpp

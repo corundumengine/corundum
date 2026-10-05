@@ -7,7 +7,9 @@
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/window_mode.hpp>
+#include <corundum/ui/font_family.hpp>
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -75,7 +77,12 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
         "win_w": 1280.0, "win_h": 720.0, "simulation_fps": 30,
         "interact_radius": 64.0, "player_speed": 150.0,
         "character_scale": 3, "tile_scale": 4, "elevation_step_px": 6.0,
-        "font_dir": "game/assets/fonts", "game_font": "MyFont.ttf",
+        "font_dir": "game/assets/fonts",
+        "fonts": {
+            "dialogue": { "regular": "dReg.ttf", "bold": "dBold.ttf", "italic": "dItalic.ttf", "bold_italic": "dBoldItalic.ttf" },
+            "quest": { "regular": "qReg.ttf" },
+            "ui": { "regular": "uReg.ttf" }
+        },
         "tilemap_path": "data/tilemaps/dungeon.json",
         "sprites_dir": "data/sprite_sheets/dungeon.json",
         "dialogue_dir": "data/npc",
@@ -96,7 +103,13 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   CHECK(cfg.tile_scale == doctest::Approx(4.f));
   CHECK(cfg.elevation_step_px == doctest::Approx(6.f));
   CHECK(cfg.paths.font_dir == "game/assets/fonts");
-  CHECK(cfg.paths.game_font == "MyFont.ttf");
+  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].regular == "dReg.ttf");
+  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].bold == "dBold.ttf");
+  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].italic == "dItalic.ttf");
+  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].bold_italic == "dBoldItalic.ttf");
+  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)].regular == "qReg.ttf");
+  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)].bold.empty());
+  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)].regular == "uReg.ttf");
   CHECK(cfg.paths.tilemap_path == "data/tilemaps/dungeon.json");
   CHECK(cfg.paths.sprites_dir == "data/sprite_sheets/dungeon.json");
   CHECK(cfg.paths.dialogue_dir == "data/npc");
@@ -226,10 +239,59 @@ TEST_CASE("load_game_config — min_zoom == max_zoom is allowed") {
 
 // ── String validation ─────────────────────────────────────────────────────────
 
-TEST_CASE("load_game_config — empty game_font returns error") {
-  const auto dir = temp_dir("empty_game_font");
+TEST_CASE("load_game_config — absent fonts block leaves families unset") {
+  const auto dir = temp_dir("absent_fonts");
   const auto p = dir / "game.json";
-  write_file(p, R"({"game_font": ""})");
+  write_file(p, R"({"game_font": "Legacy.ttf"})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)].regular.empty());
+}
+
+TEST_CASE("load_game_config — missing role in fonts returns error") {
+  const auto dir = temp_dir("missing_font_role");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"fonts": {"dialogue": {"regular": "d.ttf"}, "quest": {"regular": "q.ttf"}}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("fonts.ui") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — missing regular font file returns error") {
+  const auto dir = temp_dir("missing_regular_font");
+  const auto p = dir / "game.json";
+  write_file(
+      p, R"({"fonts": {"dialogue": {"bold": "d.ttf"}, "quest": {"regular": "q.ttf"}, "ui": {"regular": "u.ttf"}}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("fonts.dialogue.regular") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — empty regular font returns error") {
+  const auto dir = temp_dir("empty_regular_font");
+  const auto p = dir / "game.json";
+  write_file(p,
+             R"({"fonts": {"dialogue": {"regular": ""}, "quest": {"regular": "q.ttf"}, "ui": {"regular": "u.ttf"}}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("fonts.dialogue.regular") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — empty optional font file returns error") {
+  const auto dir = temp_dir("empty_optional_font");
+  const auto p = dir / "game.json";
+  write_file(
+      p,
+      R"({"fonts": {"dialogue": {"regular": "d.ttf", "bold": ""}, "quest": {"regular": "q.ttf"}, "ui": {"regular": "u.ttf"}}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("fonts.dialogue.bold") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — fonts not an object returns error") {
+  const auto dir = temp_dir("fonts_not_object");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"fonts": 42})");
   const auto result = load_game_config(p);
   CHECK(!result.has_value());
 }

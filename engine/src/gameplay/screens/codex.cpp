@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/codex/codex.hpp>
@@ -18,6 +19,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -189,9 +191,10 @@ namespace corundum::gameplay::screens {
     ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                      {.x = geometry.panel_w, .y = geometry.panel_h});
 
-    const float title_w = r.measure_text(style.font_id, k_title, style.font_size_speaker);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const float title_w = r.measure_text(font_id, k_title, style.font_size_speaker);
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = k_title,
         .position = {.x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f), .y = geometry.panel_y + k_pad},
         .char_size = style.font_size_speaker,
@@ -201,9 +204,9 @@ namespace corundum::gameplay::screens {
     const std::string footer =
         std::format("{} Select   {} Close", ui::input_glyph(input::Action::Activate, last_device),
                     ui::input_glyph(input::Action::Cancel, last_device));
-    const float footer_w = r.measure_text(style.font_id, footer, style.font_size_body);
+    const float footer_w = r.measure_text(font_id, footer, style.font_size_body);
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = footer,
         .position =
             {
@@ -216,7 +219,7 @@ namespace corundum::gameplay::screens {
 
     if (entries.empty()) {
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = k_empty,
           .position = {.x = geometry.list_x, .y = geometry.content_top},
           .char_size = style.font_size_body,
@@ -230,7 +233,7 @@ namespace corundum::gameplay::screens {
       const float y = codex_row_y(geometry, i);
       if (row.header) {
         r.draw(platform::DrawText{
-            .font_id = style.font_id,
+            .font_id = font_id,
             .text = row.text,
             .position = {.x = geometry.list_x, .y = y},
             .char_size = style.font_size_speaker,
@@ -244,7 +247,7 @@ namespace corundum::gameplay::screens {
     const gameplay::codex::CodexEntry &selected = entries[static_cast<std::size_t>(geometry.clamped_cursor)];
     const std::vector<std::string> body_lines =
         ui::wrap_text(selected.body, geometry.body_w,
-                      [&](std::string_view text) { return r.measure_text(style.font_id, text, style.font_size_body); });
+                      [&](std::string_view text) { return r.measure_text(font_id, text, style.font_size_body); });
 
     const int visible_body = geometry.visible_rows;
     const float max_scroll = std::max(0.f, static_cast<float>(body_lines.size()) - static_cast<float>(visible_body));
@@ -252,7 +255,7 @@ namespace corundum::gameplay::screens {
 
     float body_y = geometry.content_top;
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = selected.title,
         .position = {.x = geometry.body_x, .y = body_y},
         .char_size = style.font_size_speaker,
@@ -261,7 +264,7 @@ namespace corundum::gameplay::screens {
     body_y += geometry.header_h;
     for (int i = first_body; std::cmp_less(i, body_lines.size()) && i < first_body + visible_body; ++i) {
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = body_lines[static_cast<std::size_t>(i)],
           .position = {.x = geometry.body_x, .y = body_y},
           .char_size = style.font_size_body,

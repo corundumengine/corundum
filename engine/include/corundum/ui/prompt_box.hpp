@@ -20,7 +20,7 @@ namespace corundum::ui {
    * only invoking this while a prompt is active.
    *
    * @param r             Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
-   * @param style         Dialog text style (font id/sizes/colours); reused so prompt boxes match dialogue.
+   * @param style         Dialog text style (font, size, colour); reused so prompt boxes match dialogue.
    * @param border        Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
    * @param question      Single-line question text (e.g. "Enter?" or "Leave?").
    * @param yes_selected  True if the Yes option is highlighted; false for No.

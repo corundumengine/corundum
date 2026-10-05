@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/gameplay/screens/barter.hpp>
+#include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/item.hpp>
@@ -19,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -122,17 +124,18 @@ namespace corundum::gameplay::screens {
     const std::string tabs = "Buy    Sell";
     const std::string gold_line = std::format("Gold: {}", gold);
     const std::string footer = barter_footer(last_device);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
     float widest = std::max({
-        r.measure_text(style.font_id, shop_name, style.font_size_speaker),
-        r.measure_text(style.font_id, tabs, style.font_size_body),
-        r.measure_text(style.font_id, gold_line, style.font_size_body),
-        r.measure_text(style.font_id, footer, style.font_size_body),
-        r.measure_text(style.font_id, k_barter_empty, style.font_size_body),
+        r.measure_text(font_id, shop_name, style.font_size_speaker),
+        r.measure_text(font_id, tabs, style.font_size_body),
+        r.measure_text(font_id, gold_line, style.font_size_body),
+        r.measure_text(font_id, footer, style.font_size_body),
+        r.measure_text(font_id, k_barter_empty, style.font_size_body),
     });
     for (const BarterLine &line : lines) {
       const std::string label = barter_row_label(line, state.tab);
-      widest = std::max(widest, cursor_w + r.measure_text(style.font_id, label, style.font_size_body));
+      widest = std::max(widest, cursor_w + r.measure_text(font_id, label, style.font_size_body));
     }
 
     const float panel_w = std::max(k_barter_min_w, widest + (k_barter_pad_x * 2.f));
@@ -147,8 +150,8 @@ namespace corundum::gameplay::screens {
     layout.panel_size = {.x = panel_w, .y = panel_h};
 
     const float tab_y = panel_y + k_barter_pad_y + title_h + k_barter_gap;
-    const float buy_w = r.measure_text(style.font_id, "Buy", style.font_size_body);
-    const float sell_w = r.measure_text(style.font_id, "Sell", style.font_size_body);
+    const float buy_w = r.measure_text(font_id, "Buy", style.font_size_body);
+    const float sell_w = r.measure_text(font_id, "Sell", style.font_size_body);
     const float sell_x = panel_x + k_barter_pad_x + buy_w + 24.f;
     layout.tabs[0] = ui::RowRect{.pos = {.x = panel_x + k_barter_pad_x, .y = tab_y}, .width = buy_w, .height = line_h};
     layout.tabs[1] = ui::RowRect{.pos = {.x = sell_x, .y = tab_y}, .width = sell_w, .height = line_h};
@@ -170,23 +173,24 @@ namespace corundum::gameplay::screens {
 
     const std::string gold_line = std::format("Gold: {}", gold);
     const std::string footer = barter_footer(last_device);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
     ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = shop_name,
         .position = {.x = layout.panel_pos.x + k_barter_pad_x, .y = layout.panel_pos.y + k_barter_pad_y},
         .char_size = style.font_size_speaker,
         .colour = style.speaker,
     });
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = gold_line,
         .position =
             {
                 .x = layout.panel_pos.x + layout.panel_size.x - k_barter_pad_x -
-                     r.measure_text(style.font_id, gold_line, style.font_size_body),
+                     r.measure_text(font_id, gold_line, style.font_size_body),
                 .y = layout.panel_pos.y + k_barter_pad_y,
             },
         .char_size = style.font_size_body,
@@ -194,14 +198,14 @@ namespace corundum::gameplay::screens {
     });
 
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = "Buy",
         .position = layout.tabs[0].pos,
         .char_size = style.font_size_body,
         .colour = state.tab == BarterTab::Buy ? style.selected : style.choice,
     });
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = "Sell",
         .position = layout.tabs[1].pos,
         .char_size = style.font_size_body,
@@ -209,12 +213,12 @@ namespace corundum::gameplay::screens {
     });
 
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = footer,
         .position =
             {
                 .x = layout.panel_pos.x +
-                     ((layout.panel_size.x - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
+                     ((layout.panel_size.x - r.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
                 .y = layout.panel_pos.y + layout.panel_size.y - k_barter_pad_y - line_h,
             },
         .char_size = style.font_size_body,
@@ -224,7 +228,7 @@ namespace corundum::gameplay::screens {
     float y = layout.rows.row_pos.y;
     if (lines.empty()) {
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = k_barter_empty,
           .position = {.x = layout.rows.row_pos.x, .y = y},
           .char_size = style.font_size_body,

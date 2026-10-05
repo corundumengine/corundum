@@ -13,6 +13,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
@@ -330,11 +331,13 @@ namespace corundum::debug {
       return panel_view.substr(line_offsets[i], end - line_offsets[i]);
     };
 
+    const std::uint32_t font_id = render.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+
     // Size the background to the widest line — measure_text accounts for the active
     // font's real advances — so a longer field never overflows the panel.
     float content_w = k_box_w;
     for (std::size_t i = 0; i < k_line_count; ++i)
-      content_w = std::max(content_w, r.measure_text(render.font_id, line_at(i), k_font_sz));
+      content_w = std::max(content_w, r.measure_text(font_id, line_at(i), k_font_sz));
 
     r.draw(platform::DrawRect{
         .position = {.x = x - k_pad, .y = k_y - k_pad},
@@ -345,7 +348,7 @@ namespace corundum::debug {
     float y = k_y;
     for (std::size_t i = 0; i < k_line_count; ++i) {
       r.draw(platform::DrawText{
-          .font_id = render.font_id,
+          .font_id = font_id,
           .text = line_at(i),
           .position = {.x = x, .y = y},
           .char_size = k_font_sz,

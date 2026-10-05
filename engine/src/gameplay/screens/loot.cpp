@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/gameplay/screens/loot.hpp>
+#include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
@@ -15,6 +16,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -38,9 +40,10 @@ namespace corundum::gameplay::screens {
     void draw_pane(platform::Renderer &r, const ui::PanelStyle &style, const std::vector<std::string> &labels, float x,
                    float y, bool active, int cursor, float line_h) {
       constexpr std::string_view k_empty = "(empty)";
+      const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
       if (labels.empty()) {
         r.draw(platform::DrawText{
-            .font_id = style.font_id,
+            .font_id = font_id,
             .text = k_empty,
             .position = {.x = x, .y = y},
             .char_size = style.font_size_body,
@@ -53,7 +56,7 @@ namespace corundum::gameplay::screens {
           ui::draw_option(r, style, labels[i], {.x = x, .y = y}, std::cmp_equal(i, cursor));
         } else {
           r.draw(platform::DrawText{
-              .font_id = style.font_id,
+              .font_id = font_id,
               .text = labels[i],
               .position = {.x = x + ui::cursor_advance(r, style), .y = y},
               .char_size = style.font_size_body,
@@ -91,14 +94,15 @@ namespace corundum::gameplay::screens {
     const std::vector<std::string> player_labels = row_labels(player);
 
     const std::string footer = loot_footer(last_device);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
-    const float column_w = std::max(r.measure_text(style.font_id, container_name, style.font_size_speaker),
-                                    r.measure_text(style.font_id, k_loot_player_title, style.font_size_speaker));
-    float widest = std::max(column_w, r.measure_text(style.font_id, footer, style.font_size_body));
+    const float column_w = std::max(r.measure_text(font_id, container_name, style.font_size_speaker),
+                                    r.measure_text(font_id, k_loot_player_title, style.font_size_speaker));
+    float widest = std::max(column_w, r.measure_text(font_id, footer, style.font_size_body));
     for (const std::string &label : container_labels)
-      widest = std::max(widest, cursor_w + r.measure_text(style.font_id, label, style.font_size_body));
+      widest = std::max(widest, cursor_w + r.measure_text(font_id, label, style.font_size_body));
     for (const std::string &label : player_labels)
-      widest = std::max(widest, cursor_w + r.measure_text(style.font_id, label, style.font_size_body));
+      widest = std::max(widest, cursor_w + r.measure_text(font_id, label, style.font_size_body));
 
     const float panel_w = std::max(k_loot_min_w, (widest * 2.f) + k_loot_column_gap + (k_loot_pad * 2.f));
     const auto rows = std::max<std::size_t>({container_labels.size(), player_labels.size(), 1});
@@ -153,19 +157,20 @@ namespace corundum::gameplay::screens {
     const std::vector<std::string> player_labels = row_labels(player);
 
     const std::string footer = loot_footer(last_device);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
     ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 
     const bool container_active = state.pane == LootPane::Container;
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = container_name,
         .position = {.x = layout.container_pane.pos.x, .y = layout.panel_pos.y + k_loot_pad},
         .char_size = style.font_size_speaker,
         .colour = container_active ? style.selected : style.speaker,
     });
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = k_loot_player_title,
         .position = {.x = layout.player_pane.pos.x, .y = layout.panel_pos.y + k_loot_pad},
         .char_size = style.font_size_speaker,
@@ -178,12 +183,12 @@ namespace corundum::gameplay::screens {
               state.cursor, line_h);
 
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = footer,
         .position =
             {
                 .x = layout.panel_pos.x +
-                     ((layout.panel_size.x - r.measure_text(style.font_id, footer, style.font_size_body)) * 0.5f),
+                     ((layout.panel_size.x - r.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
                 .y = layout.panel_pos.y + layout.panel_size.y - k_loot_pad - line_h,
             },
         .char_size = style.font_size_body,

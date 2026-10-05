@@ -27,7 +27,6 @@ namespace {
 
   corundum::ui::PanelStyle make_style() {
     corundum::ui::PanelStyle style{};
-    style.font_id = 2;
     return style;
   }
 

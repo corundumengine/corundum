@@ -95,11 +95,8 @@ namespace corundum {
           return std::unexpected(characters_result.error());
         render::load_sprite_index(*engine_->renderer, engine_->render, engine_->characters);
 
-        const auto font_path = std::format("{}/{}", engine_->cfg.paths.font_dir, engine_->cfg.paths.game_font);
-        std::expected<uint32_t, std::string> font_result;
-        font_result = render::load_font(*engine_->renderer, engine_->render, font_path);
-        if (!font_result)
-          return std::unexpected(font_result.error());
+        if (auto result = render::load_fonts(*engine_->renderer, engine_->render, engine_->cfg.paths); !result)
+          return std::unexpected(std::move(result).error());
 
         std::expected<void, std::string> ui_result;
         ui_result = render::load_ui_assets(*engine_->renderer, engine_->render);

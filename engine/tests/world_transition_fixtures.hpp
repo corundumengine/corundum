@@ -10,6 +10,8 @@
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/update.hpp>
 
+#include "font_fixtures.hpp"
+
 #include <cstddef>
 #include <filesystem>
 #include <string>
@@ -26,7 +28,7 @@ namespace corundum::test {
     cfg.win_h = 240.f;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();
-    cfg.paths.game_font = "missing.ttf"; // NullRenderer ignores file existence
+    set_missing_fonts(cfg.paths);
     cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
     cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
     cfg.paths.portals_dir = (fixtures / "portals").string();

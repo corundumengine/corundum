@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/settings.hpp>
 
 #include <corundum/core/math/vec.hpp>
@@ -16,6 +17,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -197,19 +199,20 @@ namespace corundum::ui {
 
     const std::string_view general = settings_tab_label(SettingsTab::General);
     const std::string_view controls = settings_tab_label(SettingsTab::Controls);
-    const float general_w = r.measure_text(style.font_id, general, style.font_size_body);
-    const float controls_w = r.measure_text(style.font_id, controls, style.font_size_body);
+    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    const float general_w = r.measure_text(font_id, general, style.font_size_body);
+    const float controls_w = r.measure_text(font_id, controls, style.font_size_body);
 
-    float widest = std::max(r.measure_text(style.font_id, k_settings_title, style.font_size_speaker),
+    float widest = std::max(r.measure_text(font_id, k_settings_title, style.font_size_speaker),
                             general_w + k_settings_tab_gap + controls_w);
     for (int i = first_row; i < first_row + visible_rows; ++i) {
       const auto &[label, value] = rows[static_cast<std::size_t>(i)];
-      widest = std::max(widest, cursor_w + r.measure_text(style.font_id, label, style.font_size_body) +
-                                    k_settings_value_gap + r.measure_text(style.font_id, value, style.font_size_body));
+      widest = std::max(widest, cursor_w + r.measure_text(font_id, label, style.font_size_body) + k_settings_value_gap +
+                                    r.measure_text(font_id, value, style.font_size_body));
     }
 
     const std::string footer = settings_footer(last_device);
-    widest = std::max(widest, r.measure_text(style.font_id, footer, style.font_size_body));
+    widest = std::max(widest, r.measure_text(font_id, footer, style.font_size_body));
 
     const float panel_w = std::max(k_settings_min_w, widest + (k_settings_pad_x * 2.f));
     const float panel_h = (k_settings_pad_y * 2.f) + title_h + k_settings_title_gap + line_h + k_settings_title_gap +
@@ -254,10 +257,11 @@ namespace corundum::ui {
 
     panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 
-    const float title_w = r.measure_text(style.font_id, k_settings_title, style.font_size_speaker);
+    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    const float title_w = r.measure_text(font_id, k_settings_title, style.font_size_speaker);
     float y = layout.panel_pos.y + k_settings_pad_y;
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = k_settings_title,
         .position = {.x = layout.panel_pos.x + ((layout.panel_size.x - title_w) * 0.5f), .y = y},
         .char_size = style.font_size_speaker,
@@ -268,14 +272,14 @@ namespace corundum::ui {
     // Tab header: active tab in the speaker colour, inactive dimmed. The tab rects double as
     // mouse hit targets for switch-on-click (see update_settings).
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = settings_tab_label(SettingsTab::General),
         .position = layout.tabs[0].pos,
         .char_size = style.font_size_body,
         .colour = state.tab == SettingsTab::General ? style.speaker : style.choice,
     });
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = settings_tab_label(SettingsTab::Controls),
         .position = layout.tabs[1].pos,
         .char_size = style.font_size_body,
@@ -289,9 +293,9 @@ namespace corundum::ui {
       const auto &[label, value] = rows[static_cast<std::size_t>(i)];
       draw_option(r, style, label, {.x = layout.rows.row_pos.x, .y = y}, selected);
 
-      const float value_w = r.measure_text(style.font_id, value, style.font_size_body);
+      const float value_w = r.measure_text(font_id, value, style.font_size_body);
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = value,
           .position = {.x = layout.panel_pos.x + layout.panel_size.x - k_settings_pad_x - value_w, .y = y},
           .char_size = style.font_size_body,
@@ -304,12 +308,12 @@ namespace corundum::ui {
     if (first_row > 0 || first_row + visible_rows < row_count) {
       const std::string scroll = std::format("{}/{}", clamped_cursor + 1, row_count);
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = scroll,
           .position =
               {
                   .x = layout.panel_pos.x + layout.panel_size.x - k_settings_pad_x -
-                       r.measure_text(style.font_id, scroll, style.font_size_prompt),
+                       r.measure_text(font_id, scroll, style.font_size_prompt),
                   .y = layout.panel_pos.y + layout.panel_size.y - k_settings_pad_y - line_h,
               },
           .char_size = style.font_size_prompt,
@@ -319,7 +323,7 @@ namespace corundum::ui {
 
     const std::string footer = settings_footer(last_device);
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = footer,
         .position =
             {

@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "font_fixtures.hpp"
 #include "temp_dir.hpp"
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
@@ -30,7 +31,7 @@ namespace {
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();
-    cfg.paths.game_font = "missing.ttf"; // NullRenderer ignores file existence
+    corundum::test::set_missing_fonts(cfg.paths);
     cfg.paths.world_manifest_path.clear();
     cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
     cfg.paths.portals_dir = (fixtures / "portals").string();
@@ -48,7 +49,7 @@ namespace {
     cfg.win_h = 240.f;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();
-    cfg.paths.game_font = "missing.ttf";
+    corundum::test::set_missing_fonts(cfg.paths);
     cfg.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
     cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
     cfg.paths.portals_dir = (fixtures / "portals").string();

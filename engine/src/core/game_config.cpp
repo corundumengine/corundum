@@ -1,10 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <array>
 #include <cmath>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/window_mode.hpp>
+#include <corundum/ui/font_family.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -14,6 +17,7 @@
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace fs = std::filesystem;
@@ -330,6 +334,77 @@ namespace corundum::core {
       return {};
     }
 
+    std::expected<ui::FontFamilyPaths, std::string> parse_font_family(const json &fonts, std::string_view role,
+                                                                      const fs::path &path) {
+      const std::string prefix = std::format("fonts.{}", role);
+      if (!fonts.contains(role))
+        return std::unexpected(std::format("game.json '{}' is required: {}", prefix, path.string()));
+      const json &family = fonts.at(role);
+      if (!family.is_object())
+        return std::unexpected(std::format("game.json '{}' must be an object: {}", prefix, path.string()));
+
+      const auto read_style = [&](std::string_view style, bool required) -> std::expected<std::string, std::string> {
+        const std::string key = std::format("{}.{}", prefix, style);
+        if (!family.contains(style)) {
+          if (required)
+            return std::unexpected(std::format("game.json '{}' is required: {}", key, path.string()));
+          return std::string{};
+        }
+        std::string value;
+        try {
+          value = family.at(style).get<std::string>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json '{}' has wrong type: {}", key, path.string()));
+        }
+        if (value.empty())
+          return std::unexpected(std::format("game.json '{}' must not be empty: {}", key, path.string()));
+        return value;
+      };
+
+      ui::FontFamilyPaths out;
+      auto regular = read_style("regular", true);
+      if (!regular)
+        return std::unexpected(regular.error());
+      out.regular = std::move(*regular);
+
+      auto bold = read_style("bold", false);
+      if (!bold)
+        return std::unexpected(bold.error());
+      out.bold = std::move(*bold);
+
+      auto bold_italic = read_style("bold_italic", false);
+      if (!bold_italic)
+        return std::unexpected(bold_italic.error());
+      out.bold_italic = std::move(*bold_italic);
+
+      auto italic = read_style("italic", false);
+      if (!italic)
+        return std::unexpected(italic.error());
+      out.italic = std::move(*italic);
+      return out;
+    }
+
+    std::expected<void, std::string> parse_fonts(const json &j, GameConfig &cfg, const fs::path &path) {
+      if (!j.contains("fonts"))
+        return {};
+      const json &fonts = j.at("fonts");
+      if (!fonts.is_object())
+        return std::unexpected(std::format("game.json 'fonts' must be an object: {}", path.string()));
+
+      constexpr std::array k_roles{
+          std::pair{ui::FontRole::Dialogue, std::string_view{"dialogue"}},
+          std::pair{ui::FontRole::Quest, std::string_view{"quest"}},
+          std::pair{ui::FontRole::Ui, std::string_view{"ui"}},
+      };
+      for (const auto &[role, name] : k_roles) {
+        auto family = parse_font_family(fonts, name, path);
+        if (!family)
+          return std::unexpected(family.error());
+        cfg.paths.fonts[static_cast<std::size_t>(role)] = std::move(*family);
+      }
+      return {};
+    }
+
     std::expected<void, std::string> parse_resource_paths(const json &j, GameConfig &cfg, const fs::path &path) {
       {
         auto res = get_nonempty_string(j, "font_dir", cfg.paths.font_dir, path);
@@ -338,22 +413,9 @@ namespace corundum::core {
         cfg.paths.font_dir = std::move(*res);
       }
       {
-        auto res = get_nonempty_string(j, "game_font", cfg.paths.game_font, path);
+        auto res = parse_fonts(j, cfg, path);
         if (!res)
           return std::unexpected(res.error());
-        cfg.paths.game_font = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "ui_font", cfg.paths.ui_font, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.ui_font = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "icons_font", cfg.paths.icons_font, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.icons_font = std::move(*res);
       }
       {
         auto res = get_nonempty_string(j, "tilemap_path", cfg.paths.tilemap_path, path);

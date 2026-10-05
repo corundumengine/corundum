@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/toast.hpp>
 
 #include <corundum/core/math/vec.hpp>
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -57,13 +59,14 @@ namespace corundum::ui {
     const NinePatchBorder no_border{};
 
     // Oldest first, then downward, so the newest toast sits nearest the bottom edge.
+    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     float y = viewport.y - k_margin - total_h;
     for (const Toast &toast : toasts_) {
-      const float text_w = r.measure_text(style.font_id, toast.text, style.font_size_body);
+      const float text_w = r.measure_text(font_id, toast.text, style.font_size_body);
       const float row_w = text_w + (k_pad_x * 2.f);
       panel_chrome(r, style.bg, no_border, {.x = k_margin, .y = y}, {.x = row_w, .y = row_h});
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = toast.text,
           .position = {.x = k_margin + k_pad_x, .y = y + (k_pad_y * 0.5f)},
           .char_size = style.font_size_body,

@@ -8,11 +8,13 @@
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/dialog_layout.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
 
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 #include <utility>
 
@@ -79,8 +81,9 @@ namespace corundum::gameplay::screens {
                        viewport.y != ds.last_viewport.y || choices_changed;
 
     if (stale) {
+      const std::uint32_t font_id = skin.style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
       const auto measure = [&](std::string_view text) -> float {
-        return r.measure_text(skin.style.font_id, text, skin.style.font_size_body);
+        return r.measure_text(font_id, text, skin.style.font_size_body);
       };
 
       ds.layout = build_layout(conversation, skin.style, skin.border.tile_w, viewport, measure);
@@ -106,10 +109,11 @@ namespace corundum::gameplay::screens {
 
     ui::panel_chrome(r, skin.style.bg, skin.border, lay.panel_pos, lay.panel_size);
 
+    const std::uint32_t font_id = skin.style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     const auto draw_str = [&](std::string_view text, unsigned size, core::math::Colour col, float x, float y) {
       if (!text.empty())
         r.draw(platform::DrawText{
-            .font_id = skin.style.font_id,
+            .font_id = font_id,
             .text = text,
             .position = {.x = x, .y = y},
             .char_size = size,

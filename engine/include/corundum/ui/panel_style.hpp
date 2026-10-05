@@ -3,15 +3,19 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
-#include <cstdint>
+
+#include <array>
+#include <cstddef>
 
 namespace corundum::ui {
 
   /// Visual configuration shared by every screen panel, prompt, toast and menu. Pure data — no
   /// behaviour. Owned by RenderState so a single settings change restyles every panel at once.
   struct PanelStyle {
-    uint32_t font_id{0};
+    /** @brief Per-role font families, indexed by FontRole. */
+    std::array<FontFamily, k_font_role_count> fonts{};
 
     unsigned font_size_speaker{26};
 
@@ -34,6 +38,11 @@ namespace corundum::ui {
     core::math::Colour choice{.r = 200, .g = 200, .b = 200, .a = 255};
 
     core::math::Colour selected{.r = 255, .g = 255, .b = 0, .a = 255};
+
+    /// @return The family for @p role.
+    [[nodiscard]] const FontFamily &family(FontRole role) const noexcept {
+      return fonts[static_cast<std::size_t>(role)];
+    }
   };
 
   /// The panel style plus the nine-patch border texture every panel frame draws with.

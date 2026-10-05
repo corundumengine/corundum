@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <cstddef>
 #include <doctest/doctest.h>
 
@@ -322,7 +323,8 @@ TEST_CASE("prompt_box_render: the option row is centered within the panel") {
   const DrawText &yes_cursor = std::get<DrawText>(r.log[10]);
   const DrawText &no_label = std::get<DrawText>(r.log[13]);
 
-  const float no_w = r.measure_text(style.font_id, "No", style.font_size_body);
+  const float no_w = r.measure_text(style.family(corundum::ui::FontRole::Ui).get(corundum::ui::FontStyle::Regular),
+                                    "No", style.font_size_body);
   const float row_left = yes_cursor.position.x;
   const float row_right = no_label.position.x + no_w;
   const float panel_center = panel.position.x + (panel.size.x * 0.5f);
@@ -369,7 +371,8 @@ TEST_CASE("prompt_box_render: panel respects the minimum width and grows for a l
     RecordingRenderer r;
     const std::string_view long_question = "A considerably longer question?";
     corundum::ui::prompt_box_render(r, style, border, long_question, true, viewport);
-    const float q_w = r.measure_text(style.font_id, long_question, style.font_size_body);
+    const float q_w = r.measure_text(style.family(corundum::ui::FontRole::Ui).get(corundum::ui::FontStyle::Regular),
+                                     long_question, style.font_size_body);
     CHECK(std::get<DrawRect>(r.log[0]).size.x == q_w + 64.f); // content + 2 × k_pad_x
   }
 }

@@ -5,6 +5,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -282,7 +283,14 @@ namespace corundum::render {
     corundum::world::tilemap::WalkabilityGraph agg_walkability{};
     ChunkWindow chunks{};
     corundum::ui::PanelSkin panel_skin{};
-    uint32_t font_id{0};
+    /// Per-role font families, indexed by ui::FontRole; loaded by load_fonts().
+    std::array<corundum::ui::FontFamily, corundum::ui::k_font_role_count> fonts{};
+
+    /// @return The family for @p role.
+    [[nodiscard]] const corundum::ui::FontFamily &family(corundum::ui::FontRole role) const noexcept {
+      return fonts[static_cast<std::size_t>(role)];
+    }
+
     corundum::world::tilemap::WorldManifest manifest{};
     MapData map_data{};
     /// Built once when a single map loads (load_map()); single-map mode only, same
@@ -298,7 +306,6 @@ namespace corundum::render {
     /// Dialogue text-reveal multiplier applied to k_base_reveal_chars_per_second; 0 = instant.
     /// Set from UserSettings::text_speed.
     float text_speed{1.f};
-
     std::vector<int> above_z_cache;
     std::vector<DepthEntry> draw_list;
     /** @brief Indices into draw_list, sorted by depth each frame. Reused across frames

@@ -3,6 +3,7 @@
 
 #include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
+#include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/input/actions.hpp>
@@ -15,6 +16,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 
 namespace corundum::gameplay::screens {
@@ -49,8 +51,9 @@ namespace corundum::gameplay::screens {
 
     std::array<float, k_hub_tab_modes.size()> widths{};
     float total = 0.f;
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     for (std::size_t i = 0; i < k_hub_tab_modes.size(); ++i) {
-      widths[i] = r.measure_text(style.font_id, hub_tab_label(k_hub_tab_modes[i]), style.font_size_body);
+      widths[i] = r.measure_text(font_id, hub_tab_label(k_hub_tab_modes[i]), style.font_size_body);
       total += widths[i];
     }
     total += k_tab_gap * static_cast<float>(k_hub_tab_modes.size() - 1);
@@ -77,12 +80,13 @@ namespace corundum::gameplay::screens {
   void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
                             core::math::Vec2 viewport, input::InputDevice last_device) {
     const HubTabStrip strip = hub_tab_strip(r, style, viewport);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     const std::string_view prev = ui::input_glyph(input::Action::TabPrev, last_device);
     const std::string_view next = ui::input_glyph(input::Action::TabNext, last_device);
 
-    const float prev_w = r.measure_text(style.font_id, prev, style.font_size_prompt);
+    const float prev_w = r.measure_text(font_id, prev, style.font_size_prompt);
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = prev,
         .position = {.x = strip.tabs.front().pos.x - k_glyph_gap - prev_w, .y = strip.y},
         .char_size = style.font_size_prompt,
@@ -91,7 +95,7 @@ namespace corundum::gameplay::screens {
 
     for (std::size_t i = 0; i < k_hub_tab_modes.size(); ++i) {
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = hub_tab_label(k_hub_tab_modes[i]),
           .position = strip.tabs[i].pos,
           .char_size = style.font_size_body,
@@ -101,7 +105,7 @@ namespace corundum::gameplay::screens {
 
     const HubTabRect &last = strip.tabs.back();
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = next,
         .position = {.x = last.pos.x + last.width + k_glyph_gap, .y = strip.y},
         .char_size = style.font_size_prompt,

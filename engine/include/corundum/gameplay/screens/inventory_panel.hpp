@@ -88,7 +88,7 @@ namespace corundum::gameplay::screens {
    * is responsible for only invoking this while the inventory mode is active.
    *
    * @param r        Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
-   * @param style    Dialog text style (font id/sizes/colours); reused so the panel matches dialogue.
+   * @param style    Dialog text style (font, size, colour); reused so the panel matches dialogue.
    * @param border   Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
    * @param lines    Inventory rows to display.
    * @param cursor   Highlighted row index into @p lines; clamped into [0, lines.size()) locally.

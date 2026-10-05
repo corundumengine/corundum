@@ -5,10 +5,12 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/choice_cursor.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string_view>
 
@@ -44,7 +46,7 @@ namespace corundum::ui {
   }
 
   float cursor_advance(const platform::Renderer &r, const PanelStyle &style) {
-    return r.measure_text(style.font_id, k_choice_cursor, style.font_size_body);
+    return r.measure_text(style.family(FontRole::Ui).get(FontStyle::Regular), k_choice_cursor, style.font_size_body);
   }
 
   void panel_fill(platform::Renderer &r, core::math::Colour bg, core::math::Vec2 pos, core::math::Vec2 size) {
@@ -66,18 +68,19 @@ namespace corundum::ui {
     // The advance is always cursor_advance (measured against k_choice_cursor) so the label
     // column lines up whether or not the option is selected or draws its cursor.
     const float cursor_w = cursor_advance(r, style);
+    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     const std::string_view cursor = (selected && show_cursor) ? k_choice_cursor : k_cursor_unselected;
     const core::math::Colour col = selected ? style.selected : style.choice;
 
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = cursor,
         .position = pos,
         .char_size = style.font_size_body,
         .colour = col,
     });
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = label,
         .position = {.x = pos.x + cursor_w, .y = pos.y},
         .char_size = style.font_size_body,

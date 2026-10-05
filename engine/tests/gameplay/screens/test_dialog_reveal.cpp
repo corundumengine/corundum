@@ -59,7 +59,6 @@ TEST_CASE("dialog reveal: a zero rate draws the full body immediately") {
 
   corundum::gameplay::screens::DialogBoxState box{};
   corundum::ui::PanelSkin skin{};
-  skin.style.font_id = 2;
   const float text_speed = 0.f;
 
   corundum::test::RecordingRenderer r;
@@ -76,7 +75,6 @@ TEST_CASE("dialog reveal: advance reveals a codepoint prefix of the body") {
 
   corundum::gameplay::screens::DialogBoxState box{};
   corundum::ui::PanelSkin skin{};
-  skin.style.font_id = 2;
   const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
   corundum::test::RecordingRenderer r;
@@ -99,7 +97,6 @@ TEST_CASE("dialog reveal: switching node resets the reveal") {
 
   corundum::gameplay::screens::DialogBoxState box{};
   corundum::ui::PanelSkin skin{};
-  skin.style.font_id = 2;
   const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
   corundum::test::RecordingRenderer r;

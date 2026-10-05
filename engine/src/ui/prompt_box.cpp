@@ -3,6 +3,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/prompt_box.hpp>
@@ -10,6 +11,7 @@
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <string_view>
 
 namespace corundum::ui {
@@ -24,9 +26,10 @@ namespace corundum::ui {
     constexpr std::string_view k_yes = "Yes";
     constexpr std::string_view k_no = "No";
 
-    const float q_w = r.measure_text(style.font_id, question, style.font_size_body);
-    const float yes_w = r.measure_text(style.font_id, k_yes, style.font_size_body);
-    const float no_w = r.measure_text(style.font_id, k_no, style.font_size_body);
+    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    const float q_w = r.measure_text(font_id, question, style.font_size_body);
+    const float yes_w = r.measure_text(font_id, k_yes, style.font_size_body);
+    const float no_w = r.measure_text(font_id, k_no, style.font_size_body);
     // draw_option always advances its label past the cursor column, selected or not, so
     // each column is cursor + label.
     const float cursor_w = cursor_advance(r, style);
@@ -47,7 +50,7 @@ namespace corundum::ui {
     const float q_x = panel_x + ((panel_w - q_w) * 0.5f);
     const float q_y = panel_y + k_pad_y;
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = question,
         .position = {.x = q_x, .y = q_y},
         .char_size = style.font_size_body,

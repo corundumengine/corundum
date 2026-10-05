@@ -6,6 +6,7 @@
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
@@ -15,6 +16,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -65,9 +67,8 @@ namespace corundum::gameplay::screens {
       if (description.empty())
         return {};
       constexpr float k_max_description_width = 360.f;
-      const auto measure = [&](std::string_view text) {
-        return r.measure_text(style.font_id, text, style.font_size_body);
-      };
+      const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      const auto measure = [&](std::string_view text) { return r.measure_text(font_id, text, style.font_size_body); };
       return ui::wrap_text(description, k_max_description_width, measure);
     }
 
@@ -76,7 +77,7 @@ namespace corundum::gameplay::screens {
                           const std::vector<std::string> &description_lines, float x, float y, float line_height) {
       for (const std::string &line : description_lines) {
         r.draw(platform::DrawText{
-            .font_id = style.font_id,
+            .font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular),
             .text = line,
             .position = {.x = x, .y = y},
             .char_size = style.font_size_body,
@@ -129,9 +130,10 @@ namespace corundum::gameplay::screens {
       geometry.body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
       geometry.header_line_h = std::max(geometry.body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
       const float cursor_w = ui::cursor_advance(r, style);
-      const float title_w = r.measure_text(style.font_id, k_panel_header, style.font_size_speaker);
+      const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      const float title_w = r.measure_text(font_id, k_panel_header, style.font_size_speaker);
       const auto measure_body = [&](std::string_view text) {
-        return r.measure_text(style.font_id, text, style.font_size_body);
+        return r.measure_text(font_id, text, style.font_size_body);
       };
 
       std::vector<Group> groups;
@@ -141,8 +143,7 @@ namespace corundum::gameplay::screens {
           groups.push_back(Group{.category = line.category, .first = geometry.labels.size()});
         ++groups.back().count;
         geometry.labels.push_back(std::format("{}  x{}", line.name, line.count));
-        widest_body_w =
-            std::max(widest_body_w, r.measure_text(style.font_id, geometry.labels.back(), style.font_size_body));
+        widest_body_w = std::max(widest_body_w, r.measure_text(font_id, geometry.labels.back(), style.font_size_body));
       }
 
       geometry.has_non_misc =
@@ -154,11 +155,11 @@ namespace corundum::gameplay::screens {
         if (!show_group_header(group.category, geometry.has_non_misc))
           continue;
         ++header_count;
-        content_w = std::max(
-            content_w, r.measure_text(style.font_id, category_display_name(group.category), style.font_size_speaker));
+        content_w = std::max(content_w,
+                             r.measure_text(font_id, category_display_name(group.category), style.font_size_speaker));
       }
       if (lines.empty())
-        content_w = std::max(content_w, r.measure_text(style.font_id, k_empty_label, style.font_size_body));
+        content_w = std::max(content_w, r.measure_text(font_id, k_empty_label, style.font_size_body));
 
       geometry.clamped_cursor = lines.empty() ? -1 : std::clamp(cursor, 0, static_cast<int>(lines.size()) - 1);
       geometry.description_lines =
@@ -268,10 +269,11 @@ namespace corundum::gameplay::screens {
     ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                      {.x = geometry.panel_w, .y = geometry.panel_h});
 
-    const float title_w = r.measure_text(style.font_id, k_panel_header, style.font_size_speaker);
+    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const float title_w = r.measure_text(font_id, k_panel_header, style.font_size_speaker);
     const float header_x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f);
     r.draw(platform::DrawText{
-        .font_id = style.font_id,
+        .font_id = font_id,
         .text = k_panel_header,
         .position = {.x = header_x, .y = geometry.title_y},
         .char_size = style.font_size_speaker,
@@ -279,10 +281,10 @@ namespace corundum::gameplay::screens {
     });
 
     if (lines.empty()) {
-      const float empty_w = r.measure_text(style.font_id, k_empty_label, style.font_size_body);
+      const float empty_w = r.measure_text(font_id, k_empty_label, style.font_size_body);
       const float empty_x = geometry.panel_x + ((geometry.panel_w - empty_w) * 0.5f);
       r.draw(platform::DrawText{
-          .font_id = style.font_id,
+          .font_id = font_id,
           .text = k_empty_label,
           .position = {.x = empty_x, .y = geometry.body_top},
           .char_size = style.font_size_body,
@@ -293,10 +295,10 @@ namespace corundum::gameplay::screens {
 
     for (const InventoryDrawRow &row : geometry.draw_rows) {
       if (row.header) {
-        const float label_w = r.measure_text(style.font_id, row.header_text, style.font_size_speaker);
+        const float label_w = r.measure_text(font_id, row.header_text, style.font_size_speaker);
         const float label_x = geometry.panel_x + ((geometry.panel_w - label_w) * 0.5f);
         r.draw(platform::DrawText{
-            .font_id = style.font_id,
+            .font_id = font_id,
             .text = row.header_text,
             .position = {.x = label_x, .y = row.y},
             .char_size = style.font_size_speaker,
