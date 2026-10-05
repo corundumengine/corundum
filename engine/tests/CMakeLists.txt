@@ -96,9 +96,11 @@ set(TEST_SOURCES
     ui/test_input_glyph.cpp
     ui/test_menu.cpp
     ui/test_settings.cpp
+    ui/test_styled_text.cpp
     ui/test_toast.cpp
     ui/test_ui_draw.cpp
     ui/test_word_wrap.cpp
+    ui/test_word_wrap_styled.cpp
 
     # world
     world/test_camera.cpp

@@ -52,6 +52,7 @@ set(ENGINE_SOURCES
     src/ui/nine_patch.cpp
     src/ui/prompt_box.cpp
     src/ui/settings.cpp
+    src/ui/styled_text.cpp
     src/ui/toast.cpp
     src/ui/ui_draw.cpp
     src/world/actors/actor_loader.cpp
