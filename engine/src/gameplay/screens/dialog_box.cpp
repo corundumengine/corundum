@@ -2,38 +2,111 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/math/vec.hpp>
-#include <corundum/core/utf8.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/dialog_layout.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/choice_cursor.hpp>
 #include <corundum/ui/font_family.hpp>
-
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/styled_text.hpp>
 #include <corundum/ui/ui_draw.hpp>
+#include <corundum/ui/word_wrap_styled.hpp>
 
 #include <cstddef>
-#include <cstdint>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace corundum::gameplay::screens {
 
   namespace {
 
-    /// The longest prefix of @p text that fits @p budget codepoints, and how many codepoints
-    /// that prefix consumed. Returns an empty prefix (and 0) when the budget is exhausted.
-    std::pair<std::string_view, int> reveal_prefix(std::string_view text, int budget) {
-      if (budget <= 0)
-        return {std::string_view{}, 0};
-      std::size_t offset = 0;
-      int count = 0;
-      while (offset < text.size() && count < budget) {
-        (void)corundum::core::decode_utf8(text, offset);
-        ++count;
+    /// Emits one DrawText in the Dialogue family's @p font_style. Empty text is skipped, so
+    /// callers never special-case an absent speaker or an empty line.
+    void draw_dialogue_text(platform::Renderer &r, const ui::PanelStyle &style, ui::FontStyle font_style,
+                            std::string_view text, unsigned size, core::math::Colour colour, float x, float y) {
+      if (text.empty())
+        return;
+      r.draw(platform::DrawText{
+          .font_id = style.family(ui::FontRole::Dialogue).get(font_style),
+          .text = text,
+          .position = {.x = x, .y = y},
+          .char_size = size,
+          .colour = colour,
+      });
+    }
+
+    /// Draws one wrapped segment, offset by its cumulative x within the line.
+    void draw_dialogue_segment(platform::Renderer &r, const ui::PanelStyle &style, const ui::StyledSegment &segment,
+                               unsigned size, core::math::Colour colour, float x, float y) {
+      draw_dialogue_text(r, style, segment.style, segment.text, size, colour, x + segment.x, y);
+    }
+
+    /// Draws every segment of a wrapped — possibly partially revealed — line, preserving each
+    /// run's style.
+    void draw_segments(platform::Renderer &r, const ui::PanelStyle &style,
+                       const std::vector<ui::StyledSegment> &segments, unsigned size, core::math::Colour colour,
+                       float x, float y) {
+      for (const ui::StyledSegment &segment : segments)
+        draw_dialogue_segment(r, style, segment, size, colour, x, y);
+    }
+
+    /// Draws the speaker header, the revealed body, and the continue prompt of a Talk node.
+    void render_talk_body(const DialogLayout &layout, const DialogBoxState &ds, platform::Renderer &r,
+                          const ui::PanelStyle &style) {
+      const float x = layout.panel_pos.x + layout.inset;
+      draw_dialogue_text(r, style, ui::FontStyle::Bold, layout.speaker, style.font_size_speaker, style.speaker, x,
+                         layout.panel_pos.y + layout.inset);
+
+      float y = layout.panel_pos.y + layout.inset + style.line_spacing;
+      int remaining = static_cast<int>(ds.reveal_chars);
+      for (const ui::StyledLine &line : layout.body_lines) {
+        if (line.segments.empty()) {
+          y += style.line_spacing;
+          continue;
+        }
+        if (ds.reveal_active) {
+          const auto [revealed, consumed] = ui::reveal_prefix_styled(line.segments, remaining);
+          remaining -= consumed;
+          draw_segments(r, style, revealed, style.font_size_body, style.body, x, y);
+        } else {
+          draw_segments(r, style, line.segments, style.font_size_body, style.body, x, y);
+        }
+        y += style.line_spacing;
       }
-      return {text.substr(0, offset), count};
+
+      // The prompt is dialogue chrome, so it uses the Dialogue family like the body.
+      draw_dialogue_text(r, style, ui::FontStyle::Regular, "[Select] Continue   [Cancel] Close", style.font_size_prompt,
+                         style.choice, x, y + (style.line_spacing / 2.f));
+    }
+
+    /// Draws each visible choice, one StyledLine at a time, keeping the selected colour on
+    /// continuation lines while only the first shows the cursor.
+    void render_choices(const DialogLayout &layout, platform::Renderer &r, const ui::PanelStyle &style) {
+      const float x = layout.panel_pos.x + layout.inset;
+      const std::string_view header = layout.speaker.empty() ? std::string_view{"Choose:"} : layout.speaker;
+      draw_dialogue_text(r, style, ui::FontStyle::Bold, header, style.font_size_speaker, style.speaker, x,
+                         layout.panel_pos.y + layout.inset);
+
+      // The cursor column must match the width build_layout reserved while wrapping, so it is
+      // measured from the same Dialogue regular font rather than the UI role.
+      const float advance = r.measure_text(style.family(ui::FontRole::Dialogue).get(ui::FontStyle::Regular),
+                                           ui::k_choice_cursor, style.font_size_body);
+
+      float y = layout.panel_pos.y + layout.inset + style.line_spacing;
+      for (std::size_t i = 0; i < layout.choices.size(); ++i) {
+        const bool is_selected = std::cmp_equal(i, layout.selected_choice);
+        const core::math::Colour colour = is_selected ? style.selected : style.choice;
+        const std::vector<ui::StyledLine> &lines = layout.choices[i].lines;
+        for (std::size_t line = 0; line < lines.size(); ++line) {
+          const std::string_view cursor = (is_selected && line == 0) ? ui::k_choice_cursor : ui::k_cursor_unselected;
+          draw_dialogue_text(r, style, ui::FontStyle::Regular, cursor, style.font_size_body, colour, x, y);
+          draw_segments(r, style, lines[line].segments, style.font_size_body, colour, x + advance, y);
+          y += style.line_spacing;
+        }
+      }
     }
 
   } // namespace
@@ -81,9 +154,9 @@ namespace corundum::gameplay::screens {
                        viewport.y != ds.last_viewport.y || choices_changed;
 
     if (stale) {
-      const std::uint32_t font_id = skin.style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-      const auto measure = [&](std::string_view text) -> float {
-        return r.measure_text(font_id, text, skin.style.font_size_body);
+      const ui::FontFamily &fonts = skin.style.family(ui::FontRole::Dialogue);
+      const auto measure = [&](std::string_view text, ui::FontStyle style) -> float {
+        return r.measure_text(fonts.get(style), text, skin.style.font_size_body);
       };
 
       ds.layout = build_layout(conversation, skin.style, skin.border.tile_w, viewport, measure);
@@ -101,66 +174,19 @@ namespace corundum::gameplay::screens {
     if (!ds.visible || !ds.layout)
       return;
 
-    const DialogLayout &lay = *ds.layout;
-    const float px = lay.panel_pos.x;
-    const float py = lay.panel_pos.y;
-    const float inset = lay.inset;
-    const float spacing = skin.style.line_spacing;
+    const DialogLayout &layout = *ds.layout;
+    ui::panel_chrome(r, skin.style.bg, skin.border, layout.panel_pos, layout.panel_size);
 
-    ui::panel_chrome(r, skin.style.bg, skin.border, lay.panel_pos, lay.panel_size);
-
-    const std::uint32_t font_id = skin.style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-    const auto draw_str = [&](std::string_view text, unsigned size, core::math::Colour col, float x, float y) {
-      if (!text.empty())
-        r.draw(platform::DrawText{
-            .font_id = font_id,
-            .text = text,
-            .position = {.x = x, .y = y},
-            .char_size = size,
-            .colour = col,
-        });
-    };
-
-    switch (lay.node_type) {
-      case gameplay::dialogue::NodeType::Talk: {
-        draw_str(lay.speaker, skin.style.font_size_speaker, skin.style.speaker, px + inset, py + inset);
-        float y = py + inset + spacing;
-        int remaining = static_cast<int>(ds.reveal_chars);
-        for (const auto &line : lay.body_lines) {
-          if (line.empty()) {
-            y += spacing;
-            continue;
-          }
-          if (ds.reveal_active) {
-            const auto [prefix, consumed] = reveal_prefix(line, remaining);
-            remaining -= consumed;
-            draw_str(prefix, skin.style.font_size_body, skin.style.body, px + inset, y);
-          } else {
-            draw_str(line, skin.style.font_size_body, skin.style.body, px + inset, y);
-          }
-          y += spacing;
-        }
-        draw_str("[Select] Continue   [Cancel] Close", skin.style.font_size_prompt, skin.style.choice, px + inset,
-                 y + (spacing / 2.f));
+    switch (layout.node_type) {
+      case gameplay::dialogue::NodeType::Talk:
+        render_talk_body(layout, ds, r, skin.style);
         break;
-      }
-      case gameplay::dialogue::NodeType::Choice: {
-        const std::string_view header = lay.speaker.empty() ? std::string_view{"Choose:"} : lay.speaker;
-        draw_str(header, skin.style.font_size_speaker, skin.style.speaker, px + inset, py + inset);
-        float y = py + inset + spacing;
-        for (std::size_t i = 0; i < lay.choices.size(); ++i) {
-          const bool is_sel = std::cmp_equal(i, lay.selected_choice);
-          for (std::size_t line = 0; line < lay.choices[i].lines.size(); ++line) {
-            // Every line keeps the selected colour; only the first carries the cursor, so
-            // continuation lines are drawn as cursorless with the same hanging indent.
-            ui::draw_option(r, skin.style, lay.choices[i].lines[line], {.x = px + inset, .y = y}, is_sel, line == 0);
-            y += spacing;
-          }
-        }
+      case gameplay::dialogue::NodeType::Choice:
+        render_choices(layout, r, skin.style);
         break;
-      }
       case gameplay::dialogue::NodeType::End:
-        draw_str("[Select] Close", skin.style.font_size_body, skin.style.choice, px + inset, py + inset);
+        draw_dialogue_text(r, skin.style, ui::FontStyle::Regular, "[Select] Close", skin.style.font_size_body,
+                           skin.style.choice, layout.panel_pos.x + layout.inset, layout.panel_pos.y + layout.inset);
         break;
       case gameplay::dialogue::NodeType::Event:
         break;

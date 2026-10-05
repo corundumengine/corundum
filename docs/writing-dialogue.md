@@ -143,6 +143,35 @@ Closes the dialogue. You can also just write `"end"` as the value of any `next` 
 
 ---
 
+## Emphasizing text
+
+Talk `text` and choice `label` strings accept an inline markdown-lite markup, so a line can mix regular, bold and italic type. The same rules will apply to localized string tables when they arrive.
+
+| Markup | Result |
+|---|---|
+| `*italic*` | *italic* |
+| `**bold**` | **bold** |
+| `***bold italic***` | ***bold italic*** |
+| `\*` | a literal asterisk |
+| `\\` | a literal backslash |
+
+The opening and closing delimiters must match: `*` closes `*`, `**` closes `**`, `***` closes `***`. Only those three combinations exist, and they do not nest. A delimiter with no matching close is shown as literal text rather than swallowing the rest of the line.
+
+A backslash escapes only `*` and `\`; before anything else it is a literal backslash, so `\n` is a backslash followed by an `n`, not a line break. Use a real newline (or `\n` in the JSON string) for a hard line break.
+
+```json
+{
+  "id": "n0",
+  "type": "talk",
+  "text": "You are *certain* the door was **locked**.",
+  "next": "n1"
+}
+```
+
+Each role picks its own font family (see `fonts` in `game.json`), and a family may supply separate bold and italic files. When a style file is missing, that style falls back to the closest one the family does have and a warning is logged at startup. Font sizes are role-independent: one `dialogue_render` size applies to every style, so bold text is not larger than regular.
+
+---
+
 ## Conditions
 
 A condition decides whether a choice edge is visible. Conditions are compiled once at load time and validated right away.

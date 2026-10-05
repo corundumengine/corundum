@@ -7,10 +7,11 @@
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/ui/choice_cursor.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
-#include <corundum/ui/word_wrap.hpp>
+#include <corundum/ui/styled_text.hpp>
+#include <corundum/ui/word_wrap_styled.hpp>
 #include <cstddef>
-#include <string>
 #include <string_view>
 #include <vector>
 
@@ -21,7 +22,7 @@ namespace corundum::gameplay::screens {
   struct ChoiceLayout {
     std::size_t index{0};
 
-    std::vector<std::string> lines{};
+    std::vector<ui::StyledLine> lines{};
   };
 
   /// Computed layout for one dialogue frame. Pure data — no renderer dependency.
@@ -38,7 +39,7 @@ namespace corundum::gameplay::screens {
 
     std::string_view speaker{};
 
-    std::vector<std::string> body_lines{};
+    std::vector<ui::StyledLine> body_lines{};
 
     std::vector<ChoiceLayout> choices{};
 
@@ -74,7 +75,7 @@ namespace corundum::gameplay::screens {
   /// @param style         Panel style; its margin and panel_height_frac drive the frame.
   /// @param border_tile_w Tile width of the nine-patch border (determines inset).
   /// @param viewport      Viewport dimensions in pixels.
-  /// @param measure       Callable (std::string_view) -> float returning rendered width.
+  /// @param measure       Callable (std::string_view, ui::FontStyle) -> float returning rendered width.
   template <typename MeasureFn>
   [[nodiscard]] DialogLayout build_layout(const gameplay::dialogue::Conversation &conversation,
                                           const ui::PanelStyle &style, int border_tile_w, core::math::Vec2 viewport,
@@ -100,18 +101,18 @@ namespace corundum::gameplay::screens {
 
     const float text_w = std::max(0.f, panel_w - (inset * 2.f));
     if (type == gameplay::dialogue::NodeType::Talk) {
-      layout.body_lines = ui::wrap_text(conversation.current_text(), text_w, measure);
+      layout.body_lines = ui::wrap_styled(ui::parse_styled(conversation.current_text()), text_w, measure);
     } else if (type == gameplay::dialogue::NodeType::Choice) {
       // The cursor column lives inside the text width; measuring it keeps the wrap budget
       // equal to the label's actual drawable width.
-      const float choice_w = std::max(0.f, text_w - measure(ui::k_choice_cursor));
+      const float choice_w = std::max(0.f, text_w - measure(ui::k_choice_cursor, ui::FontStyle::Regular));
       const std::vector<std::size_t> indices = conversation.visible_choice_indices();
       layout.choices.reserve(indices.size());
       for (const std::size_t index : indices) {
-        std::vector<std::string> lines = ui::wrap_text(conversation.choice_label(index), choice_w, measure);
-        if (lines.empty())
-          lines.emplace_back();
-        layout.choices.push_back(ChoiceLayout{.index = index, .lines = std::move(lines)});
+        layout.choices.push_back(ChoiceLayout{
+            .index = index,
+            .lines = ui::wrap_styled(ui::parse_styled(conversation.choice_label(index)), choice_w, measure),
+        });
       }
     }
 

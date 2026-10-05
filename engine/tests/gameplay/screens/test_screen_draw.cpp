@@ -19,8 +19,11 @@
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/styled_text.hpp>
+#include <corundum/ui/word_wrap_styled.hpp>
 
 #include "ui/recording_renderer.hpp"
 
@@ -40,6 +43,28 @@ using corundum::test::RecordingRenderer;
 // ── dialog_box_update ─────────────────────────────────────────────────────────
 
 namespace {
+
+  // Flattens a styled line back to plain text, so tests can assert on content regardless of
+  // how the markup parser split it into segments.
+  std::string styled_line_text(const corundum::ui::StyledLine &line) {
+    std::string result;
+    for (const corundum::ui::StyledSegment &segment : line.segments)
+      result += segment.text;
+    return result;
+  }
+
+  // Wraps one plain-text line as a single Regular segment, for tests that construct a layout
+  // by hand rather than through build_layout.
+  corundum::ui::StyledLine plain_line(std::string text) {
+    corundum::ui::StyledLine line;
+    if (!text.empty()) {
+      corundum::ui::StyledSegment segment;
+      segment.text = std::move(text);
+      line.width = static_cast<float>(segment.text.size()) * 8.f;
+      line.segments.push_back(std::move(segment));
+    }
+    return line;
+  }
 
   // Builds a Talk graph with the requested graph_id, speaker, and a node literally
   // named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
@@ -133,7 +158,8 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   CHECK(ds.layout->speaker == "Villager");
   REQUIRE_FALSE(ds.layout->body_lines.empty());
-  CHECK(ds.layout->body_lines.front() == "Did you see the harvest moon last night?");
+  CHECK(ds.layout->body_lines.front().segments.size() == 1);
+  CHECK(styled_line_text(ds.layout->body_lines.front()) == "Did you see the harvest moon last night?");
   // NOLINTEND(bugprone-unchecked-optional-access)
 }
 
@@ -198,8 +224,8 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   REQUIRE(ds.layout->choices.size() == 2);
   REQUIRE(ds.layout->choices[0].lines.size() == 1);
   REQUIRE(ds.layout->choices[1].lines.size() == 1);
-  CHECK(ds.layout->choices[0].lines.front() == "Always.");
-  CHECK(ds.layout->choices[1].lines.front() == "Secret.");
+  CHECK(styled_line_text(ds.layout->choices[0].lines.front()) == "Always.");
+  CHECK(styled_line_text(ds.layout->choices[1].lines.front()) == "Secret.");
   // NOLINTEND(bugprone-unchecked-optional-access)
 }
 
@@ -251,7 +277,7 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   REQUIRE(ds.layout->choices.size() == 1);
-  CHECK(ds.layout->choices[0].lines.front() == "Always.");
+  CHECK(styled_line_text(ds.layout->choices[0].lines.front()) == "Always.");
   // NOLINTEND(bugprone-unchecked-optional-access)
 
   // Quest progress unlocks the gated option while the node stays the same.
@@ -261,7 +287,7 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   REQUIRE(ds.layout->choices.size() == 2);
-  CHECK(ds.layout->choices[1].lines.front() == "Secret.");
+  CHECK(styled_line_text(ds.layout->choices[1].lines.front()) == "Secret.");
   // NOLINTEND(bugprone-unchecked-optional-access)
 }
 
@@ -288,21 +314,57 @@ TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped
   corundum::ui::PanelStyle style{};
   style.margin = 20.f;
   style.panel_height_frac = 0.32f;
-  const corundum::gameplay::screens::DialogLayout layout =
-      corundum::gameplay::screens::build_layout(conversation, style, 4, {.x = 200.f, .y = 720.f},
-                                                [&](std::string_view text) { return r.measure_text(0, text, 22); });
+  const corundum::gameplay::screens::DialogLayout layout = corundum::gameplay::screens::build_layout(
+      conversation, style, 4, {.x = 200.f, .y = 720.f},
+      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(0, text, 22); });
 
   REQUIRE(layout.choices.size() == 1);
   REQUIRE(layout.choices[0].lines.size() > 1);
 
   // Re-joining the wrapped lines recovers every word of the label.
   std::string joined;
-  for (const std::string &line : layout.choices[0].lines) {
+  for (const corundum::ui::StyledLine &line : layout.choices[0].lines) {
     if (!joined.empty())
       joined += ' ';
-    joined += line;
+    joined += styled_line_text(line);
   }
   CHECK(joined == "Alpha Beta Gamma Delta");
+}
+
+// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+// test's logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_CASE("build_layout: choice label markup yields styled segments") {
+  using namespace corundum::gameplay::dialogue;
+
+  Graph graph;
+  graph.graph_id = "styled_choice";
+  Node node;
+  node.id = "n0";
+  node.type = NodeType::Choice;
+  node.choices = {{.label = "a *b*", .target_id = "end"}};
+  graph.id_to_index[node.id] = 0;
+  graph.nodes.push_back(std::move(node));
+
+  corundum::world::FlagStore flags;
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
+
+  RecordingRenderer r;
+  corundum::ui::PanelStyle style{};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] =
+      corundum::ui::FontFamily{.ids = {10u, 11u, 12u, 13u}};
+  const corundum::gameplay::screens::DialogLayout layout = corundum::gameplay::screens::build_layout(
+      conversation, style, 4, {.x = 1280.f, .y = 720.f},
+      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(0, text, 22); });
+
+  REQUIRE(layout.choices.size() == 1);
+  REQUIRE(layout.choices[0].lines.size() == 1);
+  const std::vector<corundum::ui::StyledSegment> &segments = layout.choices[0].lines[0].segments;
+  REQUIRE(segments.size() == 2);
+  CHECK(segments[0].text == "a ");
+  CHECK(segments[0].style == corundum::ui::FontStyle::Regular);
+  CHECK(segments[1].text == "b");
+  CHECK(segments[1].style == corundum::ui::FontStyle::Italic);
 }
 
 TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colour and hanging indent") {
@@ -320,8 +382,11 @@ TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colou
   layout.inset = 10.f;
   layout.node_type = corundum::gameplay::dialogue::NodeType::Choice;
   layout.choices = {
-      corundum::gameplay::screens::ChoiceLayout{.index = 0, .lines = {"first line", "second line"}},
-      corundum::gameplay::screens::ChoiceLayout{.index = 1, .lines = {"other"}},
+      corundum::gameplay::screens::ChoiceLayout{
+          .index = 0,
+          .lines = {plain_line("first line"), plain_line("second line")},
+      },
+      corundum::gameplay::screens::ChoiceLayout{.index = 1, .lines = {plain_line("other")}},
   };
   ds.layout = std::move(layout);
 
