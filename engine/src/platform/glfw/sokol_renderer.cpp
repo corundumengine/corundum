@@ -726,8 +726,11 @@ namespace corundum::platform::glfw {
         const float u1 = static_cast<float>(g->atlas_x + g->width) / atlas_w;
         const float v1 = static_cast<float>(g->atlas_y + g->height) / atlas_h;
 
-        emit_quad(batch_vertices_, gx * sx, gy * sy, gw * sx, gh * sy, u0, v0, u1, v1, colour.r, colour.g, colour.b,
-                  colour.a);
+        // Screen-space glyphs snap to whole device pixels so their 1:1 bitmap stays crisp; world-space
+        // text stays unsnapped, where rounding a zoom-scaled glyph makes it jitter as it moves.
+        const float qx = world_view_active_ ? gx * sx : std::round(gx * sx);
+        const float qy = world_view_active_ ? gy * sy : std::round(gy * sy);
+        emit_quad(batch_vertices_, qx, qy, gw * sx, gh * sy, u0, v0, u1, v1, colour.r, colour.g, colour.b, colour.a);
 
         add_to_batch(baked->view);
 

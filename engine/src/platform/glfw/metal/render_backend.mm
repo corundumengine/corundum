@@ -6,6 +6,8 @@
 
 #include "render_backend.hpp"
 
+#include "render_scale.hpp"
+
 #include <sokol_gfx.h>
 
 namespace corundum::platform::glfw::render_backend {
@@ -66,10 +68,10 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     desc.samplers[0].msl_sampler_n = 0;
   }
 
-  float render_scale(int /*fb_w*/, int /*fb_h*/, int /*win_w*/, int /*win_h*/) noexcept {
-    // The layer up-scales the drawable to the view, so the game renders one pixel per logical point
-    // and fill cost stays decoupled from a high-DPI panel's pixel count.
-    return 1.f;
+  float render_scale(int fb_w, int fb_h, int win_w, int win_h) noexcept {
+    // The layer would otherwise up-scale a point-sized drawable with nearest filtering, pixel-doubling
+    // text on Retina; render at the framebuffer size and let compute_render_resolution() clamp per axis.
+    return native_render_scale(fb_w, fb_h, win_w, win_h);
   }
 
 } // namespace corundum::platform::glfw::render_backend
