@@ -180,7 +180,7 @@ A backslash escapes only `*` and `\`; before anything else it is a literal backs
 }
 ```
 
-Quest and journal text draws in the Quest font family; see `fonts` in `game.json`. A family may supply separate bold and italic files, and a missing style falls back to the closest one the family does have with a warning logged at startup. Font sizes are role-independent, so bold text is not larger than regular.
+Quest and journal text draws in the Quest font family; see [Fonts](fonts.md). A family may supply separate bold and italic files, and a missing style falls back to the closest one the family does have with a warning logged at startup. Font sizes are role-independent, so bold text is not larger than regular.
 
 ---
 

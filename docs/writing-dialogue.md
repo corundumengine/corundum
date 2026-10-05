@@ -168,7 +168,7 @@ A backslash escapes only `*` and `\`; before anything else it is a literal backs
 }
 ```
 
-Each role picks its own font family (see `fonts` in `game.json`), and a family may supply separate bold and italic files. When a style file is missing, that style falls back to the closest one the family does have and a warning is logged at startup. Font sizes are role-independent: one `dialogue_render` size applies to every style, so bold text is not larger than regular.
+Each role picks its own font family (see [Fonts](fonts.md)), and a family may supply separate bold and italic files. When a style file is missing, that style falls back to the closest one the family does have and a warning is logged at startup. Font sizes are role-independent: one `dialogue_render` size applies to every style, so bold text is not larger than regular.
 
 ---
 

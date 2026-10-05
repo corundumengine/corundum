@@ -242,7 +242,7 @@ TEST_CASE("load_game_config — min_zoom == max_zoom is allowed") {
 TEST_CASE("load_game_config — absent fonts block leaves families unset") {
   const auto dir = temp_dir("absent_fonts");
   const auto p = dir / "game.json";
-  write_file(p, R"({"game_font": "Legacy.ttf"})");
+  write_file(p, "{}");
   const auto result = load_game_config(p);
   REQUIRE(result.has_value());
   CHECK(result->paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)].regular.empty());

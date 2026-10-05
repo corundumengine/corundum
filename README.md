@@ -48,6 +48,7 @@ Guides (work in progress; formats may change):
 - [Building tilemaps](docs/building-tilemaps.md)
 - [Writing dialogue](docs/writing-dialogue.md)
 - [Writing quests](docs/writing-quests.md)
+- [Fonts](docs/fonts.md)
 - [Saving](docs/saving.md)
 - [Controls](docs/controls.md)
 
