@@ -14,7 +14,7 @@
 #include <expected>
 #include <filesystem>
 #include <format>
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
 #include <print>
 #include <string>
 #include <unordered_set>

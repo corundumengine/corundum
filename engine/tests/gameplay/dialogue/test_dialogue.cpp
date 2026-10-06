@@ -23,6 +23,8 @@
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/world/flags.hpp>
+
+#include <nlohmann/json.hpp>
 #include <utility>
 #include <vector>
 

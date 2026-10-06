@@ -6,7 +6,7 @@
 
 #include "temp_dir.hpp"
 #include <corundum/sprites/sprite.hpp>
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
 
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/character_sheet_serializer.hpp>

@@ -3,7 +3,7 @@
 
 #pragma once
 #include <corundum/sprites/sprite_sheet_clips.hpp>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 namespace corundum::sprites {
 

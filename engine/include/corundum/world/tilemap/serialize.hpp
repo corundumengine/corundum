@@ -3,7 +3,7 @@
 
 #pragma once
 #include <corundum/world/tilemap/tilemap.hpp>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 namespace corundum::world::tilemap {
 

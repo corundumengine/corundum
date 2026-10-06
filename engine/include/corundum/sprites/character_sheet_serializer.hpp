@@ -3,7 +3,7 @@
 
 #pragma once
 #include <corundum/sprites/character_sheet_loader.hpp>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 namespace corundum::sprites {
 

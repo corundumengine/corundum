@@ -5,7 +5,7 @@
 
 #include <corundum/gameplay/item/item.hpp>
 
-#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <span>
 
 namespace corundum::gameplay::item {

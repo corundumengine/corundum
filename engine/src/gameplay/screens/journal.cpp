@@ -349,9 +349,9 @@ namespace corundum::gameplay::screens {
               .char_size = style.font_size_body,
               .colour = colour,
           });
-          ui::draw_styled(
-              r, quest_fonts, ui::parse_styled(row.text), style.font_size_body, colour,
-              {.x = mark_x + r.measure_text(quest_regular, mark, style.font_size_body), .y = geometry.body_top + row.y});
+          ui::draw_styled(r, quest_fonts, ui::parse_styled(row.text), style.font_size_body, colour,
+                          {.x = mark_x + r.measure_text(quest_regular, mark, style.font_size_body),
+                           .y = geometry.body_top + row.y});
           break;
         }
       }

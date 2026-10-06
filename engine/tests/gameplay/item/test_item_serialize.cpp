@@ -16,6 +16,7 @@
 #include <fstream>
 #include <ios>
 #include <iterator>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
 #include <vector>

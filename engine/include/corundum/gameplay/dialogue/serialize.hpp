@@ -4,7 +4,7 @@
 #pragma once
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 
-#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 namespace corundum::gameplay::dialogue {
 

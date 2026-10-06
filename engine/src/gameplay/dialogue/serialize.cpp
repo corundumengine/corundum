@@ -3,7 +3,7 @@
 
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/dialogue/serialize.hpp>
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
 #include <utility>
 
 namespace corundum::gameplay::dialogue {

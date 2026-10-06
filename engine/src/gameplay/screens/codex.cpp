@@ -271,8 +271,8 @@ namespace corundum::gameplay::screens {
     });
     body_y += geometry.header_h;
     for (int i = first_body; std::cmp_less(i, body_lines.size()) && i < first_body + visible_body; ++i) {
-      ui::draw_styled(r, quest_fonts, body_lines[static_cast<std::size_t>(i)].segments, style.font_size_body, style.body,
-                      {.x = geometry.body_x, .y = body_y});
+      ui::draw_styled(r, quest_fonts, body_lines[static_cast<std::size_t>(i)].segments, style.font_size_body,
+                      style.body, {.x = geometry.body_x, .y = body_y});
       body_y += geometry.line_h;
     }
   }

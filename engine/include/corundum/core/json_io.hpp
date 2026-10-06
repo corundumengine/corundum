@@ -4,7 +4,7 @@
 #pragma once
 #include <expected>
 #include <filesystem>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <string_view>
 
 namespace corundum::core {

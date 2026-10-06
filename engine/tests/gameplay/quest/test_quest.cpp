@@ -17,6 +17,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string_view>
 #include <utility>

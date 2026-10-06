@@ -4,7 +4,7 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/world/flags.hpp>
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/engine.hpp>
