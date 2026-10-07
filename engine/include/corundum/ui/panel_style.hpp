@@ -23,6 +23,12 @@ namespace corundum::ui {
 
     unsigned font_size_prompt{18};
 
+    /** @brief Size for static headings drawn in the display family. */
+    unsigned font_size_heading{48};
+
+    /** @brief Size for transient banners drawn in the display family. */
+    unsigned font_size_banner{64};
+
     float margin{20.f};
 
     float line_spacing{32.f};

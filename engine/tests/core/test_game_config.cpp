@@ -288,6 +288,76 @@ TEST_CASE("load_game_config — empty optional font file returns error") {
   CHECK(result.error().find("fonts.dialogue.bold") != std::string::npos);
 }
 
+TEST_CASE("load_game_config — display font role parses when present") {
+  const auto dir = temp_dir("display_font");
+  const auto p = dir / "game.json";
+  write_file(p, R"({
+    "fonts": {
+      "dialogue": {"regular": "d.ttf"},
+      "quest": {"regular": "q.ttf"},
+      "ui": {"regular": "u.ttf"},
+      "display": {"regular": "xReg.ttf", "bold": "xBold.ttf"}
+    }
+  })");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  const auto display = static_cast<std::size_t>(corundum::ui::FontRole::Display);
+  CHECK(result->paths.fonts[display].regular == "xReg.ttf");
+  CHECK(result->paths.fonts[display].bold == "xBold.ttf");
+  CHECK(result->paths.fonts[display].italic.empty());
+}
+
+TEST_CASE("load_game_config — absent display font resolves to the ui family") {
+  const auto dir = temp_dir("absent_display_font");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"fonts": {"dialogue": {"regular": "d.ttf"}, "quest": {"regular": "q.ttf"},
+    "ui": {"regular": "u.ttf", "italic": "u_italic.ttf"}}})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  const auto display = static_cast<std::size_t>(corundum::ui::FontRole::Display);
+  const auto ui = static_cast<std::size_t>(corundum::ui::FontRole::Ui);
+  CHECK(result->paths.fonts[display].regular == result->paths.fonts[ui].regular);
+  CHECK(result->paths.fonts[display].italic == result->paths.fonts[ui].italic);
+}
+
+TEST_CASE("load_game_config — empty display regular font returns error") {
+  const auto dir = temp_dir("empty_display_regular");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"fonts": {"dialogue": {"regular": "d.ttf"}, "quest": {"regular": "q.ttf"},
+    "ui": {"regular": "u.ttf"}, "display": {"regular": ""}}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("fonts.display.regular") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — display sizes default when the block is absent") {
+  const auto dir = temp_dir("display_sizes_default");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->display.heading_size == 48u);
+  CHECK(result->display.banner_size == 64u);
+}
+
+TEST_CASE("load_game_config — display sizes parse from the display block") {
+  const auto dir = temp_dir("display_sizes");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"display": {"heading_size": 36, "banner_size": 72}})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->display.heading_size == 36u);
+  CHECK(result->display.banner_size == 72u);
+}
+
+TEST_CASE("load_game_config — display not an object returns error") {
+  const auto dir = temp_dir("display_not_object");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"display": 42})");
+  const auto result = load_game_config(p);
+  CHECK(!result.has_value());
+}
+
 TEST_CASE("load_game_config — fonts not an object returns error") {
   const auto dir = temp_dir("fonts_not_object");
   const auto p = dir / "game.json";

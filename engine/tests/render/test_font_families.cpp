@@ -104,6 +104,45 @@ TEST_CASE("load_fonts resolves every style and falls back to regular") {
   CHECK(quest.get(FontStyle::BoldItalic) == 5u);
 
   CHECK(state.fonts[role_index(FontRole::Ui)].get(FontStyle::Regular) == 6u);
+
+  // Display was not configured; it resolves to the ui family.
+  CHECK(state.fonts[role_index(FontRole::Display)].get(FontStyle::Regular) == 6u);
+  CHECK(state.fonts[role_index(FontRole::Display)].get(FontStyle::Bold) == 6u);
+}
+
+TEST_CASE("load_fonts loads the display family and falls back its optional styles") {
+  corundum::core::ResourcePaths paths{};
+  paths.font_dir = "fonts";
+  paths.fonts[role_index(FontRole::Dialogue)] = FontFamilyPaths{.regular = "d.ttf"};
+  paths.fonts[role_index(FontRole::Quest)] = FontFamilyPaths{.regular = "q.ttf"};
+  paths.fonts[role_index(FontRole::Ui)] = FontFamilyPaths{.regular = "u.ttf"};
+  paths.fonts[role_index(FontRole::Display)] = FontFamilyPaths{.bold = "x_bold.ttf", .regular = "x.ttf"};
+
+  CountingRenderer r;
+  corundum::render::RenderState state;
+  REQUIRE(corundum::render::load_fonts(r, state, paths).has_value());
+
+  const auto &display = state.fonts[role_index(FontRole::Display)];
+  CHECK(display.get(FontStyle::Regular) == 4u);
+  CHECK(display.get(FontStyle::Bold) == 5u);
+  CHECK(display.get(FontStyle::Italic) == 4u);
+  CHECK(display.get(FontStyle::BoldItalic) == 5u);
+}
+
+TEST_CASE("configure_panel_style scales the display sizes independently of the body sizes") {
+  corundum::core::GameConfig cfg;
+  cfg.dialogue_render.font_size_body = 22;
+  cfg.display.heading_size = 48;
+  cfg.display.banner_size = 64;
+
+  corundum::render::RenderState state;
+  state.ui_scale = 2.f;
+  corundum::render::configure_panel_style(state, cfg);
+
+  const auto &style = state.panel_skin.style;
+  CHECK(style.font_size_body == 44u);
+  CHECK(style.font_size_heading == 96u);
+  CHECK(style.font_size_banner == 128u);
 }
 
 TEST_CASE("load_fonts falls back bold-italic to italic when bold is absent") {

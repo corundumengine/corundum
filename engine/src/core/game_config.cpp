@@ -402,6 +402,18 @@ namespace corundum::core {
           return std::unexpected(family.error());
         cfg.paths.fonts[static_cast<std::size_t>(role)] = std::move(*family);
       }
+
+      // The display family is optional; a game without one draws display text in the ui family.
+      const auto display_slot = static_cast<std::size_t>(ui::FontRole::Display);
+      if (!fonts.contains("display")) {
+        cfg.paths.fonts[display_slot] = cfg.paths.fonts[static_cast<std::size_t>(ui::FontRole::Ui)];
+        return {};
+      }
+
+      auto family = parse_font_family(fonts, "display", path);
+      if (!family)
+        return std::unexpected(family.error());
+      cfg.paths.fonts[display_slot] = std::move(*family);
       return {};
     }
 
@@ -525,6 +537,39 @@ namespace corundum::core {
       return flags;
     }
 
+    std::expected<DisplayRenderConfig, std::string> parse_display_render(const json &j, const fs::path &path) {
+      DisplayRenderConfig display;
+      if (!j.contains("display"))
+        return display;
+
+      const auto &sub = j.at("display");
+      if (!sub.is_object())
+        return std::unexpected(std::format("game.json 'display' must be an object: {}", path.string()));
+
+      const auto get_uint = [&](const std::string &key, unsigned default_val) -> std::expected<unsigned, std::string> {
+        if (!sub.contains(key))
+          return default_val;
+        unsigned v{0};
+        try {
+          v = sub.at(key).get<unsigned>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'display.{}' has wrong type: {}", key, path.string()));
+        }
+        return v;
+      };
+
+      auto heading = get_uint("heading_size", display.heading_size);
+      if (!heading)
+        return std::unexpected(heading.error());
+      display.heading_size = *heading;
+
+      auto banner = get_uint("banner_size", display.banner_size);
+      if (!banner)
+        return std::unexpected(banner.error());
+      display.banner_size = *banner;
+      return display;
+    }
+
   } // namespace
 
   std::expected<GameConfig, std::string> load_game_config(const fs::path &path) {
@@ -584,6 +629,13 @@ namespace corundum::core {
       if (!res)
         return std::unexpected(res.error());
       cfg.dialogue_render = *res;
+    }
+
+    {
+      auto res = parse_display_render(j, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.display = *res;
     }
 
     {

@@ -211,21 +211,18 @@ namespace corundum::render {
     }
   }
 
-  std::expected<void, std::string> load_fonts(corundum::platform::Renderer &r, render::RenderState &state,
-                                              const corundum::core::ResourcePaths &paths) {
-    const auto load_face = [&](const std::string &name) -> std::expected<std::uint32_t, std::string> {
-      return r.load_font(std::format("{}/{}", paths.font_dir, name));
-    };
+  namespace {
 
-    constexpr std::array k_roles{
-        std::pair{corundum::ui::FontRole::Dialogue, std::string_view{"dialogue"}},
-        std::pair{corundum::ui::FontRole::Quest, std::string_view{"quest"}},
-        std::pair{corundum::ui::FontRole::Ui, std::string_view{"ui"}},
-    };
-
-    for (const auto &[role, role_name] : k_roles) {
-      const auto &family_paths = paths.fonts[static_cast<std::size_t>(role)];
-      auto &family = state.fonts[static_cast<std::size_t>(role)];
+    /// Loads one family's regular face and resolves every optional style to the closest present
+    /// face. An absent or unloadable optional face logs a warning and falls back; only a failed
+    /// regular face is an error.
+    std::expected<void, std::string> load_font_family(corundum::platform::Renderer &r, const std::string &font_dir,
+                                                      std::string_view role_name,
+                                                      const corundum::ui::FontFamilyPaths &family_paths,
+                                                      corundum::ui::FontFamily &family) {
+      const auto load_face = [&](const std::string &name) -> std::expected<std::uint32_t, std::string> {
+        return r.load_font(std::format("{}/{}", font_dir, name));
+      };
 
       auto regular = load_face(family_paths.regular);
       if (!regular)
@@ -263,8 +260,35 @@ namespace corundum::render {
       if (resolved_bold_italic == 0)
         resolved_bold_italic = bold_italic_fallback != 0 ? bold_italic_fallback : regular_id;
       set_style(corundum::ui::FontStyle::BoldItalic, resolved_bold_italic);
+      return {};
     }
-    return {};
+
+  } // namespace
+
+  std::expected<void, std::string> load_fonts(corundum::platform::Renderer &r, render::RenderState &state,
+                                              const corundum::core::ResourcePaths &paths) {
+    const auto ui_slot = static_cast<std::size_t>(corundum::ui::FontRole::Ui);
+    const auto display_slot = static_cast<std::size_t>(corundum::ui::FontRole::Display);
+
+    constexpr std::array k_roles{
+        std::pair{corundum::ui::FontRole::Dialogue, std::string_view{"dialogue"}},
+        std::pair{corundum::ui::FontRole::Quest, std::string_view{"quest"}},
+        std::pair{corundum::ui::FontRole::Ui, std::string_view{"ui"}},
+    };
+
+    for (const auto &[role, role_name] : k_roles) {
+      const auto slot = static_cast<std::size_t>(role);
+      auto res = load_font_family(r, paths.font_dir, role_name, paths.fonts[slot], state.fonts[slot]);
+      if (!res)
+        return res;
+    }
+
+    // The display family is optional; without one, its text draws in the ui family.
+    if (paths.fonts[display_slot].regular.empty()) {
+      state.fonts[display_slot] = state.fonts[ui_slot];
+      return {};
+    }
+    return load_font_family(r, paths.font_dir, "display", paths.fonts[display_slot], state.fonts[display_slot]);
   }
 
   // ── load_ui_assets ───────────────────────────────────────────────────────────
@@ -469,6 +493,8 @@ namespace corundum::render {
         .font_size_speaker = scaled(dr.font_size_speaker),
         .font_size_body = scaled(dr.font_size_body),
         .font_size_prompt = scaled(dr.font_size_prompt),
+        .font_size_heading = scaled(cfg.display.heading_size),
+        .font_size_banner = scaled(cfg.display.banner_size),
         .margin = dr.margin * scale,
         .line_spacing = dr.line_spacing * scale,
         .panel_height_frac = dr.panel_height_frac,

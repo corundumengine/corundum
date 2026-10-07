@@ -36,6 +36,17 @@ namespace corundum::core {
     float panel_height_frac = 0.32f;
   };
 
+  /// Font sizes for the optional display role. Unlike every other role, whose text shares the
+  /// body sizes, display text is sized per kind: one size for static headings, a larger one for
+  /// transient banners. A game with no display family ignores both.
+  struct DisplayRenderConfig {
+    /** @brief Size of static headings (screen titles, the title screen's game name). */
+    unsigned heading_size{48};
+
+    /** @brief Size of transient banners (location, quest and level-up notices). */
+    unsigned banner_size{64};
+  };
+
   /// Contains all file paths required by the game engine and logic. Directory fields default to
   /// the standard project layout so a project following convention needs a near-empty game.json;
   /// only the per-game file names (the "fonts" families and tilemap_path) require explicit values.
@@ -50,7 +61,8 @@ namespace corundum::core {
     std::string font_dir{"assets/fonts"};
 
     /** @brief Per-role font families, indexed by ui::FontRole. A family's bold/italic files are
-     *  optional; its regular file is required. */
+     *  optional; its regular file is required. The display family is optional and, when absent,
+     *  resolves to the ui family. */
     std::array<ui::FontFamilyPaths, ui::k_font_role_count> fonts{};
 
     /** @brief Directory containing item data files. Defaults to "data/items". */
@@ -175,6 +187,9 @@ namespace corundum::core {
 
     /** @brief Rendering configuration specific to the dialogue system. */
     DialogueRenderConfig dialogue_render;
+
+    /** @brief Display-role font sizes, parsed from the optional top-level "display" block. */
+    DisplayRenderConfig display;
 
     /** @brief Grouped resource file paths for memory locality. */
     ResourcePaths paths{};

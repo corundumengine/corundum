@@ -10,11 +10,15 @@
 namespace corundum::ui {
 
   /// A font's purpose within the game. Every role is loaded from its own family of files,
-  /// so dialogue, quest and UI text can each use a distinct typeface.
+  /// so dialogue, quest, UI and display text can each use a distinct typeface.
+  ///
+  /// Display is the only optional role: a game may omit it, in which case display text draws in
+  /// the UI family. The other three roles are required.
   enum class FontRole : std::uint8_t {
     Dialogue,
     Quest,
     Ui,
+    Display,
   };
 
   /// One weight/style variant within a FontFamily. Files for Bold, Italic and BoldItalic are
@@ -27,7 +31,7 @@ namespace corundum::ui {
   };
 
   /// Number of entries in a role-indexed family array.
-  constexpr std::size_t k_font_role_count{3};
+  constexpr std::size_t k_font_role_count{4};
 
   /// Number of entries in a FontFamily's style-indexed id array.
   constexpr std::size_t k_font_style_count{4};
