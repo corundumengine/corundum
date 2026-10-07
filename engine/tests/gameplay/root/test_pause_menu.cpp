@@ -482,3 +482,97 @@ TEST_CASE("pause menu: Save with no on_fixed_update hook does not crash") {
 
   engine.cleanup();
 }
+
+namespace {
+
+  /// Move the pause-menu cursor onto the Quit row and Activate it.
+  void activate_quit(corundum::Engine &engine) {
+    press(engine, corundum::input::Action::Menu);
+    for (int row = 0; row < corundum::ui::k_menu_command_count - 1; ++row)
+      press(engine, corundum::input::Action::MoveDown);
+    REQUIRE(engine.menu.cursor == corundum::ui::k_menu_command_count - 1);
+    press(engine, corundum::input::Action::Select);
+  }
+
+} // namespace
+
+TEST_CASE("pause menu: Quit calls on_menu_quit instead of requesting quit") {
+  corundum::Engine engine{};
+  init_engine(engine);
+
+  int quits = 0;
+  engine.on_menu_quit = [&quits](corundum::Engine &) { ++quits; };
+
+  activate_quit(engine);
+  CHECK(quits == 1);
+  CHECK_FALSE(engine.quit_requested());
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: Quit requests quit when no on_menu_quit hook is set") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  REQUIRE_FALSE(engine.quit_requested());
+
+  activate_quit(engine);
+  CHECK(engine.quit_requested());
+
+  engine.cleanup();
+}
+
+TEST_CASE("pause menu: blocks_pause_menu suppresses opening the menu") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the hub input hook.
+  corundum::gameplay::Gameplay gameplay{engine};
+  engine.blocks_pause_menu = [](corundum::world::GameMode mode) { return mode == screens::Journal; };
+
+  press(engine, corundum::input::Action::Journal);
+  REQUIRE(engine.scene.mode() == screens::Journal);
+
+  press(engine, corundum::input::Action::Menu);
+  CHECK(engine.scene.mode() == screens::Journal);
+
+  engine.cleanup();
+}
+
+// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+// logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_CASE("confirm: Yes runs on_yes and pops, No and Back do not") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  int yes_calls = 0;
+  gameplay.open_confirm("Quit to Title?", [&yes_calls](corundum::gameplay::Gameplay &) { ++yes_calls; });
+  REQUIRE(engine.scene.mode() == screens::Confirm);
+  REQUIRE(engine.scene.ui.size() == 1);
+  CHECK(gameplay.confirm.question == "Quit to Title?");
+
+  // Yes is the default highlight.
+  press(engine, corundum::input::Action::Select);
+  CHECK(yes_calls == 1);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+  CHECK(gameplay.confirm.question.empty());
+  CHECK_FALSE(gameplay.confirm.on_yes);
+
+  // No: toggle to the second option, then Activate.
+  yes_calls = 0;
+  gameplay.open_confirm("Quit to Title?", [&yes_calls](corundum::gameplay::Gameplay &) { ++yes_calls; });
+  press(engine, corundum::input::Action::MoveRight);
+  REQUIRE_FALSE(gameplay.confirm.yes_selected);
+  press(engine, corundum::input::Action::Select);
+  CHECK(yes_calls == 0);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+
+  // Back closes without running on_yes.
+  yes_calls = 0;
+  gameplay.open_confirm("Quit to Title?", [&yes_calls](corundum::gameplay::Gameplay &) { ++yes_calls; });
+  press(engine, corundum::input::Action::Cancel);
+  CHECK(yes_calls == 0);
+  CHECK(engine.scene.mode() == GameMode::Exploring);
+
+  engine.cleanup();
+}

@@ -27,6 +27,9 @@ namespace corundum::gameplay::screens {
   inline constexpr world::GameMode Loot{static_cast<world::GameMode>(world::k_first_extension_mode + 5)};
 
   inline constexpr world::GameMode Barter{static_cast<world::GameMode>(world::k_first_extension_mode + 6)};
+
+  /** @brief Modal yes/no confirmation, carrying no state of its own beyond Gameplay::confirm. */
+  inline constexpr world::GameMode Confirm{static_cast<world::GameMode>(world::k_first_extension_mode + 12)};
   // NOLINTEND(readability-identifier-naming)
 
   /** @brief True when @p mode is one of the four screens reachable from the menu hub.

@@ -556,6 +556,13 @@ namespace corundum::core {
       }
     }
 
+    if (j.contains("show_title")) {
+      const json &value = j.at("show_title");
+      if (!value.is_boolean())
+        return std::unexpected(std::format("game.json 'show_title' must be a boolean: {}", path.string()));
+      cfg.show_title = value.get<bool>();
+    }
+
     if (auto err = parse_window_settings(j, cfg, path); !err)
       return std::unexpected(err.error());
     if (auto err = parse_gameplay_settings(j, cfg, path); !err)

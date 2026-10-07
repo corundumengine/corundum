@@ -28,6 +28,7 @@
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/transition.hpp>
+#include <corundum/world/ui_stack.hpp>
 
 #include <bitset>
 #include <cstddef>
@@ -155,6 +156,23 @@ namespace corundum {
      *  resulting run state. Default-empty; existing games are unaffected.
      */
     std::function<void(Engine &, const platform::PlatformEvents &)> on_platform_event;
+
+    /** @brief Hook replacing the pause menu's Quit command.
+     *
+     *  When set, selecting Quit invokes it instead of request_quit(), so the game can
+     *  interpose a confirmation or route the player to a framing screen. Default-empty
+     *  preserves the immediate-quit behaviour. The gameplay framework installs it to offer
+     *  Quit to Title.
+     */
+    std::function<void(Engine &)> on_menu_quit;
+
+    /** @brief Hook consulted before the pause menu opens on Action::Menu.
+     *
+     *  Receives the current top GameMode; returning true suppresses the menu open. The
+     *  gameplay framework installs it so the menu does not open over the Title, Game over,
+     *  Loading and Credits screens. Default-empty means the menu never blocks on a mode.
+     */
+    std::function<bool(world::GameMode)> blocks_pause_menu;
 
     /** @brief Screen specs keyed by GameMode, plus the ordered render-layer hooks.
      *

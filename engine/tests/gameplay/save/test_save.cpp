@@ -63,6 +63,7 @@ namespace {
     cfg.window_title = "save_test";
     cfg.win_w = 320.f;
     cfg.win_h = 240.f;
+    cfg.show_title = false;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();
     corundum::test::set_missing_fonts(cfg.paths);

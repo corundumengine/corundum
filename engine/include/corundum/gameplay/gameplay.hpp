@@ -20,6 +20,7 @@
 #include <corundum/gameplay/runtime.hpp> // IWYU pragma: export
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/gameplay/screens/confirm.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/gameplay/screens/journal.hpp>
@@ -98,6 +99,9 @@ namespace corundum::gameplay {
 
     /** @brief Barter-screen state: active tab and highlighted row. */
     screens::BarterState barter_screen;
+
+    /** @brief Shared yes/no confirmation modal; pushed by open_confirm(). */
+    screens::ConfirmState confirm;
 
     /** @brief Dialogue-box reveal/layout state; stepped by the gameplay fixed-step system. */
     screens::DialogBoxState dialog_box;
@@ -200,6 +204,29 @@ namespace corundum::gameplay {
      *  @post On success last_slot is `autosave`.
      */
     [[nodiscard]] std::expected<void, std::string> autosave();
+
+    /** @brief Open the shared yes/no confirmation modal carrying @p question.
+     *
+     *  Pushes GameMode Confirm; Yes runs @p on_yes and No and Back close it without running
+     *  anything. Game code and the framework's Quit-to-Title path both route through here.
+     *
+     *  @param question Prompt drawn on the top line; shown verbatim in one line.
+     *  @param on_yes   Called with this Gameplay after Confirm is popped; may be empty.
+     *  @post scene.ui.top() is screens::Confirm.
+     */
+    void open_confirm(std::string question, std::function<void(Gameplay &)> on_yes);
+
+    /** @brief Return every session-scoped member to its freshly-constructed state.
+     *
+     *  Called after every scene replacement the framework triggers (New Game, Continue, Load,
+     *  Return to Title, Game over Reload). Clears the active conversation and bound NPC, the
+     *  active container and shop ids, every screen cursor and cache, the confirm modal and the
+     *  UI stack. Content registries and scene flags are deliberately untouched — they are
+     *  loaded content and world state, not session state.
+     *
+     *  @post engine.scene.ui is empty and no screen holds a stale cursor or cache.
+     */
+    void reset_session_state();
 
   private:
     /** @brief Write @p slot_id under the saves directory, stamping location and playtime.

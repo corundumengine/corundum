@@ -631,3 +631,32 @@ TEST_CASE("load_game_config — non-integer starting_flags value returns an erro
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("starting_flags.gold") != std::string::npos);
 }
+
+// ── show_title ────────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — show_title defaults to true") {
+  const auto dir = temp_dir("show_title_default");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->show_title);
+}
+
+TEST_CASE("load_game_config — show_title false parses") {
+  const auto dir = temp_dir("show_title_false");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"show_title": false})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK_FALSE(result->show_title);
+}
+
+TEST_CASE("load_game_config — non-boolean show_title returns an error") {
+  const auto dir = temp_dir("show_title_type");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"show_title": "yes"})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("show_title") != std::string::npos);
+}

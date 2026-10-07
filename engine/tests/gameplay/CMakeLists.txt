@@ -28,6 +28,7 @@ add_executable(corundum_gameplay_tests
     root/test_pause_menu.cpp
     root/test_phase_d_screens.cpp
     root/test_screen_registry.cpp
+    root/test_session_reset.cpp
     save/test_save.cpp
     screens/test_dialog_reveal.cpp
     screens/test_hub_panels.cpp

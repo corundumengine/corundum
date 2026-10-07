@@ -350,7 +350,10 @@ namespace corundum {
           engine.raise_action_next_step(input::Action::QuickLoad);
           break;
         case ui::MenuCommand::Quit:
-          engine.request_quit();
+          if (engine.on_menu_quit)
+            engine.on_menu_quit(engine);
+          else
+            engine.request_quit();
           break;
       }
     }
@@ -638,7 +641,8 @@ namespace corundum {
     // opens over either.
     const bool menu_pressed = input_state.is_pressed(input::Action::Menu);
     const bool top_handles_menu = scene.mode() == world::GameMode::Menu || scene.mode() == world::GameMode::Settings;
-    if (menu_pressed && !top_handles_menu && (scene.ui.empty() || !intent.back)) {
+    const bool menu_blocked = blocks_pause_menu && blocks_pause_menu(scene.mode());
+    if (menu_pressed && !top_handles_menu && !menu_blocked && (scene.ui.empty() || !intent.back)) {
       scene.ui.push(world::GameMode::Menu);
       menu.cursor = 0;
       return true;

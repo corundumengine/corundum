@@ -24,6 +24,7 @@
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/gameplay/screens/confirm.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
@@ -40,6 +41,7 @@
 #include <corundum/save/save.hpp>
 #include <corundum/screen_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <corundum/ui/prompt_box.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
@@ -57,6 +59,7 @@
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -893,6 +896,40 @@ namespace corundum::gameplay {
       engine.flags[std::string{screens::k_gold_flag}] = gold;
     }
 
+    /// Step the shared confirmation modal: Back closes it without acting; Left/Right (or
+    /// Up/Down) toggle the highlight; Activate runs on_yes when Yes is highlighted. The
+    /// callback is moved out and the state cleared before it runs, so it may itself open a
+    /// screen or reset the session without racing the modal it just answered.
+    void update_confirm(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      screens::ConfirmState &state = gameplay.confirm;
+      if (intent.back) {
+        state = {};
+        engine.scene.ui.pop();
+        return;
+      }
+      if (intent.navigate_x != 0 || intent.navigate_y != 0)
+        state.yes_selected = !state.yes_selected;
+      if (!intent.activate)
+        return;
+
+      const bool confirmed = state.yes_selected;
+      const std::function<void(Gameplay &)> on_yes = std::move(state.on_yes);
+      state = {};
+      engine.scene.ui.pop();
+      if (confirmed && on_yes)
+        on_yes(gameplay);
+    }
+
+    /// Draw the confirmation modal while Confirm is the top mode. Pure render; prompt_box_render
+    /// owns the layout so there is nothing to share with hit-testing.
+    void render_confirm(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                        core::math::Vec2 viewport) {
+      if (engine.scene.mode() != screens::Confirm)
+        return;
+      ui::prompt_box_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                            gameplay.confirm.question, gameplay.confirm.yes_selected, viewport);
+    }
+
     /// Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
     /// empty UI stack and no transition prompt; the dialogue check is defensive.
     void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1085,6 +1122,15 @@ namespace corundum::gameplay {
                                                     update_barter(e, gameplay, intent);
                                                   },
                                           });
+      engine.screens.add(
+          screens::Confirm,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &e,
+                                    const input::InputIntent &intent) { update_confirm(e, gameplay, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_confirm(e, gameplay, r, viewport); },
+          });
 
       engine.fixed_step_systems.emplace_back([&gameplay](Engine &, float dt) { gameplay.fixed_step(dt); });
 
@@ -1180,8 +1226,13 @@ namespace corundum::gameplay {
       return std::unexpected(directory.error());
 
     const auto result = save::load_game(*engine_, save::slot_path(*directory, slot_id));
-    if (result)
+    if (result) {
       last_slot = std::string{slot_id};
+      // load_game replaces the Scene (which clears scene.ui) but leaves every Gameplay member
+      // — the active conversation, container/shop ids, screen cursors and caches — pointing at
+      // the old world. Clear them so the loaded scene starts clean.
+      reset_session_state();
+    }
     return result;
   }
 
@@ -1205,6 +1256,35 @@ namespace corundum::gameplay {
 
   std::expected<void, std::string> Gameplay::autosave() {
     return save_to_slot(save::k_autosave_slot);
+  }
+
+  void Gameplay::open_confirm(std::string question, std::function<void(Gameplay &)> on_yes) {
+    confirm = screens::ConfirmState{
+        .question = std::move(question),
+        .on_yes = std::move(on_yes),
+        .yes_selected = true,
+    };
+    engine_->scene.ui.push(screens::Confirm);
+  }
+
+  void Gameplay::reset_session_state() {
+    dialogue.reset();
+    dialogue_npc.reset();
+    pending_dialogue_events.clear();
+    active_container_id.clear();
+    active_shop_id.clear();
+    inventory_cursor = 0;
+    inventory_scroll = 0;
+    inventory_lines.clear();
+    inventory_equipment.clear();
+    journal_screen = {};
+    codex_screen = {};
+    map_screen = {};
+    loot_screen = {};
+    barter_screen = {};
+    confirm = {};
+    last_hub_mode = screens::Inventory;
+    engine_->scene.ui.clear();
   }
 
   void Gameplay::update_dialogue(const input::InputIntent &intent) {

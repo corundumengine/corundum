@@ -139,6 +139,12 @@ namespace corundum::core {
     /** @brief Window title shown in the OS title bar. */
     std::string window_title = "Corundum Engine";
 
+    /** @brief Whether the game opens on the Title screen.
+     *
+     *  Setting it to false starts directly in the world, which dev workflows and tests
+     *  use to skip the framing screen. Only the gameplay framework reads it. */
+    bool show_title = true;
+
     /** @brief Radius in tile-grid units for player interaction detection. */
     float interact_radius = 2.f;
 

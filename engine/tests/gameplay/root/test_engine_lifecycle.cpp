@@ -41,6 +41,7 @@ namespace {
     cfg.window_title = "lifecycle_test";
     cfg.win_w = 320.f;
     cfg.win_h = 240.f;
+    cfg.show_title = false;
     cfg.paths.sprites_dir = (fixtures_root / "sprites").string();
     cfg.paths.tilemap_path = (fixtures_root / "tilemaps/lifecycle_test.json").string();
     cfg.paths.font_dir = (fixtures_root / "fonts").string();
