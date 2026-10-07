@@ -31,6 +31,8 @@ namespace {
 
 } // namespace
 
+using corundum::core::game_title;
+using corundum::core::k_default_game_title;
 using corundum::core::load_game_config;
 
 // ── File errors ──────────────────────────────────────────────────────────────
@@ -729,4 +731,56 @@ TEST_CASE("load_game_config — non-boolean show_title returns an error") {
   const auto result = load_game_config(p);
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("show_title") != std::string::npos);
+}
+
+// ── title ─────────────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — the game title is separate from the window title") {
+  const auto dir = temp_dir("title_override");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"window_title": "Keystone", "title": "Keystone: A Tale"})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->window_title == "Keystone");
+  CHECK(result->title == "Keystone: A Tale");
+  CHECK(game_title(*result) == "Keystone: A Tale");
+}
+
+TEST_CASE("load_game_config — an unset title falls back to the window title") {
+  const auto dir = temp_dir("title_fallback");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"window_title": "Keystone"})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->title == "Keystone");
+  CHECK(result->window_title == "Keystone");
+}
+
+TEST_CASE("load_game_config — an unset window title falls back to the title") {
+  const auto dir = temp_dir("window_title_fallback");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"title": "Keystone: A Tale"})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->title == "Keystone: A Tale");
+  CHECK(result->window_title == "Keystone: A Tale");
+}
+
+TEST_CASE("load_game_config — neither title nor window_title uses the engine default") {
+  const auto dir = temp_dir("title_engine_default");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->title == k_default_game_title);
+  CHECK(result->window_title == k_default_game_title);
+}
+
+TEST_CASE("load_game_config — an empty title returns an error") {
+  const auto dir = temp_dir("title_empty");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"title": ""})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("title") != std::string::npos);
 }

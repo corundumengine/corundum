@@ -28,6 +28,21 @@ namespace corundum::gameplay::screens {
 
   inline constexpr world::GameMode Barter{static_cast<world::GameMode>(world::k_first_extension_mode + 6)};
 
+  /** @brief Framing title screen, pushed over the scene the engine loaded at startup. */
+  inline constexpr world::GameMode Title{static_cast<world::GameMode>(world::k_first_extension_mode + 7)};
+
+  /** @brief Save/Load slot browser, opened in save or load mode. */
+  inline constexpr world::GameMode SaveLoad{static_cast<world::GameMode>(world::k_first_extension_mode + 8)};
+
+  /** @brief Game-over screen, opened by the game (never the framework). */
+  inline constexpr world::GameMode GameOver{static_cast<world::GameMode>(world::k_first_extension_mode + 9)};
+
+  /** @brief Scrolling credits, opened from the Title when a credits file is configured. */
+  inline constexpr world::GameMode Credits{static_cast<world::GameMode>(world::k_first_extension_mode + 10)};
+
+  /** @brief Two-phase loading overlay; see Gameplay::begin_load() (implemented with the screen). */
+  inline constexpr world::GameMode Loading{static_cast<world::GameMode>(world::k_first_extension_mode + 11)};
+
   /** @brief Modal yes/no confirmation, carrying no state of its own beyond Gameplay::confirm. */
   inline constexpr world::GameMode Confirm{static_cast<world::GameMode>(world::k_first_extension_mode + 12)};
   // NOLINTEND(readability-identifier-naming)

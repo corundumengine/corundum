@@ -166,6 +166,15 @@ namespace corundum {
      */
     std::function<void(Engine &)> on_menu_quit;
 
+    /** @brief Hook replacing the pause menu's Save and Load commands.
+     *
+     *  When set, selecting Save invokes it with @p saving true and Load with @p saving false,
+     *  so the game can open a slot browser in the matching mode. Default-empty preserves the
+     *  historical behaviour of raising QuickSave / QuickLoad one step later (the framework
+     *  installs this hook to open the Save/Load screen).
+     */
+    std::function<void(Engine &, bool saving)> on_menu_save_load;
+
     /** @brief Hook consulted before the pause menu opens on Action::Menu.
      *
      *  Receives the current top GameMode; returning true suppresses the menu open. The

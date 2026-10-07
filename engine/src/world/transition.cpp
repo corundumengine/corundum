@@ -18,6 +18,7 @@
 #include "core/warn_log.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <memory>
@@ -141,6 +142,32 @@ namespace corundum::world {
       engine.entered_from_world = false;
       fail(engine, "map transition", "unexpected exception");
     }
+  }
+
+  std::expected<void, std::string> load_initial_scene(corundum::Engine &engine) {
+    if (!engine.cfg.paths.world_manifest_path.empty())
+      return enter_world(engine, {});
+
+    std::expected<void, std::string> map_result =
+        render::load_map(*engine.renderer, engine.render, engine.cfg.paths.tilemap_path, engine.cfg);
+    if (!map_result)
+      return std::unexpected(std::move(map_result).error());
+
+    std::expected<std::unique_ptr<Scene>, std::string> scene_result =
+        world::spawn_world(engine.cfg, engine.characters, *engine.active_tilemap());
+    if (!scene_result)
+      return std::unexpected(std::move(scene_result).error());
+    engine.scene = std::move(**scene_result);
+
+    const corundum::world::tilemap::Tilemap &tilemap = *engine.active_tilemap();
+    const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
+                                                          engine.cfg.tile_scale, engine.cfg.elevation_step_px);
+    const std::uint32_t player_slot = engine.scene.world.transforms.dense_index(engine.scene.player);
+    const float player_col{engine.scene.world.transforms.col[player_slot]};
+    const float player_row{engine.scene.world.transforms.row[player_slot]};
+    const WorldBounds bounds{single_map_bounds(tilemap, iso.half_tw, iso.half_th)};
+    frame_camera_on(engine, iso, player_col, player_row, bounds, CameraAnchor::TopVertex);
+    return {};
   }
 
   std::expected<void, std::string> apply_spawn(corundum::Engine &engine, SpawnMode mode, std::string_view id,

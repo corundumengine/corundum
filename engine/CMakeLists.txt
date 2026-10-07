@@ -126,12 +126,16 @@ set(GAMEPLAY_SOURCES
     src/gameplay/screens/barter.cpp
     src/gameplay/screens/codex.cpp
     src/gameplay/screens/dialog_box.cpp
+    src/gameplay/screens/framing_menu.cpp
+    src/gameplay/screens/game_over.cpp
     src/gameplay/screens/hub_tabs.cpp
     src/gameplay/screens/hud_strip.cpp
     src/gameplay/screens/inventory_panel.cpp
     src/gameplay/screens/journal.cpp
     src/gameplay/screens/loot.cpp
     src/gameplay/screens/map.cpp
+    src/gameplay/screens/save_load.cpp
+    src/gameplay/screens/title.cpp
     src/gameplay/shop/loader.cpp
     src/gameplay/shop/registry.cpp
 )

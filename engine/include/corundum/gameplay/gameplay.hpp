@@ -22,11 +22,14 @@
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/confirm.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
+#include <corundum/gameplay/screens/game_over.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/gameplay/screens/loot.hpp>
 #include <corundum/gameplay/screens/map.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
+#include <corundum/gameplay/screens/save_load.hpp>
+#include <corundum/gameplay/screens/title.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/world/flags.hpp> // IWYU pragma: export
 #include <corundum/world/ui_stack.hpp>
@@ -102,6 +105,15 @@ namespace corundum::gameplay {
 
     /** @brief Shared yes/no confirmation modal; pushed by open_confirm(). */
     screens::ConfirmState confirm;
+
+    /** @brief Title screen state: highlighted row and Continue availability. */
+    screens::TitleState title_screen;
+
+    /** @brief Game-over screen state: highlighted row and Reload availability. */
+    screens::GameOverState game_over_screen;
+
+    /** @brief Save/Load screen state: mode, highlighted row and the buffered slot rows. */
+    screens::SaveLoadState save_load_screen;
 
     /** @brief Dialogue-box reveal/layout state; stepped by the gameplay fixed-step system. */
     screens::DialogBoxState dialog_box;
@@ -216,6 +228,68 @@ namespace corundum::gameplay {
      */
     void open_confirm(std::string question, std::function<void(Gameplay &)> on_yes);
 
+    /** @brief Show the title screen over the loaded scene.
+     *
+     *  Refreshes Continue availability from the saves directory, puts the cursor on the first
+     *  enabled row, and pushes GameMode Title. Called at construction when GameConfig::show_title
+     *  is set and again whenever the player returns to the title.
+     *
+     *  @note The engine always loads a scene during initialize(), so Title sits over one rather
+     *  than being a no-world state; a later reader should not "fix" this. The screen draws an
+     *  opaque backdrop so the loaded world is not visible.
+     *  @post engine.scene.ui.top() is screens::Title.
+     */
+    void open_title();
+
+    /** @brief Show the game-over screen.
+     *
+     *  The game raises it (from a dialogue event or its own on_fixed_update), never the
+     *  framework. Reload availability follows Gameplay::last_slot.
+     *
+     *  @post engine.scene.ui.top() is screens::GameOver.
+     */
+    void open_game_over();
+
+    /** @brief Show the Save/Load slot browser in save (@p saving true) or load mode.
+     *
+     *  Buffers the slot rows for the engine's saves directory and pushes GameMode SaveLoad on
+     *  top of whatever is currently open, so Back returns there.
+     *
+     *  @post engine.scene.ui.top() is screens::SaveLoad.
+     */
+    void open_save_load(bool saving);
+
+    /** @brief Start a fresh session: reset flags to GameConfig::starting_flags, rebuild the
+     *  initial scene exactly as Engine::initialize() does, and clear session state.
+     *
+     *  @return ok, or the scene-rebuild error (also surfaced as a failure toast).
+     *  @post engine.scene.ui is empty and the scene is the configured initial scene.
+     */
+    [[nodiscard]] std::expected<void, std::string> new_game();
+
+    /** @brief Load the newest valid save slot and toast the outcome.
+     *
+     *  @return ok when a slot was loaded, or the error; an empty save list is an error.
+     *  @post On success last_slot is the loaded slot's id.
+     */
+    [[nodiscard]] std::expected<void, std::string> continue_game();
+
+    /** @brief Write @p slot_id under the saves directory, stamping location and playtime.
+     *
+     *  Exposed so the Save/Load screen can write a player-chosen slot; quick_save()/autosave()
+     *  route through it.
+     *
+     *  @post On success last_slot is @p slot_id. */
+    [[nodiscard]] std::expected<void, std::string> save_to_slot(std::string_view slot_id);
+
+    /** @brief Load @p slot_id from the saves directory.
+     *
+     *  Exposed so the Save/Load screen can load a player-chosen slot; quick_load() routes
+     *  through it.
+     *
+     *  @post On success last_slot is @p slot_id. */
+    [[nodiscard]] std::expected<void, std::string> load_from_slot(std::string_view slot_id);
+
     /** @brief Return every session-scoped member to its freshly-constructed state.
      *
      *  Called after every scene replacement the framework triggers (New Game, Continue, Load,
@@ -229,14 +303,6 @@ namespace corundum::gameplay {
     void reset_session_state();
 
   private:
-    /** @brief Write @p slot_id under the saves directory, stamping location and playtime.
-     *  @post On success last_slot is @p slot_id. */
-    [[nodiscard]] std::expected<void, std::string> save_to_slot(std::string_view slot_id);
-
-    /** @brief Load @p slot_id from the saves directory.
-     *  @post On success last_slot is @p slot_id. */
-    [[nodiscard]] std::expected<void, std::string> load_from_slot(std::string_view slot_id);
-
     /** @brief The location registry's display name for the current zone, or the raw zone id
      *  when unknown. */
     [[nodiscard]] std::string current_location_name() const;

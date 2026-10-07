@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/game_config.hpp>
-#include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/debug/debug_overlay.hpp>
@@ -31,7 +30,6 @@
 #include <corundum/world/transition.hpp>
 #include <corundum/world/ui_stack.hpp>
 #include <corundum/world/update.hpp>
-#include <corundum/world/world_bounds.hpp>
 
 #include "core/warn_log.hpp"
 
@@ -106,35 +104,7 @@ namespace corundum {
       }
 
       std::expected<void, std::string> init_scene() {
-        if (!engine_->cfg.paths.world_manifest_path.empty())
-          return corundum::world::enter_world(*engine_, {});
-        return init_single_map_scene();
-      }
-
-      std::expected<void, std::string> init_single_map_scene() {
-        std::expected<void, std::string> map_result;
-        map_result =
-            render::load_map(*engine_->renderer, engine_->render, engine_->cfg.paths.tilemap_path, engine_->cfg);
-        if (!map_result)
-          return std::unexpected(std::move(map_result).error());
-
-        std::expected<std::unique_ptr<world::Scene>, std::string> scene_result =
-            world::spawn_world(engine_->cfg, engine_->characters, *engine_->active_tilemap());
-        if (!scene_result)
-          return std::unexpected(std::move(scene_result).error());
-        engine_->scene = std::move(**scene_result);
-
-        const auto &tilemap = *engine_->active_tilemap();
-        const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
-                                                              engine_->cfg.tile_scale, engine_->cfg.elevation_step_px);
-        const std::uint32_t player_slot = engine_->scene.world.transforms.dense_index(engine_->scene.player);
-        const float player_col{engine_->scene.world.transforms.col[player_slot]};
-        const float player_row{engine_->scene.world.transforms.row[player_slot]};
-
-        const world::WorldBounds bounds{world::single_map_bounds(tilemap, iso.half_tw, iso.half_th)};
-
-        world::frame_camera_on(*engine_, iso, player_col, player_row, bounds, world::CameraAnchor::TopVertex);
-        return {};
+        return corundum::world::load_initial_scene(*engine_);
       }
 
       void init_audio() {
@@ -343,11 +313,17 @@ namespace corundum {
           break;
         case ui::MenuCommand::Save:
           engine.scene.ui.pop();
-          engine.raise_action_next_step(input::Action::QuickSave);
+          if (engine.on_menu_save_load)
+            engine.on_menu_save_load(engine, true);
+          else
+            engine.raise_action_next_step(input::Action::QuickSave);
           break;
         case ui::MenuCommand::Load:
           engine.scene.ui.pop();
-          engine.raise_action_next_step(input::Action::QuickLoad);
+          if (engine.on_menu_save_load)
+            engine.on_menu_save_load(engine, false);
+          else
+            engine.raise_action_next_step(input::Action::QuickLoad);
           break;
         case ui::MenuCommand::Quit:
           if (engine.on_menu_quit)

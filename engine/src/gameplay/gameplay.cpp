@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/direction.hpp>
+#include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/entity.hpp>
@@ -26,6 +27,7 @@
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/confirm.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
+#include <corundum/gameplay/screens/game_over.hpp>
 #include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
@@ -33,6 +35,8 @@
 #include <corundum/gameplay/screens/loot.hpp>
 #include <corundum/gameplay/screens/map.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
+#include <corundum/gameplay/screens/save_load.hpp>
+#include <corundum/gameplay/screens/title.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -47,6 +51,7 @@
 #include <corundum/world/flags.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/scene.hpp>
+#include <corundum/world/transition.hpp>
 #include <corundum/world/ui_stack.hpp>
 
 #include "core/warn_log.hpp"
@@ -930,6 +935,214 @@ namespace corundum::gameplay {
                             gameplay.confirm.question, gameplay.confirm.yes_selected, viewport);
     }
 
+    /// Move the title cursor by @p delta, wrapping and skipping disabled rows (Continue when no
+    /// save exists). No-op when every row is disabled, which cannot happen today.
+    void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
+      screens::TitleState &state = gameplay.title_screen;
+      int row = std::clamp(state.cursor, 0, screens::k_title_row_count - 1);
+      for (int step = 0; step < screens::k_title_row_count; ++step) {
+        row = wrap_cursor(row, delta, screens::k_title_row_count);
+        if (screens::title_row_enabled(screens::title_row_at(row), state.continue_available)) {
+          state.cursor = row;
+          return;
+        }
+      }
+    }
+
+    /// Step the Title screen: a hovered enabled row takes focus on a real mouse move or click,
+    /// Up/Down move the highlight (skipping Continue when no save exists), and Activate runs the
+    /// highlighted command. Cancel does nothing — Title is the bottom of the framing flow.
+    void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      screens::TitleState &state = gameplay.title_screen;
+      if (pointer_active(intent)) {
+        const screens::TitleLayout layout = screens::title_panel_layout(
+            *engine.renderer, engine.render.panel_skin.style, state, core::game_title(engine.cfg),
+            screen_viewport(engine), engine.input_mapper.last_device());
+        const core::math::Vec2 cursor = intent_cursor(intent);
+        if (pointer_focus(intent)) {
+          if (const int hovered = ui::hovered_row(cursor, layout.rows);
+              hovered >= 0 && screens::title_row_enabled(screens::title_row_at(hovered), state.continue_available))
+            state.cursor = hovered;
+        }
+        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+          move_title_cursor(gameplay, steps);
+      }
+
+      if (intent.navigate_y != 0)
+        move_title_cursor(gameplay, intent.navigate_y);
+      if (!intent.activate)
+        return;
+
+      const screens::TitleRow row = screens::title_row_at(std::clamp(state.cursor, 0, screens::k_title_row_count - 1));
+      switch (row) {
+        case screens::TitleRow::Continue:
+          if (state.continue_available)
+            std::ignore = gameplay.continue_game();
+          break;
+        case screens::TitleRow::NewGame:
+          std::ignore = gameplay.new_game();
+          break;
+        case screens::TitleRow::Load:
+          gameplay.open_save_load(/*saving=*/false);
+          break;
+        case screens::TitleRow::Settings:
+          engine.scene.ui.push(world::GameMode::Settings);
+          break;
+        case screens::TitleRow::Quit:
+          engine.request_quit();
+          break;
+      }
+    }
+
+    void render_title(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                      core::math::Vec2 viewport) {
+      if (engine.scene.mode() != screens::Title)
+        return;
+      screens::title_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                  gameplay.title_screen, core::game_title(engine.cfg), viewport,
+                                  engine.input_mapper.last_device());
+    }
+
+    /// Step the Game over screen: a hovered enabled row takes focus, Up/Down move the highlight,
+    /// and Activate reloads the last slot, opens the Load screen, or returns to Title.
+    void update_game_over(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      screens::GameOverState &state = gameplay.game_over_screen;
+      if (pointer_active(intent)) {
+        const screens::GameOverLayout layout =
+            screens::game_over_panel_layout(*engine.renderer, engine.render.panel_skin.style, screen_viewport(engine),
+                                            engine.input_mapper.last_device());
+        const core::math::Vec2 cursor = intent_cursor(intent);
+        if (pointer_focus(intent)) {
+          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0) {
+            const screens::GameOverRow row = screens::game_over_row_at(hovered);
+            if (row != screens::GameOverRow::Reload || state.reload_available)
+              state.cursor = hovered;
+          }
+        }
+        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+          state.cursor = wrap_cursor(state.cursor, steps, screens::k_game_over_row_count);
+      }
+
+      if (intent.navigate_y != 0)
+        state.cursor = wrap_cursor(state.cursor, intent.navigate_y, screens::k_game_over_row_count);
+      if (!intent.activate)
+        return;
+
+      switch (screens::game_over_row_at(std::clamp(state.cursor, 0, screens::k_game_over_row_count - 1))) {
+        case screens::GameOverRow::Reload:
+          if (state.reload_available) {
+            if (const auto result = gameplay.load_from_slot(gameplay.last_slot); !result)
+              engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
+          }
+          break;
+        case screens::GameOverRow::Load:
+          gameplay.open_save_load(/*saving=*/false);
+          break;
+        case screens::GameOverRow::ReturnToTitle:
+          gameplay.reset_session_state();
+          gameplay.open_title();
+          break;
+      }
+    }
+
+    void render_game_over(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                          core::math::Vec2 viewport) {
+      if (engine.scene.mode() != screens::GameOver)
+        return;
+      screens::game_over_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                      gameplay.game_over_screen, viewport, engine.input_mapper.last_device());
+    }
+
+    /// Save @p slot_id, raising a success or failure toast, then pop the Save/Load screen.
+    void commit_slot_save(Engine &engine, Gameplay &gameplay, const std::string &slot_id) {
+      if (const std::expected<void, std::string> result = gameplay.save_to_slot(slot_id); !result)
+        engine.notify(std::format("Save failed: {}", result.error()), ui::k_toast_failed_colour);
+      else
+        engine.notify("Game saved");
+      engine.scene.ui.pop();
+    }
+
+    /// Save the selected row, first confirming when it would overwrite an existing slot. The
+    /// autosave slot is never overwritable from the UI; the game decides when to autosave.
+    void activate_save_load_row(Engine &engine, Gameplay &gameplay, const save::SaveSlotInfo &selected) {
+      const std::string slot_id = selected.slot_id;
+      if (slot_id == save::k_autosave_slot) {
+        engine.notify("Autosave cannot be overwritten");
+        return;
+      }
+
+      const bool occupied = selected.meta.has_value() || !selected.error.empty();
+      if (!occupied) {
+        commit_slot_save(engine, gameplay, slot_id);
+        return;
+      }
+      gameplay.open_confirm(std::format("Overwrite {}?", screens::slot_display_name(slot_id)),
+                            // The confirm callback runs inside the noexcept fixed-step loop, where a throw is fatal
+                            // by engine policy (see run_fixed_steps); the escape is intentional here.
+                            // NOLINTNEXTLINE(bugprone-exception-escape)
+                            [&engine, slot_id](Gameplay &g) { commit_slot_save(engine, g, slot_id); });
+    }
+
+    /// Step the Save/Load screen: Cancel closes it; Up/Down and the wheel move the highlighted
+    /// slot; Activate saves (confirming an overwrite) or loads a valid slot. Empty and corrupt
+    /// slots cannot be loaded.
+    void update_save_load(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      screens::SaveLoadState &state = gameplay.save_load_screen;
+      if (intent.back) {
+        engine.scene.ui.pop();
+        return;
+      }
+
+      const int rows = static_cast<int>(state.slots.size());
+      if (pointer_active(intent)) {
+        const screens::SaveLoadLayout layout =
+            screens::save_load_panel_layout(*engine.renderer, engine.render.panel_skin.style, state,
+                                            screen_viewport(engine), engine.input_mapper.last_device());
+        const core::math::Vec2 cursor = intent_cursor(intent);
+        if (pointer_focus(intent)) {
+          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+            state.cursor = layout.rows.first_row + hovered;
+        }
+        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+          state.cursor = wrap_cursor(state.cursor, steps, rows);
+      }
+
+      if (intent.navigate_y != 0) {
+        if (rows <= 0)
+          state.cursor = 0;
+        else
+          state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
+      }
+
+      const screens::SaveLoadLayout visible =
+          screens::save_load_panel_layout(*engine.renderer, engine.render.panel_skin.style, state,
+                                          screen_viewport(engine), engine.input_mapper.last_device());
+      state.scroll = visible.rows.first_row;
+
+      if (!intent.activate || rows == 0)
+        return;
+
+      const save::SaveSlotInfo &selected = state.slots[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
+      if (state.saving) {
+        activate_save_load_row(engine, gameplay, selected);
+        return;
+      }
+      if (screens::slot_is_empty(selected) || !selected.error.empty())
+        return;
+      if (const auto result = gameplay.load_from_slot(selected.slot_id); result)
+        engine.notify("Game loaded");
+      else
+        engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
+    }
+
+    void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                          core::math::Vec2 viewport) {
+      if (engine.scene.mode() != screens::SaveLoad)
+        return;
+      screens::save_load_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                      gameplay.save_load_screen, viewport, engine.input_mapper.last_device());
+    }
+
     /// Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
     /// empty UI stack and no transition prompt; the dialogue check is defensive.
     void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1131,6 +1344,45 @@ namespace corundum::gameplay {
               .render = [&gameplay](Engine &e, platform::Renderer &r,
                                     core::math::Vec2 viewport) { render_confirm(e, gameplay, r, viewport); },
           });
+      engine.screens.add(
+          screens::Title,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_title(e, gameplay, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_title(e, gameplay, r, viewport); },
+          });
+      engine.screens.add(
+          screens::SaveLoad,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &e,
+                                    const input::InputIntent &intent) { update_save_load(e, gameplay, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_save_load(e, gameplay, r, viewport); },
+          });
+      engine.screens.add(
+          screens::GameOver,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &e,
+                                    const input::InputIntent &intent) { update_game_over(e, gameplay, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_game_over(e, gameplay, r, viewport); },
+          });
+
+      engine.on_menu_quit = [&gameplay](Engine &) {
+        gameplay.open_confirm("Quit to Title?", [](Gameplay &g) {
+          g.reset_session_state();
+          g.open_title();
+        });
+      };
+      engine.on_menu_save_load = [&gameplay](Engine &, bool saving) { gameplay.open_save_load(saving); };
+      // The framing screens replace the world; the pause menu must not open over any of them.
+      engine.blocks_pause_menu = [](world::GameMode mode) {
+        return mode == screens::Title || mode == screens::GameOver || mode == screens::Loading ||
+               mode == screens::Credits;
+      };
 
       engine.fixed_step_systems.emplace_back([&gameplay](Engine &, float dt) { gameplay.fixed_step(dt); });
 
@@ -1152,6 +1404,9 @@ namespace corundum::gameplay {
                                });
       engine.screens.add_layer(RenderLayer::HubStrip,
                                [](Engine &e, platform::Renderer &r, core::math::Vec2 v) { render_hub_strip(e, r, v); });
+
+      if (engine.cfg.show_title)
+        gameplay.open_title();
     }
 
   } // namespace
@@ -1267,6 +1522,79 @@ namespace corundum::gameplay {
     engine_->scene.ui.push(screens::Confirm);
   }
 
+  void Gameplay::open_title() {
+    title_screen = {};
+    if (const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
+        directory) {
+      const std::vector<save::SaveSlotInfo> slots = save::list_saves(*directory, engine_->cfg.game_id);
+      title_screen.continue_available = screens::newest_valid_slot(slots).has_value();
+    }
+    title_screen.cursor =
+        screens::title_row_enabled(screens::TitleRow::Continue, title_screen.continue_available) ? 0 : 1;
+    engine_->scene.ui.push(screens::Title);
+  }
+
+  void Gameplay::open_game_over() {
+    game_over_screen = {};
+    game_over_screen.reload_available = !last_slot.empty();
+    game_over_screen.cursor = game_over_screen.reload_available ? 0 : 1;
+    engine_->scene.ui.push(screens::GameOver);
+  }
+
+  void Gameplay::open_save_load(bool saving) {
+    save_load_screen = {};
+    save_load_screen.saving = saving;
+    if (const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
+        directory) {
+      save_load_screen.slots = screens::build_slot_rows(*directory, engine_->cfg.game_id);
+    } else {
+      engine_->notify(std::format("Cannot open saves: {}", directory.error()), ui::k_toast_failed_colour);
+    }
+    engine_->scene.ui.push(screens::SaveLoad);
+  }
+
+  std::expected<void, std::string> Gameplay::new_game() {
+    Engine &engine = *engine_;
+    engine.flags.clear();
+    for (const auto &[key, value] : engine.cfg.starting_flags)
+      engine.flags[key] = value;
+
+    // Rebuild the exact scene Engine::initialize() builds, so a new game starts where a fresh
+    // boot does: world mode enters the overworld at the manifest default spawn, single-map mode
+    // applies the per-map spawn point / game.json player / built-in precedence. apply_spawn would
+    // instead pin the spawn to game.json's tile and skip a per-map spawn point.
+    const std::expected<void, std::string> result = world::load_initial_scene(engine);
+
+    // load_initial_scene replaces the Scene (clearing scene.ui); clear every Gameplay member too,
+    // so a conversation or cursor from the abandoned session cannot outlive it.
+    reset_session_state();
+    if (result)
+      engine.notify("New game started");
+    else
+      engine.notify(std::format("New game failed: {}", result.error()), ui::k_toast_failed_colour);
+    return result;
+  }
+
+  std::expected<void, std::string> Gameplay::continue_game() {
+    const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
+    if (!directory) {
+      engine_->notify(std::format("Load failed: {}", directory.error()), ui::k_toast_failed_colour);
+      return std::unexpected(directory.error());
+    }
+    const std::vector<save::SaveSlotInfo> slots = save::list_saves(*directory, engine_->cfg.game_id);
+    const std::optional<std::string> newest = screens::newest_valid_slot(slots);
+    if (!newest) {
+      engine_->notify("No saved game to continue");
+      return std::unexpected("no saved game");
+    }
+    const std::expected<void, std::string> result = load_from_slot(*newest);
+    if (result)
+      engine_->notify("Game loaded");
+    else
+      engine_->notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
+    return result;
+  }
+
   void Gameplay::reset_session_state() {
     dialogue.reset();
     dialogue_npc.reset();
@@ -1283,6 +1611,9 @@ namespace corundum::gameplay {
     loot_screen = {};
     barter_screen = {};
     confirm = {};
+    title_screen = {};
+    game_over_screen = {};
+    save_load_screen = {};
     last_hub_mode = screens::Inventory;
     engine_->scene.ui.clear();
   }

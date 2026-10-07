@@ -12,6 +12,7 @@
 #include <flat_map>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace corundum::core {
 
@@ -119,6 +120,9 @@ namespace corundum::core {
    *  timer starts at before initialize() applies the configured value. */
   constexpr unsigned k_default_simulation_fps = 60;
 
+  /** @brief In-game name used when a project sets neither "title" nor "window_title". */
+  constexpr std::string_view k_default_game_title = "Corundum Engine";
+
   /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
   /// data together.
   struct GameConfig {
@@ -148,8 +152,18 @@ namespace corundum::core {
     /** @brief Window mode at startup, before any user setting applies ("window_mode" in game.json). */
     WindowMode window_mode{WindowMode::Windowed};
 
-    /** @brief Window title shown in the OS title bar. */
-    std::string window_title = "Corundum Engine";
+    /** @brief Game name drawn on the Title screen ("title" in game.json).
+     *
+     *  Distinct from window_title: the OS caption and the in-game name can differ. At parse time
+     *  an unset title falls back to window_title, then to k_default_game_title, so a loaded
+     *  GameConfig always carries a non-empty title. */
+    std::string title;
+
+    /** @brief Window title shown in the OS title bar ("window_title" in game.json).
+     *
+     *  At parse time an unset window_title falls back to `title`, so the two are equal unless a
+     *  project names them differently. */
+    std::string window_title;
 
     /** @brief Whether the game opens on the Title screen.
      *
@@ -210,5 +224,13 @@ namespace corundum::core {
   /// @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
   /// failure.
   [[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const std::filesystem::path &path);
+
+  /** @brief The game's display name for framing screens.
+   *
+   *  A project that sets only one of "title"/"window_title" gets that value for both; a project
+   *  that sets neither gets k_default_game_title. load_game_config() resolves both fields already,
+   *  so this only matters for a GameConfig built by hand (tests, embeddings).
+   */
+  [[nodiscard]] std::string_view game_title(const GameConfig &cfg) noexcept;
 
 } // namespace corundum::core

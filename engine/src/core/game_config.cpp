@@ -625,6 +625,22 @@ namespace corundum::core {
     }
 
     {
+      auto res = get_nonempty_string(j, "title", cfg.title, path);
+      if (!res)
+        return std::unexpected(res.error());
+      cfg.title = std::move(*res);
+    }
+
+    // An unset title falls back to the window title, then to the engine's own name; an unset
+    // window title falls back to the title. A loaded config therefore always carries both.
+    if (cfg.title.empty())
+      cfg.title = cfg.window_title;
+    if (cfg.title.empty())
+      cfg.title = std::string{k_default_game_title};
+    if (cfg.window_title.empty())
+      cfg.window_title = cfg.title;
+
+    {
       auto res = parse_dialogue_render(j, path);
       if (!res)
         return std::unexpected(res.error());
@@ -653,6 +669,14 @@ namespace corundum::core {
     }
 
     return cfg;
+  }
+
+  std::string_view game_title(const GameConfig &cfg) noexcept {
+    if (!cfg.title.empty())
+      return cfg.title;
+    if (!cfg.window_title.empty())
+      return cfg.window_title;
+    return k_default_game_title;
   }
 
 } // namespace corundum::core
