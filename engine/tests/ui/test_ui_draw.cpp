@@ -487,3 +487,29 @@ TEST_CASE("ui_draw: draw_styled advances x across runs and uses each run's face"
   CHECK(third.font_id == 5u);
   CHECK(third.position.x == 3.f + 16.f + 16.f);
 }
+
+TEST_CASE("ui_draw: screen_panel_rect spans the viewport minus margins and the top inset") {
+  corundum::ui::PanelStyle style{};
+  style.margin = 20.f;
+
+  const corundum::ui::PanelRect rect =
+      corundum::ui::screen_panel_rect({.x = 1280.f, .y = 720.f}, style, /*top_inset=*/40.f);
+
+  CHECK(rect.pos.x == 20.f);
+  CHECK(rect.pos.y == 60.f);    // margin + top_inset
+  CHECK(rect.size.x == 1240.f); // 1280 - 2*margin
+  CHECK(rect.size.y == 640.f);  // 720 - (margin + inset) - margin
+}
+
+TEST_CASE("ui_draw: screen_panel_rect caps width and centers on an ultrawide viewport") {
+  corundum::ui::PanelStyle style{};
+  style.margin = 20.f;
+
+  const corundum::ui::PanelRect rect =
+      corundum::ui::screen_panel_rect({.x = 3440.f, .y = 1440.f}, style, /*top_inset=*/40.f);
+
+  CHECK(rect.size.x == corundum::ui::k_screen_panel_max_width);
+  // Centered: left edge = (viewport - capped width) / 2.
+  CHECK(rect.pos.x == (3440.f - corundum::ui::k_screen_panel_max_width) * 0.5f);
+  CHECK(rect.size.y == 1360.f);
+}

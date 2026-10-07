@@ -23,6 +23,29 @@ namespace corundum::ui {
     float height{};
   };
 
+  /** @brief A screen-space panel rectangle: top-left plus extent. */
+  struct PanelRect {
+    core::math::Vec2 pos{};
+
+    core::math::Vec2 size{};
+  };
+
+  /// Maximum width, in logical pixels, of a viewport-filling screen panel.
+  inline constexpr float k_screen_panel_max_width = 1600.f;
+
+  /** @brief Geometry of a screen panel that fills the viewport.
+   *
+   *  The panel spans the viewport minus PanelStyle::margin on every side, with @p top_inset
+   *  additionally reserved above it so a hub tab strip can sit in that gap. Its width is capped
+   *  at k_screen_panel_max_width and centered when the viewport is wider, so an ultrawide display
+   *  does not stretch rows across the whole screen. Height is not capped.
+   *
+   *  @param viewport  Screen size in logical pixels.
+   *  @param style     Supplies PanelStyle::margin.
+   *  @param top_inset Extra space reserved above the panel (e.g. hub strip y + line height).
+   */
+  [[nodiscard]] PanelRect screen_panel_rect(core::math::Vec2 viewport, const PanelStyle &style, float top_inset = 0.f);
+
   /** @brief Screen-space hit geometry of a uniform vertical option list.
    *
    *  Shared by a screen's render and its mouse handling so the two cannot disagree about where
@@ -61,6 +84,18 @@ namespace corundum::ui {
    *  the codex body scrolls. Fractional deltas truncate toward zero.
    */
   [[nodiscard]] int scroll_row_delta(float scroll_y) noexcept;
+
+  /** @brief Scroll offset that keeps @p cursor inside a window of @p visible_rows rows.
+   *
+   *  Clamps @p scroll into `[0, row_count - visible_rows]`, then nudges it so @p cursor lies in
+   *  `[scroll, scroll + visible_rows)`. Returns 0 when the whole list fits.
+   *
+   *  @param scroll       Requested first visible row.
+   *  @param cursor       Row that must stay visible.
+   *  @param row_count    Total number of rows.
+   *  @param visible_rows Number of rows the window can show.
+   */
+  [[nodiscard]] int clamp_scroll_to_cursor(int scroll, int cursor, int row_count, int visible_rows) noexcept;
 
   /** @brief Horizontal advance of the choice cursor column — the x-offset at which an
    *         option's label begins.
@@ -108,6 +143,17 @@ namespace corundum::ui {
    */
   void panel_chrome(platform::Renderer &r, core::math::Colour bg, const NinePatchBorder &border, core::math::Vec2 pos,
                     core::math::Vec2 size);
+
+  /** @brief Fill the whole viewport with an opaque PanelStyle::bg.
+   *
+   *  Drawn behind a viewport-filling screen panel so the world does not show through the
+   *  translucent PanelStyle::bg used for content-sized modals. One DrawRect per call.
+   *
+   *  @param r        Renderer; emits one DrawRect.
+   *  @param style    Supplies bg; only its alpha is forced opaque.
+   *  @param viewport Screen size in logical pixels.
+   */
+  void screen_backdrop(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport);
 
   /** @brief Draw one selectable menu option: a "> " cursor (or two spaces when
    *         @p show_cursor is false) followed by @p label, coloured by @p selected.

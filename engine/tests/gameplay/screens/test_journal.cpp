@@ -166,9 +166,9 @@ TEST_CASE("journal_panel_render: sub-tab strip, then the highlighted quest's che
 
   screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  // Chrome (1 rect + 8 sprites) + title + 3 sub-tabs + footer + (cursor + name) + 2 checklists
-  // (each its mark + text) + (cursor + name) for the unhighlighted second row.
-  REQUIRE(r.log.size() == 9 + 1 + 3 + 1 + 2 + 4 + 2);
+  // Backdrop + chrome (1 rect + 8 sprites) + title + 3 sub-tabs + footer + (cursor + name) + 2
+  // checklists (each its mark + text) + (cursor + name) for the unhighlighted second row.
+  REQUIRE(r.log.size() == 1 + 9 + 1 + 3 + 1 + 2 + 4 + 2);
   CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[0]));
 
   const std::vector<std::string> texts = recorded_texts(r);
@@ -255,7 +255,7 @@ TEST_CASE("journal_panel_render: empty tab renders the placeholder line") {
   const screens::JournalState state{};
   screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  REQUIRE(r.log.size() == 9 + 1 + 3 + 1 + 1);
+  REQUIRE(r.log.size() == 1 + 9 + 1 + 3 + 1 + 1);
   const std::vector<std::string> texts = recorded_texts(r);
   REQUIRE(texts.size() == 6);
   CHECK(texts[0] == "Journal");

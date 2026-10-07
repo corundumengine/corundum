@@ -30,6 +30,7 @@ add_executable(corundum_gameplay_tests
     root/test_screen_registry.cpp
     save/test_save.cpp
     screens/test_dialog_reveal.cpp
+    screens/test_hub_panels.cpp
     screens/test_hub_tabs.cpp
     screens/test_hud_strip.cpp
     screens/test_journal.cpp

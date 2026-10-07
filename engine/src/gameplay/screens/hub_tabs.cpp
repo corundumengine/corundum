@@ -77,6 +77,10 @@ namespace corundum::gameplay::screens {
     return -1;
   }
 
+  float hub_panel_top_inset(const ui::PanelStyle &style) noexcept {
+    return k_top_margin + std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
+  }
+
   void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
                             core::math::Vec2 viewport, input::InputDevice last_device) {
     const HubTabStrip strip = hub_tab_strip(r, style, viewport);

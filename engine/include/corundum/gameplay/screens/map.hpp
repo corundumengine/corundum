@@ -35,9 +35,11 @@ namespace corundum::gameplay::screens {
   [[nodiscard]] std::vector<MapEntry> build_map_entries(const gameplay::location::Registry &registry,
                                                         const world::FlagStore &flags, std::string_view zone_id = {});
 
-  /** @brief Map-screen state: the highlighted row only. */
+  /** @brief Map-screen state: the highlighted row and the first visible destination. */
   struct MapState {
     int cursor{};
+
+    int scroll{};
   };
 
   /** @brief Screen-space geometry of the map panel, shared by render and mouse hit-testing. */
@@ -49,10 +51,14 @@ namespace corundum::gameplay::screens {
     ui::ListHit rows{};
   };
 
-  /** @brief Compute the map panel's geometry for @p viewport. */
+  /** @brief Compute the map panel's geometry for @p viewport, scrolling to keep @p cursor visible.
+   *
+   *  @param cursor Highlighted row; the returned @c rows.first_row keeps it inside the window.
+   *  @param scroll Requested first visible row; clamped so @p cursor stays visible.
+   */
   [[nodiscard]] MapLayout map_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
-                                           const std::vector<MapEntry> &entries, core::math::Vec2 viewport,
-                                           input::InputDevice last_device);
+                                           const std::vector<MapEntry> &entries, int cursor, int scroll,
+                                           core::math::Vec2 viewport, input::InputDevice last_device);
 
   /** @brief Draw the world map as a centered list of discovered fast-travel destinations.
    *
@@ -69,7 +75,7 @@ namespace corundum::gameplay::screens {
    *  @param last_device Device of the player's most recent press; picks the footer glyphs.
    */
   void map_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                        const std::vector<MapEntry> &entries, int cursor, core::math::Vec2 viewport,
+                        const std::vector<MapEntry> &entries, int cursor, int scroll, core::math::Vec2 viewport,
                         input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::gameplay::screens

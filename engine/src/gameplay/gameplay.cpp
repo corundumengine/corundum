@@ -353,12 +353,15 @@ namespace corundum::gameplay {
       switch (mode) {
         case screens::Inventory:
           gameplay.inventory_cursor = 0;
+          gameplay.inventory_scroll = 0;
           // Built once here rather than every render frame: the inventory is read-only and the
           // simulation is paused while it is open, so there is no mutation to invalidate it.
           gameplay.inventory_lines = screens::build_inventory_lines(engine.flags, gameplay.items);
+          gameplay.inventory_equipment = screens::build_equipment_lines(engine.flags, gameplay.items);
           break;
         case screens::Journal:
           gameplay.journal_screen.cursor = 0;
+          gameplay.journal_screen.scroll = 0;
           break;
         case screens::Codex:
           gameplay.codex_screen.cursor = 0;
@@ -368,6 +371,7 @@ namespace corundum::gameplay {
           break;
         case screens::Map:
           gameplay.map_screen.cursor = 0;
+          gameplay.map_screen.scroll = 0;
           break;
         default:
           break;
@@ -469,26 +473,29 @@ namespace corundum::gameplay {
       const int rows = static_cast<int>(gameplay.inventory_lines.size());
 
       if (pointer_active(intent)) {
-        const screens::InventoryLayout layout =
-            screens::inventory_panel_layout(*engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines,
-                                            gameplay.inventory_cursor, screen_viewport(engine));
+        const screens::InventoryLayout layout = screens::inventory_panel_layout(
+            *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+            gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
         const core::math::Vec2 cursor = intent_cursor(intent);
         if (pointer_focus(intent)) {
           if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-            gameplay.inventory_cursor = hovered;
+            gameplay.inventory_cursor = layout.first_row + hovered;
         }
         if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
           gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, steps, rows);
       }
 
-      const int delta = intent.navigate_y;
-      if (delta == 0)
-        return;
-      if (rows <= 0) {
-        gameplay.inventory_cursor = 0;
-        return;
+      if (intent.navigate_y != 0) {
+        if (rows <= 0)
+          gameplay.inventory_cursor = 0;
+        else
+          gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, intent.navigate_y, rows);
       }
-      gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, delta, rows);
+
+      const screens::InventoryLayout visible = screens::inventory_panel_layout(
+          *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+          gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
+      gameplay.inventory_scroll = visible.first_row;
     }
 
     /// Switch the journal to @p tab, resetting the row cursor when it changes.
@@ -542,7 +549,7 @@ namespace corundum::gameplay {
       }
       if (pointer_focus(intent)) {
         if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-          state.cursor = hovered;
+          state.cursor = layout.first_row + hovered;
       }
       const int rows = static_cast<int>(entries.size());
       if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
@@ -643,27 +650,34 @@ namespace corundum::gameplay {
       const std::vector<screens::MapEntry> entries =
           screens::build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id);
       const int rows = static_cast<int>(entries.size());
+      screens::MapState &state = gameplay.map_screen;
 
       if (pointer_active(intent)) {
         const screens::MapLayout layout =
-            screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries,
-                                      screen_viewport(engine), engine.input_mapper.last_device());
+            screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state.cursor,
+                                      state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
         const core::math::Vec2 cursor = intent_cursor(intent);
         if (pointer_focus(intent)) {
           if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-            gameplay.map_screen.cursor = hovered;
+            state.cursor = hovered;
         }
         if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
-          gameplay.map_screen.cursor = wrap_cursor(gameplay.map_screen.cursor, steps, rows);
+          state.cursor = wrap_cursor(state.cursor, steps, rows);
       }
 
       if (intent.navigate_y != 0 && rows > 0)
-        gameplay.map_screen.cursor = wrap_cursor(gameplay.map_screen.cursor, intent.navigate_y, rows);
+        state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
+
+      // Keep the highlighted destination inside the window; the layout clamps the offset.
+      const screens::MapLayout visible =
+          screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state.cursor,
+                                    state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
+      state.scroll = visible.rows.first_row;
+
       if (!intent.activate || rows == 0)
         return;
 
-      const screens::MapEntry &selected =
-          entries[static_cast<std::size_t>(std::clamp(gameplay.map_screen.cursor, 0, rows - 1))];
+      const screens::MapEntry &selected = entries[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
       if (selected.current) {
         engine.notify("You are already here");
         return;
@@ -905,7 +919,8 @@ namespace corundum::gameplay {
     void render_inventory(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
                           core::math::Vec2 viewport) {
       screens::inventory_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                      gameplay.inventory_lines, gameplay.inventory_cursor, viewport);
+                                      gameplay.inventory_lines, gameplay.inventory_equipment, gameplay.inventory_cursor,
+                                      gameplay.inventory_scroll, viewport);
     }
 
     void render_journal(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -930,7 +945,8 @@ namespace corundum::gameplay {
         return;
       screens::map_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                 screens::build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id),
-                                gameplay.map_screen.cursor, viewport, engine.input_mapper.last_device());
+                                gameplay.map_screen.cursor, gameplay.map_screen.scroll, viewport,
+                                engine.input_mapper.last_device());
     }
 
     void render_loot(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {

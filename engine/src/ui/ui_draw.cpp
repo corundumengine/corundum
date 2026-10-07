@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
 #include <cmath>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -15,6 +16,16 @@
 #include <string_view>
 
 namespace corundum::ui {
+
+  PanelRect screen_panel_rect(core::math::Vec2 viewport, const PanelStyle &style, float top_inset) {
+    const float width = std::min(viewport.x - (style.margin * 2.f), k_screen_panel_max_width);
+    const float top = style.margin + top_inset;
+    const float height = viewport.y - top - style.margin;
+    return PanelRect{
+        .pos = {.x = (viewport.x - width) * 0.5f, .y = top},
+        .size = {.x = width, .y = height},
+    };
+  }
 
   int hovered_row(core::math::Vec2 cursor, const ListHit &list) noexcept {
     if (list.visible_rows <= 0 || list.row_height <= 0.f)
@@ -45,6 +56,18 @@ namespace corundum::ui {
     return -static_cast<int>(scroll_y);
   }
 
+  int clamp_scroll_to_cursor(int scroll, int cursor, int row_count, int visible_rows) noexcept {
+    if (visible_rows <= 0 || row_count <= visible_rows)
+      return 0;
+    const int max_first = row_count - visible_rows;
+    scroll = std::clamp(scroll, 0, max_first);
+    if (cursor < scroll)
+      scroll = cursor;
+    else if (cursor >= scroll + visible_rows)
+      scroll = cursor - visible_rows + 1;
+    return std::clamp(scroll, 0, max_first);
+  }
+
   float cursor_advance(const platform::Renderer &r, const PanelStyle &style, FontRole role) {
     return r.measure_text(style.family(role).get(FontStyle::Regular), k_choice_cursor, style.font_size_body);
   }
@@ -61,6 +84,12 @@ namespace corundum::ui {
                     core::math::Vec2 size) {
     panel_fill(r, bg, pos, size);
     panel_frame(r, border, pos, size);
+  }
+
+  void screen_backdrop(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport) {
+    core::math::Colour bg = style.bg;
+    bg.a = 255;
+    panel_fill(r, bg, {.x = 0.f, .y = 0.f}, viewport);
   }
 
   void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_view label, core::math::Vec2 pos,

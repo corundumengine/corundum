@@ -165,9 +165,9 @@ TEST_CASE("mouse: hovering an inventory row moves focus, and the wheel steps the
   };
   gameplay.inventory_cursor = 0;
 
-  const screens::InventoryLayout layout =
-      screens::inventory_panel_layout(*engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines,
-                                      gameplay.inventory_cursor, viewport(engine));
+  const screens::InventoryLayout layout = screens::inventory_panel_layout(
+      *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+      gameplay.inventory_cursor, gameplay.inventory_scroll, viewport(engine));
   REQUIRE(layout.rows.size() == 3);
   const corundum::core::math::Vec2 row2{
       .x = layout.rows[2].pos.x + 5.f,

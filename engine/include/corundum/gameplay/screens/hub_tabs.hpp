@@ -50,6 +50,13 @@ namespace corundum::gameplay::screens {
   [[nodiscard]] HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &style,
                                           core::math::Vec2 viewport);
 
+  /** @brief Height of the top gap a hub panel leaves clear for the tab strip.
+   *
+   *  Equals `hub_tab_strip(...).y + line_height`; pass it as the top_inset to
+   *  ui::screen_panel_rect so the panel never overlaps the strip.
+   */
+  [[nodiscard]] float hub_panel_top_inset(const ui::PanelStyle &style) noexcept;
+
   /** @brief Index of the tab under @p cursor in @p strip, or -1 when the cursor is outside every tab. */
   [[nodiscard]] int hub_tab_at(const HubTabStrip &strip, core::math::Vec2 cursor) noexcept;
 

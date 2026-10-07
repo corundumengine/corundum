@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/ui/font_family.hpp>
 
@@ -33,7 +34,6 @@ namespace corundum::gameplay::screens {
 
   namespace {
 
-    constexpr float k_journal_min_w = 260.f;
     constexpr float k_journal_pad_x = 24.f;
     constexpr float k_journal_pad_y = 16.f;
     constexpr float k_journal_gap = 10.f;
@@ -96,10 +96,54 @@ namespace corundum::gameplay::screens {
       float row_x{};
       float objective_indent{};
       int clamped_cursor{};
+      int first_row{};
+      int visible_rows{};
       std::string footer{};
       std::array<ui::RowRect, k_journal_tabs.size()> sub_tabs{};
       std::vector<JournalDrawRow> draw_rows{};
     };
+
+    /// The visible slice of the journal list.
+    struct JournalWindow {
+      int first_row{};
+
+      int visible_rows{};
+    };
+
+    /// Window the journal list to @p available pixels, keeping @p cursor visible. Each entry is an
+    /// option line plus either its single objective line or, when highlighted, its full checklist,
+    /// so the window is sized by the summed row heights rather than a fixed slot count.
+    JournalWindow compute_journal_window(int scroll, int cursor, const std::vector<JournalEntry> &entries,
+                                         float available, float body_line_h) {
+      const int entry_count = static_cast<int>(entries.size());
+      const auto entry_height = [&](int i) {
+        const JournalEntry &entry = entries[static_cast<std::size_t>(i)];
+        float height = body_line_h;
+        if (i == cursor && !entry.objectives.empty())
+          height += static_cast<float>(entry.objectives.size()) * body_line_h;
+        else if (!entry.objective.empty())
+          height += body_line_h;
+        return height;
+      };
+      const auto window_end = [&](int start) {
+        float used = 0.f;
+        int i = start;
+        while (i < entry_count) {
+          const float height = entry_height(i);
+          if (i > start && used + height > available)
+            break;
+          used += height;
+          ++i;
+        }
+        return i;
+      };
+
+      const int estimate = std::max(1, static_cast<int>(available / body_line_h));
+      int first = ui::clamp_scroll_to_cursor(scroll, cursor, entry_count, estimate);
+      if (entry_count > 0 && cursor >= window_end(first))
+        first = cursor;
+      return JournalWindow{.first_row = first, .visible_rows = window_end(first) - first};
+    }
 
     JournalGeometry compute_journal_geometry(const platform::Renderer &r, const ui::PanelStyle &style,
                                              const std::vector<JournalEntry> &entries, const JournalState &state,
@@ -109,19 +153,23 @@ namespace corundum::gameplay::screens {
       geometry.header_line_h = std::max(geometry.body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
       const float cursor_w = ui::cursor_advance(r, style, ui::FontRole::Quest);
       geometry.objective_indent = cursor_w + 8.f;
-      geometry.clamped_cursor = std::clamp(state.cursor, 0, std::max(0, static_cast<int>(entries.size()) - 1));
+      const int entry_count = static_cast<int>(entries.size());
+      geometry.clamped_cursor = std::clamp(state.cursor, 0, std::max(0, entry_count - 1));
 
-      const ui::FontFamily &fonts = style.family(ui::FontRole::Quest);
-      const std::uint32_t regular = fonts.get(ui::FontStyle::Regular);
-      const std::uint32_t bold = fonts.get(ui::FontStyle::Bold);
-      const auto measure_objective = [&](std::string_view text) {
-        return ui::measure_styled(r, fonts, ui::parse_styled(text), style.font_size_body);
-      };
-      const float title_w = r.measure_text(bold, k_journal_title, style.font_size_speaker);
+      const ui::PanelRect panel = ui::screen_panel_rect(viewport, style, hub_panel_top_inset(style));
+      geometry.panel_x = panel.pos.x;
+      geometry.panel_y = panel.pos.y;
+      geometry.panel_w = panel.size.x;
+      geometry.panel_h = panel.size.y;
+      geometry.title_y = geometry.panel_y + k_journal_pad_y;
+      geometry.sub_tab_y = geometry.title_y + geometry.header_line_h + k_journal_gap;
+      geometry.body_top = geometry.sub_tab_y + geometry.header_line_h + k_journal_gap;
+      geometry.row_x = geometry.panel_x + k_journal_pad_x;
+
+      const std::uint32_t regular = style.family(ui::FontRole::Quest).get(ui::FontStyle::Regular);
       geometry.footer = std::format(
           "{} Track   {} Tabs   {} Close", ui::input_glyph(input::Action::Activate, last_device),
           ui::input_glyph(input::Action::SubTabNext, last_device), ui::input_glyph(input::Action::Cancel, last_device));
-      const float footer_w = r.measure_text(regular, geometry.footer, style.font_size_body);
 
       std::array<float, k_journal_tabs.size()> sub_tab_widths{};
       float sub_tabs_total = 0.f;
@@ -130,59 +178,6 @@ namespace corundum::gameplay::screens {
         sub_tabs_total += sub_tab_widths[i];
       }
       sub_tabs_total += k_journal_sub_tab_gap * static_cast<float>(k_journal_tabs.size() - 1);
-
-      float widest = std::max({
-          title_w,
-          r.measure_text(regular, k_journal_empty, style.font_size_body),
-          footer_w,
-          sub_tabs_total,
-      });
-
-      // Build the body rows first: their height sets the panel height (x depends on panel width,
-      // so it is applied after the panel is centered). The highlighted entry expands to its full
-      // checklist; every other row keeps the single current-objective line.
-      float body_height = 0.f;
-      for (std::size_t i = 0; i < entries.size(); ++i) {
-        const JournalEntry &entry = entries[i];
-        widest = std::max(widest, cursor_w + r.measure_text(bold, entry.name, style.font_size_body));
-        geometry.draw_rows.push_back(
-            JournalDrawRow{.kind = JournalDrawRow::Kind::Option, .index = i, .y = body_height});
-        body_height += geometry.body_line_h;
-
-        const bool highlighted = std::cmp_equal(i, static_cast<std::size_t>(geometry.clamped_cursor));
-        if (highlighted && !entry.objectives.empty()) {
-          for (const JournalObjective &objective : entry.objectives) {
-            const std::string_view mark = objective.done ? k_objective_done : k_objective_pending;
-            const float objective_w = measure_objective(objective.text);
-            widest = std::max(widest, geometry.objective_indent + r.measure_text(regular, mark, style.font_size_body) +
-                                          objective_w);
-            geometry.draw_rows.push_back(JournalDrawRow{
-                .kind = JournalDrawRow::Kind::Checklist,
-                .text = objective.text,
-                .checked = objective.done,
-                .y = body_height,
-            });
-            body_height += geometry.body_line_h;
-          }
-        } else if (!entry.objective.empty()) {
-          const float objective_w = measure_objective(entry.objective);
-          widest = std::max(widest, geometry.objective_indent + objective_w);
-          geometry.draw_rows.push_back(
-              JournalDrawRow{.kind = JournalDrawRow::Kind::Objective, .text = entry.objective, .y = body_height});
-          body_height += geometry.body_line_h;
-        }
-      }
-
-      geometry.panel_w = std::max(k_journal_min_w, widest + (k_journal_pad_x * 2.f));
-      geometry.panel_h = (k_journal_pad_y * 2.f) + geometry.header_line_h + k_journal_gap + geometry.header_line_h +
-                         k_journal_gap + body_height + k_journal_footer_gap + geometry.body_line_h;
-      geometry.panel_x = (viewport.x - geometry.panel_w) * 0.5f;
-      geometry.panel_y = (viewport.y - geometry.panel_h) * 0.5f;
-      geometry.title_y = geometry.panel_y + k_journal_pad_y;
-      geometry.sub_tab_y = geometry.title_y + geometry.header_line_h + k_journal_gap;
-      geometry.body_top = geometry.sub_tab_y + geometry.header_line_h + k_journal_gap;
-      geometry.row_x = geometry.panel_x + k_journal_pad_x;
-
       float x = geometry.panel_x + ((geometry.panel_w - sub_tabs_total) * 0.5f);
       for (std::size_t i = 0; i < k_journal_tabs.size(); ++i) {
         geometry.sub_tabs[i] = ui::RowRect{
@@ -191,6 +186,41 @@ namespace corundum::gameplay::screens {
             .height = geometry.header_line_h,
         };
         x += sub_tab_widths[i] + k_journal_sub_tab_gap;
+      }
+
+      // Window the list to the content area, leaving room for the footer.
+      const float footer_y = geometry.panel_y + geometry.panel_h - k_journal_pad_y - geometry.body_line_h;
+      const float content_bottom = footer_y - k_journal_footer_gap;
+      const float available = std::max(0.f, content_bottom - geometry.body_top);
+      const JournalWindow window =
+          compute_journal_window(state.scroll, geometry.clamped_cursor, entries, available, geometry.body_line_h);
+      geometry.first_row = window.first_row;
+      geometry.visible_rows = window.visible_rows;
+
+      const int last_row = std::min(entry_count, geometry.first_row + geometry.visible_rows);
+      float y = 0.f;
+      for (int i = geometry.first_row; i < last_row; ++i) {
+        const JournalEntry &entry = entries[static_cast<std::size_t>(i)];
+        geometry.draw_rows.push_back(
+            JournalDrawRow{.kind = JournalDrawRow::Kind::Option, .index = static_cast<std::size_t>(i), .y = y});
+        y += geometry.body_line_h;
+
+        const bool highlighted = i == geometry.clamped_cursor;
+        if (highlighted && !entry.objectives.empty()) {
+          for (const JournalObjective &objective : entry.objectives) {
+            geometry.draw_rows.push_back(JournalDrawRow{
+                .kind = JournalDrawRow::Kind::Checklist,
+                .text = objective.text,
+                .checked = objective.done,
+                .y = y,
+            });
+            y += geometry.body_line_h;
+          }
+        } else if (!entry.objective.empty()) {
+          geometry.draw_rows.push_back(
+              JournalDrawRow{.kind = JournalDrawRow::Kind::Objective, .text = entry.objective, .y = y});
+          y += geometry.body_line_h;
+        }
       }
       return geometry;
     }
@@ -253,6 +283,8 @@ namespace corundum::gameplay::screens {
     layout.panel_pos = {.x = geometry.panel_x, .y = geometry.panel_y};
     layout.panel_size = {.x = geometry.panel_w, .y = geometry.panel_h};
     layout.sub_tabs = geometry.sub_tabs;
+    layout.first_row = geometry.first_row;
+    layout.visible_rows = geometry.visible_rows;
     for (const JournalDrawRow &row : geometry.draw_rows) {
       if (row.kind != JournalDrawRow::Kind::Option)
         continue;
@@ -277,6 +309,7 @@ namespace corundum::gameplay::screens {
     const float title_w = r.measure_text(ui_bold, k_journal_title, style.font_size_speaker);
     const float footer_w = r.measure_text(ui_regular, geometry.footer, style.font_size_body);
 
+    ui::screen_backdrop(r, style, viewport);
     ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                      {.x = geometry.panel_w, .y = geometry.panel_h});
 
@@ -350,8 +383,10 @@ namespace corundum::gameplay::screens {
               .colour = colour,
           });
           ui::draw_styled(r, quest_fonts, ui::parse_styled(row.text), style.font_size_body, colour,
-                          {.x = mark_x + r.measure_text(quest_regular, mark, style.font_size_body),
-                           .y = geometry.body_top + row.y});
+                          {
+                              .x = mark_x + r.measure_text(quest_regular, mark, style.font_size_body),
+                              .y = geometry.body_top + row.y,
+                          });
           break;
         }
       }

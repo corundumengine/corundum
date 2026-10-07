@@ -5,6 +5,7 @@
 #include <corundum/gameplay/dialogue/compiled_expr.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/dialog_layout.hpp>
+#include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/ui/ui_draw.hpp>
@@ -423,23 +424,24 @@ TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pa
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
 
-  // panel_chrome: 1 DrawRect + 8 DrawSprite; then the "Inventory" header DrawText;
-  // then 2 rows × 2 DrawText (cursor + label).
-  REQUIRE(r.log.size() == 9 + 1 + 4);
+  // Backdrop (1 DrawRect) + panel_chrome (1 DrawRect + 8 DrawSprite) + the "Inventory" header
+  // DrawText + 2 rows × 2 DrawText (cursor + label).
+  REQUIRE(r.log.size() == 1 + 9 + 1 + 4);
   CHECK(std::holds_alternative<DrawRect>(r.log[0]));
-  for (std::size_t i = 1; i < 9; ++i)
+  CHECK(std::holds_alternative<DrawRect>(r.log[1]));
+  for (std::size_t i = 2; i < 10; ++i)
     CHECK(std::holds_alternative<DrawSprite>(r.log[i]));
 
-  const DrawText &header = std::get<DrawText>(r.log[9]);
+  const DrawText &header = std::get<DrawText>(r.log[10]);
   CHECK(header.text == "Inventory");
   CHECK(header.colour.r == style.speaker.r);
 
-  const DrawText &row0_cursor = std::get<DrawText>(r.log[10]);
-  const DrawText &row0_label = std::get<DrawText>(r.log[11]);
-  const DrawText &row1_cursor = std::get<DrawText>(r.log[12]);
-  const DrawText &row1_label = std::get<DrawText>(r.log[13]);
+  const DrawText &row0_cursor = std::get<DrawText>(r.log[11]);
+  const DrawText &row0_label = std::get<DrawText>(r.log[12]);
+  const DrawText &row1_cursor = std::get<DrawText>(r.log[13]);
+  const DrawText &row1_label = std::get<DrawText>(r.log[14]);
 
   CHECK(row0_cursor.text == "> ");
   CHECK(row0_label.text == "Apple  x2");
@@ -459,13 +461,13 @@ TEST_CASE("inventory_panel_render: empty list renders header plus one (empty) li
   const corundum::ui::PanelStyle style{};
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, {}, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, {}, {}, 0, 0, viewport);
 
-  // Chrome (9) + header + one "(empty)" line.
-  REQUIRE(r.log.size() == 9 + 1 + 1);
-  const DrawText &header = std::get<DrawText>(r.log[9]);
+  // Backdrop + chrome (9) + header + one "(empty)" line.
+  REQUIRE(r.log.size() == 1 + 9 + 1 + 1);
+  const DrawText &header = std::get<DrawText>(r.log[10]);
   CHECK(header.text == "Inventory");
-  const DrawText &empty = std::get<DrawText>(r.log[10]);
+  const DrawText &empty = std::get<DrawText>(r.log[11]);
   CHECK(empty.text == "(empty)");
 }
 
@@ -482,7 +484,7 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   // cursor 99 → clamps to the last row.
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, 99, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 99, 0, viewport);
   const DrawText &last_cursor = std::get<DrawText>(r.log[r.log.size() - 2]);
   CHECK(last_cursor.text == "> ");
   const DrawText &last_label = std::get<DrawText>(r.log.back());
@@ -490,10 +492,10 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
 
   // cursor -5 → clamps to the first row.
   RecordingRenderer r2;
-  corundum::gameplay::screens::inventory_panel_render(r2, style, border, lines, -5, viewport);
-  const DrawText &first_cursor = std::get<DrawText>(r2.log[10]);
+  corundum::gameplay::screens::inventory_panel_render(r2, style, border, lines, {}, -5, 0, viewport);
+  const DrawText &first_cursor = std::get<DrawText>(r2.log[11]);
   CHECK(first_cursor.text == "> ");
-  const DrawText &first_label = std::get<DrawText>(r2.log[11]);
+  const DrawText &first_label = std::get<DrawText>(r2.log[12]);
   CHECK(first_label.text == "A  x1");
 }
 
@@ -513,7 +515,7 @@ TEST_CASE("inventory_panel_render: the highlighted row's description draws as a 
 
   // Cursor 0 draws the first row's description, not the second's.
   RecordingRenderer r;
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
   bool first_description = false;
   bool second_description = false;
   for (const auto &call : r.log) {
@@ -527,7 +529,7 @@ TEST_CASE("inventory_panel_render: the highlighted row's description draws as a 
 
   // Moving the cursor to the second row swaps the tooltip.
   RecordingRenderer r2;
-  corundum::gameplay::screens::inventory_panel_render(r2, style, border, lines, 1, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r2, style, border, lines, {}, 1, 0, viewport);
   bool second_now = false;
   bool first_now = false;
   for (const auto &call : r2.log) {
@@ -625,10 +627,10 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
 
-  // Chrome (9) + "Inventory" header + 4 group headers + 4 rows × 2 DrawText (cursor + label).
-  REQUIRE(r.log.size() == 9 + 1 + 4 + 8);
+  // Backdrop + chrome (9) + "Inventory" header + 4 group headers + 4 rows × 2 DrawText (cursor + label).
+  REQUIRE(r.log.size() == 1 + 9 + 1 + 4 + 8);
 
   std::vector<std::string> texts;
   for (const auto &call : r.log)
@@ -663,36 +665,41 @@ TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
 
-  // Chrome (9) + "Inventory" header + 1 row × 2. No "Misc" group header.
-  REQUIRE(r.log.size() == 9 + 1 + 2);
+  // Backdrop + chrome (9) + "Inventory" header + 1 row × 2. No "Misc" group header.
+  REQUIRE(r.log.size() == 1 + 9 + 1 + 2);
 
-  const DrawText &header = std::get<DrawText>(r.log[9]);
+  const DrawText &header = std::get<DrawText>(r.log[10]);
   CHECK(header.text == "Inventory");
-  const DrawText &row_cursor = std::get<DrawText>(r.log[10]);
-  const DrawText &row_label = std::get<DrawText>(r.log[11]);
+  const DrawText &row_cursor = std::get<DrawText>(r.log[11]);
+  const DrawText &row_label = std::get<DrawText>(r.log[12]);
   CHECK(row_cursor.text == "> ");
   CHECK(row_label.text == "Clutter  x1");
 }
 
-TEST_CASE("inventory_panel_render: panel width reserves the cursor column and header width") {
+TEST_CASE("inventory_panel_render: the panel fills the viewport") {
   using corundum::gameplay::item::ItemCategory;
   RecordingRenderer r;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
 
-  // A name long enough to clear k_min_w: label 32 chars (256px) + "> " (16px) = 272 content.
   const std::vector<corundum::gameplay::screens::InventoryLine> lines = {
-      {.category = ItemCategory::Apparel, .count = 1, .name = "abcdefghijklmnopqrstuvwxyzab"},
+      {.category = ItemCategory::Apparel, .count = 1, .name = "Cloak"},
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
 
-  // measure_text is 8px/char: content = cursor (2) + label (32) = 34 chars, plus 24px pad each side.
-  const DrawRect &panel = std::get<DrawRect>(r.log[0]);
-  CHECK(panel.size.x == (34.f * 8.f) + (24.f * 2.f));
+  // log[0] is the opaque backdrop; log[1] is the panel fill, spanning the viewport minus margin.
+  const DrawRect &backdrop = std::get<DrawRect>(r.log[0]);
+  CHECK(backdrop.size.x == viewport.x);
+  CHECK(backdrop.size.y == viewport.y);
+  CHECK(backdrop.colour.a == 255);
+
+  const DrawRect &panel = std::get<DrawRect>(r.log[1]);
+  CHECK(panel.size.x == viewport.x - (style.margin * 2.f));
+  CHECK(panel.size.y == viewport.y - (style.margin * 2.f) - corundum::gameplay::screens::hub_panel_top_inset(style));
 }
 
 TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row height") {
@@ -709,15 +716,15 @@ TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
 
-  // Chrome(9) + title + group header + cursor + label. Header row height is
+  // Backdrop + chrome(9) + title + group header + cursor + label. Header row height is
   // max(body_line_h, speaker + 4) = max(14, 44) = 44, not the body row height.
-  const DrawText &group_header = std::get<DrawText>(r.log[10]);
-  const DrawText &row_cursor = std::get<DrawText>(r.log[11]);
+  const DrawText &group_header = std::get<DrawText>(r.log[11]);
+  const DrawText &row_cursor = std::get<DrawText>(r.log[12]);
   CHECK(group_header.text == "Apparel");
   CHECK(row_cursor.position.y - group_header.position.y == 44.f);
 
-  const DrawRect &panel = std::get<DrawRect>(r.log[0]);
-  CHECK(panel.size.y == (16.f * 2.f) + 44.f + 10.f + 14.f + 44.f);
+  const DrawRect &panel = std::get<DrawRect>(r.log[1]);
+  CHECK(panel.size.y == viewport.y - (style.margin * 2.f) - corundum::gameplay::screens::hub_panel_top_inset(style));
 }

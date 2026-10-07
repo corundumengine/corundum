@@ -60,10 +60,13 @@ namespace corundum::gameplay::screens {
     std::vector<JournalObjective> objectives{};
   };
 
-  /** @brief Journal-screen state: the active sub-tab and the highlighted row within it. */
+  /** @brief Journal-screen state: the active sub-tab, highlighted row, and first visible row. */
   struct JournalState {
     JournalTab tab{JournalTab::Active};
+
     int cursor{};
+
+    int scroll{};
   };
 
   /** @brief Build the journal rows for every started quest in @p tab.
@@ -92,7 +95,11 @@ namespace corundum::gameplay::screens {
 
     std::array<ui::RowRect, k_journal_tabs.size()> sub_tabs{}; ///< Active, Completed, Failed.
 
-    std::vector<ui::RowRect> rows{}; ///< One hit rect per entry of @p entries, in draw order.
+    std::vector<ui::RowRect> rows{}; ///< One hit rect per visible entry, in draw order.
+
+    int first_row{}; ///< Absolute index of @c rows.front(); add it to a hovered index.
+
+    int visible_rows{}; ///< Number of entries actually drawn.
   };
 
   /** @brief Compute the journal panel's geometry for @p viewport. */

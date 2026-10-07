@@ -115,10 +115,18 @@ namespace corundum::gameplay {
     /** @brief Highlighted row while the Inventory hub tab is open; wrapped against inventory_lines. */
     int inventory_cursor{};
 
+    /** @brief First visible item row while the Inventory hub tab is open; kept so the highlighted
+     *  row stays inside the list window. */
+    int inventory_scroll{};
+
     /** @brief Held-item rows of the Inventory hub tab, rebuilt when the tab is opened or switched
      *  to. The inventory is read-only and the simulation is paused while it is open, so there is
      *  no per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation"). */
     std::vector<screens::InventoryLine> inventory_lines;
+
+    /** @brief Equipment-slot rows of the Inventory hub tab's left column, rebuilt alongside
+     *  inventory_lines. The game owns the `equip.<slot>.<item id>` flags; this only displays them. */
+    std::vector<screens::EquipmentLine> inventory_equipment;
 
     /** @brief State of the Journal hub tab: its active sub-tab and highlighted row. The cursor
      *  wraps against the rows of the active sub-tab. */

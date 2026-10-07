@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
@@ -98,10 +99,11 @@ namespace corundum::gameplay::screens {
       CodexGeometry geometry{};
       geometry.line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
       geometry.header_h = std::max(geometry.line_h, static_cast<float>(style.font_size_speaker) + 4.f);
-      geometry.panel_w = std::max(480.f, viewport.x * 0.8f);
-      geometry.panel_h = std::max(280.f, viewport.y * 0.75f);
-      geometry.panel_x = (viewport.x - geometry.panel_w) * 0.5f;
-      geometry.panel_y = (viewport.y - geometry.panel_h) * 0.5f;
+      const ui::PanelRect panel = ui::screen_panel_rect(viewport, style, hub_panel_top_inset(style));
+      geometry.panel_w = panel.size.x;
+      geometry.panel_h = panel.size.y;
+      geometry.panel_x = panel.pos.x;
+      geometry.panel_y = panel.pos.y;
       geometry.content_top = geometry.panel_y + k_pad + geometry.header_h + k_pad;
       geometry.content_bottom = geometry.panel_y + geometry.panel_h - k_pad - geometry.line_h - k_pad;
       geometry.list_w = geometry.panel_w * k_split_frac;
@@ -189,6 +191,7 @@ namespace corundum::gameplay::screens {
 
     const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
 
+    ui::screen_backdrop(r, style, viewport);
     ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                      {.x = geometry.panel_w, .y = geometry.panel_h});
 
