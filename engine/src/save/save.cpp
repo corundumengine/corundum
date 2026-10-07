@@ -4,21 +4,28 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/world/flags.hpp>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json.hpp> // NOLINT(misc-include-cleaner): constructors live in json.hpp
 
+#include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
+#include <corundum/core/user_data_dir.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/transition.hpp>
 
+#include <chrono>
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace corundum::save {
 
@@ -38,6 +45,9 @@ namespace corundum::save {
       } else if constexpr (std::is_same_v<T, bool>) {
         if (!it->is_boolean())
           return std::unexpected(std::format("save '{}' must be a boolean", key));
+      } else if constexpr (std::is_integral_v<T>) {
+        if (!it->is_number_integer())
+          return std::unexpected(std::format("save '{}' must be an integer", key));
       } else {
         if (!it->is_number())
           return std::unexpected(std::format("save '{}' must be a number", key));
@@ -57,6 +67,31 @@ namespace corundum::save {
       return j;
     }
 
+    [[nodiscard]] nlohmann::json serialize_meta(const SaveMeta &meta) {
+      return nlohmann::json{
+          {"location_name", meta.location_name},
+          {"playtime_seconds", meta.playtime_seconds},
+          {"saved_at_unix", meta.saved_at_unix},
+      };
+    }
+
+    /// Parse the optional `meta` object. Absent leaves @p out at its defaults; present must be an
+    /// object with correctly-typed fields.
+    [[nodiscard]] std::expected<void, std::string> parse_meta(const nlohmann::json &j, SaveMeta &out) {
+      const auto it = j.find("meta");
+      if (it == j.end())
+        return {};
+      if (!it->is_object())
+        return std::unexpected("save 'meta' must be an object");
+      if (auto result = read_field(*it, "location_name", out.location_name); !result)
+        return result;
+      if (auto result = read_field(*it, "playtime_seconds", out.playtime_seconds); !result)
+        return result;
+      if (auto result = read_field(*it, "saved_at_unix", out.saved_at_unix); !result)
+        return result;
+      return {};
+    }
+
   } // namespace
 
   nlohmann::json serialize(const SaveState &state) {
@@ -69,6 +104,7 @@ namespace corundum::save {
     j["player_col"] = state.player_col;
     j["player_row"] = state.player_row;
     j["entered_from_world"] = state.entered_from_world;
+    j["meta"] = serialize_meta(state.meta);
     j["flags"] = serialize_flags(state.flags);
     return j;
   }
@@ -100,6 +136,8 @@ namespace corundum::save {
       return std::unexpected(std::move(result).error());
     if (auto result = read_field(j, "entered_from_world", s.entered_from_world); !result)
       return std::unexpected(std::move(result).error());
+    if (auto result = parse_meta(j, s.meta); !result)
+      return std::unexpected(std::move(result).error());
 
     if (s.mode != k_mode_single_map && s.mode != k_mode_world)
       return std::unexpected(std::format("save 'mode' must be '{}' or '{}'", k_mode_single_map, k_mode_world));
@@ -116,10 +154,15 @@ namespace corundum::save {
     return s;
   }
 
-  std::expected<void, std::string> save_game(const Engine &engine, const std::filesystem::path &path) {
+  std::expected<void, std::string> save_game(const Engine &engine, const std::filesystem::path &path,
+                                             std::string_view location_name, std::int64_t playtime_seconds) {
     SaveState state;
     state.version = k_save_version;
     state.game_id = engine.cfg.game_id;
+    state.meta.location_name = std::string{location_name};
+    state.meta.playtime_seconds = playtime_seconds;
+    const auto now = std::chrono::system_clock::now().time_since_epoch();
+    state.meta.saved_at_unix = std::chrono::duration_cast<std::chrono::seconds>(now).count();
     state.mode =
         engine.render.mode == render::RenderMode::World ? std::string{k_mode_world} : std::string{k_mode_single_map};
 
@@ -142,7 +185,65 @@ namespace corundum::save {
     state.entered_from_world = engine.entered_from_world;
     state.flags = engine.flags;
 
+    // A bare filename has an empty parent path; create_directories("") would fail.
+    if (!path.parent_path().empty()) {
+      std::error_code directory_error;
+      std::filesystem::create_directories(path.parent_path(), directory_error);
+      if (directory_error)
+        return std::unexpected(
+            std::format("cannot create '{}': {}", path.parent_path().string(), directory_error.message()));
+    }
     return core::write_json(path, serialize(state));
+  }
+
+  std::string manual_slot_id(int index) {
+    return std::format("slot_{:02d}", index + 1);
+  }
+
+  std::filesystem::path slot_path(const std::filesystem::path &directory, std::string_view slot_id) {
+    return directory / std::format("{}.json", slot_id);
+  }
+
+  std::expected<std::filesystem::path, std::string> saves_directory(const core::GameConfig &cfg) {
+    std::expected<std::filesystem::path, std::string> directory = core::user_data_dir(cfg.game_id);
+    if (!directory)
+      return std::unexpected(directory.error());
+    return *directory / "saves";
+  }
+
+  std::vector<SaveSlotInfo> list_saves(const std::filesystem::path &directory, std::string_view game_id) {
+    std::vector<SaveSlotInfo> rows;
+
+    const auto append = [&](std::string_view slot_id) {
+      const std::filesystem::path path = slot_path(directory, slot_id);
+      std::error_code exists_error;
+      if (!std::filesystem::exists(path, exists_error) || exists_error)
+        return;
+
+      SaveSlotInfo info;
+      info.path = path;
+      info.slot_id = std::string{slot_id};
+
+      const std::expected<nlohmann::json, std::string> json = core::read_json(path, "save");
+      if (!json) {
+        info.error = json.error();
+      } else if (const std::expected<SaveState, std::string> state = parse(*json); !state) {
+        info.error = state.error();
+      } else if (state->game_id != game_id) {
+        info.error = std::format("save is for game '{}', not '{}'", state->game_id, game_id);
+      } else {
+        info.meta = state->meta;
+      }
+      rows.push_back(std::move(info));
+    };
+
+    // Autosave and quicksave first, then the manual slots, in slot order.
+    append(k_autosave_slot);
+    append(k_quicksave_slot);
+    for (int index = 0; index < k_manual_slot_count; ++index)
+      append(manual_slot_id(index));
+
+    return rows;
   }
 
   std::expected<void, std::string> load_game(Engine &engine, const std::filesystem::path &path) {

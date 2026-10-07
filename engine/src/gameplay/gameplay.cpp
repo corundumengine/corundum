@@ -37,6 +37,7 @@
 #include <corundum/input/input_intent.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
+#include <corundum/save/save.hpp>
 #include <corundum/screen_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/toast.hpp>
@@ -54,11 +55,13 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -1109,6 +1112,15 @@ namespace corundum::gameplay {
     Engine &engine = *engine_;
     const input::InputIntent intent = input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
 
+    // Quick-save/quick-load (F5/F9) are the framework's dev shortcuts; handle them on a step the
+    // world owns, so a step-owning screen cannot trigger a save mid-menu.
+    if (engine.input_state.is_pressed(input::Action::QuickSave))
+      std::ignore = quick_save();
+    if (engine.input_state.is_pressed(input::Action::QuickLoad))
+      std::ignore = quick_load();
+
+    playtime_seconds += static_cast<double>(dt);
+
     // Interaction is a one-frame pulse: read and clear it unconditionally so an unconsumed value
     // (no target in range, wrong mode) never persists into the next step.
     const std::optional<corundum::entities::EntityId> interaction = engine.scene.pending_interaction;
@@ -1126,6 +1138,57 @@ namespace corundum::gameplay {
       screens::dialog_box_advance(dialog_box, *dialogue, dt, engine.render.text_speed);
 
     quest::tick_quests(quests, engine.flags, engine.scene.zone_id);
+  }
+
+  std::string Gameplay::current_location_name() const {
+    if (const location::Location *loc = locations.find(engine_->scene.zone_id); loc != nullptr && !loc->name.empty())
+      return loc->name;
+    return engine_->scene.zone_id;
+  }
+
+  std::expected<void, std::string> Gameplay::save_to_slot(std::string_view slot_id) {
+    const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
+    if (!directory)
+      return std::unexpected(directory.error());
+
+    const auto result = save::save_game(*engine_, save::slot_path(*directory, slot_id), current_location_name(),
+                                        static_cast<std::int64_t>(playtime_seconds));
+    if (result)
+      last_slot = std::string{slot_id};
+    return result;
+  }
+
+  std::expected<void, std::string> Gameplay::load_from_slot(std::string_view slot_id) {
+    const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
+    if (!directory)
+      return std::unexpected(directory.error());
+
+    const auto result = save::load_game(*engine_, save::slot_path(*directory, slot_id));
+    if (result)
+      last_slot = std::string{slot_id};
+    return result;
+  }
+
+  std::expected<void, std::string> Gameplay::quick_save() {
+    std::expected<void, std::string> result = save_to_slot(save::k_quicksave_slot);
+    if (result)
+      engine_->notify("Game saved");
+    else
+      engine_->notify(std::format("Save failed: {}", result.error()), ui::k_toast_failed_colour);
+    return result;
+  }
+
+  std::expected<void, std::string> Gameplay::quick_load() {
+    std::expected<void, std::string> result = load_from_slot(save::k_quicksave_slot);
+    if (result)
+      engine_->notify("Game loaded");
+    else
+      engine_->notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
+    return result;
+  }
+
+  std::expected<void, std::string> Gameplay::autosave() {
+    return save_to_slot(save::k_autosave_slot);
   }
 
   void Gameplay::update_dialogue(const input::InputIntent &intent) {

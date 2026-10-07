@@ -8,6 +8,7 @@
 // using-declarations at the bottom lift the names game code names directly.
 #include <corundum/engine.hpp>         // IWYU pragma: export
 #include <corundum/engine_factory.hpp> // IWYU pragma: export
+#include <corundum/entities/entity.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/gameplay/dialogue/action.hpp> // IWYU pragma: export
 #include <corundum/gameplay/dialogue/conversation.hpp>
@@ -29,9 +30,11 @@
 #include <corundum/world/flags.hpp> // IWYU pragma: export
 #include <corundum/world/ui_stack.hpp>
 
+#include <expected>
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace corundum {
@@ -125,6 +128,15 @@ namespace corundum::gameplay {
      *  to. */
     world::GameMode last_hub_mode{screens::Inventory};
 
+    /** @brief Seconds of gameplay accumulated across scene replacements; written into every
+     *  save's SaveMeta. Advanced by the gameplay fixed-step system, so it does not advance while
+     *  a step-owning screen or the pause menu is open. */
+    double playtime_seconds{};
+
+    /** @brief Slot id of the most recent save or load (`quicksave`, `autosave`, `slot_03` …),
+     *  or empty when this session has neither saved nor loaded. */
+    std::string last_slot{};
+
     /** @brief Container whose contents the loot screen shows; empty when no loot screen is open. */
     std::string active_container_id;
 
@@ -153,7 +165,47 @@ namespace corundum::gameplay {
      */
     void fixed_step(float dt);
 
+    /** @brief Save the current state to the `quicksave` slot and toast the outcome.
+     *
+     *  fixed_step() calls this on the QuickSave action (F5); game code may also call it directly.
+     *
+     *  @return ok, or the save error (also surfaced as a failure toast).
+     *  @post On success last_slot is `quicksave`.
+     */
+    [[nodiscard]] std::expected<void, std::string> quick_save();
+
+    /** @brief Load the `quicksave` slot and toast the outcome.
+     *
+     *  fixed_step() calls this on the QuickLoad action (F9); game code may also call it directly.
+     *
+     *  @return ok, or the load error (also surfaced as a failure toast).
+     *  @post On success last_slot is `quicksave`.
+     */
+    [[nodiscard]] std::expected<void, std::string> quick_load();
+
+    /** @brief Write the `autosave` slot.
+     *
+     *  The framework never calls this; the game decides when to autosave (e.g. on a completed
+     *  area transition). Writes no toast — the game decides whether to surface one.
+     *
+     *  @return ok, or the save error.
+     *  @post On success last_slot is `autosave`.
+     */
+    [[nodiscard]] std::expected<void, std::string> autosave();
+
   private:
+    /** @brief Write @p slot_id under the saves directory, stamping location and playtime.
+     *  @post On success last_slot is @p slot_id. */
+    [[nodiscard]] std::expected<void, std::string> save_to_slot(std::string_view slot_id);
+
+    /** @brief Load @p slot_id from the saves directory.
+     *  @post On success last_slot is @p slot_id. */
+    [[nodiscard]] std::expected<void, std::string> load_from_slot(std::string_view slot_id);
+
+    /** @brief The location registry's display name for the current zone, or the raw zone id
+     *  when unknown. */
+    [[nodiscard]] std::string current_location_name() const;
+
     /** @brief Advance the active dialogue conversation, restoring the bound NPC's facing and
      *  animation when it ends and closing the Dialogue screen.
      *

@@ -135,7 +135,7 @@ TEST_CASE("player absent — save_game reports no player entity") {
   REQUIRE_FALSE(corundum::world::player_present(engine.scene));
 
   const corundum::test::TempDir tmp{"corundum_player_absent_", "save"};
-  const auto result = corundum::save::save_game(engine, tmp / "save.json");
+  const auto result = corundum::save::save_game(engine, tmp / "save.json", "", 0);
 
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("no player") != std::string::npos);
