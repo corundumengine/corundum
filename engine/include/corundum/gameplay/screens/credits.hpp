@@ -5,18 +5,21 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/credits/credits.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 
+#include <string>
 #include <vector>
 
 namespace corundum::gameplay::screens {
 
-  /** @brief Credits-screen state: the loaded sections and the current scroll offset.
+  /** @brief Credits-screen state: the loaded title, sections and the current scroll offset.
    *
-   *  Sections are loaded once when the Title opens (so the Title can hide the Credits row when
-   *  there is nothing to show) and drawn top-to-bottom; the offset advances each fixed step. */
+   *  The title is drawn large above the first section. Sections are loaded once when the Title
+   *  opens (so the Title can hide the Credits row when there is nothing to show) and drawn
+   *  top-to-bottom; the offset advances each fixed step. */
   struct CreditsState {
+    std::string title{};
+
     std::vector<credits::CreditsSection> sections{};
 
     float scroll{};

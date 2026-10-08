@@ -1029,7 +1029,7 @@ namespace corundum::gameplay {
     }
 
     /// Step the Credits screen: Cancel closes it, otherwise the text scrolls upward at a fixed
-    /// rate per step, clamped so the last line stops at the bottom of the viewport.
+    /// rate per step until the last line reaches the vertical center.
     void update_credits(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         engine.scene.ui.pop();
@@ -1037,9 +1037,8 @@ namespace corundum::gameplay {
       }
       screens::CreditsState &state = gameplay.credits_screen;
       const float content = screens::credits_content_height(*engine.renderer, engine.render.panel_skin.style, state);
-      const float max_scroll = std::max(0.f, content - screen_viewport(engine).y);
       constexpr float k_credits_scroll_speed = 24.f;
-      state.scroll = std::clamp(state.scroll + (k_credits_scroll_speed * engine.timer.target_dt), 0.f, max_scroll);
+      state.scroll = std::min(state.scroll + (k_credits_scroll_speed * engine.timer.target_dt), content);
     }
 
     void render_credits(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1604,13 +1603,13 @@ namespace corundum::gameplay {
     const std::string &path = engine_->cfg.paths.credits_file;
     if (path.empty())
       return;
-    std::expected<std::vector<credits::CreditsSection>, std::string> loaded =
-        credits::load_credits_file(std::filesystem::path{path});
+    std::expected<credits::CreditsFile, std::string> loaded = credits::load_credits_file(std::filesystem::path{path});
     if (!loaded) {
       warn_log("[credits] cannot load '{}': {} (Credits hidden)", path, loaded.error());
       return;
     }
-    credits_screen.sections = std::move(*loaded);
+    credits_screen.title = std::move(loaded->title);
+    credits_screen.sections = std::move(loaded->sections);
     title_screen.credits_available = !credits_screen.sections.empty();
   }
 

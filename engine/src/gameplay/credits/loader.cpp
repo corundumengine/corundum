@@ -46,7 +46,7 @@ namespace corundum::gameplay::credits {
 
   } // namespace
 
-  std::expected<std::vector<CreditsSection>, std::string> load_credits_file(const std::filesystem::path &path) {
+  std::expected<CreditsFile, std::string> load_credits_file(const std::filesystem::path &path) {
     std::expected<json, std::string> root_result = core::read_json(path, "credits JSON");
     if (!root_result)
       return std::unexpected(std::move(root_result).error());
@@ -57,17 +57,23 @@ namespace corundum::gameplay::credits {
     if (!root.contains("sections") || !root.at("sections").is_array())
       return std::unexpected(std::format("credits JSON needs a 'sections' array: {}", path.string()));
 
-    std::vector<CreditsSection> sections;
-    sections.reserve(root.at("sections").size());
+    CreditsFile file;
+    if (root.contains("title")) {
+      if (!root.at("title").is_string())
+        return std::unexpected(std::format("credits JSON 'title' must be a string: {}", path.string()));
+      file.title = root.at("title").get<std::string>();
+    }
+
+    file.sections.reserve(root.at("sections").size());
     std::size_t index = 0;
     for (const json &element : root.at("sections")) {
       std::expected<CreditsSection, std::string> section = parse_section(element, index);
       if (!section)
         return std::unexpected(std::move(section).error());
-      sections.push_back(std::move(*section));
+      file.sections.push_back(std::move(*section));
       ++index;
     }
-    return sections;
+    return file;
   }
 
 } // namespace corundum::gameplay::credits

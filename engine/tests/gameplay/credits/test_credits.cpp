@@ -40,13 +40,13 @@ TEST_CASE("credits loader: parses sections with headings and lines") {
 
   const auto result = credits::load_credits_file(path);
   REQUIRE(result.has_value());
-  REQUIRE(result->size() == 2);
-  CHECK((*result)[0].heading == "Design");
-  REQUIRE((*result)[0].lines.size() == 2);
-  CHECK((*result)[0].lines[0] == "Ada");
-  CHECK((*result)[0].lines[1] == "Grace");
-  CHECK((*result)[1].heading == "Engine");
-  CHECK((*result)[1].lines[0] == "Corundum");
+  REQUIRE(result->sections.size() == 2);
+  CHECK(result->sections[0].heading == "Design");
+  REQUIRE(result->sections[0].lines.size() == 2);
+  CHECK(result->sections[0].lines[0] == "Ada");
+  CHECK(result->sections[0].lines[1] == "Grace");
+  CHECK(result->sections[1].heading == "Engine");
+  CHECK(result->sections[1].lines[0] == "Corundum");
 }
 
 TEST_CASE("credits loader: an empty sections array is valid") {
@@ -56,7 +56,23 @@ TEST_CASE("credits loader: an empty sections array is valid") {
 
   const auto result = credits::load_credits_file(path);
   REQUIRE(result.has_value());
-  CHECK(result->empty());
+  CHECK(result->sections.empty());
+}
+
+TEST_CASE("credits loader: title is optional and parses when present") {
+  const auto dir = temp_dir("title");
+
+  const auto with_title = dir / "with_title.json";
+  write_file(with_title, R"({"title": "Project X", "sections": []})");
+  const auto r1 = credits::load_credits_file(with_title);
+  REQUIRE(r1.has_value());
+  CHECK(r1->title == "Project X");
+
+  const auto without_title = dir / "without_title.json";
+  write_file(without_title, R"({"sections": []})");
+  const auto r2 = credits::load_credits_file(without_title);
+  REQUIRE(r2.has_value());
+  CHECK(r2->title.empty());
 }
 
 TEST_CASE("credits loader: a missing or malformed file is reported, not fatal") {
@@ -75,4 +91,8 @@ TEST_CASE("credits loader: a missing or malformed file is reported, not fatal") 
   const auto bad_line = dir / "bad_line.json";
   write_file(bad_line, R"({"sections": [{"heading": "x", "lines": [1]}]})");
   CHECK_FALSE(credits::load_credits_file(bad_line).has_value());
+
+  const auto bad_title = dir / "bad_title.json";
+  write_file(bad_title, R"({"title": 1, "sections": []})");
+  CHECK_FALSE(credits::load_credits_file(bad_title).has_value());
 }
