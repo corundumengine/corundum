@@ -465,6 +465,13 @@ namespace corundum::core {
           return std::unexpected(res.error());
         cfg.paths.codex_dir = std::move(*res);
       }
+      if (j.contains("credits_file")) {
+        try {
+          cfg.paths.credits_file = j.at("credits_file").get<std::string>();
+        } catch (...) {
+          return std::unexpected(std::format("game.json 'credits_file' has wrong type: {}", path.string()));
+        }
+      }
       {
         auto res = get_nonempty_string(j, "locations_dir", cfg.paths.locations_dir, path);
         if (!res)

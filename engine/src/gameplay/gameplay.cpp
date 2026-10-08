@@ -9,6 +9,8 @@
 #include <corundum/entities/world.hpp>
 #include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
+#include <corundum/gameplay/credits/credits.hpp>
+#include <corundum/gameplay/credits/loader.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
@@ -26,12 +28,14 @@
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/confirm.hpp>
+#include <corundum/gameplay/screens/credits.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/game_over.hpp>
 #include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/gameplay/screens/journal.hpp>
+#include <corundum/gameplay/screens/loading.hpp>
 #include <corundum/gameplay/screens/loot.hpp>
 #include <corundum/gameplay/screens/map.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
@@ -936,13 +940,15 @@ namespace corundum::gameplay {
     }
 
     /// Move the title cursor by @p delta, wrapping and skipping disabled rows (Continue when no
-    /// save exists). No-op when every row is disabled, which cannot happen today.
+    /// save exists). No-op when every row is disabled, which cannot happen today. The row count
+    /// follows the Credits row's visibility, so the cursor never lands on a hidden row.
     void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
       screens::TitleState &state = gameplay.title_screen;
-      int row = std::clamp(state.cursor, 0, screens::k_title_row_count - 1);
-      for (int step = 0; step < screens::k_title_row_count; ++step) {
-        row = wrap_cursor(row, delta, screens::k_title_row_count);
-        if (screens::title_row_enabled(screens::title_row_at(row), state.continue_available)) {
+      const int rows = screens::title_visible_row_count(state.credits_available);
+      int row = std::clamp(state.cursor, 0, rows - 1);
+      for (int step = 0; step < rows; ++step) {
+        row = wrap_cursor(row, delta, rows);
+        if (screens::title_row_enabled(screens::title_row_at(row, state.credits_available), state.continue_available)) {
           state.cursor = row;
           return;
         }
@@ -961,7 +967,8 @@ namespace corundum::gameplay {
         const core::math::Vec2 cursor = intent_cursor(intent);
         if (pointer_focus(intent)) {
           if (const int hovered = ui::hovered_row(cursor, layout.rows);
-              hovered >= 0 && screens::title_row_enabled(screens::title_row_at(hovered), state.continue_available))
+              hovered >= 0 && screens::title_row_enabled(screens::title_row_at(hovered, state.credits_available),
+                                                         state.continue_available))
             state.cursor = hovered;
         }
         if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
@@ -973,20 +980,25 @@ namespace corundum::gameplay {
       if (!intent.activate)
         return;
 
-      const screens::TitleRow row = screens::title_row_at(std::clamp(state.cursor, 0, screens::k_title_row_count - 1));
+      const int rows = screens::title_visible_row_count(state.credits_available);
+      const screens::TitleRow row =
+          screens::title_row_at(std::clamp(state.cursor, 0, rows - 1), state.credits_available);
       switch (row) {
         case screens::TitleRow::Continue:
           if (state.continue_available)
-            std::ignore = gameplay.continue_game();
+            gameplay.begin_load([](Gameplay &g) { return g.continue_game(); });
           break;
         case screens::TitleRow::NewGame:
-          std::ignore = gameplay.new_game();
+          gameplay.begin_load([](Gameplay &g) { return g.new_game(); });
           break;
         case screens::TitleRow::Load:
           gameplay.open_save_load(/*saving=*/false);
           break;
         case screens::TitleRow::Settings:
           engine.scene.ui.push(world::GameMode::Settings);
+          break;
+        case screens::TitleRow::Credits:
+          gameplay.open_credits();
           break;
         case screens::TitleRow::Quit:
           engine.request_quit();
@@ -1001,6 +1013,40 @@ namespace corundum::gameplay {
       screens::title_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                   gameplay.title_screen, core::game_title(engine.cfg), viewport,
                                   engine.input_mapper.last_device());
+    }
+
+    /// Step the Loading overlay: once the overlay has actually rendered, run the queued load.
+    void update_loading(Gameplay &gameplay) {
+      gameplay.advance_loading();
+    }
+
+    /// Draw "Loading..." and record that it happened, so the next step may run the queued work.
+    void render_loading(const Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+      if (engine.scene.mode() != screens::Loading)
+        return;
+      screens::loading_panel_render(r, engine.render.panel_skin.style, viewport);
+      gameplay.notify_loading_rendered();
+    }
+
+    /// Step the Credits screen: Cancel closes it, otherwise the text scrolls upward at a fixed
+    /// rate per step, clamped so the last line stops at the bottom of the viewport.
+    void update_credits(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      if (intent.back) {
+        engine.scene.ui.pop();
+        return;
+      }
+      screens::CreditsState &state = gameplay.credits_screen;
+      const float content = screens::credits_content_height(*engine.renderer, engine.render.panel_skin.style, state);
+      const float max_scroll = std::max(0.f, content - screen_viewport(engine).y);
+      constexpr float k_credits_scroll_speed = 24.f;
+      state.scroll = std::clamp(state.scroll + (k_credits_scroll_speed * engine.timer.target_dt), 0.f, max_scroll);
+    }
+
+    void render_credits(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                        core::math::Vec2 viewport) {
+      if (engine.scene.mode() != screens::Credits)
+        return;
+      screens::credits_panel_render(r, engine.render.panel_skin.style, viewport, gameplay.credits_screen);
     }
 
     /// Step the Game over screen: a hovered enabled row takes focus, Up/Down move the highlight,
@@ -1129,10 +1175,11 @@ namespace corundum::gameplay {
       }
       if (screens::slot_is_empty(selected) || !selected.error.empty())
         return;
-      if (const auto result = gameplay.load_from_slot(selected.slot_id); result)
-        engine.notify("Game loaded");
-      else
-        engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
+      const std::string slot_id = selected.slot_id;
+      // The queued callback runs inside the noexcept fixed-step loop, where a throw is fatal by
+      // engine policy (see run_fixed_steps); the escape is intentional here.
+      // NOLINTNEXTLINE(bugprone-exception-escape)
+      gameplay.begin_load([slot_id](Gameplay &g) { return g.load_from_slot(slot_id); });
     }
 
     void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1370,6 +1417,23 @@ namespace corundum::gameplay {
               .render = [&gameplay](Engine &e, platform::Renderer &r,
                                     core::math::Vec2 viewport) { render_game_over(e, gameplay, r, viewport); },
           });
+      engine.screens.add(
+          screens::Loading,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &, const input::InputIntent &) { update_loading(gameplay); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_loading(e, gameplay, r, viewport); },
+          });
+      engine.screens.add(
+          screens::Credits,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &e,
+                                    const input::InputIntent &intent) { update_credits(e, gameplay, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_credits(e, gameplay, r, viewport); },
+          });
 
       engine.on_menu_quit = [&gameplay](Engine &) {
         gameplay.open_confirm("Quit to Title?", [](Gameplay &g) {
@@ -1529,9 +1593,51 @@ namespace corundum::gameplay {
       const std::vector<save::SaveSlotInfo> slots = save::list_saves(*directory, engine_->cfg.game_id);
       title_screen.continue_available = screens::newest_valid_slot(slots).has_value();
     }
+    refresh_credits();
     title_screen.cursor =
         screens::title_row_enabled(screens::TitleRow::Continue, title_screen.continue_available) ? 0 : 1;
     engine_->scene.ui.push(screens::Title);
+  }
+
+  void Gameplay::refresh_credits() {
+    credits_screen = {};
+    const std::string &path = engine_->cfg.paths.credits_file;
+    if (path.empty())
+      return;
+    std::expected<std::vector<credits::CreditsSection>, std::string> loaded =
+        credits::load_credits_file(std::filesystem::path{path});
+    if (!loaded) {
+      warn_log("[credits] cannot load '{}': {} (Credits hidden)", path, loaded.error());
+      return;
+    }
+    credits_screen.sections = std::move(*loaded);
+    title_screen.credits_available = !credits_screen.sections.empty();
+  }
+
+  void Gameplay::open_credits() {
+    credits_screen.scroll = 0.f;
+    engine_->scene.ui.push(screens::Credits);
+  }
+
+  void Gameplay::begin_load(std::function<std::expected<void, std::string>(Gameplay &)> work) {
+    pending_load_ = std::move(work);
+    loading_rendered_ = false;
+    engine_->scene.ui.push(screens::Loading);
+  }
+
+  void Gameplay::notify_loading_rendered() noexcept {
+    loading_rendered_ = true;
+  }
+
+  void Gameplay::advance_loading() {
+    if (!loading_rendered_ || !pending_load_)
+      return;
+
+    const std::function<std::expected<void, std::string>(Gameplay &)> work = std::move(pending_load_);
+    pending_load_ = nullptr;
+    engine_->scene.ui.pop();
+    if (const std::expected<void, std::string> result = work(*this); !result)
+      engine_->notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
   }
 
   void Gameplay::open_game_over() {
@@ -1612,8 +1718,11 @@ namespace corundum::gameplay {
     barter_screen = {};
     confirm = {};
     title_screen = {};
+    credits_screen.scroll = 0.f;
     game_over_screen = {};
     save_load_screen = {};
+    pending_load_ = nullptr;
+    loading_rendered_ = false;
     last_hub_mode = screens::Inventory;
     engine_->scene.ui.clear();
   }

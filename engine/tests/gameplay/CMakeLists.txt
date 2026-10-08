@@ -11,6 +11,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 add_executable(corundum_gameplay_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../main.cpp
     codex/test_codex.cpp
+    credits/test_credits.cpp
     dialogue/test_compiled_expr.cpp
     dialogue/test_dialogue.cpp
     dialogue/test_zone_scope.cpp

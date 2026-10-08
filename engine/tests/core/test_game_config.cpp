@@ -733,6 +733,23 @@ TEST_CASE("load_game_config — non-boolean show_title returns an error") {
   CHECK(result.error().find("show_title") != std::string::npos);
 }
 
+// ── credits_file ─────────────────────────────────────────────────────────────
+
+TEST_CASE("load_game_config — credits_file defaults to empty and parses") {
+  const auto dir = temp_dir("credits_file");
+  const auto p = dir / "game.json";
+
+  write_file(p, "{}");
+  const auto defaulted = load_game_config(p);
+  REQUIRE(defaulted.has_value());
+  CHECK(defaulted->paths.credits_file.empty());
+
+  write_file(p, R"({"credits_file": "data/credits.json"})");
+  const auto parsed = load_game_config(p);
+  REQUIRE(parsed.has_value());
+  CHECK(parsed->paths.credits_file == "data/credits.json");
+}
+
 // ── title ─────────────────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config — the game title is separate from the window title") {

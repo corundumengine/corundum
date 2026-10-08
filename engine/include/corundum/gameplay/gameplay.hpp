@@ -21,6 +21,7 @@
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/confirm.hpp>
+#include <corundum/gameplay/screens/credits.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/game_over.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
@@ -106,8 +107,12 @@ namespace corundum::gameplay {
     /** @brief Shared yes/no confirmation modal; pushed by open_confirm(). */
     screens::ConfirmState confirm;
 
-    /** @brief Title screen state: highlighted row and Continue availability. */
+    /** @brief Title screen state: highlighted row, Continue availability and whether the
+     *  configured credits file loaded (which decides whether the Credits row is shown). */
     screens::TitleState title_screen;
+
+    /** @brief Credits-screen state: sections loaded when the Title opened and the scroll offset. */
+    screens::CreditsState credits_screen;
 
     /** @brief Game-over screen state: highlighted row and Reload availability. */
     screens::GameOverState game_over_screen;
@@ -228,6 +233,43 @@ namespace corundum::gameplay {
      */
     void open_confirm(std::string question, std::function<void(Gameplay &)> on_yes);
 
+    /** @brief Queue @p work behind the Loading overlay and push GameMode Loading.
+     *
+     *  Loads are synchronous, so the work is run only after the Loading screen has drawn once:
+     *  the player sees "Loading..." before a potentially slow scene rebuild. The work runs on
+     *  the next step that follows a render (see advance_loading()), never before. Used by New
+     *  Game, Continue and Load; portal transitions do not use it.
+     *
+     *  @param work Called with this Gameplay once the overlay has rendered; returns ok, or an
+     *              error surfaced as a failure toast after Loading is popped.
+     *  @post scene.ui.top() is screens::Loading and the work has not run.
+     */
+    void begin_load(std::function<std::expected<void, std::string>(Gameplay &)> work);
+
+    /** @brief Record that the Loading overlay has been drawn.
+     *
+     *  Called by the Loading screen's render; without it a long frame that runs several fixed
+     *  steps before the first render would run the pending work with nothing on screen.
+     */
+    void notify_loading_rendered() noexcept;
+
+    /** @brief Run the pending load once the overlay has rendered, popping Loading first.
+     *
+     *  Called by the Loading screen's update. A no-op until notify_loading_rendered() has been
+     *  called and a load is pending. On failure an error toast is raised with the work's
+     *  message; Loading is already popped, so the player returns to the screen that started it.
+     */
+    void advance_loading();
+
+    /** @brief Show the Credits screen with the sections loaded when the Title opened.
+     *
+     *  Pushes GameMode Credits. Only reachable from the Title, and only when
+     *  TitleState::credits_available is true (open_title() hides the row otherwise).
+     *
+     *  @post scene.ui.top() is screens::Credits.
+     */
+    void open_credits();
+
     /** @brief Show the title screen over the loaded scene.
      *
      *  Refreshes Continue availability from the saves directory, puts the cursor on the first
@@ -303,6 +345,11 @@ namespace corundum::gameplay {
     void reset_session_state();
 
   private:
+    /** @brief Load `cfg.paths.credits_file` into credits_screen, recording whether it succeeded
+     *  in TitleState::credits_available. A missing path, unreadable file or malformed document
+     *  hides the Credits row; a non-empty path that fails logs one warning. */
+    void refresh_credits();
+
     /** @brief The location registry's display name for the current zone, or the raw zone id
      *  when unknown. */
     [[nodiscard]] std::string current_location_name() const;
@@ -322,6 +369,13 @@ namespace corundum::gameplay {
     void try_interact(corundum::entities::EntityId target);
 
     Engine *engine_{nullptr};
+
+    /** @brief Work queued by begin_load(), run by advance_loading() after the first Loading
+     *  render. Empty when no load is pending. */
+    std::function<std::expected<void, std::string>(Gameplay &)> pending_load_{};
+
+    /** @brief True once the Loading screen has rendered its first frame; gates advance_loading(). */
+    bool loading_rendered_{false};
   };
 
   using dialogue::EventAction;

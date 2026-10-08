@@ -101,6 +101,7 @@ target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json
 set(GAMEPLAY_SOURCES
     src/gameplay/codex/loader.cpp
     src/gameplay/codex/registry.cpp
+    src/gameplay/credits/loader.cpp
     src/gameplay/dialogue/action.cpp
     src/gameplay/dialogue/compiled_expr.cpp
     src/gameplay/dialogue/conversation.cpp
@@ -125,6 +126,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/runtime.cpp
     src/gameplay/screens/barter.cpp
     src/gameplay/screens/codex.cpp
+    src/gameplay/screens/credits.cpp
     src/gameplay/screens/dialog_box.cpp
     src/gameplay/screens/framing_menu.cpp
     src/gameplay/screens/game_over.cpp
@@ -132,6 +134,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/screens/hud_strip.cpp
     src/gameplay/screens/inventory_panel.cpp
     src/gameplay/screens/journal.cpp
+    src/gameplay/screens/loading.cpp
     src/gameplay/screens/loot.cpp
     src/gameplay/screens/map.cpp
     src/gameplay/screens/save_load.cpp

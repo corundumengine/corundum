@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -150,6 +151,34 @@ namespace {
     fs::create_directories(path.parent_path());
     std::ofstream file(path);
     file << "not json";
+  }
+
+  /// Write @p content to @p path, creating parent directories.
+  void write_file(const fs::path &path, std::string_view content) {
+    fs::create_directories(path.parent_path());
+    std::ofstream file(path);
+    file << content;
+  }
+
+  /// Render the Loading overlay as run_frame() would; this is what arms Gameplay::advance_loading().
+  void render_loading(corundum::Engine &engine) {
+    const corundum::ScreenSpec *spec = engine.screens.find(screens::Loading);
+    REQUIRE(spec != nullptr);
+    REQUIRE(spec->render);
+    RecordingRenderer renderer;
+    spec->render(engine, renderer, {.x = 320.f, .y = 240.f});
+  }
+
+  /// A credits document long enough to overflow the 320x240 test viewport, so the scroll offset
+  /// has somewhere to move.
+  std::string long_credits_json() {
+    std::string lines;
+    for (int i = 0; i < 60; ++i) {
+      if (i > 0)
+        lines += ",";
+      lines += (i == 0) ? "\"First line\"" : std::format("\"Line {}\"", i);
+    }
+    return std::format(R"({{"sections": [{{"heading": "Design", "lines": [{}]}}]}})", lines);
   }
 
 } // namespace
@@ -435,6 +464,160 @@ TEST_CASE("pause menu: does not open over Title, GameOver, Loading or Credits") 
     press(engine, corundum::input::Action::Menu);
     CHECK(engine.scene.ui.top() == mode);
   }
+
+  engine.cleanup();
+}
+
+TEST_CASE("loading: the queued work runs only after the overlay renders, then pops Loading") {
+  const ScratchUserData user_data;
+  corundum::Engine engine{};
+  init_engine(engine, /*show_title=*/false);
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  bool ran = false;
+  gameplay.begin_load([&ran](corundum::gameplay::Gameplay &) {
+    ran = true;
+    return std::expected<void, std::string>{};
+  });
+  CHECK(engine.scene.ui.top() == screens::Loading);
+  CHECK_FALSE(ran);
+
+  // Several steps before the first render must not run the work: the player has seen nothing.
+  for (int step = 0; step < 3; ++step)
+    press(engine, corundum::input::Action::Select);
+  CHECK_FALSE(ran);
+  CHECK(engine.scene.ui.top() == screens::Loading);
+
+  render_loading(engine);
+
+  press(engine, corundum::input::Action::Select);
+  CHECK(ran);
+  CHECK(engine.scene.ui.empty());
+
+  engine.cleanup();
+}
+
+TEST_CASE("loading: a failed work raises a toast and still pops the overlay") {
+  const ScratchUserData user_data;
+  corundum::Engine engine{};
+  init_engine(engine, /*show_title=*/false);
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  gameplay.begin_load([](corundum::gameplay::Gameplay &) { return std::unexpected(std::string{"disk on fire"}); });
+  render_loading(engine);
+
+  press(engine, corundum::input::Action::Select);
+  CHECK(engine.scene.ui.empty());
+  REQUIRE_FALSE(engine.toasts.empty());
+  CHECK(engine.toasts.at(engine.toasts.size() - 1).text.contains("disk on fire"));
+
+  engine.cleanup();
+}
+
+TEST_CASE("loading: reset_session_state drops the pending work") {
+  const ScratchUserData user_data;
+  corundum::Engine engine{};
+  init_engine(engine, /*show_title=*/false);
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  bool ran = false;
+  gameplay.begin_load([&ran](corundum::gameplay::Gameplay &) {
+    ran = true;
+    return std::expected<void, std::string>{};
+  });
+  render_loading(engine);
+
+  gameplay.reset_session_state();
+  press(engine, corundum::input::Action::Select);
+  CHECK_FALSE(ran);
+
+  engine.cleanup();
+}
+
+TEST_CASE("credits: a configured file adds the row and the screen scrolls and closes") {
+  const ScratchUserData user_data;
+  const corundum::test::TempDir credits_dir{"crpg_test_credits_", "screen"};
+  const fs::path credits_path = credits_dir / "credits.json";
+  write_file(credits_path, long_credits_json());
+
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
+  cfg.paths.credits_file = credits_path.string();
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  REQUIRE(gameplay.title_screen.credits_available);
+  const corundum::ScreenSpec *title_spec = engine.screens.find(screens::Title);
+  REQUIRE(title_spec != nullptr);
+  REQUIRE(title_spec->render);
+  RecordingRenderer title_draw;
+  title_spec->render(engine, title_draw, {.x = 1280.f, .y = 720.f});
+  CHECK(rendered_text(title_draw, "Credits"));
+
+  // No save exists, so the cursor starts on New Game; Down reaches Credits (Continue is disabled).
+  gameplay.title_screen.cursor = 1;
+  for (int step = 0; step < 3; ++step)
+    press(engine, corundum::input::Action::MoveDown);
+  CHECK(gameplay.title_screen.cursor == 4);
+  press(engine, corundum::input::Action::Select);
+  CHECK(engine.scene.ui.top() == screens::Credits);
+
+  CHECK(gameplay.credits_screen.scroll == doctest::Approx(0.f));
+  press(engine, corundum::input::Action::MoveDown);
+  CHECK(gameplay.credits_screen.scroll > 0.f);
+
+  press(engine, corundum::input::Action::Cancel);
+  CHECK(engine.scene.ui.top() == screens::Title);
+
+  engine.cleanup();
+}
+
+TEST_CASE("credits: a missing file leaves the Title without a Credits row") {
+  const ScratchUserData user_data;
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
+  cfg.paths.credits_file = (fs::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "missing_credits.json").string();
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  CHECK_FALSE(gameplay.title_screen.credits_available);
+  const corundum::ScreenSpec *spec = engine.screens.find(screens::Title);
+  REQUIRE(spec != nullptr);
+  REQUIRE(spec->render);
+  RecordingRenderer r;
+  spec->render(engine, r, {.x = 1280.f, .y = 720.f});
+  CHECK_FALSE(rendered_text(r, "Credits"));
+
+  engine.cleanup();
+}
+
+TEST_CASE("credits: a malformed file leaves the Title without a Credits row") {
+  const ScratchUserData user_data;
+  const corundum::test::TempDir credits_dir{"crpg_test_credits_", "broken"};
+  const fs::path credits_path = credits_dir / "credits.json";
+  write_file(credits_path, "not json");
+
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
+  cfg.paths.credits_file = credits_path.string();
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  CHECK_FALSE(gameplay.title_screen.credits_available);
+  const corundum::ScreenSpec *spec = engine.screens.find(screens::Title);
+  REQUIRE(spec != nullptr);
+  REQUIRE(spec->render);
+  RecordingRenderer r;
+  spec->render(engine, r, {.x = 1280.f, .y = 720.f});
+  CHECK_FALSE(rendered_text(r, "Credits"));
 
   engine.cleanup();
 }

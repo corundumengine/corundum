@@ -55,6 +55,13 @@ namespace corundum::core {
     /** @brief Directory containing codex lore batch files. Defaults to "data/codex". */
     std::string codex_dir{"data/codex"};
 
+    /** @brief Optional path to the credits JSON file shown by the Credits screen.
+     *
+     *  Empty (the default) means the game has no credits, so the Title hides its Credits row
+     *  and the screen is unreachable. A path that is missing or fails to parse is treated the
+     *  same way, with a warning logged once. */
+    std::string credits_file;
+
     /** @brief Directory containing dialogue data files. Defaults to "data/dialogue". */
     std::string dialogue_dir{"data/dialogue"};
 
