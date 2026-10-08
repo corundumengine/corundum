@@ -639,30 +639,32 @@ TEST_CASE("credits: a background key is loaded through the renderer") {
 
   const fs::path with_background = credits_dir / "with_background.json";
   write_file(with_background, R"({"background": "parchment.png", "sections": [{"lines": ["A line"]}]})");
+
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
+  cfg.paths.credits_file = with_background.string();
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+  CHECK(gameplay.credits_screen.background_texture == corundum::platform::null::k_dummy_handle);
+  engine.cleanup();
+}
+
+TEST_CASE("credits: a file without a background key leaves the texture unset") {
+  const ScratchUserData user_data;
+  const corundum::test::TempDir credits_dir{"crpg_test_credits_", "background"};
+
   const fs::path without_background = credits_dir / "without_background.json";
   write_file(without_background, R"({"sections": [{"lines": ["A line"]}]})");
 
-  {
-    corundum::Engine engine{};
-    adopt_platform(engine, 320, 240);
-    corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-    cfg.paths.credits_file = with_background.string();
-    REQUIRE(engine.initialize(std::move(cfg)).has_value());
-    // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
-    corundum::gameplay::Gameplay gameplay{engine};
-    CHECK(gameplay.credits_screen.background_texture == corundum::platform::null::k_dummy_handle);
-    engine.cleanup();
-  }
-
-  {
-    corundum::Engine engine{};
-    adopt_platform(engine, 320, 240);
-    corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-    cfg.paths.credits_file = without_background.string();
-    REQUIRE(engine.initialize(std::move(cfg)).has_value());
-    // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
-    corundum::gameplay::Gameplay gameplay{engine};
-    CHECK(gameplay.credits_screen.background_texture == 0);
-    engine.cleanup();
-  }
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
+  cfg.paths.credits_file = without_background.string();
+  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+  CHECK(gameplay.credits_screen.background_texture == 0);
+  engine.cleanup();
 }
