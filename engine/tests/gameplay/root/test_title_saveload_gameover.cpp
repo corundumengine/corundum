@@ -10,6 +10,7 @@
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
+#include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/screen_registry.hpp>
@@ -567,6 +568,16 @@ TEST_CASE("credits: a configured file adds the row and the screen scrolls and cl
   CHECK(engine.scene.ui.top() == screens::Credits);
 
   CHECK(gameplay.credits_screen.scroll == doctest::Approx(0.f));
+  const float hold_remaining = gameplay.credits_screen.hold;
+  REQUIRE(hold_remaining > 0.f);
+
+  // The roll holds still (and the hold drains) before it starts moving.
+  press(engine, corundum::input::Action::MoveDown);
+  CHECK(gameplay.credits_screen.hold < hold_remaining);
+  CHECK(gameplay.credits_screen.scroll == doctest::Approx(0.f));
+
+  // Once the hold elapses the roll advances.
+  gameplay.credits_screen.hold = 0.f;
   press(engine, corundum::input::Action::MoveDown);
   CHECK(gameplay.credits_screen.scroll > 0.f);
 
@@ -620,4 +631,38 @@ TEST_CASE("credits: a malformed file leaves the Title without a Credits row") {
   CHECK_FALSE(rendered_text(r, "Credits"));
 
   engine.cleanup();
+}
+
+TEST_CASE("credits: a background key is loaded through the renderer") {
+  const ScratchUserData user_data;
+  const corundum::test::TempDir credits_dir{"crpg_test_credits_", "background"};
+
+  const fs::path with_background = credits_dir / "with_background.json";
+  write_file(with_background, R"({"background": "parchment.png", "sections": [{"lines": ["A line"]}]})");
+  const fs::path without_background = credits_dir / "without_background.json";
+  write_file(without_background, R"({"sections": [{"lines": ["A line"]}]})");
+
+  {
+    corundum::Engine engine{};
+    adopt_platform(engine, 320, 240);
+    corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
+    cfg.paths.credits_file = with_background.string();
+    REQUIRE(engine.initialize(std::move(cfg)).has_value());
+    // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+    corundum::gameplay::Gameplay gameplay{engine};
+    CHECK(gameplay.credits_screen.background_texture == corundum::platform::null::k_dummy_handle);
+    engine.cleanup();
+  }
+
+  {
+    corundum::Engine engine{};
+    adopt_platform(engine, 320, 240);
+    corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
+    cfg.paths.credits_file = without_background.string();
+    REQUIRE(engine.initialize(std::move(cfg)).has_value());
+    // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+    corundum::gameplay::Gameplay gameplay{engine};
+    CHECK(gameplay.credits_screen.background_texture == 0);
+    engine.cleanup();
+  }
 }

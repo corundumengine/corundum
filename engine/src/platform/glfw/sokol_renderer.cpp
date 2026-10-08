@@ -158,6 +158,7 @@ namespace corundum::platform::glfw {
 
       std::expected<uint32_t, std::string> load_texture(std::string_view path) override;
       std::expected<uint32_t, std::string> load_font(std::string_view path) override;
+      [[nodiscard]] core::math::Vec2 texture_size(uint32_t texture_id) const override;
       void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
       void reset_screen_view() override;
       bool begin_frame(core::math::Colour clear_colour) override;
@@ -539,6 +540,15 @@ namespace corundum::platform::glfw {
       textures_.push_back({.path = key, .image = image, .view = view, .width = width, .height = height});
       path_to_id_[key] = id;
       return id;
+    }
+
+    core::math::Vec2 SokolRenderer::texture_size(uint32_t texture_id) const {
+      if (texture_id < textures_.size()) {
+        const LoadedTexture &texture = textures_[texture_id];
+        if (texture.width > 0 && texture.height > 0)
+          return {.x = static_cast<float>(texture.width), .y = static_cast<float>(texture.height)};
+      }
+      return {};
     }
 
     std::expected<uint32_t, std::string> SokolRenderer::load_font(std::string_view path) {

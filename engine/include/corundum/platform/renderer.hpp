@@ -97,6 +97,12 @@ namespace corundum::platform {
     /// @return Opaque texture ID, or std::unexpected with the reason.
     [[nodiscard]] virtual std::expected<uint32_t, std::string> load_texture(std::string_view path) = 0;
 
+    /// Pixel size of a texture returned by load_texture(), or {0, 0} if unknown. Backends that
+    /// cannot report sizes keep the default.
+    [[nodiscard]] virtual core::math::Vec2 texture_size(uint32_t /*texture_id*/) const {
+      return {};
+    }
+
     /// Load a font face for rasterised text.
     /// @return Opaque font ID, or std::unexpected with the reason.
     [[nodiscard]] virtual std::expected<uint32_t, std::string> load_font(std::string_view path) = 0;

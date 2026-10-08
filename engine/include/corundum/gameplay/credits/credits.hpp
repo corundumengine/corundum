@@ -18,11 +18,14 @@ namespace corundum::gameplay::credits {
     std::vector<std::string> lines{}; ///< Body lines, drawn in order beneath the heading.
   };
 
-  /** @brief A whole credits file: an optional title and its sections.
+  /** @brief A whole credits file: an optional title and background, plus its sections.
    *
-   *  The title is drawn large above the first section; sections carry the smaller gold headings. */
+   *  The title is drawn large above the first section; sections carry the smaller gold headings.
+   *  The background is an optional image drawn behind the whole roll. */
   struct CreditsFile {
     std::string title{};
+
+    std::string background{}; ///< Path to a background image, empty for none.
 
     std::vector<CreditsSection> sections{};
   };

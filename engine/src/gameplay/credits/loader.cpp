@@ -63,6 +63,11 @@ namespace corundum::gameplay::credits {
         return std::unexpected(std::format("credits JSON 'title' must be a string: {}", path.string()));
       file.title = root.at("title").get<std::string>();
     }
+    if (root.contains("background")) {
+      if (!root.at("background").is_string())
+        return std::unexpected(std::format("credits JSON 'background' must be a string: {}", path.string()));
+      file.background = root.at("background").get<std::string>();
+    }
 
     file.sections.reserve(root.at("sections").size());
     std::size_t index = 0;

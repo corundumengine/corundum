@@ -1028,14 +1028,22 @@ namespace corundum::gameplay {
       gameplay.notify_loading_rendered();
     }
 
-    /// Step the Credits screen: Cancel closes it, otherwise the text scrolls upward at a fixed
-    /// rate per step until the last line reaches the vertical center.
+    /// Seconds the credits hold still after opening before the roll begins to move.
+    constexpr float k_credits_hold_seconds = 1.f;
+
+    /// Step the Credits screen: Cancel closes it, otherwise the roll holds still for
+    /// k_credits_hold_seconds, then the text scrolls upward at a fixed rate per step until the
+    /// last line reaches the vertical center.
     void update_credits(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         engine.scene.ui.pop();
         return;
       }
       screens::CreditsState &state = gameplay.credits_screen;
+      if (state.hold > 0.f) {
+        state.hold = std::max(state.hold - engine.timer.target_dt, 0.f);
+        return;
+      }
       const float content = screens::credits_content_height(*engine.renderer, engine.render.panel_skin.style, state);
       constexpr float k_credits_scroll_speed = 24.f;
       state.scroll = std::min(state.scroll + (k_credits_scroll_speed * engine.timer.target_dt), content);
@@ -1610,11 +1618,21 @@ namespace corundum::gameplay {
     }
     credits_screen.title = std::move(loaded->title);
     credits_screen.sections = std::move(loaded->sections);
+    if (!loaded->background.empty() && engine_->renderer) {
+      const std::expected<uint32_t, std::string> texture = engine_->renderer->load_texture(loaded->background);
+      if (texture) {
+        credits_screen.background_texture = *texture;
+        credits_screen.background_size = engine_->renderer->texture_size(*texture);
+      } else {
+        warn_log("[credits] cannot load background '{}': {} (flat backdrop used)", loaded->background, texture.error());
+      }
+    }
     title_screen.credits_available = !credits_screen.sections.empty();
   }
 
   void Gameplay::open_credits() {
     credits_screen.scroll = 0.f;
+    credits_screen.hold = k_credits_hold_seconds;
     engine_->scene.ui.push(screens::Credits);
   }
 
@@ -1718,6 +1736,7 @@ namespace corundum::gameplay {
     confirm = {};
     title_screen = {};
     credits_screen.scroll = 0.f;
+    credits_screen.hold = 0.f;
     game_over_screen = {};
     save_load_screen = {};
     pending_load_ = nullptr;

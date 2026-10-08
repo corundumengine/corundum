@@ -11,7 +11,10 @@
 
 namespace corundum::gameplay::credits {
 
-  /** @brief Load a credits file: `{ "title": "...", "sections": [ { "heading": "...", "lines": ["..."] } ] }`.
+  /** @brief Load a credits file.
+   *
+   *  The document is `{ "title": "...", "background": "...", "sections": [ { "heading": "...",
+   *  "lines": ["..."] } ] }`.
    *
    *  A one-shot, side-effect-scoped read (free function, no state), so the Credits screen can
    *  hide itself when the file is absent or malformed rather than opening in a broken state.

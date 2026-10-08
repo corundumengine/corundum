@@ -347,7 +347,9 @@ namespace corundum::gameplay {
   private:
     /** @brief Load `cfg.paths.credits_file` into credits_screen, recording whether it succeeded
      *  in TitleState::credits_available. A missing path, unreadable file or malformed document
-     *  hides the Credits row; a non-empty path that fails logs one warning. */
+     *  hides the Credits row; a non-empty path that fails logs one warning. A non-empty
+     *  background path is loaded through the renderer, logging one warning and leaving the flat
+     *  backdrop when the image fails. */
     void refresh_credits();
 
     /** @brief The location registry's display name for the current zone, or the raw zone id

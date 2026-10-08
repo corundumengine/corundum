@@ -22,6 +22,10 @@ namespace corundum::gameplay::screens {
     constexpr float k_credits_heading_gap = 10.f;
     constexpr float k_credits_max_width = 900.f;
 
+    constexpr core::math::Colour k_ink_title{.r = 90, .g = 30, .b = 25, .a = 255};
+    constexpr core::math::Colour k_ink_heading{.r = 120, .g = 35, .b = 30, .a = 255};
+    constexpr core::math::Colour k_ink_body{.r = 55, .g = 40, .b = 28, .a = 255};
+
     float credits_heading_h(const ui::PanelStyle &style) {
       return std::max(style.line_spacing, static_cast<float>(style.font_size_heading) + 6.f);
     }
@@ -63,6 +67,25 @@ namespace corundum::gameplay::screens {
 
     ui::screen_backdrop(r, style, viewport);
 
+    const core::math::Vec2 size = state.background_size;
+    const bool has_background = state.background_texture != 0 && size.x > 0.f && size.y > 0.f;
+    const core::math::Colour title_colour = has_background ? k_ink_title : style.speaker;
+    const core::math::Colour heading_colour = has_background ? k_ink_heading : style.selected;
+    const core::math::Colour body_colour = has_background ? k_ink_body : style.body;
+    if (has_background) {
+      const float scale = std::max(viewport.x / size.x, viewport.y / size.y);
+      const float position_x = (viewport.x - (size.x * scale)) * 0.5f;
+      const float position_y = (viewport.y - (size.y * scale)) * 0.5f;
+      const int source_w = static_cast<int>(size.x);
+      const int source_h = static_cast<int>(size.y);
+      r.draw(platform::DrawSprite{
+          .texture_id = state.background_texture,
+          .position = {.x = position_x, .y = position_y},
+          .source = {.x = 0, .y = 0, .width = source_w, .height = source_h},
+          .scale = {.x = scale, .y = scale},
+      });
+    }
+
     const float content_w = std::min(std::max(viewport.x - (style.margin * 2.f), 0.f), k_credits_max_width);
     const float center_x = (viewport.x - content_w) * 0.5f;
     float y = (viewport.y * 0.5f) - state.scroll;
@@ -74,7 +97,7 @@ namespace corundum::gameplay::screens {
           .text = state.title,
           .position = {.x = center_x + ((content_w - width) * 0.5f), .y = y},
           .char_size = style.font_size_heading,
-          .colour = style.speaker,
+          .colour = title_colour,
       });
       y += heading_h + k_credits_section_gap;
     }
@@ -87,7 +110,7 @@ namespace corundum::gameplay::screens {
             .text = section.heading,
             .position = {.x = center_x + ((content_w - width) * 0.5f), .y = y},
             .char_size = style.font_size_speaker,
-            .colour = style.selected,
+            .colour = heading_colour,
         });
         y += section_heading_h + k_credits_heading_gap;
       }
@@ -98,7 +121,7 @@ namespace corundum::gameplay::screens {
             .text = line,
             .position = {.x = center_x + ((content_w - width) * 0.5f), .y = y},
             .char_size = style.font_size_body,
-            .colour = style.body,
+            .colour = body_colour,
         });
         y += line_h;
       }
