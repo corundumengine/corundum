@@ -15,6 +15,7 @@ add_executable(corundum_gameplay_tests
     dialogue/test_compiled_expr.cpp
     dialogue/test_dialogue.cpp
     dialogue/test_zone_scope.cpp
+    item/test_equipment.cpp
     item/test_item_loader.cpp
     item/test_item_serialize.cpp
     location/test_location.cpp

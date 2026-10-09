@@ -4,6 +4,8 @@
 #include <doctest/doctest.h>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/physical_input.hpp>
@@ -27,6 +29,25 @@ namespace {
 
   namespace screens = corundum::gameplay::screens;
 
+  /// A registry holding one equippable apparel item (`cloak`, slot `body`) and one weapon (`sword`).
+  corundum::gameplay::item::Registry make_equipment_registry() {
+    using corundum::gameplay::item::ApparelData;
+    using corundum::gameplay::item::Item;
+    using corundum::gameplay::item::ItemCategory;
+    using corundum::gameplay::item::Registry;
+    using corundum::gameplay::item::WeaponData;
+
+    Registry items;
+    items.add(Item{
+        .apparel = ApparelData{.slot = "body"},
+        .category = ItemCategory::Apparel,
+        .id = "cloak",
+        .name = "Cloak",
+    });
+    items.add(Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{}});
+    return items;
+  }
+
   /// The recorded DrawText with exactly @p text, or nullptr.
   const corundum::platform::DrawText *find_text(const RecordingRenderer &r, std::string_view text) {
     for (const auto &call : r.log) {
@@ -46,12 +67,11 @@ TEST_CASE("character sheet: default CharacterInfo is level 1 with no progress") 
   CHECK(info.gold == 0);
   CHECK(info.inventory_count == 0);
   CHECK(info.inventory_capacity == 0);
-  CHECK(info.equipment.weapon.empty());
-  CHECK(info.equipment.armor.empty());
-  CHECK(info.equipment.accessory.empty());
+  CHECK(info.equipment.empty());
 }
 
 TEST_CASE("character sheet: build_character_info reads every field from the flag store") {
+  const auto items = make_equipment_registry();
   FlagStore flags;
   flags["player.level"] = 3;
   flags["player.xp"] = 130;
@@ -61,10 +81,12 @@ TEST_CASE("character sheet: build_character_info reads every field from the flag
   flags["gold"] = 42;
   flags["player.inventory_capacity"] = 8;
   flags["item.sword"] = 1;
+  flags["item.cloak"] = 1;
   flags["item.potion"] = 3;
+  flags["equip.body.cloak"] = 1;
   flags["not_an_item"] = 5;
 
-  const CharacterInfo info = screens::build_character_info(flags);
+  const CharacterInfo info = screens::build_character_info(flags, items);
 
   CHECK(info.level == 3);
   CHECK(info.experience == 130);
@@ -72,13 +94,19 @@ TEST_CASE("character sheet: build_character_info reads every field from the flag
   CHECK(info.health == 7);
   CHECK(info.max_health == 10);
   CHECK(info.gold == 42);
-  CHECK(info.inventory_count == 2); // item rows, not total quantity (potion x3 is one row)
+  CHECK(info.inventory_count == 3); // item rows, not total quantity (potion x3 is one row)
   CHECK(info.inventory_capacity == 8);
+  REQUIRE(info.equipment.size() == 2);
+  CHECK(info.equipment[0].slot == "body");
+  CHECK(info.equipment[0].item_name == "Cloak");
+  CHECK(info.equipment[1].slot == "weapon");
+  CHECK(info.equipment[1].item_name.empty()); // sword is held but not equipped
 }
 
 TEST_CASE("character sheet: build_character_info defaults an empty store to level 1 and no progress") {
   const FlagStore flags{};
-  const CharacterInfo info = screens::build_character_info(flags);
+  const corundum::gameplay::item::Registry items{};
+  const CharacterInfo info = screens::build_character_info(flags, items);
 
   CHECK(info.level == 1);
   CHECK(info.experience == 0);
@@ -87,6 +115,7 @@ TEST_CASE("character sheet: build_character_info defaults an empty store to leve
   CHECK(info.gold == 0);
   CHECK(info.inventory_count == 0);
   CHECK(info.inventory_capacity == 0);
+  CHECK(info.equipment.empty());
 }
 
 TEST_CASE("character sheet: build_character_info clamps negative counters to zero") {
@@ -95,7 +124,8 @@ TEST_CASE("character sheet: build_character_info clamps negative counters to zer
   flags["gold"] = -1;
   flags["player.inventory_capacity"] = -2;
 
-  const CharacterInfo info = screens::build_character_info(flags);
+  const corundum::gameplay::item::Registry items{};
+  const CharacterInfo info = screens::build_character_info(flags, items);
 
   CHECK(info.experience == 0);
   CHECK(info.gold == 0);
@@ -127,7 +157,12 @@ TEST_CASE("character sheet: render draws every section's labeled values") {
   info.health = 5;
   info.max_health = 8;
   info.gold = 12;
-  info.equipment.weapon = "Rusty Sword";
+  info.equipment = {
+      {
+          .slot = "body",
+          .item_name = "Travel Cloak",
+      },
+  };
   info.inventory_count = 3;
   info.inventory_capacity = 20;
 
@@ -139,9 +174,7 @@ TEST_CASE("character sheet: render draws every section's labeled values") {
   CHECK(find_text(r, "Experience: 30 / 100") != nullptr);
   CHECK(find_text(r, "Health: 5 / 8") != nullptr);
   CHECK(find_text(r, "Gold: 12") != nullptr);
-  CHECK(find_text(r, "Weapon: Rusty Sword") != nullptr);
-  CHECK(find_text(r, "Armor: (empty)") != nullptr);
-  CHECK(find_text(r, "Accessory: (empty)") != nullptr);
+  CHECK(find_text(r, "body: Travel Cloak") != nullptr);
   CHECK(find_text(r, "Items: 3 / 20") != nullptr);
   CHECK(find_text(r, "Esc Close") != nullptr);
 }
@@ -157,6 +190,7 @@ TEST_CASE("character sheet: render omits the health row and capacity suffix when
 
   CHECK(find_text(r, "Experience: 30") != nullptr);
   CHECK(find_text(r, "Health: 0 / 0") == nullptr);
+  CHECK(find_text(r, "Slots: (empty)") != nullptr);
   CHECK(find_text(r, "Items: 3") != nullptr);
   CHECK(find_text(r, "Items: 3 / 0") == nullptr);
 }

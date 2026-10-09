@@ -5,6 +5,8 @@
 
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -91,6 +93,53 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   press(engine, corundum::input::Action::Inventory);
   CHECK(engine.scene.mode() == screens::Inventory);
   CHECK(gameplay.inventory_cursor == 0);
+
+  engine.cleanup();
+}
+
+TEST_CASE("inventory — Activate equips the highlighted item and Activate again unequips it") {
+  using corundum::gameplay::item::Item;
+  using corundum::gameplay::item::ItemCategory;
+  using corundum::gameplay::item::WeaponData;
+
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.items.add(
+      Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{.damage = 3}});
+  engine.flags["item.sword"] = 1;
+
+  press(engine, corundum::input::Action::Inventory);
+  REQUIRE(engine.scene.mode() == screens::Inventory);
+  REQUIRE(gameplay.inventory_lines.size() == 1);
+
+  // Equip: the slot flag is set and the cached equipment column rebuilt.
+  press(engine, corundum::input::Action::Activate);
+  CHECK(engine.flags["equip.weapon.sword"] == 1);
+  REQUIRE(gameplay.inventory_equipment.size() == 1);
+  CHECK(gameplay.inventory_equipment[0].slot == "weapon");
+  CHECK(gameplay.inventory_equipment[0].item_name == "Sword");
+
+  // The character sheet shows the equipped item when opened.
+  press(engine, corundum::input::Action::Cancel);
+  press(engine, corundum::input::Action::Character);
+  REQUIRE(engine.scene.mode() == screens::Character);
+  REQUIRE(gameplay.character_sheet_info.equipment.size() == 1);
+  CHECK(gameplay.character_sheet_info.equipment[0].slot == "weapon");
+  CHECK(gameplay.character_sheet_info.equipment[0].item_name == "Sword");
+
+  // Unequip: the flag is cleared and the slot empties on the next inventory rebuild.
+  press(engine, corundum::input::Action::Cancel);
+  press(engine, corundum::input::Action::Inventory);
+  REQUIRE(engine.scene.mode() == screens::Inventory);
+  press(engine, corundum::input::Action::Activate);
+  CHECK_FALSE(corundum::world::has_flag(engine.flags, "equip.weapon.sword"));
+  REQUIRE(gameplay.inventory_equipment.size() == 1);
+  CHECK(gameplay.inventory_equipment[0].item_name.empty());
 
   engine.cleanup();
 }

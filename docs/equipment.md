@@ -1,9 +1,9 @@
 # Equipment
 
-Corundum has no equipment system. Items and slots are authored data, and equipping is a flag
-convention the game owns; the gameplay framework only displays what the flags say. That keeps
-stats, requirements and combat — real RPG rules — above the framework, in the game (Keystone) or
-a later `rules` layer.
+Corundum's equipment is a flag convention plus helper functions: items and slots are authored
+data, and the gameplay framework moves the flags the Inventory panel displays (`equip_item()`,
+`unequip_item()`, `toggle_equip()`). Real RPG rules — stats, requirements, combat effects — stay
+above the framework, in the game (Keystone) or a later `rules` layer.
 
 ## The convention
 
@@ -46,7 +46,13 @@ With `item.travel_cloak = 1` and `equip.body.travel_cloak = 1`, the Inventory's 
 
 ## Who equips
 
-The framework offers no equip or unequip action and no hook. The game sets and clears the
-`equip.<slot>.<item id>` flags — from dialogue events, its own screens, or an input handling
-system — and the Inventory re-reads them when it rebuilds its lines (on tab open or switch). If
-an item leaves the inventory, clear its `equip.` flag as well; nothing does that automatically.
+The Inventory hub tab toggles the highlighted item's equipped state on Activate (Enter / gamepad
+A). Equipping an item clears whichever item previously occupied its slot, so a slot holds at most
+one item. Items that are not held, unknown, or have no slot report a message and change nothing.
+
+The same helpers are available to game code (dialogue events, the game's own screens, an input
+system) as `corundum::gameplay::item::equip_item()`, `unequip_item()` and `toggle_equip()`. The
+Inventory re-reads the flags when it rebuilds its lines (on tab open or switch, or after an
+equip). If an item leaves the inventory while equipped, its `equip.` flag is cleared the next time
+another item is equipped in that slot; nothing clears it merely because the item left, so game
+code that drops an equipped item should clear the flag itself.

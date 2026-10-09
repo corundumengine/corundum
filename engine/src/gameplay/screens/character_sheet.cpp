@@ -5,7 +5,9 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -115,7 +117,7 @@ namespace corundum::gameplay::screens {
 
   } // namespace
 
-  CharacterInfo build_character_info(const world::FlagStore &flags) {
+  CharacterInfo build_character_info(const world::FlagStore &flags, const item::Registry &items) {
     CharacterInfo info{};
     info.level = std::max(1, world::visit_count(flags, std::string{k_level_flag}));
     info.experience = flag_count(flags, k_experience_flag);
@@ -123,6 +125,7 @@ namespace corundum::gameplay::screens {
     info.health = flag_count(flags, k_health_flag);
     info.max_health = flag_count(flags, k_max_health_flag);
     info.gold = flag_count(flags, k_gold_flag);
+    info.equipment = build_equipment_lines(flags, items);
     info.inventory_count = count_inventory_entries(flags);
     info.inventory_capacity = flag_count(flags, k_inventory_capacity_flag);
     return info;
@@ -166,12 +169,14 @@ namespace corundum::gameplay::screens {
 
     draw_section_header(r, style, "Equipment", sections.equipment);
     y = sections.equipment.pos.y + header_line_height(style);
-    y = draw_labeled_row(r, style, sections.equipment, y, "Weapon",
-                         info.equipment.weapon.empty() ? k_empty_label : info.equipment.weapon);
-    y = draw_labeled_row(r, style, sections.equipment, y, "Armor",
-                         info.equipment.armor.empty() ? k_empty_label : info.equipment.armor);
-    draw_labeled_row(r, style, sections.equipment, y, "Accessory",
-                     info.equipment.accessory.empty() ? k_empty_label : info.equipment.accessory);
+    if (info.equipment.empty()) {
+      draw_labeled_row(r, style, sections.equipment, y, "Slots", k_empty_label);
+    } else {
+      for (const EquipmentLine &line : info.equipment) {
+        y = draw_labeled_row(r, style, sections.equipment, y, line.slot,
+                             line.item_name.empty() ? k_empty_label : line.item_name);
+      }
+    }
 
     draw_section_header(r, style, "Inventory", sections.inventory);
     y = sections.inventory.pos.y + header_line_height(style);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/item/equipment.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/screens/hub_tabs.hpp>
@@ -31,7 +32,6 @@ namespace corundum::gameplay::screens {
     constexpr std::string_view k_panel_header = "Inventory";
     constexpr std::string_view k_empty_label = "(empty)";
     constexpr std::string_view k_equipment_header = "Equipment";
-    constexpr std::string_view k_weapon_slot = "weapon";
 
     /// UI display name for a category. Deliberately separate from gameplay::item::to_string(),
     /// which is the lowercase serialized/schema form, not presentation text.
@@ -47,15 +47,6 @@ namespace corundum::gameplay::screens {
           return "Weapon";
       }
       return "Misc";
-    }
-
-    /// The equipment slot an item occupies, or empty when it has none.
-    std::string item_slot(const gameplay::item::Item &item) {
-      if (item.apparel && !item.apparel->slot.empty())
-        return item.apparel->slot;
-      if (item.weapon)
-        return std::string{k_weapon_slot};
-      return {};
     }
 
     /// A run of consecutive rows sharing one category (input is sorted by (category, name)).
@@ -300,7 +291,7 @@ namespace corundum::gameplay::screens {
       const gameplay::item::Item *def = items.find(id);
       if (def == nullptr)
         continue;
-      const std::string slot = item_slot(*def);
+      const std::string slot = gameplay::item::equipment_slot(*def);
       if (slot.empty())
         continue;
 
@@ -308,7 +299,7 @@ namespace corundum::gameplay::screens {
       if (line == lines.end())
         line = lines.insert(lines.end(), EquipmentLine{.slot = slot});
       // First equipped item wins, matching the one-equipped-item-per-slot convention.
-      if (line->item_name.empty() && world::has_flag(flags, std::format("equip.{}.{}", slot, id)))
+      if (line->item_name.empty() && world::has_flag(flags, gameplay::item::equip_flag_key(slot, id)))
         line->item_name = def->name;
     }
     std::ranges::sort(lines, {}, &EquipmentLine::slot);

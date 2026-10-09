@@ -18,6 +18,7 @@
 #include <corundum/gameplay/dialogue/validate_refs.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/item/container.hpp>
+#include <corundum/gameplay/item/equipment.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/location/location.hpp>
@@ -534,6 +535,18 @@ namespace corundum::gameplay {
           gameplay.inventory_cursor = 0;
         else
           gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, intent.navigate_y, rows);
+      }
+
+      // Activate equips or unequips the highlighted row. The equipment column is cached with
+      // the rows, so a successful toggle rebuilds only it; the item rows themselves are
+      // unchanged (equipping never moves or consumes an item).
+      if (intent.activate && rows > 0) {
+        const std::size_t index = static_cast<std::size_t>(std::clamp(gameplay.inventory_cursor, 0, rows - 1));
+        const screens::InventoryLine &selected = gameplay.inventory_lines[index];
+        if (const auto result = item::toggle_equip(engine.flags, gameplay.items, selected.id); !result)
+          engine.notify(result.error());
+        else
+          gameplay.inventory_equipment = screens::build_equipment_lines(engine.flags, gameplay.items);
       }
 
       const screens::InventoryLayout visible = screens::inventory_panel_layout(
@@ -1662,7 +1675,7 @@ namespace corundum::gameplay {
   }
 
   void Gameplay::open_character_sheet() {
-    character_sheet_info = screens::build_character_info(engine_->flags);
+    character_sheet_info = screens::build_character_info(engine_->flags, items);
     engine_->scene.ui.push(screens::Character);
   }
 

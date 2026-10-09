@@ -112,6 +112,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/dialogue/validate.cpp
     src/gameplay/dialogue/validate_refs.cpp
     src/gameplay/gameplay.cpp
+    src/gameplay/item/equipment.cpp
     src/gameplay/item/item.cpp
     src/gameplay/item/serialize.cpp
     src/gameplay/location/loader.cpp

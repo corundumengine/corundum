@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -10,8 +11,8 @@
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
-#include <string>
 #include <string_view>
+#include <vector>
 
 namespace corundum::gameplay::screens {
 
@@ -33,24 +34,10 @@ namespace corundum::gameplay::screens {
   /** @brief FlagStore key holding the inventory's slot capacity; 0 means unbounded/unknown. */
   inline constexpr std::string_view k_inventory_capacity_flag = "player.inventory_capacity";
 
-  /** @brief The three equipped item names a character sheet shows.
-   *
-   *  A display model, not the inventory's own slot list: the game resolves each name from
-   *  whichever equip flag backs it, so the ship-time equipment system can change without
-   *  changing this screen.
-   */
-  struct CharacterEquipment {
-    std::string weapon{};
-
-    std::string armor{};
-
-    std::string accessory{};
-  };
-
   /** @brief The character sheet's display values.
    *
    *  Pure data assembled from the FlagStore by build_character_info(); the screen never reads
-   *  the game itself. An empty equipment name draws as "(empty)".
+   *  the game itself. An equipment slot's empty item name draws as "(empty)".
    */
   struct CharacterInfo {
     int level{1};
@@ -65,7 +52,9 @@ namespace corundum::gameplay::screens {
 
     int gold{};
 
-    CharacterEquipment equipment{};
+    /** Distinct equipment slots among held items, as the Inventory panel's left column shows
+     *  them (free-form slot names, sorted). */
+    std::vector<EquipmentLine> equipment{};
 
     int inventory_count{};
 
@@ -78,10 +67,12 @@ namespace corundum::gameplay::screens {
    *  quest grants, when a level is reached) and writes the keys. Missing keys take their
    *  documented defaults, and negative counts clamp to 0. `inventory_count` counts the held
    *  item rows (`item.<id>` flags with a positive count), matching the inventory panel's rows.
+   *  `equipment` lists one row per equipment slot among held items, resolving the equipped item through @p items.
    *
    *  @param flags Active FlagStore.
+   *  @param items Loaded item registry; resolves equipment slot names and display names.
    */
-  [[nodiscard]] CharacterInfo build_character_info(const world::FlagStore &flags);
+  [[nodiscard]] CharacterInfo build_character_info(const world::FlagStore &flags, const item::Registry &items);
 
   /** @brief Screen-space geometry of the character sheet, shared by render and hit-testing. */
   struct CharacterSheetLayout {
