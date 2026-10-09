@@ -125,6 +125,10 @@ namespace corundum::gameplay {
      *  simulation is paused while it is open, so there is no per-frame rebuild. */
     screens::CharacterInfo character_sheet_info;
 
+    /** @brief Character-sheet cursor: the highlighted section and row within it. Reset each time
+     *  the sheet opens so it never lands on a row that has since disappeared. */
+    screens::CharacterSheetState character_sheet_state;
+
     /** @brief Dialogue-box reveal/layout state; stepped by the gameplay fixed-step system. */
     screens::DialogBoxState dialog_box;
 

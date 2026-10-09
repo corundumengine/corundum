@@ -5,10 +5,13 @@
 
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/item/item.hpp>
+#include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
+#include <corundum/world/flags.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
 
@@ -91,6 +94,46 @@ TEST_CASE("character sheet — the hotkey is ignored while another screen is ope
 
   press(engine, corundum::input::Action::Character);
   CHECK(engine.scene.mode() == screens::Inventory);
+
+  engine.cleanup();
+}
+
+TEST_CASE("character sheet — navigation and Activate equip then unequip the highlighted item") {
+  using corundum::gameplay::item::Item;
+  using corundum::gameplay::item::ItemCategory;
+  using corundum::gameplay::item::WeaponData;
+
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness)
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.items.add(Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{}});
+  engine.flags["item.sword"] = 1;
+
+  press(engine, corundum::input::Action::Character);
+  REQUIRE(engine.scene.mode() == screens::Character);
+  REQUIRE(gameplay.character_sheet_state.section == 0);
+
+  // Right twice moves from Stats to the Inventory column; the single held item is the only row.
+  press(engine, corundum::input::Action::MoveRight);
+  press(engine, corundum::input::Action::MoveRight);
+  CHECK(gameplay.character_sheet_state.section == 2);
+  CHECK(gameplay.character_sheet_info.inventory.size() == 1);
+
+  // Activate equips the highlighted item and re-samples the sheet's equipment column.
+  press(engine, corundum::input::Action::Activate);
+  CHECK(engine.flags["equip.weapon.sword"] == 1);
+  REQUIRE(gameplay.character_sheet_info.equipment.size() == 1);
+  CHECK(gameplay.character_sheet_info.equipment[0].item_id == "sword");
+
+  // Left to the Equipment column; Activate unequips the equipped item there.
+  press(engine, corundum::input::Action::MoveLeft);
+  CHECK(gameplay.character_sheet_state.section == 1);
+  press(engine, corundum::input::Action::Activate);
+  CHECK_FALSE(corundum::world::has_flag(engine.flags, "equip.weapon.sword"));
 
   engine.cleanup();
 }

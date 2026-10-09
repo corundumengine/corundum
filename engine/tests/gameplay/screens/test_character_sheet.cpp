@@ -57,6 +57,16 @@ namespace {
     return nullptr;
   }
 
+  /// True when some recorded DrawText contains @p fragment.
+  bool has_text_containing(const RecordingRenderer &r, std::string_view fragment) {
+    for (const auto &call : r.log) {
+      if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call);
+          drawn != nullptr && drawn->text.find(fragment) != std::string::npos)
+        return true;
+    }
+    return false;
+  }
+
 } // namespace
 
 TEST_CASE("character sheet: default CharacterInfo is level 1 with no progress") {
@@ -98,9 +108,12 @@ TEST_CASE("character sheet: build_character_info reads every field from the flag
   CHECK(info.inventory_capacity == 8);
   REQUIRE(info.equipment.size() == 2);
   CHECK(info.equipment[0].slot == "body");
+  CHECK(info.equipment[0].item_id == "cloak");
   CHECK(info.equipment[0].item_name == "Cloak");
   CHECK(info.equipment[1].slot == "weapon");
-  CHECK(info.equipment[1].item_name.empty()); // sword is held but not equipped
+  CHECK(info.equipment[1].item_id.empty()); // sword is held but not equipped
+  CHECK(info.equipment[1].item_name.empty());
+  CHECK(info.inventory.size() == 3); // one row per item id, matching inventory_count
 }
 
 TEST_CASE("character sheet: build_character_info defaults an empty store to level 1 and no progress") {
@@ -176,7 +189,22 @@ TEST_CASE("character sheet: render draws every section's labeled values") {
   CHECK(find_text(r, "Gold: 12") != nullptr);
   CHECK(find_text(r, "body: Travel Cloak") != nullptr);
   CHECK(find_text(r, "Items: 3 / 20") != nullptr);
-  CHECK(find_text(r, "Esc Close") != nullptr);
+  CHECK(has_text_containing(r, "Esc Close"));
+}
+
+TEST_CASE("character sheet: render lists held items with a stack suffix") {
+  RecordingRenderer r;
+  const corundum::ui::PanelStyle style{};
+  CharacterInfo info;
+  info.inventory = {
+      {.count = 2, .name = "Potion", .id = "potion"},
+      {.count = 1, .name = "Sword", .id = "sword"},
+  };
+
+  screens::character_sheet_render(r, style, make_border(), info, {.x = 800.f, .y = 600.f});
+
+  CHECK(find_text(r, "Potion x2") != nullptr);
+  CHECK(find_text(r, "Sword") != nullptr);
 }
 
 TEST_CASE("character sheet: render omits the health row and capacity suffix when unset") {
@@ -203,8 +231,48 @@ TEST_CASE("character sheet: render shows the gamepad close glyph for a gamepad p
 
   screens::character_sheet_render(r, style, make_border(), info, viewport, corundum::input::InputDevice::Gamepad);
 
-  CHECK(find_text(r, "B Close") != nullptr);
-  CHECK(find_text(r, "Esc Close") == nullptr);
+  CHECK(has_text_containing(r, "B Close"));
+  CHECK(has_text_containing(r, "D-Up Navigate"));
+  CHECK_FALSE(has_text_containing(r, "Esc Close"));
+}
+
+TEST_CASE("character sheet: section row counts always expose a highlightable row") {
+  CharacterInfo info;
+  info.max_health = 0;
+  CHECK(screens::character_section_row_count(info, 0) == 3); // Level, Experience, Gold
+  info.max_health = 10;
+  CHECK(screens::character_section_row_count(info, 0) == 4);
+  CHECK(screens::character_section_row_count(info, 1) == 1); // empty equipment column
+  CHECK(screens::character_section_row_count(info, 2) == 1); // empty inventory column
+  info.equipment = {{.slot = "body"}, {.slot = "weapon"}};
+  info.inventory = {{.id = "a"}, {.id = "b"}, {.id = "c"}};
+  CHECK(screens::character_section_row_count(info, 1) == 2);
+  CHECK(screens::character_section_row_count(info, 2) == 3);
+}
+
+TEST_CASE("character sheet: cursor moves between sections and wraps within a section") {
+  CharacterInfo info;
+  info.max_health = 10; // four stats rows
+  screens::CharacterSheetState state{};
+
+  screens::move_character_cursor(state, info, /*dx=*/1, /*dy=*/0);
+  CHECK(state.section == 1);
+  CHECK(state.row == 0);
+
+  screens::move_character_cursor(state, info, /*dx=*/-1, /*dy=*/0);
+  CHECK(state.section == 0);
+
+  // Up from the first row wraps to the last of the new section.
+  state.row = 0;
+  screens::move_character_cursor(state, info, /*dx=*/0, /*dy=*/-1);
+  CHECK(state.section == 0);
+  CHECK(state.row == 3);
+
+  // A section with fewer rows clamps the carried row rather than leaving it out of range.
+  state = {.section = 0, .row = 3};
+  screens::move_character_cursor(state, info, /*dx=*/1, /*dy=*/0);
+  CHECK(state.section == 1);
+  CHECK(state.row == 0);
 }
 
 TEST_CASE("character sheet: GameMode::Character is a distinct extension mode") {

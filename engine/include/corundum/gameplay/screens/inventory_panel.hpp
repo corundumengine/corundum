@@ -65,6 +65,8 @@ namespace corundum::gameplay::screens {
     std::string slot{}; ///< Slot name from ApparelData::slot, or "weapon".
 
     std::string item_name{}; ///< Equipped item's display name; empty → "(empty)".
+
+    std::string item_id{}; ///< Equipped item's id; empty when the slot has no equipped item.
   };
 
   /** @brief Collect the player's equipment slots from the FlagStore.

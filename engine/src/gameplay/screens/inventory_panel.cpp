@@ -299,8 +299,10 @@ namespace corundum::gameplay::screens {
       if (line == lines.end())
         line = lines.insert(lines.end(), EquipmentLine{.slot = slot});
       // First equipped item wins, matching the one-equipped-item-per-slot convention.
-      if (line->item_name.empty() && world::has_flag(flags, gameplay::item::equip_flag_key(slot, id)))
+      if (line->item_name.empty() && world::has_flag(flags, gameplay::item::equip_flag_key(slot, id))) {
+        line->item_id = std::string{id};
         line->item_name = def->name;
+      }
     }
     std::ranges::sort(lines, {}, &EquipmentLine::slot);
     return lines;

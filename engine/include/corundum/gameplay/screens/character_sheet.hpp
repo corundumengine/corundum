@@ -56,10 +56,48 @@ namespace corundum::gameplay::screens {
      *  them (free-form slot names, sorted). */
     std::vector<EquipmentLine> equipment{};
 
+    /** Held item rows, as the Inventory panel lists them (sorted by category then name). The
+     *  character sheet highlights and equips from these; @c inventory_count mirrors its size. */
+    std::vector<InventoryLine> inventory{};
+
     int inventory_count{};
 
     int inventory_capacity{};
   };
+
+  /** @brief Highlighted cell of the character sheet: a section column and a row within it.
+   *
+   *  Sections are 0 = Stats, 1 = Equipment, 2 = Inventory. Every section exposes at least one
+   *  highlightable row, so the cursor always has a valid target; only Equipment and Inventory
+   *  rows are actionable (Stats rows highlight but do nothing on activate).
+   */
+  struct CharacterSheetState {
+    int section{};
+
+    int row{};
+  };
+
+  /** @brief Number of highlightable rows in @p section, always at least 1.
+   *
+   *  Stats holds Level, Experience, an optional Health row, and Gold; Equipment holds one row
+   *  per known slot (or the single "(empty)" row); Inventory holds one row per held item.
+   *
+   *  @param info    Character sheet values.
+   *  @param section Section index; out-of-range values clamp to 0.
+   */
+  [[nodiscard]] int character_section_row_count(const CharacterInfo &info, int section) noexcept;
+
+  /** @brief Apply one navigation step to @p state.
+   *
+   *  @p dx moves between sections (wrapping), clamping the row into the new section; @p dy moves
+   *  within the current section, wrapping past either end. Pass 0 to leave an axis untouched.
+   *
+   *  @param[in,out] state Cursor to move.
+   *  @param[in]     info  Values deciding each section's row count.
+   *  @param[in]     dx    Section step, -1/0/+1.
+   *  @param[in]     dy    Row step, -1/0/+1.
+   */
+  void move_character_cursor(CharacterSheetState &state, const CharacterInfo &info, int dx, int dy) noexcept;
 
   /** @brief Read the character sheet's values from @p flags.
    *
@@ -111,9 +149,11 @@ namespace corundum::gameplay::screens {
    *  @param info        Display values to render, as build_character_info() produces.
    *  @param viewport    Screen size in logical pixels; the panel is centered within it.
    *  @param last_device Device of the player's most recent press; picks the footer glyphs.
+   *  @param state       Highlighted section/row; the current section's row is drawn selected.
    */
   void character_sheet_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                               const CharacterInfo &info, core::math::Vec2 viewport,
-                              input::InputDevice last_device = input::InputDevice::Keyboard);
+                              input::InputDevice last_device = input::InputDevice::Keyboard,
+                              const CharacterSheetState &state = {});
 
 } // namespace corundum::gameplay::screens

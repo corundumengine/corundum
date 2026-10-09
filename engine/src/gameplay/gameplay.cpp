@@ -1060,17 +1060,48 @@ namespace corundum::gameplay {
                                   engine.input_mapper.last_device());
     }
 
-    /// Step the character sheet: Cancel closes it. The hotkey that opens it is handled by the
-    /// input hook before this step runs.
-    void update_character(Engine &engine, const input::InputIntent &intent) {
-      if (intent.back)
+    /// Equip or unequip the highlighted character-sheet row. Equipment rows unequip their
+    /// equipped item; inventory rows toggle the selected item's equip state. Stats rows do
+    /// nothing. Rebuilds the sheet values so the equipment column reflects the change.
+    void activate_character_row(Engine &engine, Gameplay &gameplay) {
+      const screens::CharacterSheetState state = gameplay.character_sheet_state;
+      const screens::CharacterInfo &info = gameplay.character_sheet_info;
+      std::string_view item_id;
+      if (state.section == 1 && std::cmp_less(state.row, info.equipment.size()))
+        item_id = info.equipment[static_cast<std::size_t>(state.row)].item_id;
+      else if (state.section == 2 && std::cmp_less(state.row, info.inventory.size()))
+        item_id = info.inventory[static_cast<std::size_t>(state.row)].id;
+      if (item_id.empty())
+        return;
+      if (const auto result = item::toggle_equip(engine.flags, gameplay.items, item_id); !result) {
+        engine.notify(result.error());
+        return;
+      }
+      gameplay.character_sheet_info = screens::build_character_info(engine.flags, gameplay.items);
+      const int rows = screens::character_section_row_count(gameplay.character_sheet_info, state.section);
+      gameplay.character_sheet_state.row = std::clamp(state.row, 0, rows - 1);
+    }
+
+    /// Step the character sheet: Cancel closes it, the navigation axes move the highlight, and
+    /// Activate equips or unequips the highlighted row. The hotkey that opens it is handled by
+    /// the input hook before this step runs.
+    void update_character(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      if (intent.back) {
         engine.scene.ui.pop();
+        return;
+      }
+      if (intent.navigate_x != 0 || intent.navigate_y != 0)
+        screens::move_character_cursor(gameplay.character_sheet_state, gameplay.character_sheet_info, intent.navigate_x,
+                                       intent.navigate_y);
+      if (intent.activate)
+        activate_character_row(engine, gameplay);
     }
 
     void render_character(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
                           core::math::Vec2 viewport) {
       screens::character_sheet_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                      gameplay.character_sheet_info, viewport, engine.input_mapper.last_device());
+                                      gameplay.character_sheet_info, viewport, engine.input_mapper.last_device(),
+                                      gameplay.character_sheet_state);
     }
 
     /// Step the Loading overlay: once the overlay has actually rendered, run the queued load.
@@ -1417,7 +1448,8 @@ namespace corundum::gameplay {
           screens::Character,
           ScreenSpec{
               .owns_step = true,
-              .update = [](Engine &e, const input::InputIntent &intent) { update_character(e, intent); },
+              .update = [&gameplay](Engine &e,
+                                    const input::InputIntent &intent) { update_character(e, gameplay, intent); },
               .render = [&gameplay](Engine &e, platform::Renderer &r,
                                     core::math::Vec2 viewport) { render_character(e, gameplay, r, viewport); },
           });
@@ -1676,6 +1708,7 @@ namespace corundum::gameplay {
 
   void Gameplay::open_character_sheet() {
     character_sheet_info = screens::build_character_info(engine_->flags, items);
+    character_sheet_state = {};
     engine_->scene.ui.push(screens::Character);
   }
 
@@ -1802,6 +1835,7 @@ namespace corundum::gameplay {
     inventory_lines.clear();
     inventory_equipment.clear();
     character_sheet_info = {};
+    character_sheet_state = {};
     journal_screen = {};
     codex_screen = {};
     map_screen = {};
