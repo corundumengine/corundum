@@ -19,6 +19,7 @@
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/runtime.hpp> // IWYU pragma: export
 #include <corundum/gameplay/screens/barter.hpp>
+#include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/confirm.hpp>
 #include <corundum/gameplay/screens/credits.hpp>
@@ -119,6 +120,10 @@ namespace corundum::gameplay {
 
     /** @brief Save/Load screen state: mode, highlighted row and the buffered slot rows. */
     screens::SaveLoadState save_load_screen;
+
+    /** @brief Character-sheet values, sampled from the FlagStore when the sheet opens. The
+     *  simulation is paused while it is open, so there is no per-frame rebuild. */
+    screens::CharacterInfo character_sheet_info;
 
     /** @brief Dialogue-box reveal/layout state; stepped by the gameplay fixed-step system. */
     screens::DialogBoxState dialog_box;
@@ -282,6 +287,16 @@ namespace corundum::gameplay {
      *  @post engine.scene.ui.top() is screens::Title.
      */
     void open_title();
+
+    /** @brief Show the character sheet over the current scene.
+     *
+     *  Samples the character sheet's values from the FlagStore and pushes GameMode Character.
+     *  Only reachable from Exploring (the hotkey handler ignores it while another screen is
+     *  open).
+     *
+     *  @post engine.scene.ui.top() is screens::Character.
+     */
+    void open_character_sheet();
 
     /** @brief Show the game-over screen.
      *

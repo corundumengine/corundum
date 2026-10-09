@@ -26,6 +26,7 @@
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/gameplay/screens/barter.hpp>
+#include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/gameplay/screens/confirm.hpp>
 #include <corundum/gameplay/screens/credits.hpp>
@@ -198,6 +199,20 @@ namespace corundum::gameplay {
       }
     }
 
+    /// Accumulate a `grant_xp(n)` event into the running total. The framework tracks the total;
+    /// how it maps to levels is the game's policy, set through `player.level`/`player.xp_next`.
+    void handle_grant_xp(Engine &engine, const dialogue::EventAction &ev) {
+      if (const int delta = event_int_arg(ev, 0, /*fallback=*/0); delta != 0)
+        engine.flags[std::string{screens::k_experience_flag}] += delta;
+    }
+
+    /// Accumulate a `reputation(faction, delta)` event into `rep.<faction>`. A non-numeric delta
+    /// parses to 0 and is skipped so no zero-valued reputation flag is created.
+    void handle_reputation(Engine &engine, const dialogue::EventAction &ev) {
+      if (const int delta = event_int_arg(ev, 1, /*fallback=*/0); delta != 0)
+        engine.flags["rep." + ev.args[0]] += delta;
+    }
+
     /// Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
     /// cache stale, and notify only when the entry was not already unlocked.
     void handle_unlock_codex(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
@@ -262,9 +277,9 @@ namespace corundum::gameplay {
         } else if (ev.name == "open_shop" && !ev.args.empty()) {
           handle_open_shop(engine, gameplay, ev);
         } else if (ev.name == "reputation" && ev.args.size() >= 2) {
-          // A non-numeric value parses to 0; skip the write so no zero-valued rep flag is created.
-          if (const int delta = event_int_arg(ev, 1, /*fallback=*/0); delta != 0)
-            engine.flags["rep." + ev.args[0]] += delta;
+          handle_reputation(engine, ev);
+        } else if (ev.name == "grant_xp" && !ev.args.empty()) {
+          handle_grant_xp(engine, ev);
         } else if (invoke_event_hook(gameplay, engine, ev) == EventHookResult::NotHandled) {
           warn_log("[gameplay] WARN: unknown dialogue event '{}'", ev.name);
         }
@@ -472,6 +487,23 @@ namespace corundum::gameplay {
       // the engine dispatches the newly active screen's step after this hook returns false.
       if (on_hub_tab && (intent.next_tab || intent.prev_tab))
         switch_hub_tab(engine, gameplay, cycle_hub_tab(engine.scene.mode(), intent.next_tab ? 1 : -1));
+      return false;
+    }
+
+    /// Handle the Character hotkey (P / gamepad Back): open the sheet from Exploring, close it
+    /// when already on top. Any other top mode leaves the press alone, so the hotkey cannot
+    /// stack the sheet over a dialogue or prompt.
+    bool handle_character_input(Engine &engine, Gameplay &gameplay) {
+      if (!engine.input_state.is_pressed(input::Action::Character))
+        return false;
+      if (engine.scene.mode() == screens::Character) {
+        engine.scene.ui.pop();
+        return true;
+      }
+      if (engine.scene.mode() == world::GameMode::Exploring) {
+        gameplay.open_character_sheet();
+        return true;
+      }
       return false;
     }
 
@@ -1015,6 +1047,19 @@ namespace corundum::gameplay {
                                   engine.input_mapper.last_device());
     }
 
+    /// Step the character sheet: Cancel closes it. The hotkey that opens it is handled by the
+    /// input hook before this step runs.
+    void update_character(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back)
+        engine.scene.ui.pop();
+    }
+
+    void render_character(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                          core::math::Vec2 viewport) {
+      screens::character_sheet_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                      gameplay.character_sheet_info, viewport, engine.input_mapper.last_device());
+    }
+
     /// Step the Loading overlay: once the overlay has actually rendered, run the queued load.
     void update_loading(Gameplay &gameplay) {
       gameplay.advance_loading();
@@ -1356,6 +1401,14 @@ namespace corundum::gameplay {
                                     core::math::Vec2 viewport) { render_inventory(e, gameplay, r, viewport); },
           });
       engine.screens.add(
+          screens::Character,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [](Engine &e, const input::InputIntent &intent) { update_character(e, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_character(e, gameplay, r, viewport); },
+          });
+      engine.screens.add(
           screens::Journal,
           ScreenSpec{
               .owns_step = true,
@@ -1459,6 +1512,8 @@ namespace corundum::gameplay {
 
       engine.screen_input_hooks.emplace_back(
           [&gameplay](Engine &e, const input::InputIntent &intent) { return handle_hub_input(e, gameplay, intent); });
+      engine.screen_input_hooks.emplace_back(
+          [&gameplay](Engine &e, const input::InputIntent &) { return handle_character_input(e, gameplay); });
 
       engine.screens.add_layer(RenderLayer::Hud, [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 v) {
         render_hud(e, gameplay, r, v);
@@ -1606,6 +1661,11 @@ namespace corundum::gameplay {
     engine_->scene.ui.push(screens::Title);
   }
 
+  void Gameplay::open_character_sheet() {
+    character_sheet_info = screens::build_character_info(engine_->flags);
+    engine_->scene.ui.push(screens::Character);
+  }
+
   void Gameplay::refresh_credits() {
     credits_screen = {};
     const std::string &path = engine_->cfg.paths.credits_file;
@@ -1728,6 +1788,7 @@ namespace corundum::gameplay {
     inventory_scroll = 0;
     inventory_lines.clear();
     inventory_equipment.clear();
+    character_sheet_info = {};
     journal_screen = {};
     codex_screen = {};
     map_screen = {};

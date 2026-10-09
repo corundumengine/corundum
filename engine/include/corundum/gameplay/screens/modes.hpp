@@ -45,6 +45,9 @@ namespace corundum::gameplay::screens {
 
   /** @brief Modal yes/no confirmation, carrying no state of its own beyond Gameplay::confirm. */
   inline constexpr world::GameMode Confirm{static_cast<world::GameMode>(world::k_first_extension_mode + 12)};
+
+  /** @brief Character sheet: level, experience, equipment and inventory summary. */
+  inline constexpr world::GameMode Character{static_cast<world::GameMode>(world::k_first_extension_mode + 13)};
   // NOLINTEND(readability-identifier-naming)
 
   /** @brief True when @p mode is one of the four screens reachable from the menu hub.

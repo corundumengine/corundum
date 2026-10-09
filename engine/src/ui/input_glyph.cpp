@@ -42,6 +42,8 @@ namespace corundum::ui {
           return "C";
         case Action::Map:
           return "M";
+        case Action::Character:
+          return "P";
         case Action::Menu:
           return "Esc";
         case Action::Hub:
@@ -91,6 +93,8 @@ namespace corundum::ui {
           return "B";
         case Action::Hub:
           return "Y";
+        case Action::Character:
+          return "Back";
         case Action::Menu:
           return "Start";
         case Action::TabNext:

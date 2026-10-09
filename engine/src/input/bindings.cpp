@@ -43,6 +43,7 @@ namespace corundum::input {
             {Action::Journal, "Journal"},
             {Action::Codex, "Codex"},
             {Action::Map, "Map"},
+            {Action::Character, "Character"},
             {Action::Menu, "Menu"},
             {Action::Hub, "Hub"},
             {Action::TabNext, "TabNext"},
@@ -77,6 +78,7 @@ namespace corundum::input {
         {.action = Action::Journal, .input = physical(Key::J)},
         {.action = Action::Codex, .input = physical(Key::C)},
         {.action = Action::Map, .input = physical(Key::M)},
+        {.action = Action::Character, .input = physical(Key::P)},
         // Esc doubles as Cancel; with a screen open its back handling gets the press (the
         // menu-open path treats a same-step Cancel as a close), so the shared key never opens
         // and closes the menu in one step. With no screen open Esc opens the pause menu.
@@ -94,6 +96,7 @@ namespace corundum::input {
         {.action = Action::Activate, .input = physical(MouseButton::Left)},
         {.action = Action::Activate, .input = physical(GamepadControl::A)},
         {.action = Action::Cancel, .input = physical(GamepadControl::B)},
+        {.action = Action::Character, .input = physical(GamepadControl::Back)},
         {.action = Action::Menu, .input = physical(GamepadControl::Start)},
         {.action = Action::TabPrev, .input = physical(GamepadControl::LeftBumper)},
         {.action = Action::TabNext, .input = physical(GamepadControl::RightBumper)},

@@ -27,6 +27,7 @@ namespace corundum::input {
     Journal,    ///< Journal hotkey (J). Opens the hub on the Journal tab.
     Codex,      ///< Codex hotkey (C). Opens the hub on the Codex tab.
     Map,        ///< Map/fast-travel hotkey (M). Opens the hub on the Map tab.
+    Character,  ///< Character-sheet hotkey (P). Opens the character sheet from Exploring.
     Menu,       ///< Pause/system menu toggle (Esc / gamepad Start).
     Hub,        ///< Menu-hub toggle (gamepad Y). Opens the last hub tab; closes it when one is on top.
     TabNext,    ///< Next tab: settings pages, barter Buy/Sell, hub tabs (] / gamepad R1).

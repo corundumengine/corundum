@@ -9,6 +9,7 @@
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/quest/system.hpp>
+#include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
 #include <string>
@@ -286,4 +287,27 @@ TEST_CASE("engine events: reputation accumulates rep.<faction> and can go negati
   gameplay.process_events();
 
   CHECK(engine.flags["rep.village"] == 2);
+}
+
+TEST_CASE("engine events: grant_xp accumulates player.xp") {
+  corundum::Engine engine;
+  corundum::gameplay::Gameplay gameplay{engine};
+  const std::string xp_flag{corundum::gameplay::screens::k_experience_flag};
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "grant_xp", .args = {"30"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "grant_xp", .args = {"12"}});
+  gameplay.process_events();
+
+  CHECK(engine.flags[xp_flag] == 42);
+}
+
+TEST_CASE("engine events: grant_xp with a non-numeric value is a no-op") {
+  corundum::Engine engine;
+  corundum::gameplay::Gameplay gameplay{engine};
+  const std::string xp_flag{corundum::gameplay::screens::k_experience_flag};
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "grant_xp", .args = {"lots"}});
+  gameplay.process_events();
+
+  CHECK(!engine.flags.contains(xp_flag));
 }

@@ -125,6 +125,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/quest/validate.cpp
     src/gameplay/runtime.cpp
     src/gameplay/screens/barter.cpp
+    src/gameplay/screens/character_sheet.cpp
     src/gameplay/screens/codex.cpp
     src/gameplay/screens/credits.cpp
     src/gameplay/screens/dialog_box.cpp

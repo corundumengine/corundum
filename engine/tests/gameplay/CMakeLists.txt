@@ -19,6 +19,7 @@ add_executable(corundum_gameplay_tests
     item/test_item_serialize.cpp
     location/test_location.cpp
     quest/test_quest.cpp
+    root/test_character_sheet_toggle.cpp
     root/test_engine_events.cpp
     root/test_engine_lifecycle.cpp
     root/test_hub.cpp
@@ -32,6 +33,7 @@ add_executable(corundum_gameplay_tests
     root/test_session_reset.cpp
     root/test_title_saveload_gameover.cpp
     save/test_save.cpp
+    screens/test_character_sheet.cpp
     screens/test_dialog_reveal.cpp
     screens/test_hub_panels.cpp
     screens/test_hub_tabs.cpp
