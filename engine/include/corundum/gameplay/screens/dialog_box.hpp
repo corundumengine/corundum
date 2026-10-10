@@ -5,6 +5,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/screens/dialog_layout.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <cstdint>
@@ -64,7 +65,10 @@ namespace corundum::gameplay::screens {
 
   /// Emit platform::DrawRect, nine-patch border, and platform::DrawText commands for the current frame.
   /// No-op when ds.visible is false or layout is absent.
-  void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r, const ui::PanelSkin &skin);
+  ///
+  /// @param last_device Device of the player's most recent press; selects the footer glyphs.
+  void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r, const ui::PanelSkin &skin,
+                         input::InputDevice last_device);
 
   /// Hide the box without clearing the cached layout.
   inline void dialog_box_hide(DialogBoxState &ds) noexcept {

@@ -6,6 +6,8 @@
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
+#include <corundum/gameplay/screens/dialog_layout.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -77,7 +79,7 @@ TEST_CASE("dialog reveal: a zero rate draws the full body immediately") {
 
   corundum::test::RecordingRenderer r;
   corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
-  corundum::gameplay::screens::dialog_box_render(box, r, skin);
+  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
 
   CHECK(contains_text(r, "Hello world"));
 }
@@ -99,7 +101,7 @@ TEST_CASE("dialog reveal: advance reveals a codepoint prefix of the body") {
   corundum::gameplay::screens::dialog_box_advance(box, conversation, 0.3f, text_speed);
   REQUIRE(box.reveal_chars == doctest::Approx(5.f));
 
-  corundum::gameplay::screens::dialog_box_render(box, r, skin);
+  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
   CHECK(contains_text(r, "Hello"));
   CHECK_FALSE(contains_text(r, "Hello world"));
 }
@@ -137,7 +139,7 @@ TEST_CASE("dialog reveal: a budget spanning a style boundary reveals each segmen
   corundum::test::RecordingRenderer r;
   corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
   corundum::gameplay::screens::dialog_box_advance(box, conversation, 0.3f, text_speed); // 3 codepoints
-  corundum::gameplay::screens::dialog_box_render(box, r, skin);
+  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
 
   const corundum::platform::DrawText *regular = find_text(r, "a ");
   const corundum::platform::DrawText *italic = find_text(r, "b");
@@ -160,7 +162,7 @@ TEST_CASE("dialog reveal: the full styled body draws each run with its own font 
 
   corundum::test::RecordingRenderer r;
   corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, 0.f);
-  corundum::gameplay::screens::dialog_box_render(box, r, skin);
+  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
 
   const corundum::platform::DrawText *bold = find_text(r, "b");
   const corundum::platform::DrawText *italic = find_text(r, "i");
@@ -170,4 +172,39 @@ TEST_CASE("dialog reveal: the full styled body draws each run with its own font 
   CHECK(italic->font_id == 12u);
   CHECK_FALSE(contains_text(r, "**b**"));
   CHECK_FALSE(contains_text(r, "*i*"));
+}
+
+TEST_CASE("dialog_box_render: the Talk footer follows the last input device") {
+  corundum::world::FlagStore flags;
+  const corundum::gameplay::dialogue::Graph graph = make_talk_graph("Hello world");
+  const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
+
+  corundum::gameplay::screens::DialogBoxState box{};
+  const corundum::ui::PanelSkin skin{};
+
+  corundum::test::RecordingRenderer keyboard;
+  corundum::gameplay::screens::dialog_box_update(box, conversation, keyboard, {.x = 800.f, .y = 600.f}, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_render(box, keyboard, skin, corundum::input::InputDevice::Keyboard);
+  CHECK(contains_text(keyboard, "Enter Continue   Esc Close"));
+
+  corundum::test::RecordingRenderer gamepad;
+  corundum::gameplay::screens::dialog_box_render(box, gamepad, skin, corundum::input::InputDevice::Gamepad);
+  CHECK(contains_text(gamepad, "A Continue   B Close"));
+}
+
+TEST_CASE("dialog_box_render: the End footer follows the last input device") {
+  corundum::gameplay::screens::DialogBoxState ds{};
+  const corundum::ui::PanelSkin skin{};
+  ds.visible = true;
+  corundum::gameplay::screens::DialogLayout layout{};
+  layout.node_type = corundum::gameplay::dialogue::NodeType::End;
+  ds.layout = std::move(layout);
+
+  corundum::test::RecordingRenderer keyboard;
+  corundum::gameplay::screens::dialog_box_render(ds, keyboard, skin, corundum::input::InputDevice::Keyboard);
+  CHECK(contains_text(keyboard, "Enter Close"));
+
+  corundum::test::RecordingRenderer gamepad;
+  corundum::gameplay::screens::dialog_box_render(ds, gamepad, skin, corundum::input::InputDevice::Gamepad);
+  CHECK(contains_text(gamepad, "A Close"));
 }

@@ -6,15 +6,20 @@
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/dialog_layout.hpp>
+#include <corundum/input/actions.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/choice_cursor.hpp>
 #include <corundum/ui/font_family.hpp>
+#include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/styled_text.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/ui/word_wrap_styled.hpp>
 
 #include <cstddef>
+#include <format>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -53,9 +58,20 @@ namespace corundum::gameplay::screens {
         draw_dialogue_segment(r, style, segment, size, colour, x, y);
     }
 
+    /// Device-aware footer for a Talk node: Select continues, Cancel closes.
+    std::string talk_footer(input::InputDevice last_device) {
+      return std::format("{} Continue   {} Close", ui::input_glyph(input::Action::Select, last_device),
+                         ui::input_glyph(input::Action::Cancel, last_device));
+    }
+
+    /// Device-aware footer for an End node: Select closes.
+    std::string end_footer(input::InputDevice last_device) {
+      return std::format("{} Close", ui::input_glyph(input::Action::Select, last_device));
+    }
+
     /// Draws the speaker header, the revealed body, and the continue prompt of a Talk node.
     void render_talk_body(const DialogLayout &layout, const DialogBoxState &ds, platform::Renderer &r,
-                          const ui::PanelStyle &style) {
+                          const ui::PanelStyle &style, input::InputDevice last_device) {
       const float x = layout.panel_pos.x + layout.inset;
       draw_dialogue_text(r, style, ui::FontStyle::Bold, layout.speaker, style.font_size_speaker, style.speaker, x,
                          layout.panel_pos.y + layout.inset);
@@ -78,7 +94,7 @@ namespace corundum::gameplay::screens {
       }
 
       // The prompt is dialogue chrome, so it uses the Dialogue family like the body.
-      draw_dialogue_text(r, style, ui::FontStyle::Regular, "[Select] Continue   [Cancel] Close", style.font_size_prompt,
+      draw_dialogue_text(r, style, ui::FontStyle::Regular, talk_footer(last_device), style.font_size_prompt,
                          style.choice, x, y + (style.line_spacing / 2.f));
     }
 
@@ -170,7 +186,8 @@ namespace corundum::gameplay::screens {
     ds.visible = true;
   }
 
-  void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r, const ui::PanelSkin &skin) {
+  void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r, const ui::PanelSkin &skin,
+                         input::InputDevice last_device) {
     if (!ds.visible || !ds.layout)
       return;
 
@@ -179,13 +196,13 @@ namespace corundum::gameplay::screens {
 
     switch (layout.node_type) {
       case gameplay::dialogue::NodeType::Talk:
-        render_talk_body(layout, ds, r, skin.style);
+        render_talk_body(layout, ds, r, skin.style, last_device);
         break;
       case gameplay::dialogue::NodeType::Choice:
         render_choices(layout, r, skin.style);
         break;
       case gameplay::dialogue::NodeType::End:
-        draw_dialogue_text(r, skin.style, ui::FontStyle::Regular, "[Select] Close", skin.style.font_size_body,
+        draw_dialogue_text(r, skin.style, ui::FontStyle::Regular, end_footer(last_device), skin.style.font_size_body,
                            skin.style.choice, layout.panel_pos.x + layout.inset, layout.panel_pos.y + layout.inset);
         break;
       case gameplay::dialogue::NodeType::Event:

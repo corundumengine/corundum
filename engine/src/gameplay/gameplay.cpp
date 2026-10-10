@@ -1306,7 +1306,7 @@ namespace corundum::gameplay {
                                    engine.render.text_speed);
       else
         screens::dialog_box_hide(gameplay.dialog_box);
-      screens::dialog_box_render(gameplay.dialog_box, r, engine.render.panel_skin);
+      screens::dialog_box_render(gameplay.dialog_box, r, engine.render.panel_skin, engine.input_mapper.last_device());
     }
 
     void render_inventory(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,

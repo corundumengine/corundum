@@ -391,7 +391,7 @@ TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colou
   };
   ds.layout = std::move(layout);
 
-  corundum::gameplay::screens::dialog_box_render(ds, r, skin);
+  corundum::gameplay::screens::dialog_box_render(ds, r, skin, corundum::input::InputDevice::Keyboard);
 
   // chrome (1 rect + 8 sprites) + "Choose:" header + choice 0 (2 lines × 2) + choice 1 (1 × 2).
   REQUIRE(r.log.size() == 9 + 1 + 4 + 2);
