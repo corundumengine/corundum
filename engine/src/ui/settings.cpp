@@ -171,6 +171,13 @@ namespace corundum::ui {
     constexpr float k_settings_footer_gap = 12.f;
     constexpr std::string_view k_settings_title = "Settings";
 
+    // The framing page (opened from the Title) fills the viewport and uses roomier spacing
+    // than the compact in-game panel the pause menu opens.
+    constexpr float k_framing_settings_pad_x = 48.f;
+    constexpr float k_framing_settings_pad_y = 36.f;
+    constexpr float k_framing_settings_tab_gap = 40.f;
+    constexpr float k_framing_settings_title_gap = 22.f;
+
     /// Footer hint, using the last-used device's glyphs.
     std::string settings_footer(input::InputDevice last_device) {
       return std::format("{} / {} Tab   {} Select   {} Back", input_glyph(input::Action::TabPrev, last_device),
@@ -202,6 +209,31 @@ namespace corundum::ui {
     const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     const float general_w = r.measure_text(font_id, general, style.font_size_body);
     const float controls_w = r.measure_text(font_id, controls, style.font_size_body);
+
+    if (state.presentation == SettingsPresentation::Framing) {
+      const PanelRect panel = screen_panel_rect(viewport, style);
+      SettingsLayout layout{};
+      layout.panel_pos = panel.pos;
+      layout.panel_size = panel.size;
+
+      const float tabs_w = general_w + k_framing_settings_tab_gap + controls_w;
+      const float tabs_x = panel.pos.x + ((panel.size.x - tabs_w) * 0.5f);
+      const float tabs_y = panel.pos.y + k_framing_settings_pad_y + title_h + k_framing_settings_title_gap;
+      layout.tabs[0] = ui::RowRect{.pos = {.x = tabs_x, .y = tabs_y}, .width = general_w, .height = line_h};
+      layout.tabs[1] = ui::RowRect{
+          .pos = {.x = tabs_x + general_w + k_framing_settings_tab_gap, .y = tabs_y},
+          .width = controls_w,
+          .height = line_h,
+      };
+      layout.rows = ui::ListHit{
+          .row_pos = {.x = panel.pos.x + k_framing_settings_pad_x, .y = tabs_y + line_h + k_framing_settings_title_gap},
+          .row_width = panel.size.x - (k_framing_settings_pad_x * 2.f),
+          .row_height = line_h,
+          .first_row = first_row,
+          .visible_rows = visible_rows,
+      };
+      return layout;
+    }
 
     float widest = std::max(r.measure_text(font_id, k_settings_title, style.font_size_speaker),
                             general_w + k_settings_tab_gap + controls_w);
@@ -248,26 +280,31 @@ namespace corundum::ui {
                              const SettingsState &state, const SettingsValues &values, const input::Bindings &bindings,
                              core::math::Vec2 viewport, input::InputDevice last_device) {
     const SettingsLayout layout = settings_panel_layout(r, style, state, values, bindings, viewport, last_device);
+    const bool framing = state.presentation == SettingsPresentation::Framing;
     const float line_h = layout.rows.row_height;
+    const float pad_x = framing ? k_framing_settings_pad_x : k_settings_pad_x;
+    const float pad_y = framing ? k_framing_settings_pad_y : k_settings_pad_y;
 
     const std::vector<std::pair<std::string, std::string>> rows = build_rows(state, values, bindings);
     const int row_count = static_cast<int>(rows.size());
     const int first_row = layout.rows.first_row;
     const int visible_rows = layout.rows.visible_rows;
 
+    // The framing page owns an opaque backdrop; the in-game panel floats over the world.
+    if (framing)
+      screen_backdrop(r, style, viewport);
     panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 
     const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     const float title_w = r.measure_text(font_id, k_settings_title, style.font_size_speaker);
-    float y = layout.panel_pos.y + k_settings_pad_y;
+    const float title_y = layout.panel_pos.y + pad_y;
     r.draw(platform::DrawText{
         .font_id = font_id,
         .text = k_settings_title,
-        .position = {.x = layout.panel_pos.x + ((layout.panel_size.x - title_w) * 0.5f), .y = y},
+        .position = {.x = layout.panel_pos.x + ((layout.panel_size.x - title_w) * 0.5f), .y = title_y},
         .char_size = style.font_size_speaker,
         .colour = style.speaker,
     });
-    y += std::max(line_h, static_cast<float>(style.font_size_speaker) + 4.f) + k_settings_title_gap;
 
     // Tab header: active tab in the speaker colour, inactive dimmed. The tab rects double as
     // mouse hit targets for switch-on-click (see update_settings).
@@ -285,8 +322,8 @@ namespace corundum::ui {
         .char_size = style.font_size_body,
         .colour = state.tab == SettingsTab::Controls ? style.speaker : style.choice,
     });
-    y += line_h + k_settings_title_gap;
 
+    float y = layout.rows.row_pos.y;
     const int clamped_cursor = std::clamp(state.cursor, 0, std::max(0, row_count - 1));
     for (int i = first_row; i < first_row + visible_rows; ++i) {
       const bool selected = i == clamped_cursor;
@@ -297,7 +334,7 @@ namespace corundum::ui {
       r.draw(platform::DrawText{
           .font_id = font_id,
           .text = value,
-          .position = {.x = layout.panel_pos.x + layout.panel_size.x - k_settings_pad_x - value_w, .y = y},
+          .position = {.x = layout.panel_pos.x + layout.panel_size.x - pad_x - value_w, .y = y},
           .char_size = style.font_size_body,
           .colour = selected ? style.selected : style.choice,
       });
@@ -312,9 +349,9 @@ namespace corundum::ui {
           .text = scroll,
           .position =
               {
-                  .x = layout.panel_pos.x + layout.panel_size.x - k_settings_pad_x -
+                  .x = layout.panel_pos.x + layout.panel_size.x - pad_x -
                        r.measure_text(font_id, scroll, style.font_size_prompt),
-                  .y = layout.panel_pos.y + layout.panel_size.y - k_settings_pad_y - line_h,
+                  .y = layout.panel_pos.y + layout.panel_size.y - pad_y - line_h,
               },
           .char_size = style.font_size_prompt,
           .colour = style.choice,
@@ -327,8 +364,8 @@ namespace corundum::ui {
         .text = footer,
         .position =
             {
-                .x = layout.panel_pos.x + k_settings_pad_x,
-                .y = layout.panel_pos.y + layout.panel_size.y - k_settings_pad_y - line_h,
+                .x = layout.panel_pos.x + pad_x,
+                .y = layout.panel_pos.y + layout.panel_size.y - pad_y - line_h,
             },
         .char_size = style.font_size_prompt,
         .colour = style.choice,

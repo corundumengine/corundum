@@ -14,6 +14,7 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/screen_registry.hpp>
+#include <corundum/ui/settings.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
 
@@ -308,6 +309,28 @@ TEST_CASE("title: Load opens SaveLoad and Back returns to Title") {
   REQUIRE(gameplay.title_screen.cursor == 2);
   press(engine, corundum::input::Action::Select);
   CHECK(engine.scene.ui.top() == screens::SaveLoad);
+
+  press(engine, corundum::input::Action::Cancel);
+  CHECK(engine.scene.ui.top() == screens::Title);
+
+  engine.cleanup();
+}
+
+TEST_CASE("title: Settings opens the framing page and Back returns to Title") {
+  const ScratchUserData user_data;
+  corundum::Engine engine{};
+  init_engine(engine, /*show_title=*/true);
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  // No save: cursor starts on New Game (1). Settings is the fourth row, at index 3.
+  press(engine, corundum::input::Action::MoveDown); // New Game -> Load
+  press(engine, corundum::input::Action::MoveDown); // Load -> Settings
+  REQUIRE(gameplay.title_screen.cursor == 3);
+  press(engine, corundum::input::Action::Select);
+
+  REQUIRE(engine.scene.ui.top() == GameMode::Settings);
+  CHECK(engine.settings_screen.presentation == corundum::ui::SettingsPresentation::Framing);
 
   press(engine, corundum::input::Action::Cancel);
   CHECK(engine.scene.ui.top() == screens::Title);

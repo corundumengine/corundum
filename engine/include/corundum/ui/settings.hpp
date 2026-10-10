@@ -69,7 +69,18 @@ namespace corundum::ui {
   /** @brief Maximum list rows the Controls page shows before scrolling. */
   inline constexpr int k_settings_max_visible_rows = 8;
 
-  /** @brief Settings-screen state: active tab, cursor, scroll offset, and rebind capture.
+  /** @brief How the Settings screen is presented.
+   *
+   *  InGame is the compact centered panel the pause menu opens over the running world;
+   *  Framing is the full-viewport page the Title opens, drawn over the opaque framing
+   *  backdrop so the boot-loaded world never shows through. The push site chooses, so the
+   *  same screen renders correctly in both contexts. */
+  enum class SettingsPresentation : std::uint8_t {
+    InGame,  ///< Compact centered panel over the world (pause menu).
+    Framing, ///< Full-viewport page over an opaque backdrop (Title).
+  };
+
+  /** @brief Settings-screen state: active tab, cursor, scroll offset, presentation and rebind capture.
    *
    *  A passive value: the update path (Engine) and the render function read it, no stateful
    *  collaborators are stored. */
@@ -79,6 +90,9 @@ namespace corundum::ui {
     int cursor{};
 
     int scroll{};
+
+    /// Which presentation the screen draws; set by the push site, read by layout and render.
+    SettingsPresentation presentation{SettingsPresentation::InGame};
 
     /// Controls tab: true while InputMapper is capturing the next physical press for the
     /// cursor row. Cleared by take_captured() or Cancel.
@@ -117,21 +131,25 @@ namespace corundum::ui {
   /** @brief Compute the settings panel's geometry for @p viewport.
    *
    *  Takes the same live @p values and @p bindings as the render so the measured panel width
-   *  (which depends on the longest displayed value) matches exactly.
+   *  (which depends on the longest displayed value) matches exactly. The @p state's
+   *  presentation chooses between the compact centered panel (InGame) and the full-viewport
+   *  framing page (Framing).
    */
   [[nodiscard]] SettingsLayout settings_panel_layout(const platform::Renderer &r, const PanelStyle &style,
                                                      const SettingsState &state, const SettingsValues &values,
                                                      const input::Bindings &bindings, core::math::Vec2 viewport,
                                                      input::InputDevice last_device);
 
-  /** @brief Draw the centered settings panel: General / Controls tabs and the active page's rows.
+  /** @brief Draw the settings screen: General / Controls tabs and the active page's rows.
    *
-   *  Pure render. Only invoked while GameMode::Settings is on top of the UI stack.
+   *  Pure render. Only invoked while GameMode::Settings is on top of the UI stack. In the
+   *  Framing presentation it fills the viewport over an opaque backdrop; in the InGame
+   *  presentation it is the compact centered panel the pause menu opens.
    *
    *  @param r           Platform renderer.
    *  @param style       Dialog text style; reused so the screen matches dialogue.
    *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
-   *  @param state       Active tab, cursor, scroll, and rebind flag.
+   *  @param state       Active tab, cursor, scroll, presentation and rebind flag.
    *  @param values      Live settings values shown on the General tab.
    *  @param bindings    Live binding table shown on the Controls tab.
    *  @param viewport    Screen size in pixels; the panel is centered within this.

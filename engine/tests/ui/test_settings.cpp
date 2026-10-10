@@ -129,3 +129,43 @@ TEST_CASE("settings: the row being rebound shows the capture prompt") {
 
   CHECK(contains_text(r, "(press a key)"));
 }
+
+TEST_CASE("settings: InGame presentation draws the compact panel with no backdrop") {
+  corundum::test::RecordingRenderer r;
+  const corundum::ui::PanelStyle style = make_style();
+  const corundum::ui::SettingsState state{};
+  const corundum::ui::SettingsValues values{};
+  const corundum::core::math::Vec2 viewport{.x = 800.f, .y = 600.f};
+
+  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+                                      corundum::input::default_bindings(), viewport);
+
+  // The first command is the compact panel fill, not a full-viewport backdrop.
+  REQUIRE(!r.log.empty());
+  const auto &first = std::get<corundum::platform::DrawRect>(r.log[0]);
+  CHECK(first.size.x < viewport.x);
+  CHECK(first.size.y < viewport.y);
+}
+
+TEST_CASE("settings: Framing presentation draws an opaque full-viewport backdrop") {
+  corundum::test::RecordingRenderer r;
+  const corundum::ui::PanelStyle style = make_style();
+  corundum::ui::SettingsState state{};
+  state.presentation = corundum::ui::SettingsPresentation::Framing;
+  const corundum::ui::SettingsValues values{};
+  const corundum::core::math::Vec2 viewport{.x = 800.f, .y = 600.f};
+
+  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+                                      corundum::input::default_bindings(), viewport);
+
+  REQUIRE(r.log.size() >= 2);
+  const auto &backdrop = std::get<corundum::platform::DrawRect>(r.log[0]);
+  CHECK(backdrop.size.x == viewport.x);
+  CHECK(backdrop.size.y == viewport.y);
+  CHECK(backdrop.colour.a == 255);
+
+  // The panel then fills the viewport minus the shared screen margin.
+  const auto &panel = std::get<corundum::platform::DrawRect>(r.log[1]);
+  CHECK(panel.size.x == viewport.x - (style.margin * 2.f));
+  CHECK(panel.size.y == viewport.y - (style.margin * 2.f));
+}

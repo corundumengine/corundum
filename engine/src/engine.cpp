@@ -317,7 +317,7 @@ namespace corundum {
           engine.scene.ui.pop();
           break;
         case ui::MenuCommand::Settings:
-          engine.settings_screen = {};
+          engine.settings_screen = {.presentation = ui::SettingsPresentation::InGame};
           engine.scene.ui.push(world::GameMode::Settings);
           break;
         case ui::MenuCommand::Save:

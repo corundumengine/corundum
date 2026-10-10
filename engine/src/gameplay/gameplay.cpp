@@ -52,6 +52,7 @@
 #include <corundum/screen_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/prompt_box.hpp>
+#include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
@@ -1040,6 +1041,7 @@ namespace corundum::gameplay {
           gameplay.open_save_load(/*saving=*/false);
           break;
         case screens::TitleRow::Settings:
+          engine.settings_screen = {.presentation = ui::SettingsPresentation::Framing};
           engine.scene.ui.push(world::GameMode::Settings);
           break;
         case screens::TitleRow::Credits:
