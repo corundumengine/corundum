@@ -22,6 +22,7 @@
 #include <corundum/screen_registry.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/ui/menu.hpp>
+#include <corundum/ui/screen_transition.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
@@ -133,6 +134,9 @@ namespace corundum {
 
     /** @brief Settings-screen state; rendered in GameMode::Settings. */
     ui::SettingsState settings_screen;
+
+    /** @brief Full-screen scene fade; driven by advance_scene_transition() and the loading path. */
+    ui::ScreenTransition screen_transition;
 
     core::time::LoopTimer timer{static_cast<float>(core::k_default_simulation_fps)};
 
@@ -301,6 +305,15 @@ namespace corundum {
      */
     [[nodiscard]] bool update_engine_screens(const input::InputIntent &intent);
 
+    /** @brief Drive a pending portal scene change through a full-screen fade.
+     *
+     *  Called once per frame after the fixed steps. When a portal has armed
+     *  `scene.pending_transition` it starts a fade-out and holds the swap; once the overlay is
+     *  at_black() the scene change runs and the new scene fades in. A no-op otherwise, so UI
+     *  screens and the boot scene never trigger a fade.
+     */
+    void advance_scene_transition() noexcept;
+
     /** @brief Enqueue a transient on-screen notification with the default colour.
      *
      *  Drawn bottom-left and auto-dismissed after ui::k_toast_ttl_seconds. The engine enqueues
@@ -435,6 +448,9 @@ namespace corundum {
     std::bitset<static_cast<std::size_t>(PauseReason::Count)> pause_reasons_{}; ///< See pause()/resume().
 
     bool window_shown_{false}; ///< Set by reveal_window(); true once the window has been shown.
+
+    /** @brief True while a portal scene change is held back for the fade to cover it. */
+    bool scene_swap_pending_{false};
   };
 
 } // namespace corundum

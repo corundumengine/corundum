@@ -21,6 +21,7 @@
 #include <corundum/settings/user_settings.hpp>
 #include <corundum/ui/menu.hpp>
 #include <corundum/ui/prompt_box.hpp>
+#include <corundum/ui/screen_transition.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/ui/ui_draw.hpp>
@@ -465,6 +466,7 @@ namespace corundum {
       };
 
       for (int step_index = 0; step_index < steps; ++step_index) {
+        engine.screen_transition.update(engine.timer.target_dt);
         render::snapshot_previous_step(engine.render, engine.scene);
 
         const input::InputIntent intent =
@@ -573,7 +575,10 @@ namespace corundum {
       engine.screens.render_layer(RenderLayer::HubPanel, engine, r, viewport);
       engine.screens.render_layer(RenderLayer::HubStrip, engine, r, viewport);
 
-      // 6. Debug HUD, always last.
+      // 6. Scene fade, above every screen but below the debug HUD.
+      ui::render_screen_transition(r, engine.screen_transition, viewport);
+
+      // 7. Debug HUD, always last.
       const debug::OverlayInput hud_input{
           .render_state = &engine.render,
           .cfg = &engine.cfg,
@@ -652,6 +657,19 @@ namespace corundum {
     return true;
   }
 
+  void Engine::advance_scene_transition() noexcept {
+    // A portal transition is held until the fade covers it, so the map swap is never seen.
+    if (scene.pending_transition && !scene_swap_pending_) {
+      scene_swap_pending_ = true;
+      screen_transition.begin_fade_out();
+    }
+    if (scene_swap_pending_ && screen_transition.at_black()) {
+      scene_swap_pending_ = false;
+      world::handle_map_transition(*this);
+      screen_transition.begin_fade_in();
+    }
+  }
+
   void Engine::run_loop() noexcept {
     // Measure the first frame from the start of the loop, so asset-load time during initialize() is not
     // replayed as a burst of catch-up fixed steps.
@@ -687,8 +705,9 @@ namespace corundum {
     render::stream_world_chunks(*renderer, render, cfg, scene);
 
     const SimulationResult simulation{run_fixed_steps(*this)};
-    // A transition re-snapshots through frame_camera_on, so the blend never spans two scenes.
-    world::handle_map_transition(*this);
+    // Portal scene changes are applied at full black by advance_scene_transition(); the
+    // frame_camera_on re-snapshot keeps the render blend from spanning two scenes.
+    advance_scene_transition();
     render_frame(*this, timer.alpha(), simulation.budget_exhausted);
     reveal_window();
 

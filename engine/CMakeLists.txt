@@ -51,6 +51,7 @@ set(ENGINE_SOURCES
     src/ui/menu.cpp
     src/ui/nine_patch.cpp
     src/ui/prompt_box.cpp
+    src/ui/screen_transition.cpp
     src/ui/settings.cpp
     src/ui/styled_text.cpp
     src/ui/toast.cpp

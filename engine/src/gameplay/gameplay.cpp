@@ -1658,6 +1658,9 @@ namespace corundum::gameplay {
       // — the active conversation, container/shop ids, screen cursors and caches — pointing at
       // the old world. Clear them so the loaded scene starts clean.
       reset_session_state();
+      // Reveal the loaded area from black; this covers quicksave and Game-over reloads as well
+      // as the Title's Continue/Load, which arrive here through begin_load().
+      engine_->screen_transition.begin_fade_in();
     }
     return result;
   }
@@ -1745,6 +1748,9 @@ namespace corundum::gameplay {
   void Gameplay::begin_load(std::function<std::expected<void, std::string>(Gameplay &)> work) {
     pending_load_ = std::move(work);
     loading_rendered_ = false;
+    // Fade toward black while the Loading overlay covers the scene swap; the queued work
+    // replaces the scene and fades the new one in.
+    engine_->screen_transition.begin_fade_out();
     engine_->scene.ui.push(screens::Loading);
   }
 
@@ -1797,6 +1803,8 @@ namespace corundum::gameplay {
     // load_initial_scene replaces the Scene (clearing scene.ui); clear every Gameplay member too,
     // so a conversation or cursor from the abandoned session cannot outlive it.
     reset_session_state();
+    // Reveal the new game from black, whichever path drove it (Title, Game over, tests).
+    engine.screen_transition.begin_fade_in();
     if (result)
       engine.notify("New game started");
     else

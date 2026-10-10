@@ -75,6 +75,7 @@ set(TEST_SOURCES
     # root
     root/test_engine_options.cpp
     root/test_player_absent.cpp
+    root/test_screen_transition_engine.cpp
     root/test_umbrella_header.cpp
 
     # save tests live in the gameplay binary (they build a Gameplay).
@@ -95,6 +96,7 @@ set(TEST_SOURCES
     # ui
     ui/test_input_glyph.cpp
     ui/test_menu.cpp
+    ui/test_screen_transition.cpp
     ui/test_settings.cpp
     ui/test_styled_text.cpp
     ui/test_toast.cpp
