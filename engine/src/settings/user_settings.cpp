@@ -111,6 +111,9 @@ namespace corundum::settings {
     if (std::expected<void, std::string> result = engine.input_mapper.set_bindings(settings.bindings); !result)
       return result;
     engine.window->set_window_mode(settings.window_mode);
+    // Keep cfg in sync: reveal_window() re-applies cfg.window_mode once the window is visible, so
+    // without this the loaded mode would be clobbered on the first frame.
+    engine.cfg.window_mode = settings.window_mode;
     engine.audio.set_master_volume(settings.master_volume);
     engine.render.text_speed = settings.text_speed;
     engine.render.ui_scale = settings.ui_scale;
@@ -160,6 +163,20 @@ namespace corundum::settings {
     if (!directory)
       return std::unexpected(directory.error());
     return *directory / "settings.json";
+  }
+
+  std::expected<void, std::string> load_default(Engine &engine) {
+    const std::expected<std::filesystem::path, std::string> path = default_path(engine.cfg);
+    if (!path)
+      return {};
+    return load(engine, *path);
+  }
+
+  std::expected<void, std::string> save_default(const Engine &engine) {
+    const std::expected<std::filesystem::path, std::string> path = default_path(engine.cfg);
+    if (!path)
+      return {};
+    return save(engine, *path);
   }
 
 } // namespace corundum::settings

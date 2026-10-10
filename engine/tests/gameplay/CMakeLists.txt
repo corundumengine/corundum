@@ -32,6 +32,7 @@ add_executable(corundum_gameplay_tests
     root/test_phase_d_screens.cpp
     root/test_screen_registry.cpp
     root/test_session_reset.cpp
+    root/test_settings_persistence.cpp
     root/test_title_saveload_gameover.cpp
     save/test_save.cpp
     screens/test_character_sheet.cpp

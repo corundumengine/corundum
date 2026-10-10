@@ -64,6 +64,9 @@ namespace corundum::settings {
 
   /** @brief Apply @p settings to the engine's mapper and window.
    *
+   *  Also updates `cfg.window_mode` so the deferred first-frame window-mode reveal does not
+   *  overwrite the applied mode with the boot config's.
+   *
    *  @pre @p engine.window is non-null.
    *  @return An error, leaving the engine unchanged, when the bindings are rejected by InputMapper::set_bindings.
    */
@@ -93,5 +96,27 @@ namespace corundum::settings {
    *  @return An error when game_id is empty or no user data directory resolves.
    */
   [[nodiscard]] std::expected<std::filesystem::path, std::string> default_path(const core::GameConfig &cfg);
+
+  /** @brief Load settings.json from the conventional per-user path and apply it.
+   *
+   *  The engine's startup entry point: a convenience over default_path() + load() for callers that
+   *  want the standard location. A project with no game_id or no resolvable user data directory is
+   *  a no-op, so persistence is opt-in rather than an error.
+   *
+   *  @pre @p engine.window is non-null.
+   *  @return An error when the file is unreadable, malformed, from a newer schema version, or
+   *          rejected by apply().
+   */
+  [[nodiscard]] std::expected<void, std::string> load_default(Engine &engine);
+
+  /** @brief Write the live settings to the conventional per-user path.
+   *
+   *  The counterpart to load_default(). A project with no game_id or no resolvable user data
+   *  directory is a no-op.
+   *
+   *  @pre @p engine.window is non-null.
+   *  @return An error when the file cannot be written.
+   */
+  [[nodiscard]] std::expected<void, std::string> save_default(const Engine &engine);
 
 } // namespace corundum::settings

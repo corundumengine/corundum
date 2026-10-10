@@ -229,6 +229,14 @@ namespace corundum {
       render::configure_panel_style(engine.render, engine.cfg);
     }
 
+    /// Persist the live settings to settings.json when the Settings screen closes. Persistence is
+    /// skipped when the project has no game_id or user data directory; a failed write is a warning,
+    /// never fatal to the close.
+    void save_user_settings(const Engine &engine) {
+      if (std::expected<void, std::string> saved = settings::save_default(engine); !saved)
+        warn_log("[engine] WARN: could not save settings: {}", saved.error());
+    }
+
     /// True when @p input is the conventional Back press during a rebind capture. Capture
     /// swallows every press before it reaches the action bitsets, so Back must be recognised
     /// from the captured physical input itself.
@@ -399,6 +407,7 @@ namespace corundum {
 
       if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
         engine.scene.ui.pop();
+        save_user_settings(engine);
         return;
       }
 
