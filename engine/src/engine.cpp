@@ -32,6 +32,7 @@
 #include <corundum/world/ui_stack.hpp>
 #include <corundum/world/update.hpp>
 
+#include "core/elapsed_ms.hpp"
 #include "core/warn_log.hpp"
 
 #include <algorithm>
@@ -75,13 +76,15 @@ namespace corundum {
         engine_->rng = core::Rng{rng_seed};
         corundum::detail::info_log("[engine] RNG seed {}", rng_seed);
 
+        const auto assets_start = std::chrono::steady_clock::now();
         if (auto result = load_render_assets(); !result)
           return result;
+        corundum::detail::info_log("[boot] render assets: {:.1f} ms", corundum::detail::elapsed_ms(assets_start));
 
-        if (auto result = init_scene(); !result)
-          return result;
-
+        const auto audio_start = std::chrono::steady_clock::now();
         init_audio();
+        corundum::detail::info_log("[boot] audio: {:.1f} ms", corundum::detail::elapsed_ms(audio_start));
+
         render::configure_panel_style(engine_->render, engine_->cfg);
         return {};
       }
@@ -102,10 +105,6 @@ namespace corundum {
         if (!ui_result)
           return std::unexpected(ui_result.error());
         return {};
-      }
-
-      std::expected<void, std::string> init_scene() {
-        return corundum::world::load_initial_scene(*engine_);
       }
 
       void init_audio() {

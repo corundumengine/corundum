@@ -246,7 +246,7 @@ namespace corundum::save {
     return rows;
   }
 
-  std::expected<void, std::string> load_game(Engine &engine, const std::filesystem::path &path) {
+  std::expected<SaveMeta, std::string> load_game(Engine &engine, const std::filesystem::path &path) {
     auto json_result = core::read_json(path);
     if (!json_result)
       return std::unexpected(std::move(json_result).error());
@@ -271,12 +271,16 @@ namespace corundum::save {
         state->mode == k_mode_world ? corundum::world::SpawnMode::World : corundum::world::SpawnMode::SingleMap;
     auto spawn = world::apply_spawn(engine, spawn_mode, state->map_or_world_id, state->active_zone, state->player_col,
                                     state->player_row);
-    if (!spawn)
+    if (!spawn) {
+      // apply_spawn may have replaced part of the render world before failing; drop the rest
+      // rather than leave a half-built world behind.
+      world::unload_world(engine);
       return std::unexpected(std::move(spawn).error());
+    }
 
     engine.flags = std::move(state->flags);
     engine.entered_from_world = state->entered_from_world;
-    return {};
+    return state->meta;
   }
 
 } // namespace corundum::save

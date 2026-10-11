@@ -68,8 +68,8 @@ namespace corundum::gameplay::screens::detail {
     const std::uint32_t body_font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     const std::uint32_t heading_font = style.family(ui::FontRole::Display).get(ui::FontStyle::Regular);
 
-    // The framing screen sits over the scene the engine loaded at startup; an opaque backdrop
-    // keeps that world from showing through.
+    // The framing screen sits over whatever is behind it — no world under the title, the live
+    // world under in-game Settings; an opaque backdrop keeps that scene from showing through.
     ui::screen_backdrop(r, style, viewport);
     ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 

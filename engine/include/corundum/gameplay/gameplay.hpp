@@ -55,6 +55,20 @@ namespace corundum::input {
 
 namespace corundum::gameplay {
 
+  /** @brief State that belongs to one playthrough. Replaced wholesale (never field by field) when
+   *  a playthrough begins or ends, so no value can leak into the next one. The playthrough's game
+   *  state proper lives in Engine::flags, bounded by the same calls. */
+  struct Playthrough {
+    /** @brief Seconds of gameplay so far; written into every save's SaveMeta and restored on load.
+     *  Advanced by the gameplay fixed-step system, so it does not advance while a step-owning
+     *  screen or the pause menu is open. */
+    double playtime_seconds{};
+
+    /** @brief Slot id of the most recent save or load (`quicksave`, `autosave`, `slot_03` …),
+     *  or empty when this playthrough has neither saved nor loaded. */
+    std::string last_slot{};
+  };
+
   /** @brief The reusable-but-optional CRPG gameplay framework, layered above the engine runtime.
    *
    *  Owns the data-driven content registries, the gameplay screen state, and the per-step
@@ -166,14 +180,9 @@ namespace corundum::gameplay {
      *  to. */
     world::GameMode last_hub_mode{screens::Inventory};
 
-    /** @brief Seconds of gameplay accumulated across scene replacements; written into every
-     *  save's SaveMeta. Advanced by the gameplay fixed-step system, so it does not advance while
-     *  a step-owning screen or the pause menu is open. */
-    double playtime_seconds{};
-
-    /** @brief Slot id of the most recent save or load (`quicksave`, `autosave`, `slot_03` …),
-     *  or empty when this session has neither saved nor loaded. */
-    std::string last_slot{};
+    /** @brief The current playthrough's own state; reset by new_game(), load_from_slot() and
+     *  return_to_title(). */
+    Playthrough playthrough{};
 
     /** @brief Container whose contents the loot screen shows; empty when no loot screen is open. */
     std::string active_container_id;
@@ -208,7 +217,7 @@ namespace corundum::gameplay {
      *  fixed_step() calls this on the QuickSave action (F5); game code may also call it directly.
      *
      *  @return ok, or the save error (also surfaced as a failure toast).
-     *  @post On success last_slot is `quicksave`.
+     *  @post On success playthrough.last_slot is `quicksave`.
      */
     [[nodiscard]] std::expected<void, std::string> quick_save();
 
@@ -217,7 +226,7 @@ namespace corundum::gameplay {
      *  fixed_step() calls this on the QuickLoad action (F9); game code may also call it directly.
      *
      *  @return ok, or the load error (also surfaced as a failure toast).
-     *  @post On success last_slot is `quicksave`.
+     *  @post On success playthrough.last_slot is `quicksave`.
      */
     [[nodiscard]] std::expected<void, std::string> quick_load();
 
@@ -227,7 +236,7 @@ namespace corundum::gameplay {
      *  area transition). Writes no toast — the game decides whether to surface one.
      *
      *  @return ok, or the save error.
-     *  @post On success last_slot is `autosave`.
+     *  @post On success playthrough.last_slot is `autosave`.
      */
     [[nodiscard]] std::expected<void, std::string> autosave();
 
@@ -279,15 +288,14 @@ namespace corundum::gameplay {
      */
     void open_credits();
 
-    /** @brief Show the title screen over the loaded scene.
+    /** @brief Show the title screen with no world loaded.
      *
      *  Refreshes Continue availability from the saves directory, puts the cursor on the first
      *  enabled row, and pushes GameMode Title. Called at construction when GameConfig::show_title
      *  is set and again whenever the player returns to the title.
      *
-     *  @note The engine always loads a scene during initialize(), so Title sits over one rather
-     *  than being a no-world state; a later reader should not "fix" this. The screen draws an
-     *  opaque backdrop so the loaded world is not visible.
+     *  @note The title runs with no world loaded: boot builds none, and return_to_title() unloads
+     *  it. The screen still draws an opaque backdrop.
      *  @post engine.scene.ui.top() is screens::Title.
      */
     void open_title();
@@ -305,7 +313,7 @@ namespace corundum::gameplay {
     /** @brief Show the game-over screen.
      *
      *  The game raises it (from a dialogue event or its own on_fixed_update), never the
-     *  framework. Reload availability follows Gameplay::last_slot.
+     *  framework. Reload availability follows playthrough.last_slot.
      *
      *  @post engine.scene.ui.top() is screens::GameOver.
      */
@@ -320,18 +328,28 @@ namespace corundum::gameplay {
      */
     void open_save_load(bool saving);
 
-    /** @brief Start a fresh session: reset flags to GameConfig::starting_flags, rebuild the
-     *  initial scene exactly as Engine::initialize() does, and clear session state.
+    /** @brief End the playthrough and show the title: clear session state, unload the world, clear
+     *  the flags and the Playthrough record, then open_title(). Used by Quit to Title, Game over
+     *  "Return to Title", and as the fallback when a new game or load cannot build its world.
      *
-     *  @return ok, or the scene-rebuild error (also surfaced as a failure toast).
-     *  @post engine.scene.ui is empty and the scene is the configured initial scene.
+     *  @post engine.render.mode is RenderMode::None, engine.flags is empty and
+     *        engine.scene.ui.top() is screens::Title.
+     */
+    void return_to_title();
+
+    /** @brief Start a fresh playthrough (begin_new_playthrough), then fade it in with a toast.
+     *
+     *  On failure, return_to_title() and a failure toast.
+     *
+     *  @return ok, or the scene-rebuild error.
+     *  @post On success engine.scene.ui is empty and the scene is the configured initial scene.
      */
     [[nodiscard]] std::expected<void, std::string> new_game();
 
     /** @brief Load the newest valid save slot and toast the outcome.
      *
      *  @return ok when a slot was loaded, or the error; an empty save list is an error.
-     *  @post On success last_slot is the loaded slot's id.
+     *  @post On success playthrough.last_slot is the loaded slot's id.
      */
     [[nodiscard]] std::expected<void, std::string> continue_game();
 
@@ -340,7 +358,7 @@ namespace corundum::gameplay {
      *  Exposed so the Save/Load screen can write a player-chosen slot; quick_save()/autosave()
      *  route through it.
      *
-     *  @post On success last_slot is @p slot_id. */
+     *  @post On success playthrough.last_slot is @p slot_id. */
     [[nodiscard]] std::expected<void, std::string> save_to_slot(std::string_view slot_id);
 
     /** @brief Load @p slot_id from the saves directory.
@@ -348,22 +366,29 @@ namespace corundum::gameplay {
      *  Exposed so the Save/Load screen can load a player-chosen slot; quick_load() routes
      *  through it.
      *
-     *  @post On success last_slot is @p slot_id. */
+     *  @post On success playthrough.last_slot is @p slot_id. */
     [[nodiscard]] std::expected<void, std::string> load_from_slot(std::string_view slot_id);
 
-    /** @brief Return every session-scoped member to its freshly-constructed state.
+    /** @brief Return every *screen*-scoped member to its freshly-constructed state.
      *
      *  Called after every scene replacement the framework triggers (New Game, Continue, Load,
      *  Return to Title, Game over Reload). Clears the active conversation and bound NPC, the
      *  active container and shop ids, every screen cursor and cache, the confirm modal and the
      *  UI stack. Content registries and scene flags are deliberately untouched — they are
-     *  loaded content and world state, not session state.
+     *  loaded content and world state, not screen state. The playthrough tier ends in
+     *  return_to_title(), not here.
      *
      *  @post engine.scene.ui is empty and no screen holds a stale cursor or cache.
      */
     void reset_session_state();
 
   private:
+    /** @brief Begin a fresh playthrough: reset flags to GameConfig::starting_flags, clear the
+     *  Playthrough record and entered_from_world, build the configured initial scene, and clear
+     *  session state. Shows no fade or toast; new_game() and the no-title boot add those.
+     *  @return ok, or the scene-build error (the world may then be half-built). */
+    [[nodiscard]] std::expected<void, std::string> begin_new_playthrough();
+
     /** @brief Load `cfg.paths.credits_file` into credits_screen, recording whether it succeeded
      *  in TitleState::credits_available. A missing path, unreadable file or malformed document
      *  hides the Credits row; a non-empty path that fails logs one warning. A non-empty

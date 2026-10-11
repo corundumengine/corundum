@@ -28,7 +28,7 @@ namespace corundum::gameplay::screens {
 
   inline constexpr world::GameMode Barter{static_cast<world::GameMode>(world::k_first_extension_mode + 6)};
 
-  /** @brief Framing title screen, pushed over the scene the engine loaded at startup. */
+  /** @brief Framing title screen, shown with no world loaded. */
   inline constexpr world::GameMode Title{static_cast<world::GameMode>(world::k_first_extension_mode + 7)};
 
   /** @brief Save/Load slot browser, opened in save or load mode. */

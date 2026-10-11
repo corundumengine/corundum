@@ -245,7 +245,12 @@ namespace corundum {
      */
     void adopt_platform(platform::PlatformContext platform);
 
-    /** @brief Initialise all systems and load game assets.
+    /** @brief Initialise all systems and load process-lifetime assets (sprites, fonts, UI skin,
+     *  audio).
+     *
+     *  Loads no world: the game builds one with world::load_initial_scene() or
+     *  world::apply_spawn() (the gameplay framework does so on New Game / Load, or at
+     *  construction when GameConfig::show_title is false).
      *
      *  @param[in] cfg Fully-loaded game configuration (move-ownership).
      *  @return ok on success, or std::unexpected with an error message.
@@ -310,7 +315,7 @@ namespace corundum {
      *  Called once per frame after the fixed steps. When a portal has armed
      *  `scene.pending_transition` it starts a fade-out and holds the swap; once the overlay is
      *  at_black() the scene change runs and the new scene fades in. A no-op otherwise, so UI
-     *  screens and the boot scene never trigger a fade.
+     *  screens never trigger a fade.
      */
     void advance_scene_transition() noexcept;
 

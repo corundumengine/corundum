@@ -5,6 +5,7 @@
 
 #include "font_fixtures.hpp"
 #include "temp_dir.hpp"
+#include "world_transition_fixtures.hpp"
 
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
@@ -58,6 +59,7 @@ namespace {
 
 } // namespace
 
+using corundum::test::initialize_with_world;
 using corundum::world::load_spawn_points;
 
 // ── Missing file ──────────────────────────────────────────────────────────────
@@ -222,7 +224,7 @@ TEST_CASE("find_actor — world boot populates actor_ids from spawn points") {
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
-  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
 
   // a00 (chunk 0,0) and a11 (chunk 1,1) carry ids in the fixture spawn points.
   const auto a00 = corundum::entities::find_actor(engine.scene.world, "a00");

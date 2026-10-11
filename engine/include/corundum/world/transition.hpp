@@ -55,14 +55,24 @@ namespace corundum::world {
    *
    *  World mode (paths.world_manifest_path non-empty) enters the overworld at its manifest
    *  default spawn; single-map mode loads paths.tilemap_path and spawns the player by the usual
-   *  precedence (per-map spawn point > game.json player block > built-in default). Shared by
-   *  Engine::initialize() and "New Game", so a new game always starts exactly where a fresh boot
-   *  does.
+   *  precedence (per-map spawn point > game.json player block > built-in default). Called by the
+   *  gameplay framework on New Game and on a no-title boot (and by engine-only games), so a new
+   *  game always starts at the configured initial scene.
    *
    *  @param[in,out] engine Fully-initialised application state; its scene is replaced.
    *  @return ok on success, or std::unexpected with an error message.
    */
   [[nodiscard]] std::expected<void, std::string> load_initial_scene(corundum::Engine &engine);
+
+  /** @brief Unload the area: release its render world and textures and replace the scene with an
+   *  empty one (no player, empty UI stack). Flags are untouched; they belong to the playthrough.
+   *
+   *  @param[in,out] engine Initialised application state.
+   *  @pre engine.renderer is non-null. Call between frames.
+   *  @post engine.render.mode is RenderMode::None, world::player_present(engine.scene) is false,
+   *        engine.entered_from_world is false.
+   */
+  void unload_world(corundum::Engine &engine);
 
   /** @brief Spawn the scene for a saved or transitioned location.
    *

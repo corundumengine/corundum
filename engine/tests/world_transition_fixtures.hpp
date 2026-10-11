@@ -8,13 +8,16 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/platform/null/null_platform.hpp>
 #include <corundum/world/map_view.hpp>
+#include <corundum/world/transition.hpp>
 #include <corundum/world/update.hpp>
 
 #include "font_fixtures.hpp"
 
 #include <cstddef>
+#include <expected>
 #include <filesystem>
 #include <string>
+#include <utility>
 
 /// Fixtures shared by the world-transition tests and the root inventory-toggle
 /// test: both boot the same fixture world through a null platform. Every helper
@@ -42,6 +45,14 @@ namespace corundum::test {
   inline void adopt_platform(Engine &engine, unsigned w, unsigned h) {
     platform::null::NullPlatform platform = platform::null::make_null_platform(w, h);
     platform::null::adopt_null_platform(engine, platform);
+  }
+
+  /// Initialise @p engine and build the configured initial scene, as a game that skips the Title
+  /// does. Engine::initialize() itself loads no world.
+  [[nodiscard]] inline std::expected<void, std::string> initialize_with_world(Engine &engine, core::GameConfig cfg) {
+    if (std::expected<void, std::string> result = engine.initialize(std::move(cfg)); !result)
+      return result;
+    return world::load_initial_scene(engine);
   }
 
   /// Run one fixed simulation step with a single action's `pressed` bit set. Used to drive

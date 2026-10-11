@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "font_fixtures.hpp"
+#include "world_transition_fixtures.hpp"
 
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/game_config.hpp>
@@ -118,6 +119,8 @@ namespace {
   }
 
 } // namespace
+
+using corundum::test::initialize_with_world;
 
 // ── 1. Precondition guard ────────────────────────────────────────────────────
 
@@ -263,7 +266,7 @@ TEST_CASE("lifecycle: single-map startup camera frames the map with per-axis bou
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
   corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  REQUIRE(initialize_with_world(engine, std::move(cfg)).has_value());
 
   // lifecycle_test.json is 2x2 with a 32x16 diamond and tile_scale 2, so the world is
   // 3 * 32 * 2 = 192 px wide and 3 * 16 * 2 = 96 px tall — both smaller than the

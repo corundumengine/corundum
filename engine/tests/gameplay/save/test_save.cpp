@@ -5,6 +5,7 @@
 
 #include "font_fixtures.hpp"
 #include "temp_dir.hpp"
+#include "world_transition_fixtures.hpp"
 #include <corundum/render/render_state.hpp>
 
 // json_fwd.hpp is include-cleaner's provider for nlohmann::json; json.hpp is still
@@ -143,6 +144,8 @@ namespace {
   }
 
 } // namespace
+
+using corundum::test::initialize_with_world;
 
 // ── serialize / parse ─────────────────────────────────────────────────────────
 
@@ -295,7 +298,7 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
   corundum::core::GameConfig cfg = make_world_config(fixtures);
   cfg.paths.world_manifest_path.clear(); // single-map mode
   cfg.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  REQUIRE(initialize_with_world(engine, std::move(cfg)).has_value());
   REQUIRE(engine.render.mode == corundum::render::RenderMode::SingleMap);
 
   engine.flags["zone.interior.chest"] = 1;
@@ -522,7 +525,7 @@ TEST_CASE("save: save_game creates a missing parent directory and leaves no temp
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
-  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
 
   const fs::path p = save_root().path() / "creates_parent" / "nested" / "save.json";
   REQUIRE_FALSE(fs::exists(p.parent_path()));
@@ -618,11 +621,11 @@ TEST_CASE("gameplay: autosave writes the autosave slot and sets last_slot") {
   REQUIRE(fs::is_directory(fixtures));
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
-  gameplay.playtime_seconds = 12.0;
+  gameplay.playthrough.playtime_seconds = 12.0;
 
   const auto result = gameplay.autosave();
   REQUIRE(result.has_value());
-  CHECK(gameplay.last_slot == "autosave");
+  CHECK(gameplay.playthrough.last_slot == "autosave");
 
   const auto dir = corundum::save::saves_directory(engine.cfg);
   REQUIRE(dir.has_value());
@@ -656,7 +659,7 @@ TEST_CASE("gameplay: the QuickSave action writes the quicksave slot and toasts s
   engine.input_state = state;
   gameplay.fixed_step(1.f / 60.f);
 
-  CHECK(gameplay.last_slot == "quicksave");
+  CHECK(gameplay.playthrough.last_slot == "quicksave");
   REQUIRE(engine.toasts.size() == 1);
   CHECK(engine.toasts.at(0).text == "Game saved");
 
@@ -683,7 +686,7 @@ TEST_CASE("gameplay: a failed QuickLoad action raises a failure toast") {
   engine.input_state = state;
   gameplay.fixed_step(1.f / 60.f);
 
-  CHECK(gameplay.last_slot.empty());
+  CHECK(gameplay.playthrough.last_slot.empty());
   REQUIRE(engine.toasts.size() == 1);
   CHECK(engine.toasts.at(0).text.find("Load failed") != std::string::npos);
 

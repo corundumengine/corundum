@@ -20,6 +20,7 @@ namespace fs = std::filesystem;
 namespace {
 
   using corundum::test::adopt_platform;
+  using corundum::test::initialize_with_world;
   using corundum::test::make_world_config;
   using corundum::ui::TransitionPhase;
   using corundum::world::GameMode;
@@ -64,7 +65,7 @@ TEST_CASE("engine screen transition — a portal transition fades out, swaps at 
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
 
   engine.scene.pending_transition =
       MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};

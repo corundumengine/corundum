@@ -276,58 +276,69 @@ namespace corundum::debug {
     // Format every line into one buffer, recording each line's start offset. The
     // buffer may reallocate as it grows, so offsets (not views) are kept and sliced
     // at draw time — DrawText takes a string_view, so no per-line allocation.
-    constexpr std::size_t k_line_count = 8;
-    std::array<std::size_t, k_line_count> line_offsets{};
+    constexpr std::size_t k_max_lines = 8;
+    std::array<std::size_t, k_max_lines> line_offsets{};
+    std::size_t line_count{0};
     std::string panel;
     panel.reserve(512);
 
-    const auto begin_line = [&panel, &line_offsets](std::size_t index) -> std::string & {
-      line_offsets[index] = panel.size();
+    const auto begin_line = [&panel, &line_offsets, &line_count] -> std::string & {
+      line_offsets[line_count++] = panel.size();
       return panel;
     };
 
-    std::format_to(std::back_inserter(begin_line(0)), "FPS:  sim {:3.0f} / render {:3.0f}",
+    // With no world loaded (the Title), only the frame-rate and draw lines mean anything; the world
+    // lines would read as zeros and "(none)", so one "World: none" line stands in for them.
+    const bool has_world = render.mode != render::RenderMode::None;
+
+    std::format_to(std::back_inserter(begin_line()), "FPS:  sim {:3.0f} / render {:3.0f}",
                    static_cast<float>(cfg.simulation_fps), smoothed_fps);
     if (shed_frames > 0)
       std::format_to(std::back_inserter(panel), "  SHED {}", shed_frames);
 
-    if (w.transforms.has(p))
-      std::format_to(std::back_inserter(begin_line(1)), "Grid:  col ({:7.1f}), row ({:7.1f})", w.transforms.pos_col(p),
-                     w.transforms.pos_row(p));
-    else
-      std::format_to(std::back_inserter(begin_line(1)), "Grid:  (none)");
+    if (has_world) {
+      if (w.transforms.has(p))
+        std::format_to(std::back_inserter(begin_line()), "Grid:  col ({:7.1f}), row ({:7.1f})", w.transforms.pos_col(p),
+                       w.transforms.pos_row(p));
+      else
+        std::format_to(std::back_inserter(begin_line()), "Grid:  (none)");
 
-    if (have_iso)
-      std::format_to(std::back_inserter(begin_line(2)), "Speed:  {:6.1f} px/s  ({:6.2f}, {:6.2f}) tile/s", screen_speed,
-                     player_dc, player_dr);
-    else
-      std::format_to(std::back_inserter(begin_line(2)), "Speed:  {:6.1f} tile/s  (dc {:6.2f}, dr {:6.2f})",
-                     std::hypot(player_dc, player_dr), player_dc, player_dr);
-    if (w.facings.has(p))
-      std::format_to(std::back_inserter(panel), "  {}", core::direction_name(w.facings.dir_of(p)));
+      if (have_iso)
+        std::format_to(std::back_inserter(begin_line()), "Speed:  {:6.1f} px/s  ({:6.2f}, {:6.2f}) tile/s",
+                       screen_speed, player_dc, player_dr);
+      else
+        std::format_to(std::back_inserter(begin_line()), "Speed:  {:6.1f} tile/s  (dc {:6.2f}, dr {:6.2f})",
+                       std::hypot(player_dc, player_dr), player_dc, player_dr);
+      if (w.facings.has(p))
+        std::format_to(std::back_inserter(panel), "  {}", core::direction_name(w.facings.dir_of(p)));
 
-    std::format_to(std::back_inserter(begin_line(3)), "Camera:  x ({:7.1f}), y ({:7.1f})", scene.camera.x,
-                   scene.camera.y);
+      std::format_to(std::back_inserter(begin_line()), "Camera:  x ({:7.1f}), y ({:7.1f})", scene.camera.x,
+                     scene.camera.y);
 
-    std::format_to(std::back_inserter(begin_line(4)), "Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}",
-                   static_cast<int>(render.chunks.active_size()), collision_rects, collision_tris,
-                   static_cast<int>(w.entities.alive()));
+      std::format_to(std::back_inserter(begin_line()), "Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}",
+                     static_cast<int>(render.chunks.active_size()), collision_rects, collision_tris,
+                     static_cast<int>(w.entities.alive()));
 
-    std::format_to(std::back_inserter(begin_line(5)), "Map:  {}", map_name);
+      std::format_to(std::back_inserter(begin_line()), "Map:  {}", map_name);
+    } else {
+      std::format_to(std::back_inserter(begin_line()), "World:  none");
+    }
 
-    std::format_to(std::back_inserter(begin_line(6)), "Draw:  calls {}  quads {}", stats.draw_calls, stats.quads);
+    std::format_to(std::back_inserter(begin_line()), "Draw:  calls {}  quads {}", stats.draw_calls, stats.quads);
     if (stats.dropped_quads > 0u)
       std::format_to(std::back_inserter(panel), "  DROPPED {}", stats.dropped_quads);
 
-    if (scene.hovered_tile)
-      std::format_to(std::back_inserter(begin_line(7)), "Hover:  col ({}), row ({})", scene.hovered_tile->col,
-                     scene.hovered_tile->row);
-    else
-      std::format_to(std::back_inserter(begin_line(7)), "Hover:  none");
+    if (has_world) {
+      if (scene.hovered_tile)
+        std::format_to(std::back_inserter(begin_line()), "Hover:  col ({}), row ({})", scene.hovered_tile->col,
+                       scene.hovered_tile->row);
+      else
+        std::format_to(std::back_inserter(begin_line()), "Hover:  none");
+    }
 
     const std::string_view panel_view{panel};
-    const auto line_at = [&panel_view, &line_offsets](std::size_t i) -> std::string_view {
-      const std::size_t end = (i + 1 < k_line_count) ? line_offsets[i + 1] : panel_view.size();
+    const auto line_at = [&panel_view, &line_offsets, &line_count](std::size_t i) -> std::string_view {
+      const std::size_t end = (i + 1 < line_count) ? line_offsets[i + 1] : panel_view.size();
       return panel_view.substr(line_offsets[i], end - line_offsets[i]);
     };
 
@@ -336,17 +347,17 @@ namespace corundum::debug {
     // Size the background to the widest line — measure_text accounts for the active
     // font's real advances — so a longer field never overflows the panel.
     float content_w = k_box_w;
-    for (std::size_t i = 0; i < k_line_count; ++i)
+    for (std::size_t i = 0; i < line_count; ++i)
       content_w = std::max(content_w, r.measure_text(font_id, line_at(i), k_font_sz));
 
     r.draw(platform::DrawRect{
         .position = {.x = x - k_pad, .y = k_y - k_pad},
-        .size = {.x = content_w + (2.f * k_pad), .y = (static_cast<float>(k_line_count) * k_line_h) + (k_pad * 2.f)},
+        .size = {.x = content_w + (2.f * k_pad), .y = (static_cast<float>(line_count) * k_line_h) + (k_pad * 2.f)},
         .colour = k_hud_bg,
     });
 
     float y = k_y;
-    for (std::size_t i = 0; i < k_line_count; ++i) {
+    for (std::size_t i = 0; i < line_count; ++i) {
       r.draw(platform::DrawText{
           .font_id = font_id,
           .text = line_at(i),

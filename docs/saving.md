@@ -84,13 +84,17 @@ with their error text in the detail pane and cannot be loaded; they are never tr
 
 // Save the engine's current state to a file
 std::filesystem::path save_path("saves/save_game.json");
-auto result = corundum::save::save_game(engine, save_path, "Greyhollow", playtime_seconds);
+auto saved = corundum::save::save_game(engine, save_path, "Greyhollow", playtime_seconds);
 
-// Load a save back into the engine
-result = corundum::save::load_game(engine, save_path);
+// Load a save back into the engine; the returned SaveMeta carries the saved playtime etc.
+auto loaded = corundum::save::load_game(engine, save_path);
 ```
 
-Both return `std::expected<void, std::string>`: `ok` on success, or an error string saying what went wrong.
+`save_game()` returns `std::expected<void, std::string>` — `ok` on success, or an error string
+saying what went wrong. `load_game()` returns `std::expected<SaveMeta, std::string>`, so a caller
+can restore playtime and the other metadata alongside the scene. The gameplay framework does both:
+it restores `Playthrough::playtime_seconds` from the returned `SaveMeta`, and when the scene rebuild
+itself fails `load_game()` unloads the world rather than leaving a half-built one behind.
 
 ### Saving
 
@@ -121,7 +125,7 @@ corundum::save::load_game(
 );
 ```
 
-It rebuilds the scene at the saved location through the transition machinery (`enter_world` for world mode, `load_map` for single-map mode) and only then restores the saved flags and return-journey marker, so a failed load leaves the running game untouched. NPCs respawn from their spawn-point data; any per-NPC state you keep in `npc.<id>.*` flags comes back verbatim along with everything else (the engine doesn't reconstruct NPC state from those flags by itself).
+It rebuilds the scene at the saved location through the transition machinery (`enter_world` for world mode, `load_map` for single-map mode) and only then restores the saved flags and return-journey marker. If that rebuild fails, the world is unloaded rather than left half-built, and the failure carries the error string; a refusal before the rebuild (missing file, wrong game) leaves the running game untouched. NPCs respawn from their spawn-point data; any per-NPC state you keep in `npc.<id>.*` flags comes back verbatim along with everything else (the engine doesn't reconstruct NPC state from those flags by itself).
 
 ## Versioning
 

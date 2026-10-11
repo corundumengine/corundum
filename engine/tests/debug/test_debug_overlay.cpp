@@ -11,16 +11,21 @@
 #include <corundum/engine.hpp>
 #include <corundum/platform/null/null_platform.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/world/transition.hpp>
+
+#include "ui/recording_renderer.hpp"
 
 #include <cmath>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <format>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -28,8 +33,9 @@ namespace fs = std::filesystem;
 namespace {
 
   /// Bundle the lifecycle setup used by every case here so each TEST_CASE reads
-  /// as a single focused scenario.
-  corundum::Engine make_initialised_engine(const fs::path &fixtures) {
+  /// as a single focused scenario. With @p load_world the configured initial scene is built, as a
+  /// no-title boot does; pass false to exercise the no-world Title state.
+  corundum::Engine make_initialised_engine(const fs::path &fixtures, bool load_world = true) {
     corundum::Engine engine{};
     corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(320, 240);
     corundum::platform::null::adopt_null_platform(engine, platform);
@@ -52,6 +58,11 @@ namespace {
     const auto result = engine.initialize(std::move(cfg));
     if (!result)
       throw std::runtime_error(std::string{"hud_overlay_test setup failed: "} + result.error());
+    if (load_world) {
+      const auto world_result = corundum::world::load_initial_scene(engine);
+      if (!world_result)
+        throw std::runtime_error(std::string{"hud_overlay_test world setup failed: "} + world_result.error());
+    }
     return engine;
   }
 
@@ -292,6 +303,48 @@ TEST_CASE("HudOverlay: world geometry uses the live viewport, not the configured
     CHECK(viewport.x == live_viewport.x);
     CHECK(viewport.y == live_viewport.y);
   }
+
+  engine.cleanup();
+}
+
+// doctest's REQUIRE/CHECK macros expand to branches, so the assertion count — not the test's
+// logic — dominates this metric.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_CASE("HudOverlay: with no world the panel shows only the frame-rate, World and draw lines") {
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+
+  corundum::Engine engine = make_initialised_engine(fixtures, /*load_world=*/false);
+  engine.hud.enabled = true;
+
+  const corundum::debug::OverlayInput input{
+      .render_state = &engine.render,
+      .cfg = &engine.cfg,
+      .scene = &engine.scene,
+      .timer = &engine.timer,
+      .viewport = {.x = 320.f, .y = 240.f},
+  };
+
+  corundum::test::RecordingRenderer renderer;
+  engine.hud.render(renderer, input);
+
+  std::vector<std::string> texts;
+  for (const corundum::test::RecordingRenderer::DrawCall &call : renderer.log) {
+    if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call); draw != nullptr)
+      texts.emplace_back(draw->text);
+  }
+
+  std::string joined;
+  for (const std::string &text : texts)
+    joined += std::format("[{}]", text);
+  INFO("drawn texts: ", joined);
+
+  CHECK_EQ(texts.size(), 3u);
+  CHECK(texts[0].starts_with("FPS:"));
+  CHECK(texts[1].starts_with("World:  none"));
+  CHECK(texts[2].starts_with("Draw:"));
+  for (const std::string &text : texts)
+    CHECK_FALSE(text.starts_with("Grid:"));
 
   engine.cleanup();
 }

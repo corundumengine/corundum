@@ -170,6 +170,15 @@ namespace corundum::world {
     return {};
   }
 
+  void unload_world(corundum::Engine &engine) {
+    render::unload_world(*engine.renderer, engine.render);
+    // Scene is ~0.5 MB: build the empty replacement on the heap, never on the stack.
+    const std::unique_ptr<Scene> empty = std::make_unique<Scene>();
+    engine.scene = std::move(*empty);
+    engine.entered_from_world = false;
+    render::snapshot_previous_step(engine.render, engine.scene);
+  }
+
   std::expected<void, std::string> apply_spawn(corundum::Engine &engine, SpawnMode mode, std::string_view id,
                                                std::string_view zone, float col, float row) {
     if (mode == SpawnMode::World) {

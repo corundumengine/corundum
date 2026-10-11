@@ -5,6 +5,7 @@
 
 #include "font_fixtures.hpp"
 #include "temp_dir.hpp"
+#include "world_transition_fixtures.hpp"
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
@@ -76,6 +77,8 @@ namespace {
 
 } // namespace
 
+using corundum::test::initialize_with_world;
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("player absent — single-map frames run without the player") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
@@ -83,7 +86,7 @@ TEST_CASE("player absent — single-map frames run without the player") {
 
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  REQUIRE(engine.initialize(make_single_map_config(fixtures)).has_value());
+  REQUIRE(initialize_with_world(engine, make_single_map_config(fixtures)).has_value());
   REQUIRE(corundum::world::player_present(engine.scene));
 
   corundum::entities::despawn(engine.scene.world, engine.scene.player);
@@ -107,7 +110,7 @@ TEST_CASE("player absent — streaming frames leave the window where it is") {
 
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  REQUIRE(engine.initialize(make_streaming_config(fixtures)).has_value());
+  REQUIRE(initialize_with_world(engine, make_streaming_config(fixtures)).has_value());
   REQUIRE(corundum::world::player_present(engine.scene));
 
   const corundum::world::tilemap::ChunkCoord center = engine.render.chunks.last_center();
@@ -129,7 +132,7 @@ TEST_CASE("player absent — save_game reports no player entity") {
 
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  REQUIRE(engine.initialize(make_single_map_config(fixtures)).has_value());
+  REQUIRE(initialize_with_world(engine, make_single_map_config(fixtures)).has_value());
 
   corundum::entities::despawn(engine.scene.world, engine.scene.player);
   REQUIRE_FALSE(corundum::world::player_present(engine.scene));

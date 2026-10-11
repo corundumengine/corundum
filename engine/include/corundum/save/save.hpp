@@ -164,11 +164,11 @@ namespace corundum::save {
    *
    * @param engine The initialized engine to overwrite.
    * @param path   Save file to read.
-   * @return ok, or an error if the file is missing, malformed, a newer format,
-   *         for a different game_id or world, or the map/world cannot be loaded.
-   * @post On failure the engine is left untouched; flags and scene are only
-   *       replaced once the new scene has loaded successfully.
+   * @return The save's SaveMeta on success, or an error if the file is missing, malformed, a newer
+   *         format, for a different game_id or world, or the map/world cannot be loaded.
+   * @post If the scene rebuild fails, the world is unloaded (world::unload_world) rather than left
+   *       half-built; flags are untouched.
    */
-  [[nodiscard]] std::expected<void, std::string> load_game(Engine &engine, const std::filesystem::path &path);
+  [[nodiscard]] std::expected<SaveMeta, std::string> load_game(Engine &engine, const std::filesystem::path &path);
 
 } // namespace corundum::save

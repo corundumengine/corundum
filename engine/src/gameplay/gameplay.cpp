@@ -1175,7 +1175,7 @@ namespace corundum::gameplay {
       switch (screens::game_over_row_at(std::clamp(state.cursor, 0, screens::k_game_over_row_count - 1))) {
         case screens::GameOverRow::Reload:
           if (state.reload_available) {
-            if (const auto result = gameplay.load_from_slot(gameplay.last_slot); !result)
+            if (const auto result = gameplay.load_from_slot(gameplay.playthrough.last_slot); !result)
               engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
           }
           break;
@@ -1183,8 +1183,7 @@ namespace corundum::gameplay {
           gameplay.open_save_load(/*saving=*/false);
           break;
         case screens::GameOverRow::ReturnToTitle:
-          gameplay.reset_session_state();
-          gameplay.open_title();
+          gameplay.return_to_title();
           break;
       }
     }
@@ -1423,11 +1422,6 @@ namespace corundum::gameplay {
             warn_log("[gameplay] WARN: shop '{}' stocks unknown item '{}'", shop_id, entry.item);
         }
       }
-
-      // Seed GameConfig::starting_flags into the FlagStore, before the first frame, so a
-      // project's authored starting state (gold, reputation, "intro_seen") is in place.
-      for (const auto &[key, value] : engine.cfg.starting_flags)
-        engine.flags[key] = value;
     }
 
     /// Register the gameplay framework with @p engine: its fixed-step system, hub input hook,
@@ -1543,10 +1537,7 @@ namespace corundum::gameplay {
           });
 
       engine.on_menu_quit = [&gameplay](Engine &) {
-        gameplay.open_confirm("Quit to Title?", [](Gameplay &g) {
-          g.reset_session_state();
-          g.open_title();
-        });
+        gameplay.open_confirm("Quit to Title?", [](Gameplay &g) { g.return_to_title(); });
       };
       engine.on_menu_save_load = [&gameplay](Engine &, bool saving) { gameplay.open_save_load(saving); };
       // The framing screens replace the world; the pause menu must not open over any of them.
@@ -1577,9 +1568,6 @@ namespace corundum::gameplay {
                                });
       engine.screens.add_layer(RenderLayer::HubStrip,
                                [](Engine &e, platform::Renderer &r, core::math::Vec2 v) { render_hub_strip(e, r, v); });
-
-      if (engine.cfg.show_title)
-        gameplay.open_title();
     }
 
   } // namespace
@@ -1587,6 +1575,15 @@ namespace corundum::gameplay {
   Gameplay::Gameplay(Engine &engine) : engine_(&engine) {
     load_content(*this, engine);
     register_gameplay(*this, engine);
+    if (engine.cfg.show_title) {
+      open_title();
+      return;
+    }
+    // No title: start the playthrough at once, without the fade or toast New Game shows.
+    if (const std::expected<void, std::string> result = begin_new_playthrough(); !result) {
+      warn_log("[gameplay] WARN: could not start the game: {} (showing the title)", result.error());
+      return_to_title();
+    }
   }
 
   Gameplay::~Gameplay() = default;
@@ -1609,7 +1606,7 @@ namespace corundum::gameplay {
     if (engine.input_state.is_pressed(input::Action::QuickLoad))
       std::ignore = quick_load();
 
-    playtime_seconds += static_cast<double>(dt);
+    playthrough.playtime_seconds += static_cast<double>(dt);
 
     // Interaction is a one-frame pulse: read and clear it unconditionally so an unconsumed value
     // (no target in range, wrong mode) never persists into the next step.
@@ -1642,9 +1639,9 @@ namespace corundum::gameplay {
       return std::unexpected(directory.error());
 
     const auto result = save::save_game(*engine_, save::slot_path(*directory, slot_id), current_location_name(),
-                                        static_cast<std::int64_t>(playtime_seconds));
+                                        static_cast<std::int64_t>(playthrough.playtime_seconds));
     if (result)
-      last_slot = std::string{slot_id};
+      playthrough.last_slot = std::string{slot_id};
     return result;
   }
 
@@ -1653,18 +1650,29 @@ namespace corundum::gameplay {
     if (!directory)
       return std::unexpected(directory.error());
 
-    const auto result = save::load_game(*engine_, save::slot_path(*directory, slot_id));
-    if (result) {
-      last_slot = std::string{slot_id};
-      // load_game replaces the Scene (which clears scene.ui) but leaves every Gameplay member
-      // — the active conversation, container/shop ids, screen cursors and caches — pointing at
-      // the old world. Clear them so the loaded scene starts clean.
-      reset_session_state();
-      // Reveal the loaded area from black; this covers quicksave and Game-over reloads as well
-      // as the Title's Continue/Load, which arrive here through begin_load().
-      engine_->screen_transition.begin_fade_in();
+    const std::expected<save::SaveMeta, std::string> loaded =
+        save::load_game(*engine_, save::slot_path(*directory, slot_id));
+    if (!loaded) {
+      // load_game unloads the world when the scene rebuild itself failed, which also empties the UI
+      // stack; with nothing left to show, fall back to the title. A refusal before the rebuild
+      // (missing file, wrong game) keeps the current world or screen.
+      if (engine_->render.mode == render::RenderMode::None && engine_->scene.ui.empty())
+        return_to_title();
+      return std::unexpected(loaded.error());
     }
-    return result;
+
+    // Build the new record before assigning: slot_id may view the old playthrough.last_slot.
+    playthrough = Playthrough{
+        .playtime_seconds = static_cast<double>(loaded->playtime_seconds),
+        .last_slot = std::string{slot_id},
+    };
+    // load_game replaced the Scene (which clears scene.ui) but left every screen member pointing
+    // at the old world. Clear them so the loaded scene starts clean.
+    reset_session_state();
+    // Reveal the loaded area from black; this covers quicksave and Game-over reloads as well as
+    // the Title's Continue/Load, which arrive here through begin_load().
+    engine_->screen_transition.begin_fade_in();
+    return {};
   }
 
   std::expected<void, std::string> Gameplay::quick_save() {
@@ -1772,13 +1780,16 @@ namespace corundum::gameplay {
     const std::function<std::expected<void, std::string>(Gameplay &)> work = std::move(pending_load_);
     pending_load_ = nullptr;
     engine_->scene.ui.pop();
-    if (const std::expected<void, std::string> result = work(*this); !result)
+    if (const std::expected<void, std::string> result = work(*this); !result) {
+      // The load began a fade-out; reveal whatever is showing now (the title) again.
+      engine_->screen_transition.begin_fade_in();
       engine_->notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
+    }
   }
 
   void Gameplay::open_game_over() {
     game_over_screen = {};
-    game_over_screen.reload_available = !last_slot.empty();
+    game_over_screen.reload_available = !playthrough.last_slot.empty();
     game_over_screen.cursor = game_over_screen.reload_available ? 0 : 1;
     engine_->scene.ui.push(screens::GameOver);
   }
@@ -1795,28 +1806,49 @@ namespace corundum::gameplay {
     engine_->scene.ui.push(screens::SaveLoad);
   }
 
-  std::expected<void, std::string> Gameplay::new_game() {
+  std::expected<void, std::string> Gameplay::begin_new_playthrough() {
     Engine &engine = *engine_;
     engine.flags.clear();
     for (const auto &[key, value] : engine.cfg.starting_flags)
       engine.flags[key] = value;
+    engine.entered_from_world = false;
+    playthrough = {};
 
-    // Rebuild the exact scene Engine::initialize() builds, so a new game starts where a fresh
-    // boot does: world mode enters the overworld at the manifest default spawn, single-map mode
-    // applies the per-map spawn point / game.json player / built-in precedence. apply_spawn would
-    // instead pin the spawn to game.json's tile and skip a per-map spawn point.
+    // World mode enters the overworld at the manifest default spawn; single-map mode applies the
+    // per-map spawn point / game.json player / built-in precedence. apply_spawn would instead pin
+    // the spawn to game.json's tile and skip a per-map spawn point.
     const std::expected<void, std::string> result = world::load_initial_scene(engine);
 
-    // load_initial_scene replaces the Scene (clearing scene.ui); clear every Gameplay member too,
-    // so a conversation or cursor from the abandoned session cannot outlive it.
+    // load_initial_scene replaces the Scene (clearing scene.ui); clear every screen member too, so
+    // a conversation or cursor from the abandoned playthrough cannot outlive it.
     reset_session_state();
-    // Reveal the new game from black, whichever path drove it (Title, Game over, tests).
-    engine.screen_transition.begin_fade_in();
-    if (result)
-      engine.notify("New game started");
-    else
-      engine.notify(std::format("New game failed: {}", result.error()), ui::k_toast_failed_colour);
     return result;
+  }
+
+  std::expected<void, std::string> Gameplay::new_game() {
+    if (const std::expected<void, std::string> result = begin_new_playthrough(); !result) {
+      // The failed build may have left a half-loaded world; drop it and fall back to the title.
+      // result still carries the original scene-build error for the caller and tests.
+      return_to_title();
+      engine_->notify(std::format("New game failed: {}", result.error()), ui::k_toast_failed_colour);
+      return result;
+    }
+    // Reveal the new game from black, whichever path drove it (Title, Game over, tests).
+    engine_->screen_transition.begin_fade_in();
+    engine_->notify("New game started");
+    return {};
+  }
+
+  void Gameplay::return_to_title() {
+    // reset_session_state() clears screen-tier members and the UI stack; unload_world() then
+    // replaces the Scene (which also clears its UI stack). The double UI clear is harmless, and
+    // keeping reset_session_state() first ensures every screen member is torn down even if a
+    // future change makes unload_world() keep some scene state.
+    reset_session_state();
+    world::unload_world(*engine_);
+    engine_->flags.clear();
+    playthrough = {};
+    open_title();
   }
 
   std::expected<void, std::string> Gameplay::continue_game() {
