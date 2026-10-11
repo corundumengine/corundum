@@ -103,6 +103,15 @@ namespace corundum::platform {
       return {};
     }
 
+    /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).
+    /// Never destroys: an unreferenced texture stays usable until purge_unused_textures().
+    /// Id 0 is ignored. Backends without texture lifetimes keep the default.
+    virtual void release_texture(uint32_t /*texture_id*/) {}
+
+    /// Destroy every texture whose references have all been released. Call only between frames
+    /// (never between begin_frame() and end_frame()), at an area boundary. Ids are never reused.
+    virtual void purge_unused_textures() {}
+
     /// Load a font face for rasterised text.
     /// @return Opaque font ID, or std::unexpected with the reason.
     [[nodiscard]] virtual std::expected<uint32_t, std::string> load_font(std::string_view path) = 0;

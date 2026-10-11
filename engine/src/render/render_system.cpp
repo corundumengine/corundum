@@ -100,7 +100,49 @@ namespace corundum::render {
     return {};
   }
 
-  void clean_up(render::RenderState & /*state*/) noexcept {}
+  namespace {
+
+    /// Drop the area's reference on every texture it holds. Nothing is destroyed until the next
+    /// purge_unused_textures(), so a texture the next area also uses survives the swap.
+    void release_area_textures(corundum::platform::Renderer &r, render::RenderState &state) {
+      for (const uint32_t id : state.area_texture_ids)
+        r.release_texture(id);
+      state.area_texture_ids.clear();
+    }
+
+    /// Record @p ids (just returned by load_texture) as area textures. The area keeps one reference
+    /// per distinct texture: a repeat (two chunks sharing a tileset) hands its extra reference
+    /// straight back. Id 0, a failed load, holds no reference.
+    void adopt_area_textures(corundum::platform::Renderer &r, render::RenderState &state,
+                             std::span<const uint32_t> ids) {
+      for (const uint32_t id : ids) {
+        if (id == 0)
+          continue;
+        if (std::ranges::find(state.area_texture_ids, id) != state.area_texture_ids.end())
+          r.release_texture(id);
+        else
+          state.area_texture_ids.push_back(id);
+      }
+    }
+
+  } // namespace
+
+  void unload_world(corundum::platform::Renderer &r, render::RenderState &state) {
+    release_area_textures(r, state);
+    state.mode = render::RenderMode::None;
+    state.map_data = {};
+    state.map_walkability = {};
+    state.chunks.clear();
+    state.manifest = {};
+    state.agg_collisions = {};
+    state.agg_triangles = {};
+    state.agg_portals.clear();
+    state.agg_walkability = {};
+    state.above_z_cache.clear();
+    state.draw_list.clear();
+    state.draw_order.clear();
+    r.purge_unused_textures();
+  }
 
   void snapshot_previous_step(render::RenderState &state, const corundum::world::Scene &scene) noexcept {
     const corundum::entities::TransformTable &transforms = scene.world.transforms;
@@ -169,6 +211,9 @@ namespace corundum::render {
     state.sprite_index.frame_rects.clear();
 
     std::unordered_map<corundum::sprites::Id, uint32_t> sheet_tex;
+    // Process-lifetime textures: sprite-sheet references are stored in sprite_index and are
+    // deliberately never released, so area purges can never destroy them. See AGENTS.md
+    // "Lifetime tiers".
     for (const auto &[sheet_id, sheet] : registry.sheets()) {
       auto result = r.load_texture(sheet.path);
       if (result.has_value()) {
@@ -322,6 +367,8 @@ namespace corundum::render {
       return IntRect{.x = col * fw, .y = row * fh, .width = cs * fw, .height = rs * fh};
     };
 
+    // Process-lifetime texture: the UI border reference is deliberately never released, so
+    // area purges can never destroy it. See AGENTS.md "Lifetime tiers".
     auto result = r.load_texture(tex_path);
     if (result.has_value()) {
       state.panel_skin.border.texture_id = result.value();
@@ -350,6 +397,7 @@ namespace corundum::render {
   std::expected<void, std::string> load_map(corundum::platform::Renderer &r, render::RenderState &state,
                                             const std::string &tilemap_path, const corundum::core::GameConfig &cfg) {
     state.mode = render::RenderMode::SingleMap;
+    release_area_textures(r, state);
     state.chunks.clear();
     state.manifest = {};
     state.agg_collisions = {};
@@ -381,6 +429,8 @@ namespace corundum::render {
     std::ranges::sort(above_z);
     above_z.erase(std::ranges::unique(above_z).begin(), above_z.end());
 
+    adopt_area_textures(r, state, tex_ids);
+
     const std::string stem = std::filesystem::path(tilemap_path).stem().string();
     const auto portals_file = std::format("{}/{}.json", cfg.paths.portals_dir, stem);
     auto portals = corundum::world::load_portals(portals_file);
@@ -404,6 +454,7 @@ namespace corundum::render {
     // reserve draw_list ever needs — steady-state rendering never reallocates it.
     state.draw_list.reserve((static_cast<std::size_t>(state.map_data.tilemap.width) * state.map_data.tilemap.height) +
                             corundum::entities::k_max_entities);
+    r.purge_unused_textures();
     return {};
   }
 
@@ -415,6 +466,7 @@ namespace corundum::render {
     using namespace corundum::world::tilemap;
 
     state.mode = render::RenderMode::World;
+    release_area_textures(r, state);
     state.map_data = {};
     state.map_walkability = {};
     state.chunks.clear();
@@ -457,6 +509,7 @@ namespace corundum::render {
         state.chunks.mark_failed(c);
         continue;
       }
+      adopt_area_textures(r, state, entry->tileset_texture_ids);
       state.chunks.add_active(std::move(*entry));
     }
     if (state.chunks.active_empty())
@@ -472,6 +525,7 @@ namespace corundum::render {
 
     const core::math::Vec2 spawn_pos{.x = spawn_tile_col, .y = spawn_tile_row};
     corundum::detail::info_log("[engine] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
+    r.purge_unused_textures();
     return WorldLoadInfo{
         .half_tw = iso.half_tw,
         .half_th = iso.half_th,
@@ -1346,6 +1400,7 @@ namespace corundum::render {
         return false;
       }
       corundum::detail::info_log("[engine] Loaded chunk ({}, {})", c.col, c.row);
+      adopt_area_textures(r, state, entry->tileset_texture_ids);
       state.chunks.add_active(std::move(*entry));
       return true;
     }

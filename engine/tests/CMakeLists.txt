@@ -63,9 +63,11 @@ set(TEST_SOURCES
 
     # platform
     platform/test_handle.cpp
+    platform/test_texture_ref_counts.cpp
     platform/test_texture_slot_table.cpp
 
     # render
+    render/test_area_textures.cpp
     render/test_chunk_collision_aggregate.cpp
     render/test_font_families.cpp
     render/test_render_state.cpp

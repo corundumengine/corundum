@@ -65,6 +65,9 @@ namespace corundum::platform {
      *
      *  Returning to Windowed restores the position and size the window had before going fullscreen.
      *  A no-op when @p mode is already current.
+     *
+     *  @note The GLFW backend ignores the call while the window is hidden; Engine::reveal_window()
+     *        applies GameConfig::window_mode after the first frame.
      */
     virtual void set_window_mode(core::WindowMode mode) = 0;
 

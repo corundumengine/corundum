@@ -385,6 +385,11 @@ namespace corundum::platform::glfw {
   void GLFWWindow::set_window_mode(corundum::core::WindowMode mode) {
     if (!impl_ || impl_->win == nullptr || mode == window_mode())
       return;
+    // glfwSetWindowMonitor on a hidden window leaves it permanently hidden on macOS. Before the
+    // first reveal the request is dropped; Engine::reveal_window() applies cfg.window_mode once
+    // the window is visible, and settings::apply() keeps cfg.window_mode in sync for it.
+    if (glfwGetWindowAttrib(impl_->win, GLFW_VISIBLE) == GLFW_FALSE)
+      return;
 
     GLFWwindow *win = impl_->win;
     WindowRect &rect = impl_->data.windowed_rect;

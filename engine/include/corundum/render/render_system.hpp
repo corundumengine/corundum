@@ -33,8 +33,13 @@ namespace corundum::render {
    */
   [[nodiscard]] std::expected<void, std::string> initialize(render::RenderState &state);
 
-  /** @brief Release any render resources held by the state. */
-  void clean_up(render::RenderState &state) noexcept;
+  /** @brief Unload the current area: release its textures, clear every world field and return to
+   *  RenderMode::None. Process-lifetime state (fonts, sprite_index, panel_skin, ui_scale,
+   *  text_speed) is kept. Purges unreferenced textures, so call it between frames.
+   *
+   *  @post state.mode is RenderMode::None and state.area_texture_ids is empty.
+   */
+  void unload_world(corundum::platform::Renderer &r, render::RenderState &state);
 
   /** @brief Record the camera and every entity's tile position as the start of a fixed step.
    *

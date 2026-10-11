@@ -1718,6 +1718,11 @@ namespace corundum::gameplay {
   }
 
   void Gameplay::refresh_credits() {
+    // open_title() refreshes the credits on every visit; hand back the previous visit's reference
+    // so the background's count stays at one. Credits art is process-lifetime: only area unloads
+    // purge, and the reference is re-taken below before any purge.
+    if (engine_->renderer)
+      engine_->renderer->release_texture(credits_screen.background_texture);
     credits_screen = {};
     const std::string &path = engine_->cfg.paths.credits_file;
     if (path.empty())

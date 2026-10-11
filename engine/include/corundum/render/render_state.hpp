@@ -209,7 +209,8 @@ namespace corundum::render {
       return true;
     }
 
-    /// Reset to the empty, never-loaded state (used by clean_up()).
+    /// Reset to the empty, never-loaded state (used by load_map(), load_world() and
+    /// unload_world()).
     void clear() noexcept {
       active_.clear();
       pending_.clear();
@@ -296,6 +297,9 @@ namespace corundum::render {
     /// Built once when a single map loads (load_map()); single-map mode only, same
     /// limitation as MapView::elevation_map — World mode leaves this default-empty.
     corundum::world::tilemap::WalkabilityGraph map_walkability{};
+    /// Textures the loaded area (single map or streamed world) holds one reference on each.
+    /// Released when the area is replaced or unloaded; see render::unload_world().
+    std::vector<uint32_t> area_texture_ids;
     RenderMode mode{RenderMode::None};
     SpriteFrameIndex sprite_index;
 

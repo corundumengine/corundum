@@ -10,6 +10,7 @@
 
 #include <corundum/core/utf8.hpp>
 #include <corundum/platform/gpu_context.hpp>
+#include <corundum/platform/texture_ref_counts.hpp>
 
 #include <sokol_gfx.h>
 
@@ -159,6 +160,8 @@ namespace corundum::platform::glfw {
       std::expected<uint32_t, std::string> load_texture(std::string_view path) override;
       std::expected<uint32_t, std::string> load_font(std::string_view path) override;
       [[nodiscard]] core::math::Vec2 texture_size(uint32_t texture_id) const override;
+      void release_texture(uint32_t texture_id) override;
+      void purge_unused_textures() override;
       void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
       void reset_screen_view() override;
       bool begin_frame(core::math::Colour clear_colour) override;
@@ -239,6 +242,7 @@ namespace corundum::platform::glfw {
 
       std::vector<LoadedTexture> textures_;
       std::unordered_map<std::string, uint32_t> path_to_id_;
+      corundum::platform::TextureRefCounts texture_refs_;
 
       std::unordered_map<std::string, uint32_t> font_path_to_id_;
       std::vector<std::unique_ptr<FontAtlas>> font_atlases_;
@@ -513,8 +517,10 @@ namespace corundum::platform::glfw {
 
     std::expected<uint32_t, std::string> SokolRenderer::load_texture(std::string_view path) {
       const std::string key{path};
-      if (const auto it = path_to_id_.find(key); it != path_to_id_.end())
+      if (const auto it = path_to_id_.find(key); it != path_to_id_.end()) {
+        texture_refs_.acquire(it->second);
         return it->second;
+      }
 
       int width = 0;
       int height = 0;
@@ -539,6 +545,7 @@ namespace corundum::platform::glfw {
       const auto id = static_cast<uint32_t>(textures_.size());
       textures_.push_back({.path = key, .image = image, .view = view, .width = width, .height = height});
       path_to_id_[key] = id;
+      texture_refs_.acquire(id);
       return id;
     }
 
@@ -549,6 +556,25 @@ namespace corundum::platform::glfw {
           return {.x = static_cast<float>(texture.width), .y = static_cast<float>(texture.height)};
       }
       return {};
+    }
+
+    void SokolRenderer::release_texture(uint32_t texture_id) {
+      texture_refs_.release(texture_id);
+    }
+
+    void SokolRenderer::purge_unused_textures() {
+      // Draws hold sg_views until end_frame(); destroying one mid-pass would free a live binding.
+      assert(!pass_active_);
+      for (const uint32_t id : texture_refs_.take_unreferenced()) {
+        LoadedTexture &texture = textures_[id];
+        sg_destroy_view(texture.view);
+        sg_destroy_image(texture.image);
+        path_to_id_.erase(texture.path);
+        // The slot stays as a tombstone (ids are never reused): draw() and texture_size() already
+        // skip a zero image, and destroy_gpu_resources() passes its zero handles to sg_destroy_*,
+        // which treats the invalid id as a no-op, exactly as for the reserved slot 0.
+        texture = {};
+      }
     }
 
     std::expected<uint32_t, std::string> SokolRenderer::load_font(std::string_view path) {
