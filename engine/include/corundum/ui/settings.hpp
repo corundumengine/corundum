@@ -41,8 +41,8 @@ namespace corundum::ui {
   /** @brief The previous (slower) preset, wrapping to the quickest below Instant. */
   [[nodiscard]] float prev_text_speed(float speed) noexcept;
 
-  /** @brief Master-volume change per Left/Right press, in [0, 1]. */
-  inline constexpr float k_master_volume_step = 0.1f;
+  /** @brief Master- and music-volume change per Left/Right press, in [0, 1]. */
+  inline constexpr float k_volume_step = 0.1f;
 
   /** @brief UI-scale bounds and increment. */
   inline constexpr float k_ui_scale_min = 0.75f;
@@ -54,6 +54,7 @@ namespace corundum::ui {
   /** @brief Rows of the General tab. */
   enum class SettingsGeneralRow : std::uint8_t {
     Volume,
+    MusicVolume,
     TextSpeed,
     UiScale,
     WindowMode,
@@ -61,7 +62,7 @@ namespace corundum::ui {
   };
 
   /** @brief Number of General-tab rows. */
-  inline constexpr int k_settings_general_row_count = 4;
+  inline constexpr int k_settings_general_row_count = 5;
 
   /** @brief Display label for a General-tab row. */
   [[nodiscard]] std::string_view settings_general_row_label(SettingsGeneralRow row) noexcept;
@@ -103,6 +104,8 @@ namespace corundum::ui {
    *  they are read from the engine when the screen opens and after each edit. */
   struct SettingsValues {
     float master_volume{1.f};
+
+    float music_volume{1.f};
 
     float text_speed{1.f};
 

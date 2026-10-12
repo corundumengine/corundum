@@ -72,6 +72,7 @@ namespace {
     corundum::input::rebind(settings.bindings, Action::MoveUp, physical(Key::W), physical(Key::Q));
     settings.window_mode = WindowMode::Fullscreen;
     settings.master_volume = 0.4f;
+    settings.music_volume = 0.6f;
     settings.text_speed = 2.f;
     settings.ui_scale = 1.25f;
     return settings;
@@ -182,15 +183,18 @@ TEST_CASE("settings: serialize/parse round-trips") {
   CHECK(parsed->bindings == settings.bindings);
   CHECK(parsed->window_mode == settings.window_mode);
   CHECK(parsed->master_volume == doctest::Approx(settings.master_volume));
+  CHECK(parsed->music_volume == doctest::Approx(settings.music_volume));
   CHECK(parsed->text_speed == doctest::Approx(settings.text_speed));
   CHECK(parsed->ui_scale == doctest::Approx(settings.ui_scale));
 }
 
 TEST_CASE("settings: out-of-range volume and UI scale are clamped") {
-  const nlohmann::json root = {{"schema_version", 2}, {"master_volume", 5.f}, {"ui_scale", 0.1f}};
+  const nlohmann::json root = {
+      {"schema_version", 2}, {"master_volume", 5.f}, {"music_volume", 5.f}, {"ui_scale", 0.1f}};
   const auto parsed = corundum::settings::parse(root, UserSettings{});
   REQUIRE(parsed.has_value());
   CHECK(parsed->master_volume == doctest::Approx(1.f));
+  CHECK(parsed->music_volume == doctest::Approx(1.f));
   CHECK(parsed->ui_scale == doctest::Approx(0.75f));
 }
 
@@ -199,6 +203,13 @@ TEST_CASE("settings: a non-numeric volume is rejected") {
   const auto parsed = corundum::settings::parse(root, UserSettings{});
   REQUIRE_FALSE(parsed.has_value());
   CHECK(parsed.error().find("master_volume") != std::string::npos);
+}
+
+TEST_CASE("settings: a non-numeric music volume is rejected") {
+  const nlohmann::json root = {{"schema_version", 2}, {"music_volume", "loud"}};
+  const auto parsed = corundum::settings::parse(root, UserSettings{});
+  REQUIRE_FALSE(parsed.has_value());
+  CHECK(parsed.error().find("music_volume") != std::string::npos);
 }
 
 TEST_CASE("settings: an absent field keeps its default") {

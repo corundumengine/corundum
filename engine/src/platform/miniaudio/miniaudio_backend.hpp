@@ -50,6 +50,17 @@ namespace corundum::platform::miniaudio {
 
     void set_paused(bool paused) override;
 
+    /** @brief Stream @p path in the music group, fading any current track out over
+     *  @p playback.fade_in_seconds. The loop gap is scheduled on the engine clock by update(). */
+    [[nodiscard]] std::expected<void, std::string> play_music(std::string_view path,
+                                                              const audio::MusicPlayback &playback) override;
+
+    void stop_music(float fade_out_seconds) override;
+
+    void set_music_volume(float volume) override;
+
+    void update() override;
+
     /** @brief Mix frames_out.size() / 2 interleaved stereo f32 frames into @p frames_out.
      *
      *  Fills silence when the engine failed to start.

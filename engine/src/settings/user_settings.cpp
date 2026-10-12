@@ -49,6 +49,7 @@ namespace corundum::settings {
     j["window_mode"] = core::window_mode_name(settings.window_mode);
     j["bindings"] = input::serialize(settings.bindings);
     j["master_volume"] = settings.master_volume;
+    j["music_volume"] = settings.music_volume;
     j["text_speed"] = settings.text_speed;
     j["ui_scale"] = settings.ui_scale;
     return j;
@@ -84,6 +85,11 @@ namespace corundum::settings {
       return std::unexpected(read.error());
     settings.master_volume = std::clamp(master_volume, 0.f, 1.f);
 
+    float music_volume = settings.music_volume;
+    if (std::expected<void, std::string> read = read_optional_float(root, "music_volume", music_volume); !read)
+      return std::unexpected(read.error());
+    settings.music_volume = std::clamp(music_volume, 0.f, 1.f);
+
     float text_speed = settings.text_speed;
     if (std::expected<void, std::string> read = read_optional_float(root, "text_speed", text_speed); !read)
       return std::unexpected(read.error());
@@ -102,6 +108,7 @@ namespace corundum::settings {
         .bindings = engine.input_mapper.bindings(),
         .window_mode = engine.window->window_mode(),
         .master_volume = engine.audio.master_volume(),
+        .music_volume = engine.audio.music_volume(),
         .text_speed = engine.render.text_speed,
         .ui_scale = engine.render.ui_scale,
     };
@@ -115,6 +122,7 @@ namespace corundum::settings {
     // without this the loaded mode would be clobbered on the first frame.
     engine.cfg.window_mode = settings.window_mode;
     engine.audio.set_master_volume(settings.master_volume);
+    engine.audio.set_music_volume(settings.music_volume);
     engine.render.text_speed = settings.text_speed;
     engine.render.ui_scale = settings.ui_scale;
     render::configure_panel_style(engine.render, engine.cfg);

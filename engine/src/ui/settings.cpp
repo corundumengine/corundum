@@ -73,6 +73,8 @@ namespace corundum::ui {
     switch (row) {
       case SettingsGeneralRow::Volume:
         return "Master Volume";
+      case SettingsGeneralRow::MusicVolume:
+        return "Music Volume";
       case SettingsGeneralRow::TextSpeed:
         return "Text Speed";
       case SettingsGeneralRow::UiScale:
@@ -129,6 +131,8 @@ namespace corundum::ui {
       switch (row) {
         case SettingsGeneralRow::Volume:
           return std::format("{:.0f}%", values.master_volume * 100.f);
+        case SettingsGeneralRow::MusicVolume:
+          return std::format("{:.0f}%", values.music_volume * 100.f);
         case SettingsGeneralRow::TextSpeed:
           return std::string{text_speed_label(values.text_speed)};
         case SettingsGeneralRow::UiScale:

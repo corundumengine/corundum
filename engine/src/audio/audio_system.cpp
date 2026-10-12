@@ -33,6 +33,7 @@ namespace corundum::audio {
     initialized_ = true;
     backend_->set_paused(paused_);
     backend_->set_master_volume(master_volume_);
+    backend_->set_music_volume(music_volume_);
     return {};
   }
 
@@ -42,6 +43,7 @@ namespace corundum::audio {
     backend_.reset();
     cache_.clear();
     catalog_.clear();
+    current_music_.clear();
     initialized_ = false;
   }
 
@@ -79,7 +81,7 @@ namespace corundum::audio {
     if (!is_ready())
       return std::unexpected("[audio] Audio system not initialised");
 
-    if (auto it = cache_.find(name); it != cache_.end()) {
+    if (const auto it = cache_.find(name); it != cache_.end()) {
       backend_->play(it->second, volume, loop);
       return {};
     }
@@ -106,6 +108,38 @@ namespace corundum::audio {
     if (!is_ready())
       return;
     backend_->set_paused(paused);
+  }
+
+  std::expected<void, std::string> AudioSystem::play_music(std::string_view path, const MusicPlayback &playback) {
+    if (!is_ready())
+      return std::unexpected("[audio] Audio system not initialised");
+    if (path == current_music_)
+      return {};
+    if (std::expected<void, std::string> started = backend_->play_music(path, playback); !started)
+      return started;
+    current_music_ = path;
+    return {};
+  }
+
+  void AudioSystem::stop_music(float fade_out_seconds) noexcept {
+    if (current_music_.empty())
+      return;
+    current_music_.clear();
+    if (is_ready())
+      backend_->stop_music(fade_out_seconds);
+  }
+
+  void AudioSystem::set_music_volume(float volume) noexcept {
+    music_volume_ = volume;
+    if (!is_ready())
+      return;
+    backend_->set_music_volume(volume);
+  }
+
+  void AudioSystem::update() noexcept {
+    if (!is_ready())
+      return;
+    backend_->update();
   }
 
 } // namespace corundum::audio

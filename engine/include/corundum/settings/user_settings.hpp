@@ -33,6 +33,9 @@ namespace corundum::settings {
     /// Master audio volume in [0, 1].
     float master_volume{1.f};
 
+    /// Music volume in [0, 1], applied under master_volume.
+    float music_volume{1.f};
+
     /// Dialogue text-reveal multiplier; 0 reveals instantly (see ui::k_text_speed_presets).
     float text_speed{1.f};
 

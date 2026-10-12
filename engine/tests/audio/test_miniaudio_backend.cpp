@@ -56,7 +56,8 @@ namespace {
       put16(16384u);
   }
 
-  /// Render @p frames frames in 441-frame (10 ms) chunks; returns the left channel.
+  /// Render @p frames frames in 441-frame (10 ms) chunks, calling update() after each chunk the way
+  /// the game loop does; returns the left channel.
   std::vector<float> render(MiniaudioBackend &backend, int frames) {
     constexpr int k_chunk = 441;
     std::vector<float> left;
@@ -65,6 +66,7 @@ namespace {
       backend.render_frames(chunk);
       for (int i = 0; i < k_chunk; ++i)
         left.push_back(chunk[static_cast<std::size_t>(i) * 2]);
+      backend.update();
     }
     return left;
   }
@@ -105,4 +107,78 @@ TEST_CASE("miniaudio backend: a missing file is a load error naming the path") {
   const auto handle = backend.load_sound("no/such/file.ogg");
   REQUIRE_FALSE(handle.has_value());
   CHECK(handle.error().find("no/such/file.ogg") != std::string::npos);
+}
+
+TEST_CASE("miniaudio backend: music restarts after loop_delay_seconds of silence") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_gap"};
+  write_wav(dir / "track.wav", 4410); // 0.1 s
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+
+  REQUIRE(backend.play_music((dir / "track.wav").string(), {.fade_in_seconds = 0.f, .loop_delay_seconds = 0.2f})
+              .has_value());
+  const std::vector<float> left = render(backend, 22050); // 0.5 s
+
+  CHECK(left[2000] == doctest::Approx(k_half).epsilon(0.01)); // first play
+  CHECK(left[9000] == doctest::Approx(0.f));                  // inside the 0.2 s gap
+
+  // The track ends at frame 4410; the restart is scheduled 8820 frames later, from the update()
+  // that first sees the end. miniaudio raises its at-end flag only on the read that passes the
+  // end, so that update() is one 441-frame chunk late, and the first mixed sample lands one frame
+  // after the scheduled start.
+  std::size_t restart = 5000;
+  while (restart < left.size() && left[restart] == 0.f)
+    ++restart;
+  CHECK(restart >= 13230);
+  CHECK(restart <= 13230 + 441 + 1);
+  CHECK(left[restart + 1000] == doctest::Approx(k_half).epsilon(0.01)); // second play
+}
+
+TEST_CASE("miniaudio backend: stop_music fades the track to silence") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_stop"};
+  write_wav(dir / "track.wav", 44100); // 1 s
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  REQUIRE(backend.play_music((dir / "track.wav").string(), {}).has_value());
+  static_cast<void>(render(backend, 4410));
+
+  backend.stop_music(0.1f);
+  const std::vector<float> fade = render(backend, 8820);
+
+  CHECK(fade[2205] > 0.05f); // halfway through the fade: quieter than full,
+  CHECK(fade[2205] < 0.45f); // but not yet silent
+  CHECK(fade[8000] == doctest::Approx(0.f));
+}
+
+TEST_CASE("miniaudio backend: a new track fades the previous one out over its fade-in") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_replace"};
+  write_wav(dir / "first.wav", 44100);
+  write_wav(dir / "second.wav", 44100);
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  REQUIRE(backend.play_music((dir / "first.wav").string(), {}).has_value());
+  static_cast<void>(render(backend, 4410));
+
+  REQUIRE(backend.play_music((dir / "second.wav").string(), {.fade_in_seconds = 0.1f, .loop_delay_seconds = 0.f})
+              .has_value());
+  const std::vector<float> left = render(backend, 8820);
+
+  // Crossfade: the old track fading out plus the new one fading in sum to about full level.
+  CHECK(left[2205] == doctest::Approx(k_half).epsilon(0.1));
+  CHECK(left[8000] == doctest::Approx(k_half).epsilon(0.01)); // only the new track remains
+}
+
+TEST_CASE("miniaudio backend: music volume scales music but not effects") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_volume"};
+  write_wav(dir / "track.wav", 44100);
+  write_wav(dir / "blip.wav", 44100);
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  backend.set_music_volume(0.5f);
+
+  REQUIRE(backend.play_music((dir / "track.wav").string(), {}).has_value());
+  CHECK(render(backend, 882)[100] == doctest::Approx(0.25f).epsilon(0.01));
+  backend.stop_music(0.f);
+  static_cast<void>(render(backend, 441));
+
+  const auto handle = backend.load_sound((dir / "blip.wav").string());
+  REQUIRE(handle.has_value());
+  backend.play(*handle, 1.f, /*loop=*/false);
+  CHECK(render(backend, 882)[100] == doctest::Approx(k_half).epsilon(0.01));
 }

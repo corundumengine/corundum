@@ -37,10 +37,36 @@ namespace {
       last_paused = paused;
     }
 
+    std::expected<void, std::string> play_music(std::string_view path,
+                                                const corundum::audio::MusicPlayback &playback) override {
+      if (path == "bad.ogg")
+        return std::unexpected(std::string{"cannot open bad.ogg"});
+      music_played.emplace_back(path);
+      last_playback = playback;
+      return {};
+    }
+
+    void stop_music(float fade_out_seconds) override {
+      music_stops.push_back(fade_out_seconds);
+    }
+
+    void set_music_volume(float volume) override {
+      last_music_volume = volume;
+    }
+
+    void update() override {
+      ++updates;
+    }
+
     float last_master_volume = -1.f;
     bool last_paused = false;
     std::vector<std::string> loaded_paths;
     std::vector<std::pair<corundum::audio::SoundHandle, bool>> played;
+    std::vector<std::string> music_played;
+    corundum::audio::MusicPlayback last_playback{};
+    std::vector<float> music_stops;
+    float last_music_volume = -1.f;
+    int updates = 0;
 
   private:
     corundum::audio::SoundHandle next_handle = 1;
@@ -250,4 +276,92 @@ TEST_CASE("AudioSystem: play_sound probes cache with std::string_view (heterogen
   REQUIRE(sys.play_sound(name, 0.5f, false).has_value()); // cached — same handle
   CHECK(stub->loaded_paths.size() == 1);
   CHECK(stub->played.size() == 2);
+}
+
+TEST_CASE("AudioSystem: play_music forwards the path and playback once ready") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+  REQUIRE(sys.initialize("data/sounds").has_value());
+
+  REQUIRE(sys.play_music("a.ogg", {.fade_in_seconds = 1.5f, .loop_delay_seconds = 7.f}).has_value());
+  REQUIRE(stub->music_played.size() == 1);
+  CHECK(stub->music_played[0] == "a.ogg");
+  CHECK(stub->last_playback.fade_in_seconds == 1.5f);
+  CHECK(stub->last_playback.loop_delay_seconds == 7.f);
+}
+
+TEST_CASE("AudioSystem: asking for the playing track again does not restart it") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+  REQUIRE(sys.initialize("data/sounds").has_value());
+
+  REQUIRE(sys.play_music("a.ogg", {}).has_value());
+  REQUIRE(sys.play_music("a.ogg", {}).has_value());
+  CHECK(stub->music_played.size() == 1);
+}
+
+TEST_CASE("AudioSystem: stop_music forwards the fade, and the same track then plays again") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+  REQUIRE(sys.initialize("data/sounds").has_value());
+
+  REQUIRE(sys.play_music("a.ogg", {}).has_value());
+  sys.stop_music(2.f);
+  REQUIRE(sys.play_music("a.ogg", {}).has_value());
+  REQUIRE(stub->music_stops.size() == 1);
+  CHECK(stub->music_stops[0] == 2.f);
+  CHECK(stub->music_played.size() == 2);
+}
+
+TEST_CASE("AudioSystem: stop_music with no track playing does nothing") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+  REQUIRE(sys.initialize("data/sounds").has_value());
+
+  sys.stop_music(2.f);
+  CHECK(stub->music_stops.empty());
+}
+
+TEST_CASE("AudioSystem: a failed play_music keeps the current track") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+  REQUIRE(sys.initialize("data/sounds").has_value());
+
+  REQUIRE(sys.play_music("a.ogg", {}).has_value());
+  CHECK_FALSE(sys.play_music("bad.ogg", {}).has_value());
+  REQUIRE(sys.play_music("a.ogg", {}).has_value());
+  REQUIRE(stub->music_played.size() == 1);
+  CHECK(stub->music_played[0] == "a.ogg");
+}
+
+TEST_CASE("AudioSystem: music volume set before initialize is applied by it") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+
+  sys.set_music_volume(0.3f);
+  CHECK(stub->last_music_volume == -1.f); // not initialised: swallowed
+
+  REQUIRE(sys.initialize("data/sounds").has_value());
+  CHECK(stub->last_music_volume == 0.3f);
+}
+
+TEST_CASE("AudioSystem: play_music before initialize returns an error") {
+  corundum::audio::AudioSystem sys;
+  make_system(sys);
+  const auto result = sys.play_music("a.ogg", {});
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error() == "[audio] Audio system not initialised");
+}
+
+TEST_CASE("AudioSystem: update forwards to the backend once ready") {
+  corundum::audio::AudioSystem sys;
+  StubBackend *stub = make_system(sys);
+
+  sys.update();
+  CHECK(stub->updates == 0); // not initialised: swallowed
+
+  REQUIRE(sys.initialize("data/sounds").has_value());
+  sys.update();
+  sys.update();
+  CHECK(stub->updates == 2);
 }

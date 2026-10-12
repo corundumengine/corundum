@@ -17,13 +17,16 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <expected>
 #include <format>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace corundum::platform::miniaudio {
@@ -44,12 +47,36 @@ namespace corundum::platform::miniaudio {
   } // namespace
 
   struct MiniaudioBackend::State {
+    /// One streamed music track and the gap to leave before its next loop.
+    struct MusicTrack {
+      SoundPtr sound;
+      ma_uint64 loop_delay_frames{};
+    };
+
     ma_engine engine{};
     ma_sound_group effects{};
+    ma_sound_group music{};
     MiniaudioOutput output{MiniaudioOutput::Device};
     bool is_ready{false};
     std::vector<SoundPtr> effect_sources; ///< Index = handle - 1; decoded at load.
-    std::vector<SoundPtr> effect_voices;  ///< Live playback copies, reclaimed in play().
+    std::vector<SoundPtr> effect_voices;  ///< Live playback copies, reclaimed in play()/update().
+
+    std::optional<MusicTrack> music_track; ///< The one streamed track, when one is playing.
+    std::vector<SoundPtr> fading_tracks;   ///< Replaced/stopped tracks still fading out.
+
+    /// Seconds → milliseconds, the unit miniaudio's fade calls take.
+    [[nodiscard]] static ma_uint64 seconds_to_milliseconds(float seconds) {
+      return static_cast<ma_uint64>(std::lround(seconds * 1000.f));
+    }
+
+    /// Stop @p sound over @p seconds (0 stops at once) and hold it until it goes silent.
+    void fade_out_and_retire(SoundPtr sound, float seconds) {
+      if (seconds > 0.f)
+        ma_sound_stop_with_fade_in_milliseconds(sound.get(), seconds_to_milliseconds(seconds));
+      else
+        ma_sound_stop(sound.get());
+      fading_tracks.push_back(std::move(sound));
+    }
   };
 
   MiniaudioBackend::MiniaudioBackend(MiniaudioOutput output) : state_(std::make_unique<State>()) {
@@ -76,6 +103,15 @@ namespace corundum::platform::miniaudio {
       return;
     }
 
+    const ma_result music_result = ma_sound_group_init(&state_->engine, 0, nullptr, &state_->music);
+    if (music_result != MA_SUCCESS) {
+      detail::warn_log("[audio] WARN: miniaudio engine init failed: {} — audio disabled",
+                       ma_result_description(music_result));
+      ma_sound_group_uninit(&state_->effects);
+      ma_engine_uninit(&state_->engine);
+      return;
+    }
+
     state_->is_ready = true;
   }
 
@@ -85,6 +121,9 @@ namespace corundum::platform::miniaudio {
     // Voices and sources reference the groups, so they must die first.
     state_->effect_voices.clear();
     state_->effect_sources.clear();
+    state_->music_track.reset();
+    state_->fading_tracks.clear();
+    ma_sound_group_uninit(&state_->music);
     ma_sound_group_uninit(&state_->effects);
     ma_engine_uninit(&state_->engine);
   }
@@ -138,6 +177,65 @@ namespace corundum::platform::miniaudio {
       ma_engine_stop(&state_->engine);
     else
       ma_engine_start(&state_->engine);
+  }
+
+  std::expected<void, std::string> MiniaudioBackend::play_music(std::string_view path,
+                                                                const audio::MusicPlayback &playback) {
+    if (!state_->is_ready)
+      return std::unexpected("[audio] Audio disabled: no audio engine");
+
+    const std::string filename{path};
+    auto sound = std::make_unique<ma_sound>();
+    // Streams page in on miniaudio's job thread, which would make headless tests nondeterministic;
+    // decode the whole file there. The loop and fade logic is identical either way.
+    const ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION |
+                            (state_->output == MiniaudioOutput::Device ? MA_SOUND_FLAG_STREAM : MA_SOUND_FLAG_DECODE);
+    const ma_result result =
+        ma_sound_init_from_file(&state_->engine, filename.c_str(), flags, &state_->music, nullptr, sound.get());
+    if (result != MA_SUCCESS)
+      return std::unexpected(std::format("[audio] Failed to load '{}': {}", path, ma_result_description(result)));
+
+    if (state_->music_track)
+      state_->fade_out_and_retire(std::move(state_->music_track->sound), playback.fade_in_seconds);
+    state_->music_track.reset();
+
+    if (playback.fade_in_seconds > 0.f)
+      ma_sound_set_fade_in_milliseconds(sound.get(), 0.f, 1.f,
+                                        State::seconds_to_milliseconds(playback.fade_in_seconds));
+    ma_sound_start(sound.get());
+    state_->music_track = State::MusicTrack{
+        .sound = SoundPtr{sound.release()},
+        .loop_delay_frames = static_cast<ma_uint64>(std::llround(
+            playback.loop_delay_seconds * static_cast<double>(ma_engine_get_sample_rate(&state_->engine)))),
+    };
+    return {};
+  }
+
+  void MiniaudioBackend::stop_music(float fade_out_seconds) {
+    if (!state_->is_ready || !state_->music_track)
+      return;
+    state_->fade_out_and_retire(std::move(state_->music_track->sound), fade_out_seconds);
+    state_->music_track.reset();
+  }
+
+  void MiniaudioBackend::set_music_volume(float volume) {
+    if (state_->is_ready)
+      ma_sound_group_set_volume(&state_->music, std::clamp(volume, 0.f, 1.f));
+  }
+
+  void MiniaudioBackend::update() {
+    if (!state_->is_ready)
+      return;
+    if (state_->music_track && ma_sound_at_end(state_->music_track->sound.get()) != MA_FALSE) {
+      ma_sound *sound = state_->music_track->sound.get();
+      // ma_sound_start rewinds a sound at its end and clears the at-end flag, so this schedules
+      // exactly one restart per loop. The engine clock freezes while the device is stopped (paused).
+      ma_sound_set_start_time_in_pcm_frames(sound, ma_engine_get_time_in_pcm_frames(&state_->engine) +
+                                                       state_->music_track->loop_delay_frames);
+      ma_sound_start(sound);
+    }
+    std::erase_if(state_->fading_tracks, [](const SoundPtr &sound) { return !ma_sound_is_playing(sound.get()); });
+    std::erase_if(state_->effect_voices, [](const SoundPtr &voice) { return !ma_sound_is_playing(voice.get()); });
   }
 
   void MiniaudioBackend::render_frames(std::span<float> frames_out) {

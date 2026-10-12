@@ -313,7 +313,7 @@ TEST_CASE("settings: Menu/Start closes the settings screen back to the menu") {
   engine.cleanup();
 }
 
-TEST_CASE("settings: Left/Right edits master volume, text speed, and UI scale") {
+TEST_CASE("settings: Left/Right edits master and music volume, text speed, and UI scale") {
   corundum::Engine engine{};
   init_engine(engine);
   open_settings(engine);
@@ -324,19 +324,26 @@ TEST_CASE("settings: Left/Right edits master volume, text speed, and UI scale") 
   press(engine, corundum::input::Action::MoveRight);
   CHECK(engine.audio.master_volume() == doctest::Approx(1.0f));
 
-  // Row 1: Text Speed (default Normal = 1.0).
+  // Row 1: Music Volume (default 1.0).
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveLeft);
+  CHECK(engine.audio.music_volume() == doctest::Approx(0.9f));
+  press(engine, corundum::input::Action::MoveRight);
+  CHECK(engine.audio.music_volume() == doctest::Approx(1.0f));
+
+  // Row 2: Text Speed (default Normal = 1.0).
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::MoveRight);
   CHECK(engine.render.text_speed == doctest::Approx(2.0f));
 
-  // Row 2: UI Scale (default 1.0) — advances the font sizes and margins in the panel style.
+  // Row 3: UI Scale (default 1.0) — advances the font sizes and margins in the panel style.
   press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::MoveRight);
   CHECK(engine.render.ui_scale == doctest::Approx(1.25f));
   CHECK(engine.render.panel_skin.style.font_size_body == 28); // lround(22 * 1.25)
   CHECK(engine.render.panel_skin.style.line_spacing == doctest::Approx(40.f));
 
-  // Row 3: Window Mode toggles on Activate.
+  // Row 4: Window Mode toggles on Activate.
   press(engine, corundum::input::Action::MoveDown);
   CHECK(engine.window->window_mode() == corundum::core::WindowMode::Windowed);
   press(engine, corundum::input::Action::Select);

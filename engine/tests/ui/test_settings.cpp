@@ -79,6 +79,7 @@ TEST_CASE("settings: General tab renders the row labels and their values") {
   const corundum::ui::SettingsState state{};
   const corundum::ui::SettingsValues values{
       .master_volume = 0.5f,
+      .music_volume = 0.3f,
       .text_speed = 0.f,
       .ui_scale = 1.25f,
       .window_mode = corundum::core::WindowMode::Fullscreen,
@@ -92,6 +93,8 @@ TEST_CASE("settings: General tab renders the row labels and their values") {
   CHECK(contains_text(r, "Controls"));
   CHECK(contains_text(r, "Master Volume"));
   CHECK(contains_text(r, "50%"));
+  CHECK(contains_text(r, "Music Volume"));
+  CHECK(contains_text(r, "30%"));
   CHECK(contains_text(r, "Text Speed"));
   CHECK(contains_text(r, "Instant"));
   CHECK(contains_text(r, "UI Scale"));

@@ -95,6 +95,28 @@ namespace corundum::audio {
     [[nodiscard]] std::expected<void, std::string> play_sound(std::string_view name, float volume = 1.0f,
                                                               bool loop = false);
 
+    /** @brief Play @p path (a project-relative file path, not a catalog name) as the music track.
+     *
+     *  Asking for the track that is already playing does nothing, so callers state the music they
+     *  want without tracking whether it is on.
+     *  @return ok, or why the track could not start; an error when not initialised.
+     */
+    [[nodiscard]] std::expected<void, std::string> play_music(std::string_view path, const MusicPlayback &playback);
+
+    /** @brief Fade the current track out over @p fade_out_seconds. No-op when no track is playing. */
+    void stop_music(float fade_out_seconds) noexcept;
+
+    /** @brief Set the music volume in [0.0, 1.0]. Retained before initialize() and applied by it. */
+    void set_music_volume(float volume) noexcept;
+
+    /** @brief The last music volume set, in [0.0, 1.0]. Defaults to 1.0. */
+    [[nodiscard]] float music_volume() const noexcept {
+      return music_volume_;
+    }
+
+    /** @brief Per-frame housekeeping (music loop restarts); call once per frame. No-op until ready. */
+    void update() noexcept;
+
   private:
     /** @brief True once initialize() has succeeded and a backend is still set. */
     [[nodiscard]] bool is_ready() const noexcept {
@@ -114,11 +136,15 @@ namespace corundum::audio {
     /** @brief Logical-name → relative-path catalog loaded from JSON. */
     std::flat_map<std::string, std::string, std::less<>> catalog_;
 
+    std::string current_music_; ///< Path of the playing track; empty when none.
+
     bool initialized_{false};
 
     bool paused_{false};
 
     float master_volume_{1.f};
+
+    float music_volume_{1.f};
 
     std::string sounds_dir_;
   };

@@ -212,6 +212,7 @@ namespace corundum {
     ui::SettingsValues settings_values(const Engine &engine) {
       return ui::SettingsValues{
           .master_volume = engine.audio.master_volume(),
+          .music_volume = engine.audio.music_volume(),
           .text_speed = engine.render.text_speed,
           .ui_scale = engine.render.ui_scale,
           .window_mode = engine.window->window_mode(),
@@ -252,8 +253,11 @@ namespace corundum {
       switch (row) {
         case ui::SettingsGeneralRow::Volume:
           engine.audio.set_master_volume(
-              std::clamp(engine.audio.master_volume() + (static_cast<float>(direction) * ui::k_master_volume_step), 0.f,
-                         1.f));
+              std::clamp(engine.audio.master_volume() + (static_cast<float>(direction) * ui::k_volume_step), 0.f, 1.f));
+          break;
+        case ui::SettingsGeneralRow::MusicVolume:
+          engine.audio.set_music_volume(
+              std::clamp(engine.audio.music_volume() + (static_cast<float>(direction) * ui::k_volume_step), 0.f, 1.f));
           break;
         case ui::SettingsGeneralRow::TextSpeed:
           engine.render.text_speed = direction > 0 ? ui::next_text_speed(engine.render.text_speed)
@@ -690,6 +694,10 @@ namespace corundum {
     process_input(*this);
     if (quit_)
       return false;
+
+    // Every frame, paused or not: music loop restarts are scheduled on the audio engine's clock,
+    // which stops with the device while paused, so the gap never elapses during a pause.
+    audio.update();
 
     // While paused the timer is deliberately not ticked: wall time spent paused must not
     // queue catch-up fixed steps. Rendering still runs so a pause menu stays on screen.
