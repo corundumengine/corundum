@@ -13,7 +13,7 @@ namespace corundum {
 
   /** @brief Startup options for the game process.
    *
-   *  Only @c show_debug_hud is derived from @c argv by @c parse_engine_args();
+   *  Only @c show_debug_hud and @c show_splash are derived from @c argv by @c parse_engine_args();
    *  @c config_path is caller-set, so a game can point @c make_engine() at a
    *  different project config without a command-line flag. Every field has a
    *  sensible default so @c parse_engine_args() never fails.
@@ -24,12 +24,16 @@ namespace corundum {
 
     /** @brief Enable the debug HUD overlay (set by @c --debug). */
     bool show_debug_hud{false};
+
+    /** @brief Play the game.json splash images at boot; @c --no-splash clears them for quick test runs. */
+    bool show_splash{true};
   };
 
   /** @brief Parse command-line arguments into an EngineOptions.
    *
    *  Supported flags:
    *    --debug        Enable the debug HUD overlay.
+   *    --no-splash    Skip the boot splash.
    *
    *  @param[in] args Argument vector from @c main (excluding the program name).
    *  @return A fully-populated EngineOptions with defaults applied.

@@ -28,6 +28,10 @@ namespace corundum {
 
     auto cfg = std::move(*cfg_result);
 
+    // --no-splash drops the images at the source, so the gameplay framework never sees a splash.
+    if (!options.show_splash)
+      cfg.paths.splash_images.clear();
+
     // load_game_config() rejects non-positive window dimensions, so the narrowing
     // conversion to the platform's unsigned size arguments is safe.
     auto platform =

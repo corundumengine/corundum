@@ -14,6 +14,7 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -731,6 +732,51 @@ TEST_CASE("load_game_config — non-boolean show_title returns an error") {
   const auto result = load_game_config(p);
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("show_title") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — splash_images defaults to empty") {
+  const auto dir = temp_dir("splash_images_default");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->paths.splash_images.empty());
+}
+
+TEST_CASE("load_game_config — splash_images keeps two paths in order") {
+  const auto dir = temp_dir("splash_images_two");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"splash_images": ["studio.png", "engine.png"]})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->paths.splash_images == std::vector<std::string>{"studio.png", "engine.png"});
+}
+
+TEST_CASE("load_game_config — more than two splash_images returns an error") {
+  const auto dir = temp_dir("splash_images_three");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"splash_images": ["a.png", "b.png", "c.png"]})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("splash_images") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — non-array splash_images returns an error") {
+  const auto dir = temp_dir("splash_images_type");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"splash_images": "studio.png"})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("splash_images") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — an empty splash_images entry returns an error") {
+  const auto dir = temp_dir("splash_images_empty_entry");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"splash_images": ["studio.png", ""]})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("splash_images") != std::string::npos);
 }
 
 // ── credits_file ─────────────────────────────────────────────────────────────

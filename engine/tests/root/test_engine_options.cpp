@@ -11,6 +11,7 @@ TEST_CASE("engine options: defaults when no flags are given") {
 
   CHECK(options.config_path == "data/game.json");
   CHECK_FALSE(options.show_debug_hud);
+  CHECK(options.show_splash);
 }
 
 TEST_CASE("engine options: --debug enables the HUD") {
@@ -26,4 +27,12 @@ TEST_CASE("engine options: unrecognised and null arguments are ignored") {
   const corundum::EngineOptions options{corundum::parse_engine_args(argv)};
 
   CHECK(options.show_debug_hud);
+}
+
+TEST_CASE("engine options: --no-splash disables the splash and leaves the HUD off") {
+  const char *const argv[]{"game", "--no-splash"};
+  const corundum::EngineOptions options{corundum::parse_engine_args(argv)};
+
+  CHECK_FALSE(options.show_splash);
+  CHECK_FALSE(options.show_debug_hud);
 }

@@ -472,6 +472,19 @@ namespace corundum::core {
           return std::unexpected(std::format("game.json 'credits_file' has wrong type: {}", path.string()));
         }
       }
+      if (j.contains("splash_images")) {
+        const json &images = j.at("splash_images");
+        if (!images.is_array() || images.size() > k_max_splash_images)
+          return std::unexpected(std::format("game.json 'splash_images' must be an array of at most {} paths: {}",
+                                             k_max_splash_images, path.string()));
+        for (const json &image : images) {
+          std::string splash_path = image.is_string() ? image.get<std::string>() : std::string{};
+          if (splash_path.empty())
+            return std::unexpected(
+                std::format("game.json 'splash_images' entries must be non-empty strings: {}", path.string()));
+          cfg.paths.splash_images.push_back(std::move(splash_path));
+        }
+      }
       {
         auto res = get_nonempty_string(j, "locations_dir", cfg.paths.locations_dir, path);
         if (!res)

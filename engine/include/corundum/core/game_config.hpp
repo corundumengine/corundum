@@ -6,6 +6,7 @@
 #include <corundum/ui/font_family.hpp>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -13,6 +14,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace corundum::core {
 
@@ -47,6 +49,9 @@ namespace corundum::core {
     /** @brief Size of transient banners (location, quest and level-up notices). */
     unsigned banner_size{64};
   };
+
+  /** @brief Maximum number of images game.json's "splash_images" may list (a studio logo and an engine logo). */
+  constexpr std::size_t k_max_splash_images{2};
 
   /// Contains all file paths required by the game engine and logic. Directory fields default to
   /// the standard project layout so a project following convention needs a near-empty game.json;
@@ -97,6 +102,12 @@ namespace corundum::core {
 
     /** @brief Directory containing defined spawn point locations. Defaults to "data/spawn_points". */
     std::string spawn_points_dir{"data/spawn_points"};
+
+    /** @brief Images the boot splash shows in order; each fades in from black, holds, then fades out to black.
+     *
+     *  At most k_max_splash_images entries. Empty (the default) means no splash; an image that
+     *  fails to load is skipped with a warning. The @c --no-splash flag clears the list. */
+    std::vector<std::string> splash_images;
 
     /** @brief Directory containing sprite sheet assets. Defaults to "data/sprite_sheets". */
     std::string sprites_dir{"data/sprite_sheets"};
