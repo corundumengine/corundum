@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/audio/audio_backend.hpp>
+#include <corundum/audio/audio_system.hpp>
 #include <corundum/core/direction.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
@@ -1124,6 +1126,13 @@ namespace corundum::gameplay {
     /// Seconds the credits hold still after opening before the roll begins to move.
     constexpr float k_credits_hold_seconds = 1.f;
 
+    /// Seconds the title music takes to fade in at boot and when the Title reopens.
+    constexpr float k_title_music_fade_in_seconds = 1.f;
+
+    /// Seconds the title music takes to fade out once a world loads: just longer than the 0.4 s
+    /// screen fade, so the new area appears under the tail of the music.
+    constexpr float k_title_music_fade_out_seconds = 0.5f;
+
     /// Step the Credits screen: Cancel closes it, otherwise the roll holds still for
     /// k_credits_hold_seconds, then the text scrolls upward at a fixed rate per step until the
     /// last line reaches the vertical center.
@@ -1620,6 +1629,9 @@ namespace corundum::gameplay {
   Gameplay::Gameplay(Engine &engine) : engine_(&engine) {
     load_content(*this, engine);
     register_gameplay(*this, engine);
+    // Title music starts at boot so it plays under the splash. The splash never touches audio, so
+    // skipping its images cannot interrupt the music.
+    play_title_music();
     // A splash defers open_first_screen() until its last image fades out (see advance_splash()).
     if (!open_splash())
       open_first_screen();
@@ -1708,6 +1720,8 @@ namespace corundum::gameplay {
     // load_game replaced the Scene (which clears scene.ui) but left every screen member pointing
     // at the old world. Clear them so the loaded scene starts clean.
     reset_session_state();
+    // A loaded world ends the title music. A quick-load mid-game has none playing, so this is a no-op.
+    stop_title_music();
     // Reveal the loaded area from black; this covers quicksave and Game-over reloads as well as
     // the Title's Continue/Load, which arrive here through begin_load().
     engine_->screen_transition.begin_fade_in();
@@ -1756,6 +1770,7 @@ namespace corundum::gameplay {
     title_screen.cursor =
         screens::title_row_enabled(screens::TitleRow::Continue, title_screen.continue_available) ? 0 : 1;
     engine_->scene.ui.push(screens::Title);
+    play_title_music();
   }
 
   bool Gameplay::open_splash() {
@@ -1806,6 +1821,22 @@ namespace corundum::gameplay {
       warn_log("[gameplay] WARN: could not start the game: {} (showing the title)", result.error());
       return_to_title();
     }
+  }
+
+  void Gameplay::play_title_music() {
+    const core::TitleMusicConfig &music = engine_->cfg.title_music;
+    if (music.track.empty())
+      return;
+    const audio::MusicPlayback playback{
+        .fade_in_seconds = k_title_music_fade_in_seconds,
+        .loop_delay_seconds = music.loop_delay_seconds,
+    };
+    if (const std::expected<void, std::string> started = engine_->audio.play_music(music.track, playback); !started)
+      warn_log("[gameplay] WARN: title music '{}' did not start: {}", music.track, started.error());
+  }
+
+  void Gameplay::stop_title_music() noexcept {
+    engine_->audio.stop_music(k_title_music_fade_out_seconds);
   }
 
   void Gameplay::open_character_sheet() {
@@ -1911,6 +1942,9 @@ namespace corundum::gameplay {
     // load_initial_scene replaces the Scene (clearing scene.ui); clear every screen member too, so
     // a conversation or cursor from the abandoned playthrough cannot outlive it.
     reset_session_state();
+    // Title music belongs to the world-less framing screens; a world that loaded ends it.
+    if (result)
+      stop_title_music();
     return result;
   }
 

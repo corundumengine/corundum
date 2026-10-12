@@ -141,6 +141,21 @@ namespace corundum::core {
   /** @brief In-game name used when a project sets neither "title" nor "window_title". */
   constexpr std::string_view k_default_game_title = "Corundum Engine";
 
+  /** @brief Seconds of silence between the end of the title track and its restart, when game.json
+   *  omits "loop_delay_seconds". */
+  constexpr float k_default_title_music_loop_delay_seconds = 5.f;
+
+  /// Music for the framing screens, from game.json's optional "title_music" block. It starts at
+  /// boot, plays under the splash and the Title, and fades out once a playthrough's world loads.
+  struct TitleMusicConfig {
+    /** @brief Seconds of silence between the end of the track and its restart. */
+    float loop_delay_seconds{k_default_title_music_loop_delay_seconds};
+
+    /** @brief Project-relative path to an OGG, MP3 or WAV file. Empty (the default) means no title
+     *  music. */
+    std::string track;
+  };
+
   /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
   /// data together.
   struct GameConfig {
@@ -228,6 +243,9 @@ namespace corundum::core {
 
     /** @brief Player identity and default placement. */
     PlayerConfig player{};
+
+    /** @brief Framing-screen music; an empty track means none. */
+    TitleMusicConfig title_music{};
 
     /** @brief Flag values seeded into the FlagStore during initialize(), before the first frame.
      *

@@ -847,3 +847,42 @@ TEST_CASE("load_game_config — an empty title returns an error") {
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("title") != std::string::npos);
 }
+
+TEST_CASE("load_game_config — title_music defaults to no track and a 5 s delay") {
+  const auto dir = temp_dir("title_music_default");
+  const auto p = dir / "game.json";
+  write_file(p, "{}");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->title_music.track.empty());
+  CHECK(result->title_music.loop_delay_seconds ==
+        doctest::Approx(corundum::core::k_default_title_music_loop_delay_seconds));
+}
+
+TEST_CASE("load_game_config — title_music parses track and loop delay") {
+  const auto dir = temp_dir("title_music_parse");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"title_music": {"track": "assets/music/title.ogg", "loop_delay_seconds": 7.5}})");
+  const auto result = load_game_config(p);
+  REQUIRE(result.has_value());
+  CHECK(result->title_music.track == "assets/music/title.ogg");
+  CHECK(result->title_music.loop_delay_seconds == doctest::Approx(7.5f));
+}
+
+TEST_CASE("load_game_config — title_music without a track returns an error") {
+  const auto dir = temp_dir("title_music_no_track");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"title_music": {"loop_delay_seconds": 3}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("track") != std::string::npos);
+}
+
+TEST_CASE("load_game_config — a negative title_music loop delay returns an error") {
+  const auto dir = temp_dir("title_music_negative_delay");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"title_music": {"track": "t.ogg", "loop_delay_seconds": -1}})");
+  const auto result = load_game_config(p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("loop_delay_seconds") != std::string::npos);
+}

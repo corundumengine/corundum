@@ -413,6 +413,13 @@ namespace corundum::gameplay {
      *  playthrough, falling back to the Title when its scene cannot be built. Shows no fade or toast. */
     void open_first_screen();
 
+    /** @brief Play GameConfig::title_music, fading in. A no-op when no track is configured or it is
+     *  already playing; a track that cannot start logs one warning. */
+    void play_title_music();
+
+    /** @brief Fade the title music out; called once a playthrough's world has loaded. */
+    void stop_title_music() noexcept;
+
     /** @brief Load `cfg.paths.credits_file` into credits_screen, recording whether it succeeded
      *  in TitleState::credits_available. A missing path, unreadable file or malformed document
      *  hides the Credits row; a non-empty path that fails logs one warning. A non-empty

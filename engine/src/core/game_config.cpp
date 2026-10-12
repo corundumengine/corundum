@@ -224,6 +224,34 @@ namespace corundum::core {
       return pc;
     }
 
+    std::expected<void, std::string> parse_framing_settings(const json &j, GameConfig &cfg, const fs::path &path) {
+      if (j.contains("show_title")) {
+        const json &value = j.at("show_title");
+        if (!value.is_boolean())
+          return std::unexpected(std::format("game.json 'show_title' must be a boolean: {}", path.string()));
+        cfg.show_title = value.get<bool>();
+      }
+
+      if (!j.contains("title_music"))
+        return {};
+      const json &block = j.at("title_music");
+      const bool has_track = block.is_object() && block.contains("track") && block.at("track").is_string() &&
+                             !block.at("track").get_ref<const std::string &>().empty();
+      if (!has_track)
+        return std::unexpected(
+            std::format("game.json 'title_music' must be an object with a non-empty 'track' path: {}", path.string()));
+      cfg.title_music.track = block.at("track").get<std::string>();
+
+      if (!block.contains("loop_delay_seconds"))
+        return {};
+      const json &delay = block.at("loop_delay_seconds");
+      if (!delay.is_number() || delay.get<float>() < 0.f)
+        return std::unexpected(
+            std::format("game.json 'title_music.loop_delay_seconds' must be a number >= 0: {}", path.string()));
+      cfg.title_music.loop_delay_seconds = delay.get<float>();
+      return {};
+    }
+
     std::expected<void, std::string> parse_window_settings(const json &j, GameConfig &cfg, const fs::path &path) {
       {
         auto res = get_positive_float(j, "win_w", cfg.win_w, path);
@@ -621,12 +649,8 @@ namespace corundum::core {
       }
     }
 
-    if (j.contains("show_title")) {
-      const json &value = j.at("show_title");
-      if (!value.is_boolean())
-        return std::unexpected(std::format("game.json 'show_title' must be a boolean: {}", path.string()));
-      cfg.show_title = value.get<bool>();
-    }
+    if (auto err = parse_framing_settings(j, cfg, path); !err)
+      return std::unexpected(err.error());
 
     if (auto err = parse_window_settings(j, cfg, path); !err)
       return std::unexpected(err.error());
