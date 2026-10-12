@@ -42,6 +42,7 @@
 #include <corundum/gameplay/screens/map.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/gameplay/screens/save_load.hpp>
+#include <corundum/gameplay/screens/splash.hpp>
 #include <corundum/gameplay/screens/title.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
@@ -52,6 +53,7 @@
 #include <corundum/screen_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/prompt_box.hpp>
+#include <corundum/ui/screen_transition.hpp>
 #include <corundum/ui/settings.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/ui/ui_draw.hpp>
@@ -1147,6 +1149,40 @@ namespace corundum::gameplay {
       screens::credits_panel_render(r, engine.render.panel_skin.style, viewport, gameplay.credits_screen);
     }
 
+    /// Step the Splash screen. engine.screen_transition carries each image's fade: the image fades
+    /// in from black, holds for screens::k_splash_hold_seconds, then fades out. Once the fade-out
+    /// reaches black, the next image (or the first screen) takes over. Activate, Cancel or a click
+    /// jumps straight to the fade-out, including from part-way through the fade-in.
+    void update_splash(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      ui::ScreenTransition &fade = engine.screen_transition;
+      const bool skip_requested = intent.activate || intent.back || intent.cursor_clicked;
+      switch (fade.phase()) {
+        case ui::TransitionPhase::FadingOut:
+          return;
+        case ui::TransitionPhase::FadingIn:
+          if (skip_requested)
+            fade.begin_fade_out();
+          return;
+        case ui::TransitionPhase::None:
+          break;
+      }
+      if (fade.at_black()) {
+        gameplay.advance_splash();
+        return;
+      }
+      screens::SplashState &state = gameplay.splash_screen;
+      state.shown_seconds += engine.timer.target_dt;
+      if (skip_requested || state.shown_seconds >= screens::k_splash_hold_seconds)
+        fade.begin_fade_out();
+    }
+
+    void render_splash(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+                       core::math::Vec2 viewport) {
+      if (engine.scene.mode() != screens::Splash)
+        return;
+      screens::splash_render(r, viewport, gameplay.splash_screen);
+    }
+
     /// Step the Game over screen: a hovered enabled row takes focus, Up/Down move the highlight,
     /// and Activate reloads the last slot, opens the Load screen, or returns to Title.
     void update_game_over(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
@@ -1493,6 +1529,15 @@ namespace corundum::gameplay {
                                     core::math::Vec2 viewport) { render_confirm(e, gameplay, r, viewport); },
           });
       engine.screens.add(
+          screens::Splash,
+          ScreenSpec{
+              .owns_step = true,
+              .update = [&gameplay](Engine &e,
+                                    const input::InputIntent &intent) { update_splash(e, gameplay, intent); },
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_splash(e, gameplay, r, viewport); },
+          });
+      engine.screens.add(
           screens::Title,
           ScreenSpec{
               .owns_step = true,
@@ -1542,8 +1587,8 @@ namespace corundum::gameplay {
       engine.on_menu_save_load = [&gameplay](Engine &, bool saving) { gameplay.open_save_load(saving); };
       // The framing screens replace the world; the pause menu must not open over any of them.
       engine.blocks_pause_menu = [](world::GameMode mode) {
-        return mode == screens::Title || mode == screens::GameOver || mode == screens::Loading ||
-               mode == screens::Credits;
+        return mode == screens::Splash || mode == screens::Title || mode == screens::GameOver ||
+               mode == screens::Loading || mode == screens::Credits;
       };
 
       engine.fixed_step_systems.emplace_back([&gameplay](Engine &, float dt) { gameplay.fixed_step(dt); });
@@ -1575,15 +1620,9 @@ namespace corundum::gameplay {
   Gameplay::Gameplay(Engine &engine) : engine_(&engine) {
     load_content(*this, engine);
     register_gameplay(*this, engine);
-    if (engine.cfg.show_title) {
-      open_title();
-      return;
-    }
-    // No title: start the playthrough at once, without the fade or toast New Game shows.
-    if (const std::expected<void, std::string> result = begin_new_playthrough(); !result) {
-      warn_log("[gameplay] WARN: could not start the game: {} (showing the title)", result.error());
-      return_to_title();
-    }
+    // A splash defers open_first_screen() until its last image fades out (see advance_splash()).
+    if (!open_splash())
+      open_first_screen();
   }
 
   Gameplay::~Gameplay() = default;
@@ -1717,6 +1756,56 @@ namespace corundum::gameplay {
     title_screen.cursor =
         screens::title_row_enabled(screens::TitleRow::Continue, title_screen.continue_available) ? 0 : 1;
     engine_->scene.ui.push(screens::Title);
+  }
+
+  bool Gameplay::open_splash() {
+    splash_screen = {};
+    if (!engine_->renderer)
+      return false;
+    for (const std::string &path : engine_->cfg.paths.splash_images) {
+      const std::expected<uint32_t, std::string> texture = engine_->renderer->load_texture(path);
+      if (!texture) {
+        warn_log("[splash] cannot load '{}': {} (image skipped)", path, texture.error());
+        continue;
+      }
+      splash_screen.images.push_back(screens::SplashImage{
+          .size = engine_->renderer->texture_size(*texture),
+          .texture = *texture,
+      });
+    }
+    if (splash_screen.images.empty())
+      return false;
+    engine_->screen_transition.begin_fade_in();
+    engine_->scene.ui.push(screens::Splash);
+    return true;
+  }
+
+  void Gameplay::advance_splash() {
+    splash_screen.shown_seconds = 0.f;
+    ++splash_screen.index;
+    if (splash_screen.index >= splash_screen.images.size()) {
+      // Splash art is screen-tier: give every reference back now; the first area load purges it.
+      for (const screens::SplashImage &image : splash_screen.images)
+        engine_->renderer->release_texture(image.texture);
+      splash_screen = {};
+      engine_->scene.ui.pop();
+      open_first_screen();
+    }
+    // The previous image faded out to black, and nothing else clears the overlay; reveal what came
+    // next: the following splash image, or the first screen.
+    engine_->screen_transition.begin_fade_in();
+  }
+
+  void Gameplay::open_first_screen() {
+    if (engine_->cfg.show_title) {
+      open_title();
+      return;
+    }
+    // No title: start the playthrough at once, without the toast New Game shows.
+    if (const std::expected<void, std::string> result = begin_new_playthrough(); !result) {
+      warn_log("[gameplay] WARN: could not start the game: {} (showing the title)", result.error());
+      return_to_title();
+    }
   }
 
   void Gameplay::open_character_sheet() {

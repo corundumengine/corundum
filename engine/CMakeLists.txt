@@ -141,6 +141,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/screens/loot.cpp
     src/gameplay/screens/map.cpp
     src/gameplay/screens/save_load.cpp
+    src/gameplay/screens/splash.cpp
     src/gameplay/screens/title.cpp
     src/gameplay/shop/loader.cpp
     src/gameplay/shop/registry.cpp

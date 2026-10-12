@@ -31,6 +31,7 @@
 #include <corundum/gameplay/screens/map.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/gameplay/screens/save_load.hpp>
+#include <corundum/gameplay/screens/splash.hpp>
 #include <corundum/gameplay/screens/title.hpp>
 #include <corundum/gameplay/shop/registry.hpp>
 #include <corundum/world/flags.hpp> // IWYU pragma: export
@@ -121,6 +122,10 @@ namespace corundum::gameplay {
 
     /** @brief Shared yes/no confirmation modal; pushed by open_confirm(). */
     screens::ConfirmState confirm;
+
+    /** @brief Splash-screen state: the boot images, the one showing and how long it has held.
+     *  Empty once the splash has closed. */
+    screens::SplashState splash_screen;
 
     /** @brief Title screen state: highlighted row, Continue availability and whether the
      *  configured credits file loaded (which decides whether the Credits row is shown). */
@@ -279,6 +284,16 @@ namespace corundum::gameplay {
      */
     void advance_loading();
 
+    /** @brief Move the splash past the image that has just faded out to black.
+     *
+     *  Fades the next image in. After the last image, releases every splash texture, pops
+     *  GameMode Splash, opens the first screen (the Title, or a new playthrough when
+     *  GameConfig::show_title is false) and fades it in from black.
+     *
+     *  @pre scene.ui.top() is screens::Splash and Engine::screen_transition is at black.
+     */
+    void advance_splash();
+
     /** @brief Show the Credits screen with the sections loaded when the Title opened.
      *
      *  Pushes GameMode Credits. Only reachable from the Title, and only when
@@ -291,7 +306,7 @@ namespace corundum::gameplay {
     /** @brief Show the title screen with no world loaded.
      *
      *  Refreshes Continue availability from the saves directory, puts the cursor on the first
-     *  enabled row, and pushes GameMode Title. Called at construction when GameConfig::show_title
+     *  enabled row, and pushes GameMode Title. Called at boot (after any splash) when GameConfig::show_title
      *  is set and again whenever the player returns to the title.
      *
      *  @note The title runs with no world loaded: boot builds none, and return_to_title() unloads
@@ -388,6 +403,15 @@ namespace corundum::gameplay {
      *  session state. Shows no fade or toast; new_game() and the no-title boot add those.
      *  @return ok, or the scene-build error (the world may then be half-built). */
     [[nodiscard]] std::expected<void, std::string> begin_new_playthrough();
+
+    /** @brief Load GameConfig's splash_images; when at least one loads, push GameMode Splash and
+     *  start its fade-in from black. An image that fails to load is skipped with one warning.
+     *  @return true when the splash opened, false when there is nothing to show (or no renderer). */
+    [[nodiscard]] bool open_splash();
+
+    /** @brief Open what the boot leads to: the Title, or with GameConfig::show_title false a new
+     *  playthrough, falling back to the Title when its scene cannot be built. Shows no fade or toast. */
+    void open_first_screen();
 
     /** @brief Load `cfg.paths.credits_file` into credits_screen, recording whether it succeeded
      *  in TitleState::credits_available. A missing path, unreadable file or malformed document

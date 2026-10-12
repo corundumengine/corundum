@@ -48,6 +48,9 @@ namespace corundum::gameplay::screens {
 
   /** @brief Character sheet: level, experience, equipment and inventory summary. */
   inline constexpr world::GameMode Character{static_cast<world::GameMode>(world::k_first_extension_mode + 13)};
+
+  /** @brief Boot splash: the game.json splash_images shown in order before the first screen. */
+  inline constexpr world::GameMode Splash{static_cast<world::GameMode>(world::k_first_extension_mode + 14)};
   // NOLINTEND(readability-identifier-naming)
 
   /** @brief True when @p mode is one of the four screens reachable from the menu hub.

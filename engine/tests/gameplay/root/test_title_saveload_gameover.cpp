@@ -481,14 +481,14 @@ TEST_CASE("game over: a game hook watching a death flag opens it on the next ste
   engine.cleanup();
 }
 
-TEST_CASE("pause menu: does not open over Title, GameOver, Loading or Credits") {
+TEST_CASE("pause menu: does not open over Splash, Title, GameOver, Loading or Credits") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
-  for (const GameMode mode : {screens::Title, screens::GameOver, screens::Loading, screens::Credits}) {
+  for (const GameMode mode : {screens::Splash, screens::Title, screens::GameOver, screens::Loading, screens::Credits}) {
     engine.scene.ui.clear();
     engine.scene.ui.push(mode);
     press(engine, corundum::input::Action::Menu);
