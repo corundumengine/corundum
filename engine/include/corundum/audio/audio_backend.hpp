@@ -15,7 +15,7 @@ namespace corundum::audio {
   /** @brief Platform-independent audio backend interface.
    *
    * Concrete implementations are created via factory functions
-   * (e.g. make_sokol_audio_backend) and owned through a
+   * (e.g. make_miniaudio_backend) and owned through a
    * std::unique_ptr<AudioBackend>.
    *
    * @note Not thread-safe for concurrent calls from multiple threads — call only

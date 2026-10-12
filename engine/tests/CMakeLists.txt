@@ -157,6 +157,28 @@ else()
   message(STATUS "FontAtlas tests skipped — internal header or fixture font not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
+# The miniaudio backend is tested headless (no output device) by compiling it straight into the
+# test target, like FontAtlas above, and gated the same way for vendored consumers.
+set(_miniaudio_backend_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/miniaudio/miniaudio_backend.hpp")
+if(EXISTS "${_miniaudio_backend_header}")
+  target_sources(corundum_tests PRIVATE
+        audio/test_miniaudio_backend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/miniaudio/miniaudio_backend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/miniaudio/miniaudio_impl.cpp
+    )
+  target_include_directories(corundum_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+  target_include_directories(corundum_tests SYSTEM PRIVATE ${miniaudio_SOURCE_DIR} ${stb_SOURCE_DIR})
+  if(APPLE)
+    target_link_libraries(corundum_tests PRIVATE "-framework AudioToolbox" "-framework CoreAudio"
+                                                 "-framework CoreFoundation")
+  elseif(UNIX)
+    find_package(Threads REQUIRED)
+    target_link_libraries(corundum_tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS} m)
+  endif()
+else()
+  message(STATUS "miniaudio backend tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 # These internal-header tests need only the header and its own directory.
 corundum_add_internal_header_test(corundum_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/render_scale.hpp"

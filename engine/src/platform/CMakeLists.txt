@@ -21,8 +21,8 @@ set(PLATFORM_GLFW_SOURCES
     glfw/input_translator.cpp
     glfw/texture_cache.cpp
     sokol/sokol_impl.cpp
-    sokol/sokol_audio_impl.cpp
-    sokol/sokol_audio_backend.cpp
+    miniaudio/miniaudio_backend.cpp
+    miniaudio/miniaudio_impl.cpp
 )
 # The graphics-API seam is a build-time choice: exactly one of these translation units links, so
 # the shared window code carries no Metal/GLCore conditional.
@@ -59,6 +59,7 @@ target_include_directories(engine_platform_glfw
 target_include_directories(engine_platform_glfw
     SYSTEM PRIVATE
         ${stb_SOURCE_DIR}
+        ${miniaudio_SOURCE_DIR}
 )
 
 target_link_libraries(engine_platform_glfw
@@ -81,25 +82,22 @@ if(APPLE)
         sokol/sokol_impl.cpp
         glfw/gpu_context.cpp
         glfw/sokol_renderer.cpp
-        sokol/sokol_audio_impl.cpp
-        sokol/sokol_audio_backend.cpp
         glfw/texture_cache.cpp
         PROPERTIES LANGUAGE OBJCXX
     )
   target_link_libraries(engine_platform_glfw
         PRIVATE "-framework Metal" "-framework QuartzCore" "-framework AudioToolbox" "-framework CoreAudio"
+                "-framework CoreFoundation"
     )
 else()
   find_package(OpenGL REQUIRED)
   target_link_libraries(engine_platform_glfw PRIVATE OpenGL::GL)
 
   if(UNIX)
-    # sokol_audio's Linux/BSD backend talks to ALSA directly. Like OpenGL it is
-    # a system library with nothing to fetch, so it is found rather than
-    # vendored; without the link, sokol_audio_impl.cpp compiles but the final
-    # executable has undefined snd_* references.
-    find_package(ALSA REQUIRED)
-    target_link_libraries(engine_platform_glfw PRIVATE ALSA::ALSA)
+    # miniaudio loads ALSA/PulseAudio/JACK at run time (dlopen), so no audio library links; it
+    # needs only threads, the dynamic loader and libm.
+    find_package(Threads REQUIRED)
+    target_link_libraries(engine_platform_glfw PRIVATE Threads::Threads ${CMAKE_DL_LIBS} m)
   endif()
 endif()
 

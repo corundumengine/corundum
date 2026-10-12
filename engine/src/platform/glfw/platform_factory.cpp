@@ -9,7 +9,7 @@
 #include <string_view>
 #include <utility>
 
-#include "../sokol/sokol_audio_backend.hpp"
+#include "../miniaudio/miniaudio_backend.hpp"
 #include "glfw_window.hpp"
 #include "sokol_renderer.hpp"
 #include <corundum/platform/handle.hpp>
@@ -48,7 +48,7 @@ namespace corundum::platform {
     auto gpu_ptr = std::move(*gpu_result);
 
     auto renderer = glfw::make_sokol_renderer(*gpu_ptr);
-    auto audio = sokol::make_sokol_audio_backend();
+    auto audio = miniaudio::make_miniaudio_backend();
 
     return PlatformContext{
         .window = Handle<Window>{window->release(), BackendDeleter<Window>{&destroy<Window>}},

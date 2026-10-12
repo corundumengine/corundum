@@ -1,10 +1,9 @@
 # Third-party dependencies.
 #
 # Everything is fetched at configure time via FetchContent (no find_package,
-# no manual installs). The only exceptions are the Linux system libraries that
-# cannot be fetched — OpenGL (GLCore) and ALSA (sokol_audio) — both found and
-# linked in engine/src/platform/CMakeLists.txt. Test-only dependencies (doctest)
-# are gated by CORUNDUM_BUILD_TESTS.
+# no manual installs). The only exceptions are OpenGL (GLCore) and the audio
+# runtime libraries (threads, libdl, libm), all found and linked in
+# engine/src/platform/CMakeLists.txt; doctest is gated by CORUNDUM_BUILD_TESTS.
 #
 # FETCHCONTENT_QUIET is forced to FALSE so dependency configure logs stay
 # visible — nothing here is skippable via -DCORUNDUM_FETCHCONTENT=OFF.
@@ -93,3 +92,14 @@ FetchContent_Declare(
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(stb)
+
+FetchContent_Declare(
+    miniaudio
+    GIT_REPOSITORY https://github.com/mackron/miniaudio.git
+    GIT_TAG        0.11.25
+    GIT_SHALLOW    TRUE
+    # Header-only use: a SOURCE_SUBDIR with no CMakeLists.txt makes MakeAvailable only populate the
+    # source tree, never configure or build miniaudio's own examples and tests.
+    SOURCE_SUBDIR  header-only
+)
+FetchContent_MakeAvailable(miniaudio)
