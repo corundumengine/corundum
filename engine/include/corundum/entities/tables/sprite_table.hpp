@@ -39,9 +39,7 @@ namespace corundum::entities {
     }
 
     /** @brief Contiguous span of animation IDs for all live entities. */
-    [[nodiscard]] auto active_anim_id(this auto &self) noexcept {
-      return std::span(self.anim_id).first(self.count);
-    }
+    [[nodiscard]] auto active_anim_id(this auto &self) noexcept { return std::span(self.anim_id).first(self.count); }
 
     /** @brief Contiguous span of frame indices for all live entities. */
     [[nodiscard]] auto active_frame_index(this auto &self) noexcept {
@@ -49,21 +47,15 @@ namespace corundum::entities {
     }
 
     /** @brief Span over sprite_id (alias for GameTable concept compliance). */
-    [[nodiscard]] auto active_span(this auto &self) noexcept {
-      return std::span(self.sprite_id).first(self.count);
-    }
+    [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.sprite_id).first(self.count); }
 
     /** @brief Contiguous span of EntityIds in dense order. */
-    [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.index.active_entities(self.count);
-    }
+    [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
     /** @brief True if @p e has a sprite row.
      *  @param[in] e Entity to query.
      */
-    [[nodiscard]] bool has(EntityId e) const noexcept {
-      return index.has(e);
-    }
+    [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
     /** @brief Add a sprite row for @p e.
      *  @param[in] e       Entity (must not already be present).
@@ -96,9 +88,7 @@ namespace corundum::entities {
     /** @brief Dense row index for @p e; use to subscript SoA arrays directly.
      *  @pre has(e) must be true.
      */
-    [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept {
-      return index.dense_index(e);
-    }
+    [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept { return index.dense_index(e); }
 
     /** @brief Mutable reference to the sprite ID for @p e. @pre has(e). */
     [[nodiscard]] corundum::sprites::SpriteId &sprite_id_ref(EntityId e) noexcept {

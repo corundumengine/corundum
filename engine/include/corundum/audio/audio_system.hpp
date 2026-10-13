@@ -36,9 +36,7 @@ namespace corundum::audio {
     AudioSystem &operator=(AudioSystem &&other) noexcept = default;
 
     /** @brief Adopt the platform audio backend. Must be called before initialize(). */
-    void adopt_backend(std::unique_ptr<audio::AudioBackend> backend) noexcept {
-      backend_ = std::move(backend);
-    }
+    void adopt_backend(std::unique_ptr<audio::AudioBackend> backend) noexcept { backend_ = std::move(backend); }
 
     /** @brief Initialise the audio system.
      *  @param[in] sounds_dir Base directory sound file paths are resolved against.
@@ -63,9 +61,7 @@ namespace corundum::audio {
     void set_master_volume(float volume) noexcept;
 
     /** @brief The last master volume set, in [0.0, 1.0]. Defaults to 1.0. */
-    [[nodiscard]] float master_volume() const noexcept {
-      return master_volume_;
-    }
+    [[nodiscard]] float master_volume() const noexcept { return master_volume_; }
 
     /** @brief Pause or resume all audio output. No-op if not initialised.
      *
@@ -110,18 +106,14 @@ namespace corundum::audio {
     void set_music_volume(float volume) noexcept;
 
     /** @brief The last music volume set, in [0.0, 1.0]. Defaults to 1.0. */
-    [[nodiscard]] float music_volume() const noexcept {
-      return music_volume_;
-    }
+    [[nodiscard]] float music_volume() const noexcept { return music_volume_; }
 
     /** @brief Per-frame housekeeping (music loop restarts); call once per frame. No-op until ready. */
     void update() noexcept;
 
   private:
     /** @brief True once initialize() has succeeded and a backend is still set. */
-    [[nodiscard]] bool is_ready() const noexcept {
-      return initialized_ && backend_ != nullptr;
-    }
+    [[nodiscard]] bool is_ready() const noexcept { return initialized_ && backend_ != nullptr; }
 
     /** @brief Resolve a logical name to an absolute file path using the catalog
      *  (if present) or the sounds_dir + ".ogg" fallback. */

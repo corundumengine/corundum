@@ -80,9 +80,7 @@ namespace corundum::platform {
      * Every id in 1..slot_count() can be passed to release(); the ids that are
      * already retired return nothing.
      */
-    [[nodiscard]] std::size_t slot_count() const {
-      return slots_.size();
-    }
+    [[nodiscard]] std::size_t slot_count() const { return slots_.size(); }
 
     /** @brief The slot published under @p id, or std::nullopt if @p id is not live.
      *

@@ -41,26 +41,19 @@ namespace corundum::gameplay::screens {
 
   std::string_view game_over_row_label(GameOverRow row) noexcept {
     switch (row) {
-      case GameOverRow::Reload:
-        return "Reload";
-      case GameOverRow::Load:
-        return "Load";
-      case GameOverRow::ReturnToTitle:
-        return "Return to Title";
+      case GameOverRow::Reload: return "Reload";
+      case GameOverRow::Load: return "Load";
+      case GameOverRow::ReturnToTitle: return "Return to Title";
     }
     return "";
   }
 
   GameOverRow game_over_row_at(int row) noexcept {
     switch (row) {
-      case 0:
-        return GameOverRow::Reload;
-      case 1:
-        return GameOverRow::Load;
-      case 2:
-        return GameOverRow::ReturnToTitle;
-      default:
-        return GameOverRow::Reload;
+      case 0: return GameOverRow::Reload;
+      case 1: return GameOverRow::Load;
+      case 2: return GameOverRow::ReturnToTitle;
+      default: return GameOverRow::Reload;
     }
   }
 

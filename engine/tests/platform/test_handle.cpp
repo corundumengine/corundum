@@ -35,18 +35,14 @@ namespace {
   public:
     explicit Probe(DestroyTally &tally) : tally_(&tally) {}
 
-    ~Probe() override {
-      ++tally_->count;
-    }
+    ~Probe() override { ++tally_->count; }
 
     Probe(const Probe &) = delete;
     Probe &operator=(const Probe &) = delete;
     Probe(Probe &&) = delete;
     Probe &operator=(Probe &&) = delete;
 
-    [[nodiscard]] int identity() const override {
-      return 7;
-    }
+    [[nodiscard]] int identity() const override { return 7; }
 
   private:
     DestroyTally *tally_;

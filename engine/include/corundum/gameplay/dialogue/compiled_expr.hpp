@@ -90,9 +90,7 @@ namespace corundum::gameplay::dialogue {
     [[nodiscard]] ExprRefs refs() const;
 
     /** @brief Original source text, as passed to compile(). */
-    [[nodiscard]] std::string_view source() const noexcept {
-      return source_;
-    }
+    [[nodiscard]] std::string_view source() const noexcept { return source_; }
 
   private:
     friend std::expected<CompiledExpr, ExprError> compile(std::string_view src);

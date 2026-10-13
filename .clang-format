@@ -5,9 +5,17 @@ IndentCaseLabels: true
 IndentWidth: 2
 ColumnLimit: 120
 
-SortIncludes: true
+SortIncludes:
+  Enabled: true
 
 BreakBeforeBraces: Attach
-AllowShortFunctionsOnASingleLine: Empty
+# Small extracted functions are the norm, so a
+# one-statement member defined in its class stays on one line:
+#   bool is_active() const { return active_; }
+# Free functions still break, keeping definitions in .cpp files easy to scan.
+AllowShortFunctionsOnASingleLine: Inline
+# Mapping switches return from every case; keep each short case on one line:
+#   case Direction::North: return {0, -1};
+AllowShortCaseLabelsOnASingleLine: true
 MaxEmptyLinesToKeep: 1
 SeparateDefinitionBlocks: Always

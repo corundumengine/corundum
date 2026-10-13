@@ -33,9 +33,7 @@ namespace {
     std::vector<std::pair<Key, bool>> scripted_keys;
     PlatformEvents scripted_events{};
 
-    [[nodiscard]] bool is_open() const override {
-      return true;
-    }
+    [[nodiscard]] bool is_open() const override { return true; }
 
     void close() override {}
 
@@ -56,9 +54,7 @@ namespace {
       scripted_events = {};
     }
 
-    [[nodiscard]] std::pair<int, int> size() const override {
-      return {0, 0};
-    }
+    [[nodiscard]] std::pair<int, int> size() const override { return {0, 0}; }
 
     void set_vsync(bool /*enabled*/) override {}
 
@@ -72,9 +68,7 @@ namespace {
       return std::string{corundum::input::name_of(input)};
     }
 
-    [[nodiscard]] void *native_handle() const override {
-      return nullptr;
-    }
+    [[nodiscard]] void *native_handle() const override { return nullptr; }
   };
 
 } // namespace

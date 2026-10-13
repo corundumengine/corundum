@@ -25,17 +25,11 @@ namespace corundum::platform::null {
   public:
     explicit NullWindow(unsigned width, unsigned height) : width_{width}, height_{height} {}
 
-    [[nodiscard]] bool is_open() const override {
-      return open_;
-    }
+    [[nodiscard]] bool is_open() const override { return open_; }
 
-    void close() override {
-      open_ = false;
-    }
+    void close() override { open_ = false; }
 
-    void show() override {
-      visible = true;
-    }
+    void show() override { visible = true; }
 
     void poll_game_input(corundum::input::InputMapper &mapper, PlatformEvents &events) override {
       for (const auto &[key, down] : scripted_keys)
@@ -63,21 +57,15 @@ namespace corundum::platform::null {
 
     void set_vsync(bool /*enabled*/) override {}
 
-    void set_window_mode(core::WindowMode mode) override {
-      mode_ = mode;
-    }
+    void set_window_mode(core::WindowMode mode) override { mode_ = mode; }
 
-    [[nodiscard]] core::WindowMode window_mode() const override {
-      return mode_;
-    }
+    [[nodiscard]] core::WindowMode window_mode() const override { return mode_; }
 
     [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override {
       return std::string{corundum::input::name_of(input)};
     }
 
-    [[nodiscard]] void *native_handle() const override {
-      return nullptr;
-    }
+    [[nodiscard]] void *native_handle() const override { return nullptr; }
 
     /** @brief True once show() has been called; lets a test assert the engine revealed the window. */
     bool visible{false};

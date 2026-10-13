@@ -99,9 +99,7 @@ namespace corundum::platform {
 
     /// Pixel size of a texture returned by load_texture(), or {0, 0} if unknown. Backends that
     /// cannot report sizes keep the default.
-    [[nodiscard]] virtual core::math::Vec2 texture_size(uint32_t /*texture_id*/) const {
-      return {};
-    }
+    [[nodiscard]] virtual core::math::Vec2 texture_size(uint32_t /*texture_id*/) const { return {}; }
 
     /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).
     /// Never destroys: an unreferenced texture stays usable until purge_unused_textures().

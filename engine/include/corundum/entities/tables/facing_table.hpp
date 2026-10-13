@@ -30,24 +30,16 @@ namespace corundum::entities {
     std::uint32_t count = 0;
 
     /** @brief Contiguous span over facing directions for all live entities. */
-    [[nodiscard]] auto active_dir(this auto &self) noexcept {
-      return std::span(self.dir).first(self.count);
-    }
+    [[nodiscard]] auto active_dir(this auto &self) noexcept { return std::span(self.dir).first(self.count); }
 
     /** @brief Span over dir (alias for GameTable concept compliance). */
-    [[nodiscard]] auto active_span(this auto &self) noexcept {
-      return std::span(self.dir).first(self.count);
-    }
+    [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.dir).first(self.count); }
 
     /** @brief Contiguous span of EntityIds in dense order. */
-    [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.index.active_entities(self.count);
-    }
+    [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
     /** @brief True if @p e has a facing entry. @param[in] e Entity to query. */
-    [[nodiscard]] bool has(EntityId e) const noexcept {
-      return index.has(e);
-    }
+    [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
     /** @brief Add a facing row for @p e.
      *  @param[in] e Entity (must not already be present).

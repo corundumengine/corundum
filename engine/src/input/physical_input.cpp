@@ -258,18 +258,12 @@ namespace corundum::input {
     const float right_y = state.axes[static_cast<std::size_t>(GamepadAxis::RightY)];
 
     switch (control) {
-      case GamepadControl::LeftStickUp:
-        return stick_engaged(left_x, left_y) && axis_direction_down(left_y, false);
-      case GamepadControl::LeftStickDown:
-        return stick_engaged(left_x, left_y) && axis_direction_down(left_y, true);
-      case GamepadControl::LeftStickLeft:
-        return stick_engaged(left_x, left_y) && axis_direction_down(left_x, false);
-      case GamepadControl::LeftStickRight:
-        return stick_engaged(left_x, left_y) && axis_direction_down(left_x, true);
-      case GamepadControl::RightStickUp:
-        return stick_engaged(right_x, right_y) && axis_direction_down(right_y, false);
-      case GamepadControl::RightStickDown:
-        return stick_engaged(right_x, right_y) && axis_direction_down(right_y, true);
+      case GamepadControl::LeftStickUp: return stick_engaged(left_x, left_y) && axis_direction_down(left_y, false);
+      case GamepadControl::LeftStickDown: return stick_engaged(left_x, left_y) && axis_direction_down(left_y, true);
+      case GamepadControl::LeftStickLeft: return stick_engaged(left_x, left_y) && axis_direction_down(left_x, false);
+      case GamepadControl::LeftStickRight: return stick_engaged(left_x, left_y) && axis_direction_down(left_x, true);
+      case GamepadControl::RightStickUp: return stick_engaged(right_x, right_y) && axis_direction_down(right_y, false);
+      case GamepadControl::RightStickDown: return stick_engaged(right_x, right_y) && axis_direction_down(right_y, true);
       case GamepadControl::RightStickLeft:
         return stick_engaged(right_x, right_y) && axis_direction_down(right_x, false);
       case GamepadControl::RightStickRight:
@@ -278,19 +272,15 @@ namespace corundum::input {
         return state.axes[static_cast<std::size_t>(GamepadAxis::LeftTrigger)] > k_trigger_threshold;
       case GamepadControl::RightTrigger:
         return state.axes[static_cast<std::size_t>(GamepadAxis::RightTrigger)] > k_trigger_threshold;
-      default:
-        return false; // button controls returned above; Count is not down
+      default: return false; // button controls returned above; Count is not down
     }
   }
 
   std::string_view device_name(InputDevice device) noexcept {
     switch (device) {
-      case InputDevice::Keyboard:
-        return "keyboard";
-      case InputDevice::Mouse:
-        return "mouse";
-      case InputDevice::Gamepad:
-        return "gamepad";
+      case InputDevice::Keyboard: return "keyboard";
+      case InputDevice::Mouse: return "mouse";
+      case InputDevice::Gamepad: return "gamepad";
     }
     return {};
   }
@@ -307,24 +297,18 @@ namespace corundum::input {
 
   std::string_view name_of(PhysicalInput input) noexcept {
     switch (input.device) {
-      case InputDevice::Keyboard:
-        return find_name(k_key_names, input.code);
-      case InputDevice::Mouse:
-        return find_name(k_mouse_names, input.code);
-      case InputDevice::Gamepad:
-        return find_name(k_gamepad_names, input.code);
+      case InputDevice::Keyboard: return find_name(k_key_names, input.code);
+      case InputDevice::Mouse: return find_name(k_mouse_names, input.code);
+      case InputDevice::Gamepad: return find_name(k_gamepad_names, input.code);
     }
     return {};
   }
 
   std::optional<PhysicalInput> parse_physical_input(InputDevice device, std::string_view name) noexcept {
     switch (device) {
-      case InputDevice::Keyboard:
-        return find_input(k_key_names, device, name);
-      case InputDevice::Mouse:
-        return find_input(k_mouse_names, device, name);
-      case InputDevice::Gamepad:
-        return find_input(k_gamepad_names, device, name);
+      case InputDevice::Keyboard: return find_input(k_key_names, device, name);
+      case InputDevice::Mouse: return find_input(k_mouse_names, device, name);
+      case InputDevice::Gamepad: return find_input(k_gamepad_names, device, name);
     }
     return std::nullopt;
   }

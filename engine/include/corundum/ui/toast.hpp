@@ -64,25 +64,17 @@ namespace corundum::ui {
     void render(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport) const;
 
     /** @brief True when no toast is live. */
-    [[nodiscard]] bool empty() const noexcept {
-      return toasts_.empty();
-    }
+    [[nodiscard]] bool empty() const noexcept { return toasts_.empty(); }
 
     /** @brief Number of live toasts. */
-    [[nodiscard]] std::size_t size() const noexcept {
-      return toasts_.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return toasts_.size(); }
 
     /** @brief The toast at @p index, oldest first.
      *  @pre @p index < size(). */
-    [[nodiscard]] const Toast &at(std::size_t index) const noexcept {
-      return toasts_[index];
-    }
+    [[nodiscard]] const Toast &at(std::size_t index) const noexcept { return toasts_[index]; }
 
     /** @brief Drop every live toast. */
-    void clear() noexcept {
-      toasts_.clear();
-    }
+    void clear() noexcept { toasts_.clear(); }
 
   private:
     std::vector<Toast> toasts_;

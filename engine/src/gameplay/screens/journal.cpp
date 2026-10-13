@@ -47,12 +47,9 @@ namespace corundum::gameplay::screens {
     /// True when @p lifecycle belongs to the section @p tab names.
     bool tab_matches(JournalTab tab, gameplay::quest::Lifecycle lifecycle) noexcept {
       switch (tab) {
-        case JournalTab::Active:
-          return lifecycle == gameplay::quest::Lifecycle::Active;
-        case JournalTab::Completed:
-          return lifecycle == gameplay::quest::Lifecycle::Completed;
-        case JournalTab::Failed:
-          return lifecycle == gameplay::quest::Lifecycle::Failed;
+        case JournalTab::Active: return lifecycle == gameplay::quest::Lifecycle::Active;
+        case JournalTab::Completed: return lifecycle == gameplay::quest::Lifecycle::Completed;
+        case JournalTab::Failed: return lifecycle == gameplay::quest::Lifecycle::Failed;
       }
       return false;
     }
@@ -229,12 +226,9 @@ namespace corundum::gameplay::screens {
 
   std::string_view journal_tab_label(JournalTab tab) noexcept {
     switch (tab) {
-      case JournalTab::Active:
-        return "Active";
-      case JournalTab::Completed:
-        return "Completed";
-      case JournalTab::Failed:
-        return "Failed";
+      case JournalTab::Active: return "Active";
+      case JournalTab::Completed: return "Completed";
+      case JournalTab::Failed: return "Failed";
     }
     return "Unknown";
   }

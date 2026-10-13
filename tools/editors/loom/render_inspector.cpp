@@ -455,18 +455,13 @@ namespace tools::loom {
         copy_to_buffer(state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf), node.next_id);
         render_talk_editor(node, state);
         break;
-      case corundum::gameplay::dialogue::NodeType::Choice:
-        render_choice_editor(node, state);
-        break;
+      case corundum::gameplay::dialogue::NodeType::Choice: render_choice_editor(node, state); break;
       case corundum::gameplay::dialogue::NodeType::Event:
         copy_to_buffer(state.inspector_bufs.next_id_buf, sizeof(state.inspector_bufs.next_id_buf), node.next_id);
         render_event_editor(node, state);
         break;
-      case corundum::gameplay::dialogue::NodeType::End:
-        ImGui::TextUnformatted("No editable properties.");
-        break;
-      default:
-        break;
+      case corundum::gameplay::dialogue::NodeType::End: ImGui::TextUnformatted("No editable properties."); break;
+      default: break;
     }
 
     ImGui::Separator();

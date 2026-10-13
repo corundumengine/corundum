@@ -14,9 +14,7 @@ namespace {
 } // namespace
 
 template <> struct std::formatter<ThrowsOnFormat> {
-  static constexpr auto parse(std::format_parse_context &context) {
-    return context.begin();
-  }
+  static constexpr auto parse(std::format_parse_context &context) { return context.begin(); }
 
   static auto format(const ThrowsOnFormat & /*value*/, std::format_context & /*context*/)
       -> std::format_context::iterator {

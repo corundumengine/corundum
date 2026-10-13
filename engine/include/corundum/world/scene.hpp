@@ -83,9 +83,7 @@ namespace corundum::world {
     std::optional<corundum::world::TileCoord> hovered_tile; ///< Updated once per frame by pick_tile().
 
     /// The screen currently on top of the UI stack, or GameMode::Exploring when none is open.
-    [[nodiscard]] GameMode mode() const noexcept {
-      return ui.top();
-    }
+    [[nodiscard]] GameMode mode() const noexcept { return ui.top(); }
   };
 
   /** @brief True when scene.player names a live entity with a transform.

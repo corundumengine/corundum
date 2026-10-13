@@ -38,9 +38,7 @@ namespace {
 
     void reset_screen_view() override {}
 
-    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override {
-      return true;
-    }
+    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
 
     void end_frame() override {}
 
@@ -57,9 +55,7 @@ namespace {
       return 0.f;
     }
 
-    [[nodiscard]] corundum::platform::RendererStats stats() const override {
-      return {};
-    }
+    [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
 
   private:
     std::uint32_t next_font_id_{1};

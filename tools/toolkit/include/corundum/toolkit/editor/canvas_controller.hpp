@@ -55,14 +55,10 @@ namespace corundum::toolkit::editor {
     }
 
     /// Set zoom, clamped to the controller's [min_scale, max_scale] range.
-    void set_scale(float value) {
-      scale = std::clamp(value, min_scale_, max_scale_);
-    }
+    void set_scale(float value) { scale = std::clamp(value, min_scale_, max_scale_); }
 
     /// Multiply the current zoom by @p factor, clamped to the controller's range.
-    void zoom_by(float factor) {
-      set_scale(scale * factor);
-    }
+    void zoom_by(float factor) { set_scale(scale * factor); }
 
     /** @brief Convert screen space to canvas space.
      * @pre scale > 0.

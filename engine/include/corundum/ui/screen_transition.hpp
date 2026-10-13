@@ -33,9 +33,7 @@ namespace corundum::ui {
     static constexpr float k_fade_duration_seconds = 0.4f;
 
     /** @brief Start fading toward black from the current alpha. */
-    void begin_fade_out() noexcept {
-      phase_ = TransitionPhase::FadingOut;
-    }
+    void begin_fade_out() noexcept { phase_ = TransitionPhase::FadingOut; }
 
     /** @brief Jump to black and fade to clear — called once the scene swap is applied. */
     void begin_fade_in() noexcept {
@@ -74,24 +72,16 @@ namespace corundum::ui {
     }
 
     /** @brief Overlay opacity in [0, 1]; 0 draws nothing. */
-    [[nodiscard]] float alpha() const noexcept {
-      return alpha_;
-    }
+    [[nodiscard]] float alpha() const noexcept { return alpha_; }
 
     /** @brief Current phase. */
-    [[nodiscard]] TransitionPhase phase() const noexcept {
-      return phase_;
-    }
+    [[nodiscard]] TransitionPhase phase() const noexcept { return phase_; }
 
     /** @brief True while the overlay is fully black; a fade-out has finished. */
-    [[nodiscard]] bool at_black() const noexcept {
-      return alpha_ >= 1.f;
-    }
+    [[nodiscard]] bool at_black() const noexcept { return alpha_ >= 1.f; }
 
     /** @brief True while a fade is in progress. */
-    [[nodiscard]] bool active() const noexcept {
-      return phase_ != TransitionPhase::None;
-    }
+    [[nodiscard]] bool active() const noexcept { return phase_ != TransitionPhase::None; }
 
   private:
     TransitionPhase phase_{TransitionPhase::None};

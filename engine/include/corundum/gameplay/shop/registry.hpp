@@ -31,9 +31,7 @@ namespace corundum::gameplay::shop {
     [[nodiscard]] const Shop *find(std::string_view id) const;
 
     /** @brief Number of loaded shops. */
-    [[nodiscard]] std::size_t size() const noexcept {
-      return shops_.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return shops_.size(); }
 
     /** @brief Register a shop directly, keyed by id. First registration wins.
      *  @return True if inserted; false when the id was already present. */
@@ -43,14 +41,10 @@ namespace corundum::gameplay::shop {
     }
 
     /** @brief Range-for support for iterating all (id, shop) pairs. */
-    [[nodiscard]] auto begin() const noexcept {
-      return shops_.begin();
-    }
+    [[nodiscard]] auto begin() const noexcept { return shops_.begin(); }
 
     /** @brief Iterator past the last loaded shop. */
-    [[nodiscard]] auto end() const noexcept {
-      return shops_.end();
-    }
+    [[nodiscard]] auto end() const noexcept { return shops_.end(); }
 
   private:
     std::flat_map<std::string, Shop, std::less<>> shops_;

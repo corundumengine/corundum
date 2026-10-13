@@ -40,28 +40,20 @@ namespace corundum::gameplay::item {
     [[nodiscard]] const Item *find(std::string_view id) const;
 
     /** @brief Number of loaded items. */
-    [[nodiscard]] std::size_t size() const noexcept {
-      return items_.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return items_.size(); }
 
     /** @brief Register an item directly.
      *
      *  @param item The item to register (moved into the registry, keyed
      *               by id). Useful for tests.
      */
-    void add(Item item) {
-      items_.emplace(item.id, std::move(item));
-    }
+    void add(Item item) { items_.emplace(item.id, std::move(item)); }
 
     /** @brief Range-for support for iterating all loaded items (id, item) pairs. */
-    [[nodiscard]] auto begin() const noexcept {
-      return items_.begin();
-    }
+    [[nodiscard]] auto begin() const noexcept { return items_.begin(); }
 
     /** @brief Range-for support end sentinel. */
-    [[nodiscard]] auto end() const noexcept {
-      return items_.end();
-    }
+    [[nodiscard]] auto end() const noexcept { return items_.end(); }
 
   private:
     std::flat_map<std::string, Item, std::less<>> items_;

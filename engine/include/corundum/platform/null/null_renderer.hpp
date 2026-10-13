@@ -44,9 +44,7 @@ namespace corundum::platform::null {
 
     void reset_screen_view() override {}
 
-    [[nodiscard]] bool begin_frame(core::math::Colour /*clear_colour*/) override {
-      return true;
-    }
+    [[nodiscard]] bool begin_frame(core::math::Colour /*clear_colour*/) override { return true; }
 
     void end_frame() override {}
 
@@ -63,23 +61,17 @@ namespace corundum::platform::null {
       return static_cast<float>(text.size()) * k_glyph_advance_px;
     }
 
-    [[nodiscard]] RendererStats stats() const override {
-      return {};
-    }
+    [[nodiscard]] RendererStats stats() const override { return {}; }
 
     /** @brief Camera top-left recorded by the most recent set_world_view() call.
      *  @note Exposed so tests can observe the camera position render() computes.
      */
-    [[nodiscard]] core::math::Vec2 last_camera_top_left() const noexcept {
-      return last_cam_;
-    }
+    [[nodiscard]] core::math::Vec2 last_camera_top_left() const noexcept { return last_cam_; }
 
     /** @brief Zoom recorded by the most recent set_world_view() call.
      *  @note Exposed so tests can observe the zoom render() computes.
      */
-    [[nodiscard]] float last_zoom() const noexcept {
-      return last_zoom_;
-    }
+    [[nodiscard]] float last_zoom() const noexcept { return last_zoom_; }
 
   private:
     core::math::Vec2 last_cam_{};

@@ -112,9 +112,7 @@ namespace tools::loom {
       cursor_ = static_cast<int>(states_.size()) - 1;
     }
 
-    bool can_undo() const noexcept {
-      return cursor_ > 0;
-    }
+    bool can_undo() const noexcept { return cursor_ > 0; }
 
     bool undo(DocSnapshot &out) noexcept {
       if (!can_undo())
@@ -124,9 +122,7 @@ namespace tools::loom {
       return true;
     }
 
-    bool can_redo() const noexcept {
-      return cursor_ >= 0 && cursor_ < static_cast<int>(states_.size()) - 1;
-    }
+    bool can_redo() const noexcept { return cursor_ >= 0 && cursor_ < static_cast<int>(states_.size()) - 1; }
 
     bool redo(DocSnapshot &out) noexcept {
       if (!can_redo())

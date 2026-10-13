@@ -34,9 +34,7 @@ namespace corundum::core::time {
      *
      *  @param[in] fps New fixed-update rate, in steps per second.
      */
-    void set_target_fps(float fps) noexcept {
-      target_dt = 1.f / fps;
-    }
+    void set_target_fps(float fps) noexcept { target_dt = 1.f / fps; }
 
     /** @brief Sample wall time and add it to the accumulator; call once per frame.
      *
@@ -93,9 +91,7 @@ namespace corundum::core::time {
      *          1 once it fully covers a step or more.
      *  @pre target_dt must be > 0.
      */
-    [[nodiscard]] float alpha() const noexcept {
-      return std::min(accumulator / target_dt, 1.f);
-    }
+    [[nodiscard]] float alpha() const noexcept { return std::min(accumulator / target_dt, 1.f); }
   };
 
 } // namespace corundum::core::time

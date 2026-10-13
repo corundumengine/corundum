@@ -47,9 +47,7 @@ namespace corundum::world {
     static constexpr std::size_t k_max_depth = 8;
 
     /** @brief The screen on top of the stack, or GameMode::Exploring when it is empty. */
-    [[nodiscard]] GameMode top() const noexcept {
-      return count_ == 0 ? GameMode::Exploring : layers_[count_ - 1];
-    }
+    [[nodiscard]] GameMode top() const noexcept { return count_ == 0 ? GameMode::Exploring : layers_[count_ - 1]; }
 
     /** @brief True when @p mode is anywhere in the stack, not just on top. */
     [[nodiscard]] bool contains(GameMode mode) const noexcept {
@@ -61,14 +59,10 @@ namespace corundum::world {
     }
 
     /** @brief True when no screen is open (the stack is in the Exploring base state). */
-    [[nodiscard]] bool empty() const noexcept {
-      return count_ == 0;
-    }
+    [[nodiscard]] bool empty() const noexcept { return count_ == 0; }
 
     /** @brief Number of open screens. */
-    [[nodiscard]] std::size_t size() const noexcept {
-      return count_;
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return count_; }
 
     /** @brief Push @p mode as the new top screen.
      *  @note Ignored for GameMode::Exploring (the empty-stack base) and when already at k_max_depth.
@@ -86,9 +80,7 @@ namespace corundum::world {
     }
 
     /** @brief Remove every screen, returning to the Exploring base. */
-    void clear() noexcept {
-      count_ = 0;
-    }
+    void clear() noexcept { count_ = 0; }
 
   private:
     std::array<GameMode, k_max_depth> layers_{};

@@ -24,20 +24,13 @@ namespace tools::tilesmith {
   [[nodiscard]] inline std::string_view layer_preset_label(LayerPreset preset) {
     switch (preset) {
       using enum LayerPreset;
-      case Ground:
-        return "Ground";
-      case FloorDetail:
-        return "Floor Detail";
-      case Water:
-        return "Water";
-      case Walls:
-        return "Walls";
-      case Roof:
-        return "Roof";
-      case Decor:
-        return "Decor";
-      default:
-        return "Blank";
+      case Ground: return "Ground";
+      case FloorDetail: return "Floor Detail";
+      case Water: return "Water";
+      case Walls: return "Walls";
+      case Roof: return "Roof";
+      case Decor: return "Decor";
+      default: return "Blank";
     }
   }
 

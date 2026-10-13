@@ -31,8 +31,7 @@ namespace tools::loom {
         case corundum::gameplay::item::ItemCategory::Potion:
           item.potion = corundum::gameplay::item::PotionData{};
           break;
-        case corundum::gameplay::item::ItemCategory::Misc:
-          break;
+        case corundum::gameplay::item::ItemCategory::Misc: break;
       }
       return item;
     }
@@ -218,9 +217,7 @@ namespace tools::loom {
           }
           break;
         }
-        case corundum::gameplay::item::ItemCategory::Misc:
-          ImGui::TextDisabled("No payload for misc items.");
-          break;
+        case corundum::gameplay::item::ItemCategory::Misc: ImGui::TextDisabled("No payload for misc items."); break;
       }
     } else {
       ImGui::TextDisabled("Select an item from the list to edit its properties.");

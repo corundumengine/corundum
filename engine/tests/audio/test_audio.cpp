@@ -29,13 +29,9 @@ namespace {
       played.emplace_back(handle, loop);
     }
 
-    void set_master_volume(float volume) override {
-      last_master_volume = volume;
-    }
+    void set_master_volume(float volume) override { last_master_volume = volume; }
 
-    void set_paused(bool paused) override {
-      last_paused = paused;
-    }
+    void set_paused(bool paused) override { last_paused = paused; }
 
     std::expected<void, std::string> play_music(std::string_view path,
                                                 const corundum::audio::MusicPlayback &playback) override {
@@ -46,17 +42,11 @@ namespace {
       return {};
     }
 
-    void stop_music(float fade_out_seconds) override {
-      music_stops.push_back(fade_out_seconds);
-    }
+    void stop_music(float fade_out_seconds) override { music_stops.push_back(fade_out_seconds); }
 
-    void set_music_volume(float volume) override {
-      last_music_volume = volume;
-    }
+    void set_music_volume(float volume) override { last_music_volume = volume; }
 
-    void update() override {
-      ++updates;
-    }
+    void update() override { ++updates; }
 
     float last_master_volume = -1.f;
     bool last_paused = false;

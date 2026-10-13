@@ -28,10 +28,8 @@ namespace corundum::ui {
 
   std::string_view settings_tab_label(SettingsTab tab) noexcept {
     switch (tab) {
-      case SettingsTab::General:
-        return "General";
-      case SettingsTab::Controls:
-        return "Controls";
+      case SettingsTab::General: return "General";
+      case SettingsTab::Controls: return "Controls";
     }
     return "";
   }
@@ -71,28 +69,20 @@ namespace corundum::ui {
 
   std::string_view settings_general_row_label(SettingsGeneralRow row) noexcept {
     switch (row) {
-      case SettingsGeneralRow::Volume:
-        return "Master Volume";
-      case SettingsGeneralRow::MusicVolume:
-        return "Music Volume";
-      case SettingsGeneralRow::TextSpeed:
-        return "Text Speed";
-      case SettingsGeneralRow::UiScale:
-        return "UI Scale";
-      case SettingsGeneralRow::WindowMode:
-        return "Window Mode";
-      case SettingsGeneralRow::Count:
-        break;
+      case SettingsGeneralRow::Volume: return "Master Volume";
+      case SettingsGeneralRow::MusicVolume: return "Music Volume";
+      case SettingsGeneralRow::TextSpeed: return "Text Speed";
+      case SettingsGeneralRow::UiScale: return "UI Scale";
+      case SettingsGeneralRow::WindowMode: return "Window Mode";
+      case SettingsGeneralRow::Count: break;
     }
     return "";
   }
 
   int settings_row_count(SettingsTab tab) noexcept {
     switch (tab) {
-      case SettingsTab::General:
-        return k_settings_general_row_count;
-      case SettingsTab::Controls:
-        return static_cast<int>(input::k_action_count);
+      case SettingsTab::General: return k_settings_general_row_count;
+      case SettingsTab::Controls: return static_cast<int>(input::k_action_count);
     }
     return 0;
   }
@@ -129,18 +119,12 @@ namespace corundum::ui {
     /// Value column text for one General row.
     std::string general_value_text(SettingsGeneralRow row, const SettingsValues &values) {
       switch (row) {
-        case SettingsGeneralRow::Volume:
-          return std::format("{:.0f}%", values.master_volume * 100.f);
-        case SettingsGeneralRow::MusicVolume:
-          return std::format("{:.0f}%", values.music_volume * 100.f);
-        case SettingsGeneralRow::TextSpeed:
-          return std::string{text_speed_label(values.text_speed)};
-        case SettingsGeneralRow::UiScale:
-          return std::format("{:.0f}%", values.ui_scale * 100.f);
-        case SettingsGeneralRow::WindowMode:
-          return std::string{core::window_mode_name(values.window_mode)};
-        case SettingsGeneralRow::Count:
-          break;
+        case SettingsGeneralRow::Volume: return std::format("{:.0f}%", values.master_volume * 100.f);
+        case SettingsGeneralRow::MusicVolume: return std::format("{:.0f}%", values.music_volume * 100.f);
+        case SettingsGeneralRow::TextSpeed: return std::string{text_speed_label(values.text_speed)};
+        case SettingsGeneralRow::UiScale: return std::format("{:.0f}%", values.ui_scale * 100.f);
+        case SettingsGeneralRow::WindowMode: return std::string{core::window_mode_name(values.window_mode)};
+        case SettingsGeneralRow::Count: break;
       }
       return {};
     }

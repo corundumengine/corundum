@@ -126,12 +126,8 @@ namespace corundum::ui {
         continue;
       }
       switch (token.stars) {
-        case 1:
-          italic = !italic;
-          break;
-        case 2:
-          bold = !bold;
-          break;
+        case 1: italic = !italic; break;
+        case 2: bold = !bold; break;
         default:
           bold = !bold;
           italic = !italic;

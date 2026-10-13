@@ -83,20 +83,11 @@ namespace corundum::physics {
         const float v1 = (ay1 - ty) / th; // bottom edge (max v)
         bool in_empty = false;
         switch (triangles.cuts[i]) {
-          case TriangleCut::NorthWest:
-            in_empty = u1 + v1 < 1.f;
-            break;
-          case TriangleCut::NorthEast:
-            in_empty = u0 - v1 > 0.f;
-            break;
-          case TriangleCut::SouthWest:
-            in_empty = u1 - v0 < 0.f;
-            break;
-          case TriangleCut::SouthEast:
-            in_empty = u0 + v0 > 1.f;
-            break;
-          default:
-            std::unreachable();
+          case TriangleCut::NorthWest: in_empty = u1 + v1 < 1.f; break;
+          case TriangleCut::NorthEast: in_empty = u0 - v1 > 0.f; break;
+          case TriangleCut::SouthWest: in_empty = u1 - v0 < 0.f; break;
+          case TriangleCut::SouthEast: in_empty = u0 + v0 > 1.f; break;
+          default: std::unreachable();
         }
         if (!in_empty) [[unlikely]]
           return true;
@@ -236,8 +227,7 @@ namespace corundum::physics {
             // pc = tx + tw * (1 - v0_norm)
             contact = tx + (tw * (1.f - v0_norm));
             break;
-          default:
-            std::unreachable();
+          default: std::unreachable();
         }
         if (const std::optional<float> nearest = nearest_contact(contact, prev_col, moving_right, best, found)) {
           best = *nearest;
@@ -289,8 +279,7 @@ namespace corundum::physics {
             // pr = ty + th * (1 - u0_norm)
             contact = ty + (th * (1.f - u0_norm));
             break;
-          default:
-            std::unreachable();
+          default: std::unreachable();
         }
         if (const std::optional<float> nearest = nearest_contact(contact, prev_row, moving_down, best, found)) {
           best = *nearest;

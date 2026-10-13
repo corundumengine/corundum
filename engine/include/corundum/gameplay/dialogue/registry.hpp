@@ -27,26 +27,18 @@ namespace corundum::gameplay::dialogue {
     /// Returns a pointer to the graph with the given id, or nullptr.
     [[nodiscard]] const Graph *find(std::string_view graph_id) const;
 
-    [[nodiscard]] std::size_t size() const noexcept {
-      return graphs_.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return graphs_.size(); }
 
     /** @brief Register a graph directly.
      *
      *  @param graph The graph to register (moved into the registry, keyed
      *               by graph_id). Useful for tests.
      */
-    void add(Graph graph) {
-      graphs_.emplace(graph.graph_id, std::move(graph));
-    }
+    void add(Graph graph) { graphs_.emplace(graph.graph_id, std::move(graph)); }
 
-    [[nodiscard]] auto begin() const noexcept {
-      return graphs_.begin();
-    }
+    [[nodiscard]] auto begin() const noexcept { return graphs_.begin(); }
 
-    [[nodiscard]] auto end() const noexcept {
-      return graphs_.end();
-    }
+    [[nodiscard]] auto end() const noexcept { return graphs_.end(); }
 
   private:
     std::flat_map<std::string, Graph, std::less<>> graphs_;

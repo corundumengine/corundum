@@ -31,15 +31,11 @@ namespace corundum::entities {
     std::uint32_t index{};
     std::uint32_t generation{};
 
-    [[nodiscard]] constexpr bool valid() const noexcept {
-      return generation != 0;
-    }
+    [[nodiscard]] constexpr bool valid() const noexcept { return generation != 0; }
 
     bool operator==(const EntityId &) const = default;
 
-    [[nodiscard]] static constexpr EntityId invalid() noexcept {
-      return {};
-    }
+    [[nodiscard]] static constexpr EntityId invalid() noexcept { return {}; }
   };
 
   /** @brief Free-list pool for entity IDs; O(1) create and destroy.
@@ -93,14 +89,10 @@ namespace corundum::entities {
     }
 
     /** @brief True when the pool is exhausted and create() would assert. */
-    [[nodiscard]] bool full() const noexcept {
-      return free_count_ == 0;
-    }
+    [[nodiscard]] bool full() const noexcept { return free_count_ == 0; }
 
     /** @brief Number of currently live entities; O(1). */
-    [[nodiscard]] std::uint32_t alive() const noexcept {
-      return k_max_entities - free_count_;
-    }
+    [[nodiscard]] std::uint32_t alive() const noexcept { return k_max_entities - free_count_; }
 
   private:
     /** @brief Free list stores raw indices. */

@@ -101,28 +101,20 @@ namespace corundum::gameplay::item {
 
   std::string_view to_string(ItemCategory category) noexcept {
     switch (category) {
-      case ItemCategory::Weapon:
-        return "weapon";
-      case ItemCategory::Apparel:
-        return "apparel";
-      case ItemCategory::Potion:
-        return "potion";
-      case ItemCategory::Misc:
-        return "misc";
+      case ItemCategory::Weapon: return "weapon";
+      case ItemCategory::Apparel: return "apparel";
+      case ItemCategory::Potion: return "potion";
+      case ItemCategory::Misc: return "misc";
     }
     return "misc";
   }
 
   std::string_view category_dir_name(ItemCategory category) noexcept {
     switch (category) {
-      case ItemCategory::Weapon:
-        return "weapons";
-      case ItemCategory::Apparel:
-        return "apparel";
-      case ItemCategory::Potion:
-        return "potions";
-      case ItemCategory::Misc:
-        return "misc";
+      case ItemCategory::Weapon: return "weapons";
+      case ItemCategory::Apparel: return "apparel";
+      case ItemCategory::Potion: return "potions";
+      case ItemCategory::Misc: return "misc";
     }
     return "misc";
   }

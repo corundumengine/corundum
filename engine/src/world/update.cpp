@@ -114,8 +114,7 @@ namespace {
         scene.path.clear();
         scene.ui.pop();
         break;
-      case Step::Pending:
-        break;
+      case Step::Pending: break;
     }
   }
 
@@ -196,9 +195,7 @@ namespace corundum::world {
     scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, iso);
 
     switch (scene.mode()) {
-      case corundum::world::GameMode::Prompt:
-        update_transition_prompt(scene, intent);
-        break;
+      case corundum::world::GameMode::Prompt: update_transition_prompt(scene, intent); break;
       case corundum::world::GameMode::Exploring:
         update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
         // The engine's exploring input handler records the generic interact target; the gameplay

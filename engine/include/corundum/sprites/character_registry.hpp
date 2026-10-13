@@ -35,14 +35,10 @@ namespace corundum::sprites {
     [[nodiscard]] const Frames *get_sprite_by_id(SpriteId sid) const noexcept;
 
     /// All loaded sheets keyed by numeric Id.
-    [[nodiscard]] const std::flat_map<Id, SpriteSheet> &sheets() const noexcept {
-      return sheets_by_id_;
-    }
+    [[nodiscard]] const std::flat_map<Id, SpriteSheet> &sheets() const noexcept { return sheets_by_id_; }
 
     /// All loaded frame data keyed by sprite name.
-    [[nodiscard]] const std::flat_map<std::string, Frames> &frames() const noexcept {
-      return frames_;
-    }
+    [[nodiscard]] const std::flat_map<std::string, Frames> &frames() const noexcept { return frames_; }
 
   private:
     std::expected<void, std::string> load_sheet(const std::filesystem::path &sheet_path);

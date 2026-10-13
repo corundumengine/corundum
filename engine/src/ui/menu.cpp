@@ -40,34 +40,23 @@ namespace corundum::ui {
 
   std::string_view menu_command_label(MenuCommand command) noexcept {
     switch (command) {
-      case MenuCommand::Resume:
-        return "Resume";
-      case MenuCommand::Settings:
-        return "Settings";
-      case MenuCommand::Save:
-        return "Save";
-      case MenuCommand::Load:
-        return "Load";
-      case MenuCommand::Quit:
-        return "Quit";
+      case MenuCommand::Resume: return "Resume";
+      case MenuCommand::Settings: return "Settings";
+      case MenuCommand::Save: return "Save";
+      case MenuCommand::Load: return "Load";
+      case MenuCommand::Quit: return "Quit";
     }
     return "";
   }
 
   MenuCommand menu_command_at(int row) noexcept {
     switch (row) {
-      case 0:
-        return MenuCommand::Resume;
-      case 1:
-        return MenuCommand::Settings;
-      case 2:
-        return MenuCommand::Save;
-      case 3:
-        return MenuCommand::Load;
-      case 4:
-        return MenuCommand::Quit;
-      default:
-        return MenuCommand::Resume;
+      case 0: return MenuCommand::Resume;
+      case 1: return MenuCommand::Settings;
+      case 2: return MenuCommand::Save;
+      case 3: return MenuCommand::Load;
+      case 4: return MenuCommand::Quit;
+      default: return MenuCommand::Resume;
     }
   }
 

@@ -26,9 +26,7 @@ namespace corundum::toolkit::editor {
       cursor_ = static_cast<int>(states_.size()) - 1;
     }
 
-    [[nodiscard]] bool can_undo() const noexcept {
-      return cursor_ > 0;
-    }
+    [[nodiscard]] bool can_undo() const noexcept { return cursor_ > 0; }
 
     bool undo(Doc &out) noexcept {
       if (!can_undo())

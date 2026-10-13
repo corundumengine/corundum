@@ -195,20 +195,14 @@ namespace corundum::gameplay::screens {
     ui::panel_chrome(r, skin.style.bg, skin.border, layout.panel_pos, layout.panel_size);
 
     switch (layout.node_type) {
-      case gameplay::dialogue::NodeType::Talk:
-        render_talk_body(layout, ds, r, skin.style, last_device);
-        break;
-      case gameplay::dialogue::NodeType::Choice:
-        render_choices(layout, r, skin.style);
-        break;
+      case gameplay::dialogue::NodeType::Talk: render_talk_body(layout, ds, r, skin.style, last_device); break;
+      case gameplay::dialogue::NodeType::Choice: render_choices(layout, r, skin.style); break;
       case gameplay::dialogue::NodeType::End:
         draw_dialogue_text(r, skin.style, ui::FontStyle::Regular, end_footer(last_device), skin.style.font_size_body,
                            skin.style.choice, layout.panel_pos.x + layout.inset, layout.panel_pos.y + layout.inset);
         break;
-      case gameplay::dialogue::NodeType::Event:
-        break;
-      default:
-        std::unreachable();
+      case gameplay::dialogue::NodeType::Event: break;
+      default: std::unreachable();
     }
   }
 

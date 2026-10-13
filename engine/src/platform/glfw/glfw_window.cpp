@@ -225,10 +225,8 @@ namespace corundum::platform::glfw {
 
   std::string_view to_string(WindowError error) noexcept {
     switch (error) {
-      case WindowError::InitializationFailed:
-        return "GLFW initialization failed";
-      case WindowError::CreationFailed:
-        return "GLFW window creation failed";
+      case WindowError::InitializationFailed: return "GLFW initialization failed";
+      case WindowError::CreationFailed: return "GLFW window creation failed";
     }
     return "unknown GLFW window error";
   }
@@ -254,9 +252,7 @@ namespace corundum::platform::glfw {
           glfw_term_if_done();
       }
 
-      void disarm() {
-        armed = false;
-      }
+      void disarm() { armed = false; }
     } guard;
 
     // Use 'new' because the constructor is private.

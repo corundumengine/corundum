@@ -61,8 +61,7 @@ namespace corundum::gameplay::item {
           element["potion"] = std::move(payload);
           break;
         }
-        case ItemCategory::Misc:
-          break;
+        case ItemCategory::Misc: break;
       }
       j["items"].push_back(std::move(element));
     }

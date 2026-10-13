@@ -31,16 +31,11 @@ namespace corundum::gameplay::screens {
 
   std::string_view hub_tab_label(world::GameMode mode) noexcept {
     switch (mode) {
-      case Inventory:
-        return "Inventory";
-      case Journal:
-        return "Journal";
-      case Codex:
-        return "Codex";
-      case Map:
-        return "Map";
-      default:
-        return {};
+      case Inventory: return "Inventory";
+      case Journal: return "Journal";
+      case Codex: return "Codex";
+      case Map: return "Map";
+      default: return {};
     }
   }
 

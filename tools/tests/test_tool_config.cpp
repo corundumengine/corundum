@@ -43,13 +43,9 @@ namespace {
         argv_.push_back(value.data());
     }
 
-    [[nodiscard]] int argc() const {
-      return static_cast<int>(argv_.size());
-    }
+    [[nodiscard]] int argc() const { return static_cast<int>(argv_.size()); }
 
-    [[nodiscard]] char **argv() {
-      return argv_.data();
-    }
+    [[nodiscard]] char **argv() { return argv_.data(); }
 
   private:
     std::vector<std::string> values_;

@@ -37,14 +37,10 @@ namespace corundum::gameplay::screens {
     /// which is the lowercase serialized/schema form, not presentation text.
     std::string_view category_display_name(gameplay::item::ItemCategory category) noexcept {
       switch (category) {
-        case gameplay::item::ItemCategory::Apparel:
-          return "Apparel";
-        case gameplay::item::ItemCategory::Misc:
-          return "Misc";
-        case gameplay::item::ItemCategory::Potion:
-          return "Potion";
-        case gameplay::item::ItemCategory::Weapon:
-          return "Weapon";
+        case gameplay::item::ItemCategory::Apparel: return "Apparel";
+        case gameplay::item::ItemCategory::Misc: return "Misc";
+        case gameplay::item::ItemCategory::Potion: return "Potion";
+        case gameplay::item::ItemCategory::Weapon: return "Weapon";
       }
       return "Misc";
     }

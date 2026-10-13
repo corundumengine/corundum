@@ -31,9 +31,7 @@ namespace corundum::gameplay::location {
     [[nodiscard]] const Location *find(std::string_view id) const;
 
     /** @brief Number of loaded locations. */
-    [[nodiscard]] std::size_t size() const noexcept {
-      return locations_.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return locations_.size(); }
 
     /** @brief Register a location directly, keyed by id. First registration wins.
      *  @return True if inserted; false when the id was already present. */
@@ -43,14 +41,10 @@ namespace corundum::gameplay::location {
     }
 
     /** @brief Range-for support for iterating all (id, location) pairs. */
-    [[nodiscard]] auto begin() const noexcept {
-      return locations_.begin();
-    }
+    [[nodiscard]] auto begin() const noexcept { return locations_.begin(); }
 
     /** @brief Iterator past the last loaded location. */
-    [[nodiscard]] auto end() const noexcept {
-      return locations_.end();
-    }
+    [[nodiscard]] auto end() const noexcept { return locations_.end(); }
 
   private:
     std::flat_map<std::string, Location, std::less<>> locations_;

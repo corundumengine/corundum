@@ -406,8 +406,7 @@ namespace corundum::gameplay {
           gameplay.map_screen.cursor = 0;
           gameplay.map_screen.scroll = 0;
           break;
-        default:
-          break;
+        default: break;
       }
     }
 
@@ -1038,22 +1037,14 @@ namespace corundum::gameplay {
           if (state.continue_available)
             gameplay.begin_load([](Gameplay &g) { return g.continue_game(); });
           break;
-        case screens::TitleRow::NewGame:
-          gameplay.begin_load([](Gameplay &g) { return g.new_game(); });
-          break;
-        case screens::TitleRow::Load:
-          gameplay.open_save_load(/*saving=*/false);
-          break;
+        case screens::TitleRow::NewGame: gameplay.begin_load([](Gameplay &g) { return g.new_game(); }); break;
+        case screens::TitleRow::Load: gameplay.open_save_load(/*saving=*/false); break;
         case screens::TitleRow::Settings:
           engine.settings_screen = {.presentation = ui::SettingsPresentation::Framing};
           engine.scene.ui.push(world::GameMode::Settings);
           break;
-        case screens::TitleRow::Credits:
-          gameplay.open_credits();
-          break;
-        case screens::TitleRow::Quit:
-          engine.request_quit();
-          break;
+        case screens::TitleRow::Credits: gameplay.open_credits(); break;
+        case screens::TitleRow::Quit: engine.request_quit(); break;
       }
     }
 
@@ -1166,14 +1157,12 @@ namespace corundum::gameplay {
       ui::ScreenTransition &fade = engine.screen_transition;
       const bool skip_requested = intent.activate || intent.back || intent.cursor_clicked;
       switch (fade.phase()) {
-        case ui::TransitionPhase::FadingOut:
-          return;
+        case ui::TransitionPhase::FadingOut: return;
         case ui::TransitionPhase::FadingIn:
           if (skip_requested)
             fade.begin_fade_out();
           return;
-        case ui::TransitionPhase::None:
-          break;
+        case ui::TransitionPhase::None: break;
       }
       if (fade.at_black()) {
         gameplay.advance_splash();
@@ -1224,12 +1213,8 @@ namespace corundum::gameplay {
               engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
           }
           break;
-        case screens::GameOverRow::Load:
-          gameplay.open_save_load(/*saving=*/false);
-          break;
-        case screens::GameOverRow::ReturnToTitle:
-          gameplay.return_to_title();
-          break;
+        case screens::GameOverRow::Load: gameplay.open_save_load(/*saving=*/false); break;
+        case screens::GameOverRow::ReturnToTitle: gameplay.return_to_title(); break;
       }
     }
 

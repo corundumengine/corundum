@@ -89,9 +89,7 @@ namespace {
 
     void set_master_volume(float /*volume*/) override {}
 
-    void set_paused(bool paused) override {
-      last_paused = paused;
-    }
+    void set_paused(bool paused) override { last_paused = paused; }
 
     bool last_paused{false};
   };

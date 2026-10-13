@@ -301,9 +301,7 @@ namespace corundum::world::tilemap {
     std::span<const uint8_t> elevations;
 
     /// Number of rects in the view.
-    [[nodiscard]] std::size_t size() const noexcept {
-      return cols.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
   };
 
   namespace detail {
@@ -353,9 +351,7 @@ namespace corundum::world::tilemap {
     }
 
     /// Number of stored rects.
-    [[nodiscard]] std::size_t size() const noexcept {
-      return cols.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionRectsView view() const noexcept {
@@ -364,9 +360,7 @@ namespace corundum::world::tilemap {
 
     /// Remove the rect at index @p i in O(1) via swap-and-pop. Order is not preserved.
     /// @pre i < size()
-    void erase(std::size_t i) noexcept {
-      detail::swap_pop_at(i, cols, rows, col_spans, row_spans, elevations);
-    }
+    void erase(std::size_t i) noexcept { detail::swap_pop_at(i, cols, rows, col_spans, row_spans, elevations); }
   };
 
   /**
@@ -393,9 +387,7 @@ namespace corundum::world::tilemap {
     std::span<const uint8_t> elevations;
 
     /// Number of triangles in the view.
-    [[nodiscard]] std::size_t size() const noexcept {
-      return cols.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
   };
 
   /**
@@ -428,9 +420,7 @@ namespace corundum::world::tilemap {
     }
 
     /// Number of stored triangles.
-    [[nodiscard]] std::size_t size() const noexcept {
-      return cols.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
 
     /// Non-owning view over the stored data.
     [[nodiscard]] CollisionTrianglesView view() const noexcept {
@@ -446,9 +436,7 @@ namespace corundum::world::tilemap {
 
     /// Remove the triangle at index @p i in O(1) via swap-and-pop. Order is not preserved.
     /// @pre i < size()
-    void erase(std::size_t i) noexcept {
-      detail::swap_pop_at(i, cols, rows, col_spans, row_spans, cuts, elevations);
-    }
+    void erase(std::size_t i) noexcept { detail::swap_pop_at(i, cols, rows, col_spans, row_spans, cuts, elevations); }
   };
 
   /// Static multi-layer tile grid loaded from a JSON map file.

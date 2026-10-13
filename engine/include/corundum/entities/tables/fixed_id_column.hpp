@@ -38,19 +38,13 @@ namespace corundum::entities {
     std::uint32_t count = 0;
 
     /** @brief Span over id buffers (alias for GameTable concept compliance). */
-    [[nodiscard]] auto active_span(this auto &self) noexcept {
-      return std::span(self.ids).first(self.count);
-    }
+    [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.ids).first(self.count); }
 
     /** @brief Contiguous span of EntityIds in dense order. */
-    [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.index.active_entities(self.count);
-    }
+    [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
     /** @brief True if @p e has an id row. @param[in] e Entity to query. */
-    [[nodiscard]] bool has(EntityId e) const noexcept {
-      return index.has(e);
-    }
+    [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
     /** @brief Add an id row for @p e.
      *  @param[in] e  Entity (must not already be present).

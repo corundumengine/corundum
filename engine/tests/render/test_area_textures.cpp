@@ -45,9 +45,7 @@ namespace {
       return it->second;
     }
 
-    void release_texture(uint32_t texture_id) override {
-      refs.release(texture_id);
-    }
+    void release_texture(uint32_t texture_id) override { refs.release(texture_id); }
 
     void purge_unused_textures() override {
       for (const uint32_t id : refs.take_unreferenced()) {
@@ -56,18 +54,14 @@ namespace {
       }
     }
 
-    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override {
-      return 1u;
-    }
+    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
 
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
                         float /*zoom*/) override {}
 
     void reset_screen_view() override {}
 
-    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override {
-      return true;
-    }
+    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
 
     void end_frame() override {}
 
@@ -84,9 +78,7 @@ namespace {
       return 0.f;
     }
 
-    [[nodiscard]] RendererStats stats() const override {
-      return {};
-    }
+    [[nodiscard]] RendererStats stats() const override { return {}; }
 
   private:
     std::unordered_map<std::string, uint32_t> ids_;

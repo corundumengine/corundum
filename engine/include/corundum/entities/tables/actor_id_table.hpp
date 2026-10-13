@@ -23,9 +23,7 @@ namespace corundum::entities {
      *  @param[in] e Entity to query. @pre has(e).
      *  @return Non-owning string_view valid until the next insert/remove.
      */
-    [[nodiscard]] std::string_view get_actor_id(EntityId e) const noexcept {
-      return id_of(e);
-    }
+    [[nodiscard]] std::string_view get_actor_id(EntityId e) const noexcept { return id_of(e); }
   };
 
   static_assert(GameTable<ActorIdTable>);

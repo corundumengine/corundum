@@ -75,8 +75,7 @@ namespace tools::tilesmith {
           b = right;
           c = bottom;
           break;
-        default:
-          std::unreachable();
+        default: std::unreachable();
       }
       ctx.dl->AddTriangleFilled(a, b, c, fill);
       ctx.dl->AddTriangle(a, b, c, outline, 1.f);

@@ -52,18 +52,12 @@ namespace corundum::gameplay::screens {
 
   std::string_view title_row_label(TitleRow row) noexcept {
     switch (row) {
-      case TitleRow::Continue:
-        return "Continue";
-      case TitleRow::NewGame:
-        return "New Game";
-      case TitleRow::Load:
-        return "Load";
-      case TitleRow::Settings:
-        return "Settings";
-      case TitleRow::Credits:
-        return "Credits";
-      case TitleRow::Quit:
-        return "Quit";
+      case TitleRow::Continue: return "Continue";
+      case TitleRow::NewGame: return "New Game";
+      case TitleRow::Load: return "Load";
+      case TitleRow::Settings: return "Settings";
+      case TitleRow::Credits: return "Credits";
+      case TitleRow::Quit: return "Quit";
     }
     return "";
   }

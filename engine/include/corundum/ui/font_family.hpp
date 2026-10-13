@@ -43,9 +43,7 @@ namespace corundum::ui {
     std::array<std::uint32_t, k_font_style_count> ids{};
 
     /// @return The renderer id for @p style, or 0 when the family is unloaded.
-    [[nodiscard]] std::uint32_t get(FontStyle style) const noexcept {
-      return ids[static_cast<std::size_t>(style)];
-    }
+    [[nodiscard]] std::uint32_t get(FontStyle style) const noexcept { return ids[static_cast<std::size_t>(style)]; }
   };
 
   /// Config-supplied file names for one role, relative to ResourcePaths::font_dir.

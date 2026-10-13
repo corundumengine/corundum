@@ -24,9 +24,7 @@ namespace corundum::entities {
     std::array<std::uint32_t, KMax> sparse{};
     std::array<EntityId, KMax> entities{};
 
-    SparseIndex() noexcept {
-      sparse.fill(k_invalid);
-    }
+    SparseIndex() noexcept { sparse.fill(k_invalid); }
 
     [[nodiscard]] bool has(EntityId e) const noexcept {
       const auto i = e.index;

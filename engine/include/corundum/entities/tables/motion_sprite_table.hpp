@@ -83,9 +83,7 @@ namespace corundum::entities {
     // ── Queries ────────────────────────────────────────────────────
 
     /** @brief True if @p e has a motion-sprite entry. */
-    [[nodiscard]] bool has(EntityId e) const noexcept {
-      return index.has(e);
-    }
+    [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
     /** @brief Walk SpriteId for @p e. @pre has(e). */
     [[nodiscard]] corundum::sprites::SpriteId walk_sprite(EntityId e) const noexcept {
@@ -205,13 +203,9 @@ namespace corundum::entities {
 
     // ── GameTable concept compliance ───────────────────────────────
 
-    [[nodiscard]] auto active_span(this auto &self) noexcept {
-      return std::span(self.walk_id).first(self.count);
-    }
+    [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.walk_id).first(self.count); }
 
-    [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.index.active_entities(self.count);
-    }
+    [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
   };
 
   static_assert(GameTable<MotionSpriteTable>);

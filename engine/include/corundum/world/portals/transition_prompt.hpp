@@ -29,17 +29,11 @@ namespace corundum::world {
      */
     explicit TransitionPrompt(const Portal &portal) noexcept;
 
-    [[nodiscard]] bool confirm_selected() const noexcept {
-      return confirm_selected_;
-    }
+    [[nodiscard]] bool confirm_selected() const noexcept { return confirm_selected_; }
 
-    [[nodiscard]] bool declined() const noexcept {
-      return declined_;
-    }
+    [[nodiscard]] bool declined() const noexcept { return declined_; }
 
-    [[nodiscard]] const MapTransition &transition() const noexcept {
-      return transition_;
-    }
+    [[nodiscard]] const MapTransition &transition() const noexcept { return transition_; }
 
     /** @brief True while a tile-grid AABB still overlaps the trigger rect.
      *  @param col0 Left edge of the AABB.

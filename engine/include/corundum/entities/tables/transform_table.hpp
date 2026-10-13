@@ -42,41 +42,27 @@ namespace corundum::entities {
     std::uint32_t count = 0;
 
     /** @brief Contiguous span over the tile columns of all live entities. */
-    [[nodiscard]] auto active_cols(this auto &self) noexcept {
-      return std::span(self.col).first(self.count);
-    }
+    [[nodiscard]] auto active_cols(this auto &self) noexcept { return std::span(self.col).first(self.count); }
 
     /** @brief Contiguous span over the tile rows of all live entities. */
-    [[nodiscard]] auto active_rows(this auto &self) noexcept {
-      return std::span(self.row).first(self.count);
-    }
+    [[nodiscard]] auto active_rows(this auto &self) noexcept { return std::span(self.row).first(self.count); }
 
     /** @brief Contiguous span over the tile-column velocities of all live entities. */
-    [[nodiscard]] auto active_dcs(this auto &self) noexcept {
-      return std::span(self.dc).first(self.count);
-    }
+    [[nodiscard]] auto active_dcs(this auto &self) noexcept { return std::span(self.dc).first(self.count); }
 
     /** @brief Contiguous span over the tile-row velocities of all live entities. */
-    [[nodiscard]] auto active_drs(this auto &self) noexcept {
-      return std::span(self.dr).first(self.count);
-    }
+    [[nodiscard]] auto active_drs(this auto &self) noexcept { return std::span(self.dr).first(self.count); }
 
     /** @brief Contiguous span over col (alias for GameTable concept compliance). */
-    [[nodiscard]] auto active_span(this auto &self) noexcept {
-      return std::span(self.col).first(self.count);
-    }
+    [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.col).first(self.count); }
 
     /** @brief Contiguous span of the EntityIds in dense order. */
-    [[nodiscard]] auto active_entities(this auto &self) noexcept {
-      return self.index.active_entities(self.count);
-    }
+    [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
     /** @brief True if @p e has a row in this table.
      *  @param[in] e Entity to query.
      */
-    [[nodiscard]] bool has(EntityId e) const noexcept {
-      return index.has(e);
-    }
+    [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
     /** @brief Add a transform row for @p e.
      *  @param[in] e       Entity to add (must not already be present).
@@ -142,9 +128,7 @@ namespace corundum::entities {
      *  @pre has(e) must be true.
      *  @return Index into col/row/dc/dr arrays.
      */
-    [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept {
-      return index.dense_index(e);
-    }
+    [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept { return index.dense_index(e); }
 
     /** @brief Dense row index for @p e, or nullopt when @p e is stale, foreign or absent.
      *  Never aborts. */

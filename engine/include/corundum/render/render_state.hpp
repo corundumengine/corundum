@@ -111,21 +111,13 @@ namespace corundum::render {
     /// Maximum chunks resident at once; the bound callers may reserve against.
     static constexpr std::size_t k_max_active_chunks = static_cast<std::size_t>(k_side) * k_side;
 
-    [[nodiscard]] const std::vector<ChunkEntry> &active() const noexcept {
-      return active_;
-    }
+    [[nodiscard]] const std::vector<ChunkEntry> &active() const noexcept { return active_; }
 
-    [[nodiscard]] bool active_empty() const noexcept {
-      return active_.empty();
-    }
+    [[nodiscard]] bool active_empty() const noexcept { return active_.empty(); }
 
-    [[nodiscard]] std::size_t active_size() const noexcept {
-      return active_.size();
-    }
+    [[nodiscard]] std::size_t active_size() const noexcept { return active_.size(); }
 
-    [[nodiscard]] const ChunkEntry &active_at(std::size_t i) const noexcept {
-      return active_[i];
-    }
+    [[nodiscard]] const ChunkEntry &active_at(std::size_t i) const noexcept { return active_[i]; }
 
     /// @return true if the active set changed since the last call, clearing the flag.
     [[nodiscard]] bool consume_dirty() noexcept {
@@ -134,9 +126,7 @@ namespace corundum::render {
       return was_dirty;
     }
 
-    [[nodiscard]] world::tilemap::ChunkCoord last_center() const noexcept {
-      return last_center_;
-    }
+    [[nodiscard]] world::tilemap::ChunkCoord last_center() const noexcept { return last_center_; }
 
     /// Recenter the window and re-derive the offset→slot lookup.
     void set_last_center(world::tilemap::ChunkCoord c) noexcept {
@@ -183,9 +173,7 @@ namespace corundum::render {
 
     /// Queue @p c for loading. Caller should check has(c) first to avoid duplicates
     /// (kept explicit rather than implicit to match the existing call-site logic).
-    void enqueue_pending(world::tilemap::ChunkCoord c) {
-      pending_.push_back(c);
-    }
+    void enqueue_pending(world::tilemap::ChunkCoord c) { pending_.push_back(c); }
 
     /// Drop pending coords for which @p keep returns false — chunks the window moved away from
     /// before they were loaded.
@@ -195,9 +183,7 @@ namespace corundum::render {
 
     /// Record that @p c failed to load, so has() reports it and it is never re-queued. Failed
     /// chunks stay failed until clear() (the next load_world()).
-    void mark_failed(world::tilemap::ChunkCoord c) {
-      failed_.push_back(c);
-    }
+    void mark_failed(world::tilemap::ChunkCoord c) { failed_.push_back(c); }
 
     /// Pop the front of the pending queue into @p out.
     /// @return false if pending is empty (out left unchanged).

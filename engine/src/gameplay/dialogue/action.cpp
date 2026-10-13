@@ -30,17 +30,11 @@ namespace corundum::gameplay::dialogue {
       std::string_view src;
       std::size_t pos = 0;
 
-      [[nodiscard]] bool at_end() const noexcept {
-        return pos >= src.size();
-      }
+      [[nodiscard]] bool at_end() const noexcept { return pos >= src.size(); }
 
-      [[nodiscard]] char peek() const noexcept {
-        return pos < src.size() ? src[pos] : '\0';
-      }
+      [[nodiscard]] char peek() const noexcept { return pos < src.size() ? src[pos] : '\0'; }
 
-      void consume() noexcept {
-        ++pos;
-      }
+      void consume() noexcept { ++pos; }
 
       void skip_ws() noexcept {
         while (pos < src.size() && std::isspace(static_cast<unsigned char>(src[pos])) != 0)
@@ -201,17 +195,10 @@ namespace corundum::gameplay::dialogue {
             if constexpr (std::is_same_v<T, StateAction>) {
               const std::string key = corundum::world::scoped_flag_key(a.var, zone_id);
               switch (a.op) {
-                case StateAction::Op::Assign:
-                  flags[key] = a.value;
-                  break;
-                case StateAction::Op::Add:
-                  flags[key] += a.value;
-                  break;
-                case StateAction::Op::Sub:
-                  flags[key] -= a.value;
-                  break;
-                default:
-                  std::unreachable();
+                case StateAction::Op::Assign: flags[key] = a.value; break;
+                case StateAction::Op::Add: flags[key] += a.value; break;
+                case StateAction::Op::Sub: flags[key] -= a.value; break;
+                default: std::unreachable();
               }
             } else if constexpr (std::is_same_v<T, EventAction>) {
               events.push_back(std::forward<decltype(a)>(a));

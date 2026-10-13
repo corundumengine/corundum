@@ -172,9 +172,7 @@ namespace corundum::platform::glfw {
       void draw(const DrawLine &cmd) override;
       float measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const override;
 
-      corundum::platform::RendererStats stats() const override {
-        return last_stats_;
-      }
+      corundum::platform::RendererStats stats() const override { return last_stats_; }
 
     private:
       struct LoadedTexture {

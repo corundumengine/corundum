@@ -122,9 +122,7 @@ namespace corundum::gameplay::quest {
     std::vector<std::string> warnings{};
 
     /** @brief True when no rule was violated, i.e. `errors` is empty. */
-    [[nodiscard]] bool ok() const noexcept {
-      return errors.empty();
-    }
+    [[nodiscard]] bool ok() const noexcept { return errors.empty(); }
   };
 
   /** @brief Validate a Quest's stage-uniqueness, sequence, and resolution invariants.

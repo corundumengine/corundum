@@ -144,12 +144,9 @@ namespace corundum::gameplay::screens {
 
   int character_section_row_count(const CharacterInfo &info, int section) noexcept {
     switch (section) {
-      case 1:
-        return std::max(1, static_cast<int>(info.equipment.size()));
-      case 2:
-        return std::max(1, static_cast<int>(info.inventory.size()));
-      default:
-        return info.max_health > 0 ? 4 : 3;
+      case 1: return std::max(1, static_cast<int>(info.equipment.size()));
+      case 2: return std::max(1, static_cast<int>(info.inventory.size()));
+      default: return info.max_health > 0 ? 4 : 3;
     }
   }
 

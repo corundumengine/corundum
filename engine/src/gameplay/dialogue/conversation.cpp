@@ -295,20 +295,11 @@ namespace corundum::gameplay::dialogue {
     }
 
     switch (node->type) {
-      case NodeType::Talk:
-        handle_talk(*node, intent);
-        break;
-      case NodeType::Choice:
-        handle_choice(*node, intent, pending);
-        break;
-      case NodeType::Event:
-        handle_event(*node, pending);
-        break;
-      case NodeType::End:
-        reset();
-        break;
-      default:
-        std::unreachable();
+      case NodeType::Talk: handle_talk(*node, intent); break;
+      case NodeType::Choice: handle_choice(*node, intent, pending); break;
+      case NodeType::Event: handle_event(*node, pending); break;
+      case NodeType::End: reset(); break;
+      default: std::unreachable();
     }
 
     // Auto-advance through any chain of Event nodes reached after a transition.

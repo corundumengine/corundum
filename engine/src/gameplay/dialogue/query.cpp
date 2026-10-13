@@ -18,8 +18,7 @@ namespace corundum::gameplay::dialogue {
     switch (node.type) {
 
       case NodeType::Talk:
-      case NodeType::Event:
-        return graph.find(node.next_id);
+      case NodeType::Event: return graph.find(node.next_id);
 
       case NodeType::Choice: {
         const auto idx = static_cast<std::size_t>(choice_index);
@@ -28,10 +27,8 @@ namespace corundum::gameplay::dialogue {
         return graph.find(node.choices[idx].target_id);
       }
 
-      case NodeType::End:
-        return nullptr;
-      default:
-        std::unreachable();
+      case NodeType::End: return nullptr;
+      default: std::unreachable();
     }
 
     return nullptr;
@@ -60,14 +57,10 @@ namespace corundum::gameplay::dialogue {
                          std::string_view node_id, std::size_t edge_index, std::size_t cycle_slot,
                          std::size_t random_slot_index, std::size_t &cycle_index, std::size_t &random_index) {
       switch (edge.sequence) {
-        case SequenceMode::None:
-          return true;
-        case SequenceMode::Once:
-          return !corundum::world::has_flag(flags, once_flag_key(graph_id, node_id, edge_index));
-        case SequenceMode::Cycle:
-          return cycle_index++ == cycle_slot;
-        case SequenceMode::Random:
-          return random_index++ == random_slot_index;
+        case SequenceMode::None: return true;
+        case SequenceMode::Once: return !corundum::world::has_flag(flags, once_flag_key(graph_id, node_id, edge_index));
+        case SequenceMode::Cycle: return cycle_index++ == cycle_slot;
+        case SequenceMode::Random: return random_index++ == random_slot_index;
       }
       std::unreachable();
     }

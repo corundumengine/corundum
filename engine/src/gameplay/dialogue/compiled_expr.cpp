@@ -67,26 +67,18 @@ namespace corundum::gameplay::dialogue {
         return token;
       }
 
-      [[nodiscard]] bool is(TokKind kind) const noexcept {
-        return kind_ == kind;
-      }
+      [[nodiscard]] bool is(TokKind kind) const noexcept { return kind_ == kind; }
 
       [[nodiscard]] bool is_comparison() const noexcept {
         return kind_ == TokKind::EqEq || kind_ == TokKind::NotEq || kind_ == TokKind::Lt || kind_ == TokKind::Gt ||
                kind_ == TokKind::LtEq || kind_ == TokKind::GtEq;
       }
 
-      [[nodiscard]] TokKind kind() const noexcept {
-        return kind_;
-      }
+      [[nodiscard]] TokKind kind() const noexcept { return kind_; }
 
-      [[nodiscard]] int int_value() const noexcept {
-        return int_value_;
-      }
+      [[nodiscard]] int int_value() const noexcept { return int_value_; }
 
-      [[nodiscard]] std::string_view text() const noexcept {
-        return text_;
-      }
+      [[nodiscard]] std::string_view text() const noexcept { return text_; }
 
     private:
       TokKind kind_ = TokKind::End;
@@ -117,20 +109,13 @@ namespace corundum::gameplay::dialogue {
     /// Kind of the single-character operator @p c, or nullopt when it is not one.
     [[nodiscard]] std::optional<TokKind> single_char_operator(char c) noexcept {
       switch (c) {
-        case '<':
-          return TokKind::Lt;
-        case '>':
-          return TokKind::Gt;
-        case '!':
-          return TokKind::Not;
-        case '(':
-          return TokKind::LParen;
-        case ')':
-          return TokKind::RParen;
-        case ',':
-          return TokKind::Comma;
-        default:
-          return std::nullopt;
+        case '<': return TokKind::Lt;
+        case '>': return TokKind::Gt;
+        case '!': return TokKind::Not;
+        case '(': return TokKind::LParen;
+        case ')': return TokKind::RParen;
+        case ',': return TokKind::Comma;
+        default: return std::nullopt;
       }
     }
 
@@ -244,9 +229,7 @@ namespace corundum::gameplay::dialogue {
     // NOLINTBEGIN(misc-no-recursion)
     class Parser {
     public:
-      Parser(std::string_view src, std::vector<ExprNode> &arena) : lex_(src), arena_(&arena) {
-        advance();
-      }
+      Parser(std::string_view src, std::vector<ExprNode> &arena) : lex_(src), arena_(&arena) { advance(); }
 
       /** @brief Parse the whole expression; returns the root arena index. */
       int parse() {
@@ -257,9 +240,7 @@ namespace corundum::gameplay::dialogue {
       }
 
     private:
-      void advance() {
-        cur_ = lex_.next();
-      }
+      void advance() { cur_ = lex_.next(); }
 
       int push(ExprNode node) {
         arena_->push_back(std::move(node));
@@ -319,12 +300,8 @@ namespace corundum::gameplay::dialogue {
             advance();
             return push(ExprNode{.value = v});
           }
-          case TokKind::True:
-            advance();
-            return push(ExprNode{.value = 1});
-          case TokKind::False:
-            advance();
-            return push(ExprNode{.value = 0});
+          case TokKind::True: advance(); return push(ExprNode{.value = 1});
+          case TokKind::False: advance(); return push(ExprNode{.value = 0});
           case TokKind::Ident: {
             const auto text = std::string(cur_.text());
             advance();
@@ -340,8 +317,7 @@ namespace corundum::gameplay::dialogue {
             advance();
             return inner;
           }
-          default:
-            throw std::runtime_error("expected value, got: " + std::string(cur_.text()));
+          default: throw std::runtime_error("expected value, got: " + std::string(cur_.text()));
         }
       }
 
@@ -380,20 +356,13 @@ namespace corundum::gameplay::dialogue {
 
       static CmpOp cmp_op(TokKind kind) {
         switch (kind) {
-          case TokKind::EqEq:
-            return CmpOp::Eq;
-          case TokKind::NotEq:
-            return CmpOp::Ne;
-          case TokKind::Lt:
-            return CmpOp::Lt;
-          case TokKind::Gt:
-            return CmpOp::Gt;
-          case TokKind::LtEq:
-            return CmpOp::Le;
-          case TokKind::GtEq:
-            return CmpOp::Ge;
-          default:
-            std::unreachable();
+          case TokKind::EqEq: return CmpOp::Eq;
+          case TokKind::NotEq: return CmpOp::Ne;
+          case TokKind::Lt: return CmpOp::Lt;
+          case TokKind::Gt: return CmpOp::Gt;
+          case TokKind::LtEq: return CmpOp::Le;
+          case TokKind::GtEq: return CmpOp::Ge;
+          default: std::unreachable();
         }
       }
 
@@ -410,38 +379,25 @@ namespace corundum::gameplay::dialogue {
                 const quest::Registry *quests, std::string_view graph_id, std::string_view zone_id)
           : nodes_(&nodes), root_(root), vars_(&vars), quests_(quests), graph_id_(graph_id), zone_id_(zone_id) {}
 
-      [[nodiscard]] bool run() const {
-        return eval_index(root_) != 0;
-      }
+      [[nodiscard]] bool run() const { return eval_index(root_) != 0; }
 
     private:
-      [[nodiscard]] int flag_count(const std::string &key) const {
-        return corundum::world::visit_count(*vars_, key);
-      }
+      [[nodiscard]] int flag_count(const std::string &key) const { return corundum::world::visit_count(*vars_, key); }
 
-      [[nodiscard]] const ExprNode &node(int index) const {
-        return (*nodes_)[static_cast<std::size_t>(index)];
-      }
+      [[nodiscard]] const ExprNode &node(int index) const { return (*nodes_)[static_cast<std::size_t>(index)]; }
 
       [[nodiscard]] int eval_index(int index) const {
         const ExprNode &n = node(index);
         switch (n.kind) {
-          case ExprNode::Kind::Int:
-            return n.value;
+          case ExprNode::Kind::Int: return n.value;
           case ExprNode::Kind::Ident:
             return corundum::world::visit_count(*vars_, corundum::world::scoped_flag_key(n.name, zone_id_));
-          case ExprNode::Kind::Bool:
-            return eval_index(n.lhs) != 0 ? 1 : 0;
-          case ExprNode::Kind::Not:
-            return eval_index(n.lhs) == 0 ? 1 : 0;
-          case ExprNode::Kind::And:
-            return (eval_index(n.lhs) != 0 && eval_index(n.rhs) != 0) ? 1 : 0;
-          case ExprNode::Kind::Or:
-            return (eval_index(n.lhs) != 0 || eval_index(n.rhs) != 0) ? 1 : 0;
-          case ExprNode::Kind::Cmp:
-            return eval_cmp(n);
-          case ExprNode::Kind::Call:
-            return eval_call(n);
+          case ExprNode::Kind::Bool: return eval_index(n.lhs) != 0 ? 1 : 0;
+          case ExprNode::Kind::Not: return eval_index(n.lhs) == 0 ? 1 : 0;
+          case ExprNode::Kind::And: return (eval_index(n.lhs) != 0 && eval_index(n.rhs) != 0) ? 1 : 0;
+          case ExprNode::Kind::Or: return (eval_index(n.lhs) != 0 || eval_index(n.rhs) != 0) ? 1 : 0;
+          case ExprNode::Kind::Cmp: return eval_cmp(n);
+          case ExprNode::Kind::Call: return eval_call(n);
         }
         std::unreachable();
       }
@@ -459,18 +415,12 @@ namespace corundum::gameplay::dialogue {
         }
 
         switch (n.op) {
-          case CmpOp::Eq:
-            return lhs == rhs ? 1 : 0;
-          case CmpOp::Ne:
-            return lhs != rhs ? 1 : 0;
-          case CmpOp::Lt:
-            return lhs < rhs ? 1 : 0;
-          case CmpOp::Gt:
-            return lhs > rhs ? 1 : 0;
-          case CmpOp::Le:
-            return lhs <= rhs ? 1 : 0;
-          case CmpOp::Ge:
-            return lhs >= rhs ? 1 : 0;
+          case CmpOp::Eq: return lhs == rhs ? 1 : 0;
+          case CmpOp::Ne: return lhs != rhs ? 1 : 0;
+          case CmpOp::Lt: return lhs < rhs ? 1 : 0;
+          case CmpOp::Gt: return lhs > rhs ? 1 : 0;
+          case CmpOp::Le: return lhs <= rhs ? 1 : 0;
+          case CmpOp::Ge: return lhs >= rhs ? 1 : 0;
         }
         std::unreachable();
       }

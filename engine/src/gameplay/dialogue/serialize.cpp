@@ -12,28 +12,20 @@ namespace corundum::gameplay::dialogue {
 
     [[nodiscard]] const char *node_type_str(NodeType type) noexcept {
       switch (type) {
-        case NodeType::Talk:
-          return "talk";
-        case NodeType::Choice:
-          return "choice";
-        case NodeType::Event:
-          return "event";
-        case NodeType::End:
-          return "end";
+        case NodeType::Talk: return "talk";
+        case NodeType::Choice: return "choice";
+        case NodeType::Event: return "event";
+        case NodeType::End: return "end";
       }
       return "end";
     }
 
     [[nodiscard]] const char *sequence_str(SequenceMode mode) noexcept {
       switch (mode) {
-        case SequenceMode::Once:
-          return "once";
-        case SequenceMode::Cycle:
-          return "cycle";
-        case SequenceMode::Random:
-          return "random";
-        case SequenceMode::None:
-          break;
+        case SequenceMode::Once: return "once";
+        case SequenceMode::Cycle: return "cycle";
+        case SequenceMode::Random: return "random";
+        case SequenceMode::None: break;
       }
       return nullptr;
     }
@@ -73,8 +65,7 @@ namespace corundum::gameplay::dialogue {
           nj["next"] = node.next_id;
           nj["actions"] = node.actions;
           break;
-        case NodeType::End:
-          break;
+        case NodeType::End: break;
       }
 
       if (node.once)

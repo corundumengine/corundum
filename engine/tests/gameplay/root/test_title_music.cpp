@@ -51,9 +51,7 @@ namespace {
       return {};
     }
 
-    void stop_music(float fade_out_seconds) override {
-      stop_fades.push_back(fade_out_seconds);
-    }
+    void stop_music(float fade_out_seconds) override { stop_fades.push_back(fade_out_seconds); }
 
     std::vector<std::string> played_tracks;
     std::vector<corundum::audio::MusicPlayback> playbacks;

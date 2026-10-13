@@ -42,9 +42,7 @@ namespace corundum::gameplay::quest {
     [[nodiscard]] const Quest *find(std::string_view quest_id) const;
 
     /** @brief Number of loaded quests. */
-    [[nodiscard]] std::size_t size() const noexcept {
-      return quests_.size();
-    }
+    [[nodiscard]] std::size_t size() const noexcept { return quests_.size(); }
 
     /** @brief Register a quest directly, keyed by its quest_id.
      *
@@ -62,14 +60,10 @@ namespace corundum::gameplay::quest {
     }
 
     /** @brief Range-for support for iterating all loaded quests (id, quest) pairs. */
-    [[nodiscard]] auto begin() const noexcept {
-      return quests_.begin();
-    }
+    [[nodiscard]] auto begin() const noexcept { return quests_.begin(); }
 
     /** @brief Iterator past the last loaded quest. */
-    [[nodiscard]] auto end() const noexcept {
-      return quests_.end();
-    }
+    [[nodiscard]] auto end() const noexcept { return quests_.end(); }
 
   private:
     std::flat_map<std::string, Quest, std::less<>> quests_;

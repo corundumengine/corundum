@@ -28,9 +28,7 @@ namespace corundum::input {
     /** @brief Starts with default_bindings(). */
     InputMapper();
 
-    [[nodiscard]] const Bindings &bindings() const noexcept {
-      return bindings_;
-    }
+    [[nodiscard]] const Bindings &bindings() const noexcept { return bindings_; }
 
     /** @brief Replace the binding table.
      *
@@ -74,22 +72,16 @@ namespace corundum::input {
     /** @brief Stop capturing without recording anything. */
     void cancel_capture() noexcept;
 
-    [[nodiscard]] bool is_capturing() const noexcept {
-      return capturing_;
-    }
+    [[nodiscard]] bool is_capturing() const noexcept { return capturing_; }
 
     /** @brief The captured press, once; nullopt while still capturing or when nothing was captured. */
     [[nodiscard]] std::optional<PhysicalInput> take_captured() noexcept;
 
     /** @brief Device of the most recent press (not release); Keyboard before any press. */
-    [[nodiscard]] InputDevice last_device() const noexcept {
-      return last_device_;
-    }
+    [[nodiscard]] InputDevice last_device() const noexcept { return last_device_; }
 
     /** @brief True from a gamepad() poll until the next gamepad_absent(). */
-    [[nodiscard]] bool gamepad_connected() const noexcept {
-      return gamepad_connected_;
-    }
+    [[nodiscard]] bool gamepad_connected() const noexcept { return gamepad_connected_; }
 
   private:
     /** @brief Route one physical transition: record the device, satisfy a capture, or drive every matching row. */

@@ -72,13 +72,9 @@ namespace {
   public:
     std::vector<corundum::core::math::Vec2> viewports{};
 
-    [[nodiscard]] std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override {
-      return 1u;
-    }
+    [[nodiscard]] std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override { return 1u; }
 
-    [[nodiscard]] std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override {
-      return 1u;
-    }
+    [[nodiscard]] std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
 
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 viewport_size,
                         float /*zoom*/) override {
@@ -87,9 +83,7 @@ namespace {
 
     void reset_screen_view() override {}
 
-    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override {
-      return true;
-    }
+    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
 
     void end_frame() override {}
 
@@ -106,9 +100,7 @@ namespace {
       return static_cast<float>(text.size()) * 8.f;
     }
 
-    [[nodiscard]] corundum::platform::RendererStats stats() const override {
-      return {};
-    }
+    [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
   };
 
 } // namespace

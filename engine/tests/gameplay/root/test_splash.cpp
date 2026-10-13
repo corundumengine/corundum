@@ -64,22 +64,16 @@ namespace {
       return {.x = 64.f, .y = 32.f};
     }
 
-    void release_texture(uint32_t texture_id) override {
-      refs.release(texture_id);
-    }
+    void release_texture(uint32_t texture_id) override { refs.release(texture_id); }
 
-    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override {
-      return 1u;
-    }
+    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
 
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
                         float /*zoom*/) override {}
 
     void reset_screen_view() override {}
 
-    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override {
-      return true;
-    }
+    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
 
     void end_frame() override {}
 
@@ -96,9 +90,7 @@ namespace {
       return 0.f;
     }
 
-    [[nodiscard]] platform::RendererStats stats() const override {
-      return {};
-    }
+    [[nodiscard]] platform::RendererStats stats() const override { return {}; }
 
     /// The id load_texture() gave @p path, or 0 when it never loaded.
     [[nodiscard]] uint32_t id_of(std::string_view path) const {

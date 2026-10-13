@@ -102,9 +102,7 @@ namespace {
   struct CwdGuard {
     fs::path saved{fs::current_path()};
 
-    explicit CwdGuard(const fs::path &path) {
-      fs::current_path(path);
-    }
+    explicit CwdGuard(const fs::path &path) { fs::current_path(path); }
 
     ~CwdGuard() {
       std::error_code ignored;

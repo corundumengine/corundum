@@ -118,6 +118,27 @@ CheckOptions:
   - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
     value: 'true'
 
+  # Function-shape thresholds. Calibrated so a nested x/y loop with one braced
+  # if (complexity 6, ~13 statements, nesting 4) still passes, allowing roughly
+  # two to three such passes; clang-tidy counts the function body as level 1.
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '15'
+    # LLVM default is 25.
+
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: 'true'
+    # doctest CHECK/REQUIRE expand to branches; without this every test body
+    # needs a NOLINT.
+
+  - key: readability-function-size.StatementThreshold
+    value: '40'
+    # LLVM default is 800, i.e. effectively off.
+
+  - key: readability-function-size.NestingThreshold
+    value: '4'
+    # The function body is level 1, so a fourth nested braced block inside it
+    # (e.g. for/for/if/while) is flagged.
+
 # TODO(cleanup): LLVM Clang 23 surfaces ~7700 findings across
 # cppcoreguidelines-*, bugprone-easily-swappable-parameters, and
 # performance-*. Warnings-as-errors temporarily disabled above; re-enable
