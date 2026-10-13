@@ -14,15 +14,14 @@ endif()
 # tools must ask for them explicitly rather than inherit them.
 option(CORUNDUM_BUILD_TOOLS "Build game developer tools" ${PROJECT_IS_TOP_LEVEL})
 option(CORUNDUM_BUILD_TESTS "Build unit tests" ${PROJECT_IS_TOP_LEVEL})
-option(CORUNDUM_BUILD_DOCS "Build Doxygen documentation" OFF)
 
 # Fail fast on a toolchain that can't build the engine's C++23 library surface,
 # before any developer target or dependency fetch runs.
 include(cmake/ToolchainChecks.cmake)
 
-# Developer targets (format_code, build_docs). Included before Dependencies.cmake
-# so the REQUIRED clang-format check fails fast instead of after dependency fetches.
-include(cmake/FormatAndDocs.cmake)
+# Developer targets (format_code). Included before Dependencies.cmake so the
+# REQUIRED clang-format check fails fast instead of after dependency fetches.
+include(cmake/Format.cmake)
 include(cmake/Dependencies.cmake)
 
 # Graphics-API selection (the sokol define) — one source of truth shared by the

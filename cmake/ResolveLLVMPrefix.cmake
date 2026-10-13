@@ -1,5 +1,5 @@
 # Single source of truth for locating the pinned LLVM install. The build
-# toolchain (llvm-clang.cmake), the clang-format target (FormatAndDocs.cmake)
+# toolchain (llvm-clang.cmake), the clang-format target (Format.cmake)
 # and scripts/run_tidy.sh must all agree on one prefix; deriving it separately
 # in each consumer let them drift.
 #

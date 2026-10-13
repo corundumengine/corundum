@@ -48,16 +48,6 @@
         "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
       }
-    },
-    {
-      "name": "docs",
-      "displayName": "Debug + Doxygen docs",
-      "inherits": "base",
-      "binaryDir": "${sourceDir}/build-docs",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CORUNDUM_BUILD_DOCS": "ON"
-      }
     }
   ],
 
@@ -79,11 +69,6 @@
       "name": "format",
       "configurePreset": "debug",
       "targets": ["format_code"]
-    },
-    {
-      "name": "docs",
-      "configurePreset": "docs",
-      "targets": ["build_docs"]
     }
   ],
 
