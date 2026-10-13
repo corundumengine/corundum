@@ -16,9 +16,11 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <format>
 #include <memory>
@@ -53,13 +55,24 @@ namespace corundum::platform::miniaudio {
       ma_uint64 loop_delay_frames{};
     };
 
+    /// One mixer bus's miniaudio group. Master has no group: it is the engine volume.
+    struct Bus {
+      ma_sound_group group{};
+      bool active{false};
+    };
+
+    /// One reusable playback voice; a null sound marks a free slot.
+    struct Voice {
+      SoundPtr sound;
+      std::uint32_t generation{}; ///< 0 until first use; incremented on every play.
+    };
+
     ma_engine engine{};
-    ma_sound_group effects{};
-    ma_sound_group music{};
+    std::array<Bus, audio::k_audio_bus_count> buses{};
     MiniaudioOutput output{MiniaudioOutput::Device};
     bool is_ready{false};
     std::vector<SoundPtr> effect_sources; ///< Index = handle - 1; decoded at load.
-    std::vector<SoundPtr> effect_voices;  ///< Live playback copies, reclaimed in play()/update().
+    std::vector<Voice> effect_voices;     ///< Reusable playback slots, reclaimed in play()/update().
 
     std::optional<MusicTrack> music_track; ///< The one streamed track, when one is playing.
     std::vector<SoundPtr> fading_tracks;   ///< Replaced/stopped tracks still fading out.
@@ -69,13 +82,51 @@ namespace corundum::platform::miniaudio {
       return static_cast<ma_uint64>(std::lround(seconds * 1000.f));
     }
 
-    /// Stop @p sound over @p seconds (0 stops at once) and hold it until it goes silent.
-    void fade_out_and_retire(SoundPtr sound, float seconds) {
+    /// The miniaudio group for @p bus, or nullptr for Master. miniaudio attaches a sound with no
+    /// group straight to the engine endpoint, which is exactly what the Master bus means.
+    [[nodiscard]] ma_sound_group *group_for(audio::AudioBus bus) {
+      Bus &found = buses[audio::bus_index(bus)];
+      return found.active ? &found.group : nullptr;
+    }
+
+    /// The live sound behind @p id, or nullptr when the id is stale or out of range.
+    [[nodiscard]] ma_sound *find_voice(audio::SoundInstanceId id) {
+      if (!id.is_valid() || id.index > effect_voices.size())
+        return nullptr;
+      const Voice &voice = effect_voices[id.index - 1];
+      if (voice.sound == nullptr || voice.generation != id.generation)
+        return nullptr;
+      return voice.sound.get();
+    }
+
+    /// Mark every slot whose sound has finished as free, so play() can reuse it.
+    void reclaim_finished_voices() {
+      for (Voice &voice : effect_voices)
+        if (voice.sound != nullptr && ma_sound_is_playing(voice.sound.get()) == MA_FALSE)
+          voice.sound.reset();
+    }
+
+    /// Stop @p sound over @p seconds (0 stops at once), leaving it live until it goes silent.
+    static void stop_sound_over(ma_sound *sound, float seconds) {
       if (seconds > 0.f)
-        ma_sound_stop_with_fade_in_milliseconds(sound.get(), seconds_to_milliseconds(seconds));
+        ma_sound_stop_with_fade_in_milliseconds(sound, seconds_to_milliseconds(seconds));
       else
-        ma_sound_stop(sound.get());
+        ma_sound_stop(sound);
+    }
+
+    /// Move @p sound into the fading set after starting its stop, so it is freed once silent.
+    void fade_out_and_retire(SoundPtr sound, float seconds) {
+      stop_sound_over(sound.get(), seconds);
       fading_tracks.push_back(std::move(sound));
+    }
+
+    /// Uninit every bus group that was created. Master has no group.
+    void uninit_buses() {
+      for (Bus &bus : buses)
+        if (bus.active) {
+          ma_sound_group_uninit(&bus.group);
+          bus.active = false;
+        }
     }
   };
 
@@ -95,21 +146,20 @@ namespace corundum::platform::miniaudio {
       return;
     }
 
-    const ma_result group_result = ma_sound_group_init(&state_->engine, 0, nullptr, &state_->effects);
-    if (group_result != MA_SUCCESS) {
-      detail::warn_log("[audio] WARN: miniaudio engine init failed: {} — audio disabled",
-                       ma_result_description(group_result));
-      ma_engine_uninit(&state_->engine);
-      return;
-    }
-
-    const ma_result music_result = ma_sound_group_init(&state_->engine, 0, nullptr, &state_->music);
-    if (music_result != MA_SUCCESS) {
-      detail::warn_log("[audio] WARN: miniaudio engine init failed: {} — audio disabled",
-                       ma_result_description(music_result));
-      ma_sound_group_uninit(&state_->effects);
-      ma_engine_uninit(&state_->engine);
-      return;
+    // Master uses the engine volume; every other bus gets its own group.
+    for (std::size_t i = 0; i < audio::k_audio_bus_count; ++i) {
+      if (static_cast<audio::AudioBus>(i) == audio::AudioBus::Master)
+        continue;
+      State::Bus &bus = state_->buses[i];
+      const ma_result group_result = ma_sound_group_init(&state_->engine, 0, nullptr, &bus.group);
+      if (group_result != MA_SUCCESS) {
+        detail::warn_log("[audio] WARN: miniaudio bus init failed: {} — audio disabled",
+                         ma_result_description(group_result));
+        state_->uninit_buses();
+        ma_engine_uninit(&state_->engine);
+        return;
+      }
+      bus.active = true;
     }
 
     state_->is_ready = true;
@@ -118,13 +168,12 @@ namespace corundum::platform::miniaudio {
   MiniaudioBackend::~MiniaudioBackend() {
     if (!state_->is_ready)
       return;
-    // Voices and sources reference the groups, so they must die first.
+    // Voices and tracks reference the groups, so they must die first.
     state_->effect_voices.clear();
     state_->effect_sources.clear();
     state_->music_track.reset();
     state_->fading_tracks.clear();
-    ma_sound_group_uninit(&state_->music);
-    ma_sound_group_uninit(&state_->effects);
+    state_->uninit_buses();
     ma_engine_uninit(&state_->engine);
   }
 
@@ -136,7 +185,7 @@ namespace corundum::platform::miniaudio {
     auto sound = std::make_unique<ma_sound>();
     const ma_result result = ma_sound_init_from_file(&state_->engine, filename.c_str(),
                                                      MA_SOUND_FLAG_DECODE | MA_SOUND_FLAG_NO_SPATIALIZATION,
-                                                     &state_->effects, nullptr, sound.get());
+                                                     state_->group_for(audio::AudioBus::Sound), nullptr, sound.get());
     if (result != MA_SUCCESS)
       return std::unexpected(std::format("[audio] Failed to load '{}': {}", path, ma_result_description(result)));
 
@@ -144,28 +193,62 @@ namespace corundum::platform::miniaudio {
     return static_cast<audio::SoundHandle>(state_->effect_sources.size());
   }
 
-  void MiniaudioBackend::play(audio::SoundHandle handle, float volume, bool loop) {
+  audio::SoundInstanceId MiniaudioBackend::play(audio::SoundHandle handle, float volume, bool loop,
+                                                audio::AudioBus bus) {
     if (!state_->is_ready || handle == 0 || handle > state_->effect_sources.size())
-      return;
+      return {};
 
-    std::erase_if(state_->effect_voices, [](const SoundPtr &voice) { return !ma_sound_is_playing(voice.get()); });
+    state_->reclaim_finished_voices();
+
+    // Reuse the first free slot so the voice table stays bounded by peak concurrency.
+    const auto free_slot =
+        std::ranges::find_if(state_->effect_voices, [](const State::Voice &voice) { return voice.sound == nullptr; });
+    const std::size_t slot = static_cast<std::size_t>(free_slot - state_->effect_voices.begin());
+    if (free_slot == state_->effect_voices.end())
+      state_->effect_voices.push_back(State::Voice{});
+
+    State::Voice &voice = state_->effect_voices[slot];
+    ++voice.generation; // Every reuse invalidates ids handed out for the slot's previous voice.
 
     const ma_sound &source = *state_->effect_sources[static_cast<std::size_t>(handle) - 1];
-    auto voice = std::make_unique<ma_sound>();
-    const ma_result result =
-        ma_sound_init_copy(&state_->engine, &source, MA_SOUND_FLAG_NO_SPATIALIZATION, &state_->effects, voice.get());
+    auto sound = std::make_unique<ma_sound>();
+    const ma_result result = ma_sound_init_copy(&state_->engine, &source, MA_SOUND_FLAG_NO_SPATIALIZATION,
+                                                state_->group_for(bus), sound.get());
     if (result != MA_SUCCESS)
-      return;
+      return {};
 
-    ma_sound_set_volume(voice.get(), std::clamp(volume, 0.f, 1.f));
-    ma_sound_set_looping(voice.get(), static_cast<ma_bool32>(loop));
-    ma_sound_start(voice.get());
-    state_->effect_voices.push_back(SoundPtr{voice.release()});
+    ma_sound_set_volume(sound.get(), std::clamp(volume, 0.f, 1.f));
+    ma_sound_set_looping(sound.get(), static_cast<ma_bool32>(loop));
+    ma_sound_start(sound.get());
+    voice.sound = SoundPtr{sound.release()};
+    return audio::SoundInstanceId{.index = static_cast<std::uint32_t>(slot) + 1u, .generation = voice.generation};
   }
 
-  void MiniaudioBackend::set_master_volume(float volume) {
-    if (state_->is_ready)
-      ma_engine_set_volume(&state_->engine, std::clamp(volume, 0.f, 1.f));
+  void MiniaudioBackend::stop(audio::SoundInstanceId id, float fade_out_seconds) {
+    if (ma_sound *sound = state_->find_voice(id); sound != nullptr)
+      State::stop_sound_over(sound, fade_out_seconds);
+  }
+
+  void MiniaudioBackend::set_volume(audio::SoundInstanceId id, float volume) {
+    if (ma_sound *sound = state_->find_voice(id); sound != nullptr)
+      ma_sound_set_volume(sound, std::clamp(volume, 0.f, 1.f));
+  }
+
+  void MiniaudioBackend::set_pitch(audio::SoundInstanceId id, float pitch) {
+    if (ma_sound *sound = state_->find_voice(id); sound != nullptr)
+      ma_sound_set_pitch(sound, pitch);
+  }
+
+  void MiniaudioBackend::set_bus_volume(audio::AudioBus bus, float volume) {
+    if (!state_->is_ready)
+      return;
+    const float clamped = std::clamp(volume, 0.f, 1.f);
+    if (bus == audio::AudioBus::Master) {
+      ma_engine_set_volume(&state_->engine, clamped);
+      return;
+    }
+    if (State::Bus &found = state_->buses[audio::bus_index(bus)]; found.active)
+      ma_sound_group_set_volume(&found.group, clamped);
   }
 
   void MiniaudioBackend::set_paused(bool paused) {
@@ -190,8 +273,8 @@ namespace corundum::platform::miniaudio {
     // decode the whole file there. The loop and fade logic is identical either way.
     const ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION |
                             (state_->output == MiniaudioOutput::Device ? MA_SOUND_FLAG_STREAM : MA_SOUND_FLAG_DECODE);
-    const ma_result result =
-        ma_sound_init_from_file(&state_->engine, filename.c_str(), flags, &state_->music, nullptr, sound.get());
+    const ma_result result = ma_sound_init_from_file(&state_->engine, filename.c_str(), flags,
+                                                     state_->group_for(audio::AudioBus::Music), nullptr, sound.get());
     if (result != MA_SUCCESS)
       return std::unexpected(std::format("[audio] Failed to load '{}': {}", path, ma_result_description(result)));
 
@@ -218,11 +301,6 @@ namespace corundum::platform::miniaudio {
     state_->music_track.reset();
   }
 
-  void MiniaudioBackend::set_music_volume(float volume) {
-    if (state_->is_ready)
-      ma_sound_group_set_volume(&state_->music, std::clamp(volume, 0.f, 1.f));
-  }
-
   void MiniaudioBackend::update() {
     if (!state_->is_ready)
       return;
@@ -235,7 +313,7 @@ namespace corundum::platform::miniaudio {
       ma_sound_start(sound);
     }
     std::erase_if(state_->fading_tracks, [](const SoundPtr &sound) { return !ma_sound_is_playing(sound.get()); });
-    std::erase_if(state_->effect_voices, [](const SoundPtr &voice) { return !ma_sound_is_playing(voice.get()); });
+    state_->reclaim_finished_voices();
   }
 
   void MiniaudioBackend::render_frames(std::span<float> frames_out) {

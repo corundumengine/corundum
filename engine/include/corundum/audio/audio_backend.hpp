@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <string>
@@ -11,6 +12,40 @@
 namespace corundum::audio {
 
   using SoundHandle = uint32_t;
+
+  /** @brief A mixer bus: every voice is summed into one bus, and every bus into Master.
+   *  @note Keep @c Voice last: k_audio_bus_count derives from it. */
+  enum class AudioBus : std::uint8_t {
+    Master,   ///< The engine output bus; other buses sum into it. A voice routed here takes only master volume.
+    Sound,    ///< One-shot and looping sound effects.
+    Music,    ///< Streamed music.
+    Ambience, ///< Looping background beds.
+    Voice,    ///< Dialogue and narration.
+  };
+
+  /** @brief Number of buses; sizes the per-bus volume tables. */
+  constexpr std::size_t k_audio_bus_count = static_cast<std::size_t>(AudioBus::Voice) + 1;
+
+  /** @brief Table index of @p bus. */
+  [[nodiscard]] constexpr std::size_t bus_index(AudioBus bus) noexcept {
+    return static_cast<std::size_t>(bus);
+  }
+
+  /** @brief Identifies one playing voice.
+   *
+   *  @c generation changes each time the underlying slot is reused, so an id that outlives its
+   *  voice never resolves to a later sound in the same slot. A default-constructed id (index 0)
+   *  is never valid.
+   */
+  struct SoundInstanceId {
+    std::uint32_t index{};
+
+    std::uint32_t generation{};
+
+    [[nodiscard]] bool is_valid() const noexcept { return index != 0; }
+
+    bool operator==(const SoundInstanceId &) const = default;
+  };
 
   /** @brief How AudioBackend::play_music() plays a streamed track. */
   struct MusicPlayback {
@@ -30,8 +65,7 @@ namespace corundum::audio {
    *
    * @note Not thread-safe for concurrent calls from multiple threads — call only
    *       from the game thread. The internal implementation may use a separate
-   *       audio thread for mixing (behind a mutex), but the API itself is
-   *       single-threaded.
+   *       audio thread for mixing, but the API itself is single-threaded.
    */
   class AudioBackend {
   public:
@@ -44,18 +78,29 @@ namespace corundum::audio {
      */
     [[nodiscard]] virtual std::expected<SoundHandle, std::string> load_sound(std::string_view path) = 0;
 
-    /** @brief Start playback of a previously loaded sound.
+    /** @brief Start playback of a previously loaded sound on @p bus.
      *  @param handle  SoundHandle returned by load_sound().
      *  @param volume  Playback volume in [0.0, 1.0].
      *  @param loop    If true the sound loops indefinitely.
+     *  @param bus     Mixer bus the voice is routed to.
+     *  @return A valid SoundInstanceId, or an invalid one when the voice could not start.
      *  @pre @p handle must be a valid non-zero handle from load_sound().
      */
-    virtual void play(SoundHandle handle, float volume = 1.0f, bool loop = false) = 0;
+    [[nodiscard]] virtual SoundInstanceId play(SoundHandle handle, float volume = 1.0f, bool loop = false,
+                                               AudioBus bus = AudioBus::Sound) = 0;
 
-    /** @brief Set the global master volume.
-     *  @param volume  Volume level in [0.0, 1.0].
-     */
-    virtual void set_master_volume(float volume) = 0;
+    /** @brief Stop voice @p id over @p fade_out_seconds (0 stops at once). No-op for a stale id. */
+    virtual void stop(SoundInstanceId id, float fade_out_seconds = 0.f) = 0;
+
+    /** @brief Set voice @p id's volume in [0.0, 1.0]. No-op for a stale id. */
+    virtual void set_volume(SoundInstanceId id, float volume) = 0;
+
+    /** @brief Set voice @p id's pitch multiplier (1.0 leaves it unchanged). No-op for a stale id.
+     *  @note A non-positive @p pitch is ignored. */
+    virtual void set_pitch(SoundInstanceId id, float pitch) = 0;
+
+    /** @brief Set @p bus's volume in [0.0, 1.0]; Master is the engine output. */
+    virtual void set_bus_volume(AudioBus bus, float volume) = 0;
 
     /** @brief Pause or resume output without discarding playing sounds.
      *
@@ -81,9 +126,6 @@ namespace corundum::audio {
     /** @brief Fade the current music track out over @p fade_out_seconds (0 stops at once).
      *  No-op with no track. */
     virtual void stop_music(float /*fade_out_seconds*/) {}
-
-    /** @brief Set the music group's volume in [0.0, 1.0]; the master volume applies on top. */
-    virtual void set_music_volume(float /*volume*/) {}
 
     /** @brief Per-frame game-thread housekeeping: schedule music loop restarts and reclaim finished
      *  voices. */

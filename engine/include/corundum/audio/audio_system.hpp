@@ -4,12 +4,15 @@
 #pragma once
 #include <corundum/audio/audio_backend.hpp>
 
+#include <array>
+#include <cstddef>
 #include <expected>
 #include <flat_map>
 #include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace corundum::audio {
 
@@ -21,11 +24,12 @@ namespace corundum::audio {
    * letting the destructor run.
    *
    * @note Not thread-safe — all methods must be called from the game thread.
-   *       The internal stream callback (in the sokol backend) is behind a mutex.
+   *       The backend owns its own mixing thread; no caller-visible locking is
+   *       involved.
    */
   class AudioSystem {
   public:
-    AudioSystem() = default;
+    AudioSystem();
 
     AudioSystem(const AudioSystem &) = delete;
     AudioSystem &operator=(const AudioSystem &) = delete;
@@ -57,11 +61,23 @@ namespace corundum::audio {
      *  or in-use AudioSystem cannot leak its backend or cache. */
     ~AudioSystem() noexcept;
 
-    /** @brief Set the global master volume in [0.0, 1.0]. No-op if not initialised. */
-    void set_master_volume(float volume) noexcept;
+    /** @brief Set @p bus's volume in [0.0, 1.0]. Retained before initialize() and applied by it. */
+    void set_bus_volume(AudioBus bus, float volume) noexcept;
+
+    /** @brief The last volume set for @p bus, in [0.0, 1.0]. Defaults to 1.0. */
+    [[nodiscard]] float bus_volume(AudioBus bus) const noexcept { return bus_volumes_[bus_index(bus)]; }
+
+    /** @brief Set the master volume in [0.0, 1.0]. Retained before initialize() and applied by it. */
+    void set_master_volume(float volume) noexcept { set_bus_volume(AudioBus::Master, volume); }
 
     /** @brief The last master volume set, in [0.0, 1.0]. Defaults to 1.0. */
-    [[nodiscard]] float master_volume() const noexcept { return master_volume_; }
+    [[nodiscard]] float master_volume() const noexcept { return bus_volume(AudioBus::Master); }
+
+    /** @brief Set the music volume in [0.0, 1.0]. Retained before initialize() and applied by it. */
+    void set_music_volume(float volume) noexcept { set_bus_volume(AudioBus::Music, volume); }
+
+    /** @brief The last music volume set, in [0.0, 1.0]. Defaults to 1.0. */
+    [[nodiscard]] float music_volume() const noexcept { return bus_volume(AudioBus::Music); }
 
     /** @brief Pause or resume all audio output. No-op if not initialised.
      *
@@ -79,17 +95,27 @@ namespace corundum::audio {
      */
     void load_catalog(std::string_view catalog_path) noexcept;
 
-    /** @brief Play a sound from a logical name, loading it on first use.
+    /** @brief Play a sound from a logical name on @p bus, loading it on first use.
      *
      *  Resolves the file path as follows:
      *    1. If @p name is in the catalog → sounds_dir + catalog value.
      *    2. Otherwise → sounds_dir + name + ".ogg".
      *
-     *  @return ok on success, or an error message if loading fails or the
-     *          system is not initialised.
+     *  @return The started voice's id, or an error message if loading fails or
+     *          the system is not initialised.
      */
-    [[nodiscard]] std::expected<void, std::string> play_sound(std::string_view name, float volume = 1.0f,
-                                                              bool loop = false);
+    [[nodiscard]] std::expected<SoundInstanceId, std::string>
+    play_sound(std::string_view name, float volume = 1.0f, bool loop = false, AudioBus bus = AudioBus::Sound);
+
+    /** @brief Stop voice @p id, fading over @p fade_out_seconds (0 stops at once). No-op until ready. */
+    void stop_sound(SoundInstanceId id, float fade_out_seconds = 0.f) noexcept;
+
+    /** @brief Set voice @p id's volume in [0.0, 1.0]. No-op until ready. */
+    void set_sound_volume(SoundInstanceId id, float volume) noexcept;
+
+    /** @brief Set voice @p id's pitch multiplier (1.0 leaves it unchanged). No-op until ready.
+     *  @note A non-positive @p pitch is ignored. */
+    void set_sound_pitch(SoundInstanceId id, float pitch) noexcept;
 
     /** @brief Play @p path (a project-relative file path, not a catalog name) as the music track.
      *
@@ -101,12 +127,6 @@ namespace corundum::audio {
 
     /** @brief Fade the current track out over @p fade_out_seconds. No-op when no track is playing. */
     void stop_music(float fade_out_seconds) noexcept;
-
-    /** @brief Set the music volume in [0.0, 1.0]. Retained before initialize() and applied by it. */
-    void set_music_volume(float volume) noexcept;
-
-    /** @brief The last music volume set, in [0.0, 1.0]. Defaults to 1.0. */
-    [[nodiscard]] float music_volume() const noexcept { return music_volume_; }
 
     /** @brief Per-frame housekeeping (music loop restarts); call once per frame. No-op until ready. */
     void update() noexcept;
@@ -134,9 +154,8 @@ namespace corundum::audio {
 
     bool paused_{false};
 
-    float master_volume_{1.f};
-
-    float music_volume_{1.f};
+    /** @brief Per-bus volumes in [0.0, 1.0], indexed by bus_index(); the constructor fills 1.0. */
+    std::array<float, k_audio_bus_count> bus_volumes_{};
 
     std::string sounds_dir_;
   };

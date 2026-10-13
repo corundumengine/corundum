@@ -44,9 +44,16 @@ namespace corundum::platform::miniaudio {
 
     [[nodiscard]] std::expected<audio::SoundHandle, std::string> load_sound(std::string_view path) override;
 
-    void play(audio::SoundHandle handle, float volume, bool loop) override;
+    [[nodiscard]] audio::SoundInstanceId play(audio::SoundHandle handle, float volume, bool loop,
+                                              audio::AudioBus bus) override;
 
-    void set_master_volume(float volume) override;
+    void stop(audio::SoundInstanceId id, float fade_out_seconds) override;
+
+    void set_volume(audio::SoundInstanceId id, float volume) override;
+
+    void set_pitch(audio::SoundInstanceId id, float pitch) override;
+
+    void set_bus_volume(audio::AudioBus bus, float volume) override;
 
     void set_paused(bool paused) override;
 
@@ -56,8 +63,6 @@ namespace corundum::platform::miniaudio {
                                                               const audio::MusicPlayback &playback) override;
 
     void stop_music(float fade_out_seconds) override;
-
-    void set_music_volume(float volume) override;
 
     void update() override;
 

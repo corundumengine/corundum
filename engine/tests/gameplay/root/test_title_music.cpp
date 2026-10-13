@@ -38,9 +38,18 @@ namespace {
       return 1u;
     }
 
-    void play(corundum::audio::SoundHandle /*handle*/, float /*volume*/, bool /*loop*/) override {}
+    corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle /*handle*/, float /*volume*/, bool /*loop*/,
+                                          corundum::audio::AudioBus /*bus*/) override {
+      return {};
+    }
 
-    void set_master_volume(float /*volume*/) override {}
+    void stop(corundum::audio::SoundInstanceId /*id*/, float /*fade_out_seconds*/) override {}
+
+    void set_volume(corundum::audio::SoundInstanceId /*id*/, float /*volume*/) override {}
+
+    void set_pitch(corundum::audio::SoundInstanceId /*id*/, float /*pitch*/) override {}
+
+    void set_bus_volume(corundum::audio::AudioBus /*bus*/, float /*volume*/) override {}
 
     void set_paused(bool /*paused*/) override {}
 

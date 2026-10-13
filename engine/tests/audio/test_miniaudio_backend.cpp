@@ -6,6 +6,8 @@
 #include "platform/miniaudio/miniaudio_backend.hpp"
 #include "temp_dir.hpp"
 
+#include <corundum/audio/audio_backend.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -71,6 +73,11 @@ namespace {
     return left;
   }
 
+  /// Start @p handle on the Sound bus at full volume, matching the interface's default.
+  corundum::audio::SoundInstanceId play_effect(MiniaudioBackend &backend, corundum::audio::SoundHandle handle) {
+    return backend.play(handle, 1.f, /*loop=*/false, corundum::audio::AudioBus::Sound);
+  }
+
 } // namespace
 
 TEST_CASE("miniaudio backend: a WAV effect plays its samples, then silence") {
@@ -80,7 +87,8 @@ TEST_CASE("miniaudio backend: a WAV effect plays its samples, then silence") {
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
-  backend.play(*handle, 1.f, /*loop=*/false);
+  const corundum::audio::SoundInstanceId id = play_effect(backend, *handle);
+  CHECK(id.is_valid());
   const std::vector<float> left = render(backend, 8820);
 
   CHECK(left[100] == doctest::Approx(k_half).epsilon(0.01));
@@ -95,8 +103,8 @@ TEST_CASE("miniaudio backend: master volume scales effects") {
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
-  backend.set_master_volume(0.5f);
-  backend.play(*handle, 1.f, /*loop=*/false);
+  backend.set_bus_volume(corundum::audio::AudioBus::Master, 0.5f);
+  play_effect(backend, *handle);
   const std::vector<float> left = render(backend, 882);
 
   CHECK(left[100] == doctest::Approx(0.25f).epsilon(0.01));
@@ -170,7 +178,7 @@ TEST_CASE("miniaudio backend: music volume scales music but not effects") {
   write_wav(dir / "track.wav", 44100);
   write_wav(dir / "blip.wav", 44100);
   MiniaudioBackend backend{MiniaudioOutput::Headless};
-  backend.set_music_volume(0.5f);
+  backend.set_bus_volume(corundum::audio::AudioBus::Music, 0.5f);
 
   REQUIRE(backend.play_music((dir / "track.wav").string(), {}).has_value());
   CHECK(render(backend, 882)[100] == doctest::Approx(0.25f).epsilon(0.01));
@@ -179,6 +187,78 @@ TEST_CASE("miniaudio backend: music volume scales music but not effects") {
 
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
-  backend.play(*handle, 1.f, /*loop=*/false);
+  play_effect(backend, *handle);
+  CHECK(render(backend, 882)[100] == doctest::Approx(k_half).epsilon(0.01));
+}
+
+TEST_CASE("miniaudio backend: a bus volume scales only voices routed to it") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "bus_route"};
+  write_wav(dir / "blip.wav", 44100);
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  const auto handle = backend.load_sound((dir / "blip.wav").string());
+  REQUIRE(handle.has_value());
+
+  backend.set_bus_volume(corundum::audio::AudioBus::Ambience, 0.5f);
+  static_cast<void>(backend.play(*handle, 1.f, /*loop=*/false, corundum::audio::AudioBus::Ambience));
+  CHECK(render(backend, 882)[100] == doctest::Approx(0.25f).epsilon(0.01));
+}
+
+TEST_CASE("miniaudio backend: a voice routed to Master ignores the Sound bus volume") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "master_route"};
+  write_wav(dir / "blip.wav", 44100);
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  const auto handle = backend.load_sound((dir / "blip.wav").string());
+  REQUIRE(handle.has_value());
+
+  backend.set_bus_volume(corundum::audio::AudioBus::Sound, 0.5f);
+  static_cast<void>(backend.play(*handle, 1.f, /*loop=*/false, corundum::audio::AudioBus::Master));
+  CHECK(render(backend, 882)[100] == doctest::Approx(k_half).epsilon(0.01));
+}
+
+TEST_CASE("miniaudio backend: set_volume adjusts a playing voice") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "voice_volume"};
+  write_wav(dir / "blip.wav", 44100);
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  const auto handle = backend.load_sound((dir / "blip.wav").string());
+  REQUIRE(handle.has_value());
+
+  const corundum::audio::SoundInstanceId id = play_effect(backend, *handle);
+  REQUIRE(id.is_valid());
+  static_cast<void>(render(backend, 441));
+  backend.set_volume(id, 0.5f);
+  CHECK(render(backend, 882)[100] == doctest::Approx(0.25f).epsilon(0.01));
+}
+
+TEST_CASE("miniaudio backend: stop silences a voice") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "voice_stop"};
+  write_wav(dir / "blip.wav", 44100);
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  const auto handle = backend.load_sound((dir / "blip.wav").string());
+  REQUIRE(handle.has_value());
+
+  const corundum::audio::SoundInstanceId id = play_effect(backend, *handle);
+  REQUIRE(id.is_valid());
+  static_cast<void>(render(backend, 441));
+  backend.stop(id, 0.f);
+  CHECK(render(backend, 882)[100] == doctest::Approx(0.f));
+}
+
+TEST_CASE("miniaudio backend: a stale id does not touch the voice that reused its slot") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "stale_id"};
+  write_wav(dir / "blip.wav", 4410); // 0.1 s
+  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  const auto handle = backend.load_sound((dir / "blip.wav").string());
+  REQUIRE(handle.has_value());
+
+  const corundum::audio::SoundInstanceId first = play_effect(backend, *handle);
+  REQUIRE(first.is_valid());
+  static_cast<void>(render(backend, 8820)); // render past the end so update() reclaims the finished voice
+
+  const corundum::audio::SoundInstanceId second = play_effect(backend, *handle);
+  REQUIRE(second.is_valid());
+  CHECK(second.index == first.index);           // same slot
+  CHECK(second.generation != first.generation); // but a new voice
+
+  backend.stop(first, 0.f);
   CHECK(render(backend, 882)[100] == doctest::Approx(k_half).epsilon(0.01));
 }

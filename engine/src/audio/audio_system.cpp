@@ -9,6 +9,8 @@
 
 #include "core/warn_log.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <expected>
 #include <format>
 #include <nlohmann/json.hpp>
@@ -18,8 +20,12 @@
 
 namespace corundum::audio {
 
+  AudioSystem::AudioSystem() {
+    bus_volumes_.fill(1.f);
+  }
+
   std::string AudioSystem::resolve_path(std::string_view name) const {
-    if (auto it = catalog_.find(name); it != catalog_.end())
+    if (const auto it = catalog_.find(name); it != catalog_.end())
       return std::format("{}/{}", sounds_dir_, it->second);
     return std::format("{}/{}.ogg", sounds_dir_, name);
   }
@@ -32,14 +38,12 @@ namespace corundum::audio {
     catalog_.clear();
     initialized_ = true;
     backend_->set_paused(paused_);
-    backend_->set_master_volume(master_volume_);
-    backend_->set_music_volume(music_volume_);
+    for (std::size_t i = 0; i < k_audio_bus_count; ++i)
+      backend_->set_bus_volume(static_cast<AudioBus>(i), bus_volumes_[i]);
     return {};
   }
 
   void AudioSystem::shutdown() noexcept {
-    if (!initialized_ && !backend_)
-      return;
     backend_.reset();
     cache_.clear();
     catalog_.clear();
@@ -77,30 +81,53 @@ namespace corundum::audio {
     corundum::detail::info_log("[audio] Loaded {} sound catalog entries", catalog_.size());
   }
 
-  std::expected<void, std::string> AudioSystem::play_sound(std::string_view name, float volume, bool loop) {
+  std::expected<SoundInstanceId, std::string> AudioSystem::play_sound(std::string_view name, float volume, bool loop,
+                                                                      AudioBus bus) {
     if (!is_ready())
       return std::unexpected("[audio] Audio system not initialised");
 
-    if (const auto it = cache_.find(name); it != cache_.end()) {
-      backend_->play(it->second, volume, loop);
-      return {};
-    }
+    const auto start_voice = [&](SoundHandle handle) -> std::expected<SoundInstanceId, std::string> {
+      if (const SoundInstanceId id = backend_->play(handle, volume, loop, bus); id.is_valid())
+        return id;
+      return std::unexpected(std::format("[audio] Could not start '{}'", name));
+    };
+
+    if (const auto it = cache_.find(name); it != cache_.end())
+      return start_voice(it->second);
 
     const std::string path = resolve_path(name);
-    std::expected<audio::SoundHandle, std::string> handle_result = backend_->load_sound(path);
+    std::expected<SoundHandle, std::string> handle_result = backend_->load_sound(path);
     if (!handle_result)
       return std::unexpected(handle_result.error());
 
-    const auto [it, inserted] = cache_.try_emplace(std::string(name), *handle_result);
-    backend_->play(it->second, volume, loop);
-    return {};
+    const SoundHandle handle = cache_.try_emplace(std::string(name), *handle_result).first->second;
+    return start_voice(handle);
   }
 
-  void AudioSystem::set_master_volume(float volume) noexcept {
-    master_volume_ = volume;
+  void AudioSystem::stop_sound(SoundInstanceId id, float fade_out_seconds) noexcept {
+    if (!is_ready() || !id.is_valid())
+      return;
+    backend_->stop(id, fade_out_seconds);
+  }
+
+  void AudioSystem::set_sound_volume(SoundInstanceId id, float volume) noexcept {
+    if (!is_ready() || !id.is_valid())
+      return;
+    backend_->set_volume(id, std::clamp(volume, 0.f, 1.f));
+  }
+
+  void AudioSystem::set_sound_pitch(SoundInstanceId id, float pitch) noexcept {
+    if (!is_ready() || !id.is_valid())
+      return;
+    backend_->set_pitch(id, pitch);
+  }
+
+  void AudioSystem::set_bus_volume(AudioBus bus, float volume) noexcept {
+    const float clamped = std::clamp(volume, 0.f, 1.f);
+    bus_volumes_[bus_index(bus)] = clamped;
     if (!is_ready())
       return;
-    backend_->set_master_volume(volume);
+    backend_->set_bus_volume(bus, clamped);
   }
 
   void AudioSystem::set_paused(bool paused) noexcept {
@@ -127,13 +154,6 @@ namespace corundum::audio {
     current_music_.clear();
     if (is_ready())
       backend_->stop_music(fade_out_seconds);
-  }
-
-  void AudioSystem::set_music_volume(float volume) noexcept {
-    music_volume_ = volume;
-    if (!is_ready())
-      return;
-    backend_->set_music_volume(volume);
   }
 
   void AudioSystem::update() noexcept {
