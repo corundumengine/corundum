@@ -29,8 +29,10 @@ namespace corundum::ui {
   ///
   /// @param r      Renderer; receives up to eight DrawSprite commands (corners, then edges).
   /// @param border Border texture and cell dimensions.
-  /// @param x,y    Top-left of the framed rect in screen pixels.
-  /// @param w,h    Size of the framed rect in screen pixels; must be non-negative.
+  /// @param x      Left of the framed rect in screen pixels.
+  /// @param y      Top of the framed rect in screen pixels.
+  /// @param w      Width of the framed rect in screen pixels; must be non-negative.
+  /// @param h      Height of the framed rect in screen pixels; must be non-negative.
   /// @note A rect narrower or shorter than two cells collapses the affected inner span to
   ///       zero rather than emitting a negative-scaled (inverted) edge quad.
   void nine_patch_render(platform::Renderer &r, const NinePatchBorder &border, float x, float y, float w, float h);

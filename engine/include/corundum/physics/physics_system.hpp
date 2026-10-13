@@ -27,7 +27,7 @@ namespace corundum::physics {
    *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
    *  @pre @p player must exist in @p transforms.
    *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
-   *  @performance O(1).
+   *  Performance: O(1).
    */
   void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
                    const corundum::input::InputState &input, float player_speed,
@@ -81,7 +81,7 @@ namespace corundum::physics {
    *  @post For cross-map and return-to-world portals, scene.transition_prompt is set and
    *        scene.mode becomes Prompt; handle_map_transition() runs the transition only after
    *        the player confirms. Chunk-to-chunk portals teleport the player immediately.
-   *  @performance O(n) over NPC count. No heap allocation.
+   *  Performance: O(n) over NPC count. No heap allocation.
    */
   void update_player(corundum::entities::TransformTable &transforms,
                      const corundum::entities::CollisionTable &collisions, corundum::entities::EntityId player,

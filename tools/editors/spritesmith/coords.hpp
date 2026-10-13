@@ -26,7 +26,8 @@ namespace tools::spritesmith {
   /**
    * @brief Convert a canvas pixel position to a frame grid coordinate.
    *
-   * @param px, py         Canvas-space pixel position.
+   * @param px             Canvas-space X pixel position.
+   * @param py             Canvas-space Y pixel position.
    * @param canvas_w       Canvas width in pixels.
    * @param canvas_h       Canvas height in pixels.
    * @param camera_x       Horizontal scroll offset.
@@ -105,7 +106,8 @@ namespace tools::spritesmith {
    *
    * MaxRects-packed sprites never overlap, so the first match is unambiguous.
    *
-   * @param px, py      Canvas-space pixel position.
+   * @param px          Canvas-space X pixel position.
+   * @param py          Canvas-space Y pixel position.
    * @param canvas_w    Canvas width in pixels.
    * @param canvas_h    Canvas height in pixels.
    * @param camera_x    Horizontal scroll offset.
@@ -135,7 +137,8 @@ namespace tools::spritesmith {
   /**
    * @brief Clamp camera scroll so the sheet image remains visible.
    *
-   * @param cx, cy      Current camera position.
+   * @param cx          Current camera X position.
+   * @param cy          Current camera Y position.
    * @param zoom        Display scale factor.
    * @param img_w       Image width in pixels.
    * @param img_h       Image height in pixels.

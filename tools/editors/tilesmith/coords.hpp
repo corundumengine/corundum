@@ -46,12 +46,14 @@ namespace tools::tilesmith {
    * Shared kernel between `screen_to_tile()` (whole-tile pick) and `pixel_to_tiled_rect()`
    * (sub-tile drag) so the two paths can never drift apart.
    *
-   * @param px, py          Window-space pixel position (will be clamped to canvas interior).
+   * @param px             Window-space X pixel position (will be clamped to canvas interior).
+   * @param py             Window-space Y pixel position (will be clamped to canvas interior).
    * @param canvas_left     Left edge of the canvas region in window space.
    * @param canvas_top      Top edge of the canvas region in window space.
    * @param canvas_w        Width of the canvas in pixels.
    * @param canvas_h        Height of the canvas in pixels.
-   * @param camera_x, camera_y  Current camera scroll offset.
+   * @param camera_x        Current camera horizontal scroll offset.
+   * @param camera_y        Current camera vertical scroll offset.
    * @param tile_scale      Display scale factor.
    * @param elev_step       Screen pixels lifted per unit of elevation.
    * @param map_h           Map height in tiles (used to compute x_origin).
@@ -139,15 +141,19 @@ namespace tools::tilesmith {
   /**
    * @brief Convert a window pixel position to a map tile coordinate.
    *
-   * @param px, py          Window-space pixel position.
+   * @param px             Window-space X pixel position.
+   * @param py             Window-space Y pixel position.
    * @param canvas_left     Left edge of the canvas region in window space.
    * @param canvas_top      Top edge of the canvas region in window space.
    * @param canvas_w        Width of the canvas in pixels.
    * @param canvas_h        Height of the canvas in pixels.
-   * @param camera_x, camera_y  Current camera scroll offset.
+   * @param camera_x        Current camera horizontal scroll offset.
+   * @param camera_y        Current camera vertical scroll offset.
    * @param tile_scale      Display scale factor.
-   * @param map_w, map_h    Map dimensions in tiles.
-   * @param tw, th          Tile dimensions in Tiled pixel space.
+   * @param map_w           Map width in tiles.
+   * @param map_h           Map height in tiles.
+   * @param tw              Tile width in Tiled pixel space.
+   * @param diamond_h       Tile height in Tiled pixel space.
    * @return Tile coordinate, or nullopt if outside the canvas or map bounds.
    */
   [[nodiscard]] inline std::optional<TileCoord> screen_to_tile(int px, int py, int canvas_left, int canvas_top,
@@ -258,7 +264,8 @@ namespace tools::tilesmith {
    * Callers should compute the layout once (via compute_palette_layout()) and pass it in via @p cells
    * rather than recomputing on every click.
    *
-   * @param panel_local_x, panel_local_y  Position relative to the top-left of the palette panel.
+   * @param panel_local_x  Position relative to the left edge of the palette panel.
+   * @param panel_local_y  Position relative to the top edge of the palette panel.
    * @param ts            Tileset whose tiles are displayed in the panel.
    * @param scroll_y      Vertical scroll offset in pixels (EditorState::palette_scroll_y).
    * @param cells         Precomputed palette layout — see compute_palette_layout().
@@ -282,9 +289,10 @@ namespace tools::tilesmith {
    * Normalizes drag direction so w/h are always positive. A single-tile click
    * (col_a == col_b, row_a == row_b) produces a rect exactly one tile wide/tall.
    *
-   * @param col_a, row_a  Drag anchor tile coordinate.
-   * @param col_b, row_b  Current (or release) tile coordinate.
-   * @param tile_w, tile_h  Tile dimensions in Tiled pixel space.
+   * @param col_a  Drag anchor tile column.
+   * @param row_a  Drag anchor tile row.
+   * @param col_b  Current (or release) tile column.
+   * @param row_b  Current (or release) tile row.
    * @return CollisionRect with positive w/h.
    */
   [[nodiscard]] inline corundum::world::tilemap::CollisionRect snap_to_tile_rect(int col_a, int row_a, int col_b,
@@ -304,13 +312,16 @@ namespace tools::tilesmith {
    * the same isometric pixel→tile kernel as `screen_to_tile()` so the live preview rhombus
    * tracks the cursor exactly and the committed rect matches the preview.
    *
-   * @param win_x_a, win_y_a  Window-space position at drag anchor (clamped to canvas interior).
-   * @param win_x_b, win_y_b  Window-space position at drag release (or current cursor).
+   * @param win_x_a       Window-space X position at drag anchor (clamped to canvas interior).
+   * @param win_y_a       Window-space Y position at drag anchor (clamped to canvas interior).
+   * @param win_x_b       Window-space X position at drag release (or current cursor).
+   * @param win_y_b       Window-space Y position at drag release (or current cursor).
    * @param canvas_left     Left edge of the canvas region in window space.
    * @param canvas_top      Top edge of the canvas region in window space.
    * @param canvas_w        Width of the canvas in pixels.
    * @param canvas_h        Height of the canvas in pixels.
-   * @param camera_x, camera_y  Current camera scroll offset.
+   * @param camera_x        Current camera horizontal scroll offset.
+   * @param camera_y        Current camera vertical scroll offset.
    * @param tile_scale      Display scale factor.
    * @param elev_step       Screen pixels lifted per unit of elevation.
    * @param map_h           Map height in tiles (used to compute x_origin).
@@ -364,12 +375,13 @@ namespace tools::tilesmith {
    *
    * Allows negative values so maps smaller than the canvas can be centered.
    *
-   * @param cam        Camera to clamp (passed by value).
+   * @param offset_x   Camera horizontal offset to clamp (passed by value).
+   * @param offset_y   Camera vertical offset to clamp (passed by value).
    * @param tile_scale Display scale factor.
    * @param map_w      Map width in tiles.
    * @param map_h      Map height in tiles.
    * @param tw         Tile width in pixels.
-   * @param th         Tile height in pixels.
+   * @param diamond_h  Tile height in pixels.
    * @param canvas_w   Canvas width in pixels.
    * @param canvas_h   Canvas height in pixels.
    * @return Clamped camera.

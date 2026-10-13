@@ -17,17 +17,6 @@
 
 namespace corundum::world {
 
-  /** @brief All game-world data for a running session.
-   *
-   * Groups the entity world with the session's navigation, dialogue, transition, and
-   * presentation state. Systems receive Scene& and read or mutate these fields directly.
-   *
-   * @note Scene does not own the tilemap. Use Engine::active_tilemap() for map
-   *       queries. See the render layer (RenderState::map_data, RenderState::chunks)
-   *       for tilemap ownership.
-   *
-   * @see Engine  For the owning engine struct.
-   */
   /** @brief Actor entities spawned for one resident world chunk. */
   struct ChunkActorSet {
     corundum::world::tilemap::ChunkCoord coord{};
@@ -44,6 +33,17 @@ namespace corundum::world {
     bool load_failed{};
   };
 
+  /** @brief All game-world data for a running session.
+   *
+   * Groups the entity world with the session's navigation, dialogue, transition, and
+   * presentation state. Systems receive Scene& and read or mutate these fields directly.
+   *
+   * @note Scene does not own the tilemap. Use Engine::active_tilemap() for map
+   *       queries. See the render layer (RenderState::map_data, RenderState::chunks)
+   *       for tilemap ownership.
+   *
+   * @see Engine  For the owning engine struct.
+   */
   struct Scene {
     corundum::entities::World world;
 

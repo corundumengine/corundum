@@ -77,6 +77,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(freetype)
 
+# GLFW and FreeType ship doc comments that clang's -Wdocumentation flags. Mark
+# the targets SYSTEM so their include directories are warning-suppressed in
+# consumers instead of fixing third-party headers we do not own.
+set_target_properties(glfw freetype PROPERTIES SYSTEM TRUE)
+
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git

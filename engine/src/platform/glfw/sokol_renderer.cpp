@@ -47,7 +47,8 @@ namespace corundum::platform::glfw {
      * Y scale is negative and larger Y values map downward. Z collapses to -1 — the renderer is
      * 2D and orders draws itself, so there is no depth range.
      *
-     * @param l,r     Horizontal bounds; @p l is the left edge.
+     * @param l       Left horizontal bound.
+     * @param r       Right horizontal bound.
      * @param bottom  Lower edge (the larger Y in this top-left-origin space).
      * @param top     Upper edge (the smaller Y).
      */

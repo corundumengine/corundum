@@ -131,7 +131,8 @@ namespace corundum::core::math {
    * Production callers should prefer the IsometricParams overload above, which bundles the
    * four scalars into one struct and eliminates the swap hazard.
    *
-   * @param tx, ty    Tile column/row (integer).
+   * @param tx        Tile column (integer).
+   * @param ty        Tile row (integer).
    * @param elevation Tile height [0–255]; 0 is flat ground level.
    * @param half_tw   Half the scaled diamond width in screen pixels  (e.g. 32 for a 64-px diamond).
    * @param half_th   Half the scaled diamond height in screen pixels (e.g. 16 for a 32-px diamond).
@@ -227,7 +228,8 @@ namespace corundum::core::math {
    * produces equal perceived speed in all directions rather than equal tile-grid
    * distance, which the isometric projection distorts unevenly by direction.
    *
-   * @param dc, dr  Tile-grid delta (e.g. a velocity in tiles/s, or a displacement).
+   * @param dc      Tile-grid column delta (e.g. a velocity in tiles/s, or a displacement).
+   * @param dr      Tile-grid row delta (e.g. a velocity in tiles/s, or a displacement).
    * @param iso     Packed projection parameters from compute_isometric_params().
    * @return Screen-space delta {dx, dy}.
    */
@@ -246,7 +248,8 @@ namespace corundum::core::math {
    * after (draws on top of/occludes) a lower neighboring tile once its screen-space
    * lift visually overhangs into that neighbor's footprint.
    *
-   * @param tx, ty    Tile column/row (fractional for interpolated entity positions).
+   * @param tx        Tile column (fractional for interpolated entity positions).
+   * @param ty        Tile row (fractional for interpolated entity positions).
    * @param elevation Tile height, same units as tile_to_world's elevation parameter.
    * @param half_th   Half the scaled diamond height in screen pixels.
    * @param elev_step Screen pixels lifted per unit of elevation.
@@ -290,8 +293,11 @@ namespace corundum::core::math {
    * into tile-grid depth/col ranges that bracket every tile whose world
    * position falls inside the rect.
    *
-   * @param left, top, right, bottom World-space rectangle (typically the camera
-   *                                 viewport expanded by per-side art extent pads).
+   * @param left   Left edge of the world-space rectangle (typically the camera
+   *               viewport expanded by per-side art extent pads).
+   * @param top    Top edge of the world-space rectangle.
+   * @param right  Right edge of the world-space rectangle.
+   * @param bottom Bottom edge of the world-space rectangle.
    * @param iso IsometricParams for the map (half_tw, half_th, x_origin, elev_step).
    * @return Bounds covering every tile cell overlapping the rectangle.
    */

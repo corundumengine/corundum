@@ -3,7 +3,11 @@
 #
 # The warning level is applied per-target (never globally) via
 # `corundum_enable_warnings(<target>)` so third-party dependencies and
-# generated code are unaffected. Warnings-as-errors is deliberately NOT a
+# generated code are unaffected. -Wdocumentation is part of that level: it
+# checks doc comments against the declarations they describe (a stale @param
+# or a misplaced @return fails the build). Dependency headers that are not
+# warning-clean are marked SYSTEM at their target (see cmake/Dependencies.cmake)
+# rather than fixed. Warnings-as-errors is deliberately NOT a
 # compile option here: it is a developer/CI control exposed by CMake's
 # CMAKE_COMPILE_WARNING_AS_ERROR, set in the shared `base` configure preset
 # (and overridable with -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF) so a new clang's
@@ -19,7 +23,7 @@ include_guard(GLOBAL)
 
 function(corundum_enable_warnings target)
   if(NOT MSVC)
-    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Wdocumentation)
   endif()
 endfunction()
 

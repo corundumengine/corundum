@@ -46,7 +46,7 @@ namespace corundum::world {
      *  @pre zoom > 0.
      *  @post The viewport does not extend beyond the map, unless the map is smaller
      *        than the effective viewport, in which case it is centered on the map.
-     *  @performance O(1). No heap allocation.
+     *  Performance: O(1). No heap allocation.
      */
     void follow_player(float player_x, float player_y, const MapView &map, float win_w, float win_h) noexcept;
 
@@ -67,7 +67,7 @@ namespace corundum::world {
      *  @pre zoom > 0, min_zoom > 0 and min_zoom <= max_zoom.
      *  @note The camera position is not re-clamped to the world bounds; callers
      *        re-clamp it via follow_player() or center_on() on the same step.
-     *  @performance O(1). No heap allocation.
+     *  Performance: O(1). No heap allocation.
      */
     void apply_zoom(float zoom_delta, float anchor_x, float anchor_y, float min_zoom, float max_zoom) noexcept;
 
@@ -86,7 +86,7 @@ namespace corundum::world {
      *  @param[in] win_w    Viewport width in window px.
      *  @param[in] win_h    Viewport height in window px.
      *  @pre zoom > 0.
-     *  @performance O(1). No heap allocation.
+     *  Performance: O(1). No heap allocation.
      */
     void center_on(float target_x, float target_y, WorldBounds bounds, float win_w, float win_h) noexcept;
   };

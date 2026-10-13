@@ -36,7 +36,7 @@ namespace corundum::animation {
    *  @param[in]     dt             fixed timestep in seconds.
    *  @post After the configured transition delay, the active sprite is the walk sheet
    *        while moving and the idle sheet while still.
-   *  @performance O(n) over active animation count. No heap allocation.
+   *  Performance: O(n) over active animation count. No heap allocation.
    */
   void update(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,
               corundum::entities::AnimationTable &animations, corundum::entities::FacingTable &facings,
