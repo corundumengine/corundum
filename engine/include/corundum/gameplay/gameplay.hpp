@@ -405,7 +405,8 @@ namespace corundum::gameplay {
     [[nodiscard]] std::expected<void, std::string> begin_new_playthrough();
 
     /** @brief Load GameConfig's splash_images; when at least one loads, push GameMode Splash and
-     *  start its fade-in from black. An image that fails to load is skipped with one warning.
+     *  start its fade-in from black after k_splash_initial_delay_seconds of black. An image that
+     *  fails to load is skipped with one warning.
      *  @return true when the splash opened, false when there is nothing to show (or no renderer). */
     [[nodiscard]] bool open_splash();
 

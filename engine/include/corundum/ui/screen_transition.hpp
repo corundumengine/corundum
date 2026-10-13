@@ -32,11 +32,17 @@ namespace corundum::ui {
     /// Seconds for each direction of the fade — long enough to read as a deliberate transition.
     static constexpr float k_fade_duration_seconds = 0.4f;
 
-    /** @brief Start fading toward black from the current alpha. */
-    void begin_fade_out() noexcept { phase_ = TransitionPhase::FadingOut; }
+    /** @brief Start fading toward black from the current alpha.
+     *  @param seconds Time a full clear-to-black fade takes; defaults to k_fade_duration_seconds. */
+    void begin_fade_out(float seconds = k_fade_duration_seconds) noexcept {
+      duration_seconds_ = seconds;
+      phase_ = TransitionPhase::FadingOut;
+    }
 
-    /** @brief Jump to black and fade to clear — called once the scene swap is applied. */
-    void begin_fade_in() noexcept {
+    /** @brief Jump to black and fade to clear — called once the scene swap is applied.
+     *  @param seconds Time a full black-to-clear fade takes; defaults to k_fade_duration_seconds. */
+    void begin_fade_in(float seconds = k_fade_duration_seconds) noexcept {
+      duration_seconds_ = seconds;
       alpha_ = 1.f;
       phase_ = TransitionPhase::FadingIn;
     }
@@ -46,6 +52,7 @@ namespace corundum::ui {
      *  For tests and for a hard scene reset that must not animate.
      */
     void reset() noexcept {
+      duration_seconds_ = k_fade_duration_seconds;
       phase_ = TransitionPhase::None;
       alpha_ = 0.f;
     }
@@ -55,7 +62,7 @@ namespace corundum::ui {
     void update(float dt) noexcept {
       if (phase_ == TransitionPhase::None)
         return;
-      const float step = dt / k_fade_duration_seconds;
+      const float step = dt / duration_seconds_;
       if (phase_ == TransitionPhase::FadingOut) {
         alpha_ += step;
         if (alpha_ >= 1.f) {
@@ -87,6 +94,8 @@ namespace corundum::ui {
     TransitionPhase phase_{TransitionPhase::None};
 
     float alpha_{0.f};
+
+    float duration_seconds_{k_fade_duration_seconds}; ///< Length of the fade in progress.
   };
 
   /** @brief Fill the viewport with black at @p transition's current alpha.

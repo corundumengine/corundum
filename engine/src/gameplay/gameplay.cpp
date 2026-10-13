@@ -1150,17 +1150,28 @@ namespace corundum::gameplay {
     }
 
     /// Step the Splash screen. engine.screen_transition carries each image's fade: the image fades
-    /// in from black, holds for screens::k_splash_hold_seconds, then fades out. Once the fade-out
-    /// reaches black, the next image (or the first screen) takes over. Activate, Cancel or a click
-    /// jumps straight to the fade-out, including from part-way through the fade-in.
+    /// in from black, holds for screens::k_splash_hold_seconds, then fades out, each fade taking
+    /// screens::k_splash_fade_seconds. The first image first waits out
+    /// screens::k_splash_initial_delay_seconds at black. Once the fade-out reaches black, the next
+    /// image (or the first screen) takes over. Activate, Cancel or a click jumps straight to the
+    /// fade-out, including from part-way through the fade-in or the initial delay.
     void update_splash(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       ui::ScreenTransition &fade = engine.screen_transition;
+      screens::SplashState &state = gameplay.splash_screen;
       const bool skip_requested = intent.activate || intent.back || intent.cursor_clicked;
       switch (fade.phase()) {
         case ui::TransitionPhase::FadingOut: return;
         case ui::TransitionPhase::FadingIn:
-          if (skip_requested)
-            fade.begin_fade_out();
+          if (skip_requested) {
+            fade.begin_fade_out(screens::k_splash_fade_seconds);
+            return;
+          }
+          if (state.initial_delay_seconds > 0.f) {
+            // screen_transition.update() ran before this step and lowered alpha; re-arm to full
+            // black so the image stays hidden until the delay elapses.
+            state.initial_delay_seconds = std::max(0.f, state.initial_delay_seconds - engine.timer.target_dt);
+            fade.begin_fade_in(screens::k_splash_fade_seconds);
+          }
           return;
         case ui::TransitionPhase::None: break;
       }
@@ -1168,10 +1179,9 @@ namespace corundum::gameplay {
         gameplay.advance_splash();
         return;
       }
-      screens::SplashState &state = gameplay.splash_screen;
       state.shown_seconds += engine.timer.target_dt;
       if (skip_requested || state.shown_seconds >= screens::k_splash_hold_seconds)
-        fade.begin_fade_out();
+        fade.begin_fade_out(screens::k_splash_fade_seconds);
     }
 
     void render_splash(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1775,7 +1785,8 @@ namespace corundum::gameplay {
     }
     if (splash_screen.images.empty())
       return false;
-    engine_->screen_transition.begin_fade_in();
+    splash_screen.initial_delay_seconds = screens::k_splash_initial_delay_seconds;
+    engine_->screen_transition.begin_fade_in(screens::k_splash_fade_seconds);
     engine_->scene.ui.push(screens::Splash);
     return true;
   }
@@ -1783,16 +1794,18 @@ namespace corundum::gameplay {
   void Gameplay::advance_splash() {
     splash_screen.shown_seconds = 0.f;
     ++splash_screen.index;
-    if (splash_screen.index >= splash_screen.images.size()) {
-      // Splash art is screen-tier: give every reference back now; the first area load purges it.
-      for (const screens::SplashImage &image : splash_screen.images)
-        engine_->renderer->release_texture(image.texture);
-      splash_screen = {};
-      engine_->scene.ui.pop();
-      open_first_screen();
+    // The previous image faded out to black, and nothing else clears the overlay; reveal what comes
+    // next: the following splash image at the splash's pace, or the first screen at the standard pace.
+    if (splash_screen.index < splash_screen.images.size()) {
+      engine_->screen_transition.begin_fade_in(screens::k_splash_fade_seconds);
+      return;
     }
-    // The previous image faded out to black, and nothing else clears the overlay; reveal what came
-    // next: the following splash image, or the first screen.
+    // Splash art is screen-tier: give every reference back now; the first area load purges it.
+    for (const screens::SplashImage &image : splash_screen.images)
+      engine_->renderer->release_texture(image.texture);
+    splash_screen = {};
+    engine_->scene.ui.pop();
+    open_first_screen();
     engine_->screen_transition.begin_fade_in();
   }
 

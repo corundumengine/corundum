@@ -48,6 +48,20 @@ TEST_CASE("ScreenTransition: begin_fade_out rises from clear to black and stops"
   CHECK_EQ(transition.alpha(), 1.f);
 }
 
+TEST_CASE("ScreenTransition: begin_fade_out honors a custom duration") {
+  ScreenTransition transition;
+  transition.begin_fade_out(2.f * k_duration);
+  CHECK(transition.phase() == TransitionPhase::FadingOut);
+
+  transition.update(k_duration);
+  CHECK(transition.phase() == TransitionPhase::FadingOut);
+  CHECK(transition.alpha() == doctest::Approx(0.5f));
+
+  transition.update(k_duration);
+  CHECK(transition.at_black());
+  CHECK(transition.phase() == TransitionPhase::None);
+}
+
 TEST_CASE("ScreenTransition: begin_fade_in jumps to black and clears") {
   ScreenTransition transition;
   transition.begin_fade_in();
@@ -62,6 +76,20 @@ TEST_CASE("ScreenTransition: begin_fade_in jumps to black and clears") {
   transition.update(k_duration / 2.f);
   CHECK(transition.phase() == TransitionPhase::None);
   CHECK_FALSE(transition.at_black());
+  CHECK_EQ(transition.alpha(), 0.f);
+}
+
+TEST_CASE("ScreenTransition: begin_fade_in honors a custom duration") {
+  ScreenTransition transition;
+  transition.begin_fade_in(2.f * k_duration);
+  CHECK(transition.phase() == TransitionPhase::FadingIn);
+
+  transition.update(k_duration);
+  CHECK(transition.phase() == TransitionPhase::FadingIn);
+  CHECK(transition.alpha() == doctest::Approx(0.5f));
+
+  transition.update(k_duration);
+  CHECK(transition.phase() == TransitionPhase::None);
   CHECK_EQ(transition.alpha(), 0.f);
 }
 
@@ -82,6 +110,34 @@ TEST_CASE("ScreenTransition: reset clears instantly") {
   CHECK(transition.phase() == TransitionPhase::None);
   CHECK_EQ(transition.alpha(), 0.f);
   CHECK_FALSE(transition.active());
+}
+
+TEST_CASE("ScreenTransition: reset restores default fade duration") {
+  ScreenTransition transition;
+  transition.begin_fade_out(2.f * k_duration);
+  transition.update(k_duration);
+  transition.reset();
+
+  transition.begin_fade_out();
+  transition.update(k_duration / 2.f);
+  CHECK(transition.alpha() == doctest::Approx(0.5f));
+  CHECK(transition.phase() == TransitionPhase::FadingOut);
+}
+
+TEST_CASE("ScreenTransition: begin_fade_in reverts to the default duration") {
+  ScreenTransition transition;
+  transition.begin_fade_out(2.f * k_duration);
+  transition.update(2.f * k_duration);
+  CHECK(transition.at_black());
+
+  transition.begin_fade_in();
+  transition.update(k_duration / 2.f);
+  CHECK(transition.phase() == TransitionPhase::FadingIn);
+  CHECK(transition.alpha() == doctest::Approx(0.5f));
+
+  transition.update(k_duration / 2.f);
+  CHECK(transition.phase() == TransitionPhase::None);
+  CHECK_EQ(transition.alpha(), 0.f);
 }
 
 TEST_CASE("screen transition overlay: clear alpha emits nothing") {

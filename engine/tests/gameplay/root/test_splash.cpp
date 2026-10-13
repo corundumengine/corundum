@@ -173,6 +173,29 @@ TEST_CASE("splash: configured images open the splash at black, fading in") {
   engine.cleanup();
 }
 
+TEST_CASE("splash: the first image holds black before fading in") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  REQUIRE(engine.initialize(make_splash_config(/*show_title=*/true)).has_value());
+  // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  REQUIRE(gameplay.splash_screen.initial_delay_seconds == doctest::Approx(screens::k_splash_initial_delay_seconds));
+
+  step(engine);
+  CHECK(engine.screen_transition.at_black());
+  CHECK(gameplay.splash_screen.initial_delay_seconds < screens::k_splash_initial_delay_seconds);
+
+  int steps{};
+  while (engine.screen_transition.at_black() && steps < k_step_budget) {
+    step(engine);
+    ++steps;
+  }
+  CHECK_FALSE(engine.screen_transition.at_black());
+
+  engine.cleanup();
+}
+
 TEST_CASE("splash: both images play in order, then the title fades in") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);

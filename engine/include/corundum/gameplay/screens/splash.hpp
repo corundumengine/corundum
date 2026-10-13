@@ -14,6 +14,14 @@ namespace corundum::gameplay::screens {
   /** @brief Seconds each splash image holds at full opacity between its fade-in and fade-out. */
   constexpr float k_splash_hold_seconds = 2.f;
 
+  /** @brief Seconds each splash image takes to fade in from black, and again to fade out to black —
+   *  slower than a scene change's fade so the logo lingers. */
+  constexpr float k_splash_fade_seconds = 0.7f;
+
+  /** @brief Seconds the splash holds black before the first image fades in, so boot eases in rather
+   *  than snapping straight to the logo. */
+  constexpr float k_splash_initial_delay_seconds = 0.5f;
+
   /** @brief Largest share of the viewport's width and height a splash image may cover. Splash
    *  logos are usually tightly cropped, so fitting one to the whole viewport would run it edge to
    *  edge; the rest of the screen stays black. */
@@ -35,6 +43,8 @@ namespace corundum::gameplay::screens {
     std::vector<SplashImage> images{};
 
     std::size_t index{}; ///< The image showing; below images.size() while the splash is open.
+
+    float initial_delay_seconds{}; ///< Seconds of black still to hold before the first fade-in starts; 0 after that.
 
     float shown_seconds{}; ///< Seconds the current image has held since its fade-in finished.
   };
