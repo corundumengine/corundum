@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
@@ -27,6 +28,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <filesystem>
 #include <string>
@@ -89,6 +91,13 @@ namespace {
     press(engine, corundum::input::Action::Menu);
     press(engine, corundum::input::Action::MoveDown); // Resume → Settings
     press(engine, corundum::input::Action::Select);
+  }
+
+  /// Press MoveDown until the Settings cursor reaches General-tab @p row.
+  /// @pre The cursor is at or above @p row.
+  void move_to_general_row(corundum::Engine &engine, corundum::ui::SettingsGeneralRow row) {
+    while (engine.settings_screen.cursor < static_cast<int>(row))
+      press(engine, corundum::input::Action::MoveDown);
   }
 
 } // namespace
@@ -313,38 +322,72 @@ TEST_CASE("settings: Menu/Start closes the settings screen back to the menu") {
   engine.cleanup();
 }
 
-TEST_CASE("settings: Left/Right edits master and music volume, text speed, and UI scale") {
+TEST_CASE("settings: Left/Right on each volume row steps that row's bus volume") {
+  using corundum::audio::AudioBus;
+  using corundum::ui::SettingsGeneralRow;
   corundum::Engine engine{};
   init_engine(engine);
   open_settings(engine);
 
-  // Row 0: Master Volume (default 1.0).
-  press(engine, corundum::input::Action::MoveLeft);
-  CHECK(engine.audio.master_volume() == doctest::Approx(0.9f));
-  press(engine, corundum::input::Action::MoveRight);
-  CHECK(engine.audio.master_volume() == doctest::Approx(1.0f));
+  const std::array<std::pair<SettingsGeneralRow, AudioBus>, 5> volume_rows{
+      {
+          {SettingsGeneralRow::MasterVolume, AudioBus::Master},
+          {SettingsGeneralRow::MusicVolume, AudioBus::Music},
+          {SettingsGeneralRow::SoundVolume, AudioBus::Sound},
+          {SettingsGeneralRow::AmbienceVolume, AudioBus::Ambience},
+          {SettingsGeneralRow::VoiceVolume, AudioBus::Voice},
+      },
+  };
+  for (const auto &[row, bus] : volume_rows) {
+    INFO(corundum::ui::settings_general_row_label(row));
+    move_to_general_row(engine, row);
+    press(engine, corundum::input::Action::MoveLeft);
+    CHECK(engine.audio.bus_volume(bus) == doctest::Approx(0.9f));
+    press(engine, corundum::input::Action::MoveRight);
+    CHECK(engine.audio.bus_volume(bus) == doctest::Approx(1.0f));
+  }
 
-  // Row 1: Music Volume (default 1.0).
-  press(engine, corundum::input::Action::MoveDown);
-  press(engine, corundum::input::Action::MoveLeft);
-  CHECK(engine.audio.music_volume() == doctest::Approx(0.9f));
-  press(engine, corundum::input::Action::MoveRight);
-  CHECK(engine.audio.music_volume() == doctest::Approx(1.0f));
+  engine.cleanup();
+}
 
-  // Row 2: Text Speed (default Normal = 1.0).
-  press(engine, corundum::input::Action::MoveDown);
+TEST_CASE("settings: Left on Sound Volume leaves every other bus unchanged") {
+  using corundum::audio::AudioBus;
+  corundum::Engine engine{};
+  init_engine(engine);
+  open_settings(engine);
+
+  move_to_general_row(engine, corundum::ui::SettingsGeneralRow::SoundVolume);
+  press(engine, corundum::input::Action::MoveLeft);
+
+  CHECK(engine.audio.bus_volume(AudioBus::Sound) == doctest::Approx(0.9f));
+  for (const AudioBus bus : {AudioBus::Master, AudioBus::Music, AudioBus::Ambience, AudioBus::Voice}) {
+    INFO(static_cast<int>(bus));
+    CHECK(engine.audio.bus_volume(bus) == doctest::Approx(1.0f));
+  }
+
+  engine.cleanup();
+}
+
+TEST_CASE("settings: Left/Right edits text speed and UI scale; Activate toggles window mode") {
+  using corundum::ui::SettingsGeneralRow;
+  corundum::Engine engine{};
+  init_engine(engine);
+  open_settings(engine);
+
+  // Text Speed (default Normal = 1.0).
+  move_to_general_row(engine, SettingsGeneralRow::TextSpeed);
   press(engine, corundum::input::Action::MoveRight);
   CHECK(engine.render.text_speed == doctest::Approx(2.0f));
 
-  // Row 3: UI Scale (default 1.0) — advances the font sizes and margins in the panel style.
-  press(engine, corundum::input::Action::MoveDown);
+  // UI Scale (default 1.0) — advances the font sizes and margins in the panel style.
+  move_to_general_row(engine, SettingsGeneralRow::UiScale);
   press(engine, corundum::input::Action::MoveRight);
   CHECK(engine.render.ui_scale == doctest::Approx(1.25f));
   CHECK(engine.render.panel_skin.style.font_size_body == 28); // lround(22 * 1.25)
   CHECK(engine.render.panel_skin.style.line_spacing == doctest::Approx(40.f));
 
-  // Row 4: Window Mode toggles on Activate.
-  press(engine, corundum::input::Action::MoveDown);
+  // Window Mode toggles on Activate.
+  move_to_general_row(engine, SettingsGeneralRow::WindowMode);
   CHECK(engine.window->window_mode() == corundum::core::WindowMode::Windowed);
   press(engine, corundum::input::Action::Select);
   CHECK(engine.window->window_mode() == corundum::core::WindowMode::Fullscreen);

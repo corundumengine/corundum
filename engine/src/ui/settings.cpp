@@ -4,6 +4,7 @@
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/settings.hpp>
 
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/input/actions.hpp>
@@ -19,6 +20,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -69,14 +72,32 @@ namespace corundum::ui {
 
   std::string_view settings_general_row_label(SettingsGeneralRow row) noexcept {
     switch (row) {
-      case SettingsGeneralRow::Volume: return "Master Volume";
+      case SettingsGeneralRow::MasterVolume: return "Master Volume";
       case SettingsGeneralRow::MusicVolume: return "Music Volume";
+      case SettingsGeneralRow::SoundVolume: return "Sound Volume";
+      case SettingsGeneralRow::AmbienceVolume: return "Ambience Volume";
+      case SettingsGeneralRow::VoiceVolume: return "Voice Volume";
       case SettingsGeneralRow::TextSpeed: return "Text Speed";
       case SettingsGeneralRow::UiScale: return "UI Scale";
       case SettingsGeneralRow::WindowMode: return "Window Mode";
       case SettingsGeneralRow::Count: break;
     }
     return "";
+  }
+
+  std::optional<audio::AudioBus> volume_row_bus(SettingsGeneralRow row) noexcept {
+    switch (row) {
+      case SettingsGeneralRow::MasterVolume: return audio::AudioBus::Master;
+      case SettingsGeneralRow::MusicVolume: return audio::AudioBus::Music;
+      case SettingsGeneralRow::SoundVolume: return audio::AudioBus::Sound;
+      case SettingsGeneralRow::AmbienceVolume: return audio::AudioBus::Ambience;
+      case SettingsGeneralRow::VoiceVolume: return audio::AudioBus::Voice;
+      case SettingsGeneralRow::TextSpeed:
+      case SettingsGeneralRow::UiScale:
+      case SettingsGeneralRow::WindowMode:
+      case SettingsGeneralRow::Count: break;
+    }
+    return std::nullopt;
   }
 
   int settings_row_count(SettingsTab tab) noexcept {
@@ -116,13 +137,21 @@ namespace corundum::ui {
       return result.empty() ? std::string{"(unbound)"} : result;
     }
 
+    /// @p fraction as a whole-number percentage: 0.5 → "50%".
+    std::string percent_text(float fraction) {
+      return std::format("{:.0f}%", fraction * 100.f);
+    }
+
     /// Value column text for one General row.
     std::string general_value_text(SettingsGeneralRow row, const SettingsValues &values) {
       switch (row) {
-        case SettingsGeneralRow::Volume: return std::format("{:.0f}%", values.master_volume * 100.f);
-        case SettingsGeneralRow::MusicVolume: return std::format("{:.0f}%", values.music_volume * 100.f);
+        case SettingsGeneralRow::MasterVolume: return percent_text(values.master_volume);
+        case SettingsGeneralRow::MusicVolume: return percent_text(values.music_volume);
+        case SettingsGeneralRow::SoundVolume: return percent_text(values.sound_volume);
+        case SettingsGeneralRow::AmbienceVolume: return percent_text(values.ambience_volume);
+        case SettingsGeneralRow::VoiceVolume: return percent_text(values.voice_volume);
         case SettingsGeneralRow::TextSpeed: return std::string{text_speed_label(values.text_speed)};
-        case SettingsGeneralRow::UiScale: return std::format("{:.0f}%", values.ui_scale * 100.f);
+        case SettingsGeneralRow::UiScale: return percent_text(values.ui_scale);
         case SettingsGeneralRow::WindowMode: return std::string{core::window_mode_name(values.window_mode)};
         case SettingsGeneralRow::Count: break;
       }
@@ -178,6 +207,70 @@ namespace corundum::ui {
       return std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
     }
 
+    /// Place the tab rects and row hit-box for a panel at @p panel_pos/@p panel_size with @p pad_x
+    /// and @p pad_y insets and @p tab_gap/@p title_gap spacing.
+    void place_tabs_and_rows(SettingsLayout &layout, core::math::Vec2 panel_pos, core::math::Vec2 panel_size,
+                             float pad_x, float pad_y, float tab_gap, float title_gap, float line_h, float title_h,
+                             float general_w, float controls_w, int first_row, int visible_rows) {
+      layout.panel_pos = panel_pos;
+      layout.panel_size = panel_size;
+
+      const float tabs_w = general_w + tab_gap + controls_w;
+      const float tabs_x = panel_pos.x + ((panel_size.x - tabs_w) * 0.5f);
+      const float tabs_y = panel_pos.y + pad_y + title_h + title_gap;
+      layout.tabs[0] = ui::RowRect{.pos = {.x = tabs_x, .y = tabs_y}, .width = general_w, .height = line_h};
+      layout.tabs[1] = ui::RowRect{
+          .pos = {.x = tabs_x + general_w + tab_gap, .y = tabs_y},
+          .width = controls_w,
+          .height = line_h,
+      };
+      layout.rows = ui::ListHit{
+          .row_pos = {.x = panel_pos.x + pad_x, .y = tabs_y + line_h + title_gap},
+          .row_width = panel_size.x - (pad_x * 2.f),
+          .row_height = line_h,
+          .first_row = first_row,
+          .visible_rows = visible_rows,
+      };
+    }
+
+    /// The full-viewport framing page: the panel is the screen minus the shared margin.
+    SettingsLayout framing_settings_layout(const PanelStyle &style, core::math::Vec2 viewport, float line_h,
+                                           float title_h, float general_w, float controls_w, int first_row,
+                                           int visible_rows) {
+      const PanelRect panel = screen_panel_rect(viewport, style);
+      SettingsLayout layout{};
+      place_tabs_and_rows(layout, panel.pos, panel.size, k_framing_settings_pad_x, k_framing_settings_pad_y,
+                          k_framing_settings_tab_gap, k_framing_settings_title_gap, line_h, title_h, general_w,
+                          controls_w, first_row, visible_rows);
+      return layout;
+    }
+
+    /// The compact in-game panel: sized to its widest visible row, title, tabs and footer.
+    SettingsLayout in_game_settings_layout(const platform::Renderer &r, const PanelStyle &style,
+                                           std::span<const std::pair<std::string, std::string>> rows,
+                                           core::math::Vec2 viewport, input::InputDevice last_device, float line_h,
+                                           float title_h, float cursor_w, float general_w, float controls_w,
+                                           int first_row, int visible_rows) {
+      const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+      float widest = std::max(r.measure_text(font_id, k_settings_title, style.font_size_speaker),
+                              general_w + k_settings_tab_gap + controls_w);
+      for (int i = first_row; i < first_row + visible_rows; ++i) {
+        const auto &[label, value] = rows[static_cast<std::size_t>(i)];
+        widest = std::max(widest, cursor_w + r.measure_text(font_id, label, style.font_size_body) +
+                                      k_settings_value_gap + r.measure_text(font_id, value, style.font_size_body));
+      }
+      widest = std::max(widest, r.measure_text(font_id, settings_footer(last_device), style.font_size_body));
+
+      const float panel_w = std::max(k_settings_min_w, widest + (k_settings_pad_x * 2.f));
+      const float panel_h = (k_settings_pad_y * 2.f) + title_h + k_settings_title_gap + line_h + k_settings_title_gap +
+                            (static_cast<float>(visible_rows) * line_h) + k_settings_footer_gap + line_h;
+      SettingsLayout layout{};
+      place_tabs_and_rows(layout, {.x = (viewport.x - panel_w) * 0.5f, .y = (viewport.y - panel_h) * 0.5f},
+                          {.x = panel_w, .y = panel_h}, k_settings_pad_x, k_settings_pad_y, k_settings_tab_gap,
+                          k_settings_title_gap, line_h, title_h, general_w, controls_w, first_row, visible_rows);
+      return layout;
+    }
+
   } // namespace
 
   SettingsLayout settings_panel_layout(const platform::Renderer &r, const PanelStyle &style, const SettingsState &state,
@@ -192,76 +285,14 @@ namespace corundum::ui {
     const int visible_rows = std::min(row_count, k_settings_max_visible_rows);
     const int first_row = std::clamp(state.scroll, 0, std::max(0, row_count - visible_rows));
 
-    const std::string_view general = settings_tab_label(SettingsTab::General);
-    const std::string_view controls = settings_tab_label(SettingsTab::Controls);
     const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
-    const float general_w = r.measure_text(font_id, general, style.font_size_body);
-    const float controls_w = r.measure_text(font_id, controls, style.font_size_body);
+    const float general_w = r.measure_text(font_id, settings_tab_label(SettingsTab::General), style.font_size_body);
+    const float controls_w = r.measure_text(font_id, settings_tab_label(SettingsTab::Controls), style.font_size_body);
 
-    if (state.presentation == SettingsPresentation::Framing) {
-      const PanelRect panel = screen_panel_rect(viewport, style);
-      SettingsLayout layout{};
-      layout.panel_pos = panel.pos;
-      layout.panel_size = panel.size;
-
-      const float tabs_w = general_w + k_framing_settings_tab_gap + controls_w;
-      const float tabs_x = panel.pos.x + ((panel.size.x - tabs_w) * 0.5f);
-      const float tabs_y = panel.pos.y + k_framing_settings_pad_y + title_h + k_framing_settings_title_gap;
-      layout.tabs[0] = ui::RowRect{.pos = {.x = tabs_x, .y = tabs_y}, .width = general_w, .height = line_h};
-      layout.tabs[1] = ui::RowRect{
-          .pos = {.x = tabs_x + general_w + k_framing_settings_tab_gap, .y = tabs_y},
-          .width = controls_w,
-          .height = line_h,
-      };
-      layout.rows = ui::ListHit{
-          .row_pos = {.x = panel.pos.x + k_framing_settings_pad_x, .y = tabs_y + line_h + k_framing_settings_title_gap},
-          .row_width = panel.size.x - (k_framing_settings_pad_x * 2.f),
-          .row_height = line_h,
-          .first_row = first_row,
-          .visible_rows = visible_rows,
-      };
-      return layout;
-    }
-
-    float widest = std::max(r.measure_text(font_id, k_settings_title, style.font_size_speaker),
-                            general_w + k_settings_tab_gap + controls_w);
-    for (int i = first_row; i < first_row + visible_rows; ++i) {
-      const auto &[label, value] = rows[static_cast<std::size_t>(i)];
-      widest = std::max(widest, cursor_w + r.measure_text(font_id, label, style.font_size_body) + k_settings_value_gap +
-                                    r.measure_text(font_id, value, style.font_size_body));
-    }
-
-    const std::string footer = settings_footer(last_device);
-    widest = std::max(widest, r.measure_text(font_id, footer, style.font_size_body));
-
-    const float panel_w = std::max(k_settings_min_w, widest + (k_settings_pad_x * 2.f));
-    const float panel_h = (k_settings_pad_y * 2.f) + title_h + k_settings_title_gap + line_h + k_settings_title_gap +
-                          (static_cast<float>(visible_rows) * line_h) + k_settings_footer_gap + line_h;
-    const float panel_x = (viewport.x - panel_w) * 0.5f;
-    const float panel_y = (viewport.y - panel_h) * 0.5f;
-
-    SettingsLayout layout{};
-    layout.panel_pos = {.x = panel_x, .y = panel_y};
-    layout.panel_size = {.x = panel_w, .y = panel_h};
-
-    const float tabs_w = general_w + k_settings_tab_gap + controls_w;
-    const float tabs_x = panel_x + ((panel_w - tabs_w) * 0.5f);
-    const float tabs_y = panel_y + k_settings_pad_y + title_h + k_settings_title_gap;
-    layout.tabs[0] = ui::RowRect{.pos = {.x = tabs_x, .y = tabs_y}, .width = general_w, .height = line_h};
-    layout.tabs[1] = ui::RowRect{
-        .pos = {.x = tabs_x + general_w + k_settings_tab_gap, .y = tabs_y},
-        .width = controls_w,
-        .height = line_h,
-    };
-
-    layout.rows = ui::ListHit{
-        .row_pos = {.x = panel_x + k_settings_pad_x, .y = tabs_y + line_h + k_settings_title_gap},
-        .row_width = panel_w - (k_settings_pad_x * 2.f),
-        .row_height = line_h,
-        .first_row = first_row,
-        .visible_rows = visible_rows,
-    };
-    return layout;
+    if (state.presentation == SettingsPresentation::Framing)
+      return framing_settings_layout(style, viewport, line_h, title_h, general_w, controls_w, first_row, visible_rows);
+    return in_game_settings_layout(r, style, rows, viewport, last_device, line_h, title_h, cursor_w, general_w,
+                                   controls_w, first_row, visible_rows);
   }
 
   void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,

@@ -30,11 +30,20 @@ namespace corundum::settings {
 
     core::WindowMode window_mode{core::WindowMode::Windowed};
 
+    /// Ambience-bus volume in [0, 1], applied under master_volume.
+    float ambience_volume{1.f};
+
     /// Master audio volume in [0, 1].
     float master_volume{1.f};
 
     /// Music volume in [0, 1], applied under master_volume.
     float music_volume{1.f};
+
+    /// Sound-effect bus volume in [0, 1], applied under master_volume.
+    float sound_volume{1.f};
+
+    /// Voice (dialogue, narration) bus volume in [0, 1], applied under master_volume.
+    float voice_volume{1.f};
 
     /// Dialogue text-reveal multiplier; 0 reveals instantly (see ui::k_text_speed_presets).
     float text_speed{1.f};
@@ -43,7 +52,8 @@ namespace corundum::settings {
     float ui_scale{1.f};
   };
 
-  /** @brief settings.json document: schema_version, window_mode, and bindings (see input::serialize). */
+  /** @brief settings.json document: schema_version, window_mode, bindings (see input::serialize), the five bus volumes,
+   * text_speed and ui_scale. */
   [[nodiscard]] nlohmann::json serialize(const UserSettings &settings);
 
   /** @brief Parse a settings.json document whose schema_version has already been checked.

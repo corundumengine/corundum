@@ -5,6 +5,7 @@
 
 #include "temp_dir.hpp"
 
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/environment.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
@@ -39,6 +40,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
+  using corundum::audio::AudioBus;
   using corundum::core::WindowMode;
   using corundum::input::Action;
   using corundum::input::action_name;
@@ -73,6 +75,9 @@ namespace {
     settings.window_mode = WindowMode::Fullscreen;
     settings.master_volume = 0.4f;
     settings.music_volume = 0.6f;
+    settings.ambience_volume = 0.2f;
+    settings.sound_volume = 0.7f;
+    settings.voice_volume = 0.8f;
     settings.text_speed = 2.f;
     settings.ui_scale = 1.25f;
     return settings;
@@ -182,17 +187,25 @@ TEST_CASE("settings: serialize/parse round-trips") {
   CHECK(parsed->window_mode == settings.window_mode);
   CHECK(parsed->master_volume == doctest::Approx(settings.master_volume));
   CHECK(parsed->music_volume == doctest::Approx(settings.music_volume));
+  CHECK(parsed->ambience_volume == doctest::Approx(settings.ambience_volume));
+  CHECK(parsed->sound_volume == doctest::Approx(settings.sound_volume));
+  CHECK(parsed->voice_volume == doctest::Approx(settings.voice_volume));
   CHECK(parsed->text_speed == doctest::Approx(settings.text_speed));
   CHECK(parsed->ui_scale == doctest::Approx(settings.ui_scale));
 }
 
 TEST_CASE("settings: out-of-range volume and UI scale are clamped") {
   const nlohmann::json root = {
-      {"schema_version", 2}, {"master_volume", 5.f}, {"music_volume", 5.f}, {"ui_scale", 0.1f}};
+      {"schema_version", 2}, {"master_volume", 5.f}, {"music_volume", 5.f}, {"ambience_volume", -1.f},
+      {"sound_volume", 3.f}, {"voice_volume", -2.f}, {"ui_scale", 0.1f},
+  };
   const auto parsed = corundum::settings::parse(root, UserSettings{});
   REQUIRE(parsed.has_value());
   CHECK(parsed->master_volume == doctest::Approx(1.f));
   CHECK(parsed->music_volume == doctest::Approx(1.f));
+  CHECK(parsed->ambience_volume == doctest::Approx(0.f));
+  CHECK(parsed->sound_volume == doctest::Approx(1.f));
+  CHECK(parsed->voice_volume == doctest::Approx(0.f));
   CHECK(parsed->ui_scale == doctest::Approx(0.75f));
 }
 
@@ -208,6 +221,16 @@ TEST_CASE("settings: a non-numeric music volume is rejected") {
   const auto parsed = corundum::settings::parse(root, UserSettings{});
   REQUIRE_FALSE(parsed.has_value());
   CHECK(parsed.error().find("music_volume") != std::string::npos);
+}
+
+TEST_CASE("settings: a non-numeric sound, ambience or voice volume is rejected, naming its key") {
+  for (const std::string_view key : {"sound_volume", "ambience_volume", "voice_volume"}) {
+    INFO(key);
+    const nlohmann::json root = {{"schema_version", 1}, {std::string{key}, "loud"}};
+    const auto parsed = corundum::settings::parse(root, UserSettings{});
+    REQUIRE_FALSE(parsed.has_value());
+    CHECK(parsed.error().find(key) != std::string::npos);
+  }
 }
 
 TEST_CASE("settings: an absent field keeps its default") {
@@ -288,6 +311,26 @@ TEST_CASE("settings: save/load round-trips bindings and window mode") {
       corundum::input::inputs_for(engine.input_mapper.bindings(), Action::MoveUp);
   CHECK(std::ranges::find(move_up, physical(Key::K)) != move_up.end());
   CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
+}
+
+TEST_CASE("settings: save/load round-trips the sound, ambience and voice bus volumes") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  const auto dir = temp_dir("bus_volumes");
+  const auto path = dir / "settings.json";
+
+  engine.audio.set_bus_volume(AudioBus::Sound, 0.3f);
+  engine.audio.set_bus_volume(AudioBus::Ambience, 0.5f);
+  engine.audio.set_bus_volume(AudioBus::Voice, 0.7f);
+  REQUIRE(corundum::settings::save(engine, path).has_value());
+
+  for (const AudioBus bus : {AudioBus::Sound, AudioBus::Ambience, AudioBus::Voice})
+    engine.audio.set_bus_volume(bus, 1.f);
+  REQUIRE(corundum::settings::load(engine, path).has_value());
+
+  CHECK(engine.audio.bus_volume(AudioBus::Sound) == doctest::Approx(0.3f));
+  CHECK(engine.audio.bus_volume(AudioBus::Ambience) == doctest::Approx(0.5f));
+  CHECK(engine.audio.bus_volume(AudioBus::Voice) == doctest::Approx(0.7f));
 }
 
 TEST_CASE("settings: a newer schema version is rejected and the engine keeps its defaults") {

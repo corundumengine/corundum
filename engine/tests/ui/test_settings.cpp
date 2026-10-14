@@ -3,6 +3,8 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/audio/audio_backend.hpp>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
@@ -52,6 +54,20 @@ TEST_CASE("settings row counts per tab") {
         static_cast<int>(corundum::input::k_action_count));
 }
 
+TEST_CASE("settings: volume_row_bus maps each volume row to its bus and other rows to none") {
+  using corundum::audio::AudioBus;
+  using corundum::ui::SettingsGeneralRow;
+  using corundum::ui::volume_row_bus;
+  CHECK(volume_row_bus(SettingsGeneralRow::MasterVolume) == AudioBus::Master);
+  CHECK(volume_row_bus(SettingsGeneralRow::MusicVolume) == AudioBus::Music);
+  CHECK(volume_row_bus(SettingsGeneralRow::SoundVolume) == AudioBus::Sound);
+  CHECK(volume_row_bus(SettingsGeneralRow::AmbienceVolume) == AudioBus::Ambience);
+  CHECK(volume_row_bus(SettingsGeneralRow::VoiceVolume) == AudioBus::Voice);
+  CHECK_FALSE(volume_row_bus(SettingsGeneralRow::TextSpeed).has_value());
+  CHECK_FALSE(volume_row_bus(SettingsGeneralRow::UiScale).has_value());
+  CHECK_FALSE(volume_row_bus(SettingsGeneralRow::WindowMode).has_value());
+}
+
 TEST_CASE("settings_scroll_to_cursor follows the cursor past the visible window") {
   corundum::ui::SettingsState state{};
 
@@ -78,8 +94,11 @@ TEST_CASE("settings: General tab renders the row labels and their values") {
   const corundum::ui::PanelStyle style = make_style();
   const corundum::ui::SettingsState state{};
   const corundum::ui::SettingsValues values{
+      .ambience_volume = 0.7f,
       .master_volume = 0.5f,
       .music_volume = 0.3f,
+      .sound_volume = 0.2f,
+      .voice_volume = 0.6f,
       .text_speed = 0.f,
       .ui_scale = 1.25f,
       .window_mode = corundum::core::WindowMode::Fullscreen,
@@ -95,6 +114,12 @@ TEST_CASE("settings: General tab renders the row labels and their values") {
   CHECK(contains_text(r, "50%"));
   CHECK(contains_text(r, "Music Volume"));
   CHECK(contains_text(r, "30%"));
+  CHECK(contains_text(r, "Sound Volume"));
+  CHECK(contains_text(r, "20%"));
+  CHECK(contains_text(r, "Ambience Volume"));
+  CHECK(contains_text(r, "70%"));
+  CHECK(contains_text(r, "Voice Volume"));
+  CHECK(contains_text(r, "60%"));
   CHECK(contains_text(r, "Text Speed"));
   CHECK(contains_text(r, "Instant"));
   CHECK(contains_text(r, "UI Scale"));

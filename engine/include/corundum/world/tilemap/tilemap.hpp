@@ -621,6 +621,38 @@ namespace corundum::world::tilemap {
   }
 
   /**
+   * @brief Material tag for @p layer at cell @p idx, or std::nullopt when the layer has no
+   * z_index==0 tile there.
+   *
+   * @param tilemap The tilemap owning @p layer, for the tileset default lookup.
+   * @param layer Layer to resolve.
+   * @param uidx Byte index of the cell in the layer's tile array.
+   * @param idx Signed cell index used by the override and animation maps.
+   */
+  [[nodiscard]] inline std::optional<std::string> layer_material_at(const Tilemap &tilemap, const TilemapLayer &layer,
+                                                                    std::size_t uidx, int idx) {
+    if (layer.z_index != 0 || !layer.visible)
+      return std::nullopt;
+    if (uidx >= layer.tiles.size())
+      return std::nullopt;
+
+    const bool is_animated = layer.animated_cells.contains(idx);
+    if (!is_animated && layer.tiles[uidx] == k_empty_tile)
+      return std::nullopt;
+
+    if (const auto it = layer.material_overrides.find(idx); it != layer.material_overrides.end())
+      return it->second;
+
+    TileId gid = layer.tiles[uidx];
+    if (is_animated) {
+      const auto &frames = layer.animated_cells.at(idx).frame_gids;
+      gid = frames.empty() ? k_empty_tile : frames[0];
+    }
+    const TilemapTileset *tileset = find_tileset(tilemap.tilesets, gid);
+    return tileset != nullptr ? tileset->info.material : std::string{};
+  }
+
+  /**
    * @brief Terrain-material tag of the tile at (col, row), for footstep/ambient audio selection.
    *
    * Resolves a per-cell material_overrides entry on the topmost z_index==0 layer with a tile
@@ -648,27 +680,11 @@ namespace corundum::world::tilemap {
     if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
       return {};
     const int idx = static_cast<int>(uidx);
+
     std::string result;
     for (const auto &layer : tilemap.layers) {
-      if (layer.z_index != 0 || !layer.visible)
-        continue;
-      if (uidx >= layer.tiles.size())
-        continue;
-      const bool is_animated = layer.animated_cells.contains(idx);
-      if (!is_animated && layer.tiles[uidx] == k_empty_tile)
-        continue;
-
-      if (const auto it = layer.material_overrides.find(idx); it != layer.material_overrides.end()) {
-        result = it->second;
-        continue;
-      }
-      TileId gid = layer.tiles[uidx];
-      if (is_animated) {
-        const auto &frames = layer.animated_cells.at(idx).frame_gids;
-        gid = frames.empty() ? k_empty_tile : frames[0];
-      }
-      const TilemapTileset *tileset = find_tileset(tilemap.tilesets, gid);
-      result = tileset != nullptr ? tileset->info.material : std::string{};
+      if (const std::optional<std::string> material = layer_material_at(tilemap, layer, uidx, idx); material)
+        result = *material;
     }
     return result;
   }

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
@@ -211,8 +212,11 @@ namespace corundum {
     /// Live values the Settings screen shows, read from the engine each frame it renders.
     ui::SettingsValues settings_values(const Engine &engine) {
       return ui::SettingsValues{
-          .master_volume = engine.audio.master_volume(),
-          .music_volume = engine.audio.music_volume(),
+          .ambience_volume = engine.audio.bus_volume(audio::AudioBus::Ambience),
+          .master_volume = engine.audio.bus_volume(audio::AudioBus::Master),
+          .music_volume = engine.audio.bus_volume(audio::AudioBus::Music),
+          .sound_volume = engine.audio.bus_volume(audio::AudioBus::Sound),
+          .voice_volume = engine.audio.bus_volume(audio::AudioBus::Voice),
           .text_speed = engine.render.text_speed,
           .ui_scale = engine.render.ui_scale,
           .window_mode = engine.window->window_mode(),
@@ -250,15 +254,14 @@ namespace corundum {
 
     /// Apply the change for a Left/Right press on a General-tab row.
     void adjust_general_row(Engine &engine, ui::SettingsGeneralRow row, int direction) {
+      if (const std::optional<audio::AudioBus> bus = ui::volume_row_bus(row)) {
+        // set_bus_volume clamps to [0, 1].
+        engine.audio.set_bus_volume(*bus, engine.audio.bus_volume(*bus) +
+                                              (static_cast<float>(direction) * ui::k_volume_step));
+        return;
+      }
+
       switch (row) {
-        case ui::SettingsGeneralRow::Volume:
-          engine.audio.set_master_volume(
-              std::clamp(engine.audio.master_volume() + (static_cast<float>(direction) * ui::k_volume_step), 0.f, 1.f));
-          break;
-        case ui::SettingsGeneralRow::MusicVolume:
-          engine.audio.set_music_volume(
-              std::clamp(engine.audio.music_volume() + (static_cast<float>(direction) * ui::k_volume_step), 0.f, 1.f));
-          break;
         case ui::SettingsGeneralRow::TextSpeed:
           engine.render.text_speed = direction > 0 ? ui::next_text_speed(engine.render.text_speed)
                                                    : ui::prev_text_speed(engine.render.text_speed);
@@ -270,9 +273,14 @@ namespace corundum {
                          ui::k_ui_scale_min, ui::k_ui_scale_max);
           refresh_dialog_style(engine);
           break;
+        case ui::SettingsGeneralRow::MasterVolume:
+        case ui::SettingsGeneralRow::MusicVolume:
+        case ui::SettingsGeneralRow::SoundVolume:
+        case ui::SettingsGeneralRow::AmbienceVolume:
+        case ui::SettingsGeneralRow::VoiceVolume:
         case ui::SettingsGeneralRow::WindowMode:
         case ui::SettingsGeneralRow::Count:
-          break; // Window mode toggles on Activate, not on Left/Right.
+          break; // Volume rows return above; window mode toggles on Activate; Count is not a row.
       }
     }
 
@@ -290,31 +298,25 @@ namespace corundum {
         warn_log("[engine] WARN: rebind failed: {}", result.error());
     }
 
-    /// Step the pause menu: Back/Menu closes it; Up/Down move the selection; a hovered row takes
-    /// focus on a real mouse move or click; Activate runs the highlighted command.
-    void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
-      if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
-        engine.scene.ui.pop();
+    /// Apply a mouse move, click or wheel to the pause menu: a hovered row takes focus, and the
+    /// wheel moves the cursor.
+    void apply_menu_pointer(Engine &engine, const input::InputIntent &intent) {
+      if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
         return;
-      }
 
-      if (intent.mouse_moved || intent.cursor_clicked || intent.scroll_y != 0.f) {
-        const ui::MenuLayout layout = ui::menu_panel_layout(
-            *engine.renderer, engine.render.panel_skin.style, screen_viewport(engine), engine.input_mapper.last_device());
+      if (intent.mouse_moved || intent.cursor_clicked) {
+        const ui::MenuLayout layout = ui::menu_panel_layout(*engine.renderer, engine.render.panel_skin.style,
+                                                            screen_viewport(engine), engine.input_mapper.last_device());
         const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
-        if (intent.mouse_moved || intent.cursor_clicked) {
-          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-            engine.menu.cursor = hovered;
-        }
-        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
-          engine.menu.cursor = wrap_cursor(engine.menu.cursor, steps, ui::k_menu_command_count);
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+          engine.menu.cursor = hovered;
       }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+        engine.menu.cursor = wrap_cursor(engine.menu.cursor, steps, ui::k_menu_command_count);
+    }
 
-      if (intent.navigate_y != 0)
-        engine.menu.cursor = wrap_cursor(engine.menu.cursor, intent.navigate_y, ui::k_menu_command_count);
-      if (!intent.activate)
-        return;
-
+    /// Run the highlighted pause-menu command.
+    void activate_menu_command(Engine &engine) {
       switch (ui::menu_command_at(engine.menu.cursor)) {
         case ui::MenuCommand::Resume:
           engine.scene.ui.pop();
@@ -346,11 +348,34 @@ namespace corundum {
       }
     }
 
+    /// Step the pause menu: Back/Menu closes it; Up/Down move the selection; a hovered row takes
+    /// focus on a real mouse move or click; Activate runs the highlighted command.
+    void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
+      if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
+        engine.scene.ui.pop();
+        return;
+      }
+
+      apply_menu_pointer(engine, intent);
+
+      if (intent.navigate_y != 0)
+        engine.menu.cursor = wrap_cursor(engine.menu.cursor, intent.navigate_y, ui::k_menu_command_count);
+      if (intent.activate)
+        activate_menu_command(engine);
+    }
+
     /// Switch the settings tab to @p tab, resetting the cursor and scroll.
     void switch_settings_tab(ui::SettingsState &state, ui::SettingsTab tab) noexcept {
       state.tab = tab;
       state.cursor = 0;
       state.scroll = 0;
+    }
+
+    /// Switch to the tab @p direction steps away, wrapping around.
+    void cycle_settings_tab(ui::SettingsState &state, int direction) {
+      const int tabs = ui::k_settings_tab_count;
+      switch_settings_tab(state,
+                          static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
     }
 
     /// Apply mouse intent to the settings screen: a click on a tab switches to it, the wheel over
@@ -372,10 +397,7 @@ namespace corundum {
           return true;
         }
         if (intent.scroll_y != 0.f) {
-          const int direction = intent.scroll_y > 0.f ? -1 : 1;
-          const int tabs = ui::k_settings_tab_count;
-          switch_settings_tab(state,
-                              static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
+          cycle_settings_tab(state, intent.scroll_y > 0.f ? -1 : 1);
           return true;
         }
       }
@@ -392,22 +414,43 @@ namespace corundum {
       return false;
     }
 
+    /// Consume the press captured for a rebind, or cancel it on Back, and clear the capture.
+    /// Returns true while the Settings screen is still capturing, so the step is consumed.
+    bool update_rebind_capture(Engine &engine) {
+      ui::SettingsState &state = engine.settings_screen;
+      if (!state.rebinding)
+        return false;
+
+      if (const std::optional<input::PhysicalInput> captured = engine.input_mapper.take_captured()) {
+        if (is_cancel_capture(*captured))
+          engine.input_mapper.cancel_capture();
+        else
+          rebind_captured(engine, *captured);
+        state.rebinding = false;
+      }
+      return true;
+    }
+
+    /// Apply a Left/Right press to the General-tab row under the cursor, or toggle Window Mode on
+    /// Activate. Non-volume rows do nothing on Left/Right, and Window Mode only toggles on Activate.
+    void edit_general_row(Engine &engine, int cursor, const input::InputIntent &intent) {
+      const auto row = static_cast<ui::SettingsGeneralRow>(cursor);
+      if (intent.navigate_x != 0) {
+        adjust_general_row(engine, row, intent.navigate_x);
+      } else if (intent.activate && row == ui::SettingsGeneralRow::WindowMode) {
+        const bool fullscreen = engine.window->window_mode() == core::WindowMode::Fullscreen;
+        engine.window->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
+      }
+    }
+
     /// Step the Settings screen. While the Controls tab is capturing a rebind, every other
     /// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, the
     /// cursor edits the focused row, and the pointer can click a tab or a row.
     void update_settings(Engine &engine, const input::InputIntent &intent) {
       ui::SettingsState &state = engine.settings_screen;
 
-      if (state.rebinding) {
-        if (const std::optional<input::PhysicalInput> captured = engine.input_mapper.take_captured()) {
-          if (is_cancel_capture(*captured))
-            engine.input_mapper.cancel_capture();
-          else
-            rebind_captured(engine, *captured);
-          state.rebinding = false;
-        }
+      if (update_rebind_capture(engine))
         return;
-      }
 
       if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
         engine.scene.ui.pop();
@@ -419,10 +462,7 @@ namespace corundum {
         return;
 
       if (intent.next_tab || intent.prev_tab) {
-        const int direction = intent.next_tab ? 1 : -1;
-        const int tabs = ui::k_settings_tab_count;
-        switch_settings_tab(state,
-                            static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
+        cycle_settings_tab(state, intent.next_tab ? 1 : -1);
         return;
       }
 
@@ -435,13 +475,7 @@ namespace corundum {
       }
 
       if (state.tab == ui::SettingsTab::General) {
-        const auto row = static_cast<ui::SettingsGeneralRow>(state.cursor);
-        if (intent.navigate_x != 0) {
-          adjust_general_row(engine, row, intent.navigate_x);
-        } else if (intent.activate && row == ui::SettingsGeneralRow::WindowMode) {
-          const bool fullscreen = engine.window->window_mode() == core::WindowMode::Fullscreen;
-          engine.window->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
-        }
+        edit_general_row(engine, state.cursor, intent);
       } else if (intent.activate) {
         engine.input_mapper.begin_capture();
         state.rebinding = true;

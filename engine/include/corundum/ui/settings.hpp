@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/input/bindings.hpp>
@@ -13,6 +14,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string_view>
 
 namespace corundum::ui {
@@ -41,7 +43,7 @@ namespace corundum::ui {
   /** @brief The previous (slower) preset, wrapping to the quickest below Instant. */
   [[nodiscard]] float prev_text_speed(float speed) noexcept;
 
-  /** @brief Master- and music-volume change per Left/Right press, in [0, 1]. */
+  /** @brief Bus-volume change per Left/Right press, in [0, 1]. */
   inline constexpr float k_volume_step = 0.1f;
 
   /** @brief UI-scale bounds and increment. */
@@ -51,10 +53,14 @@ namespace corundum::ui {
 
   inline constexpr float k_ui_scale_step = 0.25f;
 
-  /** @brief Rows of the General tab. */
+  /** @brief Rows of the General tab, in display order.
+   *  @note Keep @c Count last: k_settings_general_row_count derives from it. */
   enum class SettingsGeneralRow : std::uint8_t {
-    Volume,
+    MasterVolume,
     MusicVolume,
+    SoundVolume,
+    AmbienceVolume,
+    VoiceVolume,
     TextSpeed,
     UiScale,
     WindowMode,
@@ -62,10 +68,13 @@ namespace corundum::ui {
   };
 
   /** @brief Number of General-tab rows. */
-  inline constexpr int k_settings_general_row_count = 5;
+  inline constexpr int k_settings_general_row_count = static_cast<int>(SettingsGeneralRow::Count);
 
   /** @brief Display label for a General-tab row. */
   [[nodiscard]] std::string_view settings_general_row_label(SettingsGeneralRow row) noexcept;
+
+  /** @brief The mixer bus a General-tab volume row edits, or std::nullopt for a non-volume row. */
+  [[nodiscard]] std::optional<audio::AudioBus> volume_row_bus(SettingsGeneralRow row) noexcept;
 
   /** @brief Maximum list rows the Controls page shows before scrolling. */
   inline constexpr int k_settings_max_visible_rows = 8;
@@ -103,9 +112,15 @@ namespace corundum::ui {
   /** @brief The live values the Settings screen displays. Definitely not the source of truth —
    *  they are read from the engine when the screen opens and after each edit. */
   struct SettingsValues {
+    float ambience_volume{1.f};
+
     float master_volume{1.f};
 
     float music_volume{1.f};
+
+    float sound_volume{1.f};
+
+    float voice_volume{1.f};
 
     float text_speed{1.f};
 
