@@ -16,8 +16,8 @@ namespace corundum::animation {
 
   /** @brief Advance all animated sprites by one fixed timestep.
    *
-   * Reads velocity from @p transforms to resolve movement and facing, advances the
-   * walk/idle sheet transition in @p motion_sprites (honouring its configured delay),
+   * Reads velocity from @p transforms to select facing and the walk/idle state, advances
+   * the walk/idle sheet transition in @p motion_sprites (honouring its configured delay),
    * selects the clip for the resolved facing, and advances the frame index on @p sprites.
    *
    * While moving, playback is scaled by the entity's actual screen-space speed relative
@@ -26,16 +26,16 @@ namespace corundum::animation {
    * @p iso / @p reference_speed play at the unscaled rate. Clip selection falls back from
    * the facing clip to the dominant-axis cardinal clip, then to AnimId::Default.
    *
-   *  @param[in,out] sprites        sprite_id, anim_id, and frame_index are updated.
-   *  @param[in]     transforms     velocity fields drive movement and facing.
-   *  @param[in,out] animations     timers, frame counts, and frame durations are updated.
-   *  @param[in,out] facings        direction is overwritten while moving.
-   *  @param[in,out] motion_sprites pending walk/idle sheet transitions are advanced.
-   *  @param[in]     iso            projection params converting velocity to screen speed.
-   *  @param[in]     reference_speed screen speed (px/s) at which a clip plays at its authored rate.
-   *  @param[in]     dt             fixed timestep in seconds.
-   *  @post After the configured transition delay, the active sprite is the walk sheet
-   *        while moving and the idle sheet while still.
+   * @param[in,out] sprites         sprite_id, anim_id, and frame_index are updated.
+   * @param[in]     transforms      velocity fields select facing and walk/idle state.
+   * @param[in,out] animations      timers, frame counts, and frame durations are updated.
+   * @param[in,out] facings         direction is overwritten while moving.
+   * @param[in,out] motion_sprites  pending walk/idle sheet transitions are advanced.
+   * @param[in]     iso             projection params converting velocity to screen speed.
+   * @param[in]     reference_speed screen speed (px/s) at which a clip plays at its authored rate.
+   * @param[in]     dt              fixed timestep in seconds.
+   * @post After the configured transition delay, the active sprite is the walk sheet
+   *       while moving and the idle sheet while still.
    *  Performance: O(n) over active animation count. No heap allocation.
    */
   void update(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,

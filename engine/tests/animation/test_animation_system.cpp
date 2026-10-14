@@ -29,16 +29,18 @@ namespace {
 
   // half_tw/half_th form a 3-4-5 right triangle so every screen-speed ratio exercised
   // below is exact in floating point (no ulp slop flipping an exact >= threshold check).
-  constexpr IsometricParams k_iso{4.f, 3.f, 0.f, 0.f};
+  constexpr IsometricParams k_iso{.half_tw = 4.f, .half_th = 3.f, .x_origin = 0.f, .elev_step = 0.f};
   constexpr float k_reference_speed = 10.f; // screen px/s
 
+  // Field order is the padding-optimal one (transform/animations/player/facings/sprites/
+  // motion_sprites) rather than declaration order; the test only ever reads them by name.
   struct Fixture {
-    SpriteTable sprites;
     TransformTable transforms;
     AnimationTable animations;
-    FacingTable facings;
-    MotionSpriteTable motion_sprites;
     EntityId player = static_cast<EntityId>(0);
+    FacingTable facings;
+    SpriteTable sprites;
+    MotionSpriteTable motion_sprites;
 
     Fixture() {
       transforms.insert(player, 0.5f, 0.5f, 0.f, 0.f);
@@ -92,7 +94,8 @@ TEST_CASE("animate: degenerate iso falls back to the unscaled rate (no divide-by
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 5.f; // nonzero velocity, but iso below is degenerate
   corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites,
-                              IsometricParams{0.f, 0.f, 0.f, 0.f}, k_reference_speed, /*dt=*/0.2f);
+                              IsometricParams{.half_tw = 0.f, .half_th = 0.f, .x_origin = 0.f, .elev_step = 0.f},
+                              k_reference_speed, /*dt=*/0.2f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
 }
 
@@ -173,7 +176,7 @@ TEST_CASE("animate: vertical-axis fallback is used when |dr| dominates") {
 
 TEST_CASE("animate: returns AnimId::Default when every directional and cardinal clip is empty") {
   Fixture f;
-  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{}; // all zero
+  const std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{}; // all zero
   f.animations.set_frame_counts(f.player, counts);
 
   const auto slot = f.transforms.dense_index(f.player);
@@ -235,16 +238,16 @@ TEST_CASE("animate: single-frame AnimIds do not advance or accumulate timer") {
 
 TEST_CASE("animate: motion sprite commits after the configured idle-to-walk delay") {
   Fixture f;
-  constexpr corundum::sprites::SpriteId walk_sid{1};
-  constexpr corundum::sprites::SpriteId idle_sid{2};
+  constexpr corundum::sprites::SpriteId k_walk_sprite_id{1};
+  constexpr corundum::sprites::SpriteId k_idle_sprite_id{2};
   // Start with the idle sprite active so the transition is observable from the
   // initial state (the fixture otherwise initialises sprite_id to 0).
-  f.sprites.sprite_id_ref(f.player) = idle_sid;
+  f.sprites.sprite_id_ref(f.player) = k_idle_sprite_id;
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts.fill(4);
   f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
-                                        .walk_id = walk_sid,
-                                        .idle_id = idle_sid,
+                                        .walk_id = k_walk_sprite_id,
+                                        .idle_id = k_idle_sprite_id,
                                         .walk_counts = counts,
                                         .idle_counts = counts,
                                         .idle_to_walk_delay = 0.1f,
@@ -258,27 +261,27 @@ TEST_CASE("animate: motion sprite commits after the configured idle-to-walk dela
   corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
                               k_reference_speed,
                               /*dt=*/0.05f);
-  CHECK(f.sprites.sprite_id_ref(f.player) == idle_sid);
-  CHECK(f.motion_sprites.pending_sprite(f.player) == walk_sid);
+  CHECK(f.sprites.sprite_id_ref(f.player) == k_idle_sprite_id);
+  CHECK(f.motion_sprites.pending_sprite(f.player) == k_walk_sprite_id);
 
   // Cumulative dt reaches the delay — commits.
   corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
                               k_reference_speed,
                               /*dt=*/0.05f);
-  CHECK(f.sprites.sprite_id_ref(f.player) == walk_sid);
+  CHECK(f.sprites.sprite_id_ref(f.player) == k_walk_sprite_id);
   CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::sprites::k_null_sprite_id);
 }
 
 TEST_CASE("animate: motion sprite cancels a pending transition when motion state flips before delay") {
   Fixture f;
-  constexpr corundum::sprites::SpriteId walk_sid{1};
-  constexpr corundum::sprites::SpriteId idle_sid{2};
-  f.sprites.sprite_id_ref(f.player) = idle_sid;
+  constexpr corundum::sprites::SpriteId k_walk_sprite_id{1};
+  constexpr corundum::sprites::SpriteId k_idle_sprite_id{2};
+  f.sprites.sprite_id_ref(f.player) = k_idle_sprite_id;
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts.fill(4);
   f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
-                                        .walk_id = walk_sid,
-                                        .idle_id = idle_sid,
+                                        .walk_id = k_walk_sprite_id,
+                                        .idle_id = k_idle_sprite_id,
                                         .walk_counts = counts,
                                         .idle_counts = counts,
                                         .idle_to_walk_delay = 0.1f,
@@ -292,7 +295,7 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
   corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
                               k_reference_speed,
                               /*dt=*/0.05f);
-  REQUIRE(f.motion_sprites.pending_sprite(f.player) == walk_sid);
+  REQUIRE(f.motion_sprites.pending_sprite(f.player) == k_walk_sprite_id);
 
   // Stop moving — desired flips back to idle, which is already cur_sid → cancel.
   f.transforms.dc[slot] = 0.f;
@@ -300,21 +303,21 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
                               k_reference_speed,
                               /*dt=*/0.05f);
   CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::sprites::k_null_sprite_id);
-  CHECK(f.sprites.sprite_id_ref(f.player) == idle_sid);
+  CHECK(f.sprites.sprite_id_ref(f.player) == k_idle_sprite_id);
 }
 
 TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts and duration") {
   Fixture f;
-  constexpr corundum::sprites::SpriteId walk_sid{1};
-  constexpr corundum::sprites::SpriteId idle_sid{2};
+  constexpr corundum::sprites::SpriteId k_walk_sprite_id{1};
+  constexpr corundum::sprites::SpriteId k_idle_sprite_id{2};
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_counts{};
   walk_counts.fill(6);
   walk_counts[static_cast<uint8_t>(corundum::sprites::AnimId::South)] = 8; // distinguish from idle
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_counts{};
   idle_counts.fill(4);
   f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
-                                        .walk_id = walk_sid,
-                                        .idle_id = idle_sid,
+                                        .walk_id = k_walk_sprite_id,
+                                        .idle_id = k_idle_sprite_id,
                                         .walk_counts = walk_counts,
                                         .idle_counts = idle_counts,
                                         .walk_frame_duration = 0.05f,
@@ -327,7 +330,30 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts a
                               k_reference_speed,
                               /*dt=*/0.f);
 
-  CHECK(f.sprites.sprite_id_ref(f.player) == walk_sid);
+  CHECK(f.sprites.sprite_id_ref(f.player) == k_walk_sprite_id);
   CHECK(f.animations.frame_count(f.player, corundum::sprites::AnimId::South) == 8);
   CHECK(f.animations.frame_duration_ref(f.player) == doctest::Approx(0.05f));
+}
+
+TEST_CASE("animate: one tick advances every whole frame that elapsed") {
+  Fixture f;
+  f.animations.frame_duration_ref(f.player) = 0.1f;
+
+  // 2.5 frame durations elapse in a single idle tick: two whole frames, 0.05s residual.
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.25f);
+  CHECK(f.sprites.frame_index_ref(f.player) == 2);
+  CHECK(f.animations.timer_ref(f.player) == doctest::Approx(0.05f));
+}
+
+TEST_CASE("animate: frame index wraps modulo the clip length") {
+  Fixture f;
+  f.animations.frame_duration_ref(f.player) = 0.1f;
+  f.sprites.frame_index_ref(f.player) = 3; // last frame of the 4-frame clip
+
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.15f); // one whole frame elapses
+  CHECK(f.sprites.frame_index_ref(f.player) == 0);
 }
