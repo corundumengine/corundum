@@ -8,15 +8,15 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include <expected>
-#include <filesystem>
 #include <string>
+#include <string_view>
 
 namespace corundum {
   struct Engine;
 } // namespace corundum
 
 namespace corundum::core {
-  struct GameConfig;
+  class UserStorage;
 } // namespace corundum::core
 
 namespace corundum::settings {
@@ -85,51 +85,26 @@ namespace corundum::settings {
    */
   [[nodiscard]] std::expected<void, std::string> apply(Engine &engine, const UserSettings &settings);
 
-  /** @brief Load settings.json from @p path and apply it, filling gaps from capture(engine).
+  /** @brief The UserStorage entry the player's settings live in. */
+  constexpr std::string_view k_settings_name{"settings.json"};
+
+  /** @brief Load settings from @p storage's k_settings_name entry and apply it, filling gaps from
+   *  capture(engine).
    *
-   *  A missing file is not an error: the engine keeps its current settings. Called after
-   *  initialize(), a field the file sets overrides the matching game.json value (window_mode), and a
+   *  A missing entry is not an error: the engine keeps its current settings. Called after
+   *  initialize(), a field the entry sets overrides the matching game.json value (window_mode), and a
    *  field it omits keeps it.
    *
    *  @pre @p engine.window is non-null.
-   *  @return An error, leaving the engine unchanged, when the file is unreadable, malformed, from a
+   *  @return An error, leaving the engine unchanged, when the entry is unreadable, malformed, from a
    *          newer schema version, or rejected by apply().
    */
-  [[nodiscard]] std::expected<void, std::string> load(Engine &engine, const std::filesystem::path &path);
+  [[nodiscard]] std::expected<void, std::string> load(Engine &engine, const core::UserStorage &storage);
 
-  /** @brief Write capture(engine) to @p path, creating its parent directory when it has one; the write
-   *  replaces the file atomically.
+  /** @brief Write capture(engine) to @p storage's k_settings_name entry, replacing it atomically.
    *
    *  @pre @p engine.window is non-null.
    */
-  [[nodiscard]] std::expected<void, std::string> save(const Engine &engine, const std::filesystem::path &path);
-
-  /** @brief `<user data dir>/settings.json` for @p cfg's game_id (see core::user_data_dir).
-   *
-   *  @return An error when game_id is empty or no user data directory resolves.
-   */
-  [[nodiscard]] std::expected<std::filesystem::path, std::string> default_path(const core::GameConfig &cfg);
-
-  /** @brief Load settings.json from the conventional per-user path and apply it.
-   *
-   *  The engine's startup entry point: a convenience over default_path() + load() for callers that
-   *  want the standard location. A project with no game_id or no resolvable user data directory is
-   *  a no-op, so persistence is opt-in rather than an error.
-   *
-   *  @pre @p engine.window is non-null.
-   *  @return An error when the file is unreadable, malformed, from a newer schema version, or
-   *          rejected by apply().
-   */
-  [[nodiscard]] std::expected<void, std::string> load_default(Engine &engine);
-
-  /** @brief Write the live settings to the conventional per-user path.
-   *
-   *  The counterpart to load_default(). A project with no game_id or no resolvable user data
-   *  directory is a no-op.
-   *
-   *  @pre @p engine.window is non-null.
-   *  @return An error when the file cannot be written.
-   */
-  [[nodiscard]] std::expected<void, std::string> save_default(const Engine &engine);
+  [[nodiscard]] std::expected<void, std::string> save(const Engine &engine, core::UserStorage &storage);
 
 } // namespace corundum::settings

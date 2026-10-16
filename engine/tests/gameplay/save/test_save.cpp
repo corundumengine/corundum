@@ -4,7 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "font_fixtures.hpp"
-#include "memory_content_source.hpp"
+#include "memory_user_storage.hpp"
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 #include <corundum/render/render_state.hpp>
@@ -14,9 +14,8 @@
 #include <nlohmann/json.hpp> // NOLINT(misc-include-cleaner): constructors live in json.hpp
 #include <nlohmann/json_fwd.hpp>
 
-#include <corundum/core/environment.hpp>
 #include <corundum/core/game_config.hpp>
-#include <corundum/core/json_io.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
@@ -31,35 +30,19 @@
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
-#include <fstream>
-#include <optional>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace fs = std::filesystem;
-using corundum::test::disk;
 using nlohmann::json;
 
 namespace {
 
-  // Owns the shared save-tree root; individual cases remove their own tag directory.
-  // Held behind a function-local static: TempDir's constructor touches the filesystem
-  // and can throw, which must not happen during static initialization before main.
-  const corundum::test::TempDir &save_root() {
-    static const corundum::test::TempDir root{"crpg_test_save_", "root"};
-    return root;
-  }
-
-  fs::path save_path(std::string_view tag) {
-    return save_root().path() / std::string{tag} / "save.json";
-  }
-
-  void write_save_file(const fs::path &path, const json &j) {
-    fs::create_directories(path.parent_path());
-    std::ofstream f(path);
-    f << j.dump();
-  }
+  using corundum::save::slot_name;
+  using corundum::test::MemoryUserStorage;
 
   corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
     corundum::core::GameConfig cfg{};
@@ -80,64 +63,11 @@ namespace {
     return cfg;
   }
 
-  // Saves the current value of an environment variable, installs the requested state for the
-  // guard's lifetime, and restores the original on destruction. Duplicated from
-  // engine/tests/core/test_user_data_dir.cpp so the save tests can point user_data_dir at a
-  // scratch tree without leaking into later cases.
-  struct EnvGuard {
-    std::string name;
-    std::optional<std::string> saved;
-
-    EnvGuard(std::string_view variable_name, const std::string &value)
-        : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
-      set_env(name, value);
-    }
-
-    ~EnvGuard() {
-      if (saved)
-        set_env(name, *saved);
-      else
-        unset_env(name);
-    }
-
-    EnvGuard(const EnvGuard &) = delete;
-    EnvGuard(EnvGuard &&) = delete;
-    EnvGuard &operator=(const EnvGuard &) = delete;
-    EnvGuard &operator=(EnvGuard &&) = delete;
-
-  private:
-    // setenv/unsetenv are POSIX, declared by the platform's <stdlib.h>.
-    // include-cleaner's only accepted header for them is Darwin's private
-    // <_stdlib.h>, which is not portable.
-    // NOLINTBEGIN(misc-include-cleaner)
-    static void set_env(const std::string &variable_name, const std::string &value) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), value.c_str());
-#else
-      setenv(variable_name.c_str(), value.c_str(), 1);
-#endif
-    }
-
-    static void unset_env(const std::string &variable_name) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), "");
-#else
-      unsetenv(variable_name.c_str());
-#endif
-    }
-
-    // NOLINTEND(misc-include-cleaner)
-  };
-
-  // Points user_data_dir at a scratch tree for its lifetime: HOME, XDG_DATA_HOME and (on
-  // Windows) APPDATA all resolve into @c home, so saves_directory() lands under it.
-  struct ScratchUserData {
-    corundum::test::TempDir home{"crpg_test_save_", "user_data"};
-    EnvGuard home_guard{"HOME", home.path().string()};
-    EnvGuard xdg_guard{"XDG_DATA_HOME", home.path().string()};
-#ifdef _WIN32
-    EnvGuard appdata_guard{"APPDATA", home.path().string()};
-#endif
+  /// A scratch directory with user storage rooted at it, for tests that check real files.
+  /// TempDir and DirectoryUserStorage are neither movable nor copyable, so declare one as a local.
+  struct ScratchStorage {
+    corundum::test::TempDir dir{"crpg_test_save_", "scratch"};
+    corundum::core::DirectoryUserStorage storage{dir.path()};
   };
 
   void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
@@ -262,30 +192,28 @@ TEST_CASE("save: load_game refuses a save for a different game_id") {
   corundum::Engine engine;
   engine.cfg.game_id = "keystone";
 
+  MemoryUserStorage storage;
   corundum::save::SaveState s;
   s.game_id = "other_game";
-  const fs::path p = save_path("wrong_game");
-  write_save_file(p, corundum::save::serialize(s));
+  REQUIRE(corundum::core::write_json(storage, slot_name("wrong_game"), corundum::save::serialize(s)).has_value());
 
-  const auto result = corundum::save::load_game(engine, p);
+  const auto result = corundum::save::load_game(engine, storage, "wrong_game");
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("other_game") != std::string::npos);
   CHECK(engine.flags.empty()); // flags untouched when the game_id guard fails
-
-  fs::remove_all(p.parent_path());
 }
 
 TEST_CASE("save: load_game refuses a save whose version is newer than the engine") {
   corundum::Engine engine;
   engine.cfg.game_id = "test_game";
 
-  const fs::path p = save_path("newer_version");
-  write_save_file(p, json{{"version", 999}, {"game_id", "test_game"}, {"mode", "single_map"}});
+  MemoryUserStorage storage;
+  REQUIRE(corundum::core::write_json(storage, slot_name("newer_version"),
+                                     json{{"version", 999}, {"game_id", "test_game"}, {"mode", "single_map"}})
+              .has_value());
 
-  const auto result = corundum::save::load_game(engine, p);
+  const auto result = corundum::save::load_game(engine, storage, "newer_version");
   REQUIRE_FALSE(result.has_value());
-
-  fs::remove_all(p.parent_path());
 }
 
 // ── Integration ───────────────────────────────────────────────────────────────
@@ -308,15 +236,14 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
   transforms.pos_col(engine.scene.player) = 5.f;
   transforms.pos_row(engine.scene.player) = 6.f;
 
-  const fs::path p = save_path("integration_single");
-  fs::create_directories(p.parent_path());
-  REQUIRE(corundum::save::save_game(engine, p, "test", 0).has_value());
+  MemoryUserStorage storage;
+  REQUIRE(corundum::save::save_game(engine, storage, "integration_single", "test", 0).has_value());
 
   engine.flags.clear();
   transforms.pos_col(engine.scene.player) = 1.f;
   transforms.pos_row(engine.scene.player) = 1.f;
 
-  REQUIRE(corundum::save::load_game(engine, p).has_value());
+  REQUIRE(corundum::save::load_game(engine, storage, "integration_single").has_value());
 
   CHECK(engine.render.mode == corundum::render::RenderMode::SingleMap);
   CHECK(engine.flags.at("zone.interior.chest") == 1);
@@ -327,7 +254,6 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
   CHECK(restored.pos_row(engine.scene.player) == doctest::Approx(6.f));
 
   engine.cleanup();
-  fs::remove_all(p.parent_path());
 }
 
 TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and player position") {
@@ -362,16 +288,15 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   transforms.pos_col(engine.scene.player) = 12.f;
   transforms.pos_row(engine.scene.player) = 3.f;
 
-  const fs::path p = save_path("integration");
-  fs::create_directories(p.parent_path());
-  REQUIRE(corundum::save::save_game(engine, p, "test", 0).has_value());
+  MemoryUserStorage storage;
+  REQUIRE(corundum::save::save_game(engine, storage, "integration", "test", 0).has_value());
 
   // Mutate everything the save captures.
   engine.flags.clear();
   transforms.pos_col(engine.scene.player) = 1.f;
   transforms.pos_row(engine.scene.player) = 1.f;
 
-  REQUIRE(corundum::save::load_game(engine, p).has_value());
+  REQUIRE(corundum::save::load_game(engine, storage, "integration").has_value());
 
   // Quest stage, zone/NPC flags, and player position are restored.
   CHECK(corundum::gameplay::quest::lifecycle(*gameplay.quests.find("save_q"), engine.flags) ==
@@ -386,7 +311,6 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   CHECK_FALSE(engine.entered_from_world);
 
   engine.cleanup();
-  fs::remove_all(p.parent_path());
 }
 
 TEST_CASE("save: world save/load preserves a fractional player position") {
@@ -406,21 +330,19 @@ TEST_CASE("save: world save/load preserves a fractional player position") {
   transforms.pos_col(engine.scene.player) = 12.25f;
   transforms.pos_row(engine.scene.player) = 3.75f;
 
-  const fs::path p = save_path("fractional_world");
-  fs::create_directories(p.parent_path());
-  REQUIRE(corundum::save::save_game(engine, p, "test", 0).has_value());
+  MemoryUserStorage storage;
+  REQUIRE(corundum::save::save_game(engine, storage, "fractional_world", "test", 0).has_value());
 
   transforms.pos_col(engine.scene.player) = 1.f;
   transforms.pos_row(engine.scene.player) = 1.f;
 
-  REQUIRE(corundum::save::load_game(engine, p).has_value());
+  REQUIRE(corundum::save::load_game(engine, storage, "fractional_world").has_value());
 
   const auto &restored = engine.scene.world.transforms;
   CHECK(restored.pos_col(engine.scene.player) == doctest::Approx(12.25f));
   CHECK(restored.pos_row(engine.scene.player) == doctest::Approx(3.75f));
 
   engine.cleanup();
-  fs::remove_all(p.parent_path());
 }
 
 TEST_CASE("save: load_game refuses a save whose world manifest differs") {
@@ -439,15 +361,14 @@ TEST_CASE("save: load_game refuses a save whose world manifest differs") {
   s.mode = "world";
   s.map_or_world_id = "some/other/world/manifest.json";
 
-  const fs::path p = save_path("wrong_world");
-  write_save_file(p, corundum::save::serialize(s));
+  MemoryUserStorage storage;
+  REQUIRE(corundum::core::write_json(storage, slot_name("wrong_world"), corundum::save::serialize(s)).has_value());
 
-  const auto result = corundum::save::load_game(engine, p);
+  const auto result = corundum::save::load_game(engine, storage, "wrong_world");
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("world") != std::string::npos);
 
   engine.cleanup();
-  fs::remove_all(p.parent_path());
 }
 
 TEST_CASE("save: a failed load leaves the engine's flags untouched") {
@@ -469,16 +390,15 @@ TEST_CASE("save: a failed load leaves the engine's flags untouched") {
   s.mode = "single_map";
   s.map_or_world_id = (fixtures / "tilemaps/does_not_exist.json").string();
 
-  const fs::path p = save_path("failed_load");
-  write_save_file(p, corundum::save::serialize(s));
+  MemoryUserStorage storage;
+  REQUIRE(corundum::core::write_json(storage, slot_name("failed_load"), corundum::save::serialize(s)).has_value());
 
-  const auto result = corundum::save::load_game(engine, p);
+  const auto result = corundum::save::load_game(engine, storage, "failed_load");
   REQUIRE_FALSE(result.has_value());
   CHECK(engine.flags.count("keep.me") == 1);
   CHECK(engine.flags.size() == 1);
 
   engine.cleanup();
-  fs::remove_all(p.parent_path());
 }
 
 // ── SaveMeta, slots and the saves directory ───────────────────────────────────
@@ -514,13 +434,6 @@ TEST_CASE("save: manual_slot_id formats zero-padded slot ids") {
   CHECK(corundum::save::manual_slot_id(9) == "slot_10");
 }
 
-TEST_CASE("save: saves_directory fails on an empty game_id") {
-  corundum::core::GameConfig cfg{};
-  cfg.game_id.clear();
-  const auto result = corundum::save::saves_directory(cfg);
-  REQUIRE_FALSE(result.has_value());
-}
-
 TEST_CASE("save: save_game creates a missing parent directory and leaves no temp file") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
@@ -529,18 +442,19 @@ TEST_CASE("save: save_game creates a missing parent directory and leaves no temp
   REQUIRE(fs::is_directory(fixtures));
   REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
 
-  const fs::path p = save_root().path() / "creates_parent" / "nested" / "save.json";
-  REQUIRE_FALSE(fs::exists(p.parent_path()));
+  ScratchStorage scratch;
+  REQUIRE_FALSE(fs::exists(scratch.dir.path() / "saves"));
 
-  const auto result = corundum::save::save_game(engine, p, "Village", 90);
+  const auto result = corundum::save::save_game(engine, scratch.storage, "autosave", "Village", 90);
   REQUIRE(result.has_value());
-  CHECK(fs::exists(p));
+  const fs::path file = scratch.dir.path() / "saves" / "autosave.json";
+  CHECK(fs::exists(file));
 
-  fs::path temp = p;
+  fs::path temp = file;
   temp += ".tmp";
   CHECK_FALSE(fs::exists(temp));
 
-  const auto read = corundum::core::read_json(disk(), p);
+  const auto read = corundum::core::read_json(scratch.storage, slot_name("autosave"));
   REQUIRE(read.has_value());
   const auto state = corundum::save::parse(*read);
   REQUIRE(state.has_value());
@@ -549,17 +463,15 @@ TEST_CASE("save: save_game creates a missing parent directory and leaves no temp
   CHECK(state->meta.saved_at_unix > 0);
 
   engine.cleanup();
-  fs::remove_all(p.parent_path().parent_path());
 }
 
 // doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
 // logic — dominates this metric.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("save: list_saves returns valid rows and marks corrupt ones") {
-  const corundum::test::TempDir dir{"crpg_test_save_", "list"};
-  const fs::path &root = dir.path();
+  MemoryUserStorage storage;
 
-  const auto write_valid = [&](const fs::path &path, const std::string &game_id, const std::string &location) {
+  const auto write_valid = [&](std::string_view slot_id, const std::string &game_id, const std::string &location) {
     corundum::save::SaveState s;
     s.game_id = game_id;
     s.mode = "single_map";
@@ -567,19 +479,19 @@ TEST_CASE("save: list_saves returns valid rows and marks corrupt ones") {
     s.meta.location_name = location;
     s.meta.playtime_seconds = 42;
     s.meta.saved_at_unix = 1'700'000'000;
-    write_save_file(path, corundum::save::serialize(s));
+    REQUIRE(corundum::core::write_json(storage, slot_name(slot_id), corundum::save::serialize(s)).has_value());
   };
 
-  write_valid(root / "slot_01.json", "test_game", "Village");
-  write_valid(root / "slot_02.json", "test_game", "Cave");
-  {
-    std::ofstream f(root / "slot_03.json");
-    f << "not json";
-  }
-  write_save_file(root / "slot_04.json", json{{"version", 999}, {"game_id", "test_game"}, {"mode", "single_map"}});
-  write_valid(root / "slot_05.json", "other_game", "Elsewhere");
+  write_valid("slot_01", "test_game", "Village");
+  write_valid("slot_02", "test_game", "Cave");
+  // write_json only emits valid JSON, so the deliberately invalid slot is seeded raw.
+  storage.entries[slot_name("slot_03")] = "not json";
+  REQUIRE(corundum::core::write_json(storage, slot_name("slot_04"),
+                                     json{{"version", 999}, {"game_id", "test_game"}, {"mode", "single_map"}})
+              .has_value());
+  write_valid("slot_05", "other_game", "Elsewhere");
 
-  const std::vector<corundum::save::SaveSlotInfo> rows = corundum::save::list_saves(root, "test_game");
+  const std::vector<corundum::save::SaveSlotInfo> rows = corundum::save::list_saves(storage, "test_game");
   REQUIRE(rows.size() == 5);
 
   CHECK(rows[0].slot_id == "slot_01");
@@ -611,12 +523,31 @@ TEST_CASE("save: list_saves returns valid rows and marks corrupt ones") {
   CHECK_FALSE(std::ranges::any_of(rows, [](const corundum::save::SaveSlotInfo &r) { return r.slot_id == "autosave"; }));
 }
 
+TEST_CASE("save_game: a failed storage write is returned") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+  REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
+
+  MemoryUserStorage storage;
+  storage.injected_write_error = "disk full";
+
+  const auto result = corundum::save::save_game(engine, storage, "autosave", "Village", 0);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error() == "disk full");
+
+  engine.cleanup();
+}
+
 // ── Gameplay quick save/load and autosave ─────────────────────────────────────
 
 TEST_CASE("gameplay: autosave writes the autosave slot and sets last_slot") {
-  const ScratchUserData user_data;
+  const corundum::test::TempDir scratch{"crpg_test_save_", "autosave"};
 
   corundum::Engine engine{};
+  engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(scratch.path());
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
@@ -629,12 +560,10 @@ TEST_CASE("gameplay: autosave writes the autosave slot and sets last_slot") {
   REQUIRE(result.has_value());
   CHECK(gameplay.playthrough.last_slot == "autosave");
 
-  const auto dir = corundum::save::saves_directory(engine.cfg);
-  REQUIRE(dir.has_value());
-  const fs::path file = corundum::save::slot_path(*dir, corundum::save::k_autosave_slot);
-  REQUIRE(fs::exists(file));
+  REQUIRE(engine.user_storage.has_value());
+  REQUIRE((*engine.user_storage)->contains(slot_name(corundum::save::k_autosave_slot)));
 
-  const auto read = corundum::core::read_json(disk(), file);
+  const auto read = corundum::core::read_json(**engine.user_storage, slot_name(corundum::save::k_autosave_slot));
   REQUIRE(read.has_value());
   const auto state = corundum::save::parse(*read);
   REQUIRE(state.has_value());
@@ -645,9 +574,10 @@ TEST_CASE("gameplay: autosave writes the autosave slot and sets last_slot") {
 }
 
 TEST_CASE("gameplay: the QuickSave action writes the quicksave slot and toasts success") {
-  const ScratchUserData user_data;
+  const corundum::test::TempDir scratch{"crpg_test_save_", "quicksave"};
 
   corundum::Engine engine{};
+  engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(scratch.path());
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
@@ -665,9 +595,8 @@ TEST_CASE("gameplay: the QuickSave action writes the quicksave slot and toasts s
   REQUIRE(engine.toasts.size() == 1);
   CHECK(engine.toasts.at(0).text == "Game saved");
 
-  const auto dir = corundum::save::saves_directory(engine.cfg);
-  REQUIRE(dir.has_value());
-  CHECK(fs::exists(corundum::save::slot_path(*dir, corundum::save::k_quicksave_slot)));
+  REQUIRE(engine.user_storage.has_value());
+  CHECK((*engine.user_storage)->contains(slot_name(corundum::save::k_quicksave_slot)));
 
   engine.cleanup();
 }
@@ -681,8 +610,7 @@ TEST_CASE("gameplay: a failed QuickLoad action raises a failure toast") {
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
 
-  // An empty game_id makes saves_directory fail, so the load never touches the filesystem.
-  engine.cfg.game_id.clear();
+  // No user storage, so the load fails before any read.
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(corundum::input::Action::QuickLoad));
   engine.input_state = state;
@@ -693,4 +621,36 @@ TEST_CASE("gameplay: a failed QuickLoad action raises a failure toast") {
   CHECK(engine.toasts.at(0).text.find("Load failed") != std::string::npos);
 
   engine.cleanup();
+}
+
+TEST_CASE("Gameplay: save with no user storage reports the storage error") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  REQUIRE_FALSE(engine.user_storage.has_value());
+  const auto result = gameplay.save_to_slot("slot_01");
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error() == engine.user_storage.error());
+
+  engine.cleanup();
+}
+
+TEST_CASE("list_saves: reads slots from user storage") {
+  MemoryUserStorage storage;
+  for (const std::string_view slot_id : {corundum::save::k_autosave_slot, std::string_view{"slot_01"}}) {
+    corundum::save::SaveState s;
+    s.game_id = "test_game";
+    s.mode = "single_map";
+    REQUIRE(corundum::core::write_json(storage, slot_name(slot_id), corundum::save::serialize(s)).has_value());
+  }
+
+  const std::vector<corundum::save::SaveSlotInfo> rows = corundum::save::list_saves(storage, "test_game");
+  REQUIRE(rows.size() == 2);
+  CHECK(rows[0].slot_id == "autosave");
+  CHECK(rows[1].slot_id == "slot_01");
 }

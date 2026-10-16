@@ -44,6 +44,9 @@ namespace corundum::platform {
    * platform GPU context behind it is alive.
    *
    * @note Not thread-safe. Call only from the render thread.
+   *
+   * Editor-side texture registry used by the tools' ToolHost; it loads from the real filesystem by
+   * design, while the engine renderer loads through Engine::content.
    */
   class TextureCache {
   public:

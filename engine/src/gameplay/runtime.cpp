@@ -29,10 +29,12 @@ namespace corundum::gameplay {
     corundum::detail::info_log("[boot] engine: {:.1f} ms", corundum::detail::elapsed_ms(boot_start));
 
     // Apply the player's persisted settings over the boot config before the game root builds its
-    // content. A missing file keeps game.json's values; a malformed or newer-schema file is a
-    // logged warning and likewise keeps them.
-    if (std::expected<void, std::string> loaded = settings::load_default(**engine_result); !loaded)
-      corundum::detail::warn_log("[gameplay] WARN: could not load settings: {}", loaded.error());
+    // content. No user storage (no game_id or user-data directory) or a missing file keeps
+    // game.json's values; a malformed or newer-schema file is a logged warning and likewise keeps them.
+    if (const auto &storage = (*engine_result)->user_storage) {
+      if (std::expected<void, std::string> loaded = settings::load(**engine_result, **storage); !loaded)
+        corundum::detail::warn_log("[gameplay] WARN: could not load settings: {}", loaded.error());
+    }
 
     auto runtime = std::make_unique<Runtime>();
     const auto gameplay_start = std::chrono::steady_clock::now();

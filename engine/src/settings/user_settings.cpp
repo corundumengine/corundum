@@ -4,11 +4,8 @@
 #include <corundum/settings/user_settings.hpp>
 
 #include <corundum/audio/audio_backend.hpp>
-#include <corundum/core/content_source.hpp>
-#include <corundum/core/game_config.hpp>
-#include <corundum/core/json_io.hpp>
 #include <corundum/core/schema_version.hpp>
-#include <corundum/core/user_data_dir.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/input/bindings.hpp>
@@ -18,14 +15,12 @@
 #include <algorithm>
 #include <array>
 #include <expected>
-#include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 
 namespace corundum::settings {
@@ -151,13 +146,11 @@ namespace corundum::settings {
     return {};
   }
 
-  std::expected<void, std::string> load(Engine &engine, const std::filesystem::path &path) {
-    if (!std::filesystem::exists(path))
+  std::expected<void, std::string> load(Engine &engine, const core::UserStorage &storage) {
+    if (!storage.contains(k_settings_name))
       return {};
 
-    // Settings live outside the content root; the empty-root source resolves the absolute path as given.
-    std::expected<nlohmann::json, std::string> root =
-        core::read_json(core::DirectoryContentSource{}, path, "settings JSON");
+    std::expected<nlohmann::json, std::string> root = core::read_json(storage, k_settings_name, "settings JSON");
     if (!root)
       return std::unexpected(root.error());
 
@@ -166,8 +159,8 @@ namespace corundum::settings {
     if (!root->is_object())
       return std::unexpected("settings must be a JSON object");
 
-    if (std::expected<void, std::string> prepared =
-            core::prepare_schema_version(*root, k_user_settings_schema_version, "User settings", path.string(), {});
+    if (std::expected<void, std::string> prepared = core::prepare_schema_version(
+            *root, k_user_settings_schema_version, "User settings", std::string{k_settings_name}, {});
         !prepared)
       return std::unexpected(prepared.error());
 
@@ -178,37 +171,8 @@ namespace corundum::settings {
     return apply(engine, *parsed);
   }
 
-  std::expected<void, std::string> save(const Engine &engine, const std::filesystem::path &path) {
-    // A bare filename has an empty parent path; create_directories("") would fail.
-    if (!path.parent_path().empty()) {
-      std::error_code directory_error;
-      std::filesystem::create_directories(path.parent_path(), directory_error);
-      if (directory_error)
-        return std::unexpected(
-            std::format("cannot create '{}': {}", path.parent_path().string(), directory_error.message()));
-    }
-    return core::write_json(path, serialize(capture(engine)));
-  }
-
-  std::expected<std::filesystem::path, std::string> default_path(const core::GameConfig &cfg) {
-    std::expected<std::filesystem::path, std::string> directory = core::user_data_dir(cfg.game_id);
-    if (!directory)
-      return std::unexpected(directory.error());
-    return *directory / "settings.json";
-  }
-
-  std::expected<void, std::string> load_default(Engine &engine) {
-    const std::expected<std::filesystem::path, std::string> path = default_path(engine.cfg);
-    if (!path)
-      return {};
-    return load(engine, *path);
-  }
-
-  std::expected<void, std::string> save_default(const Engine &engine) {
-    const std::expected<std::filesystem::path, std::string> path = default_path(engine.cfg);
-    if (!path)
-      return {};
-    return save(engine, *path);
+  std::expected<void, std::string> save(const Engine &engine, core::UserStorage &storage) {
+    return core::write_json(storage, k_settings_name, serialize(capture(engine)));
   }
 
 } // namespace corundum::settings

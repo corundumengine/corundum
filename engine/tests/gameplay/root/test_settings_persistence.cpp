@@ -3,12 +3,10 @@
 
 #include <doctest/doctest.h>
 
-#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 
-#include <corundum/core/environment.hpp>
-#include <corundum/core/json_io.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
@@ -22,15 +20,12 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include <cstddef>
-#include <cstdlib>
 #include <expected>
 #include <filesystem>
-#include <optional>
+#include <memory>
 #include <string>
-#include <string_view>
 
 namespace fs = std::filesystem;
-using corundum::test::disk;
 
 namespace {
 
@@ -39,60 +34,14 @@ namespace {
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
 
-  /// Set/unset an environment variable, restoring its prior value on destruction.
-  struct EnvGuard {
-    std::string name;
-    std::optional<std::string> saved;
-
-    EnvGuard(std::string_view variable_name, const std::string &value)
-        : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
-      set_env(name, value);
-    }
-
-    ~EnvGuard() {
-      if (saved)
-        set_env(name, *saved);
-      else
-        unset_env(name);
-    }
-
-    EnvGuard(const EnvGuard &) = delete;
-    EnvGuard(EnvGuard &&) = delete;
-    EnvGuard &operator=(const EnvGuard &) = delete;
-    EnvGuard &operator=(EnvGuard &&) = delete;
-
-  private:
-    // setenv/unsetenv are POSIX, declared by the platform's <stdlib.h>. The only header
-    // include-cleaner accepts for them is Darwin's private <_stdlib.h>, which is not portable.
-    // NOLINTBEGIN(misc-include-cleaner)
-    static void set_env(const std::string &variable_name, const std::string &value) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), value.c_str());
-#else
-      setenv(variable_name.c_str(), value.c_str(), 1);
-#endif
-    }
-
-    static void unset_env(const std::string &variable_name) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), "");
-#else
-      unsetenv(variable_name.c_str());
-#endif
-    }
-
-    // NOLINTEND(misc-include-cleaner)
-  };
-
-  /// Points user_data_dir — and therefore settings::default_path — at a scratch tree for its
-  /// lifetime: HOME, XDG_DATA_HOME and (on Windows) APPDATA all resolve into @c home.
+  /// A scratch tree to root the engine's user storage at, standing in for the real user-data dir.
   struct ScratchUserData {
     corundum::test::TempDir home{"crpg_test_settings_persist_", "user_data"};
-    EnvGuard home_guard{"HOME", home.path().string()};
-    EnvGuard xdg_guard{"XDG_DATA_HOME", home.path().string()};
-#ifdef _WIN32
-    EnvGuard appdata_guard{"APPDATA", home.path().string()};
-#endif
+
+    /// Give @p engine a user storage rooted at this scratch tree; call before init_engine().
+    void attach(corundum::Engine &engine) const {
+      engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
+    }
   };
 
   void init_engine(corundum::Engine &engine) {
@@ -114,10 +63,10 @@ namespace {
 
 TEST_CASE("settings persistence: closing the settings screen writes settings.json") {
   corundum::Engine engine{};
+  const ScratchUserData user_data;
+  user_data.attach(engine);
   init_engine(engine);
   engine.cfg.game_id = "settings_save_game";
-
-  const ScratchUserData scratch;
 
   // Menu → Settings.
   press(engine, Action::Menu);
@@ -130,11 +79,11 @@ TEST_CASE("settings persistence: closing the settings screen writes settings.jso
   press(engine, Action::Cancel);
   CHECK(engine.scene.mode() == GameMode::Menu); // Settings popped, revealing the pause menu.
 
-  const std::expected<fs::path, std::string> path = corundum::settings::default_path(engine.cfg);
-  REQUIRE(path.has_value());
-  REQUIRE(fs::exists(*path));
+  REQUIRE(engine.user_storage.has_value());
+  REQUIRE((*engine.user_storage)->contains(corundum::settings::k_settings_name));
 
-  const std::expected<nlohmann::json, std::string> root = corundum::core::read_json(disk(), *path, "settings JSON");
+  const std::expected<nlohmann::json, std::string> root =
+      corundum::core::read_json(**engine.user_storage, corundum::settings::k_settings_name, "settings JSON");
   REQUIRE(root.has_value());
   const std::expected<corundum::settings::UserSettings, std::string> parsed =
       corundum::settings::parse(*root, corundum::settings::UserSettings{});
@@ -144,10 +93,11 @@ TEST_CASE("settings persistence: closing the settings screen writes settings.jso
   engine.cleanup();
 }
 
-TEST_CASE("settings persistence: a project with no game_id saves nothing on close") {
+TEST_CASE("settings persistence: a project with no user storage saves nothing on close") {
   corundum::Engine engine{};
   init_engine(engine);
   REQUIRE(engine.cfg.game_id.empty());
+  REQUIRE_FALSE(engine.user_storage.has_value()); // No game_id, so no user storage.
 
   press(engine, Action::Menu);
   press(engine, Action::MoveDown);
@@ -155,8 +105,8 @@ TEST_CASE("settings persistence: a project with no game_id saves nothing on clos
   REQUIRE(engine.scene.mode() == GameMode::Settings);
   press(engine, Action::Cancel);
 
-  // default_path() fails on an empty game_id, so no file is written anywhere.
-  CHECK_FALSE(corundum::settings::default_path(engine.cfg).has_value());
+  // user_storage holds an error, so closing Settings writes nothing and logs no warning.
+  CHECK_FALSE(engine.user_storage.has_value());
 
   engine.cleanup();
 }

@@ -3,13 +3,11 @@
 
 #include <doctest/doctest.h>
 
-#include "memory_content_source.hpp"
-#include "temp_dir.hpp"
+#include "memory_user_storage.hpp"
 
 #include <corundum/audio/audio_backend.hpp>
-#include <corundum/core/environment.hpp>
 #include <corundum/core/game_config.hpp>
-#include <corundum/core/json_io.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/input/action_resolver.hpp>
@@ -27,18 +25,10 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <expected>
-#include <filesystem>
-#include <fstream>
-#include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
-
-namespace fs = std::filesystem;
-using corundum::test::disk;
 
 namespace {
 
@@ -52,21 +42,12 @@ namespace {
   using corundum::input::name_of;
   using corundum::input::physical;
   using corundum::settings::UserSettings;
+  using corundum::test::MemoryUserStorage;
 
   /// Adopt a NullPlatform so capture()/apply() have a window to read and write.
   void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
     corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
     corundum::platform::null::adopt_null_platform(engine, platform);
-  }
-
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_settings_", tag};
-  }
-
-  void write_file(const fs::path &path, std::string_view content) {
-    fs::create_directories(path.parent_path());
-    std::ofstream f(path);
-    f << content;
   }
 
   /// A non-default settings value: Fullscreen with MoveUp moved off W onto Q.
@@ -104,79 +85,6 @@ namespace {
     }
     return rows;
   }
-
-  /// Restores the working directory on destruction, for the bare-filename save test.
-  struct CwdGuard {
-    fs::path saved{fs::current_path()};
-
-    explicit CwdGuard(const fs::path &path) { fs::current_path(path); }
-
-    ~CwdGuard() {
-      std::error_code ignored;
-      fs::current_path(saved, ignored);
-    }
-
-    CwdGuard(const CwdGuard &) = delete;
-    CwdGuard &operator=(const CwdGuard &) = delete;
-    CwdGuard(CwdGuard &&) = delete;
-    CwdGuard &operator=(CwdGuard &&) = delete;
-  };
-
-  /// Set/unset an environment variable, restoring its prior value on destruction.
-  struct EnvGuard {
-    std::string name;
-    std::optional<std::string> saved;
-
-    EnvGuard(std::string_view variable_name, const std::string &value)
-        : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
-      set_env(name, value);
-    }
-
-    ~EnvGuard() {
-      if (saved)
-        set_env(name, *saved);
-      else
-        unset_env(name);
-    }
-
-    EnvGuard(const EnvGuard &) = delete;
-    EnvGuard(EnvGuard &&) = delete;
-    EnvGuard &operator=(const EnvGuard &) = delete;
-    EnvGuard &operator=(EnvGuard &&) = delete;
-
-  private:
-    // setenv/unsetenv are POSIX, declared by the platform's <stdlib.h>. The only header
-    // include-cleaner accepts for them is Darwin's private <_stdlib.h>, which is not portable.
-    // NOLINTBEGIN(misc-include-cleaner)
-    static void set_env(const std::string &variable_name, const std::string &value) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), value.c_str());
-#else
-      setenv(variable_name.c_str(), value.c_str(), 1);
-#endif
-    }
-
-    static void unset_env(const std::string &variable_name) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), "");
-#else
-      unsetenv(variable_name.c_str());
-#endif
-    }
-
-    // NOLINTEND(misc-include-cleaner)
-  };
-
-  /// Points user_data_dir — and therefore settings::default_path — at a scratch tree for its
-  /// lifetime: HOME, XDG_DATA_HOME and (on Windows) APPDATA all resolve into @c home.
-  struct ScratchUserData {
-    corundum::test::TempDir home{"crpg_test_settings_default_", "user_data"};
-    EnvGuard home_guard{"HOME", home.path().string()};
-    EnvGuard xdg_guard{"XDG_DATA_HOME", home.path().string()};
-#ifdef _WIN32
-    EnvGuard appdata_guard{"APPDATA", home.path().string()};
-#endif
-  };
 
 } // namespace
 
@@ -261,27 +169,26 @@ TEST_CASE("settings: a non-object root is rejected") {
   }
 }
 
-TEST_CASE("settings: load rejects a non-object file and leaves the engine unchanged") {
+TEST_CASE("settings: load rejects a non-object entry and leaves the engine unchanged") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const auto dir = temp_dir("non_object");
-  const auto path = dir / "settings.json";
-  write_file(path, "[]");
+  MemoryUserStorage storage;
+  storage.entries["settings.json"] = "[]";
 
-  const auto loaded = corundum::settings::load(engine, path);
+  const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE_FALSE(loaded.has_value());
   CHECK(loaded.error().find("object") != std::string::npos);
   CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
   CHECK(engine.window->window_mode() == WindowMode::Windowed);
 }
 
-TEST_CASE("settings: loading a missing file is a no-op") {
+TEST_CASE("settings: load with no settings entry keeps the engine's settings") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const auto dir = temp_dir("missing");
-  const auto loaded = corundum::settings::load(engine, dir / "settings.json");
+  const MemoryUserStorage storage;
+  const auto loaded = corundum::settings::load(engine, storage);
   CHECK(loaded.has_value());
   CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
   CHECK(engine.window->window_mode() == WindowMode::Windowed);
@@ -291,22 +198,21 @@ TEST_CASE("settings: save/load round-trips bindings and window mode") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const auto dir = temp_dir("round_trip");
-  const auto path = dir / "sub" / "settings.json";
+  MemoryUserStorage storage;
 
   corundum::input::Bindings bindings = engine.input_mapper.bindings();
   corundum::input::bind(bindings, Action::MoveUp, physical(Key::K));
   REQUIRE(engine.input_mapper.set_bindings(bindings).has_value());
   engine.window->set_window_mode(WindowMode::Fullscreen);
 
-  const auto saved = corundum::settings::save(engine, path);
+  const auto saved = corundum::settings::save(engine, storage);
   REQUIRE(saved.has_value());
-  REQUIRE(fs::exists(path));
+  REQUIRE(storage.contains(corundum::settings::k_settings_name));
 
   REQUIRE(engine.input_mapper.set_bindings(corundum::input::default_bindings()).has_value());
   engine.window->set_window_mode(WindowMode::Windowed);
 
-  const auto loaded = corundum::settings::load(engine, path);
+  const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE(loaded.has_value());
 
   const std::vector<corundum::input::PhysicalInput> move_up =
@@ -318,17 +224,16 @@ TEST_CASE("settings: save/load round-trips bindings and window mode") {
 TEST_CASE("settings: save/load round-trips the sound, ambience and voice bus volumes") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  const auto dir = temp_dir("bus_volumes");
-  const auto path = dir / "settings.json";
+  MemoryUserStorage storage;
 
   engine.audio.set_bus_volume(AudioBus::Sound, 0.3f);
   engine.audio.set_bus_volume(AudioBus::Ambience, 0.5f);
   engine.audio.set_bus_volume(AudioBus::Voice, 0.7f);
-  REQUIRE(corundum::settings::save(engine, path).has_value());
+  REQUIRE(corundum::settings::save(engine, storage).has_value());
 
   for (const AudioBus bus : {AudioBus::Sound, AudioBus::Ambience, AudioBus::Voice})
     engine.audio.set_bus_volume(bus, 1.f);
-  REQUIRE(corundum::settings::load(engine, path).has_value());
+  REQUIRE(corundum::settings::load(engine, storage).has_value());
 
   CHECK(engine.audio.bus_volume(AudioBus::Sound) == doctest::Approx(0.3f));
   CHECK(engine.audio.bus_volume(AudioBus::Ambience) == doctest::Approx(0.5f));
@@ -339,13 +244,12 @@ TEST_CASE("settings: a newer schema version is rejected and the engine keeps its
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const auto dir = temp_dir("newer_schema");
-  const auto path = dir / "settings.json";
+  MemoryUserStorage storage;
   // A v2 file written before the right-mouse Cancel default shipped. There is no migration, so
   // it is refused and the defaults (which include the new binding) stand.
-  write_file(path, R"({"schema_version": 2, "window_mode": "fullscreen"})");
+  storage.entries["settings.json"] = R"({"schema_version": 2, "window_mode": "fullscreen"})";
 
-  const auto loaded = corundum::settings::load(engine, path);
+  const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE_FALSE(loaded.has_value());
   CHECK(engine.window->window_mode() == WindowMode::Windowed);
   const std::vector<corundum::input::PhysicalInput> cancel =
@@ -357,42 +261,29 @@ TEST_CASE("settings: an oversized binding table is rejected and leaves the engin
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const auto dir = temp_dir("oversized");
-  const auto path = dir / "settings.json";
+  MemoryUserStorage storage;
   const nlohmann::json root = {
       {"schema_version", 1},
       {"bindings", oversized_bindings_json()},
   };
-  write_file(path, root.dump());
+  storage.entries["settings.json"] = root.dump();
 
-  const auto loaded = corundum::settings::load(engine, path);
+  const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE_FALSE(loaded.has_value());
   CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
 }
 
-TEST_CASE("settings: default_path needs a game_id") {
-  corundum::core::GameConfig cfg{};
-  const auto path = corundum::settings::default_path(cfg);
-  CHECK_FALSE(path.has_value());
-
-  cfg.game_id = "keystone";
-  const auto resolved = corundum::settings::default_path(cfg);
-  REQUIRE(resolved.has_value());
-  CHECK(resolved->filename() == "settings.json");
-}
-
-TEST_CASE("settings: the settings file overrides game.json's window mode") {
+TEST_CASE("settings: the settings entry overrides game.json's window mode") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
   // Stands in for initialize() applying cfg.window_mode.
   engine.window->set_window_mode(WindowMode::Fullscreen);
 
-  const auto dir = temp_dir("override_mode");
-  const auto path = dir / "settings.json";
-  write_file(path, R"({"schema_version": 1, "window_mode": "windowed"})");
+  MemoryUserStorage storage;
+  storage.entries["settings.json"] = R"({"schema_version": 1, "window_mode": "windowed"})";
 
-  const auto loaded = corundum::settings::load(engine, path);
+  const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE(loaded.has_value());
   CHECK(engine.window->window_mode() == WindowMode::Windowed);
 }
@@ -403,11 +294,10 @@ TEST_CASE("settings: an absent window_mode keeps game.json's") {
 
   engine.window->set_window_mode(WindowMode::Fullscreen);
 
-  const auto dir = temp_dir("keep_mode");
-  const auto path = dir / "settings.json";
-  write_file(path, R"({"schema_version": 1})");
+  MemoryUserStorage storage;
+  storage.entries["settings.json"] = R"({"schema_version": 1})";
 
-  const auto loaded = corundum::settings::load(engine, path);
+  const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE(loaded.has_value());
   CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
 }
@@ -425,55 +315,26 @@ TEST_CASE("settings: apply syncs cfg.window_mode for the deferred reveal") {
   CHECK(engine.cfg.window_mode == WindowMode::Fullscreen);
 }
 
-TEST_CASE("settings: load_default applies settings.json from the conventional path") {
+TEST_CASE("settings: save writes format_json output under settings.json") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  engine.cfg.game_id = "default_path_game";
-
-  const ScratchUserData scratch;
-  const auto path = corundum::settings::default_path(engine.cfg);
-  REQUIRE(path.has_value());
-  write_file(*path, R"({"schema_version": 1, "master_volume": 0.4, "window_mode": "fullscreen"})");
-
-  REQUIRE(corundum::settings::load_default(engine).has_value());
-  CHECK(engine.audio.master_volume() == doctest::Approx(0.4f));
-  CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
-}
-
-TEST_CASE("settings: load_default on a project with no game_id is a no-op") {
-  corundum::Engine engine{};
-  adopt_platform(engine, 320, 240);
-
-  // No game_id, so no path resolves; the engine keeps its current values.
-  CHECK(corundum::settings::load_default(engine).has_value());
-  CHECK(engine.audio.master_volume() == doctest::Approx(1.f));
-}
-
-TEST_CASE("settings: save_default writes the conventional settings.json") {
-  corundum::Engine engine{};
-  adopt_platform(engine, 320, 240);
-  engine.cfg.game_id = "default_path_game";
-
-  const ScratchUserData scratch;
+  MemoryUserStorage storage;
   engine.audio.set_master_volume(0.3f);
 
-  REQUIRE(corundum::settings::save_default(engine).has_value());
+  REQUIRE(corundum::settings::save(engine, storage).has_value());
 
-  const auto path = corundum::settings::default_path(engine.cfg);
-  REQUIRE(path.has_value());
-  const auto root = corundum::core::read_json(disk(), *path, "settings JSON");
+  const auto root = corundum::core::read_json(storage, corundum::settings::k_settings_name);
   REQUIRE(root.has_value());
   CHECK(root->at("master_volume").get<float>() == doctest::Approx(0.3f));
 }
 
-TEST_CASE("settings: save accepts a bare filename in the working directory") {
+TEST_CASE("settings: a failed write is reported") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
+  MemoryUserStorage storage;
+  storage.injected_write_error = "disk full";
 
-  const auto dir = temp_dir("bare_filename");
-  const CwdGuard cwd{dir.path()};
-
-  const auto saved = corundum::settings::save(engine, "settings.json");
-  REQUIRE(saved.has_value());
-  CHECK(fs::exists(dir.path() / "settings.json"));
+  const auto saved = corundum::settings::save(engine, storage);
+  REQUIRE_FALSE(saved.has_value());
+  CHECK(saved.error() == "disk full");
 }

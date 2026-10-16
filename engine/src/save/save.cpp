@@ -5,11 +5,10 @@
 #include <corundum/save/save.hpp>
 #include <corundum/world/flags.hpp>
 #include <nlohmann/json.hpp> // NOLINT(misc-include-cleaner): constructors live in json.hpp
+#include <nlohmann/json_fwd.hpp>
 
-#include <corundum/core/content_source.hpp>
 #include <corundum/core/game_config.hpp>
-#include <corundum/core/json_io.hpp>
-#include <corundum/core/user_data_dir.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/world/scene.hpp>
@@ -18,12 +17,10 @@
 #include <chrono>
 #include <cstdint>
 #include <expected>
-#include <filesystem>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -155,7 +152,7 @@ namespace corundum::save {
     return s;
   }
 
-  std::expected<void, std::string> save_game(const Engine &engine, const std::filesystem::path &path,
+  std::expected<void, std::string> save_game(const Engine &engine, core::UserStorage &storage, std::string_view slot_id,
                                              std::string_view location_name, std::int64_t playtime_seconds) {
     SaveState state;
     state.version = k_save_version;
@@ -186,48 +183,29 @@ namespace corundum::save {
     state.entered_from_world = engine.entered_from_world;
     state.flags = engine.flags;
 
-    // A bare filename has an empty parent path; create_directories("") would fail.
-    if (!path.parent_path().empty()) {
-      std::error_code directory_error;
-      std::filesystem::create_directories(path.parent_path(), directory_error);
-      if (directory_error)
-        return std::unexpected(
-            std::format("cannot create '{}': {}", path.parent_path().string(), directory_error.message()));
-    }
-    return core::write_json(path, serialize(state));
+    return core::write_json(storage, slot_name(slot_id), serialize(state));
   }
 
   std::string manual_slot_id(int index) {
     return std::format("slot_{:02d}", index + 1);
   }
 
-  std::filesystem::path slot_path(const std::filesystem::path &directory, std::string_view slot_id) {
-    return directory / std::format("{}.json", slot_id);
+  std::string slot_name(std::string_view slot_id) {
+    return std::format("saves/{}.json", slot_id);
   }
 
-  std::expected<std::filesystem::path, std::string> saves_directory(const core::GameConfig &cfg) {
-    std::expected<std::filesystem::path, std::string> directory = core::user_data_dir(cfg.game_id);
-    if (!directory)
-      return std::unexpected(directory.error());
-    return *directory / "saves";
-  }
-
-  std::vector<SaveSlotInfo> list_saves(const std::filesystem::path &directory, std::string_view game_id) {
+  std::vector<SaveSlotInfo> list_saves(const core::UserStorage &storage, std::string_view game_id) {
     std::vector<SaveSlotInfo> rows;
 
     const auto append = [&](std::string_view slot_id) {
-      const std::filesystem::path path = slot_path(directory, slot_id);
-      std::error_code exists_error;
-      if (!std::filesystem::exists(path, exists_error) || exists_error)
+      const std::string name = slot_name(slot_id);
+      if (!storage.contains(name))
         return;
 
       SaveSlotInfo info;
-      info.path = path;
       info.slot_id = std::string{slot_id};
 
-      // Saves live outside the content root; the empty-root source resolves the absolute path as given.
-      const std::expected<nlohmann::json, std::string> json =
-          core::read_json(core::DirectoryContentSource{}, path, "save");
+      const std::expected<nlohmann::json, std::string> json = core::read_json(storage, name, "save");
       if (!json) {
         info.error = json.error();
       } else if (const std::expected<SaveState, std::string> state = parse(*json); !state) {
@@ -249,8 +227,9 @@ namespace corundum::save {
     return rows;
   }
 
-  std::expected<SaveMeta, std::string> load_game(Engine &engine, const std::filesystem::path &path) {
-    auto json_result = core::read_json(core::DirectoryContentSource{}, path);
+  std::expected<SaveMeta, std::string> load_game(Engine &engine, const core::UserStorage &storage,
+                                                 std::string_view slot_id) {
+    auto json_result = core::read_json(storage, slot_name(slot_id));
     if (!json_result)
       return std::unexpected(std::move(json_result).error());
 
@@ -260,11 +239,11 @@ namespace corundum::save {
 
     if (state->game_id != engine.cfg.game_id)
       return std::unexpected(
-          std::format("save '{}' is for game '{}', not '{}'", path.string(), state->game_id, engine.cfg.game_id));
+          std::format("save '{}' is for game '{}', not '{}'", slot_id, state->game_id, engine.cfg.game_id));
 
     if (state->mode == k_mode_world && !state->map_or_world_id.empty() &&
         state->map_or_world_id != engine.cfg.paths.world_manifest_path)
-      return std::unexpected(std::format("save '{}' is for world '{}', not '{}'", path.string(), state->map_or_world_id,
+      return std::unexpected(std::format("save '{}' is for world '{}', not '{}'", slot_id, state->map_or_world_id,
                                          engine.cfg.paths.world_manifest_path));
 
     // Rebuild the scene first: apply_spawn reads no flag state, so committing flags

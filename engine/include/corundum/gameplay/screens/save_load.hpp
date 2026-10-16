@@ -10,7 +10,6 @@
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
-#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -24,10 +23,10 @@ namespace corundum::gameplay::screens {
    *  file does not exist yet: load mode shows it as empty, save mode lets the player write it.
    *  Autosave and quicksave appear only when they exist, and a corrupt slot keeps its @c error.
    *
-   *  @param directory Saves directory (see save::saves_directory).
-   *  @param game_id   Current game's id; slots written for another game become error rows.
+   *  @param storage  The player's user storage.
+   *  @param game_id  Current game's id; slots written for another game become error rows.
    */
-  [[nodiscard]] std::vector<save::SaveSlotInfo> build_slot_rows(const std::filesystem::path &directory,
+  [[nodiscard]] std::vector<save::SaveSlotInfo> build_slot_rows(const core::UserStorage &storage,
                                                                 std::string_view game_id);
 
   /** @brief The slot id of the newest valid save, or empty when none is valid.

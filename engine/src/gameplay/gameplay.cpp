@@ -1680,11 +1680,10 @@ namespace corundum::gameplay {
   }
 
   std::expected<void, std::string> Gameplay::save_to_slot(std::string_view slot_id) {
-    const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
-    if (!directory)
-      return std::unexpected(directory.error());
+    if (!engine_->user_storage)
+      return std::unexpected(engine_->user_storage.error());
 
-    const auto result = save::save_game(*engine_, save::slot_path(*directory, slot_id), current_location_name(),
+    const auto result = save::save_game(*engine_, **engine_->user_storage, slot_id, current_location_name(),
                                         static_cast<std::int64_t>(playthrough.playtime_seconds));
     if (result)
       playthrough.last_slot = std::string{slot_id};
@@ -1692,12 +1691,11 @@ namespace corundum::gameplay {
   }
 
   std::expected<void, std::string> Gameplay::load_from_slot(std::string_view slot_id) {
-    const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
-    if (!directory)
-      return std::unexpected(directory.error());
+    if (!engine_->user_storage)
+      return std::unexpected(engine_->user_storage.error());
 
     const std::expected<save::SaveMeta, std::string> loaded =
-        save::load_game(*engine_, save::slot_path(*directory, slot_id));
+        save::load_game(*engine_, **engine_->user_storage, slot_id);
     if (!loaded) {
       // load_game unloads the world when the scene rebuild itself failed, which also empties the UI
       // stack; with nothing left to show, fall back to the title. A refusal before the rebuild
@@ -1756,9 +1754,8 @@ namespace corundum::gameplay {
 
   void Gameplay::open_title() {
     title_screen = {};
-    if (const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
-        directory) {
-      const std::vector<save::SaveSlotInfo> slots = save::list_saves(*directory, engine_->cfg.game_id);
+    if (engine_->user_storage) {
+      const std::vector<save::SaveSlotInfo> slots = save::list_saves(**engine_->user_storage, engine_->cfg.game_id);
       title_screen.continue_available = screens::newest_valid_slot(slots).has_value();
     }
     refresh_credits();
@@ -1916,11 +1913,10 @@ namespace corundum::gameplay {
   void Gameplay::open_save_load(bool saving) {
     save_load_screen = {};
     save_load_screen.saving = saving;
-    if (const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
-        directory) {
-      save_load_screen.slots = screens::build_slot_rows(*directory, engine_->cfg.game_id);
+    if (engine_->user_storage) {
+      save_load_screen.slots = screens::build_slot_rows(**engine_->user_storage, engine_->cfg.game_id);
     } else {
-      engine_->notify(std::format("Cannot open saves: {}", directory.error()), ui::k_toast_failed_colour);
+      engine_->notify(std::format("Cannot open saves: {}", engine_->user_storage.error()), ui::k_toast_failed_colour);
     }
     engine_->scene.ui.push(screens::SaveLoad);
   }
@@ -1974,12 +1970,11 @@ namespace corundum::gameplay {
   }
 
   std::expected<void, std::string> Gameplay::continue_game() {
-    const std::expected<std::filesystem::path, std::string> directory = save::saves_directory(engine_->cfg);
-    if (!directory) {
-      engine_->notify(std::format("Load failed: {}", directory.error()), ui::k_toast_failed_colour);
-      return std::unexpected(directory.error());
+    if (!engine_->user_storage) {
+      engine_->notify(std::format("Load failed: {}", engine_->user_storage.error()), ui::k_toast_failed_colour);
+      return std::unexpected(engine_->user_storage.error());
     }
-    const std::vector<save::SaveSlotInfo> slots = save::list_saves(*directory, engine_->cfg.game_id);
+    const std::vector<save::SaveSlotInfo> slots = save::list_saves(**engine_->user_storage, engine_->cfg.game_id);
     const std::optional<std::string> newest = screens::newest_valid_slot(slots);
     if (!newest) {
       engine_->notify("No saved game to continue");

@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <expected>
-#include <filesystem>
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <string>
@@ -19,7 +18,7 @@ namespace corundum {
 }
 
 namespace corundum::core {
-  struct GameConfig;
+  class UserStorage;
 }
 
 namespace corundum::save {
@@ -53,8 +52,6 @@ namespace corundum::save {
    *  @c meta is set only for a valid, loadable slot; @c error is set only for a corrupt one.
    *  A slot whose file does not exist produces no row at all. */
   struct SaveSlotInfo {
-    std::filesystem::path path{}; ///< Absolute path of the slot file.
-
     std::string slot_id{}; ///< File stem: `slot_01`, `quicksave` or `autosave`.
 
     std::optional<SaveMeta> meta{}; ///< Metadata when the slot is valid; empty when corrupt.
@@ -101,15 +98,10 @@ namespace corundum::save {
    *  @pre 0 <= index < k_manual_slot_count. */
   [[nodiscard]] std::string manual_slot_id(int index);
 
-  /** @brief The path of slot @p slot_id inside @p directory (`<slot_id>.json`). */
-  [[nodiscard]] std::filesystem::path slot_path(const std::filesystem::path &directory, std::string_view slot_id);
+  /** @brief The UserStorage entry of slot @p slot_id: `saves/<slot_id>.json`. */
+  [[nodiscard]] std::string slot_name(std::string_view slot_id);
 
-  /** @brief `<user data dir game_id>/saves`, the directory all save slots live in.
-   *  @param cfg Supplies game_id; an empty game_id is an error (see core::user_data_dir).
-   *  @return The (not necessarily existing) saves directory, or an error message. */
-  [[nodiscard]] std::expected<std::filesystem::path, std::string> saves_directory(const core::GameConfig &cfg);
-
-  /** @brief List the save slots that exist in @p directory.
+  /** @brief List the save slots that exist in @p storage.
    *
    *  Returns one row per existing manual slot, plus @c autosave and @c quicksave when present,
    *  ordered autosave, quicksave, then `slot_01` … `slot_10`. A slot file that fails to parse,
@@ -117,10 +109,10 @@ namespace corundum::save {
    *  current one becomes a row with @c error set and @c meta empty; a missing file produces no
    *  row.
    *
-   *  @param directory Directory holding the slot files (see saves_directory).
-   *  @param game_id   Current game's id, used to reject cross-game saves.
+   *  @param storage  The player's user storage.
+   *  @param game_id  Current game's id, used to reject cross-game saves.
    */
-  [[nodiscard]] std::vector<SaveSlotInfo> list_saves(const std::filesystem::path &directory, std::string_view game_id);
+  [[nodiscard]] std::vector<SaveSlotInfo> list_saves(const core::UserStorage &storage, std::string_view game_id);
 
   /** @brief Serialize a SaveState to JSON.
    *  @param state The state to serialize.
@@ -145,14 +137,15 @@ namespace corundum::save {
    * code calls this when the player saves.
    *
    * @param engine          The initialized engine to snapshot.
-   * @param path            Destination file; its parent directory is created if missing.
+   * @param storage         The player's user storage.
+   * @param slot_id         Slot to write (`slot_01`, `quicksave`, `autosave`).
    * @param location_name   Display name of the current location, for the slot list.
    * @param playtime_seconds Accumulated playtime to record, in seconds.
    * @return ok, or an error if the engine has no active map or the file cannot be written.
    * @post The slot's saved_at_unix is stamped with the current wall-clock time.
    */
-  [[nodiscard]] std::expected<void, std::string> save_game(const Engine &engine, const std::filesystem::path &path,
-                                                           std::string_view location_name,
+  [[nodiscard]] std::expected<void, std::string> save_game(const Engine &engine, core::UserStorage &storage,
+                                                           std::string_view slot_id, std::string_view location_name,
                                                            std::int64_t playtime_seconds);
 
   /** @brief Load a save file, replacing flags and respawning at the saved location.
@@ -162,13 +155,15 @@ namespace corundum::save {
    * world::enter_world) to rebuild the scene at the saved location. NPCs respawn
    * from data; their state returns from `npc.<id>.*` flags.
    *
-   * @param engine The initialized engine to overwrite.
-   * @param path   Save file to read.
+   * @param engine  The initialized engine to overwrite.
+   * @param storage The player's user storage.
+   * @param slot_id Slot to read.
    * @return The save's SaveMeta on success, or an error if the file is missing, malformed, a newer
    *         format, for a different game_id or world, or the map/world cannot be loaded.
    * @post If the scene rebuild fails, the world is unloaded (world::unload_world) rather than left
    *       half-built; flags are untouched.
    */
-  [[nodiscard]] std::expected<SaveMeta, std::string> load_game(Engine &engine, const std::filesystem::path &path);
+  [[nodiscard]] std::expected<SaveMeta, std::string> load_game(Engine &engine, const core::UserStorage &storage,
+                                                               std::string_view slot_id);
 
 } // namespace corundum::save

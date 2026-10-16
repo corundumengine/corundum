@@ -19,7 +19,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
-#include <filesystem>
 #include <format>
 #include <functional>
 #include <map>
@@ -101,8 +100,8 @@ namespace corundum::gameplay::screens {
     return !info.meta.has_value() && info.error.empty();
   }
 
-  std::vector<save::SaveSlotInfo> build_slot_rows(const std::filesystem::path &directory, std::string_view game_id) {
-    const std::vector<save::SaveSlotInfo> existing = save::list_saves(directory, game_id);
+  std::vector<save::SaveSlotInfo> build_slot_rows(const core::UserStorage &storage, std::string_view game_id) {
+    const std::vector<save::SaveSlotInfo> existing = save::list_saves(storage, game_id);
     std::map<std::string, save::SaveSlotInfo, std::less<>> by_id;
     for (const save::SaveSlotInfo &info : existing)
       by_id.emplace(info.slot_id, info);
@@ -121,10 +120,7 @@ namespace corundum::gameplay::screens {
       if (const auto it = by_id.find(id); it != by_id.end()) {
         rows.push_back(it->second);
       } else {
-        rows.push_back(save::SaveSlotInfo{
-            .path = save::slot_path(directory, id),
-            .slot_id = id,
-        });
+        rows.push_back(save::SaveSlotInfo{.slot_id = id});
       }
     }
     return rows;

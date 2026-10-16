@@ -3,8 +3,8 @@
 
 #include <doctest/doctest.h>
 
-#include <corundum/core/environment.hpp>
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
@@ -31,7 +31,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <optional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -52,7 +52,7 @@ namespace {
     return CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   }
 
-  /// The shared fixture world with a title and a non-empty game id, so saves_directory() works.
+  /// The shared fixture world with a title and a non-empty game id, so the saves carry a game id.
   corundum::core::GameConfig make_config(bool show_title) {
     corundum::core::GameConfig cfg = make_world_config(fixture_root());
     cfg.show_title = show_title;
@@ -95,66 +95,19 @@ namespace {
     return false;
   }
 
-  /// Points user_data_dir at a scratch tree for its lifetime, duplicating the guard in
-  /// test_save.cpp so these cases never write into the real user data directory.
-  struct EnvGuard {
-    std::string name;
-    std::optional<std::string> saved;
-
-    EnvGuard(std::string_view variable_name, const std::string &value)
-        : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
-      set_env(name, value);
-    }
-
-    ~EnvGuard() {
-      if (saved)
-        set_env(name, *saved);
-      else
-        unset_env(name);
-    }
-
-    EnvGuard(const EnvGuard &) = delete;
-    EnvGuard(EnvGuard &&) = delete;
-    EnvGuard &operator=(const EnvGuard &) = delete;
-    EnvGuard &operator=(EnvGuard &&) = delete;
-
-  private:
-    // setenv/unsetenv are POSIX, declared by the platform's <stdlib.h>.
-    // NOLINTBEGIN(misc-include-cleaner)
-    static void set_env(const std::string &variable_name, const std::string &value) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), value.c_str());
-#else
-      setenv(variable_name.c_str(), value.c_str(), 1);
-#endif
-    }
-
-    static void unset_env(const std::string &variable_name) {
-#ifdef _WIN32
-      _putenv_s(variable_name.c_str(), "");
-#else
-      unsetenv(variable_name.c_str());
-#endif
-    }
-
-    // NOLINTEND(misc-include-cleaner)
-  };
-
+  /// A scratch tree to root the engine's user storage at, standing in for the real user-data dir.
   struct ScratchUserData {
     corundum::test::TempDir home{"crpg_test_framing_", "user_data"};
-    EnvGuard home_guard{"HOME", home.path().string()};
-    EnvGuard xdg_guard{"XDG_DATA_HOME", home.path().string()};
-#ifdef _WIN32
-    EnvGuard appdata_guard{"APPDATA", home.path().string()};
-#endif
+
+    /// Give @p engine a user storage rooted at this scratch tree; call before init_engine().
+    void attach(corundum::Engine &engine) const {
+      engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
+    }
   };
 
-  /// Overwrite a slot file with deliberately invalid JSON.
-  void write_corrupt_slot(const fs::path &directory, std::string_view slot_id) {
-    const fs::path path = corundum::save::slot_path(directory, slot_id);
-    fs::create_directories(path.parent_path());
-    std::ofstream file(path);
-    file << "not json";
+  /// Overwrite a slot with deliberately invalid JSON.
+  void write_corrupt_slot(corundum::core::UserStorage &storage, std::string_view slot_id) {
+    REQUIRE(storage.write(corundum::save::slot_name(slot_id), "not json").has_value());
   }
 
   /// Write @p content to @p path, creating parent directories.
@@ -179,7 +132,7 @@ namespace {
     std::string lines;
     for (int i = 0; i < 60; ++i) {
       if (i > 0)
-        lines += ",";
+        lines += ',';
       lines += (i == 0) ? "\"First line\"" : std::format("\"Line {}\"", i);
     }
     return std::format(R"({{"sections": [{{"heading": "Design", "lines": [{}]}}]}})", lines);
@@ -215,6 +168,7 @@ TEST_CASE("title: opens with no world and draws its rows") {
 TEST_CASE("title: Continue is disabled with no saves and the cursor starts on New Game") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -234,6 +188,7 @@ TEST_CASE("title: Continue is disabled with no saves and the cursor starts on Ne
 TEST_CASE("title: Continue loads the newest valid slot") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -307,6 +262,7 @@ TEST_CASE("title: New Game starts where a no-title boot starts") {
 TEST_CASE("title: Load opens SaveLoad and Back returns to Title") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -325,6 +281,7 @@ TEST_CASE("title: Load opens SaveLoad and Back returns to Title") {
 TEST_CASE("title: Settings opens the framing page and Back returns to Title") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -350,6 +307,7 @@ TEST_CASE("title: Settings opens the framing page and Back returns to Title") {
 TEST_CASE("save/load: save mode confirms before overwriting and refuses autosave") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -383,13 +341,13 @@ TEST_CASE("save/load: save mode confirms before overwriting and refuses autosave
 TEST_CASE("save/load: a corrupt slot cannot be loaded and shows its error") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.ui.empty());
 
-  const std::expected<fs::path, std::string> directory = corundum::save::saves_directory(engine.cfg);
-  REQUIRE(directory.has_value());
-  write_corrupt_slot(*directory, "slot_03");
+  REQUIRE(engine.user_storage.has_value());
+  write_corrupt_slot(**engine.user_storage, "slot_03");
 
   gameplay.open_save_load(/*saving=*/false);
   REQUIRE(engine.scene.ui.top() == screens::SaveLoad);
@@ -420,6 +378,7 @@ TEST_CASE("save/load: a corrupt slot cannot be loaded and shows its error") {
 TEST_CASE("game over: Reload is disabled without a last slot and reloads when set") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -445,6 +404,7 @@ TEST_CASE("game over: Reload is disabled without a last slot and reloads when se
 TEST_CASE("game over: Return to Title resets the session") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -484,6 +444,7 @@ TEST_CASE("game over: a game hook watching a death flag opens it on the next ste
 TEST_CASE("pause menu: does not open over Splash, Title, GameOver, Loading or Credits") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -501,6 +462,7 @@ TEST_CASE("pause menu: does not open over Splash, Title, GameOver, Loading or Cr
 TEST_CASE("loading: the queued work runs only after the overlay renders, then pops Loading") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -531,6 +493,7 @@ TEST_CASE("loading: the queued work runs only after the overlay renders, then po
 TEST_CASE("loading: a failed work raises a toast and still pops the overlay") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -549,6 +512,7 @@ TEST_CASE("loading: a failed work raises a toast and still pops the overlay") {
 TEST_CASE("loading: reset_session_state drops the pending work") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -574,6 +538,7 @@ TEST_CASE("credits: a configured file adds the row and the screen scrolls and cl
   write_file(credits_path, long_credits_json());
 
   corundum::Engine engine{};
+  user_data.attach(engine);
   adopt_platform(engine, 320, 240);
   corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
   cfg.paths.credits_file = credits_path.string();
@@ -619,6 +584,7 @@ TEST_CASE("credits: a configured file adds the row and the screen scrolls and cl
 TEST_CASE("credits: a missing file leaves the Title without a Credits row") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   adopt_platform(engine, 320, 240);
   corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
   cfg.paths.credits_file = (fs::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "missing_credits.json").string();
@@ -644,6 +610,7 @@ TEST_CASE("credits: a malformed file leaves the Title without a Credits row") {
   write_file(credits_path, "not json");
 
   corundum::Engine engine{};
+  user_data.attach(engine);
   adopt_platform(engine, 320, 240);
   corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
   cfg.paths.credits_file = credits_path.string();
@@ -670,6 +637,7 @@ TEST_CASE("credits: a background key is loaded through the renderer") {
   write_file(with_background, R"({"background": "parchment.png", "sections": [{"lines": ["A line"]}]})");
 
   corundum::Engine engine{};
+  user_data.attach(engine);
   adopt_platform(engine, 320, 240);
   corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
   cfg.paths.credits_file = with_background.string();
@@ -688,6 +656,7 @@ TEST_CASE("credits: a file without a background key leaves the texture unset") {
   write_file(without_background, R"({"sections": [{"lines": ["A line"]}]})");
 
   corundum::Engine engine{};
+  user_data.attach(engine);
   adopt_platform(engine, 320, 240);
   corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
   cfg.paths.credits_file = without_background.string();
@@ -701,6 +670,7 @@ TEST_CASE("credits: a file without a background key leaves the texture unset") {
 TEST_CASE("return to title: unloads the world and clears flags and the playthrough") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.render.mode != corundum::render::RenderMode::None);
@@ -724,6 +694,7 @@ TEST_CASE("return to title: unloads the world and clears flags and the playthrou
 TEST_CASE("pause menu Quit to Title: confirm Yes returns to the title with no world") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -744,6 +715,7 @@ TEST_CASE("pause menu Quit to Title: confirm Yes returns to the title with no wo
 TEST_CASE("new game: resets playtime, last slot and entered_from_world") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -763,6 +735,7 @@ TEST_CASE("new game: resets playtime, last slot and entered_from_world") {
 TEST_CASE("load: restores playtime from the save") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -782,6 +755,7 @@ TEST_CASE("load: restores playtime from the save") {
 TEST_CASE("new game: a world that cannot be built falls back to the title") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.mode() == screens::Title);
@@ -800,6 +774,7 @@ TEST_CASE("new game: a world that cannot be built falls back to the title") {
 TEST_CASE("load: a refusal from the title leaves the title showing") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.mode() == screens::Title);
@@ -814,6 +789,7 @@ TEST_CASE("load: a refusal from the title leaves the title showing") {
 TEST_CASE("loading: a failed load fades the title back in") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -831,6 +807,7 @@ TEST_CASE("loading: a failed load fades the title back in") {
 TEST_CASE("no title: the game starts in the world without a fade or toast") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -845,6 +822,7 @@ TEST_CASE("no title: the game starts in the world without a fade or toast") {
 TEST_CASE("title boot: flags are empty until New Game") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   adopt_platform(engine, 320, 240);
   corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
   cfg.starting_flags = {{"gold", 5}};
@@ -862,6 +840,7 @@ TEST_CASE("title boot: flags are empty until New Game") {
 TEST_CASE("title boot: no world is loaded under the title") {
   const ScratchUserData user_data;
   corundum::Engine engine{};
+  user_data.attach(engine);
   init_engine(engine, /*show_title=*/true);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};

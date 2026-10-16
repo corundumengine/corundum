@@ -7,6 +7,7 @@
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/input/physical_input.hpp>
@@ -138,7 +139,8 @@ TEST_CASE("player absent — save_game reports no player entity") {
   REQUIRE_FALSE(corundum::world::player_present(engine.scene));
 
   const corundum::test::TempDir tmp{"corundum_player_absent_", "save"};
-  const auto result = corundum::save::save_game(engine, tmp / "save.json", "", 0);
+  corundum::core::DirectoryUserStorage storage{tmp.path()};
+  const auto result = corundum::save::save_game(engine, storage, "save", "", 0);
 
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("no player") != std::string::npos);

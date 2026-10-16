@@ -238,7 +238,9 @@ namespace corundum {
     /// skipped when the project has no game_id or user data directory; a failed write is a warning,
     /// never fatal to the close.
     void save_user_settings(const Engine &engine) {
-      if (std::expected<void, std::string> saved = settings::save_default(engine); !saved)
+      if (!engine.user_storage)
+        return;
+      if (std::expected<void, std::string> saved = settings::save(engine, **engine.user_storage); !saved)
         warn_log("[engine] WARN: could not save settings: {}", saved.error());
     }
 
