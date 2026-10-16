@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::world {
 
   /**
@@ -53,6 +57,7 @@ namespace corundum::world {
    * @param path Path to the spawn points JSON (e.g. "data/spawn_points/world.json").
    * @return Loaded spawn points, or std::unexpected with an error description on failure.
    */
-  [[nodiscard]] std::expected<SpawnPoints, std::string> load_spawn_points(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<SpawnPoints, std::string> load_spawn_points(const core::ContentSource &content,
+                                                                          const std::filesystem::path &path);
 
 } // namespace corundum::world

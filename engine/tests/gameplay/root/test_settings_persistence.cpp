@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 
@@ -29,6 +30,7 @@
 #include <string_view>
 
 namespace fs = std::filesystem;
+using corundum::test::disk;
 
 namespace {
 
@@ -132,7 +134,7 @@ TEST_CASE("settings persistence: closing the settings screen writes settings.jso
   REQUIRE(path.has_value());
   REQUIRE(fs::exists(*path));
 
-  const std::expected<nlohmann::json, std::string> root = corundum::core::read_json(*path, "settings JSON");
+  const std::expected<nlohmann::json, std::string> root = corundum::core::read_json(disk(), *path, "settings JSON");
   REQUIRE(root.has_value());
   const std::expected<corundum::settings::UserSettings, std::string> parsed =
       corundum::settings::parse(*root, corundum::settings::UserSettings{});

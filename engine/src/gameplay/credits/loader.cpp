@@ -3,6 +3,7 @@
 
 #include <corundum/gameplay/credits/loader.hpp>
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/credits/credits.hpp>
 
@@ -46,8 +47,9 @@ namespace corundum::gameplay::credits {
 
   } // namespace
 
-  std::expected<CreditsFile, std::string> load_credits_file(const std::filesystem::path &path) {
-    std::expected<json, std::string> root_result = core::read_json(path, "credits JSON");
+  std::expected<CreditsFile, std::string> load_credits_file(const core::ContentSource &content,
+                                                            const std::filesystem::path &path) {
+    std::expected<json, std::string> root_result = core::read_json(content, path, "credits JSON");
     if (!root_result)
       return std::unexpected(std::move(root_result).error());
 

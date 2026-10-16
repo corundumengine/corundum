@@ -17,6 +17,7 @@
 #include <stb_easy_font.h>
 #pragma GCC diagnostic pop
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/world/tilemap/loader.hpp>
@@ -323,7 +324,7 @@ int main(int argc, char **argv) {
   int diamond_h{};
   {
     const fs::path probe = world_dir / std::format("chunk_{}_{}.json", 0, 0);
-    auto tm_result = load_tilemap(probe);
+    auto tm_result = load_tilemap(corundum::core::DirectoryContentSource{}, probe);
     if (!tm_result) {
       std::println(stderr, "Cannot load {} : {}", probe.string(), tm_result.error());
       return 1;
@@ -358,7 +359,7 @@ int main(int argc, char **argv) {
   for (int cy = 0; cy < chunks_tall; ++cy) {
     for (int cx = 0; cx < chunks_wide; ++cx) {
       const fs::path chunk_path = world_dir / std::format("chunk_{}_{}.json", cx, cy);
-      auto tm_result = load_tilemap(chunk_path);
+      auto tm_result = load_tilemap(corundum::core::DirectoryContentSource{}, chunk_path);
       if (!tm_result) {
         std::println(stderr, "Warning: cannot load {} : {}", chunk_path.string(), tm_result.error());
         continue;

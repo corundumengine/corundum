@@ -7,6 +7,7 @@
 #include <corundum/gameplay/item/item.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/dialogue/loader.hpp>
 #include <corundum/gameplay/dialogue/serialize.hpp>
@@ -60,7 +61,7 @@ namespace tools::loom {
   }
 
   std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path) {
-    auto result = corundum::gameplay::dialogue::load_graph(path);
+    auto result = corundum::gameplay::dialogue::load_graph(corundum::core::DirectoryContentSource{}, path);
     if (!result)
       return std::unexpected(result.error());
 
@@ -94,7 +95,7 @@ namespace tools::loom {
   }
 
   std::expected<void, std::string> load_quest_file(EditorState &state, const std::string &path) {
-    auto result = corundum::gameplay::quest::load_quest(path);
+    auto result = corundum::gameplay::quest::load_quest(corundum::core::DirectoryContentSource{}, path);
     if (!result)
       return std::unexpected(result.error());
 
@@ -126,7 +127,7 @@ namespace tools::loom {
       return std::unexpected(
           std::format("'{}' is not an item category folder (expected weapons/apparel/potions/misc)", category_name));
 
-    auto result = corundum::gameplay::item::load_item_file(path, *category);
+    auto result = corundum::gameplay::item::load_item_file(corundum::core::DirectoryContentSource{}, path, *category);
     if (!result)
       return std::unexpected(result.error());
 

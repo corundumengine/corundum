@@ -4,6 +4,7 @@
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/environment.hpp>
 #include <corundum/core/json_io.hpp>
 
@@ -43,7 +44,7 @@ namespace corundum::toolkit::host {
   std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]) {
     auto config_path = find_config_path(argc, argv);
 
-    auto json_result = corundum::core::read_json(config_path);
+    auto json_result = corundum::core::read_json(corundum::core::DirectoryContentSource{}, config_path);
     if (!json_result)
       return std::unexpected(std::format("Cannot load tool config: {}", json_result.error()));
     const json &j = *json_result;

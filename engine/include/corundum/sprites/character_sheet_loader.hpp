@@ -9,6 +9,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::sprites {
 
   /// One sprite entry parsed from a character sheet's "frames" object.
@@ -43,6 +47,7 @@ namespace corundum::sprites {
   /// name a known AnimId; an unrecognized key is rejected rather than silently dropped.
   /// @param path Path to the character sheet JSON.
   /// @return CharacterSheetData on success, or an error string on failure.
-  [[nodiscard]] std::expected<CharacterSheetData, std::string> load_character_sheet(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<CharacterSheetData, std::string> load_character_sheet(const core::ContentSource &content,
+                                                                                    const std::filesystem::path &path);
 
 } // namespace corundum::sprites

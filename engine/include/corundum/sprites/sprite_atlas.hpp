@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::sprites {
 
   /// Sprite atlas JSON schema version this engine understands. Must match spritepacker's
@@ -76,7 +80,8 @@ namespace corundum::sprites {
   /// Load and validate a sprite atlas JSON file produced by the spritepacker tool.
   /// @param path Path to the atlas metadata JSON.
   /// @return SpriteAtlas on success, or an error string on any parse or validation failure.
-  [[nodiscard]] std::expected<SpriteAtlas, std::string> load_sprite_atlas(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<SpriteAtlas, std::string> load_sprite_atlas(const core::ContentSource &content,
+                                                                          const std::filesystem::path &path);
 
   /// Resolve @p sprite's pivot into the canonical full (untrimmed) frame, bottom-origin basis,
   /// collapsing @p basis so callers never re-derive the trimmed-box conversion themselves.

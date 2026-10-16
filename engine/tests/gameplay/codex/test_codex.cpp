@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/gameplay/codex/loader.hpp>
@@ -22,6 +23,8 @@
 #include <vector>
 
 #include "ui/recording_renderer.hpp"
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 namespace codex = corundum::gameplay::codex;
@@ -51,7 +54,7 @@ TEST_CASE("codex loader: parses entries and preserves category and body") {
     ]
   })");
 
-  const auto result = codex::load_codex_file(path);
+  const auto result = codex::load_codex_file(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 2);
   CHECK((*result)[0].id == "village");
@@ -68,9 +71,9 @@ TEST_CASE("codex loader: schema failures are reported") {
   write_file(dir / "missing_title.json", R"({"schema_version":1,"entries":[{"id":"x"}]})");
   write_file(dir / "no_entries.json", R"({"schema_version":1})");
 
-  CHECK_FALSE(codex::load_codex_file(dir / "bad_version.json").has_value());
-  CHECK_FALSE(codex::load_codex_file(dir / "missing_title.json").has_value());
-  CHECK_FALSE(codex::load_codex_file(dir / "no_entries.json").has_value());
+  CHECK_FALSE(codex::load_codex_file(disk(), dir / "bad_version.json").has_value());
+  CHECK_FALSE(codex::load_codex_file(disk(), dir / "missing_title.json").has_value());
+  CHECK_FALSE(codex::load_codex_file(disk(), dir / "no_entries.json").has_value());
 }
 
 TEST_CASE("codex registry: loads a directory and skips duplicates") {
@@ -85,7 +88,7 @@ TEST_CASE("codex registry: loads a directory and skips duplicates") {
   })");
 
   codex::Registry registry;
-  CHECK(registry.load_all(dir) == 3);
+  CHECK(registry.load_all(disk(), dir) == 3);
   REQUIRE(registry.find("shared") != nullptr);
   CHECK(registry.find("shared")->title == "First");
 }
@@ -164,4 +167,12 @@ TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family
   CHECK(bold->font_id == 6u);               // Quest Bold
   CHECK(regular->font_id == 5u);            // Quest Regular
   CHECK(find_text("**quiet**") == nullptr); // markup stripped from the drawn text
+}
+
+TEST_CASE("codex::Registry: load_all reads entries from an in-memory content source") {
+  corundum::test::MemoryContentSource source;
+  source.add("codex/a.json", R"({"schema_version":1,"entries":[{"id":"a","title":"A"}]})");
+
+  codex::Registry registry;
+  CHECK(registry.load_all(source, "codex") == 1);
 }

@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/sprites/atlas_clips.hpp>
 
@@ -15,6 +16,8 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 
@@ -44,7 +47,7 @@ TEST_CASE("load_atlas_clips — valid sidecar parses correctly") {
   const auto path = dir / "ground-d.spritedata.json";
   write_file(path, k_valid_sidecar_json);
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->clips.size() == 1);
   const auto &clip = result->clips[0];
@@ -59,7 +62,7 @@ TEST_CASE("load_atlas_clips — valid sidecar parses correctly") {
 TEST_CASE("load_atlas_clips — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.spritedata.json";
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
   CHECK(result.error().find(path.string()) != std::string::npos);
 }
@@ -69,7 +72,7 @@ TEST_CASE("load_atlas_clips — malformed JSON fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, "{ this is not json");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
   CHECK(result.error().find(path.string()) != std::string::npos);
 }
@@ -79,7 +82,7 @@ TEST_CASE("load_atlas_clips — missing 'schema_version' is treated as legacy ve
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"clips":[{"name":"a","frames":["x"]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->clips.size() == 1);
   CHECK(result->clips[0].name == "a");
@@ -90,7 +93,7 @@ TEST_CASE("load_atlas_clips — wrong 'schema_version' fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":2,"clips":[]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
   CHECK(result.error().find('1') != std::string::npos);
 }
@@ -100,7 +103,7 @@ TEST_CASE("load_atlas_clips — 'schema_version' wrong type fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":"1","clips":[]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -109,7 +112,7 @@ TEST_CASE("load_atlas_clips — 'schema_version' zero fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":0,"clips":[]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -118,7 +121,7 @@ TEST_CASE("load_atlas_clips — 'clips' missing is valid (empty)") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->clips.empty());
 }
@@ -128,7 +131,7 @@ TEST_CASE("load_atlas_clips — 'clips' not an array fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":{}})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -140,7 +143,7 @@ TEST_CASE("load_atlas_clips — duplicate clip names fail") {
       {"name":"a","frames":["y"]}
   ]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -149,7 +152,7 @@ TEST_CASE("load_atlas_clips — empty clip name fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":[{"name":"","frames":["x"]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -158,7 +161,7 @@ TEST_CASE("load_atlas_clips — non-string clip name fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":[{"name":1,"frames":["x"]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -167,7 +170,7 @@ TEST_CASE("load_atlas_clips — empty 'frames' array fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","frames":[]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -176,7 +179,7 @@ TEST_CASE("load_atlas_clips — empty frame name fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","frames":[""]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -185,7 +188,7 @@ TEST_CASE("load_atlas_clips — non-string frame entry fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","frames":[1]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -194,7 +197,7 @@ TEST_CASE("load_atlas_clips — 'fps' absent defaults to 8") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","frames":["x"]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->clips.size() == 1);
   CHECK(result->clips[0].fps == corundum::sprites::k_default_clip_fps);
@@ -205,7 +208,7 @@ TEST_CASE("load_atlas_clips — non-positive 'fps' fails") {
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","fps":0,"frames":["x"]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -215,7 +218,7 @@ TEST_CASE("load_atlas_clips — non-integer 'fps' fails without throwing") {
 
   for (const std::string_view fps : {R"("fast")", "null", "true", "8.5", "[8]"}) {
     write_file(path, std::format(R"({{"schema_version":1,"clips":[{{"name":"a","fps":{},"frames":["x"]}}]}})", fps));
-    const auto result = corundum::sprites::load_atlas_clips(path);
+    const auto result = corundum::sprites::load_atlas_clips(disk(), path);
     CHECK_MESSAGE(!result.has_value(), "fps = ", fps);
   }
 }
@@ -226,7 +229,7 @@ TEST_CASE("load_atlas_clips — out-of-range 'fps' fails") {
   // Overflows a 32-bit int if silently narrowed; must be rejected rather than wrapped.
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","fps":4294967301,"frames":["x"]}]})");
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -241,7 +244,7 @@ TEST_CASE("serialize_atlas_clips — round-trips through load, including danglin
   const auto j = corundum::sprites::serialize_atlas_clips(data);
   write_file(path, j.dump());
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->clips.size() == 2);
   CHECK(result->clips[0].name == "walk");
@@ -265,7 +268,7 @@ TEST_CASE("serialize_atlas_clips — writes schema_version and omits default 'fp
   const auto path = dir / "sidecar.json";
   write_file(path, j.dump());
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->clips.size() == 1);
   CHECK(result->clips[0].fps == corundum::sprites::k_default_clip_fps);
@@ -276,7 +279,7 @@ TEST_CASE("serialize_atlas_clips — empty data round-trips to empty clips") {
   const auto path = dir / "sidecar.json";
   write_file(path, corundum::sprites::serialize_atlas_clips({}).dump());
 
-  const auto result = corundum::sprites::load_atlas_clips(path);
+  const auto result = corundum::sprites::load_atlas_clips(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->clips.empty());
 }

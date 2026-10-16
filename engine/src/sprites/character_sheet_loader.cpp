@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
 #include <corundum/sprites/sprite.hpp>
@@ -104,8 +105,9 @@ namespace corundum::sprites {
 
   } // namespace
 
-  std::expected<CharacterSheetData, std::string> load_character_sheet(const fs::path &path) {
-    auto j_result = core::read_json(path, "sheet");
+  std::expected<CharacterSheetData, std::string> load_character_sheet(const core::ContentSource &content,
+                                                                      const fs::path &path) {
+    auto j_result = core::read_json(content, path, "sheet");
     if (!j_result)
       return std::unexpected(std::move(j_result).error());
     json j = std::move(*j_result);

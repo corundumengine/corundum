@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
@@ -188,8 +189,8 @@ namespace corundum::gameplay::dialogue {
     }
 
     /// Read @p path and return its schema-validated root object.
-    json load_validated_root(const std::string &path) {
-      auto root_result = core::read_json(path, "dialogue JSON");
+    json load_validated_root(const core::ContentSource &content, const std::string &path) {
+      auto root_result = core::read_json(content, path, "dialogue JSON");
       if (!root_result)
         throw LoadError(std::move(root_result).error());
       json root = std::move(*root_result);
@@ -211,8 +212,8 @@ namespace corundum::gameplay::dialogue {
       return root;
     }
 
-    Graph load_graph_impl(const std::string &path) {
-      const json root = load_validated_root(path);
+    Graph load_graph_impl(const core::ContentSource &content, const std::string &path) {
+      const json root = load_validated_root(content, path);
 
       // Schema guarantees: id is present and non-empty.
       Graph graph;
@@ -246,9 +247,9 @@ namespace corundum::gameplay::dialogue {
 
   // ── Public API ────────────────────────────────────────────────────────────────
 
-  std::expected<Graph, std::string> load_graph(const std::filesystem::path &path) {
+  std::expected<Graph, std::string> load_graph(const core::ContentSource &content, const std::filesystem::path &path) {
     try {
-      return load_graph_impl(path.string());
+      return load_graph_impl(content, path.string());
     } catch (const std::exception &e) {
       return std::unexpected(std::string(e.what()));
     }

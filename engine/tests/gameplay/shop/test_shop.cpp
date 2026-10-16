@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
@@ -17,6 +18,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 namespace shop = corundum::gameplay::shop;
@@ -62,7 +65,7 @@ TEST_CASE("shop loader: parses stock, prices, faction and buy rate") {
     ]
   })");
 
-  const auto result = shop::load_shop_file(path);
+  const auto result = shop::load_shop_file(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].id == "corvin");
@@ -80,7 +83,7 @@ TEST_CASE("shop loader: rejects out-of-range buy rate") {
     "schema_version": 1,
     "shops": [ { "id": "x", "name": "X", "buy_rate": 2.0 } ]
   })");
-  CHECK_FALSE(shop::load_shop_file(dir / "bad.json").has_value());
+  CHECK_FALSE(shop::load_shop_file(disk(), dir / "bad.json").has_value());
 }
 
 TEST_CASE("barter price: reputation discounts buy price, clamped and floored at 1") {
@@ -155,7 +158,15 @@ TEST_CASE("shop registry: loads a directory and skips duplicate ids") {
   })");
 
   shop::Registry registry;
-  CHECK(registry.load_all(dir) == 2);
+  CHECK(registry.load_all(disk(), dir) == 2);
   REQUIRE(registry.find("shared") != nullptr);
   CHECK(registry.find("shared")->name == "First");
+}
+
+TEST_CASE("shop::Registry: load_all reads shops from an in-memory content source") {
+  corundum::test::MemoryContentSource source;
+  source.add("shops/a.json", R"({"schema_version":1,"shops":[{"id":"a","name":"A"}]})");
+
+  shop::Registry registry;
+  CHECK(registry.load_all(source, "shops") == 1);
 }

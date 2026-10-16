@@ -6,6 +6,7 @@
 #include <corundum/world/flags.hpp>
 #include <nlohmann/json.hpp> // NOLINT(misc-include-cleaner): constructors live in json.hpp
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/user_data_dir.hpp>
@@ -224,7 +225,9 @@ namespace corundum::save {
       info.path = path;
       info.slot_id = std::string{slot_id};
 
-      const std::expected<nlohmann::json, std::string> json = core::read_json(path, "save");
+      // Saves live outside the content root; the empty-root source resolves the absolute path as given.
+      const std::expected<nlohmann::json, std::string> json =
+          core::read_json(core::DirectoryContentSource{}, path, "save");
       if (!json) {
         info.error = json.error();
       } else if (const std::expected<SaveState, std::string> state = parse(*json); !state) {
@@ -247,7 +250,7 @@ namespace corundum::save {
   }
 
   std::expected<SaveMeta, std::string> load_game(Engine &engine, const std::filesystem::path &path) {
-    auto json_result = core::read_json(path);
+    auto json_result = core::read_json(core::DirectoryContentSource{}, path);
     if (!json_result)
       return std::unexpected(std::move(json_result).error());
 

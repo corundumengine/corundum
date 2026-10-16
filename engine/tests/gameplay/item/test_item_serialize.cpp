@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/gameplay/item/item.hpp>
 
@@ -22,6 +23,7 @@
 #include <vector>
 
 namespace fs = std::filesystem;
+using corundum::test::disk;
 namespace item = corundum::gameplay::item;
 
 namespace {
@@ -39,13 +41,13 @@ namespace {
   /** @brief Load -> serialize -> write -> load, returning the final parse. */
   std::expected<std::vector<item::Item>, std::string> round_trip(const fs::path &src, item::ItemCategory category,
                                                                  const fs::path &out) {
-    auto loaded = item::load_item_file(src, category);
+    auto loaded = item::load_item_file(disk(), src, category);
     if (!loaded)
       return std::unexpected(loaded.error());
     auto write_result = corundum::core::write_json(out, item::serialize(*loaded, category));
     if (!write_result)
       return std::unexpected(write_result.error());
-    return item::load_item_file(out, category);
+    return item::load_item_file(disk(), out, category);
   }
 
   void check_same_item(const item::Item &a, const item::Item &b) {
@@ -130,7 +132,7 @@ TEST_CASE("item serialize: weapon and apparel payloads survive round-trip") {
       { "id": "blunt_sword", "name": "Blunt Sword", "weapon": { "damage": 0 } }
     ]
   })");
-  auto weapons = item::load_item_file(src, item::ItemCategory::Weapon);
+  auto weapons = item::load_item_file(disk(), src, item::ItemCategory::Weapon);
   REQUIRE(weapons.has_value());
   REQUIRE(weapons->size() == 2);
   auto weapons_roundtrip = round_trip(src, item::ItemCategory::Weapon, dir / "weapons_out.json");
@@ -146,7 +148,7 @@ TEST_CASE("item serialize: weapon and apparel payloads survive round-trip") {
       { "id": "rags", "name": "Rags", "apparel": {} }
     ]
   })");
-  auto apparel = item::load_item_file(src, item::ItemCategory::Apparel);
+  auto apparel = item::load_item_file(disk(), src, item::ItemCategory::Apparel);
   REQUIRE(apparel.has_value());
   REQUIRE(apparel->size() == 2);
   auto apparel_roundtrip = round_trip(src, item::ItemCategory::Apparel, dir / "apparel_out.json");

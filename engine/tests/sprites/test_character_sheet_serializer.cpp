@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/sprites/sprite.hpp>
 #include <nlohmann/json.hpp>
@@ -15,6 +16,8 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 
@@ -58,7 +61,7 @@ TEST_CASE("character sheet fps survives a serialize -> load round trip") {
   const auto dir = temp_dir("fps_roundtrip");
   const auto path = dir / "sheet.json";
   write_file(path, j.dump());
-  const auto loaded = load_character_sheet(path);
+  const auto loaded = load_character_sheet(disk(), path);
   REQUIRE(loaded.has_value());
 
   const CharacterSpriteEntry *lw = nullptr;
@@ -84,7 +87,7 @@ TEST_CASE("character sheet footprint authored state survives a serialize -> load
       path,
       R"({"id":"sheet","path":"s.png","frame_width":16,"frame_height":16,"frames":{"authored":{"col_span":1,"row_span":1,"footprint_col_span":0.5,"footprint_row_span":0.9,"south":[{"col":0,"row":0}]},"defaulted":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}})");
 
-  const auto loaded = load_character_sheet(path);
+  const auto loaded = load_character_sheet(disk(), path);
   REQUIRE(loaded.has_value());
 
   const nlohmann::json j = serialize_character_sheet(*loaded);
@@ -93,7 +96,7 @@ TEST_CASE("character sheet footprint authored state survives a serialize -> load
 
   const auto reload_path = dir / "reloaded.json";
   write_file(reload_path, j.dump());
-  const auto reloaded = load_character_sheet(reload_path);
+  const auto reloaded = load_character_sheet(disk(), reload_path);
   REQUIRE(reloaded.has_value());
   REQUIRE(reloaded->sprites.size() == 2);
 
@@ -136,7 +139,7 @@ TEST_CASE("character sheet walk_around_offset is omitted at its default and roun
   const auto dir = temp_dir("walk_around_roundtrip");
   const auto path = dir / "sheet.json";
   write_file(path, j.dump());
-  const auto loaded = load_character_sheet(path);
+  const auto loaded = load_character_sheet(disk(), path);
   REQUIRE(loaded.has_value());
   for (const auto &s : loaded->sprites) {
     if (s.name == "custom")
@@ -153,7 +156,7 @@ TEST_CASE("load_character_sheet — fps defaults to 0.f when absent") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}})");
 
-  auto result = corundum::sprites::load_character_sheet(path);
+  auto result = corundum::sprites::load_character_sheet(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->sprites[0].fps == doctest::Approx(0.f));
 }

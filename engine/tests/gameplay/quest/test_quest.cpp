@@ -15,6 +15,7 @@
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/world/flags.hpp>
 
+#include "memory_content_source.hpp"
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -22,6 +23,8 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+using corundum::test::disk;
 
 namespace quest = corundum::gameplay::quest;
 using corundum::world::FlagStore;
@@ -153,7 +156,7 @@ TEST_CASE("quest loader: malformed done_condition is a load error") {
       {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":"gold >="}]}
     ]})";
   }
-  auto result = quest::load_quest(tmp);
+  auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("done_condition invalid") != std::string::npos);
   std::filesystem::remove(tmp);
@@ -169,14 +172,14 @@ TEST_CASE("quest loader: empty done_condition is a load error") {
       {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":""}]}
     ]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("done_condition") != std::string::npos);
   std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
-  const auto result = quest::load_quest("engine/tests/fixtures/find_sword.json");
+  const auto result = quest::load_quest(disk(), "engine/tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
   const auto &q = *result;
 
@@ -210,7 +213,7 @@ TEST_CASE("quest loader: missing type field loads") {
     f << R"({"id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   REQUIRE(result.has_value());
   CHECK(result->quest_id == "x");
   std::filesystem::remove(tmp);
@@ -223,7 +226,7 @@ TEST_CASE("quest loader: wrong type field warns but loads") {
     f << R"({"type":"dialogue","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   REQUIRE(result.has_value());
   CHECK(result->quest_id == "x");
   std::filesystem::remove(tmp);
@@ -235,7 +238,7 @@ TEST_CASE("quest loader: missing id fails") {
     std::ofstream f(tmp);
     f << R"({"type":"quest","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   std::filesystem::remove(tmp);
 }
@@ -246,7 +249,7 @@ TEST_CASE("quest loader: empty id fails") {
     std::ofstream f(tmp);
     f << R"({"type":"quest","id":"","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   std::filesystem::remove(tmp);
 }
@@ -260,7 +263,7 @@ TEST_CASE("quest loader: duplicate stage sequences rejected") {
       {"name":"b","sequence":1,"resolved":true,"objectives":[]}
     ]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   std::filesystem::remove(tmp);
 }
@@ -273,7 +276,7 @@ TEST_CASE("quest loader: sequence <= 0 rejected") {
       {"name":"a","sequence":0,"resolved":true,"objectives":[]}
     ]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   std::filesystem::remove(tmp);
 }
@@ -286,7 +289,7 @@ TEST_CASE("quest loader: no resolved stage rejected") {
       {"name":"a","sequence":1,"objectives":[]}
     ]})";
   }
-  const auto result = quest::load_quest(tmp);
+  const auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   std::filesystem::remove(tmp);
 }
@@ -300,7 +303,7 @@ TEST_CASE("quest loader: stage order disagreeing with sequences warns but loads"
       {"name":"earlier","sequence":1,"objectives":[]}
     ]})";
   }
-  auto result = quest::load_quest(tmp);
+  auto result = quest::load_quest(disk(), tmp);
   REQUIRE(result.has_value());
   CHECK(result->stages[0].name == "later");
   CHECK(result->stages[1].name == "earlier");
@@ -315,7 +318,7 @@ TEST_CASE("quest loader: failed flag auto-sets resolved") {
       {"name":"fail","sequence":1,"failed":true,"objectives":[]}
     ]})";
   }
-  auto result = quest::load_quest(tmp);
+  auto result = quest::load_quest(disk(), tmp);
   REQUIRE(result.has_value());
   CHECK(result->stages[0].failed);
   CHECK(result->stages[0].resolved);
@@ -332,7 +335,7 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
       {"name":"c","sequence":3,"resolved":true,"objectives":[]}
     ]})";
   }
-  auto result = quest::load_quest(tmp);
+  auto result = quest::load_quest(disk(), tmp);
   REQUIRE(result.has_value());
   REQUIRE(result->stages[0].advances_to.size() == 2);
   CHECK(result->stages[0].advances_to[0] == "b");
@@ -342,7 +345,7 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
   const auto j = quest::serialize(*result);
   const auto tmp2 = std::filesystem::path("engine/tests/fixtures/tmp_advances_to.json");
   REQUIRE(corundum::core::write_json(tmp2, j).has_value());
-  const auto reloaded = quest::load_quest(tmp2.string());
+  const auto reloaded = quest::load_quest(disk(), tmp2.string());
   REQUIRE(reloaded.has_value());
   REQUIRE(reloaded->stages[0].advances_to.size() == 2);
   CHECK(reloaded->stages[0].advances_to[0] == "b");
@@ -358,7 +361,7 @@ TEST_CASE("quest loader: keystone ember_of_greyhollow still loads clean") {
     MESSAGE("keystone checkout not present; skipping");
     return;
   }
-  const auto result = quest::load_quest(path);
+  const auto result = quest::load_quest(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->quest_id == "ember_of_greyhollow");
   CHECK_FALSE(result->stages.empty());
@@ -370,7 +373,7 @@ TEST_CASE("quest loader: invalid JSON returns error") {
     std::ofstream f(tmp);
     f << "not valid json";
   }
-  auto result = quest::load_quest(tmp);
+  auto result = quest::load_quest(disk(), tmp);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("malformed quest JSON") != std::string::npos);
   CHECK(result.error().find(tmp) != std::string::npos);
@@ -729,7 +732,7 @@ TEST_CASE("started_quests returns every quest with stage > 0, including resolved
   }
 
   quest::Registry reg;
-  const auto n_loaded = reg.load_all(tmp_dir);
+  const auto n_loaded = reg.load_all(disk(), tmp_dir);
   CHECK(n_loaded == 2);
   CHECK(reg.size() == 2);
 
@@ -761,7 +764,7 @@ TEST_CASE("registry load_all count matches size with duplicate ids") {
   }
 
   quest::Registry reg;
-  const int loaded = reg.load_all(tmp_dir);
+  const int loaded = reg.load_all(disk(), tmp_dir);
   CHECK(loaded == 1);
   CHECK(reg.size() == 1);
   std::filesystem::remove_all(tmp_dir);
@@ -789,7 +792,7 @@ TEST_CASE("registry load_all loads valid files, skips bad ones") {
   }
 
   quest::Registry reg;
-  const int loaded = reg.load_all(tmp_dir);
+  const int loaded = reg.load_all(disk(), tmp_dir);
 
   CHECK(loaded == 1);
   CHECK(reg.size() == 1);
@@ -1348,7 +1351,7 @@ TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)"
     return;
   }
   quest::Registry reg;
-  const auto n_loaded = reg.load_all(path.parent_path());
+  const auto n_loaded = reg.load_all(disk(), path.parent_path());
   REQUIRE(n_loaded >= 1);
 
   const auto *q = reg.find("ember_of_greyhollow");
@@ -1360,7 +1363,7 @@ TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)"
 // ── Round-trip ────────────────────────────────────────────────────────────────
 
 TEST_CASE("quest serialize round-trips through load_quest") {
-  const auto result = quest::load_quest("engine/tests/fixtures/find_sword.json");
+  const auto result = quest::load_quest(disk(), "engine/tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
   const auto &q = *result;
 
@@ -1370,7 +1373,7 @@ TEST_CASE("quest serialize round-trips through load_quest") {
   const auto write_result = corundum::core::write_json(tmp, j);
   REQUIRE(write_result.has_value());
 
-  const auto reloaded = quest::load_quest(tmp.string());
+  const auto reloaded = quest::load_quest(disk(), tmp.string());
   REQUIRE(reloaded.has_value());
 
   check_quests_match(*reloaded, q);
@@ -1402,9 +1405,19 @@ TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_conditi
   const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_round_trip_all.json");
   REQUIRE(corundum::core::write_json(tmp, j).has_value());
 
-  const auto reloaded = quest::load_quest(tmp.string());
+  const auto reloaded = quest::load_quest(disk(), tmp.string());
   REQUIRE(reloaded.has_value());
   check_quests_match(*reloaded, q);
 
   std::filesystem::remove(tmp);
+}
+
+TEST_CASE("quest::Registry: load_all reads quests from an in-memory content source") {
+  corundum::test::MemoryContentSource source;
+  source.add(
+      "quests/a.json",
+      R"({"type":"quest","id":"a","name":"A","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})");
+
+  quest::Registry registry;
+  CHECK(registry.load_all(source, "quests") == 1);
 }

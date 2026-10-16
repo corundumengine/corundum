@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/files.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
@@ -20,12 +21,13 @@ namespace fs = std::filesystem;
 
 namespace corundum::sprites {
 
-  std::expected<void, std::string> CharacterRegistry::load_all(const fs::path &index_path) {
+  std::expected<void, std::string> CharacterRegistry::load_all(const core::ContentSource &content,
+                                                               const fs::path &index_path) {
     const fs::path characters_dir = index_path / "characters";
 
     // Recurse so character sheets can be organized into subdirectories per character. The listing
     // is sorted, which keeps interned sheet/sprite ids stable across runs and platforms.
-    const auto entries = core::list_dir_entries(characters_dir, {.extensions = {"json"}, .recursive = true});
+    const auto entries = content.list(characters_dir, {.extensions = {"json"}, .recursive = true});
     if (!entries)
       return std::unexpected(std::format("Characters sprite sheets are missing: {}", entries.error()));
 
@@ -34,7 +36,7 @@ namespace corundum::sprites {
     for (const auto &entry : *entries) {
       if (entry.is_dir)
         continue;
-      auto result = load_sheet(entry.path);
+      auto result = load_sheet(content, entry.path);
       if (!result) {
         failure = std::unexpected(result.error());
         break;
@@ -61,8 +63,9 @@ namespace corundum::sprites {
       sprite_by_id_[frames.sprite_id] = &frames;
   }
 
-  std::expected<void, std::string> CharacterRegistry::load_sheet(const fs::path &sheet_path) {
-    auto result = load_character_sheet(sheet_path);
+  std::expected<void, std::string> CharacterRegistry::load_sheet(const core::ContentSource &content,
+                                                                 const fs::path &sheet_path) {
+    auto result = load_character_sheet(content, sheet_path);
     if (!result)
       return std::unexpected(result.error());
 

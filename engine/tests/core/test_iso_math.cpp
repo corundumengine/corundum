@@ -3,11 +3,14 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <string_view>
+using corundum::test::disk;
+
 namespace ccm = corundum::core::math;
 #include <corundum/world/tilemap/world_manifest.hpp>
 
@@ -154,7 +157,7 @@ TEST_CASE("chunk_at_iso — player at world origin maps to chunk (0,0)") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_iso_origin");
   write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
-  auto manifest_result = load_world_manifest(dir / "manifest.json");
+  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
@@ -167,7 +170,7 @@ TEST_CASE("chunk_at_iso — player at center of world maps to center chunk") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_iso_center");
   write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
-  auto manifest_result = load_world_manifest(dir / "manifest.json");
+  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
@@ -184,7 +187,7 @@ TEST_CASE("chunk_at_iso — clamped at negative iso position") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_iso_clamp");
   write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
-  auto manifest_result = load_world_manifest(dir / "manifest.json");
+  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
   const ccm::IsometricParams iso{k_half_tw, k_half_th, 0.f, 4.f};
@@ -201,7 +204,7 @@ TEST_CASE("chunk_at_iso — center tile with non-zero x_origin selects the cente
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_iso_x_origin");
   write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
-  auto manifest_result = load_world_manifest(dir / "manifest.json");
+  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
@@ -378,7 +381,7 @@ TEST_CASE("world_bounds_iso — width and height use their own scale factor") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("iso_bounds_sym");
   write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
-  auto manifest_result = load_world_manifest(dir / "manifest.json");
+  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
   const auto [w, h] = world_bounds_iso(m, k_half_tw, k_half_th);
@@ -391,7 +394,7 @@ TEST_CASE("world_bounds_iso — spawn position within bounds") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("iso_bounds_spawn");
   write_file(dir / "manifest.json", R"({"chunk_size":128,"chunks_wide":16,"chunks_tall":8})");
-  auto manifest_result = load_world_manifest(dir / "manifest.json");
+  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
   const auto [ww, wh] = world_bounds_iso(m, k_half_tw, k_half_th);

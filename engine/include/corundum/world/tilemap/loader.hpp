@@ -7,6 +7,10 @@
 #include <filesystem>
 #include <string>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::world::tilemap {
 
   /// Current tilemap JSON schema version. A map file with no "schema_version" field is treated as
@@ -19,7 +23,8 @@ namespace corundum::world::tilemap {
   /// load_tileset's doc comment in loader.cpp for the on-disk shape).
   /// @param path Path to the tileset JSON (e.g. "data/sprite_sheets/objects/terrain.json").
   /// @return TilesetInfo on success, or an error string on any parse or validation failure.
-  [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &content,
+                                                                     const std::filesystem::path &path);
 
   /// Drop every cached TilesetInfo, forcing subsequent load_tileset() calls to re-read the atlas
   /// from disk. Use after repacking an atlas so an already-running editor picks up the change;
@@ -38,6 +43,7 @@ namespace corundum::world::tilemap {
   ///       `diamond_h()` return the effective isometric step dimensions, falling back to the first
   ///       tileset's first tile's full frame size if `iso_diamond_w`/`iso_diamond_h` were not set
   ///       in the JSON.
-  [[nodiscard]] std::expected<Tilemap, std::string> load_tilemap(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<Tilemap, std::string> load_tilemap(const core::ContentSource &content,
+                                                                 const std::filesystem::path &path);
 
 } // namespace corundum::world::tilemap

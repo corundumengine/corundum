@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 
 #include <corundum/world/portals/portal.hpp>
@@ -13,6 +14,8 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 
@@ -34,7 +37,7 @@ using corundum::world::load_portals;
 using corundum::world::serialize;
 
 TEST_CASE("load_portals — missing file returns empty vector") {
-  auto result = load_portals("/nonexistent/path/portals.json");
+  auto result = load_portals(disk(), "/nonexistent/path/portals.json");
   REQUIRE(result.has_value());
   CHECK(result->empty());
 }
@@ -43,22 +46,21 @@ TEST_CASE("load_portals — malformed JSON returns error containing the path") {
   const auto dir = temp_dir("malformed");
   const auto p = dir / "portals.json";
   write_file(p, "{bad json");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(!result.has_value());
   CHECK(result.error().find("malformed JSON") != std::string::npos);
   CHECK(result.error().find(p.string()) != std::string::npos);
 }
 
-TEST_CASE("load_portals — absent file is empty but an unopenable path is an error") {
-  const auto dir = temp_dir("unopenable");
-  const auto p = dir / "portals.json";
-  write_file(p, R"({ "portals": [] })");
-  // A directory exists but cannot be read as a JSON document.
+TEST_CASE("load_portals — a directory path reads as absent") {
+  const auto dir = temp_dir("directory");
+  // A directory is not a regular file, so the content source reports it absent and the
+  // loader returns an empty list rather than trying (and failing) to parse it as JSON.
   const auto as_dir = dir / "a_directory";
   std::filesystem::create_directory(as_dir);
-  auto result = load_portals(as_dir);
-  REQUIRE(!result.has_value());
-  CHECK(result.error().find(as_dir.string()) != std::string::npos);
+  auto result = load_portals(disk(), as_dir);
+  REQUIRE(result.has_value());
+  CHECK(result->empty());
 }
 
 TEST_CASE("load_portals — accepts an explicit schema_version") {
@@ -70,7 +72,7 @@ TEST_CASE("load_portals — accepts an explicit schema_version") {
       { "col": 0, "row": 0, "w": 1, "h": 1, "target_map": "m.json", "spawn_col": 0, "spawn_row": 0 }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(result.has_value());
   CHECK(result->size() == 1);
 }
@@ -79,7 +81,7 @@ TEST_CASE("load_portals — rejects a newer schema_version") {
   const auto dir = temp_dir("schema_too_new");
   const auto p = dir / "portals.json";
   write_file(p, R"({ "schema_version": 999, "portals": [] })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(!result.has_value());
   CHECK(result.error().find("999") != std::string::npos);
 }
@@ -92,7 +94,7 @@ TEST_CASE("load_portals — valid file round-trip via serialize") {
       { "col": 0, "row": 1, "w": 2, "h": 3, "target_map": "other.json", "spawn_col": 4, "spawn_row": 5 }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   const auto portal = (*result)[0];
@@ -124,7 +126,7 @@ TEST_CASE("load_portals — target_chunk_col/row (new keys)") {
         "target_chunk_col": 2, "target_chunk_row": 3 }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].target_chunk_col == 2);
@@ -140,7 +142,7 @@ TEST_CASE("load_portals — target_chunk_x/y (legacy keys) still accepted") {
         "target_chunk_x": 5, "target_chunk_y": 6 }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].target_chunk_col == 5);
@@ -156,7 +158,7 @@ TEST_CASE("load_portals — serialize writes only new keys") {
         "target_chunk_col": 7, "target_chunk_row": 8 }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(result.has_value());
 
   const auto json = serialize(*result);
@@ -178,7 +180,7 @@ TEST_CASE("load_portals — return_to_world=true portal (bare, no target) is acc
       { "col": 0, "row": 0, "w": 1, "h": 1, "spawn_col": 9, "spawn_row": 10, "return_to_world": true }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   const auto portal = (*result)[0];
@@ -202,7 +204,7 @@ TEST_CASE("load_portals — return_to_world defaults to false") {
       { "col": 0, "row": 0, "w": 1, "h": 1, "target_map": "m.json", "spawn_col": 0, "spawn_row": 0 }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(result.has_value());
   CHECK_FALSE((*result)[0].return_to_world);
 }
@@ -215,7 +217,7 @@ TEST_CASE("load_portals — invalid return_to_world type returns error") {
       { "col": 0, "row": 0, "w": 1, "h": 1, "spawn_col": 0, "spawn_row": 0, "return_to_world": "yes" }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(!result.has_value());
   CHECK(result.error().find("invalid 'return_to_world'") != std::string::npos);
 }
@@ -228,7 +230,7 @@ TEST_CASE("load_portals — returns error when no target and return_to_world is 
       { "col": 0, "row": 0, "w": 1, "h": 1, "spawn_col": 0, "spawn_row": 0, "return_to_world": false }
     ]
   })");
-  auto result = load_portals(p);
+  auto result = load_portals(disk(), p);
   REQUIRE(!result.has_value());
   CHECK(result.error().find("must have 'target_map'") != std::string::npos);
 }

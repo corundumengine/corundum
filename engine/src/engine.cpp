@@ -93,7 +93,7 @@ namespace corundum {
     private:
       std::expected<void, std::string> load_render_assets() {
         std::expected<void, std::string> characters_result;
-        characters_result = engine_->characters.load_all(engine_->cfg.paths.sprites_dir);
+        characters_result = engine_->characters.load_all(*engine_->content, engine_->cfg.paths.sprites_dir);
         if (!characters_result)
           return std::unexpected(characters_result.error());
         render::load_sprite_index(*engine_->renderer, engine_->render, engine_->characters);
@@ -102,7 +102,7 @@ namespace corundum {
           return std::unexpected(std::move(result).error());
 
         std::expected<void, std::string> ui_result;
-        ui_result = render::load_ui_assets(*engine_->renderer, engine_->render);
+        ui_result = render::load_ui_assets(*engine_->content, *engine_->renderer, engine_->render);
         if (!ui_result)
           return std::unexpected(ui_result.error());
         return {};
@@ -115,7 +115,7 @@ namespace corundum {
           corundum::detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
           return;
         }
-        engine_->audio.load_catalog(engine_->cfg.paths.sounds_catalog);
+        engine_->audio.load_catalog(*engine_->content, engine_->cfg.paths.sounds_catalog);
       }
 
       Engine *engine_;
@@ -528,7 +528,7 @@ namespace corundum {
           // latched here would fire the moment the world activates.
           if (engine.render.mode != render::RenderMode::World || !engine.render.chunks.active_empty()) {
             const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
-            world::sync_chunk_actors(engine.scene, engine.render, engine.cfg, engine.characters);
+            world::sync_chunk_actors(*engine.content, engine.scene, engine.render, engine.cfg, engine.characters);
             // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
             // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
             world::update(engine.scene, engine.cfg, engine.input_state, map_view, engine.timer.target_dt,
@@ -743,7 +743,7 @@ namespace corundum {
 
     timer.tick();
 
-    render::stream_world_chunks(*renderer, render, cfg, scene);
+    render::stream_world_chunks(*content, *renderer, render, cfg, scene);
 
     const SimulationResult simulation{run_fixed_steps(*this)};
     // Portal scene changes are applied at full black by advance_scene_transition(); the

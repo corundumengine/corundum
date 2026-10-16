@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::item {
 
   /**
@@ -26,7 +30,7 @@ namespace corundum::gameplay::item {
    *                 every item in the file.
    * @return The parsed Items on success, or an error message on failure.
    */
-  [[nodiscard]] std::expected<std::vector<Item>, std::string> load_item_file(const std::filesystem::path &path,
-                                                                             ItemCategory category);
+  [[nodiscard]] std::expected<std::vector<Item>, std::string>
+  load_item_file(const core::ContentSource &content, const std::filesystem::path &path, ItemCategory category);
 
 } // namespace corundum::gameplay::item

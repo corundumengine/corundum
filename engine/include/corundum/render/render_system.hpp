@@ -13,6 +13,10 @@
 #include <string>
 #include <string_view>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::platform {
   class Renderer;
 }
@@ -88,8 +92,8 @@ namespace corundum::render {
    *  @return ok on success, or an error string on failure.
    */
   [[nodiscard]] std::expected<void, std::string>
-  load_ui_assets(corundum::platform::Renderer &r, render::RenderState &state,
-                 std::string_view path = "data/sprite_sheets/ui/borders.json");
+  load_ui_assets(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
+                 render::RenderState &state, std::string_view path = "data/sprite_sheets/ui/borders.json");
 
   /** @brief Load a single tilemap for map mode.
    *  @param[in,out] r             Renderer for tileset texture loading.
@@ -98,7 +102,8 @@ namespace corundum::render {
    *  @param[in]     cfg           Game config (tile_scale, etc.).
    *  @return ok on success, or an error string on failure.
    */
-  [[nodiscard]] std::expected<void, std::string> load_map(corundum::platform::Renderer &r, render::RenderState &state,
+  [[nodiscard]] std::expected<void, std::string> load_map(const corundum::core::ContentSource &content,
+                                                          corundum::platform::Renderer &r, render::RenderState &state,
                                                           const std::string &tilemap_path,
                                                           const corundum::core::GameConfig &cfg);
 
@@ -146,10 +151,9 @@ namespace corundum::render {
    *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
    *  @post state.mode == RenderMode::World and state.chunks is non-empty, or an error is returned.
    */
-  [[nodiscard]] std::expected<WorldLoadInfo, std::string> load_world(corundum::platform::Renderer &r,
-                                                                     render::RenderState &state,
-                                                                     const corundum::core::GameConfig &cfg,
-                                                                     const WorldLoadParams &params = {});
+  [[nodiscard]] std::expected<WorldLoadInfo, std::string>
+  load_world(const corundum::core::ContentSource &content, corundum::platform::Renderer &r, render::RenderState &state,
+             const corundum::core::GameConfig &cfg, const WorldLoadParams &params = {});
 
   /** @brief Apply panel style (colours, fonts, spacing) from game config.
    *  @param[out] state  Render state; panel_skin style is configured.
@@ -185,8 +189,9 @@ namespace corundum::render {
    * steps, so the simulation always reads aggregates that match the resident chunks. No-op
    * outside World mode or before any chunk is resident.
    */
-  void stream_world_chunks(corundum::platform::Renderer &r, render::RenderState &state,
-                           const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene);
+  void stream_world_chunks(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
+                           render::RenderState &state, const corundum::core::GameConfig &cfg,
+                           const corundum::world::Scene &scene);
 
   /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
    *

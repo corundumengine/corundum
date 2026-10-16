@@ -5,6 +5,7 @@
 #include "editor_state.hpp"
 #include <nlohmann/json_fwd.hpp>
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/serialize.hpp>
@@ -78,7 +79,7 @@ namespace tools::tilesmith {
 
   std::expected<void, std::string> load_portals(EditorState &state) {
     // load_portals returns {} (empty vector) when the file is absent — not an error.
-    auto result = corundum::world::load_portals(portals_path(state.map_path));
+    auto result = corundum::world::load_portals(corundum::core::DirectoryContentSource{}, portals_path(state.map_path));
     if (!result)
       return std::unexpected(result.error());
     state.portals = std::move(*result);

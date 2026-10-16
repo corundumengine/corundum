@@ -3,6 +3,7 @@
 
 #include "load.hpp"
 #include "editor_state.hpp"
+#include <corundum/core/content_source.hpp>
 #include <corundum/sprites/atlas_clips.hpp>
 #include <corundum/sprites/atlas_clips_loader.hpp>
 #include <corundum/sprites/character_sheet_loader.hpp>
@@ -78,7 +79,7 @@ namespace tools::spritesmith {
     }
 
     void load_sprite_sheet_mode(EditorState &state, const std::filesystem::path &path) {
-      auto result = corundum::sprites::load_sprite_sheet_clips(path);
+      auto result = corundum::sprites::load_sprite_sheet_clips(corundum::core::DirectoryContentSource{}, path);
       if (!result)
         throw SheetLoadError(result.error());
       const auto &data = *result;
@@ -100,7 +101,7 @@ namespace tools::spritesmith {
     }
 
     void load_atlas_mode(EditorState &state, const std::filesystem::path &path) {
-      auto result = corundum::sprites::load_sprite_atlas(path);
+      auto result = corundum::sprites::load_sprite_atlas(corundum::core::DirectoryContentSource{}, path);
       if (!result)
         throw SheetLoadError(result.error());
       const auto &atlas = *result;
@@ -110,7 +111,7 @@ namespace tools::spritesmith {
       corundum::sprites::AtlasClipsData sidecar;
       const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(path);
       if (std::filesystem::exists(sidecar_path)) {
-        auto clips_result = corundum::sprites::load_atlas_clips(sidecar_path);
+        auto clips_result = corundum::sprites::load_atlas_clips(corundum::core::DirectoryContentSource{}, sidecar_path);
         if (!clips_result)
           throw SheetLoadError(clips_result.error());
         sidecar = std::move(*clips_result);
@@ -156,7 +157,7 @@ namespace tools::spritesmith {
     if (mode == SheetMode::Atlas) {
       load_atlas_mode(state, path);
     } else if (mode == SheetMode::Character) {
-      auto result = corundum::sprites::load_character_sheet(path);
+      auto result = corundum::sprites::load_character_sheet(corundum::core::DirectoryContentSource{}, path);
       if (!result)
         throw SheetLoadError(result.error());
       load_character(state, *result);

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
@@ -39,10 +40,11 @@ namespace corundum::gameplay::location {
 
   } // namespace
 
-  std::expected<std::vector<Location>, std::string> load_location_file(const std::filesystem::path &path) {
+  std::expected<std::vector<Location>, std::string> load_location_file(const core::ContentSource &content,
+                                                                       const std::filesystem::path &path) {
     const std::string path_string = path.string();
 
-    auto root_result = core::read_json(path, "location JSON");
+    auto root_result = core::read_json(content, path, "location JSON");
     if (!root_result)
       return std::unexpected(std::move(root_result).error());
     json root = std::move(*root_result);

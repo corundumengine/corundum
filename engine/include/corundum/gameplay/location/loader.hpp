@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::location {
 
   /** @brief Load one location batch file (`data/locations/<file>.json`).
@@ -20,6 +24,7 @@ namespace corundum::gameplay::location {
    *  @param path Batch file to load.
    *  @return The loaded locations, or an error describing an open, version, or format failure.
    */
-  [[nodiscard]] std::expected<std::vector<Location>, std::string> load_location_file(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<std::vector<Location>, std::string> load_location_file(const core::ContentSource &content,
+                                                                                     const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::location

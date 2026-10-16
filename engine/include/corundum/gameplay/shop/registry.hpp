@@ -12,6 +12,10 @@
 #include <string_view>
 #include <utility>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::shop {
 
   /** @brief Owns all loaded Shop objects for the session, keyed by id. */
@@ -24,7 +28,7 @@ namespace corundum::gameplay::shop {
      *  @param dir Directory containing shop batch files.
      *  @return Number of shops successfully loaded.
      */
-    [[nodiscard]] int load_all(const std::filesystem::path &dir);
+    [[nodiscard]] int load_all(const core::ContentSource &content, const std::filesystem::path &dir);
 
     /** @brief Look up a shop by id.
      *  @return Pointer to the shop, or nullptr if not found. O(log n). */

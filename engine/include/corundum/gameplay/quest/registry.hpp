@@ -13,6 +13,10 @@
 #include <string_view>
 #include <utility>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::quest {
 
   /** @brief Owns all loaded Quest objects for the session.
@@ -32,7 +36,7 @@ namespace corundum::gameplay::quest {
      * @note A missing or unreadable directory is also reported as 0, with the
      *       underlying error written to stderr.
      */
-    [[nodiscard]] int load_all(const std::filesystem::path &dir);
+    [[nodiscard]] int load_all(const core::ContentSource &content, const std::filesystem::path &dir);
 
     /**
      * @brief Look up a quest by id.

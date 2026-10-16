@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/sprites/sprite_sheet_clips.hpp>
@@ -145,10 +146,11 @@ namespace corundum::sprites {
 
   } // namespace
 
-  std::expected<SpriteSheetClips, std::string> load_sprite_sheet_clips(const std::filesystem::path &path) {
+  std::expected<SpriteSheetClips, std::string> load_sprite_sheet_clips(const core::ContentSource &content,
+                                                                       const std::filesystem::path &path) {
     const std::string file = path.string();
 
-    auto j_result = core::read_json(path, "sprite sheet");
+    auto j_result = core::read_json(content, path, "sprite sheet");
     if (!j_result)
       return std::unexpected(std::move(j_result).error());
     json j = std::move(*j_result);

@@ -5,6 +5,7 @@
 #include <corundum/audio/audio_system.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 
 #include "core/warn_log.hpp"
@@ -55,11 +56,11 @@ namespace corundum::audio {
     shutdown();
   }
 
-  void AudioSystem::load_catalog(std::string_view catalog_path) noexcept {
+  void AudioSystem::load_catalog(const core::ContentSource &content, std::string_view catalog_path) noexcept {
     if (catalog_path.empty())
       return;
 
-    auto json_result = core::read_json(catalog_path);
+    auto json_result = core::read_json(content, catalog_path);
     if (!json_result) {
       corundum::detail::warn_log("[audio] WARN: Sound catalog unavailable ({}): {}", catalog_path, json_result.error());
       return;

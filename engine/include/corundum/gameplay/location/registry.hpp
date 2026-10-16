@@ -12,6 +12,10 @@
 #include <string_view>
 #include <utility>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::location {
 
   /** @brief Owns all loaded Location objects for the session, keyed by id. */
@@ -24,7 +28,7 @@ namespace corundum::gameplay::location {
      *  @param dir Directory containing location batch files.
      *  @return Number of locations successfully loaded.
      */
-    [[nodiscard]] int load_all(const std::filesystem::path &dir);
+    [[nodiscard]] int load_all(const core::ContentSource &content, const std::filesystem::path &dir);
 
     /** @brief Look up a location by id.
      *  @return Pointer to the location, or nullptr if not found. O(log n). */

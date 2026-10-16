@@ -15,6 +15,7 @@
 #include <corundum/gameplay/item/item.hpp>
 
 #include <algorithm>
+#include <corundum/core/content_source.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <corundum/toolkit/host/tool_host.hpp>
@@ -107,12 +108,14 @@ int main(int argc, char *argv[]) {
   EditorState state;
 
   if (!cfg.quests_dir.empty() && std::filesystem::is_directory(cfg.quests_dir)) {
-    [[maybe_unused]] auto quest_count = state.quest_registry.load_all(cfg.quests_dir.string());
+    [[maybe_unused]] auto quest_count =
+        state.quest_registry.load_all(corundum::core::DirectoryContentSource{}, cfg.quests_dir.string());
     state.quests_loaded_ = true;
   }
 
   if (!cfg.dialogue_dir.empty() && std::filesystem::is_directory(cfg.dialogue_dir)) {
-    [[maybe_unused]] auto graph_count = state.graph_registry_.load_all(cfg.dialogue_dir.string());
+    [[maybe_unused]] auto graph_count =
+        state.graph_registry_.load_all(corundum::core::DirectoryContentSource{}, cfg.dialogue_dir.string());
     state.graphs_loaded_ = true;
   }
 

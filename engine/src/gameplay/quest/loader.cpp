@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
@@ -94,8 +95,8 @@ namespace corundum::gameplay::quest {
     }
 
     /// Read @p path, check its schema version, and return its schema-validated root.
-    json load_validated_root(const std::string &path) {
-      auto root_result = core::read_json(path, "quest JSON");
+    json load_validated_root(const core::ContentSource &content, const std::string &path) {
+      auto root_result = core::read_json(content, path, "quest JSON");
       if (!root_result)
         throw LoadError(std::move(root_result).error());
       json root = std::move(*root_result);
@@ -118,8 +119,8 @@ namespace corundum::gameplay::quest {
     }
 
     /// Build a Quest from an already schema-validated root.
-    Quest load_quest_impl(const std::string &path) {
-      const json root = load_validated_root(path);
+    Quest load_quest_impl(const core::ContentSource &content, const std::string &path) {
+      const json root = load_validated_root(content, path);
 
       // Schema guarantees: id, name, description are present; id and name are non-empty.
       Quest quest;
@@ -146,9 +147,9 @@ namespace corundum::gameplay::quest {
 
   } // namespace
 
-  std::expected<Quest, std::string> load_quest(const std::filesystem::path &path) {
+  std::expected<Quest, std::string> load_quest(const core::ContentSource &content, const std::filesystem::path &path) {
     try {
-      return load_quest_impl(path.string());
+      return load_quest_impl(content, path.string());
     } catch (const std::exception &e) {
       return std::unexpected(std::string(e.what()));
     }

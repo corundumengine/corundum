@@ -9,6 +9,10 @@
 #include <filesystem>
 #include <string>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::credits {
 
   /** @brief Load a credits file.
@@ -23,6 +27,7 @@ namespace corundum::gameplay::credits {
    *  @return The credits file (title and sections), or an error describing why the file could
    *          not be read or parsed.
    */
-  [[nodiscard]] std::expected<CreditsFile, std::string> load_credits_file(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<CreditsFile, std::string> load_credits_file(const core::ContentSource &content,
+                                                                          const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::credits

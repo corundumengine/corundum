@@ -7,6 +7,7 @@
 #include <corundum/gameplay/screens/credits.hpp>
 #include <corundum/ui/panel_style.hpp>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include "ui/recording_renderer.hpp"
 
@@ -19,6 +20,7 @@
 
 namespace fs = std::filesystem;
 namespace credits = corundum::gameplay::credits;
+using corundum::test::disk;
 
 namespace {
 
@@ -64,7 +66,7 @@ TEST_CASE("credits loader: parses sections with headings and lines") {
     ]
   })");
 
-  const auto result = credits::load_credits_file(path);
+  const auto result = credits::load_credits_file(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->sections.size() == 2);
   CHECK(result->sections[0].heading == "Design");
@@ -80,7 +82,7 @@ TEST_CASE("credits loader: an empty sections array is valid") {
   const auto path = dir / "credits.json";
   write_file(path, R"({"sections": []})");
 
-  const auto result = credits::load_credits_file(path);
+  const auto result = credits::load_credits_file(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->sections.empty());
 }
@@ -90,13 +92,13 @@ TEST_CASE("credits loader: title is optional and parses when present") {
 
   const auto with_title = dir / "with_title.json";
   write_file(with_title, R"({"title": "Project X", "sections": []})");
-  const auto r1 = credits::load_credits_file(with_title);
+  const auto r1 = credits::load_credits_file(disk(), with_title);
   REQUIRE(r1.has_value());
   CHECK(r1->title == "Project X");
 
   const auto without_title = dir / "without_title.json";
   write_file(without_title, R"({"sections": []})");
-  const auto r2 = credits::load_credits_file(without_title);
+  const auto r2 = credits::load_credits_file(disk(), without_title);
   REQUIRE(r2.has_value());
   CHECK(r2->title.empty());
 }
@@ -106,13 +108,13 @@ TEST_CASE("credits loader: background is optional and parses when present") {
 
   const auto with_background = dir / "with_background.json";
   write_file(with_background, R"({"background": "x.png", "sections": []})");
-  const auto r1 = credits::load_credits_file(with_background);
+  const auto r1 = credits::load_credits_file(disk(), with_background);
   REQUIRE(r1.has_value());
   CHECK(r1->background == "x.png");
 
   const auto without_background = dir / "without_background.json";
   write_file(without_background, R"({"sections": []})");
-  const auto r2 = credits::load_credits_file(without_background);
+  const auto r2 = credits::load_credits_file(disk(), without_background);
   REQUIRE(r2.has_value());
   CHECK(r2->background.empty());
 }
@@ -120,27 +122,27 @@ TEST_CASE("credits loader: background is optional and parses when present") {
 TEST_CASE("credits loader: a missing or malformed file is reported, not fatal") {
   const auto dir = temp_dir("errors");
   const auto missing = dir / "missing.json";
-  CHECK_FALSE(credits::load_credits_file(missing).has_value());
+  CHECK_FALSE(credits::load_credits_file(disk(), missing).has_value());
 
   const auto malformed = dir / "malformed.json";
   write_file(malformed, "not json");
-  CHECK_FALSE(credits::load_credits_file(malformed).has_value());
+  CHECK_FALSE(credits::load_credits_file(disk(), malformed).has_value());
 
   const auto no_sections = dir / "no_sections.json";
   write_file(no_sections, R"({"other": []})");
-  CHECK_FALSE(credits::load_credits_file(no_sections).has_value());
+  CHECK_FALSE(credits::load_credits_file(disk(), no_sections).has_value());
 
   const auto bad_line = dir / "bad_line.json";
   write_file(bad_line, R"({"sections": [{"heading": "x", "lines": [1]}]})");
-  CHECK_FALSE(credits::load_credits_file(bad_line).has_value());
+  CHECK_FALSE(credits::load_credits_file(disk(), bad_line).has_value());
 
   const auto bad_title = dir / "bad_title.json";
   write_file(bad_title, R"({"title": 1, "sections": []})");
-  CHECK_FALSE(credits::load_credits_file(bad_title).has_value());
+  CHECK_FALSE(credits::load_credits_file(disk(), bad_title).has_value());
 
   const auto bad_background = dir / "bad_background.json";
   write_file(bad_background, R"({"background": 1, "sections": []})");
-  CHECK_FALSE(credits::load_credits_file(bad_background).has_value());
+  CHECK_FALSE(credits::load_credits_file(disk(), bad_background).has_value());
 }
 
 TEST_CASE("credits render: a background image is drawn over the backdrop and switches text to ink") {

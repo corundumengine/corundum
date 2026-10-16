@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::codex {
 
   /** @brief Load one codex batch file (`data/codex/<file>.json`).
@@ -21,6 +25,7 @@ namespace corundum::gameplay::codex {
    *  @param path Batch file to load.
    *  @return The loaded entries, or an error describing an open, version, or format failure.
    */
-  [[nodiscard]] std::expected<std::vector<CodexEntry>, std::string> load_codex_file(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<std::vector<CodexEntry>, std::string> load_codex_file(const core::ContentSource &content,
+                                                                                    const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::codex

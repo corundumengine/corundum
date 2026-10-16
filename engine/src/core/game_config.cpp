@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cmath>
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/window_mode.hpp>
@@ -620,8 +621,8 @@ namespace corundum::core {
 
   } // namespace
 
-  std::expected<GameConfig, std::string> load_game_config(const fs::path &path) {
-    auto j_result = read_json(path, "game.json");
+  std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content, const fs::path &path) {
+    auto j_result = read_json(content, path, "game.json");
     if (!j_result)
       return std::unexpected(std::move(j_result).error());
     json j = std::move(*j_result);

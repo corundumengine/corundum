@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <cmath>
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
@@ -57,8 +58,9 @@ namespace corundum::world::tilemap {
     return base_dir / std::format("chunk_{}_{}.json", c.col, c.row);
   }
 
-  std::expected<WorldManifest, std::string> load_world_manifest(const fs::path &path) {
-    auto j_result = core::read_json(path, "manifest");
+  std::expected<WorldManifest, std::string> load_world_manifest(const core::ContentSource &content,
+                                                                const fs::path &path) {
+    auto j_result = core::read_json(content, path, "manifest");
     if (!j_result)
       return std::unexpected(std::move(j_result).error());
     json j = std::move(*j_result);

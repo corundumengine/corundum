@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
@@ -42,10 +43,11 @@ namespace corundum::gameplay::shop {
 
   } // namespace
 
-  std::expected<std::vector<Shop>, std::string> load_shop_file(const std::filesystem::path &path) {
+  std::expected<std::vector<Shop>, std::string> load_shop_file(const core::ContentSource &content,
+                                                               const std::filesystem::path &path) {
     const std::string path_string = path.string();
 
-    auto root_result = core::read_json(path, "shop JSON");
+    auto root_result = core::read_json(content, path, "shop JSON");
     if (!root_result)
       return std::unexpected(std::move(root_result).error());
     json root = std::move(*root_result);

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/direction.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/world/actors/actor.hpp>
@@ -139,11 +140,12 @@ namespace corundum::world {
 
   } // namespace
 
-  std::expected<SpawnPoints, std::string> load_spawn_points(const std::filesystem::path &path) {
-    if (!std::filesystem::exists(path))
+  std::expected<SpawnPoints, std::string> load_spawn_points(const core::ContentSource &content,
+                                                            const std::filesystem::path &path) {
+    if (!content.contains(path))
       return SpawnPoints{};
 
-    auto j_result = core::read_json(path, "spawn points");
+    auto j_result = core::read_json(content, path, "spawn points");
     if (!j_result)
       return std::unexpected(std::move(j_result).error());
     json j = std::move(*j_result);

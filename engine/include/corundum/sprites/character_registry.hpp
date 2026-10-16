@@ -9,6 +9,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::sprites {
 
   /// Owns all loaded sprite sheets and per-sprite frame data for characters.
@@ -16,7 +20,8 @@ namespace corundum::sprites {
   public:
     /// Scans index_path/characters/ and loads every sprite sheet JSON found.
     /// @return std::unexpected with error message if any sheet is missing, malformed, or contains duplicate ids.
-    [[nodiscard]] std::expected<void, std::string> load_all(const std::filesystem::path &index_path);
+    [[nodiscard]] std::expected<void, std::string> load_all(const core::ContentSource &content,
+                                                            const std::filesystem::path &index_path);
 
     /// Returns the numeric Id for a sheet string name, or k_null_sheet if not found.
     [[nodiscard]] Id find_sheet(const std::string &id) const noexcept;
@@ -41,7 +46,8 @@ namespace corundum::sprites {
     [[nodiscard]] const std::flat_map<std::string, Frames> &frames() const noexcept { return frames_; }
 
   private:
-    std::expected<void, std::string> load_sheet(const std::filesystem::path &sheet_path);
+    std::expected<void, std::string> load_sheet(const core::ContentSource &content,
+                                                const std::filesystem::path &sheet_path);
 
     /// Refreshes sprite_by_id_ from frames_. Must run after any set of inserts: growing
     /// frames_'s flat_map storage reallocates and invalidates the pointers stored here.

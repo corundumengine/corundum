@@ -19,6 +19,8 @@ using nlohmann::json;
 
 namespace fs = std::filesystem;
 
+using corundum::test::disk;
+
 namespace {
 
   void write_file(const fs::path &path, std::string_view content) {
@@ -95,7 +97,7 @@ TEST_CASE("read_json — accepts // and /* */ comments") {
     "b": 2
   })");
 
-  auto result = corundum::core::read_json(path);
+  auto result = corundum::core::read_json(disk(), path);
   REQUIRE(result.has_value());
   CHECK((*result)["a"] == 1);
   CHECK((*result)["b"] == 2);
@@ -111,7 +113,7 @@ TEST_CASE("read_json — round-trips a value written by write_json") {
   j["items"] = json::array({1, 2, 3});
 
   REQUIRE(corundum::core::write_json(path, j).has_value());
-  auto result = corundum::core::read_json(path);
+  auto result = corundum::core::read_json(disk(), path);
   REQUIRE(result.has_value());
   CHECK(*result == j);
 }
@@ -120,7 +122,7 @@ TEST_CASE("read_json — reports a missing file and malformed JSON") {
   const auto dir = temp_dir("read_errors");
 
   SUBCASE("missing file") {
-    auto result = corundum::core::read_json(dir / "does_not_exist.json");
+    auto result = corundum::core::read_json(disk(), dir / "does_not_exist.json");
     CHECK_FALSE(result.has_value());
     CHECK(result.error().find("cannot open") != std::string::npos);
   }
@@ -128,7 +130,7 @@ TEST_CASE("read_json — reports a missing file and malformed JSON") {
   SUBCASE("malformed JSON") {
     const auto path = dir / "malformed.json";
     write_file(path, "{ not valid json");
-    auto result = corundum::core::read_json(path);
+    auto result = corundum::core::read_json(disk(), path);
     CHECK_FALSE(result.has_value());
     CHECK(result.error().find("malformed JSON") != std::string::npos);
   }
@@ -139,16 +141,16 @@ TEST_CASE("read_json — a label names the document in both the missing-file and
 
   SUBCASE("missing file") {
     const auto path = dir / "missing_item.json";
-    auto result = corundum::core::read_json(path, "item JSON");
+    auto result = corundum::core::read_json(disk(), path, "item JSON");
     REQUIRE_FALSE(result.has_value());
-    CHECK(result.error().find("cannot open item JSON") != std::string::npos);
+    CHECK(result.error().find("item JSON: cannot open") != std::string::npos);
     CHECK(result.error().find(path.string()) != std::string::npos);
   }
 
   SUBCASE("malformed file") {
     const auto path = dir / "bad_item.json";
     write_file(path, "{ not valid json");
-    auto result = corundum::core::read_json(path, "item JSON");
+    auto result = corundum::core::read_json(disk(), path, "item JSON");
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().find("malformed item JSON") != std::string::npos);
     CHECK(result.error().find(path.string()) != std::string::npos);

@@ -26,7 +26,7 @@ namespace corundum {
     // Created first so the engine's content source outlives the platform adapters adopted below.
     auto engine = std::make_unique<Engine>();
 
-    auto cfg_result = core::load_game_config(options.config_path);
+    auto cfg_result = core::load_game_config(*engine->content, options.config_path);
     if (!cfg_result)
       return std::unexpected(std::format("load config '{}': {}", options.config_path, cfg_result.error()));
 

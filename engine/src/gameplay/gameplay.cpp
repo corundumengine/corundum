@@ -1424,35 +1424,35 @@ namespace corundum::gameplay {
     void load_content(Gameplay &gameplay, Engine &engine) {
       int dialogue_loaded{0};
       if (!engine.cfg.paths.dialogue_dir.empty())
-        dialogue_loaded = gameplay.graphs.load_all(engine.cfg.paths.dialogue_dir);
+        dialogue_loaded = gameplay.graphs.load_all(*engine.content, engine.cfg.paths.dialogue_dir);
       corundum::detail::info_log("[gameplay] Loaded {} dialogue graphs from '{}'", dialogue_loaded,
                                  engine.cfg.paths.dialogue_dir);
 
       int quest_loaded{0};
       if (!engine.cfg.paths.quests_dir.empty())
-        quest_loaded = gameplay.quests.load_all(engine.cfg.paths.quests_dir);
+        quest_loaded = gameplay.quests.load_all(*engine.content, engine.cfg.paths.quests_dir);
       corundum::detail::info_log("[gameplay] Loaded {} quests from '{}'", quest_loaded, engine.cfg.paths.quests_dir);
 
       int item_loaded{0};
       if (!engine.cfg.paths.items_dir.empty())
-        item_loaded = gameplay.items.load_all(engine.cfg.paths.items_dir);
+        item_loaded = gameplay.items.load_all(*engine.content, engine.cfg.paths.items_dir);
       corundum::detail::info_log("[gameplay] Loaded {} items from '{}'", item_loaded, engine.cfg.paths.items_dir);
 
       int codex_loaded{0};
       if (!engine.cfg.paths.codex_dir.empty())
-        codex_loaded = gameplay.codex.load_all(engine.cfg.paths.codex_dir);
+        codex_loaded = gameplay.codex.load_all(*engine.content, engine.cfg.paths.codex_dir);
       corundum::detail::info_log("[gameplay] Loaded {} codex entries from '{}'", codex_loaded,
                                  engine.cfg.paths.codex_dir);
 
       int location_loaded{0};
       if (!engine.cfg.paths.locations_dir.empty())
-        location_loaded = gameplay.locations.load_all(engine.cfg.paths.locations_dir);
+        location_loaded = gameplay.locations.load_all(*engine.content, engine.cfg.paths.locations_dir);
       corundum::detail::info_log("[gameplay] Loaded {} locations from '{}'", location_loaded,
                                  engine.cfg.paths.locations_dir);
 
       int shop_loaded{0};
       if (!engine.cfg.paths.shops_dir.empty())
-        shop_loaded = gameplay.shops.load_all(engine.cfg.paths.shops_dir);
+        shop_loaded = gameplay.shops.load_all(*engine.content, engine.cfg.paths.shops_dir);
       corundum::detail::info_log("[gameplay] Loaded {} shops from '{}'", shop_loaded, engine.cfg.paths.shops_dir);
 
       validate_quest_references(gameplay.graphs, gameplay.quests, gameplay.items);
@@ -1853,7 +1853,8 @@ namespace corundum::gameplay {
     const std::string &path = engine_->cfg.paths.credits_file;
     if (path.empty())
       return;
-    std::expected<credits::CreditsFile, std::string> loaded = credits::load_credits_file(std::filesystem::path{path});
+    std::expected<credits::CreditsFile, std::string> loaded =
+        credits::load_credits_file(*engine_->content, std::filesystem::path{path});
     if (!loaded) {
       warn_log("[credits] cannot load '{}': {} (Credits hidden)", path, loaded.error());
       return;

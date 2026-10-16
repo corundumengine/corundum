@@ -4,6 +4,7 @@
 #include <corundum/settings/user_settings.hpp>
 
 #include <corundum/audio/audio_backend.hpp>
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/schema_version.hpp>
@@ -154,7 +155,9 @@ namespace corundum::settings {
     if (!std::filesystem::exists(path))
       return {};
 
-    std::expected<nlohmann::json, std::string> root = core::read_json(path, "settings JSON");
+    // Settings live outside the content root; the empty-root source resolves the absolute path as given.
+    std::expected<nlohmann::json, std::string> root =
+        core::read_json(core::DirectoryContentSource{}, path, "settings JSON");
     if (!root)
       return std::unexpected(root.error());
 

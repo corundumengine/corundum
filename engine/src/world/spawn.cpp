@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/motion_sprite_table.hpp>
@@ -126,11 +127,10 @@ namespace corundum::world {
     }
 
     /// Load @p path and spawn its actors offset by (col_off, row_off); a missing file yields no actors.
-    std::expected<std::vector<EntityId>, std::string> spawn_actors_from_file(World &world,
-                                                                             const CharacterRegistry &registry,
-                                                                             const std::filesystem::path &path,
-                                                                             int col_off, int row_off) {
-      auto spawn_points = load_spawn_points(path);
+    std::expected<std::vector<EntityId>, std::string>
+    spawn_actors_from_file(const core::ContentSource &content, World &world, const CharacterRegistry &registry,
+                           const std::filesystem::path &path, int col_off, int row_off) {
+      auto spawn_points = load_spawn_points(content, path);
       if (!spawn_points)
         return std::unexpected(spawn_points.error());
       return spawn_actors(world, registry, spawn_points->actors, col_off, row_off);
@@ -204,7 +204,7 @@ namespace corundum::world {
     /// Spawn actors for active chunks with no tracked set, and respawn a departed chunk that has returned once its
     /// previous actors are flushed. A resident, non-departed set is never re-read: it already spawned (or failed) for
     /// this residency.
-    void spawn_new_chunks(Scene &scene, const corundum::render::RenderState &render,
+    void spawn_new_chunks(const core::ContentSource &content, Scene &scene, const corundum::render::RenderState &render,
                           const corundum::core::GameConfig &cfg, const CharacterRegistry &registry, int chunk_size) {
       for (const auto &entry : render.chunks.active()) {
         const auto set = std::ranges::find(scene.chunk_actors, entry.coord, &ChunkActorSet::coord);
@@ -213,7 +213,7 @@ namespace corundum::world {
 
         const auto path = std::filesystem::path(cfg.paths.spawn_points_dir) /
                           std::format("chunk_{}_{}.json", entry.coord.col, entry.coord.row);
-        auto spawned = spawn_actors_from_file(scene.world, registry, path, entry.coord.col * chunk_size,
+        auto spawned = spawn_actors_from_file(content, scene.world, registry, path, entry.coord.col * chunk_size,
                                               entry.coord.row * chunk_size);
         if (!spawned) {
           corundum::detail::warn_log("[engine] WARN: chunk ({}, {}) actors skipped: {}", entry.coord.col,
@@ -247,24 +247,23 @@ namespace corundum::world {
 
   } // namespace
 
-  std::expected<std::unique_ptr<Scene>, std::string> spawn_world(const corundum::core::GameConfig &cfg,
-                                                                 const corundum::sprites::CharacterRegistry &registry,
-                                                                 const corundum::world::tilemap::Tilemap &tilemap,
-                                                                 std::optional<corundum::entities::Position> player_pos,
-                                                                 bool spawn_file_actors) {
+  std::expected<std::unique_ptr<Scene>, std::string>
+  spawn_world(const corundum::core::ContentSource &content, const corundum::core::GameConfig &cfg,
+              const corundum::sprites::CharacterRegistry &registry, const corundum::world::tilemap::Tilemap &tilemap,
+              std::optional<corundum::entities::Position> player_pos, bool spawn_file_actors) {
     auto scene = std::make_unique<Scene>();
     World &world = scene->world;
 
     const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
     const auto actors_path = std::filesystem::path(cfg.paths.spawn_points_dir) / (map_stem + ".json");
 
-    auto spawn_points_result = load_spawn_points(actors_path);
+    auto spawn_points_result = load_spawn_points(content, actors_path);
     if (!spawn_points_result)
       return std::unexpected(spawn_points_result.error());
     const auto &spawn_points = *spawn_points_result;
 
     if (spawn_file_actors) {
-      if (!std::filesystem::exists(actors_path))
+      if (!content.contains(actors_path))
         corundum::detail::info_log("[engine] 0 actors (no spawn points file at '{}')", actors_path.string());
       else
         corundum::detail::info_log("[engine] Loaded {} actors from '{}'", spawn_points.actors.size(),
@@ -296,8 +295,9 @@ namespace corundum::world {
     return scene;
   }
 
-  void sync_chunk_actors(Scene &scene, const corundum::render::RenderState &render,
-                         const corundum::core::GameConfig &cfg, const corundum::sprites::CharacterRegistry &registry) {
+  void sync_chunk_actors(const corundum::core::ContentSource &content, Scene &scene,
+                         const corundum::render::RenderState &render, const corundum::core::GameConfig &cfg,
+                         const corundum::sprites::CharacterRegistry &registry) {
     if (render.mode != corundum::render::RenderMode::World)
       return;
     if (render.chunks.active_empty())
@@ -308,7 +308,7 @@ namespace corundum::world {
     const int chunk_size = render.manifest.chunk_size;
 
     despawn_departed_chunks(scene, render);
-    spawn_new_chunks(scene, render, cfg, registry, chunk_size);
+    spawn_new_chunks(content, scene, render, cfg, registry, chunk_size);
     prune_departed_chunks(scene, render);
   }
 

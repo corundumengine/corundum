@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -143,14 +144,15 @@ namespace corundum::world {
 
   } // namespace
 
-  std::expected<std::vector<Portal>, std::string> load_portals(const std::filesystem::path &path) {
+  std::expected<std::vector<Portal>, std::string> load_portals(const core::ContentSource &content,
+                                                               const std::filesystem::path &path) {
     // Absent file is a legitimate empty portal list; any other open/parse failure is an error.
-    if (!std::filesystem::exists(path))
+    if (!content.contains(path))
       return {};
 
     const std::string path_str = path.string();
 
-    auto parsed = corundum::core::read_json(path);
+    auto parsed = corundum::core::read_json(content, path);
     if (!parsed)
       return std::unexpected(std::move(parsed).error());
     json j = std::move(*parsed);

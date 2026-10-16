@@ -18,7 +18,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "memory_content_source.hpp"
 #include "world_transition_fixtures.hpp"
+
+using corundum::test::disk;
 
 namespace {
 
@@ -100,7 +103,7 @@ namespace {
 TEST_CASE("area textures: a loaded world holds one reference per distinct tileset texture") {
   CountingRenderer renderer;
   RenderState state;
-  REQUIRE(corundum::render::load_world(renderer, state, fixture_config(), {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
 
   REQUIRE_FALSE(state.area_texture_ids.empty());
   for (const uint32_t id : state.area_texture_ids) {
@@ -112,7 +115,7 @@ TEST_CASE("area textures: a loaded world holds one reference per distinct tilese
 TEST_CASE("area textures: unload_world releases and purges every area texture") {
   CountingRenderer renderer;
   RenderState state;
-  REQUIRE(corundum::render::load_world(renderer, state, fixture_config(), {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
   const std::vector<uint32_t> loaded = state.area_texture_ids;
 
   corundum::render::unload_world(renderer, state);
@@ -125,8 +128,8 @@ TEST_CASE("area textures: unload_world releases and purges every area texture") 
 TEST_CASE("area textures: reloading the same world keeps its textures resident") {
   CountingRenderer renderer;
   RenderState state;
-  REQUIRE(corundum::render::load_world(renderer, state, fixture_config(), {}).has_value());
-  REQUIRE(corundum::render::load_world(renderer, state, fixture_config(), {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
 
   CHECK(renderer.purged.empty());
   for (const uint32_t id : state.area_texture_ids) {
@@ -138,7 +141,7 @@ TEST_CASE("area textures: reloading the same world keeps its textures resident")
 TEST_CASE("area textures: a texture also held outside the area survives unload_world") {
   CountingRenderer renderer;
   RenderState state;
-  REQUIRE(corundum::render::load_world(renderer, state, fixture_config(), {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
   const std::string path = state.chunks.active_at(0).tilemap.tilesets[0].info.path;
   const auto id = renderer.load_texture(path);
   REQUIRE(id.has_value());
@@ -154,7 +157,7 @@ TEST_CASE("area textures: a process-lifetime texture loaded before the area surv
   const auto process_id = renderer.load_texture("ui/border.png");
   REQUIRE(process_id.has_value());
   RenderState state;
-  REQUIRE(corundum::render::load_world(renderer, state, fixture_config(), {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
 
   corundum::render::unload_world(renderer, state);
 

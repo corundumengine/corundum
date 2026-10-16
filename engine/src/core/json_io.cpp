@@ -119,19 +119,4 @@ namespace corundum::core {
     return parse_json(*bytes, path.string(), label);
   }
 
-  std::expected<nlohmann::json, std::string> read_json(const std::filesystem::path &path, std::string_view label) {
-    std::ifstream f(path);
-    if (!f) {
-      if (label.empty())
-        return std::unexpected(std::format("cannot open: {}", path.string()));
-      return std::unexpected(std::format("cannot open {}: {}", label, path.string()));
-    }
-    try {
-      return nlohmann::json::parse(f, nullptr, true, true);
-    } catch (const nlohmann::json::exception &e) {
-      const std::string_view kind = label.empty() ? "JSON" : label;
-      return std::unexpected(std::format("malformed {} in {}: {}", kind, path.string(), e.what()));
-    }
-  }
-
 } // namespace corundum::core

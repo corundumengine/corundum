@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/sprites/sprite_sheet_clips.hpp>
 
@@ -15,6 +16,8 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 
@@ -65,7 +68,7 @@ TEST_CASE("load_sprite_sheet_clips — valid document parses every field") {
     }
   })");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->id == "hero");
   CHECK(result->path == "hero.png");
@@ -91,7 +94,7 @@ TEST_CASE("load_sprite_sheet_clips — minimal document uses defaults") {
   const auto path = dir / "sheet.json";
   write_file(path, k_minimal_json);
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->id.empty());
   CHECK(result->offset_x == 0);
@@ -103,7 +106,7 @@ TEST_CASE("load_sprite_sheet_clips — minimal document uses defaults") {
 TEST_CASE("load_sprite_sheet_clips — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
   CHECK(result.error().find(path.string()) != std::string::npos);
 }
@@ -113,7 +116,7 @@ TEST_CASE("load_sprite_sheet_clips — malformed JSON fails") {
   const auto path = dir / "sheet.json";
   write_file(path, "{ this is not json");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
   CHECK(result.error().find(path.string()) != std::string::npos);
 }
@@ -123,7 +126,7 @@ TEST_CASE("load_sprite_sheet_clips — top-level non-object fails without throwi
   const auto path = dir / "sheet.json";
   write_file(path, "[1, 2, 3]");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -132,7 +135,7 @@ TEST_CASE("load_sprite_sheet_clips — missing 'schema_version' is treated as ve
   const auto path = dir / "sheet.json";
   write_file(path, k_minimal_json);
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(result.has_value());
 }
 
@@ -141,7 +144,7 @@ TEST_CASE("load_sprite_sheet_clips — newer 'schema_version' fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"schema_version":2,"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png"})");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -153,7 +156,7 @@ TEST_CASE("load_sprite_sheet_clips — wrong-typed and zero 'schema_version' fai
 
   for (const std::string_view version : {R"("1")", "null", "true", "0", "1.5"}) {
     write_file(path, std::format(k_document, version));
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CHECK_MESSAGE(!result.has_value(), "schema_version = ", version);
   }
 }
@@ -167,7 +170,7 @@ TEST_CASE("load_sprite_sheet_clips — missing or non-string 'path' fails") {
            R"({"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":7})",
        }) {
     write_file(path, document);
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CHECK(!result.has_value());
   }
 }
@@ -177,7 +180,7 @@ TEST_CASE("load_sprite_sheet_clips — non-string 'id' fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":7,"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png"})");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -193,7 +196,7 @@ TEST_CASE("load_sprite_sheet_clips — missing required geometry fails") {
            R"({"frame_width":16,"frame_height":16,"columns":1,"path":"a.png"})",
        }) {
     write_file(path, document);
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CAPTURE(document);
     CHECK(!result.has_value());
   }
@@ -207,7 +210,7 @@ TEST_CASE("load_sprite_sheet_clips — non-positive frame size fails") {
 
   for (const std::string_view value : {"0", "-4"}) {
     write_file(path, std::format(k_document, value));
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CHECK_MESSAGE(!result.has_value(), "frame_width = ", value);
   }
 }
@@ -220,7 +223,7 @@ TEST_CASE("load_sprite_sheet_clips — non-integer geometry fails without throwi
 
   for (const std::string_view value : {R"("16")", "null", "true", "16.5", "[16]"}) {
     write_file(path, std::format(k_document, value));
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CHECK_MESSAGE(!result.has_value(), "frame_width = ", value);
   }
 }
@@ -231,7 +234,7 @@ TEST_CASE("load_sprite_sheet_clips — out-of-range geometry fails") {
   // Overflows a 32-bit int if silently narrowed; must be rejected rather than wrapped.
   write_file(path, R"({"frame_width":4294967301,"frame_height":16,"columns":1,"rows":1,"path":"a.png"})");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -244,7 +247,7 @@ TEST_CASE("load_sprite_sheet_clips — negative columns/rows fail") {
            R"({"frame_width":16,"frame_height":16,"columns":1,"rows":-1,"path":"a.png"})",
        }) {
     write_file(path, document);
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CAPTURE(document);
     CHECK(!result.has_value());
   }
@@ -258,7 +261,7 @@ TEST_CASE("load_sprite_sheet_clips — negative placement fails") {
 
   for (const char *key : {"offset_x", "offset_y", "spacing_x", "spacing_y"}) {
     write_file(path, std::format(k_document, key));
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CAPTURE(key);
     CHECK(!result.has_value());
   }
@@ -269,7 +272,7 @@ TEST_CASE("load_sprite_sheet_clips — non-object 'animations' fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png","animations":[]})");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -279,7 +282,7 @@ TEST_CASE("load_sprite_sheet_clips — non-positive 'fps' fails") {
   write_file(path,
              R"({"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png","animations":{"fps":0}})");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -291,7 +294,7 @@ TEST_CASE("load_sprite_sheet_clips — non-integer 'fps' fails without throwing"
 
   for (const std::string_view fps : {R"("fast")", "null", "true", "6.5", "[6]"}) {
     write_file(path, std::format(k_document, fps));
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CHECK_MESSAGE(!result.has_value(), "fps = ", fps);
   }
 }
@@ -302,7 +305,7 @@ TEST_CASE("load_sprite_sheet_clips — non-array 'clips' fails") {
   write_file(path,
              R"({"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png","animations":{"clips":{}}})");
 
-  const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+  const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -318,7 +321,7 @@ TEST_CASE("load_sprite_sheet_clips — empty and duplicate clip names fail") {
            R"([{"name":7,"frames":[]}])",
        }) {
     write_file(path, std::format(k_document, clips));
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CAPTURE(clips);
     CHECK(!result.has_value());
   }
@@ -338,7 +341,7 @@ TEST_CASE("load_sprite_sheet_clips — malformed frames fail without throwing") 
            R"([7])",
        }) {
     write_file(path, std::format(k_document, frames));
-    const auto result = corundum::sprites::load_sprite_sheet_clips(path);
+    const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
     CAPTURE(frames);
     CHECK(!result.has_value());
   }
@@ -383,7 +386,7 @@ TEST_CASE("serialize_sprite_sheet_clips — full data round-trips through load")
   data.clips.push_back({.name = "idle", .frames = {}});
 
   write_file(path, serialize_sprite_sheet_clips(data).dump());
-  const auto result = load_sprite_sheet_clips(path);
+  const auto result = load_sprite_sheet_clips(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->id == data.id);
   CHECK(result->path == data.path);
@@ -421,7 +424,7 @@ TEST_CASE("serialize_sprite_sheet_clips — non-default fps survives with no cli
   CHECK(j["animations"]["fps"] == 12);
 
   write_file(path, j.dump());
-  const auto result = load_sprite_sheet_clips(path);
+  const auto result = load_sprite_sheet_clips(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->anim_fps == 12);
   CHECK(result->clips.empty());

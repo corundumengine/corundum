@@ -10,6 +10,10 @@
 #include <string>
 #include <string_view>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::item {
 
   /** @brief Owns all loaded Item objects for the session.
@@ -30,7 +34,7 @@ namespace corundum::gameplay::item {
      * @param dir Root directory holding one subfolder per item category.
      * @return Number of items successfully loaded.
      */
-    [[nodiscard]] int load_all(const std::filesystem::path &dir);
+    [[nodiscard]] int load_all(const core::ContentSource &content, const std::filesystem::path &dir);
 
     /**
      * @brief Look up an item by id.

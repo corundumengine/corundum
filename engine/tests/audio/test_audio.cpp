@@ -17,6 +17,10 @@
 #include <utility>
 #include <vector>
 
+#include "memory_content_source.hpp"
+
+using corundum::test::disk;
+
 namespace {
 
   /// Per-bus recording pre-filled with -1 so "never called" is distinguishable from a real 0.
@@ -174,7 +178,7 @@ TEST_CASE("AudioSystem: catalog entry overrides the .ogg fallback") {
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.load_catalog(catalog_path.string());
+  sys.load_catalog(disk(), catalog_path.string());
 
   REQUIRE(sys.play_sound("coin").has_value());
   REQUIRE(stub->loaded_paths.size() == 1);
@@ -248,7 +252,7 @@ TEST_CASE("AudioSystem: load_catalog with a missing file is a warn-and-continue"
   REQUIRE(sys.initialize("data/sounds").has_value());
 
   // Non-existent path: load_catalog must not throw, must not corrupt state.
-  sys.load_catalog("/nonexistent/corundum_sound_catalog.json");
+  sys.load_catalog(disk(), "/nonexistent/corundum_sound_catalog.json");
 
   // .ogg fallback must still resolve correctly afterwards.
   REQUIRE(sys.play_sound("coin").has_value());
@@ -267,7 +271,7 @@ TEST_CASE("AudioSystem: load_catalog with malformed JSON is a warn-and-continue"
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.load_catalog(catalog_path.string());
+  sys.load_catalog(disk(), catalog_path.string());
 
   // Malformed catalog must not throw and must leave .ogg fallback intact.
   REQUIRE(sys.play_sound("coin").has_value());
@@ -287,7 +291,7 @@ TEST_CASE("AudioSystem: load_catalog with a non-object JSON is a warn-and-contin
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.load_catalog(catalog_path.string());
+  sys.load_catalog(disk(), catalog_path.string());
 
   // Non-object JSON must not throw and must leave .ogg fallback intact.
   REQUIRE(sys.play_sound("coin").has_value());
@@ -300,7 +304,7 @@ TEST_CASE("AudioSystem: load_catalog with empty path is a silent no-op") {
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.load_catalog("");
+  sys.load_catalog(disk(), "");
   REQUIRE(sys.play_sound("coin").has_value());
   CHECK(stub->loaded_paths[0] == "data/sounds/coin.ogg");
 }

@@ -17,6 +17,10 @@
 #include <vector>
 
 namespace corundum::core {
+  class ContentSource;
+}
+
+namespace corundum::core {
 
   /// Font sizes and layout parameters for the dialogue panel.
   struct DialogueRenderConfig {
@@ -259,7 +263,8 @@ namespace corundum::core {
   /// @param path The filesystem path to game.json.
   /// @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
   /// failure.
-  [[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content,
+                                                                        const std::filesystem::path &path);
 
   /** @brief The game's display name for framing screens.
    *

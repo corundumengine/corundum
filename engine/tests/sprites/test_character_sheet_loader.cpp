@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/sprites/sprite.hpp>
 
@@ -12,6 +13,8 @@
 #include <filesystem>
 #include <fstream>
 #include <string_view>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 
@@ -48,7 +51,7 @@ TEST_CASE("load_character_sheet — valid sheet parses correctly") {
   const auto path = dir / "sheet.json";
   write_file(path, k_valid_sheet_json);
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   REQUIRE(result.has_value());
   const auto &data = *result;
   CHECK(data.id == "test_char");
@@ -78,7 +81,7 @@ TEST_CASE("load_character_sheet — missing required field 'id' fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"path":"p.png","frame_width":16,"frame_height":16,"frames":{}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -87,7 +90,7 @@ TEST_CASE("load_character_sheet — missing required field 'path' fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","frame_width":16,"frame_height":16,"frames":{}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -96,7 +99,7 @@ TEST_CASE("load_character_sheet — missing required field 'frame_width' fails")
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_height":16,"frames":{}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -105,7 +108,7 @@ TEST_CASE("load_character_sheet — missing required field 'frame_height' fails"
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frames":{}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -116,7 +119,7 @@ TEST_CASE("load_character_sheet — col_span < 1 rejected") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":0,"row_span":1}}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -127,7 +130,7 @@ TEST_CASE("load_character_sheet — row_span < 1 rejected") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":0}}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -138,7 +141,7 @@ TEST_CASE("load_character_sheet — walk_around_offset defaults to 0.6f when abs
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   REQUIRE(result.has_value());
   CHECK(result->sprites[0].walk_around_offset == doctest::Approx(0.6f));
 }
@@ -150,7 +153,7 @@ TEST_CASE("load_character_sheet — per-frame missing 'col' fails") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"row":0}]}}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -161,7 +164,7 @@ TEST_CASE("load_character_sheet — per-frame missing 'row' fails") {
       path,
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"col":0}]}}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -170,7 +173,7 @@ TEST_CASE("load_character_sheet — missing 'frames' object fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -179,7 +182,7 @@ TEST_CASE("load_character_sheet — empty 'frames' object is valid") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{}})");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(result.has_value());
   CHECK(result->sprites.empty());
 }
@@ -187,7 +190,7 @@ TEST_CASE("load_character_sheet — empty 'frames' object is valid") {
 TEST_CASE("load_character_sheet — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -196,7 +199,7 @@ TEST_CASE("load_character_sheet — malformed JSON fails") {
   const auto path = dir / "sheet.json";
   write_file(path, R"({not valid json)");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK(!result.has_value());
 }
 
@@ -208,7 +211,7 @@ TEST_CASE("load_character_sheet — footprint spans default when absent") {
     "frames":{"hero":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->sprites.size() == 1);
   CHECK(result->sprites[0].footprint_col_span == doctest::Approx(corundum::sprites::k_default_footprint_col_span));
@@ -225,7 +228,7 @@ TEST_CASE("load_character_sheet — a negative footprint span is rejected") {
     "frames":{"hero":{"col_span":1,"row_span":1,"footprint_col_span":-0.1,"south":[{"col":0,"row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK_FALSE(result.has_value());
 }
 
@@ -237,7 +240,7 @@ TEST_CASE("load_character_sheet — a wrong-typed top-level field is rejected, n
     "frames":{"hero":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK_FALSE(result.has_value());
 }
 
@@ -249,7 +252,7 @@ TEST_CASE("load_character_sheet — a wrong-typed per-sprite field is rejected, 
     "frames":{"hero":{"col_span":1,"row_span":1,"fps":"fast","south":[{"col":0,"row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK_FALSE(result.has_value());
 }
 
@@ -261,7 +264,7 @@ TEST_CASE("load_character_sheet — a wrong-typed frame coordinate is rejected, 
     "frames":{"hero":{"col_span":1,"row_span":1,"south":[{"col":"a","row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK_FALSE(result.has_value());
 }
 
@@ -273,7 +276,7 @@ TEST_CASE("load_character_sheet — an unknown animation name is rejected") {
     "frames":{"hero":{"col_span":1,"row_span":1,"walk_south":[{"col":0,"row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK_FALSE(result.has_value());
 }
 
@@ -285,7 +288,7 @@ TEST_CASE("load_character_sheet — a negative fps is rejected") {
     "frames":{"hero":{"col_span":1,"row_span":1,"fps":-3,"south":[{"col":0,"row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK_FALSE(result.has_value());
 }
 
@@ -297,6 +300,6 @@ TEST_CASE("load_character_sheet — a non-positive frame size is rejected") {
     "frames":{"hero":{"col_span":1,"row_span":1,"south":[{"col":0,"row":0}]}}
   })");
 
-  const auto result = corundum::sprites::load_character_sheet(path);
+  const auto result = corundum::sprites::load_character_sheet(disk(), path);
   CHECK_FALSE(result.has_value());
 }

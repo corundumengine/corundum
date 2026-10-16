@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/toolkit/widgets/ui_theme.hpp>
 #include <cstdint>
@@ -84,7 +85,7 @@ namespace corundum::toolkit::widgets {
   }
 
   std::expected<ThemeColors, std::string> load_theme(const std::string &path) {
-    auto j = corundum::core::read_json(path);
+    auto j = corundum::core::read_json(corundum::core::DirectoryContentSource{}, path);
     if (!j)
       return std::unexpected(std::string("Cannot open theme: ") + j.error());
     ImGui::StyleColorsDark();

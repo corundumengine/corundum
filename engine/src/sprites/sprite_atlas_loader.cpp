@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/sprites/sprite_atlas.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -219,10 +220,10 @@ namespace corundum::sprites {
 
   } // namespace
 
-  std::expected<SpriteAtlas, std::string> load_sprite_atlas(const fs::path &path) {
+  std::expected<SpriteAtlas, std::string> load_sprite_atlas(const core::ContentSource &content, const fs::path &path) {
     const std::string file = path.string();
 
-    auto j_result = core::read_json(path, "sprite atlas");
+    auto j_result = core::read_json(content, path, "sprite atlas");
     if (!j_result)
       return std::unexpected(std::move(j_result).error());
     json j = std::move(*j_result);

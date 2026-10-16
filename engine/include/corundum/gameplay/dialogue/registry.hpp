@@ -13,6 +13,10 @@
 #include <string_view>
 #include <utility>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::dialogue {
 
   /// Owns all loaded DialogueGraphs for the session.
@@ -22,7 +26,7 @@ namespace corundum::gameplay::dialogue {
     /// Scans `dir` for *.json files and loads each as a Graph.
     /// Bad files are skipped with a stderr message (non-fatal).
     /// @return Number of graphs successfully loaded.
-    [[nodiscard]] int load_all(const std::filesystem::path &dir);
+    [[nodiscard]] int load_all(const core::ContentSource &content, const std::filesystem::path &dir);
 
     /// Returns a pointer to the graph with the given id, or nullptr.
     [[nodiscard]] const Graph *find(std::string_view graph_id) const;

@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::shop {
 
   /** @brief Load one shop batch file (`data/shops/<file>.json`).
@@ -20,6 +24,7 @@ namespace corundum::gameplay::shop {
    *  @param path Batch file to load.
    *  @return The loaded shops, or an error describing an open, version, or format failure.
    */
-  [[nodiscard]] std::expected<std::vector<Shop>, std::string> load_shop_file(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<std::vector<Shop>, std::string> load_shop_file(const core::ContentSource &content,
+                                                                             const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::shop

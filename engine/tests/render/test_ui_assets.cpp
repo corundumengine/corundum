@@ -5,6 +5,7 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <doctest/doctest.h>
 
@@ -13,6 +14,8 @@
 #include <string_view>
 
 namespace fs = std::filesystem;
+
+using corundum::test::disk;
 
 namespace {
 
@@ -54,7 +57,7 @@ TEST_CASE("load_ui_assets — border cell size comes from the upper_left frame's
 
   corundum::platform::null::NullRenderer renderer;
   corundum::render::RenderState state;
-  const auto result = corundum::render::load_ui_assets(renderer, state, manifest.string());
+  const auto result = corundum::render::load_ui_assets(disk(), renderer, state, manifest.string());
 
   REQUIRE(result.has_value());
   CHECK(state.panel_skin.border.texture_id == corundum::platform::null::k_dummy_handle);
@@ -66,7 +69,7 @@ TEST_CASE("load_ui_assets — border cell size comes from the upper_left frame's
 TEST_CASE("load_ui_assets — a missing manifest is a non-fatal no-op") {
   corundum::platform::null::NullRenderer renderer;
   corundum::render::RenderState state;
-  const auto result = corundum::render::load_ui_assets(renderer, state, "/nonexistent/borders.json");
+  const auto result = corundum::render::load_ui_assets(disk(), renderer, state, "/nonexistent/borders.json");
 
   CHECK(result.has_value());
   CHECK(state.panel_skin.border.texture_id == 0);

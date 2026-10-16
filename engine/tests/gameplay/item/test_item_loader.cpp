@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/gameplay/item/item.hpp>
 
@@ -14,6 +15,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 namespace item = corundum::gameplay::item;
@@ -43,7 +46,7 @@ TEST_CASE("item loader: batch file loads multiple items and injects the folder c
     ]
   })");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Weapon);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Weapon);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 2);
 
@@ -75,7 +78,7 @@ TEST_CASE("item loader: item missing id fails schema validation for that element
     ]
   })");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Misc);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].id == "good");
@@ -94,7 +97,7 @@ TEST_CASE("item loader: explicit conflicting category is overridden by the folde
   // Folder says Weapon; the explicit "category": "misc" must be overridden and
   // the item still loads (with a warning on stderr). The "weapon" payload is
   // required because the injected category is Weapon.
-  const auto result = item::load_item_file(path, item::ItemCategory::Weapon);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Weapon);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].id == "misc_item");
@@ -116,7 +119,7 @@ TEST_CASE("item loader: apparel and potion payloads parse into the Item struct")
     ]
   })");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Apparel);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Apparel);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
 
@@ -151,7 +154,7 @@ TEST_CASE("item loader: missing schema_version fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"items":[]})");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Misc);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
 }
 
@@ -160,7 +163,7 @@ TEST_CASE("item loader: wrong-type schema_version fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"schema_version":"one","items":[]})");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Misc);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
 }
 
@@ -169,7 +172,7 @@ TEST_CASE("item loader: unsupported schema_version fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"schema_version":2,"items":[]})");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Misc);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
   CHECK(result.error().find('1') != std::string::npos);
 }
@@ -179,7 +182,7 @@ TEST_CASE("item loader: non-array items fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"schema_version":1,"items":{}})");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Misc);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
 }
 
@@ -188,7 +191,7 @@ TEST_CASE("item loader: malformed JSON returns error") {
   const auto path = dir / "batch.json";
   write_file(path, "not valid json");
 
-  const auto result = item::load_item_file(path, item::ItemCategory::Misc);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
   CHECK(result.error().find("malformed item JSON") != std::string::npos);
 }
@@ -205,7 +208,7 @@ TEST_CASE("item loader: weapon folder item missing weapon object fails schema va
 
   // Injected category is Weapon, so the missing "weapon" object fails schema
   // validation for that element only — the file still loads (with zero items).
-  const auto result = item::load_item_file(path, item::ItemCategory::Weapon);
+  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Weapon);
   REQUIRE(result.has_value());
   CHECK(result->empty());
 }
@@ -244,7 +247,7 @@ TEST_CASE("registry load_all loads category folders, skips unknown and bad files
   write_file(dir / "weapons" / "notes.txt", "not an item");
 
   item::Registry reg;
-  const int loaded = reg.load_all(dir);
+  const int loaded = reg.load_all(disk(), dir);
 
   CHECK(loaded == 4);
   CHECK(reg.size() == 4);
@@ -285,7 +288,7 @@ TEST_CASE("registry load_all: duplicate id across two files warns and keeps the 
   })");
 
   item::Registry reg;
-  const int loaded = reg.load_all(dir);
+  const int loaded = reg.load_all(disk(), dir);
 
   CHECK(loaded == 1);
   const auto *sword = reg.find("sword");
@@ -303,4 +306,13 @@ TEST_CASE("item flags: is_held_item accepts only positive item.<id> counts") {
   CHECK_FALSE(item::is_held_item("items.potion", 1));
 
   CHECK(item::item_id_from_flag("item.elixir") == "elixir");
+}
+
+TEST_CASE("item::Registry: load_all reads categories from an in-memory content source") {
+  corundum::test::MemoryContentSource source;
+  source.add("items/weapons/a.json",
+             R"({"schema_version":1,"items":[{"id":"sword","name":"Sword","weapon":{"damage":1}}]})");
+
+  item::Registry registry;
+  CHECK(registry.load_all(source, "items") == 1);
 }

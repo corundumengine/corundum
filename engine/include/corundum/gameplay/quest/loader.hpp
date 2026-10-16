@@ -8,6 +8,10 @@
 #include <filesystem>
 #include <string>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::quest {
 
   /**
@@ -22,6 +26,7 @@ namespace corundum::gameplay::quest {
    * @param path Filesystem path to the quest JSON file.
    * @return The parsed Quest on success, or a message describing the failure.
    */
-  [[nodiscard]] std::expected<Quest, std::string> load_quest(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<Quest, std::string> load_quest(const core::ContentSource &content,
+                                                             const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::quest

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/core/files.hpp>
+#include <corundum/core/content_source.hpp>
 #include <corundum/gameplay/location/loader.hpp>
 #include <corundum/gameplay/location/registry.hpp>
 
@@ -14,8 +14,8 @@
 
 namespace corundum::gameplay::location {
 
-  int Registry::load_all(const std::filesystem::path &dir) {
-    const auto entries = core::list_dir_entries(dir, {.extensions = {"json"}});
+  int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
+    const auto entries = content.list(dir, {.extensions = {"json"}});
     if (!entries) {
       corundum::detail::warn_log("[location] cannot read location directory '{}': {}", dir.string(), entries.error());
       return 0;
@@ -26,7 +26,7 @@ namespace corundum::gameplay::location {
       if (entry.is_dir)
         continue;
 
-      auto result = load_location_file(entry.path);
+      auto result = load_location_file(content, entry.path);
       if (!result) {
         corundum::detail::warn_log("[location] skipping '{}': {}", entry.name, result.error());
         continue;

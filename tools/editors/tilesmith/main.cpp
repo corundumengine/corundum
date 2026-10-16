@@ -18,6 +18,7 @@
 #include "tileset_view.hpp"
 #include "undo.hpp"
 #include <algorithm>
+#include <corundum/core/content_source.hpp>
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/toolkit/widgets/fonts.hpp>
@@ -95,7 +96,8 @@ namespace tools::tilesmith {
                        std::vector<TilesetView> &tileset_views) {
     corundum::world::tilemap::clear_tileset_cache();
 
-    auto tilemap_result = corundum::world::tilemap::load_tilemap(state.map_path.string());
+    auto tilemap_result =
+        corundum::world::tilemap::load_tilemap(corundum::core::DirectoryContentSource{}, state.map_path.string());
     if (!tilemap_result)
       throw std::runtime_error(tilemap_result.error());
     auto new_map = std::move(*tilemap_result);

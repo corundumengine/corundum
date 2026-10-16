@@ -11,6 +11,10 @@
 #include <utility>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::world::tilemap {
 
   /// Grid coordinate identifying a single chunk in the world map (column, row).
@@ -56,7 +60,8 @@ namespace corundum::world::tilemap {
 
   /// Parses a manifest.json at @p path.
   /// @return WorldManifest on success, or an error string describing the failure.
-  [[nodiscard]] std::expected<WorldManifest, std::string> load_world_manifest(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<WorldManifest, std::string> load_world_manifest(const core::ContentSource &content,
+                                                                              const std::filesystem::path &path);
 
   /// Converts a Cartesian world-pixel position to the chunk that contains it.
   /// Used internally for collision geometry (which stays in Cartesian space).

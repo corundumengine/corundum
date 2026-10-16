@@ -12,6 +12,10 @@
 #include <string_view>
 #include <utility>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::gameplay::codex {
 
   /** @brief Owns all loaded CodexEntry objects for the session.
@@ -27,7 +31,7 @@ namespace corundum::gameplay::codex {
      *  @param dir Directory containing codex batch files.
      *  @return Number of entries successfully loaded.
      */
-    [[nodiscard]] int load_all(const std::filesystem::path &dir);
+    [[nodiscard]] int load_all(const core::ContentSource &content, const std::filesystem::path &dir);
 
     /** @brief Look up an entry by id.
      *  @return Pointer to the entry, or nullptr if not found. O(log n). */

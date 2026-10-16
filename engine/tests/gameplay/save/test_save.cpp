@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "font_fixtures.hpp"
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 #include <corundum/render/render_state.hpp>
@@ -37,6 +38,7 @@
 #include <vector>
 
 namespace fs = std::filesystem;
+using corundum::test::disk;
 using nlohmann::json;
 
 namespace {
@@ -538,7 +540,7 @@ TEST_CASE("save: save_game creates a missing parent directory and leaves no temp
   temp += ".tmp";
   CHECK_FALSE(fs::exists(temp));
 
-  const auto read = corundum::core::read_json(p);
+  const auto read = corundum::core::read_json(disk(), p);
   REQUIRE(read.has_value());
   const auto state = corundum::save::parse(*read);
   REQUIRE(state.has_value());
@@ -632,7 +634,7 @@ TEST_CASE("gameplay: autosave writes the autosave slot and sets last_slot") {
   const fs::path file = corundum::save::slot_path(*dir, corundum::save::k_autosave_slot);
   REQUIRE(fs::exists(file));
 
-  const auto read = corundum::core::read_json(file);
+  const auto read = corundum::core::read_json(disk(), file);
   REQUIRE(read.has_value());
   const auto state = corundum::save::parse(*read);
   REQUIRE(state.has_value());

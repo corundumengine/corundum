@@ -9,6 +9,7 @@
 #include "tileset_view.hpp"
 #include <algorithm>
 #include <cmath>
+#include <corundum/core/content_source.hpp>
 #include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -75,7 +76,8 @@ namespace tools::tilesmith {
 
       corundum::world::tilemap::clear_tileset_cache();
 
-      const auto tileset_result = corundum::world::tilemap::load_tileset(source_path);
+      const auto tileset_result =
+          corundum::world::tilemap::load_tileset(corundum::core::DirectoryContentSource{}, source_path);
       if (!tileset_result)
         throw std::runtime_error(tileset_result.error());
       TilesetInfo info = std::move(*tileset_result);

@@ -4,7 +4,7 @@
 #include <corundum/gameplay/codex/loader.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
 
-#include <corundum/core/files.hpp>
+#include <corundum/core/content_source.hpp>
 
 #include "core/warn_log.hpp"
 
@@ -15,8 +15,8 @@
 
 namespace corundum::gameplay::codex {
 
-  int Registry::load_all(const std::filesystem::path &dir) {
-    const auto entries = core::list_dir_entries(dir, {.extensions = {"json"}});
+  int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
+    const auto entries = content.list(dir, {.extensions = {"json"}});
     if (!entries) {
       corundum::detail::warn_log("[codex] cannot read codex directory '{}': {}", dir.string(), entries.error());
       return 0;
@@ -27,7 +27,7 @@ namespace corundum::gameplay::codex {
       if (entry.is_dir)
         continue;
 
-      auto result = load_codex_file(entry.path);
+      auto result = load_codex_file(content, entry.path);
       if (!result) {
         corundum::detail::warn_log("[codex] skipping '{}': {}", entry.name, result.error());
         continue;

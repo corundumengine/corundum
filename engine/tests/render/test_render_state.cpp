@@ -18,6 +18,10 @@
 #include <utility>
 #include <vector>
 
+#include "memory_content_source.hpp"
+
+using corundum::test::disk;
+
 namespace tilemap = corundum::world::tilemap;
 namespace render_data = corundum::render;
 
@@ -262,7 +266,7 @@ TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk w
   corundum::platform::null::NullRenderer renderer;
   const corundum::core::GameConfig cfg{};
 
-  render_system::stream_world_chunks(renderer, state, cfg, scene);
+  render_system::stream_world_chunks(disk(), renderer, state, cfg, scene);
 
   CHECK(state.chunks.active_size() == 2);
   CHECK(state.chunks.consume_dirty()); // fails before the fix

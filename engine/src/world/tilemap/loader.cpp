@@ -4,6 +4,7 @@
 #include "encoding.hpp"
 
 #include <algorithm>
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/sprites/sprite_atlas.hpp>
@@ -47,19 +48,12 @@ namespace corundum::world::tilemap {
     /// Read the optional sidecar @c {atlas_path.stem()}.tiledata.json sitting next to @p atlas_path.
     /// @return The parsed object, or std::nullopt when the sidecar is absent or malformed — a broken
     ///         sidecar is treated as absent rather than failing the whole load.
-    std::optional<json> read_sidecar(const fs::path &atlas_path) {
+    std::optional<json> read_sidecar(const core::ContentSource &content, const fs::path &atlas_path) {
       const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
-      auto sc = corundum::core::read_json(sidecar);
+      auto sc = corundum::core::read_json(content, sidecar);
       if (!sc || !sc->is_object())
         return std::nullopt;
       return *sc;
-    }
-
-    /// Parse @p path as JSON.
-    /// @param label Asset kind for error messages (e.g. "tileset", "tilemap").
-    /// @return The parsed document, or a "Cannot open" / "Malformed" message naming @p label.
-    std::expected<json, std::string> parse_json_file(const fs::path &path, std::string_view label) {
-      return corundum::core::read_json(path, label);
     }
 
     /// Per-tile data resolved from a spritepacker atlas, plus the sprite-name → local-id lookup the
@@ -251,21 +245,22 @@ namespace corundum::world::tilemap {
   /// its fields override the atlas-sourced authoring data (material, animations). Pivots and tile
   /// footprints are intentionally NOT read from the sidecar — pivots live in the atlas JSON
   /// (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
-  std::expected<TilesetInfo, std::string> load_tileset(const fs::path &tileset_path) {
+  std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &content,
+                                                       const fs::path &tileset_path) {
     auto &cache = tileset_cache();
     const std::string key = tileset_path.string();
     if (const auto it = cache.find(key); it != cache.end())
       return it->second;
 
-    auto atlas = corundum::sprites::load_sprite_atlas(tileset_path);
+    auto atlas = corundum::sprites::load_sprite_atlas(content, tileset_path);
     if (!atlas)
       return std::unexpected(atlas.error());
 
-    auto atlas_json = parse_json_file(tileset_path, "tileset");
+    auto atlas_json = corundum::core::read_json(content, tileset_path, "tileset");
     if (!atlas_json)
       return std::unexpected(std::move(atlas_json.error()));
 
-    const std::optional<json> sidecar = read_sidecar(tileset_path);
+    const std::optional<json> sidecar = read_sidecar(content, tileset_path);
     const json *sidecar_json = sidecar ? &*sidecar : nullptr;
 
     TilesetTiles tiles = build_tileset_tiles(*atlas, tileset_path);
@@ -323,8 +318,8 @@ namespace corundum::world::tilemap {
   } // namespace
 
   // NOLINTNEXTLINE(readability-function-cognitive-complexity): large flat format validator.
-  std::expected<Tilemap, std::string> load_tilemap(const fs::path &path) {
-    auto parsed = parse_json_file(path, "tilemap");
+  std::expected<Tilemap, std::string> load_tilemap(const core::ContentSource &content, const fs::path &path) {
+    auto parsed = corundum::core::read_json(content, path, "tilemap");
     if (!parsed)
       return std::unexpected(std::move(parsed.error()));
     json &j = *parsed;
@@ -460,7 +455,7 @@ namespace corundum::world::tilemap {
       }
       if (source.empty())
         return std::unexpected(std::format("Tilemap '{}' tilesets[{}] 'source' must not be empty", id, ti));
-      auto tileset_result = load_tileset(fs::path(source));
+      auto tileset_result = load_tileset(content, fs::path(source));
       if (!tileset_result.has_value())
         return std::unexpected(std::format("[{}] tilesets[{}]: {}", id, ti, tileset_result.error()));
       TilemapTileset ts;

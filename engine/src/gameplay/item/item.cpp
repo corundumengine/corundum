@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
+#include <corundum/core/files.hpp>
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/gameplay/item/item.hpp>
@@ -131,11 +133,11 @@ namespace corundum::gameplay::item {
     return std::nullopt;
   }
 
-  std::expected<std::vector<Item>, std::string> load_item_file(const std::filesystem::path &path,
-                                                               ItemCategory category) {
+  std::expected<std::vector<Item>, std::string>
+  load_item_file(const core::ContentSource &content, const std::filesystem::path &path, ItemCategory category) {
     const auto path_string = path.string();
 
-    auto root_result = core::read_json(path, "item JSON");
+    auto root_result = core::read_json(content, path, "item JSON");
     if (!root_result)
       return std::unexpected(std::move(root_result).error());
     json root = std::move(*root_result);
@@ -179,40 +181,43 @@ namespace corundum::gameplay::item {
     return items;
   }
 
-  int Registry::load_all(const std::filesystem::path &dir) {
+  int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
     int loaded = 0;
 
-    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
+    const auto categories = content.list(dir, {});
+    if (!categories) {
       corundum::detail::warn_log("[item] no item directory at '{}'", dir.string());
       return loaded;
     }
 
-    for (const auto &category_entry : std::filesystem::directory_iterator(dir)) {
-      if (!category_entry.is_directory())
+    for (const core::DirEntry &category_entry : *categories) {
+      if (!category_entry.is_dir)
         continue;
 
-      const auto category = category_from_dir_name(category_entry.path().filename().string());
+      const auto category = category_from_dir_name(category_entry.name);
       if (!category) {
-        corundum::detail::warn_log("[item] unknown category folder '{}', skipping",
-                                   category_entry.path().filename().string());
+        corundum::detail::warn_log("[item] unknown category folder '{}', skipping", category_entry.name);
         continue;
       }
 
-      for (const auto &file_entry : std::filesystem::directory_iterator(category_entry.path())) {
-        if (file_entry.path().extension() != ".json")
+      const auto files = content.list(category_entry.path, {.extensions = {"json"}});
+      if (!files)
+        continue;
+
+      for (const core::DirEntry &file_entry : *files) {
+        if (file_entry.is_dir)
           continue;
 
-        auto result = load_item_file(file_entry.path(), *category);
+        auto result = load_item_file(content, file_entry.path, *category);
         if (!result) {
-          corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.path().filename().string(), result.error());
+          corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.name, result.error());
           continue;
         }
 
         for (auto &item : *result) {
           const std::string id = item.id;
           if (items_.contains(id)) {
-            corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id,
-                                       file_entry.path().filename().string());
+            corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id, file_entry.name);
           } else {
             items_.emplace(id, std::move(item));
             ++loaded;

@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/gameplay/location/loader.hpp>
 #include <corundum/gameplay/location/location.hpp>
@@ -14,6 +15,8 @@
 #include <fstream>
 #include <string_view>
 #include <vector>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 namespace location = corundum::gameplay::location;
@@ -43,7 +46,7 @@ TEST_CASE("location loader: parses world and interior destinations") {
     ]
   })");
 
-  const auto result = location::load_location_file(path);
+  const auto result = location::load_location_file(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 2);
   CHECK((*result)[0].id == "village");
@@ -57,8 +60,8 @@ TEST_CASE("location loader: schema failures are reported") {
   const auto dir = temp_dir("errors");
   write_file(dir / "bad_version.json", R"({"schema_version":2,"locations":[]})");
   write_file(dir / "missing_name.json", R"({"schema_version":1,"locations":[{"id":"x"}]})");
-  CHECK_FALSE(location::load_location_file(dir / "bad_version.json").has_value());
-  CHECK_FALSE(location::load_location_file(dir / "missing_name.json").has_value());
+  CHECK_FALSE(location::load_location_file(disk(), dir / "bad_version.json").has_value());
+  CHECK_FALSE(location::load_location_file(disk(), dir / "missing_name.json").has_value());
 }
 
 TEST_CASE("location registry: loads a directory and skips duplicate ids") {
@@ -73,7 +76,7 @@ TEST_CASE("location registry: loads a directory and skips duplicate ids") {
   })");
 
   location::Registry registry;
-  CHECK(registry.load_all(dir) == 3);
+  CHECK(registry.load_all(disk(), dir) == 3);
   REQUIRE(registry.find("shared") != nullptr);
   CHECK(registry.find("shared")->name == "First");
 }
@@ -95,4 +98,12 @@ TEST_CASE("build_map_entries: only discovered locations, marked current by zone"
   CHECK_FALSE(entries[0].current);
   CHECK(entries[1].name == "Greyhollow");
   CHECK(entries[1].current);
+}
+
+TEST_CASE("location::Registry: load_all reads locations from an in-memory content source") {
+  corundum::test::MemoryContentSource source;
+  source.add("locations/a.json", R"({"schema_version":1,"locations":[{"id":"a","name":"A"}]})");
+
+  location::Registry registry;
+  CHECK(registry.load_all(source, "locations") == 1);
 }

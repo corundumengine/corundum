@@ -14,6 +14,10 @@
 #include <string_view>
 #include <utility>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::audio {
 
   /** @brief Owns the audio backend, sound cache, and catalog.
@@ -93,7 +97,7 @@ namespace corundum::audio {
      *  is missing or unparseable a warning is printed but the system remains
      *  functional.
      */
-    void load_catalog(std::string_view catalog_path) noexcept;
+    void load_catalog(const core::ContentSource &content, std::string_view catalog_path) noexcept;
 
     /** @brief Play a sound from a logical name on @p bus, loading it on first use.
      *

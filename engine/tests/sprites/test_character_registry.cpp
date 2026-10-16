@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 
 #include <corundum/sprites/character_registry.hpp>
@@ -13,6 +14,8 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+
+using corundum::test::disk;
 
 namespace fs = std::filesystem;
 
@@ -42,7 +45,7 @@ TEST_CASE("CharacterRegistry::load_all errors on a missing characters directory"
   const auto dir = temp_dir("missing");
   corundum::sprites::CharacterRegistry registry;
 
-  const auto result = registry.load_all(dir);
+  const auto result = registry.load_all(disk(), dir);
   REQUIRE(!result.has_value());
   CHECK(result.error().find("characters") != std::string::npos);
 }
@@ -52,7 +55,7 @@ TEST_CASE("CharacterRegistry::load_all errors when no sheets are present") {
   fs::create_directories(dir / "characters");
   corundum::sprites::CharacterRegistry registry;
 
-  const auto result = registry.load_all(dir);
+  const auto result = registry.load_all(disk(), dir);
   REQUIRE(!result.has_value());
   CHECK(registry.sheets().empty());
 }
@@ -62,7 +65,7 @@ TEST_CASE("CharacterRegistry::load_all loads a sheet and supports every lookup p
   write_file(dir / "characters" / "hero.json", sheet_json("heroes", "hero"));
 
   corundum::sprites::CharacterRegistry registry;
-  const auto result = registry.load_all(dir);
+  const auto result = registry.load_all(disk(), dir);
   REQUIRE(result.has_value());
 
   CHECK(registry.sheets().size() == 1);
@@ -91,7 +94,7 @@ TEST_CASE("CharacterRegistry lookups return sentinels for unknown names and ids"
   write_file(dir / "characters" / "hero.json", sheet_json("heroes", "hero"));
 
   corundum::sprites::CharacterRegistry registry;
-  REQUIRE(registry.load_all(dir).has_value());
+  REQUIRE(registry.load_all(disk(), dir).has_value());
 
   CHECK(registry.find_sheet("nope") == corundum::sprites::k_null_sheet);
   CHECK(registry.get_sheet(999) == nullptr);
@@ -107,7 +110,7 @@ TEST_CASE("CharacterRegistry::load_all rejects a duplicate sheet id") {
   write_file(dir / "characters" / "b.json", sheet_json("dup", "hero_b"));
 
   corundum::sprites::CharacterRegistry registry;
-  const auto result = registry.load_all(dir);
+  const auto result = registry.load_all(disk(), dir);
   REQUIRE(!result.has_value());
   CHECK(result.error().find("Duplicate sheet id") != std::string::npos);
 
@@ -124,7 +127,7 @@ TEST_CASE("CharacterRegistry::load_all rejects a duplicate sprite name without h
   write_file(dir / "characters" / "b.json", sheet_json("sheet_b", "hero"));
 
   corundum::sprites::CharacterRegistry registry;
-  const auto result = registry.load_all(dir);
+  const auto result = registry.load_all(disk(), dir);
   REQUIRE(!result.has_value());
   CHECK(result.error().find("Duplicate sprite name") != std::string::npos);
 
@@ -140,10 +143,19 @@ TEST_CASE("CharacterRegistry assigns ids in sorted file order regardless of writ
   write_file(dir / "characters" / "alpha.json", sheet_json("alpha", "alpha_hero"));
 
   corundum::sprites::CharacterRegistry registry;
-  REQUIRE(registry.load_all(dir).has_value());
+  REQUIRE(registry.load_all(disk(), dir).has_value());
 
   const auto alpha = registry.find_sheet("alpha");
   const auto zulu = registry.find_sheet("zulu");
   CHECK(alpha < zulu);
   CHECK(registry.get_sprite_id("alpha_hero") < registry.get_sprite_id("zulu_hero"));
+}
+
+TEST_CASE("CharacterRegistry::load_all reads sheets from an in-memory content source") {
+  corundum::test::MemoryContentSource source;
+  source.add("sprite_sheets/characters/hero.json", sheet_json("heroes", "hero"));
+
+  corundum::sprites::CharacterRegistry registry;
+  REQUIRE(registry.load_all(source, "sprite_sheets").has_value());
+  CHECK(registry.find_sheet("heroes") != corundum::sprites::k_null_sheet);
 }

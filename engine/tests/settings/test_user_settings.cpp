@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 
 #include <corundum/audio/audio_backend.hpp>
@@ -37,6 +38,7 @@
 #include <vector>
 
 namespace fs = std::filesystem;
+using corundum::test::disk;
 
 namespace {
 
@@ -459,7 +461,7 @@ TEST_CASE("settings: save_default writes the conventional settings.json") {
 
   const auto path = corundum::settings::default_path(engine.cfg);
   REQUIRE(path.has_value());
-  const auto root = corundum::core::read_json(*path, "settings JSON");
+  const auto root = corundum::core::read_json(disk(), *path, "settings JSON");
   REQUIRE(root.has_value());
   CHECK(root->at("master_volume").get<float>() == doctest::Approx(0.3f));
 }

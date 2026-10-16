@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+namespace corundum::core {
+  class ContentSource;
+}
+
 namespace corundum::world {
 
   /// Current schema version for portals JSON. Absent field is treated as version 1.
@@ -89,7 +93,8 @@ namespace corundum::world {
    * @note A file that exists but cannot be opened is reported as an error rather
    *       than silently treated as absent.
    */
-  [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const std::filesystem::path &path);
+  [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const core::ContentSource &content,
+                                                                             const std::filesystem::path &path);
 
   /** @brief Serialize a list of portals to JSON matching the portals file format.
    *
