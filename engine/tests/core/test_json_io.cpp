@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "temp_dir.hpp"
 #include <corundum/core/json_io.hpp>
 #include <nlohmann/json.hpp>
@@ -182,4 +183,54 @@ TEST_CASE("write_json — a failed write leaves the existing file untouched") {
 
   CHECK_FALSE(corundum::core::write_json(path, json::object()).has_value());
   CHECK(read_file(path) == "old contents");
+}
+
+TEST_CASE("read_json(content): parses a document from a content source") {
+  corundum::test::MemoryContentSource source;
+  source.add("a/doc.json", R"({"a": 1})");
+
+  auto result = corundum::core::read_json(source, "a/doc.json");
+  REQUIRE(result.has_value());
+  CHECK((*result)["a"] == 1);
+}
+
+TEST_CASE("read_json(content): a missing document reports '<label>: cannot open: <path>'") {
+  const corundum::test::MemoryContentSource source;
+  auto result = corundum::core::read_json(source, "a/missing.json", "item JSON");
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "item JSON: cannot open: a/missing.json");
+}
+
+TEST_CASE("read_json(content): with no label the source's error is returned unchanged") {
+  const corundum::test::MemoryContentSource source;
+  auto result = corundum::core::read_json(source, "a/missing.json");
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "cannot open: a/missing.json");
+}
+
+TEST_CASE("read_json(content): malformed text reports 'malformed <label> in <path>'") {
+  corundum::test::MemoryContentSource source;
+  source.add("a/bad.json", "{ not valid json");
+
+  auto result = corundum::core::read_json(source, "a/bad.json", "item JSON");
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("malformed item JSON in a/bad.json") != std::string::npos);
+}
+
+TEST_CASE("read_json(content): comments are ignored") {
+  corundum::test::MemoryContentSource source;
+  source.add("a/comments.json", R"({
+    // line comment
+    "a": 1, /* block comment */
+    "b": 2
+  })");
+
+  auto result = corundum::core::read_json(source, "a/comments.json");
+  REQUIRE(result.has_value());
+  CHECK((*result)["a"] == 1);
+  CHECK((*result)["b"] == 2);
+}
+
+TEST_CASE("format_json: keys are sorted and output ends with a newline") {
+  CHECK_EQ(corundum::core::format_json(json{{"b", 1}, {"a", 2}}), "{\n  \"a\": 2,\n  \"b\": 1\n}\n");
 }

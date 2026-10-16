@@ -6,10 +6,12 @@
 // Each include below supplies a complete type for an Engine member (or an inline
 // symbol the public API uses); do not slim this block.
 #include <corundum/audio/audio_system.hpp>
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/rng.hpp>
 #include <corundum/core/time/loop_timer.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_mapper.hpp>
@@ -36,6 +38,7 @@
 #include <cstdint>
 #include <expected>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -83,7 +86,8 @@ namespace corundum {
    *
    * make_engine() heap-allocates it: the embedded entity World is ~0.5 MB and must never sit
    * on a stack frame. Members must still never store pointers or references into sibling
-   * members.
+   * members; the one exception is the platform adapters' reference to `*content`, which member
+   * order keeps alive.
    *
    * @see initialize  One-time setup before the main loop.
    * @see run_loop    The main loop: input, fixed-step simulation, rendering.
@@ -96,6 +100,23 @@ namespace corundum {
   struct Engine {
     // Declared first: Scene's 64-byte alignment packs cleanly at offset 0 and keeps the rest dense.
     world::Scene scene;
+
+    /** @brief Read-only game content: every runtime load reads through this source.
+     *
+     *  Declared before window/gpu/renderer/audio so it outlives the platform adapters, which keep a
+     *  reference to it from create_platform().
+     *  @pre Assign a different source only before any platform is adopted (adopt_platform() or the
+     *       adopt_* calls), in production and tests alike; afterwards the adapters would dangle. No
+     *       factory accepts a custom source yet; the pack-file or console work adds that path.
+     *  Defaults to the working directory with paths as given. */
+    std::unique_ptr<core::ContentSource> content{std::make_unique<core::DirectoryContentSource>()};
+
+    /** @brief Per-user storage for settings and saves, or why there is none.
+     *
+     *  None when the project has no game_id or no user-data directory. Without storage, settings
+     *  persistence is skipped and saves report the error. */
+    std::expected<std::unique_ptr<core::UserStorage>, std::string> user_storage{
+        std::unexpected(std::string{"user storage is not configured"})};
 
     // Declared window → gpu → renderer so reverse-order destruction is
     // renderer → gpu → window: sokol resources are released while the device is

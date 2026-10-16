@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/engine_factory.hpp>
 #include <corundum/platform/platform_factory.hpp>
@@ -22,6 +23,9 @@ namespace corundum {
   }
 
   std::expected<std::unique_ptr<Engine>, std::string> make_engine(const EngineOptions &options) {
+    // Created first so the engine's content source outlives the platform adapters adopted below.
+    auto engine = std::make_unique<Engine>();
+
     auto cfg_result = core::load_game_config(options.config_path);
     if (!cfg_result)
       return std::unexpected(std::format("load config '{}': {}", options.config_path, cfg_result.error()));
@@ -39,9 +43,9 @@ namespace corundum {
     if (!platform)
       return std::unexpected(std::format("create platform: {}", platform.error()));
 
-    auto engine = std::make_unique<Engine>();
     engine->adopt_platform(std::move(*platform));
     engine->hud.enabled = options.show_debug_hud;
+    engine->user_storage = core::make_user_storage(cfg.game_id);
 
     if (auto result = engine->initialize(std::move(cfg)); !result)
       return std::unexpected(result.error());

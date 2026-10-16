@@ -22,6 +22,8 @@ set(TEST_SOURCES
     audio/test_audio.cpp
 
     # core
+    core/test_content_source.cpp
+    core/test_content_source_contract.cpp
     core/test_direction.cpp
     core/test_files.cpp
     core/test_game_config.cpp
@@ -33,6 +35,8 @@ set(TEST_SOURCES
     core/test_rng.cpp
     core/test_schema_version.cpp
     core/test_user_data_dir.cpp
+    core/test_user_storage.cpp
+    core/test_user_storage_contract.cpp
     core/test_utf8.cpp
 
     # debug
