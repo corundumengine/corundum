@@ -11,6 +11,10 @@
 #include <string>
 #include <string_view>
 
+namespace corundum::core {
+  class ContentSource;
+} // namespace corundum::core
+
 namespace corundum::platform::miniaudio {
 
   /** @brief Where a MiniaudioBackend sends its mix. */
@@ -24,7 +28,8 @@ namespace corundum::platform::miniaudio {
    *  Sound effects decode fully at load_sound() and play as copies of that data in an effects
    *  group. miniaudio decodes WAV, MP3 and FLAC natively and OGG Vorbis through stb_vorbis, and
    *  resamples every source to the engine rate. If the engine cannot start (no audio device), the
-   *  backend stays usable: load_sound() reports an error and everything else is a no-op.
+   *  backend stays usable: load_sound() reports an error and everything else is a no-op. Files are
+   *  opened through the ContentSource passed at construction.
    *
    *  miniaudio.h (~96k lines) stays out of this header behind State; only miniaudio_backend.cpp and
    *  miniaudio_impl.cpp include it.
@@ -33,7 +38,7 @@ namespace corundum::platform::miniaudio {
    */
   class MiniaudioBackend final : public audio::AudioBackend {
   public:
-    explicit MiniaudioBackend(MiniaudioOutput output);
+    explicit MiniaudioBackend(MiniaudioOutput output, const corundum::core::ContentSource &content);
 
     ~MiniaudioBackend() override;
 
@@ -80,6 +85,7 @@ namespace corundum::platform::miniaudio {
   };
 
   /** @brief The production backend: a MiniaudioBackend on the default output device. */
-  [[nodiscard]] std::unique_ptr<audio::AudioBackend> make_miniaudio_backend();
+  [[nodiscard]] std::unique_ptr<audio::AudioBackend>
+  make_miniaudio_backend(const corundum::core::ContentSource &content);
 
 } // namespace corundum::platform::miniaudio

@@ -21,6 +21,7 @@ set(PLATFORM_GLFW_SOURCES
     glfw/input_translator.cpp
     glfw/texture_cache.cpp
     sokol/sokol_impl.cpp
+    miniaudio/content_vfs.cpp
     miniaudio/miniaudio_backend.cpp
     miniaudio/miniaudio_impl.cpp
 )

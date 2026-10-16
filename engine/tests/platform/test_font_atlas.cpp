@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "font_atlas.hpp"
+#include "memory_content_source.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -14,9 +15,11 @@
 #include <filesystem>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace fs = std::filesystem;
 namespace pg = corundum::platform::glfw;
+using corundum::test::disk;
 
 namespace {
 
@@ -27,6 +30,13 @@ namespace {
   // Keeps the test deterministic without reaching outside the test sandbox.
   fs::path fixture_font_path() {
     return fs::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "fonts" / "NotoSans.ttf";
+  }
+
+  /// The fixture font's bytes; fails the test if the file can't be read.
+  std::vector<uint8_t> fixture_font_bytes() {
+    std::expected<std::vector<std::uint8_t>, std::string> bytes = disk().read(fixture_font_path());
+    REQUIRE(bytes.has_value());
+    return std::move(*bytes);
   }
 
   /// Owns the FreeType library for a test case so FT_Done_FreeType still runs if a
@@ -64,7 +74,8 @@ namespace {
 
   /// Assert @p glyph's rectangle sits inside the atlas, leaving a uniform
   /// one-pixel border on all four sides.
-  // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
+  // A flat list of four bound assertions; splitting it would hide the shared rectangle rule.
+  // NOLINTNEXTLINE(readability-function-size)
   void check_glyph_rect(const pg::BakedSize &baked, const pg::GlyphInfo &glyph) {
     if (glyph.width == 0 || glyph.height == 0)
       return;
@@ -82,9 +93,15 @@ namespace {
       check_glyph_rect(baked, extended.info);
   }
 
+  /// Assert the pixel at @p offset is opaque white in RGB (alpha carries coverage).
+  void check_pixel_is_white(const pg::BakedSize &baked, std::size_t offset) {
+    CHECK(baked.pixels[offset + 0] == 255);
+    CHECK(baked.pixels[offset + 1] == 255);
+    CHECK(baked.pixels[offset + 2] == 255);
+  }
+
   /// Assert @p glyph's rectangle is opaque white in RGB (alpha carries coverage)
   /// and return how many of its cells actually contain ink.
-  // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
   int count_inked_pixels(const pg::BakedSize &baked, const pg::GlyphInfo &glyph) {
     int inked = 0;
     for (int row = 0; row < glyph.height; ++row)
@@ -92,9 +109,7 @@ namespace {
         const std::size_t row_offset =
             static_cast<std::size_t>(glyph.atlas_y + row) * static_cast<std::size_t>(baked.atlas_w);
         const std::size_t offset = (row_offset + static_cast<std::size_t>(glyph.atlas_x + col)) * 4;
-        CHECK(baked.pixels[offset + 0] == 255);
-        CHECK(baked.pixels[offset + 1] == 255);
-        CHECK(baked.pixels[offset + 2] == 255);
+        check_pixel_is_white(baked, offset);
         if (baked.pixels[offset + 3] > 0)
           ++inked;
       }
@@ -111,7 +126,7 @@ TEST_CASE("FontAtlas::bake: rasterises a basic ASCII set within atlas width and 
   // its owning library, so the library must outlive every face loaded from it.
   {
     pg::FontAtlas atlas;
-    REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+    REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
 
     const pg::BakedSize baked = require_bake(atlas, 16);
 
@@ -146,7 +161,7 @@ TEST_CASE("FontAtlas::bake: atlas layout, padding, and RGBA encoding are consist
   FreeTypeLibrary ft;
   REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
   pg::FontAtlas atlas;
-  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+  REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
   const pg::BakedSize baked = require_bake(atlas, 20);
 
   CHECK(baked.pixels.size() == static_cast<std::size_t>(baked.atlas_w) * baked.atlas_h * 4);
@@ -166,7 +181,7 @@ TEST_CASE("FontAtlas::bake: a larger char_size scales glyph metrics and the atla
   FreeTypeLibrary ft;
   REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
   pg::FontAtlas atlas;
-  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+  REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
 
   const pg::BakedSize small = require_bake(atlas, 12);
   const pg::BakedSize large = require_bake(atlas, 32);
@@ -180,13 +195,23 @@ TEST_CASE("FontAtlas::bake: a larger char_size scales glyph metrics and the atla
   CHECK(large.atlas_w <= 512);
 }
 
-TEST_CASE("FontAtlas::load: a missing file returns false and leaves the atlas unloaded") {
+TEST_CASE("FontAtlas: load rejects empty font data") {
   FreeTypeLibrary ft;
   REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
 
   pg::FontAtlas atlas;
-  CHECK_FALSE(atlas.load(ft.lib, "/nonexistent/corundum/NoSuchFont.ttf"));
+  CHECK_FALSE(atlas.load(ft.lib, {}, "NoSuchFont.ttf"));
   CHECK(atlas.face == nullptr);
+}
+
+TEST_CASE("FontAtlas: load from bytes survives a move of the atlas") {
+  FreeTypeLibrary ft;
+  REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
+  pg::FontAtlas source;
+  REQUIRE(source.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
+
+  const pg::FontAtlas moved{std::move(source)};
+  CHECK(require_bake(moved, 16).atlas_w > 0);
 }
 
 TEST_CASE("FontAtlas::load: a repeated load replaces the face and stays bakeable") {
@@ -194,11 +219,11 @@ TEST_CASE("FontAtlas::load: a repeated load replaces the face and stays bakeable
   REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
   pg::FontAtlas atlas;
 
-  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+  REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
   REQUIRE(atlas.bake(16).has_value());
 
   // Reloading must free the previous face rather than overwrite (and leak) it.
-  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+  REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
   CHECK(atlas.path == fixture_font_path().string());
   CHECK(require_bake(atlas, 16).atlas_w > 0);
 }
@@ -207,7 +232,7 @@ TEST_CASE("FontAtlas: move construction and assignment transfer face ownership")
   FreeTypeLibrary ft;
   REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
   pg::FontAtlas source;
-  REQUIRE(source.load(ft.lib, fixture_font_path().string()));
+  REQUIRE(source.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
   CHECK(source.face != nullptr);
 
   pg::FontAtlas moved{std::move(source)};
@@ -233,7 +258,7 @@ TEST_CASE("FontAtlas::bake: face destruction order is correct when the library o
 
   {
     pg::FontAtlas atlas;
-    REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+    REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
     const auto baked = require_bake(atlas, 16);
     CHECK(baked.atlas_w > 0);
   }
@@ -252,7 +277,7 @@ TEST_CASE("FontAtlas::bake: extended punctuation and Latin-1 letters are baked")
   FreeTypeLibrary ft;
   REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
   pg::FontAtlas atlas;
-  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+  REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
   const pg::BakedSize baked = require_bake(atlas, 16);
 
   // Em dash and en dash: the characters silently dropped before this fix.
@@ -276,7 +301,7 @@ TEST_CASE("FontAtlas::bake: full coverage stays within a sane atlas size") {
   FreeTypeLibrary ft;
   REQUIRE(FT_Init_FreeType(&ft.lib) == 0);
   pg::FontAtlas atlas;
-  REQUIRE(atlas.load(ft.lib, fixture_font_path().string()));
+  REQUIRE(atlas.load(ft.lib, fixture_font_bytes(), fixture_font_path().string()));
 
   // Covers the physical sizes the game's UI/dialogue fonts are baked at.
   for (const uint32_t size : {12u, 16u, 24u, 32u}) {

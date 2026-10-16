@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/platform/platform_factory.hpp>
 #include <expected>
 #include <format>
@@ -37,7 +38,8 @@ namespace corundum::platform {
     return std::move(*result);
   }
 
-  std::expected<PlatformContext, std::string> create_platform(unsigned width, unsigned height, std::string_view title) {
+  std::expected<PlatformContext, std::string> create_platform(const corundum::core::ContentSource &content,
+                                                              unsigned width, unsigned height, std::string_view title) {
     auto window = create_window(width, height, title);
     if (!window)
       return std::unexpected(window.error());
@@ -47,8 +49,8 @@ namespace corundum::platform {
       return std::unexpected(std::format("Failed to create GPU context: {}", gpu_result.error()));
     auto gpu_ptr = std::move(*gpu_result);
 
-    auto renderer = glfw::make_sokol_renderer(*gpu_ptr);
-    auto audio = miniaudio::make_miniaudio_backend();
+    auto renderer = glfw::make_sokol_renderer(*gpu_ptr, content);
+    auto audio = miniaudio::make_miniaudio_backend(content);
 
     return PlatformContext{
         .window = Handle<Window>{window->release(), BackendDeleter<Window>{&destroy<Window>}},

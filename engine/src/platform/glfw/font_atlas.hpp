@@ -70,6 +70,10 @@ namespace corundum::platform::glfw {
   /// FreeType face wrapper. Holds the FT_Face so multiple sizes can be baked from one load.
   struct FontAtlas {
     FT_Face face{nullptr};
+
+    /// The font file. FreeType reads glyphs from this buffer for the face's whole life, so the atlas owns it.
+    std::vector<uint8_t> file_bytes;
+
     std::string path;
 
     FontAtlas() = default;
@@ -80,9 +84,10 @@ namespace corundum::platform::glfw {
     FontAtlas(FontAtlas &&other) noexcept;
     FontAtlas &operator=(FontAtlas &&other) noexcept;
 
-    /// Open the FreeType face from @p font_path using the shared library @p lib.
-    /// @return false if FreeType fails to open the file.
-    [[nodiscard]] bool load(FT_Library lib, std::string_view font_path);
+    /// Open the FreeType face from @p font_bytes (the whole font file) using the shared library @p lib.
+    /// @param font_path Names the font in warnings.
+    /// @return false if FreeType rejects the data.
+    [[nodiscard]] bool load(FT_Library lib, std::vector<uint8_t> font_bytes, std::string_view font_path);
 
     /// Rasterise Latin-1 Supplement plus the extended punctuation set at @p char_size
     /// pixels and return the atlas pixel data.

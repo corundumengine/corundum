@@ -13,6 +13,33 @@ namespace corundum::core {
   /// Largest codepoint UTF-8 can encode; anything above it is malformed.
   inline constexpr uint32_t k_utf8_max_codepoint = 0x10FFFF;
 
+  namespace detail {
+    /// Classification of a multi-byte UTF-8 lead byte.
+    struct Utf8Lead {
+      int extra_bytes{};        ///< Continuation bytes that must follow the lead.
+      uint32_t seed{};          ///< The codepoint bits carried by the lead byte itself.
+      uint32_t min_codepoint{}; ///< Overlong-encoding floor for this sequence length.
+    };
+
+    /// Classify @p b0 as a multi-byte lead byte.
+    /// @return false for a continuation byte or a lead that would encode an overlong or out-of-range codepoint.
+    [[nodiscard]] inline bool classify_utf8_lead(unsigned char b0, Utf8Lead &lead) {
+      if (b0 >= 0xC2 && b0 <= 0xDF) { // 0xC0/0xC1 would encode an overlong 2-byte form
+        lead = {.extra_bytes = 1, .seed = b0 & 0x1Fu, .min_codepoint = 0x80};
+        return true;
+      }
+      if (b0 >= 0xE0 && b0 <= 0xEF) {
+        lead = {.extra_bytes = 2, .seed = b0 & 0x0Fu, .min_codepoint = 0x800};
+        return true;
+      }
+      if (b0 >= 0xF0 && b0 <= 0xF4) { // 0xF5-0xF7 would exceed U+10FFFF
+        lead = {.extra_bytes = 3, .seed = b0 & 0x07u, .min_codepoint = 0x10000};
+        return true;
+      }
+      return false;
+    }
+  } // namespace detail
+
   /// Decodes one UTF-8 codepoint starting at `text[i]` and advances `i` past
   /// it (by 1-4 bytes on success, by exactly 1 byte on a malformed sequence,
   /// so callers always make forward progress).
@@ -27,32 +54,19 @@ namespace corundum::core {
       return b0;
     }
 
-    int extra = 0;
-    uint32_t codepoint = 0;
-    uint32_t min_codepoint = 0;     // overlong-encoding floor for this sequence length
-    if (b0 >= 0xC2 && b0 <= 0xDF) { // 0xC0/0xC1 would encode an overlong 2-byte form
-      extra = 1;
-      codepoint = b0 & 0x1Fu;
-      min_codepoint = 0x80;
-    } else if (b0 >= 0xE0 && b0 <= 0xEF) {
-      extra = 2;
-      codepoint = b0 & 0x0Fu;
-      min_codepoint = 0x800;
-    } else if (b0 >= 0xF0 && b0 <= 0xF4) { // 0xF5-0xF7 would exceed U+10FFFF
-      extra = 3;
-      codepoint = b0 & 0x07u;
-      min_codepoint = 0x10000;
-    } else {
+    detail::Utf8Lead lead;
+    if (!detail::classify_utf8_lead(b0, lead)) {
       ++i; // stray continuation byte or invalid lead byte
       return k_utf8_replacement_char;
     }
 
-    if (i + static_cast<std::size_t>(extra) >= text.size()) {
+    if (i + static_cast<std::size_t>(lead.extra_bytes) >= text.size()) {
       ++i; // truncated sequence at end of string
       return k_utf8_replacement_char;
     }
 
-    for (int k = 1; k <= extra; ++k) {
+    uint32_t codepoint = lead.seed;
+    for (int k = 1; k <= lead.extra_bytes; ++k) {
       const auto b = static_cast<unsigned char>(text[i + static_cast<std::size_t>(k)]);
       if ((b & 0xC0u) != 0x80u) {
         ++i; // not a continuation byte — malformed
@@ -61,12 +75,13 @@ namespace corundum::core {
       codepoint = (codepoint << 6u) | (b & 0x3Fu);
     }
 
-    if (codepoint < min_codepoint || codepoint > k_utf8_max_codepoint || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+    if (codepoint < lead.min_codepoint || codepoint > k_utf8_max_codepoint ||
+        (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
       ++i; // overlong, out of range, or a surrogate half
       return k_utf8_replacement_char;
     }
 
-    i += static_cast<std::size_t>(extra) + 1;
+    i += static_cast<std::size_t>(lead.extra_bytes) + 1;
     return codepoint;
   }
 

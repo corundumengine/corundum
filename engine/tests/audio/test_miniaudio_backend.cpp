@@ -3,21 +3,26 @@
 
 #include <doctest/doctest.h>
 
+#include "memory_content_source.hpp"
 #include "platform/miniaudio/miniaudio_backend.hpp"
 #include "temp_dir.hpp"
 
 #include <corundum/audio/audio_backend.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <fstream>
 #include <ios>
+#include <span>
 #include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
+
+using corundum::test::disk;
 
 namespace {
 
@@ -83,7 +88,7 @@ namespace {
 TEST_CASE("miniaudio backend: a WAV effect plays its samples, then silence") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "effect"};
   write_wav(dir / "blip.wav", 4410);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
@@ -99,7 +104,7 @@ TEST_CASE("miniaudio backend: a WAV effect plays its samples, then silence") {
 TEST_CASE("miniaudio backend: master volume scales effects") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "master"};
   write_wav(dir / "blip.wav", 4410);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
@@ -111,7 +116,7 @@ TEST_CASE("miniaudio backend: master volume scales effects") {
 }
 
 TEST_CASE("miniaudio backend: a missing file is a load error naming the path") {
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound("no/such/file.ogg");
   REQUIRE_FALSE(handle.has_value());
   CHECK(handle.error().find("no/such/file.ogg") != std::string::npos);
@@ -120,7 +125,7 @@ TEST_CASE("miniaudio backend: a missing file is a load error naming the path") {
 TEST_CASE("miniaudio backend: music restarts after loop_delay_seconds of silence") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_gap"};
   write_wav(dir / "track.wav", 4410); // 0.1 s
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
 
   REQUIRE(backend.play_music((dir / "track.wav").string(), {.fade_in_seconds = 0.f, .loop_delay_seconds = 0.2f})
               .has_value());
@@ -144,7 +149,7 @@ TEST_CASE("miniaudio backend: music restarts after loop_delay_seconds of silence
 TEST_CASE("miniaudio backend: stop_music fades the track to silence") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_stop"};
   write_wav(dir / "track.wav", 44100); // 1 s
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   REQUIRE(backend.play_music((dir / "track.wav").string(), {}).has_value());
   static_cast<void>(render(backend, 4410));
 
@@ -160,7 +165,7 @@ TEST_CASE("miniaudio backend: a new track fades the previous one out over its fa
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_replace"};
   write_wav(dir / "first.wav", 44100);
   write_wav(dir / "second.wav", 44100);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   REQUIRE(backend.play_music((dir / "first.wav").string(), {}).has_value());
   static_cast<void>(render(backend, 4410));
 
@@ -177,7 +182,7 @@ TEST_CASE("miniaudio backend: music volume scales music but not effects") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "music_volume"};
   write_wav(dir / "track.wav", 44100);
   write_wav(dir / "blip.wav", 44100);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   backend.set_bus_volume(corundum::audio::AudioBus::Music, 0.5f);
 
   REQUIRE(backend.play_music((dir / "track.wav").string(), {}).has_value());
@@ -194,7 +199,7 @@ TEST_CASE("miniaudio backend: music volume scales music but not effects") {
 TEST_CASE("miniaudio backend: a bus volume scales only voices routed to it") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "bus_route"};
   write_wav(dir / "blip.wav", 44100);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
@@ -206,7 +211,7 @@ TEST_CASE("miniaudio backend: a bus volume scales only voices routed to it") {
 TEST_CASE("miniaudio backend: a voice routed to Master ignores the Sound bus volume") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "master_route"};
   write_wav(dir / "blip.wav", 44100);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
@@ -218,7 +223,7 @@ TEST_CASE("miniaudio backend: a voice routed to Master ignores the Sound bus vol
 TEST_CASE("miniaudio backend: set_volume adjusts a playing voice") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "voice_volume"};
   write_wav(dir / "blip.wav", 44100);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
@@ -232,7 +237,7 @@ TEST_CASE("miniaudio backend: set_volume adjusts a playing voice") {
 TEST_CASE("miniaudio backend: stop silences a voice") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "voice_stop"};
   write_wav(dir / "blip.wav", 44100);
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
@@ -246,7 +251,7 @@ TEST_CASE("miniaudio backend: stop silences a voice") {
 TEST_CASE("miniaudio backend: a stale id does not touch the voice that reused its slot") {
   const corundum::test::TempDir dir{"crpg_test_miniaudio_", "stale_id"};
   write_wav(dir / "blip.wav", 4410); // 0.1 s
-  MiniaudioBackend backend{MiniaudioOutput::Headless};
+  MiniaudioBackend backend{MiniaudioOutput::Headless, disk()};
   const auto handle = backend.load_sound((dir / "blip.wav").string());
   REQUIRE(handle.has_value());
 
@@ -261,4 +266,37 @@ TEST_CASE("miniaudio backend: a stale id does not touch the voice that reused it
 
   backend.stop(first, 0.f);
   CHECK(render(backend, 882)[100] == doctest::Approx(k_half).epsilon(0.01));
+}
+
+TEST_CASE("miniaudio backend: loads a sound from an in-memory content source") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "memory_effect"};
+  write_wav(dir / "blip.wav", 4410);
+
+  const std::expected<std::vector<std::uint8_t>, std::string> wav_bytes = disk().read(dir / "blip.wav");
+  REQUIRE(wav_bytes.has_value());
+
+  corundum::test::MemoryContentSource content;
+  content.add("sfx/blip.wav", std::span<const std::uint8_t>{*wav_bytes});
+
+  MiniaudioBackend backend{MiniaudioOutput::Headless, content};
+  CHECK(backend.load_sound("sfx/blip.wav").has_value());
+}
+
+TEST_CASE("miniaudio backend: streams music from an in-memory content source") {
+  const corundum::test::TempDir dir{"crpg_test_miniaudio_", "memory_music"};
+  write_wav(dir / "track.wav", 4410); // 0.1 s
+
+  const std::expected<std::vector<std::uint8_t>, std::string> wav_bytes = disk().read(dir / "track.wav");
+  REQUIRE(wav_bytes.has_value());
+
+  corundum::test::MemoryContentSource content;
+  content.add("music/track.wav", std::span<const std::uint8_t>{*wav_bytes});
+
+  MiniaudioBackend backend{MiniaudioOutput::Headless, content};
+  REQUIRE(backend.play_music("music/track.wav", {.fade_in_seconds = 0.f, .loop_delay_seconds = 0.f}).has_value());
+
+  // Render well past the 0.1 s track so the stream loops, exercising the seek-after-open path.
+  const std::vector<float> left = render(backend, 22050); // 0.5 s
+  const bool any_after_loop = std::any_of(left.begin() + 4410, left.end(), [](float sample) { return sample != 0.f; });
+  CHECK(any_after_loop);
 }

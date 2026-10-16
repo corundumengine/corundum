@@ -8,6 +8,7 @@
 #include "render_scale.hpp"
 #include "sokol_texture_upload.hpp"
 
+#include <corundum/core/content_source.hpp>
 #include <corundum/core/utf8.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/texture_ref_counts.hpp>
@@ -26,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <limits>
 #include <memory>
 #include <span>
 #include <string>
@@ -145,12 +147,52 @@ namespace corundum::platform::glfw {
       };
     }
 
+    /// The sprite pipeline's shader descriptor: backend shader sources plus the uniform/view/sampler slots.
+    sg_shader_desc make_pipeline_shader_desc() {
+      sg_shader_desc shdesc{};
+      shdesc.vertex_func.source = render_backend::vertex_shader_source();
+      shdesc.fragment_func.source = render_backend::fragment_shader_source();
+      shdesc.uniform_blocks[0].stage = SG_SHADERSTAGE_VERTEX;
+      shdesc.uniform_blocks[0].size = sizeof(float) * 16;
+      shdesc.views[0].texture.stage = SG_SHADERSTAGE_FRAGMENT;
+      shdesc.views[0].texture.image_type = SG_IMAGETYPE_2D;
+      shdesc.views[0].texture.sample_type = SG_IMAGESAMPLETYPE_FLOAT;
+      shdesc.samplers[0].stage = SG_SHADERSTAGE_FRAGMENT;
+      shdesc.samplers[0].sampler_type = SG_SAMPLERTYPE_FILTERING;
+      shdesc.texture_sampler_pairs[0].stage = SG_SHADERSTAGE_FRAGMENT;
+      shdesc.texture_sampler_pairs[0].view_slot = 0;
+      shdesc.texture_sampler_pairs[0].sampler_slot = 0;
+      render_backend::configure_shader(shdesc);
+      return shdesc;
+    }
+
+    /// The sprite pipeline descriptor: 2D position/UV/RGBA vertices, alpha blending, no depth.
+    sg_pipeline_desc make_sprite_pipeline_desc(sg_shader shader) {
+      sg_pipeline_desc pdesc{};
+      pdesc.shader = shader;
+      pdesc.layout.attrs[0] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT2};
+      pdesc.layout.attrs[1] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT2};
+      pdesc.layout.attrs[2] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT4};
+      pdesc.colors[0].blend = {
+          .enabled = true,
+          .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+          .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+          .op_rgb = SG_BLENDOP_ADD,
+          .src_factor_alpha = SG_BLENDFACTOR_ONE,
+          .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+          .op_alpha = SG_BLENDOP_ADD,
+      };
+      pdesc.depth.pixel_format = SG_PIXELFORMAT_NONE;
+      pdesc.depth.write_enabled = false;
+      return pdesc;
+    }
+
   } // namespace
 
   namespace {
     class SokolRenderer final : public corundum::platform::Renderer {
     public:
-      explicit SokolRenderer(corundum::platform::GpuContext &gpu_ctx);
+      explicit SokolRenderer(corundum::platform::GpuContext &gpu_ctx, const corundum::core::ContentSource &content);
       ~SokolRenderer() override;
 
       SokolRenderer(const SokolRenderer &) = delete;
@@ -200,10 +242,15 @@ namespace corundum::platform::glfw {
       [[nodiscard]] bool has_quad_space();
       [[nodiscard]] bool begin_primitive(sg_view view);
       void add_to_batch(sg_view view);
+      /// Set @p advance to @p g's logical advance and, when it has ink, emit its quad.
+      /// @return false when the quad budget is exhausted and drawing must stop.
+      [[nodiscard]] bool draw_glyph(const GlyphInfo &g, const BakedAtlas &baked, float pen_x, float pen_y,
+                                    float char_size, ColourF colour, float &advance);
       void flush_batch();
       void upload_and_draw_pending_batches();
 
       corundum::platform::GpuContext &gpu_ctx_;
+      const corundum::core::ContentSource &content_;
 
       std::array<float, 16> proj_{};
       ScreenScale screen_scale_{};
@@ -265,7 +312,8 @@ namespace corundum::platform::glfw {
     // .id sentinel at 0 until sg_make_image populates it, which the `image.id == 0`
     // upload guard in ensure_uploaded() relies on.
 
-    SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx) : gpu_ctx_(gpu_ctx) {
+    SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx, const corundum::core::ContentSource &content)
+        : gpu_ctx_(gpu_ctx), content_(content) {
       // The render-target scale is chosen per backend in update_screen_scale(); tools drive
       // GpuContext directly and keep its native default.
 
@@ -299,38 +347,10 @@ namespace corundum::platform::glfw {
       if (gpu_resources_initialized_ || gpu_init_failed_)
         return;
 
-      sg_shader_desc shdesc{};
-      shdesc.vertex_func.source = render_backend::vertex_shader_source();
-      shdesc.fragment_func.source = render_backend::fragment_shader_source();
-      shdesc.uniform_blocks[0].stage = SG_SHADERSTAGE_VERTEX;
-      shdesc.uniform_blocks[0].size = sizeof(float) * 16;
-      shdesc.views[0].texture.stage = SG_SHADERSTAGE_FRAGMENT;
-      shdesc.views[0].texture.image_type = SG_IMAGETYPE_2D;
-      shdesc.views[0].texture.sample_type = SG_IMAGESAMPLETYPE_FLOAT;
-      shdesc.samplers[0].stage = SG_SHADERSTAGE_FRAGMENT;
-      shdesc.samplers[0].sampler_type = SG_SAMPLERTYPE_FILTERING;
-      shdesc.texture_sampler_pairs[0].stage = SG_SHADERSTAGE_FRAGMENT;
-      shdesc.texture_sampler_pairs[0].view_slot = 0;
-      shdesc.texture_sampler_pairs[0].sampler_slot = 0;
-      render_backend::configure_shader(shdesc);
+      const sg_shader_desc shdesc = make_pipeline_shader_desc();
       pipeline_shader_ = sg_make_shader(&shdesc);
 
-      sg_pipeline_desc pdesc{};
-      pdesc.shader = pipeline_shader_;
-      pdesc.layout.attrs[0] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT2};
-      pdesc.layout.attrs[1] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT2};
-      pdesc.layout.attrs[2] = {.buffer_index = 0, .offset = 0, .format = SG_VERTEXFORMAT_FLOAT4};
-      pdesc.colors[0].blend = {
-          .enabled = true,
-          .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-          .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-          .op_rgb = SG_BLENDOP_ADD,
-          .src_factor_alpha = SG_BLENDFACTOR_ONE,
-          .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-          .op_alpha = SG_BLENDOP_ADD,
-      };
-      pdesc.depth.pixel_format = SG_PIXELFORMAT_NONE;
-      pdesc.depth.write_enabled = false;
+      const sg_pipeline_desc pdesc = make_sprite_pipeline_desc(pipeline_shader_);
       pipeline_ = sg_make_pipeline(&pdesc);
 
       // Write-transient: filled once per frame before any draws.
@@ -521,10 +541,19 @@ namespace corundum::platform::glfw {
         return it->second;
       }
 
+      const std::expected<std::vector<std::uint8_t>, std::string> file = content_.read(key);
+      if (!file)
+        return std::unexpected(file.error());
+
+      const std::size_t byte_count = file->size();
+      if (byte_count > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+        return std::unexpected(std::string{"stb_image: file too large: '"} + key + "'");
+
       int width = 0;
       int height = 0;
       int channels = 0;
-      stbi_uc *pixels = stbi_load(key.c_str(), &width, &height, &channels, 4);
+      stbi_uc *pixels =
+          stbi_load_from_memory(file->data(), static_cast<int>(byte_count), &width, &height, &channels, 4);
       if (pixels == nullptr)
         return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
 
@@ -584,8 +613,12 @@ namespace corundum::platform::glfw {
       if (ft_lib_ == nullptr)
         return std::unexpected(std::string{"FreeType: library unavailable for '"} + key + "'");
 
+      std::expected<std::vector<std::uint8_t>, std::string> file = content_.read(key);
+      if (!file)
+        return std::unexpected(std::string{"FreeType: could not load '"} + key + "': " + file.error());
+
       std::unique_ptr<FontAtlas> atlas = std::make_unique<FontAtlas>();
-      if (!atlas->load(ft_lib_, path))
+      if (!atlas->load(ft_lib_, std::move(*file), key))
         return std::unexpected(std::string{"FreeType: could not load '"} + key + "'");
 
       const auto id = static_cast<uint32_t>(font_atlases_.size());
@@ -710,6 +743,38 @@ namespace corundum::platform::glfw {
       return nullptr;
     }
 
+    bool SokolRenderer::draw_glyph(const GlyphInfo &g, const BakedAtlas &baked, float pen_x, float pen_y,
+                                   float char_size, ColourF colour, float &advance) {
+      advance = to_logical(static_cast<float>(g.advance_x), screen_scale_.x);
+      if (g.width == 0)
+        return true; // A zero-area glyph (e.g. space) only advances the pen.
+
+      if (!begin_primitive(baked.view))
+        return false;
+
+      const BakedSize &baked_data = baked.data;
+      const float atlas_w = static_cast<float>(baked_data.atlas_w);
+      const float atlas_h = static_cast<float>(baked_data.atlas_h);
+      const float sx = world_view_active_ ? 1.f : screen_scale_.x;
+      const float sy = world_view_active_ ? 1.f : screen_scale_.y;
+      const float gw = to_logical(static_cast<float>(g.width), screen_scale_.x);
+      const float gh = to_logical(static_cast<float>(g.height), screen_scale_.y);
+      const float gx = pen_x + to_logical(static_cast<float>(g.bearing_x), screen_scale_.x);
+      const float gy = pen_y + char_size - to_logical(static_cast<float>(g.bearing_y), screen_scale_.y);
+      const float u0 = static_cast<float>(g.atlas_x) / atlas_w;
+      const float v0 = static_cast<float>(g.atlas_y) / atlas_h;
+      const float u1 = static_cast<float>(g.atlas_x + g.width) / atlas_w;
+      const float v1 = static_cast<float>(g.atlas_y + g.height) / atlas_h;
+
+      // Screen-space glyphs snap to whole device pixels so their 1:1 bitmap stays crisp; world-space
+      // text stays unsnapped, where rounding a zoom-scaled glyph makes it jitter as it moves.
+      const float qx = world_view_active_ ? gx * sx : std::round(gx * sx);
+      const float qy = world_view_active_ ? gy * sy : std::round(gy * sy);
+      emit_quad(batch_vertices_, qx, qy, gw * sx, gh * sy, u0, v0, u1, v1, colour.r, colour.g, colour.b, colour.a);
+      add_to_batch(baked.view);
+      return true;
+    }
+
     void SokolRenderer::draw(const DrawText &cmd) {
       if (!pass_active_ || cmd.text.empty())
         return;
@@ -719,17 +784,12 @@ namespace corundum::platform::glfw {
         return;
 
       const BakedSize &baked_data = baked->data;
-      const float atlas_w = static_cast<float>(baked_data.atlas_w);
-      const float atlas_h = static_cast<float>(baked_data.atlas_h);
       const ColourF colour = unpack_colour(cmd.colour);
 
-      // Glyphs are baked at the physical font size (see ensure_metrics), so their pixel metrics are
-      // converted back to logical units here — keeping the pen math below in the same units as
-      // cmd.position/cmd.char_size — then re-expanded by (sx, sy) only when emitting quads, matching
-      // DrawSprite/DrawRect/DrawLine.
-      const float sx = world_view_active_ ? 1.f : screen_scale_.x;
-      const float sy = world_view_active_ ? 1.f : screen_scale_.y;
-
+      // Glyphs are baked at the physical font size (see ensure_metrics), so draw_glyph() converts their
+      // metrics back to logical units — keeping the pen math here in the same units as
+      // cmd.position/cmd.char_size — and re-expands by the screen scale only when emitting quads,
+      // matching DrawSprite/DrawRect/DrawLine.
       float pen_x = cmd.position.x;
       float pen_y = cmd.position.y;
       const float line_h = static_cast<float>(cmd.char_size);
@@ -746,33 +806,10 @@ namespace corundum::platform::glfw {
         const GlyphInfo *g = find_glyph(baked_data, codepoint);
         if (g == nullptr)
           continue;
-        const float advance = to_logical(static_cast<float>(g->advance_x), screen_scale_.x);
-        if (g->width == 0) {
-          pen_x += advance;
-          continue;
-        }
 
-        if (!begin_primitive(baked->view))
+        float advance = 0.f;
+        if (!draw_glyph(*g, *baked, pen_x, pen_y, line_h, colour, advance))
           break;
-
-        const float gw = to_logical(static_cast<float>(g->width), screen_scale_.x);
-        const float gh = to_logical(static_cast<float>(g->height), screen_scale_.y);
-        const float gx = pen_x + to_logical(static_cast<float>(g->bearing_x), screen_scale_.x);
-        const float gy =
-            pen_y + static_cast<float>(cmd.char_size) - to_logical(static_cast<float>(g->bearing_y), screen_scale_.y);
-        const float u0 = static_cast<float>(g->atlas_x) / atlas_w;
-        const float v0 = static_cast<float>(g->atlas_y) / atlas_h;
-        const float u1 = static_cast<float>(g->atlas_x + g->width) / atlas_w;
-        const float v1 = static_cast<float>(g->atlas_y + g->height) / atlas_h;
-
-        // Screen-space glyphs snap to whole device pixels so their 1:1 bitmap stays crisp; world-space
-        // text stays unsnapped, where rounding a zoom-scaled glyph makes it jitter as it moves.
-        const float qx = world_view_active_ ? gx * sx : std::round(gx * sx);
-        const float qy = world_view_active_ ? gy * sy : std::round(gy * sy);
-        emit_quad(batch_vertices_, qx, qy, gw * sx, gh * sy, u0, v0, u1, v1, colour.r, colour.g, colour.b, colour.a);
-
-        add_to_batch(baked->view);
-
         pen_x += advance;
       }
     }
@@ -883,8 +920,9 @@ namespace corundum::platform::glfw {
 
   } // namespace
 
-  std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx) {
-    return std::make_unique<SokolRenderer>(gpu_ctx);
+  std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx,
+                                                                    const corundum::core::ContentSource &content) {
+    return std::make_unique<SokolRenderer>(gpu_ctx, content);
   }
 
 } // namespace corundum::platform::glfw

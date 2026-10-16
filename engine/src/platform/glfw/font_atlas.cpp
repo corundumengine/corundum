@@ -152,31 +152,36 @@ namespace corundum::platform::glfw {
       FT_Done_Face(face);
   }
 
-  FontAtlas::FontAtlas(FontAtlas &&other) noexcept : face{other.face}, path{std::move(other.path)} {
+  FontAtlas::FontAtlas(FontAtlas &&other) noexcept
+      : face{other.face}, file_bytes{std::move(other.file_bytes)}, path{std::move(other.path)} {
     other.face = nullptr;
   }
 
   FontAtlas &FontAtlas::operator=(FontAtlas &&other) noexcept {
     if (this != &other) {
+      // Release our face before our buffer is replaced: the face reads from file_bytes.
       if (face != nullptr)
         FT_Done_Face(face);
       face = other.face;
+      file_bytes = std::move(other.file_bytes);
       path = std::move(other.path);
       other.face = nullptr;
     }
     return *this;
   }
 
-  bool FontAtlas::load(FT_Library lib, std::string_view font_path) {
+  bool FontAtlas::load(FT_Library lib, std::vector<uint8_t> font_bytes, std::string_view font_path) {
     // A second load would otherwise overwrite (and leak) the existing face.
     if (face != nullptr) {
       FT_Done_Face(face);
       face = nullptr;
     }
 
+    file_bytes = std::move(font_bytes);
     path = std::string{font_path};
-    if (FT_New_Face(lib, path.c_str(), 0, &face) != 0) {
-      corundum::detail::warn_log("[font_atlas] FT_New_Face failed for '{}'", path);
+    // NOLINTNEXTLINE(misc-include-cleaner): FT_Long comes from the FreeType headers included above.
+    if (FT_New_Memory_Face(lib, file_bytes.data(), static_cast<FT_Long>(file_bytes.size()), 0, &face) != 0) {
+      corundum::detail::warn_log("[font_atlas] FT_New_Memory_Face failed for '{}'", path);
       return false;
     }
     return true;

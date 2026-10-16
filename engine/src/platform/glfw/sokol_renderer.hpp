@@ -12,6 +12,10 @@ namespace corundum::platform {
 
 } // namespace corundum::platform
 
+namespace corundum::core {
+  class ContentSource;
+} // namespace corundum::core
+
 namespace corundum::platform::glfw {
 
   /** @brief Create a sokol_gfx-backed Renderer attached to the given GPU context.
@@ -21,6 +25,7 @@ namespace corundum::platform::glfw {
    * resources.
    *
    * @param[in] gpu_ctx  A fully-initialised GpuContext with an active sokol device.
+   * @param[in] content  Source the renderer reads textures and fonts through. Must outlive the renderer.
    *
    * @return Owning pointer to the initialised Renderer.
    *
@@ -28,6 +33,6 @@ namespace corundum::platform::glfw {
    *       unit selected for the build.
    */
   [[nodiscard]] std::unique_ptr<corundum::platform::Renderer>
-  make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx);
+  make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx, const corundum::core::ContentSource &content);
 
 } // namespace corundum::platform::glfw

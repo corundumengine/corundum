@@ -166,7 +166,9 @@ endif()
 set(_miniaudio_backend_header "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/miniaudio/miniaudio_backend.hpp")
 if(EXISTS "${_miniaudio_backend_header}")
   target_sources(corundum_tests PRIVATE
+        audio/test_content_vfs.cpp
         audio/test_miniaudio_backend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/miniaudio/content_vfs.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/miniaudio/miniaudio_backend.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/miniaudio/miniaudio_impl.cpp
     )

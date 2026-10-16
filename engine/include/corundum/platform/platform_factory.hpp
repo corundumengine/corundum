@@ -13,6 +13,10 @@
 #include <string>
 #include <string_view>
 
+namespace corundum::core {
+  class ContentSource;
+} // namespace corundum::core
+
 namespace corundum::platform {
 
   /** @brief Opaque result of create_platform().
@@ -53,13 +57,16 @@ namespace corundum::platform {
    * The window starts hidden; see create_window(). Call Window::show() once the first frame is
    * ready.
    *
+   * @param[in] content Source the renderer and audio backend read textures, fonts and sounds through.
    * @param[in] width   Initial window width in pixels.
    * @param[in] height  Initial window height in pixels.
    * @param[in] title   Initial window title.
    * @return The bundle on success, or std::unexpected with an error message.
+   * @pre @p content outlives the returned PlatformContext.
    * @post Window, gpu, renderer, and audio_backend are all valid (non-null) on success.
    */
-  [[nodiscard]] std::expected<PlatformContext, std::string> create_platform(unsigned width, unsigned height,
-                                                                            std::string_view title);
+  [[nodiscard]] std::expected<PlatformContext, std::string>
+  create_platform(const corundum::core::ContentSource &content, unsigned width, unsigned height,
+                  std::string_view title);
 
 } // namespace corundum::platform

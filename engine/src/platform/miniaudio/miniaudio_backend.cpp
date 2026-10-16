@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "miniaudio_backend.hpp"
+#include "content_vfs.hpp"
 #include "core/warn_log.hpp"
 
 #include <corundum/audio/audio_backend.hpp>
+#include <corundum/core/content_source.hpp>
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -67,6 +69,8 @@ namespace corundum::platform::miniaudio {
       std::uint32_t generation{}; ///< 0 until first use; incremented on every play.
     };
 
+    /// Declared before the engine: the resource manager keeps this pointer for the engine's life.
+    ContentVfs vfs;
     ma_engine engine{};
     std::array<Bus, audio::k_audio_bus_count> buses{};
     MiniaudioOutput output{MiniaudioOutput::Device};
@@ -130,7 +134,8 @@ namespace corundum::platform::miniaudio {
     }
   };
 
-  MiniaudioBackend::MiniaudioBackend(MiniaudioOutput output) : state_(std::make_unique<State>()) {
+  MiniaudioBackend::MiniaudioBackend(MiniaudioOutput output, const corundum::core::ContentSource &content)
+      : state_(std::make_unique<State>()) {
     state_->output = output;
 
     ma_engine_config config = ma_engine_config_init();
@@ -138,6 +143,8 @@ namespace corundum::platform::miniaudio {
     config.sampleRate = 44100;
     if (output == MiniaudioOutput::Headless)
       config.noDevice = MA_TRUE;
+    state_->vfs = make_content_vfs(content);
+    config.pResourceManagerVFS = &state_->vfs;
 
     const ma_result engine_result = ma_engine_init(&config, &state_->engine);
     if (engine_result != MA_SUCCESS) {
@@ -325,8 +332,8 @@ namespace corundum::platform::miniaudio {
     ma_engine_read_pcm_frames(&state_->engine, frames_out.data(), frames_out.size() / 2, nullptr);
   }
 
-  std::unique_ptr<audio::AudioBackend> make_miniaudio_backend() {
-    return std::make_unique<MiniaudioBackend>(MiniaudioOutput::Device);
+  std::unique_ptr<audio::AudioBackend> make_miniaudio_backend(const corundum::core::ContentSource &content) {
+    return std::make_unique<MiniaudioBackend>(MiniaudioOutput::Device, content);
   }
 
 } // namespace corundum::platform::miniaudio

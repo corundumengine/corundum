@@ -38,8 +38,8 @@ namespace corundum {
 
     // load_game_config() rejects non-positive window dimensions, so the narrowing
     // conversion to the platform's unsigned size arguments is safe.
-    auto platform =
-        platform::create_platform(static_cast<unsigned>(cfg.win_w), static_cast<unsigned>(cfg.win_h), cfg.window_title);
+    auto platform = platform::create_platform(*engine->content, static_cast<unsigned>(cfg.win_w),
+                                              static_cast<unsigned>(cfg.win_h), cfg.window_title);
     if (!platform)
       return std::unexpected(std::format("create platform: {}", platform.error()));
 
