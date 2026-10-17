@@ -33,6 +33,12 @@ namespace {
       return next_font_id_++;
     }
 
+    [[nodiscard]] corundum::core::math::Vec2 texture_size(std::uint32_t /*texture_id*/) const override { return {}; }
+
+    void release_texture(std::uint32_t /*texture_id*/) override {}
+
+    void purge_unused_textures() override {}
+
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
                         float /*zoom*/) override {}
 

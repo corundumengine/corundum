@@ -37,6 +37,12 @@ namespace corundum::platform::null {
       return k_dummy_handle;
     }
 
+    [[nodiscard]] core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override { return {}; }
+
+    void release_texture(uint32_t /*texture_id*/) override {}
+
+    void purge_unused_textures() override {}
+
     void set_world_view(core::math::Vec2 top_left, core::math::Vec2 /*viewport_size*/, float zoom) override {
       last_cam_ = top_left;
       last_zoom_ = zoom;

@@ -30,46 +30,55 @@ namespace corundum::platform {
       if (id == 0)
         return;
       if (id >= counts_.size())
-        counts_.resize(static_cast<std::size_t>(id) + 1, k_untracked);
-      int &count = counts_[id];
-      if (count == k_purged)
+        counts_.resize(static_cast<std::size_t>(id) + 1);
+      Entry &entry = counts_[id];
+      if (entry.state == State::Purged)
         return;
-      if (count == k_untracked)
-        count = 0;
-      ++count;
+      entry.state = State::Live;
+      ++entry.count;
     }
 
     /** @brief Drop one reference to @p id. Id 0, an untracked id or an id already at zero is
      *  ignored. */
     void release(std::uint32_t id) {
-      if (id == 0 || id >= counts_.size() || counts_[id] <= 0)
+      if (id == 0 || id >= counts_.size())
         return;
-      --counts_[id];
+      Entry &entry = counts_[id];
+      if (entry.state != State::Live || entry.count == 0)
+        return;
+      --entry.count;
     }
 
     /** @brief Current reference count of @p id; 0 for an untracked or purged id. */
     [[nodiscard]] std::uint32_t count(std::uint32_t id) const {
-      if (id >= counts_.size() || counts_[id] <= 0)
+      if (id >= counts_.size() || counts_[id].state != State::Live)
         return 0;
-      return static_cast<std::uint32_t>(counts_[id]);
+      return counts_[id].count;
     }
 
     /** @brief Every id whose count is zero, each returned once; they become purged for good. */
     [[nodiscard]] std::vector<std::uint32_t> take_unreferenced() {
       std::vector<std::uint32_t> ids;
       for (std::size_t id{1}; id < counts_.size(); ++id) {
-        if (counts_[id] == 0) {
+        Entry &entry = counts_[id];
+        if (entry.state == State::Live && entry.count == 0) {
           ids.push_back(static_cast<std::uint32_t>(id));
-          counts_[id] = k_purged;
+          entry.state = State::Purged;
         }
       }
       return ids;
     }
 
   private:
-    static constexpr int k_untracked{-1}; ///< Never acquired.
-    static constexpr int k_purged{-2};    ///< Handed out by take_unreferenced(); dead forever.
-    std::vector<int> counts_;
+    enum class State : std::uint8_t { Untracked, Live, Purged };
+
+    struct Entry {
+      std::uint32_t count{0};
+
+      State state{State::Untracked};
+    };
+
+    std::vector<Entry> counts_;
   };
 
 } // namespace corundum::platform

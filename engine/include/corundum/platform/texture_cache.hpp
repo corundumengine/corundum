@@ -67,13 +67,13 @@ namespace corundum::platform {
 
     /** @brief Create an RGBA8 texture from a raw pixel buffer.
      *
-     * @param[in] w     Width in pixels; must be non-zero.
-     * @param[in] h     Height in pixels; must be non-zero.
-     * @param[in] rgba  @p w * @p h RGBA8 pixels, borrowed for the call only.
-     * @param[in] wrap  Sampler wrap mode (clamp by default).
+     * @param[in] width   Width in pixels; must be non-zero.
+     * @param[in] height  Height in pixels; must be non-zero.
+     * @param[in] rgba    @p width * @p height RGBA8 pixels, borrowed for the call only.
+     * @param[in] wrap    Sampler wrap mode (clamp by default).
      * @return TextureInfo on success, or std::unexpected with an error message.
      */
-    [[nodiscard]] std::expected<TextureInfo, std::string> create(unsigned w, unsigned h, const void *rgba,
+    [[nodiscard]] std::expected<TextureInfo, std::string> create(unsigned width, unsigned height, const void *rgba,
                                                                  WrapMode wrap = WrapMode::Clamp);
 
     /** @brief Destroy a texture and release its GPU resources.
@@ -93,9 +93,9 @@ namespace corundum::platform {
     /** @brief Get the handles that identify @p id in the linked backend's own API.
      *
      * @param[in] id  Texture id returned by load() or create().
-     * @return Both handles, or a zeroed BackendTexture if @p id is not live.
+     * @return Both handles, or std::nullopt if @p id is not live.
      */
-    [[nodiscard]] BackendTexture backend_handle(uint32_t id) const noexcept;
+    [[nodiscard]] std::optional<BackendTexture> backend_handle(uint32_t id) const noexcept;
 
   private:
     struct Impl;

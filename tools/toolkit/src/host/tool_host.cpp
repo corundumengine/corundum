@@ -15,6 +15,7 @@
 #include <functional>
 #include <imgui_impl_glfw.h>
 #include <memory>
+#include <optional>
 #include <sokol_gfx.h>
 #include <sokol_imgui.h>
 
@@ -157,9 +158,11 @@ namespace corundum::toolkit::host {
   }
 
   ImTextureID ToolHost::imgui_id(uint32_t texture_id) {
-    auto bt = impl_->textures->backend_handle(texture_id);
-    return simgui_imtextureid_with_sampler(sg_view{static_cast<uint32_t>(bt.view)},
-                                           sg_sampler{static_cast<uint32_t>(bt.sampler)});
+    const std::optional<BackendTexture> handles = impl_->textures->backend_handle(texture_id);
+    if (!handles)
+      return ImTextureID_Invalid;
+    return simgui_imtextureid_with_sampler(sg_view{static_cast<uint32_t>(handles->view)},
+                                           sg_sampler{static_cast<uint32_t>(handles->sampler)});
   }
 
   std::expected<TextureInfo, std::string> ToolHost::make_checkerboard(unsigned w, unsigned h, unsigned check_size) {

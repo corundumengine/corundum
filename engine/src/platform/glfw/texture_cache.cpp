@@ -129,21 +129,21 @@ namespace corundum::platform {
                    std::string{"TextureCache: could not create GPU resources for '"} + path_str + "'");
   }
 
-  std::expected<TextureInfo, std::string> TextureCache::create(unsigned w, unsigned h, const void *rgba,
+  std::expected<TextureInfo, std::string> TextureCache::create(unsigned width, unsigned height, const void *rgba,
                                                                WrapMode wrap) {
-    if (w == 0 || h == 0)
+    if (width == 0 || height == 0)
       return std::unexpected(std::string{"TextureCache: texture size must be non-zero"});
     if (rgba == nullptr)
       return std::unexpected(std::string{"TextureCache: texture pixels are null"});
-    if (w > k_max_texture_dimension || h > k_max_texture_dimension)
+    if (width > k_max_texture_dimension || height > k_max_texture_dimension)
       return std::unexpected(std::string{"TextureCache: texture size out of range"});
 
     const auto *pixels = static_cast<const uint8_t *>(rgba);
     const sg_image image = glfw::make_rgba8_image(
-        std::span<const uint8_t>{pixels, glfw::rgba8_byte_count(static_cast<int>(w), static_cast<int>(h))},
-        static_cast<int>(w), static_cast<int>(h), "texture_cache");
+        std::span<const uint8_t>{pixels, glfw::rgba8_byte_count(static_cast<int>(width), static_cast<int>(height))},
+        static_cast<int>(width), static_cast<int>(height), "texture_cache");
 
-    return publish(impl_->slots, image, w, h, wrap, "TextureCache: could not create GPU resources");
+    return publish(impl_->slots, image, width, height, wrap, "TextureCache: could not create GPU resources");
   }
 
   void TextureCache::destroy(uint32_t id) noexcept {
@@ -160,10 +160,10 @@ namespace corundum::platform {
     return TextureInfo{.height = slot->height, .id = id, .width = slot->width};
   }
 
-  BackendTexture TextureCache::backend_handle(uint32_t id) const noexcept {
+  std::optional<BackendTexture> TextureCache::backend_handle(uint32_t id) const noexcept {
     const SlotTable::Slot *slot = impl_->slots.peek(id);
     if (slot == nullptr)
-      return BackendTexture{};
+      return std::nullopt;
 
     return BackendTexture{.sampler = slot->payload.sampler.id, .view = slot->payload.view.id};
   }

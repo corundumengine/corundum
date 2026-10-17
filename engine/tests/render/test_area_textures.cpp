@@ -48,6 +48,8 @@ namespace {
       return it->second;
     }
 
+    [[nodiscard]] corundum::core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override { return {}; }
+
     void release_texture(uint32_t texture_id) override { refs.release(texture_id); }
 
     void purge_unused_textures() override {

@@ -97,18 +97,17 @@ namespace corundum::platform {
     /// @return Opaque texture ID, or std::unexpected with the reason.
     [[nodiscard]] virtual std::expected<uint32_t, std::string> load_texture(std::string_view path) = 0;
 
-    /// Pixel size of a texture returned by load_texture(), or {0, 0} if unknown. Backends that
-    /// cannot report sizes keep the default.
-    [[nodiscard]] virtual core::math::Vec2 texture_size(uint32_t /*texture_id*/) const { return {}; }
+    /// Pixel size of a texture returned by load_texture(), or {0, 0} if unknown.
+    [[nodiscard]] virtual core::math::Vec2 texture_size(uint32_t texture_id) const = 0;
 
     /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).
     /// Never destroys: an unreferenced texture stays usable until purge_unused_textures().
-    /// Id 0 is ignored. Backends without texture lifetimes keep the default.
-    virtual void release_texture(uint32_t /*texture_id*/) {}
+    /// Id 0 is ignored.
+    virtual void release_texture(uint32_t texture_id) = 0;
 
     /// Destroy every texture whose references have all been released. Call only between frames
     /// (never between begin_frame() and end_frame()), at an area boundary. Ids are never reused.
-    virtual void purge_unused_textures() {}
+    virtual void purge_unused_textures() = 0;
 
     /// Load a font face for rasterised text.
     /// @return Opaque font ID, or std::unexpected with the reason.

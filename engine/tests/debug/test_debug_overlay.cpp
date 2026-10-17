@@ -76,6 +76,12 @@ namespace {
 
     [[nodiscard]] std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
 
+    [[nodiscard]] corundum::core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override { return {}; }
+
+    void release_texture(uint32_t /*texture_id*/) override {}
+
+    void purge_unused_textures() override {}
+
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 viewport_size,
                         float /*zoom*/) override {
       viewports.push_back(viewport_size);

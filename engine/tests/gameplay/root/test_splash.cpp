@@ -66,6 +66,8 @@ namespace {
 
     void release_texture(uint32_t texture_id) override { refs.release(texture_id); }
 
+    void purge_unused_textures() override {}
+
     std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
 
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
