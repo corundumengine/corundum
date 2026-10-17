@@ -97,8 +97,10 @@ namespace corundum::core {
     /** @brief Directory containing shop batch files. Defaults to "data/shops". */
     std::string shops_dir{"data/shops"};
 
-    /** @brief Optional JSON catalog mapping sound names to file paths (relative to sounds_dir).
-     *  Example: {"coin": "sfx/jingle_coin_01.ogg"}. Empty → names resolve to "{name}.ogg". */
+    /** @brief JSON catalog mapping sound names to file paths (relative to sounds_dir).
+     *  Example: {"coin": "sfx/jingle_coin_01.ogg"}. Defaults to "data/sounds.json"; a missing or
+     *  unparseable file logs a warning and names resolve to "{name}.ogg". An explicit empty value
+     *  disables catalog lookup entirely. */
     std::string sounds_catalog{"data/sounds.json"};
 
     /** @brief Directory containing sound (OGG) assets. */
@@ -160,8 +162,7 @@ namespace corundum::core {
     std::string track;
   };
 
-  /// Full runtime configuration loaded from game.json. This struct is designed for cache efficiency by grouping related
-  /// data together.
+  /// Full runtime configuration loaded from game.json.
   struct GameConfig {
     /** @brief Machine-readable id of the game this config belongs to.
      *
@@ -181,10 +182,10 @@ namespace corundum::core {
     bool vsync = true;
 
     /** @brief Initial height of the game window in pixels. */
-    float win_h = 600.f;
+    unsigned win_h{600};
 
     /** @brief Initial width of the game window in pixels. */
-    float win_w = 800.f;
+    unsigned win_w{800};
 
     /** @brief Window mode at startup, before any user setting applies ("window_mode" in game.json). */
     WindowMode window_mode{WindowMode::Windowed};
@@ -259,8 +260,6 @@ namespace corundum::core {
   };
 
   /// Parses game.json at @p path and returns a validated GameConfig.
-  /// @brief Loads and validates all engine configuration settings from the specified JSON file.
-  /// @param path The filesystem path to game.json.
   /// @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
   /// failure.
   [[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content,

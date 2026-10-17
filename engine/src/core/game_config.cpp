@@ -36,9 +36,12 @@ namespace corundum::core {
                                                                    unsigned int default_val, const fs::path &path) {
       if (!j.contains(key))
         return default_val;
+      const json &value = j.at(key);
+      if (!value.is_number_integer())
+        return std::unexpected(std::format("game.json '{}' must be an integer: {}", key, path.string()));
       int v{0};
       try {
-        v = j.at(key).get<int>();
+        v = value.get<int>();
       } catch (...) {
         return std::unexpected(std::format("game.json '{}' must be an integer: {}", key, path.string()));
       }
@@ -255,13 +258,13 @@ namespace corundum::core {
 
     std::expected<void, std::string> parse_window_settings(const json &j, GameConfig &cfg, const fs::path &path) {
       {
-        auto res = get_positive_float(j, "win_w", cfg.win_w, path);
+        auto res = get_positive_unsigned(j, "win_w", cfg.win_w, path);
         if (!res)
           return std::unexpected(res.error());
         cfg.win_w = *res;
       }
       {
-        auto res = get_positive_float(j, "win_h", cfg.win_h, path);
+        auto res = get_positive_unsigned(j, "win_h", cfg.win_h, path);
         if (!res)
           return std::unexpected(res.error());
         cfg.win_h = *res;

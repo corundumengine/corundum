@@ -10,6 +10,7 @@
 #include <corundum/core/user_storage.hpp>
 #include <nlohmann/json.hpp>
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -66,6 +67,56 @@ TEST_CASE("DirectoryUserStorage: contains is false for a missing entry") {
   const corundum::core::DirectoryUserStorage storage(dir.path());
 
   CHECK_FALSE(storage.contains("nope.json"));
+}
+
+TEST_CASE("DirectoryUserStorage: write rejects a name with a '..' component") {
+  const auto dir = temp_dir("parent_escape");
+  corundum::core::DirectoryUserStorage storage(dir.path());
+
+  const auto result = storage.write("../escape.txt", "x");
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           "invalid storage name '../escape.txt' (must be non-empty, relative, with no '..' component)");
+  CHECK_FALSE(std::filesystem::exists(dir.path().parent_path() / "escape.txt"));
+}
+
+TEST_CASE("DirectoryUserStorage: write rejects an empty name") {
+  const auto dir = temp_dir("empty_name");
+  corundum::core::DirectoryUserStorage storage(dir.path());
+
+  const auto result = storage.write("", "x");
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "invalid storage name '' (must be non-empty, relative, with no '..' component)");
+}
+
+TEST_CASE("DirectoryUserStorage: write rejects an absolute name") {
+  const auto dir = temp_dir("absolute_name");
+  corundum::core::DirectoryUserStorage storage(dir.path());
+
+  const auto result = storage.write("/tmp/escape.txt", "x");
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           "invalid storage name '/tmp/escape.txt' (must be non-empty, relative, with no '..' component)");
+}
+
+TEST_CASE("DirectoryUserStorage: write rejects a bare '..' name") {
+  const auto dir = temp_dir("bare_parent");
+  corundum::core::DirectoryUserStorage storage(dir.path());
+
+  const auto result = storage.write("..", "x");
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "invalid storage name '..' (must be non-empty, relative, with no '..' component)");
+}
+
+TEST_CASE("DirectoryUserStorage: read and contains reject a '..' component") {
+  const auto dir = temp_dir("read_parent_escape");
+  const corundum::core::DirectoryUserStorage storage(dir.path());
+
+  CHECK_FALSE(storage.contains("../escape.txt"));
+  const auto result = storage.read("../escape.txt");
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           "invalid storage name '../escape.txt' (must be non-empty, relative, with no '..' component)");
 }
 
 TEST_CASE("make_user_storage: an empty game_id is an error") {

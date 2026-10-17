@@ -80,7 +80,7 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   const auto dir = temp_dir("full");
   const auto p = dir / "game.json";
   write_file(p, R"({
-        "win_w": 1280.0, "win_h": 720.0, "simulation_fps": 30,
+        "win_w": 1280, "win_h": 720, "simulation_fps": 30,
         "interact_radius": 64.0, "player_speed": 150.0,
         "character_scale": 3, "tile_scale": 4, "elevation_step_px": 6.0,
         "font_dir": "game/assets/fonts",
@@ -100,8 +100,8 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
-  CHECK(cfg.win_w == doctest::Approx(1280.f));
-  CHECK(cfg.win_h == doctest::Approx(720.f));
+  CHECK_EQ(cfg.win_w, 1280u);
+  CHECK_EQ(cfg.win_h, 720u);
   CHECK(cfg.simulation_fps == 30u);
   CHECK(cfg.interact_radius == doctest::Approx(64.f));
   CHECK(cfg.player_speed == doctest::Approx(150.f));
@@ -132,12 +132,12 @@ TEST_CASE("load_game_config — full valid JSON loads all fields") {
 TEST_CASE("load_game_config — partial JSON overrides only specified fields") {
   const auto dir = temp_dir("partial");
   const auto p = dir / "game.json";
-  write_file(p, R"({"win_w": 1024.0, "player_speed": 300.0})");
+  write_file(p, R"({"win_w": 1024, "player_speed": 300.0})");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
-  CHECK(cfg.win_w == doctest::Approx(1024.f));
-  CHECK(cfg.win_h == doctest::Approx(600.f)); // default
+  CHECK_EQ(cfg.win_w, 1024u);
+  CHECK_EQ(cfg.win_h, 600u); // default
   CHECK(cfg.player_speed == doctest::Approx(300.f));
   CHECK(cfg.character_scale == doctest::Approx(2.f));   // default
   CHECK(cfg.elevation_step_px == doctest::Approx(4.f)); // default
@@ -148,7 +148,7 @@ TEST_CASE("load_game_config — partial JSON overrides only specified fields") {
 TEST_CASE("load_game_config — win_w <= 0 returns error") {
   const auto dir = temp_dir("win_w_zero");
   const auto p = dir / "game.json";
-  write_file(p, R"({"win_w": 0.0})");
+  write_file(p, R"({"win_w": 0})");
   const auto result = load_game_config(disk(), p);
   CHECK(!result.has_value());
 }
@@ -156,9 +156,18 @@ TEST_CASE("load_game_config — win_w <= 0 returns error") {
 TEST_CASE("load_game_config — win_h <= 0 returns error") {
   const auto dir = temp_dir("win_h_neg");
   const auto p = dir / "game.json";
-  write_file(p, R"({"win_h": -1.0})");
+  write_file(p, R"({"win_h": -1})");
   const auto result = load_game_config(disk(), p);
   CHECK(!result.has_value());
+}
+
+TEST_CASE("load_game_config — non-integer win_w returns error") {
+  const auto dir = temp_dir("win_w_float");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"win_w": 800.5})");
+  const auto result = load_game_config(disk(), p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK(result.error().find("'win_w' must be an integer") != std::string::npos);
 }
 
 TEST_CASE("load_game_config — simulation_fps = 0 returns error") {
@@ -494,11 +503,11 @@ TEST_CASE("load_game_config — resource directories default to the standard pro
 TEST_CASE("load_game_config — unknown top-level key is silently ignored") {
   const auto dir = temp_dir("unknown_key");
   const auto p = dir / "game.json";
-  write_file(p, R"({"win_w": 1024.0, "future_feature": true})");
+  write_file(p, R"({"win_w": 1024, "future_feature": true})");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
   const auto &cfg = *result;
-  CHECK(cfg.win_w == doctest::Approx(1024.f));
+  CHECK_EQ(cfg.win_w, 1024u);
 }
 
 // ── Player block ──────────────────────────────────────────────────────────────

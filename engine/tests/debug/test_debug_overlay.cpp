@@ -42,8 +42,8 @@ namespace {
 
     corundum::core::GameConfig cfg{};
     cfg.window_title = "hud_overlay_test";
-    cfg.win_w = 320.f;
-    cfg.win_h = 240.f;
+    cfg.win_w = 320;
+    cfg.win_h = 240;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();

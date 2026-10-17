@@ -6,6 +6,7 @@
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/user_data_dir.hpp>
 
+#include <algorithm>
 #include <expected>
 #include <filesystem>
 #include <format>
@@ -21,9 +22,27 @@
 
 namespace corundum::core {
 
+  namespace {
+
+    /// A storage name must stay inside root_: non-empty, relative, with no ".." component.
+    [[nodiscard]] bool is_valid_storage_name(std::string_view name) {
+      const std::filesystem::path relative{name};
+      return !name.empty() && relative.is_relative() &&
+             std::ranges::none_of(relative, [](const std::filesystem::path &part) { return part == ".."; });
+    }
+
+    [[nodiscard]] std::string invalid_storage_name_message(std::string_view name) {
+      return std::format("invalid storage name '{}' (must be non-empty, relative, with no '..' component)", name);
+    }
+
+  } // namespace
+
   DirectoryUserStorage::DirectoryUserStorage(std::filesystem::path root) : root_(std::move(root)) {}
 
   std::expected<std::string, std::string> DirectoryUserStorage::read(std::string_view name) const {
+    if (!is_valid_storage_name(name))
+      return std::unexpected(invalid_storage_name_message(name));
+
     const std::filesystem::path path = root_ / std::filesystem::path(name);
     const std::ifstream f(path, std::ios::binary);
     if (!f)
@@ -35,11 +54,17 @@ namespace corundum::core {
   }
 
   bool DirectoryUserStorage::contains(std::string_view name) const {
+    if (!is_valid_storage_name(name))
+      return false;
+
     std::error_code ec;
     return std::filesystem::is_regular_file(root_ / std::filesystem::path(name), ec) && !ec;
   }
 
   std::expected<void, std::string> DirectoryUserStorage::write(std::string_view name, std::string_view contents) {
+    if (!is_valid_storage_name(name))
+      return std::unexpected(invalid_storage_name_message(name));
+
     const std::filesystem::path path = root_ / std::filesystem::path(name);
 
     std::error_code ec;

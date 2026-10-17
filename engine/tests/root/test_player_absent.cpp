@@ -28,8 +28,8 @@ namespace {
   corundum::core::GameConfig make_single_map_config(const fs::path &fixtures) {
     corundum::core::GameConfig cfg{};
     cfg.window_title = "player_absent_test";
-    cfg.win_w = 320.f;
-    cfg.win_h = 240.f;
+    cfg.win_w = 320;
+    cfg.win_h = 240;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();
@@ -47,8 +47,8 @@ namespace {
   corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
     corundum::core::GameConfig cfg{};
     cfg.window_title = "player_absent_streaming_test";
-    cfg.win_w = 320.f;
-    cfg.win_h = 240.f;
+    cfg.win_w = 320;
+    cfg.win_h = 240;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();
     corundum::test::set_missing_fonts(cfg.paths);

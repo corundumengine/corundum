@@ -47,8 +47,8 @@ namespace {
   corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
     corundum::core::GameConfig cfg{};
     cfg.window_title = "save_test";
-    cfg.win_w = 320.f;
-    cfg.win_h = 240.f;
+    cfg.win_w = 320;
+    cfg.win_h = 240;
     cfg.show_title = false;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();

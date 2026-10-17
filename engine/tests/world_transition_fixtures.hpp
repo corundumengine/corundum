@@ -27,8 +27,8 @@ namespace corundum::test {
   inline core::GameConfig make_world_config(const std::filesystem::path &fixtures) {
     core::GameConfig cfg{};
     cfg.window_title = "world_transition_test";
-    cfg.win_w = 320.f;
-    cfg.win_h = 240.f;
+    cfg.win_w = 320;
+    cfg.win_h = 240;
     cfg.show_title = false;
     cfg.paths.sprites_dir = (fixtures / "sprites").string();
     cfg.paths.font_dir = (fixtures / "fonts").string();
