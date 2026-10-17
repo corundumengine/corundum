@@ -35,7 +35,8 @@ namespace corundum {
    *    --debug        Enable the debug HUD overlay.
    *    --no-splash    Skip the boot splash.
    *
-   *  @param[in] args Argument vector from @c main (excluding the program name).
+   *  @param[in] args Argument vector from @c main, passed as @c {argv, argc}; the
+   *        program-name entry is unrecognised and ignored.
    *  @return A fully-populated EngineOptions with defaults applied.
    *  @note @c config_path is not settable from the command line; set it on the
    *        returned options. Unrecognised flags are silently ignored (null entries
@@ -53,8 +54,6 @@ namespace corundum {
    *  @return A fully-initialised, heap-allocated Engine on success, or an error message.
    *          Heap-allocated because Engine embeds the ~0.5 MB entity World, which must
    *          never sit on a stack frame (Windows' default main-thread stack is 1 MB).
-   *  @note load_game_config() rejects non-positive window dimensions, so the
-   *        narrowing conversion to the platform's unsigned size arguments is safe.
    *  @post On success the Engine is ready for Engine::run(). On failure the window
    *        is closed, audio is shut down, and the Engine (and the platform objects
    *        it owns) is destroyed.

@@ -312,7 +312,7 @@ TEST_CASE("save/load: save mode confirms before overwriting and refuses autosave
   corundum::gameplay::Gameplay gameplay{engine};
 
   REQUIRE(gameplay.save_to_slot("slot_01").has_value());
-  gameplay.open_save_load(/*saving=*/true);
+  gameplay.open_save_load(corundum::SaveLoadIntent::Save);
   REQUIRE(engine.scene.ui.top() == screens::SaveLoad);
   gameplay.save_load_screen.cursor = 0; // slot_01, the only slot present
 
@@ -323,7 +323,7 @@ TEST_CASE("save/load: save mode confirms before overwriting and refuses autosave
 
   // Autosave exists, so it leads the list; saving it from the UI is refused.
   REQUIRE(gameplay.autosave().has_value());
-  gameplay.open_save_load(/*saving=*/true);
+  gameplay.open_save_load(corundum::SaveLoadIntent::Save);
   gameplay.save_load_screen.cursor = 0;
   REQUIRE(gameplay.save_load_screen.slots.front().slot_id == "autosave");
 
@@ -349,7 +349,7 @@ TEST_CASE("save/load: a corrupt slot cannot be loaded and shows its error") {
   REQUIRE(engine.user_storage.has_value());
   write_corrupt_slot(**engine.user_storage, "slot_03");
 
-  gameplay.open_save_load(/*saving=*/false);
+  gameplay.open_save_load(corundum::SaveLoadIntent::Load);
   REQUIRE(engine.scene.ui.top() == screens::SaveLoad);
 
   const int corrupt_index = [&] {

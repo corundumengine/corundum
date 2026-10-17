@@ -79,6 +79,7 @@ set(TEST_SOURCES
     render/test_world_walkability.cpp
 
     # root
+    root/test_content_source.cpp
     root/test_engine_options.cpp
     root/test_player_absent.cpp
     root/test_screen_transition_engine.cpp

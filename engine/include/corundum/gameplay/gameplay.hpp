@@ -334,14 +334,14 @@ namespace corundum::gameplay {
      */
     void open_game_over();
 
-    /** @brief Show the Save/Load slot browser in save (@p saving true) or load mode.
+    /** @brief Show the Save/Load slot browser in save (SaveLoadIntent::Save) or load mode.
      *
      *  Buffers the slot rows for the engine's saves directory and pushes GameMode SaveLoad on
      *  top of whatever is currently open, so Back returns there.
      *
      *  @post engine.scene.ui.top() is screens::SaveLoad.
      */
-    void open_save_load(bool saving);
+    void open_save_load(SaveLoadIntent intent);
 
     /** @brief End the playthrough and show the title: clear session state, unload the world, clear
      *  the flags and the Playthrough record, then open_title(). Used by Quit to Title, Game over

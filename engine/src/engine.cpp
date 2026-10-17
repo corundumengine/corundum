@@ -4,6 +4,7 @@
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/core/verify.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
@@ -93,7 +94,7 @@ namespace corundum {
     private:
       std::expected<void, std::string> load_render_assets() {
         std::expected<void, std::string> characters_result;
-        characters_result = engine_->characters.load_all(*engine_->content, engine_->cfg.paths.sprites_dir);
+        characters_result = engine_->characters.load_all(engine_->content_source(), engine_->cfg.paths.sprites_dir);
         if (!characters_result)
           return std::unexpected(characters_result.error());
         render::load_sprite_index(*engine_->renderer, engine_->render, engine_->characters);
@@ -102,7 +103,7 @@ namespace corundum {
           return std::unexpected(std::move(result).error());
 
         std::expected<void, std::string> ui_result;
-        ui_result = render::load_ui_assets(*engine_->content, *engine_->renderer, engine_->render);
+        ui_result = render::load_ui_assets(engine_->content_source(), *engine_->renderer, engine_->render);
         if (!ui_result)
           return std::unexpected(ui_result.error());
         return {};
@@ -115,7 +116,7 @@ namespace corundum {
           corundum::detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
           return;
         }
-        engine_->audio.load_catalog(*engine_->content, engine_->cfg.paths.sounds_catalog);
+        engine_->audio.load_catalog(engine_->content_source(), engine_->cfg.paths.sounds_catalog);
       }
 
       Engine *engine_;
@@ -134,6 +135,15 @@ namespace corundum {
       return std::unexpected(result.error());
     }
     register_screens();
+    return {};
+  }
+
+  std::expected<void, std::string> Engine::set_content_source(std::unique_ptr<core::ContentSource> source) {
+    if (!source)
+      return std::unexpected("Engine::set_content_source: source must be non-null");
+    if (window || gpu || renderer)
+      return std::unexpected("Engine::set_content_source: a platform is already adopted");
+    content_ = std::move(source);
     return {};
   }
 
@@ -200,6 +210,41 @@ namespace corundum {
         engine.on_fixed_update(engine, dt);
       } catch (...) {
         warn_log("[engine] WARN: on_fixed_update handler threw");
+      }
+    }
+
+    /// Invoke the pause menu's Quit hook, swallowing any exception so the fixed-step
+    /// noexcept contract holds, as invoke_fixed_update_hook() does.
+    void invoke_menu_quit_hook(Engine &engine) noexcept {
+      if (!engine.on_menu_quit)
+        return;
+      try {
+        engine.on_menu_quit(engine);
+      } catch (...) {
+        warn_log("[engine] WARN: on_menu_quit handler threw");
+      }
+    }
+
+    /// Invoke the pause menu's Save/Load hook, swallowing any exception.
+    void invoke_menu_save_load_hook(Engine &engine, SaveLoadIntent intent) noexcept {
+      if (!engine.on_menu_save_load)
+        return;
+      try {
+        engine.on_menu_save_load(engine, intent);
+      } catch (...) {
+        warn_log("[engine] WARN: on_menu_save_load handler threw");
+      }
+    }
+
+    /// Consult the game's pause-menu block hook, treating a throw as "not blocked".
+    bool pause_menu_blocked(const Engine &engine, world::GameMode mode) noexcept {
+      if (!engine.blocks_pause_menu)
+        return false;
+      try {
+        return engine.blocks_pause_menu(mode);
+      } catch (...) {
+        warn_log("[engine] WARN: blocks_pause_menu handler threw");
+        return false;
       }
     }
 
@@ -330,20 +375,20 @@ namespace corundum {
         case ui::MenuCommand::Save:
           engine.scene.ui.pop();
           if (engine.on_menu_save_load)
-            engine.on_menu_save_load(engine, true);
+            invoke_menu_save_load_hook(engine, SaveLoadIntent::Save);
           else
             engine.raise_action_next_step(input::Action::QuickSave);
           break;
         case ui::MenuCommand::Load:
           engine.scene.ui.pop();
           if (engine.on_menu_save_load)
-            engine.on_menu_save_load(engine, false);
+            invoke_menu_save_load_hook(engine, SaveLoadIntent::Load);
           else
             engine.raise_action_next_step(input::Action::QuickLoad);
           break;
         case ui::MenuCommand::Quit:
           if (engine.on_menu_quit)
-            engine.on_menu_quit(engine);
+            invoke_menu_quit_hook(engine);
           else
             engine.request_quit();
           break;
@@ -530,7 +575,7 @@ namespace corundum {
           // latched here would fire the moment the world activates.
           if (engine.render.mode != render::RenderMode::World || !engine.render.chunks.active_empty()) {
             const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
-            world::sync_chunk_actors(*engine.content, engine.scene, engine.render, engine.cfg, engine.characters);
+            world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
             // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
             // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
             world::update(engine.scene, engine.cfg, engine.input_state, map_view, engine.timer.target_dt,
@@ -670,7 +715,7 @@ namespace corundum {
     // opens over either.
     const bool menu_pressed = input_state.is_pressed(input::Action::Menu);
     const bool top_handles_menu = scene.mode() == world::GameMode::Menu || scene.mode() == world::GameMode::Settings;
-    const bool menu_blocked = blocks_pause_menu && blocks_pause_menu(scene.mode());
+    const bool menu_blocked = pause_menu_blocked(*this, scene.mode());
     if (menu_pressed && !top_handles_menu && !menu_blocked && (scene.ui.empty() || !intent.back)) {
       scene.ui.push(world::GameMode::Menu);
       menu.cursor = 0;
@@ -745,7 +790,7 @@ namespace corundum {
 
     timer.tick();
 
-    render::stream_world_chunks(*content, *renderer, render, cfg, scene);
+    render::stream_world_chunks(content_source(), *renderer, render, cfg, scene);
 
     const SimulationResult simulation{run_fixed_steps(*this)};
     // Portal scene changes are applied at full black by advance_scene_transition(); the
@@ -768,6 +813,7 @@ namespace corundum {
   }
 
   void Engine::pause(PauseReason reason) noexcept {
+    core::verify(reason != PauseReason::Count, "pause: PauseReason::Count is not a reason");
     const bool was_paused{is_paused()};
     pause_reasons_[static_cast<std::size_t>(reason)] = true;
     if (!was_paused)
@@ -775,6 +821,7 @@ namespace corundum {
   }
 
   void Engine::resume(PauseReason reason) noexcept {
+    core::verify(reason != PauseReason::Count, "resume: PauseReason::Count is not a reason");
     const bool was_paused{is_paused()};
     pause_reasons_[static_cast<std::size_t>(reason)] = false;
     if (!was_paused || is_paused())

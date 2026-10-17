@@ -12,6 +12,7 @@
 #include <corundum/core/rng.hpp>
 #include <corundum/core/time/loop_timer.hpp>
 #include <corundum/core/user_storage.hpp>
+#include <corundum/core/verify.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_mapper.hpp>
@@ -78,6 +79,15 @@ namespace corundum {
     Count,
   };
 
+  /** @brief Which Save/Load command the pause menu raised.
+   *
+   *  Carried by Engine::on_menu_save_load and Gameplay::open_save_load so the two modes are a
+   *  named choice rather than a bare bool. */
+  enum class SaveLoadIntent : std::uint8_t {
+    Save,
+    Load,
+  };
+
   /** @brief Game engine instance owning all system-level resources and game state.
    *
    * Owns systems directly (no virtual dispatch), the Scene (merged entity world +
@@ -86,8 +96,8 @@ namespace corundum {
    *
    * make_engine() heap-allocates it: the embedded entity World is ~0.5 MB and must never sit
    * on a stack frame. Members must still never store pointers or references into sibling
-   * members; the one exception is the platform adapters' reference to `*content`, which member
-   * order keeps alive.
+   * members; the one exception is the platform adapters' reference to the content source
+   * (`content_`), which member order keeps alive.
    *
    * @see initialize  One-time setup before the main loop.
    * @see run_loop    The main loop: input, fixed-step simulation, rendering.
@@ -103,13 +113,18 @@ namespace corundum {
 
     /** @brief Read-only game content: every runtime load reads through this source.
      *
-     *  Declared before window/gpu/renderer/audio so it outlives the platform adapters, which keep a
-     *  reference to it from create_platform().
-     *  @pre Assign a different source only before any platform is adopted (adopt_platform() or the
-     *       adopt_* calls), in production and tests alike; afterwards the adapters would dangle. No
-     *       factory accepts a custom source yet; the pack-file or console work adds that path.
      *  Defaults to the working directory with paths as given. */
-    std::unique_ptr<core::ContentSource> content{std::make_unique<core::DirectoryContentSource>()};
+    [[nodiscard]] const core::ContentSource &content_source() const noexcept {
+      return *content_;
+    }
+
+    /** @brief Replace the default content source with @p source before a platform is adopted.
+     *
+     *  @param[in] source New source (move-ownership); must be non-null.
+     *  @return ok, or an error when a platform is already adopted — the platform adapters hold
+     *          a reference to the current source and would dangle.
+     */
+    [[nodiscard]] std::expected<void, std::string> set_content_source(std::unique_ptr<core::ContentSource> source);
 
     /** @brief Per-user storage for settings and saves, or why there is none.
      *
@@ -118,6 +133,12 @@ namespace corundum {
     std::expected<std::unique_ptr<core::UserStorage>, std::string> user_storage{
         std::unexpected(std::string{"user storage is not configured"})};
 
+  private:
+    // Declared before window/gpu/renderer/audio so it outlives the platform adapters, which keep a
+    // reference to it from create_platform(); set_content_source() refuses to replace it afterwards.
+    std::unique_ptr<core::ContentSource> content_{std::make_unique<core::DirectoryContentSource>()};
+
+  public:
     // Declared window → gpu → renderer so reverse-order destruction is
     // renderer → gpu → window: sokol resources are released while the device is
     // still alive, and the device/window outlive the renderer.
@@ -193,12 +214,11 @@ namespace corundum {
 
     /** @brief Hook replacing the pause menu's Save and Load commands.
      *
-     *  When set, selecting Save invokes it with @p saving true and Load with @p saving false,
-     *  so the game can open a slot browser in the matching mode. Default-empty preserves the
-     *  historical behaviour of raising QuickSave / QuickLoad one step later (the framework
-     *  installs this hook to open the Save/Load screen).
-     */
-    std::function<void(Engine &, bool saving)> on_menu_save_load;
+     *  When set, selecting Save invokes it with SaveLoadIntent::Save and Load with
+     *  SaveLoadIntent::Load, so the game can open a slot browser in the matching mode.
+     *  Default-empty preserves the historical behaviour of raising QuickSave / QuickLoad one
+     *  step later (the framework installs this hook to open the Save/Load screen). */
+    std::function<void(Engine &, SaveLoadIntent intent)> on_menu_save_load;
 
     /** @brief Hook consulted before the pause menu opens on Action::Menu.
      *
@@ -322,9 +342,10 @@ namespace corundum {
      *
      *  Runs the registered screen_input_hooks (which may consume the step by opening or
      *  switching a screen), then handles the pause-menu open input, then dispatches the top
-     *  mode's ScreenSpec::update. Returns true only for a registered mode whose spec owns the
-     *  step, so the caller skips world::update and the rest of the simulation — which is what
-     *  pauses the world while a menu is open.
+     *  mode's ScreenSpec::update. Returns true when the step was claimed — by a screen_input_hook,
+     *  by opening the pause menu, or by a registered mode whose spec owns the step — so the caller
+     *  skips world::update and the rest of the simulation, which is what pauses the world while a
+     *  menu is open.
      *
      *  Exposed for testability; run_frame() calls it once per fixed step through
      *  run_fixed_steps().
@@ -421,6 +442,7 @@ namespace corundum {
 
     /** @brief True while @p reason holds. */
     [[nodiscard]] bool is_paused_for(PauseReason reason) const noexcept {
+      core::verify(reason != PauseReason::Count, "is_paused_for: PauseReason::Count is not a reason");
       return pause_reasons_[static_cast<std::size_t>(reason)];
     }
 
@@ -436,12 +458,12 @@ namespace corundum {
      */
     void resume(PauseReason reason) noexcept;
 
-    /** @brief Live window width in screen pixels (0 before the first frame). */
+    /** @brief Live window width in logical screen coordinates (0 before the first frame). */
     [[nodiscard]] int window_width() const noexcept {
       return window_width_;
     }
 
-    /** @brief Live window height in screen pixels (0 before the first frame). */
+    /** @brief Live window height in logical screen coordinates (0 before the first frame). */
     [[nodiscard]] int window_height() const noexcept {
       return window_height_;
     }

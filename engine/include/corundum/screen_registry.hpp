@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/core/verify.hpp>
 #include <corundum/world/ui_stack.hpp>
 
 #include <array>
@@ -92,11 +93,13 @@ namespace corundum {
 
     /** @brief Append a self-gated hook to @p layer. */
     void add_layer(RenderLayer layer, ScreenRenderFn hook) {
+      core::verify(layer != RenderLayer::Count, "add_layer: RenderLayer::Count is not a layer");
       layers_[static_cast<std::size_t>(layer)].push_back(std::move(hook));
     }
 
     /** @brief Invoke every hook in @p layer, in registration order. */
     void render_layer(RenderLayer layer, Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) const {
+      core::verify(layer != RenderLayer::Count, "render_layer: RenderLayer::Count is not a layer");
       for (const ScreenRenderFn &hook : layers_[static_cast<std::size_t>(layer)])
         hook(engine, r, viewport);
     }

@@ -26,7 +26,7 @@ namespace corundum {
     // Created first so the engine's content source outlives the platform adapters adopted below.
     auto engine = std::make_unique<Engine>();
 
-    auto cfg_result = core::load_game_config(*engine->content, options.config_path);
+    auto cfg_result = core::load_game_config(engine->content_source(), options.config_path);
     if (!cfg_result)
       return std::unexpected(std::format("load config '{}': {}", options.config_path, cfg_result.error()));
 
@@ -36,7 +36,7 @@ namespace corundum {
     if (!options.show_splash)
       cfg.paths.splash_images.clear();
 
-    auto platform = platform::create_platform(*engine->content, cfg.win_w, cfg.win_h, cfg.window_title);
+    auto platform = platform::create_platform(engine->content_source(), cfg.win_w, cfg.win_h, cfg.window_title);
     if (!platform)
       return std::unexpected(std::format("create platform: {}", platform.error()));
 

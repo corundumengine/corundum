@@ -1038,7 +1038,7 @@ namespace corundum::gameplay {
             gameplay.begin_load([](Gameplay &g) { return g.continue_game(); });
           break;
         case screens::TitleRow::NewGame: gameplay.begin_load([](Gameplay &g) { return g.new_game(); }); break;
-        case screens::TitleRow::Load: gameplay.open_save_load(/*saving=*/false); break;
+        case screens::TitleRow::Load: gameplay.open_save_load(SaveLoadIntent::Load); break;
         case screens::TitleRow::Settings:
           engine.settings_screen = {.presentation = ui::SettingsPresentation::Framing};
           engine.scene.ui.push(world::GameMode::Settings);
@@ -1223,7 +1223,7 @@ namespace corundum::gameplay {
               engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
           }
           break;
-        case screens::GameOverRow::Load: gameplay.open_save_load(/*saving=*/false); break;
+        case screens::GameOverRow::Load: gameplay.open_save_load(SaveLoadIntent::Load); break;
         case screens::GameOverRow::ReturnToTitle: gameplay.return_to_title(); break;
       }
     }
@@ -1424,35 +1424,35 @@ namespace corundum::gameplay {
     void load_content(Gameplay &gameplay, Engine &engine) {
       int dialogue_loaded{0};
       if (!engine.cfg.paths.dialogue_dir.empty())
-        dialogue_loaded = gameplay.graphs.load_all(*engine.content, engine.cfg.paths.dialogue_dir);
+        dialogue_loaded = gameplay.graphs.load_all(engine.content_source(), engine.cfg.paths.dialogue_dir);
       corundum::detail::info_log("[gameplay] Loaded {} dialogue graphs from '{}'", dialogue_loaded,
                                  engine.cfg.paths.dialogue_dir);
 
       int quest_loaded{0};
       if (!engine.cfg.paths.quests_dir.empty())
-        quest_loaded = gameplay.quests.load_all(*engine.content, engine.cfg.paths.quests_dir);
+        quest_loaded = gameplay.quests.load_all(engine.content_source(), engine.cfg.paths.quests_dir);
       corundum::detail::info_log("[gameplay] Loaded {} quests from '{}'", quest_loaded, engine.cfg.paths.quests_dir);
 
       int item_loaded{0};
       if (!engine.cfg.paths.items_dir.empty())
-        item_loaded = gameplay.items.load_all(*engine.content, engine.cfg.paths.items_dir);
+        item_loaded = gameplay.items.load_all(engine.content_source(), engine.cfg.paths.items_dir);
       corundum::detail::info_log("[gameplay] Loaded {} items from '{}'", item_loaded, engine.cfg.paths.items_dir);
 
       int codex_loaded{0};
       if (!engine.cfg.paths.codex_dir.empty())
-        codex_loaded = gameplay.codex.load_all(*engine.content, engine.cfg.paths.codex_dir);
+        codex_loaded = gameplay.codex.load_all(engine.content_source(), engine.cfg.paths.codex_dir);
       corundum::detail::info_log("[gameplay] Loaded {} codex entries from '{}'", codex_loaded,
                                  engine.cfg.paths.codex_dir);
 
       int location_loaded{0};
       if (!engine.cfg.paths.locations_dir.empty())
-        location_loaded = gameplay.locations.load_all(*engine.content, engine.cfg.paths.locations_dir);
+        location_loaded = gameplay.locations.load_all(engine.content_source(), engine.cfg.paths.locations_dir);
       corundum::detail::info_log("[gameplay] Loaded {} locations from '{}'", location_loaded,
                                  engine.cfg.paths.locations_dir);
 
       int shop_loaded{0};
       if (!engine.cfg.paths.shops_dir.empty())
-        shop_loaded = gameplay.shops.load_all(*engine.content, engine.cfg.paths.shops_dir);
+        shop_loaded = gameplay.shops.load_all(engine.content_source(), engine.cfg.paths.shops_dir);
       corundum::detail::info_log("[gameplay] Loaded {} shops from '{}'", shop_loaded, engine.cfg.paths.shops_dir);
 
       validate_quest_references(gameplay.graphs, gameplay.quests, gameplay.items);
@@ -1588,7 +1588,7 @@ namespace corundum::gameplay {
       engine.on_menu_quit = [&gameplay](Engine &) {
         gameplay.open_confirm("Quit to Title?", [](Gameplay &g) { g.return_to_title(); });
       };
-      engine.on_menu_save_load = [&gameplay](Engine &, bool saving) { gameplay.open_save_load(saving); };
+      engine.on_menu_save_load = [&gameplay](Engine &, SaveLoadIntent intent) { gameplay.open_save_load(intent); };
       // The framing screens replace the world; the pause menu must not open over any of them.
       engine.blocks_pause_menu = [](world::GameMode mode) {
         return mode == screens::Splash || mode == screens::Title || mode == screens::GameOver ||
@@ -1851,7 +1851,7 @@ namespace corundum::gameplay {
     if (path.empty())
       return;
     std::expected<credits::CreditsFile, std::string> loaded =
-        credits::load_credits_file(*engine_->content, std::filesystem::path{path});
+        credits::load_credits_file(engine_->content_source(), std::filesystem::path{path});
     if (!loaded) {
       warn_log("[credits] cannot load '{}': {} (Credits hidden)", path, loaded.error());
       return;
@@ -1910,9 +1910,9 @@ namespace corundum::gameplay {
     engine_->scene.ui.push(screens::GameOver);
   }
 
-  void Gameplay::open_save_load(bool saving) {
+  void Gameplay::open_save_load(SaveLoadIntent intent) {
     save_load_screen = {};
-    save_load_screen.saving = saving;
+    save_load_screen.saving = intent == SaveLoadIntent::Save;
     if (engine_->user_storage) {
       save_load_screen.slots = screens::build_slot_rows(**engine_->user_storage, engine_->cfg.game_id);
     } else {

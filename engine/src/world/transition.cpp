@@ -67,7 +67,7 @@ namespace corundum::world {
   std::expected<void, std::string> enter_world(corundum::Engine &engine,
                                                const corundum::render::WorldLoadParams &params) {
     std::expected<corundum::render::WorldLoadInfo, std::string> world_result =
-        render::load_world(*engine.content, *engine.renderer, engine.render, engine.cfg, params);
+        render::load_world(engine.content_source(), *engine.renderer, engine.render, engine.cfg, params);
     if (!world_result)
       return std::unexpected(std::move(world_result).error());
     if (engine.render.chunks.active_empty())
@@ -76,13 +76,14 @@ namespace corundum::world {
     const corundum::render::WorldLoadInfo &info = *world_result;
     const corundum::entities::Position spawn_pos{.col = info.spawn_world_pos.x, .row = info.spawn_world_pos.y};
 
-    std::expected<std::unique_ptr<Scene>, std::string> scene_result = world::spawn_world(
-        *engine.content, engine.cfg, engine.characters, engine.render.chunks.active_at(0).tilemap, spawn_pos, false);
+    std::expected<std::unique_ptr<Scene>, std::string> scene_result =
+        world::spawn_world(engine.content_source(), engine.cfg, engine.characters,
+                           engine.render.chunks.active_at(0).tilemap, spawn_pos, false);
     if (!scene_result)
       return std::unexpected(std::move(scene_result).error());
     engine.scene = std::move(**scene_result);
     engine.scene.zone_id = world_zone_id(engine.render.manifest, engine.cfg.paths.world_manifest_path);
-    world::sync_chunk_actors(*engine.content, engine.scene, engine.render, engine.cfg, engine.characters);
+    world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
 
     const auto [world_width, world_height] =
         corundum::world::tilemap::world_bounds_iso(engine.render.manifest, info.half_tw, info.half_th);
@@ -148,13 +149,13 @@ namespace corundum::world {
     if (!engine.cfg.paths.world_manifest_path.empty())
       return enter_world(engine, {});
 
-    std::expected<void, std::string> map_result =
-        render::load_map(*engine.content, *engine.renderer, engine.render, engine.cfg.paths.tilemap_path, engine.cfg);
+    std::expected<void, std::string> map_result = render::load_map(
+        engine.content_source(), *engine.renderer, engine.render, engine.cfg.paths.tilemap_path, engine.cfg);
     if (!map_result)
       return std::unexpected(std::move(map_result).error());
 
     std::expected<std::unique_ptr<Scene>, std::string> scene_result =
-        world::spawn_world(*engine.content, engine.cfg, engine.characters, *engine.active_tilemap());
+        world::spawn_world(engine.content_source(), engine.cfg, engine.characters, *engine.active_tilemap());
     if (!scene_result)
       return std::unexpected(std::move(scene_result).error());
     engine.scene = std::move(**scene_result);
@@ -193,14 +194,14 @@ namespace corundum::world {
     }
 
     std::expected<void, std::string> map_result =
-        render::load_map(*engine.content, *engine.renderer, engine.render, std::string(id), engine.cfg);
+        render::load_map(engine.content_source(), *engine.renderer, engine.render, std::string(id), engine.cfg);
     if (!map_result)
       return std::unexpected(std::move(map_result).error());
 
     const corundum::world::tilemap::Tilemap &new_tilemap = *engine.active_tilemap();
     const entities::Position spawn{.col = col, .row = row};
     std::expected<std::unique_ptr<Scene>, std::string> scene_result =
-        world::spawn_world(*engine.content, engine.cfg, engine.characters, new_tilemap, spawn);
+        world::spawn_world(engine.content_source(), engine.cfg, engine.characters, new_tilemap, spawn);
     if (!scene_result)
       return std::unexpected(std::move(scene_result).error());
     engine.scene = std::move(**scene_result);
