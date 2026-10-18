@@ -1,5 +1,5 @@
 # Gameplay tests (doctest). Split from the engine suite so the engine test
-# binary links only `engine_platform_null` + doctest, per AGENTS.md — the
+# binary links only `engine_platform_null` + doctest — the
 # gameplay framework is a separate target now. Everything here links
 # `corundum_gameplay`, so the engine suite (`corundum_tests`) stays free of it.
 #

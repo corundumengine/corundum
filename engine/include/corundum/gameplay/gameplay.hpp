@@ -170,7 +170,7 @@ namespace corundum::gameplay {
 
     /** @brief Held-item rows of the Inventory hub tab, rebuilt when the tab is opened or switched
      *  to. The inventory is read-only and the simulation is paused while it is open, so there is
-     *  no per-frame rebuild (see AGENTS.md, "Cache or hoist per-frame-invariant computation"). */
+     *  no per-frame rebuild. */
     std::vector<screens::InventoryLine> inventory_lines;
 
     /** @brief Equipment-slot rows of the Inventory hub tab's left column, rebuilt alongside

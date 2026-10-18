@@ -30,7 +30,7 @@ namespace corundum::gameplay::screens {
 
   /** @brief Codex-screen state: the highlighted row and the cached unlocked-entry list.
    *
-   *  A stateful class in the AGENTS.md sense — the cached rows outlive a single call and are
+   *  A stateful class — the cached rows outlive a single call and are
    *  invalidated only by an unlock or an explicit open, mirroring RenderState::above_z_cache.
    *  Rebuild through refresh_codex() rather than mutating @c entries directly.
    */

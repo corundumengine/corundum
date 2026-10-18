@@ -214,8 +214,7 @@ namespace corundum::render {
 
     std::unordered_map<corundum::sprites::Id, uint32_t> sheet_tex;
     // Process-lifetime textures: sprite-sheet references are stored in sprite_index and are
-    // deliberately never released, so area purges can never destroy them. See AGENTS.md
-    // "Lifetime tiers".
+    // deliberately never released, so area purges can never destroy them.
     for (const auto &[sheet_id, sheet] : registry.sheets()) {
       auto result = r.load_texture(sheet.path);
       if (result.has_value()) {
@@ -371,7 +370,7 @@ namespace corundum::render {
     };
 
     // Process-lifetime texture: the UI border reference is deliberately never released, so
-    // area purges can never destroy it. See AGENTS.md "Lifetime tiers".
+    // area purges can never destroy it.
     auto result = r.load_texture(tex_path);
     if (result.has_value()) {
       state.panel_skin.border.texture_id = result.value();

@@ -18,7 +18,7 @@ namespace corundum::gameplay::screens {
    *  saved slot today — so the framework carries a single ConfirmState on Gameplay rather than
    *  one per caller. Open it through Gameplay::open_confirm(), which pushes the layer.
    *
-   *  A stateful class in the AGENTS.md sense: the pending callback outlives the call that set
+   *  A stateful class: the pending callback outlives the call that set
    *  it, and Confirm is popped when the player answers or backs out. */
   struct ConfirmState {
     /** @brief Prompt drawn on the top line, e.g. "Quit to Title?". */
