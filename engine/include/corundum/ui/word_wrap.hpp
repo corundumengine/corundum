@@ -29,6 +29,22 @@ namespace corundum::ui {
       return normalized;
     }
 
+    /// Appends @p word to @p line, wrapping first when the candidate line would exceed
+    /// @p max_width. A word wider than @p max_width is placed alone on its line.
+    /// @param measure Callable (std::string_view) -> float returning rendered width.
+    template <typename MeasureFn>
+    void place_wrapped_word(std::vector<std::string> &lines, std::string &line, std::string_view word, float max_width,
+                            const MeasureFn &measure) {
+      std::string candidate = line.empty() ? std::string(word) : line + ' ' + std::string(word);
+      if (measure(std::string_view{candidate}) <= max_width) {
+        line = std::move(candidate);
+        return;
+      }
+      if (!line.empty())
+        lines.push_back(std::move(line));
+      line = std::string(word); // force oversized word onto its own line
+    }
+
     /// Greedy word-wrap of a single segment that contains no hard newline characters.
     /// Splits on single spaces; runs of spaces collapse and leading/trailing spaces are
     /// dropped. A word that alone exceeds @p max_width is placed on its own line rather
@@ -45,17 +61,8 @@ namespace corundum::ui {
         const std::size_t end = (space == std::string_view::npos) ? seg.size() : space;
         const std::string_view word = seg.substr(word_start, end - word_start);
 
-        if (!word.empty()) {
-          std::string candidate = line.empty() ? std::string(word) : line + ' ' + std::string(word);
-
-          if (measure(std::string_view{candidate}) <= max_width) {
-            line = std::move(candidate);
-          } else {
-            if (!line.empty())
-              lines.push_back(std::move(line));
-            line = std::string(word); // force oversized word onto its own line
-          }
-        }
+        if (!word.empty())
+          place_wrapped_word(lines, line, word, max_width, measure);
         word_start = end + 1;
       }
       lines.push_back(std::move(line)); // flush; empty string == blank line

@@ -27,11 +27,11 @@ namespace corundum::ui {
              toast.colour.b == colour.b && toast.colour.a == colour.a;
     };
     if (const auto existing = std::ranges::find_if(toasts_, same_message); existing != toasts_.end()) {
-      existing->remaining = k_toast_ttl_seconds;
+      existing->remaining_seconds = k_toast_ttl_seconds;
       return;
     }
 
-    toasts_.push_back(Toast{.text = std::move(text), .colour = colour, .remaining = k_toast_ttl_seconds});
+    toasts_.push_back(Toast{.colour = colour, .remaining_seconds = k_toast_ttl_seconds, .text = std::move(text)});
     if (toasts_.size() > k_toast_max_visible)
       toasts_.erase(toasts_.begin(),
                     toasts_.begin() + static_cast<std::ptrdiff_t>(toasts_.size() - k_toast_max_visible));
@@ -39,8 +39,8 @@ namespace corundum::ui {
 
   void ToastQueue::update(float dt) noexcept {
     for (Toast &toast : toasts_)
-      toast.remaining -= dt;
-    std::erase_if(toasts_, [](const Toast &toast) { return toast.remaining <= 0.f; });
+      toast.remaining_seconds -= dt;
+    std::erase_if(toasts_, [](const Toast &toast) { return toast.remaining_seconds <= 0.f; });
   }
 
   void ToastQueue::render(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport) const {

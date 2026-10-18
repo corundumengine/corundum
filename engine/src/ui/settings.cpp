@@ -33,6 +33,7 @@ namespace corundum::ui {
     switch (tab) {
       case SettingsTab::General: return "General";
       case SettingsTab::Controls: return "Controls";
+      case SettingsTab::Count: break;
     }
     return "";
   }
@@ -104,6 +105,7 @@ namespace corundum::ui {
     switch (tab) {
       case SettingsTab::General: return k_settings_general_row_count;
       case SettingsTab::Controls: return static_cast<int>(input::k_action_count);
+      case SettingsTab::Count: break;
     }
     return 0;
   }

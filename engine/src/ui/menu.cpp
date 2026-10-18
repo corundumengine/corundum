@@ -45,6 +45,7 @@ namespace corundum::ui {
       case MenuCommand::Save: return "Save";
       case MenuCommand::Load: return "Load";
       case MenuCommand::Quit: return "Quit";
+      case MenuCommand::Count: break;
     }
     return "";
   }

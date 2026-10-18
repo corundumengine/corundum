@@ -390,6 +390,8 @@ namespace corundum {
           else
             engine.request_quit();
           break;
+        case ui::MenuCommand::Count:
+          break;
       }
     }
 

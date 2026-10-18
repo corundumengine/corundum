@@ -21,10 +21,11 @@ namespace corundum::ui {
     Save,
     Load,
     Quit,
+    Count,
   };
 
   /** @brief Number of pause-menu rows. */
-  inline constexpr int k_menu_command_count = 5;
+  inline constexpr int k_menu_command_count = static_cast<int>(MenuCommand::Count);
 
   /** @brief Display label for @p command. */
   [[nodiscard]] std::string_view menu_command_label(MenuCommand command) noexcept;
@@ -44,7 +45,7 @@ namespace corundum::ui {
 
     core::math::Vec2 panel_size{};
 
-    ui::ListHit rows{};
+    ListHit rows{};
   };
 
   /** @brief Compute the pause menu's panel and row geometry for @p viewport. */

@@ -32,9 +32,11 @@ namespace corundum::ui {
 
   /** @brief One transient notification: text, tint, and remaining lifetime in seconds. */
   struct Toast {
-    std::string text{};
     core::math::Colour colour{};
-    float remaining{};
+
+    float remaining_seconds{};
+
+    std::string text{};
   };
 
   /** @brief A bounded, automatically-expiring stack of on-screen notifications.

@@ -62,6 +62,13 @@ namespace corundum::ui {
     void update(float dt) noexcept {
       if (phase_ == TransitionPhase::None)
         return;
+      // A non-positive duration is an instant snap; guarding here also keeps dt == 0 from
+      // producing a NaN step when the duration is zero.
+      if (duration_seconds_ <= 0.f) {
+        alpha_ = (phase_ == TransitionPhase::FadingOut) ? 1.f : 0.f;
+        phase_ = TransitionPhase::None;
+        return;
+      }
       const float step = dt / duration_seconds_;
       if (phase_ == TransitionPhase::FadingOut) {
         alpha_ += step;

@@ -23,10 +23,11 @@ namespace corundum::ui {
   enum class SettingsTab : std::uint8_t {
     General,
     Controls,
+    Count,
   };
 
   /** @brief Number of SettingsTab values. */
-  inline constexpr int k_settings_tab_count = 2;
+  inline constexpr int k_settings_tab_count = static_cast<int>(SettingsTab::Count);
 
   /** @brief Display label for @p tab. */
   [[nodiscard]] std::string_view settings_tab_label(SettingsTab tab) noexcept;
@@ -141,9 +142,9 @@ namespace corundum::ui {
 
     core::math::Vec2 panel_size{};
 
-    std::array<ui::RowRect, k_settings_tab_count> tabs{};
+    std::array<RowRect, k_settings_tab_count> tabs{};
 
-    ui::ListHit rows{};
+    ListHit rows{};
   };
 
   /** @brief Compute the settings panel's geometry for @p viewport.

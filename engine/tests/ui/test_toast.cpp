@@ -19,7 +19,7 @@ TEST_CASE("ToastQueue: notify enqueues text with the default colour and TTL") {
   REQUIRE(queue.size() == 1);
   CHECK(queue.at(0).text == "Quest started: Ember");
   CHECK(queue.at(0).colour.r == corundum::ui::k_toast_default_colour.r);
-  CHECK(queue.at(0).remaining == doctest::Approx(corundum::ui::k_toast_ttl_seconds));
+  CHECK(queue.at(0).remaining_seconds == doctest::Approx(corundum::ui::k_toast_ttl_seconds));
 }
 
 TEST_CASE("ToastQueue: notify accepts an explicit colour") {
@@ -37,7 +37,7 @@ TEST_CASE("ToastQueue: update ages toasts and culls the expired ones") {
 
   queue.update(1.f);
   REQUIRE(queue.size() == 2);
-  CHECK(queue.at(0).remaining == doctest::Approx(corundum::ui::k_toast_ttl_seconds - 1.f));
+  CHECK(queue.at(0).remaining_seconds == doctest::Approx(corundum::ui::k_toast_ttl_seconds - 1.f));
 
   queue.update(corundum::ui::k_toast_ttl_seconds);
   CHECK(queue.empty());
@@ -58,11 +58,11 @@ TEST_CASE("ToastQueue: a repeated message refreshes the existing toast") {
   queue.notify("Not enough gold");
   queue.update(2.f);
   REQUIRE(queue.size() == 1);
-  CHECK(queue.at(0).remaining == doctest::Approx(corundum::ui::k_toast_ttl_seconds - 2.f));
+  CHECK(queue.at(0).remaining_seconds == doctest::Approx(corundum::ui::k_toast_ttl_seconds - 2.f));
 
   queue.notify("Not enough gold");
   REQUIRE(queue.size() == 1);
-  CHECK(queue.at(0).remaining == doctest::Approx(corundum::ui::k_toast_ttl_seconds));
+  CHECK(queue.at(0).remaining_seconds == doctest::Approx(corundum::ui::k_toast_ttl_seconds));
 }
 
 TEST_CASE("ToastQueue: the same text in a different colour is not deduplicated") {
