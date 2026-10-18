@@ -76,15 +76,15 @@ namespace corundum::entities {
    * tile centre for the tile it stands on.
    *
    * `col_span` and `row_span` are always read together (they form one collision rect), so
-   * they stay as an AoS `Rect` inside the table. Per DOD §4.3: fields accessed as a
-   * unit may remain AoS. The array of rects is `alignas(k_cache_line)` for cache alignment.
+   * they stay as an AoS `Rect` inside the table: fields always read together may remain AoS.
+   * The array of rects is `alignas(k_cache_line)` for cache alignment.
    */
   struct CollisionTable {
     static constexpr auto k_max = k_max_entities;
 
-    // ── Collision data (always loaded as a unit). Front-loaded so the cold sparse/
+    // Collision data is always loaded as a unit. Front-loaded so the cold sparse/
     // entities data below never shares a cache line with — or sits immediately
-    // before — hot data. ────────────────────────────────────────────
+    // before — hot data.
     struct Rect {
       float col_span = 0.f;
 
@@ -93,7 +93,6 @@ namespace corundum::entities {
 
     alignas(k_cache_line) std::array<Rect, k_max> rects{};
 
-    // ── Sparse index ───────────────────────────────────────────────
     SparseIndex<k_max> index;
 
     std::uint32_t count = 0;

@@ -21,10 +21,8 @@ namespace corundum::entities {
   struct SpriteTable {
     static constexpr auto k_max = k_max_entities;
 
-    // ── Sparse index ───────────────────────────────────────────────
     SparseIndex<k_max> index;
 
-    // ── SoA fields (all hot — read every frame by the renderer) ────
     std::array<corundum::sprites::SpriteId, k_max> sprite_id{};
 
     std::array<corundum::sprites::AnimId, k_max> anim_id{};

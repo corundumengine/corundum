@@ -39,7 +39,7 @@ namespace corundum::entities {
     // transition, cached at spawn from character registry.
     std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::sprites::k_num_anim_ids> frame_counts{};
 
-    std::uint32_t count{};
+    std::uint32_t count = 0;
 
     /** @brief Contiguous span over playback timers for all live entities. */
     [[nodiscard]] auto active_timer(this auto &self) noexcept { return std::span(self.timer).first(self.count); }

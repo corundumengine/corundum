@@ -50,10 +50,8 @@ namespace corundum::entities {
       float idle_frame_duration = 0.f;
     };
 
-    // ── Sparse index ───────────────────────────────────────────────
     SparseIndex<k_max> index;
 
-    // ── Sprite IDs and cached frame counts (set once at spawn) ─────
     std::array<corundum::sprites::SpriteId, k_max> walk_id{};
 
     std::array<corundum::sprites::SpriteId, k_max> idle_id{};
@@ -62,25 +60,20 @@ namespace corundum::entities {
 
     std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> idle_counts{};
 
-    // ── Transition delay config (seconds; set once at spawn) ───────
     std::array<float, k_max> idle_to_walk_delay{}; ///< Delay before idle→walk commits.
 
     std::array<float, k_max> walk_to_idle_delay{}; ///< Delay before walk→idle commits.
 
-    // ── Per-sprite frame duration overrides (0 = use AnimationTable default) ─
     std::array<float, k_max> walk_frame_duration{}; ///< Seconds per frame while walking; 0 = no override.
 
     std::array<float, k_max> idle_frame_duration{}; ///< Seconds per frame while idle; 0 = no override.
 
-    // ── Pending transition runtime state (mutated by animation::update) ─
     /// SpriteId the entity is transitioning toward; k_null_sprite_id = no pending transition.
     std::array<corundum::sprites::SpriteId, k_max> pending_sid{};
 
     std::array<float, k_max> transition_timer{}; ///< Accumulated time toward the pending transition.
 
     std::uint32_t count = 0;
-
-    // ── Queries ────────────────────────────────────────────────────
 
     /** @brief True if @p e has a motion-sprite entry. */
     [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
@@ -130,8 +123,6 @@ namespace corundum::entities {
       return idle_counts[index.dense_index(e)];
     }
 
-    // ── Transition mutations (called by animation::update) ───────────
-
     /** @brief Begin tracking a transition to @p target, resetting the timer.
      *  No-op if @p target is already the pending target.
      *  @pre has(e).
@@ -162,8 +153,6 @@ namespace corundum::entities {
       pending_sid[slot] = corundum::sprites::k_null_sprite_id;
       transition_timer[slot] = 0.f;
     }
-
-    // ── Spawn / despawn mutations ──────────────────────────────────
 
     /** @brief Add a motion-sprite entry for @p e.
      *  @param[in] e      Entity to add the entry for.
@@ -200,8 +189,6 @@ namespace corundum::entities {
         idle_counts[slot] = idle_counts[last];
       });
     }
-
-    // ── GameTable concept compliance ───────────────────────────────
 
     [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.walk_id).first(self.count); }
 

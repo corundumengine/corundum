@@ -4,6 +4,7 @@
 #pragma once
 #include <array>
 #include <cassert>
+#include <corundum/core/verify.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/actor_id_table.hpp>
@@ -26,29 +27,24 @@ namespace corundum::entities {
   /// first and contiguous so the smaller members never force padding between them.
   /// @note Not thread-safe.
   struct World {
-    // ── Cache-line-aligned tables ──────────────────────────────────
     CollisionTable collisions;
 
     TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
 
     AnimationTable animations;
 
-    // ── Cold id tables ─────────────────────────────────────────────
     DialogueTable dialogue_refs;
 
     ActorIdTable actor_ids; ///< Stable authoring ids, read on quest/save resolution.
 
-    // ── Deferred deletion queue ────────────────────────────────────
     /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
     /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
     std::array<EntityId, k_max_entities> pending_deletions{};
 
     std::uint32_t pending_deletion_count = 0;
 
-    // ── Entity pool ────────────────────────────────────────────────
     EntityManager entities;
 
-    // ── Facing and sprite tables ───────────────────────────────────
     FacingTable facings;
 
     SpriteTable sprites;
@@ -90,7 +86,12 @@ namespace corundum::entities {
   /// @brief Tie all component tables into a tuple for fold-expression iteration.
   /// Adding a new table means adding one member to World and one entry in this tie, so
   /// despawn and any future cross-table operation pick it up automatically.
+  /// @pre Every tied table must satisfy GameTable; the static_assert enforces it so despawn()
+  ///      can call has()/remove() on each.
   [[nodiscard]] inline auto all_tables(World &w) noexcept {
+    static_assert(GameTable<TransformTable> && GameTable<SpriteTable> && GameTable<AnimationTable> &&
+                  GameTable<CollisionTable> && GameTable<DialogueTable> && GameTable<ActorIdTable> &&
+                  GameTable<FacingTable> && GameTable<MotionSpriteTable>);
     return std::tie(w.transforms, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.actor_ids, w.facings,
                     w.motion_sprites);
   }
@@ -117,7 +118,7 @@ namespace corundum::entities {
     assert(w.entities.is_live(e) && "mark_for_deletion: not a live entity");
     if (!w.entities.is_live(e))
       return; // release builds: a stale handle is ignored rather than queued
-    assert(w.pending_deletion_count < k_max_entities && "pending_deletions full");
+    core::verify(w.pending_deletion_count < k_max_entities, "pending_deletions full");
     for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
       if (w.pending_deletions[i] == e)
         return;

@@ -233,15 +233,15 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
 
   engine.flags["zone.interior.chest"] = 1;
   auto &transforms = engine.scene.world.transforms;
-  transforms.pos_col(engine.scene.player) = 5.f;
-  transforms.pos_row(engine.scene.player) = 6.f;
+  transforms.pos_col_ref(engine.scene.player) = 5.f;
+  transforms.pos_row_ref(engine.scene.player) = 6.f;
 
   MemoryUserStorage storage;
   REQUIRE(corundum::save::save_game(engine, storage, "integration_single", "test", 0).has_value());
 
   engine.flags.clear();
-  transforms.pos_col(engine.scene.player) = 1.f;
-  transforms.pos_row(engine.scene.player) = 1.f;
+  transforms.pos_col_ref(engine.scene.player) = 1.f;
+  transforms.pos_row_ref(engine.scene.player) = 1.f;
 
   REQUIRE(corundum::save::load_game(engine, storage, "integration_single").has_value());
 
@@ -285,16 +285,16 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   engine.flags["zone.transition.gate"] = 1;
   engine.flags["npc.brann.alive"] = 1;
   auto &transforms = engine.scene.world.transforms;
-  transforms.pos_col(engine.scene.player) = 12.f;
-  transforms.pos_row(engine.scene.player) = 3.f;
+  transforms.pos_col_ref(engine.scene.player) = 12.f;
+  transforms.pos_row_ref(engine.scene.player) = 3.f;
 
   MemoryUserStorage storage;
   REQUIRE(corundum::save::save_game(engine, storage, "integration", "test", 0).has_value());
 
   // Mutate everything the save captures.
   engine.flags.clear();
-  transforms.pos_col(engine.scene.player) = 1.f;
-  transforms.pos_row(engine.scene.player) = 1.f;
+  transforms.pos_col_ref(engine.scene.player) = 1.f;
+  transforms.pos_row_ref(engine.scene.player) = 1.f;
 
   REQUIRE(corundum::save::load_game(engine, storage, "integration").has_value());
 
@@ -327,14 +327,14 @@ TEST_CASE("save: world save/load preserves a fractional player position") {
   // World-mode saves keep the player's sub-tile position: the spawn pipeline must not
   // truncate it back to an integer tile.
   auto &transforms = engine.scene.world.transforms;
-  transforms.pos_col(engine.scene.player) = 12.25f;
-  transforms.pos_row(engine.scene.player) = 3.75f;
+  transforms.pos_col_ref(engine.scene.player) = 12.25f;
+  transforms.pos_row_ref(engine.scene.player) = 3.75f;
 
   MemoryUserStorage storage;
   REQUIRE(corundum::save::save_game(engine, storage, "fractional_world", "test", 0).has_value());
 
-  transforms.pos_col(engine.scene.player) = 1.f;
-  transforms.pos_row(engine.scene.player) = 1.f;
+  transforms.pos_col_ref(engine.scene.player) = 1.f;
+  transforms.pos_row_ref(engine.scene.player) = 1.f;
 
   REQUIRE(corundum::save::load_game(engine, storage, "fractional_world").has_value());
 

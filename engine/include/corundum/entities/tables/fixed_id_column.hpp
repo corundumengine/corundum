@@ -20,17 +20,15 @@ namespace corundum::entities {
    * Backs the tables that map an entity to a stable authoring id (actor ids,
    * dialogue graph ids). Each id lives in a fixed-size `char[]` buffer so the
    * derived table stays trivially copyable (required by the GameTable concept);
-   * ids longer than @ref k_max_id_len are truncated. The sparse/dense spine and
+   * ids longer than k_max_id_len - 1 are truncated. The sparse/dense spine and
    * the swap-and-pop bookkeeping live here once — derive and add domain-named
    * accessors over the protected helpers.
    */
   template <std::uint32_t KMax> struct FixedIdColumn {
     static constexpr std::size_t k_max_id_len = 128;
 
-    // ── Sparse index ───────────────────────────────────────────────
     SparseIndex<KMax> index;
 
-    // ── Id strings (cold — read only on quest/save resolution) ─────
     std::array<std::array<char, k_max_id_len>, KMax> ids{};
 
     std::array<std::size_t, KMax> id_lengths{};

@@ -247,8 +247,8 @@ TEST_CASE("title: New Game starts where a no-title boot starts") {
   const float boot_row = boot.row[boot_slot];
 
   // Move the player, then start a new game: it must return to the boot spawn, not cfg.player.
-  boot.pos_col(engine.scene.player) = 3.f;
-  boot.pos_row(engine.scene.player) = 2.f;
+  boot.pos_col_ref(engine.scene.player) = 3.f;
+  boot.pos_row_ref(engine.scene.player) = 2.f;
   REQUIRE(gameplay.new_game().has_value());
 
   const auto &after = engine.scene.world.transforms;

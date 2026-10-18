@@ -26,8 +26,6 @@ namespace corundum::entities {
   struct TransformTable {
     static constexpr auto k_max = k_max_entities;
 
-    // ── Hot: accessed every frame (SoA). Front-loaded so cold sparse/entities data
-    // below never shares a cache line with — or sits immediately before — hot data. ──
     alignas(k_cache_line) std::array<float, k_max> col{};
 
     alignas(k_cache_line) std::array<float, k_max> row{};
@@ -36,7 +34,6 @@ namespace corundum::entities {
 
     alignas(k_cache_line) std::array<float, k_max> dr{};
 
-    // ── Sparse index: EntityId → dense row ─────────────────────────
     SparseIndex<k_max> index;
 
     std::uint32_t count = 0;
@@ -112,14 +109,14 @@ namespace corundum::entities {
       return row[index.dense_index(e)];
     }
 
-    /** @brief Mutable tile column of @p e. @pre has(e). */
-    [[nodiscard]] float &pos_col(EntityId e) noexcept {
+    /** @brief Mutable tile column reference for @p e. @pre has(e). */
+    [[nodiscard]] float &pos_col_ref(EntityId e) noexcept {
       assert(has(e));
       return col[index.dense_index(e)];
     }
 
-    /** @brief Mutable tile row of @p e. @pre has(e). */
-    [[nodiscard]] float &pos_row(EntityId e) noexcept {
+    /** @brief Mutable tile row reference for @p e. @pre has(e). */
+    [[nodiscard]] float &pos_row_ref(EntityId e) noexcept {
       assert(has(e));
       return row[index.dense_index(e)];
     }

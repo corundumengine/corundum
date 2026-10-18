@@ -57,11 +57,12 @@ namespace corundum::entities {
     /// Insert spine: allocates a dense slot, links the sparse index, then
     /// calls @p write(slot) to let the table initialise its payload.
     /// @p count is the table's own count member (incremented after the write).
-    /// @pre @p e's index is in range and @p e is not already present; both enforced in
-    ///      every build type.
+    /// @pre @p e's index is in range, @p e is not already present, and the table is not full;
+    ///      all three enforced in every build type.
     template <typename Fn> void insert(EntityId e, std::uint32_t &count, Fn &&write) noexcept {
       core::verify(e.index < KMax, "SparseIndex::insert: EntityId index out of range");
       core::verify(!has(e), "SparseIndex::insert: EntityId already present");
+      core::verify(count < KMax, "SparseIndex::insert: table capacity exceeded");
       const auto i = e.index;
       const auto slot = count;
       sparse[i] = slot;

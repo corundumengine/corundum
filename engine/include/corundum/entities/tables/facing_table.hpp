@@ -21,10 +21,8 @@ namespace corundum::entities {
   struct FacingTable {
     static constexpr auto k_max = k_max_entities;
 
-    // ── Sparse index ───────────────────────────────────────────────
     SparseIndex<k_max> index;
 
-    // ── SoA field ──────────────────────────────────────────────────
     std::array<core::Direction, k_max> dir{};
 
     std::uint32_t count = 0;
