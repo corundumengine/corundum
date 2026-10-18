@@ -97,7 +97,7 @@ namespace corundum::input {
 
   void InputMapper::apply(PhysicalInput input, bool down) noexcept {
     if (down)
-      last_device_ = input.device;
+      last_device_ = device_of(input);
 
     if (capturing_ && down) {
       captured_ = input;

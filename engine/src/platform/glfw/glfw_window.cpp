@@ -22,6 +22,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 namespace corundum::platform::glfw {
 
@@ -366,9 +367,9 @@ namespace corundum::platform::glfw {
   }
 
   std::string GLFWWindow::input_label(corundum::input::PhysicalInput input) const {
-    if (input.device == corundum::input::InputDevice::Keyboard) {
+    if (const auto *key = std::get_if<corundum::input::Key>(&input.value)) {
       // Layout-aware for printable keys only; GLFW returns null for the rest.
-      if (const char *name = glfwGetKeyName(static_cast<int>(input.code), 0); name != nullptr) {
+      if (const char *name = glfwGetKeyName(static_cast<int>(*key), 0); name != nullptr) {
         std::string label{name};
         if (label.size() == 1 && label[0] >= 'a' && label[0] <= 'z')
           label[0] = static_cast<char>(label[0] - 'a' + 'A');

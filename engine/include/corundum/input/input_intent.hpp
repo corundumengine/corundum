@@ -50,7 +50,6 @@ namespace corundum::input {
 
     /** @brief Cursor position in window pixels. */
     float cursor_x{};
-
     float cursor_y{};
 
     /** @brief True when the cursor moved since the previous poll cycle.

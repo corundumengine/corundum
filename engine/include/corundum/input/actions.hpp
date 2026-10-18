@@ -4,6 +4,7 @@
 #pragma once
 #include <array>
 #include <bitset>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
@@ -53,28 +54,12 @@ namespace corundum::input {
     std::array<Action, k_action_count> actions{};
     std::size_t count{};
 
-    /**
-     * @brief Returns an iterator to the first pressed action.
-     * @return Iterator to the start of the pressed actions range.
-     */
     [[nodiscard]] auto begin() const noexcept { return actions.begin(); }
 
-    /**
-     * @brief Returns an iterator to one past the last pressed action.
-     * @return Iterator to the end of the pressed actions range.
-     */
     [[nodiscard]] auto end() const noexcept { return actions.begin() + static_cast<std::ptrdiff_t>(count); }
 
-    /**
-     * @brief Returns the number of pressed actions this frame.
-     * @return Count of pressed actions.
-     */
     [[nodiscard]] std::size_t size() const noexcept { return count; }
 
-    /**
-     * @brief Checks if any actions were pressed this frame.
-     * @return true if no actions were pressed, false otherwise.
-     */
     [[nodiscard]] bool empty() const noexcept { return count == 0; }
   };
 
@@ -127,19 +112,17 @@ namespace corundum::input {
      */
     float scroll_delta_y{};
 
-    /**
-     * @brief Checks if the specified action is currently held.
-     * @param action The input action to query.
-     * @return true if the action is held, false otherwise.
-     */
-    [[nodiscard]] bool is_held(Action action) const noexcept { return held[static_cast<std::size_t>(action)]; }
+    /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
+    [[nodiscard]] bool is_held(Action action) const noexcept {
+      assert(action != Action::Count && "Count is a sentinel, not an action");
+      return held[static_cast<std::size_t>(action)];
+    }
 
-    /**
-     * @brief Checks if the specified action was pressed this frame.
-     * @param action The input action to query.
-     * @return true if the action was pressed this frame, false otherwise.
-     */
-    [[nodiscard]] bool is_pressed(Action action) const noexcept { return pressed[static_cast<std::size_t>(action)]; }
+    /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
+    [[nodiscard]] bool is_pressed(Action action) const noexcept {
+      assert(action != Action::Count && "Count is a sentinel, not an action");
+      return pressed[static_cast<std::size_t>(action)];
+    }
   };
 
   /**

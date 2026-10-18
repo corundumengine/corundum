@@ -28,6 +28,7 @@ using corundum::input::Binding;
 using corundum::input::Bindings;
 using corundum::input::default_bindings;
 using corundum::input::device_name;
+using corundum::input::device_of;
 using corundum::input::GamepadControl;
 using corundum::input::InputDevice;
 using corundum::input::inputs_for;
@@ -57,7 +58,7 @@ TEST_CASE("bindings: defaults") {
   // Each hotkey keeps exactly its one keyboard binding and gains no gamepad row.
   const auto keyboard_only = [&](Action action) {
     const std::vector<PhysicalInput> inputs = inputs_for(defaults, action);
-    return inputs.size() == 1 && inputs.front().device == InputDevice::Keyboard;
+    return inputs.size() == 1 && device_of(inputs.front()) == InputDevice::Keyboard;
   };
   CHECK(keyboard_only(Action::Journal));
   CHECK(keyboard_only(Action::Codex));

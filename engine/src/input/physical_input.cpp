@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <variant>
 
 namespace corundum::input {
 
@@ -213,13 +214,12 @@ namespace corundum::input {
       return {};
     }
 
-    /// The input named @p name within @p device, or nullopt when none is.
-    template <std::size_t N>
-    std::optional<PhysicalInput> find_input(const std::array<NamedCode, N> &table, InputDevice device,
-                                            std::string_view name) noexcept {
+    /// The input named @p name in @p table, or nullopt when none is.
+    template <typename Enum, std::size_t N>
+    std::optional<PhysicalInput> find_input(const std::array<NamedCode, N> &table, std::string_view name) noexcept {
       for (const NamedCode &entry : table) {
         if (entry.name == name)
-          return PhysicalInput{.code = entry.code, .device = device};
+          return PhysicalInput{static_cast<Enum>(entry.code)};
       }
       return std::nullopt;
     }
@@ -296,19 +296,27 @@ namespace corundum::input {
   }
 
   std::string_view name_of(PhysicalInput input) noexcept {
-    switch (input.device) {
-      case InputDevice::Keyboard: return find_name(k_key_names, input.code);
-      case InputDevice::Mouse: return find_name(k_mouse_names, input.code);
-      case InputDevice::Gamepad: return find_name(k_gamepad_names, input.code);
-    }
-    return {};
+    if (const auto *key = std::get_if<Key>(&input.value))
+      return find_name(k_key_names, static_cast<std::uint16_t>(*key));
+    if (const auto *button = std::get_if<MouseButton>(&input.value))
+      return find_name(k_mouse_names, static_cast<std::uint16_t>(*button));
+    const auto *control = std::get_if<GamepadControl>(&input.value);
+    return control != nullptr ? find_name(k_gamepad_names, static_cast<std::uint16_t>(*control)) : std::string_view{};
+  }
+
+  InputDevice device_of(PhysicalInput input) noexcept {
+    if (std::get_if<Key>(&input.value) != nullptr)
+      return InputDevice::Keyboard;
+    if (std::get_if<MouseButton>(&input.value) != nullptr)
+      return InputDevice::Mouse;
+    return InputDevice::Gamepad;
   }
 
   std::optional<PhysicalInput> parse_physical_input(InputDevice device, std::string_view name) noexcept {
     switch (device) {
-      case InputDevice::Keyboard: return find_input(k_key_names, device, name);
-      case InputDevice::Mouse: return find_input(k_mouse_names, device, name);
-      case InputDevice::Gamepad: return find_input(k_gamepad_names, device, name);
+      case InputDevice::Keyboard: return find_input<Key>(k_key_names, name);
+      case InputDevice::Mouse: return find_input<MouseButton>(k_mouse_names, name);
+      case InputDevice::Gamepad: return find_input<GamepadControl>(k_gamepad_names, name);
     }
     return std::nullopt;
   }

@@ -28,7 +28,7 @@ namespace corundum::input {
    *  @pre Must be called once per frame before any system reads @p state.
    *  @pre @p state must be cleared with @c clear_pressed each simulation step, or a
    *       latched press is re-observed on every subsequent read.
-   *  @thread_safety Must be called from the main thread only.
+   *  @note Not thread-safe; call it from the main thread only.
    */
   void poll(InputMapper &mapper, InputState &state, platform::Window &window,
             platform::PlatformEvents &events) noexcept;

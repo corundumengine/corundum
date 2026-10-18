@@ -293,10 +293,8 @@ namespace corundum {
     /// swallows every press before it reaches the action bitsets, so Back must be recognised
     /// from the captured physical input itself.
     bool is_cancel_capture(input::PhysicalInput input) noexcept {
-      return (input.device == input::InputDevice::Keyboard &&
-              input.code == static_cast<std::uint16_t>(input::Key::Escape)) ||
-             (input.device == input::InputDevice::Gamepad &&
-              input.code == static_cast<std::uint16_t>(input::GamepadControl::B));
+      return input == input::physical(input::Key::Escape) ||
+             input == input::physical(input::GamepadControl::B);
     }
 
     /// Apply the change for a Left/Right press on a General-tab row.
@@ -337,7 +335,7 @@ namespace corundum {
       const auto action = static_cast<input::Action>(engine.settings_screen.cursor);
       input::Bindings bindings = engine.input_mapper.bindings();
       for (const input::PhysicalInput existing : input::inputs_for(bindings, action)) {
-        if (existing.device == captured.device)
+        if (input::device_of(existing) == input::device_of(captured))
           input::unbind(bindings, action, existing);
       }
       input::bind(bindings, action, captured);

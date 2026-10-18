@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <variant>
 
 namespace corundum::input {
 
@@ -183,7 +184,7 @@ namespace corundum::input {
   };
 
   /** @brief Number of GamepadControl values that are plain buttons. */
-  constexpr std::size_t k_gamepad_button_count = 15;
+  constexpr std::size_t k_gamepad_button_count = static_cast<std::size_t>(GamepadControl::LeftStickUp);
 
   /** @brief Number of GamepadControl values. */
   constexpr std::size_t k_gamepad_control_count = static_cast<std::size_t>(GamepadControl::Count);
@@ -196,10 +197,11 @@ namespace corundum::input {
     RightY,
     LeftTrigger,
     RightTrigger,
+    Count,
   };
 
   /** @brief Number of GamepadAxis values. */
-  constexpr std::size_t k_gamepad_axis_count = 6;
+  constexpr std::size_t k_gamepad_axis_count = static_cast<std::size_t>(GamepadAxis::Count);
 
   /** @brief One poll's snapshot of a mapped gamepad, independent of the backend. */
   struct GamepadState {
@@ -225,27 +227,30 @@ namespace corundum::input {
     Gamepad,
   };
 
-  /** @brief One physical control: a key, a mouse button, or a gamepad control. */
+  /** @brief One physical control: a key, a mouse button, or a gamepad control.
+   *
+   *  The active alternative is the device, so a code that belongs to another device cannot be
+   *  stored. Build inputs through the physical() factories or parse_physical_input(). */
   struct PhysicalInput {
-    /** @brief A Key, MouseButton or GamepadControl value, read according to @c device. */
-    std::uint16_t code{};
-
-    InputDevice device{};
+    std::variant<Key, MouseButton, GamepadControl> value{};
 
     friend bool operator==(const PhysicalInput &, const PhysicalInput &) = default;
   };
 
   [[nodiscard]] constexpr PhysicalInput physical(Key key) noexcept {
-    return {.code = static_cast<std::uint16_t>(key), .device = InputDevice::Keyboard};
+    return {.value = key};
   }
 
   [[nodiscard]] constexpr PhysicalInput physical(MouseButton button) noexcept {
-    return {.code = static_cast<std::uint16_t>(button), .device = InputDevice::Mouse};
+    return {.value = button};
   }
 
   [[nodiscard]] constexpr PhysicalInput physical(GamepadControl control) noexcept {
-    return {.code = static_cast<std::uint16_t>(control), .device = InputDevice::Gamepad};
+    return {.value = control};
   }
+
+  /** @brief The device family of @p input, taken from its active alternative. */
+  [[nodiscard]] InputDevice device_of(PhysicalInput input) noexcept;
 
   /** @brief Stable JSON spelling of @p device: "keyboard", "mouse" or "gamepad". */
   [[nodiscard]] std::string_view device_name(InputDevice device) noexcept;

@@ -174,7 +174,7 @@ namespace corundum::input {
     for (const Binding &row : bindings) {
       array.push_back({
           {"action", std::string(action_name(row.action))},
-          {"device", std::string(device_name(row.input.device))},
+          {"device", std::string(device_name(device_of(row.input)))},
           {"input", std::string(name_of(row.input))},
       });
     }
@@ -209,7 +209,7 @@ namespace corundum::input {
 
         const Action action = default_row.action;
         const bool device_has_binding = std::ranges::any_of(result, [&default_row, action](const Binding &row) {
-          return row.action == action && row.input.device == default_row.input.device;
+          return row.action == action && device_of(row.input) == device_of(default_row.input);
         });
         // The input is shared between two actions by the defaults themselves (Escape = Cancel +
         // Menu; Enter/Space/left mouse/A = Select + Activate): restore it for a device the action

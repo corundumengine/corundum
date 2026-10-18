@@ -6,6 +6,7 @@
 
 #include <array>
 #include <bitset>
+#include <cassert>
 #include <cstddef>
 
 namespace corundum::input {
@@ -38,8 +39,11 @@ namespace corundum::input {
      *  @param[in]     down    New state of the source.
      *  @param[in,out] state   Per-poll input state updated in place.
      *  @pre @p source < k_max_input_sources.
+     *  @pre @p action must not be Action::Count; Count is a sentinel, not an action.
      */
     void update(std::size_t source, Action action, bool down, InputState &state) noexcept {
+      assert(action != Action::Count && "Count is a sentinel, not an action");
+      assert(source < k_max_input_sources);
       auto &sources = active_[static_cast<std::size_t>(action)];
       const bool was_active = sources.any();
       sources[source] = down; // operator[], not set(), so the noexcept contract holds
