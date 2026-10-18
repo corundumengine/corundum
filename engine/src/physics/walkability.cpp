@@ -6,6 +6,8 @@
 #include <corundum/world/tilemap/walkability.hpp>
 
 #include <cmath>
+#include <functional>
+#include <optional>
 
 namespace corundum::physics {
 
@@ -22,16 +24,18 @@ namespace corundum::physics {
 
   } // namespace
 
-  void resolve_walkability(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
-                           const corundum::world::tilemap::WalkabilityGraph *graph) noexcept {
-    if (graph == nullptr)
+  void resolve_walkability(
+      corundum::entities::Position &pos, corundum::entities::Position prev_pos,
+      std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> graph) noexcept {
+    if (!graph)
       return;
+    const corundum::world::tilemap::WalkabilityGraph &walkability = graph->get();
 
     const int prev_col = static_cast<int>(std::floor(prev_pos.col));
     const int prev_row = static_cast<int>(std::floor(prev_pos.row));
 
     const int to_col = static_cast<int>(std::floor(pos.col));
-    pos.col = resolve_axis(pos.col, prev_pos.col, prev_col, prev_row, to_col, prev_row, *graph);
+    pos.col = resolve_axis(pos.col, prev_pos.col, prev_col, prev_row, to_col, prev_row, walkability);
 
     // Row resolves last, against the cell the column pass settled on. A step crossing both
     // axes is therefore a diagonal from the frame-start cell, so it is gated by the graph's
@@ -39,7 +43,7 @@ namespace corundum::physics {
     // whose own elevation step still exceeds max_step_height.
     const int resolved_col = static_cast<int>(std::floor(pos.col));
     const int to_row = static_cast<int>(std::floor(pos.row));
-    pos.row = resolve_axis(pos.row, prev_pos.row, prev_col, prev_row, resolved_col, to_row, *graph);
+    pos.row = resolve_axis(pos.row, prev_pos.row, prev_col, prev_row, resolved_col, to_row, walkability);
   }
 
 } // namespace corundum::physics

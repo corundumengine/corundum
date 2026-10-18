@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <doctest/doctest.h>
 
+#include <corundum/physics/collision.hpp>
 #include <corundum/physics/physics_system.hpp>
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -12,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-namespace tilemap = corundum::world::tilemap;
 using corundum::physics::compute_elevation_gate;
 using corundum::physics::ElevationGate;
 using corundum::world::MapView;
@@ -34,11 +34,11 @@ namespace {
     layer.name = "ground";
     layer.z_index = 0;
     layer.visible = true;
-    layer.tiles.assign(static_cast<std::size_t>(w * h), 1);
+    layer.tiles.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 1);
     layer.elevation = elevs;
     if (ramp_cell) {
       const auto [rc, rr] = *ramp_cell;
-      layer.ramps[rr * w + rc] = ramp_axis;
+      layer.ramps[(rr * w) + rc] = ramp_axis;
     }
     tm.layers.push_back(std::move(layer));
     return tm;
@@ -62,7 +62,7 @@ TEST_CASE("compute_elevation_gate — World mode (no elevation_map) returns 0/0"
 
 TEST_CASE("compute_elevation_gate — flat terrain: round elev + zero tolerance") {
   // All cells elev 5, no ramps. Player at (1.5, 1.5): interpolated elev = 5.
-  std::vector<uint8_t> elevs(16, 5);
+  const std::vector<uint8_t> elevs(16, 5);
   const Tilemap tm = make_map(4, 4, elevs);
   const MapView map = map_with_elevation_map(tm);
 
@@ -78,9 +78,9 @@ TEST_CASE("compute_elevation_gate — round-to-nearest elev (not truncate)") {
   // New (round) gates correctly at the nearest integer.
   std::vector<uint8_t> elevs(16, 0);
   // Ramp from elev 0 (north) to elev 4 (south) on cell (1, 1), neighbors (1, 0)=0, (1, 2)=4.
-  elevs[0 * 4 + 1] = 0;
-  elevs[1 * 4 + 1] = 0; // ramp cell's own integer elev doesn't matter (interpolated from neighbors)
-  elevs[2 * 4 + 1] = 4;
+  elevs[(0 * 4) + 1] = 0;
+  elevs[(1 * 4) + 1] = 0; // ramp cell's own integer elev doesn't matter (interpolated from neighbors)
+  elevs[(2 * 4) + 1] = 4;
   const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NorthSouth);
   const MapView map = map_with_elevation_map(tm);
 
@@ -96,9 +96,9 @@ TEST_CASE("compute_elevation_gate — ramp tolerance = ceil(Δ/2) widens to both
   // |4-2|=2>0) — walls at both ends become ghosts mid-ramp. Widening tolerance to
   // ceil(4/2)=2 makes both ends within tolerance.
   std::vector<uint8_t> elevs(16, 0);
-  elevs[0 * 4 + 1] = 0;
-  elevs[1 * 4 + 1] = 0;
-  elevs[2 * 4 + 1] = 4;
+  elevs[(0 * 4) + 1] = 0;
+  elevs[(1 * 4) + 1] = 0;
+  elevs[(2 * 4) + 1] = 4;
   const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NorthSouth);
   const MapView map = map_with_elevation_map(tm);
 
@@ -117,9 +117,9 @@ TEST_CASE("compute_elevation_gate — odd ramp Δ uses ceil(Δ/2), not floor") {
   // Ramp from 0 to 3: ceil(3/2) = 2, not 1. Player at midpoint (interpolated 1.5)
   // rounded to 2 should see both ends' colliders.
   std::vector<uint8_t> elevs(16, 0);
-  elevs[0 * 4 + 1] = 0;
-  elevs[1 * 4 + 1] = 0;
-  elevs[2 * 4 + 1] = 3;
+  elevs[(0 * 4) + 1] = 0;
+  elevs[(1 * 4) + 1] = 0;
+  elevs[(2 * 4) + 1] = 3;
   const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::NorthSouth);
   const MapView map = map_with_elevation_map(tm);
 
@@ -130,9 +130,9 @@ TEST_CASE("compute_elevation_gate — odd ramp Δ uses ceil(Δ/2), not floor") {
 TEST_CASE("compute_elevation_gate — EAST_WEST ramp axis") {
   // Ramp from (0, 1) elev 0 to (2, 1) elev 4, axis EAST_WEST, ramp cell at (1, 1).
   std::vector<uint8_t> elevs(16, 0);
-  elevs[1 * 4 + 0] = 0;
-  elevs[1 * 4 + 1] = 0;
-  elevs[1 * 4 + 2] = 4;
+  elevs[(1 * 4) + 0] = 0;
+  elevs[(1 * 4) + 1] = 0;
+  elevs[(1 * 4) + 2] = 4;
   const Tilemap tm = make_map(4, 4, elevs, std::pair{1, 1}, RampAxis::EastWest);
   const MapView map = map_with_elevation_map(tm);
 

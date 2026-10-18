@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <doctest/doctest.h>
+#include <functional>
 
 #include <corundum/physics/walkability.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -135,10 +136,10 @@ TEST_CASE("WalkabilityGraph::can_move — origin translates the global coords ca
 
 // ── resolve_walkability ──────────────────────────────────────────────────────
 
-TEST_CASE("resolve_walkability — null graph is a no-op") {
-  Position pos{1.5f, 1.5f};
-  const Position prev{0.5f, 1.5f};
-  resolve_walkability(pos, prev, nullptr);
+TEST_CASE("resolve_walkability — no graph is a no-op") {
+  Position pos{.col = 1.5f, .row = 1.5f};
+  const Position prev{.col = 0.5f, .row = 1.5f};
+  resolve_walkability(pos, prev, std::nullopt);
   CHECK(pos.col == doctest::Approx(1.5f));
   CHECK(pos.row == doctest::Approx(1.5f));
 }
@@ -146,25 +147,25 @@ TEST_CASE("resolve_walkability — null graph is a no-op") {
 TEST_CASE("resolve_walkability — reverts the column crossing into a disconnected cell") {
   const Tilemap tm = make_test_map(1, 1, 50);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
-  Position pos{1.5f, 0.5f}; // moving into cell (1,0)... col crosses from cell 0 to cell 1 at row 0
-  const Position prev{0.5f, 0.5f};
-  resolve_walkability(pos, prev, &g);
+  Position pos{.col = 1.5f, .row = 0.5f}; // moving into cell (1,0)... col crosses from cell 0 to cell 1 at row 0
+  const Position prev{.col = 0.5f, .row = 0.5f};
+  resolve_walkability(pos, prev, std::cref(g));
   // (1,0) and (0,0) are both flat (raised tile is at (1,1)) — this move should be unaffected.
   CHECK(pos.col == doctest::Approx(1.5f));
 
   // Now move from (0,1) into the raised cell (1,1): should be blocked.
-  Position pos2{1.5f, 1.5f};
-  const Position prev2{0.5f, 1.5f};
-  resolve_walkability(pos2, prev2, &g);
+  Position pos2{.col = 1.5f, .row = 1.5f};
+  const Position prev2{.col = 0.5f, .row = 1.5f};
+  resolve_walkability(pos2, prev2, std::cref(g));
   CHECK(pos2.col == doctest::Approx(prev2.col));
 }
 
 TEST_CASE("resolve_walkability — leaves position alone when crossing a connected edge") {
   const Tilemap tm = make_test_map(1, 1, 3);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
-  Position pos{1.5f, 1.5f};
-  const Position prev{0.5f, 1.5f};
-  resolve_walkability(pos, prev, &g);
+  Position pos{.col = 1.5f, .row = 1.5f};
+  const Position prev{.col = 0.5f, .row = 1.5f};
+  resolve_walkability(pos, prev, std::cref(g));
   CHECK(pos.col == doctest::Approx(1.5f));
   CHECK(pos.row == doctest::Approx(1.5f));
 }
@@ -185,7 +186,7 @@ TEST_CASE("resolve_walkability — a two-axis step is gated by the diagonal edge
 
   Position pos{.col = 1.5f, .row = 0.5f};
   const Position prev{.col = 0.5f, .row = 1.5f};
-  resolve_walkability(pos, prev, &g);
+  resolve_walkability(pos, prev, std::cref(g));
   CHECK(pos.col == doctest::Approx(1.5f));     // column step kept
   CHECK(pos.row == doctest::Approx(prev.row)); // diagonal denied, so the row step reverts
 }
@@ -197,7 +198,7 @@ TEST_CASE("resolve_walkability — a two-axis step across a connected diagonal i
 
   Position pos{.col = 1.5f, .row = 0.5f};
   const Position prev{.col = 0.5f, .row = 1.5f};
-  resolve_walkability(pos, prev, &g);
+  resolve_walkability(pos, prev, std::cref(g));
   CHECK(pos.col == doctest::Approx(1.5f));
   CHECK(pos.row == doctest::Approx(0.5f));
 }
@@ -237,14 +238,14 @@ TEST_CASE("resolve_walkability — an entity can cross a ramp cell in both direc
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
 
   // Uphill: from flat (1,0) into the ramp/raised cell (1,1).
-  Position pos{1.5f, 1.5f};
-  const Position prev{1.5f, 0.5f};
-  resolve_walkability(pos, prev, &g);
+  Position pos{.col = 1.5f, .row = 1.5f};
+  const Position prev{.col = 1.5f, .row = 0.5f};
+  resolve_walkability(pos, prev, std::cref(g));
   CHECK(pos.row == doctest::Approx(1.5f));
 
   // Downhill: from the ramp cell (1,1) back down into flat (1,0).
-  Position pos2{1.5f, 0.5f};
-  const Position prev2{1.5f, 1.5f};
-  resolve_walkability(pos2, prev2, &g);
+  Position pos2{.col = 1.5f, .row = 0.5f};
+  const Position prev2{.col = 1.5f, .row = 1.5f};
+  resolve_walkability(pos2, prev2, std::cref(g));
   CHECK(pos2.row == doctest::Approx(0.5f));
 }

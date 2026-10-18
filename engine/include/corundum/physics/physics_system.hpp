@@ -7,6 +7,7 @@
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/physics/collision.hpp>
 #include <corundum/world/picking.hpp>
 
 #include <vector>
@@ -25,7 +26,7 @@ namespace corundum::physics {
    *  @param[in]     input       Current frame input state.
    *  @param[in]     player_speed Movement speed in isometric pixels/s.
    *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
-   *  @pre @p player must exist in @p transforms.
+   *  @note A player absent from @p transforms is a no-op.
    *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
    *  Performance: O(1).
    */
@@ -56,7 +57,7 @@ namespace corundum::physics {
    *  @param[in]     player_speed Movement speed in isometric pixels/s.
    *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
    *  @param[in]     dt          Fixed timestep in seconds.
-   *  @pre @p player must exist in @p transforms.
+   *  @note A player absent from @p transforms is a no-op.
    */
   void follow_path(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
                    std::vector<corundum::world::TileCoord> &path, float player_speed,
@@ -74,7 +75,7 @@ namespace corundum::physics {
    *  @param[in]     input         Current frame input state.
    *  @param[in]     player_speed  Movement speed in px/s.
    *  @param[in]     map           Active map view (tile colliders, bounds, portals).
-   *  @param[in,out] scene         May receive a pending_transition on portal overlap.
+   *  @param[in,out] scene         May receive a transition_prompt on portal overlap.
    *  @param[in]     dt            Fixed timestep in seconds.
    *  @pre @p player must exist in @p transforms and @p collisions.
    *  @post Player position is clamped to map bounds.
@@ -89,29 +90,18 @@ namespace corundum::physics {
                      corundum::world::Scene &scene, float dt) noexcept;
 
   /**
-   * @brief Result of compute_elevation_gate: the integer elevation to gate
-   * colliders against, plus a ramp-aware tolerance that widens while the player
-   * stands on a ramp cell so both ends' colliders apply mid-ramp.
-   */
-  struct ElevationGate {
-    int player_elevation; ///< Rounded interpolated elevation at (col, row).
-    int tolerance;        ///< Ramp Δ/2 (ceil) while on a ramp; 0 elsewhere.
-  };
-
-  /**
    * @brief Compute the elevation gate used to filter authored colliders by elevation.
    *
-   * Rounds the interpolated elevation (was: truncates — see plan §3c) so a player at
-   * elev 3.99 on a 0→4 ramp gates at elev 4 instead of elev 3 (where authored top-ramp
-   * colliders were invisible). While the feet cell is a ramp, widens the tolerance to
-   * ceil(Δ/2) so both end elevations stay within range — without widening, the
-   * midpoint player (rounded to 2) would filter out colliders at both 0 and 4.
+   * Rounds the interpolated elevation to nearest so a player at elev 3.99 on a 0→4 ramp gates
+   * at elev 4 instead of elev 3 (where authored top-ramp colliders would be invisible). While
+   * the feet cell is a ramp, widens the tolerance to ceil(Δ/2) so both end elevations stay
+   * within range — without widening, the midpoint player (rounded to 2) would filter out
+   * colliders at both 0 and 4.
    *
    * @param[in] map   Active map view (uses elevation_map if set; World mode → defaults).
    * @param[in] col   Fractional tile column (player's pre-integrate position).
    * @param[in] row   Fractional tile row.
-   * @return Gate value (player elevation + tolerance) to pass into resolve_collisions /
-   *         resolve_triangle_collisions.
+   * @return Gate to pass to resolve_collisions / resolve_triangle_collisions.
    */
   [[nodiscard]] ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col,
                                                      float row) noexcept;
@@ -122,7 +112,7 @@ namespace corundum::physics {
    * Looks up the portal's center cell elevation (rounded) and compares against
    * @p player_elev within @p elev_tolerance. Without this gate, a player standing on
    * a bridge (elev 5) would trigger a ground-floor portal (elev 0) authored at the
-   * same cell — they teleport down every time they cross it. Plan §4a.
+   * same cell — they teleport down every time they cross it.
    *
    * @param map             Active map view (uses elevation_map; World mode falls back to elev 0).
    * @param portal          Portal whose center cell is the gating reference.

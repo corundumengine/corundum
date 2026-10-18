@@ -8,6 +8,20 @@
 namespace corundum::physics {
 
   /**
+   * @brief Elevation window a collision solve gates colliders against.
+   *
+   * @details Rect and triangle views carry per-collider elevations [0–255] when authored. A
+   * collider is tested only while its elevation is within @ref tolerance of
+   * @ref player_elevation, so a raised platform's walls block only entities standing on that
+   * platform. A view with no per-collider elevation data ignores the gate entirely.
+   */
+  struct ElevationGate {
+    int player_elevation{}; ///< The entity's own elevation [0–255].
+
+    int tolerance{}; ///< Largest elevation difference a collider may have and still block.
+  };
+
+  /**
    * @brief Axis-separated AABB collision resolution.
    *
    * @details
@@ -28,17 +42,15 @@ namespace corundum::physics {
    * @param rects     SoA collision rects in tile-grid space.
    * @param y_offset  Shifts the top of the collision box downward, letting the upper portion
    *                  of a sprite visually overlap objects above it.
-   * @param entity_elevation    The entity's own current elevation [0–255]. Ignored when
-   *                            @p rects carries no per-rect elevation data.
-   * @param elevation_tolerance A rect is only tested if its elevation is within this many
-   *                            units of @p entity_elevation; lets a raised platform's walls
-   *                            block only entities standing on that platform.
+   * @param elevation Elevation window (see ElevationGate); ignored when @p rects carries no
+   *                  per-rect elevation data.
    *
    * @pre y_offset < entity_h, so the collision box keeps a positive height.
+   * @pre elevation.tolerance >= 0.
    */
   void resolve_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos, float entity_w,
                           float entity_h, corundum::world::tilemap::CollisionRectsView rects, float y_offset = 0.f,
-                          int entity_elevation = 0, int elevation_tolerance = 0) noexcept;
+                          ElevationGate elevation = {}) noexcept;
 
   /**
    * @brief Axis-separated diagonal collision resolution for half-tile triangle shapes.
@@ -56,14 +68,14 @@ namespace corundum::physics {
    * @param triangles SoA collision triangles in tile-grid space.
    * @param y_offset  Shifts the top of the collision box downward (same semantics as
    * resolve_collisions).
-   * @param entity_elevation     Same semantics as resolve_collisions.
-   * @param elevation_tolerance  Same semantics as resolve_collisions.
+   * @param elevation Same semantics as resolve_collisions.
    *
    * @pre y_offset < entity_h, so the collision box keeps a positive height.
+   * @pre elevation.tolerance >= 0.
    */
   void resolve_triangle_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
                                    float entity_w, float entity_h,
                                    corundum::world::tilemap::CollisionTrianglesView triangles, float y_offset = 0.f,
-                                   int entity_elevation = 0, int elevation_tolerance = 0) noexcept;
+                                   ElevationGate elevation = {}) noexcept;
 
 } // namespace corundum::physics

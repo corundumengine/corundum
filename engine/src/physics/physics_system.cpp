@@ -16,11 +16,14 @@
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
+#include <corundum/world/tilemap/walkability.hpp>
+#include <corundum/world/ui_stack.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <utility>
@@ -46,6 +49,12 @@ namespace corundum::physics {
           .x = ((svx / iso.half_tw) + (svy / iso.half_th)) / 2.f,
           .y = ((svy / iso.half_th) - (svx / iso.half_tw)) / 2.f,
       };
+    }
+
+    /** @brief Borrow @p graph as a reference when present, or std::nullopt when null. */
+    [[nodiscard]] std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>>
+    borrow_walkability(const corundum::world::tilemap::WalkabilityGraph *graph) noexcept {
+      return graph != nullptr ? std::make_optional(std::cref(*graph)) : std::nullopt;
     }
 
     /** @brief Test the player's post-move AABB against every portal in @p map.
@@ -98,6 +107,162 @@ namespace corundum::physics {
         return;
       }
     }
+
+    /// Queue a click-to-move path from the player's current cell to the hovered tile.
+    ///
+    /// Deliberately keyed on mouse_click_pressed, not Action::Select — Select is also raised by
+    /// keyboard/gamepad confirm presses (which carry no click position), and using it here would
+    /// spuriously queue a path toward wherever the mouse happens to hover any time the player
+    /// presses Enter/Space/a gamepad button for an unrelated reason (e.g. confirming dialogue).
+    void queue_click_path(corundum::world::Scene &scene, const corundum::world::MapView &map,
+                          const corundum::input::InputState &input,
+                          const corundum::entities::CollisionTable &collisions,
+                          const corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
+                          float prev_col, float prev_row) noexcept {
+      if (!input.mouse_click_pressed || !scene.hovered_tile || map.walkability == nullptr)
+        return;
+      // std::floor (not truncate) so a fractionally-negative prev_col/prev_row selects the cell the
+      // player is actually standing in — same convention as chunk_at_iso and picking. Latent today
+      // (positions clamped >= 0), defensive against future knockback / camera-shake paths.
+      const corundum::world::TileCoord start{
+          .col = static_cast<int>(std::floor(prev_col)),
+          .row = static_cast<int>(std::floor(prev_row)),
+      };
+      scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms, player);
+    }
+
+    /** @brief Snapshot of every non-player entity's collision AABB and rounded tile elevation. */
+    struct NpcColliders {
+      std::array<float, corundum::entities::k_max_entities> cols{};
+      std::array<float, corundum::entities::k_max_entities> rows{};
+      std::array<float, corundum::entities::k_max_entities> col_spans{};
+      std::array<float, corundum::entities::k_max_entities> row_spans{};
+      std::array<uint8_t, corundum::entities::k_max_entities> elevations{};
+      uint16_t count{};
+
+      [[nodiscard]] corundum::world::tilemap::CollisionRectsView view() const noexcept {
+        return {
+            .cols = std::span{cols.data(), count},
+            .rows = std::span{rows.data(), count},
+            .col_spans = std::span{col_spans.data(), count},
+            .row_spans = std::span{row_spans.data(), count},
+            .elevations = std::span{elevations.data(), count},
+        };
+      }
+    };
+
+    /// Fill @p out with every entity in @p collisions except @p exclude, converting each feet
+    /// position to a collision AABB top-left and capturing its elevation so the player-vs-NPC pass
+    /// can gate by elevation (same band as player-vs-world).
+    void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable &transforms,
+                              const corundum::entities::CollisionTable &collisions,
+                              corundum::entities::EntityId exclude, const corundum::world::MapView &map) noexcept {
+      for (std::uint32_t i = 0; i < collisions.count; ++i) {
+        const corundum::entities::EntityId eid = collisions.index.entities[i];
+        if (eid == exclude)
+          continue;
+        if (!transforms.has(eid))
+          continue;
+        const auto &rect = collisions.rects[i];
+        const auto slot = transforms.dense_index(eid);
+        const float np_col = transforms.col[slot];
+        const float np_row = transforms.row[slot];
+        // NPC feet position to AABB top-left, per the shared CollisionTable convention.
+        const corundum::entities::GridBox box =
+            corundum::entities::footprint_of(np_col, np_row, rect.col_span, rect.row_span);
+        out.cols[out.count] = box.col;
+        out.rows[out.count] = box.row;
+        out.col_spans[out.count] = box.col_span;
+        out.row_spans[out.count] = box.row_span;
+        out.elevations[out.count] =
+            static_cast<uint8_t>(std::round(corundum::world::elevation_at_tile(map, np_col, np_row)));
+        ++out.count;
+      }
+    }
+
+    /// Integrate the player in ≤0.5-tile substeps, resolving tile rect/triangle collision and
+    /// walkability each step, and return the resolved tile-grid position. Substepping is the
+    /// tunneling guard: at high speed the resolver never has to clear more than one cell of
+    /// geometry, so thin walls can't be skipped. The initial position is wherever the movement
+    /// branch left the entity, so a follow_path snap is preserved.
+    [[nodiscard]] corundum::entities::Position integrate_and_resolve_player(
+        corundum::entities::TransformTable &transforms, corundum::entities::EntityId player, std::uint32_t player_slot,
+        const corundum::world::MapView &map, const corundum::entities::CollisionTable::Rect &player_rect,
+        ElevationGate elev_gate,
+        std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> walkability,
+        float dt) noexcept {
+      const float step_dist = std::hypot(transforms.dc[player_slot], transforms.dr[player_slot]) * dt;
+      constexpr float k_substep_max_tile = 0.5f;
+      const int substeps = std::max(1, static_cast<int>(std::ceil(step_dist / k_substep_max_tile)));
+      const float sub_dt = dt / static_cast<float>(substeps);
+
+      corundum::entities::Position p{.col = transforms.col[player_slot], .row = transforms.row[player_slot]};
+      for (int s = 0; s < substeps; ++s) {
+        const corundum::entities::Position sub_prev{.col = p.col, .row = p.row};
+        integrate(transforms, player, sub_dt);
+        p.col = transforms.col[player_slot];
+        p.row = transforms.row[player_slot];
+
+        if (map.half_tw > 0.f && map.half_th > 0.f) {
+          const corundum::entities::GridBox box =
+              corundum::entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
+          const corundum::entities::GridBox prev_box =
+              corundum::entities::footprint_of(sub_prev.col, sub_prev.row, player_rect.col_span, player_rect.row_span);
+          corundum::entities::Position pc{.col = box.col, .row = box.row};
+          const corundum::entities::Position pcp{.col = prev_box.col, .row = prev_box.row};
+          resolve_collisions(pc, pcp, box.col_span, box.row_span, map.collisions, 0.f, elev_gate);
+          resolve_triangle_collisions(pc, pcp, box.col_span, box.row_span, map.collision_triangles, 0.f, elev_gate);
+          p = corundum::entities::position_of(corundum::entities::GridBox{
+              .col = pc.col,
+              .row = pc.row,
+              .col_span = box.col_span,
+              .row_span = box.row_span,
+          });
+        }
+        resolve_walkability(p, sub_prev, walkability);
+        transforms.col[player_slot] = p.col;
+        transforms.row[player_slot] = p.row;
+      }
+      return p;
+    }
+
+    /// Resolve the player's footprint against the gathered NPC boxes, anchored on the same point
+    /// as the world pass, and return the corrected tile-grid position.
+    [[nodiscard]] corundum::entities::Position
+    resolve_npc_collisions(const corundum::entities::CollisionTable::Rect &player_rect,
+                           corundum::world::tilemap::CollisionRectsView npc_view, corundum::entities::Position pos,
+                           corundum::entities::Position prev_pos, ElevationGate elev_gate) noexcept {
+      const corundum::entities::GridBox box =
+          corundum::entities::footprint_of(pos.col, pos.row, player_rect.col_span, player_rect.row_span);
+      const corundum::entities::GridBox prev_box =
+          corundum::entities::footprint_of(prev_pos.col, prev_pos.row, player_rect.col_span, player_rect.row_span);
+      corundum::entities::Position p_aabb{.col = box.col, .row = box.row};
+      const corundum::entities::Position prev_aabb{.col = prev_box.col, .row = prev_box.row};
+      resolve_collisions(p_aabb, prev_aabb, box.col_span, box.row_span, npc_view, 0.f, elev_gate);
+      return corundum::entities::position_of(corundum::entities::GridBox{
+          .col = p_aabb.col,
+          .row = p_aabb.row,
+          .col_span = box.col_span,
+          .row_span = box.row_span,
+      });
+    }
+
+    /// Clamp the stored position so the footprint never leaves the map.
+    [[nodiscard]] corundum::entities::Position
+    clamp_to_map_bounds(corundum::entities::Position pos, const corundum::entities::CollisionTable::Rect &player_rect,
+                        const corundum::world::MapView &map) noexcept {
+      // The footprint sits half a tile in from the stored position: the position may reach
+      // map_w - 0.5 - col_span/2, not map_w - col_span. The lower bound stays 0 so the position
+      // itself never leaves the map — stricter than the box needs, and harmless.
+      const float col_limit =
+          std::max(0.f, map.world_w_tiles - corundum::entities::k_entity_anchor_offset - (player_rect.col_span * 0.5f));
+      const float row_limit =
+          std::max(0.f, map.world_h_tiles - corundum::entities::k_entity_anchor_offset - (player_rect.row_span * 0.5f));
+      pos.col = std::clamp(pos.col, 0.f, col_limit);
+      pos.row = std::clamp(pos.row, 0.f, row_limit);
+      return pos;
+    }
+
   } // namespace
 
   ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col, float row) noexcept {
@@ -261,26 +426,11 @@ namespace corundum::physics {
     // The floor the player is standing on at the start of the frame — computed from the
     // pre-move position so collision resolution doesn't depend on its own not-yet-resolved
     // result. Uses round-to-nearest + ramp-aware tolerance (see compute_elevation_gate)
-    // so authored colliders at both ends of a ramp still block at mid-ramp. Plan §3c.
+    // so authored colliders at both ends of a ramp still block at mid-ramp.
     const auto elev_gate = compute_elevation_gate(map, prev_col, prev_row);
     const int player_elev = elev_gate.player_elevation;
 
-    // A click queues a new path. Deliberately keyed on mouse_click_pressed, not
-    // Action::Select — Select is also raised by keyboard/gamepad confirm presses (which
-    // carry no click position), and using it here would spuriously queue a path toward
-    // wherever the mouse happens to be hovering any time the player presses Enter/Space/
-    // a gamepad button for an unrelated reason (e.g. confirming dialogue).
-    if (input.mouse_click_pressed && scene.hovered_tile && (map.walkability != nullptr)) {
-      // std::floor (not truncate) so a fractionally-negative prev_col/prev_row selects
-      // the cell the player is actually standing in — same convention as chunk_at_iso
-      // and picking. Latent today (positions clamped >= 0), defensive against future
-      // knockback / camera-shake paths.
-      const corundum::world::TileCoord start{
-          .col = static_cast<int>(std::floor(prev_col)),
-          .row = static_cast<int>(std::floor(prev_row)),
-      };
-      scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms, player);
-    }
+    queue_click_path(scene, map, input, collisions, transforms, player, prev_col, prev_row);
 
     const bool manual_move =
         input.is_held(corundum::input::Action::MoveUp) || input.is_held(corundum::input::Action::MoveDown) ||
@@ -294,128 +444,20 @@ namespace corundum::physics {
     } else {
       apply_input(transforms, player, input, player_speed, iso); // zeroes dc/dr when nothing is held
     }
-    // Integration happens inside the substep loop below; this frame's integrate+resolve
-    // is substepped against per-cell displacement so the resolver can't skip geometry
-    // at high speed (see k_substep_max_tile / WalkabilityGraph::can_move denial below).
-
-    const float map_w = map.world_w_tiles;
-    const float map_h = map.world_h_tiles;
 
     const CollisionTable::Rect &player_rect = collisions.get_rect(player);
-
-    // Tunneling guard: substep integrate+resolve when the frame's displacement exceeds
-    // ~0.5 tile, so the resolver never has to clear more than one cell of geometry and
-    // thin walls can't be skipped at high speed. Pair with WalkabilityGraph::can_move's
-    // multi-cell denial (now false) so this loop is forced to take per-cell steps
-    // against the graph. 1 substep when displacement is small — math identical to the
-    // pre-substep path.
-    const float step_dist = std::hypot(transforms.dc[p_slot], transforms.dr[p_slot]) * dt;
-    constexpr float k_substep_max_tile = 0.5f;
-    const int substeps = std::max(1, static_cast<int>(std::ceil(step_dist / k_substep_max_tile)));
-    const float sub_dt = dt / static_cast<float>(substeps);
-
-    // Solve from wherever the movement branch above left the entity, so a waypoint follow_path
-    // has already snapped onto stays snapped. Resetting to the frame-start position here would
-    // drop the entity just short of the tile it was sent to, and floor() would then report the
-    // tile before it.
-    Position p{.col = transforms.col[p_slot], .row = transforms.row[p_slot]};
-    for (int s = 0; s < substeps; ++s) {
-      const Position sub_prev{.col = p.col, .row = p.row};
-      integrate(transforms, player, sub_dt);
-      p.col = transforms.col[p_slot];
-      p.row = transforms.row[p_slot];
-
-      if (map.half_tw > 0.f && map.half_th > 0.f) {
-        const corundum::entities::GridBox box =
-            corundum::entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
-        const corundum::entities::GridBox prev_box =
-            corundum::entities::footprint_of(sub_prev.col, sub_prev.row, player_rect.col_span, player_rect.row_span);
-        Position pc{.col = box.col, .row = box.row};
-        const Position pcp{.col = prev_box.col, .row = prev_box.row};
-        resolve_collisions(pc, pcp, box.col_span, box.row_span, map.collisions, 0.f, player_elev, elev_gate.tolerance);
-        resolve_triangle_collisions(pc, pcp, box.col_span, box.row_span, map.collision_triangles, 0.f, player_elev,
-                                    elev_gate.tolerance);
-        // Back to the entity's tile-grid position via footprint_of's paired inverse, so the
-        // anchor offset lives in exactly one place.
-        p = corundum::entities::position_of(corundum::entities::GridBox{
-            .col = pc.col,
-            .row = pc.row,
-            .col_span = box.col_span,
-            .row_span = box.row_span,
-        });
-      }
-      resolve_walkability(p, sub_prev, map.walkability);
-      // Write resolved position back so the next substep's integrate starts from here.
-      transforms.col[p_slot] = p.col;
-      transforms.row[p_slot] = p.row;
-    }
     const Position prev_pos{.col = prev_col, .row = prev_row};
+    // Borrowed once per step; resolve_walkability takes no graph as std::nullopt so the
+    // no-graph case is carried by the type rather than a null sentinel.
+    const auto walkability = borrow_walkability(map.walkability);
 
-    std::array<float, corundum::entities::k_max_entities> npc_cols{};
-    std::array<float, corundum::entities::k_max_entities> npc_rows{};
-    std::array<float, corundum::entities::k_max_entities> npc_cs{};
-    std::array<float, corundum::entities::k_max_entities> npc_rs{};
-    // NPC elevations populated so resolve_collisions can gate player-vs-NPC by elevation
-    // (same band as player-vs-world). Without this, an NPC under a bridge (elev 0) would
-    // block a player on the bridge (elev 5). Plan §4a.
-    std::array<uint8_t, corundum::entities::k_max_entities> npc_elevations{};
-    uint16_t npc_count = 0;
-    for (std::uint32_t i = 0; i < collisions.count; ++i) {
-      const EntityId eid = collisions.index.entities[i];
-      if (eid == player)
-        continue;
-      if (!transforms.has(eid))
-        continue;
-      const auto &rect = collisions.rects[i];
-      const auto np_slot = transforms.dense_index(eid);
-      const float np_col = transforms.col[np_slot];
-      const float np_row = transforms.row[np_slot];
-      // NPC feet position to AABB top-left, per the shared CollisionTable convention.
-      const corundum::entities::GridBox npc_box =
-          corundum::entities::footprint_of(np_col, np_row, rect.col_span, rect.row_span);
-      npc_cols[npc_count] = npc_box.col;
-      npc_rows[npc_count] = npc_box.row;
-      npc_cs[npc_count] = npc_box.col_span;
-      npc_rs[npc_count] = npc_box.row_span;
-      npc_elevations[npc_count] =
-          static_cast<uint8_t>(std::round(corundum::world::elevation_at_tile(map, np_col, np_row)));
-      ++npc_count;
-    }
-    const corundum::world::tilemap::CollisionRectsView npc_view{
-        .cols = std::span{npc_cols.data(), npc_count},
-        .rows = std::span{npc_rows.data(), npc_count},
-        .col_spans = std::span{npc_cs.data(), npc_count},
-        .row_spans = std::span{npc_rs.data(), npc_count},
-        .elevations = std::span{npc_elevations.data(), npc_count},
-    };
-    // Player footprint against the NPC boxes, anchored on the same point as the world pass.
-    {
-      const corundum::entities::GridBox box =
-          corundum::entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
-      const corundum::entities::GridBox prev_box =
-          corundum::entities::footprint_of(prev_pos.col, prev_pos.row, player_rect.col_span, player_rect.row_span);
-      Position p_aabb{.col = box.col, .row = box.row};
-      const Position prev_aabb{.col = prev_box.col, .row = prev_box.row};
-      resolve_collisions(p_aabb, prev_aabb, box.col_span, box.row_span, npc_view, 0.f, player_elev,
-                         elev_gate.tolerance);
-      p = corundum::entities::position_of(corundum::entities::GridBox{
-          .col = p_aabb.col,
-          .row = p_aabb.row,
-          .col_span = box.col_span,
-          .row_span = box.row_span,
-      });
-    }
+    Position p = integrate_and_resolve_player(transforms, player, p_slot, map, player_rect, elev_gate, walkability, dt);
 
-    // Bound the footprint, which sits half a tile in from the stored position: the position
-    // may reach map_w - 0.5 - col_span/2, not map_w - col_span. The lower bound stays 0 so the
-    // position itself never leaves the map — stricter than the box needs, and harmless.
-    const float col_limit =
-        std::max(0.f, map_w - corundum::entities::k_entity_anchor_offset - (player_rect.col_span * 0.5f));
-    const float row_limit =
-        std::max(0.f, map_h - corundum::entities::k_entity_anchor_offset - (player_rect.row_span * 0.5f));
-    p.col = std::clamp(p.col, 0.f, col_limit);
-    p.row = std::clamp(p.row, 0.f, row_limit);
+    NpcColliders npcs;
+    gather_npc_colliders(npcs, transforms, collisions, player, map);
+    p = resolve_npc_collisions(player_rect, npcs.view(), p, prev_pos, elev_gate);
 
+    p = clamp_to_map_bounds(p, player_rect, map);
     transforms.col[p_slot] = p.col;
     transforms.row[p_slot] = p.row;
 

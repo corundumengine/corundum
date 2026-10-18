@@ -5,6 +5,7 @@
 #include <corundum/physics/collision.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
+#include <cassert>
 #include <cstdlib>
 #include <optional>
 #include <utility>
@@ -13,21 +14,23 @@ namespace corundum::physics {
 
   namespace {
 
+    using corundum::world::tilemap::TriangleCut;
+
     // Test whether an AABB at (ax, ay, aw, ah) overlaps any rect in the SoA view.
     // The four parallel float spans let the compiler auto-vectorize this loop with SIMD.
-    // If rects.elevations is non-empty, a rect is skipped unless its elevation is within
-    // elevation_tolerance of entity_elevation — lets a raised platform's walls block only
-    // entities standing on that platform, not something walking underneath/beside it.
+    // Once the view carries per-rect elevations, a rect is skipped unless its elevation is
+    // within elevation.tolerance of elevation.player_elevation — lets a raised platform's
+    // walls block only entities standing on that platform, not something beside it.
     [[nodiscard]] bool overlaps_any(float ax, float ay, float aw, float ah,
-                                    corundum::world::tilemap::CollisionRectsView rects, int entity_elevation,
-                                    int elevation_tolerance) noexcept {
+                                    corundum::world::tilemap::CollisionRectsView rects,
+                                    ElevationGate elevation) noexcept {
       const float ax1 = ax + aw;
       const float ay1 = ay + ah;
       const std::size_t n = rects.size();
       const bool filter_elevation = !rects.elevations.empty();
       for (std::size_t i = 0; i < n; ++i) {
         if (filter_elevation &&
-            std::abs(static_cast<int>(rects.elevations[i]) - entity_elevation) > elevation_tolerance)
+            std::abs(static_cast<int>(rects.elevations[i]) - elevation.player_elevation) > elevation.tolerance)
           continue;
         if (ax < rects.cols[i] + rects.col_spans[i] && ax1 > rects.cols[i] && ay < rects.rows[i] + rects.row_spans[i] &&
             ay1 > rects.rows[i])
@@ -40,10 +43,9 @@ namespace corundum::physics {
     // not have — the escape rule that lets an entity already inside a collider slide
     // free instead of being trapped by it.
     [[nodiscard]] bool blocks_new_overlap(float x, float y, float prev_x, float prev_y, float aw, float ah,
-                                          corundum::world::tilemap::CollisionRectsView rects, int entity_elevation,
-                                          int elevation_tolerance) noexcept {
-      return overlaps_any(x, y, aw, ah, rects, entity_elevation, elevation_tolerance) &&
-             !overlaps_any(prev_x, prev_y, aw, ah, rects, entity_elevation, elevation_tolerance);
+                                          corundum::world::tilemap::CollisionRectsView rects,
+                                          ElevationGate elevation) noexcept {
+      return overlaps_any(x, y, aw, ah, rects, elevation) && !overlaps_any(prev_x, prev_y, aw, ah, rects, elevation);
     }
 
     // Test whether an AABB at (ax, ay, aw, ah) overlaps the solid region of any triangle.
@@ -61,15 +63,14 @@ namespace corundum::physics {
     //   SE: solid u+v < 1  — AABB in empty if min u+v > 1  → u0+v0 > 1
     [[nodiscard]] bool overlaps_any_triangle(float ax, float ay, float aw, float ah,
                                              corundum::world::tilemap::CollisionTrianglesView triangles,
-                                             int entity_elevation, int elevation_tolerance) noexcept {
-      using corundum::world::tilemap::TriangleCut;
+                                             ElevationGate elevation) noexcept {
       const float ax1 = ax + aw;
       const float ay1 = ay + ah;
       const std::size_t n = triangles.size();
       const bool filter_elevation = !triangles.elevations.empty();
       for (std::size_t i = 0; i < n; ++i) {
         if (filter_elevation &&
-            std::abs(static_cast<int>(triangles.elevations[i]) - entity_elevation) > elevation_tolerance)
+            std::abs(static_cast<int>(triangles.elevations[i]) - elevation.player_elevation) > elevation.tolerance)
           continue;
         const float tx = triangles.cols[i];
         const float ty = triangles.rows[i];
@@ -98,9 +99,9 @@ namespace corundum::physics {
     // Triangle counterpart of blocks_new_overlap.
     [[nodiscard]] bool blocks_new_overlap_triangle(float x, float y, float prev_x, float prev_y, float aw, float ah,
                                                    corundum::world::tilemap::CollisionTrianglesView triangles,
-                                                   int entity_elevation, int elevation_tolerance) noexcept {
-      return overlaps_any_triangle(x, y, aw, ah, triangles, entity_elevation, elevation_tolerance) &&
-             !overlaps_any_triangle(prev_x, prev_y, aw, ah, triangles, entity_elevation, elevation_tolerance);
+                                                   ElevationGate elevation) noexcept {
+      return overlaps_any_triangle(x, y, aw, ah, triangles, elevation) &&
+             !overlaps_any_triangle(prev_x, prev_y, aw, ah, triangles, elevation);
     }
 
     // Keep the nearest of two candidate contacts, where "nearest" is the smallest
@@ -116,6 +117,39 @@ namespace corundum::physics {
       return std::nullopt;
     }
 
+    /// X-axis contact for one triangle cut: solve its empty-side boundary for col. Each
+    /// cut's boundary is one of:
+    ///   NW: u1 + v1 = 1  → pc + aw = tx + tw * (1 - v1_norm)
+    ///   NE: u0 - v1 = 0  → pc = tx + tw * v1_norm
+    ///   SW: u1 - v0 = 0  → pc + aw = tx + tw * v0_norm
+    ///   SE: u0 + v0 = 1  → pc = tx + tw * (1 - v0_norm)
+    [[nodiscard]] float triangle_x_contact(float y_top, float y_bottom, float tx, float ty, float tw, float th,
+                                           float aw, TriangleCut cut) noexcept {
+      const float v1_norm = (y_bottom - ty) / th;
+      const float v0_norm = (y_top - ty) / th;
+      switch (cut) {
+        case TriangleCut::NorthWest: return tx + (tw * (1.f - v1_norm)) - aw;
+        case TriangleCut::NorthEast: return tx + (tw * v1_norm);
+        case TriangleCut::SouthWest: return tx + (tw * v0_norm) - aw;
+        case TriangleCut::SouthEast: return tx + (tw * (1.f - v0_norm));
+      }
+      std::unreachable();
+    }
+
+    /// Y-axis equivalent of triangle_x_contact.
+    [[nodiscard]] float triangle_y_contact(float x_left, float x_right, float tx, float ty, float tw, float th,
+                                           float ah, TriangleCut cut) noexcept {
+      const float u1_norm = (x_right - tx) / tw;
+      const float u0_norm = (x_left - tx) / tw;
+      switch (cut) {
+        case TriangleCut::NorthWest: return ty + (th * (1.f - u1_norm)) - ah;
+        case TriangleCut::NorthEast: return ty + (th * u0_norm) - ah;
+        case TriangleCut::SouthWest: return ty + (th * u1_norm);
+        case TriangleCut::SouthEast: return ty + (th * (1.f - u0_norm));
+      }
+      std::unreachable();
+    }
+
     // X-axis clamp-to-contact: smallest col in direction of motion such that the AABB
     // does not overlap any rect. Only valid when proposed introduces NEW overlap
     // (escape rule lets pre-existing overlap slide through). Returns prev_col unchanged
@@ -127,8 +161,8 @@ namespace corundum::physics {
     // overlapping rects, take the smallest contact that's still >= prev_col so the
     // clamp never pushes the entity backwards.
     [[nodiscard]] float clamp_x_contact(float pos_col, float prev_col, float y_top, float aw, float ah,
-                                        corundum::world::tilemap::CollisionRectsView rects, int entity_elevation,
-                                        int elevation_tolerance) noexcept {
+                                        corundum::world::tilemap::CollisionRectsView rects,
+                                        ElevationGate elevation) noexcept {
       float best = pos_col;
       bool found = false;
       const bool moving_right = pos_col > prev_col;
@@ -136,7 +170,7 @@ namespace corundum::physics {
       const bool filter_elevation = !rects.elevations.empty();
       for (std::size_t i = 0; i < n; ++i) {
         if (filter_elevation &&
-            std::abs(static_cast<int>(rects.elevations[i]) - entity_elevation) > elevation_tolerance)
+            std::abs(static_cast<int>(rects.elevations[i]) - elevation.player_elevation) > elevation.tolerance)
           continue;
         if (rects.rows[i] + rects.row_spans[i] <= y_top || rects.rows[i] >= y_top + ah)
           continue;
@@ -153,8 +187,8 @@ namespace corundum::physics {
 
     // Y-axis equivalent of clamp_x_contact.
     [[nodiscard]] float clamp_y_contact(float pos_row, float prev_row, float x_left, float aw, float ah,
-                                        corundum::world::tilemap::CollisionRectsView rects, int entity_elevation,
-                                        int elevation_tolerance) noexcept {
+                                        corundum::world::tilemap::CollisionRectsView rects,
+                                        ElevationGate elevation) noexcept {
       float best = pos_row;
       bool found = false;
       const bool moving_down = pos_row > prev_row;
@@ -162,7 +196,7 @@ namespace corundum::physics {
       const bool filter_elevation = !rects.elevations.empty();
       for (std::size_t i = 0; i < n; ++i) {
         if (filter_elevation &&
-            std::abs(static_cast<int>(rects.elevations[i]) - entity_elevation) > elevation_tolerance)
+            std::abs(static_cast<int>(rects.elevations[i]) - elevation.player_elevation) > elevation.tolerance)
           continue;
         if (rects.cols[i] + rects.col_spans[i] <= x_left || rects.cols[i] >= x_left + aw)
           continue;
@@ -177,18 +211,11 @@ namespace corundum::physics {
       return found ? best : prev_row;
     }
 
-    // Triangle X-axis clamp-to-contact: solve the empty-side boundary equation for col,
-    // given the row is fixed (post-X-Y). Each TriangleCut's boundary is one of:
-    //   NW: u1 + v1 = 1  → pc + aw = tx + tw * (1 - v1_norm)
-    //   NE: u0 - v1 = 0  → pc = tx + tw * v1_norm
-    //   SW: u1 - v0 = 0  → pc + aw = tx + tw * v0_norm
-    //   SE: u0 + v0 = 1  → pc = tx + tw * (1 - v0_norm)
-    // Same min/max-over-contacts filter as rects (closest reachable contact in direction
-    // of motion).
+    // Triangle X-axis clamp-to-contact: solve the empty-side boundary for col with the row
+    // fixed (post-X-Y), then keep the closest contact reachable in the direction of motion.
     [[nodiscard]] float clamp_x_contact_triangle(float pos_col, float prev_col, float y_top, float aw, float ah,
                                                  corundum::world::tilemap::CollisionTrianglesView triangles,
-                                                 int entity_elevation, int elevation_tolerance) noexcept {
-      using corundum::world::tilemap::TriangleCut;
+                                                 ElevationGate elevation) noexcept {
       float best = pos_col;
       bool found = false;
       const bool moving_right = pos_col > prev_col;
@@ -196,7 +223,7 @@ namespace corundum::physics {
       const bool filter_elevation = !triangles.elevations.empty();
       for (std::size_t i = 0; i < n; ++i) {
         if (filter_elevation &&
-            std::abs(static_cast<int>(triangles.elevations[i]) - entity_elevation) > elevation_tolerance)
+            std::abs(static_cast<int>(triangles.elevations[i]) - elevation.player_elevation) > elevation.tolerance)
           continue;
         const float tx = triangles.cols[i];
         const float ty = triangles.rows[i];
@@ -206,29 +233,7 @@ namespace corundum::physics {
           continue;
         if (y_top + ah <= ty || y_top >= ty + th)
           continue;
-        const float v1_norm = (y_top + ah - ty) / th;
-        const float v0_norm = (y_top - ty) / th;
-        const float u1_target = 1.f - v1_norm;
-        float contact = 0.f;
-        switch (triangles.cuts[i]) {
-          case TriangleCut::NorthWest:
-            // pc + aw = tx + tw * u1_target
-            contact = tx + (tw * u1_target) - aw;
-            break;
-          case TriangleCut::NorthEast:
-            // pc = tx + tw * v1_norm
-            contact = tx + (tw * v1_norm);
-            break;
-          case TriangleCut::SouthWest:
-            // pc + aw = tx + tw * v0_norm
-            contact = tx + (tw * v0_norm) - aw;
-            break;
-          case TriangleCut::SouthEast:
-            // pc = tx + tw * (1 - v0_norm)
-            contact = tx + (tw * (1.f - v0_norm));
-            break;
-          default: std::unreachable();
-        }
+        const float contact = triangle_x_contact(y_top, y_top + ah, tx, ty, tw, th, aw, triangles.cuts[i]);
         if (const std::optional<float> nearest = nearest_contact(contact, prev_col, moving_right, best, found)) {
           best = *nearest;
           found = true;
@@ -240,8 +245,7 @@ namespace corundum::physics {
     // Y-axis equivalent of clamp_x_contact_triangle.
     [[nodiscard]] float clamp_y_contact_triangle(float pos_row, float prev_row, float x_left, float aw, float ah,
                                                  corundum::world::tilemap::CollisionTrianglesView triangles,
-                                                 int entity_elevation, int elevation_tolerance) noexcept {
-      using corundum::world::tilemap::TriangleCut;
+                                                 ElevationGate elevation) noexcept {
       float best = pos_row;
       bool found = false;
       const bool moving_down = pos_row > prev_row;
@@ -249,7 +253,7 @@ namespace corundum::physics {
       const bool filter_elevation = !triangles.elevations.empty();
       for (std::size_t i = 0; i < n; ++i) {
         if (filter_elevation &&
-            std::abs(static_cast<int>(triangles.elevations[i]) - entity_elevation) > elevation_tolerance)
+            std::abs(static_cast<int>(triangles.elevations[i]) - elevation.player_elevation) > elevation.tolerance)
           continue;
         const float tx = triangles.cols[i];
         const float ty = triangles.rows[i];
@@ -259,28 +263,7 @@ namespace corundum::physics {
           continue;
         if (pos_row + ah <= ty || pos_row >= ty + th)
           continue;
-        const float u1_norm = (x_left + aw - tx) / tw;
-        const float u0_norm = (x_left - tx) / tw;
-        float contact = 0.f;
-        switch (triangles.cuts[i]) {
-          case TriangleCut::NorthWest:
-            // pr + ah = ty + th * (1 - u1_norm)
-            contact = ty + (th * (1.f - u1_norm)) - ah;
-            break;
-          case TriangleCut::NorthEast:
-            // pr + ah = ty + th * u0_norm
-            contact = ty + (th * u0_norm) - ah;
-            break;
-          case TriangleCut::SouthWest:
-            // pr = ty + th * u1_norm
-            contact = ty + (th * u1_norm);
-            break;
-          case TriangleCut::SouthEast:
-            // pr = ty + th * (1 - u0_norm)
-            contact = ty + (th * (1.f - u0_norm));
-            break;
-          default: std::unreachable();
-        }
+        const float contact = triangle_y_contact(x_left, x_left + aw, tx, ty, tw, th, ah, triangles.cuts[i]);
         if (const std::optional<float> nearest = nearest_contact(contact, prev_row, moving_down, best, found)) {
           best = *nearest;
           found = true;
@@ -293,7 +276,8 @@ namespace corundum::physics {
 
   void resolve_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos, float entity_w,
                           float entity_h, corundum::world::tilemap::CollisionRectsView rects, float y_offset,
-                          int entity_elevation, int elevation_tolerance) noexcept {
+                          ElevationGate elevation) noexcept {
+    assert(elevation.tolerance >= 0);
     const float effective_h = entity_h - y_offset;
 
     // Escape rule: only block moves that introduce NEW overlap (prev didn't overlap but
@@ -301,23 +285,21 @@ namespace corundum::physics {
     // inside a collider doesn't trap it. X resolves first against the frame-start Y,
     // then Y against the resolved X, which lets the entity slide along a wall in the
     // non-blocked axis.
-    if (pos.col != prev_pos.col &&
-        blocks_new_overlap(pos.col, prev_pos.row + y_offset, prev_pos.col, prev_pos.row + y_offset, entity_w,
-                           effective_h, rects, entity_elevation, elevation_tolerance))
-      pos.col = clamp_x_contact(pos.col, prev_pos.col, prev_pos.row + y_offset, entity_w, effective_h, rects,
-                                entity_elevation, elevation_tolerance);
+    if (pos.col != prev_pos.col && blocks_new_overlap(pos.col, prev_pos.row + y_offset, prev_pos.col,
+                                                      prev_pos.row + y_offset, entity_w, effective_h, rects, elevation))
+      pos.col =
+          clamp_x_contact(pos.col, prev_pos.col, prev_pos.row + y_offset, entity_w, effective_h, rects, elevation);
 
-    if (pos.row != prev_pos.row &&
-        blocks_new_overlap(pos.col, pos.row + y_offset, pos.col, prev_pos.row + y_offset, entity_w, effective_h, rects,
-                           entity_elevation, elevation_tolerance))
-      pos.row = clamp_y_contact(pos.row, prev_pos.row, pos.col, entity_w, effective_h, rects, entity_elevation,
-                                elevation_tolerance);
+    if (pos.row != prev_pos.row && blocks_new_overlap(pos.col, pos.row + y_offset, pos.col, prev_pos.row + y_offset,
+                                                      entity_w, effective_h, rects, elevation))
+      pos.row = clamp_y_contact(pos.row, prev_pos.row, pos.col, entity_w, effective_h, rects, elevation);
   }
 
   void resolve_triangle_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
                                    float entity_w, float entity_h,
                                    corundum::world::tilemap::CollisionTrianglesView triangles, float y_offset,
-                                   int entity_elevation, int elevation_tolerance) noexcept {
+                                   ElevationGate elevation) noexcept {
+    assert(elevation.tolerance >= 0);
     const float effective_h = entity_h - y_offset;
 
     // Same escape rule and axis order as resolve_collisions; each contact is solved
@@ -325,15 +307,14 @@ namespace corundum::physics {
     // (u, v), see clamp_x_contact_triangle's comment).
     if (pos.col != prev_pos.col &&
         blocks_new_overlap_triangle(pos.col, prev_pos.row + y_offset, prev_pos.col, prev_pos.row + y_offset, entity_w,
-                                    effective_h, triangles, entity_elevation, elevation_tolerance))
+                                    effective_h, triangles, elevation))
       pos.col = clamp_x_contact_triangle(pos.col, prev_pos.col, prev_pos.row + y_offset, entity_w, effective_h,
-                                         triangles, entity_elevation, elevation_tolerance);
+                                         triangles, elevation);
 
     if (pos.row != prev_pos.row &&
         blocks_new_overlap_triangle(pos.col, pos.row + y_offset, pos.col, prev_pos.row + y_offset, entity_w,
-                                    effective_h, triangles, entity_elevation, elevation_tolerance))
-      pos.row = clamp_y_contact_triangle(pos.row, prev_pos.row, pos.col, entity_w, effective_h, triangles,
-                                         entity_elevation, elevation_tolerance);
+                                    effective_h, triangles, elevation))
+      pos.row = clamp_y_contact_triangle(pos.row, prev_pos.row, pos.col, entity_w, effective_h, triangles, elevation);
   }
 
 } // namespace corundum::physics

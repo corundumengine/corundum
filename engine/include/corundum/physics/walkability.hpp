@@ -5,6 +5,9 @@
 #include <corundum/entities/components.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
 
+#include <functional>
+#include <optional>
+
 namespace corundum::physics {
 
   /**
@@ -23,10 +26,11 @@ namespace corundum::physics {
    *
    * @param pos       Post-integrate (and post-collision-resolution) position. Modified in-place.
    * @param prev_pos  Position before integrate ran this frame.
-   * @param graph     Walkability graph to test against, or nullptr to disable (no-op).
+   * @param graph     Walkability graph to test against, or std::nullopt to disable (no-op).
    *                  Populated in both single-map and world mode (see MapView::walkability).
    */
-  void resolve_walkability(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
-                           const corundum::world::tilemap::WalkabilityGraph *graph) noexcept;
+  void resolve_walkability(
+      corundum::entities::Position &pos, corundum::entities::Position prev_pos,
+      std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> graph) noexcept;
 
 } // namespace corundum::physics

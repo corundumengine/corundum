@@ -8,6 +8,7 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 
 using corundum::entities::Position;
+using corundum::physics::ElevationGate;
 using corundum::physics::resolve_collisions;
 using corundum::physics::resolve_triangle_collisions;
 using corundum::world::tilemap::CollisionRects;
@@ -15,13 +16,11 @@ using corundum::world::tilemap::CollisionRectsView;
 using corundum::world::tilemap::CollisionTriangles;
 using corundum::world::tilemap::TriangleCut;
 
-namespace ccm = corundum::core::math;
-
 // ── resolve_collisions ────────────────────────────────────────────────────────
 
 TEST_CASE("resolve_collisions — no rects, position unchanged") {
-  Position pos{100.f, 100.f};
-  const Position prev{90.f, 90.f};
+  Position pos{.col = 100.f, .row = 100.f};
+  const Position prev{.col = 90.f, .row = 90.f};
   resolve_collisions(pos, prev, 16.f, 16.f, CollisionRectsView{});
   CHECK(pos.col == doctest::Approx(100.f));
   CHECK(pos.row == doctest::Approx(100.f));
@@ -33,8 +32,8 @@ TEST_CASE("resolve_collisions — X movement into wall clamps to contact (no wal
   // instead of being reverted to the start position — eliminates the persistent wall gap.
   CollisionRects wall;
   wall.push_back(120.f, 80.f, 32.f, 32.f);
-  Position pos{110.f, 90.f};
-  const Position prev{90.f, 90.f};
+  Position pos{.col = 110.f, .row = 90.f};
+  const Position prev{.col = 90.f, .row = 90.f};
   resolve_collisions(pos, prev, 16.f, 16.f, wall.view());
   CHECK(pos.col == doctest::Approx(104.f));
   CHECK(pos.row == doctest::Approx(90.f));
@@ -44,8 +43,8 @@ TEST_CASE("resolve_collisions — X + Y block, X clamps to contact, Y passes") {
   // Wall covers (120, 80)–(152, 112). Prev (70, 70). New pos (110, 110) = 40px right + 40px down.
   CollisionRects wall;
   wall.push_back(120.f, 80.f, 32.f, 32.f);
-  Position pos{110.f, 110.f};
-  const Position prev{70.f, 70.f};
+  Position pos{.col = 110.f, .row = 110.f};
+  const Position prev{.col = 70.f, .row = 70.f};
   resolve_collisions(pos, prev, 16.f, 16.f, wall.view());
 
   // X clamped to wall.col - entity_w = 120 - 16 = 104. With new col, AABB at (104, ...)
@@ -57,8 +56,8 @@ TEST_CASE("resolve_collisions — X + Y block, X clamps to contact, Y passes") {
 TEST_CASE("resolve_collisions — X + Y block, X clamps to contact") {
   CollisionRects wall;
   wall.push_back(120.f, 80.f, 32.f, 32.f);
-  Position pos{110.f, 90.f};
-  const Position prev{90.f, 90.f};
+  Position pos{.col = 110.f, .row = 90.f};
+  const Position prev{.col = 90.f, .row = 90.f};
   resolve_collisions(pos, prev, 16.f, 16.f, wall.view());
   CHECK(pos.col == doctest::Approx(104.f));
   CHECK(pos.row == doctest::Approx(90.f));
@@ -70,9 +69,9 @@ TEST_CASE("resolve_collisions — escape rule: pre-existing overlap doesn't trap
   // don't increase overlap. Moving left (0.5 → 0.4) keeps the same rect overlap
   // (AABB shifts within it) so the resolver must allow it.
   CollisionRects wall;
-  wall.push_back(0.f, 0.f, 1.f, 1.f); // rect [0,1] x [0,1]
-  Position pos{0.4f, 0.5f};           // inside, moving left
-  const Position prev{0.5f, 0.5f};
+  wall.push_back(0.f, 0.f, 1.f, 1.f);     // rect [0,1] x [0,1]
+  Position pos{.col = 0.4f, .row = 0.5f}; // inside, moving left
+  const Position prev{.col = 0.5f, .row = 0.5f};
   resolve_collisions(pos, prev, 0.5f, 0.5f, wall.view());
   // Pre-existing overlap on both prev and pos — escape rule allows motion.
   CHECK(pos.col == doctest::Approx(0.4f));
@@ -84,8 +83,8 @@ TEST_CASE("resolve_collisions — escape rule: motion that reduces overlap is al
   // Overlap reduced, motion allowed.
   CollisionRects wall;
   wall.push_back(0.f, 0.f, 1.f, 1.f);
-  Position pos{1.0f, 0.5f};
-  const Position prev{0.5f, 0.5f};
+  Position pos{.col = 1.0f, .row = 0.5f};
+  const Position prev{.col = 0.5f, .row = 0.5f};
   resolve_collisions(pos, prev, 0.5f, 0.5f, wall.view());
   CHECK(pos.col == doctest::Approx(1.0f));
   CHECK(pos.row == doctest::Approx(0.5f));
@@ -94,8 +93,8 @@ TEST_CASE("resolve_collisions — escape rule: motion that reduces overlap is al
 TEST_CASE("resolve_collisions — Y movement into wall from below") {
   CollisionRects wall;
   wall.push_back(100.f, 120.f, 32.f, 32.f);
-  Position pos{105.f, 100.f};
-  const Position prev{105.f, 70.f};
+  Position pos{.col = 105.f, .row = 100.f};
+  const Position prev{.col = 105.f, .row = 70.f};
   resolve_collisions(pos, prev, 16.f, 16.f, wall.view());
   // X: right edge = 105+16 = 121 > wall.x=100, left edge 105 < wall.x+32=132 → need X check
   // X check uses (pos.x, prev.y+0) = (105, 70), AABB (105, 70, 16, 16)
@@ -115,9 +114,9 @@ TEST_CASE("resolve_collisions — Y movement into wall from below") {
 TEST_CASE("resolve_collisions — elevation mismatch lets entity pass through a raised wall") {
   CollisionRects wall;
   wall.push_back(120.f, 80.f, 32.f, 32.f, 50); // wall authored at elevation 50
-  Position pos{110.f, 90.f};
-  const Position prev{90.f, 90.f};
-  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, /*entity_elevation=*/0, /*elevation_tolerance=*/0);
+  Position pos{.col = 110.f, .row = 90.f};
+  const Position prev{.col = 90.f, .row = 90.f};
+  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, ElevationGate{.player_elevation = 0, .tolerance = 0});
   // Entity is at elevation 0, wall at 50 — filtered out entirely, no block.
   CHECK(pos.col == doctest::Approx(110.f));
   CHECK(pos.row == doctest::Approx(90.f));
@@ -126,9 +125,9 @@ TEST_CASE("resolve_collisions — elevation mismatch lets entity pass through a 
 TEST_CASE("resolve_collisions — matching elevation still blocks movement") {
   CollisionRects wall;
   wall.push_back(120.f, 80.f, 32.f, 32.f, 50);
-  Position pos{110.f, 90.f};
-  const Position prev{90.f, 90.f};
-  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, /*entity_elevation=*/50, /*elevation_tolerance=*/0);
+  Position pos{.col = 110.f, .row = 90.f};
+  const Position prev{.col = 90.f, .row = 90.f};
+  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, ElevationGate{.player_elevation = 50, .tolerance = 0});
   // Clamp-to-contact: pos.col = wall.col - entity_w = 120 - 16 = 104.
   CHECK(pos.col == doctest::Approx(104.f));
   CHECK(pos.row == doctest::Approx(90.f));
@@ -137,9 +136,9 @@ TEST_CASE("resolve_collisions — matching elevation still blocks movement") {
 TEST_CASE("resolve_collisions — elevation within tolerance still blocks") {
   CollisionRects wall;
   wall.push_back(120.f, 80.f, 32.f, 32.f, 50);
-  Position pos{110.f, 90.f};
-  const Position prev{90.f, 90.f};
-  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, /*entity_elevation=*/48, /*elevation_tolerance=*/5);
+  Position pos{.col = 110.f, .row = 90.f};
+  const Position prev{.col = 90.f, .row = 90.f};
+  resolve_collisions(pos, prev, 16.f, 16.f, wall.view(), 0.f, ElevationGate{.player_elevation = 48, .tolerance = 5});
   CHECK(pos.col == doctest::Approx(104.f));
   CHECK(pos.row == doctest::Approx(90.f));
 }
@@ -156,13 +155,13 @@ namespace {
   constexpr float k_probe = 0.01f;
   constexpr float k_near = 0.02f;
   constexpr float k_far = 0.97f;
-  constexpr Position k_outside{-1.f, -1.f};
+  constexpr Position k_outside{.col = -1.f, .row = -1.f};
 } // namespace
 
 TEST_CASE("resolve_triangle_collisions — NW cut: empty corner is passable") {
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthWest);
-  Position pos{k_near, k_near};
+  Position pos{.col = k_near, .row = k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
   CHECK(pos.row == doctest::Approx(k_near));
@@ -175,7 +174,7 @@ TEST_CASE("resolve_triangle_collisions — NW cut: solid half clamps to hypotenu
   //   pr = 0 + 1 * (1 - 0.98) - 0.01 = 0.01.
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthWest);
-  Position pos{k_far, k_far};
+  Position pos{.col = k_far, .row = k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
   CHECK(pos.row == doctest::Approx(0.01f));
@@ -184,7 +183,7 @@ TEST_CASE("resolve_triangle_collisions — NW cut: solid half clamps to hypotenu
 TEST_CASE("resolve_triangle_collisions — NE cut: empty corner is passable") {
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthEast);
-  Position pos{k_far, k_near};
+  Position pos{.col = k_far, .row = k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
   CHECK(pos.row == doctest::Approx(k_near));
@@ -195,7 +194,7 @@ TEST_CASE("resolve_triangle_collisions — NE cut: solid half clamps to hypotenu
   //   pr = 0 + 1 * (0.02/1) - 0.01 = 0.01.
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthEast);
-  Position pos{k_near, k_far};
+  Position pos{.col = k_near, .row = k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
   CHECK(pos.row == doctest::Approx(0.01f));
@@ -204,7 +203,7 @@ TEST_CASE("resolve_triangle_collisions — NE cut: solid half clamps to hypotenu
 TEST_CASE("resolve_triangle_collisions — SW cut: empty corner is passable") {
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthWest);
-  Position pos{k_near, k_far};
+  Position pos{.col = k_near, .row = k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
   CHECK(pos.row == doctest::Approx(k_far));
@@ -215,7 +214,7 @@ TEST_CASE("resolve_triangle_collisions — SW cut: solid half clamps to hypotenu
   //   pr = 0 + 1 * (0.98/1) = 0.98.
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthWest);
-  Position pos{k_far, k_near};
+  Position pos{.col = k_far, .row = k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
   CHECK(pos.row == doctest::Approx(0.98f));
@@ -224,7 +223,7 @@ TEST_CASE("resolve_triangle_collisions — SW cut: solid half clamps to hypotenu
 TEST_CASE("resolve_triangle_collisions — SE cut: empty corner is passable") {
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthEast);
-  Position pos{k_far, k_far};
+  Position pos{.col = k_far, .row = k_far};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_far));
   CHECK(pos.row == doctest::Approx(k_far));
@@ -235,7 +234,7 @@ TEST_CASE("resolve_triangle_collisions — SE cut: solid half clamps to hypotenu
   //   pr = 0 + 1 * (1 - 0.02) = 0.98.
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::SouthEast);
-  Position pos{k_near, k_near};
+  Position pos{.col = k_near, .row = k_near};
   resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view());
   CHECK(pos.col == doctest::Approx(k_near));
   CHECK(pos.row == doctest::Approx(0.98f));
@@ -244,9 +243,9 @@ TEST_CASE("resolve_triangle_collisions — SE cut: solid half clamps to hypotenu
 TEST_CASE("resolve_triangle_collisions — elevation mismatch lets entity pass through solid half") {
   CollisionTriangles tris;
   tris.push_back(0.f, 0.f, 1.f, 1.f, TriangleCut::NorthWest, 50); // triangle authored at elevation 50
-  Position pos{k_far, k_far};                                     // deep in NW cut's solid half
-  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view(), 0.f, /*entity_elevation=*/0,
-                              /*elevation_tolerance=*/0);
+  Position pos{.col = k_far, .row = k_far};                       // deep in NW cut's solid half
+  resolve_triangle_collisions(pos, k_outside, k_probe, k_probe, tris.view(), 0.f,
+                              ElevationGate{.player_elevation = 0, .tolerance = 0});
   CHECK(pos.col == doctest::Approx(k_far));
   CHECK(pos.row == doctest::Approx(k_far));
 }
