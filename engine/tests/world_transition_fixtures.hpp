@@ -6,7 +6,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/input/actions.hpp>
-#include <corundum/platform/null/null_platform.hpp>
+#include "null_platform.hpp"
 #include <corundum/world/map_view.hpp>
 #include <corundum/world/transition.hpp>
 #include <corundum/world/update.hpp>

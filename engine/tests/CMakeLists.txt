@@ -68,7 +68,6 @@ set(TEST_SOURCES
     # platform
     platform/test_handle.cpp
     platform/test_texture_ref_counts.cpp
-    platform/test_texture_slot_table.cpp
 
     # render
     render/test_area_textures.cpp
@@ -196,6 +195,11 @@ corundum_add_internal_header_test(corundum_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/texture_byte_size.hpp"
     platform/test_texture_byte_size.cpp
     "texture byte-size tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+
+corundum_add_internal_header_test(corundum_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/texture_slot_table.hpp"
+    platform/test_texture_slot_table.cpp
+    "texture slot-table tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 
 corundum_add_internal_header_test(corundum_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/world/tilemap/encoding.hpp"

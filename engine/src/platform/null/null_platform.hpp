@@ -7,8 +7,8 @@
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 
-#include <corundum/platform/null/null_renderer.hpp>
-#include <corundum/platform/null/null_window.hpp>
+#include "null_renderer.hpp"
+#include "null_window.hpp"
 
 #include <memory>
 #include <utility>

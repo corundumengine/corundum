@@ -5,6 +5,7 @@
 
 #include "memory_user_storage.hpp"
 
+#include "null_platform.hpp"
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/user_storage.hpp>
@@ -14,7 +15,6 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/platform/null/null_platform.hpp>
 #include <corundum/settings/user_settings.hpp>
 
 // json_fwd.hpp is include-cleaner's provider for nlohmann::json; json.hpp is still

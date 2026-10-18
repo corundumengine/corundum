@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "null_renderer.hpp"
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
@@ -10,7 +11,6 @@
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
-#include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/save/save.hpp>

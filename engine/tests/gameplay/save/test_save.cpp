@@ -14,6 +14,7 @@
 #include <nlohmann/json.hpp> // NOLINT(misc-include-cleaner): constructors live in json.hpp
 #include <nlohmann/json_fwd.hpp>
 
+#include "null_platform.hpp"
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
@@ -23,7 +24,6 @@
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/input/actions.hpp>
-#include <corundum/platform/null/null_platform.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/world/flags.hpp>
 

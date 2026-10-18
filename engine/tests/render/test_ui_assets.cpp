@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/platform/null/null_renderer.hpp>
+#include "null_renderer.hpp"
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
 

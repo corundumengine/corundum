@@ -8,9 +8,9 @@
 #include <cstddef>
 #include <doctest/doctest.h>
 
+#include "null_renderer.hpp"
 #include <corundum/engine.hpp>
 #include <corundum/entities/entity.hpp>
-#include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>

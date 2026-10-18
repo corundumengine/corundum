@@ -9,7 +9,6 @@
 
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 
-# ── GLFW + sokol backend ───────────────────────────────────────────────────────
 # ObjC++ files are added separately (Apple only).
 set(PLATFORM_GLFW_SOURCES
     glfw/glfw_window.cpp
@@ -108,10 +107,10 @@ corundum_limit_stack_frames(engine_platform_glfw)
 
 add_library(corundum::engine ALIAS engine_platform_glfw)
 
-# ── Null backend (headless) ────────────────────────────────────────────────────
 # Header-only null platform backend (Window/GpuContext/Renderer no-ops) for
-# headless lifecycle tests in engine/tests/root/test_engine_lifecycle.cpp. Has no
-# GLFW/sokol/FreeType dependency; consumers link `engine_platform_null` in
-# addition to `engine`.
+# headless tests. Has no GLFW/sokol/FreeType dependency; consumers link
+# `engine_platform_null` in addition to `engine` and include its headers as
+# "null_platform.hpp", "null_renderer.hpp" and "null_window.hpp".
 add_library(engine_platform_null INTERFACE)
+target_include_directories(engine_platform_null INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/null)
 target_link_libraries(engine_platform_null INTERFACE engine)

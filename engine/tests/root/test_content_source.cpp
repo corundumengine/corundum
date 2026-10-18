@@ -4,8 +4,8 @@
 #include <doctest/doctest.h>
 
 #include "memory_content_source.hpp"
+#include "null_platform.hpp"
 #include <corundum/engine.hpp>
-#include <corundum/platform/null/null_platform.hpp>
 
 #include <expected>
 #include <memory>

@@ -6,6 +6,8 @@
 #include "font_fixtures.hpp"
 #include "world_transition_fixtures.hpp"
 
+#include "null_platform.hpp"
+#include "null_window.hpp"
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/window_mode.hpp>
@@ -13,8 +15,6 @@
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/platform/null/null_platform.hpp>
-#include <corundum/platform/null/null_window.hpp>
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/world/camera.hpp>
 #include <corundum/world/flags.hpp>

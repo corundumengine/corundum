@@ -4,6 +4,8 @@
 #include <doctest/doctest.h>
 
 #include "font_fixtures.hpp"
+#include "null_platform.hpp"
+#include "null_window.hpp"
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 #include <corundum/core/game_config.hpp>
@@ -11,8 +13,6 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/input/physical_input.hpp>
-#include <corundum/platform/null/null_platform.hpp>
-#include <corundum/platform/null/null_window.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>

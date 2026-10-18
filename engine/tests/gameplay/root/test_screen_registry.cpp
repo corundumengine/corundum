@@ -3,10 +3,10 @@
 
 #include <doctest/doctest.h>
 
+#include "null_renderer.hpp"
 #include <corundum/core/math/vec.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
-#include <corundum/platform/null/null_renderer.hpp>
 #include <corundum/screen_registry.hpp>
 #include <corundum/world/ui_stack.hpp>
 

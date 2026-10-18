@@ -8,11 +8,11 @@
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 
+#include "null_platform.hpp"
 #include <corundum/core/game_config.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/world.hpp>
-#include <corundum/platform/null/null_platform.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/world/actors/actor.hpp>
@@ -68,7 +68,7 @@ using corundum::world::load_spawn_points;
 // ── Missing file ──────────────────────────────────────────────────────────────
 
 TEST_CASE("load_spawn_points — missing file returns empty SpawnPoints") {
-  auto result = load_spawn_points(disk(), "/nonexistent/path/spawn.json");
+  const auto result = load_spawn_points(disk(), "/nonexistent/path/spawn.json");
   REQUIRE(result.has_value());
   CHECK(result->actors.empty());
   CHECK(!result->player.has_value());
@@ -85,7 +85,7 @@ TEST_CASE("load_spawn_points — actors only, no player block") {
       { "col": 5, "row": 7, "sprite": "npc2", "dialogue": "greeting", "facing": "east" }
     ]
   })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   REQUIRE(result.has_value());
   CHECK(!result->player.has_value());
   REQUIRE(result->actors.size() == 2);
@@ -105,11 +105,13 @@ TEST_CASE("load_spawn_points — with player block") {
     "player": { "col": 10.5, "row": 4.0 },
     "actors": []
   })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   REQUIRE(result.has_value());
   REQUIRE(result->player.has_value());
-  CHECK(result->player->col == doctest::Approx(10.5f));
-  CHECK(result->player->row == doctest::Approx(4.f));
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto &player = result->player.value();
+  CHECK(player.col == doctest::Approx(10.5f));
+  CHECK(player.row == doctest::Approx(4.f));
   CHECK(result->actors.empty());
 }
 
@@ -120,18 +122,20 @@ TEST_CASE("load_spawn_points — player.col zero is valid") {
     "player": { "col": 0.0, "row": 0.0 },
     "actors": []
   })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   REQUIRE(result.has_value());
   REQUIRE(result->player.has_value());
-  CHECK(result->player->col == doctest::Approx(0.f));
-  CHECK(result->player->row == doctest::Approx(0.f));
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto &player = result->player.value();
+  CHECK(player.col == doctest::Approx(0.f));
+  CHECK(player.row == doctest::Approx(0.f));
 }
 
 TEST_CASE("load_spawn_points — player not an object returns error") {
   const auto dir = temp_dir("player_not_obj");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": 42, "actors": [] })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -139,7 +143,7 @@ TEST_CASE("load_spawn_points — player missing col returns error") {
   const auto dir = temp_dir("player_no_col");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "row": 5.0 }, "actors": [] })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -147,7 +151,7 @@ TEST_CASE("load_spawn_points — player negative col returns error") {
   const auto dir = temp_dir("player_neg_col");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "col": -1.0, "row": 5.0 }, "actors": [] })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -155,7 +159,7 @@ TEST_CASE("load_spawn_points — malformed JSON returns error") {
   const auto dir = temp_dir("malformed");
   const auto p = dir / "spawn.json";
   write_file(p, "{bad json");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -163,7 +167,7 @@ TEST_CASE("load_spawn_points — not an object returns error") {
   const auto dir = temp_dir("array");
   const auto p = dir / "spawn.json";
   write_file(p, "[]");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -178,7 +182,7 @@ TEST_CASE("load_spawn_points — parses the actor id field") {
       { "col": 5, "row": 7, "sprite": "npc2" }
     ]
   })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   REQUIRE(result.has_value());
   REQUIRE(result->actors.size() == 2);
   CHECK(result->actors[0].id == "brann");
@@ -194,7 +198,7 @@ TEST_CASE("load_spawn_points — duplicate actor id returns error") {
       { "col": 5, "row": 7, "sprite": "npc2", "id": "brann" }
     ]
   })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -206,7 +210,7 @@ TEST_CASE("load_spawn_points — invalid facing returns error") {
       { "col": 2, "row": 3, "sprite": "npc1", "facing": "nroth" }
     ]
   })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -214,7 +218,7 @@ TEST_CASE("load_spawn_points — facing has wrong type returns error") {
   const auto dir = temp_dir("facing_type");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "actors": [ { "col": 2, "row": 3, "sprite": "npc1", "facing": 7 } ] })");
-  auto result = load_spawn_points(disk(), p);
+  const auto result = load_spawn_points(disk(), p);
   CHECK(!result.has_value());
 }
 
@@ -232,18 +236,22 @@ TEST_CASE("find_actor — world boot populates actor_ids from spawn points") {
   // a00 (chunk 0,0) and a11 (chunk 1,1) carry ids in the fixture spawn points.
   const auto a00 = corundum::entities::find_actor(engine.scene.world, "a00");
   REQUIRE(a00.has_value());
-  CHECK(engine.scene.world.entities.is_live(*a00));
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto a00_id = a00.value();
+  CHECK(engine.scene.world.entities.is_live(a00_id));
 
   const auto a11 = corundum::entities::find_actor(engine.scene.world, "a11");
   REQUIRE(a11.has_value());
-  CHECK_FALSE(*a11 == *a00);
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto a11_id = a11.value();
+  CHECK_FALSE(a11_id == a00_id);
 
   // The player entity and unknown ids have no row.
   CHECK_FALSE(corundum::entities::find_actor(engine.scene.world, "player").has_value());
   CHECK_FALSE(corundum::entities::find_actor(engine.scene.world, "missing").has_value());
 
   // Despawning the actor drops its id row.
-  corundum::entities::despawn(engine.scene.world, *a00);
+  corundum::entities::despawn(engine.scene.world, a00_id);
   CHECK_FALSE(corundum::entities::find_actor(engine.scene.world, "a00").has_value());
 
   engine.cleanup();
@@ -357,8 +365,10 @@ TEST_CASE("spawn_world — file actors spawn at their authored tiles and spawn_f
   REQUIRE(with_actors.has_value());
   const auto npc = corundum::entities::find_actor((*with_actors)->world, "npc");
   REQUIRE(npc.has_value());
-  CHECK((*with_actors)->world.transforms.pos_col(npc.value()) == doctest::Approx(3.f));
-  CHECK((*with_actors)->world.transforms.pos_row(npc.value()) == doctest::Approx(4.f));
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto npc_id = npc.value();
+  CHECK((*with_actors)->world.transforms.pos_col(npc_id) == doctest::Approx(3.f));
+  CHECK((*with_actors)->world.transforms.pos_row(npc_id) == doctest::Approx(4.f));
 
   auto without_actors =
       corundum::world::spawn_world(disk(), make_player_config(spawn_dir), registry, tilemap, std::nullopt, false);
@@ -397,10 +407,14 @@ TEST_CASE("sync_chunk_actors — spawns actors for resident chunks") {
   const auto c10 = corundum::entities::find_actor(scene.world, "c10");
   REQUIRE(c00.has_value());
   REQUIRE(c10.has_value());
-  CHECK(scene.world.transforms.pos_col(c00.value()) == doctest::Approx(1.f));
-  CHECK(scene.world.transforms.pos_row(c00.value()) == doctest::Approx(2.f));
-  CHECK(scene.world.transforms.pos_col(c10.value()) == doctest::Approx(19.f)); // chunk col 1 at 16 tiles/chunk
-  CHECK(scene.world.transforms.pos_row(c10.value()) == doctest::Approx(4.f));
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto c00_id = c00.value();
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto c10_id = c10.value();
+  CHECK(scene.world.transforms.pos_col(c00_id) == doctest::Approx(1.f));
+  CHECK(scene.world.transforms.pos_row(c00_id) == doctest::Approx(2.f));
+  CHECK(scene.world.transforms.pos_col(c10_id) == doctest::Approx(19.f)); // chunk col 1 at 16 tiles/chunk
+  CHECK(scene.world.transforms.pos_row(c10_id) == doctest::Approx(4.f));
 }
 
 TEST_CASE("sync_chunk_actors — retains a departed set until flush, then prunes it") {
@@ -462,8 +476,10 @@ TEST_CASE("sync_chunk_actors — actors despawned by gameplay stay gone while th
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry);
   const auto c00 = corundum::entities::find_actor(scene.world, "c00");
   REQUIRE(c00.has_value());
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): REQUIRE above aborts the case when empty.
+  const auto c00_id = c00.value();
 
-  corundum::entities::mark_for_deletion(scene.world, *c00);
+  corundum::entities::mark_for_deletion(scene.world, c00_id);
   corundum::entities::flush_deletions(scene.world);
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry);
 

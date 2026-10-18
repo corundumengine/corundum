@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/platform/texture_slot_table.hpp>
+#include "texture_slot_table.hpp"
 
 #include <doctest/doctest.h>
 

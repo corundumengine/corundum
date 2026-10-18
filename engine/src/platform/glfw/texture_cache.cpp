@@ -5,8 +5,8 @@
 
 #include "sokol_texture_upload.hpp"
 #include "texture_byte_size.hpp"
+#include "texture_slot_table.hpp"
 
-#include <corundum/platform/texture_slot_table.hpp>
 #include <sokol_gfx.h>
 #include <stb_image.h>
 

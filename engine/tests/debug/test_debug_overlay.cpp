@@ -5,11 +5,11 @@
 
 #include "font_fixtures.hpp"
 
+#include "null_platform.hpp"
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
-#include <corundum/platform/null/null_platform.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/world/transition.hpp>
 

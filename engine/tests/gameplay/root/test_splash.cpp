@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "null_platform.hpp"
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/engine.hpp>
@@ -12,7 +13,6 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/platform/handle.hpp>
-#include <corundum/platform/null/null_platform.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/texture_ref_counts.hpp>
 #include <corundum/render/render_state.hpp>
@@ -283,7 +283,7 @@ TEST_CASE("splash: no configured images opens the title directly without a fade"
 
 TEST_CASE("splash: an image that fails to load is skipped and the other still plays") {
   corundum::Engine engine{};
-  SplashRenderer &renderer = adopt_splash_renderer(engine);
+  const SplashRenderer &renderer = adopt_splash_renderer(engine);
   corundum::core::GameConfig cfg = make_splash_config(/*show_title=*/true);
   cfg.paths.splash_images = {"missing_studio.png", "engine.png"};
   REQUIRE(engine.initialize(std::move(cfg)).has_value());
@@ -316,7 +316,7 @@ TEST_CASE("splash: when every image fails to load the title opens directly") {
 
 TEST_CASE("splash: closing the splash gives back every texture reference") {
   corundum::Engine engine{};
-  SplashRenderer &renderer = adopt_splash_renderer(engine);
+  const SplashRenderer &renderer = adopt_splash_renderer(engine);
   REQUIRE(engine.initialize(make_splash_config(/*show_title=*/true)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
@@ -344,7 +344,7 @@ TEST_CASE("splash: the image fits a centered box k_splash_max_viewport_fraction 
   screens::splash_render(r, {.x = 320.f, .y = 240.f}, state);
 
   REQUIRE(r.log.size() == 2);
-  const auto *fill = std::get_if<corundum::platform::DrawRect>(&r.log[0]);
+  const auto *fill = std::get_if<corundum::platform::DrawRect>(r.log.data());
   REQUIRE(fill != nullptr);
   CHECK(fill->size.x == doctest::Approx(320.f));
   CHECK(fill->size.y == doctest::Approx(240.f));
@@ -363,6 +363,7 @@ TEST_CASE("splash: the image fits a centered box k_splash_max_viewport_fraction 
 
 TEST_CASE("splash: an image of unknown size draws only the black fill") {
   screens::SplashState state{};
+  // NOLINTNEXTLINE(readability-trailing-comma): false positive on designated initializer separators.
   state.images.push_back(screens::SplashImage{.size = {}, .texture = 7});
   RecordingRenderer r;
   screens::splash_render(r, {.x = 320.f, .y = 240.f}, state);
