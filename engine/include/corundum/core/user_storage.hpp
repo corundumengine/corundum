@@ -29,15 +29,15 @@ namespace corundum::core {
     virtual ~UserStorage() = default;
 
     /// Read the entry at @p name.
-    /// @pre @p name is non-empty, relative, `/`-separated, and has no `..` component.
+    /// @pre @p name is non-empty, `/`-separated, with no root component and no `..` component.
     [[nodiscard]] virtual std::expected<std::string, std::string> read(std::string_view name) const = 0;
 
     /// True when the entry at @p name exists.
-    /// @pre @p name is non-empty, relative, `/`-separated, and has no `..` component.
+    /// @pre @p name is non-empty, `/`-separated, with no root component and no `..` component.
     [[nodiscard]] virtual bool contains(std::string_view name) const = 0;
 
     /// Replace the whole entry atomically and create intermediate folders.
-    /// @pre @p name is non-empty, relative, `/`-separated, and has no `..` component.
+    /// @pre @p name is non-empty, `/`-separated, with no root component and no `..` component.
     [[nodiscard]] virtual std::expected<void, std::string> write(std::string_view name, std::string_view contents) = 0;
 
   protected:

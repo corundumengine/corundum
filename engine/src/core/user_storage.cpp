@@ -24,10 +24,11 @@ namespace corundum::core {
 
   namespace {
 
-    /// A storage name must stay inside root_: non-empty, relative, with no ".." component.
+    /// A storage name must stay inside root_: non-empty, with no root component (a leading '/'
+    /// or "C:" would replace root_'s root in operator/) and no ".." component.
     [[nodiscard]] bool is_valid_storage_name(std::string_view name) {
       const std::filesystem::path relative{name};
-      return !name.empty() && relative.is_relative() &&
+      return !name.empty() && !relative.has_root_path() &&
              std::ranges::none_of(relative, [](const std::filesystem::path &part) { return part == ".."; });
     }
 
@@ -82,6 +83,8 @@ namespace corundum::core {
     return std::make_unique<DirectoryUserStorage>(std::move(*root));
   }
 
+  // clang-tidy maps nlohmann::json to json_fwd.hpp; json.hpp above is the full definition it needs.
+  // NOLINTNEXTLINE(misc-include-cleaner)
   std::expected<nlohmann::json, std::string> read_json(const UserStorage &storage, std::string_view name,
                                                        std::string_view label) {
     const std::expected<std::string, std::string> text = storage.read(name);
