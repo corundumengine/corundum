@@ -25,6 +25,28 @@ namespace corundum::audio {
     bus_volumes_.fill(1.f);
   }
 
+  AudioSystem::AudioSystem(AudioSystem &&other) noexcept
+      : backend_(std::move(other.backend_)), cache_(std::move(other.cache_)), catalog_(std::move(other.catalog_)),
+        current_music_(std::move(other.current_music_)), initialized_(other.initialized_), paused_(other.paused_),
+        bus_volumes_(other.bus_volumes_), sounds_dir_(std::move(other.sounds_dir_)) {
+    other.initialized_ = false;
+  }
+
+  AudioSystem &AudioSystem::operator=(AudioSystem &&other) noexcept {
+    if (this == &other)
+      return *this;
+    backend_ = std::move(other.backend_);
+    cache_ = std::move(other.cache_);
+    catalog_ = std::move(other.catalog_);
+    current_music_ = std::move(other.current_music_);
+    initialized_ = other.initialized_;
+    paused_ = other.paused_;
+    bus_volumes_ = other.bus_volumes_;
+    sounds_dir_ = std::move(other.sounds_dir_);
+    other.initialized_ = false;
+    return *this;
+  }
+
   std::string AudioSystem::resolve_path(std::string_view name) const {
     if (const auto it = catalog_.find(name); it != catalog_.end())
       return std::format("{}/{}", sounds_dir_, it->second);

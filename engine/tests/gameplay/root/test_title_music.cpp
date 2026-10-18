@@ -35,7 +35,7 @@ namespace {
   class MusicRecorder final : public corundum::audio::AudioBackend {
   public:
     std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view /*path*/) override {
-      return 1u;
+      return corundum::audio::SoundHandle{.value = 1};
     }
 
     corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle /*handle*/, float /*volume*/, bool /*loop*/,
@@ -61,6 +61,8 @@ namespace {
     }
 
     void stop_music(float fade_out_seconds) override { stop_fades.push_back(fade_out_seconds); }
+
+    void update() override {}
 
     std::vector<std::string> played_tracks;
     std::vector<corundum::audio::MusicPlayback> playbacks;

@@ -57,7 +57,7 @@ namespace {
 
     std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view path) override {
       loaded_paths.emplace_back(path);
-      return next_handle_++;
+      return corundum::audio::SoundHandle{.value = next_handle_++};
     }
 
     corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle handle, float volume, bool loop,
@@ -113,7 +113,7 @@ namespace {
     int updates = 0;
 
   private:
-    corundum::audio::SoundHandle next_handle_ = 1;
+    std::uint32_t next_handle_ = 1;
     std::uint32_t next_instance_ = 1;
   };
 
@@ -152,7 +152,7 @@ TEST_CASE("AudioSystem: play_sound resolves the .ogg fallback path against sound
   REQUIRE(stub->loaded_paths.size() == 1);
   CHECK(stub->loaded_paths[0] == "data/sounds/coin.ogg");
   REQUIRE(stub->played.size() == 1);
-  CHECK(stub->played[0].handle == 1);
+  CHECK(stub->played[0].handle.value == 1);
 }
 
 TEST_CASE("AudioSystem: second play of the same name hits the cache (no second load)") {
@@ -185,18 +185,6 @@ TEST_CASE("AudioSystem: catalog entry overrides the .ogg fallback") {
   CHECK(stub->loaded_paths[0] == "data/sounds/sfx/jingle_coin_01.ogg");
 
   fs::remove(catalog_path);
-}
-
-TEST_CASE("AudioSystem: set_master_volume is a no-op before initialize, forwarded after") {
-  corundum::audio::AudioSystem sys;
-  StubBackend *stub = make_system(sys);
-
-  sys.set_master_volume(0.7f);
-  CHECK(stub->bus_volumes[corundum::audio::bus_index(corundum::audio::AudioBus::Master)] == -1.f);
-
-  REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.set_master_volume(0.7f);
-  CHECK(stub->bus_volumes[corundum::audio::bus_index(corundum::audio::AudioBus::Master)] == 0.7f);
 }
 
 TEST_CASE("AudioSystem: set_paused is retained before initialize and applied once ready") {
@@ -234,6 +222,36 @@ TEST_CASE("AudioSystem: destruction without init is RAII-safe") {
   sys.shutdown(); // idempotent
   sys.shutdown(); // still idempotent
   CHECK(true);
+}
+
+TEST_CASE("AudioSystem: move construction transfers ownership and un-readies the source") {
+  corundum::audio::AudioSystem source;
+  const StubBackend *stub = make_system(source);
+  REQUIRE(source.initialize("data/sounds").has_value());
+  REQUIRE(source.play_sound("coin").has_value());
+
+  corundum::audio::AudioSystem moved = std::move(source);
+
+  REQUIRE(moved.play_sound("coin").has_value()); // cache moved with the backend, no reload
+  CHECK(stub->loaded_paths.size() == 1);
+  // NOLINTNEXTLINE(bugprone-use-after-move, clang-analyzer-cplusplus.Move) moved-from is defined un-ready
+  CHECK_FALSE(source.play_sound("coin").has_value());
+}
+
+TEST_CASE("AudioSystem: move assignment replaces the target and un-readies the source") {
+  corundum::audio::AudioSystem source;
+  const StubBackend *stub = make_system(source);
+  REQUIRE(source.initialize("data/sounds").has_value());
+  REQUIRE(source.play_sound("coin").has_value());
+
+  corundum::audio::AudioSystem target;
+  target = std::move(source);
+
+  REQUIRE(target.play_sound("coin").has_value());
+  CHECK(stub->loaded_paths.size() == 1); // cache moved, not reloaded
+  // NOLINTNEXTLINE(bugprone-use-after-move, clang-analyzer-cplusplus.Move) moved-from is defined un-ready
+  CHECK_FALSE(source.play_sound("coin").has_value());
+  source.shutdown(); // moved-from is still destructible/idempotent
 }
 
 TEST_CASE("AudioSystem: play_sound returns error after explicit shutdown") {
@@ -379,11 +397,11 @@ TEST_CASE("AudioSystem: a failed play_music keeps the current track") {
   CHECK(stub->music_played[0] == "a.ogg");
 }
 
-TEST_CASE("AudioSystem: music volume set before initialize is applied by it") {
+TEST_CASE("AudioSystem: music bus volume set before initialize is applied by it") {
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
 
-  sys.set_music_volume(0.3f);
+  sys.set_bus_volume(corundum::audio::AudioBus::Music, 0.3f);
   CHECK(stub->bus_volumes[corundum::audio::bus_index(corundum::audio::AudioBus::Music)] == -1.f);
 
   REQUIRE(sys.initialize("data/sounds").has_value());
@@ -528,26 +546,4 @@ TEST_CASE("AudioSystem: set_bus_volume is retained until initialize") {
 
   REQUIRE(sys.initialize("data/sounds").has_value());
   CHECK(stub->bus_volumes[corundum::audio::bus_index(corundum::audio::AudioBus::Ambience)] == 0.4f);
-}
-
-TEST_CASE("AudioSystem: master volume aliases its bus") {
-  corundum::audio::AudioSystem sys;
-  const StubBackend *stub = make_system(sys);
-  REQUIRE(sys.initialize("data/sounds").has_value());
-
-  sys.set_master_volume(0.3f);
-
-  CHECK(sys.master_volume() == 0.3f);
-  CHECK(stub->bus_volumes[corundum::audio::bus_index(corundum::audio::AudioBus::Master)] == 0.3f);
-}
-
-TEST_CASE("AudioSystem: music volume aliases its bus") {
-  corundum::audio::AudioSystem sys;
-  const StubBackend *stub = make_system(sys);
-  REQUIRE(sys.initialize("data/sounds").has_value());
-
-  sys.set_music_volume(0.7f);
-
-  CHECK(sys.music_volume() == 0.7f);
-  CHECK(stub->bus_volumes[corundum::audio::bus_index(corundum::audio::AudioBus::Music)] == 0.7f);
 }

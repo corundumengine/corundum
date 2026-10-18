@@ -38,12 +38,14 @@ namespace corundum::audio {
     AudioSystem(const AudioSystem &) = delete;
     AudioSystem &operator=(const AudioSystem &) = delete;
 
-    /// User-declared destructor suppresses the implicit move ctor; restore it so
-    /// owning types (Engine) stay trivially movable.
-    AudioSystem(AudioSystem &&other) noexcept = default;
-    AudioSystem &operator=(AudioSystem &&other) noexcept = default;
+    /// User-declared destructor suppresses the implicit move ctor; define the moves so a
+    /// moved-from system drops its ready state instead of claiming a backend it no longer owns.
+    AudioSystem(AudioSystem &&other) noexcept;
+    AudioSystem &operator=(AudioSystem &&other) noexcept;
 
-    /** @brief Adopt the platform audio backend. Must be called before initialize(). */
+    /** @brief Adopt the platform audio backend.
+     *  @pre Call before initialize(); a backend adopted afterwards is never sent the retained bus
+     *       volumes or paused flag. */
     void adopt_backend(std::unique_ptr<audio::AudioBackend> backend) noexcept { backend_ = std::move(backend); }
 
     /** @brief Initialise the audio system.
@@ -70,18 +72,6 @@ namespace corundum::audio {
 
     /** @brief The last volume set for @p bus, in [0.0, 1.0]. Defaults to 1.0. */
     [[nodiscard]] float bus_volume(AudioBus bus) const noexcept { return bus_volumes_[bus_index(bus)]; }
-
-    /** @brief Set the master volume in [0.0, 1.0]. Retained before initialize() and applied by it. */
-    void set_master_volume(float volume) noexcept { set_bus_volume(AudioBus::Master, volume); }
-
-    /** @brief The last master volume set, in [0.0, 1.0]. Defaults to 1.0. */
-    [[nodiscard]] float master_volume() const noexcept { return bus_volume(AudioBus::Master); }
-
-    /** @brief Set the music volume in [0.0, 1.0]. Retained before initialize() and applied by it. */
-    void set_music_volume(float volume) noexcept { set_bus_volume(AudioBus::Music, volume); }
-
-    /** @brief The last music volume set, in [0.0, 1.0]. Defaults to 1.0. */
-    [[nodiscard]] float music_volume() const noexcept { return bus_volume(AudioBus::Music); }
 
     /** @brief Pause or resume all audio output. No-op if not initialised.
      *

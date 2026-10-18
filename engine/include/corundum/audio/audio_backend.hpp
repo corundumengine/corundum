@@ -11,20 +11,28 @@
 
 namespace corundum::audio {
 
-  using SoundHandle = uint32_t;
+  /** @brief Opaque handle to a sound loaded by load_sound(). A default-constructed handle is
+   *  invalid (@c value 0). */
+  struct SoundHandle {
+    std::uint32_t value{};
 
-  /** @brief A mixer bus: every voice is summed into one bus, and every bus into Master.
-   *  @note Keep @c Voice last: k_audio_bus_count derives from it. */
+    [[nodiscard]] bool is_valid() const noexcept { return value != 0; }
+
+    bool operator==(const SoundHandle &) const = default;
+  };
+
+  /** @brief A mixer bus: every voice is summed into one bus, and every bus into Master. */
   enum class AudioBus : std::uint8_t {
     Master,   ///< The engine output bus; other buses sum into it. A voice routed here takes only master volume.
     Sound,    ///< One-shot and looping sound effects.
     Music,    ///< Streamed music.
     Ambience, ///< Looping background beds.
     Voice,    ///< Dialogue and narration.
+    Count,    ///< Not a bus: marks the end of the table, so k_audio_bus_count stays in step.
   };
 
   /** @brief Number of buses; sizes the per-bus volume tables. */
-  constexpr std::size_t k_audio_bus_count = static_cast<std::size_t>(AudioBus::Voice) + 1;
+  constexpr std::size_t k_audio_bus_count = static_cast<std::size_t>(AudioBus::Count);
 
   /** @brief Table index of @p bus. */
   [[nodiscard]] constexpr std::size_t bus_index(AudioBus bus) noexcept {
@@ -115,21 +123,18 @@ namespace corundum::audio {
     /** @brief Stream @p path as the music track, fading out any current track.
      *
      *  The track loops forever with MusicPlayback::loop_delay_seconds of silence between plays.
-     *  Backends without music keep this default, which reports it unsupported.
      *  @return ok, or why the file could not be opened (the current track then keeps playing).
      */
-    [[nodiscard]] virtual std::expected<void, std::string> play_music(std::string_view /*path*/,
-                                                                      const MusicPlayback & /*playback*/) {
-      return std::unexpected(std::string{"[audio] music is not supported by this backend"});
-    }
+    [[nodiscard]] virtual std::expected<void, std::string> play_music(std::string_view path,
+                                                                      const MusicPlayback &playback) = 0;
 
     /** @brief Fade the current music track out over @p fade_out_seconds (0 stops at once).
      *  No-op with no track. */
-    virtual void stop_music(float /*fade_out_seconds*/) {}
+    virtual void stop_music(float fade_out_seconds) = 0;
 
     /** @brief Per-frame game-thread housekeeping: schedule music loop restarts and reclaim finished
      *  voices. */
-    virtual void update() {}
+    virtual void update() = 0;
   };
 
 } // namespace corundum::audio

@@ -197,12 +197,13 @@ namespace corundum::platform::miniaudio {
       return std::unexpected(std::format("[audio] Failed to load '{}': {}", path, ma_result_description(result)));
 
     state_->effect_sources.push_back(SoundPtr{sound.release()});
-    return static_cast<audio::SoundHandle>(state_->effect_sources.size());
+    return audio::SoundHandle{.value = static_cast<std::uint32_t>(state_->effect_sources.size())};
   }
 
   audio::SoundInstanceId MiniaudioBackend::play(audio::SoundHandle handle, float volume, bool loop,
                                                 audio::AudioBus bus) {
-    if (!state_->is_ready || handle == 0 || handle > state_->effect_sources.size())
+    if (!state_->is_ready || !handle.is_valid() ||
+        static_cast<std::size_t>(handle.value) > state_->effect_sources.size())
       return {};
 
     state_->reclaim_finished_voices();
@@ -217,7 +218,7 @@ namespace corundum::platform::miniaudio {
     State::Voice &voice = state_->effect_voices[slot];
     ++voice.generation; // Every reuse invalidates ids handed out for the slot's previous voice.
 
-    const ma_sound &source = *state_->effect_sources[static_cast<std::size_t>(handle) - 1];
+    const ma_sound &source = *state_->effect_sources[static_cast<std::size_t>(handle.value) - 1];
     auto sound = std::make_unique<ma_sound>();
     const ma_result result = ma_sound_init_copy(&state_->engine, &source, MA_SOUND_FLAG_NO_SPATIALIZATION,
                                                 state_->group_for(bus), sound.get());

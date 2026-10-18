@@ -319,7 +319,7 @@ TEST_CASE("settings: save writes format_json output under settings.json") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
   MemoryUserStorage storage;
-  engine.audio.set_master_volume(0.3f);
+  engine.audio.set_bus_volume(AudioBus::Master, 0.3f);
 
   REQUIRE(corundum::settings::save(engine, storage).has_value());
 

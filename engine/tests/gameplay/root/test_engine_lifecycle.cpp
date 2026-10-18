@@ -82,7 +82,7 @@ namespace {
   class RecordingAudioBackend final : public corundum::audio::AudioBackend {
   public:
     std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view /*path*/) override {
-      return 1u;
+      return corundum::audio::SoundHandle{.value = 1};
     }
 
     corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle /*handle*/, float /*volume*/, bool /*loop*/,
@@ -99,6 +99,15 @@ namespace {
     void set_bus_volume(corundum::audio::AudioBus /*bus*/, float /*volume*/) override {}
 
     void set_paused(bool paused) override { last_paused = paused; }
+
+    std::expected<void, std::string> play_music(std::string_view /*path*/,
+                                                const corundum::audio::MusicPlayback & /*playback*/) override {
+      return {};
+    }
+
+    void stop_music(float /*fade_out_seconds*/) override {}
+
+    void update() override {}
 
     bool last_paused{false};
   };
