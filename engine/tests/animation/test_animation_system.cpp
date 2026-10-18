@@ -89,6 +89,20 @@ TEST_CASE("animate: idle (zero velocity) still advances at the unscaled rate, no
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
 }
 
+TEST_CASE("animate: sub-epsilon velocity is treated as still") {
+  Fixture f;
+  f.facings.insert(f.player, corundum::core::Direction::North);
+  const auto slot = f.transforms.dense_index(f.player);
+  f.transforms.dc[slot] = 5e-5f; // below k_motion_speed_epsilon
+
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.2f);
+  // Unscaled idle playback, and the stored facing is left untouched.
+  CHECK(f.sprites.frame_index_ref(f.player) == 1);
+  CHECK(f.facings.dir_of(f.player) == corundum::core::Direction::North);
+}
+
 TEST_CASE("animate: degenerate iso falls back to the unscaled rate (no divide-by-zero/NaN)") {
   Fixture f;
   const auto slot = f.transforms.dense_index(f.player);
@@ -158,7 +172,7 @@ TEST_CASE("animate: falls back to a cardinal AnimId when the directional clip is
 
 TEST_CASE("animate: vertical-axis fallback is used when |dr| dominates") {
   Fixture f;
-  // Empty every clip except the North cardinal. Pure +dr motion picks facing=SouthWest,
+  // Empty every clip except the South cardinal. Pure +dr motion picks facing=SouthWest,
   // which is empty → falls back along the dominant vertical axis → AnimId::South.
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
   counts[static_cast<uint8_t>(corundum::sprites::AnimId::South)] = 4;
@@ -222,6 +236,7 @@ TEST_CASE("animate: changing AnimId resets frame_index and timer") {
                               /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::East);
   CHECK(f.sprites.frame_index_ref(f.player) == 0);
+  CHECK(f.animations.timer_ref(f.player) == 0.f);
 }
 
 TEST_CASE("animate: single-frame AnimIds do not advance or accumulate timer") {
@@ -234,6 +249,7 @@ TEST_CASE("animate: single-frame AnimIds do not advance or accumulate timer") {
                               k_reference_speed,
                               /*dt=*/10.f); // huge dt
   CHECK(f.sprites.frame_index_ref(f.player) == 0);
+  CHECK(f.animations.timer_ref(f.player) == 0.f);
 }
 
 TEST_CASE("animate: motion sprite commits after the configured idle-to-walk delay") {
@@ -306,7 +322,7 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
   CHECK(f.sprites.sprite_id_ref(f.player) == k_idle_sprite_id);
 }
 
-TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts and duration") {
+TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts") {
   Fixture f;
   constexpr corundum::sprites::SpriteId k_walk_sprite_id{1};
   constexpr corundum::sprites::SpriteId k_idle_sprite_id{2};
@@ -320,8 +336,6 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts a
                                         .idle_id = k_idle_sprite_id,
                                         .walk_counts = walk_counts,
                                         .idle_counts = idle_counts,
-                                        .walk_frame_duration = 0.05f,
-                                        .idle_frame_duration = 0.25f,
                                     });
 
   const auto slot = f.transforms.dense_index(f.player);
@@ -332,7 +346,70 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts a
 
   CHECK(f.sprites.sprite_id_ref(f.player) == k_walk_sprite_id);
   CHECK(f.animations.frame_count(f.player, corundum::sprites::AnimId::South) == 8);
-  CHECK(f.animations.frame_duration_ref(f.player) == doctest::Approx(0.05f));
+}
+
+TEST_CASE("animate: motion sprite commit applies the new sheet's frame-duration override") {
+  Fixture f;
+  f.animations.frame_duration_ref(f.player) = 0.2f; // base rate
+  constexpr corundum::sprites::SpriteId k_walk_sprite_id{1};
+  constexpr corundum::sprites::SpriteId k_idle_sprite_id{2};
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
+  counts.fill(6);
+  f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
+                                        .walk_id = k_walk_sprite_id,
+                                        .idle_id = k_idle_sprite_id,
+                                        .walk_counts = counts,
+                                        .idle_counts = counts,
+                                        .walk_frame_duration = 0.05f,
+                                    });
+
+  const auto slot = f.transforms.dense_index(f.player);
+  f.transforms.dc[slot] = 2.f; // screen speed 10 == reference → scale 1
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.f); // commits the idle→walk sheet
+
+  // 0.06s at the 0.05s override advances one frame; the 0.2s base rate would not.
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.06f);
+  CHECK(f.sprites.frame_index_ref(f.player) == 1);
+}
+
+TEST_CASE("animate: idle commit with no override falls back to the AnimationTable base rate") {
+  Fixture f;
+  f.animations.frame_duration_ref(f.player) = 0.2f; // base rate
+  constexpr corundum::sprites::SpriteId k_walk_sprite_id{1};
+  constexpr corundum::sprites::SpriteId k_idle_sprite_id{2};
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
+  counts.fill(6);
+  f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
+                                        .walk_id = k_walk_sprite_id,
+                                        .idle_id = k_idle_sprite_id,
+                                        .walk_counts = counts,
+                                        .idle_counts = counts,
+                                        .walk_frame_duration = 0.1f, // idle sheet has no override
+                                    });
+
+  const auto slot = f.transforms.dense_index(f.player);
+  f.transforms.dc[slot] = 2.f; // scale 1
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.f); // commits the idle→walk sheet
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.12f); // 0.1s walk override → one frame
+  REQUIRE(f.sprites.frame_index_ref(f.player) == 1);
+
+  f.transforms.dc[slot] = 0.f;
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.f); // commits walk→idle and resets the frame index
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+                              k_reference_speed,
+                              /*dt=*/0.12f); // base 0.2 → not yet a frame
+  // The walk override must not leak into idle playback.
+  CHECK(f.sprites.frame_index_ref(f.player) == 0);
 }
 
 TEST_CASE("animate: one tick advances every whole frame that elapsed") {

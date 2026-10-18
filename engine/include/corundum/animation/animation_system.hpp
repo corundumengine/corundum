@@ -28,7 +28,7 @@ namespace corundum::animation {
    *
    * @param[in,out] sprites         sprite_id, anim_id, and frame_index are updated.
    * @param[in]     transforms      velocity fields select facing and walk/idle state.
-   * @param[in,out] animations      timers, frame counts, and frame durations are updated.
+   * @param[in,out] animations      timers and frame counts are updated; frame duration supplies the base rate.
    * @param[in,out] facings         direction is overwritten while moving.
    * @param[in,out] motion_sprites  pending walk/idle sheet transitions are advanced.
    * @param[in]     iso             projection params converting velocity to screen speed.

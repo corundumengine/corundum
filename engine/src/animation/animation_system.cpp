@@ -131,6 +131,23 @@ namespace corundum::animation {
       return std::hypot(screen_vel_x, screen_vel_y) / reference_speed;
     }
 
+    /** @brief Playback duration for @p e's active sprite sheet.
+     *
+     * The AnimationTable value is the authored base rate; a non-zero override on the
+     * active motion-sprite sheet replaces it. The base is never overwritten, so a sheet
+     * with no override reverts to it.
+     */
+    float effective_frame_duration(const AnimationTable &animations, const SpriteTable &sprites,
+                                   const MotionSpriteTable &motion_sprites, EntityId e,
+                                   std::size_t animation_slot) noexcept {
+      const float base_frame_duration = animations.frame_duration[animation_slot];
+      if (!motion_sprites.has(e)) [[likely]]
+        return base_frame_duration;
+      const SpriteId active_sprite = sprites.sprite_id[sprites.dense_index(e)];
+      const float sheet_frame_duration = motion_sprites.frame_duration_for(e, active_sprite);
+      return sheet_frame_duration > 0.f ? sheet_frame_duration : base_frame_duration;
+    }
+
     /** @brief Drive the walk/idle sprite-sheet transition for one entity.
      *
      * Updates the current sprite, frame counts, frame index, and timer when a transition
@@ -159,9 +176,6 @@ namespace corundum::animation {
       current_sprite_id = desired;
       animations.set_frame_counts(e,
                                   moving ? motion_sprites.walk_frame_counts(e) : motion_sprites.idle_frame_counts(e));
-      const float transition_frame_duration = motion_sprites.frame_duration_for(e, desired);
-      if (transition_frame_duration > 0.f)
-        animations.frame_duration_ref(e) = transition_frame_duration;
       sprites.frame_index_ref(e) = 0;
       animations.timer_ref(e) = 0.f;
       motion_sprites.cancel_transition(e);
@@ -188,8 +202,8 @@ namespace corundum::animation {
       if (animations.frame_count(e, direction_anim) > 0)
         return direction_anim;
       const auto facing_index = std::to_underlying(facing);
-      // Both fallback tables agree on the four cardinals; a diagonal facing only reaches
-      // here when moving, where the zone that produced it already fixes row-vs-col dominance.
+      // Both fallback tables agree on the four cardinals; for a diagonal the direction
+      // itself fixes row-vs-col dominance, whether the facing is fresh or last stored.
       const AnimId fallback =
           row_dominant_facing(facing) ? k_cardinal_fallback_v[facing_index] : k_cardinal_fallback_h[facing_index];
       return animations.frame_count(e, fallback) > 0 ? fallback : AnimId::Default;
@@ -256,9 +270,9 @@ namespace corundum::animation {
         animation_timer = 0.f;
       }
 
-      // Read after tick_motion_sprite: a committed sheet transition may have replaced
-      // this entity's frame duration.
-      const float frame_duration = animations.frame_duration[i];
+      // Read after tick_motion_sprite: a committed transition may have replaced the
+      // active sheet, and with it the duration that plays back this frame.
+      const float frame_duration = effective_frame_duration(animations, sprites, motion_sprites, e, i);
       const uint8_t frame_count = animations.frame_count(e, sprite_anim_id);
       advance_frame_timer(animation_timer, frame_duration, frame_count, sprite_frame_index, dt, speed_scale);
     }
