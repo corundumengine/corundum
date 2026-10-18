@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <flat_map>
 #include <string>
-#include <vector>
 
 namespace corundum::core {
   class ContentSource;
@@ -19,12 +18,13 @@ namespace corundum::sprites {
   class CharacterRegistry {
   public:
     /// Scans index_path/characters/ and loads every sprite sheet JSON found.
-    /// @return std::unexpected with error message if any sheet is missing, malformed, or contains duplicate ids.
+    /// @return std::unexpected with error message if any sheet is missing, malformed, contains a duplicate
+    ///         sheet id, or contains a sprite name that another sheet already declared.
     [[nodiscard]] std::expected<void, std::string> load_all(const core::ContentSource &content,
                                                             const std::filesystem::path &index_path);
 
     /// Returns the numeric Id for a sheet string name, or k_null_sheet if not found.
-    [[nodiscard]] Id find_sheet(const std::string &id) const noexcept;
+    [[nodiscard]] Id find_sheet(const std::string &sheet_name) const noexcept;
 
     /// Returns a pointer to the sheet with the given Id, or nullptr if not found.
     [[nodiscard]] const SpriteSheet *get_sheet(Id id) const noexcept;
@@ -35,9 +35,8 @@ namespace corundum::sprites {
     /// Resolves a sprite name to its interned SpriteId; returns k_null_sprite_id if unknown.
     [[nodiscard]] SpriteId get_sprite_id(const std::string &sprite_name) const noexcept;
 
-    /// O(1) direct lookup by interned SpriteId; returns nullptr for null or out-of-range ids.
-    /// @pre Only valid after a successful load_all(); any later insert invalidates the backing pointers.
-    [[nodiscard]] const Frames *get_sprite_by_id(SpriteId sid) const noexcept;
+    /// Returns frame data for an interned SpriteId, or nullptr for null or unknown ids.
+    [[nodiscard]] const Frames *get_sprite_by_id(SpriteId sprite_id) const noexcept;
 
     /// All loaded sheets keyed by numeric Id.
     [[nodiscard]] const std::flat_map<Id, SpriteSheet> &sheets() const noexcept { return sheets_by_id_; }
@@ -49,19 +48,14 @@ namespace corundum::sprites {
     std::expected<void, std::string> load_sheet(const core::ContentSource &content,
                                                 const std::filesystem::path &sheet_path);
 
-    /// Refreshes sprite_by_id_ from frames_. Must run after any set of inserts: growing
-    /// frames_'s flat_map storage reallocates and invalidates the pointers stored here.
-    void rebuild_sprite_index();
-
     Id next_id_ = 1;
     std::flat_map<std::string, Id> sheet_ids_;
     std::flat_map<Id, SpriteSheet> sheets_by_id_;
     std::flat_map<std::string, Frames> frames_;
 
     SpriteId next_sprite_id_ = 1;
-    /// Non-owning pointers into frames_, whose flat_map storage reallocates on insert. Rebuilt by
-    /// load_all() only after every sheet is loaded, so it is stale until that returns.
-    std::vector<const Frames *> sprite_by_id_;
+    /// SpriteId → frames_ key, so id lookups never hold a pointer into frames_'s storage.
+    std::flat_map<SpriteId, std::string> sprite_names_by_id_;
   };
 
 } // namespace corundum::sprites

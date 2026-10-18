@@ -15,7 +15,6 @@
 #include <format>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -44,10 +43,6 @@ namespace corundum::sprites {
       ++sheet_count;
     }
 
-    // Rebuild even on failure: a partial load has already mutated frames_, so the previous
-    // pointers are dangling until this runs.
-    rebuild_sprite_index();
-
     if (!failure.has_value())
       return failure;
 
@@ -55,12 +50,6 @@ namespace corundum::sprites {
       return std::unexpected(std::format("Characters sprite sheets are missing: {}", characters_dir.string()));
 
     return {};
-  }
-
-  void CharacterRegistry::rebuild_sprite_index() {
-    sprite_by_id_.assign(static_cast<std::size_t>(next_sprite_id_), nullptr);
-    for (const Frames &frames : frames_.values())
-      sprite_by_id_[frames.sprite_id] = &frames;
   }
 
   std::expected<void, std::string> CharacterRegistry::load_sheet(const core::ContentSource &content,
@@ -114,17 +103,19 @@ namespace corundum::sprites {
       frames.footprint_row_span = entry.footprint_row_span;
       frames.walk_around_offset = entry.walk_around_offset;
       frames.fps = entry.fps;
-      frames.sprite_id = next_sprite_id_++;
+      frames.sprite_id = next_sprite_id_;
       frames.anim_frames = std::move(entry.anim_frames);
 
+      sprite_names_by_id_.emplace(frames.sprite_id, entry.name);
       frames_.emplace(entry.name, std::move(frames));
+      ++next_sprite_id_;
     }
 
     return {};
   }
 
-  Id CharacterRegistry::find_sheet(const std::string &id) const noexcept {
-    auto it = sheet_ids_.find(id);
+  Id CharacterRegistry::find_sheet(const std::string &sheet_name) const noexcept {
+    auto it = sheet_ids_.find(sheet_name);
     return it != sheet_ids_.end() ? it->second : k_null_sheet;
   }
 
@@ -143,12 +134,12 @@ namespace corundum::sprites {
     return it != frames_.end() ? it->second.sprite_id : k_null_sprite_id;
   }
 
-  const Frames *CharacterRegistry::get_sprite_by_id(SpriteId sid) const noexcept {
-    if (sid == k_null_sprite_id)
+  const Frames *CharacterRegistry::get_sprite_by_id(SpriteId sprite_id) const noexcept {
+    const auto name_it = sprite_names_by_id_.find(sprite_id);
+    if (name_it == sprite_names_by_id_.end())
       return nullptr;
-    if (sid >= sprite_by_id_.size())
-      return nullptr;
-    return sprite_by_id_[sid];
+    const auto frames_it = frames_.find(name_it->second);
+    return frames_it != frames_.end() ? &frames_it->second : nullptr;
   }
 
 } // namespace corundum::sprites
