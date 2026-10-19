@@ -82,6 +82,18 @@ FetchContent_MakeAvailable(freetype)
 # consumers instead of fixing third-party headers we do not own.
 set_target_properties(glfw freetype PROPERTIES SYSTEM TRUE)
 
+# SDL_GameControllerDB: the community gamepad mapping database. GLFW's built-in table is a subset
+# that lacks common pads (the 8BitDo Pro 2 on macOS), so the GLFW backend embeds this file's rows
+# for the build platform and loads them at startup (engine/src/platform/CMakeLists.txt). Data
+# only: the repository has no CMakeLists.txt, so MakeAvailable just populates the source tree.
+FetchContent_Declare(
+    sdl_gamecontrollerdb
+    GIT_REPOSITORY https://github.com/mdqinc/SDL_GameControllerDB.git
+    GIT_TAG        c1d5289a1f713b30a2c121e9fe6529d39360be0f # master on 18-Oct-2026
+    GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(sdl_gamecontrollerdb)
+
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git

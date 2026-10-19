@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "glfw_window.hpp"
+#include "core/warn_log.hpp"
+#include "gamepad_mappings.hpp"
 #include "input_translator.hpp"
 #include "window_graphics.hpp"
 
@@ -31,9 +33,21 @@ namespace corundum::platform::glfw {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): TU-local, must stay mutable.
     int s_glfw_refcount = 0;
 
+    /// Add SDL_GameControllerDB's mappings to GLFW's built-in subset, so pads GLFW doesn't list
+    /// (the 8BitDo Pro 2 on macOS) report as gamepads. A failure is a warning: those pads stay
+    /// unmapped, and every other input still works.
+    void load_gamepad_mappings() {
+      const std::string joined = join_gamepad_mappings(gamepad_mappings());
+      if (glfwUpdateGamepadMappings(joined.c_str()) == GLFW_FALSE)
+        corundum::detail::warn_log("[platform] WARN: GLFW rejected the bundled gamepad mappings");
+    }
+
     [[nodiscard]] bool glfw_init_if_needed() {
-      if (s_glfw_refcount == 0 && glfwInit() == GLFW_FALSE)
-        return false;
+      if (s_glfw_refcount == 0) {
+        if (glfwInit() == GLFW_FALSE)
+          return false;
+        load_gamepad_mappings();
+      }
       ++s_glfw_refcount;
       return true;
     }
@@ -64,6 +78,10 @@ namespace corundum::platform::glfw {
 
       /// Bit j is set while joystick j is a mapped gamepad; diffed each poll to report hot-plug.
       std::uint32_t gamepads_present{};
+
+      /// Bit j is set while joystick j is connected but has no gamepad mapping; diffed each poll so
+      /// each connection is reported once.
+      std::uint32_t unmapped_joysticks{};
 
       /// Windowed placement saved on entering fullscreen, restored on leaving it.
       WindowRect windowed_rect{};
@@ -146,10 +164,36 @@ namespace corundum::platform::glfw {
       return mask;
     }
 
+    /// @p text, or an empty view when GLFW returns null for a joystick that vanished mid-scan.
+    std::string_view text_or_empty(const char *text) noexcept {
+      return text != nullptr ? std::string_view{text} : std::string_view{};
+    }
+
+    /// Warn once per connection about a joystick GLFW sees but cannot map. Its input is ignored, and
+    /// the logged GUID is what a mapping row for it needs.
+    void report_unmapped_joysticks(WindowData &data) noexcept {
+      std::uint32_t unmapped{};
+      for (int joystick = GLFW_JOYSTICK_1; joystick <= GLFW_JOYSTICK_LAST; ++joystick) {
+        const bool is_present = glfwJoystickPresent(joystick) == GLFW_TRUE;
+        if (!is_present || glfwJoystickIsGamepad(joystick) == GLFW_TRUE)
+          continue;
+        const std::uint32_t bit = joystick_bit(joystick);
+        unmapped |= bit;
+        if ((data.unmapped_joysticks & bit) != 0)
+          continue;
+        // A pad unplugged between the presence check and here yields null; log it as unnamed.
+        corundum::detail::warn_log(
+            "[platform] WARN: controller '{}' (GUID {}) has no gamepad mapping; its input is ignored",
+            text_or_empty(glfwGetJoystickName(joystick)), text_or_empty(glfwGetJoystickGUID(joystick)));
+      }
+      data.unmapped_joysticks = unmapped;
+    }
+
     /// Report gamepad hot-plug edges and feed the active pad to @p mapper. The active pad stays
     /// active while connected; when it goes, the lowest-numbered remaining pad takes over. Only
     /// mapped gamepads count: an unmapped joystick has no portable button layout to bind.
     void poll_gamepads(WindowData &data, corundum::input::InputMapper &mapper) noexcept {
+      report_unmapped_joysticks(data);
       std::uint32_t present{connected_gamepads()};
       GLFWgamepadstate state{};
       bool read{false};

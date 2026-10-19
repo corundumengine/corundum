@@ -41,6 +41,31 @@ else()
         glfw/glcore/window_graphics.cpp)
 endif()
 
+# Embed SDL_GameControllerDB's rows for this platform as string literals (see
+# glfw/gamepad_mappings.cpp.in); the GLFW backend passes them to glfwUpdateGamepadMappings.
+# GLFW would skip other platforms' rows anyway, so they are filtered out here to keep the binary
+# small. The database has no ';' or brackets, so file(STRINGS) list splitting is safe.
+if(APPLE)
+  set(CORUNDUM_GAMEPAD_PLATFORM "Mac OS X")
+elseif(WIN32)
+  set(CORUNDUM_GAMEPAD_PLATFORM "Windows")
+else()
+  set(CORUNDUM_GAMEPAD_PLATFORM "Linux")
+endif()
+set(CORUNDUM_GAMEPAD_DB ${sdl_gamecontrollerdb_SOURCE_DIR}/gamecontrollerdb.txt)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CORUNDUM_GAMEPAD_DB})
+file(STRINGS ${CORUNDUM_GAMEPAD_DB} CORUNDUM_GAMEPAD_DB_ROWS
+     REGEX "platform:${CORUNDUM_GAMEPAD_PLATFORM},")
+if(NOT CORUNDUM_GAMEPAD_DB_ROWS)
+  message(FATAL_ERROR "No '${CORUNDUM_GAMEPAD_PLATFORM}' rows in ${CORUNDUM_GAMEPAD_DB}")
+endif()
+set(CORUNDUM_GAMEPAD_MAPPINGS "")
+foreach(row IN LISTS CORUNDUM_GAMEPAD_DB_ROWS)
+  string(APPEND CORUNDUM_GAMEPAD_MAPPINGS "        R\"gcdb(${row})gcdb\",\n")
+endforeach()
+configure_file(glfw/gamepad_mappings.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/gamepad_mappings.cpp @ONLY)
+list(APPEND PLATFORM_GLFW_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/gamepad_mappings.cpp)
+
 add_library(engine_platform_glfw STATIC ${PLATFORM_GLFW_SOURCES})
 
 # sokol_gfx.h lacks include guards, so it cannot be batched into a unity translation

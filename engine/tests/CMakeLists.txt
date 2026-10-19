@@ -202,6 +202,11 @@ corundum_add_internal_header_test(corundum_tests
     "texture slot-table tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
 
 corundum_add_internal_header_test(corundum_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/glfw/gamepad_mappings.hpp"
+    platform/test_gamepad_mappings.cpp
+    "gamepad mapping tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
+
+corundum_add_internal_header_test(corundum_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/world/tilemap/encoding.hpp"
     world/test_tilemap_encoding.cpp
     "tilemap encoding tests skipped — internal header not reachable from ${CMAKE_CURRENT_SOURCE_DIR}")
