@@ -20,6 +20,7 @@
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
 
+#include "input/bindings_fixtures.hpp"
 #include "world_transition_fixtures.hpp"
 
 // json_fwd.hpp is include-cleaner's provider for nlohmann::json; json.hpp is still
@@ -38,6 +39,7 @@
 namespace {
 
   using corundum::test::adopt_platform;
+  using corundum::test::gamepad_inputs;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
   namespace screens = corundum::gameplay::screens;
@@ -430,6 +432,50 @@ TEST_CASE("settings: Activate on the Controls tab captures the next input as a r
   CHECK(std::ranges::find(still_move_up, corundum::input::physical(corundum::input::Key::K)) != still_move_up.end());
   CHECK(std::ranges::find(still_move_up, corundum::input::physical(corundum::input::Key::Escape)) ==
         still_move_up.end());
+
+  engine.cleanup();
+}
+
+TEST_CASE("settings: rebinding Cancel to gamepad A swaps B onto Select and Activate") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  open_settings(engine);
+  press(engine, corundum::input::Action::TabNext);
+  engine.settings_screen.cursor = static_cast<int>(corundum::input::Action::Cancel);
+
+  press(engine, corundum::input::Action::Select);
+  REQUIRE(engine.input_mapper.is_capturing());
+  corundum::input::GamepadState pad{};
+  pad.buttons[static_cast<std::size_t>(corundum::input::GamepadControl::A)] = true;
+  engine.input_mapper.gamepad(pad);
+  press(engine, corundum::input::Action::Cancel); // the step that delivers the capture
+
+  const corundum::input::Bindings &bindings = engine.input_mapper.bindings();
+  const std::vector<corundum::input::PhysicalInput> a{corundum::input::physical(corundum::input::GamepadControl::A)};
+  const std::vector<corundum::input::PhysicalInput> b{corundum::input::physical(corundum::input::GamepadControl::B)};
+  CHECK_EQ(gamepad_inputs(bindings, corundum::input::Action::Cancel), a);
+  CHECK_EQ(gamepad_inputs(bindings, corundum::input::Action::Select), b);
+  CHECK_EQ(gamepad_inputs(bindings, corundum::input::Action::Activate), b);
+
+  engine.cleanup();
+}
+
+TEST_CASE("settings: Activate on the Controls Reset row restores the default bindings") {
+  corundum::Engine engine{};
+  init_engine(engine);
+  corundum::input::Bindings changed = corundum::input::default_bindings();
+  corundum::input::bind_swapping(changed, corundum::input::Action::Cancel,
+                                 corundum::input::physical(corundum::input::GamepadControl::A));
+  REQUIRE(engine.input_mapper.set_bindings(changed).has_value());
+  open_settings(engine);
+  press(engine, corundum::input::Action::TabNext);
+  engine.settings_screen.cursor = corundum::ui::k_controls_reset_row;
+
+  press(engine, corundum::input::Action::Select);
+
+  CHECK_FALSE(engine.settings_screen.rebinding);
+  CHECK_FALSE(engine.input_mapper.is_capturing());
+  CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
 
   engine.cleanup();
 }

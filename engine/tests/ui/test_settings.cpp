@@ -51,7 +51,7 @@ TEST_CASE("settings row counts per tab") {
   CHECK(corundum::ui::settings_row_count(corundum::ui::SettingsTab::General) ==
         corundum::ui::k_settings_general_row_count);
   CHECK(corundum::ui::settings_row_count(corundum::ui::SettingsTab::Controls) ==
-        static_cast<int>(corundum::input::k_action_count));
+        static_cast<int>(corundum::input::k_action_count) + 1);
 }
 
 TEST_CASE("settings: volume_row_bus maps each volume row to its bus and other rows to none") {
@@ -141,6 +141,22 @@ TEST_CASE("settings: Controls tab renders action names and their bound inputs") 
 
   CHECK(contains_text(r, "MoveUp"));
   CHECK(contains_text(r, "W, Up, LeftStickUp, DpadUp"));
+}
+
+TEST_CASE("settings: Controls tab renders the Reset to Defaults row when scrolled to it") {
+  corundum::test::RecordingRenderer r;
+  const corundum::ui::PanelStyle style = make_style();
+  corundum::ui::SettingsState state{};
+  state.tab = corundum::ui::SettingsTab::Controls;
+  state.cursor = corundum::ui::k_controls_reset_row;
+  corundum::ui::settings_scroll_to_cursor(state, corundum::ui::settings_row_count(state.tab),
+                                          corundum::ui::k_settings_max_visible_rows);
+  const corundum::ui::SettingsValues values{};
+
+  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+                                      corundum::input::default_bindings(), {.x = 800.f, .y = 600.f});
+
+  CHECK(contains_text(r, "Reset to Defaults"));
 }
 
 TEST_CASE("settings: the row being rebound shows the capture prompt") {

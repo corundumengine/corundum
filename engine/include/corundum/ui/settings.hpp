@@ -5,6 +5,7 @@
 #include <corundum/audio/audio_backend.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
+#include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -79,6 +80,9 @@ namespace corundum::ui {
 
   /** @brief Maximum list rows the Controls page shows before scrolling. */
   inline constexpr int k_settings_max_visible_rows = 8;
+
+  /** @brief Controls-tab row that restores the default bindings: the row after one row per Action. */
+  inline constexpr int k_controls_reset_row = static_cast<int>(input::k_action_count);
 
   /** @brief How the Settings screen is presented.
    *

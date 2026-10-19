@@ -3,6 +3,8 @@
 
 #include <doctest/doctest.h>
 
+#include "input/bindings_fixtures.hpp"
+
 #include <corundum/input/action_resolver.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/bindings.hpp>
@@ -24,6 +26,7 @@
 using corundum::input::Action;
 using corundum::input::action_name;
 using corundum::input::bind;
+using corundum::input::bind_swapping;
 using corundum::input::Binding;
 using corundum::input::Bindings;
 using corundum::input::default_bindings;
@@ -43,6 +46,8 @@ using corundum::input::PhysicalInput;
 using corundum::input::rebind;
 using corundum::input::serialize;
 using corundum::input::unbind;
+using corundum::test::gamepad_inputs;
+using corundum::test::inputs_on_device;
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("bindings: defaults") {
@@ -221,6 +226,74 @@ TEST_CASE("bindings: a deliberate partial unbind of a shared key persists") {
   const std::vector<PhysicalInput> cancel = inputs_for(*parsed, Action::Cancel);
   CHECK(std::ranges::find(cancel, physical(Key::Escape)) == cancel.end());
   CHECK(std::ranges::find(cancel, physical(Key::H)) != cancel.end());
+}
+
+TEST_CASE("bindings: parsing does not restore a shared default the player moved to another action") {
+  const Bindings defaults = default_bindings();
+
+  // The file a Cancel B→A rebind saved: A left Select and Activate, B left Cancel.
+  nlohmann::json array = nlohmann::json::array();
+  for (const nlohmann::json &row : serialize(defaults)) {
+    if (row.at("device").get<std::string>() != "gamepad") {
+      array.push_back(row);
+      continue;
+    }
+    const std::string action = row.at("action").get<std::string>();
+    if (action != "Select" && action != "Activate" && action != "Cancel")
+      array.push_back(row);
+  }
+  array.push_back({{"action", "Cancel"}, {"device", "gamepad"}, {"input", "A"}});
+
+  const auto parsed = parse_bindings(array, defaults);
+  REQUIRE(parsed.has_value());
+  CHECK(gamepad_inputs(*parsed, Action::Select).empty());
+  CHECK(gamepad_inputs(*parsed, Action::Activate).empty());
+  CHECK_EQ(gamepad_inputs(*parsed, Action::Cancel), std::vector<PhysicalInput>{physical(GamepadControl::A)});
+}
+
+TEST_CASE("bindings: bind_swapping gives the displaced input to actions it would leave unbound") {
+  Bindings bindings = default_bindings();
+  bind_swapping(bindings, Action::Cancel, physical(GamepadControl::A));
+
+  CHECK_EQ(gamepad_inputs(bindings, Action::Cancel), std::vector<PhysicalInput>{physical(GamepadControl::A)});
+  CHECK_EQ(gamepad_inputs(bindings, Action::Select), std::vector<PhysicalInput>{physical(GamepadControl::B)});
+  CHECK_EQ(gamepad_inputs(bindings, Action::Activate), std::vector<PhysicalInput>{physical(GamepadControl::B)});
+  CHECK_EQ(inputs_on_device(bindings, Action::Cancel, InputDevice::Keyboard),
+           std::vector<PhysicalInput>{physical(Key::Escape)});
+  CHECK_EQ(inputs_on_device(bindings, Action::Cancel, InputDevice::Mouse),
+           std::vector<PhysicalInput>{physical(corundum::input::MouseButton::Right)});
+}
+
+TEST_CASE("bindings: bind_swapping leaves an action that keeps another input on the device alone") {
+  Bindings bindings = default_bindings();
+  bind_swapping(bindings, Action::Cancel, physical(Key::Enter));
+
+  CHECK_EQ(inputs_on_device(bindings, Action::Cancel, InputDevice::Keyboard),
+           std::vector<PhysicalInput>{physical(Key::Enter)});
+  CHECK_EQ(inputs_on_device(bindings, Action::Select, InputDevice::Keyboard),
+           std::vector<PhysicalInput>{physical(Key::Space)});
+  CHECK_EQ(inputs_on_device(bindings, Action::Activate, InputDevice::Keyboard),
+           std::vector<PhysicalInput>{physical(Key::Space)});
+  CHECK_EQ(inputs_on_device(bindings, Action::Menu, InputDevice::Keyboard),
+           std::vector<PhysicalInput>{physical(Key::Escape)});
+}
+
+TEST_CASE("bindings: bind_swapping with nothing to displace just takes the input") {
+  Bindings bindings = default_bindings();
+  bind_swapping(bindings, Action::Quit, physical(GamepadControl::Y));
+
+  CHECK_EQ(gamepad_inputs(bindings, Action::Quit), std::vector<PhysicalInput>{physical(GamepadControl::Y)});
+  CHECK(inputs_for(bindings, Action::Hub).empty());
+}
+
+TEST_CASE("bindings: bind_swapping to an input the action already holds drops its other rows on that device") {
+  Bindings bindings = default_bindings();
+  bind_swapping(bindings, Action::MoveUp, physical(Key::W));
+
+  CHECK_EQ(inputs_on_device(bindings, Action::MoveUp, InputDevice::Keyboard),
+           std::vector<PhysicalInput>{physical(Key::W)});
+  CHECK_EQ(gamepad_inputs(bindings, Action::MoveUp),
+           std::vector<PhysicalInput>{physical(GamepadControl::LeftStickUp), physical(GamepadControl::DpadUp)});
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.

@@ -55,6 +55,24 @@ namespace corundum::input {
         },
     };
 
+    /// @p action's first input on @p device other than @p input, or nullopt when it has none.
+    std::optional<PhysicalInput> first_other_input(const Bindings &bindings, Action action, InputDevice device,
+                                                   PhysicalInput input) {
+      const auto row = std::ranges::find_if(bindings, [action, device, input](const Binding &candidate) {
+        return candidate.action == action && device_of(candidate.input) == device && candidate.input != input;
+      });
+      if (row == bindings.end())
+        return std::nullopt;
+      return row->input;
+    }
+
+    /// Whether @p action has any row on @p device.
+    bool has_input_on(const Bindings &bindings, Action action, InputDevice device) {
+      return std::ranges::any_of(bindings, [action, device](const Binding &row) {
+        return row.action == action && device_of(row.input) == device;
+      });
+    }
+
   } // namespace
 
   Bindings default_bindings() {
@@ -169,6 +187,30 @@ namespace corundum::input {
     std::erase_if(bindings, [action, input](const Binding &row) { return row.action == action && row.input == input; });
   }
 
+  void bind_swapping(Bindings &bindings, Action action, PhysicalInput input) {
+    const InputDevice device = device_of(input);
+    const std::optional<PhysicalInput> displaced = first_other_input(bindings, action, device, input);
+
+    std::vector<Action> losers;
+    for (const Binding &row : bindings) {
+      if (row.input == input && row.action != action)
+        losers.push_back(row.action);
+    }
+
+    std::erase_if(bindings, [action, device, input](const Binding &row) {
+      const bool is_own_on_device = row.action == action && device_of(row.input) == device;
+      return is_own_on_device || row.input == input;
+    });
+
+    if (displaced) {
+      for (const Action loser : losers) {
+        if (!has_input_on(bindings, loser, device))
+          bindings.push_back(Binding{.action = loser, .input = *displaced});
+      }
+    }
+    bindings.push_back(Binding{.action = action, .input = input});
+  }
+
   nlohmann::json serialize(const Bindings &bindings) {
     nlohmann::json array = nlohmann::json::array();
     for (const Binding &row : bindings) {
@@ -193,6 +235,21 @@ namespace corundum::input {
       return {};
     }
 
+    /// Whether @p default_row's input is shared with another action by @p defaults themselves.
+    bool is_shared_default(const Bindings &defaults, const Binding &default_row) {
+      return std::ranges::any_of(defaults, [&default_row](const Binding &row) {
+        return row.action != default_row.action && row.input == default_row.input;
+      });
+    }
+
+    /// Whether @p bindings holds @p default_row's input on a row the defaults don't contain, which
+    /// means the player moved it to another action.
+    bool is_moved_by_player(const Bindings &bindings, const Bindings &defaults, const Binding &default_row) {
+      return std::ranges::any_of(bindings, [&defaults, &default_row](const Binding &row) {
+        return row.input == default_row.input && std::ranges::find(defaults, row) == defaults.end();
+      });
+    }
+
     /// Restore the defaults a file omitted, preserving deliberate partial unbinds. See
     /// parse_bindings()'s contract for the exact rules.
     void fill_missing_defaults(Bindings &result, const Bindings &defaults) {
@@ -208,17 +265,13 @@ namespace corundum::input {
           continue; // this exact row is already present
 
         const Action action = default_row.action;
-        const bool device_has_binding = std::ranges::any_of(result, [&default_row, action](const Binding &row) {
-          return row.action == action && device_of(row.input) == device_of(default_row.input);
-        });
         // The input is shared between two actions by the defaults themselves (Escape = Cancel +
         // Menu; Enter/Space/left mouse/A = Select + Activate): restore it for a device the action
-        // has nothing on, but never over a bind the player already has on that device.
-        const bool shared_by_default = std::ranges::any_of(defaults, [&default_row](const Binding &row) {
-          return row.action != default_row.action && row.input == default_row.input;
-        });
-        if (shared_by_default) {
-          if (!device_has_binding)
+        // has nothing on, unless the player moved the input to an action the defaults don't give
+        // it to, which would make one press drive both.
+        if (is_shared_default(defaults, default_row)) {
+          const bool device_has_binding = has_input_on(result, action, device_of(default_row.input));
+          if (!device_has_binding && !is_moved_by_player(result, defaults, default_row))
             result.push_back(default_row);
           continue;
         }

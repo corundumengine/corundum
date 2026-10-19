@@ -38,6 +38,7 @@
 #include "core/warn_log.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -329,16 +330,13 @@ namespace corundum {
       }
     }
 
-    /// Bind @p captured to the action under the Controls cursor, replacing that action's existing
-    /// binding on the same device class (so a keyboard rebind does not add a second key row).
+    /// Bind @p captured to the action under the Controls cursor, replacing that action's binding on
+    /// the same device class and swapping its old input to any action the capture leaves unbound.
     void rebind_captured(Engine &engine, input::PhysicalInput captured) {
+      assert(engine.settings_screen.cursor < ui::k_controls_reset_row);
       const auto action = static_cast<input::Action>(engine.settings_screen.cursor);
       input::Bindings bindings = engine.input_mapper.bindings();
-      for (const input::PhysicalInput existing : input::inputs_for(bindings, action)) {
-        if (input::device_of(existing) == input::device_of(captured))
-          input::unbind(bindings, action, existing);
-      }
-      input::bind(bindings, action, captured);
+      input::bind_swapping(bindings, action, captured);
       if (auto result = engine.input_mapper.set_bindings(std::move(bindings)); !result)
         warn_log("[engine] WARN: rebind failed: {}", result.error());
     }
@@ -490,6 +488,18 @@ namespace corundum {
       }
     }
 
+    /// Activate on a Controls row: the Reset row restores the default bindings; an action row
+    /// starts capturing its new input.
+    void activate_controls_row(Engine &engine, ui::SettingsState &state) {
+      if (state.cursor == ui::k_controls_reset_row) {
+        if (auto result = engine.input_mapper.set_bindings(input::default_bindings()); !result)
+          warn_log("[engine] WARN: could not reset bindings: {}", result.error());
+        return;
+      }
+      engine.input_mapper.begin_capture();
+      state.rebinding = true;
+    }
+
     /// Step the Settings screen. While the Controls tab is capturing a rebind, every other
     /// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, the
     /// cursor edits the focused row, and the pointer can click a tab or a row.
@@ -524,8 +534,7 @@ namespace corundum {
       if (state.tab == ui::SettingsTab::General) {
         edit_general_row(engine, state.cursor, intent);
       } else if (intent.activate) {
-        engine.input_mapper.begin_capture();
-        state.rebinding = true;
+        activate_controls_row(engine, state);
       }
     }
 

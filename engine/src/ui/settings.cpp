@@ -104,7 +104,7 @@ namespace corundum::ui {
   int settings_row_count(SettingsTab tab) noexcept {
     switch (tab) {
       case SettingsTab::General: return k_settings_general_row_count;
-      case SettingsTab::Controls: return static_cast<int>(input::k_action_count);
+      case SettingsTab::Controls: return k_controls_reset_row + 1;
       case SettingsTab::Count: break;
     }
     return 0;
@@ -160,6 +160,8 @@ namespace corundum::ui {
       return {};
     }
 
+    constexpr std::string_view k_controls_reset_label = "Reset to Defaults";
+
     /// (label, value) for every row of @p tab, in draw order.
     std::vector<std::pair<std::string, std::string>>
     build_rows(const SettingsState &state, const SettingsValues &values, const input::Bindings &bindings) {
@@ -178,6 +180,7 @@ namespace corundum::ui {
         rows.emplace_back(std::string{input::action_name(action)},
                           capturing ? std::string{"(press a key)"} : bindings_text(bindings, action));
       }
+      rows.emplace_back(std::string{k_controls_reset_label}, std::string{});
       return rows;
     }
 

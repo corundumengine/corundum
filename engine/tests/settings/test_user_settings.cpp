@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "input/bindings_fixtures.hpp"
 #include "memory_user_storage.hpp"
 
 #include "null_platform.hpp"
@@ -36,12 +37,14 @@ namespace {
   using corundum::core::WindowMode;
   using corundum::input::Action;
   using corundum::input::action_name;
+  using corundum::input::GamepadControl;
   using corundum::input::InputDevice;
   using corundum::input::k_max_input_sources;
   using corundum::input::Key;
   using corundum::input::name_of;
   using corundum::input::physical;
   using corundum::settings::UserSettings;
+  using corundum::test::gamepad_inputs;
   using corundum::test::MemoryUserStorage;
 
   /// Adopt a NullPlatform so capture()/apply() have a window to read and write.
@@ -219,6 +222,49 @@ TEST_CASE("settings: save/load round-trips bindings and window mode") {
       corundum::input::inputs_for(engine.input_mapper.bindings(), Action::MoveUp);
   CHECK(std::ranges::find(move_up, physical(Key::K)) != move_up.end());
   CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
+}
+
+TEST_CASE("settings: a Cancel rebind to gamepad A saved before the swap fix reloads without A on Select or Activate") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  MemoryUserStorage storage;
+
+  corundum::input::Bindings bindings = corundum::input::default_bindings();
+  corundum::input::unbind(bindings, Action::Cancel, physical(GamepadControl::B));
+  corundum::input::bind(bindings, Action::Cancel, physical(GamepadControl::A));
+  REQUIRE(engine.input_mapper.set_bindings(bindings).has_value());
+  REQUIRE(corundum::settings::save(engine, storage).has_value());
+
+  REQUIRE(engine.input_mapper.set_bindings(corundum::input::default_bindings()).has_value());
+  REQUIRE(corundum::settings::load(engine, storage).has_value());
+
+  const corundum::input::Bindings &reloaded = engine.input_mapper.bindings();
+  CHECK_EQ(gamepad_inputs(reloaded, Action::Cancel),
+           std::vector<corundum::input::PhysicalInput>{physical(GamepadControl::A)});
+  CHECK(gamepad_inputs(reloaded, Action::Select).empty());
+  CHECK(gamepad_inputs(reloaded, Action::Activate).empty());
+}
+
+TEST_CASE("settings: a swapped Cancel rebind to gamepad A survives save/load") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  MemoryUserStorage storage;
+
+  corundum::input::Bindings bindings = corundum::input::default_bindings();
+  corundum::input::bind_swapping(bindings, Action::Cancel, physical(GamepadControl::A));
+  REQUIRE(engine.input_mapper.set_bindings(bindings).has_value());
+  REQUIRE(corundum::settings::save(engine, storage).has_value());
+
+  REQUIRE(engine.input_mapper.set_bindings(corundum::input::default_bindings()).has_value());
+  REQUIRE(corundum::settings::load(engine, storage).has_value());
+
+  const corundum::input::Bindings &reloaded = engine.input_mapper.bindings();
+  CHECK_EQ(gamepad_inputs(reloaded, Action::Cancel),
+           std::vector<corundum::input::PhysicalInput>{physical(GamepadControl::A)});
+  CHECK_EQ(gamepad_inputs(reloaded, Action::Select),
+           std::vector<corundum::input::PhysicalInput>{physical(GamepadControl::B)});
+  CHECK_EQ(gamepad_inputs(reloaded, Action::Activate),
+           std::vector<corundum::input::PhysicalInput>{physical(GamepadControl::B)});
 }
 
 TEST_CASE("settings: save/load round-trips the sound, ambience and voice bus volumes") {
