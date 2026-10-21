@@ -19,6 +19,7 @@
 #include <corundum/toolkit/widgets/ui_theme.hpp>
 #include <cstdio>
 #include <exception>
+#include <filesystem>
 #include <imgui.h>
 #include <print>
 #include <string>
@@ -35,50 +36,55 @@ using tools::spritesmith::EditorState;
 // Helpers
 // ---------------------------------------------------------------------------
 
-static void try_load_texture(corundum::toolkit::host::ToolHost &host, EditorState &state,
-                             corundum::platform::TextureInfo &texture, std::string &loaded_path) {
-  if (state.image_path.empty())
-    return;
-  if (!loaded_path.empty())
-    host.textures().destroy(texture.id);
-  auto result = host.textures().load(state.image_path);
-  if (!result) {
-    std::println(stderr, "[Spritesmith] Cannot load image: {}", result.error());
-    loaded_path.clear();
-    return;
-  }
-  texture = *result;
-  if (texture.width == 0) {
-    std::println(stderr, "[Spritesmith] Cannot load image: {}", state.image_path);
-    loaded_path.clear();
-    return;
-  }
-  loaded_path = state.image_path;
-  state.image_pixel_w = static_cast<int>(texture.width);
-  state.image_pixel_h = static_cast<int>(texture.height);
+namespace {
 
-  if (state.mode == tools::spritesmith::SheetMode::SpriteSheet && state.columns == 0 && state.frame_width > 0) {
-    const int step_x = state.frame_width + state.spacing_x;
-    const int step_y = state.frame_height + state.spacing_y;
-    state.columns = (state.image_pixel_w - state.offset_x + state.spacing_x) / step_x;
-    state.rows = (state.image_pixel_h - state.offset_y + state.spacing_y) / step_y;
-  }
-}
+  void try_load_texture(corundum::toolkit::host::ToolHost &host, EditorState &state,
+                        corundum::platform::TextureInfo &texture, std::string &loaded_path) {
+    if (state.image_path.empty())
+      return;
+    if (!loaded_path.empty())
+      host.textures().destroy(texture.id);
+    auto result = host.textures().load(state.image_path);
+    if (!result) {
+      std::println(stderr, "[Spritesmith] Cannot load image: {}", result.error());
+      loaded_path.clear();
+      return;
+    }
+    texture = *result;
+    if (texture.width == 0) {
+      std::println(stderr, "[Spritesmith] Cannot load image: {}", state.image_path);
+      loaded_path.clear();
+      return;
+    }
+    loaded_path = state.image_path;
+    state.image_pixel_w = static_cast<int>(texture.width);
+    state.image_pixel_h = static_cast<int>(texture.height);
 
-static void do_open(corundum::toolkit::host::ToolHost &host, EditorState &state, const std::filesystem::path &path) {
-  try {
-    tools::spritesmith::load_sheet(state, path);
-    state.dirty = false;
-    host.set_title("Spritesmith :: " + path.filename().string());
-  } catch (const std::exception &e) {
-    std::println(stderr, "[Spritesmith] Failed to open {}: {}", path.string(), e.what());
+    if (state.mode == tools::spritesmith::SheetMode::SpriteSheet && state.columns == 0 && state.frame_width > 0) {
+      const int step_x = state.frame_width + state.spacing_x;
+      const int step_y = state.frame_height + state.spacing_y;
+      state.columns = (state.image_pixel_w - state.offset_x + state.spacing_x) / step_x;
+      state.rows = (state.image_pixel_h - state.offset_y + state.spacing_y) / step_y;
+    }
   }
-}
+
+  void do_open(corundum::toolkit::host::ToolHost &host, EditorState &state, const std::filesystem::path &path) {
+    try {
+      tools::spritesmith::load_sheet(state, path);
+      state.dirty = false;
+      host.set_title("Spritesmith :: " + path.filename().string());
+    } catch (const std::exception &e) {
+      std::println(stderr, "[Spritesmith] Failed to open {}: {}", path.string(), e.what());
+    }
+  }
+
+} // namespace
 
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
+// NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity, bugprone-exception-escape)
 int main(int argc, char *argv[]) {
   if (argc > 2) {
     std::println(stderr, "Usage: spritesmith [sheet.json]");
@@ -91,7 +97,7 @@ int main(int argc, char *argv[]) {
     std::println(stderr, "[Spritesmith] FATAL: {}", cfg_result.error());
     return 1;
   }
-  corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
+  const corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
 
   EditorState state;
   state.tile_diamond_w = cfg.tile_diamond_w;
@@ -109,8 +115,11 @@ int main(int argc, char *argv[]) {
                                 ? std::string("Spritesmith :: ") + std::filesystem::path(argv[1]).filename().string()
                                 : "Spritesmith :: Untitled";
 
-  auto host_result = corundum::toolkit::host::ToolHost::create(
-      {tools::spritesmith::WINDOW_W, tools::spritesmith::WINDOW_H + tools::spritesmith::MENU_BAR_H, title});
+  auto host_result = corundum::toolkit::host::ToolHost::create({
+      .width = tools::spritesmith::WINDOW_W,
+      .height = tools::spritesmith::WINDOW_H + tools::spritesmith::MENU_BAR_H,
+      .title = title,
+  });
   if (!host_result) {
     std::println(stderr, "[Spritesmith] FATAL: {}", host_result.error());
     return 1;
@@ -143,16 +152,17 @@ int main(int argc, char *argv[]) {
     has_texture = sprite_texture.width > 0;
 
     if (has_texture) {
-      state.canvas.offset_x = std::max(0.f, static_cast<float>(state.image_pixel_w) * state.canvas.scale * 0.5f -
-                                                static_cast<float>(tools::spritesmith::CANVAS_W) * 0.5f);
-      state.canvas.offset_y = std::max(0.f, static_cast<float>(state.image_pixel_h) * state.canvas.scale * 0.5f -
-                                                static_cast<float>(tools::spritesmith::CANVAS_H) * 0.5f);
+      state.canvas.offset_x = std::max(0.f, (static_cast<float>(state.image_pixel_w) * state.canvas.scale * 0.5f) -
+                                                (static_cast<float>(tools::spritesmith::CANVAS_W) * 0.5f));
+      state.canvas.offset_y = std::max(0.f, (static_cast<float>(state.image_pixel_h) * state.canvas.scale * 0.5f) -
+                                                (static_cast<float>(tools::spritesmith::CANVAS_H) * 0.5f));
     }
   }
 
   bool running = true;
 
-  host->run([&]() {
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): flat editor UI frame routine.
+  host->run([&] {
     if (!running) {
       host->request_close();
       return;
@@ -172,18 +182,20 @@ int main(int argc, char *argv[]) {
     ImGui::SetNextWindowSize(io.DisplaySize);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.f, 0.f});
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    // NOLINTBEGIN(bugprone-signed-bitwise): ImGui window flags are a signed bitmask.
     ImGui::Begin("##root", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
                      ImGuiWindowFlags_MenuBar);
+    // NOLINTEND(bugprone-signed-bitwise)
     ImGui::PopStyleVar(2);
 
     if (ImGui::BeginMenuBar()) {
       if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("Open Sheet...")) {
           const auto start = state.json_path.empty() ? std::filesystem::current_path() : state.json_path.parent_path();
-          corundum::toolkit::widgets::open_file_browser(state.open_browser, "Open Sprite Sheet", start,
-                                                        {{"Sprite Sheet JSON", {"json"}}});
+          corundum::toolkit::widgets::open_browser(state.open_browser, "Open Sprite Sheet", start,
+                                                   corundum::toolkit::widgets::OpenRequest{.extensions = {"json"}});
         }
         if (ImGui::MenuItem("Save", "Cmd+S"))
           action_save(state);
@@ -194,7 +206,7 @@ int main(int argc, char *argv[]) {
       ImGui::EndMenuBar();
     }
 
-    if (auto picked = corundum::toolkit::widgets::render_file_browser(state.open_browser)) {
+    if (auto picked = corundum::toolkit::widgets::render_browser(state.open_browser)) {
       if (state.dirty) {
         state.show_open_confirm = true;
         state.pending_open_path = *picked;
@@ -202,7 +214,7 @@ int main(int argc, char *argv[]) {
         do_open(*host, state, *picked);
       }
     }
-    if (auto picked = corundum::toolkit::widgets::render_file_browser(state.save_browser)) {
+    if (auto picked = corundum::toolkit::widgets::render_browser(state.save_browser)) {
       state.json_path = *picked;
       if (auto r = save_sheet(state); !r)
         std::println(stderr, "[Spritesmith] Save failed: {}", r.error());
@@ -246,7 +258,7 @@ int main(int argc, char *argv[]) {
       dl->AddImage(host->imgui_id(checkerboard.id), origin,
                    {origin.x + tools::spritesmith::CANVAS_W, origin.y + tools::spritesmith::CANVAS_H});
 
-      CanvasContext ctx{dl, origin};
+      CanvasContext ctx{.dl = dl, .origin = origin};
       tools::spritesmith::render_canvas(ctx, state, host->imgui_id(sprite_texture.id), has_texture);
 
       dl->PopClipRect();
@@ -263,8 +275,9 @@ int main(int argc, char *argv[]) {
     {
       ImDrawList *dl = ImGui::GetWindowDrawList();
       const ImVec2 sep = ImGui::GetCursorScreenPos();
-      dl->AddRectFilled(sep, {sep.x + 1.f, sep.y + static_cast<float>(tools::spritesmith::CANVAS_H)},
-                        IM_COL32(80, 80, 100, 255));
+      // NOLINTNEXTLINE(bugprone-signed-bitwise): IM_COL32 packs channels with signed shifts.
+      const ImU32 separator_color = IM_COL32(80, 80, 100, 255);
+      dl->AddRectFilled(sep, {sep.x + 1.f, sep.y + static_cast<float>(tools::spritesmith::CANVAS_H)}, separator_color);
 
       tools::spritesmith::render_side_panel(state, fonts, theme);
       tools::spritesmith::render_preview_panel(*host, state, sprite_texture, io.DeltaTime);

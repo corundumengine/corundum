@@ -5,136 +5,98 @@
 #include <corundum/toolkit/widgets/file_browser.hpp>
 #include <corundum/toolkit/widgets/text_buffer.hpp>
 #include <cstddef>
-#include <cstdio>
 #include <filesystem>
 #include <format>
 #include <imgui.h>
 #include <optional>
-#include <print>
 #include <string>
-#include <string_view>
 #include <utility>
-#include <vector>
+#include <variant>
 
 namespace corundum::toolkit::widgets {
 
   namespace {
-    bool matches_filters(const std::filesystem::path &p, const std::vector<FileBrowserFilter> &filters) {
-      if (filters.empty())
-        return true;
-      for (const auto &f : filters)
-        for (const auto &ext : f.extensions)
-          if (corundum::core::has_extension(p, ext))
-            return true;
-      return false;
+    /// ImGui id that stays unique per browser instance; the part after "###" is hashed but not displayed.
+    [[nodiscard]] std::string popup_id_of(const FileBrowserState &fb) {
+      return std::format("{}###{}", fb.title, static_cast<const void *>(&fb));
     }
 
-    void refresh_entries(FileBrowserState &fb) {
-      fb.entries.clear();
-      fb.selected_entry = -1;
-      auto listed = corundum::core::list_dir_entries(fb.current_dir);
-      if (!listed) {
-        std::print(stderr, "file_browser: failed to list {}: {}\n", fb.current_dir.string(), listed.error());
-        return;
-      }
-      for (auto &e : *listed) {
-        if (!e.is_dir && fb.mode == FileBrowserMode::Open && !matches_filters(e.path, fb.filters))
-          continue;
-        fb.entries.push_back(std::move(e));
-      }
-      // list_dir_entries() already sorts directories-first/alphabetical; the filter pass above
-      // preserves that order (only removes non-matching files), so no re-sort needed here.
-    }
-
-    void navigate(FileBrowserState &fb, const std::filesystem::path &dir) {
-      fb.current_dir = dir;
-      refresh_entries(fb);
-    }
-
-    void render_entries(FileBrowserState &fb, std::optional<std::filesystem::path> &result) {
+    /// Draw the listing; @p double_clicked receives the file double-clicked this frame, if any.
+    void render_entries(FileBrowserState &fb, std::optional<std::filesystem::path> &double_clicked) {
       ImGui::BeginChild("##entries", ImVec2{0.f, -ImGui::GetFrameHeightWithSpacing() * 2.f}, ImGuiChildFlags_Borders);
-      for (std::size_t i = 0; i < fb.entries.size(); ++i) {
-        const auto &e = fb.entries[i];
-        const std::string label = e.is_dir ? ("[dir] " + e.name) : e.name;
-        if (ImGui::Selectable(label.c_str(), std::cmp_equal(fb.selected_entry, i),
-                              ImGuiSelectableFlags_AllowDoubleClick)) {
-          fb.selected_entry = static_cast<int>(i);
-          if (!e.is_dir)
-            copy_to_buffer(fb.name_buf, sizeof(fb.name_buf), e.name);
-          if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            if (e.is_dir)
-              navigate(fb, e.path);
-            else if (fb.mode == FileBrowserMode::Open)
-              result = e.path;
-          }
+      for (std::size_t index = 0; index < fb.entries.size(); ++index) {
+        const corundum::core::DirEntry &entry = fb.entries[index];
+        const std::string label = entry.is_dir ? ("[dir] " + entry.name) : entry.name;
+        if (!ImGui::Selectable(label.c_str(), fb.selected_entry == index, ImGuiSelectableFlags_AllowDoubleClick))
+          continue;
+        fb.selected_entry = index;
+        if (!entry.is_dir)
+          copy_to_buffer(fb.name_buf.data(), fb.name_buf.size(), entry.name);
+        if (!ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+          continue;
+        if (entry.is_dir) {
+          // navigate_to() replaces the listing, so leave the loop before touching fb.entries again.
+          const std::filesystem::path dir = entry.path;
+          navigate_to(fb, dir);
+          break;
         }
+        double_clicked = entry.path;
       }
       ImGui::EndChild();
     }
-  } // namespace
 
-  void open_file_browser(FileBrowserState &fb, std::string_view title, const std::filesystem::path &start_dir,
-                         std::vector<FileBrowserFilter> filters) {
-    fb.active = true;
-    fb.mode = FileBrowserMode::Open;
-    fb.title = title;
-    fb.filters = std::move(filters);
-    fb.name_buf[0] = '\0';
-    navigate(fb, std::filesystem::is_directory(start_dir) ? start_dir : std::filesystem::current_path());
-  }
-
-  void open_save_browser(FileBrowserState &fb, std::string_view title, const std::filesystem::path &start_dir,
-                         std::vector<FileBrowserFilter> filters, std::string_view default_name) {
-    fb.active = true;
-    fb.mode = FileBrowserMode::Save;
-    fb.title = title;
-    fb.filters = std::move(filters);
-    copy_to_buffer(fb.name_buf, sizeof(fb.name_buf), default_name);
-    navigate(fb, std::filesystem::is_directory(start_dir) ? start_dir : std::filesystem::current_path());
-  }
-
-  std::optional<std::filesystem::path> render_file_browser(FileBrowserState &fb) {
-    if (!fb.active)
-      return std::nullopt;
-
-    ImGui::OpenPopup(fb.title.c_str());
-    ImGui::SetNextWindowSize(ImVec2{520.f, 420.f}, ImGuiCond_FirstUseEver);
-    std::optional<std::filesystem::path> result;
-
-    if (ImGui::BeginPopupModal(fb.title.c_str(), nullptr, ImGuiWindowFlags_NoSavedSettings)) {
-      if (ImGui::Button("Up") && fb.current_dir.has_parent_path())
-        navigate(fb, fb.current_dir.parent_path());
+    /// Draw the confirm/cancel row: confirm writes the chosen path to @p result, cancel closes the modal.
+    void render_confirm_row(FileBrowserState &fb, const char *label, std::optional<std::filesystem::path> &result) {
+      const std::optional<std::filesystem::path> choice = confirm_path(fb);
+      ImGui::BeginDisabled(!choice.has_value());
+      if (ImGui::Button(label, ImVec2{100.f, 0.f}))
+        result = choice;
+      ImGui::EndDisabled();
       ImGui::SameLine();
-      ImGui::TextUnformatted(fb.current_dir.string().c_str());
-
-      ImGui::Separator();
-      render_entries(fb, result);
-
-      if (fb.mode == FileBrowserMode::Save) {
-        ImGui::SetNextItemWidth(-80.f);
-        ImGui::InputText("##filename", fb.name_buf, sizeof(fb.name_buf));
-      }
-
-      const bool have_name = fb.name_buf[0] != '\0';
-      const char *confirm_label = fb.mode == FileBrowserMode::Open ? "Open" : "Save";
-      if (!result) {
-        ImGui::BeginDisabled(!have_name);
-        if (ImGui::Button(confirm_label, ImVec2{100.f, 0.f}))
-          result = fb.current_dir / fb.name_buf;
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel", ImVec2{100.f, 0.f})) {
-          fb.active = false;
-          ImGui::CloseCurrentPopup();
-        }
-      }
-
-      if (result) {
-        fb.active = false;
+      if (ImGui::Button("Cancel", ImVec2{100.f, 0.f})) {
+        fb.request.reset();
         ImGui::CloseCurrentPopup();
       }
-      ImGui::EndPopup();
     }
+  } // namespace
+
+  std::optional<std::filesystem::path> render_browser(FileBrowserState &fb) {
+    if (!fb.request)
+      return std::nullopt;
+
+    const std::string popup_id = popup_id_of(fb);
+    ImGui::OpenPopup(popup_id.c_str());
+    ImGui::SetNextWindowSize(ImVec2{520.f, 420.f}, ImGuiCond_FirstUseEver);
+
+    std::optional<std::filesystem::path> result;
+    if (!ImGui::BeginPopupModal(popup_id.c_str(), nullptr, ImGuiWindowFlags_NoSavedSettings))
+      return result;
+
+    if (ImGui::Button("Up") && fb.current_dir.has_parent_path())
+      navigate_to(fb, fb.current_dir.parent_path());
+    ImGui::SameLine();
+    ImGui::TextUnformatted(fb.current_dir.string().c_str());
+    ImGui::Separator();
+
+    std::optional<std::filesystem::path> double_clicked;
+    render_entries(fb, double_clicked);
+
+    const bool saving = std::holds_alternative<SaveRequest>(*fb.request);
+    if (saving) {
+      ImGui::SetNextItemWidth(-80.f);
+      ImGui::InputText("##filename", fb.name_buf.data(), fb.name_buf.size());
+    } else {
+      result = std::move(double_clicked);
+    }
+
+    if (!result)
+      render_confirm_row(fb, saving ? "Save" : "Open", result);
+
+    if (result) {
+      fb.request.reset();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
     return result;
   }
 

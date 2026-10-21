@@ -48,6 +48,7 @@ namespace tools::tilesmith {
     state.new_map_requested = true;
   }
 
+  // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity): flat menu bar.
   void render_menu_bar(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                        std::vector<TilesetView> &tileset_views, bool &running) {
     if (ImGui::BeginMainMenuBar()) {
@@ -57,15 +58,19 @@ namespace tools::tilesmith {
         if (ImGui::MenuItem("Open...")) {
           const auto start =
               state.map_path.empty() ? std::filesystem::path("data/tilemaps") : state.map_path.parent_path();
-          open_file_browser(state.open_browser, "Open Tilemap", start, {{"Tilemap JSON", {"json"}}});
+          open_browser(state.open_browser, "Open Tilemap", start,
+                       corundum::toolkit::widgets::OpenRequest{.extensions = {"json"}});
         }
         if (ImGui::MenuItem("Save", "Cmd+S"))
           do_save(state);
         if (ImGui::MenuItem("Save As...")) {
           const auto start =
               state.map_path.empty() ? std::filesystem::path("data/tilemaps") : state.map_path.parent_path();
-          open_save_browser(state.save_browser, "Save Tilemap As", start, {{"Tilemap JSON", {"json"}}},
-                            state.map_path.filename().string());
+          open_browser(state.save_browser, "Save Tilemap As", start,
+                       corundum::toolkit::widgets::SaveRequest{
+                           .default_name = state.map_path.filename().string(),
+                           .extension = "json",
+                       });
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Exit", "Esc")) {
@@ -95,7 +100,7 @@ namespace tools::tilesmith {
       ImGui::EndMainMenuBar();
     }
 
-    if (auto picked = render_file_browser(state.open_browser)) {
+    if (auto picked = render_browser(state.open_browser)) {
       if (state.dirty) {
         state.show_open_confirm = true;
         state.pending_open_path = *picked;
@@ -103,7 +108,7 @@ namespace tools::tilesmith {
         do_open(host, state, texture_store, tileset_views, *picked);
       }
     }
-    if (auto picked = render_file_browser(state.save_browser)) {
+    if (auto picked = render_browser(state.save_browser)) {
       state.map_path = *picked;
       do_save(state);
     }
@@ -151,7 +156,9 @@ namespace tools::tilesmith {
       state.show_io_error_popup = false;
     }
     if (ImGui::BeginPopupModal("Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      ImGui::TextColored(ImVec4{1.f, .4f, .4f, 1.f}, "%s", state.last_io_error.c_str());
+      ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{1.f, .4f, .4f, 1.f});
+      ImGui::TextUnformatted(state.last_io_error.c_str());
+      ImGui::PopStyleColor();
       if (ImGui::Button("OK", ImVec2{100.f, 0.f}))
         ImGui::CloseCurrentPopup();
       ImGui::EndPopup();

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "actions.hpp"
+#include "editor_state.hpp"
 #include "file_io.hpp"
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/toolkit/widgets/file_browser.hpp>
 #include <filesystem>
 #include <format>
@@ -13,13 +15,15 @@ namespace tools::loom {
 
   void action_save_as(EditorState &state) {
     const auto start = state.file_path.empty() ? std::filesystem::current_path() : state.file_path.parent_path();
-    corundum::toolkit::widgets::open_save_browser(state.popups.save_browser, "Save As", start, {{"JSON", {"json"}}},
-                                                  default_doc_name(state));
+    corundum::toolkit::widgets::open_browser(
+        state.popups.save_browser, "Save As", start,
+        corundum::toolkit::widgets::SaveRequest{.default_name = default_doc_name(state), .extension = "json"});
   }
 
   void action_open(EditorState &state) {
     const auto start = state.file_path.empty() ? std::filesystem::current_path() : state.file_path.parent_path();
-    corundum::toolkit::widgets::open_file_browser(state.popups.open_browser, "Open", start, {{"JSON", {"json"}}});
+    corundum::toolkit::widgets::open_browser(state.popups.open_browser, "Open", start,
+                                             corundum::toolkit::widgets::OpenRequest{.extensions = {"json"}});
   }
 
   void action_save(EditorState &state, corundum::toolkit::host::ToolHost &host) {

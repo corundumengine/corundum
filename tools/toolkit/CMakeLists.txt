@@ -18,6 +18,7 @@ add_library(corundum_toolkit STATIC
     src/widgets/ui_theme.cpp
     src/widgets/fonts.cpp
     src/widgets/file_browser.cpp
+    src/widgets/file_browser_state.cpp
 )
 
 add_library(corundum::toolkit ALIAS corundum_toolkit)

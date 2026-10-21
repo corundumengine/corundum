@@ -11,9 +11,11 @@
 #include <corundum/sprites/sprite_sheet_clips.hpp>
 #include <corundum/sprites/sprite_sheet_clips_serializer.hpp>
 #include <corundum/toolkit/widgets/file_browser.hpp>
+#include <cstdio>
 #include <expected>
 #include <filesystem>
 #include <format>
+// NOLINTNEXTLINE(misc-include-cleaner): only this include defines the nlohmann::json the serializers return.
 #include <nlohmann/json.hpp>
 #include <print>
 #include <string>
@@ -101,7 +103,7 @@ namespace tools::spritesmith {
     // clips sidecar is ever written.
     if (state.mode == SheetMode::Atlas) {
       const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(state.json_path);
-      const nlohmann::json j = corundum::sprites::serialize_atlas_clips(to_atlas_clips_data(state));
+      const auto j = corundum::sprites::serialize_atlas_clips(to_atlas_clips_data(state));
       auto res = corundum::core::write_json(sidecar_path, j);
       if (!res)
         return std::unexpected(res.error());
@@ -114,9 +116,9 @@ namespace tools::spritesmith {
         return std::unexpected(valid.error());
     }
 
-    const nlohmann::json j = (state.mode == SheetMode::Character)
-                                 ? corundum::sprites::serialize_character_sheet(to_character_sheet(state))
-                                 : corundum::sprites::serialize_sprite_sheet_clips(to_sprite_sheet_clips(state));
+    const auto j = (state.mode == SheetMode::Character)
+                       ? corundum::sprites::serialize_character_sheet(to_character_sheet(state))
+                       : corundum::sprites::serialize_sprite_sheet_clips(to_sprite_sheet_clips(state));
     {
       auto res = corundum::core::write_json(state.json_path, j);
       if (!res)
@@ -130,8 +132,9 @@ namespace tools::spritesmith {
   void open_save_as_browser(EditorState &state) {
     const auto start = state.json_path.empty() ? std::filesystem::current_path() : state.json_path.parent_path();
     const std::string default_name = state.json_path.empty() ? state.sheet_id : state.json_path.filename().string();
-    corundum::toolkit::widgets::open_save_browser(state.save_browser, "Save Sprite Sheet As", start,
-                                                  {{"Sprite Sheet JSON", {"json"}}}, default_name);
+    corundum::toolkit::widgets::open_browser(
+        state.save_browser, "Save Sprite Sheet As", start,
+        corundum::toolkit::widgets::SaveRequest{.default_name = default_name, .extension = "json"});
   }
 
   void action_save(EditorState &state) {
