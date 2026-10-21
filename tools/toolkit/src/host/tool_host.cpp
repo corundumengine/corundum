@@ -66,7 +66,7 @@ namespace corundum::toolkit::host {
     ctx->impl_->textures = std::make_unique<TextureCache>();
 
     ctx->impl_->glfw_win = static_cast<GLFWwindow *>(ctx->impl_->window->native_handle());
-    if (!ctx->impl_->glfw_win)
+    if (ctx->impl_->glfw_win == nullptr)
       return std::unexpected("ToolHost: window has no GLFW handle");
 
     simgui_setup(simgui_desc_t{
@@ -89,9 +89,9 @@ namespace corundum::toolkit::host {
     return ctx;
   }
 
-  void ToolHost::run(std::function<void()> frame_fn) {
-    using clock = std::chrono::steady_clock;
-    auto prev = clock::now();
+  void ToolHost::run(const std::function<void()> &frame_fn) {
+    using Clock = std::chrono::steady_clock;
+    auto prev = Clock::now();
 
     // The window is created hidden; reveal it once a frame has been presented so the tool never
     // shows a blank window while it finishes setup.
@@ -103,10 +103,10 @@ namespace corundum::toolkit::host {
       }
     };
 
-    while (!impl_->should_close && !glfwWindowShouldClose(impl_->glfw_win)) {
+    while (!impl_->should_close && glfwWindowShouldClose(impl_->glfw_win) == GLFW_FALSE) {
       glfwPollEvents();
 
-      auto now = clock::now();
+      const auto now = Clock::now();
       const float dt = std::chrono::duration<float>(now - prev).count();
       prev = now;
 
@@ -129,13 +129,14 @@ namespace corundum::toolkit::host {
 
       frame_fn();
 
-      if (!impl_->gpu_ctx->begin_default_pass({30, 30, 35, 255})) {
-        ImGui::EndFrame();
+      // simgui_flush() ends the ImGui frame (it calls ImGui::Render()) and must run outside a pass.
+      simgui_flush();
+      if (!impl_->gpu_ctx->begin_default_pass({.r = 30, .g = 30, .b = 35, .a = 255})) {
         reveal();
         continue;
       }
 
-      simgui_render();
+      simgui_draw();
       impl_->gpu_ctx->end_frame();
       reveal();
     }
@@ -167,12 +168,12 @@ namespace corundum::toolkit::host {
 
   std::expected<TextureInfo, std::string> ToolHost::make_checkerboard(unsigned w, unsigned h, unsigned check_size) {
     std::vector<uint32_t> pixels(static_cast<std::size_t>(w) * h);
-    constexpr uint32_t dark = 0xFF787878u;
-    constexpr uint32_t light = 0xFFA0A0A0u;
+    constexpr uint32_t k_dark = 0xFF787878u;
+    constexpr uint32_t k_light = 0xFFA0A0A0u;
     for (unsigned y = 0; y < h; ++y)
       for (unsigned x = 0; x < w; ++x) {
         const bool even = ((x / check_size) + (y / check_size)) % 2 == 0;
-        pixels[static_cast<std::size_t>(y) * w + x] = even ? light : dark;
+        pixels[(static_cast<std::size_t>(y) * w) + x] = even ? k_light : k_dark;
       }
     return impl_->textures->create(w, h, pixels.data(), WrapMode::Repeat);
   }

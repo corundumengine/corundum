@@ -34,9 +34,11 @@ namespace corundum::toolkit::host {
 
     ToolHost(const ToolHost &) = delete;
     ToolHost &operator=(const ToolHost &) = delete;
+    ToolHost(ToolHost &&) = delete;
+    ToolHost &operator=(ToolHost &&) = delete;
 
     /// Run the main loop, calling @p frame_fn each frame after ImGui new frame.
-    void run(std::function<void()> frame_fn);
+    void run(const std::function<void()> &frame_fn);
 
     /// Request that the main loop exit after the current frame.
     void request_close();

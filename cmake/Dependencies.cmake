@@ -24,7 +24,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 FetchContent_Declare(
     nlohmann_json_schema_validator
     GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
-    GIT_TAG        2.4.0
+    GIT_TAG        2.4.1
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -50,7 +50,7 @@ endif()
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        v1.92.9b
+    GIT_TAG        v1.93.0
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -71,7 +71,7 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_Declare(
     freetype
     GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git
-    GIT_TAG        VER-2-14-3
+    GIT_TAG        VER-2-15-0
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -89,7 +89,7 @@ set_target_properties(glfw freetype PROPERTIES SYSTEM TRUE)
 FetchContent_Declare(
     sdl_gamecontrollerdb
     GIT_REPOSITORY https://github.com/mdqinc/SDL_GameControllerDB.git
-    GIT_TAG        c1d5289a1f713b30a2c121e9fe6529d39360be0f # master on 18-Oct-2026
+    GIT_TAG        ff333823a85ae896e73f4c53670932cf0f728adb # master on 20-Oct-2026
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(sdl_gamecontrollerdb)
@@ -97,7 +97,7 @@ FetchContent_MakeAvailable(sdl_gamecontrollerdb)
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
-    GIT_TAG        2e75443dbd4940b5aa8d76a8e479f8e4b270b9a3 # 14-Sep-2026
+    GIT_TAG        efeb77603e24daea7d1dd6445b9358bb5d82533b # master on 17-Oct-2026
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(sokol)
@@ -105,7 +105,7 @@ FetchContent_MakeAvailable(sokol)
 FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        31c1ad37456438565541f4919958214b6e762fb4
+    GIT_TAG        a7d4c2175630e1ea5b6f8dd00ab96fed0b97b96d # master on 20-Oct-2026
     GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(stb)
