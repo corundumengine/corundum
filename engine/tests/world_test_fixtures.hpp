@@ -7,6 +7,8 @@
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/world_aggregates.hpp>
 #include <corundum/world/map_view.hpp>
+
+#include "render_state_fixtures.hpp"
 #include <corundum/world/tilemap/tilemap.hpp>
 
 #include <cstddef>
@@ -46,26 +48,27 @@ namespace corundum::test {
   /// World-mode RenderState with a horizontal run of `n` chunks along row 0, starting at (0,0).
   /// Each chunk's tilemap is produced by `mk(chunk_index)` so tests can inject elevation walls.
   template <typename Mk> void init_world(render::RenderState &state, int chunk_size, int n, const Mk &mk) {
-    state.mode = render::RenderMode::World;
-    state.manifest.chunk_size = chunk_size;
-    state.manifest.chunks_wide = n + 2;
-    state.manifest.chunks_tall = 3;
+    auto &world_area = state.area.emplace<render::WorldArea>();
+    world_area.manifest.chunk_size = chunk_size;
+    world_area.manifest.chunks_wide = n + 2;
+    world_area.manifest.chunks_tall = 3;
     for (int i = 0; i < n; ++i)
-      state.chunks.add_active(make_chunk(i, 0, mk(i)));
-    state.chunks.set_last_center({.col = 0, .row = 0});
-    render::rebuild_world_aggregates(state, /*max_step_height=*/4);
+      world_area.chunks.add_active(make_chunk(i, 0, mk(i)));
+    world_area.chunks.set_last_center({.col = 0, .row = 0});
+    render::rebuild_world_aggregates(world_area, /*max_step_height=*/4);
   }
 
   /// MapView as build_map_view's world branch wires it (minus the iso math the pathfinder
   /// does not use).
   inline world::MapView world_map_view(const render::RenderState &state) {
+    const render::WorldArea &world_area = world_area_of(state);
     world::MapView m;
-    m.collisions = state.agg_collisions.view();
-    m.collision_triangles = state.agg_triangles.view();
-    m.walkability = &state.agg_walkability;
-    m.world_render = &state;
-    m.world_w_tiles = static_cast<float>(state.manifest.chunks_wide * state.manifest.chunk_size);
-    m.world_h_tiles = static_cast<float>(state.manifest.chunks_tall * state.manifest.chunk_size);
+    m.collisions = world_area.aggregates.collisions.view();
+    m.collision_triangles = world_area.aggregates.triangles.view();
+    m.walkability = &world_area.aggregates.walkability;
+    m.world_area = &world_area;
+    m.world_w_tiles = static_cast<float>(world_area.manifest.chunks_wide * world_area.manifest.chunk_size);
+    m.world_h_tiles = static_cast<float>(world_area.manifest.chunks_tall * world_area.manifest.chunk_size);
     return m;
   }
 

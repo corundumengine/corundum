@@ -69,7 +69,7 @@ namespace corundum::world {
    *
    *  @param[in,out] engine Initialised application state.
    *  @pre engine.renderer is non-null. Call between frames.
-   *  @post engine.render.mode is RenderMode::None, world::player_present(engine.scene) is false,
+   *  @post render::mode(engine.render) is RenderMode::None, world::player_present(engine.scene) is false,
    *        engine.entered_from_world is false.
    */
   void unload_world(corundum::Engine &engine);

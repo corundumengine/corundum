@@ -1700,7 +1700,7 @@ namespace corundum::gameplay {
       // load_game unloads the world when the scene rebuild itself failed, which also empties the UI
       // stack; with nothing left to show, fall back to the title. A refusal before the rebuild
       // (missing file, wrong game) keeps the current world or screen.
-      if (engine_->render.mode == render::RenderMode::None && engine_->scene.ui.empty())
+      if (render::mode(engine_->render) == render::RenderMode::None && engine_->scene.ui.empty())
         return_to_title();
       return std::unexpected(loaded.error());
     }

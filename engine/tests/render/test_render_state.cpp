@@ -16,13 +16,16 @@
 #include <corundum/render/area.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/render/world_aggregates.hpp>
+#include <corundum/world/map_view.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "memory_content_source.hpp"
+#include "render_state_fixtures.hpp"
 
 using corundum::test::disk;
 
@@ -50,65 +53,102 @@ namespace {
   render_data::RenderState shifted_window_state() {
     constexpr int k_chunk_size = 16;
     render_data::RenderState state;
-    state.mode = render_data::RenderMode::World;
-    state.manifest.chunk_size = k_chunk_size;
-    state.manifest.chunks_wide = 7;
-    state.manifest.chunks_tall = 7;
+    auto &world_area = state.area.emplace<render_data::WorldArea>();
+    world_area.manifest.chunk_size = k_chunk_size;
+    world_area.manifest.chunks_wide = 7;
+    world_area.manifest.chunks_tall = 7;
 
     const tilemap::ChunkCoord start_center{.col = 3, .row = 3};
-    state.chunks.set_last_center(start_center);
+    world_area.chunks.set_last_center(start_center);
     for (const tilemap::ChunkCoord coord :
-         tilemap::active_chunk_coords(start_center, render_data::ChunkWindow::k_radius, state.manifest)) {
+         tilemap::active_chunk_coords(start_center, render_data::ChunkWindow::k_radius, world_area.manifest)) {
       render_data::ChunkEntry e;
       e.coord = coord;
       e.tilemap = make_flat_map();
-      state.chunks.add_active(std::move(e));
+      world_area.chunks.add_active(std::move(e));
     }
 
     const tilemap::ChunkCoord new_center{.col = 4, .row = 3};
-    state.chunks.set_last_center(new_center);
+    world_area.chunks.set_last_center(new_center);
     const std::vector<tilemap::ChunkCoord> desired =
-        tilemap::active_chunk_coords(new_center, render_data::ChunkWindow::k_radius, state.manifest);
-    state.chunks.prune_active(
+        tilemap::active_chunk_coords(new_center, render_data::ChunkWindow::k_radius, world_area.manifest);
+    world_area.chunks.prune_active(
         [&](const render_data::ChunkEntry &e) { return std::ranges::contains(desired, e.coord); });
-    (void)state.chunks.consume_dirty();
+    (void)world_area.chunks.consume_dirty();
     for (const tilemap::ChunkCoord c : desired)
-      if (!state.chunks.has(c))
-        state.chunks.enqueue_pending(c);
+      if (!world_area.chunks.has(c))
+        world_area.chunks.enqueue_pending(c);
     return state;
   }
 
 } // namespace
 
 TEST_CASE("active_tilemap: None mode returns nullptr") {
-  corundum::Engine engine;
-  engine.render.mode = render_data::RenderMode::None;
+  const corundum::Engine engine;
 
   CHECK(engine.active_tilemap() == nullptr);
   CHECK(render_data::active_tilemap(engine.render) == nullptr);
 }
 
-TEST_CASE("active_tilemap: SingleMap mode returns &map_data.tilemap") {
+TEST_CASE("active_tilemap: SingleMap mode returns &map.tilemap") {
   corundum::Engine engine;
-  engine.render.mode = render_data::RenderMode::SingleMap;
-  engine.render.map_data.tilemap = make_flat_map();
+  auto &single = engine.render.area.emplace<render_data::SingleMapArea>();
+  single.map.tilemap = make_flat_map();
 
   const auto *tm = engine.active_tilemap();
   REQUIRE(tm != nullptr);
-  CHECK(tm == &engine.render.map_data.tilemap);
+  CHECK(tm == &single.map.tilemap);
   CHECK(tm->width == 2);
   CHECK(tm->height == 2);
 }
 
 TEST_CASE("active_tilemap: World mode returns nullptr even with chunks loaded") {
   corundum::Engine engine;
-  engine.render.mode = render_data::RenderMode::World;
+  auto &world_area = engine.render.area.emplace<render_data::WorldArea>();
 
   render_data::ChunkEntry chunk;
   chunk.tilemap = make_flat_map();
-  engine.render.chunks.add_active(std::move(chunk));
+  world_area.chunks.add_active(std::move(chunk));
 
   CHECK(engine.active_tilemap() == nullptr);
+}
+
+TEST_CASE("mode: tracks the area alternative") {
+  render_data::RenderState state;
+  CHECK(render_data::mode(state) == render_data::RenderMode::None);
+
+  state.area.emplace<render_data::SingleMapArea>();
+  CHECK(render_data::mode(state) == render_data::RenderMode::SingleMap);
+
+  state.area.emplace<render_data::WorldArea>();
+  CHECK(render_data::mode(state) == render_data::RenderMode::World);
+
+  state.area = std::monostate{};
+  CHECK(render_data::mode(state) == render_data::RenderMode::None);
+}
+
+TEST_CASE("build_map_view: no area gives an empty single-map view") {
+  const render_data::RenderState state;
+  const corundum::core::GameConfig cfg;
+
+  const corundum::world::MapView view = corundum::world::build_map_view(state, cfg);
+
+  CHECK(view.world_area == nullptr);
+  CHECK_EQ(view.collisions.size(), 0u);
+  CHECK_EQ(view.collision_triangles.size(), 0u);
+  CHECK_EQ(view.world_w_tiles, 0.f);
+  CHECK_EQ(view.world_h_tiles, 0.f);
+}
+
+TEST_CASE("build_map_view: a world with no resident chunks gives an empty single-map view") {
+  render_data::RenderState state;
+  state.area.emplace<render_data::WorldArea>();
+  const corundum::core::GameConfig cfg;
+
+  const corundum::world::MapView view = corundum::world::build_map_view(state, cfg);
+
+  CHECK(view.world_area == nullptr);
+  CHECK_EQ(view.world_w_tiles, 0.f);
 }
 
 TEST_CASE("snapshot_previous_step: keys entity positions by entity index and copies the camera") {
@@ -124,15 +164,16 @@ TEST_CASE("snapshot_previous_step: keys entity positions by entity index and cop
 
   corundum::render::snapshot_previous_step(engine.render, engine.scene);
 
-  CHECK(engine.render.prev_col[5] == 3.5f);
-  CHECK(engine.render.prev_row[5] == 7.25f);
-  CHECK(engine.render.prev_generation[5] == 1u);
-  CHECK(engine.render.prev_col[2] == 10.f);
-  CHECK(engine.render.prev_row[2] == 2.f);
-  CHECK(engine.render.prev_generation[2] == 3u);
-  CHECK(engine.render.prev_cam_x == 100.f);
-  CHECK(engine.render.prev_cam_y == 50.f);
-  CHECK(engine.render.prev_zoom == 2.f);
+  const auto &snapshot = engine.render.previous_step;
+  CHECK_EQ(snapshot.col[5], 3.5f);
+  CHECK_EQ(snapshot.row[5], 7.25f);
+  CHECK_EQ(snapshot.generation[5], 1u);
+  CHECK_EQ(snapshot.col[2], 10.f);
+  CHECK_EQ(snapshot.row[2], 2.f);
+  CHECK_EQ(snapshot.generation[2], 3u);
+  CHECK_EQ(snapshot.camera.x, 100.f);
+  CHECK_EQ(snapshot.camera.y, 50.f);
+  CHECK_EQ(snapshot.zoom, 2.f);
 }
 
 TEST_CASE("interpolated_tile_position: a swap-and-pop removal after the snapshot does not misattribute it") {
@@ -158,9 +199,9 @@ TEST_CASE("interpolated_tile_position: no snapshot, or a recycled index, draws t
   CHECK(unsnapshotted.x == doctest::Approx(4.f));
   CHECK(unsnapshotted.y == doctest::Approx(6.f));
 
-  state.prev_col[3] = 0.f;
-  state.prev_row[3] = 0.f;
-  state.prev_generation[3] = 1;
+  state.previous_step.col[3] = 0.f;
+  state.previous_step.row[3] = 0.f;
+  state.previous_step.generation[3] = 1;
   const corundum::entities::EntityId recycled{.index = 3, .generation = 2};
   const auto drawn = corundum::render::interpolated_tile_position(state, recycled, 4.f, 6.f, 0.5f);
   CHECK(drawn.x == doctest::Approx(4.f));
@@ -172,9 +213,8 @@ TEST_CASE("render: alpha 0 draws the start-of-step camera and alpha 1 the curren
 
   corundum::Engine engine;
   corundum::platform::null::NullRenderer renderer;
-  engine.render.prev_cam_x = 100.f;
-  engine.render.prev_cam_y = 50.f;
-  engine.render.prev_zoom = 2.f;
+  engine.render.previous_step.camera = {.x = 100.f, .y = 50.f};
+  engine.render.previous_step.zoom = 2.f;
   engine.scene.camera.x = 140.f;
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
@@ -196,9 +236,8 @@ TEST_CASE("render: a normal single-step frame still blends the camera between sn
   corundum::Engine engine;
   corundum::platform::null::NullRenderer renderer;
 
-  engine.render.prev_cam_x = 100.f;
-  engine.render.prev_cam_y = 50.f;
-  engine.render.prev_zoom = 2.f;
+  engine.render.previous_step.camera = {.x = 100.f, .y = 50.f};
+  engine.render.previous_step.zoom = 2.f;
   engine.scene.camera.x = 140.f;
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
@@ -219,11 +258,11 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   // can't bite when anything (camera shake, knockback, chunk-local coords) goes negative.
   namespace render_system = corundum::render;
   render_data::RenderState state;
-  state.mode = render_data::RenderMode::World;
-  state.manifest.chunk_size = 16;
-  state.manifest.chunks_wide = 4;
-  state.manifest.chunks_tall = 4;
-  state.chunks.set_last_center({.col = 0, .row = 0});
+  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  world_area.manifest.chunk_size = 16;
+  world_area.manifest.chunks_wide = 4;
+  world_area.manifest.chunks_tall = 4;
+  world_area.chunks.set_last_center({.col = 0, .row = 0});
 
   // Single active chunk (0, 0) with cell (0, 0) elevation = 42 — distinguishable from 0.
   render_data::ChunkEntry chunk00;
@@ -238,7 +277,7 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
   layer.elevation.assign(static_cast<std::size_t>(16 * 16), 0);
   layer.elevation[0] = 42; // (col=0, row=0)
   chunk00.tilemap.layers.push_back(std::move(layer));
-  state.chunks.add_active(std::move(chunk00));
+  world_area.chunks.add_active(std::move(chunk00));
 
   // col_f = -0.5: without fix, truncate → col=0, chunk (0, 0) cell (0, 0) returns 42.
   //                 with fix,    floor   → col=-1, chunk (-1, 0) absent → returns 0.
@@ -248,11 +287,11 @@ TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell)
 TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk window dirty") {
   namespace render_system = corundum::render;
   render_data::RenderState state;
-  state.mode = render_data::RenderMode::World;
-  state.manifest.chunk_size = 16;
-  state.manifest.chunks_wide = 3;
-  state.manifest.chunks_tall = 3;
-  state.manifest.base_dir = std::filesystem::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "tilemaps";
+  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  world_area.manifest.chunk_size = 16;
+  world_area.manifest.chunks_wide = 3;
+  world_area.manifest.chunks_tall = 3;
+  world_area.manifest.base_dir = std::filesystem::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "tilemaps";
 
   // One resident chunk, with isometric geometry set directly, so sync_active_chunks() can compute
   // the window without a load_world() bootstrap; chunk (0,0) then streams in from the fixture.
@@ -260,9 +299,9 @@ TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk w
   seed.coord = {.col = 1, .row = 1};
   seed.tilemap = make_flat_map();
   seed.tilemap.iso_diamond_w = 32;
-  state.chunks.set_last_center({.col = 1, .row = 1});
-  state.chunks.add_active(std::move(seed));
-  (void)state.chunks.consume_dirty(); // simulate "already synced this frame" before the load
+  world_area.chunks.set_last_center({.col = 1, .row = 1});
+  world_area.chunks.add_active(std::move(seed));
+  (void)world_area.chunks.consume_dirty(); // simulate "already synced this frame" before the load
 
   corundum::world::Scene scene;
   scene.world.transforms.insert(scene.player, 24.f, 24.f, 0.f, 0.f); // tile (24,24) -> chunk (1,1)
@@ -272,8 +311,8 @@ TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk w
 
   render_system::stream_world_chunks(disk(), renderer, state, cfg, scene);
 
-  CHECK(state.chunks.active_size() == 2);
-  CHECK(state.chunks.consume_dirty()); // fails before the fix
+  CHECK_EQ(world_area.chunks.active_size(), 2);
+  CHECK(world_area.chunks.consume_dirty()); // fails before the fix
 }
 
 TEST_CASE("chunk window shift: moving the window prunes the column that fell outside it") {
@@ -284,6 +323,7 @@ TEST_CASE("chunk window shift: moving the window prunes the column that fell out
   // Village is 7x7 (chunk_0_0..chunk_6_6). Start centered at (3,3): active = cols 2..4 x rows 2..4.
   // Player walks east one chunk: new center (4,3) -> desired cols 3..5 x rows 2..4.
   render_data::RenderState state = shifted_window_state();
+  const auto &world_area = corundum::test::world_area_of(state);
 
   const std::vector<tilemap::ChunkCoord> k_pruned_column{
       {.col = 2, .row = 2},
@@ -294,17 +334,18 @@ TEST_CASE("chunk window shift: moving the window prunes the column that fell out
       {.col = 3, .row = 2},
       {.col = 4, .row = 4},
   };
-  CHECK(std::ranges::none_of(k_pruned_column, [&](tilemap::ChunkCoord c) { return state.chunks.has(c); }));
-  CHECK(std::ranges::all_of(k_surviving_column, [&](tilemap::ChunkCoord c) { return state.chunks.has(c); }));
+  CHECK(std::ranges::none_of(k_pruned_column, [&](tilemap::ChunkCoord c) { return world_area.chunks.has(c); }));
+  CHECK(std::ranges::all_of(k_surviving_column, [&](tilemap::ChunkCoord c) { return world_area.chunks.has(c); }));
 }
 
 TEST_CASE("chunk window shift: the newly-adjacent column is queued and the centre advances") {
   // Continuation of the shift above: the east column (col 5) is the only new chunk the window
   // needs, so it is queued for load_one_pending_chunk to stream in on a later frame.
   render_data::RenderState state = shifted_window_state();
+  auto &world_area = corundum::test::world_area_of(state);
 
   std::vector<tilemap::ChunkCoord> pending_coords;
-  while (const std::optional<tilemap::ChunkCoord> c = state.chunks.pop_pending())
+  while (const std::optional<tilemap::ChunkCoord> c = world_area.chunks.pop_pending())
     pending_coords.push_back(*c);
 
   const std::vector<tilemap::ChunkCoord> k_east_column{
@@ -314,7 +355,7 @@ TEST_CASE("chunk window shift: the newly-adjacent column is queued and the centr
   };
   CHECK(std::ranges::is_permutation(k_east_column, pending_coords));
   // A 7x7 world means the player can keep walking further out; the window shifted, not fixed.
-  CHECK(state.chunks.last_center() == tilemap::ChunkCoord{.col = 4, .row = 3});
+  CHECK_EQ(world_area.chunks.last_center(), (tilemap::ChunkCoord{.col = 4, .row = 3}));
 }
 
 TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-front draw order") {
@@ -324,10 +365,10 @@ TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-fron
   // seam flipped, making the boundary look like one tilemap riding slightly over the other.
   constexpr int k_chunk_size = 16;
   render_data::RenderState state;
-  state.mode = render_data::RenderMode::World;
-  state.manifest.chunk_size = k_chunk_size;
-  state.manifest.chunks_wide = 7;
-  state.manifest.chunks_tall = 7;
+  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  world_area.manifest.chunk_size = k_chunk_size;
+  world_area.manifest.chunks_wide = 7;
+  world_area.manifest.chunks_tall = 7;
 
   const auto coords_of = [](const render_data::ChunkWindow &window) {
     std::vector<tilemap::ChunkCoord> coords;
@@ -339,37 +380,37 @@ TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-fron
   // Mirrors sync_active_chunks() + load_one_pending_chunk(): recenter, prune what fell outside
   // the radius-1 window, then add each newly-adjacent chunk as it finishes loading.
   const auto load_window = [&](tilemap::ChunkCoord center) {
-    state.chunks.set_last_center(center);
+    world_area.chunks.set_last_center(center);
     const std::vector<tilemap::ChunkCoord> desired =
-        tilemap::active_chunk_coords(center, render_data::ChunkWindow::k_radius, state.manifest);
-    state.chunks.prune_active(
+        tilemap::active_chunk_coords(center, render_data::ChunkWindow::k_radius, world_area.manifest);
+    world_area.chunks.prune_active(
         [&](const render_data::ChunkEntry &e) { return std::ranges::contains(desired, e.coord); });
     for (const tilemap::ChunkCoord c : desired) {
-      if (state.chunks.has(c))
+      if (world_area.chunks.has(c))
         continue;
       render_data::ChunkEntry e;
       e.coord = c;
       e.tilemap = make_flat_map();
-      state.chunks.add_active(std::move(e));
+      world_area.chunks.add_active(std::move(e));
     }
   };
 
   load_window({.col = 3, .row = 3});
-  const std::vector<tilemap::ChunkCoord> boot_order = coords_of(state.chunks);
+  const std::vector<tilemap::ChunkCoord> boot_order = coords_of(world_area.chunks);
 
   // Walk south one chunk, then back: the row that streams out and back in must not reorder.
   load_window({.col = 3, .row = 4});
   load_window({.col = 3, .row = 3});
 
-  CHECK(coords_of(state.chunks) == boot_order);
+  CHECK_EQ(coords_of(world_area.chunks), boot_order);
   // The invariant behind it: back-to-front == ascending (row, col).
-  CHECK(std::ranges::is_sorted(state.chunks.active(),
+  CHECK(std::ranges::is_sorted(world_area.chunks.active(),
                                [](const render_data::ChunkEntry &a, const render_data::ChunkEntry &b) {
                                  return std::pair{a.coord.row, a.coord.col} < std::pair{b.coord.row, b.coord.col};
                                }));
 }
 
-TEST_CASE("ChunkWindow — a failed chunk counts as known until clear()") {
+TEST_CASE("ChunkWindow — a failed chunk is known but not active") {
   render_data::ChunkWindow window;
   const tilemap::ChunkCoord c{.col = 2, .row = 1};
   CHECK_FALSE(window.has(c));
@@ -377,9 +418,6 @@ TEST_CASE("ChunkWindow — a failed chunk counts as known until clear()") {
   window.mark_failed(c);
   CHECK(window.has(c));
   CHECK_FALSE(window.is_active(c));
-
-  window.clear();
-  CHECK_FALSE(window.has(c));
 }
 
 TEST_CASE("ChunkWindow — prune_pending drops coords the window has left") {

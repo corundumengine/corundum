@@ -54,6 +54,7 @@
 #include <string_view>
 #include <tuple>
 #include <utility>
+#include <variant>
 
 namespace corundum {
 
@@ -584,7 +585,8 @@ namespace corundum {
           // World mode with nothing streamed in has no actors to simulate, but time still advances
           // and the input edge must still be consumed: poll() only ORs presses in, so a press
           // latched here would fire the moment the world activates.
-          if (engine.render.mode != render::RenderMode::World || !engine.render.chunks.active_empty()) {
+          const auto *world_area = std::get_if<render::WorldArea>(&engine.render.area);
+          if (world_area == nullptr || !world_area->chunks.active_empty()) {
             const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
             world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
             // Core simulation is intentionally not wrapped: unlike the game seams (dialogue

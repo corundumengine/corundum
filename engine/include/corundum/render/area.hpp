@@ -26,11 +26,11 @@ namespace corundum::world {
 /// textures (AGENTS.md, "The render layer owns world data").
 namespace corundum::render {
 
-  /** @brief Unload the current area: release its textures, clear every world field and return to
+  /** @brief Unload the current area: release its textures, reset the area to none and return to
    *  RenderMode::None. Process-lifetime state (fonts, sprite_index, panel_skin, ui_scale,
    *  text_speed) is kept. Purges unreferenced textures, so call it between frames.
    *
-   *  @post state.mode is RenderMode::None and state.area_texture_ids is empty.
+   *  @post mode(state) is RenderMode::None and state.area_texture_ids is empty.
    */
   void unload_world(corundum::platform::Renderer &r, render::RenderState &state);
 
@@ -88,7 +88,7 @@ namespace corundum::render {
    *                         and re-centres the streaming window on that tile's chunk.
    *  @return WorldLoadInfo on success, or std::unexpected with an error message.
    *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
-   *  @post state.mode == RenderMode::World and state.chunks is non-empty, or an error is returned.
+   *  @post On success, std::holds_alternative<WorldArea>(state.area) and the window is non-empty.
    */
   [[nodiscard]] std::expected<WorldLoadInfo, std::string>
   load_world(const corundum::core::ContentSource &content, corundum::platform::Renderer &r, render::RenderState &state,

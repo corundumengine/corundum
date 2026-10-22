@@ -28,6 +28,7 @@
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <variant>
 
 namespace corundum::debug {
 
@@ -103,13 +104,15 @@ namespace corundum::debug {
     /// active chunk containing the player in world mode. Empty when neither applies.
     [[nodiscard]] std::string resolve_map_name(const render::RenderState &render, const entities::World &w,
                                                entities::EntityId player) {
-      if (render.mode == render::RenderMode::SingleMap && !render.map_data.tilemap.path.empty())
-        return render.map_data.tilemap.path;
+      const auto *single = std::get_if<render::SingleMapArea>(&render.area);
+      if (single != nullptr && !single->map.tilemap.path.empty())
+        return single->map.tilemap.path;
 
-      if (render.mode != render::RenderMode::World || render.chunks.active_empty())
+      const auto *world_area = std::get_if<render::WorldArea>(&render.area);
+      if (world_area == nullptr || world_area->chunks.active_empty())
         return {};
 
-      const int chunk_size = render.manifest.chunk_size;
+      const int chunk_size = world_area->manifest.chunk_size;
       if (chunk_size <= 0 || !w.transforms.has(player))
         return {};
 
@@ -117,7 +120,7 @@ namespace corundum::debug {
           .col = static_cast<int>(w.transforms.pos_col(player)) / chunk_size,
           .row = static_cast<int>(w.transforms.pos_row(player)) / chunk_size,
       };
-      for (const render::ChunkEntry &entry : render.chunks.active()) {
+      for (const render::ChunkEntry &entry : world_area->chunks.active()) {
         if (entry.coord == player_chunk)
           return entry.tilemap.path;
       }
@@ -128,18 +131,12 @@ namespace corundum::debug {
 
   core::math::IsometricParams HudOverlay::resolve_isometric(const render::RenderState &render,
                                                             const core::GameConfig &cfg) noexcept {
-    if (render.mode == render::RenderMode::World && !render.chunks.active_empty()) {
-      const world::tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
-      const int total_h = render.manifest.tiles_tall > 0 ? render.manifest.tiles_tall
-                                                         : render.manifest.chunks_tall * render.manifest.chunk_size;
-      return core::math::compute_isometric_params(first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale,
-                                                  cfg.elevation_step_px);
-    }
-    if (render.mode == render::RenderMode::SingleMap && !render.map_data.tilemap.tilesets.empty()) {
-      const world::tilemap::Tilemap &tm = render.map_data.tilemap;
-      return core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
-                                                  cfg.elevation_step_px);
-    }
+    const auto *world_area = std::get_if<render::WorldArea>(&render.area);
+    if (world_area != nullptr && !world_area->chunks.active_empty())
+      return render::isometric_params(*world_area, cfg);
+    const auto *single = std::get_if<render::SingleMapArea>(&render.area);
+    if (single != nullptr && !single->map.tilemap.tilesets.empty())
+      return render::isometric_params(*single, cfg);
     return {};
   }
 
@@ -315,7 +312,7 @@ namespace corundum::debug {
 
       // With no world loaded (the Title), only the frame-rate and draw lines mean anything; the world
       // lines would read as zeros and "(none)", so one "World: none" line stands in for them.
-      if (render.mode == render::RenderMode::None) {
+      if (render::mode(render) == render::RenderMode::None) {
         std::format_to(std::back_inserter(lines.begin_line()), "World:  none");
         return;
       }
@@ -337,9 +334,10 @@ namespace corundum::debug {
 
       std::format_to(std::back_inserter(lines.begin_line()), "Camera:  x ({:7.1f}), y ({:7.1f})", scene.camera.x,
                      scene.camera.y);
+      const auto *world_area = std::get_if<render::WorldArea>(&render.area);
       std::format_to(std::back_inserter(lines.begin_line()), "Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}",
-                     static_cast<int>(render.chunks.active_size()), values.collision_rects, values.collision_tris,
-                     static_cast<int>(w.entities.alive()));
+                     world_area != nullptr ? world_area->chunks.active_size() : 0uz, values.collision_rects,
+                     values.collision_tris, static_cast<int>(w.entities.alive()));
       std::format_to(std::back_inserter(lines.begin_line()), "Map:  {}", values.map_name);
 
       if (scene.hovered_tile)

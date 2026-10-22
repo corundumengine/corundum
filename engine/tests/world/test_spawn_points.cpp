@@ -5,6 +5,7 @@
 
 #include "font_fixtures.hpp"
 #include "memory_content_source.hpp"
+#include "render_state_fixtures.hpp"
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 
@@ -13,6 +14,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/world.hpp>
+#include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/world/actors/actor.hpp>
@@ -297,12 +299,12 @@ namespace {
   corundum::render::RenderState make_world_render(std::initializer_list<corundum::world::tilemap::ChunkCoord> coords,
                                                   int chunk_size) {
     corundum::render::RenderState render;
-    render.mode = corundum::render::RenderMode::World;
-    render.manifest.chunk_size = chunk_size;
+    auto &world_area = render.area.emplace<corundum::render::WorldArea>();
+    world_area.manifest.chunk_size = chunk_size;
     for (const auto coord : coords) {
       corundum::render::ChunkEntry entry;
       entry.coord = coord;
-      render.chunks.add_active(std::move(entry));
+      world_area.chunks.add_active(std::move(entry));
     }
     return render;
   }
@@ -426,12 +428,13 @@ TEST_CASE("sync_chunk_actors — retains a departed set until flush, then prunes
 
   const auto cfg = make_player_config(spawn_dir);
   auto render = make_world_render({{.col = 0, .row = 0}, {.col = 1, .row = 0}}, 16);
+  auto &world_area = corundum::test::world_area_of(render);
   corundum::world::Scene scene;
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry);
   REQUIRE(scene.chunk_actors.size() == 2);
 
   // Depart chunk (1,0): the set is retained while its queued deletion is still live.
-  render.chunks.prune_active([](const corundum::render::ChunkEntry &e) { return e.coord.col == 0; });
+  world_area.chunks.prune_active([](const corundum::render::ChunkEntry &e) { return e.coord.col == 0; });
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry);
   CHECK(scene.chunk_actors.size() == 2);
 
@@ -515,17 +518,18 @@ TEST_CASE("sync_chunk_actors — a departed chunk that returns after the flush r
 
   const auto cfg = make_player_config(spawn_dir);
   auto render = make_world_render({{.col = 0, .row = 0}, {.col = 1, .row = 0}}, 16);
+  auto &world_area = corundum::test::world_area_of(render);
   corundum::world::Scene scene;
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry);
 
-  render.chunks.prune_active([](const corundum::render::ChunkEntry &e) { return e.coord.col == 0; });
+  world_area.chunks.prune_active([](const corundum::render::ChunkEntry &e) { return e.coord.col == 0; });
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry); // queues c10 for deletion
   corundum::entities::flush_deletions(scene.world);
   REQUIRE_FALSE(corundum::entities::find_actor(scene.world, "c10").has_value());
 
   corundum::render::ChunkEntry returning;
   returning.coord = {.col = 1, .row = 0};
-  render.chunks.add_active(std::move(returning));
+  world_area.chunks.add_active(std::move(returning));
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry);
 
   CHECK(corundum::entities::find_actor(scene.world, "c10").has_value());
@@ -539,7 +543,7 @@ TEST_CASE("sync_chunk_actors — no-op outside World mode") {
 
   const auto cfg = make_player_config(spawn_dir);
   auto render = make_world_render({{.col = 0, .row = 0}}, 16);
-  render.mode = corundum::render::RenderMode::SingleMap;
+  render.area.emplace<corundum::render::SingleMapArea>();
   corundum::world::Scene scene;
 
   corundum::world::sync_chunk_actors(disk(), scene, render, cfg, registry);

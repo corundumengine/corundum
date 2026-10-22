@@ -3,6 +3,7 @@
 
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/core/verify.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/render/area.hpp>
@@ -19,6 +20,7 @@
 #include "core/warn_log.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -26,6 +28,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 namespace corundum::world {
 
@@ -73,23 +76,25 @@ namespace corundum::world {
         render::load_world(engine.content_source(), *engine.renderer, engine.render, engine.cfg, params);
     if (!world_result)
       return std::unexpected(std::move(world_result).error());
-    if (engine.render.chunks.active_empty())
-      return std::unexpected("world load produced no active chunks");
+    // load_world's @post: on success the area is a World with at least one resident chunk.
+    const auto *world_area = std::get_if<render::WorldArea>(&engine.render.area);
+    core::verify(world_area != nullptr, "enter_world: load_world did not produce a WorldArea");
+    assert(!world_area->chunks.active_empty());
 
     const corundum::render::WorldLoadInfo &info = *world_result;
     const corundum::entities::Position spawn_pos{.col = info.spawn_world_pos.x, .row = info.spawn_world_pos.y};
 
     std::expected<std::unique_ptr<Scene>, std::string> scene_result =
         world::spawn_world(engine.content_source(), engine.cfg, engine.characters,
-                           engine.render.chunks.active_at(0).tilemap, spawn_pos, false);
+                           world_area->chunks.active_at(0).tilemap, spawn_pos, false);
     if (!scene_result)
       return std::unexpected(std::move(scene_result).error());
     engine.scene = std::move(**scene_result);
-    engine.scene.zone_id = world_zone_id(engine.render.manifest, engine.cfg.paths.world_manifest_path);
+    engine.scene.zone_id = world_zone_id(world_area->manifest, engine.cfg.paths.world_manifest_path);
     world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
 
     const auto [world_width, world_height] =
-        corundum::world::tilemap::world_bounds_iso(engine.render.manifest, info.half_tw, info.half_th);
+        corundum::world::tilemap::world_bounds_iso(world_area->manifest, info.half_tw, info.half_th);
     const WorldBounds bounds{.width_px = world_width, .height_px = world_height};
     // elev_step is pre-multiplied by tile_scale to match compute_isometric_params()
     // for consistency with the renderer's scaled iso.elev_step. Designated
@@ -132,7 +137,7 @@ namespace corundum::world {
 
       // Cross-map (enter-interior) transition. Mark the journey only when actually leaving
       // the World — an interior→interior (nested) cross-map transition must not overwrite it.
-      if (engine.render.mode == render::RenderMode::World)
+      if (render::mode(engine.render) == render::RenderMode::World)
         engine.entered_from_world = true;
 
       if (auto result = apply_spawn(engine, SpawnMode::SingleMap, transition.target_map, "",

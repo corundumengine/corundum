@@ -172,8 +172,8 @@ namespace corundum::save {
     state.meta.playtime_seconds = playtime_seconds;
     const auto now = std::chrono::system_clock::now().time_since_epoch();
     state.meta.saved_at_unix = std::chrono::duration_cast<std::chrono::seconds>(now).count();
-    state.mode =
-        engine.render.mode == render::RenderMode::World ? std::string{k_mode_world} : std::string{k_mode_single_map};
+    state.mode = render::mode(engine.render) == render::RenderMode::World ? std::string{k_mode_world}
+                                                                          : std::string{k_mode_single_map};
 
     if (state.mode == k_mode_world) {
       state.map_or_world_id = engine.cfg.paths.world_manifest_path;

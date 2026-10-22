@@ -11,6 +11,7 @@
 #include <corundum/world/pathfinding.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 
+#include "render_state_fixtures.hpp"
 #include "world_test_fixtures.hpp"
 
 namespace {
@@ -67,6 +68,6 @@ TEST_CASE("build_map_view — world mode wires up the walkability graph") {
 
   const corundum::core::GameConfig cfg;
   const MapView mv = corundum::world::build_map_view(state, cfg);
-  CHECK(mv.walkability == &state.agg_walkability);
+  CHECK(mv.walkability == &corundum::test::world_area_of(state).aggregates.walkability);
   CHECK(mv.elevation_map == nullptr);
 }

@@ -347,7 +347,7 @@ namespace corundum::gameplay {
      *  the flags and the Playthrough record, then open_title(). Used by Quit to Title, Game over
      *  "Return to Title", and as the fallback when a new game or load cannot build its world.
      *
-     *  @post engine.render.mode is RenderMode::None, engine.flags is empty and
+     *  @post render::mode(engine.render) is RenderMode::None, engine.flags is empty and
      *        engine.scene.ui.top() is screens::Title.
      */
     void return_to_title();

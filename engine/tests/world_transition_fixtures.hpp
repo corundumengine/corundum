@@ -12,6 +12,7 @@
 #include <corundum/world/update.hpp>
 
 #include "font_fixtures.hpp"
+#include "render_state_fixtures.hpp"
 
 #include <cstddef>
 #include <expected>

@@ -73,14 +73,14 @@ TEST_CASE("engine screen transition — a portal transition fades out, swaps at 
   // First frame arms the fade-out but leaves the scene untouched.
   engine.advance_scene_transition();
   CHECK(engine.screen_transition.phase() == TransitionPhase::FadingOut);
-  CHECK(engine.render.mode == corundum::render::RenderMode::World);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::World);
   REQUIRE(engine.scene.pending_transition.has_value());
 
   // Once black, the swap runs and the new scene starts fading in.
   engine.screen_transition.update(corundum::ui::ScreenTransition::k_fade_duration_seconds);
   REQUIRE(engine.screen_transition.at_black());
   engine.advance_scene_transition();
-  CHECK(engine.render.mode == corundum::render::RenderMode::SingleMap);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::SingleMap);
   CHECK_FALSE(engine.scene.pending_transition.has_value());
   CHECK(engine.screen_transition.phase() == TransitionPhase::FadingIn);
 

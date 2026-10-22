@@ -12,7 +12,8 @@
 
 namespace corundum::render {
   struct RenderState;
-}
+  struct WorldArea;
+} // namespace corundum::render
 
 namespace corundum::world {
 
@@ -35,24 +36,25 @@ namespace corundum::world {
     float character_scale{1.f}; ///< Character/entity sprite render scale.
     float tile_scale{1.f};      ///< Tile render scale.
     /// Tile-grid portals for the active map/world. In world mode this aliases
-    /// RenderState::agg_portals, rebuilt by rebuild_world_aggregates(); the span is
+    /// render::WorldArea::aggregates.portals, rebuilt by rebuild_world_aggregates(); the span is
     /// invalidated when that buffer is rebuilt.
     std::span<const corundum::world::Portal> portals;
     /// Single-map tilemap, used to look up an entity's own elevation for elevation-aware
-    /// collision. Null in chunked/streamed World mode (use world_render + elevation_at_tile instead).
+    /// collision. Null in chunked/streamed World mode (use world_area + elevation_at_tile instead).
     const corundum::world::tilemap::Tilemap *elevation_map{nullptr};
     /// Walkability graph for movement gating across too-steep elevation edges. In single-map
-    /// mode this is RenderState::map_walkability; in world mode it is RenderState::agg_walkability,
-    /// a graph spanning the active chunk window (origin-offset into global tile coords).
+    /// mode this is render::SingleMapArea::walkability; in world mode it is
+    /// render::WorldAggregates::walkability, a graph spanning the active chunk window
+    /// (origin-offset into global tile coords).
     const corundum::world::tilemap::WalkabilityGraph *walkability{nullptr};
     /// Active-chunk window for world-mode elevation lookups via elevation_under().
     /// Set by build_map_view() only in World render mode; nullptr in single-map mode.
-    const corundum::render::RenderState *world_render{nullptr};
+    const corundum::render::WorldArea *world_area{nullptr};
   };
 
   /** @brief Elevation of the tile under (col_f, row_f) for any render mode.
    *
-   * Routes through elevation_map (single-map, interpolated) or world_render
+   * Routes through elevation_map (single-map, interpolated) or world_area
    * (world-mode, discrete chunk lookup via render::elevation_under).
    * Returns 0 if no elevation data is available at the queried position.
    *
@@ -66,7 +68,7 @@ namespace corundum::world {
   /** @brief Discrete (integer) tile elevation at cell (col, row) for any render mode.
    *
    * Single-map mode reads elevation_map directly; world mode routes through
-   * render::elevation_under() via world_render. Returns 0 when neither source is set.
+   * render::elevation_under() via world_area. Returns 0 when neither source is set.
    *
    * @param[in] map MapView built for the current frame.
    * @param[in] col Integer tile column.
@@ -85,12 +87,13 @@ namespace corundum::world {
    * @param[in] render Current render state (collision data, tilemap info).
    * @param[in] cfg    Game configuration (tile scale).
    * @return A fully-populated MapView ready for the simulation step.
-   * @pre In World mode, @p render has at least one active chunk and every active chunk
-   *      shares the same diamond size; world-mode collision, walkability and portal
-   *      aggregates have already been rebuilt by rebuild_world_aggregates().
+   * @pre In World mode with resident chunks, every active chunk shares one diamond size
+   *      and the world aggregates have already been rebuilt by rebuild_world_aggregates().
    * @note The returned view borrows @p render (collision spans, walkability graph, portal
-   *       span and the world_render pointer); any mutation of @p render, including the next
+   *       span and the world_area pointer); any mutation of @p render, including the next
    *       aggregate rebuild, invalidates it.
+   * @note With no area, or a world with no resident chunks, returns the view of an empty
+   *       single map.
    */
   [[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept;
 

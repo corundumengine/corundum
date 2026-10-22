@@ -30,10 +30,10 @@ namespace corundum::world {
    *
    * @details Works in both single-map and chunked/world mode. In single-map mode elevation
    * spans the map's own tilemap (map.elevation_map); in world mode it uses
-   * render::elevation_under via map.world_render, spanning the whole world grid. In world
+   * render::elevation_under via map.world_area, spanning the whole world grid. In world
    * mode a cell whose chunk is not resident reads as elevation 0, so a hover over an
    * unloaded region resolves to a tile rather than returning nullopt. Returns nullopt when
-   * there is no elevation source (neither map.elevation_map nor map.world_render is set),
+   * there is no elevation source (neither map.elevation_map nor map.world_area is set),
    * when camera.zoom is non-positive, or when the iso params are degenerate.
    *
    * For each candidate cell the mouse position is inverted assuming that cell's real

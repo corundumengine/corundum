@@ -8,30 +8,25 @@
 /// the global-tile queries that resolve a tile to its owning chunk.
 namespace corundum::render {
 
-  /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
-   *
-   * In world mode looks up the owning chunk via the active-chunk window and returns
-   * discrete elevation. In single-map mode delegates to interpolated_elevation_at().
-   * Returns 0 if no tilemap is loaded at the given coordinates.
-   *
-   * @param[in] state Render state carrying active-chunk data or single-tilemap data.
-   * @param[in] col_f Fractional tile column.
-   * @param[in] row_f Fractional tile row.
-   * @return Tile elevation (≥0) at the queried position; 0 when out of bounds.
-   */
-  [[nodiscard]] float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept;
+  /** @brief Elevation of the world tile under (col_f, row_f), resolved through the active chunk window.
+   *  Discrete per tile; 0 outside the window or when no chunk is resident. */
+  [[nodiscard]] float elevation_under(const WorldArea &area, float col_f, float row_f) noexcept;
+
+  /** @brief Elevation under (col_f, row_f) in the loaded area: discrete via the chunk window in World
+   *  mode, interpolated in single-map mode, 0 with no area or outside it. */
+  [[nodiscard]] float elevation_under(const RenderState &state, float col_f, float row_f) noexcept;
 
   /** @brief Rebuild the world-mode aggregated collision rects and triangles from active chunks.
    *
-   * Clears and repopulates @c state.agg_collisions and @c state.agg_triangles by
-   * walking @c state.chunks.active() and offsetting each chunk's tile-grid-local
+   * Clears and repopulates @c area.aggregates.collisions and @c area.aggregates.triangles by
+   * walking @c area.chunks.active() and offsetting each chunk's tile-grid-local
    * collision geometry into world tile-grid coordinates (offsets are in tile units,
    * matching the tile-grid coordinate space the rest of the resolver operates in).
    *
-   * @param[in,out] state  Render state in World mode whose aggregates will be overwritten.
+   * @param[in,out] area  World area whose aggregates will be overwritten.
    * @note No-op when the chunk window has no active chunks.
    */
-  void rebuild_collision(render::RenderState &state);
+  void rebuild_collision(WorldArea &area);
 
   /** @brief Rebuild the world-mode aggregated walkability graph from the active chunks.
    *
@@ -40,10 +35,10 @@ namespace corundum::render {
    * the offset). Elevation-delta gating uses global lookups, so chunk seams gate
    * correctly. Clears the graph (no-op otherwise) when the chunk window is empty.
    *
-   * @param[in,out] state           Render state in World mode.
+   * @param[in,out] area            World area.
    * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
    */
-  void rebuild_world_walkability(render::RenderState &state, int max_step_height);
+  void rebuild_world_walkability(WorldArea &area, int max_step_height);
 
   /** @brief Rebuild every world-mode aggregate for the active chunk window.
    *
@@ -51,9 +46,9 @@ namespace corundum::render {
    * step so the three stay in sync with the active chunk set. stream_world_chunks() and
    * load_world() call it after chunk mutations.
    *
-   * @param[in,out] state           Render state in World mode.
+   * @param[in,out] area            World area.
    * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
    */
-  void rebuild_world_aggregates(render::RenderState &state, int max_step_height);
+  void rebuild_world_aggregates(WorldArea &area, int max_step_height);
 
 } // namespace corundum::render

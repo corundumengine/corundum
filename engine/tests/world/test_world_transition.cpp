@@ -19,6 +19,7 @@
 #include <corundum/world/ui_stack.hpp>
 #include <corundum/world/update.hpp>
 
+#include "render_state_fixtures.hpp"
 #include "world_transition_fixtures.hpp"
 
 #include <expected>
@@ -111,7 +112,7 @@ TEST_CASE("world transition — boot lands in World mode at the manifest centre"
 
   REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
 
-  CHECK(engine.render.mode == RenderMode::World);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{8, 8});
   CHECK_FALSE(engine.entered_from_world);
   // World zone id comes from the manifest's directory name.
@@ -127,11 +128,11 @@ TEST_CASE("world transition — unload_world leaves no world, no player and an e
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
   REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
-  REQUIRE(engine.render.mode == RenderMode::World);
+  REQUIRE(corundum::render::mode(engine.render) == RenderMode::World);
 
   corundum::world::unload_world(engine);
 
-  CHECK(engine.render.mode == RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::None);
   CHECK_FALSE(corundum::world::player_present(engine.scene));
   CHECK(engine.scene.ui.empty());
   CHECK(engine.render.area_texture_ids.empty());
@@ -153,7 +154,7 @@ TEST_CASE("world transition — World cross-map portal marks the journey and ent
       MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
 
-  CHECK(engine.render.mode == RenderMode::SingleMap);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::SingleMap);
   CHECK(player_tile(engine) == std::pair{1, 2});
   // Entering an interior from the world records the journey so a later exit can return.
   CHECK(engine.entered_from_world);
@@ -181,7 +182,7 @@ TEST_CASE("world transition — nested SingleMap cross-map does not clear the ma
       MapTransition{.target_map = interior_path(fixtures), .spawn_col = 5, .spawn_row = 6, .return_to_world = false};
   handle_map_transition(engine);
 
-  CHECK(engine.render.mode == RenderMode::SingleMap);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::SingleMap);
   CHECK(engine.entered_from_world);
 
   engine.cleanup();
@@ -198,7 +199,7 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
   engine.scene.pending_transition =
       MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
-  REQUIRE(engine.render.mode == RenderMode::SingleMap);
+  REQUIRE(corundum::render::mode(engine.render) == RenderMode::SingleMap);
 
   // Exit the interior: a return_to_world portal bearing the overworld return tile (12,3),
   // which lies in chunk (1,0) — off the manifest centre (1,1), proving window re-centering.
@@ -206,10 +207,11 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
       MapTransition{.target_map = "", .spawn_col = 12, .spawn_row = 3, .return_to_world = true};
   handle_map_transition(engine);
 
-  CHECK(engine.render.mode == RenderMode::World);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
   CHECK_FALSE(engine.entered_from_world);
-  CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
+  CHECK(corundum::test::world_area_of(engine.render).chunks.last_center() ==
+        corundum::world::tilemap::ChunkCoord{1, 0});
   // Back in world mode, the zone id reverts to the manifest's directory name.
   CHECK(engine.scene.zone_id == "transition");
 
@@ -225,7 +227,7 @@ TEST_CASE("world transition — single-map boot with a return_to_world portal is
   cfg.paths.world_manifest_path.clear(); // single-map mode: no overworld to return to
   cfg.paths.tilemap_path = interior_path(fixtures);
   REQUIRE(initialize_with_world(engine, std::move(cfg)).has_value());
-  REQUIRE(engine.render.mode == RenderMode::SingleMap);
+  REQUIRE(corundum::render::mode(engine.render) == RenderMode::SingleMap);
 
   engine.scene.pending_transition =
       MapTransition{.target_map = "", .spawn_col = 12, .spawn_row = 3, .return_to_world = true};
@@ -233,7 +235,7 @@ TEST_CASE("world transition — single-map boot with a return_to_world portal is
 
   // No overworld exists, so the portal is ignored rather than terminating the process.
   CHECK_FALSE(engine.quit_requested());
-  CHECK(engine.render.mode == RenderMode::SingleMap);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::SingleMap);
   CHECK_FALSE(engine.entered_from_world);
 
   engine.cleanup();
@@ -274,7 +276,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   CHECK(enter.spawn_row == 2);
 
   handle_map_transition(engine);
-  CHECK(engine.render.mode == RenderMode::SingleMap);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::SingleMap);
   CHECK(player_tile(engine) == std::pair{1, 2});
   REQUIRE(engine.entered_from_world);
   REQUIRE_FALSE(engine.scene.pending_transition.has_value());
@@ -295,10 +297,11 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   CHECK(exit.spawn_row == 3);
 
   handle_map_transition(engine);
-  CHECK(engine.render.mode == RenderMode::World);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
   CHECK_FALSE(engine.entered_from_world);
-  CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
+  CHECK(corundum::test::world_area_of(engine.render).chunks.last_center() ==
+        corundum::world::tilemap::ChunkCoord{1, 0});
 
   engine.cleanup();
 }
@@ -332,8 +335,8 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
   const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
-  // World-mode MapView carries world_render (not elevation_map); pick_tile must use it.
-  REQUIRE(map.world_render != nullptr);
+  // World-mode MapView carries world_area (not elevation_map); pick_tile must use it.
+  REQUIRE(map.world_area != nullptr);
   CHECK(map.elevation_map == nullptr);
 
   const corundum::world::Camera &camera = engine.scene.camera;
@@ -373,7 +376,7 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   // pending_transition stays empty until the player confirms — handle_map_transition is a no-op.
   CHECK_FALSE(engine.scene.pending_transition.has_value());
   handle_map_transition(engine);
-  CHECK(engine.render.mode == RenderMode::World);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{13, 13});
 
   engine.cleanup();
@@ -475,7 +478,7 @@ TEST_CASE("world transition — Select on the prompt promotes the stashed transi
   // Round-trip the existing assertions to prove the promoted transition is the same one
   // the old auto-fire path would have produced.
   handle_map_transition(engine);
-  CHECK(engine.render.mode == RenderMode::SingleMap);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::SingleMap);
   CHECK(player_tile(engine) == std::pair{1, 2});
   CHECK(engine.entered_from_world);
 
@@ -540,7 +543,7 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   engine.scene.pending_transition =
       MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
-  REQUIRE(engine.render.mode == RenderMode::SingleMap);
+  REQUIRE(corundum::render::mode(engine.render) == RenderMode::SingleMap);
   REQUIRE(engine.entered_from_world);
 
   // Walk onto the interior's return_to_world portal at tile (0,0).
@@ -557,10 +560,11 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
   handle_map_transition(engine);
-  CHECK(engine.render.mode == RenderMode::World);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
   CHECK_FALSE(engine.entered_from_world);
-  CHECK(engine.render.chunks.last_center() == corundum::world::tilemap::ChunkCoord{1, 0});
+  CHECK(corundum::test::world_area_of(engine.render).chunks.last_center() ==
+        corundum::world::tilemap::ChunkCoord{1, 0});
 
   engine.cleanup();
 }
@@ -696,13 +700,13 @@ TEST_CASE("world transition — world actors return after an interior round-trip
   engine.scene.pending_transition =
       MapTransition{.target_map = interior_path(fixtures), .spawn_col = 1, .spawn_row = 2, .return_to_world = false};
   handle_map_transition(engine);
-  REQUIRE(engine.render.mode == RenderMode::SingleMap);
+  REQUIRE(corundum::render::mode(engine.render) == RenderMode::SingleMap);
   REQUIRE(engine.entered_from_world);
 
   engine.scene.pending_transition =
       MapTransition{.target_map = "", .spawn_col = 12, .spawn_row = 3, .return_to_world = true};
   handle_map_transition(engine);
-  REQUIRE(engine.render.mode == RenderMode::World);
+  REQUIRE(corundum::render::mode(engine.render) == RenderMode::World);
   CHECK(player_tile(engine) == std::pair{12, 3});
 
   // Chunk actors are repopulated at the same tiles (the whole world was rebuilt).
@@ -727,7 +731,7 @@ TEST_CASE("world streaming — actors spawn only for resident chunks") {
   // 5×1 world boots at the manifest centre (20,4) → chunk (2,0); the 3×1 window
   // covers (1,0)(2,0)(3,0) — chunks (0,0) and (4,0) are not resident at boot.
   REQUIRE(player_tile(engine) == std::pair{20, 4});
-  CHECK(engine.render.chunks.active_size() == 3);
+  CHECK(corundum::test::world_area_of(engine.render).chunks.active_size() == 3);
   CHECK(engine.scene.chunk_actors.size() == 3);
 
   // a30 lives in resident chunk (3,0); a00 lives in non-resident chunk (0,0).
@@ -802,7 +806,7 @@ TEST_CASE("world streaming — the recenter margin scales with chunk_size, not a
   }
 
   const corundum::world::tilemap::ChunkCoord west_center{.col = 0, .row = 0};
-  CHECK(engine.render.chunks.last_center() == west_center);
+  CHECK(corundum::test::world_area_of(engine.render).chunks.last_center() == west_center);
   // (0,0) is resident, so its actor streamed in.
   CHECK(entity_at(engine, 2, 3).has_value());
 
@@ -816,7 +820,7 @@ TEST_CASE("Engine: initialize loads no world") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 
-  CHECK(engine.render.mode == RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == RenderMode::None);
   CHECK_FALSE(corundum::world::player_present(engine.scene));
   CHECK(engine.render.area_texture_ids.empty());
 

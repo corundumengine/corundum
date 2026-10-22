@@ -147,7 +147,7 @@ TEST_CASE("title: opens with no world and draws its rows") {
   corundum::gameplay::Gameplay gameplay{engine};
 
   REQUIRE(engine.scene.ui.top() == screens::Title);
-  CHECK(engine.render.mode == corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None);
 
   const corundum::ScreenSpec *spec = engine.screens.find(screens::Title);
   REQUIRE(spec != nullptr);
@@ -673,7 +673,7 @@ TEST_CASE("return to title: unloads the world and clears flags and the playthrou
   user_data.attach(engine);
   init_engine(engine, /*show_title=*/false);
   corundum::gameplay::Gameplay gameplay{engine};
-  REQUIRE(engine.render.mode != corundum::render::RenderMode::None);
+  REQUIRE(corundum::render::mode(engine.render) != corundum::render::RenderMode::None);
 
   engine.flags["gold"] = 7;
   gameplay.playthrough.last_slot = "slot_01";
@@ -681,7 +681,7 @@ TEST_CASE("return to title: unloads the world and clears flags and the playthrou
 
   gameplay.return_to_title();
 
-  CHECK(engine.render.mode == corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None);
   CHECK_FALSE(corundum::world::player_present(engine.scene));
   CHECK(engine.flags.empty());
   CHECK(gameplay.playthrough.last_slot.empty());
@@ -698,14 +698,14 @@ TEST_CASE("pause menu Quit to Title: confirm Yes returns to the title with no wo
   init_engine(engine, /*show_title=*/false);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
-  REQUIRE(engine.render.mode != corundum::render::RenderMode::None);
+  REQUIRE(corundum::render::mode(engine.render) != corundum::render::RenderMode::None);
 
   engine.flags["gold"] = 7;
   engine.on_menu_quit(engine);
   REQUIRE(engine.scene.mode() == screens::Confirm);
   press(engine, corundum::input::Action::Select); // Yes
 
-  CHECK(engine.render.mode == corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None);
   CHECK(engine.flags.empty());
   CHECK(engine.scene.mode() == screens::Title);
 
@@ -765,7 +765,7 @@ TEST_CASE("new game: a world that cannot be built falls back to the title") {
 
   const std::expected<void, std::string> result = gameplay.new_game();
   CHECK_FALSE(result.has_value());
-  CHECK(engine.render.mode == corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None);
   CHECK(engine.scene.mode() == screens::Title);
 
   engine.cleanup();
@@ -812,7 +812,7 @@ TEST_CASE("no title: the game starts in the world without a fade or toast") {
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
-  CHECK(engine.render.mode != corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) != corundum::render::RenderMode::None);
   CHECK(engine.toasts.empty());
   CHECK(engine.screen_transition.alpha() == doctest::Approx(0.f));
 
@@ -845,7 +845,7 @@ TEST_CASE("title boot: no world is loaded under the title") {
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
-  CHECK(engine.render.mode == corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None);
   CHECK_FALSE(corundum::world::player_present(engine.scene));
   CHECK(engine.render.area_texture_ids.empty());
 

@@ -229,7 +229,7 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
   cfg.paths.world_manifest_path.clear(); // single-map mode
   cfg.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
   REQUIRE(initialize_with_world(engine, std::move(cfg)).has_value());
-  REQUIRE(engine.render.mode == corundum::render::RenderMode::SingleMap);
+  REQUIRE(corundum::render::mode(engine.render) == corundum::render::RenderMode::SingleMap);
 
   engine.flags["zone.interior.chest"] = 1;
   auto &transforms = engine.scene.world.transforms;
@@ -245,7 +245,7 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
 
   REQUIRE(corundum::save::load_game(engine, storage, "integration_single").has_value());
 
-  CHECK(engine.render.mode == corundum::render::RenderMode::SingleMap);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::SingleMap);
   CHECK(engine.flags.at("zone.interior.chest") == 1);
   CHECK(engine.scene.zone_id == "interior");
 
@@ -265,7 +265,7 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
 
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
-  REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
+  REQUIRE(corundum::render::mode(engine.render) == corundum::render::RenderMode::World);
 
   // Register a quest and advance it to its resolved ending.
   corundum::gameplay::quest::Quest q;
@@ -322,7 +322,7 @@ TEST_CASE("save: world save/load preserves a fractional player position") {
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
-  REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
+  REQUIRE(corundum::render::mode(engine.render) == corundum::render::RenderMode::World);
 
   // World-mode saves keep the player's sub-tile position: the spawn pipeline must not
   // truncate it back to an integer tile.
@@ -354,7 +354,7 @@ TEST_CASE("save: load_game refuses a save whose world manifest differs") {
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
-  REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
+  REQUIRE(corundum::render::mode(engine.render) == corundum::render::RenderMode::World);
 
   corundum::save::SaveState s;
   s.game_id = "test_game";

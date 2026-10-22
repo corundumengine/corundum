@@ -170,7 +170,7 @@ TEST_CASE("splash: configured images open the splash at black, fading in") {
   CHECK(gameplay.splash_screen.index == 0);
   CHECK(engine.screen_transition.phase() == TransitionPhase::FadingIn);
   CHECK(engine.screen_transition.at_black());
-  CHECK(engine.render.mode == corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None);
 
   engine.cleanup();
 }
@@ -255,12 +255,12 @@ TEST_CASE("splash: with show_title false the playthrough starts after the splash
   corundum::gameplay::Gameplay gameplay{engine};
 
   REQUIRE(engine.scene.ui.top() == screens::Splash);
-  CHECK(engine.render.mode == corundum::render::RenderMode::None); // no world under the splash
+  CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None); // no world under the splash
 
   step_until_splash_closes(engine);
 
   CHECK(engine.scene.ui.empty());
-  CHECK(engine.render.mode != corundum::render::RenderMode::None);
+  CHECK(corundum::render::mode(engine.render) != corundum::render::RenderMode::None);
   CHECK(engine.screen_transition.phase() == TransitionPhase::FadingIn);
 
   engine.cleanup();

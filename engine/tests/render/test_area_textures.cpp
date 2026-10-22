@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "memory_content_source.hpp"
+#include "render_state_fixtures.hpp"
 #include "world_transition_fixtures.hpp"
 
 using corundum::test::disk;
@@ -124,7 +125,7 @@ TEST_CASE("area textures: unload_world releases and purges every area texture") 
 
   CHECK_EQ(sorted(renderer.purged), sorted(loaded));
   CHECK(state.area_texture_ids.empty());
-  CHECK(state.mode == RenderMode::None);
+  CHECK(corundum::render::mode(state) == RenderMode::None);
 }
 
 TEST_CASE("area textures: reloading the same world keeps its textures resident") {
@@ -144,7 +145,7 @@ TEST_CASE("area textures: a texture also held outside the area survives unload_w
   CountingRenderer renderer;
   RenderState state;
   REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
-  const std::string path = state.chunks.active_at(0).tilemap.tilesets[0].info.path;
+  const std::string path = corundum::test::world_area_of(state).chunks.active_at(0).tilemap.tilesets[0].info.path;
   const auto id = renderer.load_texture(path);
   REQUIRE(id.has_value());
 

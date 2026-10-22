@@ -11,10 +11,12 @@
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
+#include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
 
+#include "render_state_fixtures.hpp"
 #include "world_transition_fixtures.hpp"
 
 // json_fwd.hpp is include-cleaner's provider for nlohmann::json; json.hpp is still
@@ -185,9 +187,10 @@ TEST_CASE("hub: opens in World mode with no resident chunks") {
   init_engine(engine);
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
-  REQUIRE(engine.render.mode == corundum::render::RenderMode::World);
-  engine.render.chunks.clear();
-  REQUIRE(engine.render.chunks.active_empty());
+  REQUIRE(corundum::render::mode(engine.render) == corundum::render::RenderMode::World);
+  auto &world_area = corundum::test::world_area_of(engine.render);
+  world_area.chunks.prune_active([](const corundum::render::ChunkEntry &) { return false; });
+  REQUIRE(world_area.chunks.active_empty());
 
   // Engine-owned tabs do not depend on world::update, so an empty chunk window cannot strand
   // them (the old world::update dispatch was gated on chunks being resident).

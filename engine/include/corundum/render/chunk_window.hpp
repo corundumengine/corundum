@@ -133,17 +133,6 @@ namespace corundum::render {
       return front;
     }
 
-    /// Reset to the empty, never-loaded state (used by load_map(), load_world() and
-    /// unload_world()).
-    void clear() noexcept {
-      active_.clear();
-      pending_.clear();
-      failed_.clear();
-      last_center_ = {};
-      slot_by_offset_ = empty_slots();
-      dirty_ = true;
-    }
-
   private:
     /// Flatten a window offset into a slot_by_offset_ index. Callers bound-check first.
     [[nodiscard]] static constexpr std::size_t offset_index(int dx, int dy) noexcept {

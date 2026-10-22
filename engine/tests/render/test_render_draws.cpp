@@ -17,6 +17,7 @@
 
 #include "memory_content_source.hpp"
 #include "recording_renderer.hpp"
+#include "render_state_fixtures.hpp"
 #include "world_transition_fixtures.hpp"
 
 using corundum::test::disk;
@@ -59,13 +60,12 @@ TEST_CASE("render: a single map draws every non-empty visible cell once") {
               .has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
-  state.prev_cam_x = -50000.f;
-  state.prev_cam_y = -50000.f;
-  state.prev_zoom = 1.f;
+  state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
+  state.previous_step.zoom = 1.f;
 
   render_frame(renderer, state, cfg, *scene, 100000, 100000);
 
-  const std::size_t expected = count_drawable_cells(state.map_data.tilemap);
+  const std::size_t expected = count_drawable_cells(*corundum::render::active_tilemap(state));
   REQUIRE(expected > 0);
   CHECK_EQ(renderer.sprites.size(), expected);
 }
@@ -77,14 +77,14 @@ TEST_CASE("render: a world draws every non-empty visible cell of every resident 
   REQUIRE(corundum::render::load_world(disk(), renderer, state, cfg, {}).has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
-  state.prev_cam_x = -50000.f;
-  state.prev_cam_y = -50000.f;
-  state.prev_zoom = 1.f;
+  state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
+  state.previous_step.zoom = 1.f;
 
   render_frame(renderer, state, cfg, *scene, 100000, 100000);
 
+  const auto &world_area = corundum::test::world_area_of(state);
   std::size_t expected = 0;
-  for (const corundum::render::ChunkEntry &chunk : state.chunks.active())
+  for (const corundum::render::ChunkEntry &chunk : world_area.chunks.active())
     expected += count_drawable_cells(chunk.tilemap);
   REQUIRE(expected > 0);
   CHECK_EQ(renderer.sprites.size(), expected);
@@ -100,9 +100,8 @@ TEST_CASE("render: a camera far from the area draws no tiles") {
               .has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = 1e6f, .y = 1e6f, .zoom = 1.f};
-  state.prev_cam_x = 1e6f;
-  state.prev_cam_y = 1e6f;
-  state.prev_zoom = 1.f;
+  state.previous_step.camera = {.x = 1e6f, .y = 1e6f};
+  state.previous_step.zoom = 1.f;
 
   render_frame(renderer, state, cfg, *scene, 320, 240);
 

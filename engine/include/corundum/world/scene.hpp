@@ -39,8 +39,7 @@ namespace corundum::world {
    * presentation state. Systems receive Scene& and read or mutate these fields directly.
    *
    * @note Scene does not own the tilemap. Use Engine::active_tilemap() for map
-   *       queries. See the render layer (RenderState::map_data, RenderState::chunks)
-   *       for tilemap ownership.
+   *       queries. See the render layer (RenderState::area) for tilemap ownership.
    *
    * @see Engine  For the owning engine struct.
    */

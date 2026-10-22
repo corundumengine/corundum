@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/core/game_config.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/render/chunk_window.hpp>
@@ -14,14 +16,16 @@
 #include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <variant>
 #include <vector>
 
 namespace corundum::render {
 
-  /** @brief Tracks whether the renderer is in map or world mode. */
+  /** @brief Which kind of area is loaded. Derived from RenderState::area by mode(); never stored. */
   enum class RenderMode : uint8_t { None, SingleMap, World };
 
   /** @brief Result of a sprite-id / anim-id / frame-index lookup.
@@ -60,12 +64,12 @@ namespace corundum::render {
                                            uint8_t frame_index) const noexcept;
   };
 
-  /** @brief A single pre-loaded tilemap (map mode, not world mode). */
+  /** @brief A single pre-loaded tilemap (single-map mode). */
   struct MapData {
-    corundum::world::tilemap::Tilemap tilemap;
-    std::vector<uint32_t> tileset_texture_ids;
-    std::vector<int> above_z;
-    std::vector<corundum::world::Portal> portals;
+    world::tilemap::Tilemap tilemap{};
+    std::vector<uint32_t> tileset_texture_ids{};
+    std::vector<int> above_z{};
+    std::vector<world::Portal> portals{};
   };
 
   /** @brief Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
@@ -80,26 +84,72 @@ namespace corundum::render {
     bool flip_y = false;
   };
 
-  /** @brief All mutable rendering state for the active map or world.
-   *
-   * Mostly passive data: free functions in namespace corundum::render own the logic.
-   * ChunkWindow is the one member that keeps behaviour, encapsulating its own
-   * streaming invariants (draw order, dirty flag, offset→slot lookup) so callers
-   * never have to uphold them by hand.
-   */
-  struct RenderState {
-    corundum::world::tilemap::CollisionRects agg_collisions{};
-    /// Aggregated portal buffer for world mode — rebuilt by rebuild_world_aggregates()
-    /// alongside agg_collisions/agg_walkability, then returned as a span via MapView.
-    /// Single-map mode passes map_data.portals directly.
-    std::vector<corundum::world::Portal> agg_portals;
-    corundum::world::tilemap::CollisionTriangles agg_triangles{};
-    /// Aggregated walkability graph spanning the active chunk window (world mode only).
-    /// Rebuilt by rebuild_world_walkability() alongside agg_collisions; stays empty in
-    /// single-map mode, which uses map_walkability instead.
-    corundum::world::tilemap::WalkabilityGraph agg_walkability{};
+  /** @brief World-mode data derived from the active chunk window, in global world tile coordinates.
+   *  Rebuilt by rebuild_world_aggregates() whenever the active set changes. */
+  struct WorldAggregates {
+    world::tilemap::CollisionRects collisions{};
+
+    /// Each chunk's portals offset into world tiles; MapView hands them out as a span.
+    std::vector<world::Portal> portals{};
+
+    world::tilemap::CollisionTriangles triangles{};
+
+    /// Spans the bounding box of the active chunks; col_origin/row_origin record the offset.
+    world::tilemap::WalkabilityGraph walkability{};
+  };
+
+  /** @brief A loaded single map and the walkability graph built for it by load_map(). */
+  struct SingleMapArea {
+    MapData map{};
+
+    world::tilemap::WalkabilityGraph walkability{};
+  };
+
+  /** @brief A streamed world: its manifest, the resident chunk window and the window's aggregates. */
+  struct WorldArea {
+    /// Sorted, deduplicated z_index > 0 bands across the active chunks; render() rebuilds it when
+    /// chunks.consume_dirty() reports a change.
+    std::vector<int> above_z_cache{};
+
+    WorldAggregates aggregates{};
+
     ChunkWindow chunks{};
-    corundum::ui::PanelSkin panel_skin{};
+
+    world::tilemap::WorldManifest manifest{};
+  };
+
+  /** @brief The loaded area; std::monostate when none is loaded (RenderMode::None). */
+  using Area = std::variant<std::monostate, SingleMapArea, WorldArea>;
+
+  /** @brief Camera and entity tile positions at the start of the latest fixed step, for render
+   *  interpolation. Written by snapshot_previous_step(). */
+  struct StepSnapshot {
+    core::math::Vec2 camera{};
+
+    float zoom{1.f};
+
+    /** @brief Entity tile columns, indexed by EntityId::index (not dense slot) so a swap-and-pop
+     *  removal never misattributes a snapshot. An entry is valid only where generation matches the
+     *  entity's generation. */
+    std::array<float, entities::k_max_entities> col{};
+
+    /** @brief Generation of the entity each col/row entry was captured from; 0 (never a live
+     *  generation) marks an entry that was never written. */
+    std::array<std::uint32_t, entities::k_max_entities> generation{};
+
+    /** @brief Entity tile rows. See col. */
+    std::array<float, entities::k_max_entities> row{};
+  };
+
+  /** @brief All mutable rendering state, grouped by lifetime tier (see AGENTS.md, Lifetime tiers). */
+  struct RenderState {
+    /// Area tier: replaced whole by load_map()/load_world(), reset by unload_world().
+    Area area{};
+
+    /// Textures the loaded area holds one reference on each. Kept outside @ref area so replacing the
+    /// area can never drop references unreleased; see unload_world().
+    std::vector<uint32_t> area_texture_ids{};
+
     /// Per-role font families, indexed by ui::FontRole; loaded by load_fonts().
     std::array<corundum::ui::FontFamily, corundum::ui::k_font_role_count> fonts{};
 
@@ -108,46 +158,36 @@ namespace corundum::render {
       return fonts[static_cast<std::size_t>(role)];
     }
 
-    corundum::world::tilemap::WorldManifest manifest{};
-    MapData map_data{};
-    /// Built once when a single map loads (load_map()); single-map mode only, same
-    /// limitation as MapView::elevation_map — World mode leaves this default-empty.
-    corundum::world::tilemap::WalkabilityGraph map_walkability{};
-    /// Textures the loaded area (single map or streamed world) holds one reference on each.
-    /// Released when the area is replaced or unloaded; see render::unload_world().
-    std::vector<uint32_t> area_texture_ids;
-    RenderMode mode{RenderMode::None};
-    SpriteFrameIndex sprite_index;
+    corundum::ui::PanelSkin panel_skin{};
+
+    SpriteFrameIndex sprite_index{};
+
+    /// Dialogue text-reveal multiplier applied to k_base_reveal_chars_per_second; 0 = instant.
+    /// Set from UserSettings::text_speed.
+    float text_speed{1.f};
 
     /// Font/margin scale applied by configure_panel_style(); 1 = the game.json sizes. Set from
     /// UserSettings::ui_scale.
     float ui_scale{1.f};
 
-    /// Dialogue text-reveal multiplier applied to k_base_reveal_chars_per_second; 0 = instant.
-    /// Set from UserSettings::text_speed.
-    float text_speed{1.f};
-    std::vector<int> above_z_cache;
-    std::vector<DepthEntry> draw_list;
+    /// Frame scratch, reused across frames.
+    std::vector<DepthEntry> draw_list{};
+
     /** @brief Indices into draw_list, sorted by depth each frame. Reused across frames
      *  (resized, never freed) so the depth sort touches no per-frame heap allocation. */
-    std::vector<uint32_t> draw_order;
+    std::vector<uint32_t> draw_order{};
 
-    /** @brief Camera x at the start of the latest fixed step, for render interpolation. */
-    float prev_cam_x{0.f};
-    /** @brief Camera y at the start of the latest fixed step, for render interpolation. */
-    float prev_cam_y{0.f};
-    /** @brief Entity tile columns at the start of the latest fixed step, indexed by
-     *  EntityId::index (not dense slot) so a swap-and-pop removal never misattributes a
-     *  snapshot. An entry is valid only where prev_generation matches the entity's generation. */
-    std::array<float, corundum::entities::k_max_entities> prev_col{};
-    /** @brief Generation of the entity each prev_col/prev_row entry was captured from; 0 (never
-     *  a live generation) marks an entry that was never written. */
-    std::array<std::uint32_t, corundum::entities::k_max_entities> prev_generation{};
-    /** @brief Entity tile rows at the start of the latest fixed step. See prev_col. */
-    std::array<float, corundum::entities::k_max_entities> prev_row{};
-    /** @brief Camera zoom at the start of the latest fixed step, for render interpolation. */
-    float prev_zoom{1.f};
+    StepSnapshot previous_step{};
   };
+
+  /** @brief The kind of area loaded. */
+  [[nodiscard]] inline RenderMode mode(const RenderState &state) noexcept {
+    if (std::holds_alternative<WorldArea>(state.area))
+      return RenderMode::World;
+    if (std::holds_alternative<SingleMapArea>(state.area))
+      return RenderMode::SingleMap;
+    return RenderMode::None;
+  }
 
   /** @brief Combined collision views for debug rendering and collision queries.
    *
@@ -159,26 +199,39 @@ namespace corundum::render {
     world::tilemap::CollisionTrianglesView tris{};
   };
 
-  /** @brief Return the collision geometry for the currently active render mode.
-   *  @param[in] rs  Initialised render state.
-   *  @return CollisionGeometry with valid (possibly empty) views.
-   */
-  [[nodiscard]] inline CollisionGeometry current_collisions(const RenderState &rs) noexcept {
-    if (rs.mode == RenderMode::World) {
-      return {.rects = rs.agg_collisions.view(), .tris = rs.agg_triangles.view()};
-    }
-    if (rs.mode == RenderMode::SingleMap) {
-      return {.rects = rs.map_data.tilemap.collisions.view(), .tris = rs.map_data.tilemap.collision_triangles.view()};
-    }
+  /** @brief Collision geometry of the loaded area; empty views when none is loaded. */
+  [[nodiscard]] inline CollisionGeometry current_collisions(const RenderState &state) noexcept {
+    if (const auto *world_area = std::get_if<WorldArea>(&state.area))
+      return {.rects = world_area->aggregates.collisions.view(), .tris = world_area->aggregates.triangles.view()};
+    if (const auto *single = std::get_if<SingleMapArea>(&state.area))
+      return {.rects = single->map.tilemap.collisions.view(), .tris = single->map.tilemap.collision_triangles.view()};
     return {};
   }
 
-  /** @brief The single loaded tilemap, if the engine is in single-map mode.
-   *  @param[in] rs  Initialised render state.
-   *  @return Pointer to the active tilemap, or nullptr in World mode (which streams
-   *          one tilemap per chunk — see RenderState::chunks) and before load. */
-  [[nodiscard]] inline const world::tilemap::Tilemap *active_tilemap(const RenderState &rs) noexcept {
-    return rs.mode == RenderMode::SingleMap ? &rs.map_data.tilemap : nullptr;
+  /** @brief The single loaded tilemap, or nullptr in World mode (one tilemap per chunk) and before load. */
+  [[nodiscard]] inline const world::tilemap::Tilemap *active_tilemap(const RenderState &state) noexcept {
+    const auto *single = std::get_if<SingleMapArea>(&state.area);
+    return single != nullptr ? &single->map.tilemap : nullptr;
+  }
+
+  /** @brief Isometric projection of a single map. */
+  [[nodiscard]] inline core::math::IsometricParams isometric_params(const SingleMapArea &area,
+                                                                    const core::GameConfig &cfg) noexcept {
+    const world::tilemap::Tilemap &tm = area.map.tilemap;
+    return core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
+                                                cfg.elevation_step_px);
+  }
+
+  /** @brief Isometric projection of a streamed world: the first active chunk's diamond over the
+   *  manifest's effective height.
+   *  @pre area.chunks is non-empty, and every active chunk shares one diamond size. */
+  [[nodiscard]] inline core::math::IsometricParams isometric_params(const WorldArea &area,
+                                                                    const core::GameConfig &cfg) noexcept {
+    assert(!area.chunks.active_empty());
+    const world::tilemap::Tilemap &first = area.chunks.active_at(0).tilemap;
+    return core::math::compute_isometric_params(first.diamond_w(), first.diamond_h(),
+                                                area.manifest.effective_tiles_tall(), cfg.tile_scale,
+                                                cfg.elevation_step_px);
   }
 
 } // namespace corundum::render

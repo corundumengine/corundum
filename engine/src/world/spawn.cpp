@@ -5,6 +5,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/motion_sprite_table.hpp>
+#include <corundum/render/chunk_window.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -17,6 +18,7 @@
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/world/actors/actor.hpp>
 #include <corundum/world/scene.hpp>
+#include <corundum/world/ui_stack.hpp>
 
 #include "core/warn_log.hpp"
 
@@ -31,6 +33,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace corundum::world {
@@ -192,9 +195,9 @@ namespace corundum::world {
     }
 
     /// Queue the actors of every chunk that has left the active window, and flag its set departed.
-    void despawn_departed_chunks(Scene &scene, const corundum::render::RenderState &render) {
+    void despawn_departed_chunks(Scene &scene, const corundum::render::ChunkWindow &chunks) {
       for (ChunkActorSet &set : scene.chunk_actors) {
-        if (render.chunks.is_active(set.coord))
+        if (chunks.is_active(set.coord))
           continue;
         mark_entities_for_deletion(scene.world, set.entities);
         set.departed = true;
@@ -204,9 +207,9 @@ namespace corundum::world {
     /// Spawn actors for active chunks with no tracked set, and respawn a departed chunk that has returned once its
     /// previous actors are flushed. A resident, non-departed set is never re-read: it already spawned (or failed) for
     /// this residency.
-    void spawn_new_chunks(const core::ContentSource &content, Scene &scene, const corundum::render::RenderState &render,
+    void spawn_new_chunks(const core::ContentSource &content, Scene &scene, const corundum::render::ChunkWindow &chunks,
                           const corundum::core::GameConfig &cfg, const CharacterRegistry &registry, int chunk_size) {
-      for (const auto &entry : render.chunks.active()) {
+      for (const auto &entry : chunks.active()) {
         const auto set = std::ranges::find(scene.chunk_actors, entry.coord, &ChunkActorSet::coord);
         if (set != scene.chunk_actors.end() && (!set->departed || any_live(scene.world, set->entities)))
           continue;
@@ -239,9 +242,9 @@ namespace corundum::world {
     }
 
     /// Drop tracked sets once they are out of the window and all their actors have been despawned.
-    void prune_departed_chunks(Scene &scene, const corundum::render::RenderState &render) {
+    void prune_departed_chunks(Scene &scene, const corundum::render::ChunkWindow &chunks) {
       std::erase_if(scene.chunk_actors, [&](const ChunkActorSet &set) {
-        return !render.chunks.is_active(set.coord) && !any_live(scene.world, set.entities);
+        return !chunks.is_active(set.coord) && !any_live(scene.world, set.entities);
       });
     }
 
@@ -298,18 +301,17 @@ namespace corundum::world {
   void sync_chunk_actors(const corundum::core::ContentSource &content, Scene &scene,
                          const corundum::render::RenderState &render, const corundum::core::GameConfig &cfg,
                          const corundum::sprites::CharacterRegistry &registry) {
-    if (render.mode != corundum::render::RenderMode::World)
-      return;
-    if (render.chunks.active_empty())
+    const auto *world_area = std::get_if<corundum::render::WorldArea>(&render.area);
+    if (world_area == nullptr || world_area->chunks.active_empty())
       return;
     if (scene.mode() != GameMode::Exploring)
       return; // don't churn actors mid-dialogue / mid-prompt
 
-    const int chunk_size = render.manifest.chunk_size;
+    const int chunk_size = world_area->manifest.chunk_size;
 
-    despawn_departed_chunks(scene, render);
-    spawn_new_chunks(content, scene, render, cfg, registry, chunk_size);
-    prune_departed_chunks(scene, render);
+    despawn_departed_chunks(scene, world_area->chunks);
+    spawn_new_chunks(content, scene, world_area->chunks, cfg, registry, chunk_size);
+    prune_departed_chunks(scene, world_area->chunks);
   }
 
 } // namespace corundum::world

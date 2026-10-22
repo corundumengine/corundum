@@ -6,6 +6,7 @@
 #include "font_fixtures.hpp"
 #include "null_platform.hpp"
 #include "null_window.hpp"
+#include "render_state_fixtures.hpp"
 #include "temp_dir.hpp"
 #include "world_transition_fixtures.hpp"
 #include <corundum/core/game_config.hpp>
@@ -114,7 +115,7 @@ TEST_CASE("player absent — streaming frames leave the window where it is") {
   REQUIRE(initialize_with_world(engine, make_streaming_config(fixtures)).has_value());
   REQUIRE(corundum::world::player_present(engine.scene));
 
-  const corundum::world::tilemap::ChunkCoord center = engine.render.chunks.last_center();
+  const corundum::world::tilemap::ChunkCoord center = corundum::test::world_area_of(engine.render).chunks.last_center();
 
   corundum::entities::despawn(engine.scene.world, engine.scene.player);
   REQUIRE_FALSE(corundum::world::player_present(engine.scene));
@@ -122,7 +123,7 @@ TEST_CASE("player absent — streaming frames leave the window where it is") {
   for (int i = 0; i < 5; ++i)
     CHECK(step(engine));
 
-  CHECK(engine.render.chunks.last_center() == center);
+  CHECK(corundum::test::world_area_of(engine.render).chunks.last_center() == center);
 
   engine.cleanup();
 }

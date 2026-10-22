@@ -12,17 +12,17 @@
 
 #include <cmath>
 #include <span>
+#include <variant>
 
 namespace corundum::world {
 
   namespace {
 
-    /// MapView for the single-tilemap render mode.
-    [[nodiscard]] MapView build_single_map_view(const render::RenderState &render,
+    /// MapView for a single map.
+    [[nodiscard]] MapView build_single_map_view(const render::SingleMapArea &area,
                                                 const core::GameConfig &cfg) noexcept {
-      const tilemap::Tilemap &tm = render.map_data.tilemap;
-      const core::math::IsometricParams isometric = core::math::compute_isometric_params(
-          tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale, cfg.elevation_step_px);
+      const tilemap::Tilemap &tm = area.map.tilemap;
+      const core::math::IsometricParams isometric = render::isometric_params(area, cfg);
       const WorldBounds bounds{single_map_bounds(tm, isometric.half_tw, isometric.half_th)};
       return {
           .collisions = tm.collisions.view(),
@@ -36,28 +36,22 @@ namespace corundum::world {
           .x_origin = isometric.x_origin,
           .character_scale = cfg.character_scale,
           .tile_scale = cfg.tile_scale,
-          .portals = render.map_data.portals,
+          .portals = area.map.portals,
           .elevation_map = &tm,
-          .walkability = &render.map_walkability,
+          .walkability = &area.walkability,
       };
     }
 
-    /// MapView for the streamed chunk-world render mode.
-    ///
-    /// @pre @p render has at least one active chunk and every active chunk shares the same
-    ///      diamond size; the world aggregates have already been rebuilt.
-    [[nodiscard]] MapView build_world_map_view(const render::RenderState &render,
-                                               const core::GameConfig &cfg) noexcept {
-      const tilemap::Tilemap &first_tm = render.chunks.active_at(0).tilemap;
-      const tilemap::WorldManifest &manifest = render.manifest;
+    /// MapView for a streamed world.
+    /// @pre @p area has at least one active chunk and its aggregates are rebuilt.
+    [[nodiscard]] MapView build_world_map_view(const render::WorldArea &area, const core::GameConfig &cfg) noexcept {
+      const tilemap::WorldManifest &manifest = area.manifest;
       const int total_h{manifest.effective_tiles_tall()};
-      const core::math::IsometricParams isometric = core::math::compute_isometric_params(
-          first_tm.diamond_w(), first_tm.diamond_h(), total_h, cfg.tile_scale, cfg.elevation_step_px);
+      const core::math::IsometricParams isometric = render::isometric_params(area, cfg);
       const auto [iso_w, iso_h] = tilemap::world_bounds_iso(manifest, isometric.half_tw, isometric.half_th);
-
       return {
-          .collisions = render.agg_collisions.view(),
-          .collision_triangles = render.agg_triangles.view(),
+          .collisions = area.aggregates.collisions.view(),
+          .collision_triangles = area.aggregates.triangles.view(),
           .world_w_px = iso_w,
           .world_h_px = iso_h,
           .world_w_tiles = static_cast<float>(manifest.effective_tiles_wide()),
@@ -67,18 +61,28 @@ namespace corundum::world {
           .x_origin = isometric.x_origin,
           .character_scale = cfg.character_scale,
           .tile_scale = cfg.tile_scale,
-          .portals = std::span{render.agg_portals},
-          .walkability = &render.agg_walkability,
-          .world_render = &render,
+          .portals = std::span{area.aggregates.portals},
+          .walkability = &area.aggregates.walkability,
+          .world_area = &area,
       };
+    }
+
+    /// With no area loaded, fixed steps still run (see the fixed-step loop in engine.cpp) and see
+    /// an empty single map, as they did before RenderState::area became a variant.
+    [[nodiscard]] const render::SingleMapArea &no_area() noexcept {
+      static const render::SingleMapArea k_empty{};
+      return k_empty;
     }
 
   } // namespace
 
   [[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept {
-    if (render.mode == render::RenderMode::World)
-      return build_world_map_view(render, cfg);
-    return build_single_map_view(render, cfg);
+    const auto *world_area = std::get_if<render::WorldArea>(&render.area);
+    if (world_area != nullptr && !world_area->chunks.active_empty())
+      return build_world_map_view(*world_area, cfg);
+    if (const auto *single = std::get_if<render::SingleMapArea>(&render.area))
+      return build_single_map_view(*single, cfg);
+    return build_single_map_view(no_area(), cfg);
   }
 
   WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float half_th) noexcept {
@@ -88,17 +92,17 @@ namespace corundum::world {
   float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept {
     if (map.elevation_map != nullptr)
       return corundum::world::tilemap::interpolated_elevation_at(*map.elevation_map, col_f, row_f);
-    if (map.world_render != nullptr)
-      return render::elevation_under(*map.world_render, col_f, row_f);
+    if (map.world_area != nullptr)
+      return render::elevation_under(*map.world_area, col_f, row_f);
     return 0.f;
   }
 
   int discrete_elevation_at(const MapView &map, int col, int row) noexcept {
     if (map.elevation_map != nullptr)
       return corundum::world::tilemap::elevation_at(*map.elevation_map, col, row);
-    if (map.world_render != nullptr)
+    if (map.world_area != nullptr)
       return static_cast<int>(
-          std::lround(render::elevation_under(*map.world_render, static_cast<float>(col), static_cast<float>(row))));
+          std::lround(render::elevation_under(*map.world_area, static_cast<float>(col), static_cast<float>(row))));
     return 0;
   }
 

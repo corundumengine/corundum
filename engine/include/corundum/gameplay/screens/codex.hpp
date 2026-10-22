@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -11,7 +12,6 @@
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 
-#include <string>
 #include <vector>
 
 namespace corundum::gameplay::screens {
@@ -31,7 +31,7 @@ namespace corundum::gameplay::screens {
   /** @brief Codex-screen state: the highlighted row and the cached unlocked-entry list.
    *
    *  A stateful class — the cached rows outlive a single call and are
-   *  invalidated only by an unlock or an explicit open, mirroring RenderState::above_z_cache.
+   *  invalidated only by an unlock or an explicit open, mirroring WorldArea::above_z_cache.
    *  Rebuild through refresh_codex() rather than mutating @c entries directly.
    */
   struct CodexState {

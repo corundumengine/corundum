@@ -31,6 +31,7 @@
 #include <ranges>
 #include <span>
 #include <utility>
+#include <variant>
 #include <vector>
 
 using corundum::sprites::AnimId;
@@ -71,24 +72,25 @@ namespace corundum::render {
   void snapshot_previous_step(render::RenderState &state, const corundum::world::Scene &scene) noexcept {
     const corundum::entities::TransformTable &transforms = scene.world.transforms;
     const auto entities = transforms.active_entities();
+    StepSnapshot &snapshot = state.previous_step;
     for (std::uint32_t slot = 0; slot < transforms.count; ++slot) {
       const corundum::entities::EntityId e = entities[slot];
-      state.prev_col[e.index] = transforms.col[slot];
-      state.prev_row[e.index] = transforms.row[slot];
-      state.prev_generation[e.index] = e.generation;
+      snapshot.col[e.index] = transforms.col[slot];
+      snapshot.row[e.index] = transforms.row[slot];
+      snapshot.generation[e.index] = e.generation;
     }
-    state.prev_cam_x = scene.camera.x;
-    state.prev_cam_y = scene.camera.y;
-    state.prev_zoom = scene.camera.zoom;
+    snapshot.camera = {.x = scene.camera.x, .y = scene.camera.y};
+    snapshot.zoom = scene.camera.zoom;
   }
 
   core::math::Vec2 interpolated_tile_position(const render::RenderState &state, corundum::entities::EntityId e,
                                               float col, float row, float alpha) noexcept {
-    if (e.index >= corundum::entities::k_max_entities || state.prev_generation[e.index] != e.generation)
+    const StepSnapshot &snapshot = state.previous_step;
+    if (e.index >= corundum::entities::k_max_entities || snapshot.generation[e.index] != e.generation)
       return {.x = col, .y = row};
     return {
-        .x = std::lerp(state.prev_col[e.index], col, alpha),
-        .y = std::lerp(state.prev_row[e.index], row, alpha),
+        .x = std::lerp(snapshot.col[e.index], col, alpha),
+        .y = std::lerp(snapshot.row[e.index], row, alpha),
     };
   }
 
@@ -146,14 +148,15 @@ namespace corundum::render {
 
     FrameView make_frame_view(const RenderState &state, const world::Scene &scene, float alpha, int win_w,
                               int win_h) noexcept {
-      const float zoom = std::lerp(state.prev_zoom, scene.camera.zoom, alpha);
+      const StepSnapshot &snapshot = state.previous_step;
+      const float zoom = std::lerp(snapshot.zoom, scene.camera.zoom, alpha);
       const core::math::Vec2 viewport_screen{.x = static_cast<float>(win_w), .y = static_cast<float>(win_h)};
       core::math::Vec2 viewport_world{};
       if (zoom > 0.f)
         viewport_world = {.x = viewport_screen.x / zoom, .y = viewport_screen.y / zoom};
       const core::math::Vec2 camera{
-          .x = std::lerp(state.prev_cam_x, scene.camera.x, alpha),
-          .y = std::lerp(state.prev_cam_y, scene.camera.y, alpha),
+          .x = std::lerp(snapshot.camera.x, scene.camera.x, alpha),
+          .y = std::lerp(snapshot.camera.y, scene.camera.y, alpha),
       };
       return {
           .camera = camera,
@@ -182,27 +185,27 @@ namespace corundum::render {
     TileSources collect_tile_sources(const RenderState &state, const core::GameConfig &cfg,
                                      const FrameView &view) noexcept {
       TileSources sources;
-      if (!state.chunks.active_empty()) {
-        const int chunk_size = state.manifest.chunk_size;
-        for (const ChunkEntry &chunk : state.chunks.active()) {
+      if (const auto *world_area = std::get_if<WorldArea>(&state.area)) {
+        const world::tilemap::WorldManifest &manifest = world_area->manifest;
+        for (const ChunkEntry &chunk : world_area->chunks.active()) {
           if (chunk.tilemap.tilesets.empty())
             continue;
           // Overflowing the fixed array would write past it; ChunkWindow bounds the active set.
           core::verify(sources.count < sources.items.size(), "render: more active chunks than the window holds");
           const world::tilemap::ChunkCoord offset{
-              .col = chunk.coord.col * chunk_size,
-              .row = chunk.coord.row * chunk_size,
+              .col = chunk.coord.col * manifest.chunk_size,
+              .row = chunk.coord.row * manifest.chunk_size,
           };
           sources.items[sources.count++] = make_tile_params(chunk.tilemap, chunk.tileset_texture_ids,
-                                                            state.manifest.effective_tiles_tall(), offset, cfg, view);
+                                                            manifest.effective_tiles_tall(), offset, cfg, view);
         }
         return sources;
       }
-      const MapData &map = state.map_data;
-      if (!map.tilemap.tilesets.empty()) {
+      const auto *single = std::get_if<SingleMapArea>(&state.area);
+      if (single != nullptr && !single->map.tilemap.tilesets.empty()) {
         const world::tilemap::ChunkCoord no_offset{};
-        sources.items[sources.count++] =
-            make_tile_params(map.tilemap, map.tileset_texture_ids, map.tilemap.height, no_offset, cfg, view);
+        sources.items[sources.count++] = make_tile_params(single->map.tilemap, single->map.tileset_texture_ids,
+                                                          single->map.tilemap.height, no_offset, cfg, view);
       }
       return sources;
     }
@@ -423,18 +426,14 @@ namespace corundum::render {
     core::math::IsometricParams entity_isometric_params(const RenderState &state,
                                                         const core::GameConfig &cfg) noexcept {
       core::math::IsometricParams iso{};
-      const bool has_chunk_tilesets =
-          !state.chunks.active_empty() && !state.chunks.active_at(0).tilemap.tilesets.empty();
-      if (has_chunk_tilesets) {
-        const world::tilemap::Tilemap &first = state.chunks.active_at(0).tilemap;
-        iso = core::math::compute_isometric_params(first.diamond_w(), first.diamond_h(),
-                                                   state.manifest.effective_tiles_tall(), cfg.tile_scale,
-                                                   cfg.elevation_step_px);
-      } else if (!state.map_data.tilemap.tilesets.empty()) {
-        const world::tilemap::Tilemap &map = state.map_data.tilemap;
-        iso = core::math::compute_isometric_params(map.diamond_w(), map.diamond_h(), map.height, cfg.tile_scale,
-                                                   cfg.elevation_step_px);
-      }
+      const auto *world_area = std::get_if<WorldArea>(&state.area);
+      const auto *single = std::get_if<SingleMapArea>(&state.area);
+      const bool world_has_tilesets = world_area != nullptr && !world_area->chunks.active_empty() &&
+                                      !world_area->chunks.active_at(0).tilemap.tilesets.empty();
+      if (world_has_tilesets)
+        iso = isometric_params(*world_area, cfg);
+      else if (single != nullptr && !single->map.tilemap.tilesets.empty())
+        iso = isometric_params(*single, cfg);
       if (iso.half_th == 0.f)
         iso.half_th = k_default_half_th;
       return iso;
@@ -532,16 +531,20 @@ namespace corundum::render {
     /// The z_index > 0 bands to draw over the ground band, ascending. In World mode, first rebuilds
     /// the cached union of the active chunks' bands when the active set changed.
     std::span<const int> refresh_above_ground_bands(RenderState &state) {
-      if (state.mode != RenderMode::World)
-        return state.map_data.above_z;
-      if (state.chunks.consume_dirty()) {
-        state.above_z_cache.clear();
-        for (const ChunkEntry &chunk : state.chunks.active())
-          state.above_z_cache.insert(state.above_z_cache.end(), chunk.above_z.begin(), chunk.above_z.end());
-        std::ranges::sort(state.above_z_cache);
-        state.above_z_cache.erase(std::ranges::unique(state.above_z_cache).begin(), state.above_z_cache.end());
+      if (const auto *single = std::get_if<SingleMapArea>(&state.area))
+        return single->map.above_z;
+      auto *world_area = std::get_if<WorldArea>(&state.area);
+      if (world_area == nullptr)
+        return {};
+      if (world_area->chunks.consume_dirty()) {
+        std::vector<int> &bands = world_area->above_z_cache;
+        bands.clear();
+        for (const ChunkEntry &chunk : world_area->chunks.active())
+          bands.insert(bands.end(), chunk.above_z.begin(), chunk.above_z.end());
+        std::ranges::sort(bands);
+        bands.erase(std::ranges::unique(bands).begin(), bands.end());
       }
-      return state.above_z_cache;
+      return world_area->above_z_cache;
     }
 
   } // namespace
