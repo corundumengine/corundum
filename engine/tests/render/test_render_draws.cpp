@@ -56,7 +56,8 @@ TEST_CASE("render: a single map draws every non-empty visible cell once") {
   RenderState state;
   REQUIRE(corundum::render::load_map(
               disk(), renderer, state,
-              std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "tilemaps/lifecycle_test.json", cfg)
+              (std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "tilemaps/lifecycle_test.json").string(),
+              cfg)
               .has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
@@ -96,7 +97,8 @@ TEST_CASE("render: a camera far from the area draws no tiles") {
   RenderState state;
   REQUIRE(corundum::render::load_map(
               disk(), renderer, state,
-              std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "tilemaps/lifecycle_test.json", cfg)
+              (std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "tilemaps/lifecycle_test.json").string(),
+              cfg)
               .has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = 1e6f, .y = 1e6f, .zoom = 1.f};
@@ -113,10 +115,10 @@ TEST_CASE("render: a failed load_map after a single map draws nothing") {
   const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;
-  REQUIRE(
-      corundum::render::load_map(disk(), renderer, state, fixtures / "tilemaps/lifecycle_test.json", cfg).has_value());
-  REQUIRE_FALSE(
-      corundum::render::load_map(disk(), renderer, state, fixtures / "tilemaps/missing.json", cfg).has_value());
+  const std::filesystem::path lifecycle_map_path = fixtures / "tilemaps/lifecycle_test.json";
+  const std::filesystem::path missing_map_path = fixtures / "tilemaps/missing.json";
+  REQUIRE(corundum::render::load_map(disk(), renderer, state, lifecycle_map_path.string(), cfg).has_value());
+  REQUIRE_FALSE(corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), cfg).has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
