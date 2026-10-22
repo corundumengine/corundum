@@ -8,6 +8,7 @@
 #include <corundum/render/render_state.hpp>
 #include <cstddef>
 #include <doctest/doctest.h>
+#include <optional>
 
 #include "null_renderer.hpp"
 #include <corundum/engine.hpp>
@@ -303,9 +304,8 @@ TEST_CASE("chunk window shift: the newly-adjacent column is queued and the centr
   render_data::RenderState state = shifted_window_state();
 
   std::vector<tilemap::ChunkCoord> pending_coords;
-  tilemap::ChunkCoord c;
-  while (state.chunks.pop_pending(c))
-    pending_coords.push_back(c);
+  while (const std::optional<tilemap::ChunkCoord> c = state.chunks.pop_pending())
+    pending_coords.push_back(*c);
 
   const std::vector<tilemap::ChunkCoord> k_east_column{
       {.col = 5, .row = 2},
@@ -389,8 +389,7 @@ TEST_CASE("ChunkWindow — prune_pending drops coords the window has left") {
 
   window.prune_pending([](tilemap::ChunkCoord c) { return c.col < 3; });
 
-  tilemap::ChunkCoord out{};
-  REQUIRE(window.pop_pending(out));
-  CHECK(out.col == 1);
-  CHECK_FALSE(window.pop_pending(out));
+  const auto popped = window.pop_pending();
+  CHECK_EQ(popped.value_or(tilemap::ChunkCoord{}).col, 1);
+  CHECK_FALSE(window.pop_pending().has_value());
 }

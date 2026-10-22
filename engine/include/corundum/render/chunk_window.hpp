@@ -10,6 +10,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -68,11 +69,15 @@ namespace corundum::render {
       rebuild_slot_table();
     }
 
-    /// @return slot index into active() for the chunk at (dx,dy) from last_center(), or -1.
-    [[nodiscard]] int32_t slot_at_offset(int dx, int dy) const noexcept {
+    /// @return Slot index into active() of the chunk at (dx, dy) from last_center(), or
+    ///         std::nullopt when the offset is outside the window or that chunk isn't resident.
+    [[nodiscard]] std::optional<std::size_t> slot_at_offset(int dx, int dy) const noexcept {
       if (dx < -k_radius || dx > k_radius || dy < -k_radius || dy > k_radius)
-        return -1;
-      return slot_by_offset_[offset_index(dx, dy)];
+        return std::nullopt;
+      const int32_t slot = slot_by_offset_[offset_index(dx, dy)];
+      if (slot < 0)
+        return std::nullopt;
+      return static_cast<std::size_t>(slot);
     }
 
     /// Add a freshly loaded chunk to the active set. Always marks dirty.
@@ -84,9 +89,9 @@ namespace corundum::render {
 
     /// Remove active chunks for which @p keep returns false, re-deriving the slot table.
     /// @return true if any chunk was removed.
-    template <typename Keep> bool prune_active(Keep &&keep) {
+    template <typename Keep> bool prune_active(const Keep &keep) {
       const std::size_t before = active_.size();
-      std::erase_if(active_, [&](const ChunkEntry &e) { return !std::forward<Keep>(keep)(e); });
+      std::erase_if(active_, [&](const ChunkEntry &e) { return !keep(e); });
       if (active_.size() == before)
         return false;
       dirty_ = true;
@@ -111,22 +116,21 @@ namespace corundum::render {
 
     /// Drop pending coords for which @p keep returns false — chunks the window moved away from
     /// before they were loaded.
-    template <typename Keep> void prune_pending(Keep &&keep) {
-      std::erase_if(pending_, [&](world::tilemap::ChunkCoord c) { return !std::forward<Keep>(keep)(c); });
+    template <typename Keep> void prune_pending(const Keep &keep) {
+      std::erase_if(pending_, [&](world::tilemap::ChunkCoord c) { return !keep(c); });
     }
 
     /// Record that @p c failed to load, so has() reports it and it is never re-queued. Failed
-    /// chunks stay failed until clear() (the next load_world()).
+    /// chunks stay failed until the WorldArea is replaced (the next load_world()).
     void mark_failed(world::tilemap::ChunkCoord c) { failed_.push_back(c); }
 
-    /// Pop the front of the pending queue into @p out.
-    /// @return false if pending is empty (out left unchanged).
-    [[nodiscard]] bool pop_pending(world::tilemap::ChunkCoord &out) {
+    /// Remove and return the front of the pending queue, or std::nullopt when it is empty.
+    [[nodiscard]] std::optional<world::tilemap::ChunkCoord> pop_pending() {
       if (pending_.empty())
-        return false;
-      out = pending_.front();
+        return std::nullopt;
+      const world::tilemap::ChunkCoord front = pending_.front();
       pending_.erase(pending_.begin());
-      return true;
+      return front;
     }
 
     /// Reset to the empty, never-loaded state (used by load_map(), load_world() and

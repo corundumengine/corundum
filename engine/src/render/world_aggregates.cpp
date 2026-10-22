@@ -69,9 +69,11 @@ namespace corundum::render {
                                              int chunk_size) noexcept {
       const int cc = static_cast<int>(std::floor(static_cast<float>(gc) / static_cast<float>(chunk_size)));
       const int cr = static_cast<int>(std::floor(static_cast<float>(gr) / static_cast<float>(chunk_size)));
-      const int32_t slot =
+      const std::optional<std::size_t> slot =
           state.chunks.slot_at_offset(cc - state.chunks.last_center().col, cr - state.chunks.last_center().row);
-      return slot < 0 ? nullptr : &state.chunks.active_at(static_cast<std::size_t>(slot));
+      if (!slot)
+        return nullptr;
+      return &state.chunks.active_at(*slot);
     }
 
     /// Elevation of the global tile cell (gc, gr); 0 when no active chunk owns it.
@@ -174,7 +176,6 @@ namespace corundum::render {
   }
 
   float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept {
-    using corundum::world::tilemap::elevation_at;
     using corundum::world::tilemap::interpolated_elevation_at;
 
     if (!state.chunks.active_empty()) {
@@ -186,18 +187,7 @@ namespace corundum::render {
       // picking, and tilesmith. See std::floor sweep in the world-tilemap audit.
       const int col = static_cast<int>(std::floor(col_f));
       const int row = static_cast<int>(std::floor(row_f));
-      const corundum::world::tilemap::ChunkCoord owner{
-          .col = static_cast<int>(std::floor(static_cast<float>(col) / static_cast<float>(chunk_size))),
-          .row = static_cast<int>(std::floor(static_cast<float>(row) / static_cast<float>(chunk_size))),
-      };
-      const int dx = owner.col - state.chunks.last_center().col;
-      const int dy = owner.row - state.chunks.last_center().row;
-      const int32_t slot = state.chunks.slot_at_offset(dx, dy);
-      if (slot < 0)
-        return 0.f;
-      const auto &entry = state.chunks.active_at(static_cast<std::size_t>(slot));
-      return static_cast<float>(
-          elevation_at(entry.tilemap, col - (owner.col * chunk_size), row - (owner.row * chunk_size)));
+      return static_cast<float>(chunk_tile_elevation_at(state, col, row, chunk_size));
     }
 
     if (!state.map_data.tilemap.tilesets.empty())
