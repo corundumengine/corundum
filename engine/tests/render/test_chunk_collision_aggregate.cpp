@@ -3,8 +3,9 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_system.hpp>
+#include <corundum/render/world_aggregates.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <utility>
 
@@ -21,7 +22,7 @@ TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with 
 
   // Chunk (0,0): one rect at (col=3, row=4) — origin chunk, no offset.
   render_data::ChunkEntry chunk00;
-  chunk00.coord = {0, 0};
+  chunk00.coord = {.col = 0, .row = 0};
   chunk00.tilemap.iso_diamond_w = 128;
   chunk00.tilemap.collisions.push_back(3.f, 4.f, 2.f, 1.f, /*elevation=*/0);
   state.chunks.add_active(std::move(chunk00));
@@ -30,7 +31,7 @@ TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with 
   // Before the fix, offsets are applied in pixel units (chunk_size * tile_px * tile_scale),
   // pushing these rects ~2048 columns away from where they belong.
   render_data::ChunkEntry chunk10;
-  chunk10.coord = {1, 0};
+  chunk10.coord = {.col = 1, .row = 0};
   chunk10.tilemap.iso_diamond_w = 128;
   chunk10.tilemap.collisions.push_back(5.f, 6.f, 1.f, 2.f, /*elevation=*/1);
   chunk10.tilemap.collision_triangles.push_back(7.f, 8.f, 1.f, 1.f, tilemap::TriangleCut::NorthWest, /*elevation=*/0);
@@ -66,7 +67,7 @@ TEST_CASE("rebuild_collision — world mode: vertically adjacent chunk offsets b
   state.manifest.chunks_tall = 4;
 
   render_data::ChunkEntry chunk02;
-  chunk02.coord = {0, 2};
+  chunk02.coord = {.col = 0, .row = 2};
   chunk02.tilemap.iso_diamond_w = 64;
   chunk02.tilemap.collisions.push_back(1.f, 2.f, 1.f, 1.f, 0);
   state.chunks.add_active(std::move(chunk02));
@@ -76,7 +77,7 @@ TEST_CASE("rebuild_collision — world mode: vertically adjacent chunk offsets b
   REQUIRE(state.agg_collisions.size() == 1);
   // Row offset only — col must be unchanged.
   CHECK(state.agg_collisions.cols[0] == 1.f);
-  CHECK(state.agg_collisions.rows[0] == doctest::Approx(2.f + 2.f * 8.f));
+  CHECK(state.agg_collisions.rows[0] == doctest::Approx(2.f + (2.f * 8.f)));
 }
 
 TEST_CASE("rebuild_collision — empty active_chunks is a no-op") {

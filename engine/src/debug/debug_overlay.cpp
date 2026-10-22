@@ -11,9 +11,11 @@
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_system.hpp>
+#include <corundum/render/world_aggregates.hpp>
 #include <corundum/ui/font_family.hpp>
+#include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
@@ -237,6 +239,118 @@ namespace corundum::debug {
     r.reset_screen_view();
   }
 
+  namespace {
+
+    /// Format every line into one buffer, recording each line's start offset. The buffer may
+    /// reallocate as it grows, so offsets (not views) are kept and sliced at draw time — DrawText
+    /// takes a string_view, so no per-line allocation.
+    struct PanelLines {
+      static constexpr std::size_t k_max_lines = 8;
+
+      std::array<std::size_t, k_max_lines> offsets{};
+
+      std::size_t count{};
+
+      std::string text;
+
+      [[nodiscard]] std::string &begin_line() {
+        offsets[count++] = text.size();
+        return text;
+      }
+
+      [[nodiscard]] std::string_view line_at(std::size_t index) const {
+        const std::string_view view{text};
+        const std::size_t end = (index + 1 < count) ? offsets[index + 1] : view.size();
+        return view.substr(offsets[index], end - offsets[index]);
+      }
+    };
+
+    struct WorldPanelValues {
+      float player_dc{};
+
+      float player_dr{};
+
+      float screen_speed{};
+
+      bool have_iso{};
+
+      int collision_rects{};
+
+      int collision_tris{};
+
+      std::string map_name;
+    };
+
+    /// Draw the panel background sized to its widest line, then every line.
+    void draw_panel(platform::Renderer &r, float x, const PanelLines &lines, std::uint32_t font_id) {
+      float content_w = k_box_w;
+      for (std::size_t i = 0; i < lines.count; ++i)
+        content_w = std::max(content_w, r.measure_text(font_id, lines.line_at(i), k_font_sz));
+
+      // measure_text accounts for the active font's real advances, so a longer field never
+      // overflows the panel.
+      r.draw(platform::DrawRect{
+          .position = {.x = x - k_pad, .y = k_y - k_pad},
+          .size = {.x = content_w + (2.f * k_pad), .y = (static_cast<float>(lines.count) * k_line_h) + (k_pad * 2.f)},
+          .colour = k_hud_bg,
+      });
+
+      float y = k_y;
+      for (std::size_t i = 0; i < lines.count; ++i) {
+        r.draw(platform::DrawText{
+            .font_id = font_id,
+            .text = lines.line_at(i),
+            .position = {.x = x, .y = y},
+            .char_size = k_font_sz,
+            .colour = k_hud_text,
+        });
+        y += k_line_h;
+      }
+    }
+
+    void append_world_lines(PanelLines &lines, const render::RenderState &render, const world::Scene &scene,
+                            const WorldPanelValues &values) {
+      const entities::World &w = scene.world;
+      const entities::EntityId player = scene.player;
+
+      // With no world loaded (the Title), only the frame-rate and draw lines mean anything; the world
+      // lines would read as zeros and "(none)", so one "World: none" line stands in for them.
+      if (render.mode == render::RenderMode::None) {
+        std::format_to(std::back_inserter(lines.begin_line()), "World:  none");
+        return;
+      }
+
+      if (w.transforms.has(player))
+        std::format_to(std::back_inserter(lines.begin_line()), "Grid:  col ({:7.1f}), row ({:7.1f})",
+                       w.transforms.pos_col(player), w.transforms.pos_row(player));
+      else
+        std::format_to(std::back_inserter(lines.begin_line()), "Grid:  (none)");
+
+      if (values.have_iso)
+        std::format_to(std::back_inserter(lines.begin_line()), "Speed:  {:6.1f} px/s  ({:6.2f}, {:6.2f}) tile/s",
+                       values.screen_speed, values.player_dc, values.player_dr);
+      else
+        std::format_to(std::back_inserter(lines.begin_line()), "Speed:  {:6.1f} tile/s  (dc {:6.2f}, dr {:6.2f})",
+                       std::hypot(values.player_dc, values.player_dr), values.player_dc, values.player_dr);
+      if (w.facings.has(player))
+        std::format_to(std::back_inserter(lines.text), "  {}", core::direction_name(w.facings.dir_of(player)));
+
+      std::format_to(std::back_inserter(lines.begin_line()), "Camera:  x ({:7.1f}), y ({:7.1f})", scene.camera.x,
+                     scene.camera.y);
+      std::format_to(std::back_inserter(lines.begin_line()), "Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}",
+                     static_cast<int>(render.chunks.active_size()), values.collision_rects, values.collision_tris,
+                     static_cast<int>(w.entities.alive()));
+      std::format_to(std::back_inserter(lines.begin_line()), "Map:  {}", values.map_name);
+
+      if (scene.hovered_tile)
+        std::format_to(std::back_inserter(lines.begin_line()), "Hover:  col ({}), row ({})", scene.hovered_tile->col,
+                       scene.hovered_tile->row);
+      else
+        std::format_to(std::back_inserter(lines.begin_line()), "Hover:  none");
+    }
+
+  } // namespace
+
   void HudOverlay::draw_text_panel(platform::Renderer &r, const render::RenderState &render,
                                    const core::GameConfig &cfg, const world::Scene &scene,
                                    core::math::Vec2 viewport) const {
@@ -266,107 +380,32 @@ namespace corundum::debug {
     }
 
     const render::CollisionGeometry geo = render::current_collisions(render);
-    const int collision_rects = static_cast<int>(geo.rects.size());
-    const int collision_tris = static_cast<int>(geo.tris.size());
-
+    const WorldPanelValues values{
+        .player_dc = player_dc,
+        .player_dr = player_dr,
+        .screen_speed = screen_speed,
+        .have_iso = have_iso,
+        .collision_rects = static_cast<int>(geo.rects.size()),
+        .collision_tris = static_cast<int>(geo.tris.size()),
+        .map_name = resolve_map_name(render, w, p),
+    };
     const platform::RendererStats stats = r.stats();
 
-    const std::string map_name = resolve_map_name(render, w, p);
-
-    // Format every line into one buffer, recording each line's start offset. The
-    // buffer may reallocate as it grows, so offsets (not views) are kept and sliced
-    // at draw time — DrawText takes a string_view, so no per-line allocation.
-    constexpr std::size_t k_max_lines = 8;
-    std::array<std::size_t, k_max_lines> line_offsets{};
-    std::size_t line_count{0};
-    std::string panel;
-    panel.reserve(512);
-
-    const auto begin_line = [&panel, &line_offsets, &line_count] -> std::string & {
-      line_offsets[line_count++] = panel.size();
-      return panel;
-    };
-
-    // With no world loaded (the Title), only the frame-rate and draw lines mean anything; the world
-    // lines would read as zeros and "(none)", so one "World: none" line stands in for them.
-    const bool has_world = render.mode != render::RenderMode::None;
-
-    std::format_to(std::back_inserter(begin_line()), "FPS:  sim {:3.0f} / render {:3.0f}",
+    PanelLines lines;
+    lines.text.reserve(512);
+    std::format_to(std::back_inserter(lines.begin_line()), "FPS:  sim {:3.0f} / render {:3.0f}",
                    static_cast<float>(cfg.simulation_fps), smoothed_fps);
     if (shed_frames > 0)
-      std::format_to(std::back_inserter(panel), "  SHED {}", shed_frames);
+      std::format_to(std::back_inserter(lines.text), "  SHED {}", shed_frames);
 
-    if (has_world) {
-      if (w.transforms.has(p))
-        std::format_to(std::back_inserter(begin_line()), "Grid:  col ({:7.1f}), row ({:7.1f})", w.transforms.pos_col(p),
-                       w.transforms.pos_row(p));
-      else
-        std::format_to(std::back_inserter(begin_line()), "Grid:  (none)");
+    append_world_lines(lines, render, scene, values);
 
-      if (have_iso)
-        std::format_to(std::back_inserter(begin_line()), "Speed:  {:6.1f} px/s  ({:6.2f}, {:6.2f}) tile/s",
-                       screen_speed, player_dc, player_dr);
-      else
-        std::format_to(std::back_inserter(begin_line()), "Speed:  {:6.1f} tile/s  (dc {:6.2f}, dr {:6.2f})",
-                       std::hypot(player_dc, player_dr), player_dc, player_dr);
-      if (w.facings.has(p))
-        std::format_to(std::back_inserter(panel), "  {}", core::direction_name(w.facings.dir_of(p)));
-
-      std::format_to(std::back_inserter(begin_line()), "Camera:  x ({:7.1f}), y ({:7.1f})", scene.camera.x,
-                     scene.camera.y);
-
-      std::format_to(std::back_inserter(begin_line()), "Stats:  chunk:{}  col rect:{}  col tri:{}  ent:{}",
-                     static_cast<int>(render.chunks.active_size()), collision_rects, collision_tris,
-                     static_cast<int>(w.entities.alive()));
-
-      std::format_to(std::back_inserter(begin_line()), "Map:  {}", map_name);
-    } else {
-      std::format_to(std::back_inserter(begin_line()), "World:  none");
-    }
-
-    std::format_to(std::back_inserter(begin_line()), "Draw:  calls {}  quads {}", stats.draw_calls, stats.quads);
+    std::format_to(std::back_inserter(lines.begin_line()), "Draw:  calls {}  quads {}", stats.draw_calls, stats.quads);
     if (stats.dropped_quads > 0u)
-      std::format_to(std::back_inserter(panel), "  DROPPED {}", stats.dropped_quads);
-
-    if (has_world) {
-      if (scene.hovered_tile)
-        std::format_to(std::back_inserter(begin_line()), "Hover:  col ({}), row ({})", scene.hovered_tile->col,
-                       scene.hovered_tile->row);
-      else
-        std::format_to(std::back_inserter(begin_line()), "Hover:  none");
-    }
-
-    const std::string_view panel_view{panel};
-    const auto line_at = [&panel_view, &line_offsets, &line_count](std::size_t i) -> std::string_view {
-      const std::size_t end = (i + 1 < line_count) ? line_offsets[i + 1] : panel_view.size();
-      return panel_view.substr(line_offsets[i], end - line_offsets[i]);
-    };
+      std::format_to(std::back_inserter(lines.text), "  DROPPED {}", stats.dropped_quads);
 
     const std::uint32_t font_id = render.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-
-    // Size the background to the widest line — measure_text accounts for the active
-    // font's real advances — so a longer field never overflows the panel.
-    float content_w = k_box_w;
-    for (std::size_t i = 0; i < line_count; ++i)
-      content_w = std::max(content_w, r.measure_text(font_id, line_at(i), k_font_sz));
-
-    r.draw(platform::DrawRect{
-        .position = {.x = x - k_pad, .y = k_y - k_pad},
-        .size = {.x = content_w + (2.f * k_pad), .y = (static_cast<float>(line_count) * k_line_h) + (k_pad * 2.f)},
-        .colour = k_hud_bg,
-    });
-
-    float y = k_y;
-    for (std::size_t i = 0; i < line_count; ++i) {
-      r.draw(platform::DrawText{
-          .font_id = font_id,
-          .text = line_at(i),
-          .position = {.x = x, .y = y},
-          .char_size = k_font_sz,
-          .colour = k_hud_text,
-      });
-      y += k_line_h;
-    }
+    draw_panel(r, x, lines, font_id);
   }
 
   void HudOverlay::render(platform::Renderer &r, const OverlayInput &input) {

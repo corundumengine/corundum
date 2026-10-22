@@ -7,7 +7,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_system.hpp>
+#include <corundum/render/resources.hpp>
 #include <corundum/ui/font_family.hpp>
 
 #include <cstddef>

@@ -10,7 +10,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/input/bindings.hpp>
 #include <corundum/platform/window.hpp>
-#include <corundum/render/render_system.hpp>
+#include <corundum/render/resources.hpp>
 
 #include <algorithm>
 #include <array>

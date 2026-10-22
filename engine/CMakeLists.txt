@@ -37,7 +37,10 @@ set(ENGINE_SOURCES
     src/physics/collision.cpp
     src/physics/physics_system.cpp
     src/physics/walkability.cpp
+    src/render/area.cpp
     src/render/render_system.cpp
+    src/render/resources.cpp
+    src/render/world_aggregates.cpp
     src/save/save.cpp
     src/settings/user_settings.cpp
     src/sprites/atlas_clips.cpp

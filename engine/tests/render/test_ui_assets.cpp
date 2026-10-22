@@ -3,7 +3,7 @@
 
 #include "null_renderer.hpp"
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_system.hpp>
+#include <corundum/render/resources.hpp>
 
 #include "memory_content_source.hpp"
 #include "temp_dir.hpp"

@@ -17,8 +17,10 @@
 #include <corundum/platform/platform_events.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
+#include <corundum/render/area.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/render/resources.hpp>
 #include <corundum/screen_registry.hpp>
 #include <corundum/settings/user_settings.hpp>
 #include <corundum/ui/menu.hpp>

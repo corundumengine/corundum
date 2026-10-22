@@ -5,6 +5,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
+#include <corundum/render/area.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/render_system.hpp>
 #include <corundum/world/camera.hpp>
@@ -56,8 +57,10 @@ namespace corundum::world {
     const corundum::core::math::Vec2 target = anchor == CameraAnchor::CellCenter
                                                   ? corundum::core::math::tile_to_world_center(col, row, 0.f, iso)
                                                   : corundum::core::math::tile_to_world(col, row, 0, iso);
-    const float view_w = engine.window_width() > 0 ? static_cast<float>(engine.window_width()) : engine.cfg.win_w;
-    const float view_h = engine.window_height() > 0 ? static_cast<float>(engine.window_height()) : engine.cfg.win_h;
+    const float view_w =
+        engine.window_width() > 0 ? static_cast<float>(engine.window_width()) : static_cast<float>(engine.cfg.win_w);
+    const float view_h =
+        engine.window_height() > 0 ? static_cast<float>(engine.window_height()) : static_cast<float>(engine.cfg.win_h);
     engine.scene.camera.center_on(target.x, target.y, bounds, view_w, view_h);
     // The framed scene replaces whatever the interpolation snapshot held; restart the blend from
     // it so the first frame doesn't sweep in from the previous scene (or from the origin at boot).

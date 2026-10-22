@@ -7,22 +7,8 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/render/render_state.hpp>
 
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <string>
-#include <string_view>
-
-namespace corundum::core {
-  class ContentSource;
-}
-
 namespace corundum::platform {
   class Renderer;
-}
-
-namespace corundum::sprites {
-  class CharacterRegistry;
 }
 
 namespace corundum::world {
@@ -30,20 +16,6 @@ namespace corundum::world {
 }
 
 namespace corundum::render {
-
-  /** @brief Initialise render state (pre-reserves entity draw-list buffer).
-   *  @param[out] state  Uninitialised render state.
-   *  @return ok on success.
-   */
-  [[nodiscard]] std::expected<void, std::string> initialize(render::RenderState &state);
-
-  /** @brief Unload the current area: release its textures, clear every world field and return to
-   *  RenderMode::None. Process-lifetime state (fonts, sprite_index, panel_skin, ui_scale,
-   *  text_speed) is kept. Purges unreferenced textures, so call it between frames.
-   *
-   *  @post state.mode is RenderMode::None and state.area_texture_ids is empty.
-   */
-  void unload_world(corundum::platform::Renderer &r, render::RenderState &state);
 
   /** @brief Record the camera and every entity's tile position as the start of a fixed step.
    *
@@ -64,103 +36,6 @@ namespace corundum::render {
                                                             corundum::entities::EntityId e, float col, float row,
                                                             float alpha) noexcept;
 
-  /** @brief Build the sprite-index lookup tables from the character registry.
-   *  @param[in,out] r         Renderer for texture loading.
-   *  @param[out]    state     Render state to populate.
-   *  @param[in]     registry  Loaded character registry.
-   *  @post state.sprite_index is populated and ready for render_entities().
-   */
-  void load_sprite_index(corundum::platform::Renderer &r, render::RenderState &state,
-                         const corundum::sprites::CharacterRegistry &registry);
-
-  /** @brief Load every role's font family into the renderer and store the resolved ids.
-   *  @param[in,out] r      Renderer for font atlas creation.
-   *  @param[out]    state  Render state; state.fonts is populated on success.
-   *  @param[in]     paths  Resource paths supplying font_dir and the per-role file names.
-   *  @return ok on success, or an error string if a required regular face fails to load.
-   *  @post Each FontFamily's optional styles fall back to the closest present face; the
-   *        first font id the renderer hands out (1) is reserved, so 0 always means unloaded.
-   */
-  [[nodiscard]] std::expected<void, std::string> load_fonts(corundum::platform::Renderer &r, render::RenderState &state,
-                                                            const corundum::core::ResourcePaths &paths);
-
-  /** @brief Load shared UI textures (dialog box border, etc.).
-   *  @param[in,out] r     Renderer for texture creation.
-   *  @param[out]    state Render state; panel_skin border is configured.
-   *  @param[in]     path  Borders manifest to read; the border cell size is taken from the
-   *                       upper_left frame, so multi-frame cells are supported.
-   *  @return ok on success, or an error string on failure.
-   */
-  [[nodiscard]] std::expected<void, std::string>
-  load_ui_assets(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                 render::RenderState &state, std::string_view path = "data/sprite_sheets/ui/borders.json");
-
-  /** @brief Load a single tilemap for map mode.
-   *  @param[in,out] r             Renderer for tileset texture loading.
-   *  @param[out]    state         Render state to populate with map data.
-   *  @param[in]     tilemap_path  Path to the tilemap JSON.
-   *  @param[in]     cfg           Game config (tile_scale, etc.).
-   *  @return ok on success, or an error string on failure.
-   */
-  [[nodiscard]] std::expected<void, std::string> load_map(const corundum::core::ContentSource &content,
-                                                          corundum::platform::Renderer &r, render::RenderState &state,
-                                                          const std::string &tilemap_path,
-                                                          const corundum::core::GameConfig &cfg);
-
-  /** @brief Info returned by load_world so the caller can spawn the game world.
-   *
-   * Contains the isometric projection parameters and the spawn position
-   * (world centre in world coordinates) that the caller should pass to
-   * world::spawn_world(). Separates render resource loading from
-   * game entity creation per the layer dependency rules.
-   */
-  struct WorldLoadInfo {
-    float half_tw{};
-
-    float half_th{};
-
-    float x_origin{};
-
-    corundum::core::math::Vec2 spawn_world_pos;
-  };
-
-  /** @brief Optional spawn parameters for a (re)load of the world in world mode.
-   *
-   *  Overrides the default manifest-centre spawn and derives the 3×3 streaming
-   *  window centre from the requested spawn tile, so a return to a non-central
-   *  overworld location spawns the player into a streamed chunk.
-   */
-  struct WorldLoadParams {
-    std::optional<float> spawn_col; ///< Overworld tile column (may be fractional); defaults to manifest centre.
-
-    std::optional<float> spawn_row; ///< Overworld tile row (may be fractional); defaults to manifest centre.
-  };
-
-  /** @brief Load the world manifest and initial chunks for world mode.
-   *
-   *  Loads the manifest JSON, streams the 3×3 chunk window around the centre,
-   *  uploads all tileset textures, rebuilds collision aggregates, and returns
-   *  the info the caller needs to spawn the game world.
-   *
-   *  @param[in,out] r       Renderer for chunk texture loading.
-   *  @param[out]    state   Render state populated with world manifest + active chunks.
-   *  @param[in]     cfg     Game config.
-   *  @param[in]     params  Optional spawn tile; overrides the manifest-centre default
-   *                         and re-centres the streaming window on that tile's chunk.
-   *  @return WorldLoadInfo on success, or std::unexpected with an error message.
-   *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
-   *  @post state.mode == RenderMode::World and state.chunks is non-empty, or an error is returned.
-   */
-  [[nodiscard]] std::expected<WorldLoadInfo, std::string>
-  load_world(const corundum::core::ContentSource &content, corundum::platform::Renderer &r, render::RenderState &state,
-             const corundum::core::GameConfig &cfg, const WorldLoadParams &params = {});
-
-  /** @brief Apply panel style (colours, fonts, spacing) from game config.
-   *  @param[out] state  Render state; panel_skin style is configured.
-   *  @param[in]  cfg    Game config with dialogue_render settings.
-   */
-  void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &cfg);
-
   /** @brief Render the world for one frame; the caller owns screen-space overlays.
    *  @param[in,out] r       Renderer for all draw calls.
    *  @param[in,out] state   Render state (chunk streaming may modify active set).
@@ -173,72 +48,5 @@ namespace corundum::render {
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, float alpha, int win_w, int win_h);
-
-  /** @brief Tile width in source pixels of the first tileset in the first active chunk.
-   *  @param[in] state  Render state.
-   *  @return Tile width in pixels, or 0 if no active chunks or tilesets.
-   */
-  [[nodiscard]] int first_chunk_tile_px(const render::RenderState &state) noexcept;
-
-  /** @brief Advance World-mode chunk streaming by one frame.
-   *
-   * Recenters the chunk window on the player, drops chunks and pending loads the window has
-   * left, queues newly needed chunks, loads at most one pending chunk, and rebuilds the world
-   * aggregates (collision, walkability, portals) once if the active set changed. This is the only
-   * place world residency changes after load_world(); call it once per frame before the fixed
-   * steps, so the simulation always reads aggregates that match the resident chunks. No-op
-   * outside World mode or before any chunk is resident.
-   */
-  void stream_world_chunks(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                           render::RenderState &state, const corundum::core::GameConfig &cfg,
-                           const corundum::world::Scene &scene);
-
-  /** @brief Elevation of the tile under (col_f, row_f), resolving chunk ownership in world mode.
-   *
-   * In world mode looks up the owning chunk via the active-chunk window and returns
-   * discrete elevation. In single-map mode delegates to interpolated_elevation_at().
-   * Returns 0 if no tilemap is loaded at the given coordinates.
-   *
-   * @param[in] state Render state carrying active-chunk data or single-tilemap data.
-   * @param[in] col_f Fractional tile column.
-   * @param[in] row_f Fractional tile row.
-   * @return Tile elevation (≥0) at the queried position; 0 when out of bounds.
-   */
-  [[nodiscard]] float elevation_under(const render::RenderState &state, float col_f, float row_f) noexcept;
-
-  /** @brief Rebuild the world-mode aggregated collision rects and triangles from active chunks.
-   *
-   * Clears and repopulates @c state.agg_collisions and @c state.agg_triangles by
-   * walking @c state.chunks.active() and offsetting each chunk's tile-grid-local
-   * collision geometry into world tile-grid coordinates (offsets are in tile units,
-   * matching the tile-grid coordinate space the rest of the resolver operates in).
-   *
-   * @param[in,out] state  Render state in World mode whose aggregates will be overwritten.
-   * @note No-op when the chunk window has no active chunks.
-   */
-  void rebuild_collision(render::RenderState &state);
-
-  /** @brief Rebuild the world-mode aggregated walkability graph from the active chunks.
-   *
-   * Builds a WalkabilityGraph spanning the bounding box of the active chunk window,
-   * indexed in global world tile coordinates (the graph's col_origin/row_origin record
-   * the offset). Elevation-delta gating uses global lookups, so chunk seams gate
-   * correctly. Clears the graph (no-op otherwise) when the chunk window is empty.
-   *
-   * @param[in,out] state           Render state in World mode.
-   * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
-   */
-  void rebuild_world_walkability(render::RenderState &state, int max_step_height);
-
-  /** @brief Rebuild every world-mode aggregate for the active chunk window.
-   *
-   * Runs rebuild_collision(), rebuild_world_walkability() and the portal aggregation in one
-   * step so the three stay in sync with the active chunk set. stream_world_chunks() and
-   * load_world() call it after chunk mutations.
-   *
-   * @param[in,out] state           Render state in World mode.
-   * @param[in]     max_step_height  Max walkable elevation delta (GameConfig::max_step_height).
-   */
-  void rebuild_world_aggregates(render::RenderState &state, int max_step_height);
 
 } // namespace corundum::render

@@ -10,7 +10,6 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
-#include <corundum/render/render_system.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/transition.hpp>
 
@@ -107,6 +106,41 @@ namespace corundum::save {
     return j;
   }
 
+  namespace {
+
+    std::expected<void, std::string> read_identity_fields(const nlohmann::json &j, SaveState &state) {
+      if (auto result = read_field(j, "game_id", state.game_id); !result)
+        return std::unexpected(std::move(result).error());
+      if (auto result = read_field(j, "mode", state.mode); !result)
+        return std::unexpected(std::move(result).error());
+      if (auto result = read_field(j, "map_or_world_id", state.map_or_world_id); !result)
+        return std::unexpected(std::move(result).error());
+      if (auto result = read_field(j, "active_zone", state.active_zone); !result)
+        return std::unexpected(std::move(result).error());
+      if (auto result = read_field(j, "player_col", state.player_col); !result)
+        return std::unexpected(std::move(result).error());
+      if (auto result = read_field(j, "player_row", state.player_row); !result)
+        return std::unexpected(std::move(result).error());
+      if (auto result = read_field(j, "entered_from_world", state.entered_from_world); !result)
+        return std::unexpected(std::move(result).error());
+      return parse_meta(j, state.meta);
+    }
+
+    std::expected<void, std::string> read_flags(const nlohmann::json &j, corundum::world::FlagStore &flags) {
+      if (!j.contains("flags"))
+        return {};
+      if (!j["flags"].is_object())
+        return std::unexpected("save 'flags' must be an object");
+      for (const auto &[key, value] : j["flags"].items()) {
+        if (!value.is_number_integer())
+          return std::unexpected(std::format("save flag '{}' must be an integer", key));
+        flags.emplace(key, value.get<int>());
+      }
+      return {};
+    }
+
+  } // namespace
+
   std::expected<SaveState, std::string> parse(const nlohmann::json &j) {
     if (!j.is_object())
       return std::unexpected("save JSON must be an object");
@@ -120,35 +154,12 @@ namespace corundum::save {
     SaveState s;
     s.version = k_save_version;
 
-    if (auto result = read_field(j, "game_id", s.game_id); !result)
+    if (auto result = read_identity_fields(j, s); !result)
       return std::unexpected(std::move(result).error());
-    if (auto result = read_field(j, "mode", s.mode); !result)
-      return std::unexpected(std::move(result).error());
-    if (auto result = read_field(j, "map_or_world_id", s.map_or_world_id); !result)
-      return std::unexpected(std::move(result).error());
-    if (auto result = read_field(j, "active_zone", s.active_zone); !result)
-      return std::unexpected(std::move(result).error());
-    if (auto result = read_field(j, "player_col", s.player_col); !result)
-      return std::unexpected(std::move(result).error());
-    if (auto result = read_field(j, "player_row", s.player_row); !result)
-      return std::unexpected(std::move(result).error());
-    if (auto result = read_field(j, "entered_from_world", s.entered_from_world); !result)
-      return std::unexpected(std::move(result).error());
-    if (auto result = parse_meta(j, s.meta); !result)
-      return std::unexpected(std::move(result).error());
-
     if (s.mode != k_mode_single_map && s.mode != k_mode_world)
       return std::unexpected(std::format("save 'mode' must be '{}' or '{}'", k_mode_single_map, k_mode_world));
-
-    if (j.contains("flags")) {
-      if (!j["flags"].is_object())
-        return std::unexpected("save 'flags' must be an object");
-      for (const auto &[key, value] : j["flags"].items()) {
-        if (!value.is_number_integer())
-          return std::unexpected(std::format("save flag '{}' must be an integer", key));
-        s.flags.emplace(key, value.get<int>());
-      }
-    }
+    if (auto result = read_flags(j, s.flags); !result)
+      return std::unexpected(std::move(result).error());
     return s;
   }
 

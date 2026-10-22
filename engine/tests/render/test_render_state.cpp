@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <corundum/core/game_config.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
+#include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
 #include <cstddef>
 #include <doctest/doctest.h>
@@ -11,7 +12,9 @@
 #include "null_renderer.hpp"
 #include <corundum/engine.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/render/area.hpp>
 #include <corundum/render/render_system.hpp>
+#include <corundum/render/world_aggregates.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>

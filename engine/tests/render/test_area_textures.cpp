@@ -5,8 +5,8 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/texture_ref_counts.hpp>
+#include <corundum/render/area.hpp>
 #include <corundum/render/render_state.hpp>
-#include <corundum/render/render_system.hpp>
 
 #include <doctest/doctest.h>
 
