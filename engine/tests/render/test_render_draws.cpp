@@ -107,3 +107,22 @@ TEST_CASE("render: a camera far from the area draws no tiles") {
 
   CHECK(renderer.sprites.empty());
 }
+
+TEST_CASE("render: a failed load_map after a single map draws nothing") {
+  const std::filesystem::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
+  const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  TileRecordingRenderer renderer;
+  RenderState state;
+  REQUIRE(
+      corundum::render::load_map(disk(), renderer, state, fixtures / "tilemaps/lifecycle_test.json", cfg).has_value());
+  REQUIRE_FALSE(
+      corundum::render::load_map(disk(), renderer, state, fixtures / "tilemaps/missing.json", cfg).has_value());
+  auto scene = std::make_unique<corundum::world::Scene>();
+  scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
+  state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
+  state.previous_step.zoom = 1.f;
+
+  render_frame(renderer, state, cfg, *scene, 100000, 100000);
+
+  CHECK(renderer.sprites.empty());
+}

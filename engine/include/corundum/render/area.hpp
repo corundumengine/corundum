@@ -40,6 +40,7 @@ namespace corundum::render {
    *  @param[in]     tilemap_path  Path to the tilemap JSON.
    *  @param[in]     cfg           Game config (tile_scale, etc.).
    *  @return ok on success, or an error string on failure.
+   *  @post On failure, mode(state) is RenderMode::None and state.area_texture_ids is empty.
    */
   [[nodiscard]] std::expected<void, std::string> load_map(const corundum::core::ContentSource &content,
                                                           corundum::platform::Renderer &r, render::RenderState &state,
@@ -89,6 +90,7 @@ namespace corundum::render {
    *  @return WorldLoadInfo on success, or std::unexpected with an error message.
    *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
    *  @post On success, std::holds_alternative<WorldArea>(state.area) and the window is non-empty.
+   *        On failure, mode(state) is RenderMode::None and state.area_texture_ids is empty.
    */
   [[nodiscard]] std::expected<WorldLoadInfo, std::string>
   load_world(const corundum::core::ContentSource &content, corundum::platform::Renderer &r, render::RenderState &state,

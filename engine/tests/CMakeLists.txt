@@ -75,6 +75,7 @@ set(TEST_SOURCES
     render/test_font_families.cpp
     render/test_render_draws.cpp
     render/test_render_state.cpp
+    render/test_sprite_index.cpp
     render/test_ui_assets.cpp
     render/test_world_walkability.cpp
 

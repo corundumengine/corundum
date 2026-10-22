@@ -23,11 +23,14 @@ namespace corundum::test {
     /// Paths load_texture() refuses with std::unexpected.
     std::vector<std::string> failing_paths;
 
+    /// Path → the id load_texture() handed out for it.
+    std::unordered_map<std::string, uint32_t> ids_by_path;
+
     std::expected<uint32_t, std::string> load_texture(std::string_view path) override {
       const std::string key{path};
       if (std::ranges::find(failing_paths, key) != failing_paths.end())
         return std::unexpected("refused");
-      const auto [it, inserted] = ids_.try_emplace(key, next_id_);
+      const auto [it, inserted] = ids_by_path.try_emplace(key, next_id_);
       if (inserted)
         ++next_id_;
       return it->second;
@@ -66,7 +69,6 @@ namespace corundum::test {
     [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
 
   private:
-    std::unordered_map<std::string, uint32_t> ids_;
     uint32_t next_id_{1};
   };
 

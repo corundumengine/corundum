@@ -56,12 +56,10 @@ namespace corundum::render {
       std::unordered_map<corundum::sprites::Id, uint32_t> sheet_textures;
       for (const auto &[sheet_id, sheet] : registry.sheets()) {
         auto result = r.load_texture(sheet.path);
-        if (result.has_value()) {
+        if (result.has_value())
           sheet_textures[sheet_id] = result.value();
-        } else {
+        else
           corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", sheet.path);
-          sheet_textures[sheet_id] = 0;
-        }
       }
       return sheet_textures;
     }
