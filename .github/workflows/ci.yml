@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md', '**/*.md']
   pull_request:
+    paths-ignore: ['**.md', '**/*.md']
 
 permissions:
   contents: read
@@ -31,8 +33,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # brew's auto-update costs every run a full `brew update`; the runner
+      # image's formula snapshot is at most about a week old, and the ccache key
+      # below reads whichever clang version actually gets installed.
       - name: Install toolchain (macOS)
         if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
         run: brew install llvm ninja
 
       - name: Install toolchain (Windows)
@@ -47,15 +56,19 @@ jobs:
         with:
           arch: x64
 
+      # Only the packages the build needs: llvm.sh would also install lldb and
+      # clangd and run a second apt-get update, and xorg-dev pulls the whole
+      # X.Org development set when GLFW needs six X11 libraries. Removing
+      # man-db's auto-update flag skips its index rebuild after the install.
       - name: Install toolchain (Linux)
         if: runner.os == 'Linux'
         run: |
+          sudo rm -f /var/lib/man-db/auto-update
+          . /etc/os-release
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb https://apt.llvm.org/${VERSION_CODENAME}/ llvm-toolchain-${VERSION_CODENAME}-21 main" | sudo tee /etc/apt/sources.list.d/llvm-21.list > /dev/null
           sudo apt-get update
-          sudo apt-get install -y lsb-release wget software-properties-common gnupg
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 21
-          sudo apt-get install -y clang-format-21 lld-21 libc++-21-dev libc++abi-21-dev ninja-build libasound2-dev libgl-dev xorg-dev libwayland-dev libwayland-bin wayland-protocols libxkbcommon-dev
+          sudo apt-get install -y --no-install-recommends clang-21 lld-21 clang-format-21 libc++-21-dev libc++abi-21-dev ninja-build libasound2-dev libgl-dev libx11-dev libxcursor-dev libxext-dev libxi-dev libxinerama-dev libxrandr-dev libwayland-dev libwayland-bin wayland-protocols libxkbcommon-dev
 
       # The presets require CMake 4.3 and the runner images lag behind it. This
       # runs last among the toolchain steps so Visual Studio's bundled
