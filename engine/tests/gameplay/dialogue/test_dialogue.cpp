@@ -46,6 +46,26 @@ using corundum::test::disk;
 
 namespace {
 
+  corundum::gameplay::dialogue::Node make_innkeeper_choice_node() {
+    using namespace corundum::gameplay::dialogue;
+
+    Node n;
+    n.id = "n1";
+    n.type = NodeType::Choice;
+    n.choices = {
+        {
+            .label = "I need a room.",
+            .target_id = "n_pay",
+            .condition = *compile("gold >= 5 && !paid_innkeeper"),
+            .actions = {"gold -= 5", "paid_innkeeper = true"},
+            .sequence = SequenceMode::Once,
+        },
+        {.label = "I need a room.", .target_id = "n_already_paid", .condition = *compile("paid_innkeeper == true")},
+        {.label = "Just passing through.", .target_id = "n_bye"},
+    };
+    return n;
+  }
+
   corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
     using namespace corundum::gameplay::dialogue;
 
@@ -67,23 +87,7 @@ namespace {
       n.next_id = "n1";
       push(std::move(n));
     }
-    { // n1 — choice
-      Node n;
-      n.id = "n1";
-      n.type = NodeType::Choice;
-      n.choices = {
-          {
-              .label = "I need a room.",
-              .target_id = "n_pay",
-              .condition = *compile("gold >= 5 && !paid_innkeeper"),
-              .actions = {"gold -= 5", "paid_innkeeper = true"},
-              .sequence = SequenceMode::Once,
-          },
-          {.label = "I need a room.", .target_id = "n_already_paid", .condition = *compile("paid_innkeeper == true")},
-          {.label = "Just passing through.", .target_id = "n_bye"},
-      };
-      push(std::move(n));
-    }
+    push(make_innkeeper_choice_node());
     { // n_pay — event
       Node n;
       n.id = "n_pay";
@@ -204,16 +208,18 @@ TEST_CASE("parse_action: event call with multiple args") {
 
 TEST_CASE("parse_action: parse error returns ActionError") {
   auto r = corundum::gameplay::dialogue::parse_action("???");
-  CHECK_FALSE(r.has_value());
-  CHECK_FALSE(r.error().message.empty());
+  REQUIRE_FALSE(r.has_value());
+  CHECK_EQ(r.error().message, "action parse error in '" + std::string(3, '?') + "': expected identifier");
 }
 
 TEST_CASE("parse_action: an operator where an argument is expected is rejected, not looped on") {
   // Regression: the argument loop used to accept the empty token read_ident() returns for a
   // non-identifier character without advancing the cursor, so it spun forever on input like this.
   const auto r = corundum::gameplay::dialogue::parse_action("paid_innkeeper(= true");
-  CHECK_FALSE(r.has_value());
-  CHECK_FALSE(r.error().message.empty());
+  REQUIRE_FALSE(r.has_value());
+  CHECK_EQ(r.error().message,
+           std::string{"action parse error in 'paid_innkeeper(= true': unexpected character '=' in function "
+                       "arguments"});
 }
 
 // ── execute_actions ───────────────────────────────────────────────────────────
@@ -613,8 +619,8 @@ TEST_CASE("load_graph accepts type \"dialogue\" as an alias for \"graph\"") {
 
 TEST_CASE("load_graph returns error for missing file") {
   const auto result = corundum::gameplay::dialogue::load_graph(disk(), "no_such_file.json");
-  CHECK_FALSE(result.has_value());
-  CHECK_FALSE(result.error().empty());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"dialogue JSON: cannot open: no_such_file.json"});
 }
 
 TEST_CASE("load_graph rejects a dialogue with a malformed condition") {

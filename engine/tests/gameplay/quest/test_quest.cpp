@@ -17,6 +17,7 @@
 
 #include "memory_content_source.hpp"
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -105,11 +106,19 @@ namespace {
       check_objective_matches(actual[i], expected[i]);
   }
 
-  void check_stage_identity_matches(const quest::Stage &actual, const quest::Stage &expected) {
+  void check_stage_name_matches(const quest::Stage &actual, const quest::Stage &expected) {
     CHECK(actual.name == expected.name);
     CHECK(actual.sequence == expected.sequence);
+  }
+
+  void check_stage_flags_match(const quest::Stage &actual, const quest::Stage &expected) {
     CHECK(actual.resolved == expected.resolved);
     CHECK(actual.failed == expected.failed);
+  }
+
+  void check_stage_identity_matches(const quest::Stage &actual, const quest::Stage &expected) {
+    check_stage_name_matches(actual, expected);
+    check_stage_flags_match(actual, expected);
   }
 
   void check_stage_edges_match(const quest::Stage &actual, const quest::Stage &expected) {
@@ -123,10 +132,14 @@ namespace {
     check_objectives_match(actual.objectives, expected.objectives);
   }
 
-  void check_quests_match(const quest::Quest &actual, const quest::Quest &expected) {
+  void check_quest_identity_matches(const quest::Quest &actual, const quest::Quest &expected) {
     CHECK(actual.quest_id == expected.quest_id);
     CHECK(actual.name == expected.name);
     CHECK(actual.description == expected.description);
+  }
+
+  void check_quests_match(const quest::Quest &actual, const quest::Quest &expected) {
+    check_quest_identity_matches(actual, expected);
 
     REQUIRE(actual.stages.size() == expected.stages.size());
     for (std::size_t i = 0; i < expected.stages.size(); ++i)
@@ -233,65 +246,70 @@ TEST_CASE("quest loader: wrong type field warns but loads") {
 }
 
 TEST_CASE("quest loader: missing id fails") {
-  const std::string tmp = "engine/tests/fixtures/_test_no_id.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
-  CHECK_FALSE(result.has_value());
-  std::filesystem::remove(tmp);
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quest_no_id.json";
+  content.add(
+      path,
+      R"({"type":"quest","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})");
+
+  const auto result = quest::load_quest(content, path);
+  REQUIRE_FALSE(result.has_value());
+  const std::string &error = result.error();
+  CHECK_MESSAGE(error.starts_with(std::format("[schema] {}: ", path)), error);
+  CHECK_MESSAGE(error.find("required property 'id' not found") != std::string::npos, error);
 }
 
 TEST_CASE("quest loader: empty id fails") {
-  const std::string tmp = "engine/tests/fixtures/_test_empty_id.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
-  CHECK_FALSE(result.has_value());
-  std::filesystem::remove(tmp);
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quest_empty_id.json";
+  content.add(
+      path,
+      R"({"type":"quest","id":"","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})");
+
+  const auto result = quest::load_quest(content, path);
+  REQUIRE_FALSE(result.has_value());
+  const std::string &error = result.error();
+  CHECK_MESSAGE(error.starts_with(std::format("[schema] {}: ", path)), error);
+  CHECK_MESSAGE(error.find("At /id ") != std::string::npos, error);
 }
 
 TEST_CASE("quest loader: duplicate stage sequences rejected") {
-  const std::string tmp = "engine/tests/fixtures/_test_dup_seq.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quest_dup_seq.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"objectives":[]},
       {"name":"b","sequence":1,"resolved":true,"objectives":[]}
-    ]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
-  CHECK_FALSE(result.has_value());
-  std::filesystem::remove(tmp);
+    ]})");
+
+  const auto result = quest::load_quest(content, path);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{R"([quest] "x": duplicate stage sequence 1)"});
 }
 
 TEST_CASE("quest loader: sequence <= 0 rejected") {
-  const std::string tmp = "engine/tests/fixtures/_test_bad_seq.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quest_bad_seq.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":0,"resolved":true,"objectives":[]}
-    ]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
-  CHECK_FALSE(result.has_value());
-  std::filesystem::remove(tmp);
+    ]})");
+
+  const auto result = quest::load_quest(content, path);
+  REQUIRE_FALSE(result.has_value());
+  const std::string &error = result.error();
+  CHECK_MESSAGE(error.starts_with(std::format("[schema] {}: ", path)), error);
+  CHECK_MESSAGE(error.find("At /stages/0/sequence ") != std::string::npos, error);
 }
 
 TEST_CASE("quest loader: no resolved stage rejected") {
-  const std::string tmp = "engine/tests/fixtures/_test_no_resolved.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quest_no_resolved.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"objectives":[]}
-    ]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
-  CHECK_FALSE(result.has_value());
-  std::filesystem::remove(tmp);
+    ]})");
+
+  const auto result = quest::load_quest(content, path);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{R"([quest] "x" has no resolved stage)"});
 }
 
 TEST_CASE("quest loader: stage order disagreeing with sequences warns but loads") {
@@ -1181,8 +1199,13 @@ TEST_CASE("tick_quests: local.<key> objectives resolve against the active zone")
   q.stages.push_back({
       .auto_advance_to = "complete",
       .name = "start",
-      .objectives = {{.done_condition = *corundum::gameplay::dialogue::compile("local.tracks_found >= 1"),
-                      .text = "Tracks"}},
+      .objectives =
+          {
+              {
+                  .done_condition = *corundum::gameplay::dialogue::compile("local.tracks_found >= 1"),
+                  .text = "Tracks",
+              },
+          },
       .sequence = 1,
   });
   q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});

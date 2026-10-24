@@ -228,7 +228,8 @@ TEST_CASE("load_tilemap — old 'tileset' string key returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 'old' missing 'tilesets' array"});
 }
 
 // ── Error: first_gid not 0 ────────────────────────────────────────────────────
@@ -246,7 +247,8 @@ TEST_CASE("load_tilemap — first_gid not starting at 0 returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 'nozero' first tileset must have first_gid=0"});
 }
 
 // ── Error: gap between tilesets ───────────────────────────────────────────────
@@ -269,7 +271,9 @@ TEST_CASE("load_tilemap — gap between tilesets returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 'gap' tilesets are not contiguous: gap or overlap between first_gid=0 "
+                                       "(tile_count=32) and first_gid=33)"});
 }
 
 // ── Error: duplicate first_gid ────────────────────────────────────────────────
@@ -291,7 +295,8 @@ TEST_CASE("load_tilemap — duplicate first_gid returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 'dup' tilesets have duplicate first_gid=0"});
 }
 
 // ── Error: GID in layer not covered by any tileset ───────────────────────────
@@ -301,7 +306,8 @@ TEST_CASE("load_tilemap — GID in layer beyond tileset range returns error") {
   // TILESET_A has 32 tiles (GIDs 0–31); GID 32 is out of range
   const auto map_path = make_single_tileset_map(dir, "0,32");
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 'test' layer 'ground' row 0 col 1: GID=32 not covered by any tileset"});
 }
 
 // ── Collisions ────────────────────────────────────────────────────────────────
@@ -354,7 +360,8 @@ TEST_CASE("load_tilemap — collision with zero width returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'w' must be positive"});
 }
 
 TEST_CASE("load_tilemap — collision with zero height returns error") {
@@ -371,7 +378,8 @@ TEST_CASE("load_tilemap — collision with zero height returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'h' must be positive"});
 }
 
 // ── Layer z_index ─────────────────────────────────────────────────────────────
@@ -471,7 +479,8 @@ TEST_CASE("load_tilemap — collision element missing field returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] missing or invalid field (x, y, w, h required)"});
 }
 
 // ── schema_version ────────────────────────────────────────────────────────────
@@ -495,14 +504,18 @@ TEST_CASE("load_tilemap — schema_version newer than supported returns error") 
   const auto dir = temp_dir("schema_future");
   const auto map_path = make_schema_map(dir, corundum::world::tilemap::k_tilemap_schema_version + 1);
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Tilemap '{}' has schema_version 2, newer than this engine supports (max 1) — "
+                                       "update the engine",
+                                       map_path.string()));
 }
 
 TEST_CASE("load_tilemap — schema_version zero (invalid) returns error") {
   const auto dir = temp_dir("schema_zero");
   const auto map_path = make_schema_map(dir, 0);
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Tilemap '{}' has invalid schema_version 0", map_path.string()));
 }
 
 TEST_CASE("load_tilemap — schema_version wrong type returns error") {
@@ -518,7 +531,8 @@ TEST_CASE("load_tilemap — schema_version wrong type returns error") {
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Tilemap '{}' field 'schema_version' must be an integer", map_path.string()));
 }
 
 // ── terrain-material tag ─────────────────────────────────────────────────────
@@ -717,7 +731,9 @@ TEST_CASE("load_tilemap — material_overrides entry out of bounds returns error
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 'test' layer 'ground' material_overrides[0] position (5, 0) out of "
+                                       "bounds"});
 }
 
 TEST_CASE("load_tilemap — material_overrides entry missing 'material' returns error") {
@@ -734,7 +750,9 @@ TEST_CASE("load_tilemap — material_overrides entry missing 'material' returns 
   write_file(map_path, content);
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 'test' layer 'ground' material_overrides[0] missing or invalid "
+                                       "'col', 'row', or 'material'"});
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
@@ -829,7 +847,8 @@ TEST_CASE("load_tilemap — collision elevation wrong type returns error instead
   const auto map_path = make_collision_extra_map(dir, "collisions", R"(,"elevation":"high")");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'elevation' has wrong type (expected integer)"});
 }
 
 TEST_CASE("load_tilemap — collision elevation out of range returns error") {
@@ -837,7 +856,8 @@ TEST_CASE("load_tilemap — collision elevation out of range returns error") {
   const auto map_path = make_collision_extra_map(dir, "collisions", R"(,"elevation":300)");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'elevation' value 300 out of range [0, 255]"});
 }
 
 TEST_CASE("load_tilemap — collision_triangles elevation wrong type returns error") {
@@ -845,7 +865,9 @@ TEST_CASE("load_tilemap — collision_triangles elevation wrong type returns err
   const auto map_path = make_collision_extra_map(dir, "collision_triangles", R"(,"elevation":"bad")");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::string{"Tilemap 't' collision_triangles[0] 'elevation' has wrong type (expected integer)"});
 }
 
 // ── Layer elevation ──────────────────────────────────────────────────────────
@@ -866,7 +888,8 @@ TEST_CASE("load_tilemap — layer elevation row count mismatch returns error") {
   const auto map_path = make_elevation_map(dir, R"(["0,0","1,1"])");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row count mismatch: expected 1, got 2"});
 }
 
 TEST_CASE("load_tilemap — layer elevation short row returns error") {
@@ -874,7 +897,8 @@ TEST_CASE("load_tilemap — layer elevation short row returns error") {
   const auto map_path = make_elevation_map(dir, R"(["0"])");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row 0 has 1 values, expected 2"});
 }
 
 TEST_CASE("load_tilemap — layer elevation non-integer value returns error") {
@@ -882,7 +906,8 @@ TEST_CASE("load_tilemap — layer elevation non-integer value returns error") {
   const auto map_path = make_elevation_map(dir, R"(["0,x"])");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row 0 value 1: not an integer"});
 }
 
 TEST_CASE("load_tilemap — layer elevation out of range returns error") {
@@ -890,7 +915,8 @@ TEST_CASE("load_tilemap — layer elevation out of range returns error") {
   const auto map_path = make_elevation_map(dir, R"(["0,300"])");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row 0 col 1: value 300 out of range [0, 255]"});
 }
 
 TEST_CASE("load_tilemap — layer elevation non-array returns error") {
@@ -898,5 +924,6 @@ TEST_CASE("load_tilemap — layer elevation non-array returns error") {
   const auto map_path = make_elevation_map(dir, R"(42)");
 
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' field 'elevation' must be an array"});
 }

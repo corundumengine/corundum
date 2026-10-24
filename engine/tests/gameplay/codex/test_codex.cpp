@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string>
 #include <string_view>
@@ -67,13 +68,32 @@ TEST_CASE("codex loader: parses entries and preserves category and body") {
 
 TEST_CASE("codex loader: schema failures are reported") {
   const auto dir = temp_dir("errors");
-  write_file(dir / "bad_version.json", R"({"schema_version":2,"entries":[]})");
-  write_file(dir / "missing_title.json", R"({"schema_version":1,"entries":[{"id":"x"}]})");
-  write_file(dir / "no_entries.json", R"({"schema_version":1})");
+  const auto bad_version_path = dir / "bad_version.json";
+  const auto missing_title_path = dir / "missing_title.json";
+  const auto no_entries_path = dir / "no_entries.json";
+  write_file(bad_version_path, R"({"schema_version":2,"entries":[]})");
+  write_file(missing_title_path, R"({"schema_version":1,"entries":[{"id":"x"}]})");
+  write_file(no_entries_path, R"({"schema_version":1})");
 
-  CHECK_FALSE(codex::load_codex_file(disk(), dir / "bad_version.json").has_value());
-  CHECK_FALSE(codex::load_codex_file(disk(), dir / "missing_title.json").has_value());
-  CHECK_FALSE(codex::load_codex_file(disk(), dir / "no_entries.json").has_value());
+  const auto bad_version = codex::load_codex_file(disk(), bad_version_path);
+  REQUIRE_FALSE(bad_version.has_value());
+  CHECK_EQ(bad_version.error(),
+           std::format("Codex '{}' has schema_version 2, newer than this engine supports (max 1) — update the engine",
+                       bad_version_path.string()));
+
+  const auto missing_title = codex::load_codex_file(disk(), missing_title_path);
+  REQUIRE_FALSE(missing_title.has_value());
+  CHECK_MESSAGE(missing_title.error().starts_with(std::format("[schema] {}: ", missing_title_path.string())),
+                missing_title.error());
+  CHECK_MESSAGE(missing_title.error().find("required property 'title' not found") != std::string::npos,
+                missing_title.error());
+
+  const auto no_entries = codex::load_codex_file(disk(), no_entries_path);
+  REQUIRE_FALSE(no_entries.has_value());
+  CHECK_MESSAGE(no_entries.error().starts_with(std::format("[schema] {}: ", no_entries_path.string())),
+                no_entries.error());
+  CHECK_MESSAGE(no_entries.error().find("required property 'entries' not found") != std::string::npos,
+                no_entries.error());
 }
 
 TEST_CASE("codex registry: loads a directory and skips duplicates") {

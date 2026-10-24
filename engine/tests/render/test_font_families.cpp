@@ -181,5 +181,7 @@ TEST_CASE("load_fonts reports a missing regular face as an error") {
 
   CountingRenderer r;
   corundum::render::RenderState state;
-  CHECK_FALSE(corundum::render::load_fonts(r, state, paths).has_value());
+  const auto result = corundum::render::load_fonts(r, state, paths);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with("[renderer] could not load dialogue font '': "), result.error());
 }

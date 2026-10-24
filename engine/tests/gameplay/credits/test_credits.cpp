@@ -3,8 +3,10 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/credits/loader.hpp>
 #include <corundum/gameplay/screens/credits.hpp>
+#include <corundum/platform/renderer.hpp>
 #include <corundum/ui/panel_style.hpp>
 
 #include "memory_content_source.hpp"
@@ -13,6 +15,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <optional>
 #include <string_view>
@@ -122,31 +125,45 @@ TEST_CASE("credits loader: background is optional and parses when present") {
 TEST_CASE("credits loader: a missing or malformed file is reported, not fatal") {
   const auto dir = temp_dir("errors");
   const auto missing = dir / "missing.json";
-  CHECK_FALSE(credits::load_credits_file(disk(), missing).has_value());
+  const auto missing_result = credits::load_credits_file(disk(), missing);
+  REQUIRE_FALSE(missing_result.has_value());
+  CHECK_EQ(missing_result.error(), std::format("credits JSON: cannot open: {}", missing.string()));
 
   const auto malformed = dir / "malformed.json";
   write_file(malformed, "not json");
-  CHECK_FALSE(credits::load_credits_file(disk(), malformed).has_value());
+  const auto malformed_result = credits::load_credits_file(disk(), malformed);
+  REQUIRE_FALSE(malformed_result.has_value());
+  CHECK_MESSAGE(malformed_result.error().starts_with(std::format("malformed credits JSON in {}: ", malformed.string())),
+                malformed_result.error());
 
   const auto no_sections = dir / "no_sections.json";
   write_file(no_sections, R"({"other": []})");
-  CHECK_FALSE(credits::load_credits_file(disk(), no_sections).has_value());
+  const auto no_sections_result = credits::load_credits_file(disk(), no_sections);
+  REQUIRE_FALSE(no_sections_result.has_value());
+  CHECK_EQ(no_sections_result.error(), std::format("credits JSON needs a 'sections' array: {}", no_sections.string()));
 
   const auto bad_line = dir / "bad_line.json";
   write_file(bad_line, R"({"sections": [{"heading": "x", "lines": [1]}]})");
-  CHECK_FALSE(credits::load_credits_file(disk(), bad_line).has_value());
+  const auto bad_line_result = credits::load_credits_file(disk(), bad_line);
+  REQUIRE_FALSE(bad_line_result.has_value());
+  CHECK_EQ(bad_line_result.error(), std::string{"credits section 0 lines must be strings"});
 
   const auto bad_title = dir / "bad_title.json";
   write_file(bad_title, R"({"title": 1, "sections": []})");
-  CHECK_FALSE(credits::load_credits_file(disk(), bad_title).has_value());
+  const auto bad_title_result = credits::load_credits_file(disk(), bad_title);
+  REQUIRE_FALSE(bad_title_result.has_value());
+  CHECK_EQ(bad_title_result.error(), std::format("credits JSON 'title' must be a string: {}", bad_title.string()));
 
   const auto bad_background = dir / "bad_background.json";
   write_file(bad_background, R"({"background": 1, "sections": []})");
-  CHECK_FALSE(credits::load_credits_file(disk(), bad_background).has_value());
+  const auto bad_background_result = credits::load_credits_file(disk(), bad_background);
+  REQUIRE_FALSE(bad_background_result.has_value());
+  CHECK_EQ(bad_background_result.error(),
+           std::format("credits JSON 'background' must be a string: {}", bad_background.string()));
 }
 
 TEST_CASE("credits render: a background image is drawn over the backdrop and switches text to ink") {
-  corundum::ui::PanelStyle style{};
+  const corundum::ui::PanelStyle style{};
   corundum::gameplay::screens::CreditsState state;
   state.title = "Title";
   state.background_texture = 1;
@@ -158,13 +175,14 @@ TEST_CASE("credits render: a background image is drawn over the backdrop and swi
   CHECK(sprite_count(r) == 1);
   const std::optional<corundum::core::math::Colour> colour = text_colour(r, "Title");
   REQUIRE(colour.has_value());
-  CHECK(colour->r == 90);
-  CHECK(colour->g == 30);
-  CHECK(colour->b == 25);
+  const corundum::core::math::Colour ink = colour.value_or(corundum::core::math::Colour{});
+  CHECK(ink.r == 90);
+  CHECK(ink.g == 30);
+  CHECK(ink.b == 25);
 }
 
 TEST_CASE("credits render: without a background the flat backdrop and light text are kept") {
-  corundum::ui::PanelStyle style{};
+  const corundum::ui::PanelStyle style{};
   corundum::gameplay::screens::CreditsState state;
   state.title = "Title";
 
@@ -174,7 +192,8 @@ TEST_CASE("credits render: without a background the flat backdrop and light text
   CHECK(sprite_count(r) == 0);
   const std::optional<corundum::core::math::Colour> colour = text_colour(r, "Title");
   REQUIRE(colour.has_value());
-  CHECK(colour->r == style.speaker.r);
-  CHECK(colour->g == style.speaker.g);
-  CHECK(colour->b == style.speaker.b);
+  const corundum::core::math::Colour ink = colour.value_or(corundum::core::math::Colour{});
+  CHECK(ink.r == style.speaker.r);
+  CHECK(ink.g == style.speaker.g);
+  CHECK(ink.b == style.speaker.b);
 }

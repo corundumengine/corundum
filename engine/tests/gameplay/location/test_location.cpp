@@ -12,7 +12,9 @@
 #include <corundum/world/flags.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -58,10 +60,24 @@ TEST_CASE("location loader: parses world and interior destinations") {
 
 TEST_CASE("location loader: schema failures are reported") {
   const auto dir = temp_dir("errors");
-  write_file(dir / "bad_version.json", R"({"schema_version":2,"locations":[]})");
-  write_file(dir / "missing_name.json", R"({"schema_version":1,"locations":[{"id":"x"}]})");
-  CHECK_FALSE(location::load_location_file(disk(), dir / "bad_version.json").has_value());
-  CHECK_FALSE(location::load_location_file(disk(), dir / "missing_name.json").has_value());
+  const auto bad_version_path = dir / "bad_version.json";
+  const auto missing_name_path = dir / "missing_name.json";
+  write_file(bad_version_path, R"({"schema_version":2,"locations":[]})");
+  write_file(missing_name_path, R"({"schema_version":1,"locations":[{"id":"x"}]})");
+
+  const auto bad_version = location::load_location_file(disk(), bad_version_path);
+  REQUIRE_FALSE(bad_version.has_value());
+  CHECK_EQ(bad_version.error(),
+           std::format("Location '{}' has schema_version 2, newer than this engine supports (max 1) — update the "
+                       "engine",
+                       bad_version_path.string()));
+
+  const auto missing_name = location::load_location_file(disk(), missing_name_path);
+  REQUIRE_FALSE(missing_name.has_value());
+  CHECK_MESSAGE(missing_name.error().starts_with(std::format("[schema] {}: ", missing_name_path.string())),
+                missing_name.error());
+  CHECK_MESSAGE(missing_name.error().find("required property 'name' not found") != std::string::npos,
+                missing_name.error());
 }
 
 TEST_CASE("location registry: loads a directory and skips duplicate ids") {

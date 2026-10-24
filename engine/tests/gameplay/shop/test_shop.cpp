@@ -14,6 +14,7 @@
 #include <corundum/world/flags.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string>
 #include <string_view>
@@ -79,11 +80,17 @@ TEST_CASE("shop loader: parses stock, prices, faction and buy rate") {
 
 TEST_CASE("shop loader: rejects out-of-range buy rate") {
   const auto dir = temp_dir("bad_rate");
-  write_file(dir / "bad.json", R"({
+  const auto path = dir / "bad.json";
+  write_file(path, R"({
     "schema_version": 1,
     "shops": [ { "id": "x", "name": "X", "buy_rate": 2.0 } ]
   })");
-  CHECK_FALSE(shop::load_shop_file(disk(), dir / "bad.json").has_value());
+
+  const auto result = shop::load_shop_file(disk(), path);
+  REQUIRE_FALSE(result.has_value());
+  const std::string &error = result.error();
+  CHECK_MESSAGE(error.starts_with(std::format("[schema] {}: ", path.string())), error);
+  CHECK_MESSAGE(error.find("At /shops/0/buy_rate ") != std::string::npos, error);
 }
 
 TEST_CASE("barter price: reputation discounts buy price, clamped and floored at 1") {

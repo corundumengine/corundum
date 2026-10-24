@@ -28,6 +28,11 @@ namespace {
     return dialogue::evaluate(*compiled, flags, quests);
   }
 
+  struct MalformedCase {
+    std::string source{};
+    std::string expected_message{};
+  };
+
   corundum::gameplay::quest::Registry make_quest_registry() {
     corundum::gameplay::quest::Registry quests;
     corundum::gameplay::quest::Quest q;
@@ -267,29 +272,43 @@ TEST_CASE("compiled_expr: seen/visits are not collected as quest refs") {
 // ── Malformed input ─────────────────────────────────────────────────────────
 
 TEST_CASE("compiled_expr: malformed expressions fail to compile") {
-  const std::vector<std::string> bad = {
-      "gold >=",                     // dangling comparison
-      "5 ===",                       // stray operator
-      "quest_is_at(ember)",          // missing stage arg
-      "quest_is_at(ember, done, x)", // too many args
-      "quest_is_at(ember, 5)",       // stage must be an identifier
-      "quest_unknown(x)",            // unknown helper
-      "has_item('hammer')",          // strings not allowed in conditions
-      "!",                           // dangling not
-      "gold &&",                     // dangling and
-      "foo(",                        // unterminated call
-      "   ",                         // whitespace only
+  const std::vector<MalformedCase> cases = {
+      {.source = "gold >=", .expected_message = "expected value, got: "},               // dangling comparison
+      {.source = "5 ===", .expected_message = "unexpected character in expression: ="}, // stray operator
+      {
+          .source = "quest_is_at(ember)",
+          .expected_message = "expected identifier for stage name in quest_is_at",
+      },                                                                             // missing stage arg
+      {.source = "quest_is_at(ember, done, x)", .expected_message = "expected ')'"}, // too many args
+      {
+          .source = "quest_is_at(ember, 5)",
+          .expected_message = "expected identifier for stage name in quest_is_at",
+      }, // stage must be an identifier
+      {.source = "quest_unknown(x)", .expected_message = "unknown quest helper: quest_unknown"}, // unknown helper
+      {
+          .source = "has_item('hammer')",
+          .expected_message = "unexpected character in expression: '",
+      },                                                                  // strings not allowed
+      {.source = "!", .expected_message = "expected value, got: "},       // dangling not
+      {.source = "gold &&", .expected_message = "expected value, got: "}, // dangling and
+      {
+          .source = "foo(",
+          .expected_message = "expected identifier for first argument in call helper",
+      },                                                              // unterminated call
+      {.source = "   ", .expected_message = "expected value, got: "}, // whitespace only
   };
-  for (const auto &src : bad) {
-    CAPTURE(src);
-    CHECK_FALSE(dialogue::compile(src).has_value());
+  for (const auto &test_case : cases) {
+    CAPTURE(test_case.source);
+    const auto result = dialogue::compile(test_case.source);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error().message, test_case.expected_message);
   }
 }
 
 TEST_CASE("compiled_expr: compile error carries a non-empty message") {
   const auto res = dialogue::compile("gold >=");
   REQUIRE_FALSE(res.has_value());
-  CHECK_FALSE(res.error().message.empty());
+  CHECK_EQ(res.error().message, std::string{"expected value, got: "});
 }
 
 // ── refs() ───────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@
 #include <corundum/gameplay/item/registry.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -155,7 +156,8 @@ TEST_CASE("item loader: missing schema_version fails") {
   write_file(path, R"({"items":[]})");
 
   const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("item file '{}' missing 'schema_version'", path.string()));
 }
 
 TEST_CASE("item loader: wrong-type schema_version fails") {
@@ -164,7 +166,8 @@ TEST_CASE("item loader: wrong-type schema_version fails") {
   write_file(path, R"({"schema_version":"one","items":[]})");
 
   const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("item file '{}' field 'schema_version' has wrong type", path.string()));
 }
 
 TEST_CASE("item loader: unsupported schema_version fails") {
@@ -183,7 +186,8 @@ TEST_CASE("item loader: non-array items fails") {
   write_file(path, R"({"schema_version":1,"items":{}})");
 
   const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("item file '{}' 'items' must be an array", path.string()));
 }
 
 TEST_CASE("item loader: malformed JSON returns error") {
