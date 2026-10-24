@@ -104,7 +104,9 @@ TEST_CASE("load_atlas_clips — 'schema_version' wrong type fails") {
   write_file(path, R"({"schema_version":"1","clips":[]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Atlas clips sidecar '{}' field 'schema_version' must be an integer", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — 'schema_version' zero fails") {
@@ -113,7 +115,8 @@ TEST_CASE("load_atlas_clips — 'schema_version' zero fails") {
   write_file(path, R"({"schema_version":0,"clips":[]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' has invalid schema_version 0", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — 'clips' missing is valid (empty)") {
@@ -132,7 +135,8 @@ TEST_CASE("load_atlas_clips — 'clips' not an array fails") {
   write_file(path, R"({"schema_version":1,"clips":{}})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' 'clips' must be an array", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — duplicate clip names fail") {
@@ -144,7 +148,8 @@ TEST_CASE("load_atlas_clips — duplicate clip names fail") {
   ]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' has duplicate clip name 'a'", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — empty clip name fails") {
@@ -153,7 +158,8 @@ TEST_CASE("load_atlas_clips — empty clip name fails") {
   write_file(path, R"({"schema_version":1,"clips":[{"name":"","frames":["x"]}]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' has a clip with empty 'name'", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — non-string clip name fails") {
@@ -162,7 +168,8 @@ TEST_CASE("load_atlas_clips — non-string clip name fails") {
   write_file(path, R"({"schema_version":1,"clips":[{"name":1,"frames":["x"]}]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' clip missing 'name'", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — empty 'frames' array fails") {
@@ -171,7 +178,8 @@ TEST_CASE("load_atlas_clips — empty 'frames' array fails") {
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","frames":[]}]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' clip 'a' has an empty 'frames' array", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — empty frame name fails") {
@@ -180,7 +188,8 @@ TEST_CASE("load_atlas_clips — empty frame name fails") {
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","frames":[""]}]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' clip 'a' has an empty frame name", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — non-string frame entry fails") {
@@ -189,7 +198,9 @@ TEST_CASE("load_atlas_clips — non-string frame entry fails") {
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","frames":[1]}]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Atlas clips sidecar '{}' clip 'a' has a non-string frame entry", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — 'fps' absent defaults to 8") {
@@ -209,7 +220,8 @@ TEST_CASE("load_atlas_clips — non-positive 'fps' fails") {
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","fps":0,"frames":["x"]}]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' clip 'a' has non-positive 'fps'", path.string()));
 }
 
 TEST_CASE("load_atlas_clips — non-integer 'fps' fails without throwing") {
@@ -230,7 +242,8 @@ TEST_CASE("load_atlas_clips — out-of-range 'fps' fails") {
   write_file(path, R"({"schema_version":1,"clips":[{"name":"a","fps":4294967301,"frames":["x"]}]})");
 
   const auto result = corundum::sprites::load_atlas_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Atlas clips sidecar '{}' clip 'a' has 'fps' out of range", path.string()));
 }
 
 TEST_CASE("serialize_atlas_clips — round-trips through load, including dangling frame names") {

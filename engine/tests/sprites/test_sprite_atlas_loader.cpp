@@ -9,6 +9,7 @@
 #include <corundum/sprites/sprite_atlas.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string_view>
 
@@ -84,7 +85,9 @@ TEST_CASE("load_sprite_atlas — missing 'schema_version' fails") {
   write_file(path, R"({"path":"p.png","width":4,"height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite atlas '{}' has a missing or non-integer 'schema_version'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — 'schema_version' wrong type fails") {
@@ -93,7 +96,9 @@ TEST_CASE("load_sprite_atlas — 'schema_version' wrong type fails") {
   write_file(path, R"({"schema_version":"2","path":"p.png","width":4,"height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite atlas '{}' has a missing or non-integer 'schema_version'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — 'schema_version' older than expected fails") {
@@ -102,7 +107,11 @@ TEST_CASE("load_sprite_atlas — 'schema_version' older than expected fails") {
   write_file(path, R"({"schema_version":1,"path":"p.png","width":4,"height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite atlas '{}' has schema_version 1, but this engine expects 2 — regenerate with a matching "
+                       "spritepacker version",
+                       path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — 'schema_version' newer than expected fails") {
@@ -111,7 +120,11 @@ TEST_CASE("load_sprite_atlas — 'schema_version' newer than expected fails") {
   write_file(path, R"({"schema_version":3,"path":"p.png","width":4,"height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite atlas '{}' has schema_version 3, but this engine expects 2 — regenerate with a matching "
+                       "spritepacker version",
+                       path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — malformed JSON fails") {
@@ -120,7 +133,9 @@ TEST_CASE("load_sprite_atlas — malformed JSON fails") {
   write_file(path, R"({not valid json)");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("malformed sprite atlas in {}: ", path.string())),
+                result.error());
 }
 
 TEST_CASE("load_sprite_atlas — missing 'path' fails") {
@@ -129,7 +144,8 @@ TEST_CASE("load_sprite_atlas — missing 'path' fails") {
   write_file(path, R"({"schema_version":2,"width":4,"height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'path'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — missing 'width' fails") {
@@ -138,7 +154,8 @@ TEST_CASE("load_sprite_atlas — missing 'width' fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'width'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — missing 'height' fails") {
@@ -147,7 +164,8 @@ TEST_CASE("load_sprite_atlas — missing 'height' fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'height'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — 'width' <= 0 fails") {
@@ -156,7 +174,8 @@ TEST_CASE("load_sprite_atlas — 'width' <= 0 fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":0,"height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'width' must be positive", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — 'height' <= 0 fails") {
@@ -165,7 +184,8 @@ TEST_CASE("load_sprite_atlas — 'height' <= 0 fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":0,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'height' must be positive", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — missing 'sprites' array fails") {
@@ -174,7 +194,8 @@ TEST_CASE("load_sprite_atlas — missing 'sprites' array fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'sprites' array", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — 'sprites' present but not an array fails") {
@@ -183,7 +204,8 @@ TEST_CASE("load_sprite_atlas — 'sprites' present but not an array fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"sprites":{}})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'sprites' array", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — empty 'sprites' array is valid") {
@@ -204,7 +226,9 @@ TEST_CASE("load_sprite_atlas — sprite missing 'name' fails") {
                  "sprites":[{"x":0,"y":0,"w":4,"h":4}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite atlas '{}' has a sprite entry with a missing or non-string 'name'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — sprite missing 'w' fails") {
@@ -215,7 +239,8 @@ TEST_CASE("load_sprite_atlas — sprite missing 'w' fails") {
                  "sprites":[{"name":"a","x":0,"y":0,"h":4}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has a missing or non-integer 'w'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — sprite with empty 'name' fails") {
@@ -226,7 +251,8 @@ TEST_CASE("load_sprite_atlas — sprite with empty 'name' fails") {
                  "sprites":[{"name":"","x":0,"y":0,"w":4,"h":4}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' has a sprite with empty 'name'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — sprite with 'w' <= 0 fails") {
@@ -237,7 +263,8 @@ TEST_CASE("load_sprite_atlas — sprite with 'w' <= 0 fails") {
                  "sprites":[{"name":"a","x":0,"y":0,"w":0,"h":4}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has non-positive w/h", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — sprite with 'h' <= 0 fails") {
@@ -248,7 +275,8 @@ TEST_CASE("load_sprite_atlas — sprite with 'h' <= 0 fails") {
                  "sprites":[{"name":"a","x":0,"y":0,"w":4,"h":0}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has non-positive w/h", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — duplicate sprite name fails") {
@@ -262,7 +290,8 @@ TEST_CASE("load_sprite_atlas — duplicate sprite name fails") {
                  ]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' has duplicate sprite name 'a'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — optional sprite fields default correctly when absent") {
@@ -288,7 +317,8 @@ TEST_CASE("load_sprite_atlas — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("sprite atlas: cannot open: {}", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — empty 'path' fails") {
@@ -297,7 +327,8 @@ TEST_CASE("load_sprite_atlas — empty 'path' fails") {
   write_file(path, R"({"schema_version":2,"path":"","width":4,"height":4,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'path' must not be empty", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — wrong-typed optional integer field fails instead of throwing") {
@@ -308,7 +339,9 @@ TEST_CASE("load_sprite_atlas — wrong-typed optional integer field fails instea
                  "sprites":[{"name":"a","x":0,"y":0,"w":4,"h":4,"trim_x":"0"}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite atlas '{}' sprite 'a' field 'trim_x' must be an integer", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — wrong-typed optional pivot field fails instead of throwing") {
@@ -319,7 +352,8 @@ TEST_CASE("load_sprite_atlas — wrong-typed optional pivot field fails instead 
                  "sprites":[{"name":"a","x":0,"y":0,"w":4,"h":4,"pivot_y":"top"}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' field 'pivot_y' must be a number", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — non-object sprite entry fails") {
@@ -328,7 +362,8 @@ TEST_CASE("load_sprite_atlas — non-object sprite entry fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":8,"height":8,"sprites":["a"]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' has a non-object sprite entry", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — sprite extending past the atlas bounds fails") {
@@ -339,7 +374,8 @@ TEST_CASE("load_sprite_atlas — sprite extending past the atlas bounds fails") 
                  "sprites":[{"name":"a","x":6,"y":0,"w":4,"h":4}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' lies outside the atlas (8x8)", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — trimmed box exceeding the source frame fails") {
@@ -351,7 +387,9 @@ TEST_CASE("load_sprite_atlas — trimmed box exceeding the source frame fails") 
                               "trim_x":6,"trim_y":6,"source_width":8,"source_height":8}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite atlas '{}' sprite 'a' trimmed box exceeds its source frame", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — non-positive source dimensions fail") {
@@ -363,7 +401,8 @@ TEST_CASE("load_sprite_atlas — non-positive source dimensions fail") {
                               "trim_x":0,"trim_y":0,"source_width":0,"source_height":0}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has invalid trim/source geometry", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — non-finite pivot fails") {
@@ -374,7 +413,8 @@ TEST_CASE("load_sprite_atlas — non-finite pivot fails") {
                  "sprites":[{"name":"a","x":0,"y":0,"w":4,"h":4,"pivot_x":1e40}]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has a non-finite pivot", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — absent 'pivot_basis' defaults to trimmed") {
@@ -403,7 +443,10 @@ TEST_CASE("load_sprite_atlas — unknown 'pivot_basis' value fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"pivot_basis":"sideways","sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(
+      result.error(),
+      std::format("Sprite atlas '{}' field 'pivot_basis' must be 'trimmed' or 'full', got 'sideways'", path.string()));
 }
 
 TEST_CASE("load_sprite_atlas — wrong-typed 'pivot_basis' fails") {
@@ -412,7 +455,8 @@ TEST_CASE("load_sprite_atlas — wrong-typed 'pivot_basis' fails") {
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"pivot_basis":1,"sprites":[]})");
 
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'pivot_basis' must be a string", path.string()));
 }
 
 TEST_CASE("resolve_pivot — trimmed-box basis converts to full-frame, bottom-origin") {
