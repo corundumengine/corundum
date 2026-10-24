@@ -36,6 +36,16 @@ namespace corundum::core {
       return std::format("invalid storage name '{}' (must be non-empty, relative, with no '..' component)", name);
     }
 
+    /// Join a `/`-separated storage name onto @p root using the platform's separator, so
+    /// error messages show one consistent path (`saves/slot_01.json` would otherwise keep
+    /// its forward slashes next to the root's backslashes).
+    [[nodiscard]] std::filesystem::path native_path(const std::filesystem::path &root, std::string_view name) {
+      std::filesystem::path path = root;
+      for (const std::filesystem::path &part : std::filesystem::path(name))
+        path /= part;
+      return path;
+    }
+
   } // namespace
 
   DirectoryUserStorage::DirectoryUserStorage(std::filesystem::path root) : root_(std::move(root)) {}
@@ -44,7 +54,7 @@ namespace corundum::core {
     if (!is_valid_storage_name(name))
       return std::unexpected(invalid_storage_name_message(name));
 
-    const std::filesystem::path path = root_ / std::filesystem::path(name);
+    const std::filesystem::path path = native_path(root_, name);
     const std::ifstream f(path, std::ios::binary);
     if (!f)
       return std::unexpected(std::format("cannot open: {}", path.string()));
@@ -59,14 +69,14 @@ namespace corundum::core {
       return false;
 
     std::error_code ec;
-    return std::filesystem::is_regular_file(root_ / std::filesystem::path(name), ec) && !ec;
+    return std::filesystem::is_regular_file(native_path(root_, name), ec) && !ec;
   }
 
   std::expected<void, std::string> DirectoryUserStorage::write(std::string_view name, std::string_view contents) {
     if (!is_valid_storage_name(name))
       return std::unexpected(invalid_storage_name_message(name));
 
-    const std::filesystem::path path = root_ / std::filesystem::path(name);
+    const std::filesystem::path path = native_path(root_, name);
 
     std::error_code ec;
     std::filesystem::create_directories(path.parent_path(), ec);
