@@ -8,7 +8,8 @@
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/user_storage.hpp>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json.hpp> // IWYU pragma: keep
+#include <nlohmann/json_fwd.hpp>
 
 #include <filesystem>
 #include <string>
@@ -62,6 +63,16 @@ TEST_CASE("DirectoryUserStorage: read of a missing entry reports an error") {
   CHECK(result.error().find("cannot open") != std::string::npos);
 }
 
+TEST_CASE("DirectoryUserStorage: a missing nested entry's error spells the path with native separators") {
+  const auto dir = temp_dir("missing_nested");
+  const corundum::core::DirectoryUserStorage storage(dir.path());
+
+  const auto result = storage.read("saves/slot_01.json");
+  REQUIRE_FALSE(result.has_value());
+  // Joined one component at a time, so on Windows every separator is a backslash.
+  CHECK_EQ(result.error(), "cannot open: " + (dir.path() / "saves" / "slot_01.json").string());
+}
+
 TEST_CASE("DirectoryUserStorage: contains is false for a missing entry") {
   const auto dir = temp_dir("contains");
   const corundum::core::DirectoryUserStorage storage(dir.path());
@@ -98,6 +109,31 @@ TEST_CASE("DirectoryUserStorage: write rejects an absolute name") {
   CHECK_EQ(result.error(),
            "invalid storage name '/tmp/escape.txt' (must be non-empty, relative, with no '..' component)");
 }
+
+#ifdef _WIN32
+TEST_CASE("DirectoryUserStorage: write rejects a name with a Windows drive or UNC host") {
+  const auto dir = temp_dir("windows_root_name");
+  corundum::core::DirectoryUserStorage storage(dir.path());
+
+  // Each name has a root name, which operator/ would put in place of the storage root's.
+  // "C:escape.txt" is relative, so a check for an absolute path alone would accept it.
+  const auto drive_relative = storage.write("C:escape.txt", "x");
+  REQUIRE_FALSE(drive_relative.has_value());
+  CHECK_EQ(drive_relative.error(),
+           "invalid storage name 'C:escape.txt' (must be non-empty, relative, with no '..' component)");
+
+  const auto drive_absolute = storage.write("C:\\escape.txt", "x");
+  REQUIRE_FALSE(drive_absolute.has_value());
+  CHECK_EQ(drive_absolute.error(),
+           "invalid storage name 'C:\\escape.txt' (must be non-empty, relative, with no '..' component)");
+
+  const auto unc = storage.write("\\\\localhost\\share\\escape.txt", "x");
+  REQUIRE_FALSE(unc.has_value());
+  CHECK_EQ(unc.error(),
+           "invalid storage name '\\\\localhost\\share\\escape.txt' (must be non-empty, relative, with no '..' "
+           "component)");
+}
+#endif
 
 TEST_CASE("DirectoryUserStorage: write rejects a bare '..' name") {
   const auto dir = temp_dir("bare_parent");
