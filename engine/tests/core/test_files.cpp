@@ -8,6 +8,7 @@
 #include <corundum/core/files.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string>
 #include <string_view>
@@ -92,7 +93,7 @@ TEST_CASE("list_dir_entries with extensions filter only keeps matching files") {
   fs::create_directory(dir / "subdir_json");
   write_file(dir / "subdir_json" / "nested.json", "{}");
 
-  const auto result = corundum::core::list_dir_entries(dir, {{"json"}});
+  const auto result = corundum::core::list_dir_entries(dir, {.extensions = {"json"}});
   REQUIRE(result.has_value());
 
   // Two matching files + one subdir, sorted dirs-first then alphabetical by name.
@@ -155,7 +156,8 @@ TEST_CASE("list_dir_entries rejects with error on the same path used twice in a 
   // silently producing an empty vector — this is the core behavior change behind the API.
   fs::remove_all(dir);
   const auto gone = corundum::core::list_dir_entries(dir);
-  REQUIRE(!gone.has_value());
+  REQUIRE_FALSE(gone.has_value());
+  CHECK_MESSAGE(gone.error().starts_with(std::format("Error accessing {}: ", dir.path().string())), gone.error());
 }
 
 TEST_CASE("has_extension matches case-insensitively and ignores a leading dot on either side") {

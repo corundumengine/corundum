@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <format>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -297,6 +298,10 @@ TEST_CASE("settings: a newer schema version is rejected and the engine keeps its
 
   const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE_FALSE(loaded.has_value());
+  CHECK_EQ(loaded.error(),
+           std::format("User settings 'settings.json' has schema_version 2, newer than this engine supports (max {}) "
+                       "\u2014 update the engine",
+                       corundum::settings::k_user_settings_schema_version));
   CHECK(engine.window->window_mode() == WindowMode::Windowed);
   const std::vector<corundum::input::PhysicalInput> cancel =
       corundum::input::inputs_for(engine.input_mapper.bindings(), Action::Cancel);
@@ -316,6 +321,8 @@ TEST_CASE("settings: an oversized binding table is rejected and leaves the engin
 
   const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE_FALSE(loaded.has_value());
+  CHECK_EQ(loaded.error(),
+           std::format("settings: binding table has 73 rows; the limit is {}", corundum::input::k_max_input_sources));
   CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
 }
 

@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <format>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -180,10 +181,11 @@ TEST_CASE("area textures: a failed load_map after a world leaves no area and rel
   const std::vector<uint32_t> world_textures = state.area_texture_ids;
   REQUIRE_FALSE(world_textures.empty());
 
-  const auto result =
-      corundum::render::load_map(disk(), renderer, state, (fixtures / "tilemaps/missing.json").string(), cfg);
+  const auto missing_map_path = fixtures / "tilemaps/missing.json";
+  const auto result = corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), cfg);
 
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("tilemap: cannot open: {}", missing_map_path.string()));
   CHECK(corundum::render::mode(state) == RenderMode::None);
   CHECK(state.area_texture_ids.empty());
   for (const uint32_t id : world_textures) {
@@ -207,7 +209,9 @@ TEST_CASE("area textures: a failed load_world after a single map leaves no area 
   broken_cfg.paths.world_manifest_path = (fixtures / "worlds/missing/manifest.json").string();
   const auto result = corundum::render::load_world(disk(), renderer, state, broken_cfg, {});
 
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("manifest: cannot open: {}",
+                                       std::filesystem::path(broken_cfg.paths.world_manifest_path).string()));
   CHECK(corundum::render::mode(state) == RenderMode::None);
   CHECK(state.area_texture_ids.empty());
   for (const uint32_t id : map_textures) {

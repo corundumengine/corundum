@@ -189,7 +189,7 @@ TEST_CASE("AudioSystem: catalog entry overrides the .ogg fallback") {
 
 TEST_CASE("AudioSystem: set_paused is retained before initialize and applied once ready") {
   corundum::audio::AudioSystem sys;
-  StubBackend *stub = make_system(sys);
+  const StubBackend *stub = make_system(sys);
 
   sys.set_paused(true);
   CHECK_FALSE(stub->last_paused); // not initialised: swallowed
@@ -235,7 +235,9 @@ TEST_CASE("AudioSystem: move construction transfers ownership and un-readies the
   REQUIRE(moved.play_sound("coin").has_value()); // cache moved with the backend, no reload
   CHECK(stub->loaded_paths.size() == 1);
   // NOLINTNEXTLINE(bugprone-use-after-move, clang-analyzer-cplusplus.Move) moved-from is defined un-ready
-  CHECK_FALSE(source.play_sound("coin").has_value());
+  const auto source_result = source.play_sound("coin");
+  REQUIRE_FALSE(source_result.has_value());
+  CHECK_EQ(source_result.error(), "[audio] Audio system not initialised");
 }
 
 TEST_CASE("AudioSystem: move assignment replaces the target and un-readies the source") {
@@ -250,7 +252,9 @@ TEST_CASE("AudioSystem: move assignment replaces the target and un-readies the s
   REQUIRE(target.play_sound("coin").has_value());
   CHECK(stub->loaded_paths.size() == 1); // cache moved, not reloaded
   // NOLINTNEXTLINE(bugprone-use-after-move, clang-analyzer-cplusplus.Move) moved-from is defined un-ready
-  CHECK_FALSE(source.play_sound("coin").has_value());
+  const auto source_result = source.play_sound("coin");
+  REQUIRE_FALSE(source_result.has_value());
+  CHECK_EQ(source_result.error(), "[audio] Audio system not initialised");
   source.shutdown(); // moved-from is still destructible/idempotent
 }
 
@@ -331,10 +335,10 @@ TEST_CASE("AudioSystem: play_sound probes cache with std::string_view (heterogen
   // Verifies that the internal flat_map+std::less<> accepts string_view
   // for cache lookup without forcing the caller to materialise a std::string.
   corundum::audio::AudioSystem sys;
-  StubBackend *stub = make_system(sys);
+  const StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
 
-  std::string_view name = "coin";
+  const std::string_view name = "coin";
   REQUIRE(sys.play_sound(name).has_value());
   REQUIRE(sys.play_sound(name, 0.5f, false).has_value()); // cached — same handle
   CHECK(stub->loaded_paths.size() == 1);
@@ -355,7 +359,7 @@ TEST_CASE("AudioSystem: play_music forwards the path and playback once ready") {
 
 TEST_CASE("AudioSystem: asking for the playing track again does not restart it") {
   corundum::audio::AudioSystem sys;
-  StubBackend *stub = make_system(sys);
+  const StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
 
   REQUIRE(sys.play_music("a.ogg", {}).has_value());
@@ -378,7 +382,7 @@ TEST_CASE("AudioSystem: stop_music forwards the fade, and the same track then pl
 
 TEST_CASE("AudioSystem: stop_music with no track playing does nothing") {
   corundum::audio::AudioSystem sys;
-  StubBackend *stub = make_system(sys);
+  const StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
 
   sys.stop_music(2.f);
@@ -391,7 +395,9 @@ TEST_CASE("AudioSystem: a failed play_music keeps the current track") {
   REQUIRE(sys.initialize("data/sounds").has_value());
 
   REQUIRE(sys.play_music("a.ogg", {}).has_value());
-  CHECK_FALSE(sys.play_music("bad.ogg", {}).has_value());
+  const auto failed = sys.play_music("bad.ogg", {});
+  REQUIRE_FALSE(failed.has_value());
+  CHECK_EQ(failed.error(), "cannot open bad.ogg");
   REQUIRE(sys.play_music("a.ogg", {}).has_value());
   REQUIRE(stub->music_played.size() == 1);
   CHECK(stub->music_played[0] == "a.ogg");
@@ -418,7 +424,7 @@ TEST_CASE("AudioSystem: play_music before initialize returns an error") {
 
 TEST_CASE("AudioSystem: update forwards to the backend once ready") {
   corundum::audio::AudioSystem sys;
-  StubBackend *stub = make_system(sys);
+  const StubBackend *stub = make_system(sys);
 
   sys.update();
   CHECK(stub->updates == 0); // not initialised: swallowed

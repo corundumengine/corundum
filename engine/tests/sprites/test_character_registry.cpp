@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string>
 #include <string_view>
@@ -56,7 +57,8 @@ TEST_CASE("CharacterRegistry::load_all errors when no sheets are present") {
   corundum::sprites::CharacterRegistry registry;
 
   const auto result = registry.load_all(disk(), dir);
-  REQUIRE(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Characters sprite sheets are missing: {}", (dir / "characters").string()));
   CHECK(registry.sheets().empty());
 }
 

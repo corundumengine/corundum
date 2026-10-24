@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <format>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -172,10 +173,14 @@ TEST_CASE("lifecycle: initialize failure runs cleanup so the window is closed") 
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
   corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  cfg.paths.sprites_dir = (fixtures / "no_such_sprites_dir").string();
+  const fs::path sprites_dir = fixtures / "no_such_sprites_dir";
+  cfg.paths.sprites_dir = sprites_dir.string();
 
   const std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
   REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("Characters sprite sheets are missing: Error accessing {}: ",
+                                                       (sprites_dir / "characters").string())),
+                result.error());
   CHECK_FALSE(engine.window->is_open());
 }
 

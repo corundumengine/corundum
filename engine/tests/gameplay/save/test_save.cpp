@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -138,12 +139,16 @@ TEST_CASE("save: a save with a different version than the engine supports is ref
 
   // There is no migration path: an older version is refused just as a newer one is.
   const json older = {{"version", 0}, {"game_id", "test_game"}, {"mode", "single_map"}};
-  CHECK_FALSE(corundum::save::parse(older).has_value());
+  const auto from_older = corundum::save::parse(older);
+  REQUIRE_FALSE(from_older.has_value());
+  CHECK_EQ(from_older.error(),
+           std::format("save version 0 is not supported (expected {})", corundum::save::k_save_version));
 }
 
 TEST_CASE("save: a non-object save JSON is refused") {
   const auto state = corundum::save::parse(json::array({1, 2, 3}));
   REQUIRE_FALSE(state.has_value());
+  CHECK_EQ(state.error(), "save JSON must be an object");
 }
 
 TEST_CASE("save: parse rejects a field with the wrong JSON type") {
@@ -214,6 +219,8 @@ TEST_CASE("save: load_game refuses a save whose version is newer than the engine
 
   const auto result = corundum::save::load_game(engine, storage, "newer_version");
   REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("save version 999 is not supported (expected {})", corundum::save::k_save_version));
 }
 
 // ── Integration ───────────────────────────────────────────────────────────────
@@ -388,13 +395,15 @@ TEST_CASE("save: a failed load leaves the engine's flags untouched") {
   corundum::save::SaveState s;
   s.game_id = "test_game";
   s.mode = "single_map";
-  s.map_or_world_id = (fixtures / "tilemaps/does_not_exist.json").string();
+  const auto missing_map_path = fixtures / "tilemaps/does_not_exist.json";
+  s.map_or_world_id = missing_map_path.string();
 
   MemoryUserStorage storage;
   REQUIRE(corundum::core::write_json(storage, slot_name("failed_load"), corundum::save::serialize(s)).has_value());
 
   const auto result = corundum::save::load_game(engine, storage, "failed_load");
   REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("tilemap: cannot open: {}", missing_map_path.string()));
   CHECK(engine.flags.count("keep.me") == 1);
   CHECK(engine.flags.size() == 1);
 

@@ -8,6 +8,7 @@
 
 #include <corundum/core/user_storage.hpp>
 
+#include <string>
 #include <string_view>
 
 namespace {
@@ -31,7 +32,9 @@ namespace {
     REQUIRE(second.has_value());
     CHECK_EQ(*second, "second");
 
-    CHECK_FALSE(storage.read("missing.json").has_value());
+    const auto missing = storage.read("missing.json");
+    REQUIRE_FALSE(missing.has_value());
+    CHECK_MESSAGE(missing.error().find("missing.json") != std::string::npos, missing.error());
   }
 
 } // namespace

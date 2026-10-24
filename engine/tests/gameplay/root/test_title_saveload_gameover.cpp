@@ -764,7 +764,9 @@ TEST_CASE("new game: a world that cannot be built falls back to the title") {
   engine.cfg.paths.world_manifest_path = (fixture_root() / "worlds/missing/manifest.json").string();
 
   const std::expected<void, std::string> result = gameplay.new_game();
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("manifest: cannot open: {}", (fixture_root() / "worlds/missing/manifest.json").string()));
   CHECK(corundum::render::mode(engine.render) == corundum::render::RenderMode::None);
   CHECK(engine.scene.mode() == screens::Title);
 
@@ -780,7 +782,8 @@ TEST_CASE("load: a refusal from the title leaves the title showing") {
   REQUIRE(engine.scene.mode() == screens::Title);
 
   const std::expected<void, std::string> result = gameplay.load_from_slot("slot_09");
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("cannot open: {}", (user_data.home.path() / "saves" / "slot_09.json").string()));
   CHECK(engine.scene.mode() == screens::Title);
 
   engine.cleanup();

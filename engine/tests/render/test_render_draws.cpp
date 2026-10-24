@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <memory>
 
 #include "memory_content_source.hpp"
@@ -118,7 +119,9 @@ TEST_CASE("render: a failed load_map after a single map draws nothing") {
   const std::filesystem::path lifecycle_map_path = fixtures / "tilemaps/lifecycle_test.json";
   const std::filesystem::path missing_map_path = fixtures / "tilemaps/missing.json";
   REQUIRE(corundum::render::load_map(disk(), renderer, state, lifecycle_map_path.string(), cfg).has_value());
-  REQUIRE_FALSE(corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), cfg).has_value());
+  const auto failed = corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), cfg);
+  REQUIRE_FALSE(failed.has_value());
+  CHECK_EQ(failed.error(), std::format("tilemap: cannot open: {}", missing_map_path.string()));
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};

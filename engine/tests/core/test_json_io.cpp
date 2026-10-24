@@ -10,6 +10,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -183,7 +184,9 @@ TEST_CASE("write_json — a failed write leaves the existing file untouched") {
   write_file(path, "old contents");
   fs::create_directories(dir / "out.json.tmp"); // a directory where the temp file must go makes the open fail
 
-  CHECK_FALSE(corundum::core::write_json(path, json::object()).has_value());
+  const auto result = corundum::core::write_json(path, json::object());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("cannot open for writing: {}.tmp", path.string()));
   CHECK(read_file(path) == "old contents");
 }
 

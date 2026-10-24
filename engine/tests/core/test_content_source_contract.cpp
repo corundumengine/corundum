@@ -7,6 +7,7 @@
 #include "temp_dir.hpp"
 
 #include <corundum/core/content_source.hpp>
+#include <corundum/core/files.hpp>
 
 #include <cstdint>
 #include <filesystem>
@@ -61,7 +62,9 @@ namespace {
     REQUIRE(empty.has_value());
     CHECK(empty->empty());
 
-    CHECK_FALSE(source.list("nope", {}).has_value());
+    const auto missing = source.list("nope", {});
+    REQUIRE_FALSE(missing.has_value());
+    CHECK_MESSAGE(missing.error().find("nope") != std::string::npos, missing.error());
   }
 
 } // namespace
