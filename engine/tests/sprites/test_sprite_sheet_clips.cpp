@@ -10,6 +10,7 @@
 #include <corundum/sprites/sprite_sheet_clips_loader.hpp>
 #include <corundum/sprites/sprite_sheet_clips_serializer.hpp>
 
+#include <array>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -107,8 +108,8 @@ TEST_CASE("load_sprite_sheet_clips — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
-  CHECK(result.error().find(path.string()) != std::string::npos);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("sprite sheet: cannot open: {}", path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — malformed JSON fails") {
@@ -117,8 +118,9 @@ TEST_CASE("load_sprite_sheet_clips — malformed JSON fails") {
   write_file(path, "{ this is not json");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
-  CHECK(result.error().find(path.string()) != std::string::npos);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("malformed sprite sheet in {}: ", path.string())),
+                result.error());
 }
 
 TEST_CASE("load_sprite_sheet_clips — top-level non-object fails without throwing") {
@@ -127,7 +129,8 @@ TEST_CASE("load_sprite_sheet_clips — top-level non-object fails without throwi
   write_file(path, "[1, 2, 3]");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite sheet '{}' must be a JSON object", path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — missing 'schema_version' is treated as version 1") {
@@ -145,7 +148,11 @@ TEST_CASE("load_sprite_sheet_clips — newer 'schema_version' fails") {
   write_file(path, R"({"schema_version":2,"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png"})");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Sprite sheet '{}' has schema_version 2, newer than this engine supports (max 1) — "
+                       "update the engine",
+                       path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — wrong-typed and zero 'schema_version' fail") {
@@ -154,10 +161,23 @@ TEST_CASE("load_sprite_sheet_clips — wrong-typed and zero 'schema_version' fai
   constexpr std::string_view k_document =
       R"({{"schema_version":{},"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png"}})";
 
-  for (const std::string_view version : {R"("1")", "null", "true", "0", "1.5"}) {
-    write_file(path, std::format(k_document, version));
+  struct BadVersion {
+    std::string_view version{};
+    std::string_view expected_suffix{};
+  };
+
+  for (const auto &test_case : std::array{
+           BadVersion{.version = R"("1")", .expected_suffix = "field 'schema_version' must be an integer"},
+           BadVersion{.version = "null", .expected_suffix = "field 'schema_version' must be an integer"},
+           BadVersion{.version = "true", .expected_suffix = "field 'schema_version' must be an integer"},
+           BadVersion{.version = "0", .expected_suffix = "has invalid schema_version 0"},
+           BadVersion{.version = "1.5", .expected_suffix = "field 'schema_version' must be an integer"},
+       }) {
+    write_file(path, std::format(k_document, test_case.version));
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CHECK_MESSAGE(!result.has_value(), "schema_version = ", version);
+    INFO("schema_version = ", test_case.version);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' {}", path.string(), test_case.expected_suffix));
   }
 }
 
@@ -171,7 +191,9 @@ TEST_CASE("load_sprite_sheet_clips — missing or non-string 'path' fails") {
        }) {
     write_file(path, document);
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CHECK(!result.has_value());
+    INFO(document);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' missing 'path'", path.string()));
   }
 }
 
@@ -181,7 +203,8 @@ TEST_CASE("load_sprite_sheet_clips — non-string 'id' fails") {
   write_file(path, R"({"id":7,"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png"})");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite sheet '{}' field 'id' must be a string", path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — missing required geometry fails") {
@@ -189,16 +212,34 @@ TEST_CASE("load_sprite_sheet_clips — missing required geometry fails") {
   const auto path = dir / "sheet.json";
 
   // Each document omits exactly one of the four required geometry fields.
-  for (const std::string_view document : {
-           R"({"frame_height":16,"columns":1,"rows":1,"path":"a.png"})",
-           R"({"frame_width":16,"columns":1,"rows":1,"path":"a.png"})",
-           R"({"frame_width":16,"frame_height":16,"rows":1,"path":"a.png"})",
-           R"({"frame_width":16,"frame_height":16,"columns":1,"path":"a.png"})",
+  struct MissingField {
+    std::string_view document{};
+    std::string_view field{};
+  };
+
+  for (const auto &test_case : std::array{
+           MissingField{
+               .document = R"({"frame_height":16,"columns":1,"rows":1,"path":"a.png"})",
+               .field = "frame_width",
+           },
+           MissingField{
+               .document = R"({"frame_width":16,"columns":1,"rows":1,"path":"a.png"})",
+               .field = "frame_height",
+           },
+           MissingField{
+               .document = R"({"frame_width":16,"frame_height":16,"rows":1,"path":"a.png"})",
+               .field = "columns",
+           },
+           MissingField{
+               .document = R"({"frame_width":16,"frame_height":16,"columns":1,"path":"a.png"})",
+               .field = "rows",
+           },
        }) {
-    write_file(path, document);
+    write_file(path, test_case.document);
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CAPTURE(document);
-    CHECK(!result.has_value());
+    INFO(test_case.document);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' missing '{}'", path.string(), test_case.field));
   }
 }
 
@@ -211,7 +252,9 @@ TEST_CASE("load_sprite_sheet_clips — non-positive frame size fails") {
   for (const std::string_view value : {"0", "-4"}) {
     write_file(path, std::format(k_document, value));
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CHECK_MESSAGE(!result.has_value(), "frame_width = ", value);
+    INFO("frame_width = ", value);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' frame_width must be > 0", path.string()));
   }
 }
 
@@ -224,7 +267,9 @@ TEST_CASE("load_sprite_sheet_clips — non-integer geometry fails without throwi
   for (const std::string_view value : {R"("16")", "null", "true", "16.5", "[16]"}) {
     write_file(path, std::format(k_document, value));
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CHECK_MESSAGE(!result.has_value(), "frame_width = ", value);
+    INFO("frame_width = ", value);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' field 'frame_width' must be an integer", path.string()));
   }
 }
 
@@ -235,21 +280,34 @@ TEST_CASE("load_sprite_sheet_clips — out-of-range geometry fails") {
   write_file(path, R"({"frame_width":4294967301,"frame_height":16,"columns":1,"rows":1,"path":"a.png"})");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite sheet '{}' field 'frame_width' is out of range", path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — negative columns/rows fail") {
   const auto dir = temp_dir("negative_grid");
   const auto path = dir / "sheet.json";
 
-  for (const std::string_view document : {
-           R"({"frame_width":16,"frame_height":16,"columns":-1,"rows":1,"path":"a.png"})",
-           R"({"frame_width":16,"frame_height":16,"columns":1,"rows":-1,"path":"a.png"})",
+  struct NegativeField {
+    std::string_view document{};
+    std::string_view field{};
+  };
+
+  for (const auto &test_case : std::array{
+           NegativeField{
+               .document = R"({"frame_width":16,"frame_height":16,"columns":-1,"rows":1,"path":"a.png"})",
+               .field = "columns",
+           },
+           NegativeField{
+               .document = R"({"frame_width":16,"frame_height":16,"columns":1,"rows":-1,"path":"a.png"})",
+               .field = "rows",
+           },
        }) {
-    write_file(path, document);
+    write_file(path, test_case.document);
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CAPTURE(document);
-    CHECK(!result.has_value());
+    INFO(test_case.document);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' {} must be >= 0", path.string(), test_case.field));
   }
 }
 
@@ -262,8 +320,9 @@ TEST_CASE("load_sprite_sheet_clips — negative placement fails") {
   for (const char *key : {"offset_x", "offset_y", "spacing_x", "spacing_y"}) {
     write_file(path, std::format(k_document, key));
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CAPTURE(key);
-    CHECK(!result.has_value());
+    INFO("key = ", key);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' field '{}' must be >= 0", path.string(), key));
   }
 }
 
@@ -273,7 +332,8 @@ TEST_CASE("load_sprite_sheet_clips — non-object 'animations' fails") {
   write_file(path, R"({"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png","animations":[]})");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite sheet '{}' 'animations' must be an object", path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — non-positive 'fps' fails") {
@@ -283,7 +343,8 @@ TEST_CASE("load_sprite_sheet_clips — non-positive 'fps' fails") {
              R"({"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png","animations":{"fps":0}})");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite sheet '{}' field 'animations.fps' must be > 0", path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — non-integer 'fps' fails without throwing") {
@@ -295,7 +356,9 @@ TEST_CASE("load_sprite_sheet_clips — non-integer 'fps' fails without throwing"
   for (const std::string_view fps : {R"("fast")", "null", "true", "6.5", "[6]"}) {
     write_file(path, std::format(k_document, fps));
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CHECK_MESSAGE(!result.has_value(), "fps = ", fps);
+    INFO("fps = ", fps);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' field 'fps' must be an integer", path.string()));
   }
 }
 
@@ -306,7 +369,8 @@ TEST_CASE("load_sprite_sheet_clips — non-array 'clips' fails") {
              R"({"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png","animations":{"clips":{}}})");
 
   const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sprite sheet '{}' field 'animations.clips' must be an array", path.string()));
 }
 
 TEST_CASE("load_sprite_sheet_clips — empty and duplicate clip names fail") {
@@ -315,15 +379,27 @@ TEST_CASE("load_sprite_sheet_clips — empty and duplicate clip names fail") {
   constexpr std::string_view k_document =
       R"({{"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png","animations":{{"clips":{}}}}})";
 
-  for (const std::string_view clips : {
-           R"([{"name":"","frames":[]}])",
-           R"([{"name":"walk","frames":[]},{"name":"walk","frames":[]}])",
-           R"([{"name":7,"frames":[]}])",
+  struct BadClips {
+    std::string_view clips{};
+    std::string_view expected_suffix{};
+  };
+
+  for (const auto &test_case : std::array{
+           BadClips{
+               .clips = R"([{"name":"","frames":[]}])",
+               .expected_suffix = "has a clip with empty 'name'",
+           },
+           BadClips{
+               .clips = R"([{"name":"walk","frames":[]},{"name":"walk","frames":[]}])",
+               .expected_suffix = "has duplicate clip name 'walk'",
+           },
+           BadClips{.clips = R"([{"name":7,"frames":[]}])", .expected_suffix = "clip missing string 'name'"},
        }) {
-    write_file(path, std::format(k_document, clips));
+    write_file(path, std::format(k_document, test_case.clips));
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CAPTURE(clips);
-    CHECK(!result.has_value());
+    INFO(test_case.clips);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' {}", path.string(), test_case.expected_suffix));
   }
 }
 
@@ -333,17 +409,29 @@ TEST_CASE("load_sprite_sheet_clips — malformed frames fail without throwing") 
   constexpr std::string_view k_document = R"({{"frame_width":16,"frame_height":16,"columns":1,"rows":1,"path":"a.png",)"
                                           R"("animations":{{"clips":[{{"name":"walk","frames":{}}}]}}}})";
 
-  for (const std::string_view frames : {
-           R"([{"col":0}])",
-           R"([{"row":0}])",
-           R"([{"col":"0","row":0}])",
-           R"([{"col":0,"row":-1}])",
-           R"([7])",
+  struct BadFrames {
+    std::string_view frames{};
+    std::string_view expected_suffix{};
+  };
+
+  for (const auto &test_case : std::array{
+           BadFrames{.frames = R"([{"col":0}])", .expected_suffix = "missing 'row'"},
+           BadFrames{.frames = R"([{"row":0}])", .expected_suffix = "missing 'col'"},
+           BadFrames{
+               .frames = R"([{"col":"0","row":0}])",
+               .expected_suffix = "field 'col' must be an integer",
+           },
+           BadFrames{
+               .frames = R"([{"col":0,"row":-1}])",
+               .expected_suffix = "clip 'walk' frame has negative col/row (0, -1)",
+           },
+           BadFrames{.frames = "[7]", .expected_suffix = "clip 'walk' has a non-object frame entry"},
        }) {
-    write_file(path, std::format(k_document, frames));
+    write_file(path, std::format(k_document, test_case.frames));
     const auto result = corundum::sprites::load_sprite_sheet_clips(disk(), path);
-    CAPTURE(frames);
-    CHECK(!result.has_value());
+    INFO(test_case.frames);
+    REQUIRE_FALSE(result.has_value());
+    CHECK_EQ(result.error(), std::format("Sprite sheet '{}' {}", path.string(), test_case.expected_suffix));
   }
 }
 
@@ -382,7 +470,7 @@ TEST_CASE("serialize_sprite_sheet_clips — full data round-trips through load")
   data.spacing_x = 3;
   data.spacing_y = 4;
   data.anim_fps = 6;
-  data.clips.push_back({.name = "walk", .frames = {{0, 0}, {1, 0}, {2, 1}}});
+  data.clips.push_back({.name = "walk", .frames = {{.col = 0, .row = 0}, {.col = 1, .row = 0}, {.col = 2, .row = 1}}});
   data.clips.push_back({.name = "idle", .frames = {}});
 
   write_file(path, serialize_sprite_sheet_clips(data).dump());

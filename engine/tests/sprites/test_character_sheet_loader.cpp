@@ -11,6 +11,7 @@
 #include <corundum/sprites/character_sheet_loader.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string_view>
 
@@ -82,7 +83,8 @@ TEST_CASE("load_character_sheet — missing required field 'id' fails") {
   write_file(path, R"({"path":"p.png","frame_width":16,"frame_height":16,"frames":{}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sheet '{}' missing 'id'", path.string()));
 }
 
 TEST_CASE("load_character_sheet — missing required field 'path' fails") {
@@ -91,7 +93,8 @@ TEST_CASE("load_character_sheet — missing required field 'path' fails") {
   write_file(path, R"({"id":"x","frame_width":16,"frame_height":16,"frames":{}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sheet '{}' missing 'path'", path.string()));
 }
 
 TEST_CASE("load_character_sheet — missing required field 'frame_width' fails") {
@@ -100,7 +103,8 @@ TEST_CASE("load_character_sheet — missing required field 'frame_width' fails")
   write_file(path, R"({"id":"x","path":"p.png","frame_height":16,"frames":{}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sheet '{}' missing 'frame_width'", path.string()));
 }
 
 TEST_CASE("load_character_sheet — missing required field 'frame_height' fails") {
@@ -109,7 +113,8 @@ TEST_CASE("load_character_sheet — missing required field 'frame_height' fails"
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frames":{}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sheet '{}' missing 'frame_height'", path.string()));
 }
 
 TEST_CASE("load_character_sheet — col_span < 1 rejected") {
@@ -120,7 +125,8 @@ TEST_CASE("load_character_sheet — col_span < 1 rejected") {
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":0,"row_span":1}}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "Sprite 's' col_span must be >= 1");
 }
 
 TEST_CASE("load_character_sheet — row_span < 1 rejected") {
@@ -131,7 +137,8 @@ TEST_CASE("load_character_sheet — row_span < 1 rejected") {
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":0}}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "Sprite 's' row_span must be >= 1");
 }
 
 TEST_CASE("load_character_sheet — walk_around_offset defaults to 0.6f when absent") {
@@ -154,7 +161,8 @@ TEST_CASE("load_character_sheet — per-frame missing 'col' fails") {
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"row":0}]}}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with("Frame in 's/south' is invalid: "), result.error());
 }
 
 TEST_CASE("load_character_sheet — per-frame missing 'row' fails") {
@@ -165,7 +173,8 @@ TEST_CASE("load_character_sheet — per-frame missing 'row' fails") {
       R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16,"frames":{"s":{"col_span":1,"row_span":1,"south":[{"col":0}]}}})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with("Frame in 's/south' is invalid: "), result.error());
 }
 
 TEST_CASE("load_character_sheet — missing 'frames' object fails") {
@@ -174,7 +183,8 @@ TEST_CASE("load_character_sheet — missing 'frames' object fails") {
   write_file(path, R"({"id":"x","path":"p.png","frame_width":16,"frame_height":16})");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sheet '{}' missing 'frames' object", path.string()));
 }
 
 TEST_CASE("load_character_sheet — empty 'frames' object is valid") {
@@ -191,7 +201,8 @@ TEST_CASE("load_character_sheet — non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("sheet: cannot open: {}", path.string()));
 }
 
 TEST_CASE("load_character_sheet — malformed JSON fails") {
@@ -200,7 +211,8 @@ TEST_CASE("load_character_sheet — malformed JSON fails") {
   write_file(path, R"({not valid json)");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("malformed sheet in {}: ", path.string())), result.error());
 }
 
 TEST_CASE("load_character_sheet — footprint spans default when absent") {
@@ -229,7 +241,8 @@ TEST_CASE("load_character_sheet — a negative footprint span is rejected") {
   })");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "Sprite 'hero' footprint spans must be >= 0");
 }
 
 TEST_CASE("load_character_sheet — a wrong-typed top-level field is rejected, not thrown") {
@@ -241,7 +254,9 @@ TEST_CASE("load_character_sheet — a wrong-typed top-level field is rejected, n
   })");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("Sheet '{}' has an invalid field: ", path.string())),
+                result.error());
 }
 
 TEST_CASE("load_character_sheet — a wrong-typed per-sprite field is rejected, not thrown") {
@@ -253,7 +268,8 @@ TEST_CASE("load_character_sheet — a wrong-typed per-sprite field is rejected, 
   })");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("Sheet '{}' sprite 'hero': ", path.string())), result.error());
 }
 
 TEST_CASE("load_character_sheet — a wrong-typed frame coordinate is rejected, not thrown") {
@@ -265,7 +281,8 @@ TEST_CASE("load_character_sheet — a wrong-typed frame coordinate is rejected, 
   })");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with("Frame in 'hero/south' is invalid: "), result.error());
 }
 
 TEST_CASE("load_character_sheet — an unknown animation name is rejected") {
@@ -277,7 +294,8 @@ TEST_CASE("load_character_sheet — an unknown animation name is rejected") {
   })");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "Sprite 'hero' has unknown animation 'walk_south'");
 }
 
 TEST_CASE("load_character_sheet — a negative fps is rejected") {
@@ -289,7 +307,8 @@ TEST_CASE("load_character_sheet — a negative fps is rejected") {
   })");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "Sprite 'hero' fps must be >= 0");
 }
 
 TEST_CASE("load_character_sheet — a non-positive frame size is rejected") {
@@ -301,5 +320,6 @@ TEST_CASE("load_character_sheet — a non-positive frame size is rejected") {
   })");
 
   const auto result = corundum::sprites::load_character_sheet(disk(), path);
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Sheet '{}' frame_width must be > 0", path.string()));
 }
