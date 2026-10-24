@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string>
 #include <string_view>
@@ -43,7 +44,8 @@ using corundum::core::load_game_config;
 
 TEST_CASE("load_game_config — missing file returns error") {
   const auto result = load_game_config(disk(), "/nonexistent/path/game.json");
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "game.json: cannot open: /nonexistent/path/game.json");
 }
 
 TEST_CASE("load_game_config — malformed JSON returns error") {
@@ -51,7 +53,8 @@ TEST_CASE("load_game_config — malformed JSON returns error") {
   const auto p = dir / "game.json";
   write_file(p, "{bad json");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("malformed game.json in {}: ", p.string())), result.error());
 }
 
 TEST_CASE("load_game_config — // and /* */ comments are ignored") {
@@ -73,7 +76,8 @@ TEST_CASE("load_game_config — JSON array (not object) returns error") {
   const auto p = dir / "game.json";
   write_file(p, "[]");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json must be a JSON object: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — full valid JSON loads all fields") {
@@ -150,7 +154,8 @@ TEST_CASE("load_game_config — win_w <= 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"win_w": 0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'win_w' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — win_h <= 0 returns error") {
@@ -158,7 +163,8 @@ TEST_CASE("load_game_config — win_h <= 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"win_h": -1})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'win_h' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — non-integer win_w returns error") {
@@ -175,7 +181,8 @@ TEST_CASE("load_game_config — simulation_fps = 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"simulation_fps": 0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'simulation_fps' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — simulation_fps above the supported maximum returns error") {
@@ -183,7 +190,8 @@ TEST_CASE("load_game_config — simulation_fps above the supported maximum retur
   const auto p = dir / "game.json";
   write_file(p, R"({"simulation_fps": 100000})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'simulation_fps' must be <= 1000: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — player_speed <= 0 returns error") {
@@ -191,7 +199,8 @@ TEST_CASE("load_game_config — player_speed <= 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"player_speed": 0.0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'player_speed' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — character_scale == 0 returns error") {
@@ -199,7 +208,8 @@ TEST_CASE("load_game_config — character_scale == 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"character_scale": 0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'character_scale' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — tile_scale == 0 returns error") {
@@ -207,7 +217,8 @@ TEST_CASE("load_game_config — tile_scale == 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"tile_scale": 0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'tile_scale' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — character_scale negative returns error") {
@@ -215,7 +226,8 @@ TEST_CASE("load_game_config — character_scale negative returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"character_scale": -1})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'character_scale' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — interact_radius <= 0 returns error") {
@@ -223,7 +235,8 @@ TEST_CASE("load_game_config — interact_radius <= 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"interact_radius": 0.0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'interact_radius' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — elevation_step_px <= 0 returns error") {
@@ -231,7 +244,8 @@ TEST_CASE("load_game_config — elevation_step_px <= 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"elevation_step_px": 0.0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'elevation_step_px' must be > 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — min_zoom > max_zoom returns error") {
@@ -239,7 +253,8 @@ TEST_CASE("load_game_config — min_zoom > max_zoom returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"min_zoom": 4.0, "max_zoom": 2.0})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'min_zoom' must be <= 'max_zoom': {}", p.string()));
 }
 
 TEST_CASE("load_game_config — min_zoom == max_zoom is allowed") {
@@ -370,7 +385,8 @@ TEST_CASE("load_game_config — display not an object returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"display": 42})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'display' must be an object: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — fonts not an object returns error") {
@@ -378,7 +394,8 @@ TEST_CASE("load_game_config — fonts not an object returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"fonts": 42})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'fonts' must be an object: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — empty font_dir returns error") {
@@ -386,7 +403,8 @@ TEST_CASE("load_game_config — empty font_dir returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"font_dir": ""})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'font_dir' must not be empty: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — empty tilemap_path returns error") {
@@ -394,7 +412,8 @@ TEST_CASE("load_game_config — empty tilemap_path returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"tilemap_path": ""})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'tilemap_path' must not be empty: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — empty sprites_dir returns error") {
@@ -402,7 +421,8 @@ TEST_CASE("load_game_config — empty sprites_dir returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"sprites_dir": ""})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'sprites_dir' must not be empty: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — empty dialogue_dir returns error") {
@@ -410,7 +430,8 @@ TEST_CASE("load_game_config — empty dialogue_dir returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_dir": ""})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'dialogue_dir' must not be empty: {}", p.string()));
 }
 
 // ── panel_height_frac ─────────────────────────────────────────────────────────
@@ -420,7 +441,9 @@ TEST_CASE("load_game_config — panel_height_frac = 0 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": {"panel_height_frac": 0.0}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("game.json 'dialogue_render.panel_height_frac' must be in (0, 1): {}", p.string()));
 }
 
 TEST_CASE("load_game_config — panel_height_frac = 1 returns error") {
@@ -428,7 +451,9 @@ TEST_CASE("load_game_config — panel_height_frac = 1 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": {"panel_height_frac": 1.0}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("game.json 'dialogue_render.panel_height_frac' must be in (0, 1): {}", p.string()));
 }
 
 TEST_CASE("load_game_config — panel_height_frac > 1 returns error") {
@@ -436,7 +461,9 @@ TEST_CASE("load_game_config — panel_height_frac > 1 returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": {"panel_height_frac": 1.5}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("game.json 'dialogue_render.panel_height_frac' must be in (0, 1): {}", p.string()));
 }
 
 // ── dialogue_render sub-object ────────────────────────────────────────────────
@@ -469,7 +496,8 @@ TEST_CASE("load_game_config — dialogue_render not an object returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"dialogue_render": 42})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'dialogue_render' must be an object: {}", p.string()));
 }
 
 // ── Default paths ──────────────────────────────────────────────────────────────
@@ -565,7 +593,8 @@ TEST_CASE("load_game_config — player not an object returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"player": 42})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'player' must be an object: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — player empty walk_sprite returns error") {
@@ -573,7 +602,8 @@ TEST_CASE("load_game_config — player empty walk_sprite returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"walk_sprite": ""}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'player.walk_sprite' must not be empty: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — player empty idle_sprite returns error") {
@@ -581,7 +611,8 @@ TEST_CASE("load_game_config — player empty idle_sprite returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"idle_sprite": ""}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'player.idle_sprite' must not be empty: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — player negative col returns error") {
@@ -589,7 +620,8 @@ TEST_CASE("load_game_config — player negative col returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"col": -1.0}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'player.col' must be >= 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — player negative row returns error") {
@@ -597,7 +629,8 @@ TEST_CASE("load_game_config — player negative row returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"row": -0.5}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'player.row' must be >= 0: {}", p.string()));
 }
 
 TEST_CASE("load_game_config — player col wrong type returns error") {
@@ -605,7 +638,8 @@ TEST_CASE("load_game_config — player col wrong type returns error") {
   const auto p = dir / "game.json";
   write_file(p, R"({"player": {"col": "abc"}})");
   const auto result = load_game_config(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'player.col' has wrong type: {}", p.string()));
 }
 
 // ── window_mode ───────────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@
 #include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <initializer_list>
 #include <optional>
@@ -138,7 +139,8 @@ TEST_CASE("load_spawn_points — player not an object returns error") {
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": 42, "actors": [] })");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' 'player' must be an object", p.string()));
 }
 
 TEST_CASE("load_spawn_points — player missing col returns error") {
@@ -146,7 +148,8 @@ TEST_CASE("load_spawn_points — player missing col returns error") {
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "row": 5.0 }, "actors": [] })");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' 'player' missing or invalid 'col'/'row'", p.string()));
 }
 
 TEST_CASE("load_spawn_points — player negative col returns error") {
@@ -154,7 +157,8 @@ TEST_CASE("load_spawn_points — player negative col returns error") {
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "col": -1.0, "row": 5.0 }, "actors": [] })");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' 'player' 'col' and 'row' must be >= 0", p.string()));
 }
 
 TEST_CASE("load_spawn_points — malformed JSON returns error") {
@@ -162,7 +166,8 @@ TEST_CASE("load_spawn_points — malformed JSON returns error") {
   const auto p = dir / "spawn.json";
   write_file(p, "{bad json");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("malformed spawn points in {}: ", p.string())), result.error());
 }
 
 TEST_CASE("load_spawn_points — not an object returns error") {
@@ -170,7 +175,8 @@ TEST_CASE("load_spawn_points — not an object returns error") {
   const auto p = dir / "spawn.json";
   write_file(p, "[]");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' must be a JSON object", p.string()));
 }
 
 // ── Actor id parsing ───────────────────────────────────────────────────────────
@@ -201,7 +207,8 @@ TEST_CASE("load_spawn_points — duplicate actor id returns error") {
     ]
   })");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[1] duplicate actor id 'brann'", p.string()));
 }
 
 TEST_CASE("load_spawn_points — invalid facing returns error") {
@@ -213,7 +220,8 @@ TEST_CASE("load_spawn_points — invalid facing returns error") {
     ]
   })");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[0] 'facing' is not a valid direction", p.string()));
 }
 
 TEST_CASE("load_spawn_points — facing has wrong type returns error") {
@@ -221,7 +229,8 @@ TEST_CASE("load_spawn_points — facing has wrong type returns error") {
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "actors": [ { "col": 2, "row": 3, "sprite": "npc1", "facing": 7 } ] })");
   const auto result = load_spawn_points(disk(), p);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[0] 'facing' has wrong type", p.string()));
 }
 
 // ── find_actor wiring ─────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@
 #include <corundum/world/tilemap/world_manifest.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string_view>
 
@@ -29,7 +30,7 @@ namespace {
   }
 
   // 16×8 grid, 128 tiles per chunk
-  constexpr std::string_view MANIFEST_JSON = R"({
+  constexpr std::string_view k_manifest_json = R"({
     "chunk_size": 128,
     "chunks_wide": 16,
     "chunks_tall": 8,
@@ -42,7 +43,7 @@ namespace {
 TEST_CASE("load_world_manifest parses valid JSON") {
   const auto dir = temp_dir("load");
   const auto path = dir / "manifest.json";
-  write_file(path, MANIFEST_JSON);
+  write_file(path, k_manifest_json);
 
   auto manifest_result = corundum::world::tilemap::load_world_manifest(disk(), path);
   REQUIRE(manifest_result.has_value());
@@ -55,7 +56,8 @@ TEST_CASE("load_world_manifest parses valid JSON") {
 
 TEST_CASE("load_world_manifest returns error on missing file") {
   auto result = corundum::world::tilemap::load_world_manifest(disk(), "/nonexistent/path/manifest.json");
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "manifest: cannot open: /nonexistent/path/manifest.json");
 }
 
 TEST_CASE("load_world_manifest returns error on missing field") {
@@ -63,13 +65,14 @@ TEST_CASE("load_world_manifest returns error on missing field") {
   const auto path = dir / "manifest.json";
   write_file(path, R"({"chunk_size": 128, "chunks_wide": 16})"); // missing chunks_tall
   auto result = corundum::world::tilemap::load_world_manifest(disk(), path);
-  CHECK(!result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Manifest '{}' missing 'chunks_tall'", path.string()));
 }
 
 TEST_CASE("WorldManifest::chunk_path") {
   const auto dir = temp_dir("chunk_path");
   const auto path = dir / "manifest.json";
-  write_file(path, MANIFEST_JSON);
+  write_file(path, k_manifest_json);
   auto manifest_result = corundum::world::tilemap::load_world_manifest(disk(), path);
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
@@ -81,7 +84,7 @@ TEST_CASE("WorldManifest::chunk_path") {
 
 TEST_CASE("WorldManifest::in_bounds") {
   const auto dir = temp_dir("in_bounds");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = corundum::world::tilemap::load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
@@ -98,7 +101,7 @@ TEST_CASE("WorldManifest::in_bounds") {
 TEST_CASE("chunk_at_cart — origin maps to (0,0)") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
@@ -111,7 +114,7 @@ TEST_CASE("chunk_at_cart — origin maps to (0,0)") {
 TEST_CASE("chunk_at_cart — center of world") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart_center");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
@@ -124,7 +127,7 @@ TEST_CASE("chunk_at_cart — center of world") {
 TEST_CASE("chunk_at_cart — clamped at world edge") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart_clamp");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
@@ -138,12 +141,12 @@ TEST_CASE("chunk_at_cart — clamped at world edge") {
 TEST_CASE("chunk_origin_px — (0,0) at world origin") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("origin_px");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
-  auto [ox, oy] = chunk_origin_px({0, 0}, m, 16, 2.f);
+  auto [ox, oy] = chunk_origin_px({.col = 0, .row = 0}, m, 16, 2.f);
   CHECK(ox == doctest::Approx(0.f));
   CHECK(oy == doctest::Approx(0.f));
 }
@@ -151,13 +154,13 @@ TEST_CASE("chunk_origin_px — (0,0) at world origin") {
 TEST_CASE("chunk_origin_px — (1,0) offset") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("origin_1_0");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
   // 128 * 16 * 2 = 4096
-  auto [ox, oy] = chunk_origin_px({1, 0}, m, 16, 2.f);
+  auto [ox, oy] = chunk_origin_px({.col = 1, .row = 0}, m, 16, 2.f);
   CHECK(ox == doctest::Approx(4096.f));
   CHECK(oy == doctest::Approx(0.f));
 }
@@ -165,7 +168,7 @@ TEST_CASE("chunk_origin_px — (1,0) offset") {
 TEST_CASE("world_bounds_iso for 16×8 manifest") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("world_bounds");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
@@ -176,7 +179,7 @@ TEST_CASE("world_bounds_iso for 16×8 manifest") {
   const float half_th = half_tw * 0.5f;
   auto [w, h] = world_bounds_iso(m, half_tw, half_th);
   // (tiles_wide + tiles_tall - 1) * half_tw * 2 = (2048 + 1024 - 1) * 16 * 2 = 3071 * 32
-  const float steps = static_cast<float>(16 * 128 + 8 * 128 - 1);
+  const float steps = static_cast<float>((16 * 128) + (8 * 128) - 1);
   CHECK(w == doctest::Approx(steps * half_tw * 2.f));
   CHECK(h == doctest::Approx(steps * half_th * 2.f));
   CHECK(w == doctest::Approx(h * 2.f)); // half_th = half_tw / 2, so height is half of width
@@ -185,35 +188,35 @@ TEST_CASE("world_bounds_iso for 16×8 manifest") {
 TEST_CASE("active_chunk_coords — center of world, radius=1") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_center");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
-  const auto coords = active_chunk_coords({8, 4}, 1, m);
+  const auto coords = active_chunk_coords({.col = 8, .row = 4}, 1, m);
   CHECK(coords.size() == 9);
 }
 
 TEST_CASE("active_chunk_coords — top-left corner, radius=1 clamped") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_corner");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
-  const auto coords = active_chunk_coords({0, 0}, 1, m);
+  const auto coords = active_chunk_coords({.col = 0, .row = 0}, 1, m);
   CHECK(coords.size() == 4); // only bottom-right quadrant of 3×3 is in bounds
 }
 
 TEST_CASE("active_chunk_coords — bottom-right corner clamped") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_br");
-  write_file(dir / "manifest.json", MANIFEST_JSON);
+  write_file(dir / "manifest.json", k_manifest_json);
   auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
   REQUIRE(manifest_result.has_value());
   const auto &m = *manifest_result;
 
-  const auto coords = active_chunk_coords({15, 7}, 1, m);
+  const auto coords = active_chunk_coords({.col = 15, .row = 7}, 1, m);
   CHECK(coords.size() == 4);
 }

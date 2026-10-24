@@ -77,7 +77,8 @@ namespace {
 
 TEST_CASE("user_data_dir — empty app_name is rejected") {
   const auto result = corundum::core::user_data_dir("");
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "app_name must not be empty");
 }
 
 TEST_CASE("read_env reports unset variables as absent and set ones as their value") {
@@ -102,14 +103,16 @@ TEST_CASE("user_data_dir — macOS errors when HOME is unset") {
   const EnvGuard home("HOME");
 
   const auto result = corundum::core::user_data_dir("keystone");
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "HOME is unset, empty, or not absolute");
 }
 
 TEST_CASE("user_data_dir — macOS errors when HOME is relative") {
   const EnvGuard home("HOME", "relative/home");
 
   const auto result = corundum::core::user_data_dir("keystone");
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "HOME is unset, empty, or not absolute");
 }
 #endif
 
@@ -137,7 +140,8 @@ TEST_CASE("user_data_dir — Linux errors when both XDG_DATA_HOME and HOME are u
   const EnvGuard home("HOME");
 
   const auto result = corundum::core::user_data_dir("keystone");
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "XDG_DATA_HOME and HOME are both unset, empty, or not absolute");
 }
 
 TEST_CASE("user_data_dir — Linux ignores a relative XDG_DATA_HOME") {
@@ -154,7 +158,8 @@ TEST_CASE("user_data_dir — Linux errors when HOME is relative") {
   const EnvGuard home("HOME", "relative/home");
 
   const auto result = corundum::core::user_data_dir("keystone");
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "XDG_DATA_HOME and HOME are both unset, empty, or not absolute");
 }
 #endif
 
@@ -182,7 +187,8 @@ TEST_CASE("user_data_dir — Windows errors when both APPDATA and USERPROFILE ar
   const EnvGuard profile("USERPROFILE");
 
   const auto result = corundum::core::user_data_dir("keystone");
-  CHECK_FALSE(result.has_value());
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), "APPDATA and USERPROFILE are both unset, empty, or not absolute");
 }
 
 TEST_CASE("user_data_dir — Windows ignores a relative APPDATA") {
