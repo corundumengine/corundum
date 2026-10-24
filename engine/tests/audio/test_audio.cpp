@@ -9,8 +9,6 @@
 #include <array>
 #include <cstdint>
 #include <expected>
-#include <filesystem>
-#include <fstream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -168,23 +166,18 @@ TEST_CASE("AudioSystem: second play of the same name hits the cache (no second l
 }
 
 TEST_CASE("AudioSystem: catalog entry overrides the .ogg fallback") {
-  namespace fs = std::filesystem;
-  const fs::path catalog_path = fs::temp_directory_path() / "corundum_test_catalog.json";
-  {
-    std::ofstream out(catalog_path);
-    out << R"({"coin": "sfx/jingle_coin_01.ogg"})";
-  }
+  corundum::test::MemoryContentSource content;
+  const std::string catalog_path = "sounds/catalog.json";
+  content.add(catalog_path, R"({"coin": "sfx/jingle_coin_01.ogg"})");
 
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.load_catalog(disk(), catalog_path.string());
+  sys.load_catalog(content, catalog_path);
 
   REQUIRE(sys.play_sound("coin").has_value());
   REQUIRE(stub->loaded_paths.size() == 1);
   CHECK(stub->loaded_paths[0] == "data/sounds/sfx/jingle_coin_01.ogg");
-
-  fs::remove(catalog_path);
 }
 
 TEST_CASE("AudioSystem: set_paused is retained before initialize and applied once ready") {
@@ -283,43 +276,33 @@ TEST_CASE("AudioSystem: load_catalog with a missing file is a warn-and-continue"
 }
 
 TEST_CASE("AudioSystem: load_catalog with malformed JSON is a warn-and-continue") {
-  namespace fs = std::filesystem;
-  const fs::path catalog_path = fs::temp_directory_path() / "corundum_test_catalog_malformed.json";
-  {
-    std::ofstream out(catalog_path);
-    out << "{ this is not json";
-  }
+  corundum::test::MemoryContentSource content;
+  const std::string catalog_path = "sounds/catalog_malformed.json";
+  content.add(catalog_path, "{ this is not json");
 
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.load_catalog(disk(), catalog_path.string());
+  sys.load_catalog(content, catalog_path);
 
   // Malformed catalog must not throw and must leave .ogg fallback intact.
   REQUIRE(sys.play_sound("coin").has_value());
   CHECK(stub->loaded_paths[0] == "data/sounds/coin.ogg");
-
-  fs::remove(catalog_path);
 }
 
 TEST_CASE("AudioSystem: load_catalog with a non-object JSON is a warn-and-continue") {
-  namespace fs = std::filesystem;
-  const fs::path catalog_path = fs::temp_directory_path() / "corundum_test_catalog_array.json";
-  {
-    std::ofstream out(catalog_path);
-    out << R"(["not", "an", "object"])";
-  }
+  corundum::test::MemoryContentSource content;
+  const std::string catalog_path = "sounds/catalog_array.json";
+  content.add(catalog_path, R"(["not", "an", "object"])");
 
   corundum::audio::AudioSystem sys;
   StubBackend *stub = make_system(sys);
   REQUIRE(sys.initialize("data/sounds").has_value());
-  sys.load_catalog(disk(), catalog_path.string());
+  sys.load_catalog(content, catalog_path);
 
   // Non-object JSON must not throw and must leave .ogg fallback intact.
   REQUIRE(sys.play_sound("coin").has_value());
   CHECK(stub->loaded_paths[0] == "data/sounds/coin.ogg");
-
-  fs::remove(catalog_path);
 }
 
 TEST_CASE("AudioSystem: load_catalog with empty path is a silent no-op") {

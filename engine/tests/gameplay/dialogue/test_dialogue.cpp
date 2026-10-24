@@ -7,9 +7,7 @@
 #include <corundum/input/input_intent.hpp>
 #include <doctest/doctest.h>
 
-#include <filesystem>
 #include <format>
-#include <fstream>
 
 #include <corundum/core/json_io.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
@@ -28,8 +26,6 @@
 #include <nlohmann/json.hpp>
 #include <utility>
 #include <vector>
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 // Builds an in-memory graph matching the innkeeper scenario (new schema):
 //   n0 (Talk) → n1 (Choice)
@@ -126,8 +122,6 @@ namespace {
 
 } // namespace
 
-// ── Shared graph/test helpers ────────────────────────────────────────────────
-
 namespace {
 
   /// Pushes a node into a graph, maintaining the id→index map.
@@ -152,8 +146,6 @@ namespace {
   }
 
 } // namespace
-
-// ── parse_action ──────────────────────────────────────────────────────────────
 
 TEST_CASE("parse_action: assign integer") {
   auto r = corundum::gameplay::dialogue::parse_action("gold = 5");
@@ -222,8 +214,6 @@ TEST_CASE("parse_action: an operator where an argument is expected is rejected, 
                        "arguments"});
 }
 
-// ── execute_actions ───────────────────────────────────────────────────────────
-
 TEST_CASE("execute_actions applies state mutations and returns event actions") {
   corundum::world::FlagStore flags;
   flags["gold"] = 10;
@@ -243,8 +233,6 @@ TEST_CASE("execute_actions applies state mutations and returns event actions") {
   CHECK(events[0].args[0] == "coin");
 }
 
-// ── Graph::find ───────────────────────────────────────────────────────────────
-
 TEST_CASE("Graph::find returns correct node for known id") {
   const auto g = make_innkeeper_graph();
   const auto *n0 = g.find("n0");
@@ -259,8 +247,6 @@ TEST_CASE("Graph::find returns nullptr for unknown id") {
   CHECK(g.find("does_not_exist") == nullptr);
   CHECK(g.find("") == nullptr);
 }
-
-// ── advance ───────────────────────────────────────────────────────────────────
 
 TEST_CASE("advance on Talk follows next_id") {
   const auto g = make_innkeeper_graph();
@@ -317,8 +303,6 @@ TEST_CASE("advance on End always returns nullptr") {
   CHECK(corundum::gameplay::dialogue::advance(g, end_node, 0) == nullptr);
   CHECK(corundum::gameplay::dialogue::advance(g, end_node, -1) == nullptr);
 }
-
-// ── visible_choices ───────────────────────────────────────────────────────────
 
 TEST_CASE("visible_choices: condition gates on expression") {
   corundum::gameplay::dialogue::Node n;
@@ -414,8 +398,6 @@ TEST_CASE("visible_choices: Cycle sequence rotates per visit") {
   CHECK(v3[0] == 0); // Cycle A again
 }
 
-// ── System / State machine ────────────────────────────────────────────────────
-
 TEST_CASE("dialogue closes automatically on reaching End") {
   corundum::gameplay::dialogue::Graph g;
   g.graph_id = "end_talk";
@@ -498,25 +480,17 @@ TEST_CASE("Choice selection executes actions") {
   CHECK(conversation.current_node_id() == "n2");
 }
 
-// ── Registry ─────────────────────────────────────────────────────────────────
-
 TEST_CASE("registry load_all count matches size with duplicate ids") {
-  const auto tmp_dir = std::filesystem::temp_directory_path() / "dialogue_test_dup_count";
-  std::filesystem::create_directories(tmp_dir);
-  {
-    std::ofstream f(tmp_dir / "a.json");
-    f << R"({"type":"graph","id":"dup","nodes":[{"id":"n0","type":"talk","text":"A","next":"end"}]})";
-  }
-  {
-    std::ofstream f(tmp_dir / "b.json");
-    f << R"({"type":"graph","id":"dup","nodes":[{"id":"n0","type":"talk","text":"B","next":"end"}]})";
-  }
+  corundum::test::MemoryContentSource content;
+  content.add("dup_count/a.json",
+              R"({"type":"graph","id":"dup","nodes":[{"id":"n0","type":"talk","text":"A","next":"end"}]})");
+  content.add("dup_count/b.json",
+              R"({"type":"graph","id":"dup","nodes":[{"id":"n0","type":"talk","text":"B","next":"end"}]})");
 
   corundum::gameplay::dialogue::Registry reg;
-  const int loaded = reg.load_all(disk(), tmp_dir);
+  const int loaded = reg.load_all(content, "dup_count");
   CHECK(loaded == 1);
   CHECK(reg.size() == 1);
-  std::filesystem::remove_all(tmp_dir);
 }
 
 TEST_CASE("visible_choices: quest-gated choice hidden (not errored) when registry absent") {
@@ -577,8 +551,6 @@ TEST_CASE("visible_choices: quest-gated choice shown when registry present and s
   CHECK(v2[1] == 1);
 }
 
-// ── Loader ────────────────────────────────────────────────────────────────────
-
 TEST_CASE("load_graph parses innkeeper.json correctly") {
   const auto result = corundum::gameplay::dialogue::load_graph(disk(), "engine/tests/fixtures/innkeeper.json");
   REQUIRE(result.has_value());
@@ -624,19 +596,17 @@ TEST_CASE("load_graph returns error for missing file") {
 }
 
 TEST_CASE("load_graph rejects a dialogue with a malformed condition") {
-  const std::string tmp = "engine/tests/fixtures/_test_bad_condition.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"graph","id":"bad_cond","nodes":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "dialogue/bad_condition.json";
+  content.add(path, R"({"type":"graph","id":"bad_cond","nodes":[
       {"id":"n0","type":"choice","choices":[
         {"label":"L","target":"end","condition":"gold >="}
       ]}
-    ]})";
-  }
-  const auto result = corundum::gameplay::dialogue::load_graph(disk(), tmp);
+    ]})");
+
+  const auto result = corundum::gameplay::dialogue::load_graph(content, path);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("condition invalid") != std::string::npos);
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("validate_quest_refs: give_item/take_item unknown item produces error") {
@@ -734,8 +704,6 @@ TEST_CASE("validate_condition_quest_refs flags an unknown stage for a known ques
   REQUIRE(errors.size() == 1);
   CHECK(errors[0].find("unknown stage 'missing_stage'") != std::string::npos);
 }
-
-// ── Divert: goto_graph / return_graph ────────────────────────────────────────
 
 namespace {
 
@@ -1159,8 +1127,6 @@ TEST_CASE("divert: events emitted alongside a goto_graph on a choice edge reach 
   CHECK(conversation.resume_node_id() == "a1");
 }
 
-// ── actor_id ───────────────────────────────────────────────────────────────────
-
 TEST_CASE("actor_id: loads from JSON and round-trips through serialize") {
   const auto result = corundum::gameplay::dialogue::load_graph(disk(), "engine/tests/fixtures/actor_dialogue.json");
   REQUIRE(result.has_value());
@@ -1169,15 +1135,13 @@ TEST_CASE("actor_id: loads from JSON and round-trips through serialize") {
   const auto j = corundum::gameplay::dialogue::serialize(*result);
   CHECK(j["actor_id"].get<std::string>() == "brann");
 
-  const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_actor_dialogue.json");
-  const auto write_result = corundum::core::write_json(tmp, j);
-  REQUIRE(write_result.has_value());
+  corundum::test::MemoryContentSource reloaded_content;
+  const std::string reloaded_path = "dialogue/actor_dialogue_reloaded.json";
+  reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = corundum::gameplay::dialogue::load_graph(disk(), tmp.string());
+  const auto reloaded = corundum::gameplay::dialogue::load_graph(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
   CHECK(reloaded->actor_id == "brann");
-
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("actor_id: absent field leaves actor_id empty and serialize omits it") {
@@ -1188,8 +1152,6 @@ TEST_CASE("actor_id: absent field leaves actor_id empty and serialize omits it")
   const auto j = corundum::gameplay::dialogue::serialize(*result);
   CHECK_FALSE(j.contains("actor_id"));
 }
-
-// ── Node-level once ────────────────────────────────────────────────────────────
 
 TEST_CASE("Talk once: line is shown the first time and skipped on revisit") {
   using namespace corundum::gameplay::dialogue;
@@ -1241,14 +1203,13 @@ TEST_CASE("Talk once: line is shown the first time and skipped on revisit") {
 }
 
 TEST_CASE("Talk once: loads from JSON and round-trips through serialize") {
-  const std::string tmp = "engine/tests/fixtures/_test_once_talk.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"graph","id":"once_json","nodes":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "dialogue/once_talk.json";
+  content.add(path, R"({"type":"graph","id":"once_json","nodes":[
       {"id":"n0","type":"talk","text":"Once.","next":"end","once":true}
-    ]})";
-  }
-  const auto result = corundum::gameplay::dialogue::load_graph(disk(), tmp);
+    ]})");
+
+  const auto result = corundum::gameplay::dialogue::load_graph(content, path);
   REQUIRE(result.has_value());
   const auto *n0 = result->find("n0");
   REQUIRE(n0 != nullptr);
@@ -1257,16 +1218,13 @@ TEST_CASE("Talk once: loads from JSON and round-trips through serialize") {
   const auto j = corundum::gameplay::dialogue::serialize(*result);
   CHECK(j["nodes"][0]["once"].get<bool>() == true);
 
-  const auto tmp2 = std::filesystem::path("engine/tests/fixtures/tmp_once_talk.json");
-  const auto write_result = corundum::core::write_json(tmp2, j);
-  REQUIRE(write_result.has_value());
+  corundum::test::MemoryContentSource reloaded_content;
+  const std::string reloaded_path = "dialogue/once_talk_reloaded.json";
+  reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = corundum::gameplay::dialogue::load_graph(disk(), tmp2.string());
+  const auto reloaded = corundum::gameplay::dialogue::load_graph(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
   CHECK(reloaded->find("n0")->once == true);
-
-  std::filesystem::remove(tmp);
-  std::filesystem::remove(tmp2);
 }
 
 TEST_CASE("Talk once: absent field defaults to false and serialize omits it") {
@@ -1278,8 +1236,6 @@ TEST_CASE("Talk once: absent field defaults to false and serialize omits it") {
   CHECK_FALSE(j["nodes"][0].contains("once"));
 }
 
-// ── Round-trip ────────────────────────────────────────────────────────────────
-
 TEST_CASE("dialogue serialize round-trips through load_graph") {
   const auto result = corundum::gameplay::dialogue::load_graph(disk(), "engine/tests/fixtures/innkeeper.json");
   REQUIRE(result.has_value());
@@ -1287,11 +1243,11 @@ TEST_CASE("dialogue serialize round-trips through load_graph") {
 
   const auto j = corundum::gameplay::dialogue::serialize(g);
 
-  const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_innkeeper.json");
-  const auto write_result = corundum::core::write_json(tmp, j);
-  REQUIRE(write_result.has_value());
+  corundum::test::MemoryContentSource reloaded_content;
+  const std::string reloaded_path = "dialogue/innkeeper_reloaded.json";
+  reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = corundum::gameplay::dialogue::load_graph(disk(), tmp.string());
+  const auto reloaded = corundum::gameplay::dialogue::load_graph(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
   const auto &g2 = *reloaded;
 
@@ -1318,8 +1274,6 @@ TEST_CASE("dialogue serialize round-trips through load_graph") {
   CHECK(n_pay->type == corundum::gameplay::dialogue::NodeType::Event);
   CHECK(n_pay->actions[0] == "play_sound('coin')");
   CHECK(n_pay->next_id == "n2");
-
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("dialogue::Registry: load_all reads graphs from an in-memory content source") {

@@ -41,6 +41,10 @@ if(BUILD_TESTING AND CORUNDUM_BUILD_TESTS)
   # cmake/CheckLayering.cmake.
   add_test(NAME layering
            COMMAND ${CMAKE_COMMAND} -DROOT=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/CheckLayering.cmake)
+  # Keeps the engine tests' disk writes under a per-process TempDir. See
+  # cmake/CheckTestTempDirs.cmake.
+  add_test(NAME test_temp_dirs
+           COMMAND ${CMAKE_COMMAND} -DROOT=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/CheckTestTempDirs.cmake)
   # tools/tests reads tilesmith's coords.hpp directly; gate it the same way engine/tests gates
   # its internal-header tests, so a vendored/tools-less checkout skips it cleanly at configure
   # time instead of hard-failing (today it would fail later, at compile time, the same way).

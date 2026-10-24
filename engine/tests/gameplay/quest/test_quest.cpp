@@ -16,11 +16,12 @@
 #include <corundum/world/flags.hpp>
 
 #include "memory_content_source.hpp"
+#include <cstdint>
 #include <filesystem>
 #include <format>
-#include <fstream>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json.hpp> // IWYU pragma: keep
 #include <optional>
+#include <span>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -29,8 +30,6 @@ using corundum::test::disk;
 
 namespace quest = corundum::gameplay::quest;
 using corundum::world::FlagStore;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 namespace {
 
@@ -159,36 +158,30 @@ namespace {
 
 } // namespace
 
-// ── Loader ────────────────────────────────────────────────────────────────────
-
 TEST_CASE("quest loader: malformed done_condition is a load error") {
-  const std::string tmp = "engine/tests/fixtures/_test_bad_done_condition.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/bad_done_condition.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":"gold >="}]}
-    ]})";
-  }
-  auto result = quest::load_quest(disk(), tmp);
+    ]})");
+
+  auto result = quest::load_quest(content, path);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("done_condition invalid") != std::string::npos);
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest loader: empty done_condition is a load error") {
   // An empty expression compiles to constant-true, so accepting it would silently
   // complete the objective (and auto-advance its stage).
-  const std::string tmp = "engine/tests/fixtures/_test_empty_done_condition.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/empty_done_condition.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":""}]}
-    ]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
+    ]})");
+
+  const auto result = quest::load_quest(content, path);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("done_condition") != std::string::npos);
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
@@ -220,29 +213,25 @@ TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
 }
 
 TEST_CASE("quest loader: missing type field loads") {
-  const std::string tmp = "engine/tests/fixtures/_test_no_type.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"id":"x","name":"x","description":"","stages":[
-      {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/no_type.json";
+  content.add(path, R"({"id":"x","name":"x","description":"","stages":[
+      {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})");
+
+  const auto result = quest::load_quest(content, path);
   REQUIRE(result.has_value());
   CHECK(result->quest_id == "x");
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest loader: wrong type field warns but loads") {
-  const std::string tmp = "engine/tests/fixtures/_test_wrong_type.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"dialogue","id":"x","name":"x","description":"","stages":[
-      {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})";
-  }
-  const auto result = quest::load_quest(disk(), tmp);
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/wrong_type.json";
+  content.add(path, R"({"type":"dialogue","id":"x","name":"x","description":"","stages":[
+      {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})");
+
+  const auto result = quest::load_quest(content, path);
   REQUIRE(result.has_value());
   CHECK(result->quest_id == "x");
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest loader: missing id fails") {
@@ -313,47 +302,42 @@ TEST_CASE("quest loader: no resolved stage rejected") {
 }
 
 TEST_CASE("quest loader: stage order disagreeing with sequences warns but loads") {
-  const std::string tmp = "engine/tests/fixtures/_test_stage_order.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/stage_order.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"later","sequence":2,"resolved":true,"objectives":[]},
       {"name":"earlier","sequence":1,"objectives":[]}
-    ]})";
-  }
-  auto result = quest::load_quest(disk(), tmp);
+    ]})");
+
+  auto result = quest::load_quest(content, path);
   REQUIRE(result.has_value());
   CHECK(result->stages[0].name == "later");
   CHECK(result->stages[1].name == "earlier");
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest loader: failed flag auto-sets resolved") {
-  const std::string tmp = "engine/tests/fixtures/_test_failed_flag.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/failed_flag.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"fail","sequence":1,"failed":true,"objectives":[]}
-    ]})";
-  }
-  auto result = quest::load_quest(disk(), tmp);
+    ]})");
+
+  auto result = quest::load_quest(content, path);
   REQUIRE(result.has_value());
   CHECK(result->stages[0].failed);
   CHECK(result->stages[0].resolved);
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest loader: advances_to parses and round-trips") {
-  const std::string tmp = "engine/tests/fixtures/_test_advances_to.json";
-  {
-    std::ofstream f(tmp);
-    f << R"({"type":"quest","id":"x","name":"x","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/advances_to.json";
+  content.add(path, R"({"type":"quest","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"advances_to":["b","c"],"objectives":[]},
       {"name":"b","sequence":2,"resolved":true,"objectives":[]},
       {"name":"c","sequence":3,"resolved":true,"objectives":[]}
-    ]})";
-  }
-  auto result = quest::load_quest(disk(), tmp);
+    ]})");
+
+  auto result = quest::load_quest(content, path);
   REQUIRE(result.has_value());
   REQUIRE(result->stages[0].advances_to.size() == 2);
   CHECK(result->stages[0].advances_to[0] == "b");
@@ -361,16 +345,15 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
   CHECK(result->stages[1].advances_to.empty());
 
   const auto j = quest::serialize(*result);
-  const auto tmp2 = std::filesystem::path("engine/tests/fixtures/tmp_advances_to.json");
-  REQUIRE(corundum::core::write_json(tmp2, j).has_value());
-  const auto reloaded = quest::load_quest(disk(), tmp2.string());
+  corundum::test::MemoryContentSource reloaded_content;
+  const std::string reloaded_path = "quests/advances_to_reloaded.json";
+  reloaded_content.add(reloaded_path, corundum::core::format_json(j));
+
+  const auto reloaded = quest::load_quest(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
   REQUIRE(reloaded->stages[0].advances_to.size() == 2);
   CHECK(reloaded->stages[0].advances_to[0] == "b");
   CHECK(reloaded->stages[0].advances_to[1] == "c");
-
-  std::filesystem::remove(tmp);
-  std::filesystem::remove(tmp2);
 }
 
 TEST_CASE("quest loader: keystone ember_of_greyhollow still loads clean") {
@@ -386,19 +369,15 @@ TEST_CASE("quest loader: keystone ember_of_greyhollow still loads clean") {
 }
 
 TEST_CASE("quest loader: invalid JSON returns error") {
-  const std::string tmp = "engine/tests/fixtures/_test_bad_json.json";
-  {
-    std::ofstream f(tmp);
-    f << "not valid json";
-  }
-  auto result = quest::load_quest(disk(), tmp);
+  corundum::test::MemoryContentSource content;
+  const std::string path = "quests/bad_json.json";
+  content.add(path, "not valid json");
+
+  auto result = quest::load_quest(content, path);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("malformed quest JSON") != std::string::npos);
-  CHECK(result.error().find(tmp) != std::string::npos);
-  std::filesystem::remove(tmp);
+  CHECK(result.error().find(path) != std::string::npos);
 }
-
-// ── validate ──────────────────────────────────────────────────────────────────
 
 TEST_CASE("validate: valid quest returns empty vector") {
   const auto q = make_test_quest();
@@ -497,8 +476,6 @@ TEST_CASE("validate: failed stage that is not resolved is rejected") {
   CHECK(errors.front().find("failed but not resolved") != std::string::npos);
 }
 
-// ── advances_to validation ────────────────────────────────────────────────────
-
 TEST_CASE("validate: unknown advances_to target is an error") {
   auto q = make_test_quest();
   q.stages[0].advances_to.emplace_back("no_such_stage");
@@ -535,8 +512,6 @@ TEST_CASE("validate: in-order quest produces no warnings") {
   CHECK(validation.warnings.empty());
 }
 
-// ── find_stage ────────────────────────────────────────────────────────────────
-
 TEST_CASE("Quest::find_stage returns correct stage for known name") {
   const auto q = make_test_quest();
   const auto *s = q.find_stage("middle");
@@ -549,8 +524,6 @@ TEST_CASE("Quest::find_stage returns nullptr for unknown name") {
   const auto q = make_test_quest();
   CHECK(q.find_stage("does_not_exist") == nullptr);
 }
-
-// ── start ─────────────────────────────────────────────────────────────────────
 
 TEST_CASE("start sets quest.{id} to first stage sequence") {
   const auto q = make_test_quest();
@@ -588,8 +561,6 @@ TEST_CASE("start on a quest whose first stage has a non-positive sequence is a n
   quest::start(q, flags);
   CHECK(flags.empty());
 }
-
-// ── advance ───────────────────────────────────────────────────────────────────
 
 TEST_CASE("advance moves to correct stage sequence") {
   const auto q = make_test_quest();
@@ -656,8 +627,6 @@ TEST_CASE("advance: auto_advance_to target is exempt from the advances_to warnin
   CHECK(flags["quest.auto_q"] == 3);
 }
 
-// ── get_stage ─────────────────────────────────────────────────────────────────
-
 TEST_CASE("get_stage reads flag correctly") {
   FlagStore flags;
   flags["quest.test_quest"] = 3;
@@ -669,8 +638,6 @@ TEST_CASE("get_stage returns 0 when key absent") {
   FlagStore flags;
   CHECK(quest::get_stage("test_quest", flags) == 0);
 }
-
-// ── is_resolved ───────────────────────────────────────────────────────────────
 
 TEST_CASE("is_resolved true when flag matches any resolved stage") {
   const auto q = make_test_quest();
@@ -704,8 +671,6 @@ TEST_CASE("multiple resolved stages both satisfy is_resolved") {
   CHECK(quest::is_resolved(q, flags));
 }
 
-// ── is_failed ─────────────────────────────────────────────────────────────────
-
 TEST_CASE("is_failed true when flag matches failed stage") {
   const auto q = make_test_quest();
   FlagStore flags;
@@ -731,26 +696,17 @@ TEST_CASE("is_failed false when not started") {
   CHECK_FALSE(quest::is_failed(q, flags));
 }
 
-// ── started_quests ────────────────────────────────────────────────────────────
-
 TEST_CASE("started_quests returns every quest with stage > 0, including resolved ones") {
-  const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_started";
-  std::filesystem::create_directories(tmp_dir);
-  {
-    std::ofstream f(tmp_dir / "q1.json");
-    f << R"({"type":"quest","id":"q1","name":"Q1","description":"","stages":[
+  corundum::test::MemoryContentSource content;
+  content.add("started/q1.json", R"({"type":"quest","id":"q1","name":"Q1","description":"","stages":[
       {"name":"a","sequence":1,"resolved":true,"objectives":[]}
-    ]})";
-  }
-  {
-    std::ofstream f(tmp_dir / "q2.json");
-    f << R"({"type":"quest","id":"q2","name":"Q2","description":"","stages":[
+    ]})");
+  content.add("started/q2.json", R"({"type":"quest","id":"q2","name":"Q2","description":"","stages":[
       {"name":"a","sequence":1,"resolved":true,"objectives":[]}
-    ]})";
-  }
+    ]})");
 
   quest::Registry reg;
-  const auto n_loaded = reg.load_all(disk(), tmp_dir);
+  const auto n_loaded = reg.load_all(content, "started");
   CHECK(n_loaded == 2);
   CHECK(reg.size() == 2);
 
@@ -763,54 +719,34 @@ TEST_CASE("started_quests returns every quest with stage > 0, including resolved
   CHECK(started[0]->quest_id == "q1");
   // "started" includes resolved quests; it is not the same as Lifecycle::Active.
   CHECK(quest::lifecycle(*started[0], flags) == quest::Lifecycle::Completed);
-
-  std::filesystem::remove_all(tmp_dir);
 }
-
-// ── Registry ──────────────────────────────────────────────────────────────────
 
 TEST_CASE("registry load_all count matches size with duplicate ids") {
-  const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_dup_count";
-  std::filesystem::create_directories(tmp_dir);
-  {
-    std::ofstream f(tmp_dir / "a.json");
-    f << R"({"type":"quest","id":"dup","name":"A","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
-  }
-  {
-    std::ofstream f(tmp_dir / "b.json");
-    f << R"({"type":"quest","id":"dup","name":"B","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})";
-  }
+  corundum::test::MemoryContentSource content;
+  content.add(
+      "dup_count/a.json",
+      R"({"type":"quest","id":"dup","name":"A","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})");
+  content.add(
+      "dup_count/b.json",
+      R"({"type":"quest","id":"dup","name":"B","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})");
 
   quest::Registry reg;
-  const int loaded = reg.load_all(disk(), tmp_dir);
+  const int loaded = reg.load_all(content, "dup_count");
   CHECK(loaded == 1);
   CHECK(reg.size() == 1);
-  std::filesystem::remove_all(tmp_dir);
 }
 
-// ── Registry ──────────────────────────────────────────────────────────────────
-
 TEST_CASE("registry load_all loads valid files, skips bad ones") {
-  // Create temp dir with mixed files
-  const auto tmp_dir = std::filesystem::temp_directory_path() / "quest_test_registry";
-  std::filesystem::create_directories(tmp_dir);
-  std::filesystem::copy_file("engine/tests/fixtures/find_sword.json", tmp_dir / "find_sword.json",
-                             std::filesystem::copy_options::overwrite_existing);
+  const auto find_sword = disk().read("engine/tests/fixtures/find_sword.json");
+  REQUIRE(find_sword.has_value());
 
-  // Bad file
-  {
-    std::ofstream f(tmp_dir / "bad.json");
-    f << R"({"type":"quest"})"; // missing required fields
-  }
-
-  // Non-JSON file
-  {
-    std::ofstream f(tmp_dir / "notes.txt");
-    f << "not a quest";
-  }
+  corundum::test::MemoryContentSource content;
+  content.add("registry/find_sword.json", std::span<const std::uint8_t>{*find_sword});
+  content.add("registry/bad.json", R"({"type":"quest"})"); // missing required fields
+  content.add("registry/notes.txt", "not a quest");        // non-JSON file
 
   quest::Registry reg;
-  const int loaded = reg.load_all(disk(), tmp_dir);
+  const int loaded = reg.load_all(content, "registry");
 
   CHECK(loaded == 1);
   CHECK(reg.size() == 1);
@@ -820,8 +756,6 @@ TEST_CASE("registry load_all loads valid files, skips bad ones") {
   CHECK(q->quest_id == "find_sword");
 
   CHECK(reg.find("does_not_exist") == nullptr);
-
-  std::filesystem::remove_all(tmp_dir);
 }
 
 TEST_CASE("registry add returns false for a duplicate id and keeps the first quest") {
@@ -851,8 +785,6 @@ TEST_CASE("registry add and find are heterogeneously keyed") {
   REQUIRE(q != nullptr);
   CHECK(q->quest_id == "test_quest");
 }
-
-// ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 TEST_CASE("lifecycle: helped path") {
   const auto q = make_test_quest();
@@ -897,8 +829,6 @@ TEST_CASE("lifecycle: organic discovery") {
   quest::advance(q, "middle", flags);
   CHECK(quest::get_stage("test_quest", flags) == 2);
 }
-
-// ── Status façade ─────────────────────────────────────────────────────────────
 
 TEST_CASE("lifecycle: all four states map to the right enum") {
   const auto q = make_test_quest();
@@ -1023,8 +953,6 @@ TEST_CASE("objectives resolves a local.<key> condition against the zone") {
   CHECK_FALSE(unscoped[0].done);
 }
 
-// ── Breadcrumbs ───────────────────────────────────────────────────────────────
-
 TEST_CASE("start records the quest.<id>.seen.<stage> breadcrumb") {
   const auto q = make_test_quest();
   FlagStore flags;
@@ -1063,15 +991,11 @@ TEST_CASE("advance to a stage already entered re-records the breadcrumb") {
   CHECK(corundum::world::visit_count(flags, "quest.test_quest.seen.middle") == 2);
 }
 
-// ── quest_flag_key ────────────────────────────────────────────────────────────
-
 TEST_CASE("quest_flag_key formats correctly") {
   CHECK(quest::quest_flag_key("find_sword") == "quest.find_sword");
   CHECK(quest::quest_flag_key("escort_merchant") == "quest.escort_merchant");
   CHECK(quest::quest_flag_key("") == "quest.");
 }
-
-// ── Runner ────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Runner: start on an unknown id returns an error and sets no flag") {
   const quest::Registry registry;
@@ -1135,8 +1059,6 @@ TEST_CASE("Runner: advance to a stage the quest does not define returns ok witho
   REQUIRE(runner.advance("test_quest", "nonexistent").has_value());
   CHECK(quest::get_stage("test_quest", flags) == 1);
 }
-
-// ── auto_advance_to ───────────────────────────────────────────────────────────
 
 TEST_CASE("tick_quests: stage with auto_advance_to waits for its done_condition") {
   quest::Registry reg;
@@ -1383,8 +1305,6 @@ TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)"
   check_quest_stays_put(reg, *q);
 }
 
-// ── Round-trip ────────────────────────────────────────────────────────────────
-
 TEST_CASE("quest serialize round-trips through load_quest") {
   const auto result = quest::load_quest(disk(), "engine/tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
@@ -1392,16 +1312,14 @@ TEST_CASE("quest serialize round-trips through load_quest") {
 
   const auto j = quest::serialize(q);
 
-  const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_find_sword.json");
-  const auto write_result = corundum::core::write_json(tmp, j);
-  REQUIRE(write_result.has_value());
+  corundum::test::MemoryContentSource reloaded_content;
+  const std::string reloaded_path = "quests/find_sword_reloaded.json";
+  reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = quest::load_quest(disk(), tmp.string());
+  const auto reloaded = quest::load_quest(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
 
   check_quests_match(*reloaded, q);
-
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_condition") {
@@ -1425,14 +1343,13 @@ TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_conditi
   q.stages.push_back({.failed = true, .name = "failed", .resolved = true, .sequence = 3});
 
   const auto j = quest::serialize(q);
-  const auto tmp = std::filesystem::path("engine/tests/fixtures/tmp_round_trip_all.json");
-  REQUIRE(corundum::core::write_json(tmp, j).has_value());
+  corundum::test::MemoryContentSource reloaded_content;
+  const std::string reloaded_path = "quests/round_trip_all_reloaded.json";
+  reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = quest::load_quest(disk(), tmp.string());
+  const auto reloaded = quest::load_quest(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
   check_quests_match(*reloaded, q);
-
-  std::filesystem::remove(tmp);
 }
 
 TEST_CASE("quest::Registry: load_all reads quests from an in-memory content source") {
