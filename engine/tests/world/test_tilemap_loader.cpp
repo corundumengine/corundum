@@ -22,8 +22,6 @@ using corundum::test::disk;
 
 namespace fs = std::filesystem;
 
-// ── Temp-file helpers ─────────────────────────────────────────────────────────
-
 namespace {
 
   void write_file(const fs::path &p, std::string_view content) {
@@ -64,6 +62,9 @@ namespace {
 
   // Builds a minimal single-tileset 2×1 map using tileset A (32 tiles, GIDs 0–31).
   // extra_tiles is the comma-separated row string for the single layer row.
+  //
+  // Every map in this file embeds its tileset path with generic_string(): a native Windows path's
+  // backslashes are invalid JSON escapes, and the loader accepts forward slashes on every platform.
   fs::path make_single_tileset_map(const fs::path &dir, std::string_view extra_tiles = "0,0") {
     const auto ts_path = dir / "tileset_a.json";
     const auto map_path = dir / "map.json";
@@ -71,7 +72,7 @@ namespace {
 
     std::string content;
     content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
-    content += ts_path.string();
+    content += ts_path.generic_string();
     content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":[")";
     content += std::string(extra_tiles);
     content += R"("]}]})";
@@ -87,15 +88,13 @@ namespace {
 
     std::string content;
     content += std::format(R"({{"id":"test","schema_version":{},"tilesets":[{{"first_gid":0,"source":")", version);
-    content += ts_path.string();
+    content += ts_path.generic_string();
     content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"]}]})";
     write_file(map_path, content);
     return map_path;
   }
 
 } // namespace
-
-// ── find_tileset unit tests ───────────────────────────────────────────────────
 
 TEST_CASE("find_tileset - k_empty_tile returns nullptr") {
   std::vector<corundum::world::tilemap::TilemapTileset> tilesets(1);
@@ -127,8 +126,6 @@ TEST_CASE("find_tileset - two tilesets, GID routes correctly") {
   CHECK(corundum::world::tilemap::find_tileset(tilesets, 48) == nullptr); // out of range
 }
 
-// ── Regression: single-tileset map loads correctly ───────────────────────────
-
 TEST_CASE("load_tilemap - single tileset map") {
   const auto dir = temp_dir("single");
   const auto map_path = make_single_tileset_map(dir);
@@ -147,8 +144,6 @@ TEST_CASE("load_tilemap - single tileset map") {
   CHECK(m.layers[0].tiles[1] == 0);
 }
 
-// ── Multi-tileset map ─────────────────────────────────────────────────────────
-
 TEST_CASE("load_tilemap - two tilesets, correct first_gid and tile_count") {
   const auto dir = temp_dir("multi");
   const auto ts_a = dir / "ts_a.json";
@@ -158,9 +153,9 @@ TEST_CASE("load_tilemap - two tilesets, correct first_gid and tile_count") {
 
   std::string content;
   content += R"({"id":"multi","tilesets":[{"first_gid":0,"source":")";
-  content += ts_a.string();
+  content += ts_a.generic_string();
   content += R"("},{"first_gid":32,"source":")";
-  content += ts_b.string();
+  content += ts_b.generic_string();
   content += R"("}],"width":2,"height":1,"layers":[{"name":"base","tiles":["0,32"]}]})";
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
@@ -187,9 +182,9 @@ TEST_CASE("load_tilemap - tilesets are sorted by first_gid even if JSON is unord
   // Provide tilesets in reverse order in JSON
   std::string content;
   content += R"({"id":"sort","tilesets":[{"first_gid":32,"source":")";
-  content += ts_b.string();
+  content += ts_b.generic_string();
   content += R"("},{"first_gid":0,"source":")";
-  content += ts_a.string();
+  content += ts_a.generic_string();
   content += R"("}],"width":1,"height":1,"layers":[{"name":"base","tiles":["0"]}]})";
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
@@ -202,8 +197,6 @@ TEST_CASE("load_tilemap - tilesets are sorted by first_gid even if JSON is unord
   CHECK(m.tilesets[1].first_gid == 32);
 }
 
-// ── k_empty_tile accepted in dense layers ──────────────────────────────────────
-
 TEST_CASE("load_tilemap - k_empty_tile (65535) in dense layer is accepted") {
   const auto dir = temp_dir("empty_tile");
   const auto map_path = make_single_tileset_map(dir, "0,65535");
@@ -213,8 +206,6 @@ TEST_CASE("load_tilemap - k_empty_tile (65535) in dense layer is accepted") {
   CHECK(m.layers[0].tiles[1] == corundum::world::tilemap::k_empty_tile);
 }
 
-// ── Error: old "tileset" string key rejected ─────────────────────────────────
-
 TEST_CASE("load_tilemap - old 'tileset' string key returns error") {
   const auto dir = temp_dir("old_format");
   const auto ts_path = dir / "ts.json";
@@ -223,7 +214,7 @@ TEST_CASE("load_tilemap - old 'tileset' string key returns error") {
 
   std::string content;
   content += R"({"id":"old","tileset":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"(","width":1,"height":1,"layers":[{"name":"g","tiles":["0"]}]})";
   write_file(map_path, content);
 
@@ -231,8 +222,6 @@ TEST_CASE("load_tilemap - old 'tileset' string key returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::string{"Tilemap 'old' missing 'tilesets' array"});
 }
-
-// ── Error: first_gid not 0 ────────────────────────────────────────────────────
 
 TEST_CASE("load_tilemap - first_gid not starting at 0 returns error") {
   const auto dir = temp_dir("no_zero");
@@ -242,7 +231,7 @@ TEST_CASE("load_tilemap - first_gid not starting at 0 returns error") {
 
   std::string content;
   content += R"({"id":"nozero","tilesets":[{"first_gid":10,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":1,"height":1,"layers":[{"name":"g","tiles":["10"]}]})";
   write_file(map_path, content);
 
@@ -250,8 +239,6 @@ TEST_CASE("load_tilemap - first_gid not starting at 0 returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::string{"Tilemap 'nozero' first tileset must have first_gid=0"});
 }
-
-// ── Error: gap between tilesets ───────────────────────────────────────────────
 
 TEST_CASE("load_tilemap - gap between tilesets returns error") {
   const auto dir = temp_dir("gap");
@@ -263,9 +250,9 @@ TEST_CASE("load_tilemap - gap between tilesets returns error") {
   // first_gid=33 leaves a one-tile gap after tileset A (which covers GIDs 0–31)
   std::string content;
   content += R"({"id":"gap","tilesets":[{"first_gid":0,"source":")";
-  content += ts_a.string();
+  content += ts_a.generic_string();
   content += R"("},{"first_gid":33,"source":")";
-  content += ts_b.string();
+  content += ts_b.generic_string();
   content += R"("}],"width":1,"height":1,"layers":[{"name":"g","tiles":["0"]}]})";
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
@@ -276,8 +263,6 @@ TEST_CASE("load_tilemap - gap between tilesets returns error") {
                                        "(tile_count=32) and first_gid=33)"});
 }
 
-// ── Error: duplicate first_gid ────────────────────────────────────────────────
-
 TEST_CASE("load_tilemap - duplicate first_gid returns error") {
   const auto dir = temp_dir("dup");
   const auto ts_a = dir / "ts_a.json";
@@ -287,9 +272,9 @@ TEST_CASE("load_tilemap - duplicate first_gid returns error") {
 
   std::string content;
   content += R"({"id":"dup","tilesets":[{"first_gid":0,"source":")";
-  content += ts_a.string();
+  content += ts_a.generic_string();
   content += R"("},{"first_gid":0,"source":")";
-  content += ts_b.string();
+  content += ts_b.generic_string();
   content += R"("}],"width":1,"height":1,"layers":[{"name":"g","tiles":["0"]}]})";
   const auto map_path = dir / "map.json";
   write_file(map_path, content);
@@ -299,8 +284,6 @@ TEST_CASE("load_tilemap - duplicate first_gid returns error") {
   CHECK_EQ(result.error(), std::string{"Tilemap 'dup' tilesets have duplicate first_gid=0"});
 }
 
-// ── Error: GID in layer not covered by any tileset ───────────────────────────
-
 TEST_CASE("load_tilemap - GID in layer beyond tileset range returns error") {
   const auto dir = temp_dir("gid_range");
   // TILESET_A has 32 tiles (GIDs 0–31); GID 32 is out of range
@@ -309,8 +292,6 @@ TEST_CASE("load_tilemap - GID in layer beyond tileset range returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::string{"Tilemap 'test' layer 'ground' row 0 col 1: GID=32 not covered by any tileset"});
 }
-
-// ── Collisions ────────────────────────────────────────────────────────────────
 
 TEST_CASE("load_tilemap - absent collisions key produces empty vector") {
   const auto dir = temp_dir("col_absent");
@@ -329,7 +310,7 @@ TEST_CASE("load_tilemap - collisions array loads correctly") {
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content +=
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"x":10.0,"y":20.0,"w":30.0,"h":40.0},{"x":1.5,"y":2.5,"w":8.0,"h":4.0}]})";
   write_file(map_path, content);
@@ -354,7 +335,7 @@ TEST_CASE("load_tilemap - collision with zero width returns error") {
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content +=
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"x":0,"y":0,"w":0,"h":16}]})";
   write_file(map_path, content);
@@ -372,7 +353,7 @@ TEST_CASE("load_tilemap - collision with zero height returns error") {
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content +=
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"x":0,"y":0,"w":16,"h":0}]})";
   write_file(map_path, content);
@@ -381,8 +362,6 @@ TEST_CASE("load_tilemap - collision with zero height returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'h' must be positive"});
 }
-
-// ── Layer z_index ─────────────────────────────────────────────────────────────
 
 TEST_CASE("load_tilemap - absent z_index defaults to 0") {
   const auto dir = temp_dir("zidx_absent");
@@ -401,7 +380,7 @@ TEST_CASE("load_tilemap - z_index is loaded when present") {
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":1,"height":1,"layers":[)";
   content += R"({"name":"ground","tiles":["0"]},)";
   content += R"({"name":"canopy","z_index":2,"tiles":["0"]}]})";
@@ -423,7 +402,7 @@ TEST_CASE("load_tilemap - negative z_index is clamped to 0") {
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":1,"height":1,"layers":[{"name":"ground","z_index":-3,"tiles":["0"]}]})";
   write_file(map_path, content);
 
@@ -450,7 +429,7 @@ TEST_CASE("load_tilemap - depth_sorted is loaded when present") {
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":1,"height":1,"layers":[)";
   content += R"({"name":"ground","tiles":["0"]},)";
   content += R"({"name":"walls","z_index":1,"depth_sorted":true,"tiles":["0"]}]})";
@@ -473,7 +452,7 @@ TEST_CASE("load_tilemap - collision element missing field returns error") {
 
   std::string content;
   content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content +=
       R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],"collisions":[{"y":0,"w":16,"h":16}]})";
   write_file(map_path, content);
@@ -482,8 +461,6 @@ TEST_CASE("load_tilemap - collision element missing field returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] missing or invalid field (x, y, w, h required)"});
 }
-
-// ── schema_version ────────────────────────────────────────────────────────────
 
 TEST_CASE("load_tilemap - absent schema_version is treated as version 1 and loads fine") {
   const auto dir = temp_dir("schema_absent");
@@ -526,7 +503,7 @@ TEST_CASE("load_tilemap - schema_version wrong type returns error") {
 
   std::string content;
   content += R"({"id":"test","schema_version":"1","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"]}]})";
   write_file(map_path, content);
 
@@ -534,8 +511,6 @@ TEST_CASE("load_tilemap - schema_version wrong type returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::format("Tilemap '{}' field 'schema_version' must be an integer", map_path.string()));
 }
-
-// ── terrain-material tag ─────────────────────────────────────────────────────
 
 TEST_CASE("load_tileset - 'material' field is loaded") {
   const auto dir = temp_dir("tileset_material");
@@ -562,8 +537,6 @@ TEST_CASE("load_tileset - absent 'material' field defaults to empty string") {
   REQUIRE(result.has_value());
   CHECK(result->material.empty());
 }
-
-// ── per-tile pivot (sourced from spritepacker's own pivot_x/pivot_y per sprite) ────────────────
 
 TEST_CASE("load_tileset - per-tile pivot is converted from spritepacker's trimmed-box, raster-y "
           "convention into full-frame, bottom-origin") {
@@ -627,8 +600,6 @@ TEST_CASE("load_tileset - pivot_basis full uses the pivot directly (no trim conv
   CHECK(pivot.y == doctest::Approx(0.18));
 }
 
-// ── per-tile trim/frame offset ──────────────────────────────────────────────────────────────
-
 TEST_CASE("load_tileset - trim_x/trim_y/source_width/source_height are loaded and resolved via "
           "get_tile_frame_offset") {
   const auto dir = temp_dir("tileset_trims");
@@ -673,7 +644,7 @@ TEST_CASE("tile_source_rect - returns the atlas rect directly (already trimmed a
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,1"]}]})";
   write_file(map_path, content);
 
@@ -696,7 +667,7 @@ TEST_CASE("load_tilemap - layer 'material_overrides' is loaded") {
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"],)"
              R"("material_overrides":[{"col":1,"row":0,"material":"snow"}]}]})";
   write_file(map_path, content);
@@ -725,7 +696,7 @@ TEST_CASE("load_tilemap - material_overrides entry out of bounds returns error")
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"],)"
              R"("material_overrides":[{"col":5,"row":0,"material":"snow"}]}]})";
   write_file(map_path, content);
@@ -744,7 +715,7 @@ TEST_CASE("load_tilemap - material_overrides entry missing 'material' returns er
 
   std::string content;
   content += R"({"id":"test","tilesets":[{"first_gid":0,"source":")";
-  content += ts_path.string();
+  content += ts_path.generic_string();
   content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,0"],)"
              R"("material_overrides":[{"col":1,"row":0}]}]})";
   write_file(map_path, content);
@@ -769,7 +740,7 @@ TEST_CASE("load_tilemap - shared tileset resolves identically across separate ma
     const auto map_path = dir / (name + ".json");
     std::string content;
     content += R"({"id":")" + name + R"(","tilesets":[{"first_gid":0,"source":")";
-    content += ts_path.string();
+    content += ts_path.generic_string();
     content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,1"]}]})";
     write_file(map_path, content);
     return map_path;
@@ -791,8 +762,6 @@ TEST_CASE("load_tilemap - shared tileset resolves identically across separate ma
   CHECK(ta.tile_names == tb.tile_names);
 }
 
-// ── Collision elevation ───────────────────────────────────────────────────────
-
 namespace {
 
   /// Builds a 2×1 single-tileset map whose `collisions` / `collision_triangles` entry carries
@@ -804,7 +773,7 @@ namespace {
 
     std::string content;
     content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-    content += ts_path.string();
+    content += ts_path.generic_string();
     content += R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"]}],")";
     content += key;
     content += R"(":[{"x":0,"y":0,"w":1,"h":1,"cut":"NW")";
@@ -822,7 +791,7 @@ namespace {
 
     std::string content;
     content += R"({"id":"t","tilesets":[{"first_gid":0,"source":")";
-    content += ts_path.string();
+    content += ts_path.generic_string();
     content += R"("}],"width":2,"height":1,"layers":[{"name":"g","tiles":["0,0"],"elevation":)";
     content += elevation_json;
     content += R"(}]})";
@@ -869,8 +838,6 @@ TEST_CASE("load_tilemap - collision_triangles elevation wrong type returns error
   CHECK_EQ(result.error(),
            std::string{"Tilemap 't' collision_triangles[0] 'elevation' has wrong type (expected integer)"});
 }
-
-// ── Layer elevation ──────────────────────────────────────────────────────────
 
 TEST_CASE("load_tilemap - layer elevation is loaded") {
   const auto dir = temp_dir("layer_elevation");
