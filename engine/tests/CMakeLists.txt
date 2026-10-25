@@ -239,9 +239,11 @@ target_compile_definitions(corundum_tests PRIVATE
 # Enable CTest integration. Each case runs as its own process selected by --test-case=<name>, and
 # doctest exits 0 when the name matches nothing, so the regex fails a run that executed zero cases.
 # (A Windows narrow argv once garbled every non-ASCII name and skipped those cases silently.)
+# The '.' stands for the '|' in doctest's summary line: on Windows the discovery step runs under
+# cmd.exe, which would read a literal '|' as a pipe.
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 doctest_discover_tests(corundum_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                       PROPERTIES FAIL_REGULAR_EXPRESSION "test cases: 0 \\|")
+                       PROPERTIES FAIL_REGULAR_EXPRESSION "test cases: +0 . +0 passed")
 
 # Gameplay tests build a separate binary that links corundum_gameplay, so the
 # engine binary above stays free of the gameplay framework.

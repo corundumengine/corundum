@@ -76,4 +76,4 @@ target_compile_definitions(corundum_gameplay_tests PRIVATE
 # The regex fails a run that executed zero cases; see engine/tests/CMakeLists.txt.
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 doctest_discover_tests(corundum_gameplay_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                       PROPERTIES FAIL_REGULAR_EXPRESSION "test cases: 0 \\|")
+                       PROPERTIES FAIL_REGULAR_EXPRESSION "test cases: +0 . +0 passed")
