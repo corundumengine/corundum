@@ -43,7 +43,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("wrap_styled — wraps across a style boundary") {
+TEST_CASE("wrap_styled - wraps across a style boundary") {
   const auto lines = wrap_parsed("hello **world** foo", 12.f);
   REQUIRE(lines.size() == 2);
 
@@ -62,7 +62,7 @@ TEST_CASE("wrap_styled — wraps across a style boundary") {
   CHECK(lines[1].segments[0].x == 0.f);
 }
 
-TEST_CASE("wrap_styled — a bold word is measured with the bold measure") {
+TEST_CASE("wrap_styled - a bold word is measured with the bold measure") {
   const auto runs = parse_styled("aaaa **bb**");
   const auto lines = wrap_styled(std::span<const StyledRun>{runs}, 20.f, bold_is_wide);
   REQUIRE(lines.size() == 2);
@@ -71,28 +71,28 @@ TEST_CASE("wrap_styled — a bold word is measured with the bold measure") {
   CHECK(lines[1].segments[0].style == FontStyle::Bold);
 }
 
-TEST_CASE("wrap_styled — hard newline breaks the line") {
+TEST_CASE("wrap_styled - hard newline breaks the line") {
   const auto lines = wrap_parsed("line one\nline two", 100.f);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].segments[0].text == "line one");
   CHECK(lines[1].segments[0].text == "line two");
 }
 
-TEST_CASE("wrap_styled — CRLF normalizes to a single break") {
+TEST_CASE("wrap_styled - CRLF normalizes to a single break") {
   const auto lines = wrap_parsed("abc\r\ndef", 100.f);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].segments[0].text == "abc");
   CHECK(lines[1].segments[0].text == "def");
 }
 
-TEST_CASE("wrap_styled — spaces collapse") {
+TEST_CASE("wrap_styled - spaces collapse") {
   const auto lines = wrap_parsed("   a   b   ", 100.f);
   REQUIRE(lines.size() == 1);
   REQUIRE(lines[0].segments.size() == 1);
   CHECK(lines[0].segments[0].text == "a b");
 }
 
-TEST_CASE("wrap_styled — a separating space takes the style of its run") {
+TEST_CASE("wrap_styled - a separating space takes the style of its run") {
   const std::vector<StyledRun> runs{
       run("a", FontStyle::Regular),
       run(" ", FontStyle::Bold),
@@ -111,14 +111,14 @@ TEST_CASE("wrap_styled — a separating space takes the style of its run") {
   CHECK(lines[0].width == 3.f);
 }
 
-TEST_CASE("wrap_styled — a single word wider than the line gets its own line") {
+TEST_CASE("wrap_styled - a single word wider than the line gets its own line") {
   const auto lines = wrap_parsed("abcdef klm", 4.f);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].segments[0].text == "abcdef");
   CHECK(lines[1].segments[0].text == "klm");
 }
 
-TEST_CASE("wrap_styled — max_width <= 0 still terminates") {
+TEST_CASE("wrap_styled - max_width <= 0 still terminates") {
   const auto lines = wrap_parsed("a b c", 0.f);
   REQUIRE(lines.size() == 3);
   CHECK(lines[0].segments[0].text == "a");
@@ -126,7 +126,7 @@ TEST_CASE("wrap_styled — max_width <= 0 still terminates") {
   CHECK(lines[2].segments[0].text == "c");
 }
 
-TEST_CASE("wrap_styled — blank lines between paragraphs are preserved") {
+TEST_CASE("wrap_styled - blank lines between paragraphs are preserved") {
   const auto lines = wrap_parsed("a\n\nb", 100.f);
   REQUIRE(lines.size() == 3);
   CHECK(lines[0].segments[0].text == "a");
@@ -134,21 +134,21 @@ TEST_CASE("wrap_styled — blank lines between paragraphs are preserved") {
   CHECK(lines[2].segments[0].text == "b");
 }
 
-TEST_CASE("wrap_styled — trailing newline appends a blank line") {
+TEST_CASE("wrap_styled - trailing newline appends a blank line") {
   const auto lines = wrap_parsed("abc\n", 100.f);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].segments[0].text == "abc");
   CHECK(lines[1].segments.empty());
 }
 
-TEST_CASE("wrap_styled — empty input yields one empty line") {
+TEST_CASE("wrap_styled - empty input yields one empty line") {
   const auto lines = wrap_parsed("", 100.f);
   REQUIRE(lines.size() == 1);
   CHECK(lines[0].segments.empty());
   CHECK(lines[0].width == 0.f);
 }
 
-TEST_CASE("wrap_styled — style is preserved across a wrapped continuation") {
+TEST_CASE("wrap_styled - style is preserved across a wrapped continuation") {
   const auto lines = wrap_parsed("**aaaa bbbb cccc**", 9.f);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0].segments[0].style == FontStyle::Bold);

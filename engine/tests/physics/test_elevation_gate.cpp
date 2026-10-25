@@ -52,7 +52,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("compute_elevation_gate — World mode (no elevation_map) returns 0/0") {
+TEST_CASE("compute_elevation_gate - World mode (no elevation_map) returns 0/0") {
   // elevation_map null (chunked/streamed World mode). Helper shouldn't dereference null.
   MapView map;
   const ElevationGate g = compute_elevation_gate(map, 5.5f, 5.5f);
@@ -60,7 +60,7 @@ TEST_CASE("compute_elevation_gate — World mode (no elevation_map) returns 0/0"
   CHECK(g.tolerance == 0);
 }
 
-TEST_CASE("compute_elevation_gate — flat terrain: round elev + zero tolerance") {
+TEST_CASE("compute_elevation_gate - flat terrain: round elev + zero tolerance") {
   // All cells elev 5, no ramps. Player at (1.5, 1.5): interpolated elev = 5.
   const std::vector<uint8_t> elevs(16, 5);
   const Tilemap tm = make_map(4, 4, elevs);
@@ -71,7 +71,7 @@ TEST_CASE("compute_elevation_gate — flat terrain: round elev + zero tolerance"
   CHECK(g.tolerance == 0);
 }
 
-TEST_CASE("compute_elevation_gate — round-to-nearest elev (not truncate)") {
+TEST_CASE("compute_elevation_gate - round-to-nearest elev (not truncate)") {
   // Reproduces the truncation bug: at fractional ramp position, interpolated elev
   // passes through 0.99, 1.99, 2.99, 3.99. Old (truncate) gates the player at 0/1/2/3
   // so colliders at the top elevation (4) don't block until the ramp is fully crossed.
@@ -90,7 +90,7 @@ TEST_CASE("compute_elevation_gate — round-to-nearest elev (not truncate)") {
   CHECK(g.player_elevation == 4);
 }
 
-TEST_CASE("compute_elevation_gate — ramp tolerance = ceil(Δ/2) widens to both ends") {
+TEST_CASE("compute_elevation_gate - ramp tolerance = ceil(delta/2) widens to both ends") {
   // The other half of the bug: at ramp midpoint, player is gated at elev 2 (rounded).
   // With tolerance = 0, colliders at BOTH elev 0 and elev 4 are filtered out (|0-2|=2>0,
   // |4-2|=2>0) — walls at both ends become ghosts mid-ramp. Widening tolerance to
@@ -113,7 +113,7 @@ TEST_CASE("compute_elevation_gate — ramp tolerance = ceil(Δ/2) widens to both
   CHECK(g2.tolerance == 0);
 }
 
-TEST_CASE("compute_elevation_gate — odd ramp Δ uses ceil(Δ/2), not floor") {
+TEST_CASE("compute_elevation_gate - odd ramp delta uses ceil(delta/2), not floor") {
   // Ramp from 0 to 3: ceil(3/2) = 2, not 1. Player at midpoint (interpolated 1.5)
   // rounded to 2 should see both ends' colliders.
   std::vector<uint8_t> elevs(16, 0);
@@ -127,7 +127,7 @@ TEST_CASE("compute_elevation_gate — odd ramp Δ uses ceil(Δ/2), not floor") {
   CHECK(g.tolerance == 2);
 }
 
-TEST_CASE("compute_elevation_gate — EAST_WEST ramp axis") {
+TEST_CASE("compute_elevation_gate - EAST_WEST ramp axis") {
   // Ramp from (0, 1) elev 0 to (2, 1) elev 4, axis EAST_WEST, ramp cell at (1, 1).
   std::vector<uint8_t> elevs(16, 0);
   elevs[(1 * 4) + 0] = 0;

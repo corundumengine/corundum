@@ -30,7 +30,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("follow_path — aims velocity at the next waypoint") {
+TEST_CASE("follow_path - aims velocity at the next waypoint") {
   Fixture f;
   std::vector<TileCoord> path{{.col = 2, .row = 0}}; // waypoint is the tile index itself: (2, 0) from (0, 0)
   follow_path(f.transforms, f.player, path, /*player_speed=*/1.f,
@@ -42,7 +42,7 @@ TEST_CASE("follow_path — aims velocity at the next waypoint") {
   REQUIRE(path.size() == 1); // not yet reached, waypoint still pending
 }
 
-TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving on to the next") {
+TEST_CASE("follow_path - snaps to and pops the waypoint once reached, moving on to the next") {
   Fixture f;
   const auto slot = f.transforms.dense_index(f.player);
   // Start right next to the first waypoint so a normal step reaches it.
@@ -64,7 +64,7 @@ TEST_CASE("follow_path — snaps to and pops the waypoint once reached, moving o
   CHECK(f.transforms.dc[slot] > 0.f);
 }
 
-TEST_CASE("follow_path — empties the path and zeroes velocity on reaching the final waypoint") {
+TEST_CASE("follow_path - empties the path and zeroes velocity on reaching the final waypoint") {
   Fixture f;
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.col[slot] = 0.95f;
@@ -79,7 +79,7 @@ TEST_CASE("follow_path — empties the path and zeroes velocity on reaching the 
   CHECK(f.transforms.dr[slot] == doctest::Approx(0.f));
 }
 
-TEST_CASE("follow_path — empty path is a no-op that zeroes velocity") {
+TEST_CASE("follow_path - empty path is a no-op that zeroes velocity") {
   Fixture f;
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 5.f;

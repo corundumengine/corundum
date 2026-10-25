@@ -73,7 +73,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("poll — forwards to the window's poll_game_input once per call") {
+TEST_CASE("poll - forwards to the window's poll_game_input once per call") {
   RecordingWindow window;
   InputMapper mapper;
   InputState state{};
@@ -86,7 +86,7 @@ TEST_CASE("poll — forwards to the window's poll_game_input once per call") {
   CHECK(window.poll_count == 2);
 }
 
-TEST_CASE("poll — a press raised by the window reaches the caller's state") {
+TEST_CASE("poll - a press raised by the window reaches the caller's state") {
   RecordingWindow window;
   window.scripted_keys.emplace_back(Key::Enter, true);
   InputMapper mapper;
@@ -98,7 +98,7 @@ TEST_CASE("poll — a press raised by the window reaches the caller's state") {
   CHECK(state.is_pressed(Action::Select));
 }
 
-TEST_CASE("poll — does not clear presses already latched in the state") {
+TEST_CASE("poll - does not clear presses already latched in the state") {
   // poll only accumulates; clearing is clear_pressed's job, called per simulation step.
   RecordingWindow window;
   InputMapper mapper;
@@ -111,7 +111,7 @@ TEST_CASE("poll — does not clear presses already latched in the state") {
   CHECK(state.is_pressed(Action::MoveUp));
 }
 
-TEST_CASE("poll — repeated polls OR presses rather than replacing them") {
+TEST_CASE("poll - repeated polls OR presses rather than replacing them") {
   RecordingWindow window;
   InputMapper mapper;
   InputState state{};
@@ -126,7 +126,7 @@ TEST_CASE("poll — repeated polls OR presses rather than replacing them") {
   CHECK(state.is_pressed(Action::Cancel));
 }
 
-TEST_CASE("poll — overwrites held with the window's current key state") {
+TEST_CASE("poll - overwrites held with the window's current key state") {
   RecordingWindow window;
   InputMapper mapper;
   InputState state{};
@@ -143,7 +143,7 @@ TEST_CASE("poll — overwrites held with the window's current key state") {
   CHECK(state.is_held(Action::Select));
 }
 
-TEST_CASE("poll — accumulates the scroll delta") {
+TEST_CASE("poll - accumulates the scroll delta") {
   RecordingWindow window;
   InputMapper mapper;
   InputState state{};
@@ -156,7 +156,7 @@ TEST_CASE("poll — accumulates the scroll delta") {
   CHECK(state.scroll_delta_y == doctest::Approx(3.f));
 }
 
-TEST_CASE("poll — surfaces platform events queued by the window") {
+TEST_CASE("poll - surfaces platform events queued by the window") {
   RecordingWindow window;
   window.scripted_events.focus_lost = true;
   InputMapper mapper;

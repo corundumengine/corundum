@@ -17,7 +17,7 @@ using tools::tilesmith::layer_preset_label;
 using tools::tilesmith::LayerPreset;
 using tools::tilesmith::make_layer_from_preset;
 
-TEST_CASE("make_layer_from_preset — Ground produces name=z=0 depth=false") {
+TEST_CASE("make_layer_from_preset - Ground produces name=z=0 depth=false") {
   const tilemap::TilemapLayer layer = make_layer_from_preset(LayerPreset::Ground, 10, 8, {});
   CHECK(layer.name == "Ground");
   CHECK(layer.z_index == 0);
@@ -26,7 +26,7 @@ TEST_CASE("make_layer_from_preset — Ground produces name=z=0 depth=false") {
   CHECK(layer.tiles.size() == 80);
 }
 
-TEST_CASE("make_layer_from_preset — Floor Detail and Water are also z_index=0") {
+TEST_CASE("make_layer_from_preset - Floor Detail and Water are also z_index=0") {
   const tilemap::TilemapLayer floor_detail = make_layer_from_preset(LayerPreset::FloorDetail, 4, 4, {});
   CHECK(floor_detail.name == "Floor Detail");
   CHECK(floor_detail.z_index == 0);
@@ -38,14 +38,14 @@ TEST_CASE("make_layer_from_preset — Floor Detail and Water are also z_index=0"
   CHECK(water.depth_sorted == false);
 }
 
-TEST_CASE("make_layer_from_preset — Walls is the only depth_sorted preset") {
+TEST_CASE("make_layer_from_preset - Walls is the only depth_sorted preset") {
   const tilemap::TilemapLayer walls = make_layer_from_preset(LayerPreset::Walls, 4, 4, {});
   CHECK(walls.name == "Walls");
   CHECK(walls.z_index == 1);
   CHECK(walls.depth_sorted == true);
 }
 
-TEST_CASE("make_layer_from_preset — Roof and Decor are z>0 but not depth_sorted") {
+TEST_CASE("make_layer_from_preset - Roof and Decor are z>0 but not depth_sorted") {
   const tilemap::TilemapLayer roof = make_layer_from_preset(LayerPreset::Roof, 4, 4, {});
   CHECK(roof.name == "Roof");
   CHECK(roof.z_index == 1);
@@ -57,7 +57,7 @@ TEST_CASE("make_layer_from_preset — Roof and Decor are z>0 but not depth_sorte
   CHECK(decor.depth_sorted == false);
 }
 
-TEST_CASE("make_layer_from_preset — Blank reproduces old 'Layer {N}' naming") {
+TEST_CASE("make_layer_from_preset - Blank reproduces old 'Layer {N}' naming") {
   const tilemap::TilemapLayer layer = make_layer_from_preset(LayerPreset::Blank, 4, 4, {});
   CHECK(layer.name == "Layer 1");
   CHECK(layer.z_index == 0);
@@ -80,14 +80,14 @@ TEST_CASE("make_layer_from_preset — Blank reproduces old 'Layer {N}' naming") 
   CHECK(layer3.name == "Layer 2");
 }
 
-TEST_CASE("make_layer_from_preset — tiles are filled with k_empty_tile") {
+TEST_CASE("make_layer_from_preset - tiles are filled with k_empty_tile") {
   const tilemap::TilemapLayer layer = make_layer_from_preset(LayerPreset::Walls, 5, 3, {});
   REQUIRE(layer.tiles.size() == 15);
   for (const auto &tile : layer.tiles)
     CHECK(tile == tilemap::k_empty_tile);
 }
 
-TEST_CASE("make_layer_from_preset — adding same preset twice dedupes by name") {
+TEST_CASE("make_layer_from_preset - adding same preset twice dedupes by name") {
   tilemap::TilemapLayer existing_walls;
   existing_walls.name = "Walls";
   existing_walls.z_index = 1;
@@ -100,7 +100,7 @@ TEST_CASE("make_layer_from_preset — adding same preset twice dedupes by name")
   CHECK(second_walls.depth_sorted == true);
 }
 
-TEST_CASE("dedup_layer_name — same-z_index=0 presets dedupe independently by name") {
+TEST_CASE("dedup_layer_name - same-z_index=0 presets dedupe independently by name") {
   // 'Ground' and 'Floor Detail' both produce z_index=0 layers but their names
   // are distinct, so adding one doesn't cause the other to dedupe.
   tilemap::TilemapLayer ground;
@@ -117,7 +117,7 @@ TEST_CASE("dedup_layer_name — same-z_index=0 presets dedupe independently by n
   CHECK(floor_detail.name == "Floor Detail");
 }
 
-TEST_CASE("dedup_layer_name — finds the first free suffix") {
+TEST_CASE("dedup_layer_name - finds the first free suffix") {
   tilemap::TilemapLayer l1;
   l1.name = "Walls";
   tilemap::TilemapLayer l2;
@@ -129,11 +129,11 @@ TEST_CASE("dedup_layer_name — finds the first free suffix") {
   CHECK(dedup_layer_name("Walls", layers) == "Walls 4");
 }
 
-TEST_CASE("dedup_layer_name — base name free, returns base unchanged") {
+TEST_CASE("dedup_layer_name - base name free, returns base unchanged") {
   CHECK(dedup_layer_name("Roof", {}) == "Roof");
 }
 
-TEST_CASE("layer_name_taken — matches by exact string equality") {
+TEST_CASE("layer_name_taken - matches by exact string equality") {
   tilemap::TilemapLayer l;
   l.name = "Ground";
   const std::vector<tilemap::TilemapLayer> layers{l};
@@ -143,7 +143,7 @@ TEST_CASE("layer_name_taken — matches by exact string equality") {
   CHECK_FALSE(layer_name_taken("ground", layers));
 }
 
-TEST_CASE("layer_preset_label — returns the canonical name for each preset") {
+TEST_CASE("layer_preset_label - returns the canonical name for each preset") {
   CHECK(layer_preset_label(LayerPreset::Ground) == "Ground");
   CHECK(layer_preset_label(LayerPreset::FloorDetail) == "Floor Detail");
   CHECK(layer_preset_label(LayerPreset::Water) == "Water");

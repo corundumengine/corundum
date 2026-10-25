@@ -70,7 +70,7 @@ using corundum::world::load_spawn_points;
 
 // ── Missing file ──────────────────────────────────────────────────────────────
 
-TEST_CASE("load_spawn_points — missing file returns empty SpawnPoints") {
+TEST_CASE("load_spawn_points - missing file returns empty SpawnPoints") {
   const auto result = load_spawn_points(disk(), "/nonexistent/path/spawn.json");
   REQUIRE(result.has_value());
   CHECK(result->actors.empty());
@@ -79,7 +79,7 @@ TEST_CASE("load_spawn_points — missing file returns empty SpawnPoints") {
 
 // ── Actors only (no player block) ──────────────────────────────────────────────
 
-TEST_CASE("load_spawn_points — actors only, no player block") {
+TEST_CASE("load_spawn_points - actors only, no player block") {
   const auto dir = temp_dir("actors_only");
   const auto p = dir / "spawn.json";
   write_file(p, R"({
@@ -101,7 +101,7 @@ TEST_CASE("load_spawn_points — actors only, no player block") {
 
 // ── Player block ───────────────────────────────────────────────────────────────
 
-TEST_CASE("load_spawn_points — with player block") {
+TEST_CASE("load_spawn_points - with player block") {
   const auto dir = temp_dir("with_player");
   const auto p = dir / "spawn.json";
   write_file(p, R"({
@@ -118,7 +118,7 @@ TEST_CASE("load_spawn_points — with player block") {
   CHECK(result->actors.empty());
 }
 
-TEST_CASE("load_spawn_points — player.col zero is valid") {
+TEST_CASE("load_spawn_points - player.col zero is valid") {
   const auto dir = temp_dir("player_col_zero");
   const auto p = dir / "spawn.json";
   write_file(p, R"({
@@ -134,7 +134,7 @@ TEST_CASE("load_spawn_points — player.col zero is valid") {
   CHECK(player.row == doctest::Approx(0.f));
 }
 
-TEST_CASE("load_spawn_points — player not an object returns error") {
+TEST_CASE("load_spawn_points - player not an object returns error") {
   const auto dir = temp_dir("player_not_obj");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": 42, "actors": [] })");
@@ -143,7 +143,7 @@ TEST_CASE("load_spawn_points — player not an object returns error") {
   CHECK_EQ(result.error(), std::format("Spawn points '{}' 'player' must be an object", p.string()));
 }
 
-TEST_CASE("load_spawn_points — player missing col returns error") {
+TEST_CASE("load_spawn_points - player missing col returns error") {
   const auto dir = temp_dir("player_no_col");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "row": 5.0 }, "actors": [] })");
@@ -152,7 +152,7 @@ TEST_CASE("load_spawn_points — player missing col returns error") {
   CHECK_EQ(result.error(), std::format("Spawn points '{}' 'player' missing or invalid 'col'/'row'", p.string()));
 }
 
-TEST_CASE("load_spawn_points — player negative col returns error") {
+TEST_CASE("load_spawn_points - player negative col returns error") {
   const auto dir = temp_dir("player_neg_col");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "player": { "col": -1.0, "row": 5.0 }, "actors": [] })");
@@ -161,7 +161,7 @@ TEST_CASE("load_spawn_points — player negative col returns error") {
   CHECK_EQ(result.error(), std::format("Spawn points '{}' 'player' 'col' and 'row' must be >= 0", p.string()));
 }
 
-TEST_CASE("load_spawn_points — malformed JSON returns error") {
+TEST_CASE("load_spawn_points - malformed JSON returns error") {
   const auto dir = temp_dir("malformed");
   const auto p = dir / "spawn.json";
   write_file(p, "{bad json");
@@ -170,7 +170,7 @@ TEST_CASE("load_spawn_points — malformed JSON returns error") {
   CHECK_MESSAGE(result.error().starts_with(std::format("malformed spawn points in {}: ", p.string())), result.error());
 }
 
-TEST_CASE("load_spawn_points — not an object returns error") {
+TEST_CASE("load_spawn_points - not an object returns error") {
   const auto dir = temp_dir("array");
   const auto p = dir / "spawn.json";
   write_file(p, "[]");
@@ -181,7 +181,7 @@ TEST_CASE("load_spawn_points — not an object returns error") {
 
 // ── Actor id parsing ───────────────────────────────────────────────────────────
 
-TEST_CASE("load_spawn_points — parses the actor id field") {
+TEST_CASE("load_spawn_points - parses the actor id field") {
   const auto dir = temp_dir("actor_id");
   const auto p = dir / "spawn.json";
   write_file(p, R"({
@@ -197,7 +197,7 @@ TEST_CASE("load_spawn_points — parses the actor id field") {
   CHECK(result->actors[1].id.empty());
 }
 
-TEST_CASE("load_spawn_points — duplicate actor id returns error") {
+TEST_CASE("load_spawn_points - duplicate actor id returns error") {
   const auto dir = temp_dir("actor_id_duplicate");
   const auto p = dir / "spawn.json";
   write_file(p, R"({
@@ -211,7 +211,7 @@ TEST_CASE("load_spawn_points — duplicate actor id returns error") {
   CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[1] duplicate actor id 'brann'", p.string()));
 }
 
-TEST_CASE("load_spawn_points — invalid facing returns error") {
+TEST_CASE("load_spawn_points - invalid facing returns error") {
   const auto dir = temp_dir("bad_facing");
   const auto p = dir / "spawn.json";
   write_file(p, R"({
@@ -224,7 +224,7 @@ TEST_CASE("load_spawn_points — invalid facing returns error") {
   CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[0] 'facing' is not a valid direction", p.string()));
 }
 
-TEST_CASE("load_spawn_points — facing has wrong type returns error") {
+TEST_CASE("load_spawn_points - facing has wrong type returns error") {
   const auto dir = temp_dir("facing_type");
   const auto p = dir / "spawn.json";
   write_file(p, R"({ "actors": [ { "col": 2, "row": 3, "sprite": "npc1", "facing": 7 } ] })");
@@ -235,7 +235,7 @@ TEST_CASE("load_spawn_points — facing has wrong type returns error") {
 
 // ── find_actor wiring ─────────────────────────────────────────────────────────
 
-TEST_CASE("find_actor — world boot populates actor_ids from spawn points") {
+TEST_CASE("find_actor - world boot populates actor_ids from spawn points") {
   corundum::Engine engine{};
   auto platform = corundum::platform::null::make_null_platform(320, 240);
   corundum::platform::null::adopt_null_platform(engine, platform);
@@ -320,7 +320,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("spawn_world — explicit player_pos wins over per-map and game.json placement") {
+TEST_CASE("spawn_world - explicit player_pos wins over per-map and game.json placement") {
   const auto dir = temp_dir("spawn_world_precedence");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -336,7 +336,7 @@ TEST_CASE("spawn_world — explicit player_pos wins over per-map and game.json p
   CHECK((*scene)->zone_id == "village");
 }
 
-TEST_CASE("spawn_world — per-map player block wins over the game.json default") {
+TEST_CASE("spawn_world - per-map player block wins over the game.json default") {
   const auto dir = temp_dir("spawn_world_per_map");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -350,7 +350,7 @@ TEST_CASE("spawn_world — per-map player block wins over the game.json default"
   CHECK((*scene)->world.transforms.pos_row((*scene)->player) == doctest::Approx(2.5f));
 }
 
-TEST_CASE("spawn_world — game.json placement is used when the spawn file has no player block") {
+TEST_CASE("spawn_world - game.json placement is used when the spawn file has no player block") {
   const auto dir = temp_dir("spawn_world_default");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -364,7 +364,7 @@ TEST_CASE("spawn_world — game.json placement is used when the spawn file has n
   CHECK((*scene)->world.transforms.pos_row((*scene)->player) == doctest::Approx(9.f));
 }
 
-TEST_CASE("spawn_world — file actors spawn at their authored tiles and spawn_file_actors=false skips them") {
+TEST_CASE("spawn_world - file actors spawn at their authored tiles and spawn_file_actors=false skips them") {
   const auto dir = temp_dir("spawn_world_actors");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -387,7 +387,7 @@ TEST_CASE("spawn_world — file actors spawn at their authored tiles and spawn_f
   CHECK_FALSE(corundum::entities::find_actor((*without_actors)->world, "npc").has_value());
 }
 
-TEST_CASE("spawn_world — unknown player walk sprite is an error") {
+TEST_CASE("spawn_world - unknown player walk sprite is an error") {
   const auto dir = temp_dir("spawn_world_bad_sprite");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -401,7 +401,7 @@ TEST_CASE("spawn_world — unknown player walk sprite is an error") {
   CHECK(scene.error().find("missing_walk") != std::string::npos);
 }
 
-TEST_CASE("sync_chunk_actors — spawns actors for resident chunks") {
+TEST_CASE("sync_chunk_actors - spawns actors for resident chunks") {
   const auto dir = temp_dir("sync_chunk_actors_spawn");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -428,7 +428,7 @@ TEST_CASE("sync_chunk_actors — spawns actors for resident chunks") {
   CHECK(scene.world.transforms.pos_row(c10_id) == doctest::Approx(4.f));
 }
 
-TEST_CASE("sync_chunk_actors — retains a departed set until flush, then prunes it") {
+TEST_CASE("sync_chunk_actors - retains a departed set until flush, then prunes it") {
   const auto dir = temp_dir("sync_chunk_actors_prune");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -456,7 +456,7 @@ TEST_CASE("sync_chunk_actors — retains a departed set until flush, then prunes
   CHECK(corundum::entities::find_actor(scene.world, "c00").has_value());
 }
 
-TEST_CASE("sync_chunk_actors — chunk actor spawn failure rolls back and is not retried") {
+TEST_CASE("sync_chunk_actors - chunk actor spawn failure rolls back and is not retried") {
   const auto dir = temp_dir("sync_chunk_actors_failure");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -476,7 +476,7 @@ TEST_CASE("sync_chunk_actors — chunk actor spawn failure rolls back and is not
   CHECK(scene.world.entities.alive() == 0u); // load_failed suppresses the retry
 }
 
-TEST_CASE("sync_chunk_actors — actors despawned by gameplay stay gone while their chunk is resident") {
+TEST_CASE("sync_chunk_actors - actors despawned by gameplay stay gone while their chunk is resident") {
   const auto dir = temp_dir("sync_chunk_actors_no_resurrect");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -499,7 +499,7 @@ TEST_CASE("sync_chunk_actors — actors despawned by gameplay stay gone while th
   CHECK(scene.world.entities.alive() == 0u);
 }
 
-TEST_CASE("sync_chunk_actors — a resident chunk's spawn file is read once, not every step") {
+TEST_CASE("sync_chunk_actors - a resident chunk's spawn file is read once, not every step") {
   const auto dir = temp_dir("sync_chunk_actors_read_once");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -518,7 +518,7 @@ TEST_CASE("sync_chunk_actors — a resident chunk's spawn file is read once, not
   CHECK_FALSE(corundum::entities::find_actor(scene.world, "late").has_value());
 }
 
-TEST_CASE("sync_chunk_actors — a departed chunk that returns after the flush respawns its actors") {
+TEST_CASE("sync_chunk_actors - a departed chunk that returns after the flush respawns its actors") {
   const auto dir = temp_dir("sync_chunk_actors_return");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";
@@ -544,7 +544,7 @@ TEST_CASE("sync_chunk_actors — a departed chunk that returns after the flush r
   CHECK(corundum::entities::find_actor(scene.world, "c10").has_value());
 }
 
-TEST_CASE("sync_chunk_actors — no-op outside World mode") {
+TEST_CASE("sync_chunk_actors - no-op outside World mode") {
   const auto dir = temp_dir("sync_chunk_actors_single_map");
   const auto registry = make_registry(dir);
   const auto spawn_dir = dir / "spawn_points";

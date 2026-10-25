@@ -370,7 +370,7 @@ TEST_CASE("settings: Left on Sound Volume leaves every other bus unchanged") {
   engine.cleanup();
 }
 
-TEST_CASE("settings: Left/Right edits text speed and UI scale; Activate toggles window mode") {
+TEST_CASE("settings: Left/Right edits text speed and UI scale, and Activate toggles window mode") {
   using corundum::ui::SettingsGeneralRow;
   corundum::Engine engine{};
   init_engine(engine);

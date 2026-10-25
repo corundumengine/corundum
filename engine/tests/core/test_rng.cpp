@@ -10,7 +10,7 @@
 
 using corundum::core::Rng;
 
-TEST_CASE("Rng — pcg32 reference vector for seed 42, stream 54") {
+TEST_CASE("Rng - pcg32 reference vector for seed 42, stream 54") {
   Rng rng{42, 54};
 
   CHECK(rng.next_u32() == 0xa15c02b7U);
@@ -21,7 +21,7 @@ TEST_CASE("Rng — pcg32 reference vector for seed 42, stream 54") {
   CHECK(rng.next_u32() == 0xcbed606eU);
 }
 
-TEST_CASE("Rng — the same seed and stream produce identical sequences") {
+TEST_CASE("Rng - the same seed and stream produce identical sequences") {
   Rng a{7, 1};
   Rng b{7, 1};
 
@@ -30,7 +30,7 @@ TEST_CASE("Rng — the same seed and stream produce identical sequences") {
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("Rng — range stays in bounds and reaches both endpoints") {
+TEST_CASE("Rng - range stays in bounds and reaches both endpoints") {
   Rng rng{1234, 99};
   bool saw_low = false;
   bool saw_high = false;
@@ -47,7 +47,7 @@ TEST_CASE("Rng — range stays in bounds and reaches both endpoints") {
   CHECK(saw_high);
 }
 
-TEST_CASE("Rng — state round-trips") {
+TEST_CASE("Rng - state round-trips") {
   Rng rng{555, 3};
   for (int i = 0; i < 10; ++i)
     static_cast<void>(rng.next_u32());
@@ -64,7 +64,7 @@ TEST_CASE("Rng — state round-trips") {
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("Rng — chance clamps at the boundaries and unit stays below one") {
+TEST_CASE("Rng - chance clamps at the boundaries and unit stays below one") {
   Rng rng{9, 9};
 
   for (int i = 0; i < 1000; ++i) {

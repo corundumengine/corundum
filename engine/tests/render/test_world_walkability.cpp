@@ -15,7 +15,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("rebuild_world_walkability — graph spans the active chunk window with correct origin") {
+TEST_CASE("rebuild_world_walkability - graph spans the active chunk window with correct origin") {
   corundum::render::RenderState state;
   init_world(state, /*chunk_size=*/8, /*n=*/2, [](int) { return flat_chunk(8); });
 

@@ -21,7 +21,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("ActionResolver — a source going down raises held and pressed") {
+TEST_CASE("ActionResolver - a source going down raises held and pressed") {
   InputState state{};
   ActionResolver resolver{};
 
@@ -31,7 +31,7 @@ TEST_CASE("ActionResolver — a source going down raises held and pressed") {
   CHECK(state.is_pressed(Action::MoveUp));
 }
 
-TEST_CASE("ActionResolver — releasing the last source clears held") {
+TEST_CASE("ActionResolver - releasing the last source clears held") {
   InputState state{};
   ActionResolver resolver{};
 
@@ -41,7 +41,7 @@ TEST_CASE("ActionResolver — releasing the last source clears held") {
   CHECK_FALSE(state.is_held(Action::MoveUp));
 }
 
-TEST_CASE("ActionResolver — releasing one of two sources keeps the action held") {
+TEST_CASE("ActionResolver - releasing one of two sources keeps the action held") {
   // W and Up are both bound to MoveUp; releasing either must not stop movement.
   InputState state{};
   ActionResolver resolver{};
@@ -53,7 +53,7 @@ TEST_CASE("ActionResolver — releasing one of two sources keeps the action held
   CHECK(state.is_held(Action::MoveUp));
 }
 
-TEST_CASE("ActionResolver — a second source pressed while held is not a new press") {
+TEST_CASE("ActionResolver - a second source pressed while held is not a new press") {
   InputState state{};
   ActionResolver resolver{};
 
@@ -64,7 +64,7 @@ TEST_CASE("ActionResolver — a second source pressed while held is not a new pr
   CHECK_FALSE(state.is_pressed(Action::MoveUp));
 }
 
-TEST_CASE("ActionResolver — repeated updates of an unchanged source do not re-raise pressed") {
+TEST_CASE("ActionResolver - repeated updates of an unchanged source do not re-raise pressed") {
   // Joystick sources are polled every frame, not event-driven.
   InputState state{};
   ActionResolver resolver{};
@@ -77,7 +77,7 @@ TEST_CASE("ActionResolver — repeated updates of an unchanged source do not re-
   CHECK(state.is_held(Action::MoveUp));
 }
 
-TEST_CASE("ActionResolver — pressing again after full release raises pressed") {
+TEST_CASE("ActionResolver - pressing again after full release raises pressed") {
   InputState state{};
   ActionResolver resolver{};
 
@@ -89,7 +89,7 @@ TEST_CASE("ActionResolver — pressing again after full release raises pressed")
   CHECK(state.is_pressed(Action::MoveUp));
 }
 
-TEST_CASE("ActionResolver — releasing a keyboard tap does not clobber a held gamepad source") {
+TEST_CASE("ActionResolver - releasing a keyboard tap does not clobber a held gamepad source") {
   // The reported bug: gamepad A held, keyboard Enter tapped. Enter's release used
   // to clear Select and then re-raise a spurious press on the next poll.
   InputState state{};
@@ -105,7 +105,7 @@ TEST_CASE("ActionResolver — releasing a keyboard tap does not clobber a held g
   CHECK_FALSE(state.is_pressed(Action::Select));
 }
 
-TEST_CASE("ActionResolver — sources are scoped to their own action") {
+TEST_CASE("ActionResolver - sources are scoped to their own action") {
   InputState state{};
   ActionResolver resolver{};
 

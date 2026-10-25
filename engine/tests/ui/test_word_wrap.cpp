@@ -13,7 +13,7 @@ namespace {
   }
 } // namespace
 
-TEST_CASE("wrap_text — basic overflow") {
+TEST_CASE("wrap_text - basic overflow") {
   auto lines = corundum::ui::wrap_text("hello world foo bar", 12.f, char_count);
   // "hello world" = 11 chars ✓, "foo bar" = 7 chars ✓
   REQUIRE(lines.size() == 2);
@@ -21,27 +21,27 @@ TEST_CASE("wrap_text — basic overflow") {
   CHECK(lines[1] == "foo bar");
 }
 
-TEST_CASE("wrap_text — hard newline") {
+TEST_CASE("wrap_text - hard newline") {
   auto lines = corundum::ui::wrap_text("line one\nline two", 100.f, char_count);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0] == "line one");
   CHECK(lines[1] == "line two");
 }
 
-TEST_CASE("wrap_text — empty input yields one empty line") {
+TEST_CASE("wrap_text - empty input yields one empty line") {
   auto lines = corundum::ui::wrap_text("", 10.f, char_count);
   REQUIRE(lines.size() == 1);
   CHECK(lines[0].empty());
 }
 
-TEST_CASE("wrap_text — oversized word gets its own line") {
+TEST_CASE("wrap_text - oversized word gets its own line") {
   auto lines = corundum::ui::wrap_text("abcdefghij klm", 4.f, char_count);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0] == "abcdefghij");
   CHECK(lines[1] == "klm");
 }
 
-TEST_CASE("wrap_text — max_width <= 0 still terminates") {
+TEST_CASE("wrap_text - max_width <= 0 still terminates") {
   const auto zero = corundum::ui::wrap_text("a b c", 0.f, char_count);
   REQUIRE(zero.size() == 3);
   CHECK(zero[0] == "a");
@@ -54,7 +54,7 @@ TEST_CASE("wrap_text — max_width <= 0 still terminates") {
   CHECK(negative[1] == "b");
 }
 
-TEST_CASE("wrap_text — blank lines between paragraphs are preserved") {
+TEST_CASE("wrap_text - blank lines between paragraphs are preserved") {
   auto lines = corundum::ui::wrap_text("a\n\nb", 10.f, char_count);
   REQUIRE(lines.size() == 3);
   CHECK(lines[0] == "a");
@@ -62,27 +62,27 @@ TEST_CASE("wrap_text — blank lines between paragraphs are preserved") {
   CHECK(lines[2] == "b");
 }
 
-TEST_CASE("wrap_text — trailing newline appends a blank line") {
+TEST_CASE("wrap_text - trailing newline appends a blank line") {
   auto lines = corundum::ui::wrap_text("abc\n", 10.f, char_count);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0] == "abc");
   CHECK(lines[1].empty());
 }
 
-TEST_CASE("wrap_text — spaces collapse and leading spaces drop") {
+TEST_CASE("wrap_text - spaces collapse and leading spaces drop") {
   auto lines = corundum::ui::wrap_text("   a  b", 100.f, char_count);
   REQUIRE(lines.size() == 1);
   CHECK(lines[0] == "a b");
 }
 
-TEST_CASE("wrap_text — CRLF is normalized to a single break") {
+TEST_CASE("wrap_text - CRLF is normalized to a single break") {
   auto lines = corundum::ui::wrap_text("abc\r\ndef", 100.f, char_count);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0] == "abc");
   CHECK(lines[1] == "def");
 }
 
-TEST_CASE("wrap_text — lone CR is a line break") {
+TEST_CASE("wrap_text - lone CR is a line break") {
   auto lines = corundum::ui::wrap_text("abc\rdef", 100.f, char_count);
   REQUIRE(lines.size() == 2);
   CHECK(lines[0] == "abc");

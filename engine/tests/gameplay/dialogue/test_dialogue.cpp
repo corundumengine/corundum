@@ -810,7 +810,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("divert: goto_graph A→B runs B from its first node") {
+TEST_CASE("divert: goto_graph A->B runs B from its first node") {
   using namespace corundum::gameplay::dialogue;
 
   corundum::gameplay::dialogue::Registry graphs;
@@ -856,7 +856,7 @@ TEST_CASE("divert: return_graph pops back to the pushed hub node") {
   CHECK(conversation.call_stack_depth() == 0);
 }
 
-TEST_CASE("divert: nested A→B→C unwinds correctly") {
+TEST_CASE("divert: nested A->B->C unwinds correctly") {
   using namespace corundum::gameplay::dialogue;
 
   // A (hub) diverts to B; B diverts to C; C returns; B returns; A finishes.

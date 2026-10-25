@@ -45,7 +45,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("find_path — straight diagonal path on a flat open map") {
+TEST_CASE("find_path - straight diagonal path on a flat open map") {
   Tilemap tm = make_map(5, 5);
   const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
@@ -68,7 +68,7 @@ TEST_CASE("find_path — straight diagonal path on a flat open map") {
   }
 }
 
-TEST_CASE("find_path — goal isolated by a steep elevation wall is unreachable") {
+TEST_CASE("find_path - goal isolated by a steep elevation wall is unreachable") {
   Tilemap tm = make_map(3, 1);
   set_elevation(tm, 1, 0, 50); // the only cell between start and goal, walled off both ways
   const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
@@ -81,7 +81,7 @@ TEST_CASE("find_path — goal isolated by a steep elevation wall is unreachable"
   CHECK(path.empty());
 }
 
-TEST_CASE("find_path — corner-cutting through a blocked pair of neighbors is rejected") {
+TEST_CASE("find_path - corner-cutting through a blocked pair of neighbors is rejected") {
   // (0,0) -> (1,1) diagonal edge is elevation-open (both at 0), but both flanking
   // cardinal neighbors (1,0) and (0,1) are walled off from (0,0) by elevation — the
   // corner-cut rule must reject the diagonal shortcut, leaving (1,1) unreachable.
@@ -98,7 +98,7 @@ TEST_CASE("find_path — corner-cutting through a blocked pair of neighbors is r
   CHECK(path.empty());
 }
 
-TEST_CASE("find_path — routes around a collision rect rather than through it") {
+TEST_CASE("find_path - routes around a collision rect rather than through it") {
   Tilemap tm = make_map(5, 5);
   const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
@@ -126,7 +126,7 @@ TEST_CASE("find_path — routes around a collision rect rather than through it")
   CHECK(crossed_via_gap);
 }
 
-TEST_CASE("find_path — a collision shape at a different elevation doesn't block a ground-level path") {
+TEST_CASE("find_path - a collision shape at a different elevation doesn't block a ground-level path") {
   Tilemap tm = make_map(3, 1);
   const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
 
@@ -144,7 +144,7 @@ TEST_CASE("find_path — a collision shape at a different elevation doesn't bloc
   CHECK(path[1].col == 2);
 }
 
-TEST_CASE("find_path — start equals goal returns empty") {
+TEST_CASE("find_path - start equals goal returns empty") {
   Tilemap tm = make_map(3, 3);
   const auto graph = corundum::world::tilemap::build_walkability_graph(tm, k_max_step_height);
   MapView map;
@@ -153,7 +153,7 @@ TEST_CASE("find_path — start equals goal returns empty") {
   CHECK(find_path(map, {1, 1}, {1, 1}).empty());
 }
 
-TEST_CASE("find_path — null walkability (World mode) returns empty") {
+TEST_CASE("find_path - null walkability (World mode) returns empty") {
   Tilemap tm = make_map(3, 3);
   MapView map;
   map.elevation_map = &tm;
@@ -161,7 +161,7 @@ TEST_CASE("find_path — null walkability (World mode) returns empty") {
   CHECK(find_path(map, {0, 0}, {2, 2}).empty());
 }
 
-TEST_CASE("find_path — routes around an NPC's footprint, not through the cell it blocks") {
+TEST_CASE("find_path - routes around an NPC's footprint, not through the cell it blocks") {
   // The pathfinder's obstacle box is the same one physics resolves against (footprint_of),
   // so a path must never be routed through the tile an NPC stands on.
   Tilemap tm = make_map(5, 5);
@@ -191,7 +191,7 @@ TEST_CASE("find_path — routes around an NPC's footprint, not through the cell 
   CHECK_FALSE(std::ranges::any_of(path, on_npc));
 }
 
-TEST_CASE("find_path — an NPC one row away does not block the path") {
+TEST_CASE("find_path - an NPC one row away does not block the path") {
   // A footprint centred on its own tile must not reach into the row above it: an NPC on
   // (2,3) leaves the row-2 lane clear. Anchoring the box's south edge on the feet reaches a
   // whole row_span north, which both blocked this path and stranded the player against NPCs.
@@ -217,7 +217,7 @@ TEST_CASE("find_path — an NPC one row away does not block the path") {
     CHECK(step.row == 2);
 }
 
-TEST_CASE("find_path — the mover's own footprint is not treated as an obstacle") {
+TEST_CASE("find_path - the mover's own footprint is not treated as an obstacle") {
   // A mover's footprint straddles the cells around its feet, so leaving it in the NPC scan
   // marks its own first step blocked. Callers pass the mover as `exclude` to avoid that.
   Tilemap tm = make_map(3, 1);

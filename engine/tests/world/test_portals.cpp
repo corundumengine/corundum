@@ -36,13 +36,13 @@ namespace {
 using corundum::world::load_portals;
 using corundum::world::serialize;
 
-TEST_CASE("load_portals — missing file returns empty vector") {
+TEST_CASE("load_portals - missing file returns empty vector") {
   auto result = load_portals(disk(), "/nonexistent/path/portals.json");
   REQUIRE(result.has_value());
   CHECK(result->empty());
 }
 
-TEST_CASE("load_portals — malformed JSON returns error containing the path") {
+TEST_CASE("load_portals - malformed JSON returns error containing the path") {
   const auto dir = temp_dir("malformed");
   const auto p = dir / "portals.json";
   write_file(p, "{bad json");
@@ -52,7 +52,7 @@ TEST_CASE("load_portals — malformed JSON returns error containing the path") {
   CHECK(result.error().find(p.string()) != std::string::npos);
 }
 
-TEST_CASE("load_portals — a directory path reads as absent") {
+TEST_CASE("load_portals - a directory path reads as absent") {
   const auto dir = temp_dir("directory");
   // A directory is not a regular file, so the content source reports it absent and the
   // loader returns an empty list rather than trying (and failing) to parse it as JSON.
@@ -63,7 +63,7 @@ TEST_CASE("load_portals — a directory path reads as absent") {
   CHECK(result->empty());
 }
 
-TEST_CASE("load_portals — accepts an explicit schema_version") {
+TEST_CASE("load_portals - accepts an explicit schema_version") {
   const auto dir = temp_dir("schema_version");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -77,7 +77,7 @@ TEST_CASE("load_portals — accepts an explicit schema_version") {
   CHECK(result->size() == 1);
 }
 
-TEST_CASE("load_portals — rejects a newer schema_version") {
+TEST_CASE("load_portals - rejects a newer schema_version") {
   const auto dir = temp_dir("schema_too_new");
   const auto p = dir / "portals.json";
   write_file(p, R"({ "schema_version": 999, "portals": [] })");
@@ -86,7 +86,7 @@ TEST_CASE("load_portals — rejects a newer schema_version") {
   CHECK(result.error().find("999") != std::string::npos);
 }
 
-TEST_CASE("load_portals — valid file round-trip via serialize") {
+TEST_CASE("load_portals - valid file round-trip via serialize") {
   const auto dir = temp_dir("roundtrip");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -117,7 +117,7 @@ TEST_CASE("load_portals — valid file round-trip via serialize") {
   CHECK_FALSE(json["portals"][0].contains("return_to_world"));
 }
 
-TEST_CASE("load_portals — target_chunk_col/row (new keys)") {
+TEST_CASE("load_portals - target_chunk_col/row (new keys)") {
   const auto dir = temp_dir("chunk_keys_new");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -133,7 +133,7 @@ TEST_CASE("load_portals — target_chunk_col/row (new keys)") {
   CHECK((*result)[0].target_chunk_row == 3);
 }
 
-TEST_CASE("load_portals — target_chunk_x/y (legacy keys) still accepted") {
+TEST_CASE("load_portals - target_chunk_x/y (legacy keys) still accepted") {
   const auto dir = temp_dir("chunk_keys_legacy");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -149,7 +149,7 @@ TEST_CASE("load_portals — target_chunk_x/y (legacy keys) still accepted") {
   CHECK((*result)[0].target_chunk_row == 6);
 }
 
-TEST_CASE("load_portals — serialize writes only new keys") {
+TEST_CASE("load_portals - serialize writes only new keys") {
   const auto dir = temp_dir("serialize_new_keys");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -172,7 +172,7 @@ TEST_CASE("load_portals — serialize writes only new keys") {
   CHECK(portals[0]["target_chunk_row"] == 8);
 }
 
-TEST_CASE("load_portals — return_to_world=true portal (bare, no target) is accepted") {
+TEST_CASE("load_portals - return_to_world=true portal (bare, no target) is accepted") {
   const auto dir = temp_dir("return_bare");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -196,7 +196,7 @@ TEST_CASE("load_portals — return_to_world=true portal (bare, no target) is acc
   CHECK(portals[0]["return_to_world"] == true);
 }
 
-TEST_CASE("load_portals — return_to_world defaults to false") {
+TEST_CASE("load_portals - return_to_world defaults to false") {
   const auto dir = temp_dir("return_default");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -209,7 +209,7 @@ TEST_CASE("load_portals — return_to_world defaults to false") {
   CHECK_FALSE((*result)[0].return_to_world);
 }
 
-TEST_CASE("load_portals — invalid return_to_world type returns error") {
+TEST_CASE("load_portals - invalid return_to_world type returns error") {
   const auto dir = temp_dir("return_badtype");
   const auto p = dir / "portals.json";
   write_file(p, R"({
@@ -222,7 +222,7 @@ TEST_CASE("load_portals — invalid return_to_world type returns error") {
   CHECK(result.error().find("invalid 'return_to_world'") != std::string::npos);
 }
 
-TEST_CASE("load_portals — returns error when no target and return_to_world is false") {
+TEST_CASE("load_portals - returns error when no target and return_to_world is false") {
   const auto dir = temp_dir("return_no_target");
   const auto p = dir / "portals.json";
   write_file(p, R"({

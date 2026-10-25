@@ -82,7 +82,7 @@ namespace {
 using corundum::test::initialize_with_world;
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("player absent — single-map frames run without the player") {
+TEST_CASE("player absent - single-map frames run without the player") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
 
@@ -106,7 +106,7 @@ TEST_CASE("player absent — single-map frames run without the player") {
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("player absent — streaming frames leave the window where it is") {
+TEST_CASE("player absent - streaming frames leave the window where it is") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
 
@@ -128,7 +128,7 @@ TEST_CASE("player absent — streaming frames leave the window where it is") {
   engine.cleanup();
 }
 
-TEST_CASE("player absent — save_game reports no player entity") {
+TEST_CASE("player absent - save_game reports no player entity") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
 

@@ -75,7 +75,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("user_data_dir — empty app_name is rejected") {
+TEST_CASE("user_data_dir - empty app_name is rejected") {
   const auto result = corundum::core::user_data_dir("");
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), "app_name must not be empty");
@@ -90,7 +90,7 @@ TEST_CASE("read_env reports unset variables as absent and set ones as their valu
 }
 
 #ifdef __APPLE__
-TEST_CASE("user_data_dir — macOS resolves $HOME/Library/Application Support/<app>") {
+TEST_CASE("user_data_dir - macOS resolves $HOME/Library/Application Support/<app>") {
   const EnvGuard home("HOME", "/tmp/testhome");
 
   const auto result = corundum::core::user_data_dir("keystone");
@@ -99,7 +99,7 @@ TEST_CASE("user_data_dir — macOS resolves $HOME/Library/Application Support/<a
         path_str(std::filesystem::path("/tmp/testhome") / "Library" / "Application Support" / "keystone"));
 }
 
-TEST_CASE("user_data_dir — macOS errors when HOME is unset") {
+TEST_CASE("user_data_dir - macOS errors when HOME is unset") {
   const EnvGuard home("HOME");
 
   const auto result = corundum::core::user_data_dir("keystone");
@@ -107,7 +107,7 @@ TEST_CASE("user_data_dir — macOS errors when HOME is unset") {
   CHECK_EQ(result.error(), "HOME is unset, empty, or not absolute");
 }
 
-TEST_CASE("user_data_dir — macOS errors when HOME is relative") {
+TEST_CASE("user_data_dir - macOS errors when HOME is relative") {
   const EnvGuard home("HOME", "relative/home");
 
   const auto result = corundum::core::user_data_dir("keystone");
@@ -117,7 +117,7 @@ TEST_CASE("user_data_dir — macOS errors when HOME is relative") {
 #endif
 
 #ifdef __linux__
-TEST_CASE("user_data_dir — Linux prefers $XDG_DATA_HOME/<app>") {
+TEST_CASE("user_data_dir - Linux prefers $XDG_DATA_HOME/<app>") {
   const EnvGuard xdg("XDG_DATA_HOME", "/tmp/testxdg");
   const EnvGuard home("HOME", "/tmp/testhome");
 
@@ -126,7 +126,7 @@ TEST_CASE("user_data_dir — Linux prefers $XDG_DATA_HOME/<app>") {
   CHECK(path_str(*result) == path_str(std::filesystem::path("/tmp/testxdg") / "keystone"));
 }
 
-TEST_CASE("user_data_dir — Linux falls back to $HOME/.local/share/<app>") {
+TEST_CASE("user_data_dir - Linux falls back to $HOME/.local/share/<app>") {
   const EnvGuard xdg("XDG_DATA_HOME");
   const EnvGuard home("HOME", "/tmp/testhome");
 
@@ -135,7 +135,7 @@ TEST_CASE("user_data_dir — Linux falls back to $HOME/.local/share/<app>") {
   CHECK(path_str(*result) == path_str(std::filesystem::path("/tmp/testhome") / ".local" / "share" / "keystone"));
 }
 
-TEST_CASE("user_data_dir — Linux errors when both XDG_DATA_HOME and HOME are unset") {
+TEST_CASE("user_data_dir - Linux errors when both XDG_DATA_HOME and HOME are unset") {
   const EnvGuard xdg("XDG_DATA_HOME");
   const EnvGuard home("HOME");
 
@@ -144,7 +144,7 @@ TEST_CASE("user_data_dir — Linux errors when both XDG_DATA_HOME and HOME are u
   CHECK_EQ(result.error(), "XDG_DATA_HOME and HOME are both unset, empty, or not absolute");
 }
 
-TEST_CASE("user_data_dir — Linux ignores a relative XDG_DATA_HOME") {
+TEST_CASE("user_data_dir - Linux ignores a relative XDG_DATA_HOME") {
   const EnvGuard xdg("XDG_DATA_HOME", "relative/xdg");
   const EnvGuard home("HOME", "/tmp/testhome");
 
@@ -153,7 +153,7 @@ TEST_CASE("user_data_dir — Linux ignores a relative XDG_DATA_HOME") {
   CHECK(path_str(*result) == path_str(std::filesystem::path("/tmp/testhome") / ".local" / "share" / "keystone"));
 }
 
-TEST_CASE("user_data_dir — Linux errors when HOME is relative") {
+TEST_CASE("user_data_dir - Linux errors when HOME is relative") {
   const EnvGuard xdg("XDG_DATA_HOME");
   const EnvGuard home("HOME", "relative/home");
 
@@ -164,7 +164,7 @@ TEST_CASE("user_data_dir — Linux errors when HOME is relative") {
 #endif
 
 #ifdef _WIN32
-TEST_CASE("user_data_dir — Windows prefers %APPDATA%/<app>") {
+TEST_CASE("user_data_dir - Windows prefers %APPDATA%/<app>") {
   const EnvGuard appdata("APPDATA", "C:\\TestAppData");
   const EnvGuard profile("USERPROFILE", "C:\\TestProfile");
 
@@ -173,7 +173,7 @@ TEST_CASE("user_data_dir — Windows prefers %APPDATA%/<app>") {
   CHECK(path_str(*result) == path_str(std::filesystem::path("C:\\TestAppData") / "keystone"));
 }
 
-TEST_CASE("user_data_dir — Windows falls back to %USERPROFILE%/AppData/Roaming/<app>") {
+TEST_CASE("user_data_dir - Windows falls back to %USERPROFILE%/AppData/Roaming/<app>") {
   const EnvGuard appdata("APPDATA");
   const EnvGuard profile("USERPROFILE", "C:\\TestProfile");
 
@@ -182,7 +182,7 @@ TEST_CASE("user_data_dir — Windows falls back to %USERPROFILE%/AppData/Roaming
   CHECK(path_str(*result) == path_str(std::filesystem::path("C:\\TestProfile") / "AppData" / "Roaming" / "keystone"));
 }
 
-TEST_CASE("user_data_dir — Windows errors when both APPDATA and USERPROFILE are unset") {
+TEST_CASE("user_data_dir - Windows errors when both APPDATA and USERPROFILE are unset") {
   const EnvGuard appdata("APPDATA");
   const EnvGuard profile("USERPROFILE");
 
@@ -191,7 +191,7 @@ TEST_CASE("user_data_dir — Windows errors when both APPDATA and USERPROFILE ar
   CHECK_EQ(result.error(), "APPDATA and USERPROFILE are both unset, empty, or not absolute");
 }
 
-TEST_CASE("user_data_dir — Windows ignores a relative APPDATA") {
+TEST_CASE("user_data_dir - Windows ignores a relative APPDATA") {
   const EnvGuard appdata("APPDATA", "relative\\appdata");
   const EnvGuard profile("USERPROFILE", "C:\\TestProfile");
 

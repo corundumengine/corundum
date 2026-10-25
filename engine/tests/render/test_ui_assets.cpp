@@ -50,7 +50,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("load_ui_assets — border cell size comes from the upper_left frame's span") {
+TEST_CASE("load_ui_assets - border cell size comes from the upper_left frame's span") {
   const auto dir = temp_dir("cell_span");
   const fs::path manifest = dir / "borders.json";
   write_file(manifest, k_borders_json);
@@ -66,7 +66,7 @@ TEST_CASE("load_ui_assets — border cell size comes from the upper_left frame's
   CHECK(state.panel_skin.border.tile_h == 32);
 }
 
-TEST_CASE("load_ui_assets — a missing manifest is a non-fatal no-op") {
+TEST_CASE("load_ui_assets - a missing manifest is a non-fatal no-op") {
   corundum::platform::null::NullRenderer renderer;
   corundum::render::RenderState state;
   const auto result = corundum::render::load_ui_assets(disk(), renderer, state, "/nonexistent/borders.json");

@@ -40,7 +40,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("write_json — sorts object keys recursively with 2-space indent and a trailing newline") {
+TEST_CASE("write_json - sorts object keys recursively with 2-space indent and a trailing newline") {
   const auto dir = temp_dir("sorted_object");
   const auto path = dir / "sorted.json";
 
@@ -61,7 +61,7 @@ TEST_CASE("write_json — sorts object keys recursively with 2-space indent and 
   CHECK(read_file(path) == expected);
 }
 
-TEST_CASE("write_json — keeps array order but sorts keys inside each element") {
+TEST_CASE("write_json - keeps array order but sorts keys inside each element") {
   const auto dir = temp_dir("sorted_array");
   const auto path = dir / "array.json";
 
@@ -89,7 +89,7 @@ TEST_CASE("write_json — keeps array order but sorts keys inside each element")
   CHECK(c < d);
 }
 
-TEST_CASE("read_json — accepts // and /* */ comments") {
+TEST_CASE("read_json - accepts // and /* */ comments") {
   const auto dir = temp_dir("comments");
   const auto path = dir / "comments.json";
   write_file(path, R"({
@@ -104,7 +104,7 @@ TEST_CASE("read_json — accepts // and /* */ comments") {
   CHECK((*result)["b"] == 2);
 }
 
-TEST_CASE("read_json — round-trips a value written by write_json") {
+TEST_CASE("read_json - round-trips a value written by write_json") {
   const auto dir = temp_dir("roundtrip");
   const auto path = dir / "roundtrip.json";
 
@@ -119,7 +119,7 @@ TEST_CASE("read_json — round-trips a value written by write_json") {
   CHECK(*result == j);
 }
 
-TEST_CASE("read_json — reports a missing file and malformed JSON") {
+TEST_CASE("read_json - reports a missing file and malformed JSON") {
   const auto dir = temp_dir("read_errors");
 
   SUBCASE("missing file") {
@@ -137,7 +137,7 @@ TEST_CASE("read_json — reports a missing file and malformed JSON") {
   }
 }
 
-TEST_CASE("read_json — a label names the document in both the missing-file and malformed errors") {
+TEST_CASE("read_json - a label names the document in both the missing-file and malformed errors") {
   const auto dir = temp_dir("read_labelled_errors");
 
   SUBCASE("missing file") {
@@ -158,14 +158,14 @@ TEST_CASE("read_json — a label names the document in both the missing-file and
   }
 }
 
-TEST_CASE("write_json — reports an unopenable path") {
+TEST_CASE("write_json - reports an unopenable path") {
   const auto dir = temp_dir("write_error");
   auto result = corundum::core::write_json(dir / "missing_subdir" / "out.json", json::object());
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("cannot open") != std::string::npos);
 }
 
-TEST_CASE("write_json — replaces an existing file and leaves no temp file behind") {
+TEST_CASE("write_json - replaces an existing file and leaves no temp file behind") {
   const auto dir = temp_dir("replace");
   const auto path = dir / "out.json";
   write_file(path, "old contents");
@@ -178,7 +178,7 @@ TEST_CASE("write_json — replaces an existing file and leaves no temp file behi
   CHECK_FALSE(fs::exists(dir / "out.json.tmp"));
 }
 
-TEST_CASE("write_json — a failed write leaves the existing file untouched") {
+TEST_CASE("write_json - a failed write leaves the existing file untouched") {
   const auto dir = temp_dir("keep_on_failure");
   const auto path = dir / "out.json";
   write_file(path, "old contents");

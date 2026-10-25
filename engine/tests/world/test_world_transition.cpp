@@ -103,7 +103,7 @@ using corundum::world::MapTransition;
 // Boot a 2×2 chunk world (chunk_size 8). Default centre tile is (8,8); the default
 // streaming window centre is chunk (1,1).
 
-TEST_CASE("world transition — boot lands in World mode at the manifest centre") {
+TEST_CASE("world transition - boot lands in World mode at the manifest centre") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -121,7 +121,7 @@ TEST_CASE("world transition — boot lands in World mode at the manifest centre"
   engine.cleanup();
 }
 
-TEST_CASE("world transition — unload_world leaves no world, no player and an empty UI stack") {
+TEST_CASE("world transition - unload_world leaves no world, no player and an empty UI stack") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -141,7 +141,7 @@ TEST_CASE("world transition — unload_world leaves no world, no player and an e
   engine.cleanup();
 }
 
-TEST_CASE("world transition — World cross-map portal marks the journey and enters interior") {
+TEST_CASE("world transition - World cross-map portal marks the journey and enters interior") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -164,7 +164,7 @@ TEST_CASE("world transition — World cross-map portal marks the journey and ent
   engine.cleanup();
 }
 
-TEST_CASE("world transition — nested SingleMap cross-map does not clear the marker") {
+TEST_CASE("world transition - nested SingleMap cross-map does not clear the marker") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -188,7 +188,7 @@ TEST_CASE("world transition — nested SingleMap cross-map does not clear the ma
   engine.cleanup();
 }
 
-TEST_CASE("world transition — return_to_world exits interior, re-centres window, clears marker") {
+TEST_CASE("world transition - return_to_world exits interior, re-centres window, clears marker") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -218,7 +218,7 @@ TEST_CASE("world transition — return_to_world exits interior, re-centres windo
   engine.cleanup();
 }
 
-TEST_CASE("world transition — single-map boot with a return_to_world portal is ignored, not a quit") {
+TEST_CASE("world transition - single-map boot with a return_to_world portal is ignored, not a quit") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -241,7 +241,7 @@ TEST_CASE("world transition — single-map boot with a return_to_world portal is
   engine.cleanup();
 }
 
-TEST_CASE("world transition — end-to-end: walking onto the fixture portal round-trips") {
+TEST_CASE("world transition - end-to-end: walking onto the fixture portal round-trips") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -306,7 +306,7 @@ TEST_CASE("world transition — end-to-end: walking onto the fixture portal roun
   engine.cleanup();
 }
 
-TEST_CASE("world transition — chunk-to-chunk portal still teleports, not a scene transition") {
+TEST_CASE("world transition - chunk-to-chunk portal still teleports, not a scene transition") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -326,7 +326,7 @@ TEST_CASE("world transition — chunk-to-chunk portal still teleports, not a sce
   engine.cleanup();
 }
 
-TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover works)") {
+TEST_CASE("world transition - pick_tile resolves a tile in world mode (hover works)") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -356,7 +356,7 @@ TEST_CASE("world transition — pick_tile resolves a tile in world mode (hover w
   engine.cleanup();
 }
 
-TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, no auto-transition") {
+TEST_CASE("world transition - stepping on a portal surfaces a confirm prompt, no auto-transition") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -382,7 +382,7 @@ TEST_CASE("world transition — stepping on a portal surfaces a confirm prompt, 
   engine.cleanup();
 }
 
-TEST_CASE("world transition — a portal arms only from its own tile") {
+TEST_CASE("world transition - a portal arms only from its own tile") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -412,7 +412,7 @@ TEST_CASE("world transition — a portal arms only from its own tile") {
   engine.cleanup();
 }
 
-TEST_CASE("world transition — a followed path puts the player on the target tile, not short of it") {
+TEST_CASE("world transition - a followed path puts the player on the target tile, not short of it") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -435,7 +435,7 @@ TEST_CASE("world transition — a followed path puts the player on the target ti
   engine.cleanup();
 }
 
-TEST_CASE("world transition — an idle player does not drift") {
+TEST_CASE("world transition - an idle player does not drift") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -456,7 +456,7 @@ TEST_CASE("world transition — an idle player does not drift") {
   engine.cleanup();
 }
 
-TEST_CASE("world transition — Select on the prompt promotes the stashed transition") {
+TEST_CASE("world transition - Select on the prompt promotes the stashed transition") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -485,7 +485,7 @@ TEST_CASE("world transition — Select on the prompt promotes the stashed transi
   engine.cleanup();
 }
 
-TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until player leaves the rect") {
+TEST_CASE("world transition - Cancel on the prompt suppresses re-prompt until player leaves the rect") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -530,7 +530,7 @@ TEST_CASE("world transition — Cancel on the prompt suppresses re-prompt until 
   engine.cleanup();
 }
 
-TEST_CASE("world transition — return_to_world portal prompts with return_to_world=true") {
+TEST_CASE("world transition - return_to_world portal prompts with return_to_world=true") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -569,7 +569,7 @@ TEST_CASE("world transition — return_to_world portal prompts with return_to_wo
   engine.cleanup();
 }
 
-TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
+TEST_CASE("world transition - Left/Right navigates the Yes/No highlight") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -605,7 +605,7 @@ TEST_CASE("world transition — Left/Right navigates the Yes/No highlight") {
   engine.cleanup();
 }
 
-TEST_CASE("world transition — Select on No backs out like Cancel") {
+TEST_CASE("world transition - Select on No backs out like Cancel") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -630,7 +630,7 @@ TEST_CASE("world transition — Select on No backs out like Cancel") {
   engine.cleanup();
 }
 
-TEST_CASE("world transition — re-arming the prompt resets Yes as the default highlight") {
+TEST_CASE("world transition - re-arming the prompt resets Yes as the default highlight") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -664,7 +664,7 @@ TEST_CASE("world transition — re-arming the prompt resets Yes as the default h
   engine.cleanup();
 }
 
-TEST_CASE("world transition — world boot spawns per-chunk actors") {
+TEST_CASE("world transition - world boot spawns per-chunk actors") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -688,7 +688,7 @@ TEST_CASE("world transition — world boot spawns per-chunk actors") {
   engine.cleanup();
 }
 
-TEST_CASE("world transition — world actors return after an interior round-trip") {
+TEST_CASE("world transition - world actors return after an interior round-trip") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -721,7 +721,7 @@ TEST_CASE("world transition — world actors return after an interior round-trip
   engine.cleanup();
 }
 
-TEST_CASE("world streaming — actors spawn only for resident chunks") {
+TEST_CASE("world streaming - actors spawn only for resident chunks") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -743,7 +743,7 @@ TEST_CASE("world streaming — actors spawn only for resident chunks") {
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("world streaming — streaming a chunk out despawns its actors, streaming back respawns") {
+TEST_CASE("world streaming - streaming a chunk out despawns its actors, streaming back respawns") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -787,7 +787,7 @@ TEST_CASE("world streaming — streaming a chunk out despawns its actors, stream
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("world streaming — the recenter margin scales with chunk_size, not a fixed tile count") {
+TEST_CASE("world streaming - the recenter margin scales with chunk_size, not a fixed tile count") {
   // The margin is 0.02 * chunk_size — 0.16 tiles for this fixture's 8-tile chunks. A player 1
   // tile into a new chunk is past it and must recentre, so chunk (0,0) streams in. A margin
   // hard-coded for 128-tile chunks (2.56 tiles) would leave the window on the old chunk.

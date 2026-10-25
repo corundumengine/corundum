@@ -35,7 +35,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("find_path — routes across a chunk boundary in world mode") {
+TEST_CASE("find_path - routes across a chunk boundary in world mode") {
   render_data::RenderState state;
   init_world(state, 8, 2, [](int) { return flat_chunk(8); });
   const MapView map = world_map_view(state);
@@ -47,7 +47,7 @@ TEST_CASE("find_path — routes across a chunk boundary in world mode") {
   CHECK(path.back().row == 4);
 }
 
-TEST_CASE("find_path — an elevation wall on the chunk seam blocks the route") {
+TEST_CASE("find_path - an elevation wall on the chunk seam blocks the route") {
   render_data::RenderState state;
   init_world(state, 8, 2, [](int i) {
     Tilemap tm = flat_chunk(8);
@@ -62,7 +62,7 @@ TEST_CASE("find_path — an elevation wall on the chunk seam blocks the route") 
   CHECK(path.empty()); // global-coord elevation lookup gates the seam edges
 }
 
-TEST_CASE("build_map_view — world mode wires up the walkability graph") {
+TEST_CASE("build_map_view - world mode wires up the walkability graph") {
   render_data::RenderState state;
   init_world(state, 8, 1, [](int) { return flat_chunk(8); });
 

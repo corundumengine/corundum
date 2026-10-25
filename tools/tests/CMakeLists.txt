@@ -45,5 +45,7 @@ target_include_directories(corundum_tools_tests PRIVATE
 corundum_use_cxx23(corundum_tools_tests)
 corundum_enable_warnings(corundum_tools_tests)
 
+# The regex fails a run that executed zero cases; see engine/tests/CMakeLists.txt.
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
-doctest_discover_tests(corundum_tools_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+doctest_discover_tests(corundum_tools_tests WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                       PROPERTIES FAIL_REGULAR_EXPRESSION "test cases: 0 \\|")

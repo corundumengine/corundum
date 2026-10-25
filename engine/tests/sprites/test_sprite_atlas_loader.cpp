@@ -45,7 +45,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("load_sprite_atlas — valid atlas parses correctly") {
+TEST_CASE("load_sprite_atlas - valid atlas parses correctly") {
   const auto dir = temp_dir("valid");
   const auto path = dir / "atlas.json";
   write_file(path, k_valid_atlas_json);
@@ -79,7 +79,7 @@ TEST_CASE("load_sprite_atlas — valid atlas parses correctly") {
   CHECK(s1.h == s0.h);
 }
 
-TEST_CASE("load_sprite_atlas — missing 'schema_version' fails") {
+TEST_CASE("load_sprite_atlas - missing 'schema_version' fails") {
   const auto dir = temp_dir("missing_schema_version");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"path":"p.png","width":4,"height":4,"sprites":[]})");
@@ -90,7 +90,7 @@ TEST_CASE("load_sprite_atlas — missing 'schema_version' fails") {
            std::format("Sprite atlas '{}' has a missing or non-integer 'schema_version'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — 'schema_version' wrong type fails") {
+TEST_CASE("load_sprite_atlas - 'schema_version' wrong type fails") {
   const auto dir = temp_dir("schema_version_wrong_type");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":"2","path":"p.png","width":4,"height":4,"sprites":[]})");
@@ -101,7 +101,7 @@ TEST_CASE("load_sprite_atlas — 'schema_version' wrong type fails") {
            std::format("Sprite atlas '{}' has a missing or non-integer 'schema_version'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — 'schema_version' older than expected fails") {
+TEST_CASE("load_sprite_atlas - 'schema_version' older than expected fails") {
   const auto dir = temp_dir("schema_version_older");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":1,"path":"p.png","width":4,"height":4,"sprites":[]})");
@@ -114,7 +114,7 @@ TEST_CASE("load_sprite_atlas — 'schema_version' older than expected fails") {
                        path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — 'schema_version' newer than expected fails") {
+TEST_CASE("load_sprite_atlas - 'schema_version' newer than expected fails") {
   const auto dir = temp_dir("schema_version_newer");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":3,"path":"p.png","width":4,"height":4,"sprites":[]})");
@@ -127,7 +127,7 @@ TEST_CASE("load_sprite_atlas — 'schema_version' newer than expected fails") {
                        path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — malformed JSON fails") {
+TEST_CASE("load_sprite_atlas - malformed JSON fails") {
   const auto dir = temp_dir("malformed");
   const auto path = dir / "atlas.json";
   write_file(path, R"({not valid json)");
@@ -138,7 +138,7 @@ TEST_CASE("load_sprite_atlas — malformed JSON fails") {
                 result.error());
 }
 
-TEST_CASE("load_sprite_atlas — missing 'path' fails") {
+TEST_CASE("load_sprite_atlas - missing 'path' fails") {
   const auto dir = temp_dir("missing_path");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"width":4,"height":4,"sprites":[]})");
@@ -148,7 +148,7 @@ TEST_CASE("load_sprite_atlas — missing 'path' fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'path'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — missing 'width' fails") {
+TEST_CASE("load_sprite_atlas - missing 'width' fails") {
   const auto dir = temp_dir("missing_width");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","height":4,"sprites":[]})");
@@ -158,7 +158,7 @@ TEST_CASE("load_sprite_atlas — missing 'width' fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'width'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — missing 'height' fails") {
+TEST_CASE("load_sprite_atlas - missing 'height' fails") {
   const auto dir = temp_dir("missing_height");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"sprites":[]})");
@@ -168,7 +168,7 @@ TEST_CASE("load_sprite_atlas — missing 'height' fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'height'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — 'width' <= 0 fails") {
+TEST_CASE("load_sprite_atlas - 'width' <= 0 fails") {
   const auto dir = temp_dir("width_zero");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":0,"height":4,"sprites":[]})");
@@ -178,7 +178,7 @@ TEST_CASE("load_sprite_atlas — 'width' <= 0 fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'width' must be positive", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — 'height' <= 0 fails") {
+TEST_CASE("load_sprite_atlas - 'height' <= 0 fails") {
   const auto dir = temp_dir("height_zero");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":0,"sprites":[]})");
@@ -188,7 +188,7 @@ TEST_CASE("load_sprite_atlas — 'height' <= 0 fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'height' must be positive", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — missing 'sprites' array fails") {
+TEST_CASE("load_sprite_atlas - missing 'sprites' array fails") {
   const auto dir = temp_dir("missing_sprites");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4})");
@@ -198,7 +198,7 @@ TEST_CASE("load_sprite_atlas — missing 'sprites' array fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'sprites' array", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — 'sprites' present but not an array fails") {
+TEST_CASE("load_sprite_atlas - 'sprites' present but not an array fails") {
   const auto dir = temp_dir("sprites_not_array");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"sprites":{}})");
@@ -208,7 +208,7 @@ TEST_CASE("load_sprite_atlas — 'sprites' present but not an array fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' missing 'sprites' array", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — empty 'sprites' array is valid") {
+TEST_CASE("load_sprite_atlas - empty 'sprites' array is valid") {
   const auto dir = temp_dir("empty_sprites");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"sprites":[]})");
@@ -218,7 +218,7 @@ TEST_CASE("load_sprite_atlas — empty 'sprites' array is valid") {
   CHECK(result->sprites.empty());
 }
 
-TEST_CASE("load_sprite_atlas — sprite missing 'name' fails") {
+TEST_CASE("load_sprite_atlas - sprite missing 'name' fails") {
   const auto dir = temp_dir("sprite_missing_name");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -231,7 +231,7 @@ TEST_CASE("load_sprite_atlas — sprite missing 'name' fails") {
            std::format("Sprite atlas '{}' has a sprite entry with a missing or non-string 'name'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — sprite missing 'w' fails") {
+TEST_CASE("load_sprite_atlas - sprite missing 'w' fails") {
   const auto dir = temp_dir("sprite_missing_w");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -243,7 +243,7 @@ TEST_CASE("load_sprite_atlas — sprite missing 'w' fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has a missing or non-integer 'w'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — sprite with empty 'name' fails") {
+TEST_CASE("load_sprite_atlas - sprite with empty 'name' fails") {
   const auto dir = temp_dir("sprite_empty_name");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -255,7 +255,7 @@ TEST_CASE("load_sprite_atlas — sprite with empty 'name' fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' has a sprite with empty 'name'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — sprite with 'w' <= 0 fails") {
+TEST_CASE("load_sprite_atlas - sprite with 'w' <= 0 fails") {
   const auto dir = temp_dir("sprite_w_zero");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -267,7 +267,7 @@ TEST_CASE("load_sprite_atlas — sprite with 'w' <= 0 fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has non-positive w/h", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — sprite with 'h' <= 0 fails") {
+TEST_CASE("load_sprite_atlas - sprite with 'h' <= 0 fails") {
   const auto dir = temp_dir("sprite_h_zero");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -279,7 +279,7 @@ TEST_CASE("load_sprite_atlas — sprite with 'h' <= 0 fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has non-positive w/h", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — duplicate sprite name fails") {
+TEST_CASE("load_sprite_atlas - duplicate sprite name fails") {
   const auto dir = temp_dir("duplicate_name");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -294,7 +294,7 @@ TEST_CASE("load_sprite_atlas — duplicate sprite name fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' has duplicate sprite name 'a'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — optional sprite fields default correctly when absent") {
+TEST_CASE("load_sprite_atlas - optional sprite fields default correctly when absent") {
   const auto dir = temp_dir("optional_defaults");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -313,7 +313,7 @@ TEST_CASE("load_sprite_atlas — optional sprite fields default correctly when a
   CHECK(sprite.pivot_y == doctest::Approx(0.f));
 }
 
-TEST_CASE("load_sprite_atlas — non-existent file fails") {
+TEST_CASE("load_sprite_atlas - non-existent file fails") {
   const auto dir = temp_dir("not_found");
   const auto path = dir / "nonexistent.json";
   const auto result = corundum::sprites::load_sprite_atlas(disk(), path);
@@ -321,7 +321,7 @@ TEST_CASE("load_sprite_atlas — non-existent file fails") {
   CHECK_EQ(result.error(), std::format("sprite atlas: cannot open: {}", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — empty 'path' fails") {
+TEST_CASE("load_sprite_atlas - empty 'path' fails") {
   const auto dir = temp_dir("empty_path");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"","width":4,"height":4,"sprites":[]})");
@@ -331,7 +331,7 @@ TEST_CASE("load_sprite_atlas — empty 'path' fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'path' must not be empty", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — wrong-typed optional integer field fails instead of throwing") {
+TEST_CASE("load_sprite_atlas - wrong-typed optional integer field fails instead of throwing") {
   const auto dir = temp_dir("optional_int_wrong_type");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -344,7 +344,7 @@ TEST_CASE("load_sprite_atlas — wrong-typed optional integer field fails instea
            std::format("Sprite atlas '{}' sprite 'a' field 'trim_x' must be an integer", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — wrong-typed optional pivot field fails instead of throwing") {
+TEST_CASE("load_sprite_atlas - wrong-typed optional pivot field fails instead of throwing") {
   const auto dir = temp_dir("optional_float_wrong_type");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -356,7 +356,7 @@ TEST_CASE("load_sprite_atlas — wrong-typed optional pivot field fails instead 
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' field 'pivot_y' must be a number", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — non-object sprite entry fails") {
+TEST_CASE("load_sprite_atlas - non-object sprite entry fails") {
   const auto dir = temp_dir("non_object_sprite");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":8,"height":8,"sprites":["a"]})");
@@ -366,7 +366,7 @@ TEST_CASE("load_sprite_atlas — non-object sprite entry fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' has a non-object sprite entry", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — sprite extending past the atlas bounds fails") {
+TEST_CASE("load_sprite_atlas - sprite extending past the atlas bounds fails") {
   const auto dir = temp_dir("sprite_out_of_bounds");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -378,7 +378,7 @@ TEST_CASE("load_sprite_atlas — sprite extending past the atlas bounds fails") 
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' lies outside the atlas (8x8)", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — trimmed box exceeding the source frame fails") {
+TEST_CASE("load_sprite_atlas - trimmed box exceeding the source frame fails") {
   const auto dir = temp_dir("trim_exceeds_source");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -392,7 +392,7 @@ TEST_CASE("load_sprite_atlas — trimmed box exceeding the source frame fails") 
            std::format("Sprite atlas '{}' sprite 'a' trimmed box exceeds its source frame", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — non-positive source dimensions fail") {
+TEST_CASE("load_sprite_atlas - non-positive source dimensions fail") {
   const auto dir = temp_dir("source_non_positive");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -405,7 +405,7 @@ TEST_CASE("load_sprite_atlas — non-positive source dimensions fail") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has invalid trim/source geometry", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — non-finite pivot fails") {
+TEST_CASE("load_sprite_atlas - non-finite pivot fails") {
   const auto dir = temp_dir("pivot_non_finite");
   const auto path = dir / "atlas.json";
   write_file(path,
@@ -417,7 +417,7 @@ TEST_CASE("load_sprite_atlas — non-finite pivot fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' sprite 'a' has a non-finite pivot", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — absent 'pivot_basis' defaults to trimmed") {
+TEST_CASE("load_sprite_atlas - absent 'pivot_basis' defaults to trimmed") {
   const auto dir = temp_dir("pivot_basis_default");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"sprites":[]})");
@@ -427,7 +427,7 @@ TEST_CASE("load_sprite_atlas — absent 'pivot_basis' defaults to trimmed") {
   CHECK(result->pivot_basis == corundum::sprites::PivotBasis::TrimmedTopOrigin);
 }
 
-TEST_CASE("load_sprite_atlas — 'pivot_basis': 'full' is surfaced") {
+TEST_CASE("load_sprite_atlas - 'pivot_basis': 'full' is surfaced") {
   const auto dir = temp_dir("pivot_basis_full");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"pivot_basis":"full","sprites":[]})");
@@ -437,7 +437,7 @@ TEST_CASE("load_sprite_atlas — 'pivot_basis': 'full' is surfaced") {
   CHECK(result->pivot_basis == corundum::sprites::PivotBasis::FullCanvasBottomOrigin);
 }
 
-TEST_CASE("load_sprite_atlas — unknown 'pivot_basis' value fails") {
+TEST_CASE("load_sprite_atlas - unknown 'pivot_basis' value fails") {
   const auto dir = temp_dir("pivot_basis_unknown");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"pivot_basis":"sideways","sprites":[]})");
@@ -449,7 +449,7 @@ TEST_CASE("load_sprite_atlas — unknown 'pivot_basis' value fails") {
       std::format("Sprite atlas '{}' field 'pivot_basis' must be 'trimmed' or 'full', got 'sideways'", path.string()));
 }
 
-TEST_CASE("load_sprite_atlas — wrong-typed 'pivot_basis' fails") {
+TEST_CASE("load_sprite_atlas - wrong-typed 'pivot_basis' fails") {
   const auto dir = temp_dir("pivot_basis_wrong_type");
   const auto path = dir / "atlas.json";
   write_file(path, R"({"schema_version":2,"path":"p.png","width":4,"height":4,"pivot_basis":1,"sprites":[]})");
@@ -459,7 +459,7 @@ TEST_CASE("load_sprite_atlas — wrong-typed 'pivot_basis' fails") {
   CHECK_EQ(result.error(), std::format("Sprite atlas '{}' field 'pivot_basis' must be a string", path.string()));
 }
 
-TEST_CASE("resolve_pivot — trimmed-box basis converts to full-frame, bottom-origin") {
+TEST_CASE("resolve_pivot - trimmed-box basis converts to full-frame, bottom-origin") {
   using corundum::sprites::AtlasSprite;
   using corundum::sprites::PivotBasis;
   using corundum::sprites::resolve_pivot;
@@ -485,7 +485,7 @@ TEST_CASE("resolve_pivot — trimmed-box basis converts to full-frame, bottom-or
   CHECK(pivot.y == doctest::Approx(1.f - (56.f / 64.f)));
 }
 
-TEST_CASE("resolve_pivot — full-canvas basis passes the pivot through unchanged") {
+TEST_CASE("resolve_pivot - full-canvas basis passes the pivot through unchanged") {
   using corundum::sprites::AtlasSprite;
   using corundum::sprites::PivotBasis;
   using corundum::sprites::resolve_pivot;
@@ -510,7 +510,7 @@ TEST_CASE("resolve_pivot — full-canvas basis passes the pivot through unchange
   CHECK(pivot.y == doctest::Approx(0.18f));
 }
 
-TEST_CASE("resolve_pivot — untrimmed top-left pivot in trimmed basis resolves to bottom-left") {
+TEST_CASE("resolve_pivot - untrimmed top-left pivot in trimmed basis resolves to bottom-left") {
   using corundum::sprites::AtlasSprite;
   using corundum::sprites::PivotBasis;
   using corundum::sprites::resolve_pivot;

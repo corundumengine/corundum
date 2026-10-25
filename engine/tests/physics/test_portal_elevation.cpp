@@ -41,7 +41,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("portal_elev_matches — player at portal elevation triggers") {
+TEST_CASE("portal_elev_matches - player at portal elevation triggers") {
   // Portal cell at elev 0; player at elev 0 with tolerance 0 → match.
   const Tilemap tm = make_flat_map(4, 4, 0);
   const MapView map = map_with_elevation_map(tm);
@@ -58,7 +58,7 @@ TEST_CASE("portal_elev_matches — player at portal elevation triggers") {
   CHECK(portal_elev_matches(map, p, /*player_elev=*/0, /*elev_tolerance=*/0));
 }
 
-TEST_CASE("portal_elev_matches — adjacent cells at different elev reject trigger") {
+TEST_CASE("portal_elev_matches - adjacent cells at different elev reject trigger") {
   // Player on cell (0, 0) at elev 5 (e.g., on a bridge); portal authored on cell (1, 0)
   // at elev 0 (ground floor below). Without elevation gating the player teleports
   // between floors whenever they cross the portal. With the fix,
@@ -89,7 +89,7 @@ TEST_CASE("portal_elev_matches — adjacent cells at different elev reject trigg
   CHECK_FALSE(portal_elev_matches(map, p, /*player_elev=*/5, /*elev_tolerance=*/0));
 }
 
-TEST_CASE("portal_elev_matches — tolerance widens the gate (ramp-aware)") {
+TEST_CASE("portal_elev_matches - tolerance widens the gate (ramp-aware)") {
   // Player crossing a ramp midpoint has rounded elev 2; portal at top elev 4; tolerance 2
   // (the ramp's ceil(Δ/2)) makes the top portal still within reach.
   Tilemap tm;

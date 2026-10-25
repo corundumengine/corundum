@@ -29,7 +29,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("material_at — resolves the owning tileset's default material") {
+TEST_CASE("material_at - resolves the owning tileset's default material") {
   auto tm = make_2x2_map("stone");
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -40,7 +40,7 @@ TEST_CASE("material_at — resolves the owning tileset's default material") {
   CHECK(ctt::material_at(tm, 1, 1) == "stone");
 }
 
-TEST_CASE("material_at — per-cell override wins over the tileset default") {
+TEST_CASE("material_at - per-cell override wins over the tileset default") {
   auto tm = make_2x2_map("stone");
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -52,7 +52,7 @@ TEST_CASE("material_at — per-cell override wins over the tileset default") {
   CHECK(ctt::material_at(tm, 1, 0) == "snow");  // override wins
 }
 
-TEST_CASE("material_at — topmost z=0 layer with a tile at the cell wins") {
+TEST_CASE("material_at - topmost z=0 layer with a tile at the cell wins") {
   auto tm = make_2x2_map("stone");
 
   ctt::TilemapLayer bottom;
@@ -70,7 +70,7 @@ TEST_CASE("material_at — topmost z=0 layer with a tile at the cell wins") {
   CHECK(ctt::material_at(tm, 1, 0) == "stone"); // top layer empty here — falls through to bottom's default
 }
 
-TEST_CASE("material_at — animated cell resolves material via its first frame's tileset") {
+TEST_CASE("material_at - animated cell resolves material via its first frame's tileset") {
   auto tm = make_2x2_map("stone");
   ctt::AnimatedCell anim;
   anim.anim_name = "flicker";
@@ -84,7 +84,7 @@ TEST_CASE("material_at — animated cell resolves material via its first frame's
   CHECK(ctt::material_at(tm, 0, 0) == "stone");
 }
 
-TEST_CASE("material_at — no tileset default and no override returns empty string") {
+TEST_CASE("material_at - no tileset default and no override returns empty string") {
   auto tm = make_2x2_map(""); // tileset has no material tag
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -94,7 +94,7 @@ TEST_CASE("material_at — no tileset default and no override returns empty stri
   CHECK(ctt::material_at(tm, 0, 0) == "");
 }
 
-TEST_CASE("material_at — z_index > 0 layers are ignored") {
+TEST_CASE("material_at - z_index > 0 layers are ignored") {
   auto tm = make_2x2_map("stone");
   ctt::TilemapLayer above;
   above.z_index = 1;
@@ -105,7 +105,7 @@ TEST_CASE("material_at — z_index > 0 layers are ignored") {
   CHECK(ctt::material_at(tm, 0, 0) == "");
 }
 
-TEST_CASE("material_at — out-of-bounds col/row returns empty string, not UB") {
+TEST_CASE("material_at - out-of-bounds col/row returns empty string, not UB") {
   auto tm = make_2x2_map("stone");
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -120,7 +120,7 @@ TEST_CASE("material_at — out-of-bounds col/row returns empty string, not UB") 
 
 // ── in_bounds ─────────────────────────────────────────────────────────────────
 
-TEST_CASE("in_bounds — material_at disambiguates OOB from empty default") {
+TEST_CASE("in_bounds - material_at disambiguates OOB from empty default") {
   ctt::Tilemap tm;
   tm.width = 2;
   tm.height = 2;

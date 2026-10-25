@@ -36,13 +36,13 @@ using corundum::world::Portal;
 using corundum::world::TransitionPrompt;
 using Step = TransitionPrompt::Step;
 
-TEST_CASE("TransitionPrompt — fresh arm highlights Yes and is not declined") {
+TEST_CASE("TransitionPrompt - fresh arm highlights Yes and is not declined") {
   TransitionPrompt prompt{make_portal()};
   CHECK(prompt.confirm_selected());
   CHECK_FALSE(prompt.declined());
 }
 
-TEST_CASE("TransitionPrompt — MoveRight moves highlight to No and stays pending") {
+TEST_CASE("TransitionPrompt - MoveRight moves highlight to No and stays pending") {
   TransitionPrompt prompt{make_portal()};
   const Step result = prompt.step(with_only(corundum::input::Action::MoveRight));
   CHECK(result == Step::Pending);
@@ -52,7 +52,7 @@ TEST_CASE("TransitionPrompt — MoveRight moves highlight to No and stays pendin
   CHECK(prompt.confirm_selected());
 }
 
-TEST_CASE("TransitionPrompt — MoveUp/Down alias MoveLeft/Right") {
+TEST_CASE("TransitionPrompt - MoveUp/Down alias MoveLeft/Right") {
   TransitionPrompt prompt{make_portal()};
   CHECK(prompt.step(with_only(corundum::input::Action::MoveDown)) == Step::Pending);
   CHECK_FALSE(prompt.confirm_selected());
@@ -60,7 +60,7 @@ TEST_CASE("TransitionPrompt — MoveUp/Down alias MoveLeft/Right") {
   CHECK(prompt.confirm_selected());
 }
 
-TEST_CASE("TransitionPrompt — Select on Yes confirms and exposes the stashed transition") {
+TEST_CASE("TransitionPrompt - Select on Yes confirms and exposes the stashed transition") {
   const Portal portal = make_portal();
   TransitionPrompt prompt{portal};
   const Step result = prompt.step(with_only(corundum::input::Action::Select));
@@ -72,7 +72,7 @@ TEST_CASE("TransitionPrompt — Select on Yes confirms and exposes the stashed t
   CHECK_FALSE(prompt.declined());
 }
 
-TEST_CASE("TransitionPrompt — Select on No dismisses and latches declined") {
+TEST_CASE("TransitionPrompt - Select on No dismisses and latches declined") {
   TransitionPrompt prompt{make_portal()};
   CHECK(prompt.step(with_only(corundum::input::Action::MoveRight)) == Step::Pending);
   REQUIRE_FALSE(prompt.confirm_selected());
@@ -82,7 +82,7 @@ TEST_CASE("TransitionPrompt — Select on No dismisses and latches declined") {
   CHECK(prompt.declined());
 }
 
-TEST_CASE("TransitionPrompt — Cancel dismisses from any highlight") {
+TEST_CASE("TransitionPrompt - Cancel dismisses from any highlight") {
   {
     TransitionPrompt prompt{make_portal()};
     REQUIRE(prompt.confirm_selected());
@@ -100,7 +100,7 @@ TEST_CASE("TransitionPrompt — Cancel dismisses from any highlight") {
   }
 }
 
-TEST_CASE("TransitionPrompt — no input returns Pending") {
+TEST_CASE("TransitionPrompt - no input returns Pending") {
   TransitionPrompt prompt{make_portal()};
   const corundum::input::InputIntent input{};
   CHECK(prompt.step(input) == Step::Pending);
@@ -108,7 +108,7 @@ TEST_CASE("TransitionPrompt — no input returns Pending") {
   CHECK_FALSE(prompt.declined());
 }
 
-TEST_CASE("TransitionPrompt — overlaps matches the arming portal's AABB") {
+TEST_CASE("TransitionPrompt - overlaps matches the arming portal's AABB") {
   const Portal portal = make_portal(); // col=13, row=13, w=1, h=1 → AABB (13..14, 13..14)
   TransitionPrompt prompt{portal};
 
@@ -125,7 +125,7 @@ TEST_CASE("TransitionPrompt — overlaps matches the arming portal's AABB") {
   CHECK_FALSE(prompt.overlaps(13.5f, 13.5f, 12.5f, 13.f)); // row1 == rect top edge
 }
 
-TEST_CASE("TransitionPrompt — guards matches the arming portal exactly") {
+TEST_CASE("TransitionPrompt - guards matches the arming portal exactly") {
   const Portal portal = make_portal();
   TransitionPrompt prompt{portal};
   CHECK(prompt.guards(portal));

@@ -39,7 +39,7 @@ namespace {
 } // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("engine screen transition — a UI screen push or pop never starts a fade") {
+TEST_CASE("engine screen transition - a UI screen push or pop never starts a fade") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
   REQUIRE(engine.initialize(make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR)).has_value());
@@ -61,7 +61,7 @@ TEST_CASE("engine screen transition — a UI screen push or pop never starts a f
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("engine screen transition — a portal transition fades out, swaps at black, then fades in") {
+TEST_CASE("engine screen transition - a portal transition fades out, swaps at black, then fades in") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
@@ -87,7 +87,7 @@ TEST_CASE("engine screen transition — a portal transition fades out, swaps at 
   engine.cleanup();
 }
 
-TEST_CASE("engine screen transition — no pending transition leaves the fade untouched") {
+TEST_CASE("engine screen transition - no pending transition leaves the fade untouched") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
   REQUIRE(engine.initialize(make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR)).has_value());

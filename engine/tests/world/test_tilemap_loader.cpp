@@ -97,14 +97,14 @@ namespace {
 
 // ── find_tileset unit tests ───────────────────────────────────────────────────
 
-TEST_CASE("find_tileset — k_empty_tile returns nullptr") {
+TEST_CASE("find_tileset - k_empty_tile returns nullptr") {
   std::vector<corundum::world::tilemap::TilemapTileset> tilesets(1);
   tilesets[0].first_gid = 0;
   tilesets[0].info.tile_count = 32;
   CHECK(corundum::world::tilemap::find_tileset(tilesets, corundum::world::tilemap::k_empty_tile) == nullptr);
 }
 
-TEST_CASE("find_tileset — single tileset, valid GID") {
+TEST_CASE("find_tileset - single tileset, valid GID") {
   std::vector<corundum::world::tilemap::TilemapTileset> tilesets(1);
   tilesets[0].first_gid = 0;
   tilesets[0].info.tile_count = 32;
@@ -113,7 +113,7 @@ TEST_CASE("find_tileset — single tileset, valid GID") {
   CHECK(result->first_gid == 0);
 }
 
-TEST_CASE("find_tileset — two tilesets, GID routes correctly") {
+TEST_CASE("find_tileset - two tilesets, GID routes correctly") {
   std::vector<corundum::world::tilemap::TilemapTileset> tilesets(2);
   tilesets[0].first_gid = 0;
   tilesets[0].info.tile_count = 32;
@@ -129,7 +129,7 @@ TEST_CASE("find_tileset — two tilesets, GID routes correctly") {
 
 // ── Regression: single-tileset map loads correctly ───────────────────────────
 
-TEST_CASE("load_tilemap — single tileset map") {
+TEST_CASE("load_tilemap - single tileset map") {
   const auto dir = temp_dir("single");
   const auto map_path = make_single_tileset_map(dir);
 
@@ -149,7 +149,7 @@ TEST_CASE("load_tilemap — single tileset map") {
 
 // ── Multi-tileset map ─────────────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — two tilesets, correct first_gid and tile_count") {
+TEST_CASE("load_tilemap - two tilesets, correct first_gid and tile_count") {
   const auto dir = temp_dir("multi");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
@@ -177,7 +177,7 @@ TEST_CASE("load_tilemap — two tilesets, correct first_gid and tile_count") {
   CHECK(m.layers[0].tiles[1] == 32);
 }
 
-TEST_CASE("load_tilemap — tilesets are sorted by first_gid even if JSON is unordered") {
+TEST_CASE("load_tilemap - tilesets are sorted by first_gid even if JSON is unordered") {
   const auto dir = temp_dir("sort");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
@@ -204,7 +204,7 @@ TEST_CASE("load_tilemap — tilesets are sorted by first_gid even if JSON is uno
 
 // ── k_empty_tile accepted in dense layers ──────────────────────────────────────
 
-TEST_CASE("load_tilemap — k_empty_tile (65535) in dense layer is accepted") {
+TEST_CASE("load_tilemap - k_empty_tile (65535) in dense layer is accepted") {
   const auto dir = temp_dir("empty_tile");
   const auto map_path = make_single_tileset_map(dir, "0,65535");
   const auto tm_result = corundum::world::tilemap::load_tilemap(disk(), map_path);
@@ -215,7 +215,7 @@ TEST_CASE("load_tilemap — k_empty_tile (65535) in dense layer is accepted") {
 
 // ── Error: old "tileset" string key rejected ─────────────────────────────────
 
-TEST_CASE("load_tilemap — old 'tileset' string key returns error") {
+TEST_CASE("load_tilemap - old 'tileset' string key returns error") {
   const auto dir = temp_dir("old_format");
   const auto ts_path = dir / "ts.json";
   const auto map_path = dir / "map.json";
@@ -234,7 +234,7 @@ TEST_CASE("load_tilemap — old 'tileset' string key returns error") {
 
 // ── Error: first_gid not 0 ────────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — first_gid not starting at 0 returns error") {
+TEST_CASE("load_tilemap - first_gid not starting at 0 returns error") {
   const auto dir = temp_dir("no_zero");
   const auto ts_path = dir / "ts.json";
   const auto map_path = dir / "map.json";
@@ -253,7 +253,7 @@ TEST_CASE("load_tilemap — first_gid not starting at 0 returns error") {
 
 // ── Error: gap between tilesets ───────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — gap between tilesets returns error") {
+TEST_CASE("load_tilemap - gap between tilesets returns error") {
   const auto dir = temp_dir("gap");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
@@ -278,7 +278,7 @@ TEST_CASE("load_tilemap — gap between tilesets returns error") {
 
 // ── Error: duplicate first_gid ────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — duplicate first_gid returns error") {
+TEST_CASE("load_tilemap - duplicate first_gid returns error") {
   const auto dir = temp_dir("dup");
   const auto ts_a = dir / "ts_a.json";
   const auto ts_b = dir / "ts_b.json";
@@ -301,7 +301,7 @@ TEST_CASE("load_tilemap — duplicate first_gid returns error") {
 
 // ── Error: GID in layer not covered by any tileset ───────────────────────────
 
-TEST_CASE("load_tilemap — GID in layer beyond tileset range returns error") {
+TEST_CASE("load_tilemap - GID in layer beyond tileset range returns error") {
   const auto dir = temp_dir("gid_range");
   // TILESET_A has 32 tiles (GIDs 0–31); GID 32 is out of range
   const auto map_path = make_single_tileset_map(dir, "0,32");
@@ -312,7 +312,7 @@ TEST_CASE("load_tilemap — GID in layer beyond tileset range returns error") {
 
 // ── Collisions ────────────────────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — absent collisions key produces empty vector") {
+TEST_CASE("load_tilemap - absent collisions key produces empty vector") {
   const auto dir = temp_dir("col_absent");
   const auto map_path = make_single_tileset_map(dir);
   const auto tm_result = corundum::world::tilemap::load_tilemap(disk(), map_path);
@@ -321,7 +321,7 @@ TEST_CASE("load_tilemap — absent collisions key produces empty vector") {
   CHECK(m.collisions.size() == 0);
 }
 
-TEST_CASE("load_tilemap — collisions array loads correctly") {
+TEST_CASE("load_tilemap - collisions array loads correctly") {
   const auto dir = temp_dir("col_load");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -346,7 +346,7 @@ TEST_CASE("load_tilemap — collisions array loads correctly") {
   CHECK(m.collisions.rows[1] == doctest::Approx(2.5f));
 }
 
-TEST_CASE("load_tilemap — collision with zero width returns error") {
+TEST_CASE("load_tilemap - collision with zero width returns error") {
   const auto dir = temp_dir("col_zero_w");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -364,7 +364,7 @@ TEST_CASE("load_tilemap — collision with zero width returns error") {
   CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'w' must be positive"});
 }
 
-TEST_CASE("load_tilemap — collision with zero height returns error") {
+TEST_CASE("load_tilemap - collision with zero height returns error") {
   const auto dir = temp_dir("col_zero_h");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -384,7 +384,7 @@ TEST_CASE("load_tilemap — collision with zero height returns error") {
 
 // ── Layer z_index ─────────────────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — absent z_index defaults to 0") {
+TEST_CASE("load_tilemap - absent z_index defaults to 0") {
   const auto dir = temp_dir("zidx_absent");
   const auto map_path = make_single_tileset_map(dir);
   const auto tm_result = corundum::world::tilemap::load_tilemap(disk(), map_path);
@@ -393,7 +393,7 @@ TEST_CASE("load_tilemap — absent z_index defaults to 0") {
   CHECK(m.layers[0].z_index == 0);
 }
 
-TEST_CASE("load_tilemap — z_index is loaded when present") {
+TEST_CASE("load_tilemap - z_index is loaded when present") {
   const auto dir = temp_dir("zidx_present");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -415,7 +415,7 @@ TEST_CASE("load_tilemap — z_index is loaded when present") {
   CHECK(m.layers[1].z_index == 2);
 }
 
-TEST_CASE("load_tilemap — negative z_index is clamped to 0") {
+TEST_CASE("load_tilemap - negative z_index is clamped to 0") {
   const auto dir = temp_dir("zidx_neg");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -433,7 +433,7 @@ TEST_CASE("load_tilemap — negative z_index is clamped to 0") {
   CHECK(m.layers[0].z_index == 0);
 }
 
-TEST_CASE("load_tilemap — depth_sorted defaults to false when absent") {
+TEST_CASE("load_tilemap - depth_sorted defaults to false when absent") {
   const auto dir = temp_dir("depth_sorted_default");
   const auto map_path = make_single_tileset_map(dir);
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
@@ -442,7 +442,7 @@ TEST_CASE("load_tilemap — depth_sorted defaults to false when absent") {
   CHECK(m.layers[0].depth_sorted == false);
 }
 
-TEST_CASE("load_tilemap — depth_sorted is loaded when present") {
+TEST_CASE("load_tilemap - depth_sorted is loaded when present") {
   const auto dir = temp_dir("depth_sorted_true");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -465,7 +465,7 @@ TEST_CASE("load_tilemap — depth_sorted is loaded when present") {
   CHECK(m.layers[1].depth_sorted == true);
 }
 
-TEST_CASE("load_tilemap — collision element missing field returns error") {
+TEST_CASE("load_tilemap - collision element missing field returns error") {
   const auto dir = temp_dir("col_missing");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -485,7 +485,7 @@ TEST_CASE("load_tilemap — collision element missing field returns error") {
 
 // ── schema_version ────────────────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — absent schema_version is treated as version 1 and loads fine") {
+TEST_CASE("load_tilemap - absent schema_version is treated as version 1 and loads fine") {
   const auto dir = temp_dir("schema_absent");
   const auto map_path = make_single_tileset_map(dir);
 
@@ -493,14 +493,14 @@ TEST_CASE("load_tilemap — absent schema_version is treated as version 1 and lo
   CHECK(result.has_value());
 }
 
-TEST_CASE("load_tilemap — explicit current schema_version loads fine") {
+TEST_CASE("load_tilemap - explicit current schema_version loads fine") {
   const auto dir = temp_dir("schema_current");
   const auto map_path = make_schema_map(dir, corundum::world::tilemap::k_tilemap_schema_version);
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
   CHECK(result.has_value());
 }
 
-TEST_CASE("load_tilemap — schema_version newer than supported returns error") {
+TEST_CASE("load_tilemap - schema_version newer than supported returns error") {
   const auto dir = temp_dir("schema_future");
   const auto map_path = make_schema_map(dir, corundum::world::tilemap::k_tilemap_schema_version + 1);
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
@@ -510,7 +510,7 @@ TEST_CASE("load_tilemap — schema_version newer than supported returns error") 
                                        map_path.string()));
 }
 
-TEST_CASE("load_tilemap — schema_version zero (invalid) returns error") {
+TEST_CASE("load_tilemap - schema_version zero (invalid) returns error") {
   const auto dir = temp_dir("schema_zero");
   const auto map_path = make_schema_map(dir, 0);
   const auto result = corundum::world::tilemap::load_tilemap(disk(), map_path);
@@ -518,7 +518,7 @@ TEST_CASE("load_tilemap — schema_version zero (invalid) returns error") {
   CHECK_EQ(result.error(), std::format("Tilemap '{}' has invalid schema_version 0", map_path.string()));
 }
 
-TEST_CASE("load_tilemap — schema_version wrong type returns error") {
+TEST_CASE("load_tilemap - schema_version wrong type returns error") {
   const auto dir = temp_dir("schema_wrong_type");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -537,7 +537,7 @@ TEST_CASE("load_tilemap — schema_version wrong type returns error") {
 
 // ── terrain-material tag ─────────────────────────────────────────────────────
 
-TEST_CASE("load_tileset — 'material' field is loaded") {
+TEST_CASE("load_tileset - 'material' field is loaded") {
   const auto dir = temp_dir("tileset_material");
   const auto ts_path = dir / "tileset_a.json";
   const auto *const atlas = R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":16,"height":16,)"
@@ -553,7 +553,7 @@ TEST_CASE("load_tileset — 'material' field is loaded") {
   CHECK(result->material == "stone");
 }
 
-TEST_CASE("load_tileset — absent 'material' field defaults to empty string") {
+TEST_CASE("load_tileset - absent 'material' field defaults to empty string") {
   const auto dir = temp_dir("tileset_material_absent");
   const auto ts_path = dir / "tileset_a.json";
   write_file(ts_path, tileset_a_json());
@@ -565,7 +565,7 @@ TEST_CASE("load_tileset — absent 'material' field defaults to empty string") {
 
 // ── per-tile pivot (sourced from spritepacker's own pivot_x/pivot_y per sprite) ────────────────
 
-TEST_CASE("load_tileset — per-tile pivot is converted from spritepacker's trimmed-box, raster-y "
+TEST_CASE("load_tileset - per-tile pivot is converted from spritepacker's trimmed-box, raster-y "
           "convention into full-frame, bottom-origin") {
   const auto dir = temp_dir("tileset_pivot");
   const auto ts_path = dir / "tileset_a.json";
@@ -583,7 +583,7 @@ TEST_CASE("load_tileset — per-tile pivot is converted from spritepacker's trim
   CHECK(pivot.y == doctest::Approx(0.43));
 }
 
-TEST_CASE("load_tileset — spritepacker's default bottom-center pivot (0.5, 1.0) converts to (0.5, 0.0)") {
+TEST_CASE("load_tileset - spritepacker's default bottom-center pivot (0.5, 1.0) converts to (0.5, 0.0)") {
   const auto dir = temp_dir("tileset_pivot_default");
   const auto ts_path = dir / "tileset_a.json";
   write_file(ts_path, tileset_a_json()); // fixture sprites all use pivot_x=0.5, pivot_y=1.0
@@ -595,7 +595,7 @@ TEST_CASE("load_tileset — spritepacker's default bottom-center pivot (0.5, 1.0
   CHECK(pivot.y == doctest::Approx(0.0));
 }
 
-TEST_CASE("load_tileset — get_tile_pivot on an out-of-range local_id returns the {0.5,0} default") {
+TEST_CASE("load_tileset - get_tile_pivot on an out-of-range local_id returns the {0.5,0} default") {
   const auto dir = temp_dir("tileset_pivot_oob_lookup");
   const auto ts_path = dir / "tileset_a.json";
   write_file(ts_path, tileset_a_json());
@@ -607,7 +607,7 @@ TEST_CASE("load_tileset — get_tile_pivot on an out-of-range local_id returns t
   CHECK(pivot.y == doctest::Approx(0.0));
 }
 
-TEST_CASE("load_tileset — pivot_basis full uses the pivot directly (no trim conversion)") {
+TEST_CASE("load_tileset - pivot_basis full uses the pivot directly (no trim conversion)") {
   const auto dir = temp_dir("tileset_pivot_full");
   const auto ts_path = dir / "tileset_a.json";
   // spritepacker `--pivot full-canvas`: pivots are fractions of the FULL source canvas, y from the
@@ -629,7 +629,7 @@ TEST_CASE("load_tileset — pivot_basis full uses the pivot directly (no trim co
 
 // ── per-tile trim/frame offset ──────────────────────────────────────────────────────────────
 
-TEST_CASE("load_tileset — trim_x/trim_y/source_width/source_height are loaded and resolved via "
+TEST_CASE("load_tileset - trim_x/trim_y/source_width/source_height are loaded and resolved via "
           "get_tile_frame_offset") {
   const auto dir = temp_dir("tileset_trims");
   const auto ts_path = dir / "tileset_a.json";
@@ -646,7 +646,7 @@ TEST_CASE("load_tileset — trim_x/trim_y/source_width/source_height are loaded 
   CHECK(frame.full_height == 256);
 }
 
-TEST_CASE("load_tileset — sprite omitting trim_x/trim_y/source_width/source_height defaults sensibly") {
+TEST_CASE("load_tileset - sprite omitting trim_x/trim_y/source_width/source_height defaults sensibly") {
   const auto dir = temp_dir("tileset_trims_absent");
   const auto ts_path = dir / "tileset_a.json";
   write_file(ts_path, R"({"schema_version":2,"path":"game/assets/textures/tileset.png","width":16,"height":16,)"
@@ -661,7 +661,7 @@ TEST_CASE("load_tileset — sprite omitting trim_x/trim_y/source_width/source_he
   CHECK(frame.full_height == 16);
 }
 
-TEST_CASE("tile_source_rect — returns the atlas rect directly (already trimmed and packed, no grid "
+TEST_CASE("tile_source_rect - returns the atlas rect directly (already trimmed and packed, no grid "
           "cell math)") {
   const auto dir = temp_dir("tileset_source_rect");
   const auto ts_path = dir / "tileset_a.json";
@@ -688,7 +688,7 @@ TEST_CASE("tile_source_rect — returns the atlas rect directly (already trimmed
   CHECK(rect.height == 71);
 }
 
-TEST_CASE("load_tilemap — layer 'material_overrides' is loaded") {
+TEST_CASE("load_tilemap - layer 'material_overrides' is loaded") {
   const auto dir = temp_dir("material_overrides");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -708,7 +708,7 @@ TEST_CASE("load_tilemap — layer 'material_overrides' is loaded") {
   CHECK(layer.material_overrides.at(1) == "snow");
 }
 
-TEST_CASE("load_tilemap — absent 'material_overrides' produces an empty map") {
+TEST_CASE("load_tilemap - absent 'material_overrides' produces an empty map") {
   const auto dir = temp_dir("material_overrides_absent");
   const auto map_path = make_single_tileset_map(dir);
 
@@ -717,7 +717,7 @@ TEST_CASE("load_tilemap — absent 'material_overrides' produces an empty map") 
   CHECK(result->layers[0].material_overrides.empty());
 }
 
-TEST_CASE("load_tilemap — material_overrides entry out of bounds returns error") {
+TEST_CASE("load_tilemap - material_overrides entry out of bounds returns error") {
   const auto dir = temp_dir("material_overrides_oob");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -736,7 +736,7 @@ TEST_CASE("load_tilemap — material_overrides entry out of bounds returns error
                                        "bounds"});
 }
 
-TEST_CASE("load_tilemap — material_overrides entry missing 'material' returns error") {
+TEST_CASE("load_tilemap - material_overrides entry missing 'material' returns error") {
   const auto dir = temp_dir("material_overrides_missing_field");
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -756,7 +756,7 @@ TEST_CASE("load_tilemap — material_overrides entry missing 'material' returns 
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("load_tilemap — shared tileset resolves identically across separate maps (tileset info cached)") {
+TEST_CASE("load_tilemap - shared tileset resolves identically across separate maps (tileset info cached)") {
   // Regression for the chunk-streaming stutter: load_tileset re-parsed every tileset from disk
   // per chunk, so a shared atlas was recomputed (and the file re-read twice) for each chunk. The
   // resolved TilesetInfo is now cached per source path. Two maps referencing the SAME atlas must
@@ -832,7 +832,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("load_tilemap — collision elevation is loaded") {
+TEST_CASE("load_tilemap - collision elevation is loaded") {
   const auto dir = temp_dir("col_elevation");
   const auto map_path = make_collision_extra_map(dir, "collisions", R"(,"elevation":7)");
 
@@ -842,7 +842,7 @@ TEST_CASE("load_tilemap — collision elevation is loaded") {
   CHECK(tm_result->collisions.elevations[0] == 7);
 }
 
-TEST_CASE("load_tilemap — collision elevation wrong type returns error instead of throwing") {
+TEST_CASE("load_tilemap - collision elevation wrong type returns error instead of throwing") {
   const auto dir = temp_dir("col_elevation_type");
   const auto map_path = make_collision_extra_map(dir, "collisions", R"(,"elevation":"high")");
 
@@ -851,7 +851,7 @@ TEST_CASE("load_tilemap — collision elevation wrong type returns error instead
   CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'elevation' has wrong type (expected integer)"});
 }
 
-TEST_CASE("load_tilemap — collision elevation out of range returns error") {
+TEST_CASE("load_tilemap - collision elevation out of range returns error") {
   const auto dir = temp_dir("col_elevation_range");
   const auto map_path = make_collision_extra_map(dir, "collisions", R"(,"elevation":300)");
 
@@ -860,7 +860,7 @@ TEST_CASE("load_tilemap — collision elevation out of range returns error") {
   CHECK_EQ(result.error(), std::string{"Tilemap 't' collisions[0] 'elevation' value 300 out of range [0, 255]"});
 }
 
-TEST_CASE("load_tilemap — collision_triangles elevation wrong type returns error") {
+TEST_CASE("load_tilemap - collision_triangles elevation wrong type returns error") {
   const auto dir = temp_dir("tri_elevation_type");
   const auto map_path = make_collision_extra_map(dir, "collision_triangles", R"(,"elevation":"bad")");
 
@@ -872,7 +872,7 @@ TEST_CASE("load_tilemap — collision_triangles elevation wrong type returns err
 
 // ── Layer elevation ──────────────────────────────────────────────────────────
 
-TEST_CASE("load_tilemap — layer elevation is loaded") {
+TEST_CASE("load_tilemap - layer elevation is loaded") {
   const auto dir = temp_dir("layer_elevation");
   const auto map_path = make_elevation_map(dir, R"(["0,3"])");
 
@@ -883,7 +883,7 @@ TEST_CASE("load_tilemap — layer elevation is loaded") {
   CHECK(tm_result->layers[0].elevation[1] == 3);
 }
 
-TEST_CASE("load_tilemap — layer elevation row count mismatch returns error") {
+TEST_CASE("load_tilemap - layer elevation row count mismatch returns error") {
   const auto dir = temp_dir("layer_elevation_rows");
   const auto map_path = make_elevation_map(dir, R"(["0,0","1,1"])");
 
@@ -892,7 +892,7 @@ TEST_CASE("load_tilemap — layer elevation row count mismatch returns error") {
   CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row count mismatch: expected 1, got 2"});
 }
 
-TEST_CASE("load_tilemap — layer elevation short row returns error") {
+TEST_CASE("load_tilemap - layer elevation short row returns error") {
   const auto dir = temp_dir("layer_elevation_short");
   const auto map_path = make_elevation_map(dir, R"(["0"])");
 
@@ -901,7 +901,7 @@ TEST_CASE("load_tilemap — layer elevation short row returns error") {
   CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row 0 has 1 values, expected 2"});
 }
 
-TEST_CASE("load_tilemap — layer elevation non-integer value returns error") {
+TEST_CASE("load_tilemap - layer elevation non-integer value returns error") {
   const auto dir = temp_dir("layer_elevation_type");
   const auto map_path = make_elevation_map(dir, R"(["0,x"])");
 
@@ -910,7 +910,7 @@ TEST_CASE("load_tilemap — layer elevation non-integer value returns error") {
   CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row 0 value 1: not an integer"});
 }
 
-TEST_CASE("load_tilemap — layer elevation out of range returns error") {
+TEST_CASE("load_tilemap - layer elevation out of range returns error") {
   const auto dir = temp_dir("layer_elevation_range");
   const auto map_path = make_elevation_map(dir, R"(["0,300"])");
 
@@ -919,7 +919,7 @@ TEST_CASE("load_tilemap — layer elevation out of range returns error") {
   CHECK_EQ(result.error(), std::string{"Tilemap 't' layer 'g' elevation row 0 col 1: value 300 out of range [0, 255]"});
 }
 
-TEST_CASE("load_tilemap — layer elevation non-array returns error") {
+TEST_CASE("load_tilemap - layer elevation non-array returns error") {
   const auto dir = temp_dir("layer_elevation_not_array");
   const auto map_path = make_elevation_map(dir, R"(42)");
 

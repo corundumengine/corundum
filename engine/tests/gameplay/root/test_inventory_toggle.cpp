@@ -40,7 +40,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move the cursor") {
+TEST_CASE("inventory - I toggles the panel and freezes the player, arrows move the cursor") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -97,7 +97,7 @@ TEST_CASE("inventory — I toggles the panel and freezes the player, arrows move
   engine.cleanup();
 }
 
-TEST_CASE("inventory — Activate equips the highlighted item and Activate again unequips it") {
+TEST_CASE("inventory - Activate equips the highlighted item and Activate again unequips it") {
   using corundum::gameplay::item::Item;
   using corundum::gameplay::item::ItemCategory;
   using corundum::gameplay::item::WeaponData;
@@ -144,7 +144,7 @@ TEST_CASE("inventory — Activate equips the highlighted item and Activate again
   engine.cleanup();
 }
 
-TEST_CASE("inventory — rows are built once on open and not rebuilt while it stays open") {
+TEST_CASE("inventory - rows are built once on open and not rebuilt while it stays open") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 

@@ -67,7 +67,7 @@ TEST_CASE("engine events: on_event hook returning false falls through to WARN") 
   CHECK(pending.empty());
 }
 
-TEST_CASE("engine events: on_event hook unset — pending cleared and built-in dispatch works") {
+TEST_CASE("engine events: on_event hook unset - pending cleared and built-in dispatch works") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
 

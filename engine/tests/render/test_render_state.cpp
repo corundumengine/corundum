@@ -249,7 +249,7 @@ TEST_CASE("render: a normal single-step frame still blends the camera between sn
   CHECK(renderer.last_zoom() == doctest::Approx(1.75f));
 }
 
-TEST_CASE("elevation_under — negative col_f returns 0 (no chunk at floor cell), not the truncated cell's elevation") {
+TEST_CASE("elevation_under - negative col_f returns 0 (no chunk at floor cell), not the truncated cell's elevation") {
   // Latent bug: elevation_under used `static_cast<int>(col_f)` which truncates toward
   // zero, so col_f = -0.5 became col = 0 and the lookup went to chunk (0, 0) cell (0, ...).
   // Floor gives col = -1, identifying the true cell as belonging to chunk (-1, 0) — which
@@ -410,7 +410,7 @@ TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-fron
                                }));
 }
 
-TEST_CASE("ChunkWindow — a failed chunk is known but not active") {
+TEST_CASE("ChunkWindow - a failed chunk is known but not active") {
   render_data::ChunkWindow window;
   const tilemap::ChunkCoord c{.col = 2, .row = 1};
   CHECK_FALSE(window.has(c));
@@ -420,7 +420,7 @@ TEST_CASE("ChunkWindow — a failed chunk is known but not active") {
   CHECK_FALSE(window.is_active(c));
 }
 
-TEST_CASE("ChunkWindow — prune_pending drops coords the window has left") {
+TEST_CASE("ChunkWindow - prune_pending drops coords the window has left") {
   render_data::ChunkWindow window;
   window.enqueue_pending({.col = 1, .row = 0});
   window.enqueue_pending({.col = 5, .row = 0});

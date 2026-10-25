@@ -52,7 +52,7 @@ TEST_CASE("UIStack: popping an empty stack is a no-op") {
   CHECK(stack.empty());
 }
 
-TEST_CASE("UIStack: pushing Exploring is ignored — it is the empty-stack base") {
+TEST_CASE("UIStack: pushing Exploring is ignored - it is the empty-stack base") {
   UIStack stack;
   stack.push(GameMode::Exploring);
   CHECK(stack.empty());

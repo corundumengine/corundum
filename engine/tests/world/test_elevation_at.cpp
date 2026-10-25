@@ -18,7 +18,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("elevation_at — single z=0 layer with elevation data") {
+TEST_CASE("elevation_at - single z=0 layer with elevation data") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -32,7 +32,7 @@ TEST_CASE("elevation_at — single z=0 layer with elevation data") {
   CHECK(ctt::elevation_at(tm, 1, 1) == 3);
 }
 
-TEST_CASE("elevation_at — topmost z=0 layer with a tile at the cell wins") {
+TEST_CASE("elevation_at - topmost z=0 layer with a tile at the cell wins") {
   auto tm = make_2x2_map();
 
   ctt::TilemapLayer bottom;
@@ -52,7 +52,7 @@ TEST_CASE("elevation_at — topmost z=0 layer with a tile at the cell wins") {
   CHECK(ctt::elevation_at(tm, 1, 0) == 1); // top layer empty here — falls through to bottom
 }
 
-TEST_CASE("elevation_at — empty elevation vector defaults to 0") {
+TEST_CASE("elevation_at - empty elevation vector defaults to 0") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -63,7 +63,7 @@ TEST_CASE("elevation_at — empty elevation vector defaults to 0") {
   CHECK(ctt::elevation_at(tm, 0, 0) == 0);
 }
 
-TEST_CASE("elevation_at — z_index > 0 layers are ignored") {
+TEST_CASE("elevation_at - z_index > 0 layers are ignored") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer above;
   above.z_index = 1;
@@ -74,7 +74,7 @@ TEST_CASE("elevation_at — z_index > 0 layers are ignored") {
   CHECK(ctt::elevation_at(tm, 0, 0) == 0);
 }
 
-TEST_CASE("elevation_at — out-of-bounds col/row returns 0, not UB") {
+TEST_CASE("elevation_at - out-of-bounds col/row returns 0, not UB") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -90,7 +90,7 @@ TEST_CASE("elevation_at — out-of-bounds col/row returns 0, not UB") {
 
 // ── ramp_axis_at / interpolated_elevation_at ─────────────────────────────────
 
-TEST_CASE("ramp_axis_at — resolves a marked cell, nullopt elsewhere") {
+TEST_CASE("ramp_axis_at - resolves a marked cell, nullopt elsewhere") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -104,7 +104,7 @@ TEST_CASE("ramp_axis_at — resolves a marked cell, nullopt elsewhere") {
   CHECK_FALSE(ctt::ramp_axis_at(tm, -1, 0).has_value());
 }
 
-TEST_CASE("interpolated_elevation_at — non-ramp cell falls back to the discrete elevation") {
+TEST_CASE("interpolated_elevation_at - non-ramp cell falls back to the discrete elevation") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer layer;
   layer.z_index = 0;
@@ -116,7 +116,7 @@ TEST_CASE("interpolated_elevation_at — non-ramp cell falls back to the discret
   CHECK(ctt::interpolated_elevation_at(tm, 1.5f, 0.5f) == doctest::Approx(10.f));
 }
 
-TEST_CASE("interpolated_elevation_at — a north-south ramp blends between its neighbors") {
+TEST_CASE("interpolated_elevation_at - a north-south ramp blends between its neighbors") {
   // 1x3 column: (0,0) high, (0,1) is the ramp, (0,2) low.
   ctt::Tilemap tm;
   tm.width = 1;
@@ -140,7 +140,7 @@ TEST_CASE("interpolated_elevation_at — a north-south ramp blends between its n
 
 // ── in_bounds ─────────────────────────────────────────────────────────────────
 
-TEST_CASE("in_bounds — returns true for valid indices") {
+TEST_CASE("in_bounds - returns true for valid indices") {
   ctt::Tilemap tm;
   tm.width = 3;
   tm.height = 4;
@@ -149,7 +149,7 @@ TEST_CASE("in_bounds — returns true for valid indices") {
   CHECK(ctt::in_bounds(tm, 1, 2));
 }
 
-TEST_CASE("in_bounds — returns false for negative and overflow indices") {
+TEST_CASE("in_bounds - returns false for negative and overflow indices") {
   ctt::Tilemap tm;
   tm.width = 3;
   tm.height = 4;
@@ -159,7 +159,7 @@ TEST_CASE("in_bounds — returns false for negative and overflow indices") {
   CHECK_FALSE(ctt::in_bounds(tm, 0, 4));
 }
 
-TEST_CASE("in_bounds — disambiguates OOB sentinel from legitimate zero elevation") {
+TEST_CASE("in_bounds - disambiguates OOB sentinel from legitimate zero elevation") {
   ctt::Tilemap tm;
   tm.width = 2;
   tm.height = 2;

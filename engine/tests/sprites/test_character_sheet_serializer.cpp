@@ -149,7 +149,7 @@ TEST_CASE("character sheet walk_around_offset is omitted at its default and roun
   }
 }
 
-TEST_CASE("load_character_sheet — fps defaults to 0.f when absent") {
+TEST_CASE("load_character_sheet - fps defaults to 0.f when absent") {
   const auto dir = temp_dir("fps_default");
   const auto path = dir / "sheet.json";
   write_file(

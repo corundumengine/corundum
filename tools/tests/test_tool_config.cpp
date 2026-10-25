@@ -96,7 +96,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("load_tool_config — --config resolves paths against the config's directory") {
+TEST_CASE("load_tool_config - --config resolves paths against the config's directory") {
   const fs::path dir = make_temp_dir();
   const fs::path config_path = dir / "tools.json";
   write_file(config_path, R"({
@@ -121,7 +121,7 @@ TEST_CASE("load_tool_config — --config resolves paths against the config's dir
   fs::remove_all(dir);
 }
 
-TEST_CASE("load_tool_config — missing fields fall back to defaults") {
+TEST_CASE("load_tool_config - missing fields fall back to defaults") {
   const fs::path dir = make_temp_dir();
   const fs::path config_path = dir / "tools.json";
   write_file(config_path, "{}");
@@ -139,7 +139,7 @@ TEST_CASE("load_tool_config — missing fields fall back to defaults") {
   fs::remove_all(dir);
 }
 
-TEST_CASE("load_tool_config — reports a missing config file") {
+TEST_CASE("load_tool_config - reports a missing config file") {
   Args args({"tool", "--config", "/corundum/definitely/not/here/tools.json"});
   const auto cfg = load_tool_config(args.argc(), args.argv());
 
@@ -147,7 +147,7 @@ TEST_CASE("load_tool_config — reports a missing config file") {
   CHECK(cfg.error().starts_with("Cannot load tool config"));
 }
 
-TEST_CASE("load_tool_config — rejects a non-object JSON document") {
+TEST_CASE("load_tool_config - rejects a non-object JSON document") {
   const fs::path dir = make_temp_dir();
   const fs::path config_path = dir / "tools.json";
   write_file(config_path, "[1, 2, 3]");
@@ -161,7 +161,7 @@ TEST_CASE("load_tool_config — rejects a non-object JSON document") {
   fs::remove_all(dir);
 }
 
-TEST_CASE("load_tool_config — CORUNDUM_TOOLS_CONFIG is used when --config is absent") {
+TEST_CASE("load_tool_config - CORUNDUM_TOOLS_CONFIG is used when --config is absent") {
   const fs::path dir = make_temp_dir();
   const fs::path config_path = dir / "tools.json";
   write_file(config_path, R"({"tile_diamond_w": 32})");

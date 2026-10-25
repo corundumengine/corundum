@@ -98,7 +98,7 @@ TEST_CASE("WorldManifest::in_bounds") {
   CHECK_FALSE(m.in_bounds({0, 8}));
 }
 
-TEST_CASE("chunk_at_cart — origin maps to (0,0)") {
+TEST_CASE("chunk_at_cart - origin maps to (0,0)") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -111,7 +111,7 @@ TEST_CASE("chunk_at_cart — origin maps to (0,0)") {
   CHECK(chunk_at_cart(0.f, 0.f, m, 16, 2.f) == ChunkCoord{0, 0});
 }
 
-TEST_CASE("chunk_at_cart — center of world") {
+TEST_CASE("chunk_at_cart - center of world") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart_center");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -124,7 +124,7 @@ TEST_CASE("chunk_at_cart — center of world") {
   CHECK(chunk_at_cart(32768.f, 16384.f, m, 16, 2.f) == ChunkCoord{8, 4});
 }
 
-TEST_CASE("chunk_at_cart — clamped at world edge") {
+TEST_CASE("chunk_at_cart - clamped at world edge") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("chunk_at_cart_clamp");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -138,7 +138,7 @@ TEST_CASE("chunk_at_cart — clamped at world edge") {
   CHECK(chunk_at_cart(-1.f, -1.f, m, 16, 2.f) == ChunkCoord{0, 0});
 }
 
-TEST_CASE("chunk_origin_px — (0,0) at world origin") {
+TEST_CASE("chunk_origin_px - (0,0) at world origin") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("origin_px");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -151,7 +151,7 @@ TEST_CASE("chunk_origin_px — (0,0) at world origin") {
   CHECK(oy == doctest::Approx(0.f));
 }
 
-TEST_CASE("chunk_origin_px — (1,0) offset") {
+TEST_CASE("chunk_origin_px - (1,0) offset") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("origin_1_0");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -165,7 +165,7 @@ TEST_CASE("chunk_origin_px — (1,0) offset") {
   CHECK(oy == doctest::Approx(0.f));
 }
 
-TEST_CASE("world_bounds_iso for 16×8 manifest") {
+TEST_CASE("world_bounds_iso for 16x8 manifest") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("world_bounds");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -185,7 +185,7 @@ TEST_CASE("world_bounds_iso for 16×8 manifest") {
   CHECK(w == doctest::Approx(h * 2.f)); // half_th = half_tw / 2, so height is half of width
 }
 
-TEST_CASE("active_chunk_coords — center of world, radius=1") {
+TEST_CASE("active_chunk_coords - center of world, radius=1") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_center");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -197,7 +197,7 @@ TEST_CASE("active_chunk_coords — center of world, radius=1") {
   CHECK(coords.size() == 9);
 }
 
-TEST_CASE("active_chunk_coords — top-left corner, radius=1 clamped") {
+TEST_CASE("active_chunk_coords - top-left corner, radius=1 clamped") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_corner");
   write_file(dir / "manifest.json", k_manifest_json);
@@ -209,7 +209,7 @@ TEST_CASE("active_chunk_coords — top-left corner, radius=1 clamped") {
   CHECK(coords.size() == 4); // only bottom-right quadrant of 3×3 is in bounds
 }
 
-TEST_CASE("active_chunk_coords — bottom-right corner clamped") {
+TEST_CASE("active_chunk_coords - bottom-right corner clamped") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("active_br");
   write_file(dir / "manifest.json", k_manifest_json);

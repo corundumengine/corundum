@@ -13,7 +13,7 @@ namespace tilemap = corundum::world::tilemap;
 namespace render_data = corundum::render;
 namespace render_system = corundum::render;
 
-TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with tile-unit offsets") {
+TEST_CASE("rebuild_collision - world mode aggregates rects across chunks with tile-unit offsets") {
   render_data::RenderState state;
   auto &world_area = state.area.emplace<render_data::WorldArea>();
   world_area.manifest.chunk_size = 16;
@@ -61,7 +61,7 @@ TEST_CASE("rebuild_collision — world mode aggregates rects across chunks with 
   CHECK_EQ(triangles.cuts[0], tilemap::TriangleCut::NorthWest);
 }
 
-TEST_CASE("rebuild_collision — world mode: vertically adjacent chunk offsets by row, not col") {
+TEST_CASE("rebuild_collision - world mode: vertically adjacent chunk offsets by row, not col") {
   render_data::RenderState state;
   auto &world_area = state.area.emplace<render_data::WorldArea>();
   world_area.manifest.chunk_size = 8;
@@ -83,7 +83,7 @@ TEST_CASE("rebuild_collision — world mode: vertically adjacent chunk offsets b
   CHECK_EQ(collisions.rows[0], doctest::Approx(2.f + (2.f * 8.f)));
 }
 
-TEST_CASE("rebuild_collision — empty active_chunks is a no-op") {
+TEST_CASE("rebuild_collision - empty active_chunks is a no-op") {
   render_data::RenderState state;
   auto &world_area = state.area.emplace<render_data::WorldArea>();
   world_area.manifest.chunk_size = 16;

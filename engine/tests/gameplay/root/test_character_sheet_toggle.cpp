@@ -43,7 +43,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("character sheet — P toggles the sheet, values are sampled on open, Esc closes") {
+TEST_CASE("character sheet - P toggles the sheet, values are sampled on open, Esc closes") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -80,7 +80,7 @@ TEST_CASE("character sheet — P toggles the sheet, values are sampled on open, 
   engine.cleanup();
 }
 
-TEST_CASE("character sheet — the hotkey is ignored while another screen is open") {
+TEST_CASE("character sheet - the hotkey is ignored while another screen is open") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -98,7 +98,7 @@ TEST_CASE("character sheet — the hotkey is ignored while another screen is ope
   engine.cleanup();
 }
 
-TEST_CASE("character sheet — navigation and Activate equip then unequip the highlighted item") {
+TEST_CASE("character sheet - navigation and Activate equip then unequip the highlighted item") {
   using corundum::gameplay::item::Item;
   using corundum::gameplay::item::ItemCategory;
   using corundum::gameplay::item::WeaponData;

@@ -321,7 +321,7 @@ TEST_CASE("World flush_deletions skips an entity despawned directly after it was
   CHECK(w.entities.alive() == 0u);
 }
 
-TEST_CASE("footprint_of — the box is centred on the tile the entity stands on") {
+TEST_CASE("footprint_of - the box is centred on the tile the entity stands on") {
   const GridBox box = footprint_of(8.f, 11.f, 1.f, 0.5f);
 
   CHECK(box.col == doctest::Approx(8.f));
@@ -334,7 +334,7 @@ TEST_CASE("footprint_of — the box is centred on the tile the entity stands on"
   CHECK(box.row + (box.row_span * 0.5f) == doctest::Approx(11.5f));
 }
 
-TEST_CASE("position_of — inverts footprint_of") {
+TEST_CASE("position_of - inverts footprint_of") {
   // The pair has to stay in step: the physics solve converts a resolved box back to a
   // position, so a drifted inverse would slide every entity off its own footprint.
   const Position square = position_of(footprint_of(8.f, 11.f, 1.f, 0.5f));

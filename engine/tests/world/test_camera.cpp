@@ -22,7 +22,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("apply_zoom — no-op when zoom_delta is zero") {
+TEST_CASE("apply_zoom - no-op when zoom_delta is zero") {
   Camera camera{10.f, 20.f, 1.5f};
   camera.apply_zoom(0.f, 100.f, 50.f, k_min_zoom, k_max_zoom);
   CHECK(camera.x == doctest::Approx(10.f));
@@ -30,7 +30,7 @@ TEST_CASE("apply_zoom — no-op when zoom_delta is zero") {
   CHECK(camera.zoom == doctest::Approx(1.5f));
 }
 
-TEST_CASE("apply_zoom — keeps the mouse-cursor anchor's world point fixed") {
+TEST_CASE("apply_zoom - keeps the mouse-cursor anchor's world point fixed") {
   Camera camera{5.f, -3.f, 1.f};
   constexpr float anchor_x{400.f};
   constexpr float anchor_y{250.f};
@@ -47,7 +47,7 @@ TEST_CASE("apply_zoom — keeps the mouse-cursor anchor's world point fixed") {
   CHECK(world_y_after == doctest::Approx(world_y_before));
 }
 
-TEST_CASE("apply_zoom — keeps the screen-center anchor's world point fixed on zoom out") {
+TEST_CASE("apply_zoom - keeps the screen-center anchor's world point fixed on zoom out") {
   Camera camera{100.f, 60.f, 2.f};
   constexpr float anchor_x{960.f};
   constexpr float anchor_y{540.f};
@@ -64,19 +64,19 @@ TEST_CASE("apply_zoom — keeps the screen-center anchor's world point fixed on 
   CHECK(world_y_after == doctest::Approx(world_y_before));
 }
 
-TEST_CASE("apply_zoom — clamps to max_zoom") {
+TEST_CASE("apply_zoom - clamps to max_zoom") {
   Camera camera{0.f, 0.f, 2.9f};
   camera.apply_zoom(5.f, 0.f, 0.f, k_min_zoom, k_max_zoom);
   CHECK(camera.zoom == doctest::Approx(k_max_zoom));
 }
 
-TEST_CASE("apply_zoom — clamps to min_zoom") {
+TEST_CASE("apply_zoom - clamps to min_zoom") {
   Camera camera{0.f, 0.f, 0.55f};
   camera.apply_zoom(-5.f, 0.f, 0.f, k_min_zoom, k_max_zoom);
   CHECK(camera.zoom == doctest::Approx(k_min_zoom));
 }
 
-TEST_CASE("apply_zoom — already-clamped zoom stays put and camera position is untouched") {
+TEST_CASE("apply_zoom - already-clamped zoom stays put and camera position is untouched") {
   Camera camera{7.f, 9.f, k_max_zoom};
   camera.apply_zoom(1.f, 100.f, 100.f, k_min_zoom, k_max_zoom);
   CHECK(camera.zoom == doctest::Approx(k_max_zoom));
@@ -84,7 +84,7 @@ TEST_CASE("apply_zoom — already-clamped zoom stays put and camera position is 
   CHECK(camera.y == doctest::Approx(9.f));
 }
 
-TEST_CASE("follow_player — zoomed-in viewport clamps to a smaller effective world extent") {
+TEST_CASE("follow_player - zoomed-in viewport clamps to a smaller effective world extent") {
   MapView map;
   map.world_w_px = 2000.f;
   map.world_h_px = 2000.f;
@@ -103,7 +103,7 @@ TEST_CASE("follow_player — zoomed-in viewport clamps to a smaller effective wo
   CHECK(camera.y == doctest::Approx(map.world_h_px - eff_h));
 }
 
-TEST_CASE("follow_player — at zoom 1, matches the un-zoomed clamp bound") {
+TEST_CASE("follow_player - at zoom 1, matches the un-zoomed clamp bound") {
   MapView map;
   map.world_w_px = 500.f;
   map.world_h_px = 500.f;
@@ -118,7 +118,7 @@ TEST_CASE("follow_player — at zoom 1, matches the un-zoomed clamp bound") {
   CHECK(camera.y == doctest::Approx((map.world_h_px - win_h) * 0.5f));
 }
 
-TEST_CASE("follow_player — dead zone never exceeds half the viewport on a narrow window") {
+TEST_CASE("follow_player - dead zone never exceeds half the viewport on a narrow window") {
   MapView map;
   map.world_w_px = 1000.f;
   map.world_h_px = 1000.f;

@@ -67,7 +67,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("pick_tile — flat map resolves the tile under the cursor") {
+TEST_CASE("pick_tile - flat map resolves the tile under the cursor") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
   const Camera camera{.x = 0.f, .y = 0.f};
@@ -79,7 +79,7 @@ TEST_CASE("pick_tile — flat map resolves the tile under the cursor") {
   CHECK(result->row == 0);
 }
 
-TEST_CASE("pick_tile — applies camera offset before inverting") {
+TEST_CASE("pick_tile - applies camera offset before inverting") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
   // Shift the camera so the same tile is now hit from a different window-space position.
@@ -90,7 +90,7 @@ TEST_CASE("pick_tile — applies camera offset before inverting") {
   CHECK(result->row == 0);
 }
 
-TEST_CASE("pick_tile — topmost-first: a raised tile wins over the lower cell it overhangs") {
+TEST_CASE("pick_tile - topmost-first: a raised tile wins over the lower cell it overhangs") {
   const Tilemap tm = make_overlap_map();
   const MapView map = make_view(tm);
   const Camera camera{.x = 0.f, .y = 0.f};
@@ -104,7 +104,7 @@ TEST_CASE("pick_tile — topmost-first: a raised tile wins over the lower cell i
   CHECK(result->row == 1);
 }
 
-TEST_CASE("pick_tile — out of bounds returns nullopt") {
+TEST_CASE("pick_tile - out of bounds returns nullopt") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
   const Camera camera{.x = 0.f, .y = 0.f};
@@ -112,7 +112,7 @@ TEST_CASE("pick_tile — out of bounds returns nullopt") {
   CHECK_FALSE(result.has_value());
 }
 
-TEST_CASE("pick_tile — zoom scales the screen-to-world conversion") {
+TEST_CASE("pick_tile - zoom scales the screen-to-world conversion") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
   Camera camera{.x = 0.f, .y = 0.f};
@@ -126,7 +126,7 @@ TEST_CASE("pick_tile — zoom scales the screen-to-world conversion") {
   CHECK(result->row == 0);
 }
 
-TEST_CASE("pick_tile — null elevation_map (World mode) returns nullopt") {
+TEST_CASE("pick_tile - null elevation_map (World mode) returns nullopt") {
   MapView map;
   map.half_tw = k_half_tw;
   map.half_th = k_half_th;
@@ -136,7 +136,7 @@ TEST_CASE("pick_tile — null elevation_map (World mode) returns nullopt") {
   CHECK_FALSE(result.has_value());
 }
 
-TEST_CASE("pick_tile — non-positive zoom or degenerate iso params return nullopt") {
+TEST_CASE("pick_tile - non-positive zoom or degenerate iso params return nullopt") {
   const Tilemap tm = make_flat_map();
   const MapView map = make_view(tm);
 

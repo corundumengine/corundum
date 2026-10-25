@@ -66,7 +66,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel closes") {
+TEST_CASE("journal - J toggles the panel, arrows wrap the cursor, Cancel closes") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -105,7 +105,7 @@ TEST_CASE("journal — J toggles the panel, arrows wrap the cursor, Cancel close
   engine.cleanup();
 }
 
-TEST_CASE("journal — an empty journal opens without a cursor move crashing") {
+TEST_CASE("journal - an empty journal opens without a cursor move crashing") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -123,7 +123,7 @@ TEST_CASE("journal — an empty journal opens without a cursor move crashing") {
   engine.cleanup();
 }
 
-TEST_CASE("journal — sub-tab triggers cycle tabs and reset the cursor") {
+TEST_CASE("journal - sub-tab triggers cycle tabs and reset the cursor") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -157,7 +157,7 @@ TEST_CASE("journal — sub-tab triggers cycle tabs and reset the cursor") {
   engine.cleanup();
 }
 
-TEST_CASE("journal — Activate tracks the highlighted Active quest, exclusively, and toggles off") {
+TEST_CASE("journal - Activate tracks the highlighted Active quest, exclusively, and toggles off") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -187,7 +187,7 @@ TEST_CASE("journal — Activate tracks the highlighted Active quest, exclusively
   engine.cleanup();
 }
 
-TEST_CASE("journal — a tracked Active quest moves to the Completed tab when it completes") {
+TEST_CASE("journal - a tracked Active quest moves to the Completed tab when it completes") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 

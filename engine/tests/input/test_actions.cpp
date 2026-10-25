@@ -14,31 +14,31 @@ using corundum::input::pressed_actions;
 
 // ── InputState::is_held / is_pressed ─────────────────────────────────────────
 
-TEST_CASE("is_held — returns true after setting held bit") {
+TEST_CASE("is_held - returns true after setting held bit") {
   corundum::input::InputState state{};
   state.held.set(static_cast<std::size_t>(Action::MoveUp));
   CHECK(state.is_held(Action::MoveUp));
 }
 
-TEST_CASE("is_held — returns false for unset bit") {
+TEST_CASE("is_held - returns false for unset bit") {
   const corundum::input::InputState state{};
   CHECK_FALSE(state.is_held(Action::Select));
 }
 
-TEST_CASE("is_pressed — returns true after setting pressed bit") {
+TEST_CASE("is_pressed - returns true after setting pressed bit") {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::Quit));
   CHECK(state.is_pressed(Action::Quit));
 }
 
-TEST_CASE("is_pressed — returns false for unset bit") {
+TEST_CASE("is_pressed - returns false for unset bit") {
   const corundum::input::InputState state{};
   CHECK_FALSE(state.is_pressed(Action::Cancel));
 }
 
 // ── clear_pressed ────────────────────────────────────────────────────────────
 
-TEST_CASE("clear_pressed — resets all pressed flags") {
+TEST_CASE("clear_pressed - resets all pressed flags") {
   corundum::input::InputState state{};
   for (std::size_t i = 0; i < k_action_count; ++i) {
     state.pressed.set(i);
@@ -49,7 +49,7 @@ TEST_CASE("clear_pressed — resets all pressed flags") {
   }
 }
 
-TEST_CASE("clear_pressed — does not affect held flags") {
+TEST_CASE("clear_pressed - does not affect held flags") {
   corundum::input::InputState state{};
   state.held.set(static_cast<std::size_t>(Action::MoveUp));
   state.pressed.set(static_cast<std::size_t>(Action::MoveUp));
@@ -59,14 +59,14 @@ TEST_CASE("clear_pressed — does not affect held flags") {
 
 // ── pressed_actions ──────────────────────────────────────────────────────────
 
-TEST_CASE("pressed_actions — returns empty when no actions pressed") {
+TEST_CASE("pressed_actions - returns empty when no actions pressed") {
   const corundum::input::InputState state{};
   const auto result = pressed_actions(state);
   CHECK(result.empty());
   CHECK(result.size() == 0);
 }
 
-TEST_CASE("pressed_actions — returns single pressed action") {
+TEST_CASE("pressed_actions - returns single pressed action") {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::MoveLeft));
   const auto result = pressed_actions(state);
@@ -74,7 +74,7 @@ TEST_CASE("pressed_actions — returns single pressed action") {
   CHECK(result.actions[0] == Action::MoveLeft);
 }
 
-TEST_CASE("pressed_actions — returns multiple pressed actions") {
+TEST_CASE("pressed_actions - returns multiple pressed actions") {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::MoveUp));
   state.pressed.set(static_cast<std::size_t>(Action::Select));
@@ -86,7 +86,7 @@ TEST_CASE("pressed_actions — returns multiple pressed actions") {
   CHECK(result.actions[2] == Action::Quit);
 }
 
-TEST_CASE("pressed_actions — ignores held-only actions") {
+TEST_CASE("pressed_actions - ignores held-only actions") {
   corundum::input::InputState state{};
   state.held.set(static_cast<std::size_t>(Action::MoveDown));
   const auto result = pressed_actions(state);
@@ -95,14 +95,14 @@ TEST_CASE("pressed_actions — ignores held-only actions") {
 
 // ── mouse_click_pressed / Action::Select separation ─────────────────────────────
 
-TEST_CASE("clear_pressed — also resets mouse_click_pressed") {
+TEST_CASE("clear_pressed - also resets mouse_click_pressed") {
   corundum::input::InputState state{};
   state.mouse_click_pressed = true;
   clear_pressed(state);
   CHECK_FALSE(state.mouse_click_pressed);
 }
 
-TEST_CASE("accumulate_input — ORs mouse_click_pressed rather than overwriting") {
+TEST_CASE("accumulate_input - ORs mouse_click_pressed rather than overwriting") {
   corundum::input::InputState dst{};
   dst.mouse_click_pressed = true; // e.g. already raised earlier this fixed-step tick
   corundum::input::InputState src{};
@@ -111,7 +111,7 @@ TEST_CASE("accumulate_input — ORs mouse_click_pressed rather than overwriting"
   CHECK(dst.mouse_click_pressed); // must not be clobbered back to false
 }
 
-TEST_CASE("accumulate_input — a keyboard/gamepad Select press does not raise mouse_click_pressed") {
+TEST_CASE("accumulate_input - a keyboard/gamepad Select press does not raise mouse_click_pressed") {
   // Regression for the bug where Action::Select (shared by mouse click and keyboard/
   // gamepad confirm) was used to gate click-to-move: pressing Enter to confirm dialogue
   // must not look like a click.
@@ -123,7 +123,7 @@ TEST_CASE("accumulate_input — a keyboard/gamepad Select press does not raise m
   CHECK_FALSE(dst.mouse_click_pressed);
 }
 
-TEST_CASE("pressed_actions — range-for iteration works") {
+TEST_CASE("pressed_actions - range-for iteration works") {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::Cancel));
   state.pressed.set(static_cast<std::size_t>(Action::Select));
@@ -138,14 +138,14 @@ TEST_CASE("pressed_actions — range-for iteration works") {
 
 // ── scroll_delta_y ───────────────────────────────────────────────────────────
 
-TEST_CASE("clear_pressed — resets scroll_delta_y") {
+TEST_CASE("clear_pressed - resets scroll_delta_y") {
   corundum::input::InputState state{};
   state.scroll_delta_y = 3.5f;
   clear_pressed(state);
   CHECK(state.scroll_delta_y == 0.f);
 }
 
-TEST_CASE("accumulate_input — sums scroll_delta_y rather than overwriting") {
+TEST_CASE("accumulate_input - sums scroll_delta_y rather than overwriting") {
   corundum::input::InputState dst{};
   dst.scroll_delta_y = 1.f; // wheel notch already accumulated earlier this tick
   corundum::input::InputState src{};
@@ -154,7 +154,7 @@ TEST_CASE("accumulate_input — sums scroll_delta_y rather than overwriting") {
   CHECK(dst.scroll_delta_y == doctest::Approx(3.f));
 }
 
-TEST_CASE("accumulate_input — ORs pressed actions rather than overwriting") {
+TEST_CASE("accumulate_input - ORs pressed actions rather than overwriting") {
   // A press already in dst survives the poll: accumulate_input only ever adds. Only
   // clear_pressed removes it, which is why the fixed-step loop must clear on every step —
   // a step that skips the clear latches its presses until the next one that doesn't.
@@ -171,14 +171,14 @@ TEST_CASE("accumulate_input — ORs pressed actions rather than overwriting") {
 
 // ── ZoomIn / ZoomOut — ordinary held actions, no special-casing ─────────────────
 
-TEST_CASE("ZoomIn/ZoomOut — behave like any other held action") {
+TEST_CASE("ZoomIn/ZoomOut - behave like any other held action") {
   corundum::input::InputState state{};
   state.held.set(static_cast<std::size_t>(Action::ZoomIn));
   CHECK(state.is_held(Action::ZoomIn));
   CHECK_FALSE(state.is_held(Action::ZoomOut));
 }
 
-TEST_CASE("ZoomIn/ZoomOut — participate in pressed_actions like any other action") {
+TEST_CASE("ZoomIn/ZoomOut - participate in pressed_actions like any other action") {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::ZoomOut));
   const auto result = pressed_actions(state);
@@ -186,7 +186,7 @@ TEST_CASE("ZoomIn/ZoomOut — participate in pressed_actions like any other acti
   CHECK(result.actions[0] == Action::ZoomOut);
 }
 
-TEST_CASE("QuickSave/QuickLoad — participate in pressed_actions like any other action") {
+TEST_CASE("QuickSave/QuickLoad - participate in pressed_actions like any other action") {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(Action::QuickSave));
   state.pressed.set(static_cast<std::size_t>(Action::QuickLoad));

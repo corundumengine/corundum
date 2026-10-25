@@ -40,7 +40,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("pixel_to_fractional_tile — flat map (all elev 0) matches current behavior") {
+TEST_CASE("pixel_to_fractional_tile - flat map (all elev 0) matches current behavior") {
   // Sanity baseline: with no elevated cells, the picker returns the cell whose flat
   // projection is under the click — same as the buggy hardcoded-elev=0 path. No
   // regression for non-elevated terrain.
@@ -59,7 +59,7 @@ TEST_CASE("pixel_to_fractional_tile — flat map (all elev 0) matches current be
   CHECK(static_cast<int>(std::floor(frac.y)) == 8);
 }
 
-TEST_CASE("pixel_to_fractional_tile — elevated cell picks itself, not its flat-projected neighbor") {
+TEST_CASE("pixel_to_fractional_tile - elevated cell picks itself, not its flat-projected neighbor") {
   // The bug from plan §1f: cell (0, 0) at elev 5 renders 5*4 = 20 px above where its
   // flat projection would be. Clicking on the visible diamond should pick (0, 0).
   // With elev hardcoded to 0, world_to_tile with elev=0 gives the cell whose flat
@@ -91,7 +91,7 @@ TEST_CASE("pixel_to_fractional_tile — elevated cell picks itself, not its flat
   CHECK(static_cast<int>(std::floor(frac.y)) == 0);
 }
 
-TEST_CASE("screen_to_tile — elevated cell returns correct tile, not flat-projected neighbor") {
+TEST_CASE("screen_to_tile - elevated cell returns correct tile, not flat-projected neighbor") {
   // Verifies the higher-level screen_to_tile wrapper also benefits from elev-aware picking.
   const tilemap::Tilemap tm = make_map_with_elevated_corner(5);
   const std::optional<tools::tilesmith::TileCoord> tile =
@@ -103,7 +103,7 @@ TEST_CASE("screen_to_tile — elevated cell returns correct tile, not flat-proje
   CHECK(tile->row == 0);
 }
 
-TEST_CASE("screen_to_tile — flat map baseline (no regression)") {
+TEST_CASE("screen_to_tile - flat map baseline (no regression)") {
   // No elevated cells: behavior should be identical to the original elev=0 path.
   const tilemap::Tilemap tm = make_map_with_elevated_corner(0);
   // Click somewhere in the middle of the map (cell (8, 8)).
@@ -121,7 +121,7 @@ TEST_CASE("screen_to_tile — flat map baseline (no regression)") {
 }
 
 TEST_CASE(
-    "screen_to_tile — flat overload picks wrong cell on raised diamond (regression for paint_or_erase_elevation)") {
+    "screen_to_tile - flat overload picks wrong cell on raised diamond (regression for paint_or_erase_elevation)") {
   // The exact bug the elevation-paint fix addresses: a click landing on the
   // visible diamond of a raised cell, when fed through the flat (no-map)
   // screen_to_tile overload, resolves to a *different* cell — the one whose

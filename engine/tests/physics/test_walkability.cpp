@@ -60,7 +60,7 @@ namespace {
 
 // ── build_walkability_graph ──────────────────────────────────────────────────
 
-TEST_CASE("build_walkability_graph — disconnects an edge exceeding max_step_height") {
+TEST_CASE("build_walkability_graph - disconnects an edge exceeding max_step_height") {
   const Tilemap tm = make_test_map(1, 1, 50);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
   // (1,1) is elevated 50; its flat neighbor (0,1) should be disconnected both ways.
@@ -68,14 +68,14 @@ TEST_CASE("build_walkability_graph — disconnects an edge exceeding max_step_he
   CHECK_FALSE(g.can_move(0, 1, 1, 1));
 }
 
-TEST_CASE("build_walkability_graph — keeps an edge within max_step_height connected") {
+TEST_CASE("build_walkability_graph - keeps an edge within max_step_height connected") {
   const Tilemap tm = make_test_map(1, 1, 3);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
   CHECK(g.can_move(1, 1, 0, 1));
   CHECK(g.can_move(0, 1, 1, 1));
 }
 
-TEST_CASE("WalkabilityGraph::can_move — multi-cell move is denied (not bypassed to true)") {
+TEST_CASE("WalkabilityGraph::can_move - multi-cell move is denied (not bypassed to true)") {
   // Tunneling guard: a >1-cell move used to bypass the graph entirely (returning true
   // unconditionally), letting fast movement skip past cliff gating. Now denied so the
   // substep loop in update_player is forced to advance one cell at a time and never
@@ -93,7 +93,7 @@ TEST_CASE("WalkabilityGraph::can_move — multi-cell move is denied (not bypasse
   CHECK(g.can_move(1, 1, 1, 1));
 }
 
-TEST_CASE("WalkabilityGraph::can_move — same cell is trivially passable; out-of-bounds stays unblocked; multi-cell is "
+TEST_CASE("WalkabilityGraph::can_move - same cell is trivially passable, out-of-bounds stays unblocked, multi-cell is "
           "denied") {
   const Tilemap tm = make_test_map(1, 1, 50);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
@@ -103,7 +103,7 @@ TEST_CASE("WalkabilityGraph::can_move — same cell is trivially passable; out-o
   CHECK(g.can_move(0, 0, -1, -1));     // target out of bounds — same
 }
 
-TEST_CASE("WalkabilityGraph::set_passable — toggles symmetrically") {
+TEST_CASE("WalkabilityGraph::set_passable - toggles symmetrically") {
   const Tilemap tm = make_test_map(1, 1, 50);
   WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
   REQUIRE_FALSE(g.can_move(1, 1, 0, 1));
@@ -115,7 +115,7 @@ TEST_CASE("WalkabilityGraph::set_passable — toggles symmetrically") {
   CHECK_FALSE(g.can_move(0, 1, 1, 1));
 }
 
-TEST_CASE("WalkabilityGraph::can_move — origin translates the global coords callers pass") {
+TEST_CASE("WalkabilityGraph::can_move - origin translates the global coords callers pass") {
   WalkabilityGraph g;
   g.width = 2;
   g.height = 2;
@@ -136,7 +136,7 @@ TEST_CASE("WalkabilityGraph::can_move — origin translates the global coords ca
 
 // ── resolve_walkability ──────────────────────────────────────────────────────
 
-TEST_CASE("resolve_walkability — no graph is a no-op") {
+TEST_CASE("resolve_walkability - no graph is a no-op") {
   Position pos{.col = 1.5f, .row = 1.5f};
   const Position prev{.col = 0.5f, .row = 1.5f};
   resolve_walkability(pos, prev, std::nullopt);
@@ -144,7 +144,7 @@ TEST_CASE("resolve_walkability — no graph is a no-op") {
   CHECK(pos.row == doctest::Approx(1.5f));
 }
 
-TEST_CASE("resolve_walkability — reverts the column crossing into a disconnected cell") {
+TEST_CASE("resolve_walkability - reverts the column crossing into a disconnected cell") {
   const Tilemap tm = make_test_map(1, 1, 50);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
   Position pos{.col = 1.5f, .row = 0.5f}; // moving into cell (1,0)... col crosses from cell 0 to cell 1 at row 0
@@ -160,7 +160,7 @@ TEST_CASE("resolve_walkability — reverts the column crossing into a disconnect
   CHECK(pos2.col == doctest::Approx(prev2.col));
 }
 
-TEST_CASE("resolve_walkability — leaves position alone when crossing a connected edge") {
+TEST_CASE("resolve_walkability - leaves position alone when crossing a connected edge") {
   const Tilemap tm = make_test_map(1, 1, 3);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
   Position pos{.col = 1.5f, .row = 1.5f};
@@ -170,7 +170,7 @@ TEST_CASE("resolve_walkability — leaves position alone when crossing a connect
   CHECK(pos.row == doctest::Approx(1.5f));
 }
 
-TEST_CASE("resolve_walkability — a two-axis step is gated by the diagonal edge, not the cardinals") {
+TEST_CASE("resolve_walkability - a two-axis step is gated by the diagonal edge, not the cardinals") {
   // Stepping (0,1) -> (1,0) crosses both axes. Every cardinal edge along the way is within
   // max_step_height, but the diagonal itself rises 5 — gating on the cardinals alone would
   // let the entity cut that corner.
@@ -191,7 +191,7 @@ TEST_CASE("resolve_walkability — a two-axis step is gated by the diagonal edge
   CHECK(pos.row == doctest::Approx(prev.row)); // diagonal denied, so the row step reverts
 }
 
-TEST_CASE("resolve_walkability — a two-axis step across a connected diagonal is allowed") {
+TEST_CASE("resolve_walkability - a two-axis step across a connected diagonal is allowed") {
   const std::array<uint8_t, 9> flat{};
   const Tilemap tm = make_elevation_map(flat);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
@@ -205,7 +205,7 @@ TEST_CASE("resolve_walkability — a two-axis step across a connected diagonal i
 
 // ── ramps ─────────────────────────────────────────────────────────────────────
 
-TEST_CASE("build_walkability_graph — a ramp reconnects its axis across a large elevation delta") {
+TEST_CASE("build_walkability_graph - a ramp reconnects its axis across a large elevation delta") {
   // (1,1) is raised 50 (far beyond max_step_height=4) and marked as a north-south ramp.
   const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NorthSouth);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
@@ -223,7 +223,7 @@ TEST_CASE("build_walkability_graph — a ramp reconnects its axis across a large
   CHECK_FALSE(g.can_move(2, 1, 1, 1));
 }
 
-TEST_CASE("build_walkability_graph — an east-west ramp reconnects only its own axis") {
+TEST_CASE("build_walkability_graph - an east-west ramp reconnects only its own axis") {
   const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::EastWest);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
 
@@ -233,7 +233,7 @@ TEST_CASE("build_walkability_graph — an east-west ramp reconnects only its own
   CHECK_FALSE(g.can_move(1, 1, 1, 2));
 }
 
-TEST_CASE("resolve_walkability — an entity can cross a ramp cell in both directions") {
+TEST_CASE("resolve_walkability - an entity can cross a ramp cell in both directions") {
   const Tilemap tm = make_test_map(1, 1, 50, std::pair{1, 1}, RampAxis::NorthSouth);
   const WalkabilityGraph g = build_walkability_graph(tm, /*max_step_height=*/4);
 

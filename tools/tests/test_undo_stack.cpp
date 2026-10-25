@@ -7,7 +7,7 @@
 
 using corundum::toolkit::editor::UndoStack;
 
-TEST_CASE("UndoStack — a fresh stack can neither undo nor redo") {
+TEST_CASE("UndoStack - a fresh stack can neither undo nor redo") {
   UndoStack<int> stack;
   int out = -1;
 
@@ -17,7 +17,7 @@ TEST_CASE("UndoStack — a fresh stack can neither undo nor redo") {
   CHECK_FALSE(stack.redo(out));
 }
 
-TEST_CASE("UndoStack — undo and redo walk the pushed snapshots") {
+TEST_CASE("UndoStack - undo and redo walk the pushed snapshots") {
   UndoStack<int> stack;
   stack.push(1);
   stack.push(2);
@@ -40,7 +40,7 @@ TEST_CASE("UndoStack — undo and redo walk the pushed snapshots") {
   CHECK_FALSE(stack.can_redo());
 }
 
-TEST_CASE("UndoStack — a push after undo discards the redo history") {
+TEST_CASE("UndoStack - a push after undo discards the redo history") {
   UndoStack<int> stack;
   stack.push(1);
   stack.push(2);
@@ -59,7 +59,7 @@ TEST_CASE("UndoStack — a push after undo discards the redo history") {
   CHECK(out == 1);
 }
 
-TEST_CASE("UndoStack — clear resets both directions") {
+TEST_CASE("UndoStack - clear resets both directions") {
   UndoStack<int> stack;
   stack.push(1);
   stack.push(2);
@@ -71,7 +71,7 @@ TEST_CASE("UndoStack — clear resets both directions") {
   CHECK_FALSE(stack.undo(out));
 }
 
-TEST_CASE("UndoStack — depth cap drops the oldest snapshot, keeping the most recent 256") {
+TEST_CASE("UndoStack - depth cap drops the oldest snapshot, keeping the most recent 256") {
   UndoStack<int> stack;
   for (int i = 0; i < 257; ++i)
     stack.push(i);
