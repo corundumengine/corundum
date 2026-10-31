@@ -42,7 +42,7 @@ namespace corundum::gameplay::screens {
     int experience_to_next_level{};
 
     /** Rows the game's ruleset supplies for the Stats column, drawn between Experience and Gold
-     *  in vector order; empty when the ruleset has no character_rows callback. */
+     *  in the order given; empty when the ruleset installs no character_rows callback. */
     std::vector<rules::StatRow> rule_rows{};
 
     int gold{};
@@ -74,7 +74,7 @@ namespace corundum::gameplay::screens {
 
   /** @brief Number of highlightable rows in @p section, always at least 1.
    *
-   *  Stats holds Level, Experience, one row per rule row, and Gold; Equipment holds one row
+   *  Stats holds Level, Experience, one row per ruleset row, and Gold; Equipment holds one row
    *  per known slot (or the single "(empty)" row); Inventory holds one row per held item.
    *
    *  @param info    Character sheet values.

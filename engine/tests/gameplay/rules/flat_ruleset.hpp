@@ -17,9 +17,11 @@ namespace corundum::test {
         .character_rows =
             [](const world::FlagStore &flags) {
               return std::vector<gameplay::rules::StatRow>{
-                  {.label = "Health",
-                   .value = std::format("{} / {}", world::visit_count(flags, "test.health"),
-                                        world::visit_count(flags, "test.max_health")),},
+                  {
+                      .label = "Health",
+                      .value = std::format("{} / {}", world::visit_count(flags, "test.health"),
+                                           world::visit_count(flags, "test.max_health")),
+                  },
               };
             },
     };
