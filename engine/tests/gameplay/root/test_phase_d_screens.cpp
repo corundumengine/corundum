@@ -99,19 +99,19 @@ TEST_CASE("loot: Activate moves one unit from the container to the player") {
   corundum::gameplay::Gameplay gameplay{engine};
   gameplay.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
   gameplay.active_container_id = "chest";
-  engine.flags[std::string{corundum::gameplay::item::container_item_flag_key("chest", "salt")}] = 2;
+  engine.flags[corundum::gameplay::item::container_item_flag_key("chest", "salt")] = 2;
   engine.scene.ui.push(screens::Loot);
 
   REQUIRE(engine.scene.mode() == screens::Loot);
   press(engine, corundum::input::Action::Activate);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{"container.chest.item.salt"}) == 1);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 1);
+  CHECK(corundum::world::visit_count(engine.flags, "container.chest.item.salt") == 1);
+  CHECK(corundum::world::visit_count(engine.flags, "item.salt") == 1);
 
   // Switching panes and activating returns the unit.
   press(engine, corundum::input::Action::MoveRight);
   press(engine, corundum::input::Action::Activate);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{"container.chest.item.salt"}) == 2);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 0);
+  CHECK(corundum::world::visit_count(engine.flags, "container.chest.item.salt") == 2);
+  CHECK(corundum::world::visit_count(engine.flags, "item.salt") == 0);
 
   engine.cleanup();
 }
@@ -134,18 +134,18 @@ TEST_CASE("barter: buying spends gold and grants the item") {
   });
   gameplay.active_shop_id = "corvin";
   engine.scene.ui.push(screens::Barter);
-  engine.flags[std::string{corundum::gameplay::screens::k_gold_flag}] = 20;
+  engine.flags[corundum::gameplay::screens::k_gold_flag] = 20;
 
   REQUIRE(engine.scene.mode() == screens::Barter);
   press(engine, corundum::input::Action::Activate);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 1);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{corundum::gameplay::screens::k_gold_flag}) == 15);
+  CHECK(corundum::world::visit_count(engine.flags, "item.salt") == 1);
+  CHECK(corundum::world::visit_count(engine.flags, corundum::gameplay::screens::k_gold_flag) == 15);
 
   // Switch to Sell and trade it back for half its base price (buy_rate defaults to 0.5).
   press(engine, corundum::input::Action::TabNext);
   press(engine, corundum::input::Action::Activate);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{"item.salt"}) == 0);
-  CHECK(corundum::world::visit_count(engine.flags, std::string{corundum::gameplay::screens::k_gold_flag}) == 20);
+  CHECK(corundum::world::visit_count(engine.flags, "item.salt") == 0);
+  CHECK(corundum::world::visit_count(engine.flags, corundum::gameplay::screens::k_gold_flag) == 20);
 
   engine.cleanup();
 }

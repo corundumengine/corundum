@@ -45,7 +45,7 @@ namespace corundum::gameplay::screens {
 
     /// A number the game may not have written; absent and negative both read as 0.
     int flag_count(const world::FlagStore &flags, std::string_view key) {
-      return std::max(0, world::visit_count(flags, std::string{key}));
+      return std::max(0, world::visit_count(flags, key));
     }
 
     float body_line_height(const ui::PanelStyle &style) noexcept {
@@ -147,7 +147,7 @@ namespace corundum::gameplay::screens {
   CharacterInfo build_character_info(const world::FlagStore &flags, const item::Registry &items,
                                      const rules::Ruleset &ruleset) {
     CharacterInfo info{};
-    info.level = std::max(1, world::visit_count(flags, std::string{k_level_flag}));
+    info.level = std::max(1, world::visit_count(flags, k_level_flag));
     info.experience = flag_count(flags, k_experience_flag);
     info.experience_to_next_level = flag_count(flags, k_next_level_experience_flag);
     if (ruleset.character_rows)

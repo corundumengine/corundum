@@ -21,7 +21,6 @@
 
 #include <cstddef>
 #include <filesystem>
-#include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -57,7 +56,7 @@ TEST_CASE("character sheet - P toggles the sheet, values are sampled on open, Es
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
 
-  engine.flags[std::string{screens::k_experience_flag}] = 10;
+  engine.flags[screens::k_experience_flag] = 10;
 
   // P opens the sheet and samples the current XP.
   press(engine, corundum::input::Action::Character);
@@ -65,7 +64,7 @@ TEST_CASE("character sheet - P toggles the sheet, values are sampled on open, Es
   CHECK(gameplay.character_sheet_info.experience == 10);
 
   // The values are sampled on open: a flag change while open does not retint the panel.
-  engine.flags[std::string{screens::k_experience_flag}] = 99;
+  engine.flags[screens::k_experience_flag] = 99;
   CHECK(gameplay.character_sheet_info.experience == 10);
 
   // P again closes it.

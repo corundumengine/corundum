@@ -5,6 +5,7 @@
 
 #include <flat_map>
 #include <format>
+#include <functional>
 #include <string>
 #include <string_view>
 
@@ -14,15 +15,16 @@ namespace corundum::world {
    *
    * A flag set once has count 1, set twice has count 2; `has_flag` is true for
    * any count >= 1. Internal dialogue keys are prefixed with '_'.
-   * Uses `std::flat_map` for cache-friendly sorted storage.
+   * Uses `std::flat_map` for cache-friendly sorted storage. The transparent `std::less<>` lets
+   * lookups take a `std::string_view` without building a key string.
    */
-  using FlagStore = std::flat_map<std::string, int>;
+  using FlagStore = std::flat_map<std::string, int, std::less<>>;
 
   /** @brief True if @p name has been set at least once.
    *  @param[in] flags The flag store to query.
    *  @param[in] name  Flag name.
    */
-  [[nodiscard]] inline bool has_flag(const FlagStore &flags, const std::string &name) noexcept {
+  [[nodiscard]] inline bool has_flag(const FlagStore &flags, std::string_view name) noexcept {
     const auto it = flags.find(name);
     return it != flags.end() && it->second > 0;
   }
@@ -31,7 +33,7 @@ namespace corundum::world {
    *  @param[in,out] flags The flag store to modify.
    *  @param[in]     name  Flag name.
    */
-  inline void set_flag(FlagStore &flags, const std::string &name) {
+  inline void set_flag(FlagStore &flags, std::string_view name) {
     ++flags[name];
   }
 
@@ -39,7 +41,7 @@ namespace corundum::world {
    *  @param[in,out] flags The flag store to modify.
    *  @param[in]     name  Flag name.
    */
-  inline void clear_flag(FlagStore &flags, const std::string &name) {
+  inline void clear_flag(FlagStore &flags, std::string_view name) {
     flags.erase(name);
   }
 
@@ -48,7 +50,7 @@ namespace corundum::world {
    *  @param[in] name  Flag name.
    *  @return Current count, or 0 if absent.
    */
-  [[nodiscard]] inline int visit_count(const FlagStore &flags, const std::string &name) noexcept {
+  [[nodiscard]] inline int visit_count(const FlagStore &flags, std::string_view name) noexcept {
     const auto it = flags.find(name);
     return it != flags.end() ? it->second : 0;
   }

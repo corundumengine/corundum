@@ -209,7 +209,7 @@ namespace corundum::gameplay {
     /// how it maps to levels is the game's policy, set through `player.level`/`player.xp_next`.
     void handle_grant_xp(Engine &engine, const dialogue::EventAction &ev) {
       if (const int delta = event_int_arg(ev, 0, /*fallback=*/0); delta != 0)
-        engine.flags[std::string{screens::k_experience_flag}] += delta;
+        engine.flags[screens::k_experience_flag] += delta;
     }
 
     /// Accumulate a `reputation(faction, delta)` event into `rep.<faction>`. A non-numeric delta
@@ -984,7 +984,7 @@ namespace corundum::gameplay {
 
       const screens::BarterLayout layout = screens::barter_panel_layout(
           *engine.renderer, engine.render.panel_skin.style, shop.name,
-          world::visit_count(engine.flags, std::string{screens::k_gold_flag}), lines, gameplay.barter_screen,
+          world::visit_count(engine.flags, screens::k_gold_flag), lines, gameplay.barter_screen,
           screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
       const bool over_tabs = cursor_in(cursor, layout.tabs[0]) || cursor_in(cursor, layout.tabs[1]);
@@ -1025,7 +1025,7 @@ namespace corundum::gameplay {
 
     /// Buy or sell the highlighted barter row against the player's gold.
     void trade_barter_row(Engine &engine, const Gameplay &gameplay, const screens::BarterLine &selected) {
-      int gold = world::visit_count(engine.flags, std::string{screens::k_gold_flag});
+      int gold = world::visit_count(engine.flags, screens::k_gold_flag);
       if (gameplay.barter_screen.tab == screens::BarterTab::Buy) {
         if (selected.unit_price > gold) {
           engine.notify("Not enough gold");
@@ -1039,7 +1039,7 @@ namespace corundum::gameplay {
         gold += selected.unit_price;
         adjust_flag(engine.flags, item_flag_key(selected.id), -1);
       }
-      engine.flags[std::string{screens::k_gold_flag}] = gold;
+      engine.flags[screens::k_gold_flag] = gold;
     }
 
     /// Step the barter screen: Back closes, Left/Right, Tab or a click switch Buy/Sell, a hovered
@@ -1566,7 +1566,7 @@ namespace corundum::gameplay {
               ? screens::build_barter_stock(*shop, gameplay.items, reputation)
               : screens::build_barter_sell_lines(*shop, gameplay.items, engine.flags);
       screens::barter_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, shop->name,
-                                   world::visit_count(engine.flags, std::string{screens::k_gold_flag}), lines,
+                                   world::visit_count(engine.flags, screens::k_gold_flag), lines,
                                    gameplay.barter_screen, viewport, engine.input_mapper.last_device());
     }
 
