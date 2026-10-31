@@ -17,7 +17,8 @@
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/location/registry.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
-#include <corundum/gameplay/runtime.hpp> // IWYU pragma: export
+#include <corundum/gameplay/rules/rules.hpp> // IWYU pragma: export
+#include <corundum/gameplay/runtime.hpp>     // IWYU pragma: export
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
@@ -79,7 +80,7 @@ namespace corundum::gameplay {
    *  member order guarantees that.
    *
    *  Game-specific rules (stats, combat, skill checks) do not belong here; they layer above the
-   *  framework, in the game itself.
+   *  framework, in the game itself, and reach it through ruleset.
    */
   class Gameplay {
   public:
@@ -140,8 +141,8 @@ namespace corundum::gameplay {
     /** @brief Save/Load screen state: mode, highlighted row and the buffered slot rows. */
     screens::SaveLoadState save_load_screen;
 
-    /** @brief Character-sheet values, sampled from the FlagStore when the sheet opens. The
-     *  simulation is paused while it is open, so there is no per-frame rebuild. */
+    /** @brief Character-sheet values, sampled from the FlagStore and the ruleset when the sheet
+     *  opens. The simulation is paused while it is open, so there is no per-frame rebuild. */
     screens::CharacterInfo character_sheet_info;
 
     /** @brief Character-sheet cursor: the highlighted section and row within it. Reset each time
@@ -200,6 +201,12 @@ namespace corundum::gameplay {
      *
      *  This is the game's slot, never overwritten by the framework. */
     std::function<bool(Engine &, const dialogue::EventAction &)> on_event;
+
+    /** @brief The game's ruleset: the values (stats, and later combat and checks) the framework
+     *  shows but never computes. An empty callback means the game supplies nothing for it.
+     *
+     *  This is the game's slot, never overwritten by the framework. */
+    rules::Ruleset ruleset;
 
     /** @brief Process every pending dialogue EventAction (built-in dispatch + on_event).
      *
@@ -317,9 +324,9 @@ namespace corundum::gameplay {
 
     /** @brief Show the character sheet over the current scene.
      *
-     *  Samples the character sheet's values from the FlagStore and pushes GameMode Character.
-     *  Only reachable from Exploring (the hotkey handler ignores it while another screen is
-     *  open).
+     *  Samples the character sheet's values from the FlagStore and the ruleset, then pushes
+     *  GameMode Character. Only reachable from Exploring (the hotkey handler ignores it while
+     *  another screen is open).
      *
      *  @post engine.scene.ui.top() is screens::Character.
      */

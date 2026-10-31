@@ -5,6 +5,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/input/actions.hpp>
@@ -38,6 +39,9 @@ namespace corundum::gameplay::screens {
     constexpr float k_title_gap = 10.f;
     constexpr float k_column_gap = 28.f;
     constexpr float k_footer_gap = 10.f;
+
+    /// The Stats rows every sheet has: Level, Experience and Gold.
+    constexpr int k_fixed_stats_row_count = 3;
 
     /// A number the game may not have written; absent and negative both read as 0.
     int flag_count(const world::FlagStore &flags, std::string_view key) {
@@ -125,15 +129,29 @@ namespace corundum::gameplay::screens {
       }
     }
 
+    /// The Stats column's rows: Level, Experience, the ruleset's rows in order, then Gold.
+    std::vector<std::string> build_stats_rows(const CharacterInfo &info) {
+      std::vector<std::string> rows;
+      rows.push_back(std::format("Level: {}", info.level));
+      rows.push_back(info.experience_to_next_level > 0
+                         ? std::format("Experience: {} / {}", info.experience, info.experience_to_next_level)
+                         : std::format("Experience: {}", info.experience));
+      for (const rules::StatRow &row : info.rule_rows)
+        rows.push_back(std::format("{}: {}", row.label, row.value));
+      rows.push_back(std::format("Gold: {}", info.gold));
+      return rows;
+    }
+
   } // namespace
 
-  CharacterInfo build_character_info(const world::FlagStore &flags, const item::Registry &items) {
+  CharacterInfo build_character_info(const world::FlagStore &flags, const item::Registry &items,
+                                     const rules::Ruleset &ruleset) {
     CharacterInfo info{};
     info.level = std::max(1, world::visit_count(flags, std::string{k_level_flag}));
     info.experience = flag_count(flags, k_experience_flag);
     info.experience_to_next_level = flag_count(flags, k_next_level_experience_flag);
-    info.health = flag_count(flags, k_health_flag);
-    info.max_health = flag_count(flags, k_max_health_flag);
+    if (ruleset.character_rows)
+      info.rule_rows = ruleset.character_rows(flags);
     info.gold = flag_count(flags, k_gold_flag);
     info.equipment = build_equipment_lines(flags, items);
     info.inventory = build_inventory_lines(flags, items);
@@ -146,7 +164,7 @@ namespace corundum::gameplay::screens {
     switch (section) {
       case 1: return std::max(1, static_cast<int>(info.equipment.size()));
       case 2: return std::max(1, static_cast<int>(info.inventory.size()));
-      default: return info.max_health > 0 ? 4 : 3;
+      default: return k_fixed_stats_row_count + static_cast<int>(info.rule_rows.size());
     }
   }
 
@@ -188,16 +206,8 @@ namespace corundum::gameplay::screens {
               style.font_size_speaker, style.speaker);
 
     draw_section_header(r, style, "Stats", sections.stats);
-    std::vector<std::string> stats_rows;
-    stats_rows.push_back(std::format("Level: {}", info.level));
-    stats_rows.push_back(info.experience_to_next_level > 0
-                             ? std::format("Experience: {} / {}", info.experience, info.experience_to_next_level)
-                             : std::format("Experience: {}", info.experience));
-    if (info.max_health > 0)
-      stats_rows.push_back(std::format("Health: {} / {}", info.health, info.max_health));
-    stats_rows.push_back(std::format("Gold: {}", info.gold));
-    draw_section_rows(r, style, sections.stats, sections.stats.pos.y + header_line_height(style), stats_rows,
-                      state.section == 0 ? state.row : -1);
+    draw_section_rows(r, style, sections.stats, sections.stats.pos.y + header_line_height(style),
+                      build_stats_rows(info), state.section == 0 ? state.row : -1);
 
     draw_section_header(r, style, "Equipment", sections.equipment);
     std::vector<std::string> equipment_rows;

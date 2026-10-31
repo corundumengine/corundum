@@ -1,0 +1,28 @@
+// SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+#pragma once
+#include <corundum/gameplay/rules/rules.hpp>
+#include <corundum/world/flags.hpp>
+
+#include <format>
+#include <vector>
+
+namespace corundum::test {
+
+  /// The minimal ruleset the framework is tested against: one Health row read verbatim from the
+  /// `test.health` and `test.max_health` flags.
+  inline gameplay::rules::Ruleset make_flat_ruleset() {
+    return gameplay::rules::Ruleset{
+        .character_rows =
+            [](const world::FlagStore &flags) {
+              return std::vector<gameplay::rules::StatRow>{
+                  {.label = "Health",
+                   .value = std::format("{} / {}", world::visit_count(flags, "test.health"),
+                                        world::visit_count(flags, "test.max_health")),},
+              };
+            },
+    };
+  }
+
+} // namespace corundum::test

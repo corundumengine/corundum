@@ -1208,7 +1208,7 @@ namespace corundum::gameplay {
         engine.notify(result.error());
         return;
       }
-      gameplay.character_sheet_info = screens::build_character_info(engine.flags, gameplay.items);
+      gameplay.character_sheet_info = screens::build_character_info(engine.flags, gameplay.items, gameplay.ruleset);
       const int rows = screens::character_section_row_count(gameplay.character_sheet_info, state.section);
       gameplay.character_sheet_state.row = std::clamp(state.row, 0, rows - 1);
     }
@@ -2013,7 +2013,7 @@ namespace corundum::gameplay {
   }
 
   void Gameplay::open_character_sheet() {
-    character_sheet_info = screens::build_character_info(engine_->flags, items);
+    character_sheet_info = screens::build_character_info(engine_->flags, items, ruleset);
     character_sheet_state = {};
     engine_->scene.ui.push(screens::Character);
   }

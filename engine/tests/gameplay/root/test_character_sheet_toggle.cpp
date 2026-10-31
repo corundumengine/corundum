@@ -7,6 +7,7 @@
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
@@ -15,16 +16,19 @@
 #include <corundum/world/scene.hpp>
 #include <corundum/world/ui_stack.hpp>
 
+#include "gameplay/rules/flat_ruleset.hpp"
 #include "world_transition_fixtures.hpp"
 
 #include <cstddef>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
 
 namespace {
 
+  using corundum::gameplay::rules::StatRow;
   using corundum::test::adopt_platform;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
@@ -76,6 +80,56 @@ TEST_CASE("character sheet - P toggles the sheet, values are sampled on open, Es
   // Esc closes an open sheet.
   press(engine, corundum::input::Action::Cancel);
   CHECK(engine.scene.mode() == GameMode::Exploring);
+
+  engine.cleanup();
+}
+
+TEST_CASE("character sheet - opening samples the installed ruleset's rows") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.ruleset = corundum::test::make_flat_ruleset();
+  engine.flags["test.health"] = 4;
+  engine.flags["test.max_health"] = 9;
+
+  press(engine, corundum::input::Action::Character);
+  REQUIRE(engine.scene.mode() == screens::Character);
+
+  const std::vector<StatRow> expected{{.label = "Health", .value = "4 / 9"}};
+  CHECK_EQ(gameplay.character_sheet_info.rule_rows, expected);
+
+  engine.cleanup();
+}
+
+TEST_CASE("character sheet - equipping an item re-samples the ruleset's rows") {
+  using corundum::gameplay::item::Item;
+  using corundum::gameplay::item::ItemCategory;
+  using corundum::gameplay::item::WeaponData;
+
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.ruleset = corundum::test::make_flat_ruleset();
+  gameplay.items.add(Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{}});
+  engine.flags["item.sword"] = 1;
+  engine.flags["test.health"] = 4;
+  engine.flags["test.max_health"] = 9;
+
+  press(engine, corundum::input::Action::Character);
+  press(engine, corundum::input::Action::MoveRight);
+  press(engine, corundum::input::Action::MoveRight);
+  engine.flags["test.health"] = 3;
+  press(engine, corundum::input::Action::Activate);
+  REQUIRE(engine.flags["equip.weapon.sword"] == 1);
+
+  const std::vector<StatRow> expected{{.label = "Health", .value = "3 / 9"}};
+  CHECK_EQ(gameplay.character_sheet_info.rule_rows, expected);
 
   engine.cleanup();
 }
