@@ -261,31 +261,100 @@ namespace corundum::gameplay {
       engine.scene.ui.push(screens::Barter);
     }
 
+    /// Add the event's item count to its `item.<id>` flag (`give_item('id', n)`).
+    void handle_give_item(Engine &engine, const dialogue::EventAction &ev) {
+      engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
+    }
+
+    /// One row of the built-in dialogue-event table.
+    struct BuiltinEvent {
+      std::string_view name{};
+
+      std::size_t min_args{};
+
+      void (*handle)(Engine &, Gameplay &, quest::Runner &, const dialogue::EventAction &){};
+    };
+
+    /// The built-in dialogue events, in dispatch order.
+    constexpr std::array<BuiltinEvent, 11> k_builtin_events{
+        {
+            {
+                .name = "play_sound",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_play_sound(e, ev); },
+            },
+            {
+                .name = "quest_start",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
+                             const dialogue::EventAction &ev) { handle_quest_start(e, g, q, ev); },
+            },
+            {
+                .name = "quest_advance",
+                .min_args = 2,
+                .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
+                             const dialogue::EventAction &ev) { handle_quest_advance(e, g, q, ev); },
+            },
+            {
+                .name = "give_item",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_give_item(e, ev); },
+            },
+            {
+                .name = "take_item",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_take_item(e, ev); },
+            },
+            {
+                .name = "unlock_codex",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_unlock_codex(e, g, ev); },
+            },
+            {
+                .name = "discover_location",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_discover_location(e, g, ev); },
+            },
+            {
+                .name = "open_container",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_open_container(e, g, ev); },
+            },
+            {
+                .name = "open_shop",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_open_shop(e, g, ev); },
+            },
+            {
+                .name = "reputation",
+                .min_args = 2,
+                .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_reputation(e, ev); },
+            },
+            {
+                .name = "grant_xp",
+                .min_args = 1,
+                .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                             const dialogue::EventAction &ev) { handle_grant_xp(e, ev); },
+            },
+        },
+    };
+
     void dispatch_dialogue_event(Gameplay &gameplay, Engine &engine, quest::Runner &quest_runner,
                                  const dialogue::EventAction &ev) noexcept {
       try {
-        if (ev.name == "play_sound" && !ev.args.empty()) {
-          handle_play_sound(engine, ev);
-        } else if (ev.name == "quest_start" && !ev.args.empty()) {
-          handle_quest_start(engine, gameplay, quest_runner, ev);
-        } else if (ev.name == "quest_advance" && ev.args.size() >= 2) {
-          handle_quest_advance(engine, gameplay, quest_runner, ev);
-        } else if (ev.name == "give_item" && !ev.args.empty()) {
-          engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
-        } else if (ev.name == "take_item" && !ev.args.empty()) {
-          handle_take_item(engine, ev);
-        } else if (ev.name == "unlock_codex" && !ev.args.empty()) {
-          handle_unlock_codex(engine, gameplay, ev);
-        } else if (ev.name == "discover_location" && !ev.args.empty()) {
-          handle_discover_location(engine, gameplay, ev);
-        } else if (ev.name == "open_container" && !ev.args.empty()) {
-          handle_open_container(engine, gameplay, ev);
-        } else if (ev.name == "open_shop" && !ev.args.empty()) {
-          handle_open_shop(engine, gameplay, ev);
-        } else if (ev.name == "reputation" && ev.args.size() >= 2) {
-          handle_reputation(engine, ev);
-        } else if (ev.name == "grant_xp" && !ev.args.empty()) {
-          handle_grant_xp(engine, ev);
+        const auto *const builtin = std::ranges::find_if(k_builtin_events, [&ev](const BuiltinEvent &row) {
+          return row.name == ev.name && row.min_args <= ev.args.size();
+        });
+        if (builtin != k_builtin_events.end()) {
+          builtin->handle(engine, gameplay, quest_runner, ev);
         } else if (invoke_event_hook(gameplay, engine, ev) == EventHookResult::NotHandled) {
           warn_log("[gameplay] WARN: unknown dialogue event '{}'", ev.name);
         }
@@ -442,28 +511,23 @@ namespace corundum::gameplay {
       return false;
     }
 
-    /// The gameplay framework's pre-dispatch input hook: handles the menu hub's open/close/switch
-    /// and tab cycling. Returns true when it consumed the step; safe to register as the only
-    /// entry in Engine::screen_input_hooks.
-    bool handle_hub_input(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
-      using world::GameMode;
-
-      // The menu hub: one gamepad button (Hub) toggles the last-used tab, and the I/J/C/M hotkeys
-      // select a tab directly. The hub is not a GameMode of its own — it is the convention that the
-      // top of the UI stack is one of Inventory/Journal/Codex/Map. Opening, switching or closing
-      // consumes the step so the same press cannot also act on the fresh screen.
-      const bool on_hub_tab = screens::is_hub_mode(engine.scene.mode());
-      if (engine.input_state.is_pressed(input::Action::Hub)) {
-        if (on_hub_tab) {
-          engine.scene.ui.pop();
-          return true;
-        }
-        if (engine.scene.mode() == GameMode::Exploring) {
-          open_hub_tab(engine, gameplay, gameplay.last_hub_mode);
-          engine.scene.ui.push(gameplay.last_hub_mode);
-          return true;
-        }
+    /// Handle the Hub button: toggle the last-used tab on a hub, open it from Exploring.
+    bool handle_hub_button(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
+      if (!engine.input_state.is_pressed(input::Action::Hub))
+        return false;
+      if (on_hub_tab) {
+        engine.scene.ui.pop();
+        return true;
       }
+      if (engine.scene.mode() != world::GameMode::Exploring)
+        return false;
+      open_hub_tab(engine, gameplay, gameplay.last_hub_mode);
+      engine.scene.ui.push(gameplay.last_hub_mode);
+      return true;
+    }
+
+    /// Handle the I/J/C/M hotkeys: toggle their tab on a hub, open it from Exploring.
+    bool handle_hub_hotkeys(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
       for (const HubTabAction &row : k_hub_tab_actions) {
         if (!engine.input_state.is_pressed(row.action))
           continue;
@@ -475,13 +539,26 @@ namespace corundum::gameplay {
           switch_hub_tab(engine, gameplay, row.mode);
           return true;
         }
-        if (engine.scene.mode() == GameMode::Exploring) {
-          open_hub_tab(engine, gameplay, row.mode);
-          engine.scene.ui.push(row.mode);
-          return true;
-        }
-        // Another screen (dialogue, prompt, menu, loot, barter) is on top: the hotkey does nothing.
+        if (engine.scene.mode() != world::GameMode::Exploring)
+          continue; // Another screen (dialogue, prompt, menu, loot, barter) is on top.
+        open_hub_tab(engine, gameplay, row.mode);
+        engine.scene.ui.push(row.mode);
+        return true;
       }
+      return false;
+    }
+
+    /// The gameplay framework's pre-dispatch input hook: handles the menu hub's open/close/switch
+    /// and tab cycling. Returns true when it consumed the step; safe to register as the only
+    /// entry in Engine::screen_input_hooks.
+    bool handle_hub_input(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      // The menu hub: one gamepad button (Hub) toggles the last-used tab, and the I/J/C/M hotkeys
+      // select a tab directly. The hub is not a GameMode of its own — it is the convention that the
+      // top of the UI stack is one of Inventory/Journal/Codex/Map. Opening, switching or closing
+      // consumes the step so the same press cannot also act on the fresh screen.
+      const bool on_hub_tab = screens::is_hub_mode(engine.scene.mode());
+      if (handle_hub_button(engine, gameplay, on_hub_tab) || handle_hub_hotkeys(engine, gameplay, on_hub_tab))
+        return true;
 
       // While a hub tab is on top, the tab strip is directly clickable and the wheel over it
       // cycles tabs; a click on the active tab is a no-op.
@@ -512,6 +589,32 @@ namespace corundum::gameplay {
       return false;
     }
 
+    /// Apply mouse intent to the inventory: a hovered row takes focus and the wheel moves a row.
+    void apply_inventory_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent, int rows) {
+      if (!pointer_active(intent))
+        return;
+      const screens::InventoryLayout layout = screens::inventory_panel_layout(
+          *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+          gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      if (pointer_focus(intent)) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+          gameplay.inventory_cursor = layout.first_row + hovered;
+      }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+        gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, steps, rows);
+    }
+
+    /// Equip or unequip the highlighted inventory row, rebuilding the equipment column on success.
+    void activate_inventory_row(Engine &engine, Gameplay &gameplay, int rows) {
+      const std::size_t index = static_cast<std::size_t>(std::clamp(gameplay.inventory_cursor, 0, rows - 1));
+      const screens::InventoryLine &selected = gameplay.inventory_lines[index];
+      if (const auto result = item::toggle_equip(engine.flags, gameplay.items, selected.id); !result)
+        engine.notify(result.error());
+      else
+        gameplay.inventory_equipment = screens::build_equipment_lines(engine.flags, gameplay.items);
+    }
+
     /// Step the Inventory hub tab: Cancel closes it; a hovered row takes focus on a real mouse
     /// move or click; the wheel moves one row per notch; Up/Down wrap the highlight.
     void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
@@ -521,18 +624,7 @@ namespace corundum::gameplay {
       }
       const int rows = static_cast<int>(gameplay.inventory_lines.size());
 
-      if (pointer_active(intent)) {
-        const screens::InventoryLayout layout = screens::inventory_panel_layout(
-            *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
-            gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
-        const core::math::Vec2 cursor = intent_cursor(intent);
-        if (pointer_focus(intent)) {
-          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-            gameplay.inventory_cursor = layout.first_row + hovered;
-        }
-        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
-          gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, steps, rows);
-      }
+      apply_inventory_pointer(engine, gameplay, intent, rows);
 
       if (intent.navigate_y != 0) {
         if (rows <= 0)
@@ -544,14 +636,8 @@ namespace corundum::gameplay {
       // Activate equips or unequips the highlighted row. The equipment column is cached with
       // the rows, so a successful toggle rebuilds only it; the item rows themselves are
       // unchanged (equipping never moves or consumes an item).
-      if (intent.activate && rows > 0) {
-        const std::size_t index = static_cast<std::size_t>(std::clamp(gameplay.inventory_cursor, 0, rows - 1));
-        const screens::InventoryLine &selected = gameplay.inventory_lines[index];
-        if (const auto result = item::toggle_equip(engine.flags, gameplay.items, selected.id); !result)
-          engine.notify(result.error());
-        else
-          gameplay.inventory_equipment = screens::build_equipment_lines(engine.flags, gameplay.items);
-      }
+      if (intent.activate && rows > 0)
+        activate_inventory_row(engine, gameplay, rows);
 
       const screens::InventoryLayout visible = screens::inventory_panel_layout(
           *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
@@ -653,6 +739,40 @@ namespace corundum::gameplay {
       state.cursor = wrap_cursor(state.cursor, delta, rows);
     }
 
+    /// Focus the hovered codex list row, resetting the body scroll.
+    void focus_hovered_codex_row(screens::CodexState &state, const screens::CodexLayout &layout,
+                                 core::math::Vec2 cursor) {
+      for (const screens::CodexListRow &row : layout.list_rows) {
+        if (row.entry_index >= 0 && cursor_in(cursor, row.rect)) {
+          state.cursor = row.entry_index;
+          state.scroll = 0.f;
+          break;
+        }
+      }
+    }
+
+    /// Apply mouse intent to the codex: a hovered list row takes focus, the wheel over the list
+    /// moves the cursor and over the body scrolls it.
+    void apply_codex_pointer(const Engine &engine, screens::CodexState &state, const input::InputIntent &intent,
+                             int rows) {
+      if (!pointer_active(intent))
+        return;
+      const screens::CodexLayout layout =
+          screens::codex_panel_layout(*engine.renderer, engine.render.panel_skin.style, state.entries, state.cursor,
+                                      screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      if (pointer_focus(intent))
+        focus_hovered_codex_row(state, layout, cursor);
+      if (intent.scroll_y != 0.f) {
+        if (cursor_in(cursor, layout.body_rect)) {
+          state.scroll = std::max(0.f, state.scroll - intent.scroll_y);
+        } else if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0) {
+          state.cursor = wrap_cursor(state.cursor, steps, rows);
+          state.scroll = 0.f;
+        }
+      }
+    }
+
     /// Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, the wheel
     /// over the list moves the cursor and over the detail body scrolls it, and a hovered list row
     /// takes focus on a real mouse move or click. Rows are refreshed from the registry + flags on
@@ -668,29 +788,7 @@ namespace corundum::gameplay {
       }
 
       const int rows = static_cast<int>(state.entries.size());
-      if (pointer_active(intent)) {
-        const screens::CodexLayout layout =
-            screens::codex_panel_layout(*engine.renderer, engine.render.panel_skin.style, state.entries, state.cursor,
-                                        screen_viewport(engine), engine.input_mapper.last_device());
-        const core::math::Vec2 cursor = intent_cursor(intent);
-        if (pointer_focus(intent)) {
-          for (const screens::CodexListRow &row : layout.list_rows) {
-            if (row.entry_index >= 0 && cursor_in(cursor, row.rect)) {
-              state.cursor = row.entry_index;
-              state.scroll = 0.f;
-              break;
-            }
-          }
-        }
-        if (intent.scroll_y != 0.f) {
-          if (cursor_in(cursor, layout.body_rect)) {
-            state.scroll = std::max(0.f, state.scroll - intent.scroll_y);
-          } else if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0) {
-            state.cursor = wrap_cursor(state.cursor, steps, rows);
-            state.scroll = 0.f;
-          }
-        }
-      }
+      apply_codex_pointer(engine, state, intent, rows);
 
       if (intent.navigate_y != 0) {
         if (rows > 0)
@@ -699,46 +797,25 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Step the Map hub tab: Cancel closes it, a hovered row takes focus on a real mouse move or
-    /// click, Up/Down and the wheel move the highlighted destination, and Activate fast-travels.
-    /// A destination already in the active zone is a no-op.
-    void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
-      if (intent.back) {
-        engine.scene.ui.pop();
+    /// Apply mouse intent to the map: a hovered row takes focus and the wheel moves a row.
+    void apply_map_pointer(const Engine &engine, screens::MapState &state,
+                           const std::vector<screens::MapEntry> &entries, const input::InputIntent &intent, int rows) {
+      if (!pointer_active(intent))
         return;
-      }
-
-      const std::vector<screens::MapEntry> entries =
-          screens::build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id);
-      const int rows = static_cast<int>(entries.size());
-      screens::MapState &state = gameplay.map_screen;
-
-      if (pointer_active(intent)) {
-        const screens::MapLayout layout =
-            screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state.cursor,
-                                      state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
-        const core::math::Vec2 cursor = intent_cursor(intent);
-        if (pointer_focus(intent)) {
-          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-            state.cursor = hovered;
-        }
-        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
-          state.cursor = wrap_cursor(state.cursor, steps, rows);
-      }
-
-      if (intent.navigate_y != 0 && rows > 0)
-        state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
-
-      // Keep the highlighted destination inside the window; the layout clamps the offset.
-      const screens::MapLayout visible =
+      const screens::MapLayout layout =
           screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state.cursor,
                                     state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
-      state.scroll = visible.rows.first_row;
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      if (pointer_focus(intent)) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+          state.cursor = hovered;
+      }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+        state.cursor = wrap_cursor(state.cursor, steps, rows);
+    }
 
-      if (!intent.activate || rows == 0)
-        return;
-
-      const screens::MapEntry &selected = entries[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
+    /// Fast-travel to the selected destination, notifying when it is already the active one.
+    void travel_to(Engine &engine, const Gameplay &gameplay, const screens::MapEntry &selected) {
       if (selected.current) {
         engine.notify("You are already here");
         return;
@@ -758,6 +835,38 @@ namespace corundum::gameplay {
       engine.scene.ui.pop();
     }
 
+    /// Step the Map hub tab: Cancel closes it, a hovered row takes focus on a real mouse move or
+    /// click, Up/Down and the wheel move the highlighted destination, and Activate fast-travels.
+    /// A destination already in the active zone is a no-op.
+    void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      if (intent.back) {
+        engine.scene.ui.pop();
+        return;
+      }
+
+      const std::vector<screens::MapEntry> entries =
+          screens::build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id);
+      const int rows = static_cast<int>(entries.size());
+      screens::MapState &state = gameplay.map_screen;
+
+      apply_map_pointer(engine, state, entries, intent, rows);
+
+      if (intent.navigate_y != 0 && rows > 0)
+        state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
+
+      // Keep the highlighted destination inside the window; the layout clamps the offset.
+      const screens::MapLayout visible =
+          screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state.cursor,
+                                    state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
+      state.scroll = visible.rows.first_row;
+
+      if (!intent.activate || rows == 0)
+        return;
+
+      const screens::MapEntry &selected = entries[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
+      travel_to(engine, gameplay, selected);
+    }
+
     /// Add @p delta to @p key's count, creating it when positive and erasing it once it reaches
     /// zero. Keeps the FlagStore free of zero-valued rows (matching item grant/take semantics).
     void adjust_flag(world::FlagStore &flags, const std::string &key, int delta) {
@@ -774,6 +883,21 @@ namespace corundum::gameplay {
         flags.erase(it);
     }
 
+    /// Switch to the hovered loot pane and focus its hovered row.
+    void focus_hovered_loot_pane(Gameplay &gameplay, const screens::LootLayout &layout, core::math::Vec2 cursor) {
+      const bool over_player = cursor_in(cursor, layout.player_pane);
+      if (over_player || cursor_in(cursor, layout.container_pane)) {
+        const screens::LootPane pane = over_player ? screens::LootPane::Player : screens::LootPane::Container;
+        if (gameplay.loot_screen.pane != pane) {
+          gameplay.loot_screen.pane = pane;
+          gameplay.loot_screen.cursor = 0;
+        }
+        if (const int hovered = ui::hovered_row(cursor, over_player ? layout.player_rows : layout.container_rows);
+            hovered >= 0)
+          gameplay.loot_screen.cursor = hovered;
+      }
+    }
+
     /// Apply mouse intent to the loot screen: hovering a pane switches to it, hovering a row (on a
     /// real move or click) focuses it, and the wheel moves one row per notch.
     void apply_loot_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
@@ -787,19 +911,8 @@ namespace corundum::gameplay {
                                      player_lines, screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
 
-      if (pointer_focus(intent)) {
-        const bool over_player = cursor_in(cursor, layout.player_pane);
-        if (over_player || cursor_in(cursor, layout.container_pane)) {
-          const screens::LootPane pane = over_player ? screens::LootPane::Player : screens::LootPane::Container;
-          if (gameplay.loot_screen.pane != pane) {
-            gameplay.loot_screen.pane = pane;
-            gameplay.loot_screen.cursor = 0;
-          }
-          if (const int hovered = ui::hovered_row(cursor, over_player ? layout.player_rows : layout.container_rows);
-              hovered >= 0)
-            gameplay.loot_screen.cursor = hovered;
-        }
-      }
+      if (pointer_focus(intent))
+        focus_hovered_loot_pane(gameplay, layout, cursor);
 
       const int active_rows = static_cast<int>(
           (gameplay.loot_screen.pane == screens::LootPane::Container ? container_lines : player_lines).size());
@@ -900,6 +1013,35 @@ namespace corundum::gameplay {
       return false;
     }
 
+    /// The barter rows for the active tab, with the shop's reputation folded into buy prices.
+    std::vector<screens::BarterLine> build_barter_lines(const Engine &engine, const Gameplay &gameplay,
+                                                        const shop::Shop &shop) {
+      const int reputation =
+          shop.faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop.faction);
+      return gameplay.barter_screen.tab == screens::BarterTab::Buy
+                 ? screens::build_barter_stock(shop, gameplay.items, reputation)
+                 : screens::build_barter_sell_lines(shop, gameplay.items, engine.flags);
+    }
+
+    /// Buy or sell the highlighted barter row against the player's gold.
+    void trade_barter_row(Engine &engine, const Gameplay &gameplay, const screens::BarterLine &selected) {
+      int gold = world::visit_count(engine.flags, std::string{screens::k_gold_flag});
+      if (gameplay.barter_screen.tab == screens::BarterTab::Buy) {
+        if (selected.unit_price > gold) {
+          engine.notify("Not enough gold");
+          return;
+        }
+        gold -= selected.unit_price;
+        adjust_flag(engine.flags, item_flag_key(selected.id), 1);
+      } else {
+        if (selected.unit_price <= 0 || selected.count <= 0)
+          return;
+        gold += selected.unit_price;
+        adjust_flag(engine.flags, item_flag_key(selected.id), -1);
+      }
+      engine.flags[std::string{screens::k_gold_flag}] = gold;
+    }
+
     /// Step the barter screen: Back closes, Left/Right, Tab or a click switch Buy/Sell, a hovered
     /// row takes focus on a real mouse move or click, the wheel moves one row per notch (or
     /// switches tabs over the tab strip), and Activate performs the trade.
@@ -916,12 +1058,7 @@ namespace corundum::gameplay {
         return;
       }
 
-      const int reputation =
-          shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
-      const std::vector<screens::BarterLine> lines =
-          gameplay.barter_screen.tab == screens::BarterTab::Buy
-              ? screens::build_barter_stock(*shop, gameplay.items, reputation)
-              : screens::build_barter_sell_lines(*shop, gameplay.items, engine.flags);
+      const std::vector<screens::BarterLine> lines = build_barter_lines(engine, gameplay, *shop);
       const int rows = static_cast<int>(lines.size());
 
       if (intent.next_tab || intent.prev_tab || intent.navigate_x != 0)
@@ -937,21 +1074,7 @@ namespace corundum::gameplay {
 
       const screens::BarterLine &selected =
           lines[static_cast<std::size_t>(std::clamp(gameplay.barter_screen.cursor, 0, rows - 1))];
-      int gold = world::visit_count(engine.flags, std::string{screens::k_gold_flag});
-      if (gameplay.barter_screen.tab == screens::BarterTab::Buy) {
-        if (selected.unit_price > gold) {
-          engine.notify("Not enough gold");
-          return;
-        }
-        gold -= selected.unit_price;
-        adjust_flag(engine.flags, item_flag_key(selected.id), 1);
-      } else {
-        if (selected.unit_price <= 0 || selected.count <= 0)
-          return;
-        gold += selected.unit_price;
-        adjust_flag(engine.flags, item_flag_key(selected.id), -1);
-      }
-      engine.flags[std::string{screens::k_gold_flag}] = gold;
+      trade_barter_row(engine, gameplay, selected);
     }
 
     /// Step the shared confirmation modal: Back closes it without acting; Left/Right (or
@@ -1004,37 +1127,30 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Step the Title screen: a hovered enabled row takes focus on a real mouse move or click,
-    /// Up/Down move the highlight (skipping Continue when no save exists), and Activate runs the
-    /// highlighted command. Cancel does nothing — Title is the bottom of the framing flow.
-    void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
-      screens::TitleState &state = gameplay.title_screen;
-      if (pointer_active(intent)) {
-        const screens::TitleLayout layout = screens::title_panel_layout(
-            *engine.renderer, engine.render.panel_skin.style, state, core::game_title(engine.cfg),
-            screen_viewport(engine), engine.input_mapper.last_device());
-        const core::math::Vec2 cursor = intent_cursor(intent);
-        if (pointer_focus(intent)) {
-          if (const int hovered = ui::hovered_row(cursor, layout.rows);
-              hovered >= 0 && screens::title_row_enabled(screens::title_row_at(hovered, state.credits_available),
-                                                         state.continue_available))
-            state.cursor = hovered;
-        }
-        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
-          move_title_cursor(gameplay, steps);
-      }
-
-      if (intent.navigate_y != 0)
-        move_title_cursor(gameplay, intent.navigate_y);
-      if (!intent.activate)
+    /// Apply mouse intent to the title: a hovered enabled row takes focus and the wheel moves the cursor.
+    void apply_title_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      if (!pointer_active(intent))
         return;
+      screens::TitleState &state = gameplay.title_screen;
+      const screens::TitleLayout layout = screens::title_panel_layout(
+          *engine.renderer, engine.render.panel_skin.style, state, core::game_title(engine.cfg),
+          screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      if (pointer_focus(intent)) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows);
+            hovered >= 0 && screens::title_row_enabled(screens::title_row_at(hovered, state.credits_available),
+                                                       state.continue_available))
+          state.cursor = hovered;
+      }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+        move_title_cursor(gameplay, steps);
+    }
 
-      const int rows = screens::title_visible_row_count(state.credits_available);
-      const screens::TitleRow row =
-          screens::title_row_at(std::clamp(state.cursor, 0, rows - 1), state.credits_available);
+    /// Run the title row the player activated.
+    void run_title_row(Engine &engine, Gameplay &gameplay, screens::TitleRow row) {
       switch (row) {
         case screens::TitleRow::Continue:
-          if (state.continue_available)
+          if (gameplay.title_screen.continue_available)
             gameplay.begin_load([](Gameplay &g) { return g.continue_game(); });
           break;
         case screens::TitleRow::NewGame: gameplay.begin_load([](Gameplay &g) { return g.new_game(); }); break;
@@ -1046,6 +1162,24 @@ namespace corundum::gameplay {
         case screens::TitleRow::Credits: gameplay.open_credits(); break;
         case screens::TitleRow::Quit: engine.request_quit(); break;
       }
+    }
+
+    /// Step the Title screen: a hovered enabled row takes focus on a real mouse move or click,
+    /// Up/Down move the highlight (skipping Continue when no save exists), and Activate runs the
+    /// highlighted command. Cancel does nothing — Title is the bottom of the framing flow.
+    void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+      const screens::TitleState &state = gameplay.title_screen;
+      apply_title_pointer(engine, gameplay, intent);
+
+      if (intent.navigate_y != 0)
+        move_title_cursor(gameplay, intent.navigate_y);
+      if (!intent.activate)
+        return;
+
+      const int rows = screens::title_visible_row_count(state.credits_available);
+      const screens::TitleRow row =
+          screens::title_row_at(std::clamp(state.cursor, 0, rows - 1), state.credits_available);
+      run_title_row(engine, gameplay, row);
     }
 
     void render_title(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1191,41 +1325,52 @@ namespace corundum::gameplay {
       screens::splash_render(r, viewport, gameplay.splash_screen);
     }
 
+    /// Apply mouse intent to the game-over screen: a hovered enabled row takes focus and the wheel moves it.
+    void apply_game_over_pointer(const Engine &engine, screens::GameOverState &state,
+                                 const input::InputIntent &intent) {
+      if (!pointer_active(intent))
+        return;
+      const screens::GameOverLayout layout = screens::game_over_panel_layout(
+          *engine.renderer, engine.render.panel_skin.style, screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      if (pointer_focus(intent)) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0) {
+          const screens::GameOverRow row = screens::game_over_row_at(hovered);
+          if (row != screens::GameOverRow::Reload || state.reload_available)
+            state.cursor = hovered;
+        }
+      }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+        state.cursor = wrap_cursor(state.cursor, steps, screens::k_game_over_row_count);
+    }
+
+    /// Run the game-over row the player activated.
+    void run_game_over_row(Engine &engine, Gameplay &gameplay, screens::GameOverRow row) {
+      switch (row) {
+        case screens::GameOverRow::Reload:
+          if (!gameplay.game_over_screen.reload_available)
+            break;
+          if (const auto result = gameplay.load_from_slot(gameplay.playthrough.last_slot); !result)
+            engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
+          break;
+        case screens::GameOverRow::Load: gameplay.open_save_load(SaveLoadIntent::Load); break;
+        case screens::GameOverRow::ReturnToTitle: gameplay.return_to_title(); break;
+      }
+    }
+
     /// Step the Game over screen: a hovered enabled row takes focus, Up/Down move the highlight,
     /// and Activate reloads the last slot, opens the Load screen, or returns to Title.
     void update_game_over(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       screens::GameOverState &state = gameplay.game_over_screen;
-      if (pointer_active(intent)) {
-        const screens::GameOverLayout layout =
-            screens::game_over_panel_layout(*engine.renderer, engine.render.panel_skin.style, screen_viewport(engine),
-                                            engine.input_mapper.last_device());
-        const core::math::Vec2 cursor = intent_cursor(intent);
-        if (pointer_focus(intent)) {
-          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0) {
-            const screens::GameOverRow row = screens::game_over_row_at(hovered);
-            if (row != screens::GameOverRow::Reload || state.reload_available)
-              state.cursor = hovered;
-          }
-        }
-        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
-          state.cursor = wrap_cursor(state.cursor, steps, screens::k_game_over_row_count);
-      }
+      apply_game_over_pointer(engine, state, intent);
 
       if (intent.navigate_y != 0)
         state.cursor = wrap_cursor(state.cursor, intent.navigate_y, screens::k_game_over_row_count);
       if (!intent.activate)
         return;
 
-      switch (screens::game_over_row_at(std::clamp(state.cursor, 0, screens::k_game_over_row_count - 1))) {
-        case screens::GameOverRow::Reload:
-          if (state.reload_available) {
-            if (const auto result = gameplay.load_from_slot(gameplay.playthrough.last_slot); !result)
-              engine.notify(std::format("Load failed: {}", result.error()), ui::k_toast_failed_colour);
-          }
-          break;
-        case screens::GameOverRow::Load: gameplay.open_save_load(SaveLoadIntent::Load); break;
-        case screens::GameOverRow::ReturnToTitle: gameplay.return_to_title(); break;
-      }
+      run_game_over_row(engine, gameplay,
+                        screens::game_over_row_at(std::clamp(state.cursor, 0, screens::k_game_over_row_count - 1)));
     }
 
     void render_game_over(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1266,6 +1411,39 @@ namespace corundum::gameplay {
                             [&engine, slot_id](Gameplay &g) { commit_slot_save(engine, g, slot_id); });
     }
 
+    /// Apply mouse intent to the save/load screen: a hovered row takes focus and the wheel moves a row.
+    void apply_save_load_pointer(const Engine &engine, screens::SaveLoadState &state, const input::InputIntent &intent,
+                                 int rows) {
+      if (!pointer_active(intent))
+        return;
+      const screens::SaveLoadLayout layout =
+          screens::save_load_panel_layout(*engine.renderer, engine.render.panel_skin.style, state,
+                                          screen_viewport(engine), engine.input_mapper.last_device());
+      const core::math::Vec2 cursor = intent_cursor(intent);
+      if (pointer_focus(intent)) {
+        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+          state.cursor = layout.rows.first_row + hovered;
+      }
+      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+        state.cursor = wrap_cursor(state.cursor, steps, rows);
+    }
+
+    /// Save or load the selected slot, honouring the screen's mode.
+    void activate_selected_slot(Engine &engine, Gameplay &gameplay, const screens::SaveLoadState &state,
+                                const save::SaveSlotInfo &selected) {
+      if (state.saving) {
+        activate_save_load_row(engine, gameplay, selected);
+        return;
+      }
+      if (screens::slot_is_empty(selected) || !selected.error.empty())
+        return;
+      const std::string slot_id = selected.slot_id;
+      // The queued callback runs inside the noexcept fixed-step loop, where a throw is fatal by
+      // engine policy (see run_fixed_steps); the escape is intentional here.
+      // NOLINTNEXTLINE(bugprone-exception-escape)
+      gameplay.begin_load([slot_id](Gameplay &g) { return g.load_from_slot(slot_id); });
+    }
+
     /// Step the Save/Load screen: Cancel closes it; Up/Down and the wheel move the highlighted
     /// slot; Activate saves (confirming an overwrite) or loads a valid slot. Empty and corrupt
     /// slots cannot be loaded.
@@ -1277,18 +1455,7 @@ namespace corundum::gameplay {
       }
 
       const int rows = static_cast<int>(state.slots.size());
-      if (pointer_active(intent)) {
-        const screens::SaveLoadLayout layout =
-            screens::save_load_panel_layout(*engine.renderer, engine.render.panel_skin.style, state,
-                                            screen_viewport(engine), engine.input_mapper.last_device());
-        const core::math::Vec2 cursor = intent_cursor(intent);
-        if (pointer_focus(intent)) {
-          if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-            state.cursor = layout.rows.first_row + hovered;
-        }
-        if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
-          state.cursor = wrap_cursor(state.cursor, steps, rows);
-      }
+      apply_save_load_pointer(engine, state, intent, rows);
 
       if (intent.navigate_y != 0) {
         if (rows <= 0)
@@ -1306,17 +1473,7 @@ namespace corundum::gameplay {
         return;
 
       const save::SaveSlotInfo &selected = state.slots[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
-      if (state.saving) {
-        activate_save_load_row(engine, gameplay, selected);
-        return;
-      }
-      if (screens::slot_is_empty(selected) || !selected.error.empty())
-        return;
-      const std::string slot_id = selected.slot_id;
-      // The queued callback runs inside the noexcept fixed-step loop, where a throw is fatal by
-      // engine policy (see run_fixed_steps); the escape is intentional here.
-      // NOLINTNEXTLINE(bugprone-exception-escape)
-      gameplay.begin_load([slot_id](Gameplay &g) { return g.load_from_slot(slot_id); });
+      activate_selected_slot(engine, gameplay, state, selected);
     }
 
     void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
@@ -1464,12 +1621,8 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Register the gameplay framework with @p engine: its fixed-step system, hub input hook,
-    /// screens and render layers. Every closure captures `gameplay`, which outlives the engine
-    /// under the Runtime member-order contract.
-    void register_gameplay(Gameplay &gameplay, Engine &engine) {
-      using world::GameMode;
-
+    /// Register the hub tab screens: dialogue, inventory, character, journal, codex and map.
+    void register_hub_screens(Gameplay &gameplay, Engine &engine) {
       engine.screens.add(screens::Dialogue, ScreenSpec{.owns_step = false});
       engine.screens.add(
           screens::Inventory,
@@ -1510,6 +1663,10 @@ namespace corundum::gameplay {
               .owns_step = true,
               .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_map(e, gameplay, intent); },
           });
+    }
+
+    /// Register the modal screens: loot, barter and confirm.
+    void register_modal_screens(Gameplay &gameplay, Engine &engine) {
       engine.screens.add(
           screens::Loot,
           ScreenSpec{
@@ -1532,6 +1689,10 @@ namespace corundum::gameplay {
               .render = [&gameplay](Engine &e, platform::Renderer &r,
                                     core::math::Vec2 viewport) { render_confirm(e, gameplay, r, viewport); },
           });
+    }
+
+    /// Register the framing screens: splash, title, save/load, game over, loading and credits.
+    void register_framing_screens(Gameplay &gameplay, Engine &engine) {
       engine.screens.add(
           screens::Splash,
           ScreenSpec{
@@ -1584,7 +1745,10 @@ namespace corundum::gameplay {
               .render = [&gameplay](Engine &e, platform::Renderer &r,
                                     core::math::Vec2 viewport) { render_credits(e, gameplay, r, viewport); },
           });
+    }
 
+    /// Install the engine hooks and the fixed-step system that drive the framework.
+    void register_hooks(Gameplay &gameplay, Engine &engine) {
       engine.on_menu_quit = [&gameplay](Engine &) {
         gameplay.open_confirm("Quit to Title?", [](Gameplay &g) { g.return_to_title(); });
       };
@@ -1601,7 +1765,10 @@ namespace corundum::gameplay {
           [&gameplay](Engine &e, const input::InputIntent &intent) { return handle_hub_input(e, gameplay, intent); });
       engine.screen_input_hooks.emplace_back(
           [&gameplay](Engine &e, const input::InputIntent &) { return handle_character_input(e, gameplay); });
+    }
 
+    /// Register the gameplay render layers.
+    void register_render_layers(Gameplay &gameplay, Engine &engine) {
       engine.screens.add_layer(RenderLayer::Hud, [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 v) {
         render_hud(e, gameplay, r, v);
       });
@@ -1617,6 +1784,17 @@ namespace corundum::gameplay {
                                });
       engine.screens.add_layer(RenderLayer::HubStrip,
                                [](Engine &e, platform::Renderer &r, core::math::Vec2 v) { render_hub_strip(e, r, v); });
+    }
+
+    /// Register the gameplay framework with @p engine: its fixed-step system, hub input hook,
+    /// screens and render layers. Every closure captures `gameplay`, which outlives the engine
+    /// under the Runtime member-order contract.
+    void register_gameplay(Gameplay &gameplay, Engine &engine) {
+      register_hub_screens(gameplay, engine);
+      register_modal_screens(gameplay, engine);
+      register_framing_screens(gameplay, engine);
+      register_hooks(gameplay, engine);
+      register_render_layers(gameplay, engine);
     }
 
   } // namespace
