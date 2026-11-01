@@ -107,6 +107,7 @@ target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json
 set(GAMEPLAY_SOURCES
     src/gameplay/codex/loader.cpp
     src/gameplay/codex/registry.cpp
+    src/gameplay/combat/encounter.cpp
     src/gameplay/credits/loader.cpp
     src/gameplay/dialogue/action.cpp
     src/gameplay/dialogue/compiled_expr.cpp
