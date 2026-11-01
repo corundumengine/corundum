@@ -51,7 +51,20 @@ TEST_CASE("input_glyph: mouse names the button") {
 
 TEST_CASE("input_glyph: an unmapped action falls back to ? rather than empty") {
   CHECK(input_glyph(Action::Quit, InputDevice::Gamepad) == "?");
-  CHECK(input_glyph(Action::QuickSave, InputDevice::Mouse) == "?");
+}
+
+TEST_CASE("input_glyph: on a mouse, an action with no mouse button shows its keyboard key") {
+  CHECK_EQ(input_glyph(Action::QuickSave, InputDevice::Mouse), "F5");
+  CHECK_EQ(input_glyph(Action::Pause, InputDevice::Mouse), "Space");
+}
+
+TEST_CASE("input_glyph: the fight's commands show 1, 2 and 3 on a keyboard and A, Y and B on a gamepad") {
+  CHECK_EQ(input_glyph(Action::CombatCommand1, InputDevice::Keyboard), "1");
+  CHECK_EQ(input_glyph(Action::CombatCommand2, InputDevice::Keyboard), "2");
+  CHECK_EQ(input_glyph(Action::CombatCommand3, InputDevice::Keyboard), "3");
+  CHECK_EQ(input_glyph(Action::CombatCommand1, InputDevice::Gamepad), "A");
+  CHECK_EQ(input_glyph(Action::CombatCommand2, InputDevice::Gamepad), "Y");
+  CHECK_EQ(input_glyph(Action::CombatCommand3, InputDevice::Gamepad), "B");
 }
 
 TEST_CASE("input_glyph: Pause shows Space on a keyboard and X on a gamepad") {

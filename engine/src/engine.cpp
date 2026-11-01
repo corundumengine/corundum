@@ -725,14 +725,16 @@ namespace corundum {
     // The pause menu opens over any screen: Resume pops the single layer it pushed and reveals
     // whatever was beneath (a hub tab, dialogue, loot or barter). One physical press may raise
     // both Menu and Cancel (Esc), so with a screen open the press is left to that screen's own
-    // back handling rather than opening the menu and closing it again the same step; from an
-    // empty stack there is nothing to close and both are true, so the menu opens. Menu and
-    // Settings consume Menu themselves (to close, or to capture a rebind), so the menu never
-    // opens over either.
+    // back handling rather than opening the menu and closing it again the same step. From an
+    // empty stack, or over a screen with no back action (ScreenSpec::handles_back, a fight),
+    // nothing would close, so the menu opens. Menu and Settings consume Menu themselves (to
+    // close, or to capture a rebind), so the menu never opens over either.
+    const ScreenSpec *spec = screens.find(scene.mode());
     const bool menu_pressed = input_state.is_pressed(input::Action::Menu);
     const bool top_handles_menu = scene.mode() == world::GameMode::Menu || scene.mode() == world::GameMode::Settings;
     const bool menu_blocked = pause_menu_blocked(*this, scene.mode());
-    if (menu_pressed && !top_handles_menu && !menu_blocked && (scene.ui.empty() || !intent.back)) {
+    const bool back_handled_by_screen = !scene.ui.empty() && intent.back && (spec == nullptr || spec->handles_back);
+    if (menu_pressed && !top_handles_menu && !menu_blocked && !back_handled_by_screen) {
       scene.ui.push(world::GameMode::Menu);
       menu.cursor = 0;
       return true;
@@ -740,7 +742,6 @@ namespace corundum {
 
     // Dispatch the top mode's screen. Only a step-owning screen reports the step as taken;
     // a non-step-owning extension mode (Dialogue) leaves the world step running.
-    const ScreenSpec *spec = screens.find(scene.mode());
     if (spec == nullptr || !spec->owns_step) {
       // No screen owns this step, so a deferred action may run now. Promote it here rather
       // than in run_fixed_steps() to keep the pending slot private and keep the "only when no

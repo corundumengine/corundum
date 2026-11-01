@@ -1749,6 +1749,7 @@ namespace corundum::gameplay {
       engine.screens.add(
           screens::Combat,
           ScreenSpec{
+              .handles_back = false,
               .owns_step = false,
               .world_step = world::WorldStep::Runs,
               .render = [&gameplay](Engine &e, platform::Renderer &r,
@@ -1756,6 +1757,7 @@ namespace corundum::gameplay {
           });
       engine.screens.add(screens::CombatPaused,
                          ScreenSpec{
+                             .handles_back = false,
                              .owns_step = false,
                              .render =
                                  [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 viewport) {

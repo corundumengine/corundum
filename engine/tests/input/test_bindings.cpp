@@ -375,3 +375,29 @@ TEST_CASE("bindings: a settings file saved before Pause existed gains its defaul
   CHECK_EQ(inputs_for(*parsed, Action::Pause),
            std::vector<PhysicalInput>{physical(Key::Space), physical(GamepadControl::X)});
 }
+
+TEST_CASE("bindings: 1, 2 and 3 and gamepad A, Y and B raise the fight's commands by default") {
+  const Bindings defaults = default_bindings();
+
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand1),
+           std::vector<PhysicalInput>{physical(Key::Digit1), physical(GamepadControl::A)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand2),
+           std::vector<PhysicalInput>{physical(Key::Digit2), physical(GamepadControl::Y)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand3),
+           std::vector<PhysicalInput>{physical(Key::Digit3), physical(GamepadControl::B)});
+}
+
+TEST_CASE("bindings: a settings file saved before the fight's commands existed gains their defaults") {
+  Bindings older = default_bindings();
+  std::erase_if(older, [](const Binding &row) {
+    return row.action == Action::CombatCommand1 || row.action == Action::CombatCommand2 ||
+           row.action == Action::CombatCommand3;
+  });
+
+  const std::expected<Bindings, std::string> parsed =
+      corundum::input::parse_bindings(corundum::input::serialize(older), default_bindings());
+
+  REQUIRE(parsed.has_value());
+  CHECK_EQ(inputs_for(*parsed, Action::CombatCommand2),
+           std::vector<PhysicalInput>{physical(Key::Digit2), physical(GamepadControl::Y)});
+}

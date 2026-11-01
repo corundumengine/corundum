@@ -37,6 +37,9 @@ namespace corundum::ui {
         case Action::SubTabNext: return ".";
         case Action::SubTabPrev: return ",";
         case Action::Pause: return "Space";
+        case Action::CombatCommand1: return "1";
+        case Action::CombatCommand2: return "2";
+        case Action::CombatCommand3: return "3";
         case Action::QuickSave: return "F5";
         case Action::QuickLoad: return "F9";
         case Action::Count: break;
@@ -54,7 +57,8 @@ namespace corundum::ui {
         case Action::ZoomOut: return "Wheel";
         default: break;
       }
-      return "?";
+      // A mouse player presses the keyboard for whatever the mouse has no button for.
+      return keyboard_glyph(action);
     }
 
     std::string_view gamepad_glyph(input::Action action) noexcept {
@@ -65,6 +69,9 @@ namespace corundum::ui {
         case Action::Cancel: return "B";
         case Action::Hub: return "Y";
         case Action::Pause: return "X";
+        case Action::CombatCommand1: return "A";
+        case Action::CombatCommand2: return "Y";
+        case Action::CombatCommand3: return "B";
         case Action::Character: return "Back";
         case Action::Menu: return "Start";
         case Action::TabNext: return "R1";

@@ -32,6 +32,7 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -671,4 +672,29 @@ TEST_CASE("confirm: Yes runs on_yes and pops, No and Back do not") {
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
   engine.cleanup();
+}
+
+TEST_CASE("pause menu: Esc opens it over a fight, which has no back action of its own") {
+  const auto engine = std::make_unique<corundum::Engine>();
+  init_engine(*engine);
+  const corundum::gameplay::Gameplay gameplay{*engine};
+  engine->scene.ui.push(screens::Combat);
+
+  CHECK(press_escape(*engine));
+
+  CHECK_EQ(engine->scene.mode(), GameMode::Menu);
+  engine->cleanup();
+}
+
+TEST_CASE("pause menu: Esc opens it over a paused fight") {
+  const auto engine = std::make_unique<corundum::Engine>();
+  init_engine(*engine);
+  const corundum::gameplay::Gameplay gameplay{*engine};
+  engine->scene.ui.push(screens::Combat);
+  engine->scene.ui.push(screens::CombatPaused);
+
+  CHECK(press_escape(*engine));
+
+  CHECK_EQ(engine->scene.mode(), GameMode::Menu);
+  engine->cleanup();
 }

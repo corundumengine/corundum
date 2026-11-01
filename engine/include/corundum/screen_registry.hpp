@@ -51,6 +51,10 @@ namespace corundum {
    *  `Engine &` argument.
    */
   struct ScreenSpec {
+    /** @brief Whether the screen reads Cancel as its own back action. One that doesn't (a fight)
+     *  leaves Esc, which raises both Cancel and Menu, to open the pause menu over it. */
+    bool handles_back{true};
+
     /** @brief When true, update() replaces the whole simulation step: world::update, the
      *  fixed_step_systems and on_fixed_update all skip. When false the world step runs
      *  normally and the screen has no update hook — it does not mean "no per-step work"; a

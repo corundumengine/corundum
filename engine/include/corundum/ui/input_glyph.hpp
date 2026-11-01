@@ -12,8 +12,9 @@ namespace corundum::ui {
   /** @brief The on-screen hint for @p action on @p device.
    *
    *  Lets a prompt read the same way whichever device the player last touched — "Esc" on a
-   *  keyboard, "B" on a gamepad, "RMB" on a mouse. Returns "?" for an action with no hint on
-   *  that device; never empty.
+   *  keyboard, "B" on a gamepad, "RMB" on a mouse. On a mouse, an action with no mouse
+   *  button shows its keyboard key. Returns "?" for an action with no hint on that device; never
+   *  empty.
    *
    *  @param action Action the hint stands for.
    *  @param device Device of the player's most recent press, from InputIntent::last_device.
