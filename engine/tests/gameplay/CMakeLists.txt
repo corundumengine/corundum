@@ -11,6 +11,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 add_executable(corundum_gameplay_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../main.cpp
     codex/test_codex.cpp
+    combat/test_battle.cpp
     combat/test_encounter.cpp
     credits/test_credits.cpp
     dialogue/test_compiled_expr.cpp
@@ -39,6 +40,7 @@ add_executable(corundum_gameplay_tests
     root/test_title_saveload_gameover.cpp
     save/test_save.cpp
     screens/test_character_sheet.cpp
+    screens/test_combat_hud.cpp
     screens/test_dialog_reveal.cpp
     screens/test_hub_panels.cpp
     screens/test_hub_tabs.cpp

@@ -51,6 +51,13 @@ namespace corundum::gameplay::screens {
 
   /** @brief Boot splash: the game.json splash_images shown in order before the first screen. */
   inline constexpr world::GameMode Splash{static_cast<world::GameMode>(world::k_first_extension_mode + 14)};
+
+  /** @brief A fight on the timeline. Doesn't own the step, and the world keeps running beneath it
+   *  (WorldStep::Runs), so combatants walk; the combat HUD is its render hook. */
+  inline constexpr world::GameMode Combat{static_cast<world::GameMode>(world::k_first_extension_mode + 15)};
+
+  /** @brief A paused fight, pushed over Combat: the world is frozen, but clicks still give orders. */
+  inline constexpr world::GameMode CombatPaused{static_cast<world::GameMode>(world::k_first_extension_mode + 16)};
   // NOLINTEND(readability-identifier-naming)
 
   /** @brief True when @p mode is one of the four screens reachable from the menu hub.

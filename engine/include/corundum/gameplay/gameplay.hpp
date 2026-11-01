@@ -10,6 +10,7 @@
 #include <corundum/engine_factory.hpp> // IWYU pragma: export
 #include <corundum/entities/entity.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
+#include <corundum/gameplay/combat/battle.hpp>   // IWYU pragma: export
 #include <corundum/gameplay/dialogue/action.hpp> // IWYU pragma: export
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue_npc.hpp>
@@ -162,6 +163,15 @@ namespace corundum::gameplay {
 
     /** @brief Dialogue events emitted by the current step, consumed by process_events(). */
     std::vector<dialogue::EventAction> pending_dialogue_events;
+
+    /** @brief The fight in progress; disengaged outside a fight. Engaged only while the Combat layer
+     *  is on the UI stack; fixed_step() drops it on the first step the layer is gone (an area change
+     *  replaced the scene). */
+    std::optional<combat::Battle> battle;
+
+    /** @brief A fight start_encounter asked for, started once the mode is back to Exploring (the
+     *  dialogue that asked for it has closed). */
+    std::optional<combat::EncounterRequest> pending_encounter;
 
     /** @brief Highlighted row while the Inventory hub tab is open; wrapped against inventory_lines. */
     int inventory_cursor{};
@@ -377,6 +387,9 @@ namespace corundum::gameplay {
     [[nodiscard]] std::expected<void, std::string> continue_game();
 
     /** @brief Write @p slot_id under the saves directory, stamping location and playtime.
+     *
+     *  Refused during a fight ("can't save during a fight"): a fight's state lives only in the
+     *  battle, which a save doesn't hold.
      *
      *  Exposed so the Save/Load screen can write a player-chosen slot; quick_save()/autosave()
      *  route through it.

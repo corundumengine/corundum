@@ -11,6 +11,8 @@
 #include <corundum/entities/world.hpp>
 #include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
+#include <corundum/gameplay/combat/battle.hpp>
+#include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/credits/credits.hpp>
 #include <corundum/gameplay/credits/loader.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
@@ -31,6 +33,7 @@
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
+#include <corundum/gameplay/screens/combat_hud.hpp>
 #include <corundum/gameplay/screens/confirm.hpp>
 #include <corundum/gameplay/screens/credits.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
@@ -54,6 +57,7 @@
 #include <corundum/save/save.hpp>
 #include <corundum/screen_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
+#include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/prompt_box.hpp>
 #include <corundum/ui/screen_transition.hpp>
 #include <corundum/ui/settings.hpp>
@@ -212,6 +216,16 @@ namespace corundum::gameplay {
         engine.flags[screens::k_experience_flag] += delta;
     }
 
+    /// Queue a `start_encounter(actor, creature)` fight; fixed_step() starts it once the mode is
+    /// back to Exploring, after the dialogue that asked for it closes.
+    void handle_start_encounter(Gameplay &gameplay, const dialogue::EventAction &ev) {
+      if (gameplay.battle || gameplay.pending_encounter) {
+        warn_log("[gameplay] WARN: start_encounter('{}') ignored: a fight is already queued or under way", ev.args[0]);
+        return;
+      }
+      gameplay.pending_encounter = combat::EncounterRequest{.actor_id = ev.args[0], .creature_id = ev.args[1]};
+    }
+
     /// Accumulate a `reputation(faction, delta)` event into `rep.<faction>`. A non-numeric delta
     /// parses to 0 and is skipped so no zero-valued reputation flag is created.
     void handle_reputation(Engine &engine, const dialogue::EventAction &ev) {
@@ -276,76 +290,80 @@ namespace corundum::gameplay {
     };
 
     /// The built-in dialogue events, in dispatch order.
-    constexpr std::array<BuiltinEvent, 11> k_builtin_events{
+    constexpr auto k_builtin_events = std::to_array<BuiltinEvent>({
         {
-            {
-                .name = "play_sound",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_play_sound(e, ev); },
-            },
-            {
-                .name = "quest_start",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
-                             const dialogue::EventAction &ev) { handle_quest_start(e, g, q, ev); },
-            },
-            {
-                .name = "quest_advance",
-                .min_args = 2,
-                .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
-                             const dialogue::EventAction &ev) { handle_quest_advance(e, g, q, ev); },
-            },
-            {
-                .name = "give_item",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_give_item(e, ev); },
-            },
-            {
-                .name = "take_item",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_take_item(e, ev); },
-            },
-            {
-                .name = "unlock_codex",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_unlock_codex(e, g, ev); },
-            },
-            {
-                .name = "discover_location",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_discover_location(e, g, ev); },
-            },
-            {
-                .name = "open_container",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_open_container(e, g, ev); },
-            },
-            {
-                .name = "open_shop",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_open_shop(e, g, ev); },
-            },
-            {
-                .name = "reputation",
-                .min_args = 2,
-                .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_reputation(e, ev); },
-            },
-            {
-                .name = "grant_xp",
-                .min_args = 1,
-                .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                             const dialogue::EventAction &ev) { handle_grant_xp(e, ev); },
-            },
+            .name = "play_sound",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_play_sound(e, ev); },
         },
-    };
+        {
+            .name = "quest_start",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
+                         const dialogue::EventAction &ev) { handle_quest_start(e, g, q, ev); },
+        },
+        {
+            .name = "quest_advance",
+            .min_args = 2,
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
+                         const dialogue::EventAction &ev) { handle_quest_advance(e, g, q, ev); },
+        },
+        {
+            .name = "give_item",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_give_item(e, ev); },
+        },
+        {
+            .name = "take_item",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_take_item(e, ev); },
+        },
+        {
+            .name = "unlock_codex",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_unlock_codex(e, g, ev); },
+        },
+        {
+            .name = "discover_location",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_discover_location(e, g, ev); },
+        },
+        {
+            .name = "open_container",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_open_container(e, g, ev); },
+        },
+        {
+            .name = "open_shop",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_open_shop(e, g, ev); },
+        },
+        {
+            .name = "reputation",
+            .min_args = 2,
+            .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_reputation(e, ev); },
+        },
+        {
+            .name = "grant_xp",
+            .min_args = 1,
+            .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_grant_xp(e, ev); },
+        },
+        {
+            .name = "start_encounter",
+            .min_args = 2,
+            .handle = [](Engine &, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_start_encounter(g, ev); },
+        },
+    });
 
     void dispatch_dialogue_event(Gameplay &gameplay, Engine &engine, quest::Runner &quest_runner,
                                  const dialogue::EventAction &ev) noexcept {
@@ -1625,9 +1643,128 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Register the hub tab screens: dialogue, inventory, character, journal, codex and map.
+    /// Pop the combat layers off the top of @p ui: CombatPaused, then Combat.
+    void close_combat_layers(world::UIStack &ui) noexcept {
+      if (ui.top() == screens::CombatPaused)
+        ui.pop();
+      if (ui.top() == screens::Combat)
+        ui.pop();
+    }
+
+    /// Toggle the fight between running and paused on the Pause action.
+    void toggle_combat_pause(world::UIStack &ui, const input::InputState &input) {
+      if (!input.is_pressed(input::Action::Pause))
+        return;
+      if (ui.top() == screens::Combat)
+        ui.push(screens::CombatPaused);
+      else if (ui.top() == screens::CombatPaused)
+        ui.pop();
+    }
+
+    /// End the fight with @p outcome: stop everyone, close the combat layers, remove a defeated
+    /// hostile, and raise encounter_won/encounter_lost for the game's on_event hook.
+    void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle, combat::Outcome outcome) {
+      battle.halt(engine);
+      close_combat_layers(engine.scene.ui);
+      if (outcome == combat::Outcome::Won)
+        entities::mark_for_deletion(engine.scene.world, battle.hostile_entity());
+      dialogue::EventAction ended{
+          .name = outcome == combat::Outcome::Won ? "encounter_won" : "encounter_lost",
+          .args = {std::string{battle.hostile_actor()}},
+      };
+      gameplay.battle.reset();
+      gameplay.pending_dialogue_events.push_back(std::move(ended));
+    }
+
+    /// Run the fight for one fixed step: drop it when its scene is gone, toggle the pause, then step
+    /// it and toast its attack reports.
+    void update_battle(Engine &engine, Gameplay &gameplay) {
+      if (!gameplay.battle)
+        return;
+
+      world::UIStack &ui = engine.scene.ui;
+      // An area change replaces the scene and its UI stack, so the Combat layer is gone and the
+      // battle's entity ids name nothing: leaving ends the fight with no outcome.
+      if (!ui.contains(screens::Combat)) {
+        gameplay.battle.reset();
+        return;
+      }
+      // The liveness check runs only while the layer is there, so it never reads a replaced scene's ids.
+      if (!gameplay.battle->has_live_combatants(engine)) {
+        close_combat_layers(ui);
+        gameplay.battle.reset();
+        return;
+      }
+
+      toggle_combat_pause(ui, engine.input_state);
+
+      // A screen over the fight (the portal prompt) holds it.
+      const world::GameMode top = ui.top();
+      if (top != screens::Combat && top != screens::CombatPaused)
+        return;
+
+      const combat::Clock clock = top == screens::Combat ? combat::Clock::Running : combat::Clock::Paused;
+      combat::BattleStep step = gameplay.battle->update(engine, clock);
+      for (std::string &report : step.reports)
+        engine.notify(std::move(report));
+      if (step.outcome)
+        end_battle(engine, gameplay, *gameplay.battle, *step.outcome);
+    }
+
+    /// Start the fight start_encounter asked for, once the dialogue that asked has closed.
+    void start_pending_encounter(Engine &engine, Gameplay &gameplay) {
+      if (!gameplay.pending_encounter || engine.scene.mode() != world::GameMode::Exploring)
+        return;
+      const combat::EncounterRequest request = std::move(*gameplay.pending_encounter);
+      gameplay.pending_encounter.reset();
+
+      if (!gameplay.ruleset.combat) {
+        warn_log("[gameplay] WARN: start_encounter('{}') ignored: the ruleset has no combat rules", request.actor_id);
+        return;
+      }
+      std::expected<combat::Battle, std::string> started =
+          combat::Battle::start(engine, *gameplay.ruleset.combat, request);
+      if (!started) {
+        warn_log("[gameplay] WARN: {}", started.error());
+        engine.notify(std::format("The fight can't start: {}", started.error()), ui::k_toast_failed_colour);
+        return;
+      }
+      gameplay.battle.emplace(std::move(*started));
+      engine.scene.ui.push(screens::Combat);
+    }
+
+    /// The combat HUD, with @p banner across the top (empty for none).
+    void render_combat(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport,
+                       std::string_view banner) {
+      if (!gameplay.battle)
+        return;
+      screens::combat_hud_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                                 gameplay.battle->hud_rows(), viewport, banner);
+    }
+
+    /// Register the hub tab screens and the in-world screens: dialogue, combat, inventory, character,
+    /// journal, codex and map.
     void register_hub_screens(Gameplay &gameplay, Engine &engine) {
       engine.screens.add(screens::Dialogue, ScreenSpec{.owns_step = false});
+      engine.screens.add(
+          screens::Combat,
+          ScreenSpec{
+              .owns_step = false,
+              .world_step = world::WorldStep::Runs,
+              .render = [&gameplay](Engine &e, platform::Renderer &r,
+                                    core::math::Vec2 viewport) { render_combat(e, gameplay, r, viewport, ""); },
+          });
+      engine.screens.add(screens::CombatPaused,
+                         ScreenSpec{
+                             .owns_step = false,
+                             .render =
+                                 [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 viewport) {
+                                   const std::string banner =
+                                       std::format("Paused: {} to resume",
+                                                   ui::input_glyph(input::Action::Pause, e.input_mapper.last_device()));
+                                   render_combat(e, gameplay, r, viewport, banner);
+                                 },
+                         });
       engine.screens.add(
           screens::Inventory,
           ScreenSpec{
@@ -1836,6 +1973,8 @@ namespace corundum::gameplay {
 
     playthrough.playtime_seconds += static_cast<double>(dt);
 
+    update_battle(engine, *this);
+
     // Interaction is a one-frame pulse: read and clear it unconditionally so an unconsumed value
     // (no target in range, wrong mode) never persists into the next step.
     const std::optional<corundum::entities::EntityId> interaction = engine.scene.pending_interaction;
@@ -1848,6 +1987,10 @@ namespace corundum::gameplay {
     }
 
     process_events();
+
+    // After process_events, so a start_encounter whose dialogue closed this step starts now; the
+    // fight reads no input until the next step.
+    start_pending_encounter(engine, *this);
 
     if (dialogue)
       screens::dialog_box_advance(dialog_box, *dialogue, dt, engine.render.text_speed);
@@ -1862,6 +2005,10 @@ namespace corundum::gameplay {
   }
 
   std::expected<void, std::string> Gameplay::save_to_slot(std::string_view slot_id) {
+    // A fight's state lives only in the battle, which a save doesn't hold.
+    if (battle)
+      return std::unexpected(std::string{"can't save during a fight"});
+
     if (!engine_->user_storage)
       return std::unexpected(engine_->user_storage.error());
 
@@ -2174,6 +2321,8 @@ namespace corundum::gameplay {
     dialogue.reset();
     dialogue_npc.reset();
     pending_dialogue_events.clear();
+    battle.reset();
+    pending_encounter.reset();
     active_container_id.clear();
     active_shop_id.clear();
     inventory_cursor = 0;

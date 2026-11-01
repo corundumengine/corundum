@@ -107,6 +107,7 @@ target_link_libraries(engine PUBLIC nlohmann_json::nlohmann_json
 set(GAMEPLAY_SOURCES
     src/gameplay/codex/loader.cpp
     src/gameplay/codex/registry.cpp
+    src/gameplay/combat/battle.cpp
     src/gameplay/combat/encounter.cpp
     src/gameplay/credits/loader.cpp
     src/gameplay/dialogue/action.cpp
@@ -135,6 +136,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/screens/barter.cpp
     src/gameplay/screens/character_sheet.cpp
     src/gameplay/screens/codex.cpp
+    src/gameplay/screens/combat_hud.cpp
     src/gameplay/screens/credits.cpp
     src/gameplay/screens/dialog_box.cpp
     src/gameplay/screens/framing_menu.cpp
