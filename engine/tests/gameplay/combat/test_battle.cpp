@@ -281,3 +281,82 @@ TEST_CASE("combat: losing the Combat layer, as an area change does, drops the fi
   CHECK_FALSE(fight->gameplay->battle.has_value());
   CHECK(fight->raised.empty());
 }
+
+TEST_CASE("combat: an attack order out of reach paths the protagonist to a tile next to the target") {
+  const auto fight = make_fight({.col = 10, .row = 8});
+  start_fight(*fight);
+
+  click(*fight, {.col = 10, .row = 8});
+
+  CHECK_EQ(fight->engine->scene.path, std::vector<TileCoord>{{.col = 9, .row = 8}});
+}
+
+TEST_CASE("combat: a hostile out of reach walks toward the protagonist") {
+  const auto fight = make_fight({.col = 10, .row = 8});
+  start_fight(*fight);
+
+  step(*fight);
+
+  const auto &transforms = fight->engine->scene.world.transforms;
+  CHECK_LT(transforms.dc[transforms.dense_index(fight->foe)], 0.f);
+}
+
+TEST_CASE("combat: a hostile in reach stands") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  step(*fight);
+
+  const auto &transforms = fight->engine->scene.world.transforms;
+  const auto slot = transforms.dense_index(fight->foe);
+  CHECK_EQ(transforms.dc[slot], 0.f);
+  CHECK_EQ(transforms.dr[slot], 0.f);
+}
+
+TEST_CASE("combat: a protagonist in reach stands its ground") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  fight->engine->scene.path = {TileCoord{.col = 8, .row = 9}};
+
+  click(*fight, {.col = 9, .row = 8});
+
+  CHECK(fight->engine->scene.path.empty());
+}
+
+TEST_CASE("combat: a ground click while the clock runs drops the attack order") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  click(*fight, {.col = 9, .row = 8});
+
+  click(*fight, {.col = 8, .row = 10});
+
+  CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
+}
+
+TEST_CASE("combat: a ground click while paused keeps the attack order") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  click(*fight, {.col = 9, .row = 8});
+  press(*fight, Action::Pause);
+
+  click(*fight, {.col = 8, .row = 10});
+
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+}
+
+TEST_CASE("combat: holding a move key cancels the protagonist's wind-up") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+  click(*fight, {.col = 9, .row = 8});
+  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
+
+  fight->engine->input_state.held.set(static_cast<std::size_t>(Action::MoveUp));
+  step(*fight);
+
+  // Cancelled to the return point (0), then this step's tick adds Tempo.
+  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::Ready);
+  CHECK_EQ(encounter_of(*fight).beats(combat::Battle::k_protagonist), 20);
+  CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
+}

@@ -63,7 +63,9 @@ namespace corundum::gameplay::combat {
                                                                   const EncounterRequest &request);
 
     /** @brief Run one fixed step: this step's click (and, while Running, held movement keys)
-     *  become orders; while Running the timeline advances and hostiles walk; hud_rows() refreshes.
+     *  become orders; while Running the timeline advances; a combatant with an attack order out of
+     *  reach paths to a tile within reach of its target and walks there, and one in reach or
+     *  winding up stands; hud_rows() refreshes.
      *  @pre has_live_combatants(engine). */
     [[nodiscard]] BattleStep update(Engine &engine, Clock clock);
 
@@ -86,6 +88,15 @@ namespace corundum::gameplay::combat {
   private:
     Battle(Encounter encounter, std::vector<entities::EntityId> entities, std::string actor_id);
 
+    /// Plan each ordered combatant's movement: stand when in reach or winding up, else approach.
+    void plan_movement(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
+
+    /// Path combatant @p mover to the nearest tile within reach of combatant @p target_index.
+    void approach(Engine &engine, const world::MapView &map, std::size_t mover, std::size_t target_index);
+
+    /// Drive each hostile that can act along its planned path.
+    void walk_hostiles(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
+
     Encounter encounter_;
 
     std::vector<entities::EntityId> entities_;
@@ -95,6 +106,10 @@ namespace corundum::gameplay::combat {
     std::vector<world::TileCoord> tiles_;
 
     std::vector<screens::CombatHudRow> hud_rows_;
+
+    std::vector<std::vector<world::TileCoord>> paths_; ///< Each hostile's path; the protagonist uses Scene::path.
+
+    std::vector<std::optional<world::TileCoord>> planned_for_; ///< The target tile each path was planned for.
   };
 
 } // namespace corundum::gameplay::combat
