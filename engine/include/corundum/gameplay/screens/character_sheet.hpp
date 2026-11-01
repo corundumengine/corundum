@@ -20,9 +20,6 @@ namespace corundum::gameplay::screens {
   /** @brief FlagStore key holding the player's accumulated experience. `grant_xp(n)` adds @c n. */
   inline constexpr std::string_view k_experience_flag = "player.xp";
 
-  /** @brief FlagStore key holding the player's character level; defaults to 1 when absent. */
-  inline constexpr std::string_view k_level_flag = "player.level";
-
   /** @brief FlagStore key holding the experience total for the next level; 0 means unknown. */
   inline constexpr std::string_view k_next_level_experience_flag = "player.xp_next";
 

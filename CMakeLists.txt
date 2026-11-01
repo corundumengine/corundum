@@ -5,6 +5,14 @@ project(
   LANGUAGES CXX
 )
 
+# The rules interface needs no dependency, toolchain probe or ObjC++, so it comes first. A
+# ruleset's standalone build (CORUNDUM_RULES_INTERFACE_ONLY) stops right after it.
+option(CORUNDUM_RULES_INTERFACE_ONLY "Define only corundum::rules_interface, for a ruleset's standalone build" OFF)
+add_subdirectory(engine/rules_interface)
+if(CORUNDUM_RULES_INTERFACE_ONLY)
+  return()
+endif()
+
 if(APPLE)
   enable_language(OBJCXX)
 endif()

@@ -157,6 +157,16 @@ TEST_CASE("character sheet: build_character_info takes the ruleset's rows") {
   CHECK_EQ(info.rule_rows, expected);
 }
 
+TEST_CASE("character sheet: ruleset reads an absent flag as 0") {
+  const FlagStore flags{};
+  const corundum::gameplay::item::Registry items{};
+
+  const CharacterInfo info = screens::build_character_info(flags, items, corundum::test::make_flat_ruleset());
+
+  const std::vector<StatRow> expected{{.label = "Health", .value = "0 / 0"}};
+  CHECK_EQ(info.rule_rows, expected);
+}
+
 TEST_CASE("character sheet: layout keeps the three sections ordered inside the panel") {
   const corundum::ui::PanelStyle style{};
 

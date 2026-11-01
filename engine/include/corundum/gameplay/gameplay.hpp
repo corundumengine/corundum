@@ -16,6 +16,7 @@
 #include <corundum/gameplay/dialogue/registry.hpp>
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/location/registry.hpp>
+#include <corundum/gameplay/player_flags.hpp> // IWYU pragma: export
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/rules/rules.hpp> // IWYU pragma: export
 #include <corundum/gameplay/runtime.hpp>     // IWYU pragma: export

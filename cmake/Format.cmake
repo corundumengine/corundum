@@ -28,6 +28,8 @@ if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
   file(GLOB_RECURSE FORMAT_SOURCES
         "engine/src/**/*.cpp"
         "engine/include/corundum/**/*.hpp"
+        "engine/rules_interface/include/corundum/**/*.hpp"
+        "engine/rules_interface/*.cpp"
         "engine/tests/**/*.cpp"
         "tools/toolkit/**/*.cpp"
         "tools/toolkit/**/*.hpp"

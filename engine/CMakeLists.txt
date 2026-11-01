@@ -154,10 +154,11 @@ set(GAMEPLAY_SOURCES
 
 add_library(corundum_gameplay STATIC ${GAMEPLAY_SOURCES})
 
-# Gameplay headers live under the same public include root as the engine's; 'src'
-# is private so gameplay TUs can reach internal engine helpers (core/warn_log.hpp).
+# Gameplay headers live under the same public include root as the engine's, except the rules
+# interface, which has its own root (engine/rules_interface/); 'src' is private so gameplay TUs
+# can reach internal engine helpers (core/warn_log.hpp).
 target_include_directories(corundum_gameplay PRIVATE src)
-target_link_libraries(corundum_gameplay PUBLIC engine)
+target_link_libraries(corundum_gameplay PUBLIC engine corundum::rules_interface)
 
 corundum_use_cxx23(corundum_gameplay)
 corundum_enable_warnings(corundum_gameplay)

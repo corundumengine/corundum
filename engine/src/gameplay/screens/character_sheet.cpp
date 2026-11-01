@@ -5,6 +5,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/player_flags.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
@@ -150,8 +151,12 @@ namespace corundum::gameplay::screens {
     info.level = std::max(1, world::visit_count(flags, k_level_flag));
     info.experience = flag_count(flags, k_experience_flag);
     info.experience_to_next_level = flag_count(flags, k_next_level_experience_flag);
-    if (ruleset.character_rows)
-      info.rule_rows = ruleset.character_rows(flags);
+    if (ruleset.character_rows) {
+      const rules::FlagReader reader{
+          .read = [&flags](std::string_view key) { return world::visit_count(flags, key); },
+      };
+      info.rule_rows = ruleset.character_rows(reader);
+    }
     info.gold = flag_count(flags, k_gold_flag);
     info.equipment = build_equipment_lines(flags, items);
     info.inventory = build_inventory_lines(flags, items);
