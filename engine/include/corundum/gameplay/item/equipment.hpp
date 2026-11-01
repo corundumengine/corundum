@@ -5,6 +5,7 @@
 
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/player_flags.hpp> // IWYU pragma: export
 #include <corundum/world/flags.hpp>
 
 #include <expected>
@@ -13,11 +14,10 @@
 
 namespace corundum::gameplay::item {
 
-  /** @brief Slot name weapons occupy when they carry no apparel slot.
-   *
-   *  Apparel's slot vocabulary is author-defined (`ApparelData::slot`); weapons have no slot
-   *  field, so they all share this one. */
-  inline constexpr std::string_view k_weapon_slot = "weapon";
+  // The key spelling is part of the rules interface (player_flags.hpp), so a ruleset can read
+  // what is equipped; item code keeps naming it item::.
+  using gameplay::equip_flag_key;
+  using gameplay::k_weapon_slot;
 
   /** @brief The equipment slot @p item occupies, or empty when it cannot be equipped.
    *
@@ -25,9 +25,6 @@ namespace corundum::gameplay::item {
    *  everything else (misc, potions, armour with a blank slot) is not equippable.
    */
   [[nodiscard]] std::string equipment_slot(const Item &item);
-
-  /** @brief FlagStore key marking @p item_id equipped in @p slot: `equip.<slot>.<item id>`. */
-  [[nodiscard]] std::string equip_flag_key(std::string_view slot, std::string_view item_id);
 
   /** @brief True when the held item @p item_id is equipped in its own slot.
    *

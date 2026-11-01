@@ -37,10 +37,6 @@ namespace corundum::gameplay::item {
     return {};
   }
 
-  std::string equip_flag_key(std::string_view slot, std::string_view item_id) {
-    return std::format("equip.{}.{}", slot, item_id);
-  }
-
   bool is_equipped(const world::FlagStore &flags, const Registry &items, std::string_view item_id) {
     const Item *item = items.find(item_id);
     if (item == nullptr)

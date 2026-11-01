@@ -10,7 +10,7 @@
 namespace corundum::test {
 
   /// The minimal ruleset the framework is tested against: one Health row read verbatim from the
-  /// `test.health` and `test.max_health` flags. It holds no Cerclet rule.
+  /// `test.health` and `test.max_health` flags. It holds no game-specific rule.
   inline gameplay::rules::Ruleset make_flat_ruleset() {
     return gameplay::rules::Ruleset{
         .character_rows =

@@ -203,7 +203,7 @@ namespace corundum::gameplay {
      *  This is the game's slot, never overwritten by the framework. */
     std::function<bool(Engine &, const dialogue::EventAction &)> on_event;
 
-    /** @brief The game's ruleset: the values (stats, and later combat and checks) the framework
+    /** @brief The game's ruleset: the values (stats and combat, and later checks) the framework
      *  shows but never computes. An empty callback means the game supplies nothing for it.
      *
      *  This is the game's slot, never overwritten by the framework. */

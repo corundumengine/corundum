@@ -1,5 +1,5 @@
 # The rules interface: the headers a game's ruleset compiles against, and nothing else. They have
-# their own include root, so a ruleset that links only this target (cerclet) can include exactly
+# their own include root, so a ruleset that links only this target can include exactly
 # these headers; any other <corundum/...> header fails to compile there. corundum_gameplay links
 # it PUBLIC, so the framework and the game see the same headers at the same paths.
 include(${PROJECT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
