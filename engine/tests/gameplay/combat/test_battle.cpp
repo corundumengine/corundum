@@ -206,9 +206,20 @@ TEST_CASE("combat: the timeline holds while the fight is paused") {
   CHECK_EQ(encounter_of(*fight).beats(combat::Battle::k_hostile), 20);
 }
 
-TEST_CASE("combat: a click on the hostile's tile orders the protagonist's attack") {
+TEST_CASE("combat: the protagonist starts the fight with a standing attack on the hostile") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+
+  start_fight(*fight);
+
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+}
+
+TEST_CASE("combat: a click on the hostile's tile renews an attack order a move dropped") {
   const auto fight = make_fight({.col = 9, .row = 8});
   start_fight(*fight);
+  click(*fight, {.col = 8, .row = 10});
+  REQUIRE_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
 
   click(*fight, {.col = 9, .row = 8});
 

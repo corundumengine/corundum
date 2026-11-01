@@ -55,8 +55,9 @@ namespace corundum::gameplay::combat {
 
     static constexpr std::size_t k_hostile = 1;
 
-    /** @brief Start a fight between the protagonist and the actor @p request names. The hostile is
-     *  given a standing attack on the protagonist.
+    /** @brief Start a fight between the protagonist and the actor @p request names. Each side is
+     *  given a standing attack on the other, so the protagonist fights without a click; a move order
+     *  drops the protagonist's.
      *  @return The battle, or an error: no protagonist in the scene, no live actor with the id
      *          ("[gameplay] start_encounter: no actor '<id>' in this area"), or Encounter::start's. */
     [[nodiscard]] static std::expected<Battle, std::string> start(Engine &engine, const rules::CombatRules &rules,

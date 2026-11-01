@@ -87,7 +87,7 @@ namespace corundum::gameplay::combat {
       for (int col = target.col - reach; col <= target.col + reach; ++col) {
         for (int row = target.row - reach; row <= target.row + reach; ++row) {
           const world::TileCoord candidate{.col = col, .row = row};
-          if (world::tile_distance(candidate, target) >= 1)
+          if (candidate != target)
             candidates.push_back(candidate);
         }
       }
@@ -110,18 +110,18 @@ namespace corundum::gameplay::combat {
     }
 
     /// Give the protagonist a ground move order, dropping any attack and its planned approach.
-    void order_protagonist_move(Encounter &encounter, std::span<std::optional<world::TileCoord>> planned_for) {
+    void order_protagonist_move(Encounter &encounter, std::optional<world::TileCoord> &planned_approach) {
       encounter.order_move(Battle::k_protagonist);
-      planned_for[Battle::k_protagonist].reset();
+      planned_approach.reset();
     }
 
     /// Turn this step's click into the protagonist's attack, ground move or nothing, and a held
     /// movement key into a ground move.
     void read_orders(Encounter &encounter, const rules::CombatContext &context, const Engine &engine, Clock clock,
-                     std::span<const world::TileCoord> tiles, std::span<std::optional<world::TileCoord>> planned_for) {
+                     std::span<const world::TileCoord> tiles, std::optional<world::TileCoord> &planned_approach) {
       const bool is_running = clock == Clock::Running;
       if (is_running && is_move_held(engine.input_state))
-        order_protagonist_move(encounter, planned_for);
+        order_protagonist_move(encounter, planned_approach);
 
       if (!engine.input_state.mouse_click_pressed || !engine.scene.hovered_tile)
         return;
@@ -129,12 +129,12 @@ namespace corundum::gameplay::combat {
         if (encounter.side(i) == Side::Hostile && tiles[i] == *engine.scene.hovered_tile &&
             encounter.can_act(context, i)) {
           encounter.order_attack(Battle::k_protagonist, i);
-          planned_for[Battle::k_protagonist].reset();
+          planned_approach.reset();
           return;
         }
       }
       if (is_running)
-        order_protagonist_move(encounter, planned_for);
+        order_protagonist_move(encounter, planned_approach);
     }
 
   } // namespace
@@ -171,6 +171,7 @@ namespace corundum::gameplay::combat {
 
     Battle battle(std::move(*encounter), {engine.scene.player, *actor}, request.actor_id);
     battle.encounter_.order_attack(k_hostile, k_protagonist);
+    battle.encounter_.order_attack(k_protagonist, k_hostile);
     refresh_hud(battle.encounter_, make_combat_context(engine), battle.hud_rows_);
     return battle;
   }
@@ -180,7 +181,7 @@ namespace corundum::gameplay::combat {
     for (std::size_t i = 0; i < entities_.size(); ++i)
       tiles_[i] = transform_tile(engine, entities_[i]);
 
-    read_orders(encounter_, context, engine, clock, tiles_, planned_for_);
+    read_orders(encounter_, context, engine, clock, tiles_, planned_for_[k_protagonist]);
 
     BattleStep step;
     if (clock == Clock::Running)
@@ -207,10 +208,8 @@ namespace corundum::gameplay::combat {
       const world::TileCoord target_tile = tiles_[*target];
       const bool in_reach = world::tile_distance(tiles_[i], target_tile) <= encounter_.spec(i).reach_tiles;
       if (in_reach || encounter_.phase(i) == Phase::WindUp) {
-        if (encounter_.side(i) == Side::Hostile)
-          paths_[i].clear();
-        else
-          engine.scene.path.clear();
+        std::vector<world::TileCoord> &path = encounter_.side(i) == Side::Hostile ? paths_[i] : engine.scene.path;
+        path.clear();
         planned_for_[i].reset();
         continue;
       }
@@ -232,10 +231,10 @@ namespace corundum::gameplay::combat {
         approach_candidates(target_tile, encounter_.spec(mover).reach_tiles, tiles_[mover]);
 
     for (const world::TileCoord &candidate : candidates) {
-      std::vector<world::TileCoord> found =
-          world::find_path(map, tiles_[mover], candidate, &engine.scene.world.collisions,
-                           &engine.scene.world.transforms, entities_[mover]);
-      if (!found.empty()) {
+      if (std::vector<world::TileCoord> found =
+              world::find_path(map, tiles_[mover], candidate, &engine.scene.world.collisions,
+                               &engine.scene.world.transforms, entities_[mover]);
+          !found.empty()) {
         path = std::move(found);
         return;
       }
