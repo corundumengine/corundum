@@ -591,9 +591,12 @@ namespace corundum {
             world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
             // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
             // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
+            const ScreenSpec *top_spec = engine.screens.find(engine.scene.mode());
+            const world::WorldStep world_step =
+                top_spec != nullptr ? top_spec->world_step : world::WorldStep::Frozen;
             world::update(engine.scene, engine.cfg, engine.input_state, map_view, engine.timer.target_dt,
                           static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
-                          engine.input_mapper.last_device());
+                          engine.input_mapper.last_device(), world_step);
           }
 
           // Registered systems (gameplay's dialogue/event/quest tick) run every step — including

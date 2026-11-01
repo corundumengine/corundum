@@ -174,12 +174,18 @@ namespace {
 namespace corundum::world {
 
   void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::input::InputState &input,
-              const MapView &map, float dt, float win_w, float win_h, input::InputDevice last_device) {
+              const MapView &map, float dt, float win_w, float win_h, input::InputDevice last_device,
+              WorldStep world_step) {
     const input::InputIntent intent = input::make_input_intent(input, last_device);
 
-    // Camera zoom is only applied while free-roaming: update_exploring re-clamps the
+    // The interact target is a one-frame pulse, so a step that doesn't resolve one reports no
+    // target rather than reusing the previous step's.
+    scene.pending_interaction.reset();
+
+    // Camera zoom is only applied while the world runs: update_exploring re-clamps the
     // viewport via follow_player on the same step, which apply_zoom requires.
-    if (scene.mode() == GameMode::Exploring)
+    const bool is_exploring = scene.mode() == GameMode::Exploring;
+    if (is_exploring || world_step == WorldStep::Runs)
       update_zoom(scene, input, cfg, dt, win_w, win_h);
 
     // One projection for the whole frame: animation speed scaling (screen-space velocity),
@@ -203,10 +209,11 @@ namespace corundum::world {
         scene.pending_interaction = pick_interaction_target(scene, cfg, intent);
         break;
       default:
-        // Extension modes and the engine screens (Menu, Settings) run no engine world
-        // simulation here: step-owning screens skip world::update entirely, and a
-        // non-step-owning extension mode (Dialogue) does its per-step work from a
-        // fixed_step_systems entry. In particular Dialogue must never run update_exploring.
+        // A mode that runs the world (a fight) moves everyone as Exploring does but targets no
+        // interaction, so a click on an NPC starts no dialogue. A frozen mode (Dialogue) runs
+        // nothing here, and step-owning screens skip world::update entirely.
+        if (world_step == WorldStep::Runs)
+          update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
         break;
     }
   }

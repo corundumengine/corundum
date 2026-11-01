@@ -58,6 +58,10 @@ namespace corundum {
      *  from this hook. */
     bool owns_step{false};
 
+    /** @brief For a non-step-owning screen, whether the world keeps simulating beneath it. Ignored
+     *  when owns_step is true. */
+    world::WorldStep world_step{world::WorldStep::Frozen};
+
     ScreenUpdateFn update{};
 
     ScreenRenderFn render{};

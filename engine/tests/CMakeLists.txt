@@ -116,6 +116,7 @@ set(TEST_SOURCES
     world/test_camera.cpp
     world/test_elevation_at.cpp
     world/test_flags.cpp
+    world/test_grid.cpp
     world/test_interaction_target.cpp
     world/test_material_at.cpp
     world/test_pathfinding.cpp
@@ -127,6 +128,7 @@ set(TEST_SOURCES
     world/test_tilemap_validate.cpp
     world/test_transition_prompt.cpp
     world/test_world_manifest.cpp
+    world/test_world_step.cpp
     world/test_world_transition.cpp
 )
 

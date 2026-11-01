@@ -53,3 +53,8 @@ TEST_CASE("input_glyph: an unmapped action falls back to ? rather than empty") {
   CHECK(input_glyph(Action::Quit, InputDevice::Gamepad) == "?");
   CHECK(input_glyph(Action::QuickSave, InputDevice::Mouse) == "?");
 }
+
+TEST_CASE("input_glyph: Pause shows Space on a keyboard and X on a gamepad") {
+  CHECK_EQ(input_glyph(Action::Pause, InputDevice::Keyboard), "Space");
+  CHECK_EQ(input_glyph(Action::Pause, InputDevice::Gamepad), "X");
+}

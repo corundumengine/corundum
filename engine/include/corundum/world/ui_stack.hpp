@@ -33,6 +33,12 @@ namespace corundum::world {
     Settings,  ///< In-game settings screen.
   };
 
+  /** @brief What world::update runs beneath a mode other than Exploring and Prompt. */
+  enum class WorldStep : std::uint8_t {
+    Frozen, ///< Nothing moves; only the hovered tile updates (dialogue, a paused fight).
+    Runs,   ///< Movement, animation, zoom and camera follow as in Exploring, without interaction targeting (a fight).
+  };
+
   /** @brief The ordered stack of open UI screens, top last.
    *
    *  A value type: public state, per-call methods, no stored collaborators. Opening a screen

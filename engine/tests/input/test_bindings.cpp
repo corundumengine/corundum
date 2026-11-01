@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <iterator>
 #include <string>
 #include <string_view>
@@ -354,4 +355,23 @@ TEST_CASE("bindings: Cancel includes the right mouse button") {
   CHECK(std::ranges::find(cancel, physical(corundum::input::MouseButton::Right)) != cancel.end());
   CHECK(std::ranges::find(cancel, physical(Key::Escape)) != cancel.end());
   CHECK(std::ranges::find(cancel, physical(GamepadControl::B)) != cancel.end());
+}
+
+TEST_CASE("bindings: Space and gamepad X raise Pause by default") {
+  const Bindings defaults = default_bindings();
+
+  CHECK_EQ(inputs_for(defaults, Action::Pause),
+           std::vector<PhysicalInput>{physical(Key::Space), physical(GamepadControl::X)});
+}
+
+TEST_CASE("bindings: a settings file saved before Pause existed gains its defaults") {
+  Bindings older = default_bindings();
+  std::erase_if(older, [](const Binding &row) { return row.action == Action::Pause; });
+
+  const std::expected<Bindings, std::string> parsed =
+      corundum::input::parse_bindings(corundum::input::serialize(older), default_bindings());
+
+  REQUIRE(parsed.has_value());
+  CHECK_EQ(inputs_for(*parsed, Action::Pause),
+           std::vector<PhysicalInput>{physical(Key::Space), physical(GamepadControl::X)});
 }

@@ -59,10 +59,9 @@ namespace corundum::world {
     /// Interact target resolved for the current fixed step: the entity the player's Activate
     /// press targeted, or nullopt when it targeted nothing.
     ///
-    /// @note A one-frame pulse, not a latch. The gameplay fixed-step system reads and clears it
-    ///       unconditionally at the start of its step, so an unconsumed value (no NPC in range,
-    ///       wrong mode) is discarded rather than persisting to the next step. Only the engine's
-    ///       exploring input handler writes it.
+    /// @note A one-frame pulse, not a latch. world::update() clears it at the start of every step
+    ///       and only the exploring branch sets it; the gameplay fixed-step system reads and clears
+    ///       it, so an unconsumed value (no NPC in range, wrong mode) never reaches the next step.
     std::optional<corundum::entities::EntityId> pending_interaction;
 
     std::optional<MapTransition> pending_transition;

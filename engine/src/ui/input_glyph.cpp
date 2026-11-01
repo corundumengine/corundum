@@ -36,6 +36,7 @@ namespace corundum::ui {
         case Action::TabPrev: return "[";
         case Action::SubTabNext: return ".";
         case Action::SubTabPrev: return ",";
+        case Action::Pause: return "Space";
         case Action::QuickSave: return "F5";
         case Action::QuickLoad: return "F9";
         case Action::Count: break;
@@ -63,6 +64,7 @@ namespace corundum::ui {
         case Action::Activate: return "A";
         case Action::Cancel: return "B";
         case Action::Hub: return "Y";
+        case Action::Pause: return "X";
         case Action::Character: return "Back";
         case Action::Menu: return "Start";
         case Action::TabNext: return "R1";

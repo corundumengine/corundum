@@ -35,6 +35,7 @@ namespace corundum::input {
     TabPrev,    ///< Previous tab: settings pages, barter Buy/Sell, hub tabs ([ / gamepad L1).
     SubTabNext, ///< Next sub-tab inside a hub tab: journal Active/Completed/Failed (. / gamepad R2).
     SubTabPrev, ///< Previous sub-tab inside a hub tab: journal Active/Completed/Failed (, / gamepad L2).
+    Pause,      ///< Combat pause toggle (Space / gamepad X). Only a fight reads it; Space also raises Select/Activate.
     QuickSave,  ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
     QuickLoad,  ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
     Count,

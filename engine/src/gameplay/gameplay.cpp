@@ -350,10 +350,14 @@ namespace corundum::gameplay {
     void dispatch_dialogue_event(Gameplay &gameplay, Engine &engine, quest::Runner &quest_runner,
                                  const dialogue::EventAction &ev) noexcept {
       try {
-        const auto *const builtin = std::ranges::find_if(k_builtin_events, [&ev](const BuiltinEvent &row) {
-          return row.name == ev.name && row.min_args <= ev.args.size();
-        });
-        if (builtin != k_builtin_events.end()) {
+        const BuiltinEvent *builtin = nullptr;
+        for (const BuiltinEvent &row : k_builtin_events) {
+          if (row.name == ev.name && row.min_args <= ev.args.size()) {
+            builtin = &row;
+            break;
+          }
+        }
+        if (builtin != nullptr) {
           builtin->handle(engine, gameplay, quest_runner, ev);
         } else if (invoke_event_hook(gameplay, engine, ev) == EventHookResult::NotHandled) {
           warn_log("[gameplay] WARN: unknown dialogue event '{}'", ev.name);
