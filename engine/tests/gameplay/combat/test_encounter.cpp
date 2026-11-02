@@ -43,6 +43,13 @@ namespace {
 
   constexpr std::string_view k_braced = "braced";
 
+  /// Indices into test_commands().
+  constexpr std::size_t k_jab = 0;
+  constexpr std::size_t k_brace = 1;
+  constexpr std::size_t k_bash = 2;
+  constexpr std::size_t k_trip = 3;
+  constexpr std::size_t k_nudge = 4;
+
   /// Every test combatant's commands, in this order: jab (Quick, at an enemy), brace (Quick, on
   /// itself, available until used), bash (Action, Breaks), trip (Action, Staggers 50 beats), nudge
   /// (Action, Staggers 10 beats) and smash (Heavy, at an enemy).
@@ -189,11 +196,11 @@ TEST_CASE("Encounter: a marker with no order holds at the command point") {
 TEST_CASE("Encounter: an order in reach winds up at the command point and lands a tick later") {
   combat::Encounter encounter = start_duel(spec(80), spec(0));
   encounter.order_attack(0, 1);
-  const std::vector<std::string> first = encounter.update(k_context, k_adjacent);
+  const std::vector<std::string> first = encounter.update(k_context, k_adjacent).reports;
   REQUIRE(first.empty());
   REQUIRE_EQ(encounter.phase(0), combat::Phase::WindUp);
 
-  const std::vector<std::string> second = encounter.update(k_context, k_adjacent);
+  const std::vector<std::string> second = encounter.update(k_context, k_adjacent).reports;
 
   CHECK_EQ(second, std::vector<std::string>{"a hits b"});
   CHECK_EQ(encounter.phase(0), combat::Phase::Ready);
@@ -234,7 +241,7 @@ TEST_CASE("Encounter: a target that leaves reach during the wind-up makes the at
   encounter.order_attack(0, 1);
   std::ignore = encounter.update(k_context, k_adjacent);
 
-  const std::vector<std::string> reports = encounter.update(k_context, k_apart);
+  const std::vector<std::string> reports = encounter.update(k_context, k_apart).reports;
 
   CHECK(reports.empty());
   CHECK_EQ(encounter.beats(0), 40);
@@ -263,7 +270,7 @@ TEST_CASE("Encounter: of two attacks landing on one tick, the one further along 
   encounter.order_attack(1, 0);
   std::ignore = encounter.update(k_context, k_adjacent);
 
-  const std::vector<std::string> reports = encounter.update(k_context, k_adjacent);
+  const std::vector<std::string> reports = encounter.update(k_context, k_adjacent).reports;
 
   CHECK_EQ(reports, std::vector<std::string>{"b hits a", "a hits b"});
 }
@@ -274,7 +281,7 @@ TEST_CASE("Encounter: of two attacks equally far along, higher initiative goes f
   encounter.order_attack(1, 0);
   std::ignore = encounter.update(k_context, k_adjacent);
 
-  const std::vector<std::string> reports = encounter.update(k_context, k_adjacent);
+  const std::vector<std::string> reports = encounter.update(k_context, k_adjacent).reports;
 
   CHECK_EQ(reports, std::vector<std::string>{"b hits a", "a hits b"});
 }
@@ -289,7 +296,7 @@ TEST_CASE("Encounter: of two attacks equally far along with equal initiative, th
   encounter->order_attack(1, 0);
   std::ignore = encounter->update(k_context, k_adjacent);
 
-  const std::vector<std::string> reports = encounter->update(k_context, k_adjacent);
+  const std::vector<std::string> reports = encounter->update(k_context, k_adjacent).reports;
 
   CHECK_EQ(reports, std::vector<std::string>{"a hits b", "b hits a"});
 }
@@ -300,7 +307,7 @@ TEST_CASE("Encounter: a combatant downed earlier in the tick doesn't land its at
   encounter.order_attack(1, 0);
   std::ignore = encounter.update(k_context, k_adjacent);
 
-  const std::vector<std::string> reports = encounter.update(k_context, k_adjacent);
+  const std::vector<std::string> reports = encounter.update(k_context, k_adjacent).reports;
 
   CHECK_EQ(reports, std::vector<std::string>{"a hits b"});
 }
@@ -376,4 +383,234 @@ TEST_CASE("Encounter::start refuses a timeline that never advances") {
 
   REQUIRE_FALSE(encounter.has_value());
   CHECK_EQ(encounter.error(), "[gameplay] the combat rules need a positive command_point_beats and tempo_beats");
+}
+
+TEST_CASE("Encounter: a queued command winds up at the command point instead of the standing attack") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_jab);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.phase(0), combat::Phase::WindUp);
+  CHECK_EQ(encounter.windup_label(0), "Jab");
+  CHECK_EQ(encounter.windup_end_beats(0), 110);
+  CHECK_FALSE(encounter.queued(0).has_value());
+}
+
+TEST_CASE("Encounter: a queued command lands, drops to its own return point, and the standing attack comes next") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_jab);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep landed = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(landed.reports, std::vector<std::string>{"a uses jab on b"});
+  CHECK_EQ(encounter.beats(0), 40);
+  CHECK_EQ(encounter.windup_end_beats(0), 120);
+}
+
+TEST_CASE("Encounter: a Self command winds up with no target and resolves on its actor") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.queue_command(0, k_brace);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  REQUIRE_EQ(encounter.windup_label(0), "Brace");
+
+  const combat::EncounterStep landed = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(landed.reports, std::vector<std::string>{"a uses brace"});
+  CHECK_EQ(encounter.beats(0), 40);
+}
+
+TEST_CASE("Encounter: a command's availability refreshes once a command resolves") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  REQUIRE(encounter.commands(0)[k_brace].is_available);
+  encounter.queue_command(0, k_brace);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_FALSE(encounter.commands(0)[k_brace].is_available);
+}
+
+TEST_CASE("Encounter: commands lists the rules' options in their order") {
+  const combat::Encounter encounter = start_duel(spec(0), spec(0));
+
+  std::vector<std::string> labels;
+  for (const rules::CommandOption &option : encounter.commands(0))
+    labels.push_back(option.label);
+
+  CHECK_EQ(labels, std::vector<std::string>{"Jab", "Brace", "Bash", "Trip", "Nudge", "Smash"});
+}
+
+TEST_CASE("Encounter: an Enemy command waits at the command point until its target is in reach") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_jab);
+  std::ignore = encounter.update(k_context, k_apart);
+  std::ignore = encounter.update(k_context, k_apart);
+  REQUIRE_EQ(encounter.phase(0), combat::Phase::Ready);
+  REQUIRE_EQ(encounter.beats(0), 100);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.phase(0), combat::Phase::WindUp);
+  CHECK_EQ(encounter.windup_label(0), "Jab");
+}
+
+TEST_CASE("Encounter: a hostile winds up the command its rules choose") {
+  combat::Encounter encounter = start_duel(spec(0), spec(80), 2, Plans{{"b", "smash"}});
+  encounter.order_attack(1, 0);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.windup_label(1), "Smash");
+  CHECK_EQ(encounter.windup_end_beats(1), 130);
+}
+
+TEST_CASE("Encounter: a hostile's heavy command lands when its longer wind-up ends") {
+  combat::Encounter encounter = start_duel(spec(0), spec(80), 2, Plans{{"b", "smash"}});
+  encounter.order_attack(1, 0);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  const combat::EncounterStep early = encounter.update(k_context, k_adjacent);
+  REQUIRE(early.reports.empty());
+
+  const combat::EncounterStep landed = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(landed.reports, std::vector<std::string>{"b uses smash on a"});
+}
+
+TEST_CASE("Encounter: update names the combatants whose wind-up started") {
+  combat::Encounter encounter = start_duel(spec(80), spec(80));
+  encounter.order_attack(0, 1);
+  encounter.order_attack(1, 0);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.windups_started, std::vector<std::size_t>{0, 1});
+}
+
+TEST_CASE("Encounter: a Break cancels the target's wind-up and drops its marker to the break return point") {
+  combat::Encounter encounter = start_duel(spec(80), spec(80), 2, Plans{{"b", "smash"}});
+  encounter.order_attack(0, 1);
+  encounter.order_attack(1, 0);
+  encounter.queue_command(0, k_bash);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.reports, std::vector<std::string>{"a uses bash on b", "b: Smash broken"});
+  CHECK_EQ(encounter.phase(1), combat::Phase::Ready);
+  CHECK_EQ(encounter.beats(1), 10);
+  CHECK(encounter.windup_label(1).empty());
+}
+
+TEST_CASE("Encounter: a Break on a combatant that isn't winding up leaves its marker alone") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_bash);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.reports, std::vector<std::string>{"a uses bash on b"});
+  CHECK_EQ(encounter.beats(1), 40);
+}
+
+TEST_CASE("Encounter: a Stagger knocks a wind-up back without cancelling it") {
+  combat::Encounter encounter = start_duel(spec(80), spec(80), 2, Plans{{"b", "smash"}});
+  encounter.order_attack(0, 1);
+  encounter.order_attack(1, 0);
+  encounter.queue_command(0, k_trip);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.phase(1), combat::Phase::WindUp);
+  CHECK_EQ(encounter.beats(1), 70);
+  CHECK_EQ(encounter.windup_label(1), "Smash");
+}
+
+TEST_CASE("Encounter: a Stagger never takes a marker below 0") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_trip);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.beats(1), 0);
+}
+
+TEST_CASE("Encounter: a combatant Broken earlier in the tick doesn't land its own command") {
+  // a is further along (130 against 120), so its bash lands first and Breaks b's attack.
+  combat::Encounter encounter = start_duel(spec(90), spec(80));
+  encounter.order_attack(0, 1);
+  encounter.order_attack(1, 0);
+  encounter.queue_command(0, k_bash);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.reports, std::vector<std::string>{"a uses bash on b", "b: Attack broken"});
+  CHECK_EQ(encounter.health(k_context, 0), rules::Health{.current = 2, .max = 2});
+}
+
+TEST_CASE("Encounter: a combatant Staggered below its landing point earlier in the tick doesn't land") {
+  combat::Encounter encounter = start_duel(spec(90), spec(80));
+  encounter.order_attack(0, 1);
+  encounter.order_attack(1, 0);
+  encounter.queue_command(0, k_trip);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.reports, std::vector<std::string>{"a uses trip on b"});
+  CHECK_EQ(encounter.phase(1), combat::Phase::WindUp);
+  CHECK_EQ(encounter.beats(1), 70);
+}
+
+TEST_CASE("Encounter: a Stagger smaller than the target's overshoot leaves its command landing") {
+  // Both land on tick 2: a at 139, b at 135, both past their 120 landing point. a goes first, and
+  // its nudge takes b to 125, still past 120.
+  combat::Encounter encounter = start_duel(spec(99), spec(95));
+  encounter.order_attack(0, 1);
+  encounter.order_attack(1, 0);
+  encounter.queue_command(0, k_nudge);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.reports, std::vector<std::string>{"a uses nudge on b", "b hits a"});
+  CHECK_EQ(encounter.phase(1), combat::Phase::Ready);
+}
+
+TEST_CASE("Encounter: order_move cancels the command winding up and keeps a queued one") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_jab);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  encounter.queue_command(0, k_brace);
+
+  encounter.order_move(0);
+
+  CHECK_EQ(encounter.phase(0), combat::Phase::Ready);
+  CHECK_EQ(encounter.beats(0), 40);
+  CHECK_EQ(encounter.queued(0), std::optional<std::size_t>{k_brace});
+  CHECK_FALSE(encounter.target_of(0).has_value());
+}
+
+TEST_CASE("Encounter: a queued command that fizzles is spent, and the standing attack stays") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_jab);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_apart);
+
+  CHECK(step.reports.empty());
+  CHECK_EQ(encounter.beats(0), 40);
+  CHECK_EQ(encounter.target_of(0), std::optional<std::size_t>{1});
+  CHECK_EQ(encounter.windup_end_beats(0), 120);
 }

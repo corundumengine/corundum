@@ -322,7 +322,7 @@ TEST_CASE("settings: an oversized binding table is rejected and leaves the engin
   const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE_FALSE(loaded.has_value());
   CHECK_EQ(loaded.error(),
-           std::format("settings: binding table has 73 rows; the limit is {}", corundum::input::k_max_input_sources));
+           std::format("settings: binding table has 78 rows; the limit is {}", corundum::input::k_max_input_sources));
   CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
 }
 

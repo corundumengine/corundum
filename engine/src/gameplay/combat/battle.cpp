@@ -185,7 +185,7 @@ namespace corundum::gameplay::combat {
 
     BattleStep step;
     if (clock == Clock::Running)
-      step.reports = encounter_.update(context, tiles_);
+      step.reports = encounter_.update(context, tiles_).reports;
 
     const world::MapView map = world::build_map_view(engine.render, engine.cfg);
     plan_movement(engine, map, context);
