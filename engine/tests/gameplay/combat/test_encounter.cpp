@@ -7,6 +7,7 @@
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/world/picking.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <expected>
@@ -37,32 +38,105 @@ namespace {
   constexpr std::array<TileCoord, 2> k_adjacent{{{.col = 0, .row = 0}, {.col = 1, .row = 0}}};
   constexpr std::array<TileCoord, 2> k_apart{{{.col = 0, .row = 0}, {.col = 3, .row = 0}}};
 
-  /// A fight between creatures named by id, with the numbers in @p specs. Each starts with
-  /// @p health Health; every attack lands for 1 and reports "<attacker> hits <target>".
-  rules::CombatRules make_rules(Specs specs, int health) {
+  /// A hostile's id and the id of the command it always chooses.
+  using Plans = std::flat_map<std::string, std::string, std::less<>>;
+
+  constexpr std::string_view k_braced = "braced";
+
+  /// Every test combatant's commands, in this order: jab (Quick, at an enemy), brace (Quick, on
+  /// itself, available until used), bash (Action, Breaks), trip (Action, Staggers 50 beats), nudge
+  /// (Action, Staggers 10 beats) and smash (Heavy, at an enemy).
+  std::vector<rules::CommandOption> test_commands(const rules::Combatant &combatant) {
+    const auto at_enemy = [](std::string id, std::string label, int return_to, int windup) {
+      return rules::CommandOption{
+          .id = std::move(id),
+          .is_available = true,
+          .label = std::move(label),
+          .target = rules::CommandTarget::Enemy,
+          .timing = {.return_to_beats = return_to, .windup_beats = windup},
+      };
+    };
+    return {
+        at_enemy("jab", "Jab", 40, 10),
+        {
+            .id = "brace",
+            .is_available = !combatant.state.contains(k_braced),
+            .label = "Brace",
+            .target = rules::CommandTarget::Self,
+            .timing = {.return_to_beats = 40, .windup_beats = 10},
+        },
+        at_enemy("bash", "Bash", 0, 20),
+        at_enemy("trip", "Trip", 0, 20),
+        at_enemy("nudge", "Nudge", 0, 20),
+        at_enemy("smash", "Smash", 0, 30),
+    };
+  }
+
+  /// How far each test command Staggers: trip 50 beats, nudge 10, any other none.
+  int stagger_of(std::string_view command) {
+    if (command == "trip")
+      return 50;
+    if (command == "nudge")
+      return 10;
+    return 0;
+  }
+
+  /// A fight between creatures named by id, with the numbers in @p specs and each named after its
+  /// id. Each starts with @p health Health. Every hit lands for 1 and reports "<attacker> hits
+  /// <target>", or "<attacker> uses <command> on <target>"; bash Breaks, and trip and nudge Stagger.
+  /// A hostile in @p plans always chooses its planned command. A Broken marker drops to 10.
+  rules::CombatRules make_rules(Specs specs, int health, Plans plans = {}) {
     return rules::CombatRules{
+        .auto_pause = std::nullopt,
+        .break_return_beats = 10,
         .command_point_beats = 100,
         .seconds_per_tick = 0.5f,
         .tempo_beats = 20,
-        .attack =
-            [](const rules::CombatContext &, const rules::Combatant &attacker, rules::Combatant &target) {
-              target.state[k_health] -= 1;
-              return std::format("{} hits {}", *attacker.creature, *target.creature);
-            },
         .can_act = [](const rules::CombatContext &,
                       const rules::Combatant &combatant) { return combatant.state.find(k_health)->second > 0; },
+        .commands = [](const rules::CombatContext &,
+                       const rules::Combatant &combatant) { return test_commands(combatant); },
         .health =
             [health](const rules::CombatContext &, const rules::Combatant &combatant) {
               return rules::Health{.current = combatant.state.find(k_health)->second, .max = health};
             },
+        .hostile_command = [plans = std::move(plans)](const rules::CombatContext &, rules::Combatant &hostile)
+            -> std::optional<rules::CommandOption> {
+          const auto planned = plans.find(*hostile.creature);
+          if (planned == plans.end())
+            return std::nullopt;
+          const std::vector<rules::CommandOption> options = test_commands(hostile);
+          const auto chosen = std::ranges::find(options, planned->second, &rules::CommandOption::id);
+          REQUIRE(chosen != options.end());
+          return *chosen;
+        },
         .join = [specs = std::move(specs), health](const rules::CombatContext &, rules::Combatant &combatant)
             -> std::expected<rules::CombatantSpec, std::string> {
           const auto found = specs.find(*combatant.creature);
           if (found == specs.end())
             return std::unexpected(std::format("no creature '{}'", *combatant.creature));
           combatant.state[k_health] = health;
-          return found->second;
+          rules::CombatantSpec joined = found->second;
+          joined.name = *combatant.creature;
+          return joined;
         },
+        .resolve =
+            [](const rules::CombatContext &, std::string_view command, rules::Combatant &actor,
+               rules::Combatant &target) {
+              target.state[k_health] -= 1;
+              if (command.empty())
+                return rules::CommandResult{.report = std::format("{} hits {}", *actor.creature, *target.creature)};
+              return rules::CommandResult{
+                  .breaks = command == "bash",
+                  .report = std::format("{} uses {} on {}", *actor.creature, command, *target.creature),
+                  .stagger_beats = stagger_of(command),
+              };
+            },
+        .resolve_self =
+            [](const rules::CombatContext &, std::string_view command, rules::Combatant &actor) {
+              actor.state[k_braced] = 1;
+              return std::format("{} uses {}", *actor.creature, command);
+            },
     };
   }
 
@@ -86,9 +160,10 @@ namespace {
   }
 
   /// One tick per step: "a" (index 0, the party) against "b" (index 1, a hostile).
-  combat::Encounter start_duel(rules::CombatantSpec a, rules::CombatantSpec b, int health = 2) {
-    std::expected<combat::Encounter, std::string> encounter = combat::Encounter::start(
-        make_rules(Specs{{"a", a}, {"b", b}}, health), k_context, {party("a"), hostile("b")}, /*steps_per_tick=*/1);
+  combat::Encounter start_duel(rules::CombatantSpec a, rules::CombatantSpec b, int health = 2, Plans plans = {}) {
+    std::expected<combat::Encounter, std::string> encounter =
+        combat::Encounter::start(make_rules(Specs{{"a", a}, {"b", b}}, health, std::move(plans)), k_context,
+                                 {party("a"), hostile("b")}, /*steps_per_tick=*/1);
     REQUIRE(encounter.has_value());
     return std::move(*encounter);
   }
@@ -283,13 +358,13 @@ TEST_CASE("Encounter::start names the combatant whose join failed") {
 
 TEST_CASE("Encounter::start refuses rules with an empty callback") {
   rules::CombatRules incomplete = make_rules(Specs{{"a", spec(0)}, {"b", spec(0)}}, 2);
-  incomplete.attack = {};
+  incomplete.resolve = {};
 
   const std::expected<combat::Encounter, std::string> encounter =
       combat::Encounter::start(std::move(incomplete), k_context, {party("a"), hostile("b")}, /*steps_per_tick=*/1);
 
   REQUIRE_FALSE(encounter.has_value());
-  CHECK_EQ(encounter.error(), "[gameplay] the combat rules have no 'attack' callback");
+  CHECK_EQ(encounter.error(), "[gameplay] the combat rules have no 'resolve' callback");
 }
 
 TEST_CASE("Encounter::start refuses a timeline that never advances") {

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <corundum/gameplay/player_flags.hpp>
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -27,7 +29,7 @@ namespace corundum::gameplay::item {
   [[nodiscard]] std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept;
 
   /** @brief FlagStore key prefix for an item's runtime count: `item.<id>`. */
-  inline constexpr std::string_view k_flag_prefix = "item.";
+  inline constexpr std::string_view k_flag_prefix = gameplay::k_item_flag_prefix;
 
   /** @brief True when @p flag_key names a held item and @p count is positive.
    *

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <expected>
 #include <flat_map>
 #include <functional>
@@ -13,12 +14,12 @@
 
 // The seam between the gameplay framework and a game's rules. The framework decides when a value
 // is needed, when a fight runs and how values and the fight are shown; the ruleset decides what
-// they are. A ruleset keeps the protagonist's state in the playthrough's flags under its own key
-// prefix, so saves, loads and playthrough boundaries carry it with no hook of their own; it reads
-// and writes that state through FlagReader and FlagWriter, never the FlagStore itself. A creature's
-// state in a fight lives in its Combatant and ends with the encounter. This header is part of
-// corundum::rules_interface and includes no other corundum header, so a ruleset builds against
-// that target alone.
+// they are. A ruleset keeps the protagonist's lasting state in the playthrough's flags under its
+// own key prefix, so saves, loads and playthrough boundaries carry it with no hook of their own;
+// it reads and writes that state through FlagReader and FlagWriter, never the FlagStore itself.
+// State that lasts one encounter (a creature's damage, a command's uses this fight) lives in the
+// Combatant and ends with the encounter. This header is part of corundum::rules_interface and
+// includes no other corundum header, so a ruleset builds against that target alone.
 namespace corundum::gameplay::rules {
 
   /** @brief One "label: value" row a ruleset supplies for display, such as {"Strength", "+2"}. */
@@ -65,10 +66,10 @@ namespace corundum::gameplay::rules {
   /** @brief One combatant as the ruleset sees it. */
   struct Combatant {
     /** The creature id the game started the encounter with; nullopt for the protagonist, whose
-     *  state lives in the flags instead of @c state. */
+     *  lasting state lives in the flags. */
     std::optional<std::string> creature{};
 
-    CombatantState state{};
+    CombatantState state{}; ///< This encounter's state, for the protagonist as for a creature.
   };
 
   /** @brief A command's timing on the timeline, in beats. */
@@ -76,6 +77,51 @@ namespace corundum::gameplay::rules {
     int return_to_beats{}; ///< Where the marker drops once the command lands or fizzles.
 
     int windup_beats{}; ///< Beats past the command point before the command lands.
+
+    bool operator==(const Command &) const = default;
+  };
+
+  /** @brief Who a command is aimed at. */
+  enum class CommandTarget : std::uint8_t {
+    Enemy, ///< The combatant's attack target, which must be in reach when the wind-up ends.
+    Self,  ///< The combatant itself; it needs no target and no reach.
+  };
+
+  /** @brief A command a combatant can order besides its standing attack: an ability, or an item to
+   *  use. */
+  struct CommandOption {
+    std::string id{}; ///< The ruleset's name for it, passed back to resolve or resolve_self.
+
+    bool is_available{true}; ///< False while it can't be ordered (none left, spent this fight).
+
+    std::string label{}; ///< Shown on the command bar and in telegraphs, such as "Shield Bash".
+
+    CommandTarget target{CommandTarget::Enemy};
+
+    Command timing{};
+
+    bool operator==(const CommandOption &) const = default;
+  };
+
+  /** @brief What a command aimed at an enemy did. */
+  struct CommandResult {
+    /** Break the target's wind-up, if it is winding up: the command is lost and the marker drops
+     *  to CombatRules::break_return_beats. */
+    bool breaks{};
+
+    std::string report{}; ///< One line for the combat log, such as "You → Brann: hit, 4 damage".
+
+    int stagger_beats{}; ///< Beats the target's marker is knocked back, never below 0; 0 for none.
+
+    bool operator==(const CommandResult &) const = default;
+  };
+
+  /** @brief When a hostile's wind-up pauses the fight on its own: one at least min_windup_beats
+   *  long, started within max_distance_tiles of the protagonist. */
+  struct AutoPause {
+    int max_distance_tiles{};
+
+    int min_windup_beats{};
   };
 
   /** @brief A combatant's fixed numbers for one encounter, from CombatRules::join. */
@@ -86,7 +132,7 @@ namespace corundum::gameplay::rules {
 
     std::string name{}; ///< Shown on the combat HUD.
 
-    int reach_tiles{1}; ///< Tiles the standing attack reaches; a diagonal step counts as one.
+    int reach_tiles{1}; ///< Tiles the combatant's Enemy commands reach; a diagonal step counts as one.
 
     int start_beats{}; ///< Where the marker starts.
   };
@@ -101,26 +147,45 @@ namespace corundum::gameplay::rules {
   };
 
   /** @brief A ruleset's combat: the timeline's constants and the callbacks that decide each
-   *  combatant's numbers and each attack. Every callback must be set. */
+   *  combatant's numbers, commands and results. Every callback must be set. */
   struct CombatRules {
+    std::optional<AutoPause> auto_pause{}; ///< nullopt: the fight never pauses on its own.
+
+    int break_return_beats{}; ///< Where a Broken wind-up's marker drops.
+
     int command_point_beats{}; ///< Where a marker's command is carried out; must be positive.
 
     float seconds_per_tick{}; ///< Game time per timeline tick.
 
     int tempo_beats{}; ///< Beats a marker gains per tick; must be positive.
 
-    /** The standing attack of @p attacker on @p target, already in reach: roll, apply the result
-     *  to @p target's state (or, for the protagonist, the flags) and return a one-line report. */
-    std::function<std::string(const CombatContext &, const Combatant &attacker, Combatant &target)> attack{};
-
     /** Whether the combatant can still fight; the fight ends when one side has nobody who can. */
     std::function<bool(const CombatContext &, const Combatant &)> can_act{};
 
+    /** The commands the combatant can order besides its standing attack, in command-bar order. The
+     *  same commands in the same order for the whole encounter; only is_available and a label's
+     *  count may change. The framework asks again after every command resolves. */
+    std::function<std::vector<CommandOption>(const CombatContext &, const Combatant &)> commands{};
+
     std::function<Health(const CombatContext &, const Combatant &)> health{};
+
+    /** The command a hostile winds up now that it is at its command point with its target in
+     *  reach: one of its commands(), or nullopt for its standing attack. May advance a pattern kept
+     *  in @p hostile's state. */
+    std::function<std::optional<CommandOption>(const CombatContext &, Combatant &hostile)> hostile_command{};
 
     /** The combatant's numbers for this encounter, rolling initiative and setting up its state; an
      *  error (an unknown creature, no weapon) stops the fight from starting. */
     std::function<std::expected<CombatantSpec, std::string>(const CombatContext &, Combatant &)> join{};
+
+    /** Carry out @p command (empty for the standing attack) by @p actor on @p target, already in
+     *  reach: roll, apply the damage to @p target's state (or, for the protagonist, the flags), and
+     *  say what happened. @p actor and @p target are different combatants. */
+    std::function<CommandResult(const CombatContext &, std::string_view command, Combatant &actor, Combatant &target)>
+        resolve{};
+
+    /** Carry out the Self command @p command by @p actor and return a one-line report. */
+    std::function<std::string(const CombatContext &, std::string_view command, Combatant &actor)> resolve_self{};
   };
 
   /** @brief A game's rules, as callbacks the framework calls when it needs a value.

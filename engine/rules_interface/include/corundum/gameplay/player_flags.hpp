@@ -24,4 +24,12 @@ namespace corundum::gameplay {
     return std::format("equip.{}.{}", slot, item_id);
   }
 
+  /** @brief FlagStore key prefix of a held item's count. */
+  inline constexpr std::string_view k_item_flag_prefix = "item.";
+
+  /** @brief FlagStore key holding how many of @p item_id the player holds: `item.<item id>`. */
+  [[nodiscard]] inline std::string item_count_key(std::string_view item_id) {
+    return std::format("{}{}", k_item_flag_prefix, item_id);
+  }
+
 } // namespace corundum::gameplay

@@ -15,6 +15,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -29,16 +30,23 @@ namespace corundum::gameplay::combat {
       int beats{};
     };
 
-    [[nodiscard]] bool callback_missing(const rules::CombatRules &rules, std::string &missing) {
-      if (!rules.attack)
-        missing = "attack";
-      else if (!rules.can_act)
-        missing = "can_act";
-      else if (!rules.health)
-        missing = "health";
-      else if (!rules.join)
-        missing = "join";
-      return !missing.empty();
+    /// The name of the first empty callback in @p rules, in declaration order; nullopt when all are set.
+    [[nodiscard]] std::optional<std::string_view> first_missing_callback(const rules::CombatRules &rules) {
+      if (!rules.can_act)
+        return "can_act";
+      if (!rules.commands)
+        return "commands";
+      if (!rules.health)
+        return "health";
+      if (!rules.hostile_command)
+        return "hostile_command";
+      if (!rules.join)
+        return "join";
+      if (!rules.resolve)
+        return "resolve";
+      if (!rules.resolve_self)
+        return "resolve_self";
+      return std::nullopt;
     }
 
     /// Whether @p index's ordered target stands within the attacker's reach.
@@ -125,7 +133,7 @@ namespace corundum::gameplay::combat {
           continue;
         }
         if (in_reach(tiles, specs, markers, index))
-          reports.push_back(rules.attack(context, combatants[index], combatants[*marker.target]));
+          reports.push_back(rules.resolve(context, {}, combatants[index], combatants[*marker.target]).report);
       }
     }
 
@@ -155,9 +163,8 @@ namespace corundum::gameplay::combat {
                                                          std::vector<Joining> joining, int steps_per_tick) {
     assert(steps_per_tick >= 1);
 
-    std::string missing;
-    if (callback_missing(rules, missing))
-      return std::unexpected(std::format("[gameplay] the combat rules have no '{}' callback", missing));
+    if (const std::optional<std::string_view> missing = first_missing_callback(rules))
+      return std::unexpected(std::format("[gameplay] the combat rules have no '{}' callback", *missing));
     if (rules.command_point_beats <= 0 || rules.tempo_beats <= 0)
       return std::unexpected("[gameplay] the combat rules need a positive command_point_beats and tempo_beats");
 
