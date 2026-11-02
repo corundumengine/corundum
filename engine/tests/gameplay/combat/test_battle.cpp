@@ -10,6 +10,7 @@
 #include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/screens/combat_hud.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/world/flags.hpp>
@@ -112,10 +113,22 @@ namespace {
       step(fight);
   }
 
+  /// Step until the fight pauses itself; capped, so a fight that never pauses fails the checks that follow.
+  void step_until_paused(Fight &fight) {
+    for (int i = 0; i < 10 && fight.engine->scene.mode() == screens::Combat; ++i)
+      step(fight);
+  }
+
   const combat::Encounter &encounter_of(const Fight &fight) {
     if (!fight.gameplay->battle)
       throw std::runtime_error("no fight is running");
     return fight.gameplay->battle->encounter();
+  }
+
+  const combat::Battle &battle_of(const Fight &fight) {
+    if (!fight.gameplay->battle)
+      throw std::runtime_error("no fight is running");
+    return *fight.gameplay->battle;
   }
 
   std::string last_toast(const corundum::Engine &engine) {
@@ -370,4 +383,195 @@ TEST_CASE("combat: holding a move key cancels the protagonist's wind-up") {
   CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::Ready);
   CHECK_EQ(encounter_of(*fight).beats(combat::Battle::k_protagonist), 20);
   CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
+}
+
+TEST_CASE("combat: 1 renews the attack order a move dropped") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  click(*fight, {.col = 8, .row = 10});
+  REQUIRE_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
+
+  press(*fight, Action::CombatCommand1);
+
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+}
+
+TEST_CASE("combat: 1 drops a queued command, so the standing attack comes next") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press(*fight, Action::CombatCommand2);
+  REQUIRE(encounter_of(*fight).queued(combat::Battle::k_protagonist).has_value());
+
+  press(*fight, Action::CombatCommand1);
+
+  CHECK_FALSE(encounter_of(*fight).queued(combat::Battle::k_protagonist).has_value());
+}
+
+TEST_CASE("combat: a click on the hostile keeps a queued command") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press(*fight, Action::CombatCommand2);
+
+  click(*fight, {.col = 9, .row = 8});
+
+  CHECK_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{0});
+}
+
+TEST_CASE("combat: 2 queues the command bar's second slot, the rules' first command") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  press(*fight, Action::CombatCommand2);
+
+  CHECK_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{0});
+}
+
+TEST_CASE("combat: pressing a queued command's key again unqueues it") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press(*fight, Action::CombatCommand2);
+
+  press(*fight, Action::CombatCommand2);
+
+  CHECK_FALSE(encounter_of(*fight).queued(combat::Battle::k_protagonist).has_value());
+}
+
+TEST_CASE("combat: a command that isn't available is refused with a toast") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  press(*fight, Action::CombatCommand3);
+
+  CHECK_FALSE(encounter_of(*fight).queued(combat::Battle::k_protagonist).has_value());
+  CHECK_EQ(last_toast(*fight->engine), "Tonic can't be used now");
+}
+
+TEST_CASE("combat: a command key queues while the fight is paused") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press(*fight, Action::Pause);
+
+  press(*fight, Action::CombatCommand2);
+
+  CHECK_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{0});
+  CHECK_EQ(fight->engine->scene.mode(), screens::CombatPaused);
+}
+
+TEST_CASE("combat: a command aimed at an enemy renews the attack a move dropped") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  click(*fight, {.col = 8, .row = 10});
+
+  press(*fight, Action::CombatCommand2);
+
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+}
+
+TEST_CASE("combat: a queued tonic is drunk at the next command point") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.start"] = 90;
+  fight->engine->flags["test.hero.tonics"] = 1;
+  fight->engine->flags["test.hero.damage"] = 1;
+  start_fight(*fight);
+  press(*fight, Action::CombatCommand3);
+
+  step(*fight);
+
+  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.tonics"), 0);
+  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.damage"), 0);
+  CHECK_EQ(last_toast(*fight->engine), "hero drinks a tonic");
+}
+
+TEST_CASE("combat: a click on a tile the hostile's sprite is drawn over attacks it") {
+  // The hostile stands on (9, 8); its sprite covers (8, 7), (8, 8) and (9, 7) as well.
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  click(*fight, {.col = 8, .row = 10});
+
+  click(*fight, {.col = 8, .row = 7});
+
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+}
+
+TEST_CASE("combat: a click two tiles behind the hostile is a ground move") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  click(*fight, {.col = 9, .row = 6});
+
+  CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
+}
+
+TEST_CASE("combat: a heavy wind-up in reach pauses the fight and says why") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight, "brute");
+
+  step_until_paused(*fight);
+
+  CHECK_EQ(fight->engine->scene.mode(), screens::CombatPaused);
+  CHECK_EQ(battle_of(*fight).pause_note(), "brute is winding up Smash");
+}
+
+TEST_CASE("combat: resuming an auto-paused fight clears the note") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight, "brute");
+  step_until_paused(*fight);
+  REQUIRE_EQ(fight->engine->scene.mode(), screens::CombatPaused);
+
+  press(*fight, Action::Pause);
+
+  CHECK_EQ(fight->engine->scene.mode(), screens::Combat);
+  CHECK(battle_of(*fight).pause_note().empty());
+}
+
+TEST_CASE("combat: a standing wind-up doesn't pause the fight") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  for (int i = 0; i < 5; ++i)
+    step(*fight);
+  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_hostile), combat::Phase::WindUp);
+
+  CHECK_EQ(fight->engine->scene.mode(), screens::Combat);
+}
+
+TEST_CASE("combat: the command bar lists Attack, then the rules' commands on 2 and 3") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+
+  start_fight(*fight);
+
+  const std::vector<corundum::gameplay::screens::CombatHudCommand> &commands = battle_of(*fight).hud().commands;
+  REQUIRE_EQ(commands.size(), 3);
+  CHECK_EQ(commands[0].label, "Attack");
+  CHECK_EQ(commands[0].action, Action::CombatCommand1);
+  CHECK_EQ(commands[1].label, "Bash");
+  CHECK_EQ(commands[1].action, Action::CombatCommand2);
+  CHECK(commands[1].is_available);
+  CHECK_EQ(commands[2].label, "Tonic");
+  CHECK_EQ(commands[2].action, Action::CombatCommand3);
+  CHECK_FALSE(commands[2].is_available);
+}
+
+TEST_CASE("combat: the command bar marks the queued command") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  press(*fight, Action::CombatCommand2);
+
+  const std::vector<corundum::gameplay::screens::CombatHudCommand> &commands = battle_of(*fight).hud().commands;
+  CHECK(commands[1].is_queued);
+  CHECK_FALSE(commands[2].is_queued);
+}
+
+TEST_CASE("combat: the HUD names the command a hostile is winding up") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight, "brute");
+
+  step_until_paused(*fight);
+
+  const corundum::gameplay::screens::CombatHudRow &row = battle_of(*fight).hud().rows[combat::Battle::k_hostile];
+  CHECK_EQ(row.windup_label, "Smash");
+  CHECK_EQ(row.windup_end_beats, 130);
 }

@@ -42,7 +42,9 @@ namespace corundum::gameplay::combat {
   struct BattleStep {
     std::optional<Outcome> outcome{};
 
-    std::vector<std::string> reports{};
+    std::vector<std::string> reports{}; ///< Toasts: each command that resolved, and each order refused.
+
+    bool should_pause{}; ///< A hostile started a wind-up the rules' auto-pause names; see pause_note().
   };
 
   /** @brief One encounter played out in the scene.
@@ -57,16 +59,20 @@ namespace corundum::gameplay::combat {
 
     /** @brief Start a fight between the protagonist and the actor @p request names. Each side is
      *  given a standing attack on the other, so the protagonist fights without a click; a move order
-     *  drops the protagonist's.
+     *  drops the protagonist's. The command bar is Attack on CombatCommand1, then the first two of
+     *  the protagonist's commands on CombatCommand2 and CombatCommand3.
      *  @return The battle, or an error: no protagonist in the scene, no live actor with the id
      *          ("[gameplay] start_encounter: no actor '<id>' in this area"), or Encounter::start's. */
     [[nodiscard]] static std::expected<Battle, std::string> start(Engine &engine, const rules::CombatRules &rules,
                                                                   const EncounterRequest &request);
 
-    /** @brief Run one fixed step: this step's click (and, while Running, held movement keys)
-     *  become orders; while Running the timeline advances; a combatant with an attack order out of
-     *  reach paths to a tile within reach of its target and walks there, and one in reach or
-     *  winding up stands; hud_rows() refreshes.
+    /** @brief Run one fixed step:
+     *  - this step's input becomes orders: a click, the command keys, and while Running held
+     *    movement keys;
+     *  - while Running the timeline advances, and a hostile's wind-up may call for an auto-pause;
+     *  - a combatant with an attack order out of reach paths to a tile within reach of its target
+     *    and walks there, and one in reach or winding up stands;
+     *  - hud() refreshes.
      *  @pre has_live_combatants(engine). */
     [[nodiscard]] BattleStep update(Engine &engine, Clock clock);
 
@@ -83,11 +89,30 @@ namespace corundum::gameplay::combat {
 
     [[nodiscard]] std::string_view hostile_actor() const noexcept { return actor_id_; }
 
-    /** @brief The HUD's rows, refreshed by start() and update(). */
-    [[nodiscard]] std::span<const screens::CombatHudRow> hud_rows() const noexcept { return hud_rows_; }
+    /** @brief The HUD's rows and command bar, refreshed by start() and update(). */
+    [[nodiscard]] const screens::CombatHud &hud() const noexcept { return hud_; }
+
+    /** @brief Why the fight last paused on its own, such as "Brann is winding up Crushing Blow";
+     *  empty when it didn't, and cleared once it runs again. */
+    [[nodiscard]] std::string_view pause_note() const noexcept { return pause_note_; }
 
   private:
-    Battle(Encounter encounter, std::vector<entities::EntityId> entities, std::string actor_id);
+    Battle(Encounter encounter, std::vector<entities::EntityId> entities, std::string actor_id,
+           std::optional<rules::AutoPause> auto_pause);
+
+    /// Turn this step's input into the protagonist's orders; returns the refusals to toast.
+    [[nodiscard]] std::vector<std::string> read_orders(const Engine &engine, const rules::CombatContext &context,
+                                                       Clock clock);
+
+    /// Give the protagonist a standing attack on the hostile, re-planning its approach.
+    void engage(const rules::CombatContext &context);
+
+    /// The command key for bar slot @p slot (1 or 2): unqueue it when queued, refuse it when
+    /// unavailable (returning why), otherwise queue it, engaging the hostile for an Enemy command.
+    [[nodiscard]] std::optional<std::string> press_slot(const rules::CombatContext &context, std::size_t slot);
+
+    /// Whether a wind-up in @p started calls for an auto-pause; sets pause_note_ when one does.
+    [[nodiscard]] bool check_auto_pause(std::span<const std::size_t> started);
 
     /// Plan each ordered combatant's movement: stand when in reach or winding up, else approach.
     void plan_movement(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
@@ -104,13 +129,17 @@ namespace corundum::gameplay::combat {
 
     std::string actor_id_;
 
+    std::optional<rules::AutoPause> auto_pause_;
+
     std::vector<world::TileCoord> tiles_;
 
-    std::vector<screens::CombatHudRow> hud_rows_;
+    screens::CombatHud hud_;
 
     std::vector<std::vector<world::TileCoord>> paths_; ///< Each hostile's path; the protagonist uses Scene::path.
 
     std::vector<std::optional<world::TileCoord>> planned_for_; ///< The target tile each path was planned for.
+
+    std::string pause_note_;
   };
 
 } // namespace corundum::gameplay::combat

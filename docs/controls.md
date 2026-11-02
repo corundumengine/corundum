@@ -92,6 +92,24 @@ wrong from memory.
   wrapping circularly (moving down from the last choice wraps to the
   first, and vice versa). **Not** number keys.
 
+### Combat
+
+- **Move**: as in Exploring (keys, stick, or a click on the ground). Moving drops your attack
+  order and cancels a wind-up in progress; a command you queued stays queued.
+- **Attack**: `1` (keyboard), gamepad A, or a click on the hostile: its tile, or one of the three
+  tiles its sprite is drawn over (one column back, one row back, or both). You walk into reach and
+  attack each time your marker is ready. `1` / A also drops a queued command, so the attack comes
+  next; a click on the hostile keeps it.
+- **Commands**: `2` and `3` (keyboard), gamepad Y and B, queue the command bar's second and third
+  slots for your next command point. Pressing a queued slot's key again unqueues it; an
+  unavailable command is refused with a toast. A command aimed at an enemy also renews your
+  attack on it.
+- **Pause**: `Space` (keyboard), gamepad X. Commands and clicks on the hostile still work while
+  paused; moving doesn't. The fight also pauses on its own when a hostile starts a heavy wind-up
+  near you, and the banner names it.
+- **Menu**: `Esc` (keyboard), gamepad Start, open the pause menu over the fight.
+- A mouse player reads keyboard keys in the prompts for anything the mouse has no button for.
+
 ### Quit
 
 - **Bindings**: `Q` (keyboard); the OS window close button (a platform
@@ -245,7 +263,8 @@ player clicked a screen point" flag, distinct from `Select`), and
 not just "did it happen", so it can't be a discrete `Action` either).
 The enum also carries the screen toggles `Inventory`, `Journal`, `Codex`,
 `Map`, `Menu`, `TabNext`/`TabPrev`, and `Activate` (the world/UI "use this
-thing" intent, distinct from the dialogue/confirm `Select`).
+thing" intent, distinct from the dialogue/confirm `Select`). A fight adds `Pause` and
+`CombatCommand1`–`CombatCommand3`.
 
 ### Binding tables (where defaults are declared)
 
@@ -258,6 +277,8 @@ with `I`/`J`/`C`/`M` on the keyboard and gamepad Y (`Action::Hub`), with
 `TabNext`/`TabPrev` on `]`/`[` and the shoulder bumpers; `SubTabNext`/`SubTabPrev`
 are `.`/`,` and the analog triggers (shared with zoom); Quit is `Q`;
 ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2; QuickSave/QuickLoad are F5/F9.
+Pause is Space and gamepad X; CombatCommand1–3 are `1`/`2`/`3` and gamepad A/Y/B, sharing
+those buttons with Select/Activate, Hub and Cancel, none of which a fight reads.
 The GLFW backend only translates GLFW tokens
 to `PhysicalInput` (`engine/src/platform/glfw/input_translator.cpp`) and holds
 no bindings of its own.
@@ -322,13 +343,17 @@ device disconnects, so a held bit cannot latch.
 | `Action::Select`                              | `dialogue/system.cpp::system()` (`NodeType::Choice`)                      | Confirms the highlighted choice                                                                                                                      |
 | `Action::Cancel`                              | `dialogue/conversation.cpp::Conversation::update()` (`Talk` and `Choice`) | Hard-closes dialogue (`reset()`); with a hub tab, menu, settings, loot or barter open it pops that layer (right mouse button or `Esc`/B) |
 | `Action::Inventory`                           | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Inventory hub tab; `update_inventory()` navigates and closes it                                                             |
-| `Action::Menu`                                | `engine.cpp::update_engine_screens()`                                     | Opens the pause menu over any screen (or from free-roam); `update_pause_menu()`/`update_settings()` also close on it, and an open screen's back handling wins a shared press |
+| `Action::Menu`                                | `engine.cpp::update_engine_screens()`                                     | Opens the pause menu over any screen (or from free-roam); `update_pause_menu()`/`update_settings()` also close on it, and an open screen's back handling wins a shared press; over a screen with no back action (a fight), Esc opens the menu |
 | `Action::Journal`                             | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Journal hub tab; `update_journal()` navigates and closes it                                                                 |
 | `Action::Hub`                                 | `engine.cpp::update_engine_screens()`                                     | Toggles the menu hub on `Scene::last_hub_mode`                                                                                                         |
 | `Action::Codex`                               | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Codex hub tab; `update_codex()` navigates and closes it                                                                     |
 | `Action::Map`                                 | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Map hub tab; `update_map()` navigates and fast-travels on Activate                                                          |
 | `Action::TabNext/TabPrev`                     | `engine.cpp::update_engine_screens()`                                     | Cycles the four hub tabs when one is on top; settings pages and barter Buy/Sell keep their own handling                                                 |
 | `Action::Quit`                                | `engine.cpp`'s main loop                                                  | Sets `engine.quit` and closes the window                                                                                                             |
+| `Action::Pause`                               | `gameplay.cpp::update_battle()`                                           | Pushes CombatPaused over Combat, or pops it |
+| `Action::CombatCommand1`                      | `combat/battle.cpp::Battle::read_orders()`                                | Drops a queued command and renews the attack on the hostile |
+| `Action::CombatCommand2/3`                    | `combat/battle.cpp::Battle::press_slot()`                                 | Queues the command bar's second or third slot, or unqueues it when it is the queued one |
+| `mouse_click_pressed` (in a fight)            | `combat/battle.cpp::Battle::read_orders()`                                | A click on the hostile or a tile its sprite covers attacks it; any other click, while the fight runs, is a move order |
 | `PlatformEvents::quit_requested`              | `engine.cpp`'s main loop                                                  | Sets `engine.quit` from an OS window-close request                                                                                                   |
 | `PlatformEvents::focus_lost` / `focus_gained` | `engine.cpp`'s main loop                                                  | Pauses the simulation and audio on focus loss, resumes on focus gain                                                                                 |
 | `scroll_delta_y`                              | `world/update.cpp::update_zoom()`                                         | `Camera::apply_zoom()`, anchored on the mouse cursor                                                                                                 |

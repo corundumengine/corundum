@@ -52,6 +52,7 @@
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/save/save.hpp>
@@ -1677,7 +1678,7 @@ namespace corundum::gameplay {
     }
 
     /// Run the fight for one fixed step: drop it when its scene is gone, toggle the pause, then step
-    /// it and toast its attack reports.
+    /// it, toast its reports, and pause it when a hostile's wind-up calls for it.
     void update_battle(Engine &engine, Gameplay &gameplay) {
       if (!gameplay.battle)
         return;
@@ -1707,8 +1708,12 @@ namespace corundum::gameplay {
       combat::BattleStep step = gameplay.battle->update(engine, clock);
       for (std::string &report : step.reports)
         engine.notify(std::move(report));
-      if (step.outcome)
+      if (step.outcome) {
         end_battle(engine, gameplay, *gameplay.battle, *step.outcome);
+        return;
+      }
+      if (step.should_pause && ui.top() == screens::Combat)
+        ui.push(screens::CombatPaused);
     }
 
     /// Start the fight start_encounter asked for, once the dialogue that asked has closed.
@@ -1734,37 +1739,45 @@ namespace corundum::gameplay {
     }
 
     /// The combat HUD, with @p banner across the top (empty for none).
-    void render_combat(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport,
-                       std::string_view banner) {
-      if (!gameplay.battle)
-        return;
-      screens::combat_hud_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                                 gameplay.battle->hud_rows(), viewport, banner);
+    void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &r,
+                       core::math::Vec2 viewport, std::string_view banner) {
+      screens::combat_hud_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, battle.hud(),
+                                 viewport, engine.input_mapper.last_device(), banner);
+    }
+
+    /// The paused fight's banner: why it paused on its own, or "Paused", and the key that resumes it.
+    std::string paused_banner(const combat::Battle &battle, input::InputDevice device) {
+      const std::string_view resume = ui::input_glyph(input::Action::Pause, device);
+      const std::string_view note = battle.pause_note();
+      return std::format("{}: {} to resume", note.empty() ? std::string_view{"Paused"} : note, resume);
     }
 
     /// Register the hub tab screens and the in-world screens: dialogue, combat, inventory, character,
     /// journal, codex and map.
     void register_hub_screens(Gameplay &gameplay, Engine &engine) {
       engine.screens.add(screens::Dialogue, ScreenSpec{.owns_step = false});
-      engine.screens.add(
-          screens::Combat,
-          ScreenSpec{
-              .handles_back = false,
-              .owns_step = false,
-              .world_step = world::WorldStep::Runs,
-              .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                    core::math::Vec2 viewport) { render_combat(e, gameplay, r, viewport, ""); },
-          });
+      engine.screens.add(screens::Combat,
+                         ScreenSpec{
+                             .handles_back = false,
+                             .owns_step = false,
+                             .world_step = world::WorldStep::Runs,
+                             .render =
+                                 [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 viewport) {
+                                   if (gameplay.battle)
+                                     render_combat(e, *gameplay.battle, r, viewport, "");
+                                 },
+                         });
       engine.screens.add(screens::CombatPaused,
                          ScreenSpec{
                              .handles_back = false,
                              .owns_step = false,
                              .render =
                                  [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 viewport) {
+                                   if (!gameplay.battle)
+                                     return;
                                    const std::string banner =
-                                       std::format("Paused: {} to resume",
-                                                   ui::input_glyph(input::Action::Pause, e.input_mapper.last_device()));
-                                   render_combat(e, gameplay, r, viewport, banner);
+                                       paused_banner(*gameplay.battle, e.input_mapper.last_device());
+                                   render_combat(e, *gameplay.battle, r, viewport, banner);
                                  },
                          });
       engine.screens.add(
