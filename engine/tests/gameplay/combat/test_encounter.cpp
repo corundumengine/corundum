@@ -88,6 +88,30 @@ namespace {
     return 0;
   }
 
+  /// The no-op turn, tick and toggle callbacks the test rules use.
+  rules::TurnEndResult no_turn_end(const rules::CombatContext & /*context*/, rules::Combatant & /*combatant*/,
+                                   rules::TurnEnd /*how*/) {
+    return {};
+  }
+
+  std::vector<std::string> no_turn_start(const rules::CombatContext & /*context*/, rules::Combatant & /*combatant*/) {
+    return {};
+  }
+
+  rules::CombatantStatus no_status(const rules::CombatContext & /*context*/, const rules::Combatant & /*combatant*/) {
+    return {};
+  }
+
+  void no_tick(const rules::CombatContext & /*context*/, rules::Combatant & /*combatant*/) {}
+
+  void no_toggle(const rules::CombatContext & /*context*/, rules::Combatant & /*combatant*/,
+                 std::string_view /*toggle*/) {}
+
+  std::vector<rules::ToggleOption> no_toggles(const rules::CombatContext & /*context*/,
+                                              const rules::Combatant & /*combatant*/) {
+    return {};
+  }
+
   /// A fight between creatures named by id, with the numbers in @p specs and each named after its
   /// id. Each starts with @p health Health. Every hit lands for 1 and reports "<attacker> hits
   /// <target>", or "<attacker> uses <command> on <target>"; bash Breaks, and trip and nudge Stagger.
@@ -103,6 +127,7 @@ namespace {
                       const rules::Combatant &combatant) { return combatant.state.find(k_health)->second > 0; },
         .commands = [](const rules::CombatContext &,
                        const rules::Combatant &combatant) { return test_commands(combatant); },
+        .end_turn = no_turn_end,
         .health =
             [health](const rules::CombatContext &, const rules::Combatant &combatant) {
               return rules::Health{.current = combatant.state.find(k_health)->second, .max = health};
@@ -144,6 +169,11 @@ namespace {
               actor.state[k_braced] = 1;
               return std::format("{} uses {}", *actor.creature, command);
             },
+        .start_turn = no_turn_start,
+        .status = no_status,
+        .tick = no_tick,
+        .toggle = no_toggle,
+        .toggles = no_toggles,
     };
   }
 
@@ -173,6 +203,46 @@ namespace {
                                  {party("a"), hostile("b")}, /*steps_per_tick=*/1);
     REQUIRE(encounter.has_value());
     return std::move(*encounter);
+  }
+
+  /// One tick per step: "a" (index 0, the party) against "b" (index 1, a hostile) under @p combat_rules.
+  combat::Encounter start_with(rules::CombatRules combat_rules) {
+    std::expected<combat::Encounter, std::string> encounter =
+        combat::Encounter::start(std::move(combat_rules), k_context, {party("a"), hostile("b")}, /*steps_per_tick=*/1);
+    REQUIRE(encounter.has_value());
+    return std::move(*encounter);
+  }
+
+  /// The default test rules for "a" and "b", with every Health at 2 and @p plans for the hostile.
+  rules::CombatRules duel_rules(rules::CombatantSpec a, rules::CombatantSpec b, Plans plans = {}) {
+    return make_rules(Specs{{"a", a}, {"b", b}}, 2, std::move(plans));
+  }
+
+  /// Make @p combat_rules log every turn start and end and every tick into @p log, as "<id> starts",
+  /// "<id> ends resolved", "<id> ends lost" and "<id> ticks".
+  void log_timeline(rules::CombatRules &combat_rules, std::vector<std::string> &log) {
+    combat_rules.start_turn = [&log](const rules::CombatContext &, rules::Combatant &combatant) {
+      log.push_back(std::format("{} starts", *combatant.creature));
+      return std::vector<std::string>{};
+    };
+    combat_rules.end_turn = [&log](const rules::CombatContext &, rules::Combatant &combatant, rules::TurnEnd how) {
+      const std::string_view ending = how == rules::TurnEnd::Resolved ? "resolved" : "lost";
+      log.push_back(std::format("{} ends {}", *combatant.creature, ending));
+      return rules::TurnEndResult{};
+    };
+    combat_rules.tick = [&log](const rules::CombatContext &, rules::Combatant &combatant) {
+      log.push_back(std::format("{} ticks", *combatant.creature));
+    };
+  }
+
+  /// End-of-turn rules where "a"'s marker returns to at least @p return_to_beats; "b" keeps its own.
+  void lift_returns(rules::CombatRules &combat_rules, int return_to_beats) {
+    combat_rules.end_turn = [return_to_beats](const rules::CombatContext &, rules::Combatant &combatant,
+                                              rules::TurnEnd) {
+      if (combatant.creature != "a")
+        return rules::TurnEndResult{};
+      return rules::TurnEndResult{.return_to_beats = return_to_beats};
+    };
   }
 
 } // namespace
@@ -256,7 +326,7 @@ TEST_CASE("Encounter: order_move cancels a wind-up to the return point and drops
   std::ignore = encounter.update(k_context, k_adjacent);
   REQUIRE_EQ(encounter.phase(0), combat::Phase::WindUp);
 
-  encounter.order_move(0);
+  std::ignore = encounter.order_move(k_context, 0);
 
   CHECK_EQ(encounter.phase(0), combat::Phase::Ready);
   CHECK_EQ(encounter.beats(0), 40);
@@ -593,7 +663,7 @@ TEST_CASE("Encounter: order_move cancels the command winding up and keeps a queu
   std::ignore = encounter.update(k_context, k_adjacent);
   encounter.queue_command(0, k_brace);
 
-  encounter.order_move(0);
+  std::ignore = encounter.order_move(k_context, 0);
 
   CHECK_EQ(encounter.phase(0), combat::Phase::Ready);
   CHECK_EQ(encounter.beats(0), 40);
@@ -613,4 +683,253 @@ TEST_CASE("Encounter: a queued command that fizzles is spent, and the standing a
   CHECK_EQ(encounter.beats(0), 40);
   CHECK_EQ(encounter.target_of(0), std::optional<std::size_t>{1});
   CHECK_EQ(encounter.windup_end_beats(0), 120);
+}
+
+TEST_CASE("Encounter: a turn starts on the tick the marker reaches the command point") {
+  std::vector<std::string> log;
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  log_timeline(combat_rules, log);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(log, std::vector<std::string>{"a starts", "a ticks", "b ticks"});
+}
+
+TEST_CASE("Encounter: a turn ends resolved when its command lands") {
+  std::vector<std::string> log;
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  log_timeline(combat_rules, log);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  log.clear();
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(log, std::vector<std::string>{"a ticks", "b ticks", "a ends resolved"});
+}
+
+TEST_CASE("Encounter: a command that fizzles ends the turn lost") {
+  std::vector<std::string> log;
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  log_timeline(combat_rules, log);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  log.clear();
+
+  std::ignore = encounter.update(k_context, k_apart);
+
+  CHECK_EQ(log, std::vector<std::string>{"a ticks", "b ticks", "a ends lost"});
+}
+
+TEST_CASE("Encounter: a move order that cancels a wind-up ends the turn lost") {
+  std::vector<std::string> log;
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  log_timeline(combat_rules, log);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  log.clear();
+
+  std::ignore = encounter.order_move(k_context, 0);
+
+  CHECK_EQ(log, std::vector<std::string>{"a ends lost"});
+}
+
+TEST_CASE("Encounter: a Break ends the target's turn lost before the breaker's turn ends") {
+  // Both reach the command point on tick 1. On tick 2 a's bash lands and Breaks b's Smash, which
+  // has 10 beats of its 30-beat wind-up left.
+  std::vector<std::string> log;
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(80), Plans{{"b", "smash"}});
+  log_timeline(combat_rules, log);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  encounter.order_attack(1, 0);
+  encounter.queue_command(0, k_bash);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  log.clear();
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(log, std::vector<std::string>{"a ticks", "b ticks", "b ends lost", "a ends resolved"});
+}
+
+TEST_CASE("Encounter: a marker held at the command point stays in one turn") {
+  std::vector<std::string> log;
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  log_timeline(combat_rules, log);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_apart);
+  std::ignore = encounter.update(k_context, k_apart);
+  std::ignore = encounter.update(k_context, k_apart);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(std::ranges::count(log, std::string{"a starts"}), 1);
+  CHECK_EQ(encounter.phase(0), combat::Phase::WindUp);
+}
+
+TEST_CASE("Encounter: a turn's end can lift the marker past the command's return point") {
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  lift_returns(combat_rules, 60);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.beats(0), 60);
+}
+
+TEST_CASE("Encounter: a turn's end never lowers a return point already further along") {
+  rules::CombatRules combat_rules = duel_rules(spec(80, 0, /*return_to=*/80), spec(0));
+  lift_returns(combat_rules, 60);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.beats(0), 80);
+}
+
+TEST_CASE("Encounter: a return to the command point starts the next turn on the next tick") {
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  lift_returns(combat_rules, 100);
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  REQUIRE_EQ(encounter.phase(0), combat::Phase::Ready);
+  REQUIRE_EQ(encounter.beats(0), 100);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.phase(0), combat::Phase::WindUp);
+  CHECK_EQ(encounter.beats(0), 100);
+}
+
+TEST_CASE("Encounter: a turn's end reports follow its command's report") {
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  combat_rules.end_turn = [](const rules::CombatContext &, rules::Combatant &combatant, rules::TurnEnd) {
+    return rules::TurnEndResult{.reports = {std::format("{} ends", *combatant.creature)}};
+  };
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.reports, std::vector<std::string>{"a hits b", "a ends"});
+}
+
+TEST_CASE("Encounter: order_move returns the end-of-turn reports of the wind-up it cancels") {
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  combat_rules.end_turn = [](const rules::CombatContext &, rules::Combatant &combatant, rules::TurnEnd) {
+    return rules::TurnEndResult{.reports = {std::format("{} ends", *combatant.creature)}};
+  };
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  const std::vector<std::string> reports = encounter.order_move(k_context, 0);
+
+  CHECK_EQ(reports, std::vector<std::string>{"a ends"});
+}
+
+TEST_CASE("Encounter: a turn start that leaves the combatant unable to act starts no command") {
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  combat_rules.start_turn = [](const rules::CombatContext &, rules::Combatant &combatant) {
+    combatant.state[k_health] = 0;
+    return std::vector<std::string>{std::format("{} burns", *combatant.creature)};
+  };
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  encounter.order_attack(0, 1);
+
+  const combat::EncounterStep step = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(step.reports, std::vector<std::string>{"a burns"});
+  CHECK_EQ(encounter.phase(0), combat::Phase::Ready);
+  CHECK_EQ(encounter.outcome(), std::optional<combat::Outcome>{combat::Outcome::Lost});
+}
+
+TEST_CASE("Encounter: a marker its status holds doesn't move") {
+  rules::CombatRules combat_rules = duel_rules(spec(40), spec(0));
+  combat_rules.status = [](const rules::CombatContext &, const rules::Combatant &combatant) {
+    return rules::CombatantStatus{.can_advance = combatant.creature != "a"};
+  };
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.beats(0), 40);
+  CHECK_EQ(encounter.beats(1), 20);
+}
+
+TEST_CASE("Encounter: a held combatant still hears every tick") {
+  std::vector<std::string> log;
+  rules::CombatRules combat_rules = duel_rules(spec(40), spec(0));
+  log_timeline(combat_rules, log);
+  combat_rules.status = [](const rules::CombatContext &, const rules::Combatant &combatant) {
+    return rules::CombatantStatus{.can_advance = combatant.creature != "a"};
+  };
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(log, std::vector<std::string>{"a ticks", "b ticks"});
+}
+
+TEST_CASE("Encounter: every status is asked again after a tick") {
+  rules::CombatRules combat_rules = duel_rules(spec(80), spec(0));
+  combat_rules.status = [](const rules::CombatContext &, const rules::Combatant &combatant) {
+    return rules::CombatantStatus{.labels = {std::to_string(combatant.state.find(k_health)->second)}};
+  };
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+  REQUIRE_EQ(encounter.status(1).labels, std::vector<std::string>{"2"});
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.status(1).labels, std::vector<std::string>{"1"});
+}
+
+TEST_CASE("Encounter: a toggle goes through the rules, then the toggles and the status refresh") {
+  constexpr std::string_view k_focus = "focus";
+  rules::CombatRules combat_rules = duel_rules(spec(0), spec(0));
+  combat_rules.toggles = [k_focus](const rules::CombatContext &, const rules::Combatant &combatant) {
+    return std::vector<rules::ToggleOption>{
+        {.id = "focus", .is_available = true, .is_on = combatant.state.contains(k_focus), .label = "Focus"},
+    };
+  };
+  combat_rules.toggle = [k_focus](const rules::CombatContext &, rules::Combatant &combatant, std::string_view) {
+    combatant.state[std::string{k_focus}] = 1;
+  };
+  combat_rules.status = [k_focus](const rules::CombatContext &, const rules::Combatant &combatant) {
+    return rules::CombatantStatus{
+        .labels = combatant.state.contains(k_focus) ? std::vector<std::string>{"Focus"} : std::vector<std::string>{},
+    };
+  };
+  combat::Encounter encounter = start_with(std::move(combat_rules));
+
+  encounter.toggle(k_context, 0, 0);
+
+  CHECK(encounter.toggles(0)[0].is_on);
+  CHECK_EQ(encounter.status(0).labels, std::vector<std::string>{"Focus"});
+}
+
+TEST_CASE("Encounter::start refuses rules with no status callback") {
+  rules::CombatRules incomplete = duel_rules(spec(0), spec(0));
+  incomplete.status = {};
+
+  const std::expected<combat::Encounter, std::string> encounter =
+      combat::Encounter::start(std::move(incomplete), k_context, {party("a"), hostile("b")}, /*steps_per_tick=*/1);
+
+  REQUIRE_FALSE(encounter.has_value());
+  CHECK_EQ(encounter.error(), "[gameplay] the combat rules have no 'status' callback");
 }

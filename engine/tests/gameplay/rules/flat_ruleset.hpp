@@ -47,6 +47,11 @@ namespace corundum::test {
   /// attack returning to 0. Every hit lands for 1, reporting "<attacker> hits <target>", or
   /// "<attacker> uses <command> on <target>" for a command. The fight auto-pauses on a hostile
   /// wind-up of 30 beats or more within 3 tiles. The creature id "missing" fails to join.
+  ///
+  /// The hero's one toggle is "guard" (label "Guard"), on while the `test.hero.guard` flag is above
+  /// 0; toggling flips the flag. The hero can't move while the `test.hero.rooted` flag is above 0,
+  /// nor can the creature "statue"; the hero's status labels are {"Guard"} while guarded. Turns and
+  /// ticks do nothing.
   inline gameplay::rules::CombatRules make_flat_combat_rules() {
     using gameplay::rules::CombatContext;
     using gameplay::rules::Combatant;
@@ -108,6 +113,8 @@ namespace corundum::test {
                 return std::vector<CommandOption>{smash};
               return std::vector<CommandOption>{};
             },
+        .end_turn = [](const CombatContext &, Combatant &,
+                       gameplay::rules::TurnEnd) { return gameplay::rules::TurnEndResult{}; },
         .health = health_of,
         .hostile_command = [smash](const CombatContext &, Combatant &hostile) -> std::optional<CommandOption> {
           if (hostile.creature == "brute")
@@ -154,6 +161,36 @@ namespace corundum::test {
               context.flag_writer.write("test.hero.tonics", context.flags.read("test.hero.tonics") - 1);
               context.flag_writer.write("test.hero.damage", std::max(0, context.flags.read("test.hero.damage") - 1));
               return std::string{"hero drinks a tonic"};
+            },
+        .start_turn = [](const CombatContext &, Combatant &) { return std::vector<std::string>{}; },
+        .status =
+            [](const CombatContext &context, const Combatant &combatant) {
+              if (combatant.creature)
+                return gameplay::rules::CombatantStatus{.can_move = combatant.creature != "statue"};
+              const bool is_guarded = context.flags.read("test.hero.guard") > 0;
+              return gameplay::rules::CombatantStatus{
+                  .can_advance = true,
+                  .can_move = context.flags.read("test.hero.rooted") == 0,
+                  .labels = is_guarded ? std::vector<std::string>{"Guard"} : std::vector<std::string>{},
+              };
+            },
+        .tick = [](const CombatContext &, Combatant &) {},
+        .toggle =
+            [](const CombatContext &context, Combatant &, std::string_view) {
+              context.flag_writer.write("test.hero.guard", context.flags.read("test.hero.guard") > 0 ? 0 : 1);
+            },
+        .toggles =
+            [](const CombatContext &context, const Combatant &combatant) {
+              if (combatant.creature)
+                return std::vector<gameplay::rules::ToggleOption>{};
+              return std::vector<gameplay::rules::ToggleOption>{
+                  {
+                      .id = "guard",
+                      .is_available = true,
+                      .is_on = context.flags.read("test.hero.guard") > 0,
+                      .label = "Guard",
+                  },
+              };
             },
     };
   }

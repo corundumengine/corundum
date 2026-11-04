@@ -17,8 +17,10 @@
 // The combat timeline, independent of the scene. Every combatant's marker fills toward the command
 // point, winds up a command there (a queued one-off, a hostile's chosen command, or else the
 // standing attack) and drops back when the command lands or fizzles. A command's result can Break
-// or Stagger its target's marker. Combatants are indices, positions are tiles and the numbers come
-// from rules::CombatRules; combat::Battle maps an encounter onto the scene.
+// or Stagger its target's marker. A combatant's turn starts when its marker reaches the command
+// point and ends when its command lands, fizzles, is cancelled or is Broken; the rules hear both,
+// and every tick. Combatants are indices, positions are tiles and the numbers come from
+// rules::CombatRules; combat::Battle maps an encounter onto the scene.
 namespace corundum::gameplay::combat {
 
   /** @brief The standing attack's label, on the command bar and as the name of its wind-up. */
@@ -67,10 +69,11 @@ namespace corundum::gameplay::combat {
     void order_attack(std::size_t attacker, std::size_t target);
 
     /** @brief @p mover walks on its own: drop its attack order and cancel a wind-up, losing the
-     *  command winding up; the marker drops to that command's return point, as a fizzle's does. A
-     *  queued command that hasn't started stays queued.
+     *  command winding up; the marker drops to that command's return point, as a fizzle's does, and
+     *  the turn ends lost. A queued command that hasn't started stays queued.
+     *  @return The end-of-turn reports when a wind-up was cancelled; empty otherwise.
      *  @pre mover < size(). */
-    void order_move(std::size_t mover);
+    [[nodiscard]] std::vector<std::string> order_move(const rules::CombatContext &context, std::size_t mover);
 
     /** @brief Queue commands(actor)[@p option] as @p actor's next command, replacing any queued one.
      *  It winds up at the next command point instead of the standing attack, which then resumes. An
@@ -84,6 +87,11 @@ namespace corundum::gameplay::combat {
     /** @brief Drop @p actor's queued command, so the standing attack comes next.
      *  @pre actor < size(). */
     void clear_queued(std::size_t actor);
+
+    /** @brief Turn toggles(actor)[@p option] on or off through the rules, then refresh @p actor's
+     *  toggles and every status.
+     *  @pre actor < size() and option < toggles(actor).size(). */
+    void toggle(const rules::CombatContext &context, std::size_t actor, std::size_t option);
 
     /** @brief Advance one fixed step; every steps_per_tick-th step is a tick. Does nothing once
      *  outcome() is set.
@@ -114,6 +122,14 @@ namespace corundum::gameplay::combat {
     /** @brief @p index's queued command, as an index into commands(index); nullopt for none. */
     [[nodiscard]] std::optional<std::size_t> queued(std::size_t index) const { return markers_[index].queued; }
 
+    /** @brief @p index's toggles, as CombatRules::toggles last listed them; refreshed with its
+     *  commands and after every toggle. */
+    [[nodiscard]] std::span<const rules::ToggleOption> toggles(std::size_t index) const { return toggles_[index]; }
+
+    /** @brief @p index's status, as CombatRules::status last gave it: at the start, or after the
+     *  last tick, move order or toggle. */
+    [[nodiscard]] const rules::CombatantStatus &status(std::size_t index) const { return statuses_[index]; }
+
     /** @brief The label of the command @p index is winding up (k_attack_label for the standing
      *  attack); empty when it isn't winding up. */
     [[nodiscard]] std::string_view windup_label(std::size_t index) const;
@@ -135,6 +151,8 @@ namespace corundum::gameplay::combat {
 
       int beats{};
 
+      bool in_turn{}; ///< From its turn's start (the marker reached the command point) until the turn ends.
+
       Phase phase{Phase::Ready};
 
       std::optional<std::size_t> queued{};
@@ -144,7 +162,7 @@ namespace corundum::gameplay::combat {
 
     Encounter(rules::CombatRules rules, std::vector<rules::Combatant> combatants, std::vector<Side> sides,
               std::vector<rules::CombatantSpec> specs, std::vector<std::vector<rules::CommandOption>> commands,
-              int steps_per_tick);
+              std::vector<std::vector<rules::ToggleOption>> toggles, int steps_per_tick);
 
     rules::CombatRules rules_;
 
@@ -155,6 +173,10 @@ namespace corundum::gameplay::combat {
     std::vector<Side> sides_;
 
     std::vector<rules::CombatantSpec> specs_;
+
+    std::vector<rules::CombatantStatus> statuses_;
+
+    std::vector<std::vector<rules::ToggleOption>> toggles_;
 
     std::vector<Marker> markers_;
 

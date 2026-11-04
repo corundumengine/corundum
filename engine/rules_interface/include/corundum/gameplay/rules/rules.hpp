@@ -17,8 +17,10 @@
 // they are. A ruleset keeps the protagonist's lasting state in the playthrough's flags under its
 // own key prefix, so saves, loads and playthrough boundaries carry it with no hook of their own;
 // it reads and writes that state through FlagReader and FlagWriter, never the FlagStore itself.
-// State that lasts one encounter (a creature's damage, a command's uses this fight) lives in the
-// Combatant and ends with the encounter. This header is part of corundum::rules_interface and
+// State that lasts one encounter (a creature's damage, a command's uses this fight, conditions and
+// resources such as Momentum) lives in the Combatant and ends with the encounter. The framework
+// tells the rules when each combatant's turn starts and ends and when a tick passes, and enforces
+// what CombatRules::status says. This header is part of corundum::rules_interface and
 // includes no other corundum header, so a ruleset builds against that target alone.
 namespace corundum::gameplay::rules {
 
@@ -116,6 +118,48 @@ namespace corundum::gameplay::rules {
     bool operator==(const CommandResult &) const = default;
   };
 
+  /** @brief How a combatant's turn ended. */
+  enum class TurnEnd : std::uint8_t {
+    Resolved, ///< Its command landed and was carried out.
+    Lost,     ///< Its command fizzled, was cancelled by a move order, or was Broken.
+  };
+
+  /** @brief What happened at the end of a turn. */
+  struct TurnEndResult {
+    std::vector<std::string> reports{}; ///< One line each for the combat log.
+
+    /** The marker moves to at least this many beats, past the command's return point (Hasten, Act
+     *  Again); nullopt keeps the command's. It never lowers the marker. */
+    std::optional<int> return_to_beats{};
+
+    bool operator==(const TurnEndResult &) const = default;
+  };
+
+  /** @brief What the framework enforces and shows for a combatant. */
+  struct CombatantStatus {
+    bool can_advance{true}; ///< False: its marker neither fills nor winds up (Dazed).
+
+    bool can_move{true}; ///< False: it doesn't walk, and its own move orders are ignored (Immobilized).
+
+    std::vector<std::string> labels{}; ///< Shown under its name in order, such as "Momentum 2", "Weakened".
+
+    bool operator==(const CombatantStatus &) const = default;
+  };
+
+  /** @brief A standing choice on the command bar, such as spending Momentum on the next hit.
+   *  Pressing it turns it on or off; the ruleset acts on it when the moment comes. */
+  struct ToggleOption {
+    std::string id{}; ///< The ruleset's name for it, passed back to toggle.
+
+    bool is_available{true}; ///< False while it can't be turned on (spent this fight).
+
+    bool is_on{};
+
+    std::string label{}; ///< Shown on the command bar, such as "Stagger [1]".
+
+    bool operator==(const ToggleOption &) const = default;
+  };
+
   /** @brief When a hostile's wind-up pauses the fight on its own: one at least min_windup_beats
    *  long, started within max_distance_tiles of the protagonist. */
   struct AutoPause {
@@ -147,7 +191,8 @@ namespace corundum::gameplay::rules {
   };
 
   /** @brief A ruleset's combat: the timeline's constants and the callbacks that decide each
-   *  combatant's numbers, commands and results. Every callback must be set. */
+   *  combatant's numbers, commands and results. Every callback must be set; one with nothing to do
+   *  returns an empty result. */
   struct CombatRules {
     std::optional<AutoPause> auto_pause{}; ///< nullopt: the fight never pauses on its own.
 
@@ -166,6 +211,10 @@ namespace corundum::gameplay::rules {
      *  same commands in the same order for the whole encounter; only is_available and a label's
      *  count may change. The framework asks again after every command resolves. */
     std::function<std::vector<CommandOption>(const CombatContext &, const Combatant &)> commands{};
+
+    /** At the end of the combatant's turn, its command carried out or lost: count down what ends
+     *  with a turn, apply what happens then, and say whether the marker returns further along. */
+    std::function<TurnEndResult(const CombatContext &, Combatant &, TurnEnd how)> end_turn{};
 
     std::function<Health(const CombatContext &, const Combatant &)> health{};
 
@@ -186,6 +235,27 @@ namespace corundum::gameplay::rules {
 
     /** Carry out the Self command @p command by @p actor and return a one-line report. */
     std::function<std::string(const CombatContext &, std::string_view command, Combatant &actor)> resolve_self{};
+
+    /** At the start of the combatant's turn, when its marker reaches the command point: apply what
+     *  happens then, and return one line each for the combat log. It may leave the combatant
+     *  unable to act; no command then starts. */
+    std::function<std::vector<std::string>(const CombatContext &, Combatant &)> start_turn{};
+
+    /** What the framework enforces and shows for the combatant. Asked at the start, after every
+     *  tick, after a move order and after a toggle; nothing else may change it. */
+    std::function<CombatantStatus(const CombatContext &, const Combatant &)> status{};
+
+    /** Once per tick for every combatant that can act, after its marker moved (or was held): count
+     *  down what lasts a number of ticks. */
+    std::function<void(const CombatContext &, Combatant &)> tick{};
+
+    /** Turn @p toggle, the id of one of the combatant's toggles(), on or off. */
+    std::function<void(const CombatContext &, Combatant &, std::string_view toggle)> toggle{};
+
+    /** The combatant's toggles, on the command bar after its commands. The same toggles in the same
+     *  order for the whole encounter; only is_available and is_on may change. The framework asks
+     *  again with the commands, and after every toggle. */
+    std::function<std::vector<ToggleOption>(const CombatContext &, const Combatant &)> toggles{};
   };
 
   /** @brief A game's rules, as callbacks the framework calls when it needs a value.

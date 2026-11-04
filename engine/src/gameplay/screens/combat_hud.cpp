@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -24,7 +25,9 @@ namespace corundum::gameplay::screens {
 
   namespace {
 
-    constexpr float k_panel_width = 260.f;
+    /// Fits "Brann  16 / 16  Crushing Blow" at the default body size, so the panel doesn't change
+    /// width with each ordinary wind-up. A longer row still widens the panel.
+    constexpr float k_min_row_width = 300.f;
     constexpr float k_pad = 12.f;
     constexpr float k_bar_height = 6.f;
     constexpr float k_bar_gap = 4.f;
@@ -39,6 +42,14 @@ namespace corundum::gameplay::screens {
 
     float body_line_height(const ui::PanelStyle &style) noexcept {
       return std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
+    }
+
+    /// A panel's inset: content must clear the nine-patch corners, whose cells draw at natural size.
+    core::math::Vec2 panel_padding(const ui::NinePatchBorder &border) noexcept {
+      return {
+          .x = std::max(k_pad, static_cast<float>(border.tile_w)),
+          .y = std::max(k_pad, static_cast<float>(border.tile_h)),
+      };
     }
 
     /// A bar's fill fraction, clamped to [0, 1]; 0 when @p whole isn't positive.
@@ -76,16 +87,21 @@ namespace corundum::gameplay::screens {
       draw_rect(r, command_pos, {.x = k_command_point_width, .y = bar.height}, style.body);
     }
 
+    /// One combatant's heading: name and Health, then the command winding up when there is one.
+    std::string row_text(const CombatHudRow &row) {
+      if (row.windup_label.empty())
+        return std::format("{}  {} / {}", row.name, row.health.current, row.health.max);
+      return std::format("{}  {} / {}  {}", row.name, row.health.current, row.health.max, row.windup_label);
+    }
+
     /// Draw one combatant's row from the top of its cell and return the y below it.
-    float draw_row(platform::Renderer &r, const ui::PanelStyle &style, const CombatHudRow &row, float x, float y) {
-      const std::string text =
-          row.windup_label.empty()
-              ? std::format("{}  {} / {}", row.name, row.health.current, row.health.max)
-              : std::format("{}  {} / {}  {}", row.name, row.health.current, row.health.max, row.windup_label);
-      draw_text(r, style, text, {.x = x, .y = y}, style.font_size_body, row.is_hostile ? style.speaker : style.body);
+    float draw_row(platform::Renderer &r, const ui::PanelStyle &style, const CombatHudRow &row, std::string_view text,
+                   core::math::Vec2 pos, float bar_width) {
+      const float x = pos.x;
+      float y = pos.y;
+      draw_text(r, style, text, pos, style.font_size_body, row.is_hostile ? style.speaker : style.body);
       y += body_line_height(style);
 
-      const float bar_width = k_panel_width - (2.f * k_pad);
       y += k_bar_gap;
       const ui::RowRect health{.pos = {.x = x, .y = y}, .width = bar_width, .height = k_bar_height};
       draw_rect(r, health.pos, {.x = health.width, .y = health.height}, k_bar_back);
@@ -97,6 +113,34 @@ namespace corundum::gameplay::screens {
       draw_timeline_bar(r, style, row, timeline);
       y += k_bar_height;
       return y;
+    }
+
+    /// The panel at the top-left: one row per combatant, as wide as its longest row needs.
+    void draw_rows_panel(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+                         std::span<const CombatHudRow> rows) {
+      const std::uint32_t font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      std::vector<std::string> texts;
+      texts.reserve(rows.size());
+      float rows_width = k_min_row_width;
+      for (const CombatHudRow &row : rows) {
+        texts.push_back(row_text(row));
+        rows_width = std::max(rows_width, r.measure_text(font, texts.back(), style.font_size_body));
+      }
+
+      const core::math::Vec2 pad = panel_padding(border);
+      const float row_height = body_line_height(style) + (2.f * (k_bar_gap + k_bar_height));
+      const float rows_height = (row_height * static_cast<float>(rows.size())) +
+                                (rows.empty() ? 0.f : (k_row_gap * static_cast<float>(rows.size() - 1)));
+      const core::math::Vec2 panel_pos{.x = style.margin, .y = style.margin};
+      const core::math::Vec2 panel_size{.x = rows_width + (2.f * pad.x), .y = rows_height + (2.f * pad.y)};
+      ui::panel_chrome(r, style.bg, border, panel_pos, panel_size);
+
+      float y = panel_pos.y + pad.y;
+      for (std::size_t i = 0; i < rows.size(); ++i) {
+        y = draw_row(r, style, rows[i], texts[i], {.x = panel_pos.x + pad.x, .y = y}, rows_width);
+        if (i + 1 < rows.size())
+          y += k_row_gap;
+      }
     }
 
     /// One command-bar slot's text: the device's glyph, then the command's label.
@@ -127,11 +171,12 @@ namespace corundum::gameplay::screens {
       }
       texts_width += k_command_gap * static_cast<float>(texts.size() - 1);
 
+      const core::math::Vec2 pad = panel_padding(border);
       const float line_height = body_line_height(style);
       const float left = (viewport.x - texts_width) / 2.f;
-      const float top = viewport.y - style.margin - line_height;
-      const core::math::Vec2 panel_pos{.x = left - k_pad, .y = top - k_pad};
-      const core::math::Vec2 panel_size{.x = texts_width + (2.f * k_pad), .y = line_height + (2.f * k_pad)};
+      const float top = viewport.y - style.margin - pad.y - line_height;
+      const core::math::Vec2 panel_pos{.x = left - pad.x, .y = top - pad.y};
+      const core::math::Vec2 panel_size{.x = texts_width + (2.f * pad.x), .y = line_height + (2.f * pad.y)};
       ui::panel_chrome(r, style.bg, border, panel_pos, panel_size);
 
       float x = left;
@@ -156,20 +201,7 @@ namespace corundum::gameplay::screens {
   void combat_hud_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          const CombatHud &hud, core::math::Vec2 viewport, input::InputDevice device,
                          std::string_view banner) {
-    const float row_height = body_line_height(style) + (2.f * (k_bar_gap + k_bar_height));
-    const float rows_height = (row_height * static_cast<float>(hud.rows.size())) +
-                              (hud.rows.empty() ? 0.f : (k_row_gap * static_cast<float>(hud.rows.size() - 1)));
-    const core::math::Vec2 panel_pos{.x = style.margin, .y = style.margin};
-    const core::math::Vec2 panel_size{.x = k_panel_width, .y = (2.f * k_pad) + rows_height};
-    ui::panel_chrome(r, style.bg, border, panel_pos, panel_size);
-
-    float y = panel_pos.y + k_pad;
-    for (std::size_t i = 0; i < hud.rows.size(); ++i) {
-      y = draw_row(r, style, hud.rows[i], panel_pos.x + k_pad, y);
-      if (i + 1 < hud.rows.size())
-        y += k_row_gap;
-    }
-
+    draw_rows_panel(r, style, border, hud.rows);
     draw_command_bar(r, style, border, hud, viewport, device);
     draw_banner(r, style, viewport, banner);
   }

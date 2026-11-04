@@ -134,9 +134,12 @@ namespace corundum::gameplay::combat {
              input.is_held(input::Action::MoveLeft) || input.is_held(input::Action::MoveRight);
     }
 
-    /// Give the protagonist a ground move order, dropping any attack and its planned approach.
-    void order_protagonist_move(Encounter &encounter, std::optional<world::TileCoord> &planned_approach) {
-      encounter.order_move(Battle::k_protagonist);
+    /// Give the protagonist a ground move order, dropping any attack and its planned approach, and
+    /// append the end-of-turn reports of a wind-up it cancelled.
+    void order_protagonist_move(const rules::CombatContext &context, Encounter &encounter,
+                                std::optional<world::TileCoord> &planned_approach, std::vector<std::string> &reports) {
+      for (std::string &report : encounter.order_move(context, Battle::k_protagonist))
+        reports.push_back(std::move(report));
       planned_approach.reset();
     }
 
@@ -190,7 +193,7 @@ namespace corundum::gameplay::combat {
     std::vector<std::string> refusals;
     const bool is_running = clock == Clock::Running;
     if (is_running && is_move_held(engine.input_state))
-      order_protagonist_move(encounter_, planned_for_[k_protagonist]);
+      order_protagonist_move(context, encounter_, planned_for_[k_protagonist], refusals);
 
     if (engine.input_state.is_pressed(input::Action::CombatCommand1)) {
       encounter_.clear_queued(k_protagonist);
@@ -210,7 +213,7 @@ namespace corundum::gameplay::combat {
       return refusals;
     }
     if (is_running)
-      order_protagonist_move(encounter_, planned_for_[k_protagonist]);
+      order_protagonist_move(context, encounter_, planned_for_[k_protagonist], refusals);
     return refusals;
   }
 
