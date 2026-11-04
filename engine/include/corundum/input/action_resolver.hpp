@@ -12,7 +12,7 @@
 namespace corundum::input {
 
   /** @brief Upper bound on the number of physical input sources one resolver tracks. */
-  inline constexpr std::size_t k_max_input_sources = 64;
+  inline constexpr std::size_t k_max_input_sources = 96;
 
   /** @brief Folds many physical input sources bound to one Action into a single held bit and press edge.
    *

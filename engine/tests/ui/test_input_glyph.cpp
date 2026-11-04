@@ -71,3 +71,13 @@ TEST_CASE("input_glyph: Pause shows Space on a keyboard and X on a gamepad") {
   CHECK_EQ(input_glyph(Action::Pause, InputDevice::Keyboard), "Space");
   CHECK_EQ(input_glyph(Action::Pause, InputDevice::Gamepad), "X");
 }
+
+TEST_CASE("input_glyph: the fight's slots 4 to 9 show their digits on a keyboard") {
+  CHECK_EQ(input_glyph(Action::CombatCommand4, InputDevice::Keyboard), "4");
+  CHECK_EQ(input_glyph(Action::CombatCommand9, InputDevice::Keyboard), "9");
+}
+
+TEST_CASE("input_glyph: the bar's pages show L1 and R1 on a gamepad") {
+  CHECK_EQ(input_glyph(Action::CombatPagePrev, InputDevice::Gamepad), "L1");
+  CHECK_EQ(input_glyph(Action::CombatPageNext, InputDevice::Gamepad), "R1");
+}

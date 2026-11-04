@@ -40,6 +40,14 @@ namespace corundum::ui {
         case Action::CombatCommand1: return "1";
         case Action::CombatCommand2: return "2";
         case Action::CombatCommand3: return "3";
+        case Action::CombatCommand4: return "4";
+        case Action::CombatCommand5: return "5";
+        case Action::CombatCommand6: return "6";
+        case Action::CombatCommand7: return "7";
+        case Action::CombatCommand8: return "8";
+        case Action::CombatCommand9: return "9";
+        case Action::CombatPageNext:
+        case Action::CombatPagePrev: return "?"; // gamepad-only; the keyboard has a key per slot
         case Action::QuickSave: return "F5";
         case Action::QuickLoad: return "F9";
         case Action::Count: break;
@@ -72,6 +80,8 @@ namespace corundum::ui {
         case Action::CombatCommand1: return "A";
         case Action::CombatCommand2: return "Y";
         case Action::CombatCommand3: return "B";
+        case Action::CombatPageNext: return "R1";
+        case Action::CombatPagePrev: return "L1";
         case Action::Character: return "Back";
         case Action::Menu: return "Start";
         case Action::TabNext: return "R1";

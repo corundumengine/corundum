@@ -37,8 +37,16 @@ namespace corundum::input {
     SubTabPrev, ///< Previous sub-tab inside a hub tab: journal Active/Completed/Failed (, / gamepad L2).
     Pause,      ///< Combat pause toggle (Space / gamepad X). Only a fight reads it; Space also raises Select/Activate.
     CombatCommand1, ///< Fight: attack the hostile (1 / gamepad A, shared with Select/Activate).
-    CombatCommand2, ///< Fight: queue the command bar's second slot (2 / gamepad Y, shared with Hub).
-    CombatCommand3, ///< Fight: queue the command bar's third slot (3 / gamepad B, shared with Cancel).
+    CombatCommand2, ///< Fight: press the command bar's second slot (2 / gamepad Y, shared with Hub).
+    CombatCommand3, ///< Fight: press the command bar's third slot (3 / gamepad B, shared with Cancel).
+    CombatCommand4, ///< Fight: press the fourth slot (4). Slots 4 to 9 are keyboard only; a gamepad pages A/Y/B.
+    CombatCommand5, ///< Fight: press the fifth slot (5).
+    CombatCommand6, ///< Fight: press the sixth slot (6).
+    CombatCommand7, ///< Fight: press the seventh slot (7).
+    CombatCommand8, ///< Fight: press the eighth slot (8).
+    CombatCommand9, ///< Fight: press the ninth slot (9).
+    CombatPageNext, ///< Fight: show the bar's next three slots on A/Y/B (gamepad R1, shared with TabNext).
+    CombatPagePrev, ///< Fight: show the bar's previous three slots on A/Y/B (gamepad L1, shared with TabPrev).
     QuickSave,      ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
     QuickLoad,      ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
     Count,

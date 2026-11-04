@@ -401,3 +401,37 @@ TEST_CASE("bindings: a settings file saved before the fight's commands existed g
   CHECK_EQ(inputs_for(*parsed, Action::CombatCommand2),
            std::vector<PhysicalInput>{physical(Key::Digit2), physical(GamepadControl::Y)});
 }
+
+TEST_CASE("bindings: 4 to 9 raise the fight's fourth to ninth slots by default") {
+  const Bindings defaults = default_bindings();
+
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand4), std::vector<PhysicalInput>{physical(Key::Digit4)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand5), std::vector<PhysicalInput>{physical(Key::Digit5)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand6), std::vector<PhysicalInput>{physical(Key::Digit6)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand7), std::vector<PhysicalInput>{physical(Key::Digit7)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand8), std::vector<PhysicalInput>{physical(Key::Digit8)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatCommand9), std::vector<PhysicalInput>{physical(Key::Digit9)});
+}
+
+TEST_CASE("bindings: gamepad L1 and R1 page the fight's command bar by default") {
+  const Bindings defaults = default_bindings();
+
+  CHECK_EQ(inputs_for(defaults, Action::CombatPagePrev),
+           std::vector<PhysicalInput>{physical(GamepadControl::LeftBumper)});
+  CHECK_EQ(inputs_for(defaults, Action::CombatPageNext),
+           std::vector<PhysicalInput>{physical(GamepadControl::RightBumper)});
+}
+
+TEST_CASE("bindings: a settings file saved before the bar's pages existed gains their defaults") {
+  Bindings older = default_bindings();
+  std::erase_if(older, [](const Binding &row) {
+    return row.action == Action::CombatPageNext || row.action == Action::CombatPagePrev;
+  });
+
+  const std::expected<Bindings, std::string> parsed =
+      corundum::input::parse_bindings(corundum::input::serialize(older), default_bindings());
+
+  REQUIRE(parsed.has_value());
+  CHECK_EQ(inputs_for(*parsed, Action::CombatPageNext),
+           std::vector<PhysicalInput>{physical(GamepadControl::RightBumper)});
+}

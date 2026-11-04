@@ -423,6 +423,14 @@ namespace corundum::physics {
     const float prev_col = transforms.col[p_slot];
     const float prev_row = transforms.row[p_slot];
 
+    // A held player stands still: no key movement, and no click path to walk.
+    if (scene.is_player_held) {
+      transforms.dc[p_slot] = 0.f;
+      transforms.dr[p_slot] = 0.f;
+      scene.path.clear();
+      return;
+    }
+
     // The floor the player is standing on at the start of the frame — computed from the
     // pre-move position so collision resolution doesn't depend on its own not-yet-resolved
     // result. Uses round-to-nearest + ramp-aware tolerance (see compute_elevation_gate)

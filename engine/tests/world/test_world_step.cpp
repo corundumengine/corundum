@@ -111,3 +111,28 @@ TEST_CASE("world step: the engine runs the world beneath a screen registered wit
   CHECK_GT(player_col(*engine), 8.f);
   engine->cleanup();
 }
+
+TEST_CASE("world step: a held player doesn't walk its path, and the path is dropped") {
+  const std::unique_ptr<corundum::Engine> engine = make_walking_engine();
+  engine->scene.is_player_held = true;
+  const corundum::input::InputState no_input{};
+
+  update_once(*engine, no_input, WorldStep::Runs);
+
+  CHECK_EQ(player_col(*engine), doctest::Approx(8.f));
+  CHECK(engine->scene.path.empty());
+  engine->cleanup();
+}
+
+TEST_CASE("world step: a held player doesn't walk on a held movement key") {
+  const std::unique_ptr<corundum::Engine> engine = make_walking_engine();
+  engine->scene.path.clear();
+  engine->scene.is_player_held = true;
+  corundum::input::InputState walking{};
+  walking.held.set(static_cast<std::size_t>(corundum::input::Action::MoveRight));
+
+  update_once(*engine, walking, WorldStep::Runs);
+
+  CHECK_EQ(player_col(*engine), doctest::Approx(8.f));
+  engine->cleanup();
+}

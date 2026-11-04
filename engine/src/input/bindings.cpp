@@ -54,6 +54,14 @@ namespace corundum::input {
             {Action::CombatCommand1, "CombatCommand1"},
             {Action::CombatCommand2, "CombatCommand2"},
             {Action::CombatCommand3, "CombatCommand3"},
+            {Action::CombatCommand4, "CombatCommand4"},
+            {Action::CombatCommand5, "CombatCommand5"},
+            {Action::CombatCommand6, "CombatCommand6"},
+            {Action::CombatCommand7, "CombatCommand7"},
+            {Action::CombatCommand8, "CombatCommand8"},
+            {Action::CombatCommand9, "CombatCommand9"},
+            {Action::CombatPageNext, "CombatPageNext"},
+            {Action::CombatPagePrev, "CombatPagePrev"},
             {Action::QuickSave, "QuickSave"},
             {Action::QuickLoad, "QuickLoad"},
         },
@@ -97,6 +105,12 @@ namespace corundum::input {
         {.action = Action::CombatCommand1, .input = physical(Key::Digit1)},
         {.action = Action::CombatCommand2, .input = physical(Key::Digit2)},
         {.action = Action::CombatCommand3, .input = physical(Key::Digit3)},
+        {.action = Action::CombatCommand4, .input = physical(Key::Digit4)},
+        {.action = Action::CombatCommand5, .input = physical(Key::Digit5)},
+        {.action = Action::CombatCommand6, .input = physical(Key::Digit6)},
+        {.action = Action::CombatCommand7, .input = physical(Key::Digit7)},
+        {.action = Action::CombatCommand8, .input = physical(Key::Digit8)},
+        {.action = Action::CombatCommand9, .input = physical(Key::Digit9)},
         {.action = Action::Cancel, .input = physical(Key::Escape)},
         {.action = Action::Cancel, .input = physical(MouseButton::Right)},
         {.action = Action::Quit, .input = physical(Key::Q)},
@@ -132,6 +146,9 @@ namespace corundum::input {
         {.action = Action::Menu, .input = physical(GamepadControl::Start)},
         {.action = Action::TabPrev, .input = physical(GamepadControl::LeftBumper)},
         {.action = Action::TabNext, .input = physical(GamepadControl::RightBumper)},
+        // Outside a fight the bumpers keep their tab jobs, which a fight doesn't use.
+        {.action = Action::CombatPagePrev, .input = physical(GamepadControl::LeftBumper)},
+        {.action = Action::CombatPageNext, .input = physical(GamepadControl::RightBumper)},
         // Hub is the one gamepad button for the four menu screens; the I/J/C/M keyboard hotkeys
         // open a tab directly. Journal/Codex/Map stay in this table so a settings file saved
         // before the hub (gamepad Y still bound to Journal) opens the hub on the Journal tab:

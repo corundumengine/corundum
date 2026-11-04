@@ -51,6 +51,10 @@ namespace corundum::world {
 
     std::vector<corundum::world::TileCoord> path; ///< Remaining click-to-move waypoints, front = next.
 
+    /// While true the player doesn't walk: held movement keys and click-to-move are ignored, and
+    /// `path` is cleared each step. A fight sets it while the protagonist can't move.
+    bool is_player_held{};
+
     /// Current zone identity: the tilemap path stem for interiors and the world
     /// manifest directory name for overworld mode. `local.<key>` flag references
     /// resolve to `zone.<zone_id>.<key>` against this value.
