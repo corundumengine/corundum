@@ -4,6 +4,7 @@
 #include <corundum/gameplay/screens/combat_hud.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/font_family.hpp>
@@ -94,13 +95,34 @@ namespace corundum::gameplay::screens {
       return std::format("{}  {} / {}  {}", row.name, row.health.current, row.health.max, row.windup_label);
     }
 
+    /// Join @p parts with ", ".
+    std::string joined(std::span<const std::string> parts) {
+      std::string text;
+      for (std::size_t i = 0; i < parts.size(); ++i) {
+        if (i != 0)
+          text += ", ";
+        text += parts[i];
+      }
+      return text;
+    }
+
+    /// One body line of a row: its name, then its status labels when it has any.
+    float row_heading_height(const ui::PanelStyle &style, const CombatHudRow &row) noexcept {
+      return row.status_labels.empty() ? body_line_height(style) : 2.f * body_line_height(style);
+    }
+
     /// Draw one combatant's row from the top of its cell and return the y below it.
     float draw_row(platform::Renderer &r, const ui::PanelStyle &style, const CombatHudRow &row, std::string_view text,
-                   core::math::Vec2 pos, float bar_width) {
+                   std::string_view statuses, core::math::Vec2 pos, float bar_width) {
       const float x = pos.x;
       float y = pos.y;
       draw_text(r, style, text, pos, style.font_size_body, row.is_hostile ? style.speaker : style.body);
       y += body_line_height(style);
+
+      if (!statuses.empty()) {
+        draw_text(r, style, statuses, {.x = x, .y = y}, style.font_size_body, style.body);
+        y += body_line_height(style);
+      }
 
       y += k_bar_gap;
       const ui::RowRect health{.pos = {.x = x, .y = y}, .width = bar_width, .height = k_bar_height};
@@ -120,70 +142,125 @@ namespace corundum::gameplay::screens {
                          std::span<const CombatHudRow> rows) {
       const std::uint32_t font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
       std::vector<std::string> texts;
+      std::vector<std::string> statuses;
       texts.reserve(rows.size());
+      statuses.reserve(rows.size());
       float rows_width = k_min_row_width;
+      float rows_height = 0.f;
       for (const CombatHudRow &row : rows) {
         texts.push_back(row_text(row));
+        statuses.push_back(joined(row.status_labels));
         rows_width = std::max(rows_width, r.measure_text(font, texts.back(), style.font_size_body));
+        if (!statuses.back().empty())
+          rows_width = std::max(rows_width, r.measure_text(font, statuses.back(), style.font_size_body));
+        rows_height += row_heading_height(style, row) + (2.f * (k_bar_gap + k_bar_height));
       }
+      if (!rows.empty())
+        rows_height += k_row_gap * static_cast<float>(rows.size() - 1);
 
       const core::math::Vec2 pad = panel_padding(border);
-      const float row_height = body_line_height(style) + (2.f * (k_bar_gap + k_bar_height));
-      const float rows_height = (row_height * static_cast<float>(rows.size())) +
-                                (rows.empty() ? 0.f : (k_row_gap * static_cast<float>(rows.size() - 1)));
       const core::math::Vec2 panel_pos{.x = style.margin, .y = style.margin};
       const core::math::Vec2 panel_size{.x = rows_width + (2.f * pad.x), .y = rows_height + (2.f * pad.y)};
       ui::panel_chrome(r, style.bg, border, panel_pos, panel_size);
 
       float y = panel_pos.y + pad.y;
       for (std::size_t i = 0; i < rows.size(); ++i) {
-        y = draw_row(r, style, rows[i], texts[i], {.x = panel_pos.x + pad.x, .y = y}, rows_width);
+        y = draw_row(r, style, rows[i], texts[i], statuses[i], {.x = panel_pos.x + pad.x, .y = y}, rows_width);
         if (i + 1 < rows.size())
           y += k_row_gap;
       }
     }
 
-    /// One command-bar slot's text: the device's glyph, then the command's label.
-    std::string command_text(const CombatHudCommand &command, input::InputDevice device) {
-      return std::format("{} {}", ui::input_glyph(command.action, device), command.label);
+    /// One item on a command-bar line: its text, and the colour it draws in.
+    struct BarItem {
+      std::string text{};
+
+      core::math::Colour colour{};
+    };
+
+    /// The width of @p items' texts and the gaps between them.
+    float items_width(const platform::Renderer &r, std::uint32_t font, const ui::PanelStyle &style,
+                      std::span<const BarItem> items) {
+      float width = 0.f;
+      for (const BarItem &item : items)
+        width += r.measure_text(font, item.text, style.font_size_body);
+      if (!items.empty())
+        width += k_command_gap * static_cast<float>(items.size() - 1);
+      return width;
     }
 
-    /// A slot's colour: highlighted when queued, dimmed when unavailable, else the body colour.
+    /// Draw @p items in a row from @p left.
+    void draw_items(platform::Renderer &r, const ui::PanelStyle &style, std::uint32_t font,
+                    std::span<const BarItem> items, float left, float y) {
+      float x = left;
+      for (const BarItem &item : items) {
+        draw_text(r, style, item.text, {.x = x, .y = y}, style.font_size_body, item.colour);
+        x += r.measure_text(font, item.text, style.font_size_body) + k_command_gap;
+      }
+    }
+
+    /// One command-bar slot's text: the device's glyph, then the command's label. A gamepad draws a
+    /// slot off the shown page with its label only.
+    std::string command_text(const CombatHudCommand &command, input::InputDevice device) {
+      if (device != input::InputDevice::Gamepad)
+        return std::format("{} {}", ui::input_glyph(command.action, device), command.label);
+      if (!command.gamepad_action)
+        return command.label;
+      return std::format("{} {}", ui::input_glyph(*command.gamepad_action, device), command.label);
+    }
+
+    /// A slot's colour: highlighted when queued or armed, dimmed when unavailable, else the body colour.
     core::math::Colour command_colour(const ui::PanelStyle &style, const CombatHudCommand &command) noexcept {
-      if (command.is_queued)
+      if (command.is_highlighted)
         return style.selected;
       return command.is_available ? style.body : k_dimmed;
     }
 
-    /// The command bar along the bottom: the slots' texts over a panel sized around them.
+    /// The command bar along the bottom: the commands' line over a panel sized around it, the page
+    /// hint on a gamepad, and the toggles' line above it.
     void draw_command_bar(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                           const CombatHud &hud, core::math::Vec2 viewport, input::InputDevice device) {
       if (hud.commands.empty())
         return;
 
       const std::uint32_t font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-      std::vector<std::string> texts;
-      texts.reserve(hud.commands.size());
-      float texts_width = 0.f;
-      for (const CombatHudCommand &command : hud.commands) {
-        texts.push_back(command_text(command, device));
-        texts_width += r.measure_text(font, texts.back(), style.font_size_body);
+      std::vector<BarItem> commands;
+      commands.reserve(hud.commands.size() + 1);
+      for (const CombatHudCommand &command : hud.commands)
+        commands.push_back({.text = command_text(command, device), .colour = command_colour(style, command)});
+      if (device == input::InputDevice::Gamepad && hud.page.count > 1) {
+        const std::string page_hint =
+            std::format("{}/{} {}/{}", ui::input_glyph(input::Action::CombatPagePrev, device),
+                        ui::input_glyph(input::Action::CombatPageNext, device), hud.page.index + 1, hud.page.count);
+        commands.push_back({.text = page_hint, .colour = style.body});
       }
-      texts_width += k_command_gap * static_cast<float>(texts.size() - 1);
+
+      std::vector<BarItem> toggles;
+      toggles.reserve(hud.toggles.size());
+      for (const CombatHudCommand &toggle : hud.toggles)
+        toggles.push_back({.text = command_text(toggle, device), .colour = command_colour(style, toggle)});
+
+      const float commands_width = items_width(r, font, style, commands);
+      const float toggles_width = items_width(r, font, style, toggles);
+      const float line_height = body_line_height(style);
+      const float toggles_height = toggles.empty() ? 0.f : line_height;
+      const float texts_width = std::max(commands_width, toggles_width);
 
       const core::math::Vec2 pad = panel_padding(border);
-      const float line_height = body_line_height(style);
-      const float left = (viewport.x - texts_width) / 2.f;
-      const float top = viewport.y - style.margin - pad.y - line_height;
-      const core::math::Vec2 panel_pos{.x = left - pad.x, .y = top - pad.y};
-      const core::math::Vec2 panel_size{.x = texts_width + (2.f * pad.x), .y = line_height + (2.f * pad.y)};
+      const float commands_top = viewport.y - style.margin - pad.y - line_height;
+      const core::math::Vec2 panel_pos{
+          .x = ((viewport.x - texts_width) / 2.f) - pad.x,
+          .y = commands_top - toggles_height - pad.y,
+      };
+      const core::math::Vec2 panel_size{
+          .x = texts_width + (2.f * pad.x),
+          .y = line_height + toggles_height + (2.f * pad.y),
+      };
       ui::panel_chrome(r, style.bg, border, panel_pos, panel_size);
 
-      float x = left;
-      for (std::size_t i = 0; i < texts.size(); ++i) {
-        draw_text(r, style, texts[i], {.x = x, .y = top}, style.font_size_body, command_colour(style, hud.commands[i]));
-        x += r.measure_text(font, texts[i], style.font_size_body) + k_command_gap;
-      }
+      draw_items(r, style, font, commands, (viewport.x - commands_width) / 2.f, commands_top);
+      if (!toggles.empty())
+        draw_items(r, style, font, toggles, (viewport.x - toggles_width) / 2.f, commands_top - line_height);
     }
 
     void draw_banner(platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport,

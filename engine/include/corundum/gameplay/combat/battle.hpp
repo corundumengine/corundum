@@ -59,19 +59,22 @@ namespace corundum::gameplay::combat {
 
     /** @brief Start a fight between the protagonist and the actor @p request names. Each side is
      *  given a standing attack on the other, so the protagonist fights without a click; a move order
-     *  drops the protagonist's. The command bar is Attack on CombatCommand1, then the first two of
-     *  the protagonist's commands on CombatCommand2 and CombatCommand3.
+     *  drops the protagonist's. The command bar is Attack, then the protagonist's commands, then its
+     *  toggles, on CombatCommand1–9.
      *  @return The battle, or an error: no protagonist in the scene, no live actor with the id
-     *          ("[gameplay] start_encounter: no actor '<id>' in this area"), or Encounter::start's. */
+     *          ("[gameplay] start_encounter: no actor '<id>' in this area"), more slots than the bar
+     *          holds ("[gameplay] the command bar holds 9 slots; the rules list <n>"), or
+     *          Encounter::start's. */
     [[nodiscard]] static std::expected<Battle, std::string> start(Engine &engine, const rules::CombatRules &rules,
                                                                   const EncounterRequest &request);
 
     /** @brief Run one fixed step:
-     *  - this step's input becomes orders: a click, the command keys, and while Running held
-     *    movement keys;
+     *  - this step's input becomes orders: a click, the slot keys (on a gamepad, A/Y/B press the
+     *    shown page's slots, and L1/R1 change the page), and while Running held movement keys;
      *  - while Running the timeline advances, and a hostile's wind-up may call for an auto-pause;
      *  - a combatant with an attack order out of reach paths to a tile within reach of its target
-     *    and walks there, and one in reach or winding up stands;
+     *    and walks there, and one in reach or winding up stands. One its status says can't move
+     *    stands too, and the protagonist then takes no move order and Scene::is_player_held is set;
      *  - hud() refreshes.
      *  @pre has_live_combatants(engine). */
     [[nodiscard]] BattleStep update(Engine &engine, Clock clock);
@@ -104,11 +107,24 @@ namespace corundum::gameplay::combat {
     [[nodiscard]] std::vector<std::string> read_orders(const Engine &engine, const rules::CombatContext &context,
                                                        Clock clock);
 
+    /// Move the gamepad's page on CombatPageNext/CombatPagePrev, wrapping within the pages.
+    void read_pages(const Engine &engine);
+
+    /// Press the slot each pressed key names on the current page; returns the refusals to toast.
+    [[nodiscard]] std::vector<std::string> read_slot_presses(const Engine &engine, const rules::CombatContext &context);
+
+    /// Turn held movement keys and a click into a move or attack order, appending any refusals.
+    void read_move_orders(const Engine &engine, const rules::CombatContext &context, Clock clock,
+                          std::vector<std::string> &refusals);
+
     /// Give the protagonist a standing attack on the hostile, re-planning its approach.
     void engage(const rules::CombatContext &context);
 
-    /// The command key for bar slot @p slot (1 or 2): unqueue it when queued, refuse it when
-    /// unavailable (returning why), otherwise queue it, engaging the hostile for an Enemy command.
+    /// The command key index for bar slot @p slot: 0 is Attack, then the commands, then the toggles.
+    /// Attack renews the attack and drops a queued command; a command unqueues when queued, is
+    /// refused when unavailable (returning why), and otherwise queues, engaging the hostile for an
+    /// Enemy command; a toggle turns off when on, is refused when unavailable, and otherwise turns
+    /// on.
     [[nodiscard]] std::optional<std::string> press_slot(const rules::CombatContext &context, std::size_t slot);
 
     /// Whether a wind-up in @p started calls for an auto-pause; sets pause_note_ when one does.
@@ -116,6 +132,9 @@ namespace corundum::gameplay::combat {
 
     /// Plan each ordered combatant's movement: stand when in reach or winding up, else approach.
     void plan_movement(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
+
+    /// Stop combatant @p index: clear its path and forget what it was planned for.
+    void stand_still(Engine &engine, std::size_t index);
 
     /// Path combatant @p mover to the nearest tile within reach of combatant @p target_index.
     void approach(Engine &engine, const world::MapView &map, std::size_t mover, std::size_t target_index);
@@ -140,6 +159,8 @@ namespace corundum::gameplay::combat {
     std::vector<std::optional<world::TileCoord>> planned_for_; ///< The target tile each path was planned for.
 
     std::string pause_note_;
+
+    int page_{}; ///< The command-bar page a gamepad's A/Y/B press; below hud_.page.count.
   };
 
 } // namespace corundum::gameplay::combat

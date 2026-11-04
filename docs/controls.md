@@ -100,10 +100,14 @@ wrong from memory.
   tiles its sprite is drawn over (one column back, one row back, or both). You walk into reach and
   attack each time your marker is ready. `1` / A also drops a queued command, so the attack comes
   next; a click on the hostile keeps it.
-- **Commands**: `2` and `3` (keyboard), gamepad Y and B, queue the command bar's second and third
-  slots for your next command point. Pressing a queued slot's key again unqueues it; an
-  unavailable command is refused with a toast. A command aimed at an enemy also renews your
-  attack on it.
+- **Commands**: `2`–`9` (keyboard) press the command bar's second to ninth slots: first the
+  ruleset's commands, then its toggles (in Cerclet, the Momentum spends). A command queues for your
+  next command point; pressing a queued slot's key again unqueues it. A toggle turns on or off;
+  the ruleset acts on it when the moment comes. An unavailable command or toggle is refused with a
+  toast. A command aimed at an enemy also renews your attack on it.
+- **Gamepad pages**: A, Y and B press the three slots of the page shown (the first page is Attack
+  and the next two); L1 and R1 show the previous or next page, wrapping around. Slots off the page
+  show no button.
 - **Pause**: `Space` (keyboard), gamepad X. Commands and clicks on the hostile still work while
   paused; moving doesn't. The fight also pauses on its own when a hostile starts a heavy wind-up
   near you, and the banner names it.
@@ -277,8 +281,9 @@ with `I`/`J`/`C`/`M` on the keyboard and gamepad Y (`Action::Hub`), with
 `TabNext`/`TabPrev` on `]`/`[` and the shoulder bumpers; `SubTabNext`/`SubTabPrev`
 are `.`/`,` and the analog triggers (shared with zoom); Quit is `Q`;
 ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2; QuickSave/QuickLoad are F5/F9.
-Pause is Space and gamepad X; CombatCommand1–3 are `1`/`2`/`3` and gamepad A/Y/B, sharing
-those buttons with Select/Activate, Hub and Cancel, none of which a fight reads.
+Pause is Space and gamepad X; CombatCommand1–9 are `1`–`9`, and CombatCommand1–3 also gamepad A/Y/B, sharing
+those buttons with Select/Activate, Hub and Cancel; CombatPagePrev/Next are gamepad L1/R1, shared
+with TabPrev/TabNext. A fight reads none of the shared jobs.
 The GLFW backend only translates GLFW tokens
 to `PhysicalInput` (`engine/src/platform/glfw/input_translator.cpp`) and holds
 no bindings of its own.

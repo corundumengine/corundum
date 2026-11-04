@@ -10,9 +10,11 @@
 #include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/combat_hud.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/ui_stack.hpp>
@@ -100,6 +102,20 @@ namespace {
     step(fight);
   }
 
+  /// Press and release gamepad @p control through the input mapper, so the last device is the gamepad.
+  void press_gamepad(Fight &fight, corundum::input::GamepadControl control) {
+    corundum::input::GamepadState pad{};
+    pad.buttons[static_cast<std::size_t>(control)] = true;
+    fight.engine->input_mapper.begin_poll();
+    fight.engine->input_mapper.gamepad(pad);
+    fight.engine->input_mapper.end_poll(fight.engine->input_state);
+    step(fight);
+    fight.engine->input_mapper.begin_poll();
+    fight.engine->input_mapper.gamepad(corundum::input::GamepadState{});
+    fight.engine->input_mapper.end_poll(fight.engine->input_state);
+    fight.engine->input_state = {};
+  }
+
   /// Ask for a fight with a00 as @p creature, as a dialogue action does, and run the step that starts it.
   void start_fight(Fight &fight, std::string creature = "grunt") {
     fight.gameplay->pending_dialogue_events.push_back(
@@ -129,6 +145,13 @@ namespace {
     if (!fight.gameplay->battle)
       throw std::runtime_error("no fight is running");
     return *fight.gameplay->battle;
+  }
+
+  /// The fight's combat rules; make_fight always installs the flat ruleset.
+  corundum::gameplay::rules::CombatRules &combat_rules(Fight &fight) {
+    if (!fight.gameplay->ruleset.combat)
+      throw std::runtime_error("the flat ruleset has no combat rules");
+    return *fight.gameplay->ruleset.combat;
   }
 
   std::string last_toast(const corundum::Engine &engine) {
@@ -537,21 +560,25 @@ TEST_CASE("combat: a standing wind-up doesn't pause the fight") {
   CHECK_EQ(fight->engine->scene.mode(), screens::Combat);
 }
 
-TEST_CASE("combat: the command bar lists Attack, then the rules' commands on 2 and 3") {
+TEST_CASE("combat: the command bar lists Attack, the rules' commands, then their toggles") {
   const auto fight = make_fight({.col = 9, .row = 8});
 
   start_fight(*fight);
 
-  const std::vector<corundum::gameplay::screens::CombatHudCommand> &commands = battle_of(*fight).hud().commands;
-  REQUIRE_EQ(commands.size(), 3);
-  CHECK_EQ(commands[0].label, "Attack");
-  CHECK_EQ(commands[0].action, Action::CombatCommand1);
-  CHECK_EQ(commands[1].label, "Bash");
-  CHECK_EQ(commands[1].action, Action::CombatCommand2);
-  CHECK(commands[1].is_available);
-  CHECK_EQ(commands[2].label, "Tonic");
-  CHECK_EQ(commands[2].action, Action::CombatCommand3);
-  CHECK_FALSE(commands[2].is_available);
+  const corundum::gameplay::screens::CombatHud &hud = battle_of(*fight).hud();
+  REQUIRE_EQ(hud.commands.size(), 3);
+  CHECK_EQ(hud.commands[0].label, "Attack");
+  CHECK_EQ(hud.commands[0].action, Action::CombatCommand1);
+  CHECK_EQ(hud.commands[1].label, "Bash");
+  CHECK_EQ(hud.commands[1].action, Action::CombatCommand2);
+  CHECK(hud.commands[1].is_available);
+  CHECK_EQ(hud.commands[2].label, "Tonic");
+  CHECK_EQ(hud.commands[2].action, Action::CombatCommand3);
+  CHECK_FALSE(hud.commands[2].is_available);
+  REQUIRE_EQ(hud.toggles.size(), 1);
+  CHECK_EQ(hud.toggles[0].label, "Guard");
+  CHECK_EQ(hud.toggles[0].action, Action::CombatCommand4);
+  CHECK_EQ(hud.page.count, 2);
 }
 
 TEST_CASE("combat: the command bar marks the queued command") {
@@ -561,8 +588,8 @@ TEST_CASE("combat: the command bar marks the queued command") {
   press(*fight, Action::CombatCommand2);
 
   const std::vector<corundum::gameplay::screens::CombatHudCommand> &commands = battle_of(*fight).hud().commands;
-  CHECK(commands[1].is_queued);
-  CHECK_FALSE(commands[2].is_queued);
+  CHECK(commands[1].is_highlighted);
+  CHECK_FALSE(commands[2].is_highlighted);
 }
 
 TEST_CASE("combat: the HUD names the command a hostile is winding up") {
@@ -574,4 +601,234 @@ TEST_CASE("combat: the HUD names the command a hostile is winding up") {
   const corundum::gameplay::screens::CombatHudRow &row = battle_of(*fight).hud().rows[combat::Battle::k_hostile];
   CHECK_EQ(row.windup_label, "Smash");
   CHECK_EQ(row.windup_end_beats, 130);
+}
+
+TEST_CASE("combat: 4 turns the bar's fourth slot, a toggle, on") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  press(*fight, Action::CombatCommand4);
+
+  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 1);
+  CHECK(battle_of(*fight).hud().toggles[0].is_highlighted);
+}
+
+TEST_CASE("combat: pressing an on toggle's key turns it off") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press(*fight, Action::CombatCommand4);
+
+  press(*fight, Action::CombatCommand4);
+
+  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 0);
+}
+
+TEST_CASE("combat: a toggle works while the fight is paused") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press(*fight, Action::Pause);
+
+  press(*fight, Action::CombatCommand4);
+
+  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 1);
+  CHECK_EQ(fight->engine->scene.mode(), screens::CombatPaused);
+}
+
+TEST_CASE("combat: an unavailable toggle is refused with a toast") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  combat_rules(*fight).toggles = [](const corundum::gameplay::rules::CombatContext &,
+                                    const corundum::gameplay::rules::Combatant &) {
+    return std::vector<corundum::gameplay::rules::ToggleOption>{
+        {.id = "rally", .is_available = false, .is_on = false, .label = "Rally"},
+    };
+  };
+  start_fight(*fight);
+
+  press(*fight, Action::CombatCommand4);
+
+  CHECK_EQ(last_toast(*fight->engine), "Rally can't be used now");
+}
+
+TEST_CASE("combat: gamepad R1 shows the next page on A, Y and B") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  press_gamepad(*fight, corundum::input::GamepadControl::RightBumper);
+
+  const corundum::gameplay::screens::CombatHud &hud = battle_of(*fight).hud();
+  CHECK_EQ(hud.page.index, 1);
+  CHECK_EQ(hud.toggles[0].gamepad_action, std::optional<Action>{Action::CombatCommand1});
+  CHECK_FALSE(hud.commands[0].gamepad_action.has_value());
+}
+
+TEST_CASE("combat: R1 on the last page wraps to the first") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press_gamepad(*fight, corundum::input::GamepadControl::RightBumper);
+
+  press_gamepad(*fight, corundum::input::GamepadControl::RightBumper);
+
+  CHECK_EQ(battle_of(*fight).hud().page.index, 0);
+}
+
+TEST_CASE("combat: L1 on the first page wraps to the last") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  press_gamepad(*fight, corundum::input::GamepadControl::LeftBumper);
+
+  CHECK_EQ(battle_of(*fight).hud().page.index, 1);
+}
+
+TEST_CASE("combat: on a keyboard, 1 still attacks after a gamepad paged") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press_gamepad(*fight, corundum::input::GamepadControl::RightBumper);
+  click(*fight, {.col = 8, .row = 10});
+  fight->engine->input_mapper.begin_poll();
+  fight->engine->input_mapper.key(corundum::input::Key::Digit1, true);
+  fight->engine->input_mapper.key(corundum::input::Key::Digit1, false);
+  fight->engine->input_mapper.end_poll(fight->engine->input_state);
+
+  step(*fight);
+
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 0);
+}
+
+TEST_CASE("combat: the HUD rows show each combatant's status labels") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.guard"] = 1;
+
+  start_fight(*fight);
+
+  const corundum::gameplay::screens::CombatHud &hud = battle_of(*fight).hud();
+  CHECK_EQ(hud.rows[combat::Battle::k_protagonist].status_labels, std::vector<std::string>{"Guard"});
+  CHECK(hud.rows[combat::Battle::k_hostile].status_labels.empty());
+}
+
+TEST_CASE("combat: a protagonist that can't move keeps its attack through a ground click and is held") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.rooted"] = 1;
+  start_fight(*fight);
+
+  click(*fight, {.col = 8, .row = 10});
+
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+  CHECK(fight->engine->scene.is_player_held);
+  CHECK(fight->engine->scene.path.empty());
+}
+
+TEST_CASE("combat: a protagonist that can't move ignores held movement keys") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.rooted"] = 1;
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+  step(*fight);
+  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
+
+  fight->engine->input_state.held.set(static_cast<std::size_t>(Action::MoveUp));
+  step(*fight);
+
+  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::Ready);
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
+           std::optional<std::size_t>{combat::Battle::k_hostile});
+}
+
+TEST_CASE("combat: a protagonist that can move again isn't held") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.rooted"] = 1;
+  start_fight(*fight);
+  step(*fight);
+  REQUIRE(fight->engine->scene.is_player_held);
+  fight->engine->flags["test.hero.rooted"] = 0;
+
+  step(*fight);
+
+  CHECK_FALSE(fight->engine->scene.is_player_held);
+}
+
+TEST_CASE("combat: a hostile that can't move doesn't walk") {
+  const auto fight = make_fight({.col = 10, .row = 8});
+  start_fight(*fight, "statue");
+
+  step(*fight);
+
+  const auto &transforms = fight->engine->scene.world.transforms;
+  CHECK_EQ(transforms.dc[transforms.dense_index(fight->foe)], 0.f);
+}
+
+TEST_CASE("combat: the end of a fight lets the player walk again") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.rooted"] = 1;
+  fight->engine->flags["test.hero.damage"] = 1;
+  start_fight(*fight);
+
+  step_until_over(*fight);
+
+  REQUIRE_FALSE(fight->gameplay->battle.has_value());
+  CHECK_FALSE(fight->engine->scene.is_player_held);
+}
+
+TEST_CASE("combat: a protagonist that can't move is held from the step its fight starts") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.rooted"] = 1;
+
+  start_fight(*fight);
+
+  REQUIRE(fight->gameplay->battle.has_value());
+  CHECK(fight->engine->scene.is_player_held);
+}
+
+TEST_CASE("combat: losing the Combat layer lets a held protagonist walk again") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.rooted"] = 1;
+  start_fight(*fight);
+  REQUIRE(fight->engine->scene.is_player_held);
+  fight->engine->scene.ui.clear();
+
+  step(*fight);
+
+  REQUIRE_FALSE(fight->gameplay->battle.has_value());
+  CHECK_FALSE(fight->engine->scene.is_player_held);
+}
+
+TEST_CASE("combat: reset_session_state lets a held protagonist walk again") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.hero.rooted"] = 1;
+  start_fight(*fight);
+  REQUIRE(fight->engine->scene.is_player_held);
+
+  fight->gameplay->reset_session_state();
+
+  CHECK_FALSE(fight->engine->scene.is_player_held);
+}
+
+TEST_CASE("combat: on the second page, gamepad A presses the fourth slot and keeps a queued command") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+  press(*fight, Action::CombatCommand2);
+  REQUIRE_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{0});
+  press_gamepad(*fight, corundum::input::GamepadControl::RightBumper);
+
+  press_gamepad(*fight, corundum::input::GamepadControl::A);
+
+  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 1);
+  CHECK_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{0});
+}
+
+TEST_CASE("combat: rules listing more slots than the bar holds can't start the fight") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  combat_rules(*fight).toggles = [](const corundum::gameplay::rules::CombatContext &,
+                                    const corundum::gameplay::rules::Combatant &) {
+    return std::vector<corundum::gameplay::rules::ToggleOption>(7, {.id = "rally", .label = "Rally"});
+  };
+
+  start_fight(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] the command bar holds 9 slots; the rules list 10");
 }

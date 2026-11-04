@@ -95,6 +95,13 @@ namespace corundum::gameplay {
 
     using corundum::detail::warn_log;
 
+    /// Drop the fight and let the player walk again. Every path that ends or abandons a fight goes
+    /// through here, so a protagonist the fight held never stays held.
+    void drop_battle(Engine &engine, Gameplay &gameplay) noexcept {
+      engine.scene.is_player_held = false;
+      gameplay.battle.reset();
+    }
+
     /// Parse ev.args[index] as an int; returns `fallback` if absent, unparseable, or only
     /// partially numeric.
     int event_int_arg(const dialogue::EventAction &ev, std::size_t index, int fallback) noexcept {
@@ -1673,8 +1680,8 @@ namespace corundum::gameplay {
           .name = outcome == combat::Outcome::Won ? "encounter_won" : "encounter_lost",
           .args = {std::string{battle.hostile_actor()}},
       };
-      gameplay.battle.reset();
       gameplay.pending_dialogue_events.push_back(std::move(ended));
+      drop_battle(engine, gameplay);
     }
 
     /// Run the fight for one fixed step: drop it when its scene is gone, toggle the pause, then step
@@ -1687,13 +1694,13 @@ namespace corundum::gameplay {
       // An area change replaces the scene and its UI stack, so the Combat layer is gone and the
       // battle's entity ids name nothing: leaving ends the fight with no outcome.
       if (!ui.contains(screens::Combat)) {
-        gameplay.battle.reset();
+        drop_battle(engine, gameplay);
         return;
       }
       // The liveness check runs only while the layer is there, so it never reads a replaced scene's ids.
       if (!gameplay.battle->has_live_combatants(engine)) {
         close_combat_layers(ui);
-        gameplay.battle.reset();
+        drop_battle(engine, gameplay);
         return;
       }
 
@@ -2336,7 +2343,7 @@ namespace corundum::gameplay {
     dialogue.reset();
     dialogue_npc.reset();
     pending_dialogue_events.clear();
-    battle.reset();
+    drop_battle(*engine_, *this);
     pending_encounter.reset();
     active_container_id.clear();
     active_shop_id.clear();

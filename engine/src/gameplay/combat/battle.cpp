@@ -11,6 +11,7 @@
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/combat_hud.hpp>
 #include <corundum/input/actions.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/physics/physics_system.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/grid.hpp>
@@ -38,11 +39,36 @@ namespace corundum::gameplay::combat {
 
   namespace {
 
-    /// The actions for command-bar slots 2 and 3; slot 1 is always the standing attack.
-    constexpr std::array k_command_actions{
-        input::Action::CombatCommand2,
-        input::Action::CombatCommand3,
+    /// Every command-bar slot's key action, in slot order: Attack first, then the commands and the
+    /// toggles.
+    constexpr std::array k_slot_actions{
+        input::Action::CombatCommand1, input::Action::CombatCommand2, input::Action::CombatCommand3,
+        input::Action::CombatCommand4, input::Action::CombatCommand5, input::Action::CombatCommand6,
+        input::Action::CombatCommand7, input::Action::CombatCommand8, input::Action::CombatCommand9,
     };
+
+    /// The slots a gamepad's A, Y and B press.
+    constexpr std::size_t k_page_size = 3;
+
+    /// How many pages @p slots need, at k_page_size slots a page.
+    [[nodiscard]] int page_count(std::size_t slots) noexcept {
+      return static_cast<int>((slots + k_page_size - 1) / k_page_size);
+    }
+
+    /// The button that presses @p slot while @p page shows; nullopt off the page.
+    [[nodiscard]] std::optional<input::Action> gamepad_action_of(std::size_t slot, int page) noexcept {
+      const std::size_t first = static_cast<std::size_t>(page) * k_page_size;
+      if (slot < first || slot >= first + k_page_size)
+        return std::nullopt;
+      return k_slot_actions[slot - first];
+    }
+
+    /// The slot a gamepad key index presses on @p page; a keyboard key names its slot directly.
+    [[nodiscard]] std::size_t slot_for_key(std::size_t key, int page, input::InputDevice device) noexcept {
+      if (device == input::InputDevice::Gamepad && key < k_page_size)
+        return (static_cast<std::size_t>(page) * k_page_size) + key;
+      return key;
+    }
 
     /// The rules' window into the engine: its seeded dice and the playthrough's flags.
     rules::CombatContext make_combat_context(Engine &engine) {
@@ -74,27 +100,58 @@ namespace corundum::gameplay::combat {
       return (columns_back == 0 || columns_back == 1) && (rows_back == 0 || rows_back == 1);
     }
 
-    /// Copy the encounter's current numbers into @p hud, in place.
-    void refresh_hud(const Encounter &encounter, const rules::CombatContext &context, screens::CombatHud &hud) {
+    /// Copy each combatant's current numbers and status labels into @p rows.
+    void refresh_rows(const Encounter &encounter, const rules::CombatContext &context,
+                      std::span<screens::CombatHudRow> rows) {
       const int command_point = encounter.command_point_beats();
-      for (std::size_t i = 0; i < hud.rows.size(); ++i) {
-        hud.rows[i].command_point_beats = command_point;
-        hud.rows[i].health = encounter.health(context, i);
-        hud.rows[i].is_hostile = encounter.side(i) == Side::Hostile;
-        hud.rows[i].is_winding_up = encounter.phase(i) == Phase::WindUp;
-        hud.rows[i].marker_beats = encounter.beats(i);
-        hud.rows[i].windup_end_beats = encounter.windup_end_beats(i);
-        hud.rows[i].windup_label = encounter.windup_label(i);
+      for (std::size_t i = 0; i < rows.size(); ++i) {
+        rows[i].command_point_beats = command_point;
+        rows[i].health = encounter.health(context, i);
+        rows[i].is_hostile = encounter.side(i) == Side::Hostile;
+        rows[i].is_winding_up = encounter.phase(i) == Phase::WindUp;
+        rows[i].marker_beats = encounter.beats(i);
+        rows[i].status_labels = encounter.status(i).labels;
+        rows[i].windup_end_beats = encounter.windup_end_beats(i);
+        rows[i].windup_label = encounter.windup_label(i);
       }
+    }
 
+    /// Copy the protagonist's commands and toggles into the bar's slots.
+    void refresh_slots(const Encounter &encounter, std::span<screens::CombatHudCommand> commands,
+                       std::span<screens::CombatHudCommand> toggles) {
       const std::span<const rules::CommandOption> listed = encounter.commands(Battle::k_protagonist);
-      for (std::size_t slot = 1; slot < hud.commands.size(); ++slot) {
+      for (std::size_t slot = 1; slot < commands.size(); ++slot) {
         const std::size_t option = slot - 1;
         assert(option < listed.size());
-        hud.commands[slot].label = listed[option].label;
-        hud.commands[slot].is_available = listed[option].is_available;
-        hud.commands[slot].is_queued = encounter.queued(Battle::k_protagonist) == option;
+        commands[slot].label = listed[option].label;
+        commands[slot].is_available = listed[option].is_available;
+        commands[slot].is_highlighted = encounter.queued(Battle::k_protagonist) == option;
       }
+
+      const std::span<const rules::ToggleOption> listed_toggles = encounter.toggles(Battle::k_protagonist);
+      assert(listed_toggles.size() == toggles.size());
+      for (std::size_t i = 0; i < toggles.size(); ++i) {
+        toggles[i].label = listed_toggles[i].label;
+        toggles[i].is_available = listed_toggles[i].is_available;
+        toggles[i].is_highlighted = listed_toggles[i].is_on;
+      }
+    }
+
+    /// Point each slot at the button that presses it while @p page shows; @p first is the slot's
+    /// number on the bar.
+    void refresh_gamepad_actions(std::span<screens::CombatHudCommand> slots, std::size_t first, int page) {
+      for (std::size_t i = 0; i < slots.size(); ++i)
+        slots[i].gamepad_action = gamepad_action_of(first + i, page);
+    }
+
+    /// Copy the encounter's current numbers into @p hud, in place, for the gamepad page @p page.
+    void refresh_hud(const Encounter &encounter, const rules::CombatContext &context, screens::CombatHud &hud,
+                     int page) {
+      refresh_rows(encounter, context, hud.rows);
+      refresh_slots(encounter, hud.commands, hud.toggles);
+      refresh_gamepad_actions(hud.commands, 0, page);
+      refresh_gamepad_actions(hud.toggles, hud.commands.size(), page);
+      hud.page.index = page;
     }
 
     /// The squared Euclidean distance between two tiles, for ordering approach candidates.
@@ -156,10 +213,16 @@ namespace corundum::gameplay::combat {
     for (std::size_t i = 0; i < hud_.rows.size(); ++i)
       hud_.rows[i].name = encounter_.spec(i).name;
 
-    hud_.commands.push_back({.action = input::Action::CombatCommand1, .label = std::string{k_attack_label}});
-    const std::span<const rules::CommandOption> listed = encounter_.commands(k_protagonist);
-    for (std::size_t i = 0; i < std::min(listed.size(), k_command_actions.size()); ++i)
-      hud_.commands.push_back({.action = k_command_actions[i], .label = listed[i].label});
+    hud_.commands.push_back({.action = k_slot_actions[0], .label = std::string{k_attack_label}});
+    for (const rules::CommandOption &command : encounter_.commands(k_protagonist)) {
+      const std::size_t slot = hud_.commands.size();
+      hud_.commands.push_back({.action = k_slot_actions[slot], .label = command.label});
+    }
+    for (const rules::ToggleOption &toggle : encounter_.toggles(k_protagonist)) {
+      const std::size_t slot = hud_.commands.size() + hud_.toggles.size();
+      hud_.toggles.push_back({.action = k_slot_actions[slot], .label = toggle.label});
+    }
+    hud_.page.count = page_count(hud_.commands.size() + hud_.toggles.size());
   }
 
   std::expected<Battle, std::string> Battle::start(Engine &engine, const rules::CombatRules &rules,
@@ -182,39 +245,64 @@ namespace corundum::gameplay::combat {
     if (!encounter)
       return std::unexpected(encounter.error());
 
+    const std::size_t slots = 1 + encounter->commands(k_protagonist).size() + encounter->toggles(k_protagonist).size();
+    if (slots > k_slot_actions.size())
+      return std::unexpected(
+          std::format("[gameplay] the command bar holds {} slots; the rules list {}", k_slot_actions.size(), slots));
+
     Battle battle(std::move(*encounter), {engine.scene.player, *actor}, request.actor_id, rules.auto_pause);
     battle.encounter_.order_attack(k_hostile, k_protagonist);
     battle.encounter_.order_attack(k_protagonist, k_hostile);
-    refresh_hud(battle.encounter_, make_combat_context(engine), battle.hud_);
+    refresh_hud(battle.encounter_, make_combat_context(engine), battle.hud_, battle.page_);
+    engine.scene.is_player_held = !battle.encounter_.status(k_protagonist).can_move;
     return battle;
   }
 
   std::vector<std::string> Battle::read_orders(const Engine &engine, const rules::CombatContext &context, Clock clock) {
-    std::vector<std::string> refusals;
-    const bool is_running = clock == Clock::Running;
-    if (is_running && is_move_held(engine.input_state))
-      order_protagonist_move(context, encounter_, planned_for_[k_protagonist], refusals);
+    read_pages(engine);
+    std::vector<std::string> refusals = read_slot_presses(engine, context);
+    read_move_orders(engine, context, clock, refusals);
+    return refusals;
+  }
 
-    if (engine.input_state.is_pressed(input::Action::CombatCommand1)) {
-      encounter_.clear_queued(k_protagonist);
-      engage(context);
-    }
-    for (std::size_t slot = 1; slot < hud_.commands.size(); ++slot) {
-      if (!engine.input_state.is_pressed(hud_.commands[slot].action))
+  void Battle::read_pages(const Engine &engine) {
+    if (hud_.page.count < 2)
+      return;
+    if (engine.input_state.is_pressed(input::Action::CombatPageNext))
+      page_ = (page_ + 1) % hud_.page.count;
+    if (engine.input_state.is_pressed(input::Action::CombatPagePrev))
+      page_ = (page_ + hud_.page.count - 1) % hud_.page.count;
+  }
+
+  std::vector<std::string> Battle::read_slot_presses(const Engine &engine, const rules::CombatContext &context) {
+    std::vector<std::string> refusals;
+    const std::size_t slots = hud_.commands.size() + hud_.toggles.size();
+    for (std::size_t key = 0; key < k_slot_actions.size(); ++key) {
+      if (!engine.input_state.is_pressed(k_slot_actions[key]))
+        continue;
+      const std::size_t slot = slot_for_key(key, page_, engine.input_mapper.last_device());
+      if (slot >= slots)
         continue;
       if (std::optional<std::string> refused = press_slot(context, slot))
         refusals.push_back(std::move(*refused));
     }
+    return refusals;
+  }
+
+  void Battle::read_move_orders(const Engine &engine, const rules::CombatContext &context, Clock clock,
+                                std::vector<std::string> &refusals) {
+    const bool can_order_move = clock == Clock::Running && encounter_.status(k_protagonist).can_move;
+    if (can_order_move && is_move_held(engine.input_state))
+      order_protagonist_move(context, encounter_, planned_for_[k_protagonist], refusals);
 
     if (!engine.input_state.mouse_click_pressed || !engine.scene.hovered_tile)
-      return refusals;
+      return;
     if (is_on_sprite(*engine.scene.hovered_tile, tiles_[k_hostile]) && encounter_.can_act(context, k_hostile)) {
       engage(context);
-      return refusals;
+      return;
     }
-    if (is_running)
+    if (can_order_move)
       order_protagonist_move(context, encounter_, planned_for_[k_protagonist], refusals);
-    return refusals;
   }
 
   void Battle::engage(const rules::CombatContext &context) {
@@ -225,18 +313,33 @@ namespace corundum::gameplay::combat {
   }
 
   std::optional<std::string> Battle::press_slot(const rules::CombatContext &context, std::size_t slot) {
-    const std::span<const rules::CommandOption> listed = encounter_.commands(k_protagonist);
-    const std::size_t option = slot - 1;
-    if (option >= listed.size())
+    assert(slot < hud_.commands.size() + hud_.toggles.size());
+
+    if (slot == 0) {
+      encounter_.clear_queued(k_protagonist);
+      engage(context);
       return std::nullopt;
+    }
+
+    const std::size_t option = slot - 1;
+    const std::span<const rules::CommandOption> commands = encounter_.commands(k_protagonist);
+    if (option >= commands.size()) {
+      const std::size_t toggle = option - commands.size();
+      const std::span<const rules::ToggleOption> toggles = encounter_.toggles(k_protagonist);
+      if (!toggles[toggle].is_on && !toggles[toggle].is_available)
+        return std::format("{} can't be used now", toggles[toggle].label);
+      encounter_.toggle(context, k_protagonist, toggle);
+      return std::nullopt;
+    }
+
     if (encounter_.queued(k_protagonist) == option) {
       encounter_.clear_queued(k_protagonist);
       return std::nullopt;
     }
-    if (!listed[option].is_available)
-      return std::format("{} can't be used now", listed[option].label);
+    if (!commands[option].is_available)
+      return std::format("{} can't be used now", commands[option].label);
     encounter_.queue_command(k_protagonist, option);
-    if (listed[option].target == rules::CommandTarget::Enemy)
+    if (commands[option].target == rules::CommandTarget::Enemy)
       engage(context);
     return std::nullopt;
   }
@@ -282,7 +385,8 @@ namespace corundum::gameplay::combat {
     if (clock == Clock::Running)
       walk_hostiles(engine, map, context);
 
-    refresh_hud(encounter_, context, hud_);
+    refresh_hud(encounter_, context, hud_, page_);
+    engine.scene.is_player_held = !encounter_.status(k_protagonist).can_move;
     step.outcome = encounter_.outcome();
     return step;
   }
@@ -291,6 +395,10 @@ namespace corundum::gameplay::combat {
     for (std::size_t i = 0; i < entities_.size(); ++i) {
       if (!encounter_.can_act(context, i))
         continue;
+      if (!encounter_.status(i).can_move) {
+        stand_still(engine, i);
+        continue;
+      }
       const std::optional<std::size_t> target = encounter_.target_of(i);
       if (!target)
         continue;
@@ -298,9 +406,7 @@ namespace corundum::gameplay::combat {
       const world::TileCoord target_tile = tiles_[*target];
       const bool in_reach = world::tile_distance(tiles_[i], target_tile) <= encounter_.spec(i).reach_tiles;
       if (in_reach || encounter_.phase(i) == Phase::WindUp) {
-        std::vector<world::TileCoord> &path = encounter_.side(i) == Side::Hostile ? paths_[i] : engine.scene.path;
-        path.clear();
-        planned_for_[i].reset();
+        stand_still(engine, i);
         continue;
       }
 
@@ -309,6 +415,12 @@ namespace corundum::gameplay::combat {
       approach(engine, map, i, *target);
       planned_for_[i] = target_tile;
     }
+  }
+
+  void Battle::stand_still(Engine &engine, std::size_t index) {
+    std::vector<world::TileCoord> &path = encounter_.side(index) == Side::Hostile ? paths_[index] : engine.scene.path;
+    path.clear();
+    planned_for_[index].reset();
   }
 
   void Battle::approach(Engine &engine, const world::MapView &map, std::size_t mover, std::size_t target_index) {
