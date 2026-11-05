@@ -101,7 +101,7 @@ wrong from memory.
   attack each time your marker is ready. `1` / A also drops a queued command, so the attack comes
   next; a click on the hostile keeps it.
 - **Commands**: `2`–`9` (keyboard) press the command bar's second to ninth slots: first the
-  ruleset's commands, then its toggles (in Cerclet, the Momentum spends). A command queues for your
+  ruleset's commands, then its toggles. A command queues for your
   next command point; pressing a queued slot's key again unqueues it. A toggle turns on or off;
   the ruleset acts on it when the moment comes. An unavailable command or toggle is refused with a
   toast. A command aimed at an enemy also renews your attack on it.
