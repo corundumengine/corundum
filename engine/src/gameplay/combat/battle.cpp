@@ -289,16 +289,22 @@ namespace corundum::gameplay::combat {
 
     Battle battle(std::move(*encounter), build_entities(engine, *hostiles), request.hostiles.front().actor_id,
                   rules.auto_pause);
+    battle.refresh_tiles(engine);
+    const rules::CombatContext context = make_combat_context(engine);
+    const std::optional<std::size_t> nearest = battle.nearest_hostile(context);
+    assert(nearest.has_value());
+    battle.target_ = *nearest;
     for (std::size_t i = k_hostile; i < battle.encounter_.size(); ++i)
       battle.encounter_.order_attack(i, k_protagonist);
-    battle.encounter_.order_attack(k_protagonist, k_hostile);
-    refresh_hud(battle.encounter_, make_combat_context(engine), battle.hud_, battle.page_);
+    battle.encounter_.order_attack(k_protagonist, battle.target_);
+    refresh_hud(battle.encounter_, context, battle.hud_, battle.page_);
     engine.scene.is_player_held = !battle.encounter_.status(k_protagonist).can_move;
     return battle;
   }
 
   std::vector<std::string> Battle::read_orders(const Engine &engine, const rules::CombatContext &context, Clock clock) {
     read_pages(engine);
+    read_next_target(engine, context);
     std::vector<std::string> refusals = read_slot_presses(engine, context);
     read_move_orders(engine, context, clock, refusals);
     return refusals;
@@ -311,6 +317,26 @@ namespace corundum::gameplay::combat {
       page_ = (page_ + 1) % hud_.page.count;
     if (engine.input_state.is_pressed(input::Action::CombatPagePrev))
       page_ = (page_ + hud_.page.count - 1) % hud_.page.count;
+  }
+
+  void Battle::refresh_tiles(const Engine &engine) {
+    for (std::size_t i = 0; i < entities_.size(); ++i) {
+      if (const std::optional<entities::EntityId> &entity = entities_[i])
+        tiles_[i] = transform_tile(engine, *entity);
+    }
+  }
+
+  void Battle::read_next_target(const Engine &engine, const rules::CombatContext &context) {
+    if (!engine.input_state.is_pressed(input::Action::CombatTargetNext))
+      return;
+    const std::size_t hostiles = entities_.size() - k_hostile;
+    for (std::size_t offset = 1; offset <= hostiles; ++offset) {
+      const std::size_t next = k_hostile + (((target_ - k_hostile) + offset) % hostiles);
+      if (!is_fighting(context, next))
+        continue;
+      engage(context, next);
+      return;
+    }
   }
 
   std::vector<std::string> Battle::read_slot_presses(const Engine &engine, const rules::CombatContext &context) {
@@ -336,8 +362,8 @@ namespace corundum::gameplay::combat {
 
     if (!engine.input_state.mouse_click_pressed || !engine.scene.hovered_tile)
       return;
-    if (is_on_sprite(*engine.scene.hovered_tile, tiles_[k_hostile]) && encounter_.can_act(context, k_hostile)) {
-      engage(context);
+    if (const std::optional<std::size_t> hostile = hostile_at(*engine.scene.hovered_tile, context)) {
+      engage(context, *hostile);
       return;
     }
     if (can_order_move)
@@ -345,10 +371,53 @@ namespace corundum::gameplay::combat {
   }
 
   void Battle::engage(const rules::CombatContext &context) {
-    if (!encounter_.can_act(context, k_hostile))
+    if (!is_fighting(context, target_))
       return;
-    encounter_.order_attack(k_protagonist, k_hostile);
+    encounter_.order_attack(k_protagonist, target_);
     planned_for_[k_protagonist].reset();
+  }
+
+  void Battle::engage(const rules::CombatContext &context, std::size_t hostile) {
+    target_ = hostile;
+    engage(context);
+  }
+
+  std::optional<std::size_t> Battle::nearest_hostile(const rules::CombatContext &context) const {
+    std::optional<std::size_t> nearest;
+    int nearest_distance = 0;
+    for (std::size_t i = k_hostile; i < entities_.size(); ++i) {
+      if (!is_fighting(context, i))
+        continue;
+      const int distance = world::tile_distance(tiles_[i], tiles_[k_protagonist]);
+      if (!nearest || distance < nearest_distance) {
+        nearest = i;
+        nearest_distance = distance;
+      }
+    }
+    return nearest;
+  }
+
+  std::optional<std::size_t> Battle::hostile_at(world::TileCoord clicked, const rules::CombatContext &context) const {
+    for (std::size_t i = k_hostile; i < entities_.size(); ++i) {
+      if (is_fighting(context, i) && tiles_[i] == clicked)
+        return i;
+    }
+    for (std::size_t i = k_hostile; i < entities_.size(); ++i) {
+      if (is_fighting(context, i) && is_on_sprite(clicked, tiles_[i]))
+        return i;
+    }
+    return std::nullopt;
+  }
+
+  void Battle::follow_fallen_target(const rules::CombatContext &context, AttackOrder before) {
+    if (is_fighting(context, target_))
+      return;
+    const std::optional<std::size_t> nearest = nearest_hostile(context);
+    if (!nearest)
+      return;
+    target_ = *nearest;
+    if (before == AttackOrder::Standing)
+      engage(context);
   }
 
   std::optional<std::string> Battle::press_slot(const rules::CombatContext &context, std::size_t slot) {
@@ -403,10 +472,7 @@ namespace corundum::gameplay::combat {
 
   BattleStep Battle::update(Engine &engine, Clock clock) {
     const rules::CombatContext context = make_combat_context(engine);
-    for (std::size_t i = 0; i < entities_.size(); ++i) {
-      if (const std::optional<entities::EntityId> &entity = entities_[i])
-        tiles_[i] = transform_tile(engine, *entity);
-    }
+    refresh_tiles(engine);
 
     if (clock == Clock::Running)
       pause_note_.clear();
@@ -415,10 +481,12 @@ namespace corundum::gameplay::combat {
     step.reports = read_orders(engine, context, clock);
 
     if (clock == Clock::Running) {
+      const AttackOrder before = encounter_.target_of(k_protagonist) ? AttackOrder::Standing : AttackOrder::None;
       EncounterStep advanced = encounter_.update(context, tiles_);
       for (std::string &report : advanced.reports)
         step.reports.push_back(std::move(report));
       remove_fallen(engine, context);
+      follow_fallen_target(context, before);
       step.should_pause = check_auto_pause(advanced.windups_started);
     }
 

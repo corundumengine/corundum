@@ -81,3 +81,8 @@ TEST_CASE("input_glyph: the bar's pages show L1 and R1 on a gamepad") {
   CHECK_EQ(input_glyph(Action::CombatPagePrev, InputDevice::Gamepad), "L1");
   CHECK_EQ(input_glyph(Action::CombatPageNext, InputDevice::Gamepad), "R1");
 }
+
+TEST_CASE("input_glyph: the fight's next target shows Tab on a keyboard and R3 on a gamepad") {
+  CHECK_EQ(input_glyph(Action::CombatTargetNext, InputDevice::Keyboard), "Tab");
+  CHECK_EQ(input_glyph(Action::CombatTargetNext, InputDevice::Gamepad), "R3");
+}

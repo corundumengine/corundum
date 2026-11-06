@@ -8,6 +8,7 @@
 #include <corundum/gameplay/screens/combat_hud.hpp>
 #include <corundum/world/picking.hpp>
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -41,7 +42,7 @@ namespace corundum::gameplay::combat {
 
   enum class Clock : std::uint8_t {
     Running, ///< Combat is on top: orders, the timeline and movement all run.
-    Paused,  ///< CombatPaused is on top: only clicks on a hostile give orders.
+    Paused,  ///< CombatPaused is on top: commands, the next-target key and clicks on a hostile give orders.
   };
 
   /** @brief What one Battle step produced. */
@@ -64,9 +65,9 @@ namespace corundum::gameplay::combat {
     static constexpr std::size_t k_hostile = 1; ///< The first hostile named.
 
     /** @brief Start a fight between the protagonist and the actors @p request names. Each hostile
-     *  is given a standing attack on the protagonist, and the protagonist one on the first hostile,
-     *  so it fights without a click; a move order drops the protagonist's. The command bar is
-     *  Attack, then the protagonist's commands, then its toggles, on CombatCommand1–9.
+     *  is given a standing attack on the protagonist, and the protagonist one on the nearest (ties to
+     *  the first named), so it fights without a click; a move order drops the protagonist's. The
+     *  command bar is Attack, then the protagonist's commands, then its toggles, on CombatCommand1–9.
      *  @return The battle, or an error: no protagonist in the scene, an empty request
      *          ("[gameplay] start_encounter: it names no hostiles"), no live actor with an id
      *          ("[gameplay] start_encounter: no actor '<id>' in this area"), one actor named twice
@@ -78,7 +79,8 @@ namespace corundum::gameplay::combat {
 
     /** @brief Run one fixed step:
      *  - this step's input becomes orders: a click, the slot keys (on a gamepad, A/Y/B press the
-     *    shown page's slots, and L1/R1 change the page), and while Running held movement keys;
+     *    shown page's slots, and L1/R1 change the page), the next-target key, and while Running
+     *    held movement keys;
      *  - while Running the timeline advances, and a hostile's wind-up may call for an auto-pause;
      *  - a combatant with an attack order out of reach paths to a tile within reach of its target
      *    and walks there, and one in reach or winding up stands. One its status says can't move
@@ -99,6 +101,19 @@ namespace corundum::gameplay::combat {
     /** @brief The actor named first; encounter_won and encounter_lost name it. */
     [[nodiscard]] std::string_view first_actor() const noexcept { return first_actor_; }
 
+    /** @brief The fight's chosen hostile, by combatant index. It outlives an attack order, so a
+     *  protagonist who walks off keeps it; when it falls, it moves to the nearest hostile still
+     *  fighting. */
+    [[nodiscard]] std::size_t target() const noexcept { return target_; }
+
+    /** @brief The tile target() stands on, as of the last update.
+     *  @pre The fight is still on: update() only leaves target() fallen when it returns an outcome,
+     *       and Gameplay drops the battle on that step. */
+    [[nodiscard]] world::TileCoord target_tile() const {
+      assert(entities_[target_].has_value());
+      return tiles_[target_];
+    }
+
     /** @brief The HUD's rows and command bar, refreshed by start() and update(). */
     [[nodiscard]] const screens::CombatHud &hud() const noexcept { return hud_; }
 
@@ -116,12 +131,22 @@ namespace corundum::gameplay::combat {
       Blocked, ///< Claimed tiles stood in the way; try again next step.
     };
 
+    /// Whether the protagonist had an attack order before a step's timeline ran. Read it first:
+    /// the timeline drops an order whose target falls.
+    enum class AttackOrder : std::uint8_t {
+      Standing,
+      None,
+    };
+
     /// Turn this step's input into the protagonist's orders; returns the refusals to toast.
     [[nodiscard]] std::vector<std::string> read_orders(const Engine &engine, const rules::CombatContext &context,
                                                        Clock clock);
 
     /// Move the gamepad's page on CombatPageNext/CombatPagePrev, wrapping within the pages.
     void read_pages(const Engine &engine);
+
+    /// Read every combatant still in the scene's tile into tiles_.
+    void refresh_tiles(const Engine &engine);
 
     /// Press the slot each pressed key names on the current page; returns the refusals to toast.
     [[nodiscard]] std::vector<std::string> read_slot_presses(const Engine &engine, const rules::CombatContext &context);
@@ -130,8 +155,27 @@ namespace corundum::gameplay::combat {
     void read_move_orders(const Engine &engine, const rules::CombatContext &context, Clock clock,
                           std::vector<std::string> &refusals);
 
-    /// Give the protagonist a standing attack on the hostile, re-planning its approach.
+    /// Give the protagonist a standing attack on target(), re-planning its approach.
     void engage(const rules::CombatContext &context);
+
+    /// Target @p hostile and attack it.
+    void engage(const rules::CombatContext &context, std::size_t hostile);
+
+    /// On CombatTargetNext, attack the next hostile still fighting after target(), wrapping.
+    void read_next_target(const Engine &engine, const rules::CombatContext &context);
+
+    /// The hostile still fighting that's nearest the protagonist, ties to the first named; nullopt
+    /// when none is.
+    [[nodiscard]] std::optional<std::size_t> nearest_hostile(const rules::CombatContext &context) const;
+
+    /// The hostile still fighting that a click on @p clicked means: one standing there, else the
+    /// first whose sprite covers it; nullopt for none.
+    [[nodiscard]] std::optional<std::size_t> hostile_at(world::TileCoord clicked,
+                                                        const rules::CombatContext &context) const;
+
+    /// When target() has fallen, move it to the nearest hostile, attacking that one when
+    /// @p before is AttackOrder::Standing.
+    void follow_fallen_target(const rules::CombatContext &context, AttackOrder before);
 
     /// The command key index for bar slot @p slot: 0 is Attack, then the commands, then the toggles.
     /// Attack renews the attack and drops a queued command; a command unqueues when queued, is
@@ -187,6 +231,8 @@ namespace corundum::gameplay::combat {
     std::vector<std::optional<world::TileCoord>> planned_for_; ///< The target tile each path was planned for.
 
     std::string pause_note_;
+
+    std::size_t target_{k_hostile};
 
     int page_{}; ///< The command-bar page a gamepad's A/Y/B press; below hud_.page.count.
   };

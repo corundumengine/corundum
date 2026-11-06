@@ -48,6 +48,7 @@ namespace corundum::ui {
         case Action::CombatCommand9: return "9";
         case Action::CombatPageNext:
         case Action::CombatPagePrev: return "?"; // gamepad-only; the keyboard has a key per slot
+        case Action::CombatTargetNext: return "Tab";
         case Action::QuickSave: return "F5";
         case Action::QuickLoad: return "F9";
         case Action::Count: break;
@@ -82,6 +83,7 @@ namespace corundum::ui {
         case Action::CombatCommand3: return "B";
         case Action::CombatPageNext: return "R1";
         case Action::CombatPagePrev: return "L1";
+        case Action::CombatTargetNext: return "R3";
         case Action::Character: return "Back";
         case Action::Menu: return "Start";
         case Action::TabNext: return "R1";

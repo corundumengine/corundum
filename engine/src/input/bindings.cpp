@@ -62,6 +62,7 @@ namespace corundum::input {
             {Action::CombatCommand9, "CombatCommand9"},
             {Action::CombatPageNext, "CombatPageNext"},
             {Action::CombatPagePrev, "CombatPagePrev"},
+            {Action::CombatTargetNext, "CombatTargetNext"},
             {Action::QuickSave, "QuickSave"},
             {Action::QuickLoad, "QuickLoad"},
         },
@@ -111,6 +112,7 @@ namespace corundum::input {
         {.action = Action::CombatCommand7, .input = physical(Key::Digit7)},
         {.action = Action::CombatCommand8, .input = physical(Key::Digit8)},
         {.action = Action::CombatCommand9, .input = physical(Key::Digit9)},
+        {.action = Action::CombatTargetNext, .input = physical(Key::Tab)},
         {.action = Action::Cancel, .input = physical(Key::Escape)},
         {.action = Action::Cancel, .input = physical(MouseButton::Right)},
         {.action = Action::Quit, .input = physical(Key::Q)},
@@ -149,6 +151,7 @@ namespace corundum::input {
         // Outside a fight the bumpers keep their tab jobs, which a fight doesn't use.
         {.action = Action::CombatPagePrev, .input = physical(GamepadControl::LeftBumper)},
         {.action = Action::CombatPageNext, .input = physical(GamepadControl::RightBumper)},
+        {.action = Action::CombatTargetNext, .input = physical(GamepadControl::RightThumb)},
         // Hub is the one gamepad button for the four menu screens; the I/J/C/M keyboard hotkeys
         // open a tab directly. Journal/Codex/Map stay in this table so a settings file saved
         // before the hub (gamepad Y still bound to Journal) opens the hub on the Journal tab:

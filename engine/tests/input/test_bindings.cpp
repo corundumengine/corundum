@@ -435,3 +435,10 @@ TEST_CASE("bindings: a settings file saved before the bar's pages existed gains 
   CHECK_EQ(inputs_for(*parsed, Action::CombatPageNext),
            std::vector<PhysicalInput>{physical(GamepadControl::RightBumper)});
 }
+
+TEST_CASE("bindings: Tab and gamepad R3 raise the fight's next target by default") {
+  const Bindings defaults = default_bindings();
+
+  CHECK_EQ(inputs_for(defaults, Action::CombatTargetNext),
+           std::vector<PhysicalInput>{physical(Key::Tab), physical(GamepadControl::RightThumb)});
+}

@@ -1016,3 +1016,150 @@ TEST_CASE("combat: a hostile with every tile in reach claimed takes the first on
 
   CHECK(standing_tile(*fight, last) == freed);
 }
+
+TEST_CASE("combat: a fight starts on the nearest hostile") {
+  const auto fight = make_fight({.col = 11, .row = 8});
+  add_foe(*fight, "a01", {.col = 9, .row = 8});
+
+  start_pair(*fight);
+
+  CHECK_EQ(battle_of(*fight).target(), 2u);
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist), std::optional<std::size_t>{2});
+}
+
+TEST_CASE("combat: hostiles equally near start the fight on the first named") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+
+  start_pair(*fight);
+
+  CHECK_EQ(battle_of(*fight).target(), 1u);
+}
+
+TEST_CASE("combat: a click on another hostile targets and attacks it") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 8, .row = 12});
+  start_pair(*fight);
+  REQUIRE_EQ(battle_of(*fight).target(), 1u);
+
+  click(*fight, {.col = 8, .row = 12});
+
+  CHECK_EQ(battle_of(*fight).target(), 2u);
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist), std::optional<std::size_t>{2});
+}
+
+TEST_CASE("combat: a click on a hostile's tile beats the hostile whose sprite covers that tile") {
+  const auto fight = make_fight({.col = 10, .row = 8});
+  add_foe(*fight, "a01", {.col = 9, .row = 8});
+  start_pair(*fight);
+  click(*fight, {.col = 10, .row = 8});
+  REQUIRE_EQ(battle_of(*fight).target(), 1u);
+
+  click(*fight, {.col = 9, .row = 8});
+
+  CHECK_EQ(battle_of(*fight).target(), 2u);
+}
+
+TEST_CASE("combat: the next-target key moves to the next hostile and wraps") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  start_pair(*fight);
+  REQUIRE_EQ(battle_of(*fight).target(), 1u);
+
+  press(*fight, Action::CombatTargetNext);
+  REQUIRE_EQ(battle_of(*fight).target(), 2u);
+  press(*fight, Action::CombatTargetNext);
+
+  CHECK_EQ(battle_of(*fight).target(), 1u);
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist), std::optional<std::size_t>{1});
+}
+
+TEST_CASE("combat: the next-target key works while the fight is paused") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  start_pair(*fight);
+  press(*fight, Action::Pause);
+  REQUIRE_EQ(fight->engine->scene.mode(), screens::CombatPaused);
+
+  press(*fight, Action::CombatTargetNext);
+
+  CHECK_EQ(battle_of(*fight).target(), 2u);
+}
+
+TEST_CASE("combat: the next-target key skips a hostile that has fallen") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  add_foe(*fight, "a02", {.col = 8, .row = 7});
+  toughen_hero(*fight);
+  fell_on_flag(*fight, "second");
+  start_with_args(*fight, {"a00", "first", "a01", "second", "a02", "third"});
+  REQUIRE_EQ(battle_of(*fight).target(), 1u);
+  fight->engine->flags["test.felled"] = 1;
+  step(*fight);
+
+  press(*fight, Action::CombatTargetNext);
+
+  CHECK_EQ(battle_of(*fight).target(), 3u);
+}
+
+TEST_CASE("combat: when the target falls the attack moves to the nearest hostile") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 12, .row = 8});
+  add_foe(*fight, "a02", {.col = 8, .row = 10});
+  toughen_hero(*fight);
+  fell_on_flag(*fight, "first");
+  start_with_args(*fight, {"a00", "first", "a01", "second", "a02", "third"});
+  REQUIRE_EQ(battle_of(*fight).target(), 1u);
+  fight->engine->flags["test.felled"] = 1;
+
+  step(*fight);
+
+  CHECK_EQ(battle_of(*fight).target(), 3u);
+  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist), std::optional<std::size_t>{3});
+}
+
+TEST_CASE("combat: when the target falls a protagonist who walked off keeps walking") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  toughen_hero(*fight);
+  fell_on_flag(*fight, "first");
+  start_pair(*fight);
+  click(*fight, {.col = 8, .row = 10});
+  REQUIRE_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
+  fight->engine->flags["test.felled"] = 1;
+
+  step(*fight);
+
+  CHECK_EQ(battle_of(*fight).target(), 2u);
+  CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
+}
+
+TEST_CASE("combat: beating both hostiles wins, removes both and names the first actor") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId second = add_foe(*fight, "a01", {.col = 7, .row = 8});
+  toughen_hero(*fight);
+  start_pair(*fight);
+
+  step_until_over(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_FALSE(fight->engine->scene.world.entities.is_live(fight->foe));
+  CHECK_FALSE(fight->engine->scene.world.entities.is_live(second));
+  REQUIRE_EQ(fight->raised.size(), 1u);
+  CHECK_EQ(fight->raised[0].name, "encounter_won");
+  CHECK_EQ(fight->raised[0].args, std::vector<std::string>{"a00"});
+}
+
+TEST_CASE("combat: losing to two hostiles leaves both in the scene") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId second = add_foe(*fight, "a01", {.col = 7, .row = 8});
+  start_pair(*fight);
+
+  step_until_over(*fight);
+
+  CHECK(fight->engine->scene.world.entities.is_live(fight->foe));
+  CHECK(fight->engine->scene.world.entities.is_live(second));
+  REQUIRE_EQ(fight->raised.size(), 1u);
+  CHECK_EQ(fight->raised[0].name, "encounter_lost");
+  CHECK_EQ(fight->raised[0].args, std::vector<std::string>{"a00"});
+}
