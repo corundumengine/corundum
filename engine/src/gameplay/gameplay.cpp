@@ -224,14 +224,28 @@ namespace corundum::gameplay {
         engine.flags[screens::k_experience_flag] += delta;
     }
 
-    /// Queue a `start_encounter(actor, creature)` fight; fixed_step() starts it once the mode is
-    /// back to Exploring, after the dialogue that asked for it closes.
-    void handle_start_encounter(Gameplay &gameplay, const dialogue::EventAction &ev) {
+    /// Tell the log and the player why a fight didn't start.
+    void refuse_fight(Engine &engine, std::string_view reason) {
+      warn_log("[gameplay] WARN: {}", reason);
+      engine.notify(std::format("The fight can't start: {}", reason), ui::k_toast_failed_colour);
+    }
+
+    /// Queue a `start_encounter(actor, creature, ...)` fight, one pair per hostile; fixed_step()
+    /// starts it once the mode is back to Exploring, after the dialogue that asked for it closes.
+    void handle_start_encounter(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
       if (gameplay.battle || gameplay.pending_encounter) {
         warn_log("[gameplay] WARN: start_encounter('{}') ignored: a fight is already queued or under way", ev.args[0]);
         return;
       }
-      gameplay.pending_encounter = combat::EncounterRequest{.actor_id = ev.args[0], .creature_id = ev.args[1]};
+      if (ev.args.size() % 2 != 0) {
+        refuse_fight(engine, std::format("[gameplay] start_encounter takes actor and creature pairs, not {} arguments",
+                                         ev.args.size()));
+        return;
+      }
+      combat::EncounterRequest request;
+      for (std::size_t i = 0; i < ev.args.size(); i += 2)
+        request.hostiles.push_back({.actor_id = ev.args[i], .creature_id = ev.args[i + 1]});
+      gameplay.pending_encounter = std::move(request);
     }
 
     /// Accumulate a `reputation(faction, delta)` event into `rep.<faction>`. A non-numeric delta
@@ -368,8 +382,8 @@ namespace corundum::gameplay {
         {
             .name = "start_encounter",
             .min_args = 2,
-            .handle = [](Engine &, Gameplay &g, quest::Runner &,
-                         const dialogue::EventAction &ev) { handle_start_encounter(g, ev); },
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_start_encounter(e, g, ev); },
         },
     });
 
@@ -1669,16 +1683,14 @@ namespace corundum::gameplay {
         ui.pop();
     }
 
-    /// End the fight with @p outcome: stop everyone, close the combat layers, remove a defeated
-    /// hostile, and raise encounter_won/encounter_lost for the game's on_event hook.
+    /// End the fight with @p outcome: stop everyone, close the combat layers, and raise
+    /// encounter_won/encounter_lost for the game's on_event hook.
     void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle, combat::Outcome outcome) {
       battle.halt(engine);
       close_combat_layers(engine.scene.ui);
-      if (outcome == combat::Outcome::Won)
-        entities::mark_for_deletion(engine.scene.world, battle.hostile_entity());
       dialogue::EventAction ended{
           .name = outcome == combat::Outcome::Won ? "encounter_won" : "encounter_lost",
-          .args = {std::string{battle.hostile_actor()}},
+          .args = {std::string{battle.first_actor()}},
       };
       gameplay.pending_dialogue_events.push_back(std::move(ended));
       drop_battle(engine, gameplay);
@@ -1731,14 +1743,13 @@ namespace corundum::gameplay {
       gameplay.pending_encounter.reset();
 
       if (!gameplay.ruleset.combat) {
-        warn_log("[gameplay] WARN: start_encounter('{}') ignored: the ruleset has no combat rules", request.actor_id);
+        warn_log("[gameplay] WARN: start_encounter ignored: the ruleset has no combat rules");
         return;
       }
       std::expected<combat::Battle, std::string> started =
           combat::Battle::start(engine, *gameplay.ruleset.combat, request);
       if (!started) {
-        warn_log("[gameplay] WARN: {}", started.error());
-        engine.notify(std::format("The fight can't start: {}", started.error()), ui::k_toast_failed_colour);
+        refuse_fight(engine, started.error());
         return;
       }
       gameplay.battle.emplace(std::move(*started));

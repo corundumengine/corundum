@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <corundum/engine.hpp>
+#include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/gameplay/combat/battle.hpp>
@@ -15,7 +16,9 @@
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
+#include <corundum/physics/physics_system.hpp>
 #include <corundum/world/flags.hpp>
+#include <corundum/world/grid.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/ui_stack.hpp>
 
@@ -24,6 +27,8 @@
 
 #include <cstddef>
 #include <expected>
+#include <format>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -88,6 +93,7 @@ namespace {
 
   void step(Fight &fight) {
     fight.gameplay->fixed_step(k_dt);
+    corundum::entities::flush_deletions(fight.engine->scene.world);
     fight.engine->input_state = {};
   }
 
@@ -116,11 +122,21 @@ namespace {
     fight.engine->input_state = {};
   }
 
-  /// Ask for a fight with a00 as @p creature, as a dialogue action does, and run the step that starts it.
-  void start_fight(Fight &fight, std::string creature = "grunt") {
-    fight.gameplay->pending_dialogue_events.push_back(
-        {.name = "start_encounter", .args = {"a00", std::move(creature)}});
+  /// Ask for a fight with these start_encounter arguments, as a dialogue action does, and run the
+  /// step that starts it.
+  void start_with_args(Fight &fight, std::vector<std::string> args) {
+    fight.gameplay->pending_dialogue_events.push_back({.name = "start_encounter", .args = std::move(args)});
     step(fight);
+  }
+
+  /// Ask for a fight with a00 as @p creature, and run the step that starts it.
+  void start_fight(Fight &fight, std::string creature = "grunt") {
+    start_with_args(fight, {"a00", std::move(creature)});
+  }
+
+  /// Ask for a fight with a00 as "first" and a01 as "second", and run the step that starts it.
+  void start_pair(Fight &fight) {
+    start_with_args(fight, {"a00", "first", "a01", "second"});
   }
 
   /// Step until the fight ends; capped, so a fight that never ends fails the checks that follow.
@@ -157,6 +173,56 @@ namespace {
   std::string last_toast(const corundum::Engine &engine) {
     REQUIRE_FALSE(engine.toasts.empty());
     return engine.toasts.at(engine.toasts.size() - 1).text;
+  }
+
+  /// Spawn another foe, actor @p id, on @p tile. It has no collision box, so only the fight's own
+  /// rules keep it off a tile.
+  EntityId add_foe(Fight &fight, const std::string &id, TileCoord tile) {
+    corundum::entities::World &world = fight.engine->scene.world;
+    const corundum::entities::Position position{
+        .col = static_cast<float>(tile.col),
+        .row = static_cast<float>(tile.row),
+    };
+    const corundum::entities::Velocity velocity{};
+    const corundum::entities::Sprite sprite{};
+    const std::optional<EntityId> spawned = corundum::entities::spawn(world, position, velocity, sprite);
+    if (!spawned) {
+      FAIL("the entity pool is full");
+      return {};
+    }
+    world.actor_ids.insert(*spawned, id);
+    return *spawned;
+  }
+
+  /// Let the hero outlast any of these fights: the flat rules subtract this flag from 2 Health.
+  void toughen_hero(Fight &fight) {
+    fight.engine->flags["test.hero.damage"] = -1000;
+  }
+
+  /// Make creature @p creature unable to act once the `test.felled` flag is set.
+  void fell_on_flag(Fight &fight, std::string creature) {
+    auto &rules = combat_rules(fight);
+    rules.can_act = [original = rules.can_act,
+                     creature = std::move(creature)](const corundum::gameplay::rules::CombatContext &context,
+                                                     const corundum::gameplay::rules::Combatant &combatant) {
+      if (combatant.creature == creature && context.flags.read("test.felled") > 0)
+        return false;
+      return original(context, combatant);
+    };
+  }
+
+  /// One step, plus the velocity integration @p walkers get from world::update in the real loop.
+  /// follow_path only sets a velocity, and step() runs the gameplay step alone.
+  void step_walking(Fight &fight, std::initializer_list<EntityId> walkers) {
+    step(fight);
+    for (const EntityId walker : walkers)
+      corundum::physics::integrate(fight.engine->scene.world.transforms, walker, k_dt);
+  }
+
+  /// The tile @p entity stands on.
+  TileCoord standing_tile(const Fight &fight, EntityId entity) {
+    const auto &transforms = fight.engine->scene.world.transforms;
+    return corundum::world::tile_of(transforms.pos_col(entity), transforms.pos_row(entity));
   }
 
 } // namespace
@@ -288,7 +354,6 @@ TEST_CASE("combat: a won fight closes the combat layers, removes the hostile and
   CHECK_EQ(fight->raised[0].args, std::vector<std::string>{"a00"});
   // The hero lands at ticks 2 and 8; the grunt, from 0 beats, lands once, at tick 6.
   CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.damage"), 1);
-  corundum::entities::flush_deletions(fight->engine->scene.world);
   CHECK_FALSE(fight->engine->scene.world.entities.is_live(fight->foe));
 }
 
@@ -310,7 +375,8 @@ TEST_CASE("combat: a lost fight raises encounter_lost and leaves the hostile") {
 TEST_CASE("combat: reset_session_state drops the fight and a pending one") {
   const auto fight = make_fight({.col = 9, .row = 8});
   start_fight(*fight);
-  fight->gameplay->pending_encounter = combat::EncounterRequest{.actor_id = "a00", .creature_id = "grunt"};
+  fight->gameplay->pending_encounter =
+      combat::EncounterRequest{.hostiles = {{.actor_id = "a00", .creature_id = "grunt"}}};
 
   fight->gameplay->reset_session_state();
 
@@ -831,4 +897,122 @@ TEST_CASE("combat: rules listing more slots than the bar holds can't start the f
   CHECK_FALSE(fight->gameplay->battle.has_value());
   CHECK_EQ(last_toast(*fight->engine),
            "The fight can't start: [gameplay] the command bar holds 9 slots; the rules list 10");
+}
+
+TEST_CASE("combat: start_encounter with two pairs starts a fight with both hostiles") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+
+  start_pair(*fight);
+
+  REQUIRE_EQ(encounter_of(*fight).size(), 3u);
+  CHECK_EQ(encounter_of(*fight).spec(1).name, "first");
+  CHECK_EQ(encounter_of(*fight).spec(2).name, "second");
+  CHECK_EQ(encounter_of(*fight).target_of(1), std::optional<std::size_t>{combat::Battle::k_protagonist});
+  CHECK_EQ(encounter_of(*fight).target_of(2), std::optional<std::size_t>{combat::Battle::k_protagonist});
+}
+
+TEST_CASE("combat: start_encounter with an odd argument count toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+
+  start_with_args(*fight, {"a00", "first", "a01"});
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_FALSE(fight->gameplay->pending_encounter.has_value());
+  CHECK_EQ(fight->engine->scene.mode(), corundum::world::GameMode::Exploring);
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] start_encounter takes actor and creature pairs, not 3 arguments");
+}
+
+TEST_CASE("combat: a request naming no hostiles toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->gameplay->pending_encounter = combat::EncounterRequest{};
+
+  step(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine), "The fight can't start: [gameplay] start_encounter: it names no hostiles");
+}
+
+TEST_CASE("combat: start_encounter naming a second actor not in the area toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+
+  start_with_args(*fight, {"a00", "first", "nobody", "second"});
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] start_encounter: no actor 'nobody' in this area");
+}
+
+TEST_CASE("combat: start_encounter naming one actor twice toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+
+  start_with_args(*fight, {"a00", "first", "a00", "second"});
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine), "The fight can't start: [gameplay] start_encounter: actor 'a00' is named twice");
+}
+
+TEST_CASE("combat: a fallen hostile leaves the scene while the fight goes on") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId second = add_foe(*fight, "a01", {.col = 7, .row = 8});
+  toughen_hero(*fight);
+  fell_on_flag(*fight, "second");
+  start_pair(*fight);
+  fight->engine->flags["test.felled"] = 1;
+
+  step(*fight);
+
+  CHECK_FALSE(fight->engine->scene.world.entities.is_live(second));
+  CHECK(fight->engine->scene.world.entities.is_live(fight->foe));
+  CHECK(fight->gameplay->battle.has_value());
+  CHECK_EQ(fight->engine->scene.mode(), screens::Combat);
+}
+
+TEST_CASE("combat: two hostiles heading for one free tile end on different tiles") {
+  const auto fight = make_fight({.col = 12, .row = 8});
+  const EntityId second = add_foe(*fight, "a01", {.col = 13, .row = 8});
+  toughen_hero(*fight);
+  start_pair(*fight);
+  click(*fight, {.col = 8, .row = 8});
+  const TileCoord hero_tile{.col = 8, .row = 8};
+
+  const auto both_in_reach = [&] {
+    return corundum::world::tile_distance(standing_tile(*fight, fight->foe), hero_tile) <= 1 &&
+           corundum::world::tile_distance(standing_tile(*fight, second), hero_tile) <= 1;
+  };
+  for (int i = 0; i < 300 && !both_in_reach(); ++i)
+    step_walking(*fight, {fight->foe, second});
+
+  REQUIRE(both_in_reach());
+  CHECK_NE(standing_tile(*fight, fight->foe), standing_tile(*fight, second));
+}
+
+TEST_CASE("combat: a hostile with every tile in reach claimed takes the first one that frees up") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const std::vector<TileCoord> ring{
+      {.col = 7, .row = 7}, {.col = 8, .row = 7}, {.col = 9, .row = 7}, {.col = 7, .row = 8},
+      {.col = 7, .row = 9}, {.col = 8, .row = 9}, {.col = 9, .row = 9},
+  };
+  std::vector<std::string> args{"a00", "c0"};
+  for (std::size_t i = 0; i < ring.size(); ++i) {
+    const std::string actor = std::format("a{:02}", i + 1);
+    add_foe(*fight, actor, ring[i]);
+    args.push_back(actor);
+    args.push_back(std::format("c{}", i + 1));
+  }
+  const EntityId last = add_foe(*fight, "a08", {.col = 8, .row = 12});
+  args.emplace_back("a08");
+  args.emplace_back("c8");
+  toughen_hero(*fight);
+  fell_on_flag(*fight, "c0");
+  start_with_args(*fight, std::move(args));
+  click(*fight, {.col = 5, .row = 5});
+  fight->engine->flags["test.felled"] = 1;
+  const TileCoord freed{.col = 9, .row = 8};
+
+  for (int i = 0; i < 300 && standing_tile(*fight, last) != freed; ++i)
+    step_walking(*fight, {last});
+
+  CHECK(standing_tile(*fight, last) == freed);
 }

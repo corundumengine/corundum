@@ -85,6 +85,45 @@ namespace corundum::gameplay::combat {
       };
     }
 
+    /// The entity each hostile in @p request names, in order; an error when one is missing or named twice.
+    [[nodiscard]] std::expected<std::vector<entities::EntityId>, std::string>
+    resolve_hostiles(const Engine &engine, const EncounterRequest &request) {
+      std::vector<entities::EntityId> hostiles;
+      for (const EncounterHostile &hostile : request.hostiles) {
+        const std::optional<entities::EntityId> actor = entities::find_actor(engine.scene.world, hostile.actor_id);
+        if (!actor || !engine.scene.world.transforms.has(*actor))
+          return std::unexpected(
+              std::format("[gameplay] start_encounter: no actor '{}' in this area", hostile.actor_id));
+        if (std::ranges::find(hostiles, *actor) != hostiles.end())
+          return std::unexpected(
+              std::format("[gameplay] start_encounter: actor '{}' is named twice", hostile.actor_id));
+        hostiles.push_back(*actor);
+      }
+      return hostiles;
+    }
+
+    /// One Joining per side: the protagonist first, then a hostile for each creature named.
+    [[nodiscard]] std::vector<Joining> build_joining(const EncounterRequest &request) {
+      std::vector<Joining> joining(1 + request.hostiles.size());
+      joining[0].side = Side::Party;
+      for (std::size_t i = 0; i < request.hostiles.size(); ++i) {
+        joining[i + 1].combatant.creature = request.hostiles[i].creature_id;
+        joining[i + 1].side = Side::Hostile;
+      }
+      return joining;
+    }
+
+    /// The protagonist's entity first, then one slot per resolved hostile.
+    [[nodiscard]] std::vector<std::optional<entities::EntityId>>
+    build_entities(const Engine &engine, std::span<const entities::EntityId> hostiles) {
+      std::vector<std::optional<entities::EntityId>> entities;
+      entities.reserve(1 + hostiles.size());
+      entities.emplace_back(engine.scene.player);
+      for (const entities::EntityId hostile : hostiles)
+        entities.emplace_back(hostile);
+      return entities;
+    }
+
     /// The tile an entity stands on.
     [[nodiscard]] world::TileCoord transform_tile(const Engine &engine, entities::EntityId entity) {
       const auto &transforms = engine.scene.world.transforms;
@@ -202,9 +241,9 @@ namespace corundum::gameplay::combat {
 
   } // namespace
 
-  Battle::Battle(Encounter encounter, std::vector<entities::EntityId> entities, std::string actor_id,
+  Battle::Battle(Encounter encounter, std::vector<std::optional<entities::EntityId>> entities, std::string first_actor,
                  std::optional<rules::AutoPause> auto_pause)
-      : encounter_(std::move(encounter)), entities_(std::move(entities)), actor_id_(std::move(actor_id)),
+      : encounter_(std::move(encounter)), entities_(std::move(entities)), first_actor_(std::move(first_actor)),
         auto_pause_(auto_pause) {
     tiles_.resize(encounter_.size());
     hud_.rows.resize(encounter_.size());
@@ -229,19 +268,17 @@ namespace corundum::gameplay::combat {
                                                    const EncounterRequest &request) {
     if (!world::player_present(engine.scene))
       return std::unexpected("[gameplay] start_encounter: there is no protagonist in the scene");
+    if (request.hostiles.empty())
+      return std::unexpected("[gameplay] start_encounter: it names no hostiles");
 
-    const std::optional<entities::EntityId> actor = entities::find_actor(engine.scene.world, request.actor_id);
-    if (!actor || !engine.scene.world.transforms.has(*actor))
-      return std::unexpected(std::format("[gameplay] start_encounter: no actor '{}' in this area", request.actor_id));
+    std::expected<std::vector<entities::EntityId>, std::string> hostiles = resolve_hostiles(engine, request);
+    if (!hostiles)
+      return std::unexpected(std::move(hostiles.error()));
 
     const int steps_per_tick =
         std::max(1, static_cast<int>(std::lround(rules.seconds_per_tick / engine.timer.target_dt)));
-    std::vector<Joining> joining(2);
-    joining[0].side = Side::Party;
-    joining[1].combatant.creature = request.creature_id;
-    joining[1].side = Side::Hostile;
     std::expected<Encounter, std::string> encounter =
-        Encounter::start(rules, make_combat_context(engine), std::move(joining), steps_per_tick);
+        Encounter::start(rules, make_combat_context(engine), build_joining(request), steps_per_tick);
     if (!encounter)
       return std::unexpected(encounter.error());
 
@@ -250,8 +287,10 @@ namespace corundum::gameplay::combat {
       return std::unexpected(
           std::format("[gameplay] the command bar holds {} slots; the rules list {}", k_slot_actions.size(), slots));
 
-    Battle battle(std::move(*encounter), {engine.scene.player, *actor}, request.actor_id, rules.auto_pause);
-    battle.encounter_.order_attack(k_hostile, k_protagonist);
+    Battle battle(std::move(*encounter), build_entities(engine, *hostiles), request.hostiles.front().actor_id,
+                  rules.auto_pause);
+    for (std::size_t i = k_hostile; i < battle.encounter_.size(); ++i)
+      battle.encounter_.order_attack(i, k_protagonist);
     battle.encounter_.order_attack(k_protagonist, k_hostile);
     refresh_hud(battle.encounter_, make_combat_context(engine), battle.hud_, battle.page_);
     engine.scene.is_player_held = !battle.encounter_.status(k_protagonist).can_move;
@@ -364,8 +403,10 @@ namespace corundum::gameplay::combat {
 
   BattleStep Battle::update(Engine &engine, Clock clock) {
     const rules::CombatContext context = make_combat_context(engine);
-    for (std::size_t i = 0; i < entities_.size(); ++i)
-      tiles_[i] = transform_tile(engine, entities_[i]);
+    for (std::size_t i = 0; i < entities_.size(); ++i) {
+      if (const std::optional<entities::EntityId> &entity = entities_[i])
+        tiles_[i] = transform_tile(engine, *entity);
+    }
 
     if (clock == Clock::Running)
       pause_note_.clear();
@@ -377,6 +418,7 @@ namespace corundum::gameplay::combat {
       EncounterStep advanced = encounter_.update(context, tiles_);
       for (std::string &report : advanced.reports)
         step.reports.push_back(std::move(report));
+      remove_fallen(engine, context);
       step.should_pause = check_auto_pause(advanced.windups_started);
     }
 
@@ -392,28 +434,63 @@ namespace corundum::gameplay::combat {
   }
 
   void Battle::plan_movement(Engine &engine, const world::MapView &map, const rules::CombatContext &context) {
+    for (std::size_t i = 0; i < entities_.size(); ++i)
+      plan_combatant(engine, map, context, i);
+  }
+
+  void Battle::plan_combatant(Engine &engine, const world::MapView &map, const rules::CombatContext &context,
+                              std::size_t index) {
+    if (!is_fighting(context, index))
+      return;
+    if (!encounter_.status(index).can_move) {
+      stand_still(engine, index);
+      return;
+    }
+    const std::optional<std::size_t> target = encounter_.target_of(index);
+    if (!target)
+      return;
+
+    const world::TileCoord target_tile = tiles_[*target];
+    const bool in_reach = world::tile_distance(tiles_[index], target_tile) <= encounter_.spec(index).reach_tiles;
+    if ((in_reach && !is_claimed(engine, tiles_[index], index)) || encounter_.phase(index) == Phase::WindUp) {
+      stand_still(engine, index);
+      return;
+    }
+
+    if (planned_for_[index] == target_tile)
+      return;
+    const ApproachOutcome outcome = approach(engine, map, index, *target);
+    if (outcome == ApproachOutcome::Settled)
+      planned_for_[index] = target_tile;
+    else
+      planned_for_[index].reset();
+  }
+
+  bool Battle::is_fighting(const rules::CombatContext &context, std::size_t index) const {
+    return entities_[index].has_value() && encounter_.can_act(context, index);
+  }
+
+  bool Battle::is_claimed(const Engine &engine, world::TileCoord tile, std::size_t mover) const {
     for (std::size_t i = 0; i < entities_.size(); ++i) {
-      if (!encounter_.can_act(context, i))
+      if (i == mover || !entities_[i].has_value())
         continue;
-      if (!encounter_.status(i).can_move) {
-        stand_still(engine, i);
-        continue;
-      }
-      const std::optional<std::size_t> target = encounter_.target_of(i);
-      if (!target)
-        continue;
+      if (tiles_[i] == tile)
+        return true;
+      const std::vector<world::TileCoord> &path = encounter_.side(i) == Side::Hostile ? paths_[i] : engine.scene.path;
+      if (!path.empty() && path.back() == tile)
+        return true;
+    }
+    return false;
+  }
 
-      const world::TileCoord target_tile = tiles_[*target];
-      const bool in_reach = world::tile_distance(tiles_[i], target_tile) <= encounter_.spec(i).reach_tiles;
-      if (in_reach || encounter_.phase(i) == Phase::WindUp) {
-        stand_still(engine, i);
+  void Battle::remove_fallen(Engine &engine, const rules::CombatContext &context) {
+    for (std::size_t i = k_hostile; i < entities_.size(); ++i) {
+      const std::optional<entities::EntityId> &entity = entities_[i];
+      if (!entity || encounter_.can_act(context, i))
         continue;
-      }
-
-      if (planned_for_[i] == target_tile)
-        continue;
-      approach(engine, map, i, *target);
-      planned_for_[i] = target_tile;
+      entities::mark_for_deletion(engine.scene.world, *entity);
+      paths_[i].clear();
+      entities_[i].reset();
     }
   }
 
@@ -423,40 +500,50 @@ namespace corundum::gameplay::combat {
     planned_for_[index].reset();
   }
 
-  void Battle::approach(Engine &engine, const world::MapView &map, std::size_t mover, std::size_t target_index) {
-    if (map.walkability == nullptr)
-      return;
+  Battle::ApproachOutcome Battle::approach(Engine &engine, const world::MapView &map, std::size_t mover,
+                                           std::size_t target_index) {
+    assert(entities_[mover].has_value());
+    const std::optional<entities::EntityId> &mover_entity = entities_[mover];
+    if (map.walkability == nullptr || !mover_entity)
+      return ApproachOutcome::Settled;
     std::vector<world::TileCoord> &path = encounter_.side(mover) == Side::Hostile ? paths_[mover] : engine.scene.path;
 
     const world::TileCoord target_tile = tiles_[target_index];
     const std::vector<world::TileCoord> candidates =
         approach_candidates(target_tile, encounter_.spec(mover).reach_tiles, tiles_[mover]);
 
+    bool skipped = false;
     for (const world::TileCoord &candidate : candidates) {
+      if (is_claimed(engine, candidate, mover)) {
+        skipped = true;
+        continue;
+      }
       if (std::vector<world::TileCoord> found =
               world::find_path(map, tiles_[mover], candidate, &engine.scene.world.collisions,
-                               &engine.scene.world.transforms, entities_[mover]);
+                               &engine.scene.world.transforms, *mover_entity);
           !found.empty()) {
         path = std::move(found);
-        return;
+        return ApproachOutcome::Settled;
       }
     }
     path.clear();
+    return skipped ? ApproachOutcome::Blocked : ApproachOutcome::Settled;
   }
 
   void Battle::walk_hostiles(Engine &engine, const world::MapView &map, const rules::CombatContext &context) {
     const core::math::IsometricParams iso{.half_tw = map.half_tw, .half_th = map.half_th};
     auto &transforms = engine.scene.world.transforms;
     for (std::size_t i = 0; i < entities_.size(); ++i) {
-      if (encounter_.side(i) != Side::Hostile || !encounter_.can_act(context, i))
+      const std::optional<entities::EntityId> &entity = entities_[i];
+      if (!entity || encounter_.side(i) != Side::Hostile || !is_fighting(context, i))
         continue;
-      physics::follow_path(transforms, entities_[i], paths_[i], engine.cfg.player_speed, iso, engine.timer.target_dt);
+      physics::follow_path(transforms, *entity, paths_[i], engine.cfg.player_speed, iso, engine.timer.target_dt);
     }
   }
 
   bool Battle::has_live_combatants(const Engine &engine) const {
-    return std::ranges::all_of(entities_, [&engine](entities::EntityId entity) {
-      return engine.scene.world.entities.is_live(entity) && engine.scene.world.transforms.has(entity);
+    return std::ranges::all_of(entities_, [&engine](const std::optional<entities::EntityId> &entity) {
+      return !entity || (engine.scene.world.entities.is_live(*entity) && engine.scene.world.transforms.has(*entity));
     });
   }
 
@@ -464,9 +551,10 @@ namespace corundum::gameplay::combat {
     engine.scene.path.clear();
     auto &transforms = engine.scene.world.transforms;
     for (std::size_t i = 0; i < entities_.size(); ++i) {
-      if (encounter_.side(i) != Side::Hostile)
+      const std::optional<entities::EntityId> &entity = entities_[i];
+      if (encounter_.side(i) != Side::Hostile || !entity)
         continue;
-      const std::uint32_t slot = transforms.dense_index(entities_[i]);
+      const std::uint32_t slot = transforms.dense_index(*entity);
       transforms.dc[slot] = 0.f;
       transforms.dr[slot] = 0.f;
     }
