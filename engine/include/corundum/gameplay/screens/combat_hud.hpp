@@ -25,6 +25,8 @@ namespace corundum::gameplay::screens {
 
     bool is_hostile{};
 
+    bool is_target{}; ///< The fight's chosen hostile; its name draws in the selected colour.
+
     bool is_winding_up{};
 
     int marker_beats{};

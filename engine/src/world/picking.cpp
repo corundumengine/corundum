@@ -84,4 +84,15 @@ namespace corundum::world {
     return best_candidate(map, world, iso, u_floor, grid_w, grid_h);
   }
 
+  TileDiamond tile_diamond(TileCoord tile, int elevation, const core::math::IsometricParams &iso) noexcept {
+    const float col = static_cast<float>(tile.col);
+    const float row = static_cast<float>(tile.row);
+    return {
+        .bottom = core::math::tile_to_world(col + 1, row + 1, elevation, iso),
+        .left = core::math::tile_to_world(col, row + 1, elevation, iso),
+        .right = core::math::tile_to_world(col + 1, row, elevation, iso),
+        .top = core::math::tile_to_world(col, row, elevation, iso),
+    };
+  }
+
 } // namespace corundum::world

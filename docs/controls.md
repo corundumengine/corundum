@@ -96,10 +96,13 @@ wrong from memory.
 
 - **Move**: as in Exploring (keys, stick, or a click on the ground). Moving drops your attack
   order and cancels a wind-up in progress; a command you queued stays queued.
-- **Attack**: `1` (keyboard), gamepad A, or a click on the hostile: its tile, or one of the three
+- **Attack**: `1` (keyboard), gamepad A, or a click on a hostile: its tile, or one of the three
   tiles its sprite is drawn over (one column back, one row back, or both). You walk into reach and
-  attack each time your marker is ready. `1` / A also drops a queued command, so the attack comes
-  next; a click on the hostile keeps it.
+  attack each time your marker is ready. `1` / A attacks your current target and drops a queued
+  command, so the attack comes next; a click on a hostile keeps it.
+- **Next target**: `Tab` (keyboard), gamepad R3. Attacks the next hostile still fighting, wrapping.
+  Your target's name is highlighted on the HUD and its tile is outlined. When it falls, your
+  attack moves to the nearest hostile; if you had walked off, you keep walking.
 - **Commands**: `2`–`9` (keyboard) press the command bar's second to ninth slots: first the
   ruleset's commands, then its toggles. A command queues for your
   next command point; pressing a queued slot's key again unqueues it. A toggle turns on or off;
@@ -108,9 +111,9 @@ wrong from memory.
 - **Gamepad pages**: A, Y and B press the three slots of the page shown (the first page is Attack
   and the next two); L1 and R1 show the previous or next page, wrapping around. Slots off the page
   show no button.
-- **Pause**: `Space` (keyboard), gamepad X. Commands and clicks on the hostile still work while
-  paused; moving doesn't. The fight also pauses on its own when a hostile starts a heavy wind-up
-  near you, and the banner names it.
+- **Pause**: `Space` (keyboard), gamepad X. Commands, the next-target key and clicks on a hostile still
+  work while paused; moving doesn't. The fight also pauses on its own when a hostile starts a heavy
+  wind-up near you, and the banner names it.
 - **Menu**: `Esc` (keyboard), gamepad Start, open the pause menu over the fight.
 - A mouse player reads keyboard keys in the prompts for anything the mouse has no button for.
 
@@ -267,8 +270,8 @@ player clicked a screen point" flag, distinct from `Select`), and
 not just "did it happen", so it can't be a discrete `Action` either).
 The enum also carries the screen toggles `Inventory`, `Journal`, `Codex`,
 `Map`, `Menu`, `TabNext`/`TabPrev`, and `Activate` (the world/UI "use this
-thing" intent, distinct from the dialogue/confirm `Select`). A fight adds `Pause` and
-`CombatCommand1`–`CombatCommand3`.
+thing" intent, distinct from the dialogue/confirm `Select`). A fight adds `Pause`,
+`CombatCommand1`–`CombatCommand9`, `CombatPagePrev`/`CombatPageNext` and `CombatTargetNext`.
 
 ### Binding tables (where defaults are declared)
 
@@ -283,7 +286,7 @@ are `.`/`,` and the analog triggers (shared with zoom); Quit is `Q`;
 ZoomIn/ZoomOut are `=`/`-` plus gamepad R2/L2; QuickSave/QuickLoad are F5/F9.
 Pause is Space and gamepad X; CombatCommand1–9 are `1`–`9`, and CombatCommand1–3 also gamepad A/Y/B, sharing
 those buttons with Select/Activate, Hub and Cancel; CombatPagePrev/Next are gamepad L1/R1, shared
-with TabPrev/TabNext. A fight reads none of the shared jobs.
+with TabPrev/TabNext. CombatTargetNext is Tab and gamepad R3. A fight reads none of the shared jobs.
 The GLFW backend only translates GLFW tokens
 to `PhysicalInput` (`engine/src/platform/glfw/input_translator.cpp`) and holds
 no bindings of its own.
@@ -356,9 +359,10 @@ device disconnects, so a held bit cannot latch.
 | `Action::TabNext/TabPrev`                     | `engine.cpp::update_engine_screens()`                                     | Cycles the four hub tabs when one is on top; settings pages and barter Buy/Sell keep their own handling                                                 |
 | `Action::Quit`                                | `engine.cpp`'s main loop                                                  | Sets `engine.quit` and closes the window                                                                                                             |
 | `Action::Pause`                               | `gameplay.cpp::update_battle()`                                           | Pushes CombatPaused over Combat, or pops it |
-| `Action::CombatCommand1`                      | `combat/battle.cpp::Battle::read_orders()`                                | Drops a queued command and renews the attack on the hostile |
+| `Action::CombatCommand1`                      | `combat/battle.cpp::Battle::read_orders()`                                | Drops a queued command and renews the attack on the target |
 | `Action::CombatCommand2/3`                    | `combat/battle.cpp::Battle::press_slot()`                                 | Queues the command bar's second or third slot, or unqueues it when it is the queued one |
-| `mouse_click_pressed` (in a fight)            | `combat/battle.cpp::Battle::read_orders()`                                | A click on the hostile or a tile its sprite covers attacks it; any other click, while the fight runs, is a move order |
+| `Action::CombatTargetNext`                    | `combat/battle.cpp::Battle::read_next_target()`                           | Attacks the next hostile still fighting, wrapping |
+| `mouse_click_pressed` (in a fight)            | `combat/battle.cpp::Battle::read_orders()`                                | A click on a hostile or a tile its sprite covers targets and attacks it; any other click, while the fight runs, is a move order |
 | `PlatformEvents::quit_requested`              | `engine.cpp`'s main loop                                                  | Sets `engine.quit` from an OS window-close request                                                                                                   |
 | `PlatformEvents::focus_lost` / `focus_gained` | `engine.cpp`'s main loop                                                  | Pauses the simulation and audio on focus loss, resumes on focus gain                                                                                 |
 | `scroll_delta_y`                              | `world/update.cpp::update_zoom()`                                         | `Camera::apply_zoom()`, anchored on the mouse cursor                                                                                                 |

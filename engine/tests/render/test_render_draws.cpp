@@ -131,3 +131,23 @@ TEST_CASE("render: a failed load_map after a single map draws nothing") {
 
   CHECK(renderer.sprites.empty());
 }
+
+TEST_CASE("render: the frame's world view is kept for screens that draw over the world") {
+  const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  TileRecordingRenderer renderer;
+  RenderState state;
+  state.previous_step.camera = {.x = 10.f, .y = 20.f};
+  state.previous_step.zoom = 1.f;
+  const auto scene = std::make_unique<corundum::world::Scene>();
+  scene->camera.x = 30.f;
+  scene->camera.y = 60.f;
+  scene->camera.zoom = 3.f;
+
+  corundum::render::render(renderer, state, cfg, *scene, 0.5f, 640, 480);
+
+  CHECK_EQ(state.world_view.camera.x, 20.f);
+  CHECK_EQ(state.world_view.camera.y, 40.f);
+  CHECK_EQ(state.world_view.zoom, 2.f);
+  CHECK_EQ(state.world_view.viewport_size.x, 640.f);
+  CHECK_EQ(state.world_view.viewport_size.y, 480.f);
+}

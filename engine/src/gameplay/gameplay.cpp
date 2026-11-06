@@ -65,6 +65,8 @@
 #include <corundum/ui/toast.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
+#include <corundum/world/map_view.hpp>
+#include <corundum/world/picking.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/scene.hpp>
 #include <corundum/world/transition.hpp>
@@ -1756,9 +1758,35 @@ namespace corundum::gameplay {
       engine.scene.ui.push(screens::Combat);
     }
 
-    /// The combat HUD, with @p banner across the top (empty for none).
+    constexpr float k_target_line_thickness = 2.f;
+
+    /// Outline the fight's target's tile in the selected colour, through the view the world just
+    /// drew with so the outline stays on the ground while the camera moves.
+    void draw_target_marker(const Engine &engine, const combat::Battle &battle, platform::Renderer &r) {
+      const world::MapView map = world::build_map_view(engine.render, engine.cfg);
+      const world::TileCoord tile = battle.target_tile();
+      const world::TileDiamond diamond = world::tile_diamond(
+          tile, world::discrete_elevation_at(map, tile.col, tile.row), world::projection_of(map, engine.cfg));
+      const std::array corners{diamond.top, diamond.right, diamond.bottom, diamond.left};
+
+      const render::WorldView &view = engine.render.world_view;
+      const core::math::Colour target_colour = engine.render.panel_skin.style.selected;
+      r.set_world_view(view.camera, view.viewport_size, view.zoom);
+      for (std::size_t i = 0; i < corners.size(); ++i) {
+        r.draw(platform::DrawLine{
+            .start = corners[i],
+            .end = corners[(i + 1) % corners.size()],
+            .colour = target_colour,
+            .thickness = k_target_line_thickness,
+        });
+      }
+      r.reset_screen_view();
+    }
+
+    /// Draw the target's tile marker, then the combat HUD with @p banner (empty for none).
     void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &r,
                        core::math::Vec2 viewport, std::string_view banner) {
+      draw_target_marker(engine, battle, r);
       screens::combat_hud_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, battle.hud(),
                                  viewport, engine.input_mapper.last_device(), banner);
     }

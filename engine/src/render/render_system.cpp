@@ -552,6 +552,7 @@ namespace corundum::render {
   void render(platform::Renderer &r, RenderState &state, const core::GameConfig &cfg, const world::Scene &scene,
               float alpha, int win_w, int win_h) {
     const FrameView view = make_frame_view(state, scene, alpha, win_w, win_h);
+    state.world_view = {.camera = view.camera, .viewport_size = view.viewport_screen, .zoom = view.zoom};
     const TileSources sources = collect_tile_sources(state, cfg, view);
 
     r.set_world_view(view.camera, view.viewport_screen, view.zoom);

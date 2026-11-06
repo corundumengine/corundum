@@ -121,6 +121,15 @@ namespace corundum::render {
   /** @brief The loaded area; std::monostate when none is loaded (RenderMode::None). */
   using Area = std::variant<std::monostate, SingleMapArea, WorldArea>;
 
+  /** @brief A world view, as Renderer::set_world_view takes it. */
+  struct WorldView {
+    core::math::Vec2 camera{};
+
+    core::math::Vec2 viewport_size{};
+
+    float zoom{1.f};
+  };
+
   /** @brief Camera and entity tile positions at the start of the latest fixed step, for render
    *  interpolation. Written by snapshot_previous_step(). */
   struct StepSnapshot {
@@ -178,6 +187,10 @@ namespace corundum::render {
     std::vector<uint32_t> draw_order{};
 
     StepSnapshot previous_step{};
+
+    /// The view the last render() drew the world with, interpolated by the loop's alpha. A screen
+    /// that draws over the world uses this rather than Scene::camera, which is up to a step ahead.
+    WorldView world_view{};
   };
 
   /** @brief The kind of area loaded. */

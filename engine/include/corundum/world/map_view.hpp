@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
@@ -96,6 +97,10 @@ namespace corundum::world {
    *       single map.
    */
   [[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept;
+
+  /** @brief The projection @p map draws and picks with: its diamond and origin, and an elevation
+   *  step scaled by its tile scale, as compute_isometric_params() produces it. */
+  [[nodiscard]] core::math::IsometricParams projection_of(const MapView &map, const core::GameConfig &cfg) noexcept;
 
   /**
    * @brief World bounds of a single (non-chunked) tilemap.

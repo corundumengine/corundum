@@ -331,7 +331,7 @@ These call engine functions. String arguments use single quotes.
 | `discover_location('location_id')` | Discover a fast-travel location (sets `location.<id>.discovered`) and toast it |
 | `open_container('container_id')` | Open the two-pane loot screen for `container.<id>.item.*` |
 | `open_shop('shop_id')` | Open the merchant barter screen for a `data/shops/*.json` shop |
-| `start_encounter('actor_id', 'creature_id')` | Once the dialogue closes, start a fight with the actor `actor_id` in this area, using the game's stat block `creature_id`. When it ends, the game's `on_event` receives `encounter_won('actor_id')` (the actor is removed) or `encounter_lost('actor_id')`; the framework opens nothing itself. Leaving the area ends the fight without either event. |
+| `start_encounter('actor_id', 'creature_id', ...)` | Once the dialogue closes, start a fight with the actor `actor_id` in this area, using the game's stat block `creature_id`. Add more pairs for more hostiles: `start_encounter('skeleton_rusted', 'rusted_skeleton', 'skeleton_drowned', 'drowned_skeleton')`. Give each creature in a fight its own name, because reports and the HUD show names only. When it ends, the game's `on_event` receives `encounter_won('actor_id')` or `encounter_lost('actor_id')`, naming the first actor; a hostile is removed when it falls, and the framework opens nothing itself. Leaving the area ends the fight without either event. |
 
 ```json
 "actions": [

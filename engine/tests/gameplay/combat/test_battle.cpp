@@ -17,12 +17,15 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/physics/physics_system.hpp>
+#include <corundum/screen_registry.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/grid.hpp>
+#include <corundum/world/map_view.hpp>
 #include <corundum/world/picking.hpp>
 #include <corundum/world/ui_stack.hpp>
 
 #include "gameplay/rules/flat_ruleset.hpp"
+#include "ui/recording_renderer.hpp"
 #include "world_transition_fixtures.hpp"
 
 #include <cstddef>
@@ -1162,4 +1165,60 @@ TEST_CASE("combat: losing to two hostiles leaves both in the scene") {
   REQUIRE_EQ(fight->raised.size(), 1u);
   CHECK_EQ(fight->raised[0].name, "encounter_lost");
   CHECK_EQ(fight->raised[0].args, std::vector<std::string>{"a00"});
+}
+
+TEST_CASE("combat: the HUD marks the target's row and follows the next-target key") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  start_pair(*fight);
+  REQUIRE(battle_of(*fight).hud().rows[1].is_target);
+
+  press(*fight, Action::CombatTargetNext);
+
+  const auto &rows = battle_of(*fight).hud().rows;
+  CHECK_FALSE(rows[0].is_target);
+  CHECK_FALSE(rows[1].is_target);
+  CHECK(rows[2].is_target);
+}
+
+TEST_CASE("combat: target_tile names the tile the target stands on") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const TileCoord hostile_tile{.col = 7, .row = 8};
+  add_foe(*fight, "a01", hostile_tile);
+  start_pair(*fight);
+
+  press(*fight, Action::CombatTargetNext);
+
+  CHECK(battle_of(*fight).target_tile() == hostile_tile);
+}
+
+TEST_CASE("combat: the target marker outlines the target's tile through the world view") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const TileCoord hostile_tile{.col = 7, .row = 8};
+  add_foe(*fight, "a01", hostile_tile);
+  start_pair(*fight);
+  press(*fight, Action::CombatTargetNext);
+  corundum::Engine &engine = *fight->engine;
+  engine.render.world_view.camera = {.x = 3.f, .y = 4.f};
+  const corundum::ScreenSpec *spec = engine.screens.find(screens::Combat);
+  REQUIRE(spec != nullptr);
+  corundum::test::RecordingRenderer r;
+
+  spec->render(engine, r, {.x = 320.f, .y = 240.f});
+
+  const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.cfg);
+  const corundum::world::TileDiamond expected = corundum::world::tile_diamond(
+      hostile_tile, corundum::world::discrete_elevation_at(map, hostile_tile.col, hostile_tile.row),
+      corundum::world::projection_of(map, engine.cfg));
+  REQUIRE_EQ(r.world_lines.size(), 4u);
+  CHECK_EQ(r.world_lines[0].start.x, expected.top.x);
+  CHECK_EQ(r.world_lines[0].start.y, expected.top.y);
+  CHECK_EQ(r.world_lines[0].end.x, expected.right.x);
+  CHECK_EQ(r.world_lines[1].end.y, expected.bottom.y);
+  CHECK_EQ(r.world_lines[2].end.x, expected.left.x);
+  CHECK_EQ(r.world_lines[3].end.x, expected.top.x);
+  CHECK_EQ(r.world_lines[3].end.y, expected.top.y);
+  CHECK_EQ(r.world_view_camera.x, 3.f);
+  CHECK_EQ(r.world_view_camera.y, 4.f);
+  CHECK_FALSE(r.is_world_view);
 }

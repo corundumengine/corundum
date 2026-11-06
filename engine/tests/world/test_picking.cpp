@@ -14,6 +14,8 @@
 using corundum::world::Camera;
 using corundum::world::MapView;
 using corundum::world::pick_tile;
+using corundum::world::tile_diamond;
+using corundum::world::TileCoord;
 using corundum::world::tilemap::Tilemap;
 using corundum::world::tilemap::TilemapLayer;
 
@@ -152,6 +154,41 @@ TEST_CASE("pick_tile - non-positive zoom or degenerate iso params return nullopt
       .elev_step = k_elev_step,
   };
   CHECK_FALSE(pick_tile(0.f, 16.f, camera, map, no_width).has_value());
+}
+
+TEST_CASE("tile_diamond - names a tile's four corners in world pixels") {
+  const auto diamond = tile_diamond(TileCoord{.col = 1, .row = 0}, 0, make_iso());
+
+  CHECK_EQ(diamond.top.x, 32.f);
+  CHECK_EQ(diamond.top.y, 16.f);
+  CHECK_EQ(diamond.right.x, 64.f);
+  CHECK_EQ(diamond.right.y, 32.f);
+  CHECK_EQ(diamond.bottom.x, 32.f);
+  CHECK_EQ(diamond.bottom.y, 48.f);
+  CHECK_EQ(diamond.left.x, 0.f);
+  CHECK_EQ(diamond.left.y, 32.f);
+}
+
+TEST_CASE("tile_diamond - a raised tile lifts by its elevation") {
+  const auto diamond = tile_diamond(TileCoord{.col = 0, .row = 0}, 2, make_iso());
+
+  CHECK_EQ(diamond.top.y, -8.f);
+}
+
+TEST_CASE("tile_diamond - the diamond's centre picks the same tile") {
+  const Tilemap tm = make_flat_map();
+  const MapView map = make_view(tm);
+  const Camera camera{.x = 0.f, .y = 0.f, .zoom = 1.f};
+  const TileCoord tile{.col = 1, .row = 0};
+  const auto diamond = tile_diamond(tile, 0, make_iso());
+
+  const float centre_x = (diamond.left.x + diamond.right.x) / 2.f;
+  const float centre_y = (diamond.top.y + diamond.bottom.y) / 2.f;
+  const auto picked = pick_tile(centre_x, centre_y, camera, map, make_iso());
+
+  REQUIRE(picked.has_value());
+  CHECK_EQ(picked->col, tile.col);
+  CHECK_EQ(picked->row, tile.row);
 }
 
 // NOLINTEND(bugprone-unchecked-optional-access)

@@ -85,6 +85,15 @@ namespace corundum::world {
     return build_single_map_view(no_area(), cfg);
   }
 
+  core::math::IsometricParams projection_of(const MapView &map, const core::GameConfig &cfg) noexcept {
+    return {
+        .half_tw = map.half_tw,
+        .half_th = map.half_th,
+        .x_origin = map.x_origin,
+        .elev_step = cfg.elevation_step_px * map.tile_scale,
+    };
+  }
+
   WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float half_th) noexcept {
     return tilemap::world_bounds_for_tiles(tm.width, tm.height, half_tw, half_th);
   }

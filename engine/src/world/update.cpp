@@ -192,12 +192,7 @@ namespace corundum::world {
     // camera tracking (cell-center anchor), and tile picking share the same params.
     // elev_step is pre-multiplied by tile_scale to match the renderer's already-scaled
     // iso.elev_step (see compute_isometric_params()).
-    const corundum::core::math::IsometricParams iso{
-        .half_tw = map.half_tw,
-        .half_th = map.half_th,
-        .x_origin = map.x_origin,
-        .elev_step = cfg.elevation_step_px * map.tile_scale,
-    };
+    const corundum::core::math::IsometricParams iso = projection_of(map, cfg);
     scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, iso);
 
     switch (scene.mode()) {

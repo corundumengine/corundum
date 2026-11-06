@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/isometric.hpp>
+#include <corundum/core/math/vec.hpp>
 
 #include <optional>
 
@@ -23,6 +24,17 @@ namespace corundum::world {
     int row{};
 
     [[nodiscard]] friend bool operator==(const TileCoord &, const TileCoord &) noexcept = default;
+  };
+
+  /** @brief A tile's four corners in world pixels, at its elevation. */
+  struct TileDiamond {
+    core::math::Vec2 bottom{};
+
+    core::math::Vec2 left{};
+
+    core::math::Vec2 right{};
+
+    core::math::Vec2 top{};
   };
 
   /**
@@ -56,5 +68,10 @@ namespace corundum::world {
    */
   [[nodiscard]] std::optional<TileCoord> pick_tile(float mouse_x, float mouse_y, const Camera &camera,
                                                    const MapView &map, const core::math::IsometricParams &iso) noexcept;
+
+  /** @brief The corners of @p tile, for drawing its outline in world view.
+   *  @param elevation The tile's whole-tile height, as discrete_elevation_at gives it. */
+  [[nodiscard]] TileDiamond tile_diamond(TileCoord tile, int elevation,
+                                         const core::math::IsometricParams &iso) noexcept;
 
 } // namespace corundum::world

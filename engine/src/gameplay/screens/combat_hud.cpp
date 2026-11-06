@@ -111,12 +111,19 @@ namespace corundum::gameplay::screens {
       return row.status_labels.empty() ? body_line_height(style) : 2.f * body_line_height(style);
     }
 
+    /// A row's name colour: the selected colour for the fight's target, else the hostile's own.
+    core::math::Colour row_colour(const ui::PanelStyle &style, const CombatHudRow &row) noexcept {
+      if (row.is_target)
+        return style.selected;
+      return row.is_hostile ? style.speaker : style.body;
+    }
+
     /// Draw one combatant's row from the top of its cell and return the y below it.
     float draw_row(platform::Renderer &r, const ui::PanelStyle &style, const CombatHudRow &row, std::string_view text,
                    std::string_view statuses, core::math::Vec2 pos, float bar_width) {
       const float x = pos.x;
       float y = pos.y;
-      draw_text(r, style, text, pos, style.font_size_body, row.is_hostile ? style.speaker : style.body);
+      draw_text(r, style, text, pos, style.font_size_body, row_colour(style, row));
       y += body_line_height(style);
 
       if (!statuses.empty()) {

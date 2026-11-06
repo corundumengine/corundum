@@ -45,6 +45,7 @@ namespace corundum::render {
    *  @param[in]     win_w   Live window width in screen pixels.
    *  @param[in]     win_h   Live window height in screen pixels.
    *  @post The renderer's view is reset to screen space, ready for overlay drawing.
+   *  @post state.world_view holds the view the world was drawn with.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
               const corundum::world::Scene &scene, float alpha, int win_w, int win_h);

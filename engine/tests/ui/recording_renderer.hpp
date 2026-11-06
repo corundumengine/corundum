@@ -30,6 +30,12 @@ namespace corundum::test {
     // point into this container.
     std::deque<std::string> text_owner{};
 
+    std::vector<platform::DrawLine> world_lines{}; ///< Lines drawn in world view; screen-space lines are dropped.
+
+    core::math::Vec2 world_view_camera{}; ///< The last set_world_view's top-left.
+
+    bool is_world_view{}; ///< True between set_world_view() and reset_screen_view().
+
     std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override {
       return 1u;
     }
@@ -44,9 +50,14 @@ namespace corundum::test {
 
     void purge_unused_textures() override {}
 
-    void set_world_view(core::math::Vec2 /*top_left*/, core::math::Vec2 /*viewport_size*/, float /*zoom*/) override {}
+    void set_world_view(core::math::Vec2 top_left, core::math::Vec2 /*viewport_size*/, float /*zoom*/) override {
+      world_view_camera = top_left;
+      is_world_view = true;
+    }
 
-    void reset_screen_view() override {}
+    void reset_screen_view() override {
+      is_world_view = false;
+    }
 
     bool begin_frame(core::math::Colour /*clear_colour*/) override {
       return true;
@@ -69,7 +80,10 @@ namespace corundum::test {
       log.emplace_back(cmd);
     }
 
-    void draw(const platform::DrawLine & /*cmd*/) override {}
+    void draw(const platform::DrawLine &cmd) override {
+      if (is_world_view)
+        world_lines.push_back(cmd);
+    }
 
     [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text,
                                      uint32_t /*char_size*/) const override {

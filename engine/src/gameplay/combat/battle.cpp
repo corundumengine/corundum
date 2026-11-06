@@ -139,14 +139,16 @@ namespace corundum::gameplay::combat {
       return (columns_back == 0 || columns_back == 1) && (rows_back == 0 || rows_back == 1);
     }
 
-    /// Copy each combatant's current numbers and status labels into @p rows.
+    /// Copy each combatant's current numbers and status labels into @p rows; the row at @p target
+    /// is marked as the fight's target.
     void refresh_rows(const Encounter &encounter, const rules::CombatContext &context,
-                      std::span<screens::CombatHudRow> rows) {
+                      std::span<screens::CombatHudRow> rows, std::size_t target) {
       const int command_point = encounter.command_point_beats();
       for (std::size_t i = 0; i < rows.size(); ++i) {
         rows[i].command_point_beats = command_point;
         rows[i].health = encounter.health(context, i);
         rows[i].is_hostile = encounter.side(i) == Side::Hostile;
+        rows[i].is_target = i == target;
         rows[i].is_winding_up = encounter.phase(i) == Phase::WindUp;
         rows[i].marker_beats = encounter.beats(i);
         rows[i].status_labels = encounter.status(i).labels;
@@ -183,10 +185,11 @@ namespace corundum::gameplay::combat {
         slots[i].gamepad_action = gamepad_action_of(first + i, page);
     }
 
-    /// Copy the encounter's current numbers into @p hud, in place, for the gamepad page @p page.
-    void refresh_hud(const Encounter &encounter, const rules::CombatContext &context, screens::CombatHud &hud,
-                     int page) {
-      refresh_rows(encounter, context, hud.rows);
+    /// Copy the encounter's current numbers into @p hud, in place, for the gamepad page @p page and
+    /// the fight's target.
+    void refresh_hud(const Encounter &encounter, const rules::CombatContext &context, screens::CombatHud &hud, int page,
+                     std::size_t target) {
+      refresh_rows(encounter, context, hud.rows, target);
       refresh_slots(encounter, hud.commands, hud.toggles);
       refresh_gamepad_actions(hud.commands, 0, page);
       refresh_gamepad_actions(hud.toggles, hud.commands.size(), page);
@@ -297,7 +300,7 @@ namespace corundum::gameplay::combat {
     for (std::size_t i = k_hostile; i < battle.encounter_.size(); ++i)
       battle.encounter_.order_attack(i, k_protagonist);
     battle.encounter_.order_attack(k_protagonist, battle.target_);
-    refresh_hud(battle.encounter_, context, battle.hud_, battle.page_);
+    refresh_hud(battle.encounter_, context, battle.hud_, battle.page_, battle.target_);
     engine.scene.is_player_held = !battle.encounter_.status(k_protagonist).can_move;
     return battle;
   }
@@ -495,7 +498,7 @@ namespace corundum::gameplay::combat {
     if (clock == Clock::Running)
       walk_hostiles(engine, map, context);
 
-    refresh_hud(encounter_, context, hud_, page_);
+    refresh_hud(encounter_, context, hud_, page_, target_);
     engine.scene.is_player_held = !encounter_.status(k_protagonist).can_move;
     step.outcome = encounter_.outcome();
     return step;

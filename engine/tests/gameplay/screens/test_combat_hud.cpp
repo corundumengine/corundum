@@ -289,3 +289,24 @@ TEST_CASE("combat HUD: a thick border leaves the command bar a margin from the v
   const corundum::platform::DrawRect command_panel = drawn_rects(r)[k_command_panel_rect];
   CHECK_EQ(command_panel.position.y + command_panel.size.y, doctest::Approx(k_viewport.y - style.margin));
 }
+
+TEST_CASE("combat HUD: the target's row draws its name in the selected colour") {
+  RecordingRenderer r;
+  const corundum::ui::PanelStyle style{};
+  screens::CombatHud hud = make_hud();
+  hud.rows[1].is_target = true;
+
+  render(r, hud, InputDevice::Keyboard, "");
+
+  CHECK(same_colour(colour_of(r, "Brann  3 / 7  Crushing Blow"), style.selected));
+  CHECK(same_colour(colour_of(r, "You  9 / 12"), style.body));
+}
+
+TEST_CASE("combat HUD: a hostile that isn't the target keeps its own colour") {
+  RecordingRenderer r;
+  const corundum::ui::PanelStyle style{};
+
+  render(r, make_hud(), InputDevice::Keyboard, "");
+
+  CHECK(same_colour(colour_of(r, "Brann  3 / 7  Crushing Blow"), style.speaker));
+}
