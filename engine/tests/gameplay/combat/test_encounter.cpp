@@ -113,6 +113,12 @@ namespace {
     return {};
   }
 
+  std::optional<rules::CommandResult> no_opportunity_attack(const rules::CombatContext & /*context*/,
+                                                            rules::Combatant & /*reactor*/,
+                                                            rules::Combatant & /*mover*/) {
+    return std::nullopt;
+  }
+
   /// A fight between creatures named by id, with the numbers in @p specs and each named after its
   /// id. Each starts with @p health Health. Every hit lands for 1 and reports "<attacker> hits
   /// <target>", or "<attacker> uses <command> on <target>"; bash Breaks, and trip and nudge Stagger.
@@ -153,6 +159,7 @@ namespace {
           joined.name = *combatant.creature;
           return joined;
         },
+        .opportunity_attack = no_opportunity_attack,
         .resolve =
             [](const rules::CombatContext &, std::string_view command, rules::Combatant &actor,
                rules::Combatant &target) {
@@ -212,6 +219,18 @@ namespace {
         combat::Encounter::start(std::move(combat_rules), k_context, {party("a"), hostile("b")}, /*steps_per_tick=*/1);
     REQUIRE(encounter.has_value());
     return std::move(*encounter);
+  }
+
+  /// Rules for "a" and "b", each at 80 beats with 2 Health, in which an opportunity attack takes 1
+  /// Health from the mover and returns @p result.
+  rules::CombatRules make_reacting_rules(rules::CommandResult result) {
+    rules::CombatRules reacting = make_rules(Specs{{"a", spec(80)}, {"b", spec(80)}}, 2);
+    reacting.opportunity_attack = [result = std::move(result)](const rules::CombatContext &, rules::Combatant &,
+                                                               rules::Combatant &mover) {
+      mover.state[k_health] -= 1;
+      return std::optional<rules::CommandResult>{result};
+    };
+    return reacting;
   }
 
   /// The default test rules for "a" and "b", with every Health at 2 and @p plans for the hostile.
@@ -999,4 +1018,74 @@ TEST_CASE("Encounter: a combatant not winding up isn't winding up at an enemy") 
   const combat::Encounter encounter = start_duel(spec(0), spec(0));
 
   CHECK_FALSE(encounter.is_winding_up_at_enemy(0));
+}
+
+TEST_CASE("Encounter: a declined opportunity attack reports nothing and hurts nobody") {
+  combat::Encounter encounter = start_duel(spec(0), spec(0));
+
+  const std::vector<std::string> reports = encounter.opportunity_attack(k_context, 1, 0);
+
+  CHECK(reports.empty());
+  CHECK_EQ(encounter.health(k_context, 0), rules::Health{.current = 2, .max = 2});
+}
+
+TEST_CASE("Encounter: a taken opportunity attack reports and lands on the mover") {
+  combat::Encounter encounter = start_with(make_reacting_rules({.report = "b swings at a"}));
+
+  const std::vector<std::string> reports = encounter.opportunity_attack(k_context, 1, 0);
+
+  CHECK_EQ(reports, std::vector<std::string>{"b swings at a"});
+  CHECK_EQ(encounter.health(k_context, 0), rules::Health{.current = 1, .max = 2});
+}
+
+TEST_CASE("Encounter: an opportunity attack leaves the reactor's marker where it was") {
+  combat::Encounter encounter = start_with(make_reacting_rules({.report = "b swings at a"}));
+
+  std::ignore = encounter.opportunity_attack(k_context, 1, 0);
+
+  CHECK_EQ(encounter.beats(1), 80);
+}
+
+TEST_CASE("Encounter: an opportunity attack's Stagger knocks the mover's marker back") {
+  combat::Encounter encounter = start_with(make_reacting_rules({.report = "b swings at a", .stagger_beats = 30}));
+
+  std::ignore = encounter.opportunity_attack(k_context, 1, 0);
+
+  CHECK_EQ(encounter.beats(0), 50);
+}
+
+TEST_CASE("Encounter: an opportunity attack that Breaks ends the mover's wind-up") {
+  combat::Encounter encounter = start_with(make_reacting_rules({.breaks = true, .report = "b swings at a"}));
+  encounter.order_attack(0, 1);
+  std::ignore = encounter.update(k_context, k_adjacent);
+  REQUIRE_EQ(encounter.phase(0), combat::Phase::WindUp);
+
+  const std::vector<std::string> reports = encounter.opportunity_attack(k_context, 1, 0);
+
+  CHECK_EQ(reports, std::vector<std::string>{"b swings at a", "a: Attack broken"});
+  CHECK_EQ(encounter.phase(0), combat::Phase::Ready);
+  CHECK_EQ(encounter.beats(0), 10);
+}
+
+TEST_CASE("Encounter: an opportunity attack refreshes statuses at once") {
+  rules::CombatRules reacting = make_reacting_rules({.report = "b swings at a"});
+  reacting.status = [](const rules::CombatContext &, const rules::Combatant &combatant) {
+    return rules::CombatantStatus{.labels = {std::format("Health {}", combatant.state.find(k_health)->second)}};
+  };
+  combat::Encounter encounter = start_with(std::move(reacting));
+
+  std::ignore = encounter.opportunity_attack(k_context, 1, 0);
+
+  CHECK_EQ(encounter.status(0).labels, std::vector<std::string>{"Health 1"});
+}
+
+TEST_CASE("Encounter::start refuses rules with no opportunity_attack callback") {
+  rules::CombatRules incomplete = make_rules(Specs{{"a", spec(0)}, {"b", spec(0)}}, 2);
+  incomplete.opportunity_attack = {};
+
+  const std::expected<combat::Encounter, std::string> encounter =
+      combat::Encounter::start(std::move(incomplete), k_context, {party("a"), hostile("b")}, /*steps_per_tick=*/1);
+
+  REQUIRE_FALSE(encounter.has_value());
+  CHECK_EQ(encounter.error(), "[gameplay] the combat rules have no 'opportunity_attack' callback");
 }

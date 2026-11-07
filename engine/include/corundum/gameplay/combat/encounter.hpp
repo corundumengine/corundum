@@ -19,8 +19,9 @@
 // standing attack) and drops back when the command lands or fizzles. A command's result can Break
 // or Stagger its target's marker. A combatant's turn starts when its marker reaches the command
 // point and ends when its command lands, fizzles, is cancelled or is Broken; the rules hear both,
-// and every tick. Combatants are indices, positions are tiles and the numbers come from
-// rules::CombatRules; combat::Battle maps an encounter onto the scene.
+// every tick, and each opportunity attack Battle reports. Combatants are indices, positions are
+// tiles and the numbers come from rules::CombatRules; combat::Battle maps an encounter onto the
+// scene.
 namespace corundum::gameplay::combat {
 
   /** @brief The standing attack's label, on the command bar and as the name of its wind-up. */
@@ -93,6 +94,14 @@ namespace corundum::gameplay::combat {
      *  @pre actor < size() and option < toggles(actor).size(). */
     void toggle(const rules::CombatContext &context, std::size_t actor, std::size_t option);
 
+    /** @brief @p mover has just walked out of @p reactor's reach: ask the rules for @p reactor's
+     *  opportunity attack, and apply what it did to @p mover as a landed command's result, Break
+     *  then Stagger. It costs @p reactor no time: its marker doesn't move, and a wind-up goes on.
+     *  @return The attack's report, then any Break's; empty when the rules declined.
+     *  @pre Both indices are below size(), on different sides, and both combatants can act. */
+    [[nodiscard]] std::vector<std::string> opportunity_attack(const rules::CombatContext &context, std::size_t reactor,
+                                                              std::size_t mover);
+
     /** @brief Advance one fixed step; every steps_per_tick-th step is a tick. Does nothing once
      *  outcome() is set.
      *  @param tiles Each combatant's tile, by index.
@@ -127,7 +136,7 @@ namespace corundum::gameplay::combat {
     [[nodiscard]] std::span<const rules::ToggleOption> toggles(std::size_t index) const { return toggles_[index]; }
 
     /** @brief @p index's status, as CombatRules::status last gave it: at the start, or after the
-     *  last tick, move order or toggle. */
+     *  last tick, move order, toggle or opportunity attack. */
     [[nodiscard]] const rules::CombatantStatus &status(std::size_t index) const { return statuses_[index]; }
 
     /** @brief The label of the command @p index is winding up (k_attack_label for the standing

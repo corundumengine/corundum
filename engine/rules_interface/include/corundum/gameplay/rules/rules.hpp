@@ -19,9 +19,10 @@
 // it reads and writes that state through FlagReader and FlagWriter, never the FlagStore itself.
 // State that lasts one encounter (a creature's damage, a command's uses this fight, conditions and
 // resources such as Momentum) lives in the Combatant and ends with the encounter. The framework
-// tells the rules when each combatant's turn starts and ends and when a tick passes, and enforces
-// what CombatRules::status says. This header is part of corundum::rules_interface and
-// includes no other corundum header, so a ruleset builds against that target alone.
+// tells the rules when each combatant's turn starts and ends, when a tick passes and when a
+// combatant walks out of an enemy's reach, and enforces what CombatRules::status says. This
+// header is part of corundum::rules_interface and includes no other corundum header, so a
+// ruleset builds against that target alone.
 namespace corundum::gameplay::rules {
 
   /** @brief One "label: value" row a ruleset supplies for display, such as {"Strength", "+2"}. */
@@ -227,6 +228,13 @@ namespace corundum::gameplay::rules {
      *  error (an unknown creature, no weapon) stops the fight from starting. */
     std::function<std::expected<CombatantSpec, std::string>(const CombatContext &, Combatant &)> join{};
 
+    /** @p mover has just walked out of @p reactor's reach, and they are on opposite sides: take
+     *  @p reactor's opportunity attack, or nullopt to decline. A taken attack rolls and applies its
+     *  damage as resolve does. The framework counts no reactions; who may react, and how often, is
+     *  the ruleset's. */
+    std::function<std::optional<CommandResult>(const CombatContext &, Combatant &reactor, Combatant &mover)>
+        opportunity_attack{};
+
     /** Carry out @p command (empty for the standing attack) by @p actor on @p target, already in
      *  reach: roll, apply the damage to @p target's state (or, for the protagonist, the flags), and
      *  say what happened. @p actor and @p target are different combatants. */
@@ -242,7 +250,8 @@ namespace corundum::gameplay::rules {
     std::function<std::vector<std::string>(const CombatContext &, Combatant &)> start_turn{};
 
     /** What the framework enforces and shows for the combatant. Asked at the start, after every
-     *  tick, after a move order and after a toggle; nothing else may change it. */
+     *  tick, after a move order, after a toggle and after an opportunity attack; nothing else may
+     *  change it. */
     std::function<CombatantStatus(const CombatContext &, const Combatant &)> status{};
 
     /** Once per tick for every combatant that can act, after its marker moved (or was held): count

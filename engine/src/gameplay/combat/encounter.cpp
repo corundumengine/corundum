@@ -9,6 +9,7 @@
 #include <corundum/world/picking.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <expected>
@@ -31,34 +32,36 @@ namespace corundum::gameplay::combat {
       int beats{};
     };
 
+    /// @p name when @p callback is empty, and nullopt when it is set.
+    template <typename Callback>
+    [[nodiscard]] std::optional<std::string_view> missing_callback(std::string_view name, const Callback &callback) {
+      if (callback)
+        return std::nullopt;
+      return name;
+    }
+
     /// The name of the first empty callback in @p rules, in declaration order; nullopt when all are set.
     [[nodiscard]] std::optional<std::string_view> first_missing_callback(const rules::CombatRules &rules) {
-      if (!rules.can_act)
-        return "can_act";
-      if (!rules.commands)
-        return "commands";
-      if (!rules.end_turn)
-        return "end_turn";
-      if (!rules.health)
-        return "health";
-      if (!rules.hostile_command)
-        return "hostile_command";
-      if (!rules.join)
-        return "join";
-      if (!rules.resolve)
-        return "resolve";
-      if (!rules.resolve_self)
-        return "resolve_self";
-      if (!rules.start_turn)
-        return "start_turn";
-      if (!rules.status)
-        return "status";
-      if (!rules.tick)
-        return "tick";
-      if (!rules.toggle)
-        return "toggle";
-      if (!rules.toggles)
-        return "toggles";
+      const std::array checks{
+          missing_callback("can_act", rules.can_act),
+          missing_callback("commands", rules.commands),
+          missing_callback("end_turn", rules.end_turn),
+          missing_callback("health", rules.health),
+          missing_callback("hostile_command", rules.hostile_command),
+          missing_callback("join", rules.join),
+          missing_callback("opportunity_attack", rules.opportunity_attack),
+          missing_callback("resolve", rules.resolve),
+          missing_callback("resolve_self", rules.resolve_self),
+          missing_callback("start_turn", rules.start_turn),
+          missing_callback("status", rules.status),
+          missing_callback("tick", rules.tick),
+          missing_callback("toggle", rules.toggle),
+          missing_callback("toggles", rules.toggles),
+      };
+      for (const std::optional<std::string_view> &check : checks) {
+        if (check)
+          return check;
+      }
       return std::nullopt;
     }
 
@@ -462,6 +465,27 @@ namespace corundum::gameplay::combat {
     rules_.toggle(context, combatants_[actor], toggles_[actor][option].id);
     refresh_options(rules_, context, combatants_, commands_, toggles_);
     refresh_statuses(rules_, context, combatants_, statuses_);
+  }
+
+  std::vector<std::string> Encounter::opportunity_attack(const rules::CombatContext &context, std::size_t reactor,
+                                                         std::size_t mover) {
+    assert(reactor < size());
+    assert(mover < size());
+    assert(sides_[reactor] != sides_[mover]);
+    assert(can_act(context, reactor));
+    assert(can_act(context, mover));
+
+    std::optional<rules::CommandResult> result =
+        rules_.opportunity_attack(context, combatants_[reactor], combatants_[mover]);
+    if (!result)
+      return {};
+
+    std::vector<std::string> reports;
+    reports.push_back(std::move(result->report));
+    apply_result(rules_, context, combatants_, specs_, markers_, mover, *result, reports);
+    refresh_options(rules_, context, combatants_, commands_, toggles_);
+    refresh_statuses(rules_, context, combatants_, statuses_);
+    return reports;
   }
 
   EncounterStep Encounter::update(const rules::CombatContext &context, std::span<const world::TileCoord> tiles) {

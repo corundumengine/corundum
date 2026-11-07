@@ -193,6 +193,12 @@ namespace corundum::gameplay::combat {
       animation::play_clip(world.sprites, world.animations, world.facings, world.clips, entity, clip);
     }
 
+    /// Turn @p entity, standing on @p from, toward @p to.
+    void turn_toward(entities::World &world, entities::EntityId entity, world::TileCoord from, world::TileCoord to) {
+      world.facings.dir_ref(entity) =
+          core::direction_from_tile_delta(static_cast<float>(to.col - from.col), static_cast<float>(to.row - from.row));
+    }
+
     /// Leave @p entity as a corpse playing @p die: gone from the fight, the paths and the dialogue,
     /// and from any lookup by actor id. The clip removes it when it ends.
     void become_corpse(entities::World &world, entities::EntityId entity, const entities::Clip &die) {
@@ -404,6 +410,7 @@ namespace corundum::gameplay::combat {
   }
 
   void Battle::open_fight(Engine &engine, std::size_t target) {
+    walked_from_ = tiles_;
     const rules::CombatContext context = make_combat_context(engine);
     for (std::size_t i = 0; i < encounter_.size(); ++i)
       healths_.push_back(encounter_.health(context, i).current);
@@ -413,6 +420,41 @@ namespace corundum::gameplay::combat {
     encounter_.order_attack(k_protagonist, target_);
     refresh_hud(encounter_, context, hud_, page_, target_);
     engine.scene.is_player_held = !encounter_.status(k_protagonist).can_move;
+  }
+
+  void Battle::resolve_opportunity_attacks(entities::World &world, const rules::CombatContext &context,
+                                           std::vector<std::string> &reports) {
+    for (std::size_t mover = 0; mover < tiles_.size(); ++mover) {
+      if (tiles_[mover] == walked_from_[mover])
+        continue;
+      for (std::size_t reactor = 0; reactor < tiles_.size(); ++reactor) {
+        if (has_left_reach(mover, reactor))
+          offer_opportunity_attack(world, context, reactor, mover, reports);
+      }
+    }
+    walked_from_ = tiles_;
+  }
+
+  bool Battle::has_left_reach(std::size_t mover, std::size_t reactor) const {
+    if (encounter_.side(mover) == encounter_.side(reactor))
+      return false;
+    const int reach = encounter_.spec(reactor).reach_tiles;
+    const bool was_in_reach = world::tile_distance(walked_from_[mover], tiles_[reactor]) <= reach;
+    const bool is_in_reach = world::tile_distance(tiles_[mover], tiles_[reactor]) <= reach;
+    return was_in_reach && !is_in_reach;
+  }
+
+  void Battle::offer_opportunity_attack(entities::World &world, const rules::CombatContext &context,
+                                        std::size_t reactor, std::size_t mover, std::vector<std::string> &reports) {
+    const std::optional<entities::EntityId> reactor_entity = fighting_entity(context, reactor);
+    if (!reactor_entity || !is_fighting(context, mover))
+      return;
+    std::vector<std::string> taken = encounter_.opportunity_attack(context, reactor, mover);
+    if (taken.empty())
+      return;
+    play_reaction_clip(world, reactor, *reactor_entity, walked_from_[mover]);
+    for (std::string &report : taken)
+      reports.push_back(std::move(report));
   }
 
   void Battle::read_orders(const Engine &engine, const rules::CombatContext &context, Clock clock,
@@ -603,6 +645,7 @@ namespace corundum::gameplay::combat {
 
     if (clock == Clock::Running) {
       const AttackOrder before = encounter_.target_of(k_protagonist) ? AttackOrder::Standing : AttackOrder::None;
+      resolve_opportunity_attacks(engine.scene.world, context, step.reports);
       EncounterStep advanced = encounter_.update(context, tiles_);
       for (std::string &report : advanced.reports)
         step.reports.push_back(std::move(report));
@@ -716,15 +759,21 @@ namespace corundum::gameplay::combat {
     if (!attack || !target || !entity || !encounter_.is_winding_up_at_enemy(index))
       return;
 
-    const world::TileCoord from = tiles_[index];
-    const world::TileCoord to = tiles_[*target];
-    world.facings.dir_ref(*entity) =
-        core::direction_from_tile_delta(static_cast<float>(to.col - from.col), static_cast<float>(to.row - from.row));
+    turn_toward(world, *entity, tiles_[index], tiles_[*target]);
 
     entities::Clip timed = *attack;
     const float clip_seconds = k_clip_seconds_per_windup_second * encounter_.windup_seconds(index);
     timed.frame_duration = clip_seconds / static_cast<float>(std::ranges::max(attack->frame_counts));
     play(world, *entity, timed);
+  }
+
+  void Battle::play_reaction_clip(entities::World &world, std::size_t reactor, entities::EntityId entity,
+                                  world::TileCoord mover_tile) {
+    const std::optional<entities::Clip> &attack = clips_[reactor].attack;
+    if (!attack || encounter_.phase(reactor) == Phase::WindUp)
+      return;
+    turn_toward(world, entity, tiles_[reactor], mover_tile);
+    play(world, entity, *attack);
   }
 
   void Battle::play_hurt_clips(entities::World &world, const rules::CombatContext &context) {

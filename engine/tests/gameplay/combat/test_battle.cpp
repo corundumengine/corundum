@@ -8,6 +8,7 @@
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/animation_table.hpp>
 #include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/gameplay/combat/battle.hpp>
@@ -283,6 +284,27 @@ namespace {
   TileCoord standing_tile(const Fight &fight, EntityId entity) {
     const auto &transforms = fight.engine->scene.world.transforms;
     return corundum::world::tile_of(transforms.pos_col(entity), transforms.pos_row(entity));
+  }
+
+  /// Put @p entity on @p tile, as a walk would have by now, and run the step that notices.
+  void walk_to(Fight &fight, EntityId entity, TileCoord tile) {
+    place(*fight.engine, entity, tile);
+    step(fight);
+  }
+
+  /// Give every hostile @p reach_tiles of reach; the flat rules give everyone 1. Call it before the
+  /// fight starts.
+  void set_hostile_reach(Fight &fight, int reach_tiles) {
+    using corundum::gameplay::rules::Combatant;
+    using corundum::gameplay::rules::CombatantSpec;
+    using corundum::gameplay::rules::CombatContext;
+    corundum::gameplay::rules::CombatRules &combat = combat_rules(fight);
+    combat.join = [join = combat.join, reach_tiles](const CombatContext &context, Combatant &combatant) {
+      std::expected<CombatantSpec, std::string> joined = join(context, combatant);
+      if (joined && combatant.creature)
+        joined->reach_tiles = reach_tiles;
+      return joined;
+    };
   }
 
 } // namespace
@@ -1589,4 +1611,192 @@ TEST_CASE("combat: a fight that loses a combatant from the scene stands the othe
 
   CHECK_FALSE(fight->gameplay->battle.has_value());
   CHECK_FALSE(fight->engine->scene.world.motion_sprites.is_in_stance(player));
+}
+
+TEST_CASE("combat: walking out of a hostile's reach draws its opportunity attack") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
+
+  CHECK_EQ(last_toast(*fight->engine), "grunt strikes hero");
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 1);
+}
+
+TEST_CASE("combat: a hostile walking out of the protagonist's reach draws the protagonist's attack") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  walk_to(*fight, fight->foe, {.col = 12, .row = 8});
+
+  CHECK_EQ(last_toast(*fight->engine), "hero strikes grunt");
+  CHECK_EQ(battle_of(*fight).hud().rows[1].health.current, 1);
+}
+
+TEST_CASE("combat: a step that stays in a hostile's reach draws nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 9});
+
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
+}
+
+TEST_CASE("combat: a walk that was never in a hostile's reach draws nothing") {
+  const auto fight = make_fight({.col = 12, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 7, .row = 8});
+
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
+}
+
+TEST_CASE("combat: a longer reach draws its attack only past its own edge") {
+  const auto fight = make_fight({.col = 10, .row = 8});
+  set_hostile_reach(*fight, 2);
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 7, .row = 8});
+
+  CHECK_EQ(last_toast(*fight->engine), "grunt strikes hero");
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 1);
+}
+
+TEST_CASE("combat: a step that ends on the edge of a longer reach draws nothing") {
+  const auto fight = make_fight({.col = 10, .row = 8});
+  set_hostile_reach(*fight, 2);
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 10});
+
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
+}
+
+TEST_CASE("combat: where a fight starts isn't a walk") {
+  const auto fight = make_fight({.col = 1, .row = 0});
+  place(*fight->engine, fight->engine->scene.player, {.col = 3, .row = 0});
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  step(*fight);
+
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
+}
+
+TEST_CASE("combat: a declined opportunity attack shows nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  start_fight(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
+
+  CHECK(fight->engine->toasts.empty());
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
+}
+
+TEST_CASE("combat: leaving two hostiles' reach at once draws both attacks, in combatant order") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  toughen_hero(*fight);
+  start_pair(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 11});
+
+  const std::size_t toasts = fight->engine->toasts.size();
+  REQUIRE_GE(toasts, 2u);
+  CHECK_EQ(fight->engine->toasts.at(toasts - 2).text, "first strikes hero");
+  CHECK_EQ(fight->engine->toasts.at(toasts - 1).text, "second strikes hero");
+}
+
+TEST_CASE("combat: an opportunity attack that downs the protagonist ends its walk and the fight") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  fight->engine->flags["test.hero.damage"] = 1;
+  start_fight(*fight);
+  fight->engine->scene.path = {{.col = 5, .row = 8}};
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
+
+  CHECK(fight->engine->scene.path.empty());
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  REQUIRE_EQ(fight->raised.size(), 1u);
+  CHECK_EQ(fight->raised[0].name, "encounter_lost");
+}
+
+TEST_CASE("combat: the first of two attacks that downs the protagonist stops the second") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  fight->engine->flags["test.hero.damage"] = 1;
+  start_pair(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 11});
+
+  CHECK_EQ(last_toast(*fight->engine), "first strikes hero");
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 2);
+}
+
+TEST_CASE("combat: an opportunity attack that downs a hostile removes it") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  add_foe(*fight, "a01", {.col = 12, .row = 12});
+  fight->engine->flags["test.reactions"] = 1;
+  start_pair(*fight);
+
+  walk_to(*fight, fight->foe, {.col = 11, .row = 8});
+  walk_to(*fight, fight->foe, {.col = 9, .row = 8});
+  walk_to(*fight, fight->foe, {.col = 11, .row = 8});
+
+  CHECK_FALSE(fight->engine->scene.world.entities.is_live(fight->foe));
+  CHECK(fight->gameplay->battle.has_value());
+}
+
+TEST_CASE("combat: a tile change while paused is judged when the clock runs again") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+  press(*fight, Action::Pause);
+  REQUIRE_EQ(fight->engine->scene.mode(), screens::CombatPaused);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
+  REQUIRE_EQ(fight->engine->flags["test.hero.damage"], 0);
+  press(*fight, Action::Pause);
+
+  CHECK_EQ(fight->engine->flags["test.hero.damage"], 1);
+}
+
+TEST_CASE("combat: an opportunity attack turns the reactor to the mover and plays its attack clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  dress_as_fighter(*fight, fight->foe);
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
+
+  const auto &world = fight->engine->scene.world;
+  REQUIRE(plays(*fight, fight->foe, "fighter_attack"));
+  // The mover's last tile, (8, 8), is one column back from the foe on (9, 8).
+  CHECK_EQ(world.facings.dir_of(fight->foe), corundum::core::Direction::NorthWest);
+  // fighter_attack names no fps, so the sheet's speed is the default.
+  CHECK(world.clips.frame_duration_of(fight->foe) == doctest::Approx(corundum::entities::k_default_frame_duration));
+}
+
+TEST_CASE("combat: a reactor already winding up keeps its timed clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  dress_as_fighter(*fight, fight->foe);
+  fight->engine->flags["test.reactions"] = 1;
+  start_fight(*fight);
+  step_until_playing(*fight, fight->foe, "fighter_attack");
+  REQUIRE(plays(*fight, fight->foe, "fighter_attack"));
+
+  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
+
+  REQUIRE_EQ(fight->engine->flags["test.hero.damage"], 1);
+  // One tick of wind-up at 1/60 s, doubled and spread over the sheet's 4 frames.
+  CHECK(fight->engine->scene.world.clips.frame_duration_of(fight->foe) == doctest::Approx(1.f / 120.f));
 }

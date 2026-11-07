@@ -52,6 +52,9 @@ namespace corundum::test {
   /// 0; toggling flips the flag. The hero can't move while the `test.hero.rooted` flag is above 0,
   /// nor can the creature "statue"; the hero's status labels are {"Guard"} while guarded. Turns and
   /// ticks do nothing.
+  ///
+  /// While the `test.reactions` flag is above 0, anyone who leaves an enemy's reach takes a 1-point
+  /// opportunity attack, reporting "<reactor> strikes <mover>"; otherwise it's declined.
   inline gameplay::rules::CombatRules make_flat_combat_rules() {
     using gameplay::rules::CombatContext;
     using gameplay::rules::Combatant;
@@ -60,6 +63,12 @@ namespace corundum::test {
     using gameplay::rules::CommandResult;
     using gameplay::rules::CommandTarget;
     const auto name_of = [](const Combatant &combatant) { return combatant.creature.value_or("hero"); };
+    const auto take_hit = [](const CombatContext &context, Combatant &target) {
+      if (target.creature)
+        target.state[k_flat_health_key] -= 1;
+      else
+        context.flag_writer.write("test.hero.damage", context.flags.read("test.hero.damage") + 1);
+    };
     const auto health_of = [](const CombatContext &context, const Combatant &combatant) {
       if (!combatant.creature)
         return gameplay::rules::Health{
@@ -143,12 +152,18 @@ namespace corundum::test {
               .start_beats = 0,
           };
         },
+        .opportunity_attack =
+            [name_of, take_hit](const CombatContext &context, Combatant &reactor,
+                                Combatant &mover) -> std::optional<CommandResult> {
+          if (context.flags.read("test.reactions") <= 0)
+            return std::nullopt;
+          take_hit(context, mover);
+          return CommandResult{.report = std::format("{} strikes {}", name_of(reactor), name_of(mover))};
+        },
         .resolve =
-            [name_of](const CombatContext &context, std::string_view command, Combatant &actor, Combatant &target) {
-              if (target.creature)
-                target.state[k_flat_health_key] -= 1;
-              else
-                context.flag_writer.write("test.hero.damage", context.flags.read("test.hero.damage") + 1);
+            [name_of, take_hit](const CombatContext &context, std::string_view command, Combatant &actor,
+                                Combatant &target) {
+              take_hit(context, target);
               const std::string verb = command.empty() ? "hits" : std::format("uses {} on", command);
               return CommandResult{
                   .breaks = command == "bash",
