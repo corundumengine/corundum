@@ -9,6 +9,7 @@
 #include <corundum/entities/tables/table_concepts.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <cstdint>
+#include <optional>
 #include <span>
 
 namespace corundum::entities {
@@ -87,6 +88,11 @@ namespace corundum::entities {
      *  @pre has(e) must be true.
      */
     [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept { return index.dense_index(e); }
+
+    /** @brief Dense row index for @p e, or nullopt when @p e is stale, foreign or absent. Never aborts. */
+    [[nodiscard]] std::optional<std::uint32_t> try_dense_index(EntityId e) const noexcept {
+      return index.try_dense_index(e);
+    }
 
     /** @brief Mutable reference to the sprite ID for @p e. @pre has(e). */
     [[nodiscard]] corundum::sprites::SpriteId &sprite_id_ref(EntityId e) noexcept {

@@ -10,6 +10,7 @@
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -56,9 +57,9 @@ namespace corundum::gameplay::screens {
 
   /** @brief Which three slots a gamepad's A, Y and B press: slots 3 × index to 3 × index + 2. */
   struct CombatHudPage {
-    int count{1};
+    std::size_t count{1};
 
-    int index{}; ///< Below count.
+    std::size_t index{}; ///< Below count.
   };
 
   /** @brief What the combat HUD shows: the command bar and one row per combatant. */

@@ -368,6 +368,21 @@ TEST_CASE("combat: the timeline holds while the fight is paused") {
   CHECK_EQ(encounter_of(*fight).beats(combat::Battle::k_hostile), 20);
 }
 
+TEST_CASE("combat: a paused fight holds the protagonist's path until it runs again") {
+  const auto fight = make_fight({.col = 10, .row = 8});
+  start_fight(*fight);
+  step(*fight);
+  REQUIRE_EQ(fight->engine->scene.path, std::vector<TileCoord>{{.col = 9, .row = 8}});
+
+  press(*fight, Action::Pause);
+
+  CHECK(fight->engine->scene.path.empty());
+
+  press(*fight, Action::Pause);
+
+  CHECK_EQ(fight->engine->scene.path, std::vector<TileCoord>{{.col = 9, .row = 8}});
+}
+
 TEST_CASE("combat: the protagonist starts the fight with a standing attack on the hostile") {
   const auto fight = make_fight({.col = 9, .row = 8});
 
@@ -959,6 +974,18 @@ TEST_CASE("combat: rules listing more slots than the bar holds can't start the f
            "The fight can't start: [gameplay] the command bar holds 9 slots; the rules list 10");
 }
 
+TEST_CASE("combat: start_encounter whose hostiles can't act toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->flags["test.felled"] = 1;
+  fell_on_flag(*fight, "grunt");
+
+  start_fight(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] start_encounter: no hostile in this fight can act");
+}
+
 TEST_CASE("combat: start_encounter with two pairs starts a fight with both hostiles") {
   const auto fight = make_fight({.col = 9, .row = 8});
   add_foe(*fight, "a01", {.col = 7, .row = 8});
@@ -1002,6 +1029,17 @@ TEST_CASE("combat: start_encounter naming a second actor not in the area toasts 
   CHECK_FALSE(fight->gameplay->battle.has_value());
   CHECK_EQ(last_toast(*fight->engine),
            "The fight can't start: [gameplay] start_encounter: no actor 'nobody' in this area");
+}
+
+TEST_CASE("combat: start_encounter naming an actor with no position toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->scene.world.transforms.remove(fight->foe);
+
+  start_fight(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] start_encounter: actor 'a00' has no position in this area");
 }
 
 TEST_CASE("combat: start_encounter naming one actor twice toasts and starts nothing") {
@@ -1513,6 +1551,17 @@ TEST_CASE("combat: a combatant with no ready sheet fights without a stance") {
   start_fight(*fight);
 
   CHECK_FALSE(fight->engine->scene.world.motion_sprites.is_in_stance(player));
+}
+
+TEST_CASE("combat: a combatant with no sprite row starts the fight with no clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  fight->engine->scene.world.sprites.remove(fight->foe);
+
+  start_fight(*fight);
+
+  REQUIRE(fight->gameplay->battle.has_value());
+  CHECK_FALSE(fight->engine->scene.world.clips.has(fight->foe));
+  CHECK_EQ(encounter_of(*fight).size(), 2u);
 }
 
 TEST_CASE("combat: a won fight stands the protagonist down") {
