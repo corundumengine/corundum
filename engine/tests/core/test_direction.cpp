@@ -27,3 +27,16 @@ TEST_CASE("direction: unknown and clip-only names resolve to nullopt") {
   CHECK_FALSE(corundum::core::direction_from_name("sideways").has_value());
   CHECK_FALSE(corundum::core::direction_from_name("default").has_value());
 }
+
+TEST_CASE("direction_from_tile_delta: names the screen direction of a tile displacement") {
+  using corundum::core::direction_from_tile_delta;
+  CHECK_EQ(direction_from_tile_delta(1.f, 1.f), Direction::South);
+  CHECK_EQ(direction_from_tile_delta(-1.f, -1.f), Direction::North);
+  CHECK_EQ(direction_from_tile_delta(1.f, -1.f), Direction::East);
+  CHECK_EQ(direction_from_tile_delta(-1.f, 1.f), Direction::West);
+  CHECK_EQ(direction_from_tile_delta(1.f, 0.f), Direction::SouthEast);
+  CHECK_EQ(direction_from_tile_delta(-1.f, 0.f), Direction::NorthWest);
+  CHECK_EQ(direction_from_tile_delta(0.f, 1.f), Direction::SouthWest);
+  CHECK_EQ(direction_from_tile_delta(0.f, -1.f), Direction::NorthEast);
+  CHECK_EQ(direction_from_tile_delta(0.f, 0.f), Direction::North);
+}

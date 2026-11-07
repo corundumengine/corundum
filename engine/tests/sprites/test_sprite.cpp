@@ -43,3 +43,15 @@ TEST_CASE("frame_origin: col=0 row=0") {
   CHECK(p.x == 10);
   CHECK(p.y == 20);
 }
+
+TEST_CASE("frame_counts_of: counts each AnimId's frames") {
+  res::Frames frames;
+  frames.anim_frames[std::to_underlying(res::AnimId::South)] = {{0, 0}, {1, 0}, {2, 0}};
+  frames.anim_frames[std::to_underlying(res::AnimId::Default)] = {{0, 0}};
+
+  const auto counts = res::frame_counts_of(frames);
+
+  CHECK_EQ(counts[std::to_underlying(res::AnimId::South)], 3);
+  CHECK_EQ(counts[std::to_underlying(res::AnimId::Default)], 1);
+  CHECK_EQ(counts[std::to_underlying(res::AnimId::North)], 0);
+}

@@ -109,6 +109,16 @@ namespace corundum::entities {
                           static_cast<uint8_t>(anim_id)];
     }
 
+    /** @brief All of @p e's per-clip frame counts, indexed by AnimId. @pre has(e). */
+    [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> frame_counts_of(EntityId e) const noexcept {
+      assert(has(e));
+      const auto slot = index.dense_index(e);
+      std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
+      std::copy_n(&frame_counts[static_cast<std::size_t>(slot) * corundum::sprites::k_num_anim_ids],
+                  corundum::sprites::k_num_anim_ids, counts.begin());
+      return counts;
+    }
+
     /** @brief Bulk-set all per-clip frame counts for @p e (called once at spawn).
      *  @param[in] e      Entity whose counts to write.
      *  @param[in] counts Array indexed by AnimId; 0 means the clip is absent.

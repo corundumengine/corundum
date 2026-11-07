@@ -3,6 +3,7 @@
 
 #pragma once
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -46,6 +47,27 @@ namespace corundum::core {
       if (k_direction_names[i] == name)
         return static_cast<Direction>(i);
     return std::nullopt;
+  }
+
+  /** @brief Ratio above which the dominant tile axis counts as cardinal rather than diagonal. */
+  inline constexpr float k_cardinal_dominance_ratio = 2.f;
+
+  /** @brief The screen Direction nearest a tile-grid displacement.
+   *
+   *  The isometric projection rotates the grid 45° against the screen:
+   *    tile SE (+,+) is screen South, tile NW (-,-) is North,
+   *    tile NE (+,-) is East, tile SW (-,+) is West.
+   *  @note Zero displacement gives North. */
+  [[nodiscard]] inline Direction direction_from_tile_delta(float delta_col, float delta_row) noexcept {
+    const float abs_col = std::abs(delta_col);
+    const float abs_row = std::abs(delta_row);
+    if (abs_row > k_cardinal_dominance_ratio * abs_col)
+      return delta_row > 0.f ? Direction::SouthWest : Direction::NorthEast;
+    if (abs_col > k_cardinal_dominance_ratio * abs_row)
+      return delta_col > 0.f ? Direction::SouthEast : Direction::NorthWest;
+    if (delta_col > 0.f)
+      return delta_row > 0.f ? Direction::South : Direction::East;
+    return delta_row > 0.f ? Direction::West : Direction::North;
   }
 
 } // namespace corundum::core

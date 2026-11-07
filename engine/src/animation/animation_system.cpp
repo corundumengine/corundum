@@ -8,12 +8,14 @@
 
 #include <corundum/core/direction.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
+#include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/tables/facing_table.hpp>
 #include <corundum/entities/tables/motion_sprite_table.hpp>
 #include <corundum/entities/tables/sprite_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/sprites/sprite.hpp>
 
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -24,6 +26,9 @@ namespace corundum::animation {
   namespace {
     using corundum::core::Direction;
     using corundum::entities::AnimationTable;
+    using corundum::entities::Clip;
+    using corundum::entities::ClipEnd;
+    using corundum::entities::ClipTable;
     using corundum::entities::EntityId;
     using corundum::entities::FacingTable;
     using corundum::entities::MotionSpriteTable;
@@ -34,37 +39,9 @@ namespace corundum::animation {
     using corundum::sprites::SpriteId;
     using corundum::sprites::to_anim;
 
-    /// Axis-dominance zones: 0 = row-dominant, 1 = col-dominant, 2 = diagonal.
-    constexpr std::size_t k_facing_zone_count = 3;
-    /// Sign combinations (dr_sign, dc_sign) covered by each zone.
-    constexpr std::size_t k_facing_sign_count = 4;
-    /// Distinct dc_sign values, used to stride within one zone's sign block.
-    constexpr std::size_t k_facing_dc_sign_count = 2;
-
     /// Below this tile-space speed an entity counts as still. Physics writes an exact zero
     /// when idle, but a fractionally retained velocity must not read as motion.
     constexpr float k_motion_speed_epsilon = 1e-4f;
-
-    constexpr std::array k_facing_table = {
-        // zone 0 (row/vertical dominant: |dr| >> |dc|)
-        // row axis (dr) maps to NE/SW on screen; entries here use Direction in screen-space terms.
-        Direction::NorthEast, // dr<0, dc<0  (NE-ish on screen)
-        Direction::NorthEast, // dr<0, dc>0  (NE-ish on screen)
-        Direction::SouthWest, // dr>0, dc<0  (SW-ish on screen)
-        Direction::SouthWest, // dr>0, dc>0  (SW-ish on screen)
-        // zone 1 (col/horizontal dominant: |dc| >> |dr|)
-        // col axis (dc) maps to NW/SE on screen.
-        Direction::NorthWest, // dc<0, dr<0  (NW-ish on screen)
-        Direction::SouthEast, // dc>0, dr<0  (SE-ish on screen)
-        Direction::NorthWest, // dc<0, dr>0  (NW-ish on screen)
-        Direction::SouthEast, // dc>0, dr>0  (SE-ish on screen)
-        // zone 2 (diagonal: |dc| ≈ |dr|)
-        // Pure screen-cardinal directions from combined tile axes.
-        Direction::North, // dr<0, dc<0  (NW tile = up on screen)
-        Direction::East,  // dr<0, dc>0  (NE tile = right on screen)
-        Direction::West,  // dr>0, dc<0  (SW tile = left on screen)
-        Direction::South, // dr>0, dc>0  (SE tile = down on screen)
-    };
 
     // Fallbacks indexed by Direction value (AnimId's directional values mirror Direction).
     constexpr std::array k_cardinal_fallback_h = {
@@ -77,35 +54,12 @@ namespace corundum::animation {
         AnimId::North, AnimId::South, AnimId::South, AnimId::North,
     };
 
-    /// Ratio above which the dominant velocity axis snaps fully cardinal (zone 0 or 1)
-    /// instead of remaining diagonal (zone 2).
-    constexpr float k_cardinal_dominance_ratio = 2.f;
-
     // Deduced extents (CTAD) so these checks catch a table that no longer covers the full
-    // set — adding a Direction or a zone fails to compile instead of silently mis-indexing.
-    static_assert(k_facing_table.size() == k_facing_zone_count * k_facing_sign_count,
-                  "k_facing_table must cover every (zone, sign) combination");
+    // set — adding a Direction fails to compile instead of silently mis-indexing.
     static_assert(k_cardinal_fallback_h.size() == core::k_num_directions,
                   "k_cardinal_fallback_h must cover every Direction value");
     static_assert(k_cardinal_fallback_v.size() == core::k_num_directions,
                   "k_cardinal_fallback_v must cover every Direction value");
-
-    /** @brief Map a tile-space velocity to a screen-space facing direction.
-     *
-     * Splits the (|dr|, |dc|) plane into three zones by axis-dominance ratio, then
-     * indexes k_facing_table by (zone, dr_sign, dc_sign).
-     */
-    Direction facing_from_velocity(float abs_dc, float abs_dr, float vel_dc, float vel_dr) noexcept {
-      std::size_t zone{2};
-      if (abs_dr > k_cardinal_dominance_ratio * abs_dc) {
-        zone = 0;
-      } else if (abs_dc > k_cardinal_dominance_ratio * abs_dr) {
-        zone = 1;
-      }
-      const std::size_t dr_sign = vel_dr > 0.f ? 1 : 0;
-      const std::size_t dc_sign = vel_dc > 0.f ? 1 : 0;
-      return k_facing_table[(zone * k_facing_sign_count) + (dr_sign * k_facing_dc_sign_count) + dc_sign];
-    }
 
     /** @brief Row/vertical dominance of a resolved facing without a velocity to measure.
      *
@@ -230,13 +184,48 @@ namespace corundum::animation {
       sprite_frame_index = static_cast<uint8_t>((sprite_frame_index + frame_advance) % frame_count);
     }
 
+    /// Whether the velocity at dense slot @p transform_slot says the entity has moved this step.
+    [[nodiscard]] bool is_moving(const TransformTable &transforms, std::uint32_t transform_slot) noexcept {
+      return std::abs(transforms.dc[transform_slot]) > k_motion_speed_epsilon ||
+             std::abs(transforms.dr[transform_slot]) > k_motion_speed_epsilon;
+    }
+
+    /// Put @p e back on the sheet its clip interrupted, and drop the clip.
+    void resume_after_clip(SpriteTable &sprites, AnimationTable &animations, const FacingTable &facings,
+                           ClipTable &clips, EntityId e) noexcept {
+      sprites.sprite_id_ref(e) = clips.resume_sprite_of(e);
+      animations.set_frame_counts(e, clips.resume_counts_of(e));
+      animations.timer_ref(e) = 0.f;
+      sprites.frame_index_ref(e) = 0;
+      sprites.anim_id_ref(e) = pick_target_anim(animations, facings, e, /*moving=*/false, Direction::South);
+      clips.remove(e);
+    }
+
+    /// Advance @p e's clip by @p dt; returns true on the step it plays past its last frame.
+    [[nodiscard]] bool advance_clip(AnimationTable &animations, const ClipTable &clips, EntityId e,
+                                    uint8_t &frame_index, uint8_t frame_count, float dt) noexcept {
+      const float frame_duration = clips.frame_duration_of(e);
+      float &timer = animations.timer_ref(e);
+      timer += dt;
+      while (timer >= frame_duration) {
+        timer -= frame_duration;
+        if (frame_index + 1 >= frame_count)
+          return true;
+        ++frame_index;
+      }
+      return false;
+    }
+
   } // namespace
 
   void update(SpriteTable &sprites, const TransformTable &transforms, AnimationTable &animations, FacingTable &facings,
-              MotionSpriteTable &motion_sprites, core::math::IsometricParams iso, float reference_speed,
-              float dt) noexcept {
+              MotionSpriteTable &motion_sprites, const ClipTable &clips, core::math::IsometricParams iso,
+              float reference_speed, float dt) noexcept {
     for (uint32_t i = 0; i < animations.count; ++i) {
       const EntityId e = animations.index.entities[i];
+      if (clips.has(e)) [[unlikely]]
+        continue;
+
       if (!sprites.has(e) || !transforms.has(e)) [[unlikely]]
         continue;
 
@@ -249,15 +238,13 @@ namespace corundum::animation {
       const float vel_dc = transforms.dc[transform_slot];
       const float vel_dr = transforms.dr[transform_slot];
 
-      const float abs_dc = std::abs(vel_dc);
-      const float abs_dr = std::abs(vel_dr);
-      const bool moving = abs_dc > k_motion_speed_epsilon || abs_dr > k_motion_speed_epsilon;
+      const bool moving = is_moving(transforms, transform_slot);
 
       const float speed_scale = compute_speed_scale(moving, vel_dc, vel_dr, reference_speed, iso);
 
       tick_motion_sprite(sprites, animations, motion_sprites, e, moving, dt);
 
-      const Direction facing = moving ? facing_from_velocity(abs_dc, abs_dr, vel_dc, vel_dr) : Direction::South;
+      const Direction facing = moving ? core::direction_from_tile_delta(vel_dc, vel_dr) : Direction::South;
 
       if (moving && facings.has(e)) [[likely]]
         facings.dir_ref(e) = facing;
@@ -275,6 +262,46 @@ namespace corundum::animation {
       const float frame_duration = effective_frame_duration(animations, sprites, motion_sprites, e, i);
       const uint8_t frame_count = animations.frame_count(e, sprite_anim_id);
       advance_frame_timer(animation_timer, frame_duration, frame_count, sprite_frame_index, dt, speed_scale);
+    }
+  }
+
+  void play_clip(SpriteTable &sprites, AnimationTable &animations, const FacingTable &facings, ClipTable &clips,
+                 EntityId e, const Clip &clip) noexcept {
+    assert(clip.frame_duration > 0.f);
+    if (clips.has(e))
+      clips.replace(e, clip);
+    else
+      clips.insert(e, clip, sprites.sprite_id_ref(e), animations.frame_counts_of(e));
+    sprites.sprite_id_ref(e) = clip.sprite;
+    animations.set_frame_counts(e, clip.frame_counts);
+    animations.timer_ref(e) = 0.f;
+    sprites.frame_index_ref(e) = 0;
+    sprites.anim_id_ref(e) = pick_target_anim(animations, facings, e, /*moving=*/false, Direction::South);
+  }
+
+  void update_clips(SpriteTable &sprites, const TransformTable &transforms, AnimationTable &animations,
+                    const FacingTable &facings, ClipTable &clips, float dt) noexcept {
+    // Backwards: ending a Resume clip swaps the last row, already processed, into this one.
+    for (std::uint32_t i = clips.count; i-- > 0;) {
+      const EntityId e = clips.index.entities[i];
+      if (clips.is_finished[i])
+        continue;
+
+      const bool resumes = clips.end[i] == ClipEnd::Resume;
+      const bool moving = is_moving(transforms, transforms.dense_index(e));
+      if (resumes && moving) {
+        resume_after_clip(sprites, animations, facings, clips, e);
+        continue;
+      }
+
+      const AnimId anim = pick_target_anim(animations, facings, e, /*moving=*/false, Direction::South);
+      sprites.anim_id_ref(e) = anim;
+      if (!advance_clip(animations, clips, e, sprites.frame_index_ref(e), animations.frame_count(e, anim), dt))
+        continue;
+      if (resumes)
+        resume_after_clip(sprites, animations, facings, clips, e);
+      else
+        clips.mark_finished(e);
     }
   }
 

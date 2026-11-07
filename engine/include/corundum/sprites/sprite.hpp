@@ -155,4 +155,14 @@ namespace corundum::sprites {
     std::array<std::vector<FrameCoord>, k_num_anim_ids> anim_frames; ///< Hot-path frame layout indexed by AnimId
   };
 
+  /** @brief Frame count per AnimId; 0 means the clip is absent. */
+  [[nodiscard]] inline std::array<uint8_t, k_num_anim_ids> frame_counts_of(const Frames &frames) noexcept {
+    std::array<uint8_t, k_num_anim_ids> counts{};
+    for (uint8_t i = 0; i < k_num_anim_ids; ++i) {
+      assert(frames.anim_frames[i].size() <= 255); // AnimationTable stores counts in a byte.
+      counts[i] = static_cast<uint8_t>(frames.anim_frames[i].size());
+    }
+    return counts;
+  }
+
 } // namespace corundum::sprites

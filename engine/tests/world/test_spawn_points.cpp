@@ -304,6 +304,16 @@ namespace {
     return registry;
   }
 
+  /// The entity of actor @p id; fails the case when there is none.
+  corundum::entities::EntityId require_actor(const corundum::entities::World &world, std::string_view id) {
+    const std::optional<corundum::entities::EntityId> actor = corundum::entities::find_actor(world, id);
+    if (!actor) {
+      FAIL("the actor did not spawn");
+      return {};
+    }
+    return *actor;
+  }
+
   /// A World-mode render state with @p coords resident and @p chunk_size tiles per chunk side.
   corundum::render::RenderState make_world_render(std::initializer_list<corundum::world::tilemap::ChunkCoord> coords,
                                                   int chunk_size) {
@@ -385,6 +395,40 @@ TEST_CASE("spawn_world - file actors spawn at their authored tiles and spawn_fil
       corundum::world::spawn_world(disk(), make_player_config(spawn_dir), registry, tilemap, std::nullopt, false);
   REQUIRE(without_actors.has_value());
   CHECK_FALSE(corundum::entities::find_actor((*without_actors)->world, "npc").has_value());
+}
+
+TEST_CASE("spawn_world - an actor with a walk companion gets a motion row") {
+  const auto dir = temp_dir("spawn_world_walk_companion");
+  const auto registry = make_registry(dir);
+  const auto spawn_dir = dir / "spawn_points";
+  write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"hero_idle"}]})");
+
+  auto spawned =
+      corundum::world::spawn_world(disk(), make_player_config(spawn_dir), registry, make_tilemap(dir / "village.tmx"));
+
+  REQUIRE(spawned.has_value());
+  const auto &world = (*spawned)->world;
+  const corundum::entities::EntityId npc_id = require_actor(world, "npc");
+  REQUIRE(world.motion_sprites.has(npc_id));
+  CHECK_EQ(world.motion_sprites.walk_sprite(npc_id), registry.get_sprite_id("hero_walk"));
+  CHECK_EQ(world.motion_sprites.idle_sprite(npc_id), registry.get_sprite_id("hero_idle"));
+}
+
+TEST_CASE("spawn_world - an actor with no walk companion gets no motion row") {
+  const auto dir = temp_dir("spawn_world_no_walk_companion");
+  write_file(dir / "characters" / "loner.json",
+             R"({"id":"loners","path":"game/assets/loner.png","frame_width":32,"frame_height":32,"frames":{)"
+             R"("loner_idle":{"footprint_col_span":0.25,"footprint_row_span":0.75,"south":[{"col":0,"row":0}]}}})");
+  const auto registry = make_registry(dir);
+  const auto spawn_dir = dir / "spawn_points";
+  write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"loner_idle"}]})");
+
+  auto spawned =
+      corundum::world::spawn_world(disk(), make_player_config(spawn_dir), registry, make_tilemap(dir / "village.tmx"));
+
+  REQUIRE(spawned.has_value());
+  const auto &world = (*spawned)->world;
+  CHECK_FALSE(world.motion_sprites.has(require_actor(world, "npc")));
 }
 
 TEST_CASE("spawn_world - unknown player walk sprite is an error") {

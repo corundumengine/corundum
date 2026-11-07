@@ -10,6 +10,7 @@
 
 #include <corundum/animation/animation_system.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
+#include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/tables/facing_table.hpp>
 #include <corundum/entities/tables/motion_sprite_table.hpp>
 #include <corundum/entities/tables/sprite_table.hpp>
@@ -19,6 +20,7 @@
 
 using corundum::core::math::IsometricParams;
 using corundum::entities::AnimationTable;
+using corundum::entities::ClipTable;
 using corundum::entities::EntityId;
 using corundum::entities::FacingTable;
 using corundum::entities::MotionSpriteTable;
@@ -41,6 +43,7 @@ namespace {
     FacingTable facings;
     SpriteTable sprites;
     MotionSpriteTable motion_sprites;
+    ClipTable clips;
 
     Fixture() {
       transforms.insert(player, 0.5f, 0.5f, 0.f, 0.f);
@@ -53,6 +56,48 @@ namespace {
     }
   };
 
+  constexpr corundum::sprites::SpriteId k_clip_sprite{7};
+
+  constexpr corundum::sprites::SpriteId k_other_clip_sprite{8};
+
+  constexpr float k_clip_frame_seconds = 0.1f;
+
+  /// A 3-frame clip: every AnimId has frames, so any facing resolves.
+  corundum::entities::Clip make_clip(corundum::entities::ClipEnd end,
+                                     corundum::sprites::SpriteId sprite = k_clip_sprite) {
+    corundum::entities::Clip clip{
+        .end = end, .frame_counts = {}, .frame_duration = k_clip_frame_seconds, .sprite = sprite};
+    clip.frame_counts.fill(3);
+    return clip;
+  }
+
+  void play(Fixture &f, EntityId e, const corundum::entities::Clip &clip) {
+    corundum::animation::play_clip(f.sprites, f.animations, f.facings, f.clips, e, clip);
+  }
+
+  void run_clip_steps(Fixture &f, int steps) {
+    for (int i = 0; i < steps; ++i)
+      corundum::animation::update_clips(f.sprites, f.transforms, f.animations, f.facings, f.clips,
+                                        k_clip_frame_seconds);
+  }
+
+  /// Give @p e a velocity, so a Resume clip sees it as moving.
+  void move(Fixture &f, EntityId e) {
+    f.transforms.dc[f.transforms.dense_index(e)] = 1.f;
+  }
+
+  /// A second animated entity, shaped like the fixture's player.
+  EntityId add_animated_entity(Fixture &f, std::uint32_t id) {
+    const auto e = static_cast<EntityId>(id);
+    f.transforms.insert(e, 0.5f, 0.5f, 0.f, 0.f);
+    f.sprites.insert(e, corundum::sprites::SpriteId{0}, corundum::sprites::AnimId::South, 0);
+    f.animations.insert(e);
+    std::array<uint8_t, corundum::sprites::k_num_anim_ids> counts{};
+    counts.fill(4);
+    f.animations.set_frame_counts(e, counts);
+    return e;
+  }
+
 } // namespace
 
 TEST_CASE("animate: moving at exactly reference speed advances at the authored frame_duration") {
@@ -62,7 +107,7 @@ TEST_CASE("animate: moving at exactly reference speed advances at the authored f
   f.transforms.dc[slot] = 2.f; // scale = 1
   f.transforms.dr[slot] = 0.f;
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.2f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1); // one full frame_duration elapsed at scale 1
@@ -75,7 +120,7 @@ TEST_CASE("animate: moving at 2x reference speed reaches the frame threshold in 
   f.transforms.dr[slot] = 0.f;
 
   // dt=0.1s * scale=2 == 0.2s == frame_duration: crosses the threshold; at scale=1 it would not.
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.1f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
@@ -83,7 +128,7 @@ TEST_CASE("animate: moving at 2x reference speed reaches the frame threshold in 
 
 TEST_CASE("animate: idle (zero velocity) still advances at the unscaled rate, not frozen") {
   Fixture f; // dc=dr=0 from the fixture — must not scale to 0
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.2f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
@@ -95,7 +140,7 @@ TEST_CASE("animate: sub-epsilon velocity is treated as still") {
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 5e-5f; // below k_motion_speed_epsilon
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.2f);
   // Unscaled idle playback, and the stored facing is left untouched.
@@ -107,7 +152,7 @@ TEST_CASE("animate: degenerate iso falls back to the unscaled rate (no divide-by
   Fixture f;
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 5.f; // nonzero velocity, but iso below is degenerate
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips,
                               IsometricParams{.half_tw = 0.f, .half_th = 0.f, .x_origin = 0.f, .elev_step = 0.f},
                               k_reference_speed, /*dt=*/0.2f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
@@ -120,7 +165,7 @@ TEST_CASE("animate: pure +dc motion resolves facing to SouthEast (zone 1, col-do
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.facings.dir_of(f.player) == corundum::core::Direction::SouthEast);
@@ -133,7 +178,7 @@ TEST_CASE("animate: pure +dr motion resolves facing to SouthWest (zone 0, row-do
   f.transforms.dc[slot] = 0.f;
   f.transforms.dr[slot] = 1.f;
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.facings.dir_of(f.player) == corundum::core::Direction::SouthWest);
@@ -146,7 +191,7 @@ TEST_CASE("animate: equal-magnitude diagonal motion resolves facing to a screen-
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 1.f; // |dc| == |dr| → zone 2 (diagonal); +dr,+dc → screen South
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.facings.dir_of(f.player) == corundum::core::Direction::South);
@@ -164,7 +209,7 @@ TEST_CASE("animate: falls back to a cardinal AnimId when the directional clip is
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::East);
@@ -182,7 +227,7 @@ TEST_CASE("animate: vertical-axis fallback is used when |dr| dominates") {
   f.transforms.dc[slot] = 0.f;
   f.transforms.dr[slot] = 1.f;
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::South);
@@ -197,7 +242,7 @@ TEST_CASE("animate: returns AnimId::Default when every directional and cardinal 
   f.transforms.dc[slot] = 1.f;
   f.transforms.dr[slot] = 0.f;
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::Default);
@@ -208,7 +253,7 @@ TEST_CASE("animate: idle entity with no FacingTable uses the South default for A
   // falls back to Direction::South while idle. Without the default, accessing
   // `facings.dir_of(e)` would assert.
   Fixture f; // no facings.insert; counts.fill(4) leaves every clip available.
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::South);
@@ -218,7 +263,7 @@ TEST_CASE("animate: changing AnimId resets frame_index and timer") {
   Fixture f;
   // Build up a non-zero frame state.
   f.animations.frame_duration_ref(f.player) = 0.1f;
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.5f);
   REQUIRE(f.sprites.frame_index_ref(f.player) != 0);
@@ -231,7 +276,7 @@ TEST_CASE("animate: changing AnimId resets frame_index and timer") {
 
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
   CHECK(f.sprites.anim_id_ref(f.player) == corundum::sprites::AnimId::East);
@@ -245,7 +290,7 @@ TEST_CASE("animate: single-frame AnimIds do not advance or accumulate timer") {
   counts.fill(1); // every clip is a static image
   f.animations.set_frame_counts(f.player, counts);
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/10.f); // huge dt
   CHECK(f.sprites.frame_index_ref(f.player) == 0);
@@ -274,14 +319,14 @@ TEST_CASE("animate: motion sprite commits after the configured idle-to-walk dela
   f.transforms.dc[slot] = 1.f;
 
   // Half the delay — not yet committed; pending is set.
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.05f);
   CHECK(f.sprites.sprite_id_ref(f.player) == k_idle_sprite_id);
   CHECK(f.motion_sprites.pending_sprite(f.player) == k_walk_sprite_id);
 
   // Cumulative dt reaches the delay — commits.
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.05f);
   CHECK(f.sprites.sprite_id_ref(f.player) == k_walk_sprite_id);
@@ -308,14 +353,14 @@ TEST_CASE("animate: motion sprite cancels a pending transition when motion state
 
   // Start moving, partial-transition the timer toward the idle→walk commit.
   f.transforms.dc[slot] = 1.f;
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.05f);
   REQUIRE(f.motion_sprites.pending_sprite(f.player) == k_walk_sprite_id);
 
   // Stop moving — desired flips back to idle, which is already cur_sid → cancel.
   f.transforms.dc[slot] = 0.f;
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.05f);
   CHECK(f.motion_sprites.pending_sprite(f.player) == corundum::sprites::k_null_sprite_id);
@@ -340,7 +385,7 @@ TEST_CASE("animate: motion sprite commit refreshes AnimationTable frame counts")
 
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 1.f;
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f);
 
@@ -365,12 +410,12 @@ TEST_CASE("animate: motion sprite commit applies the new sheet's frame-duration 
 
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 2.f; // screen speed 10 == reference → scale 1
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f); // commits the idle→walk sheet
 
   // 0.06s at the 0.05s override advances one frame; the 0.2s base rate would not.
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.06f);
   CHECK(f.sprites.frame_index_ref(f.player) == 1);
@@ -393,19 +438,19 @@ TEST_CASE("animate: idle commit with no override falls back to the AnimationTabl
 
   const auto slot = f.transforms.dense_index(f.player);
   f.transforms.dc[slot] = 2.f; // scale 1
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f); // commits the idle→walk sheet
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.12f); // 0.1s walk override → one frame
   REQUIRE(f.sprites.frame_index_ref(f.player) == 1);
 
   f.transforms.dc[slot] = 0.f;
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.f); // commits walk→idle and resets the frame index
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.12f); // base 0.2 → not yet a frame
   // The walk override must not leak into idle playback.
@@ -417,7 +462,7 @@ TEST_CASE("animate: one tick advances every whole frame that elapsed") {
   f.animations.frame_duration_ref(f.player) = 0.1f;
 
   // 2.5 frame durations elapse in a single idle tick: two whole frames, 0.05s residual.
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.25f);
   CHECK(f.sprites.frame_index_ref(f.player) == 2);
@@ -429,8 +474,147 @@ TEST_CASE("animate: frame index wraps modulo the clip length") {
   f.animations.frame_duration_ref(f.player) = 0.1f;
   f.sprites.frame_index_ref(f.player) = 3; // last frame of the 4-frame clip
 
-  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, k_iso,
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
                               k_reference_speed,
                               /*dt=*/0.15f); // one whole frame elapses
   CHECK(f.sprites.frame_index_ref(f.player) == 0);
+}
+
+TEST_CASE("clip: play_clip starts the clip's sheet on its first frame") {
+  Fixture f;
+  f.sprites.frame_index_ref(f.player) = 2;
+  f.animations.timer_ref(f.player) = 0.05f;
+
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_clip_sprite);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 0);
+  CHECK_EQ(f.animations.timer_ref(f.player), 0.f);
+  CHECK_EQ(f.animations.frame_count(f.player, corundum::sprites::AnimId::South), 3);
+  CHECK_EQ(f.clips.resume_sprite_of(f.player), 0);
+  CHECK_EQ(f.clips.resume_counts_of(f.player)[std::to_underlying(corundum::sprites::AnimId::South)], 4);
+}
+
+TEST_CASE("clip: play_clip faces the way the entity faces") {
+  Fixture f;
+  f.facings.insert(f.player, corundum::core::Direction::West);
+
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+
+  CHECK_EQ(f.sprites.anim_id_ref(f.player), corundum::sprites::AnimId::West);
+}
+
+TEST_CASE("clip: update leaves an entity playing a clip alone") {
+  Fixture f;
+  f.motion_sprites.insert(f.player, MotionSpriteTable::Config{
+                                        .walk_id = corundum::sprites::SpriteId{9},
+                                        .idle_id = corundum::sprites::SpriteId{0},
+                                        .walk_counts = {},
+                                        .idle_counts = {},
+                                        .idle_to_walk_delay = 0.f,
+                                        .walk_to_idle_delay = 0.f,
+                                        .walk_frame_duration = 0.f,
+                                        .idle_frame_duration = 0.f,
+                                    });
+  move(f, f.player);
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
+                              k_reference_speed, k_clip_frame_seconds);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_clip_sprite);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 0);
+}
+
+TEST_CASE("clip: a clip advances at its own frame duration") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+
+  run_clip_steps(f, 1);
+
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 1);
+}
+
+TEST_CASE("clip: a Resume clip returns to its sheet after the last frame") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+
+  run_clip_steps(f, 3);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), 0);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 0);
+  CHECK_EQ(f.animations.frame_count(f.player, corundum::sprites::AnimId::South), 4);
+  CHECK_FALSE(f.clips.has(f.player));
+}
+
+TEST_CASE("clip: a Resume clip ends when the entity moves") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+  move(f, f.player);
+
+  run_clip_steps(f, 1);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), 0);
+  CHECK_FALSE(f.clips.has(f.player));
+}
+
+TEST_CASE("clip: a Hold clip stays on its last frame") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Hold));
+
+  run_clip_steps(f, 5);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_clip_sprite);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 2);
+  CHECK(f.clips.has_finished(f.player));
+}
+
+TEST_CASE("clip: a Hold clip ignores movement") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Hold));
+  move(f, f.player);
+
+  run_clip_steps(f, 1);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_clip_sprite);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 1);
+}
+
+TEST_CASE("clip: a clip started over another keeps the sheet to return to") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Hold, k_other_clip_sprite));
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_other_clip_sprite);
+  CHECK_EQ(f.clips.resume_sprite_of(f.player), 0);
+  CHECK_EQ(f.clips.end_of(f.player), corundum::entities::ClipEnd::Hold);
+}
+
+TEST_CASE("clip: update_clips with no clips does nothing") {
+  Fixture f;
+
+  run_clip_steps(f, 1);
+
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 0);
+  CHECK_FALSE(f.clips.has(f.player));
+}
+
+TEST_CASE("clip: one clip ending leaves the others playing") {
+  Fixture f;
+  const EntityId second = add_animated_entity(f, 1);
+  const EntityId third = add_animated_entity(f, 2);
+  const auto clip = make_clip(corundum::entities::ClipEnd::Resume);
+  play(f, f.player, clip);
+  play(f, second, clip);
+  play(f, third, clip);
+  move(f, f.player);
+
+  run_clip_steps(f, 1);
+
+  CHECK_FALSE(f.clips.has(f.player));
+  REQUIRE(f.clips.has(second));
+  REQUIRE(f.clips.has(third));
+  CHECK_EQ(f.sprites.frame_index_ref(second), 1);
+  CHECK_EQ(f.sprites.frame_index_ref(third), 1);
 }

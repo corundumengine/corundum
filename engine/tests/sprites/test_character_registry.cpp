@@ -161,3 +161,48 @@ TEST_CASE("CharacterRegistry::load_all reads sheets from an in-memory content so
   REQUIRE(registry.load_all(source, "sprite_sheets").has_value());
   CHECK(registry.find_sheet("heroes") != corundum::sprites::k_null_sheet);
 }
+
+TEST_CASE("CharacterRegistry::find_companion finds the sprite for a motion") {
+  const auto dir = temp_dir("companion");
+  write_file(dir / "characters" / "idle.json", sheet_json("idles", "skeleton_idle"));
+  write_file(dir / "characters" / "walk.json", sheet_json("walks", "skeleton_walk"));
+
+  corundum::sprites::CharacterRegistry registry;
+  REQUIRE(registry.load_all(disk(), dir).has_value());
+
+  const auto idle_id = registry.get_sprite_id("skeleton_idle");
+  const auto walk_id = registry.get_sprite_id("skeleton_walk");
+  CHECK_EQ(registry.find_companion(idle_id, "walk"), walk_id);
+  CHECK_EQ(registry.find_companion(walk_id, "idle"), idle_id);
+}
+
+TEST_CASE("CharacterRegistry::find_companion returns nullopt for a missing motion") {
+  const auto dir = temp_dir("companion_missing");
+  write_file(dir / "characters" / "idle.json", sheet_json("idles", "skeleton_idle"));
+
+  corundum::sprites::CharacterRegistry registry;
+  REQUIRE(registry.load_all(disk(), dir).has_value());
+
+  CHECK_FALSE(registry.find_companion(registry.get_sprite_id("skeleton_idle"), "walk").has_value());
+}
+
+TEST_CASE("CharacterRegistry::find_companion returns nullopt for a name with no separator") {
+  const auto dir = temp_dir("companion_no_separator");
+  write_file(dir / "characters" / "hero.json", sheet_json("heroes", "hero"));
+  write_file(dir / "characters" / "hero_walk.json", sheet_json("hero_walks", "hero_walk"));
+
+  corundum::sprites::CharacterRegistry registry;
+  REQUIRE(registry.load_all(disk(), dir).has_value());
+
+  CHECK_FALSE(registry.find_companion(registry.get_sprite_id("hero"), "walk").has_value());
+}
+
+TEST_CASE("CharacterRegistry::find_companion returns nullopt for an unknown id") {
+  const auto dir = temp_dir("companion_unknown");
+  write_file(dir / "characters" / "idle.json", sheet_json("idles", "skeleton_idle"));
+
+  corundum::sprites::CharacterRegistry registry;
+  REQUIRE(registry.load_all(disk(), dir).has_value());
+
+  CHECK_FALSE(registry.find_companion(corundum::sprites::k_null_sprite_id, "walk").has_value());
+}

@@ -48,7 +48,11 @@ namespace {
     }
 
     corundum::animation::update(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
-                                iso, cfg.player_speed, dt);
+                                world.clips, iso, cfg.player_speed, dt);
+
+    corundum::animation::update_clips(world.sprites, world.transforms, world.animations, world.facings, world.clips,
+                                      dt);
+    corundum::entities::mark_finished_clips_for_deletion(world);
 
     if (!has_player)
       return;

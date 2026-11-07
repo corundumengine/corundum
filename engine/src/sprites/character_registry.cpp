@@ -13,7 +13,9 @@
 #include <expected>
 #include <filesystem>
 #include <format>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace fs = std::filesystem;
@@ -115,22 +117,22 @@ namespace corundum::sprites {
   }
 
   Id CharacterRegistry::find_sheet(const std::string &sheet_name) const noexcept {
-    auto it = sheet_ids_.find(sheet_name);
+    const auto it = sheet_ids_.find(sheet_name);
     return it != sheet_ids_.end() ? it->second : k_null_sheet;
   }
 
   const SpriteSheet *CharacterRegistry::get_sheet(Id id) const noexcept {
-    auto it = sheets_by_id_.find(id);
+    const auto it = sheets_by_id_.find(id);
     return it != sheets_by_id_.end() ? &it->second : nullptr;
   }
 
   const Frames *CharacterRegistry::get_sprite(const std::string &sprite_name) const noexcept {
-    auto it = frames_.find(sprite_name);
+    const auto it = frames_.find(sprite_name);
     return it != frames_.end() ? &it->second : nullptr;
   }
 
   SpriteId CharacterRegistry::get_sprite_id(const std::string &sprite_name) const noexcept {
-    auto it = frames_.find(sprite_name);
+    const auto it = frames_.find(sprite_name);
     return it != frames_.end() ? it->second.sprite_id : k_null_sprite_id;
   }
 
@@ -140,6 +142,20 @@ namespace corundum::sprites {
       return nullptr;
     const auto frames_it = frames_.find(name_it->second);
     return frames_it != frames_.end() ? &frames_it->second : nullptr;
+  }
+
+  std::optional<SpriteId> CharacterRegistry::find_companion(SpriteId sprite_id, std::string_view motion) const {
+    const auto name = sprite_names_by_id_.find(sprite_id);
+    if (name == sprite_names_by_id_.end())
+      return std::nullopt;
+    const std::string_view full_name = name->second;
+    const std::size_t separator = full_name.rfind('_');
+    if (separator == std::string_view::npos)
+      return std::nullopt;
+    const SpriteId companion = get_sprite_id(std::format("{}_{}", full_name.substr(0, separator), motion));
+    if (companion == k_null_sprite_id)
+      return std::nullopt;
+    return companion;
   }
 
 } // namespace corundum::sprites

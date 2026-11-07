@@ -9,6 +9,7 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/actor_id_table.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
+#include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/dialogue_table.hpp>
 #include <corundum/entities/tables/facing_table.hpp>
@@ -32,6 +33,8 @@ namespace corundum::entities {
     TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
 
     AnimationTable animations;
+
+    ClipTable clips;
 
     DialogueTable dialogue_refs;
 
@@ -91,9 +94,9 @@ namespace corundum::entities {
   [[nodiscard]] inline auto all_tables(World &w) noexcept {
     static_assert(GameTable<TransformTable> && GameTable<SpriteTable> && GameTable<AnimationTable> &&
                   GameTable<CollisionTable> && GameTable<DialogueTable> && GameTable<ActorIdTable> &&
-                  GameTable<FacingTable> && GameTable<MotionSpriteTable>);
+                  GameTable<FacingTable> && GameTable<MotionSpriteTable> && GameTable<ClipTable>);
     return std::tie(w.transforms, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.actor_ids, w.facings,
-                    w.motion_sprites);
+                    w.motion_sprites, w.clips);
   }
 
   /// Remove e and all of its components from the world immediately.
@@ -137,6 +140,14 @@ namespace corundum::entities {
       if (w.entities.is_live(w.pending_deletions[i]))
         despawn(w, w.pending_deletions[i]);
     w.pending_deletion_count = 0;
+  }
+
+  /** @brief Queue every entity whose ClipEnd::Remove clip has finished for deletion.
+   *  @param[in,out] w World whose clips to read. */
+  inline void mark_finished_clips_for_deletion(World &w) {
+    for (const EntityId e : w.clips.active_entities())
+      if (w.clips.has_finished(e) && w.clips.end_of(e) == ClipEnd::Remove)
+        mark_for_deletion(w, e);
   }
 
   /** @brief Find the live entity carrying a stable authoring id.

@@ -4,12 +4,14 @@
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
+#include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <cstdint>
 #include <doctest/doctest.h>
+#include <memory>
 #include <optional>
 
 using namespace corundum::entities;
@@ -257,6 +259,18 @@ TEST_CASE("World spawn with Animation copies frame counts into the animation tab
   CHECK(w.animations.frame_count(e, corundum::sprites::AnimId::Default) == 7);
 }
 
+TEST_CASE("despawn removes the entity's clip row") {
+  World w;
+  const EntityId e =
+      spawn_or_require(w, Position{.col = 1.f, .row = 2.f}, Velocity{}, default_sprite(corundum::sprites::SpriteId{2}));
+  w.clips.insert(e, Clip{.end = ClipEnd::Resume, .frame_counts = {}, .frame_duration = 0.1f, .sprite = 3}, 0, {});
+
+  despawn(w, e);
+
+  CHECK_FALSE(w.clips.has(e));
+  CHECK_EQ(w.clips.count, 0u);
+}
+
 TEST_CASE("World mark_for_deletion and flush_deletions") {
   World w;
 
@@ -319,6 +333,27 @@ TEST_CASE("World flush_deletions skips an entity despawned directly after it was
   CHECK_FALSE(w.entities.is_live(e));
   CHECK(w.pending_deletion_count == 0);
   CHECK(w.entities.alive() == 0u);
+}
+
+TEST_CASE("mark_finished_clips_for_deletion queues only a finished Remove clip") {
+  auto w = std::make_unique<World>();
+  const Sprite sprite = default_sprite(corundum::sprites::SpriteId{1});
+  const EntityId removes = spawn_or_require(*w, Position{.col = 1.f, .row = 1.f}, Velocity{}, sprite);
+  const EntityId holds = spawn_or_require(*w, Position{.col = 2.f, .row = 2.f}, Velocity{}, sprite);
+  const EntityId unfinished = spawn_or_require(*w, Position{.col = 3.f, .row = 3.f}, Velocity{}, sprite);
+  const auto make_clip = [](ClipEnd end) {
+    return Clip{.end = end, .frame_counts = {}, .frame_duration = 0.1f, .sprite = 3};
+  };
+  w->clips.insert(removes, make_clip(ClipEnd::Remove), 0, {});
+  w->clips.insert(holds, make_clip(ClipEnd::Hold), 0, {});
+  w->clips.insert(unfinished, make_clip(ClipEnd::Remove), 0, {});
+  w->clips.mark_finished(removes);
+  w->clips.mark_finished(holds);
+
+  mark_finished_clips_for_deletion(*w);
+
+  CHECK_EQ(w->pending_deletion_count, 1u);
+  CHECK_EQ(w->pending_deletions[0], removes);
 }
 
 TEST_CASE("footprint_of - the box is centred on the tile the entity stands on") {

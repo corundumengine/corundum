@@ -77,7 +77,6 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -442,28 +441,6 @@ namespace corundum::gameplay {
     /// True when the cursor should re-focus the row it is over: a real move or a click.
     bool pointer_focus(const input::InputIntent &intent) noexcept {
       return intent.mouse_moved || intent.cursor_clicked;
-    }
-
-    /** @brief Ratio above which the dominant axis is considered "cardinal" rather than diagonal
-     *  when computing facing direction. */
-    constexpr float k_cardinal_dominance_ratio = 2.f;
-
-    /// Classify a tile-grid displacement (dx=Δcol, dy=Δrow) into the nearest screen-space
-    /// Direction. The isometric projection rotates the grid axes 45° relative to screen space,
-    /// so tile-cardinal directions (pure dc/dr) map to screen-intercardinal and vice versa:
-    ///   Tile SE (+,+) → screen South,  Tile NW (-,-) → screen North,
-    ///   Tile NE (+,-) → screen East,   Tile SW (-,+) → screen West.
-    [[nodiscard]] corundum::core::Direction dir_from_delta(float dx, float dy) noexcept {
-      using corundum::core::Direction;
-      const float ax = std::abs(dx);
-      const float ay = std::abs(dy);
-      if (ay > k_cardinal_dominance_ratio * ax)
-        return dy > 0.f ? Direction::SouthWest : Direction::NorthEast;
-      if (ax > k_cardinal_dominance_ratio * ay)
-        return dx > 0.f ? Direction::SouthEast : Direction::NorthWest;
-      if (dx > 0.f)
-        return dy > 0.f ? Direction::South : Direction::East;
-      return dy > 0.f ? Direction::West : Direction::North;
     }
 
     /// One row of the menu hub's action → tab table.
@@ -2455,7 +2432,7 @@ namespace corundum::gameplay {
     const float npc_col = world.transforms.col[npc_slot];
     const float npc_row = world.transforms.row[npc_slot];
 
-    const Direction toward_npc = dir_from_delta(npc_col - player_col, npc_row - player_row);
+    const Direction toward_npc = corundum::core::direction_from_tile_delta(npc_col - player_col, npc_row - player_row);
 
     dialogue::DialogueNpc npc{.entity = target};
     if (world.facings.has(target)) {
