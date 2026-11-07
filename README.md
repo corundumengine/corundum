@@ -46,6 +46,7 @@ CI builds and tests all three platforms on every push and pull request.
 Guides (work in progress; formats may change):
 
 - [Building tilemaps](docs/building-tilemaps.md)
+- [Character animation](docs/character-animation.md)
 - [Writing dialogue](docs/writing-dialogue.md)
 - [Writing quests](docs/writing-quests.md)
 - [Fonts](docs/fonts.md)

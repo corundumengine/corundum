@@ -508,6 +508,22 @@ namespace corundum::gameplay::combat {
     return rules_.command_point_beats + command.windup_beats;
   }
 
+  float Encounter::windup_seconds(std::size_t index) const {
+    assert(index < size());
+    assert(markers_[index].phase == Phase::WindUp);
+    const int beats_left = windup_end_beats(index) - markers_[index].beats;
+    const int ticks = std::max(1, (beats_left + rules_.tempo_beats - 1) / rules_.tempo_beats);
+    return static_cast<float>(ticks) * rules_.seconds_per_tick;
+  }
+
+  bool Encounter::is_winding_up_at_enemy(std::size_t index) const {
+    assert(index < size());
+    const Marker &marker = markers_[index];
+    if (marker.phase != Phase::WindUp)
+      return false;
+    return !marker.active || marker.active->target == rules::CommandTarget::Enemy;
+  }
+
   rules::Health Encounter::health(const rules::CombatContext &context, std::size_t index) const {
     assert(index < size());
     return rules_.health(context, combatants_[index]);

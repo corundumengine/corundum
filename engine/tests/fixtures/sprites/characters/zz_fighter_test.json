@@ -1,0 +1,40 @@
+{
+  "id": "zz_fighter_test_sheet",
+  "path": "test.png",
+  "frame_width": 16,
+  "frame_height": 16,
+  "frames": {
+    "fighter_attack": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5,
+      "default": [{"col": 0, "row": 0}, {"col": 1, "row": 0}, {"col": 2, "row": 0}, {"col": 3, "row": 0}]
+    },
+    "fighter_die": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5, "fps": 60.0,
+      "default": [{"col": 0, "row": 0}, {"col": 1, "row": 0}, {"col": 2, "row": 0}]
+    },
+    "fighter_hurt": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5, "fps": 60.0,
+      "default": [{"col": 0, "row": 0}, {"col": 1, "row": 0}]
+    },
+    "fighter_idle": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5,
+      "default": [{"col": 0, "row": 0}, {"col": 1, "row": 0}]
+    },
+    "partial_attack": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5,
+      "south": [{"col": 0, "row": 0}, {"col": 1, "row": 0}]
+    },
+    "partial_idle": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5,
+      "default": [{"col": 0, "row": 0}]
+    },
+    "wounded_hurt": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5, "fps": 60.0,
+      "default": [{"col": 0, "row": 0}, {"col": 1, "row": 0}]
+    },
+    "wounded_idle": {
+      "footprint_col_span": 0.25, "footprint_row_span": 0.5,
+      "default": [{"col": 0, "row": 0}]
+    }
+  }
+}

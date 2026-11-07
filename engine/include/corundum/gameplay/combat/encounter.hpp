@@ -139,6 +139,16 @@ namespace corundum::gameplay::combat {
      *  attack; a hostile's choice isn't known until its wind-up starts). */
     [[nodiscard]] int windup_end_beats(std::size_t index) const;
 
+    /** @brief The seconds until @p index's command lands, as of now. A wind-up ends on the first tick
+     *  its beats are reached, so this is a whole number of ticks. Battle calls it on the step a
+     *  wind-up starts, when the marker may already be past the command point.
+     *  @pre phase(index) == Phase::WindUp. */
+    [[nodiscard]] float windup_seconds(std::size_t index) const;
+
+    /** @brief Whether @p index is winding up something aimed at an enemy: the standing attack or an
+     *  Enemy command; false for a Self command or no wind-up. */
+    [[nodiscard]] bool is_winding_up_at_enemy(std::size_t index) const;
+
     [[nodiscard]] rules::Health health(const rules::CombatContext &context, std::size_t index) const;
 
     [[nodiscard]] bool can_act(const rules::CombatContext &context, std::size_t index) const;

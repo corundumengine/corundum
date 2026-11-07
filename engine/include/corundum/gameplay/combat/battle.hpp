@@ -3,6 +3,8 @@
 
 #pragma once
 #include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/clip_table.hpp>
+#include <corundum/entities/world.hpp>
 #include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/combat_hud.hpp>
@@ -40,6 +42,15 @@ namespace corundum::gameplay::combat {
     std::vector<EncounterHostile> hostiles{};
   };
 
+  /** @brief The clips one combatant's sheets offer; a sheet it doesn't have leaves its clip empty. */
+  struct CombatantClips {
+    std::optional<entities::Clip> attack{};
+
+    std::optional<entities::Clip> die{};
+
+    std::optional<entities::Clip> hurt{};
+  };
+
   enum class Clock : std::uint8_t {
     Running, ///< Combat is on top: orders, the timeline and movement all run.
     Paused,  ///< CombatPaused is on top: commands, the next-target key and clicks on a hostile give orders.
@@ -47,7 +58,7 @@ namespace corundum::gameplay::combat {
 
   /** @brief What one Battle step produced. */
   struct BattleStep {
-    std::optional<Outcome> outcome{};
+    std::optional<Outcome> outcome{}; ///< A lost fight reports this only once the protagonist's death clip ends.
 
     std::vector<std::string> reports{}; ///< Toasts: each command that resolved, and each order refused.
 
@@ -85,7 +96,11 @@ namespace corundum::gameplay::combat {
      *  - a combatant with an attack order out of reach paths to a tile within reach of its target
      *    and walks there, and one in reach or winding up stands. One its status says can't move
      *    stands too, and the protagonist then takes no move order and Scene::is_player_held is set;
-     *  - hud() refreshes.
+     *  - hud() refreshes;
+     *  - a wind-up at an enemy plays the combatant's attack clip, facing its target, a fall in Health
+     *    its hurt clip, and a fall its death clip; a character missing a sheet skips that clip;
+     *  - from the step the protagonist falls, no orders are read and everyone stands until its death
+     *    clip ends.
      *  @pre has_live_combatants(engine). */
     [[nodiscard]] BattleStep update(Engine &engine, Clock clock);
 
@@ -106,11 +121,11 @@ namespace corundum::gameplay::combat {
      *  fighting. */
     [[nodiscard]] std::size_t target() const noexcept { return target_; }
 
-    /** @brief The tile target() stands on, as of the last update.
-     *  @pre The fight is still on: update() only leaves target() fallen when it returns an outcome,
-     *       and Gameplay drops the battle on that step. */
-    [[nodiscard]] world::TileCoord target_tile() const {
-      assert(entities_[target_].has_value());
+    /** @brief The tile target() stands on, as of the last update; nullopt once it has fallen, which
+     *  only outlasts the step it fell on when the protagonist fell too and its death clip plays. */
+    [[nodiscard]] std::optional<world::TileCoord> target_tile() const {
+      if (!entities_[target_])
+        return std::nullopt;
       return tiles_[target_];
     }
 
@@ -122,8 +137,8 @@ namespace corundum::gameplay::combat {
     [[nodiscard]] std::string_view pause_note() const noexcept { return pause_note_; }
 
   private:
-    Battle(Encounter encounter, std::vector<std::optional<entities::EntityId>> entities, std::string first_actor,
-           std::optional<rules::AutoPause> auto_pause);
+    Battle(Encounter encounter, std::vector<std::optional<entities::EntityId>> entities,
+           std::vector<CombatantClips> clips, std::string first_actor, std::optional<rules::AutoPause> auto_pause);
 
     /// How one approach ended.
     enum class ApproachOutcome : std::uint8_t {
@@ -147,6 +162,10 @@ namespace corundum::gameplay::combat {
 
     /// Read every combatant still in the scene's tile into tiles_.
     void refresh_tiles(const Engine &engine);
+
+    /// Give each side its standing attack, point the fight at the nearest hostile, snapshot Health
+    /// and refresh the HUD.
+    void open_fight(Engine &engine);
 
     /// Press the slot each pressed key names on the current page; returns the refusals to toast.
     [[nodiscard]] std::vector<std::string> read_slot_presses(const Engine &engine, const rules::CombatContext &context);
@@ -203,6 +222,27 @@ namespace corundum::gameplay::combat {
     /// Remove every hostile that can no longer act from the scene.
     void remove_fallen(Engine &engine, const rules::CombatContext &context);
 
+    /// Play each clip this step calls for: attacks for the wind-ups in @p windups_started, then hurts.
+    void play_step_clips(Engine &engine, const rules::CombatContext &context,
+                         std::span<const std::size_t> windups_started);
+
+    /// Turn combatant @p index toward its target and play its attack clip, timed so the clip's middle
+    /// meets the landing. Does nothing for a Self command or a character with no attack sheet.
+    void play_attack_clip(entities::World &world, std::size_t index);
+
+    /// Play the hurt clip of each combatant whose Health fell since the last call and who can show
+    /// it: still fighting, and not winding up.
+    void play_hurt_clips(entities::World &world, const rules::CombatContext &context);
+
+    /// When the protagonist has fallen, play its death clip.
+    void play_protagonist_death(Engine &engine, const rules::CombatContext &context);
+
+    /// The outcome to report: none yet while a lost fight's protagonist plays its death clip.
+    [[nodiscard]] std::optional<Outcome> finished_outcome(const Engine &engine) const;
+
+    /// Stop everyone and keep the protagonist from moving: the fight is lost.
+    void hold_for_defeat(Engine &engine) const;
+
     /// Stop combatant @p index: clear its path and forget what it was planned for.
     void stand_still(Engine &engine, std::size_t index);
 
@@ -217,6 +257,10 @@ namespace corundum::gameplay::combat {
     Encounter encounter_;
 
     std::vector<std::optional<entities::EntityId>> entities_; ///< nullopt once a hostile has fallen and left the scene.
+
+    std::vector<CombatantClips> clips_;
+
+    std::vector<int> healths_; ///< Each combatant's Health at the last play_hurt_clips.
 
     std::string first_actor_;
 

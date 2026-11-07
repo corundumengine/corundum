@@ -49,6 +49,7 @@ namespace {
   constexpr std::size_t k_bash = 2;
   constexpr std::size_t k_trip = 3;
   constexpr std::size_t k_nudge = 4;
+  constexpr std::size_t k_smash = 5;
 
   /// Every test combatant's commands, in this order: jab (Quick, at an enemy), brace (Quick, on
   /// itself, available until used), bash (Action, Breaks), trip (Action, Staggers 50 beats), nudge
@@ -932,4 +933,70 @@ TEST_CASE("Encounter::start refuses rules with no status callback") {
 
   REQUIRE_FALSE(encounter.has_value());
   CHECK_EQ(encounter.error(), "[gameplay] the combat rules have no 'status' callback");
+}
+
+TEST_CASE("Encounter: windup_seconds counts whole ticks from the command point") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_smash);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  REQUIRE_EQ(encounter.phase(0), combat::Phase::WindUp);
+  CHECK_EQ(encounter.windup_seconds(0), 1.f); // 30 beats at 20 a tick lands on the second tick.
+}
+
+TEST_CASE("Encounter: windup_seconds of the standing attack is one tick") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK_EQ(encounter.windup_seconds(0), 0.5f);
+}
+
+TEST_CASE("Encounter: windup_seconds counts only the beats left past the command point") {
+  combat::Encounter encounter = start_duel(spec(95), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_smash);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  REQUIRE_EQ(encounter.beats(0), 115);
+  CHECK_EQ(encounter.windup_seconds(0), 0.5f); // 15 of the 30 beats left: it lands on the next tick.
+}
+
+TEST_CASE("Encounter: the standing attack winds up at an enemy") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK(encounter.is_winding_up_at_enemy(0));
+}
+
+TEST_CASE("Encounter: an Enemy command winds up at an enemy") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.order_attack(0, 1);
+  encounter.queue_command(0, k_jab);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  CHECK(encounter.is_winding_up_at_enemy(0));
+}
+
+TEST_CASE("Encounter: a Self command doesn't wind up at an enemy") {
+  combat::Encounter encounter = start_duel(spec(80), spec(0));
+  encounter.queue_command(0, k_brace);
+
+  std::ignore = encounter.update(k_context, k_adjacent);
+
+  REQUIRE_EQ(encounter.windup_label(0), "Brace");
+  CHECK_FALSE(encounter.is_winding_up_at_enemy(0));
+}
+
+TEST_CASE("Encounter: a combatant not winding up isn't winding up at an enemy") {
+  const combat::Encounter encounter = start_duel(spec(0), spec(0));
+
+  CHECK_FALSE(encounter.is_winding_up_at_enemy(0));
 }

@@ -1741,7 +1741,10 @@ namespace corundum::gameplay {
     /// drew with so the outline stays on the ground while the camera moves.
     void draw_target_marker(const Engine &engine, const combat::Battle &battle, platform::Renderer &r) {
       const world::MapView map = world::build_map_view(engine.render, engine.cfg);
-      const world::TileCoord tile = battle.target_tile();
+      const std::optional<world::TileCoord> target_tile = battle.target_tile();
+      if (!target_tile)
+        return;
+      const world::TileCoord tile = *target_tile;
       const world::TileDiamond diamond = world::tile_diamond(
           tile, world::discrete_elevation_at(map, tile.col, tile.row), world::projection_of(map, engine.cfg));
       const std::array corners{diamond.top, diamond.right, diamond.bottom, diamond.left};

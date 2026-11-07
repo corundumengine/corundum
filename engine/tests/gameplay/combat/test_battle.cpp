@@ -3,9 +3,12 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/animation/animation_system.hpp>
+#include <corundum/core/direction.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/components.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/gameplay/combat/battle.hpp>
 #include <corundum/gameplay/combat/encounter.hpp>
@@ -18,6 +21,7 @@
 #include <corundum/input/physical_input.hpp>
 #include <corundum/physics/physics_system.hpp>
 #include <corundum/screen_registry.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/flags.hpp>
 #include <corundum/world/grid.hpp>
 #include <corundum/world/map_view.hpp>
@@ -36,6 +40,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -176,6 +181,42 @@ namespace {
   std::string last_toast(const corundum::Engine &engine) {
     REQUIRE_FALSE(engine.toasts.empty());
     return engine.toasts.at(engine.toasts.size() - 1).text;
+  }
+
+  /// Put @p entity on @p idle_sprite; Battle::start finds its clips from its sprite.
+  void dress_as(Fight &fight, EntityId entity, const std::string &idle_sprite) {
+    auto &world = fight.engine->scene.world;
+    const corundum::sprites::Frames *idle = fight.engine->characters.get_sprite(idle_sprite);
+    REQUIRE(idle != nullptr);
+    world.sprites.sprite_id_ref(entity) = idle->sprite_id;
+    world.animations.set_frame_counts(entity, corundum::sprites::frame_counts_of(*idle));
+    world.sprites.frame_index_ref(entity) = 0;
+  }
+
+  void dress_as_fighter(Fight &fight, EntityId entity) {
+    dress_as(fight, entity, "fighter_idle");
+  }
+
+  [[nodiscard]] bool plays(const Fight &fight, EntityId entity, const std::string &sprite) {
+    const auto &sprites = fight.engine->scene.world.sprites;
+    return sprites.sprite_id[sprites.dense_index(entity)] == fight.engine->characters.get_sprite_id(sprite);
+  }
+
+  /// Step until @p entity plays @p sprite; capped, so one that never does fails the checks that follow.
+  void step_until_playing(Fight &fight, EntityId entity, const std::string &sprite) {
+    for (int i = 0; i < 40 && !plays(fight, entity, sprite); ++i)
+      step(fight);
+  }
+
+  /// Run the clips for @p steps fixed steps, as the world step does; the tests' step() doesn't.
+  void run_clips(Fight &fight, int steps) {
+    auto &world = fight.engine->scene.world;
+    for (int i = 0; i < steps; ++i) {
+      corundum::animation::update_clips(world.sprites, world.transforms, world.animations, world.facings, world.clips,
+                                        k_dt);
+      corundum::entities::mark_finished_clips_for_deletion(world);
+      corundum::entities::flush_deletions(world);
+    }
   }
 
   /// Spawn another foe, actor @p id, on @p tile. It has no collision box, so only the fight's own
@@ -1221,4 +1262,216 @@ TEST_CASE("combat: the target marker outlines the target's tile through the worl
   CHECK_EQ(r.world_view_camera.x, 3.f);
   CHECK_EQ(r.world_view_camera.y, 4.f);
   CHECK_FALSE(r.is_world_view);
+}
+
+TEST_CASE("combat: a wind-up plays the attack clip, facing the target, with its middle at the landing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as_fighter(*fight, player);
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+
+  step_until_playing(*fight, player, "fighter_attack");
+
+  const auto &world = fight->engine->scene.world;
+  REQUIRE(plays(*fight, player, "fighter_attack"));
+  CHECK_EQ(world.facings.dir_of(player), corundum::core::Direction::SouthEast);
+  // One tick of wind-up at 1/60 s, doubled and spread over the sheet's 4 frames.
+  CHECK(world.clips.frame_duration_of(player) == doctest::Approx(1.f / 120.f));
+  CHECK_EQ(world.clips.end_of(player), corundum::entities::ClipEnd::Resume);
+}
+
+TEST_CASE("combat: a Self command plays no attack clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as_fighter(*fight, player);
+  fight->engine->flags["test.hero.tonics"] = 1;
+  start_fight(*fight);
+  press(*fight, Action::CombatCommand3);
+
+  for (int i = 0; i < 40 && encounter_of(*fight).windup_label(combat::Battle::k_protagonist) != "Tonic"; ++i)
+    step(*fight);
+
+  REQUIRE_EQ(encounter_of(*fight).windup_label(combat::Battle::k_protagonist), std::string_view{"Tonic"});
+  CHECK_FALSE(plays(*fight, player, "fighter_attack"));
+}
+
+TEST_CASE("combat: a hit plays the target's hurt clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  dress_as_fighter(*fight, fight->foe);
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+
+  step_until_playing(*fight, fight->foe, "fighter_hurt");
+
+  REQUIRE(plays(*fight, fight->foe, "fighter_hurt"));
+  CHECK_EQ(battle_of(*fight).hud().rows[combat::Battle::k_hostile].health.current, 1);
+}
+
+TEST_CASE("combat: a hit doesn't interrupt a wind-up") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as_fighter(*fight, player);
+  fight->engine->flags["test.hero.start"] = 100;
+  combat_rules(*fight).tempo_beats = 10; // Two ticks of wind-up, so a step passes inside it.
+  start_fight(*fight);
+  step_until_playing(*fight, player, "fighter_attack");
+
+  fight->engine->flags["test.hero.damage"] = 1;
+  step(*fight);
+
+  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
+  CHECK(plays(*fight, player, "fighter_attack"));
+}
+
+TEST_CASE("combat: a Broken wind-up gives way to the hurt clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  dress_as_fighter(*fight, fight->foe);
+  fight->engine->flags["test.hero.start"] = 10;
+  combat_rules(*fight).tempo_beats = 10;
+  start_fight(*fight);
+  // With this start and tempo, Bash lands one tick into the foe's two-tick wind-up; change them together.
+  press(*fight, Action::CombatCommand2);
+  step_until_playing(*fight, fight->foe, "fighter_attack");
+
+  step_until_playing(*fight, fight->foe, "fighter_hurt");
+
+  REQUIRE(plays(*fight, fight->foe, "fighter_hurt"));
+  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_hostile), combat::Phase::Ready);
+}
+
+TEST_CASE("combat: the hurt clip returns to the sheet the fighter was on") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  dress_as_fighter(*fight, fight->foe);
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+  step_until_playing(*fight, fight->foe, "fighter_hurt");
+
+  run_clips(*fight, 2);
+
+  CHECK(plays(*fight, fight->foe, "fighter_idle"));
+  CHECK_FALSE(fight->engine->scene.world.clips.has(fight->foe));
+}
+
+TEST_CASE("combat: a fallen hostile with a death clip stays as a corpse until the clip ends") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  dress_as_fighter(*fight, fight->foe);
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+
+  step_until_over(*fight);
+
+  auto &world = fight->engine->scene.world;
+  REQUIRE_EQ(fight->raised.size(), 1);
+  CHECK_EQ(fight->raised[0].name, "encounter_won");
+  REQUIRE(world.entities.is_live(fight->foe));
+  CHECK(plays(*fight, fight->foe, "fighter_die"));
+  CHECK_FALSE(world.collisions.has(fight->foe));
+  CHECK_FALSE(world.dialogue_refs.has(fight->foe));
+  CHECK_FALSE(corundum::entities::find_actor(world, "a00").has_value());
+  const auto slot = world.transforms.dense_index(fight->foe);
+  CHECK_EQ(world.transforms.dc[slot], 0.f);
+  CHECK_EQ(world.transforms.dr[slot], 0.f);
+
+  run_clips(*fight, 2);
+  CHECK(world.entities.is_live(fight->foe));
+
+  run_clips(*fight, 1);
+  CHECK_FALSE(world.entities.is_live(fight->foe));
+}
+
+TEST_CASE("combat: a lost fight waits for the protagonist's death clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as_fighter(*fight, player);
+  fight->engine->flags["test.hero.damage"] = 1;
+  start_fight(*fight);
+
+  step_until_playing(*fight, player, "fighter_die");
+
+  REQUIRE(plays(*fight, player, "fighter_die"));
+  CHECK(fight->gameplay->battle.has_value());
+  CHECK(fight->engine->scene.is_player_held);
+  CHECK(fight->raised.empty());
+
+  run_clips(*fight, 2);
+  step(*fight);
+  CHECK(fight->gameplay->battle.has_value());
+  CHECK(fight->raised.empty());
+
+  run_clips(*fight, 1);
+  step(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  REQUIRE_EQ(fight->raised.size(), 1);
+  CHECK_EQ(fight->raised[0].name, "encounter_lost");
+  CHECK(plays(*fight, player, "fighter_die"));
+  const auto &sprites = fight->engine->scene.world.sprites;
+  CHECK_EQ(sprites.frame_index[sprites.dense_index(player)], 2);
+}
+
+TEST_CASE("combat: orders are ignored while the protagonist falls") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as_fighter(*fight, player);
+  add_foe(*fight, "a01", {.col = 7, .row = 8});
+  fight->engine->flags["test.hero.damage"] = 1;
+  start_pair(*fight);
+  step_until_playing(*fight, player, "fighter_die");
+  const std::size_t target_before = battle_of(*fight).target();
+
+  press(*fight, Action::CombatTargetNext);
+
+  CHECK_EQ(battle_of(*fight).target(), target_before);
+}
+
+TEST_CASE("combat: a lost fight doesn't wait for a hurt clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as(*fight, player, "wounded_idle");
+  start_fight(*fight);
+  fight->engine->flags["test.hero.damage"] = 1;
+  step_until_playing(*fight, player, "wounded_hurt");
+  REQUIRE(fight->engine->scene.world.clips.has(player));
+
+  step_until_over(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  REQUIRE_EQ(fight->raised.size(), 1);
+  CHECK_EQ(fight->raised[0].name, "encounter_lost");
+}
+
+TEST_CASE("combat: a sheet that leaves a facing without frames plays no clip") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as(*fight, player, "partial_idle");
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+
+  step_until_over(*fight);
+
+  CHECK_FALSE(plays(*fight, player, "partial_attack"));
+  CHECK_FALSE(fight->engine->scene.world.clips.has(player));
+}
+
+TEST_CASE("combat: target_tile is empty when the target falls with the protagonist") {
+  namespace rules = corundum::gameplay::rules;
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  dress_as_fighter(*fight, player);
+  fight->engine->flags["test.hero.start"] = 100;
+  int hero_turns = 0;
+  // As poison can: the hero's second blow fells the foe, and the end of that turn fells the hero.
+  combat_rules(*fight).end_turn = [&hero_turns](const rules::CombatContext &context, rules::Combatant &combatant,
+                                                rules::TurnEnd) {
+    if (!combatant.creature && ++hero_turns == 2)
+      context.flag_writer.write("test.hero.damage", 2);
+    return rules::TurnEndResult{};
+  };
+  start_fight(*fight);
+
+  step_until_playing(*fight, player, "fighter_die");
+
+  REQUIRE(fight->gameplay->battle.has_value());
+  CHECK_FALSE(battle_of(*fight).target_tile().has_value());
 }
