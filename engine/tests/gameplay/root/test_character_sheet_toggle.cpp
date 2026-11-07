@@ -21,6 +21,8 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <format>
+#include <string_view>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -42,6 +44,18 @@ namespace {
     engine.input_state = state;
     const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
     return engine.update_engine_screens(intent);
+  }
+
+  using corundum::gameplay::rules::FlagReader;
+  using corundum::gameplay::rules::FlagWriter;
+
+  /// Give @p gameplay one ruleset row, "Stance", with id "stance", showing the `test.stance` flag.
+  void add_stance_row(corundum::gameplay::Gameplay &gameplay) {
+    gameplay.ruleset.character_rows = [](const FlagReader &flags) {
+      return std::vector<StatRow>{
+          {.id = "stance", .label = "Stance", .value = std::format("{}", flags.read("test.stance"))},
+      };
+    };
   }
 
 } // namespace
@@ -187,6 +201,67 @@ TEST_CASE("character sheet - navigation and Activate equip then unequip the high
   CHECK(gameplay.character_sheet_state.section == 1);
   press(engine, corundum::input::Action::Activate);
   CHECK_FALSE(corundum::world::has_flag(engine.flags, "equip.weapon.sword"));
+
+  engine.cleanup();
+}
+
+TEST_CASE("character sheet - Activate on a row with an id tells the ruleset and re-samples the rows") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
+  add_stance_row(gameplay);
+  gameplay.ruleset.activate_character_row = [](const FlagReader &flags, const FlagWriter &writer, std::string_view id) {
+    CHECK_EQ(id, "stance");
+    writer.write("test.stance", flags.read("test.stance") + 1);
+  };
+
+  press(engine, corundum::input::Action::Character);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::Activate);
+
+  const std::vector<StatRow> expected{{.id = "stance", .label = "Stance", .value = "1"}};
+  CHECK_EQ(gameplay.character_sheet_info.rule_rows, expected);
+
+  engine.cleanup();
+}
+
+TEST_CASE("character sheet - Activate on a row with no id leaves the ruleset alone") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
+  add_stance_row(gameplay);
+  gameplay.ruleset.activate_character_row = [](const FlagReader &, const FlagWriter &writer, std::string_view) {
+    writer.write("test.stance", 1);
+  };
+
+  press(engine, corundum::input::Action::Character);
+  press(engine, corundum::input::Action::Activate);
+
+  CHECK_FALSE(corundum::world::has_flag(engine.flags, "test.stance"));
+
+  engine.cleanup();
+}
+
+TEST_CASE("character sheet - a row with an id does nothing when the ruleset has no activation") {
+  corundum::Engine engine{};
+  adopt_platform(engine, 320, 240);
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+  corundum::gameplay::Gameplay gameplay{engine};
+  add_stance_row(gameplay);
+
+  press(engine, corundum::input::Action::Character);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::MoveDown);
+  press(engine, corundum::input::Action::Activate);
+
+  const std::vector<StatRow> expected{{.id = "stance", .label = "Stance", .value = "0"}};
+  CHECK_EQ(gameplay.character_sheet_info.rule_rows, expected);
 
   engine.cleanup();
 }

@@ -24,8 +24,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace corundum::gameplay::screens {
@@ -43,6 +45,9 @@ namespace corundum::gameplay::screens {
 
     /// The Stats rows every sheet has: Level, Experience and Gold.
     constexpr int k_fixed_stats_row_count = 3;
+
+    /// The Stats row the ruleset's rows start on: every fixed row but Gold comes before them.
+    constexpr int k_first_rule_stats_row = k_fixed_stats_row_count - 1;
 
     /// A number the game may not have written; absent and negative both read as 0.
     int flag_count(const world::FlagStore &flags, std::string_view key) {
@@ -184,6 +189,16 @@ namespace corundum::gameplay::screens {
       state.row = std::clamp(state.row, 0, rows - 1);
   }
 
+  std::optional<std::string_view> activatable_stat_id(const CharacterInfo &info, int row) noexcept {
+    const int rule_row = row - k_first_rule_stats_row;
+    if (rule_row < 0 || std::cmp_greater_equal(rule_row, info.rule_rows.size()))
+      return std::nullopt;
+    const std::string &id = info.rule_rows[static_cast<std::size_t>(rule_row)].id;
+    if (id.empty())
+      return std::nullopt;
+    return id;
+  }
+
   CharacterSheetLayout character_sheet_layout(const ui::PanelStyle &style, core::math::Vec2 viewport) {
     const ui::PanelRect panel = ui::screen_panel_rect(viewport, style);
     const SectionGeometry sections = compute_sections(style, panel);
@@ -241,7 +256,7 @@ namespace corundum::gameplay::screens {
     draw_section_rows(r, style, sections.inventory, y, inventory_rows, state.section == 2 ? state.row : -1);
 
     const std::string footer = std::format(
-        "{} Navigate   {} Section   {} Equip   {} Close", ui::input_glyph(input::Action::MoveUp, last_device),
+        "{} Navigate   {} Section   {} Select   {} Close", ui::input_glyph(input::Action::MoveUp, last_device),
         ui::input_glyph(input::Action::MoveLeft, last_device), ui::input_glyph(input::Action::Activate, last_device),
         ui::input_glyph(input::Action::Cancel, last_device));
     const float footer_w = r.measure_text(regular_font(style), footer, style.font_size_body);

@@ -1214,10 +1214,39 @@ namespace corundum::gameplay {
                                   engine.input_mapper.last_device());
     }
 
-    /// Equip or unequip the highlighted character-sheet row. Equipment rows unequip their
-    /// equipped item; inventory rows toggle the selected item's equip state. Stats rows do
-    /// nothing. Rebuilds the sheet values so the equipment column reflects the change.
+    /// Read the sheet's values again after a change, keeping the cursor on a row that still exists.
+    void resample_character_sheet(const Engine &engine, Gameplay &gameplay) {
+      const int row = gameplay.character_sheet_state.row;
+      gameplay.character_sheet_info = screens::build_character_info(engine.flags, gameplay.items, gameplay.ruleset);
+      const int rows =
+          screens::character_section_row_count(gameplay.character_sheet_info, gameplay.character_sheet_state.section);
+      gameplay.character_sheet_state.row = std::clamp(row, 0, rows - 1);
+    }
+
+    /// Pass the highlighted Stats row to the ruleset when it can be activated.
+    void activate_stats_row(Engine &engine, Gameplay &gameplay) {
+      const std::optional<std::string_view> id =
+          screens::activatable_stat_id(gameplay.character_sheet_info, gameplay.character_sheet_state.row);
+      if (!id || !gameplay.ruleset.activate_character_row)
+        return;
+      const rules::FlagReader reader{
+          .read = [&engine](std::string_view key) { return world::visit_count(engine.flags, key); },
+      };
+      const rules::FlagWriter writer{
+          .write = [&engine](std::string_view key, int value) { engine.flags[key] = value; },
+      };
+      gameplay.ruleset.activate_character_row(reader, writer, *id);
+      resample_character_sheet(engine, gameplay);
+    }
+
+    /// Run the highlighted character-sheet row. An equipment row unequips its item, an inventory
+    /// row toggles its item's equip state, and a Stats row goes to the ruleset if it can be
+    /// activated. Rebuilds the sheet values so every column reflects the change.
     void activate_character_row(Engine &engine, Gameplay &gameplay) {
+      if (gameplay.character_sheet_state.section == 0) {
+        activate_stats_row(engine, gameplay);
+        return;
+      }
       const screens::CharacterSheetState state = gameplay.character_sheet_state;
       const screens::CharacterInfo &info = gameplay.character_sheet_info;
       std::string_view item_id;
@@ -1231,13 +1260,11 @@ namespace corundum::gameplay {
         engine.notify(result.error());
         return;
       }
-      gameplay.character_sheet_info = screens::build_character_info(engine.flags, gameplay.items, gameplay.ruleset);
-      const int rows = screens::character_section_row_count(gameplay.character_sheet_info, state.section);
-      gameplay.character_sheet_state.row = std::clamp(state.row, 0, rows - 1);
+      resample_character_sheet(engine, gameplay);
     }
 
     /// Step the character sheet: Cancel closes it, the navigation axes move the highlight, and
-    /// Activate equips or unequips the highlighted row. The hotkey that opens it is handled by
+    /// Activate runs the highlighted row. The hotkey that opens it is handled by
     /// the input hook before this step runs.
     void update_character(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {

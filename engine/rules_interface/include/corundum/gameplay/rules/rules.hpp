@@ -27,6 +27,10 @@ namespace corundum::gameplay::rules {
 
   /** @brief One "label: value" row a ruleset supplies for display, such as {"Strength", "+2"}. */
   struct StatRow {
+    /** The ruleset's name for a row the player can activate, passed back to
+     *  Ruleset::activate_character_row; empty for a row that only shows a value. */
+    std::string id{};
+
     std::string label{};
 
     std::string value{};
@@ -274,6 +278,10 @@ namespace corundum::gameplay::rules {
    *  nothing for it. A callback reads only what it is passed.
    */
   struct Ruleset {
+    /** @brief The player activated the character sheet's row @p row, a StatRow::id from
+     *  character_rows. The framework shows the rows again afterwards. Empty: no row activates. */
+    std::function<void(const FlagReader &, const FlagWriter &, std::string_view row)> activate_character_row{};
+
     /** @brief The protagonist's rows for the character sheet's Stats column, in display order. */
     std::function<std::vector<StatRow>(const FlagReader &)> character_rows{};
 

@@ -18,6 +18,7 @@
 #include "gameplay/rules/flat_ruleset.hpp"
 #include "ui/recording_renderer.hpp"
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -316,6 +317,17 @@ TEST_CASE("character sheet: cursor moves between sections and wraps within a sec
   screens::move_character_cursor(state, info, /*dx=*/1, /*dy=*/0);
   CHECK(state.section == 1);
   CHECK(state.row == 0);
+}
+
+TEST_CASE("character sheet: only a ruleset row with an id can be activated") {
+  CharacterInfo info{};
+  info.rule_rows = {{.label = "Strength", .value = "+1"}, {.id = "stance", .label = "Stance", .value = "Low"}};
+
+  CHECK_FALSE(screens::activatable_stat_id(info, 0).has_value()); // Level
+  CHECK_FALSE(screens::activatable_stat_id(info, 1).has_value()); // Experience
+  CHECK_FALSE(screens::activatable_stat_id(info, 2).has_value()); // Strength
+  CHECK_EQ(screens::activatable_stat_id(info, 3), std::optional<std::string_view>{"stance"});
+  CHECK_FALSE(screens::activatable_stat_id(info, 4).has_value()); // Gold
 }
 
 TEST_CASE("character sheet: GameMode::Character is a distinct extension mode") {
