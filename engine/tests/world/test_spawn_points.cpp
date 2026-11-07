@@ -17,6 +17,7 @@
 #include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/sprites/character_registry.hpp>
+#include <corundum/sprites/sprite.hpp>
 #include <corundum/world/actors/actor.hpp>
 #include <corundum/world/spawn.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -429,6 +430,46 @@ TEST_CASE("spawn_world - an actor with no walk companion gets no motion row") {
   REQUIRE(spawned.has_value());
   const auto &world = (*spawned)->world;
   CHECK_FALSE(world.motion_sprites.has(require_actor(world, "npc")));
+}
+
+TEST_CASE("spawn_world - the player and an actor with a ready companion can take a stance") {
+  const auto dir = temp_dir("spawn_world_ready_companion");
+  write_file(dir / "characters" / "stance.json",
+             R"({"id":"stance","path":"game/assets/heroes.png","frame_width":32,"frame_height":32,"frames":{)"
+             R"("hero_ready":{"footprint_col_span":0.25,"footprint_row_span":0.75,"fps":5.0,)"
+             R"("south":[{"col":0,"row":0},{"col":1,"row":0},{"col":2,"row":0}]}}})");
+  const auto registry = make_registry(dir);
+  const auto spawn_dir = dir / "spawn_points";
+  write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"hero_idle"}]})");
+
+  auto spawned =
+      corundum::world::spawn_world(disk(), make_player_config(spawn_dir), registry, make_tilemap(dir / "village.tmx"));
+
+  REQUIRE(spawned.has_value());
+  auto &motion_sprites = (*spawned)->world.motion_sprites;
+  const corundum::sprites::SpriteId ready_id = registry.get_sprite_id("hero_ready");
+  for (const corundum::entities::EntityId entity : {require_actor((*spawned)->world, "npc"), (*spawned)->player}) {
+    motion_sprites.enter_stance(entity);
+    CHECK_EQ(motion_sprites.idle_sprite(entity), ready_id);
+    CHECK(motion_sprites.frame_duration_for(entity, ready_id) == doctest::Approx(0.2f));
+    CHECK_EQ(motion_sprites.idle_frame_counts(entity)[std::to_underlying(corundum::sprites::AnimId::South)], 3);
+  }
+}
+
+TEST_CASE("spawn_world - an actor with no ready companion can't take a stance") {
+  const auto dir = temp_dir("spawn_world_no_ready_companion");
+  const auto registry = make_registry(dir);
+  const auto spawn_dir = dir / "spawn_points";
+  write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"hero_idle"}]})");
+
+  auto spawned =
+      corundum::world::spawn_world(disk(), make_player_config(spawn_dir), registry, make_tilemap(dir / "village.tmx"));
+
+  REQUIRE(spawned.has_value());
+  auto &motion_sprites = (*spawned)->world.motion_sprites;
+  const corundum::entities::EntityId npc = require_actor((*spawned)->world, "npc");
+  motion_sprites.enter_stance(npc);
+  CHECK_FALSE(motion_sprites.is_in_stance(npc));
 }
 
 TEST_CASE("spawn_world - unknown player walk sprite is an error") {

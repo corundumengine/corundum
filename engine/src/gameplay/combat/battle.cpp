@@ -371,6 +371,10 @@ namespace corundum::gameplay::combat {
     Battle battle(std::move(*encounter), std::move(entities), std::move(clips), request.hostiles.front().actor_id,
                   rules.auto_pause);
     battle.open_fight(engine);
+    for (const std::optional<entities::EntityId> &entity : battle.entities_) {
+      if (entity && engine.scene.world.motion_sprites.has(*entity))
+        engine.scene.world.motion_sprites.enter_stance(*entity);
+    }
     return battle;
   }
 
@@ -790,6 +794,14 @@ namespace corundum::gameplay::combat {
       const std::uint32_t slot = transforms.dense_index(*entity);
       transforms.dc[slot] = 0.f;
       transforms.dr[slot] = 0.f;
+    }
+  }
+
+  void Battle::stand_down(Engine &engine) const {
+    entities::MotionSpriteTable &motion_sprites = engine.scene.world.motion_sprites;
+    for (const std::optional<entities::EntityId> &entity : entities_) {
+      if (entity && motion_sprites.has(*entity))
+        motion_sprites.leave_stance(*entity);
     }
   }
 

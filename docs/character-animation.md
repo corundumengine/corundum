@@ -6,6 +6,7 @@ A character is a set of sheets that share a name up to the last `_`. Point an ac
 | Sprite | Plays | Rate |
 | --- | --- | --- |
 | `skeleton_idle` | Standing | The sheet's `fps` |
+| `skeleton_ready` | Standing in a fight | The sheet's `fps` |
 | `skeleton_walk` | Moving | The sheet's `fps`, scaled by speed |
 | `skeleton_attack` | A wind-up at an enemy | Fitted to the wind-up: the middle frame meets the landing |
 | `skeleton_hurt` | A fall in Health | The sheet's `fps` |
@@ -15,6 +16,10 @@ Only the idle sheet is required. A character missing one of the others doesn't p
 no die sheet, a fallen enemy disappears at once. An attack, hurt or die sheet needs frames for all
 eight directions, or a `default` clip; one that leaves a direction empty counts as missing. The
 player's walk sheet comes from `player.walk_sprite`, not from this naming.
+
+A fight puts every combatant with a ready sheet into that stance until the fight ends. The stance needs
+a walk sheet too; a character with no walk sheet stands on its idle sheet throughout. Attack and hurt
+sheets should start and end on the ready pose, so a character doesn't snap when one finishes.
 
 Give each sheet the same frame size and `walk_around_offset`, or the character shifts when its sheet
 changes. Draw the strike around the middle of the attack sheet. Attack and death art often spreads

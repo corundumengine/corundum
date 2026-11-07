@@ -86,18 +86,27 @@ namespace corundum::world {
       SpriteStats stats{};
     };
 
-    /// Let @p entity switch between @p walk and @p idle as it moves and stops.
-    void insert_motion_sprites(World &world, EntityId entity, const MotionSheet &walk, const MotionSheet &idle) {
-      world.motion_sprites.insert(entity, corundum::entities::MotionSpriteTable::Config{
-                                              .walk_id = walk.sprite_id,
-                                              .idle_id = idle.sprite_id,
-                                              .walk_counts = walk.stats.frame_counts,
-                                              .idle_counts = idle.stats.frame_counts,
-                                              .idle_to_walk_delay = k_idle_to_walk_delay_seconds,
-                                              .walk_to_idle_delay = k_walk_to_idle_delay_seconds,
-                                              .walk_frame_duration = walk.stats.frame_duration,
-                                              .idle_frame_duration = idle.stats.frame_duration,
-                                          });
+    /// Let @p entity switch between @p walk and @p idle as it moves and stops, and stand on its
+    /// character's ready sheet in a stance, when it has one.
+    void insert_motion_sprites(World &world, const CharacterRegistry &registry, EntityId entity,
+                               const MotionSheet &walk, const MotionSheet &idle) {
+      corundum::entities::MotionSpriteTable::Config config{
+          .walk_id = walk.sprite_id,
+          .idle_id = idle.sprite_id,
+          .walk_counts = walk.stats.frame_counts,
+          .idle_counts = idle.stats.frame_counts,
+          .idle_to_walk_delay = k_idle_to_walk_delay_seconds,
+          .walk_to_idle_delay = k_walk_to_idle_delay_seconds,
+          .walk_frame_duration = walk.stats.frame_duration,
+          .idle_frame_duration = idle.stats.frame_duration,
+      };
+      if (const std::optional<SpriteId> ready_id = registry.find_companion(idle.sprite_id, "ready")) {
+        const SpriteStats ready = read_sprite_stats(registry, *ready_id);
+        config.ready_id = *ready_id;
+        config.ready_counts = ready.frame_counts;
+        config.ready_frame_duration = ready.frame_duration;
+      }
+      world.motion_sprites.insert(entity, config);
     }
 
     /// Destroy every entity in @p spawned so a failed batch never leaves live, untracked actors.
@@ -149,7 +158,8 @@ namespace corundum::world {
         world.facings.insert(eid, facing.value_or(corundum::core::Direction::South));
 
         if (const std::optional<SpriteId> walk_id = registry.find_companion(sprite_id, "walk")) {
-          insert_motion_sprites(world, eid, {.sprite_id = *walk_id, .stats = read_sprite_stats(registry, *walk_id)},
+          insert_motion_sprites(world, registry, eid,
+                                {.sprite_id = *walk_id, .stats = read_sprite_stats(registry, *walk_id)},
                                 {.sprite_id = sprite_id, .stats = stats});
         }
 
@@ -198,7 +208,7 @@ namespace corundum::world {
       world.facings.insert(player, corundum::core::Direction::South);
       if (idle.frame_duration > 0.f)
         world.animations.frame_duration_ref(player) = idle.frame_duration;
-      insert_motion_sprites(world, player, {.sprite_id = walk_id, .stats = walk},
+      insert_motion_sprites(world, registry, player, {.sprite_id = walk_id, .stats = walk},
                             {.sprite_id = idle_id, .stats = idle});
       return player;
     }

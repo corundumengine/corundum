@@ -17,6 +17,7 @@
 #include <corundum/entities/tables/transform_table.hpp>
 
 #include <array>
+#include <utility>
 
 using corundum::core::math::IsometricParams;
 using corundum::entities::AnimationTable;
@@ -66,7 +67,11 @@ namespace {
   corundum::entities::Clip make_clip(corundum::entities::ClipEnd end,
                                      corundum::sprites::SpriteId sprite = k_clip_sprite) {
     corundum::entities::Clip clip{
-        .end = end, .frame_counts = {}, .frame_duration = k_clip_frame_seconds, .sprite = sprite};
+        .end = end,
+        .frame_counts = {},
+        .frame_duration = k_clip_frame_seconds,
+        .sprite = sprite,
+    };
     clip.frame_counts.fill(3);
     return clip;
   }
@@ -96,6 +101,43 @@ namespace {
     counts.fill(4);
     f.animations.set_frame_counts(e, counts);
     return e;
+  }
+
+  constexpr corundum::sprites::SpriteId k_stance_walk_sprite{1};
+
+  constexpr corundum::sprites::SpriteId k_stance_idle_sprite{2};
+
+  constexpr corundum::sprites::SpriteId k_stance_ready_sprite{3};
+
+  constexpr float k_stance_idle_frame_seconds = 0.2f;
+
+  constexpr float k_stance_ready_frame_seconds = 0.3f;
+
+  /// Give @p e a motion row with distinct walk, idle and ready sheets, standing on idle.
+  void add_stance_row(Fixture &f, EntityId e) {
+    std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_and_idle_counts{};
+    walk_and_idle_counts.fill(4);
+    std::array<uint8_t, corundum::sprites::k_num_anim_ids> ready_counts{};
+    ready_counts.fill(6);
+    f.motion_sprites.insert(e, MotionSpriteTable::Config{
+                                   .walk_id = k_stance_walk_sprite,
+                                   .idle_id = k_stance_idle_sprite,
+                                   .walk_counts = walk_and_idle_counts,
+                                   .idle_counts = walk_and_idle_counts,
+                                   .idle_to_walk_delay = 0.f,
+                                   .walk_to_idle_delay = 0.f,
+                                   .walk_frame_duration = 0.f,
+                                   .idle_frame_duration = k_stance_idle_frame_seconds,
+                                   .ready_id = k_stance_ready_sprite,
+                                   .ready_counts = ready_counts,
+                                   .ready_frame_duration = k_stance_ready_frame_seconds,
+                               });
+    f.sprites.sprite_id_ref(e) = k_stance_idle_sprite;
+  }
+
+  void run_motion_step(Fixture &f) {
+    corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
+                                k_reference_speed, /*dt=*/0.01f);
   }
 
 } // namespace
@@ -617,4 +659,78 @@ TEST_CASE("clip: one clip ending leaves the others playing") {
   REQUIRE(f.clips.has(third));
   CHECK_EQ(f.sprites.frame_index_ref(second), 1);
   CHECK_EQ(f.sprites.frame_index_ref(third), 1);
+}
+
+TEST_CASE("stance: a standing entity moves onto its ready sheet") {
+  Fixture f;
+  add_stance_row(f, f.player);
+
+  f.motion_sprites.enter_stance(f.player);
+  run_motion_step(f);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_stance_ready_sprite);
+  CHECK_EQ(f.animations.frame_count(f.player, corundum::sprites::AnimId::South), 6);
+  CHECK_EQ(f.motion_sprites.frame_duration_for(f.player, k_stance_ready_sprite), k_stance_ready_frame_seconds);
+}
+
+TEST_CASE("stance: leaving it returns a standing entity to its idle sheet") {
+  Fixture f;
+  add_stance_row(f, f.player);
+  f.motion_sprites.enter_stance(f.player);
+  run_motion_step(f);
+
+  f.motion_sprites.leave_stance(f.player);
+  run_motion_step(f);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_stance_idle_sprite);
+  CHECK_EQ(f.animations.frame_count(f.player, corundum::sprites::AnimId::South), 4);
+  CHECK_EQ(f.motion_sprites.frame_duration_for(f.player, k_stance_idle_sprite), k_stance_idle_frame_seconds);
+}
+
+TEST_CASE("stance: a moving entity still walks") {
+  Fixture f;
+  add_stance_row(f, f.player);
+  f.motion_sprites.enter_stance(f.player);
+  move(f, f.player);
+
+  run_motion_step(f);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_stance_walk_sprite);
+}
+
+TEST_CASE("stance: a character with no ready sheet stays on idle") {
+  Fixture f;
+  f.motion_sprites.insert(f.player,
+                          MotionSpriteTable::Config{.walk_id = k_stance_walk_sprite, .idle_id = k_stance_idle_sprite});
+
+  f.motion_sprites.enter_stance(f.player);
+
+  CHECK_FALSE(f.motion_sprites.is_in_stance(f.player));
+  CHECK_EQ(f.motion_sprites.idle_sprite(f.player), k_stance_idle_sprite);
+}
+
+TEST_CASE("stance: removing another row keeps it") {
+  Fixture f;
+  const EntityId other = add_animated_entity(f, 1);
+  add_stance_row(f, f.player);
+  add_stance_row(f, other);
+  f.motion_sprites.enter_stance(other);
+
+  f.motion_sprites.remove(f.player);
+
+  CHECK(f.motion_sprites.is_in_stance(other));
+  CHECK_EQ(f.motion_sprites.idle_sprite(other), k_stance_ready_sprite);
+}
+
+TEST_CASE("stance: a clip that returns to the idle sheet moves on to the ready sheet") {
+  Fixture f;
+  add_stance_row(f, f.player);
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+  f.motion_sprites.enter_stance(f.player);
+  run_clip_steps(f, 3);
+  REQUIRE_EQ(f.sprites.sprite_id_ref(f.player), k_stance_idle_sprite);
+
+  run_motion_step(f);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), k_stance_ready_sprite);
 }

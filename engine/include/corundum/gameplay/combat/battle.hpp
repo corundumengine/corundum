@@ -101,6 +101,7 @@ namespace corundum::gameplay::combat {
      *    its hurt clip, and a fall its death clip; a character missing a sheet skips that clip;
      *  - from the step the protagonist falls, no orders are read and everyone stands until its death
      *    clip ends.
+     *  Every combatant with a ready sheet stands on it from start until stand_down.
      *  @pre has_live_combatants(engine). */
     [[nodiscard]] BattleStep update(Engine &engine, Clock clock);
 
@@ -110,6 +111,11 @@ namespace corundum::gameplay::combat {
     /** @brief Stop every combatant: clear the player's path and zero the hostiles' velocity.
      *  @pre has_live_combatants(engine). */
     void halt(Engine &engine) const;
+
+    /** @brief Take every combatant out of its combat stance.
+     *  @pre The fight's scene is still loaded: an area change replaces it, and the ids name nothing.
+     *  @note A combatant that has left the scene is skipped, so this needs no has_live_combatants(). */
+    void stand_down(Engine &engine) const;
 
     [[nodiscard]] const Encounter &encounter() const noexcept { return encounter_; }
 

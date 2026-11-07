@@ -1666,6 +1666,7 @@ namespace corundum::gameplay {
     /// encounter_won/encounter_lost for the game's on_event hook.
     void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle, combat::Outcome outcome) {
       battle.halt(engine);
+      battle.stand_down(engine);
       close_combat_layers(engine.scene.ui);
       dialogue::EventAction ended{
           .name = outcome == combat::Outcome::Won ? "encounter_won" : "encounter_lost",
@@ -1690,6 +1691,7 @@ namespace corundum::gameplay {
       }
       // The liveness check runs only while the layer is there, so it never reads a replaced scene's ids.
       if (!gameplay.battle->has_live_combatants(engine)) {
+        gameplay.battle->stand_down(engine);
         close_combat_layers(ui);
         drop_battle(engine, gameplay);
         return;

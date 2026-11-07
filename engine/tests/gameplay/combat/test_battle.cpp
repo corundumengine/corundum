@@ -197,6 +197,22 @@ namespace {
     dress_as(fight, entity, "fighter_idle");
   }
 
+  /// Give @p entity a motion row with the fighter's ready sheet, as a spawned fighter would have.
+  void give_stance(Fight &fight, EntityId entity) {
+    auto &motion_sprites = fight.engine->scene.world.motion_sprites;
+    const corundum::sprites::Frames *ready = fight.engine->characters.get_sprite("fighter_ready");
+    REQUIRE(ready != nullptr);
+    if (motion_sprites.has(entity))
+      motion_sprites.remove(entity);
+    motion_sprites.insert(entity, corundum::entities::MotionSpriteTable::Config{
+                                      .walk_id = fight.engine->characters.get_sprite_id("player_walk"),
+                                      .idle_id = fight.engine->characters.get_sprite_id("fighter_idle"),
+                                      .ready_id = ready->sprite_id,
+                                      .ready_counts = corundum::sprites::frame_counts_of(*ready),
+                                      .ready_frame_duration = k_dt,
+                                  });
+  }
+
   [[nodiscard]] bool plays(const Fight &fight, EntityId entity, const std::string &sprite) {
     const auto &sprites = fight.engine->scene.world.sprites;
     return sprites.sprite_id[sprites.dense_index(entity)] == fight.engine->characters.get_sprite_id(sprite);
@@ -1474,4 +1490,54 @@ TEST_CASE("combat: target_tile is empty when the target falls with the protagoni
 
   REQUIRE(fight->gameplay->battle.has_value());
   CHECK_FALSE(battle_of(*fight).target_tile().has_value());
+}
+
+TEST_CASE("combat: a fight puts its combatants in their stance") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  give_stance(*fight, player);
+  give_stance(*fight, fight->foe);
+
+  start_fight(*fight);
+
+  const auto &motion_sprites = fight->engine->scene.world.motion_sprites;
+  CHECK(motion_sprites.is_in_stance(player));
+  CHECK(motion_sprites.is_in_stance(fight->foe));
+}
+
+TEST_CASE("combat: a combatant with no ready sheet fights without a stance") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  REQUIRE(fight->engine->scene.world.motion_sprites.has(player));
+
+  start_fight(*fight);
+
+  CHECK_FALSE(fight->engine->scene.world.motion_sprites.is_in_stance(player));
+}
+
+TEST_CASE("combat: a won fight stands the protagonist down") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  give_stance(*fight, player);
+  fight->engine->flags["test.hero.start"] = 100;
+  start_fight(*fight);
+
+  step_until_over(*fight);
+
+  REQUIRE_EQ(fight->raised.size(), 1);
+  CHECK_EQ(fight->raised[0].name, "encounter_won");
+  CHECK_FALSE(fight->engine->scene.world.motion_sprites.is_in_stance(player));
+}
+
+TEST_CASE("combat: a fight that loses a combatant from the scene stands the others down") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  const EntityId player = fight->engine->scene.player;
+  give_stance(*fight, player);
+  start_fight(*fight);
+
+  corundum::entities::despawn(fight->engine->scene.world, fight->foe);
+  step(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_FALSE(fight->engine->scene.world.motion_sprites.is_in_stance(player));
 }
