@@ -4,6 +4,7 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -37,31 +38,20 @@ namespace corundum::gameplay::screens {
     int unit_price{};
   };
 
-  /** @brief Reputation-adjusted buy price.
-   *
-   *  Positive reputation discounts the base price by up to 50%; negative reputation is
-   *  ignored (no surcharge). A positive base always costs at least 1 gold.
-   */
-  [[nodiscard]] int barter_buy_price(int base_price, int reputation) noexcept;
-
-  /** @brief Gold the merchant pays for one unit: @p base_price scaled by @p buy_rate, never negative. */
-  [[nodiscard]] int barter_sell_price(int base_price, float buy_rate) noexcept;
-
-  /** @brief Build the Buy rows: every item the shop offers, priced for @p reputation.
-   *
-   *  A stock entry with no explicit price uses the item definition's price. Rows keep the
-   *  shop's authored order (the order a merchant's shelves read in).
-   */
+  /** @brief Build the Buy rows: every item the shop offers, priced by the ruleset's buy_price for
+   *  the player's standing with the shop's faction. A positive base price never costs less than 1
+   *  gold; a base of 0 stays 0. Rows keep the shop's authored order. */
   [[nodiscard]] std::vector<BarterLine> build_barter_stock(const gameplay::shop::Shop &shop,
-                                                           const gameplay::item::Registry &items, int reputation);
+                                                           const gameplay::item::Registry &items,
+                                                           const world::FlagStore &flags,
+                                                           const rules::Ruleset &ruleset);
 
-  /** @brief Build the Sell rows: every item the player holds that has a value.
-   *
-   *  Items with a base price of 0 are omitted (they cannot be sold). Sorted by name.
-   */
+  /** @brief Build the Sell rows: every held item the ruleset's sell_price will buy at a price
+   *  above 0, sorted by name. No sell_price callback means no rows. */
   [[nodiscard]] std::vector<BarterLine> build_barter_sell_lines(const gameplay::shop::Shop &shop,
                                                                 const gameplay::item::Registry &items,
-                                                                const world::FlagStore &flags);
+                                                                const world::FlagStore &flags,
+                                                                const rules::Ruleset &ruleset);
 
   /** @brief Barter-screen state: active tab and the highlighted row within it. */
   struct BarterState {

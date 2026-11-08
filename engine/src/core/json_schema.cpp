@@ -239,7 +239,6 @@ namespace corundum::core {
         "id":       { "type": "string", "minLength": 1 },
         "name":     { "type": "string", "minLength": 1 },
         "faction":  { "type": "string" },
-        "buy_rate": { "type": "number", "minimum": 0, "maximum": 1 },
         "stock": {
           "type": "array",
           "items": { "$ref": "#/definitions/stock" }

@@ -6,6 +6,7 @@
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/gameplay/shop/loader.hpp>
+#include <corundum/gameplay/shop/shop.hpp>
 
 #include <expected>
 #include <filesystem>
@@ -27,8 +28,6 @@ namespace corundum::gameplay::shop {
       shop.name = element["name"].get<std::string>();
       if (element.contains("faction"))
         shop.faction = element["faction"].get<std::string>();
-      if (element.contains("buy_rate"))
-        shop.buy_rate = element["buy_rate"].get<float>();
       if (element.contains("stock")) {
         for (const auto &stock : element["stock"]) {
           StockEntry entry;

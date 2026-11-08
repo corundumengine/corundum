@@ -3,6 +3,8 @@
 
 #include <corundum/gameplay/dialogue/compiled_expr.hpp>
 #include <corundum/gameplay/dialogue/query.hpp>
+#include <corundum/gameplay/faction/standing.hpp>
+#include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/gameplay/quest/system.hpp>
@@ -402,19 +404,15 @@ namespace corundum::gameplay::dialogue {
         std::unreachable();
       }
 
-      [[nodiscard]] int eval_cmp(const ExprNode &n) const {
-        const int lhs = eval_index(n.lhs);
-        const int rhs = eval_index(n.rhs);
+      /// Compare two values as booleans: Eq and Ne only, which is all a bool rhs accepts.
+      [[nodiscard]] static int compare_truthy(int lhs, int rhs, CmpOp op) {
+        const bool same = (lhs != 0) == (rhs != 0);
+        const bool matches = op == CmpOp::Eq ? same : !same;
+        return matches ? 1 : 0;
+      }
 
-        if (n.rhs_is_bool && (n.op == CmpOp::Eq || n.op == CmpOp::Ne)) {
-          const bool lhs_truthy = (lhs != 0);
-          const bool rhs_truthy = (rhs != 0);
-          if (n.op == CmpOp::Eq)
-            return (lhs_truthy == rhs_truthy) ? 1 : 0;
-          return (lhs_truthy != rhs_truthy) ? 1 : 0;
-        }
-
-        switch (n.op) {
+      [[nodiscard]] static int compare_ordered(int lhs, int rhs, CmpOp op) {
+        switch (op) {
           case CmpOp::Eq: return lhs == rhs ? 1 : 0;
           case CmpOp::Ne: return lhs != rhs ? 1 : 0;
           case CmpOp::Lt: return lhs < rhs ? 1 : 0;
@@ -423,6 +421,15 @@ namespace corundum::gameplay::dialogue {
           case CmpOp::Ge: return lhs >= rhs ? 1 : 0;
         }
         std::unreachable();
+      }
+
+      [[nodiscard]] int eval_cmp(const ExprNode &n) const {
+        const int lhs = eval_index(n.lhs);
+        const int rhs = eval_index(n.rhs);
+        const bool is_boolean_equality = n.rhs_is_bool && (n.op == CmpOp::Eq || n.op == CmpOp::Ne);
+        if (is_boolean_equality)
+          return compare_truthy(lhs, rhs, n.op);
+        return compare_ordered(lhs, rhs, n.op);
       }
 
       [[nodiscard]] int eval_call(const ExprNode &n) const {
@@ -436,7 +443,7 @@ namespace corundum::gameplay::dialogue {
         if (n.name == "item_count")
           return flag_count("item." + n.arg);
         if (n.name == "rep")
-          return flag_count("rep." + n.arg);
+          return flag_count(faction::standing_flag_key(n.arg));
 
         std::unreachable();
       }
@@ -456,25 +463,31 @@ namespace corundum::gameplay::dialogue {
         return std::nullopt;
       }
 
-      [[nodiscard]] std::optional<int> eval_quest_helper(const ExprNode &n) const {
-        if (n.name == "quest_is_started")
-          return flag_count(corundum::gameplay::quest::quest_flag_key(n.arg)) > 0 ? 1 : 0;
-
-        const auto *quest = (quests_ != nullptr) ? quests_->find(n.arg) : nullptr;
-
+      /// quest_is_resolved / quest_is_failed, or nullopt for another helper.
+      [[nodiscard]] std::optional<int> eval_quest_state_helper(const ExprNode &n, const quest::Quest *quest) const {
         if (n.name == "quest_is_resolved")
           return (quest != nullptr && corundum::gameplay::quest::is_resolved(*quest, *vars_)) ? 1 : 0;
         if (n.name == "quest_is_failed")
           return (quest != nullptr && corundum::gameplay::quest::is_failed(*quest, *vars_)) ? 1 : 0;
-        if (n.name == "quest_is_at") {
-          if (quest == nullptr)
-            return 0;
-          const auto *stage = quest->find_stage(n.stage_name);
-          if (stage == nullptr)
-            return 0;
-          return flag_count(corundum::gameplay::quest::quest_flag_key(n.arg)) == stage->sequence ? 1 : 0;
-        }
         return std::nullopt;
+      }
+
+      [[nodiscard]] std::optional<int> eval_quest_helper(const ExprNode &n) const {
+        if (n.name == "quest_is_started")
+          return flag_count(corundum::gameplay::quest::quest_flag_key(n.arg)) > 0 ? 1 : 0;
+
+        const auto *quest = quests_ != nullptr ? quests_->find(n.arg) : nullptr;
+        if (const auto state = eval_quest_state_helper(n, quest))
+          return *state;
+        if (n.name != "quest_is_at")
+          return std::nullopt;
+
+        if (quest == nullptr)
+          return 0;
+        const auto *stage = quest->find_stage(n.stage_name);
+        if (stage == nullptr)
+          return 0;
+        return flag_count(corundum::gameplay::quest::quest_flag_key(n.arg)) == stage->sequence ? 1 : 0;
       }
 
       const std::vector<ExprNode> *nodes_;

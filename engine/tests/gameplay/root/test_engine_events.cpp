@@ -4,12 +4,12 @@
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
 #include <corundum/gameplay/quest/system.hpp>
-#include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
 #include <string>
@@ -289,25 +289,72 @@ TEST_CASE("engine events: reputation accumulates rep.<faction> and can go negati
   CHECK(engine.flags["rep.village"] == 2);
 }
 
-TEST_CASE("engine events: grant_xp accumulates player.xp") {
+TEST_CASE("engine events: reputation: the ruleset's clamp_standing bounds the stored standing") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  const std::string xp_flag{corundum::gameplay::screens::k_experience_flag};
+  gameplay.ruleset.clamp_standing = [](int standing) { return std::clamp(standing, -2, 2); };
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "3"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "3"}});
+  gameplay.process_events();
+  CHECK(engine.flags["rep.village"] == 2);
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "-9"}});
+  gameplay.process_events();
+  CHECK(engine.flags["rep.village"] == -2);
+}
+
+TEST_CASE("engine events: reputation: clamp_standing receives the unclamped sum") {
+  corundum::Engine engine;
+  corundum::gameplay::Gameplay gameplay{engine};
+  std::vector<int> received;
+  gameplay.ruleset.clamp_standing = [&received](int standing) {
+    received.push_back(standing);
+    return std::min(standing, 2);
+  };
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "2"}});
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "1"}});
+  gameplay.process_events();
+
+  CHECK_EQ(received, std::vector<int>{2, 3});
+  CHECK(engine.flags["rep.village"] == 2);
+}
+
+TEST_CASE("engine events: grant_xp raises the ruleset's experience through grant_experience") {
+  corundum::Engine engine;
+  corundum::gameplay::Gameplay gameplay{engine};
+  gameplay.ruleset.grant_experience = [](const corundum::gameplay::rules::FlagReader &flags,
+                                         const corundum::gameplay::rules::FlagWriter &writer,
+                                         int amount) { writer.write("test.xp", flags.read("test.xp") + amount); };
 
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "grant_xp", .args = {"30"}});
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "grant_xp", .args = {"12"}});
   gameplay.process_events();
 
-  CHECK(engine.flags[xp_flag] == 42);
+  CHECK(engine.flags["test.xp"] == 42);
 }
 
-TEST_CASE("engine events: grant_xp with a non-numeric value is a no-op") {
+TEST_CASE("engine events: grant_xp with a non-numeric value never calls grant_experience") {
   corundum::Engine engine;
   corundum::gameplay::Gameplay gameplay{engine};
-  const std::string xp_flag{corundum::gameplay::screens::k_experience_flag};
+  bool called = false;
+  gameplay.ruleset.grant_experience = [&called](const corundum::gameplay::rules::FlagReader &,
+                                                const corundum::gameplay::rules::FlagWriter &, int) { called = true; };
 
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "grant_xp", .args = {"lots"}});
   gameplay.process_events();
 
-  CHECK(!engine.flags.contains(xp_flag));
+  CHECK_FALSE(called);
+  CHECK(engine.flags.empty());
+}
+
+TEST_CASE("engine events: grant_xp without grant_experience leaves the flags untouched") {
+  corundum::Engine engine;
+  corundum::gameplay::Gameplay gameplay{engine};
+
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "grant_xp", .args = {"30"}});
+  gameplay.process_events();
+
+  CHECK(engine.flags.empty());
 }

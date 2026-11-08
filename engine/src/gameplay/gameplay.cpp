@@ -20,6 +20,8 @@
 #include <corundum/gameplay/dialogue/dialogue.hpp>
 #include <corundum/gameplay/dialogue/dialogue_npc.hpp>
 #include <corundum/gameplay/dialogue/validate_refs.hpp>
+#include <corundum/gameplay/faction/standing.hpp>
+#include <corundum/gameplay/flag_access.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/item/container.hpp>
 #include <corundum/gameplay/item/equipment.hpp>
@@ -218,11 +220,18 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Accumulate a `grant_xp(n)` event into the running total. The framework tracks the total;
-    /// how it maps to levels is the game's policy, set through `player.level`/`player.xp_next`.
-    void handle_grant_xp(Engine &engine, const dialogue::EventAction &ev) {
-      if (const int delta = event_int_arg(ev, 0, /*fallback=*/0); delta != 0)
-        engine.flags[screens::k_experience_flag] += delta;
+    /// Hand a `grant_xp(n)` event to the ruleset; the framework keeps no experience of its own. A
+    /// non-numeric amount parses to 0 and is skipped. Without a grant_experience callback the
+    /// event warns and does nothing.
+    void handle_grant_xp(Engine &engine, const Gameplay &gameplay, const dialogue::EventAction &ev) {
+      const int amount = event_int_arg(ev, 0, /*fallback=*/0);
+      if (amount == 0)
+        return;
+      if (!gameplay.ruleset.grant_experience) {
+        warn_log("[gameplay] WARN: grant_xp({}) ignored: the ruleset has no grant_experience", amount);
+        return;
+      }
+      gameplay.ruleset.grant_experience(make_flag_reader(engine.flags), make_flag_writer(engine.flags), amount);
     }
 
     /// Tell the log and the player why a fight didn't start.
@@ -249,11 +258,17 @@ namespace corundum::gameplay {
       gameplay.pending_encounter = std::move(request);
     }
 
-    /// Accumulate a `reputation(faction, delta)` event into `rep.<faction>`. A non-numeric delta
-    /// parses to 0 and is skipped so no zero-valued reputation flag is created.
-    void handle_reputation(Engine &engine, const dialogue::EventAction &ev) {
-      if (const int delta = event_int_arg(ev, 1, /*fallback=*/0); delta != 0)
-        engine.flags["rep." + ev.args[0]] += delta;
+    /// Add a `reputation(faction, delta)` event's delta to the faction's standing and store what
+    /// the ruleset's scale makes of the sum. No clamp_standing callback means no scale. A
+    /// non-numeric delta parses to 0 and is skipped so no zero-valued standing flag is created.
+    void handle_reputation(Engine &engine, const Gameplay &gameplay, const dialogue::EventAction &ev) {
+      const int delta = event_int_arg(ev, 1, /*fallback=*/0);
+      if (delta == 0)
+        return;
+      const std::string key = faction::standing_flag_key(ev.args[0]);
+      const int sum = world::visit_count(engine.flags, key) + delta;
+      const auto &clamp = gameplay.ruleset.clamp_standing;
+      engine.flags[key] = clamp ? clamp(sum) : sum;
     }
 
     /// Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
@@ -371,14 +386,14 @@ namespace corundum::gameplay {
         {
             .name = "reputation",
             .min_args = 2,
-            .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                         const dialogue::EventAction &ev) { handle_reputation(e, ev); },
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_reputation(e, g, ev); },
         },
         {
             .name = "grant_xp",
             .min_args = 1,
-            .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                         const dialogue::EventAction &ev) { handle_grant_xp(e, ev); },
+            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_grant_xp(e, g, ev); },
         },
         {
             .name = "start_encounter",
@@ -1036,14 +1051,12 @@ namespace corundum::gameplay {
       return false;
     }
 
-    /// The barter rows for the active tab, with the shop's reputation folded into buy prices.
+    /// The barter rows for the active tab, priced by the ruleset.
     std::vector<screens::BarterLine> build_barter_lines(const Engine &engine, const Gameplay &gameplay,
                                                         const shop::Shop &shop) {
-      const int reputation =
-          shop.faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop.faction);
       return gameplay.barter_screen.tab == screens::BarterTab::Buy
-                 ? screens::build_barter_stock(shop, gameplay.items, reputation)
-                 : screens::build_barter_sell_lines(shop, gameplay.items, engine.flags);
+                 ? screens::build_barter_stock(shop, gameplay.items, engine.flags, gameplay.ruleset)
+                 : screens::build_barter_sell_lines(shop, gameplay.items, engine.flags, gameplay.ruleset);
     }
 
     /// Buy or sell the highlighted barter row against the player's gold.
@@ -1229,13 +1242,7 @@ namespace corundum::gameplay {
           screens::activatable_stat_id(gameplay.character_sheet_info, gameplay.character_sheet_state.row);
       if (!id || !gameplay.ruleset.activate_character_row)
         return;
-      const rules::FlagReader reader{
-          .read = [&engine](std::string_view key) { return world::visit_count(engine.flags, key); },
-      };
-      const rules::FlagWriter writer{
-          .write = [&engine](std::string_view key, int value) { engine.flags[key] = value; },
-      };
-      gameplay.ruleset.activate_character_row(reader, writer, *id);
+      gameplay.ruleset.activate_character_row(make_flag_reader(engine.flags), make_flag_writer(engine.flags), *id);
       resample_character_sheet(engine, gameplay);
     }
 
@@ -1609,12 +1616,7 @@ namespace corundum::gameplay {
       const shop::Shop *shop = gameplay.shops.find(gameplay.active_shop_id);
       if (shop == nullptr)
         return;
-      const int reputation =
-          shop->faction.empty() ? 0 : world::visit_count(engine.flags, std::string{"rep."} + shop->faction);
-      const std::vector<screens::BarterLine> lines =
-          gameplay.barter_screen.tab == screens::BarterTab::Buy
-              ? screens::build_barter_stock(*shop, gameplay.items, reputation)
-              : screens::build_barter_sell_lines(*shop, gameplay.items, engine.flags);
+      const std::vector<screens::BarterLine> lines = build_barter_lines(engine, gameplay, *shop);
       screens::barter_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, shop->name,
                                    world::visit_count(engine.flags, screens::k_gold_flag), lines,
                                    gameplay.barter_screen, viewport, engine.input_mapper.last_device());

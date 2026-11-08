@@ -66,20 +66,21 @@ TEST_CASE("character sheet - P toggles the sheet, values are sampled on open, Es
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
-  // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.mode() == GameMode::Exploring);
+  add_stance_row(gameplay);
 
-  engine.flags[screens::k_experience_flag] = 10;
+  engine.flags["test.stance"] = 10;
 
-  // P opens the sheet and samples the current XP.
+  // P opens the sheet and samples the ruleset's current row.
   press(engine, corundum::input::Action::Character);
   CHECK(engine.scene.mode() == screens::Character);
-  CHECK(gameplay.character_sheet_info.experience == 10);
+  const std::vector<StatRow> sampled{{.id = "stance", .label = "Stance", .value = "10"}};
+  CHECK_EQ(gameplay.character_sheet_info.rule_rows, sampled);
 
   // The values are sampled on open: a flag change while open does not retint the panel.
-  engine.flags[screens::k_experience_flag] = 99;
-  CHECK(gameplay.character_sheet_info.experience == 10);
+  engine.flags["test.stance"] = 99;
+  CHECK_EQ(gameplay.character_sheet_info.rule_rows, sampled);
 
   // P again closes it.
   press(engine, corundum::input::Action::Character);
@@ -88,7 +89,8 @@ TEST_CASE("character sheet - P toggles the sheet, values are sampled on open, Es
   // Reopening samples the updated flags.
   press(engine, corundum::input::Action::Character);
   REQUIRE(engine.scene.mode() == screens::Character);
-  CHECK(gameplay.character_sheet_info.experience == 99);
+  const std::vector<StatRow> resampled{{.id = "stance", .label = "Stance", .value = "99"}};
+  CHECK_EQ(gameplay.character_sheet_info.rule_rows, resampled);
 
   // Esc closes an open sheet.
   press(engine, corundum::input::Action::Cancel);
@@ -218,8 +220,6 @@ TEST_CASE("character sheet - Activate on a row with an id tells the ruleset and 
   };
 
   press(engine, corundum::input::Action::Character);
-  press(engine, corundum::input::Action::MoveDown);
-  press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::Activate);
 
   const std::vector<StatRow> expected{{.id = "stance", .label = "Stance", .value = "1"}};
@@ -240,6 +240,7 @@ TEST_CASE("character sheet - Activate on a row with no id leaves the ruleset alo
   };
 
   press(engine, corundum::input::Action::Character);
+  press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::Activate);
 
   CHECK_FALSE(corundum::world::has_flag(engine.flags, "test.stance"));
@@ -256,8 +257,6 @@ TEST_CASE("character sheet - a row with an id does nothing when the ruleset has 
   add_stance_row(gameplay);
 
   press(engine, corundum::input::Action::Character);
-  press(engine, corundum::input::Action::MoveDown);
-  press(engine, corundum::input::Action::MoveDown);
   press(engine, corundum::input::Action::Activate);
 
   const std::vector<StatRow> expected{{.id = "stance", .label = "Stance", .value = "0"}};

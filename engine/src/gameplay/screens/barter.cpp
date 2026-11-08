@@ -5,8 +5,11 @@
 #include <corundum/ui/font_family.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/faction/standing.hpp>
+#include <corundum/gameplay/flag_access.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
@@ -18,7 +21,6 @@
 #include <corundum/world/flags.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -30,9 +32,6 @@
 namespace corundum::gameplay::screens {
 
   namespace {
-
-    /// Reputation is clamped to this many points of discount, so rep 50+ is the best price.
-    constexpr int k_max_discount_percent = 50;
 
     constexpr float k_barter_min_w = 340.f;
     constexpr float k_barter_pad_x = 24.f;
@@ -60,23 +59,35 @@ namespace corundum::gameplay::screens {
       return definition != nullptr ? definition->price : 0;
     }
 
+    /// The player's standing with the shop's faction; 0 when the shop names none.
+    int standing_with(const gameplay::shop::Shop &shop, const world::FlagStore &flags) {
+      if (shop.faction.empty())
+        return 0;
+      return world::visit_count(flags, faction::standing_flag_key(shop.faction));
+    }
+
+    /// Gold the ruleset asks for a unit of @p base_price; 0 for a base of 0, else at least 1.
+    int buy_price_of(int base_price, const rules::FlagReader &reader, int standing, const rules::Ruleset &ruleset) {
+      if (base_price <= 0)
+        return 0;
+      if (!ruleset.buy_price)
+        return base_price;
+      return std::max(1, ruleset.buy_price(reader, {.base_price = base_price, .standing = standing}));
+    }
+
+    /// Gold the ruleset pays for a unit of @p base_price; 0 when it won't buy.
+    int sell_price_of(int base_price, const rules::FlagReader &reader, int standing, const rules::Ruleset &ruleset) {
+      if (!ruleset.sell_price)
+        return 0;
+      return std::max(0, ruleset.sell_price(reader, {.base_price = base_price, .standing = standing}));
+    }
+
   } // namespace
 
-  int barter_buy_price(int base_price, int reputation) noexcept {
-    if (base_price <= 0)
-      return 0;
-    const int discount = std::clamp(reputation, 0, k_max_discount_percent);
-    return std::max(1, base_price - ((base_price * discount) / 100));
-  }
-
-  int barter_sell_price(int base_price, float buy_rate) noexcept {
-    if (base_price <= 0)
-      return 0;
-    return std::max(0, static_cast<int>(std::lround(static_cast<float>(base_price) * buy_rate)));
-  }
-
   std::vector<BarterLine> build_barter_stock(const gameplay::shop::Shop &shop, const gameplay::item::Registry &items,
-                                             int reputation) {
+                                             const world::FlagStore &flags, const rules::Ruleset &ruleset) {
+    const int standing = standing_with(shop, flags);
+    const rules::FlagReader reader = make_flag_reader(flags);
     std::vector<BarterLine> lines;
     lines.reserve(shop.stock.size());
     for (const gameplay::shop::StockEntry &entry : shop.stock) {
@@ -85,15 +96,17 @@ namespace corundum::gameplay::screens {
           .count = 0,
           .id = entry.item,
           .name = definition != nullptr ? definition->name : entry.item,
-          .unit_price = barter_buy_price(base_price_of(entry, items), reputation),
+          .unit_price = buy_price_of(base_price_of(entry, items), reader, standing, ruleset),
       });
     }
     return lines;
   }
 
   std::vector<BarterLine> build_barter_sell_lines(const gameplay::shop::Shop &shop,
-                                                  const gameplay::item::Registry &items,
-                                                  const world::FlagStore &flags) {
+                                                  const gameplay::item::Registry &items, const world::FlagStore &flags,
+                                                  const rules::Ruleset &ruleset) {
+    const int standing = standing_with(shop, flags);
+    const rules::FlagReader reader = make_flag_reader(flags);
     std::vector<BarterLine> lines;
     for (const auto &[key, count] : flags) {
       if (count <= 0 || !key.starts_with(gameplay::item::k_flag_prefix))
@@ -103,11 +116,14 @@ namespace corundum::gameplay::screens {
       const gameplay::item::Item *definition = items.find(id);
       if (definition == nullptr || definition->price <= 0)
         continue;
+      const int price = sell_price_of(definition->price, reader, standing, ruleset);
+      if (price <= 0)
+        continue;
       lines.push_back(BarterLine{
           .count = count,
           .id = std::string{id},
           .name = definition->name,
-          .unit_price = barter_sell_price(definition->price, shop.buy_rate),
+          .unit_price = price,
       });
     }
     std::ranges::sort(lines, {}, [](const BarterLine &line) { return line.name; });

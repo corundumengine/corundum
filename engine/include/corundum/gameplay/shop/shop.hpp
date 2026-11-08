@@ -24,8 +24,7 @@ namespace corundum::gameplay::shop {
 
   /** @brief A merchant definition authored in data/shops/<file>.json. */
   struct Shop {
-    float buy_rate{0.5f};            ///< Fraction of base price paid when buying from the player.
-    std::string faction{};           ///< Reputation faction key (`rep.<faction>`); empty means no discount.
+    std::string faction{};           ///< The faction whose standing the ruleset sees when pricing; empty: standing 0.
     std::string id{};                ///< Unique key.
     std::string name{};              ///< Display heading.
     std::vector<StockEntry> stock{}; ///< Items offered for sale.

@@ -4,8 +4,8 @@
 #include <corundum/gameplay/screens/character_sheet.hpp>
 
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/flag_access.hpp>
 #include <corundum/gameplay/item/registry.hpp>
-#include <corundum/gameplay/player_flags.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
@@ -43,11 +43,11 @@ namespace corundum::gameplay::screens {
     constexpr float k_column_gap = 28.f;
     constexpr float k_footer_gap = 10.f;
 
-    /// The Stats rows every sheet has: Level, Experience and Gold.
-    constexpr int k_fixed_stats_row_count = 3;
+    /// The Stats rows every sheet has: Gold.
+    constexpr int k_fixed_stats_row_count = 1;
 
-    /// The Stats row the ruleset's rows start on: every fixed row but Gold comes before them.
-    constexpr int k_first_rule_stats_row = k_fixed_stats_row_count - 1;
+    /// The Stats row the ruleset's rows start on: ruleset rows start at the top.
+    constexpr int k_first_rule_stats_row = 0;
 
     /// A number the game may not have written; absent and negative both read as 0.
     int flag_count(const world::FlagStore &flags, std::string_view key) {
@@ -135,13 +135,10 @@ namespace corundum::gameplay::screens {
       }
     }
 
-    /// The Stats column's rows: Level, Experience, the ruleset's rows in order, then Gold.
+    /// The Stats column's rows: the ruleset's rows in order, then Gold.
     std::vector<std::string> build_stats_rows(const CharacterInfo &info) {
       std::vector<std::string> rows;
-      rows.push_back(std::format("Level: {}", info.level));
-      rows.push_back(info.experience_to_next_level > 0
-                         ? std::format("Experience: {} / {}", info.experience, info.experience_to_next_level)
-                         : std::format("Experience: {}", info.experience));
+      rows.reserve(info.rule_rows.size() + 1);
       for (const rules::StatRow &row : info.rule_rows)
         rows.push_back(std::format("{}: {}", row.label, row.value));
       rows.push_back(std::format("Gold: {}", info.gold));
@@ -153,14 +150,8 @@ namespace corundum::gameplay::screens {
   CharacterInfo build_character_info(const world::FlagStore &flags, const item::Registry &items,
                                      const rules::Ruleset &ruleset) {
     CharacterInfo info{};
-    info.level = std::max(1, world::visit_count(flags, k_level_flag));
-    info.experience = flag_count(flags, k_experience_flag);
-    info.experience_to_next_level = flag_count(flags, k_next_level_experience_flag);
     if (ruleset.character_rows) {
-      const rules::FlagReader reader{
-          .read = [&flags](std::string_view key) { return world::visit_count(flags, key); },
-      };
-      info.rule_rows = ruleset.character_rows(reader);
+      info.rule_rows = ruleset.character_rows(make_flag_reader(flags));
     }
     info.gold = flag_count(flags, k_gold_flag);
     info.equipment = build_equipment_lines(flags, items);

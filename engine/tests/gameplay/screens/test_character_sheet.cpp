@@ -75,23 +75,9 @@ namespace {
 
 } // namespace
 
-TEST_CASE("character sheet: default CharacterInfo is level 1 with no progress") {
-  const CharacterInfo info{};
-
-  CHECK(info.level == 1);
-  CHECK(info.experience == 0);
-  CHECK(info.gold == 0);
-  CHECK(info.inventory_count == 0);
-  CHECK(info.inventory_capacity == 0);
-  CHECK(info.equipment.empty());
-}
-
 TEST_CASE("character sheet: build_character_info reads every field from the flag store") {
   const auto items = make_equipment_registry();
   FlagStore flags;
-  flags["player.level"] = 3;
-  flags["player.xp"] = 130;
-  flags["player.xp_next"] = 200;
   flags["gold"] = 42;
   flags["player.inventory_capacity"] = 8;
   flags["item.sword"] = 1;
@@ -102,9 +88,6 @@ TEST_CASE("character sheet: build_character_info reads every field from the flag
 
   const CharacterInfo info = screens::build_character_info(flags, items, Ruleset{});
 
-  CHECK(info.level == 3);
-  CHECK(info.experience == 130);
-  CHECK(info.experience_to_next_level == 200);
   CHECK(info.gold == 42);
   CHECK(info.inventory_count == 3); // item rows, not total quantity (potion x3 is one row)
   CHECK(info.inventory_capacity == 8);
@@ -118,30 +101,14 @@ TEST_CASE("character sheet: build_character_info reads every field from the flag
   CHECK(info.inventory.size() == 3); // one row per item id, matching inventory_count
 }
 
-TEST_CASE("character sheet: build_character_info defaults an empty store to level 1 and no progress") {
-  const FlagStore flags{};
-  const corundum::gameplay::item::Registry items{};
-  const CharacterInfo info = screens::build_character_info(flags, items, Ruleset{});
-
-  CHECK(info.level == 1);
-  CHECK(info.experience == 0);
-  CHECK(info.rule_rows.empty());
-  CHECK(info.gold == 0);
-  CHECK(info.inventory_count == 0);
-  CHECK(info.inventory_capacity == 0);
-  CHECK(info.equipment.empty());
-}
-
 TEST_CASE("character sheet: build_character_info clamps negative counters to zero") {
   FlagStore flags;
-  flags["player.xp"] = -5;
   flags["gold"] = -1;
   flags["player.inventory_capacity"] = -2;
 
   const corundum::gameplay::item::Registry items{};
   const CharacterInfo info = screens::build_character_info(flags, items, Ruleset{});
 
-  CHECK(info.experience == 0);
   CHECK(info.gold == 0);
   CHECK(info.inventory_capacity == 0);
 }
@@ -187,10 +154,7 @@ TEST_CASE("character sheet: render draws every section's labeled values") {
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
   CharacterInfo info;
-  info.level = 2;
-  info.experience = 30;
-  info.experience_to_next_level = 100;
-  info.rule_rows = {{.label = "Health", .value = "5 / 8"}};
+  info.rule_rows = {{.label = "Level", .value = "2"}, {.label = "Health", .value = "5 / 8"}};
   info.gold = 12;
   info.equipment = {
       {
@@ -206,35 +170,11 @@ TEST_CASE("character sheet: render draws every section's labeled values") {
   CHECK(find_text(r, "Character") != nullptr);
   CHECK(find_text(r, "Stats") != nullptr);
   CHECK(find_text(r, "Level: 2") != nullptr);
-  CHECK(find_text(r, "Experience: 30 / 100") != nullptr);
   CHECK(find_text(r, "Health: 5 / 8") != nullptr);
   CHECK(find_text(r, "Gold: 12") != nullptr);
   CHECK(find_text(r, "body: Travel Cloak") != nullptr);
   CHECK(find_text(r, "Items: 3 / 20") != nullptr);
   CHECK(has_text_containing(r, "Esc Close"));
-}
-
-TEST_CASE("character sheet: render draws the ruleset's rows between Experience and Gold, in order") {
-  RecordingRenderer r;
-  const corundum::ui::PanelStyle style{};
-  CharacterInfo info;
-  info.experience = 30;
-  info.rule_rows = {{.label = "Strength", .value = "+2"}, {.label = "Max Health", .value = "18"}};
-  info.gold = 12;
-
-  screens::character_sheet_render(r, style, make_border(), info, {.x = 800.f, .y = 600.f});
-
-  const auto *experience = find_text(r, "Experience: 30");
-  const auto *strength = find_text(r, "Strength: +2");
-  const auto *max_health = find_text(r, "Max Health: 18");
-  const auto *gold = find_text(r, "Gold: 12");
-  REQUIRE(experience != nullptr);
-  REQUIRE(strength != nullptr);
-  REQUIRE(max_health != nullptr);
-  REQUIRE(gold != nullptr);
-  CHECK(experience->position.y < strength->position.y);
-  CHECK(strength->position.y < max_health->position.y);
-  CHECK(max_health->position.y < gold->position.y);
 }
 
 TEST_CASE("character sheet: render lists held items with a stack suffix") {
@@ -256,12 +196,12 @@ TEST_CASE("character sheet: render draws no rule rows and no capacity suffix whe
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
   CharacterInfo info;
-  info.experience = 30;
+  info.gold = 5;
   info.inventory_count = 3;
 
   screens::character_sheet_render(r, style, make_border(), info, {.x = 800.f, .y = 600.f});
 
-  CHECK(find_text(r, "Experience: 30") != nullptr);
+  CHECK(find_text(r, "Gold: 5") != nullptr);
   CHECK_FALSE(has_text_containing(r, "Health"));
   CHECK(find_text(r, "Slots: (empty)") != nullptr);
   CHECK(find_text(r, "Items: 3") != nullptr);
@@ -283,9 +223,9 @@ TEST_CASE("character sheet: render shows the gamepad close glyph for a gamepad p
 
 TEST_CASE("character sheet: section row counts always expose a highlightable row") {
   CharacterInfo info;
-  CHECK(screens::character_section_row_count(info, 0) == 3); // Level, Experience, Gold
+  CHECK(screens::character_section_row_count(info, 0) == 1); // Gold
   info.rule_rows = {{.label = "Strength", .value = "+2"}, {.label = "Wisdom", .value = "+1"}};
-  CHECK(screens::character_section_row_count(info, 0) == 5);
+  CHECK(screens::character_section_row_count(info, 0) == 3);
   CHECK(screens::character_section_row_count(info, 1) == 1); // empty equipment column
   CHECK(screens::character_section_row_count(info, 2) == 1); // empty inventory column
   info.equipment = {{.slot = "body"}, {.slot = "weapon"}};
@@ -296,7 +236,7 @@ TEST_CASE("character sheet: section row counts always expose a highlightable row
 
 TEST_CASE("character sheet: cursor moves between sections and wraps within a section") {
   CharacterInfo info;
-  info.rule_rows = {{.label = "Health", .value = "7 / 10"}}; // four stats rows
+  info.rule_rows = {{.label = "Health", .value = "7 / 10"}}; // two stats rows: Health, Gold
   screens::CharacterSheetState state{};
 
   screens::move_character_cursor(state, info, /*dx=*/1, /*dy=*/0);
@@ -310,10 +250,10 @@ TEST_CASE("character sheet: cursor moves between sections and wraps within a sec
   state.row = 0;
   screens::move_character_cursor(state, info, /*dx=*/0, /*dy=*/-1);
   CHECK(state.section == 0);
-  CHECK(state.row == 3);
+  CHECK(state.row == 1);
 
   // A section with fewer rows clamps the carried row rather than leaving it out of range.
-  state = {.section = 0, .row = 3};
+  state = {.section = 0, .row = 1};
   screens::move_character_cursor(state, info, /*dx=*/1, /*dy=*/0);
   CHECK(state.section == 1);
   CHECK(state.row == 0);
@@ -323,11 +263,9 @@ TEST_CASE("character sheet: only a ruleset row with an id can be activated") {
   CharacterInfo info{};
   info.rule_rows = {{.label = "Strength", .value = "+1"}, {.id = "stance", .label = "Stance", .value = "Low"}};
 
-  CHECK_FALSE(screens::activatable_stat_id(info, 0).has_value()); // Level
-  CHECK_FALSE(screens::activatable_stat_id(info, 1).has_value()); // Experience
-  CHECK_FALSE(screens::activatable_stat_id(info, 2).has_value()); // Strength
-  CHECK_EQ(screens::activatable_stat_id(info, 3), std::optional<std::string_view>{"stance"});
-  CHECK_FALSE(screens::activatable_stat_id(info, 4).has_value()); // Gold
+  CHECK_FALSE(screens::activatable_stat_id(info, 0).has_value()); // Strength
+  CHECK_EQ(screens::activatable_stat_id(info, 1), std::optional<std::string_view>{"stance"});
+  CHECK_FALSE(screens::activatable_stat_id(info, 2).has_value()); // Gold
 }
 
 TEST_CASE("character sheet: GameMode::Character is a distinct extension mode") {

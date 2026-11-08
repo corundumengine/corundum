@@ -18,12 +18,6 @@
 
 namespace corundum::gameplay::screens {
 
-  /** @brief FlagStore key holding the player's accumulated experience. `grant_xp(n)` adds @c n. */
-  inline constexpr std::string_view k_experience_flag = "player.xp";
-
-  /** @brief FlagStore key holding the experience total for the next level; 0 means unknown. */
-  inline constexpr std::string_view k_next_level_experience_flag = "player.xp_next";
-
   /** @brief FlagStore key holding the inventory's slot capacity; 0 means unbounded/unknown. */
   inline constexpr std::string_view k_inventory_capacity_flag = "player.inventory_capacity";
 
@@ -33,14 +27,8 @@ namespace corundum::gameplay::screens {
    *  screen never reads the game itself. An equipment slot's empty item name draws as "(empty)".
    */
   struct CharacterInfo {
-    int level{1};
-
-    int experience{};
-
-    int experience_to_next_level{};
-
-    /** Rows the game's ruleset supplies for the Stats column, drawn between Experience and Gold
-     *  in the order given; empty when the ruleset installs no character_rows callback. */
+    /** Rows the game's ruleset supplies for the Stats column, drawn above Gold in the order given;
+     *  empty when the ruleset installs no character_rows callback. */
     std::vector<rules::StatRow> rule_rows{};
 
     int gold{};
@@ -72,8 +60,8 @@ namespace corundum::gameplay::screens {
 
   /** @brief Number of highlightable rows in @p section, always at least 1.
    *
-   *  Stats holds Level, Experience, one row per ruleset row, and Gold; Equipment holds one row
-   *  per known slot (or the single "(empty)" row); Inventory holds one row per held item.
+   *  Stats holds one row per ruleset row and Gold; Equipment holds one row per known slot (or the
+   *  single "(empty)" row); Inventory holds one row per held item.
    *
    *  @param info    Character sheet values.
    *  @param section Section index; out-of-range values clamp to 0.
@@ -92,19 +80,19 @@ namespace corundum::gameplay::screens {
    */
   void move_character_cursor(CharacterSheetState &state, const CharacterInfo &info, int dx, int dy) noexcept;
 
-  /** @brief The StatRow::id of the ruleset row the Stats section shows at @p row; nullopt for Level,
-   *  Experience, Gold, a row past the end, or a ruleset row with no id.
+  /** @brief The StatRow::id of the ruleset row the Stats section shows at @p row; nullopt for Gold,
+   *  a row past the end, or a ruleset row with no id.
    *  @note The view is into @p info; don't keep it past a resample. */
   [[nodiscard]] std::optional<std::string_view> activatable_stat_id(const CharacterInfo &info, int row) noexcept;
 
   /** @brief Read the character sheet's values from @p flags and @p ruleset.
    *
-   *  Every field but rule_rows comes from a FlagStore key; the game decides the RPG policy (how
-   *  much XP a quest grants, when a level is reached) and writes the keys. Missing keys take their
-   *  documented defaults, and negative counts clamp to 0. `inventory_count` counts the held
-   *  item rows (`item.<id>` flags with a positive count), matching the inventory panel's rows.
-   *  `equipment` lists one row per equipment slot among held items, resolving the equipped item through @p items.
-   *  `rule_rows` is @p ruleset's character_rows for @p flags, or empty when that callback is empty.
+   *  Every field but rule_rows comes from a FlagStore key; the game decides the RPG policy and
+   *  writes the keys. Missing keys take their documented defaults, and negative counts clamp to 0.
+   *  `inventory_count` counts the held item rows (`item.<id>` flags with a positive count), matching
+   *  the inventory panel's rows. `equipment` lists one row per equipment slot among held items,
+   *  resolving the equipped item through @p items. `rule_rows` is @p ruleset's character_rows for
+   *  @p flags, or empty when that callback is empty.
    *
    *  @param flags   Active FlagStore.
    *  @param items   Loaded item registry; resolves equipment slot names and display names.
@@ -119,7 +107,7 @@ namespace corundum::gameplay::screens {
 
     core::math::Vec2 panel_size{};
 
-    ui::RowRect stats{}; ///< Level/experience/health/gold column.
+    ui::RowRect stats{}; ///< The ruleset's stat rows and gold column.
 
     ui::RowRect equipment{}; ///< Weapon/armor/accessory column.
 
@@ -140,10 +128,9 @@ namespace corundum::gameplay::screens {
   /** @brief Draw the character sheet panel: stats, equipment and inventory sections.
    *
    *  Pure render, invoked only while the Character mode is on top of the UI stack. The three
-   *  sections are columns of labeled rows; the ruleset's rows sit between Experience and Gold,
-   *  and the inventory capacity suffix is omitted when inventory_capacity is 0. A footer shows
-   *  the Close glyph
-   *  for @p last_device.
+   *  sections are columns of labeled rows; the ruleset's rows sit above Gold, and the inventory
+   *  capacity suffix is omitted when inventory_capacity is 0. A footer shows the Close glyph for
+   *  @p last_device.
    *
    *  @param r           Renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
    *  @param style       Panel style supplying fonts, sizes and colours.
