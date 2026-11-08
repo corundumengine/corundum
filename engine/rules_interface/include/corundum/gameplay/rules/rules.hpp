@@ -17,6 +17,8 @@
 // they are. A ruleset keeps the protagonist's lasting state in the playthrough's flags under its
 // own key prefix, so saves, loads and playthrough boundaries carry it with no hook of their own;
 // it reads and writes that state through FlagReader and FlagWriter, never the FlagStore itself.
+// Standing is the exception: the framework keeps it under its own `rep.<faction>` key, and the
+// ruleset sets its scale.
 // State that lasts one encounter (a creature's damage, a command's uses this fight, conditions and
 // resources such as Momentum) lives in the Combatant and ends with the encounter. The framework
 // tells the rules when each combatant's turn starts and ends, when a tick passes and when a
@@ -271,6 +273,14 @@ namespace corundum::gameplay::rules {
     std::function<std::vector<ToggleOption>(const CombatContext &, const Combatant &)> toggles{};
   };
 
+  /** @brief The base price of one unit and the player's standing with the shop's faction (0 when
+   *  the shop names none). */
+  struct TradeQuery {
+    int base_price{};
+
+    int standing{};
+  };
+
   /** @brief A game's rules, as callbacks the framework calls when it needs a value.
    *
    *  A struct of std::function rather than a virtual interface, matching the framework's other
@@ -282,12 +292,31 @@ namespace corundum::gameplay::rules {
      *  character_rows. The framework shows the rows again afterwards. Empty: no row activates. */
     std::function<void(const FlagReader &, const FlagWriter &, std::string_view row)> activate_character_row{};
 
+    /** @brief Gold a merchant asks for one unit. Returns gold; the framework charges at least 1
+     *  for an item with a positive base price. Empty: the base price. */
+    std::function<int(const FlagReader &, const TradeQuery &)> buy_price{};
+
     /** @brief The protagonist's rows for the character sheet's Stats column, in display order. */
     std::function<std::vector<StatRow>(const FlagReader &)> character_rows{};
+
+    /** @brief The standing to store when a `reputation` event changes it: @p standing is the sum
+     *  the framework computed (old standing + delta), and the return is the ruleset's scale.
+     *  Empty: the game has no scale and the sum is stored as is.
+     *  @note Only the `reputation` event clamps; the stored standing is never re-clamped on read. */
+    std::function<int(int standing)> clamp_standing{};
 
     /** @brief The game's combat, or nullopt when it has none; start_encounter then warns and starts
      *  nothing. */
     std::optional<CombatRules> combat{};
+
+    /** @brief A `grant_xp(n)` dialogue event: raise the protagonist's experience (and whatever
+     *  that unlocks) by @p amount, a non-zero number from content. Empty: the event warns and
+     *  does nothing. */
+    std::function<void(const FlagReader &, const FlagWriter &, int amount)> grant_experience{};
+
+    /** @brief Gold a merchant pays for one unit. Returns gold; 0 (or less) means the merchant
+     *  won't buy it, and the Sell tab omits the row. Empty: the merchant buys nothing. */
+    std::function<int(const FlagReader &, const TradeQuery &)> sell_price{};
   };
 
 } // namespace corundum::gameplay::rules
