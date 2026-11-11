@@ -755,17 +755,6 @@ TEST_CASE("combat: the command bar marks the queued command") {
   CHECK_FALSE(commands[2].is_highlighted);
 }
 
-TEST_CASE("combat: the HUD names the command a hostile is winding up") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight, "brute");
-
-  step_until_paused(*fight);
-
-  const corundum::gameplay::screens::CombatHudRow &row = battle_of(*fight).hud().rows[combat::Battle::k_hostile];
-  CHECK_EQ(row.windup_label, "Smash");
-  CHECK_EQ(row.windup_end_beats, 130);
-}
-
 TEST_CASE("combat: 4 turns the bar's fourth slot, a toggle, on") {
   const auto fight = make_fight({.col = 9, .row = 8});
   start_fight(*fight);

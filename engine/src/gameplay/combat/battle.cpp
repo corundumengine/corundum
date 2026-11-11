@@ -235,23 +235,17 @@ namespace corundum::gameplay::combat {
         slot = text;
     }
 
-    /// Copy each combatant's current numbers and status labels into @p rows; the row at @p target
-    /// is marked as the fight's target. Text is republished only when it changed.
+    /// Copy each combatant's Health, side and status labels into @p rows; the combatant at @p target
+    /// is marked as the fight's target. Labels are republished only when they changed.
     void refresh_rows(const Encounter &encounter, const rules::CombatContext &context,
                       std::span<screens::CombatHudRow> rows, std::size_t target) {
-      const int command_point = encounter.command_point_beats();
       for (std::size_t i = 0; i < rows.size(); ++i) {
-        rows[i].command_point_beats = command_point;
         rows[i].health = encounter.health(context, i);
         rows[i].is_hostile = encounter.side(i) == Side::Hostile;
         rows[i].is_target = i == target;
-        rows[i].is_winding_up = encounter.phase(i) == Phase::WindUp;
-        rows[i].marker_beats = encounter.beats(i);
         const rules::CombatantStatus &status = encounter.status(i);
         if (rows[i].status_labels != status.labels)
           rows[i].status_labels = status.labels;
-        rows[i].windup_end_beats = encounter.windup_end_beats(i);
-        assign_if_changed(rows[i].windup_label, encounter.windup_label(i));
       }
     }
 

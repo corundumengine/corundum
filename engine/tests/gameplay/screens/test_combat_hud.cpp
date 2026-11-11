@@ -47,11 +47,12 @@ namespace {
   /// The panel fill, which panel_chrome draws before anything else in a panel.
   constexpr std::size_t k_rows_panel_rect = 0;
 
-  /// The command bar's fill: after the rows panel and each of make_hud()'s two rows' five bar rects.
-  constexpr std::size_t k_command_panel_rect = 11;
+  /// The command bar's fill: after the rows panel and make_hud()'s two rows, each with a Health-bar
+  /// back and fill.
+  constexpr std::size_t k_command_panel_rect = 5;
 
-  /// The protagonist (Momentum 2, Weakened) and a hostile winding up Crushing Blow; Shield Bash
-  /// queued, the tonic spent, Stagger armed. The gamepad shows page 1 of 2.
+  /// The protagonist (Momentum 2, Weakened) and a hostile; Shield Bash queued, the tonic spent,
+  /// Stagger armed. The gamepad shows page 1 of 2.
   screens::CombatHud make_hud() {
     screens::CombatHud hud;
     hud.commands = {
@@ -89,26 +90,16 @@ namespace {
     };
     hud.rows = {
         {
-            .command_point_beats = 100,
             .health = {.current = 9, .max = 12},
             .is_hostile = false,
-            .is_winding_up = false,
-            .marker_beats = 60,
             .name = "You",
             .status_labels = {"Momentum 2", "Weakened"},
-            .windup_end_beats = 120,
-            .windup_label = "",
         },
         {
-            .command_point_beats = 100,
             .health = {.current = 3, .max = 7},
             .is_hostile = true,
-            .is_winding_up = true,
-            .marker_beats = 110,
             .name = "Brann",
             .status_labels = {},
-            .windup_end_beats = 130,
-            .windup_label = "Crushing Blow",
         },
     };
     return hud;
@@ -179,14 +170,14 @@ namespace {
 
 } // namespace
 
-TEST_CASE("combat HUD: rows show name, Health, status and the command winding up, and the bar names the keys") {
+TEST_CASE("combat HUD: rows show name, Health and status, and the bar names the keys") {
   RecordingRenderer r;
 
   render(r, make_hud(), InputDevice::Keyboard, "");
 
   CHECK_EQ(drawn_texts(r),
-           std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened", "Brann  3 / 7  Crushing Blow",
-                                         "1 Attack", "2 Shield Bash", "3 Herbal Tonic (0)", "4 Stagger [1]"});
+           std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened", "Brann  3 / 7", "1 Attack",
+                                         "2 Shield Bash", "3 Herbal Tonic (0)", "4 Stagger [1]"});
 }
 
 TEST_CASE("combat HUD: on a gamepad the shown page names its buttons, and the bar says how to page") {
@@ -194,9 +185,9 @@ TEST_CASE("combat HUD: on a gamepad the shown page names its buttons, and the ba
 
   render(r, make_hud(), InputDevice::Gamepad, "");
 
-  CHECK_EQ(drawn_texts(r), std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened",
-                                                         "Brann  3 / 7  Crushing Blow", "A Attack", "Y Shield Bash",
-                                                         "B Herbal Tonic (0)", "L1/R1 1/2", "Stagger [1]"});
+  CHECK_EQ(drawn_texts(r),
+           std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened", "Brann  3 / 7", "A Attack",
+                                         "Y Shield Bash", "B Herbal Tonic (0)", "L1/R1 1/2", "Stagger [1]"});
 }
 
 TEST_CASE("combat HUD: on a gamepad's second page the toggle carries the button") {
@@ -205,8 +196,8 @@ TEST_CASE("combat HUD: on a gamepad's second page the toggle carries the button"
   render(r, make_second_page_hud(), InputDevice::Gamepad, "");
 
   CHECK_EQ(drawn_texts(r),
-           std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened", "Brann  3 / 7  Crushing Blow", "Attack",
-                                         "Shield Bash", "Herbal Tonic (0)", "L1/R1 2/2", "A Stagger [1]"});
+           std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened", "Brann  3 / 7", "Attack", "Shield Bash",
+                                         "Herbal Tonic (0)", "L1/R1 2/2", "A Stagger [1]"});
 }
 
 TEST_CASE("combat HUD: a banner draws last") {
@@ -215,8 +206,8 @@ TEST_CASE("combat HUD: a banner draws last") {
   render(r, make_hud(), InputDevice::Keyboard, "Paused");
 
   CHECK_EQ(drawn_texts(r),
-           std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened", "Brann  3 / 7  Crushing Blow",
-                                         "1 Attack", "2 Shield Bash", "3 Herbal Tonic (0)", "4 Stagger [1]", "Paused"});
+           std::vector<std::string_view>{"You  9 / 12", "Momentum 2, Weakened", "Brann  3 / 7", "1 Attack",
+                                         "2 Shield Bash", "3 Herbal Tonic (0)", "4 Stagger [1]", "Paused"});
 }
 
 TEST_CASE("combat HUD: a queued command and an armed toggle are highlighted, and an unavailable one dimmed") {
@@ -233,27 +224,35 @@ TEST_CASE("combat HUD: a queued command and an armed toggle are highlighted, and
   CHECK_FALSE(same_colour(spent, style.selected));
 }
 
-TEST_CASE("combat HUD: short rows keep the rows panel at its minimum width") {
-  RecordingRenderer r;
-  screens::CombatHud hud = make_hud();
-  hud.rows[1].windup_label = "";
-
-  render_hud(r, hud);
-
-  CHECK_EQ(drawn_rects(r)[k_rows_panel_rect].size.x, doctest::Approx(k_min_row_width + (2.f * k_thin_border_pad)));
-}
-
 TEST_CASE("combat HUD: a row longer than the minimum widens the panel and its bars") {
   RecordingRenderer r;
   screens::CombatHud hud = make_hud();
-  hud.rows[1].windup_label = std::string(60, 'x');
-  const float expected_row_width = k_glyph_width * static_cast<float>(std::string{"Brann  3 / 7  "}.size() + 60);
+  hud.rows[1].name = std::string(60, 'x');
+  const float expected_row_width = k_glyph_width * static_cast<float>(60 + std::string_view{"  3 / 7"}.size());
 
   render_hud(r, hud);
 
   const std::vector<corundum::platform::DrawRect> rects = drawn_rects(r);
   CHECK_EQ(rects[k_rows_panel_rect].size.x, doctest::Approx(expected_row_width + (2.f * k_thin_border_pad)));
   CHECK_EQ(rects[k_rows_panel_rect + 1].size.x, doctest::Approx(expected_row_width));
+}
+
+TEST_CASE("combat HUD: each row draws one bar, its Health, and no timer") {
+  RecordingRenderer r;
+  const corundum::ui::PanelStyle style{};
+
+  render_hud(r, make_hud());
+
+  // The rows panel's fill, then each row's bar back and Health fill; the command bar's fill next.
+  const std::vector<corundum::platform::DrawRect> rects = drawn_rects(r);
+  REQUIRE_GT(rects.size(), k_command_panel_rect);
+  CHECK_EQ(rects[k_rows_panel_rect].size.x, doctest::Approx(k_min_row_width + (2.f * k_thin_border_pad)));
+  CHECK_EQ(rects[1].size.x, doctest::Approx(k_min_row_width));
+  CHECK_EQ(rects[2].size.x, doctest::Approx(k_min_row_width * 9.f / 12.f));
+  CHECK_EQ(rects[3].size.x, doctest::Approx(k_min_row_width));
+  CHECK_EQ(rects[4].size.x, doctest::Approx(k_min_row_width * 3.f / 7.f));
+  CHECK_EQ(rects[k_command_panel_rect].position.y + rects[k_command_panel_rect].size.y,
+           doctest::Approx(k_viewport.y - style.margin));
 }
 
 TEST_CASE("combat HUD: a thick border insets both panels' content past its corner cells") {
@@ -298,7 +297,7 @@ TEST_CASE("combat HUD: the target's row draws its name in the selected colour") 
 
   render(r, hud, InputDevice::Keyboard, "");
 
-  CHECK(same_colour(colour_of(r, "Brann  3 / 7  Crushing Blow"), style.selected));
+  CHECK(same_colour(colour_of(r, "Brann  3 / 7"), style.selected));
   CHECK(same_colour(colour_of(r, "You  9 / 12"), style.body));
 }
 
@@ -308,5 +307,5 @@ TEST_CASE("combat HUD: a hostile that isn't the target keeps its own colour") {
 
   render(r, make_hud(), InputDevice::Keyboard, "");
 
-  CHECK(same_colour(colour_of(r, "Brann  3 / 7  Crushing Blow"), style.speaker));
+  CHECK(same_colour(colour_of(r, "Brann  3 / 7"), style.speaker));
 }

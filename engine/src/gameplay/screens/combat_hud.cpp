@@ -26,20 +26,18 @@ namespace corundum::gameplay::screens {
 
   namespace {
 
-    /// Fits "Brann  16 / 16  Crushing Blow" at the default body size, so the panel doesn't change
-    /// width with each ordinary wind-up. A longer row still widens the panel.
+    /// The rows panel's minimum content width, so the panel doesn't resize as Health numbers
+    /// change. A longer row still widens it.
     constexpr float k_min_row_width = 300.f;
     constexpr float k_pad = 12.f;
     constexpr float k_bar_height = 6.f;
     constexpr float k_bar_gap = 4.f;
     constexpr float k_row_gap = 10.f;
     constexpr float k_command_gap = 28.f;
-    constexpr float k_command_point_width = 2.f;
 
     constexpr core::math::Colour k_bar_back{.r = 60, .g = 60, .b = 60, .a = 255};
     constexpr core::math::Colour k_dimmed{.r = 110, .g = 110, .b = 110, .a = 255};
     constexpr core::math::Colour k_health_fill{.r = 173, .g = 56, .b = 76, .a = 255};
-    constexpr core::math::Colour k_marker_fill{.r = 63, .g = 97, .b = 128, .a = 255};
 
     float body_line_height(const ui::PanelStyle &style) noexcept {
       return std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
@@ -75,24 +73,9 @@ namespace corundum::gameplay::screens {
       });
     }
 
-    /// The timeline bar: where the marker is, and a tick at the command point.
-    void draw_timeline_bar(platform::Renderer &r, const ui::PanelStyle &style, const CombatHudRow &row,
-                           ui::RowRect bar) {
-      draw_rect(r, bar.pos, {.x = bar.width, .y = bar.height}, k_bar_back);
-      draw_rect(r, bar.pos, {.x = bar.width * fraction(row.marker_beats, row.windup_end_beats), .y = bar.height},
-                row.is_winding_up ? style.selected : k_marker_fill);
-      const core::math::Vec2 command_pos{
-          .x = bar.pos.x + (bar.width * fraction(row.command_point_beats, row.windup_end_beats)),
-          .y = bar.pos.y,
-      };
-      draw_rect(r, command_pos, {.x = k_command_point_width, .y = bar.height}, style.body);
-    }
-
-    /// One combatant's heading: name and Health, then the command winding up when there is one.
+    /// One combatant's heading: its name and Health.
     std::string row_text(const CombatHudRow &row) {
-      if (row.windup_label.empty())
-        return std::format("{}  {} / {}", row.name, row.health.current, row.health.max);
-      return std::format("{}  {} / {}  {}", row.name, row.health.current, row.health.max, row.windup_label);
+      return std::format("{}  {} / {}", row.name, row.health.current, row.health.max);
     }
 
     /// Join @p parts with ", ".
@@ -136,10 +119,6 @@ namespace corundum::gameplay::screens {
       draw_rect(r, health.pos, {.x = health.width, .y = health.height}, k_bar_back);
       draw_rect(r, health.pos, {.x = health.width * fraction(row.health.current, row.health.max), .y = health.height},
                 k_health_fill);
-      y += k_bar_height + k_bar_gap;
-
-      const ui::RowRect timeline{.pos = {.x = x, .y = y}, .width = bar_width, .height = k_bar_height};
-      draw_timeline_bar(r, style, row, timeline);
       y += k_bar_height;
       return y;
     }
@@ -160,7 +139,7 @@ namespace corundum::gameplay::screens {
         rows_width = std::max(rows_width, r.measure_text(font, texts.back(), style.font_size_body));
         if (!statuses.back().empty())
           rows_width = std::max(rows_width, r.measure_text(font, statuses.back(), style.font_size_body));
-        rows_height += row_heading_height(style, row) + (2.f * (k_bar_gap + k_bar_height));
+        rows_height += row_heading_height(style, row) + k_bar_gap + k_bar_height;
       }
       if (!rows.empty())
         rows_height += k_row_gap * static_cast<float>(rows.size() - 1);
