@@ -1621,7 +1621,7 @@ namespace corundum::gameplay {
     }
 
     /// Run the fight for one fixed step: drop it when its scene is gone, toggle the pause, then step
-    /// it, toast its reports, and pause it when a hostile's wind-up calls for it.
+    /// it and toast its reports.
     void update_battle(Engine &engine, Gameplay &gameplay) {
       if (!gameplay.battle)
         return;
@@ -1656,8 +1656,6 @@ namespace corundum::gameplay {
         end_battle(engine, gameplay, *gameplay.battle, *step.outcome);
         return;
       }
-      if (step.should_pause && ui.top() == screens::Combat)
-        ui.push(screens::CombatPaused);
     }
 
     /// Start the fight start_encounter asked for, once the dialogue that asked has closed.
@@ -1717,11 +1715,9 @@ namespace corundum::gameplay {
                                  viewport, engine.input_mapper.last_device(), banner);
     }
 
-    /// The paused fight's banner: why it paused on its own, or "Paused", and the key that resumes it.
-    std::string paused_banner(const combat::Battle &battle, input::InputDevice device) {
-      const std::string_view resume = ui::input_glyph(input::Action::Pause, device);
-      const std::string_view note = battle.pause_note();
-      return std::format("{}: {} to resume", note.empty() ? std::string_view{"Paused"} : note, resume);
+    /// The paused fight's banner: "Paused" and the key that resumes it.
+    std::string paused_banner(input::InputDevice device) {
+      return std::format("Paused: {} to resume", ui::input_glyph(input::Action::Pause, device));
     }
 
     /// Register the hub tab screens and the in-world screens: dialogue, combat, inventory, character,
@@ -1747,8 +1743,7 @@ namespace corundum::gameplay {
                                  [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 viewport) {
                                    if (!gameplay.battle)
                                      return;
-                                   const std::string banner =
-                                       paused_banner(*gameplay.battle, e.input_mapper.last_device());
+                                   const std::string banner = paused_banner(e.input_mapper.last_device());
                                    render_combat(e, *gameplay.battle, r, viewport, banner);
                                  },
                          });

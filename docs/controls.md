@@ -103,17 +103,14 @@ wrong from memory.
 - **Next target**: `Tab` (keyboard), gamepad R3. Attacks the next hostile still fighting, wrapping.
   Your target's name is highlighted on the HUD and its tile is outlined. When it falls, your
   attack moves to the nearest hostile; if you had walked off, you keep walking.
-- **Commands**: `2`–`9` (keyboard) press the command bar's second to ninth slots: first the
-  ruleset's commands, then its toggles. A command queues for your
-  next command point; pressing a queued slot's key again unqueues it. A toggle turns on or off;
-  the ruleset acts on it when the moment comes. An unavailable command or toggle is refused with a
-  toast. A command aimed at an enemy also renews your attack on it.
+- **Commands**: `2`–`9` (keyboard) press the command bar's second to ninth slots, the ruleset's
+  commands. A command queues for your next command point; pressing a queued slot's key again
+  unqueues it. An unavailable command is refused with a toast.
 - **Gamepad pages**: A, Y and B press the three slots of the page shown (the first page is Attack
   and the next two); L1 and R1 show the previous or next page, wrapping around. Slots off the page
   show no button.
 - **Pause**: `Space` (keyboard), gamepad X. Commands, the next-target key and clicks on a hostile still
-  work while paused; moving doesn't. The fight also pauses on its own when a hostile starts a heavy
-  wind-up near you, and the banner names it.
+  work while paused; moving doesn't.
 - **Menu**: `Esc` (keyboard), gamepad Start, open the pause menu over the fight.
 - A mouse player reads keyboard keys in the prompts for anything the mouse has no button for.
 

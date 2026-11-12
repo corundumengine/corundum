@@ -27,8 +27,6 @@ namespace corundum::gameplay::screens {
     bool is_target{}; ///< The fight's chosen hostile; its name draws in the selected colour.
 
     std::string name{}; ///< Copied from CombatantSpec::name when the fight starts.
-
-    std::vector<std::string> status_labels{}; ///< Drawn under the name joined by ", ", such as "Momentum 2, Weakened".
   };
 
   /** @brief One command-bar slot: the actions that press it, and what it does. */
@@ -40,7 +38,7 @@ namespace corundum::gameplay::screens {
 
     bool is_available{true}; ///< Drawn dimmed when false.
 
-    bool is_highlighted{}; ///< Drawn highlighted: a queued command, or a toggle that is on.
+    bool is_highlighted{}; ///< Drawn highlighted: the queued command.
 
     std::string label{};
   };
@@ -59,17 +57,13 @@ namespace corundum::gameplay::screens {
     CombatHudPage page{};
 
     std::vector<CombatHudRow> rows{};
-
-    std::vector<CombatHudCommand> toggles{}; ///< The protagonist's toggles, numbered on from the commands.
   };
 
   /** @brief Draw the combat HUD:
-   *  - a panel at the top-left with, per row, "<name>  <current> / <max>", its status labels
-   *    joined by ", " when it has any, and a Health bar;
-   *  - the command bar centred along the bottom: the commands' line, each slot "<glyph> <label>"
-   *    with the glyph for @p device, then on a gamepad with more than one page
-   *    "L1/R1 <page>/<pages>"; and above it the toggles' line, slot for slot the same. On a
-   *    gamepad a slot off the shown page draws only its label;
+   *  - a panel at the top-left with, per row, "<name>  <current> / <max>" and a Health bar;
+   *  - the command bar centred along the bottom: each slot "<glyph> <label>" with the glyph for
+   *    @p device, then on a gamepad with more than one page "L1/R1 <page>/<pages>". On a gamepad a
+   *    slot off the shown page draws only its label;
    *  - and @p banner centred at the top of the viewport when it isn't empty.
    *
    *  Pure render, invoked only while Combat or CombatPaused is on top of the UI stack. */

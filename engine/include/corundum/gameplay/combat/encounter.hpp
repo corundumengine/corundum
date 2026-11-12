@@ -15,16 +15,13 @@
 #include <vector>
 
 // The combat timeline, independent of the scene. Every combatant's marker fills toward the command
-// point, winds up a command there (a queued one-off, a hostile's chosen command, or else the
-// standing attack) and drops back when the command lands or fizzles. A command's result can Break
-// or Stagger its target's marker. A combatant's turn starts when its marker reaches the command
-// point and ends when its command lands, fizzles, is cancelled or is Broken; the rules hear both,
-// every tick, and each opportunity attack Battle reports. Combatants are indices, positions are
-// tiles and the numbers come from rules::CombatRules; combat::Battle maps an encounter onto the
-// scene.
+// point, winds up a command there (a queued one, or else the standing attack) and drops back to 0
+// when the command lands or fizzles. A queued command acts on its own combatant; the standing
+// attack needs its target in reach. Combatants are indices, positions are tiles and the numbers
+// come from rules::CombatRules; combat::Battle maps an encounter onto the scene.
 namespace corundum::gameplay::combat {
 
-  /** @brief The standing attack's label, on the command bar and as the name of its wind-up. */
+  /** @brief The standing attack's label on the command bar. */
   inline constexpr std::string_view k_attack_label = "Attack";
 
   enum class Side : std::uint8_t { Party, Hostile };
@@ -46,7 +43,7 @@ namespace corundum::gameplay::combat {
 
   /** @brief What one Encounter step produced. */
   struct EncounterStep {
-    std::vector<std::string> reports{}; ///< One line per command that resolved and per Break, in order.
+    std::vector<std::string> reports{}; ///< One line per command that resolved, in order.
 
     std::vector<std::size_t> windups_started{}; ///< Combatants whose wind-up started this step, by index.
   };
@@ -57,8 +54,8 @@ namespace corundum::gameplay::combat {
     /** @brief Join every combatant through @p rules, list its commands, and put each marker at its
      *  start beats.
      *  @param steps_per_tick Fixed steps per timeline tick; at least 1.
-     *  @return The encounter, or an error: a callback in @p rules is empty, its command point or
-     *          Tempo isn't positive, or a combatant's join failed (the message names it). */
+     *  @return The encounter, or an error: a callback in @p rules is empty, its command point,
+     *          tempo or reach isn't positive, or a combatant's join failed (the message names it). */
     [[nodiscard]] static std::expected<Encounter, std::string> start(rules::CombatRules rules,
                                                                      const rules::CombatContext &context,
                                                                      std::vector<Joining> joining, int steps_per_tick);
@@ -70,37 +67,20 @@ namespace corundum::gameplay::combat {
     void order_attack(std::size_t attacker, std::size_t target);
 
     /** @brief @p mover walks on its own: drop its attack order and cancel a wind-up, losing the
-     *  command winding up; the marker drops to that command's return point, as a fizzle's does, and
-     *  the turn ends lost. A queued command that hasn't started stays queued.
-     *  @return The end-of-turn reports when a wind-up was cancelled; empty otherwise.
+     *  command winding up; the marker drops to 0, as a fizzle's does. A queued command that hasn't
+     *  started stays queued.
      *  @pre mover < size(). */
-    [[nodiscard]] std::vector<std::string> order_move(const rules::CombatContext &context, std::size_t mover);
+    void order_move(std::size_t mover);
 
     /** @brief Queue commands(actor)[@p option] as @p actor's next command, replacing any queued one.
-     *  It winds up at the next command point instead of the standing attack, which then resumes. An
-     *  Enemy command goes against the attack target and, like the attack, waits at the command point
-     *  until that target is in reach (with no attack target, it holds there as the standing attack
-     *  does, until order_attack gives one); a Self command starts there at once. A wind-up in
-     *  progress is unaffected.
+     *  It starts at the next command point instead of the standing attack, which then resumes; it
+     *  needs no target and no reach. A wind-up in progress is unaffected.
      *  @pre actor < size(), option < commands(actor).size(), and that option is available. */
     void queue_command(std::size_t actor, std::size_t option);
 
     /** @brief Drop @p actor's queued command, so the standing attack comes next.
      *  @pre actor < size(). */
     void clear_queued(std::size_t actor);
-
-    /** @brief Turn toggles(actor)[@p option] on or off through the rules, then refresh @p actor's
-     *  toggles and every status.
-     *  @pre actor < size() and option < toggles(actor).size(). */
-    void toggle(const rules::CombatContext &context, std::size_t actor, std::size_t option);
-
-    /** @brief @p mover has just walked out of @p reactor's reach: ask the rules for @p reactor's
-     *  opportunity attack, and apply what it did to @p mover as a landed command's result, Break
-     *  then Stagger. It costs @p reactor no time: its marker doesn't move, and a wind-up goes on.
-     *  @return The attack's report, then any Break's; empty when the rules declined.
-     *  @pre Both indices are below size(), on different sides, and both combatants can act. */
-    [[nodiscard]] std::vector<std::string> opportunity_attack(const rules::CombatContext &context, std::size_t reactor,
-                                                              std::size_t mover);
 
     /** @brief Advance one fixed step; every steps_per_tick-th step is a tick. Does nothing once
      *  outcome() is set.
@@ -113,6 +93,9 @@ namespace corundum::gameplay::combat {
 
     [[nodiscard]] std::size_t size() const noexcept { return specs_.size(); }
 
+    /** @brief The tiles a standing attack reaches; a diagonal step counts as one. */
+    [[nodiscard]] int reach_tiles() const noexcept { return rules_.reach_tiles; }
+
     /** @pre index < size() for every per-combatant query below. */
     [[nodiscard]] const rules::CombatantSpec &spec(std::size_t index) const { return specs_[index]; }
 
@@ -124,29 +107,11 @@ namespace corundum::gameplay::combat {
 
     [[nodiscard]] std::optional<std::size_t> target_of(std::size_t index) const { return markers_[index].target; }
 
-    /** @brief @p index's commands, as CombatRules::commands last listed them; refreshed after every
-     *  command resolves. */
+    /** @brief @p index's commands, as CombatRules::commands last listed them; refreshed every tick. */
     [[nodiscard]] std::span<const rules::CommandOption> commands(std::size_t index) const { return commands_[index]; }
 
     /** @brief @p index's queued command, as an index into commands(index); nullopt for none. */
     [[nodiscard]] std::optional<std::size_t> queued(std::size_t index) const { return markers_[index].queued; }
-
-    /** @brief @p index's toggles, as CombatRules::toggles last listed them; refreshed with its
-     *  commands and after every toggle. */
-    [[nodiscard]] std::span<const rules::ToggleOption> toggles(std::size_t index) const { return toggles_[index]; }
-
-    /** @brief @p index's status, as CombatRules::status last gave it: at the start, or after the
-     *  last tick, move order, toggle or opportunity attack. */
-    [[nodiscard]] const rules::CombatantStatus &status(std::size_t index) const { return statuses_[index]; }
-
-    /** @brief The label of the command @p index is winding up (k_attack_label for the standing
-     *  attack); empty when it isn't winding up. */
-    [[nodiscard]] std::string_view windup_label(std::size_t index) const;
-
-    /** @brief The beats at which @p index's command lands: the command point plus the wind-up of
-     *  the command winding up, or else of the next one (its queued command, or else the standing
-     *  attack; a hostile's choice isn't known until its wind-up starts). */
-    [[nodiscard]] int windup_end_beats(std::size_t index) const;
 
     /** @brief The seconds until @p index's command lands, as of now. A wind-up ends on the first tick
      *  its beats are reached, so this is a whole number of ticks. Battle calls it on the step a
@@ -154,23 +119,19 @@ namespace corundum::gameplay::combat {
      *  @pre phase(index) == Phase::WindUp. */
     [[nodiscard]] float windup_seconds(std::size_t index) const;
 
-    /** @brief Whether @p index is winding up something aimed at an enemy: the standing attack or an
-     *  Enemy command; false for a Self command or no wind-up. */
+    /** @brief Whether @p index is winding up its standing attack; false for a queued command or no
+     *  wind-up. */
     [[nodiscard]] bool is_winding_up_at_enemy(std::size_t index) const;
 
     [[nodiscard]] rules::Health health(const rules::CombatContext &context, std::size_t index) const;
 
     [[nodiscard]] bool can_act(const rules::CombatContext &context, std::size_t index) const;
 
-    [[nodiscard]] int command_point_beats() const noexcept { return rules_.command_point_beats; }
-
   private:
     struct Marker {
       std::optional<rules::CommandOption> active{}; ///< The command winding up; nullopt for the standing attack.
 
       int beats{};
-
-      bool in_turn{}; ///< From its turn's start (the marker reached the command point) until the turn ends.
 
       Phase phase{Phase::Ready};
 
@@ -181,7 +142,7 @@ namespace corundum::gameplay::combat {
 
     Encounter(rules::CombatRules rules, std::vector<rules::Combatant> combatants, std::vector<Side> sides,
               std::vector<rules::CombatantSpec> specs, std::vector<std::vector<rules::CommandOption>> commands,
-              std::vector<std::vector<rules::ToggleOption>> toggles, int steps_per_tick);
+              int steps_per_tick);
 
     rules::CombatRules rules_;
 
@@ -192,10 +153,6 @@ namespace corundum::gameplay::combat {
     std::vector<Side> sides_;
 
     std::vector<rules::CombatantSpec> specs_;
-
-    std::vector<rules::CombatantStatus> statuses_;
-
-    std::vector<std::vector<rules::ToggleOption>> toggles_;
 
     std::vector<Marker> markers_;
 

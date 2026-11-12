@@ -154,12 +154,6 @@ namespace {
       step(fight);
   }
 
-  /// Step until the fight pauses itself; capped, so a fight that never pauses fails the checks that follow.
-  void step_until_paused(Fight &fight) {
-    for (int i = 0; i < 10 && fight.engine->scene.mode() == screens::Combat; ++i)
-      step(fight);
-  }
-
   const combat::Encounter &encounter_of(const Fight &fight) {
     if (!fight.gameplay->battle)
       throw std::runtime_error("no fight is running");
@@ -284,27 +278,6 @@ namespace {
   TileCoord standing_tile(const Fight &fight, EntityId entity) {
     const auto &transforms = fight.engine->scene.world.transforms;
     return corundum::world::tile_of(transforms.pos_col(entity), transforms.pos_row(entity));
-  }
-
-  /// Put @p entity on @p tile, as a walk would have by now, and run the step that notices.
-  void walk_to(Fight &fight, EntityId entity, TileCoord tile) {
-    place(*fight.engine, entity, tile);
-    step(fight);
-  }
-
-  /// Give every hostile @p reach_tiles of reach; the flat rules give everyone 1. Call it before the
-  /// fight starts.
-  void set_hostile_reach(Fight &fight, int reach_tiles) {
-    using corundum::gameplay::rules::Combatant;
-    using corundum::gameplay::rules::CombatantSpec;
-    using corundum::gameplay::rules::CombatContext;
-    corundum::gameplay::rules::CombatRules &combat = combat_rules(fight);
-    combat.join = [join = combat.join, reach_tiles](const CombatContext &context, Combatant &combatant) {
-      std::expected<CombatantSpec, std::string> joined = join(context, combatant);
-      if (joined && combatant.creature)
-        joined->reach_tiles = reach_tiles;
-      return joined;
-    };
   }
 
 } // namespace
@@ -644,15 +617,14 @@ TEST_CASE("combat: a command key queues while the fight is paused") {
   CHECK_EQ(fight->engine->scene.mode(), screens::CombatPaused);
 }
 
-TEST_CASE("combat: a command aimed at an enemy renews the attack a move dropped") {
+TEST_CASE("combat: a queued command doesn't renew an attack order a move dropped") {
   const auto fight = make_fight({.col = 9, .row = 8});
   start_fight(*fight);
   click(*fight, {.col = 8, .row = 10});
 
   press(*fight, Action::CombatCommand2);
 
-  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
-           std::optional<std::size_t>{combat::Battle::k_hostile});
+  CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
 }
 
 TEST_CASE("combat: a queued tonic is drunk at the next command point") {
@@ -691,56 +663,23 @@ TEST_CASE("combat: a click two tiles behind the hostile is a ground move") {
   CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
 }
 
-TEST_CASE("combat: a heavy wind-up in reach pauses the fight and says why") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight, "brute");
-
-  step_until_paused(*fight);
-
-  CHECK_EQ(fight->engine->scene.mode(), screens::CombatPaused);
-  CHECK_EQ(battle_of(*fight).pause_note(), "brute is winding up Smash");
-}
-
-TEST_CASE("combat: resuming an auto-paused fight clears the note") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight, "brute");
-  step_until_paused(*fight);
-  REQUIRE_EQ(fight->engine->scene.mode(), screens::CombatPaused);
-
-  press(*fight, Action::Pause);
-
-  CHECK_EQ(fight->engine->scene.mode(), screens::Combat);
-  CHECK(battle_of(*fight).pause_note().empty());
-}
-
-TEST_CASE("combat: a standing wind-up doesn't pause the fight") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight);
-  for (int i = 0; i < 5; ++i)
-    step(*fight);
-  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_hostile), combat::Phase::WindUp);
-
-  CHECK_EQ(fight->engine->scene.mode(), screens::Combat);
-}
-
-TEST_CASE("combat: the command bar lists Attack, the rules' commands, then their toggles") {
+TEST_CASE("combat: the command bar lists Attack, then the rules' commands") {
   const auto fight = make_fight({.col = 9, .row = 8});
 
   start_fight(*fight);
 
   const corundum::gameplay::screens::CombatHud &hud = battle_of(*fight).hud();
-  REQUIRE_EQ(hud.commands.size(), 3);
+  REQUIRE_EQ(hud.commands.size(), 4);
   CHECK_EQ(hud.commands[0].label, "Attack");
   CHECK_EQ(hud.commands[0].action, Action::CombatCommand1);
-  CHECK_EQ(hud.commands[1].label, "Bash");
+  CHECK_EQ(hud.commands[1].label, "Focus");
   CHECK_EQ(hud.commands[1].action, Action::CombatCommand2);
   CHECK(hud.commands[1].is_available);
   CHECK_EQ(hud.commands[2].label, "Tonic");
   CHECK_EQ(hud.commands[2].action, Action::CombatCommand3);
   CHECK_FALSE(hud.commands[2].is_available);
-  REQUIRE_EQ(hud.toggles.size(), 1);
-  CHECK_EQ(hud.toggles[0].label, "Guard");
-  CHECK_EQ(hud.toggles[0].action, Action::CombatCommand4);
+  CHECK_EQ(hud.commands[3].label, "Salve");
+  CHECK_EQ(hud.commands[3].action, Action::CombatCommand4);
   CHECK_EQ(hud.page.count, 2);
 }
 
@@ -755,53 +694,7 @@ TEST_CASE("combat: the command bar marks the queued command") {
   CHECK_FALSE(commands[2].is_highlighted);
 }
 
-TEST_CASE("combat: 4 turns the bar's fourth slot, a toggle, on") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight);
-
-  press(*fight, Action::CombatCommand4);
-
-  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 1);
-  CHECK(battle_of(*fight).hud().toggles[0].is_highlighted);
-}
-
-TEST_CASE("combat: pressing an on toggle's key turns it off") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight);
-  press(*fight, Action::CombatCommand4);
-
-  press(*fight, Action::CombatCommand4);
-
-  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 0);
-}
-
-TEST_CASE("combat: a toggle works while the fight is paused") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight);
-  press(*fight, Action::Pause);
-
-  press(*fight, Action::CombatCommand4);
-
-  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 1);
-  CHECK_EQ(fight->engine->scene.mode(), screens::CombatPaused);
-}
-
-TEST_CASE("combat: an unavailable toggle is refused with a toast") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  combat_rules(*fight).toggles = [](const corundum::gameplay::rules::CombatContext &,
-                                    const corundum::gameplay::rules::Combatant &) {
-    return std::vector<corundum::gameplay::rules::ToggleOption>{
-        {.id = "rally", .is_available = false, .is_on = false, .label = "Rally"},
-    };
-  };
-  start_fight(*fight);
-
-  press(*fight, Action::CombatCommand4);
-
-  CHECK_EQ(last_toast(*fight->engine), "Rally can't be used now");
-}
-
-TEST_CASE("combat: gamepad R1 shows the next page on A, Y and B") {
+TEST_CASE("combat: gamepad R1 shows the next page on A") {
   const auto fight = make_fight({.col = 9, .row = 8});
   start_fight(*fight);
 
@@ -809,7 +702,7 @@ TEST_CASE("combat: gamepad R1 shows the next page on A, Y and B") {
 
   const corundum::gameplay::screens::CombatHud &hud = battle_of(*fight).hud();
   CHECK_EQ(hud.page.index, 1);
-  CHECK_EQ(hud.toggles[0].gamepad_action, std::optional<Action>{Action::CombatCommand1});
+  CHECK_EQ(hud.commands[3].gamepad_action, std::optional<Action>{Action::CombatCommand1});
   CHECK_FALSE(hud.commands[0].gamepad_action.has_value());
 }
 
@@ -846,75 +739,11 @@ TEST_CASE("combat: on a keyboard, 1 still attacks after a gamepad paged") {
 
   CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
            std::optional<std::size_t>{combat::Battle::k_hostile});
-  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 0);
-}
-
-TEST_CASE("combat: the HUD rows show each combatant's status labels") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.guard"] = 1;
-
-  start_fight(*fight);
-
-  const corundum::gameplay::screens::CombatHud &hud = battle_of(*fight).hud();
-  CHECK_EQ(hud.rows[combat::Battle::k_protagonist].status_labels, std::vector<std::string>{"Guard"});
-  CHECK(hud.rows[combat::Battle::k_hostile].status_labels.empty());
-}
-
-TEST_CASE("combat: a protagonist that can't move keeps its attack through a ground click and is held") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.rooted"] = 1;
-  start_fight(*fight);
-
-  click(*fight, {.col = 8, .row = 10});
-
-  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
-           std::optional<std::size_t>{combat::Battle::k_hostile});
-  CHECK(fight->engine->scene.is_player_held);
-  CHECK(fight->engine->scene.path.empty());
-}
-
-TEST_CASE("combat: a protagonist that can't move ignores held movement keys") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.rooted"] = 1;
-  fight->engine->flags["test.hero.start"] = 100;
-  start_fight(*fight);
-  step(*fight);
-  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
-
-  fight->engine->input_state.held.set(static_cast<std::size_t>(Action::MoveUp));
-  step(*fight);
-
-  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::Ready);
-  CHECK_EQ(encounter_of(*fight).target_of(combat::Battle::k_protagonist),
-           std::optional<std::size_t>{combat::Battle::k_hostile});
-}
-
-TEST_CASE("combat: a protagonist that can move again isn't held") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.rooted"] = 1;
-  start_fight(*fight);
-  step(*fight);
-  REQUIRE(fight->engine->scene.is_player_held);
-  fight->engine->flags["test.hero.rooted"] = 0;
-
-  step(*fight);
-
-  CHECK_FALSE(fight->engine->scene.is_player_held);
-}
-
-TEST_CASE("combat: a hostile that can't move doesn't walk") {
-  const auto fight = make_fight({.col = 10, .row = 8});
-  start_fight(*fight, "statue");
-
-  step(*fight);
-
-  const auto &transforms = fight->engine->scene.world.transforms;
-  CHECK_EQ(transforms.dc[transforms.dense_index(fight->foe)], 0.f);
+  CHECK_FALSE(encounter_of(*fight).queued(combat::Battle::k_protagonist).has_value());
 }
 
 TEST_CASE("combat: the end of a fight lets the player walk again") {
   const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.rooted"] = 1;
   fight->engine->flags["test.hero.damage"] = 1;
   start_fight(*fight);
 
@@ -924,21 +753,10 @@ TEST_CASE("combat: the end of a fight lets the player walk again") {
   CHECK_FALSE(fight->engine->scene.is_player_held);
 }
 
-TEST_CASE("combat: a protagonist that can't move is held from the step its fight starts") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.rooted"] = 1;
-
-  start_fight(*fight);
-
-  REQUIRE(fight->gameplay->battle.has_value());
-  CHECK(fight->engine->scene.is_player_held);
-}
-
 TEST_CASE("combat: losing the Combat layer lets a held protagonist walk again") {
   const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.rooted"] = 1;
   start_fight(*fight);
-  REQUIRE(fight->engine->scene.is_player_held);
+  fight->engine->scene.is_player_held = true; // As a lost fight holds it.
   fight->engine->scene.ui.clear();
 
   step(*fight);
@@ -949,33 +767,29 @@ TEST_CASE("combat: losing the Combat layer lets a held protagonist walk again") 
 
 TEST_CASE("combat: reset_session_state lets a held protagonist walk again") {
   const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.hero.rooted"] = 1;
   start_fight(*fight);
-  REQUIRE(fight->engine->scene.is_player_held);
+  fight->engine->scene.is_player_held = true; // As a lost fight holds it.
 
   fight->gameplay->reset_session_state();
 
   CHECK_FALSE(fight->engine->scene.is_player_held);
 }
 
-TEST_CASE("combat: on the second page, gamepad A presses the fourth slot and keeps a queued command") {
+TEST_CASE("combat: on the second page, gamepad A presses the fourth slot") {
   const auto fight = make_fight({.col = 9, .row = 8});
   start_fight(*fight);
-  press(*fight, Action::CombatCommand2);
-  REQUIRE_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{0});
   press_gamepad(*fight, corundum::input::GamepadControl::RightBumper);
 
   press_gamepad(*fight, corundum::input::GamepadControl::A);
 
-  CHECK_EQ(corundum::world::visit_count(fight->engine->flags, "test.hero.guard"), 1);
-  CHECK_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{0});
+  CHECK_EQ(encounter_of(*fight).queued(combat::Battle::k_protagonist), std::optional<std::size_t>{2});
 }
 
 TEST_CASE("combat: rules listing more slots than the bar holds can't start the fight") {
   const auto fight = make_fight({.col = 9, .row = 8});
-  combat_rules(*fight).toggles = [](const corundum::gameplay::rules::CombatContext &,
-                                    const corundum::gameplay::rules::Combatant &) {
-    return std::vector<corundum::gameplay::rules::ToggleOption>(7, {.id = "rally", .label = "Rally"});
+  combat_rules(*fight).commands = [](const corundum::gameplay::rules::CombatContext &,
+                                     const corundum::gameplay::rules::Combatant &) {
+    return std::vector<corundum::gameplay::rules::CommandOption>(9, {.id = "focus", .label = "Focus"});
   };
 
   start_fight(*fight);
@@ -1346,7 +1160,7 @@ TEST_CASE("combat: a wind-up plays the attack clip, facing the target, with its 
   CHECK_EQ(world.clips.end_of(player), corundum::entities::ClipEnd::Resume);
 }
 
-TEST_CASE("combat: a Self command plays no attack clip") {
+TEST_CASE("combat: a queued command plays no attack clip") {
   const auto fight = make_fight({.col = 9, .row = 8});
   const EntityId player = fight->engine->scene.player;
   dress_as_fighter(*fight, player);
@@ -1354,10 +1168,11 @@ TEST_CASE("combat: a Self command plays no attack clip") {
   start_fight(*fight);
   press(*fight, Action::CombatCommand3);
 
-  for (int i = 0; i < 40 && encounter_of(*fight).windup_label(combat::Battle::k_protagonist) != "Tonic"; ++i)
+  for (int i = 0; i < 40 && encounter_of(*fight).phase(combat::Battle::k_protagonist) != combat::Phase::WindUp; ++i)
     step(*fight);
 
-  REQUIRE_EQ(encounter_of(*fight).windup_label(combat::Battle::k_protagonist), std::string_view{"Tonic"});
+  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
+  REQUIRE_FALSE(encounter_of(*fight).is_winding_up_at_enemy(combat::Battle::k_protagonist));
   CHECK_FALSE(plays(*fight, player, "fighter_attack"));
 }
 
@@ -1387,22 +1202,6 @@ TEST_CASE("combat: a hit doesn't interrupt a wind-up") {
 
   CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
   CHECK(plays(*fight, player, "fighter_attack"));
-}
-
-TEST_CASE("combat: a Broken wind-up gives way to the hurt clip") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  dress_as_fighter(*fight, fight->foe);
-  fight->engine->flags["test.hero.start"] = 10;
-  combat_rules(*fight).tempo_beats = 10;
-  start_fight(*fight);
-  // With this start and tempo, Bash lands one tick into the foe's two-tick wind-up; change them together.
-  press(*fight, Action::CombatCommand2);
-  step_until_playing(*fight, fight->foe, "fighter_attack");
-
-  step_until_playing(*fight, fight->foe, "fighter_hurt");
-
-  REQUIRE(plays(*fight, fight->foe, "fighter_hurt"));
-  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_hostile), combat::Phase::Ready);
 }
 
 TEST_CASE("combat: the hurt clip returns to the sheet the fighter was on") {
@@ -1525,13 +1324,15 @@ TEST_CASE("combat: target_tile is empty when the target falls with the protagoni
   const EntityId player = fight->engine->scene.player;
   dress_as_fighter(*fight, player);
   fight->engine->flags["test.hero.start"] = 100;
-  int hero_turns = 0;
-  // As poison can: the hero's second blow fells the foe, and the end of that turn fells the hero.
-  combat_rules(*fight).end_turn = [&hero_turns](const rules::CombatContext &context, rules::Combatant &combatant,
-                                                rules::TurnEnd) {
-    if (!combatant.creature && ++hero_turns == 2)
+  int hero_blows = 0;
+  // As a backlash can: the hero's second blow fells the foe, and the hero with it.
+  rules::CombatRules &combat = combat_rules(*fight);
+  combat.resolve = [resolve = combat.resolve, &hero_blows](const rules::CombatContext &context, rules::Combatant &actor,
+                                                           rules::Combatant &target) {
+    std::string report = resolve(context, actor, target);
+    if (!actor.creature && ++hero_blows == 2)
       context.flag_writer.write("test.hero.damage", 2);
-    return rules::TurnEndResult{};
+    return report;
   };
   start_fight(*fight);
 
@@ -1600,192 +1401,4 @@ TEST_CASE("combat: a fight that loses a combatant from the scene stands the othe
 
   CHECK_FALSE(fight->gameplay->battle.has_value());
   CHECK_FALSE(fight->engine->scene.world.motion_sprites.is_in_stance(player));
-}
-
-TEST_CASE("combat: walking out of a hostile's reach draws its opportunity attack") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
-
-  CHECK_EQ(last_toast(*fight->engine), "grunt strikes hero");
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 1);
-}
-
-TEST_CASE("combat: a hostile walking out of the protagonist's reach draws the protagonist's attack") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  walk_to(*fight, fight->foe, {.col = 12, .row = 8});
-
-  CHECK_EQ(last_toast(*fight->engine), "hero strikes grunt");
-  CHECK_EQ(battle_of(*fight).hud().rows[1].health.current, 1);
-}
-
-TEST_CASE("combat: a step that stays in a hostile's reach draws nothing") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 9});
-
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
-}
-
-TEST_CASE("combat: a walk that was never in a hostile's reach draws nothing") {
-  const auto fight = make_fight({.col = 12, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 7, .row = 8});
-
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
-}
-
-TEST_CASE("combat: a longer reach draws its attack only past its own edge") {
-  const auto fight = make_fight({.col = 10, .row = 8});
-  set_hostile_reach(*fight, 2);
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 7, .row = 8});
-
-  CHECK_EQ(last_toast(*fight->engine), "grunt strikes hero");
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 1);
-}
-
-TEST_CASE("combat: a step that ends on the edge of a longer reach draws nothing") {
-  const auto fight = make_fight({.col = 10, .row = 8});
-  set_hostile_reach(*fight, 2);
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 10});
-
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
-}
-
-TEST_CASE("combat: where a fight starts isn't a walk") {
-  const auto fight = make_fight({.col = 1, .row = 0});
-  place(*fight->engine, fight->engine->scene.player, {.col = 3, .row = 0});
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  step(*fight);
-
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
-}
-
-TEST_CASE("combat: a declined opportunity attack shows nothing") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  start_fight(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
-
-  CHECK(fight->engine->toasts.empty());
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 0);
-}
-
-TEST_CASE("combat: leaving two hostiles' reach at once draws both attacks, in combatant order") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  add_foe(*fight, "a01", {.col = 7, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  toughen_hero(*fight);
-  start_pair(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 11});
-
-  const std::size_t toasts = fight->engine->toasts.size();
-  REQUIRE_GE(toasts, 2u);
-  CHECK_EQ(fight->engine->toasts.at(toasts - 2).text, "first strikes hero");
-  CHECK_EQ(fight->engine->toasts.at(toasts - 1).text, "second strikes hero");
-}
-
-TEST_CASE("combat: an opportunity attack that downs the protagonist ends its walk and the fight") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  fight->engine->flags["test.hero.damage"] = 1;
-  start_fight(*fight);
-  fight->engine->scene.path = {{.col = 5, .row = 8}};
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
-
-  CHECK(fight->engine->scene.path.empty());
-  CHECK_FALSE(fight->gameplay->battle.has_value());
-  REQUIRE_EQ(fight->raised.size(), 1u);
-  CHECK_EQ(fight->raised[0].name, "encounter_lost");
-}
-
-TEST_CASE("combat: the first of two attacks that downs the protagonist stops the second") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  add_foe(*fight, "a01", {.col = 7, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  fight->engine->flags["test.hero.damage"] = 1;
-  start_pair(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 8, .row = 11});
-
-  CHECK_EQ(last_toast(*fight->engine), "first strikes hero");
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 2);
-}
-
-TEST_CASE("combat: an opportunity attack that downs a hostile removes it") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  add_foe(*fight, "a01", {.col = 12, .row = 12});
-  fight->engine->flags["test.reactions"] = 1;
-  start_pair(*fight);
-
-  walk_to(*fight, fight->foe, {.col = 11, .row = 8});
-  walk_to(*fight, fight->foe, {.col = 9, .row = 8});
-  walk_to(*fight, fight->foe, {.col = 11, .row = 8});
-
-  CHECK_FALSE(fight->engine->scene.world.entities.is_live(fight->foe));
-  CHECK(fight->gameplay->battle.has_value());
-}
-
-TEST_CASE("combat: a tile change while paused is judged when the clock runs again") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-  press(*fight, Action::Pause);
-  REQUIRE_EQ(fight->engine->scene.mode(), screens::CombatPaused);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
-  REQUIRE_EQ(fight->engine->flags["test.hero.damage"], 0);
-  press(*fight, Action::Pause);
-
-  CHECK_EQ(fight->engine->flags["test.hero.damage"], 1);
-}
-
-TEST_CASE("combat: an opportunity attack turns the reactor to the mover and plays its attack clip") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  dress_as_fighter(*fight, fight->foe);
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
-
-  const auto &world = fight->engine->scene.world;
-  REQUIRE(plays(*fight, fight->foe, "fighter_attack"));
-  // The mover's last tile, (8, 8), is one column back from the foe on (9, 8).
-  CHECK_EQ(world.facings.dir_of(fight->foe), corundum::core::Direction::NorthWest);
-  // fighter_attack names no fps, so the sheet's speed is the default.
-  CHECK(world.clips.frame_duration_of(fight->foe) == doctest::Approx(corundum::entities::k_default_frame_duration));
-}
-
-TEST_CASE("combat: a reactor already winding up keeps its timed clip") {
-  const auto fight = make_fight({.col = 9, .row = 8});
-  dress_as_fighter(*fight, fight->foe);
-  fight->engine->flags["test.reactions"] = 1;
-  start_fight(*fight);
-  step_until_playing(*fight, fight->foe, "fighter_attack");
-  REQUIRE(plays(*fight, fight->foe, "fighter_attack"));
-
-  walk_to(*fight, fight->engine->scene.player, {.col = 6, .row = 8});
-
-  REQUIRE_EQ(fight->engine->flags["test.hero.damage"], 1);
-  // One tick of wind-up at 1/60 s, doubled and spread over the sheet's 4 frames.
-  CHECK(fight->engine->scene.world.clips.frame_duration_of(fight->foe) == doctest::Approx(1.f / 120.f));
 }

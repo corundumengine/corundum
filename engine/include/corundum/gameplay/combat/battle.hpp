@@ -60,9 +60,7 @@ namespace corundum::gameplay::combat {
   struct BattleStep {
     std::optional<Outcome> outcome{}; ///< A lost fight reports this only once the protagonist's death clip ends.
 
-    std::vector<std::string> reports{}; ///< Toasts: each resolved command or opportunity attack and each refusal.
-
-    bool should_pause{}; ///< A hostile started a wind-up the rules' auto-pause names; see pause_note().
+    std::vector<std::string> reports{}; ///< Toasts: each resolved command and each refusal.
   };
 
   /** @brief One encounter played out in the scene.
@@ -78,7 +76,7 @@ namespace corundum::gameplay::combat {
     /** @brief Start a fight between the protagonist and the actors @p request names. Each hostile
      *  is given a standing attack on the protagonist, and the protagonist one on the nearest (ties to
      *  the first named), so it fights without a click; a move order drops the protagonist's. The
-     *  command bar is Attack, then the protagonist's commands, then its toggles, on CombatCommand1–9.
+     *  command bar is Attack, then the protagonist's commands, on CombatCommand1–9.
      *  @return The battle, or an error: no protagonist in the scene, an empty request
      *          ("[gameplay] start_encounter: it names no hostiles"), no live actor with an id
      *          ("[gameplay] start_encounter: no actor '<id>' in this area"), an actor with no
@@ -94,18 +92,14 @@ namespace corundum::gameplay::combat {
      *  - this step's input becomes orders: a click, the slot keys (on a gamepad, A/Y/B press the
      *    shown page's slots, and L1/R1 change the page), the next-target key, and while Running
      *    held movement keys;
-     *  - while Running the timeline advances, and a hostile's wind-up may call for an auto-pause;
-     *  - before it does, a combatant whose tile left an enemy's reach since the last Running step
-     *    draws that enemy's opportunity attack, in combatant order; the rules may decline, and one
-     *    taken turns the reactor to the mover and plays its attack clip unless it is winding up;
+     *  - while Running the timeline advances;
      *  - a combatant with an attack order out of reach paths to a tile within reach of its target
-     *    and walks there, and one in reach or winding up stands. One its status says can't move
-     *    stands too, and the protagonist then takes no move order and Scene::is_player_held is set;
+     *    and walks there, and one in reach or winding up stands;
      *  - hud() refreshes;
      *  - a wind-up at an enemy plays the combatant's attack clip, facing its target, a fall in Health
      *    its hurt clip, and a fall its death clip; a character missing a sheet skips that clip;
-     *  - from the step the protagonist falls, no orders are read and everyone stands until its death
-     *    clip ends.
+     *  - from the step the protagonist falls, no orders are read, everyone stands until its death
+     *    clip ends, and Scene::is_player_held is set.
      *  While Paused nobody walks: no path is planned, and the protagonist's is cleared, so a paused
      *  fight freezes every combatant.
      *  Every combatant with a ready sheet stands on it from start until stand_down.
@@ -145,13 +139,9 @@ namespace corundum::gameplay::combat {
     /** @brief The HUD's rows and command bar, refreshed by start() and update(). */
     [[nodiscard]] const screens::CombatHud &hud() const noexcept { return hud_; }
 
-    /** @brief Why the fight last paused on its own, such as "Brann is winding up Crushing Blow";
-     *  empty when it didn't, and cleared once it runs again. */
-    [[nodiscard]] std::string_view pause_note() const noexcept { return pause_note_; }
-
   private:
     Battle(Encounter encounter, std::vector<std::optional<entities::EntityId>> entities,
-           std::vector<CombatantClips> clips, std::string first_actor, std::optional<rules::AutoPause> auto_pause);
+           std::vector<CombatantClips> clips, std::string first_actor);
 
     /// How one approach ended.
     enum class ApproachOutcome : std::uint8_t {
@@ -181,26 +171,12 @@ namespace corundum::gameplay::combat {
     /// HUD. @pre refresh_tiles() has run, and @p target is a hostile that start() found able to act.
     void open_fight(Engine &engine, std::size_t target);
 
-    /// Offer every opportunity attack the walks since the last Running step call for, appending
-    /// their reports. Call it once per Running step, after refresh_tiles().
-    void resolve_opportunity_attacks(entities::World &world, const rules::CombatContext &context,
-                                     std::vector<std::string> &reports);
-
-    /// Whether combatant @p mover's walk took it out of the reach of enemy @p reactor.
-    [[nodiscard]] bool has_left_reach(std::size_t mover, std::size_t reactor) const;
-
-    /// Offer @p reactor its attack on @p mover while both are still fighting; an earlier attack this
-    /// step can have downed @p mover.
-    void offer_opportunity_attack(entities::World &world, const rules::CombatContext &context, std::size_t reactor,
-                                  std::size_t mover, std::vector<std::string> &reports);
-
     /// Press the slot each pressed key names on the current page, appending the refusals to toast.
     void read_slot_presses(const Engine &engine, const rules::CombatContext &context,
                            std::vector<std::string> &refusals);
 
-    /// Turn held movement keys and a click into a move or attack order, appending any refusals.
-    void read_move_orders(const Engine &engine, const rules::CombatContext &context, Clock clock,
-                          std::vector<std::string> &refusals);
+    /// Turn held movement keys and a click into a move or attack order.
+    void read_move_orders(const Engine &engine, const rules::CombatContext &context, Clock clock);
 
     /// Give the protagonist a standing attack on target(), re-planning its approach.
     void engage(const rules::CombatContext &context);
@@ -224,16 +200,11 @@ namespace corundum::gameplay::combat {
     /// @p before is AttackOrder::Standing.
     void follow_fallen_target(const rules::CombatContext &context, AttackOrder before);
 
-    /// The command key index for bar slot @p slot: 0 is Attack, then the commands, then the toggles.
-    /// The bar's layout and the rules' lists keep one length for the fight, so a slot names one
-    /// option. Attack renews the attack and drops a queued command; a command unqueues when queued,
-    /// is refused when unavailable (returning why), and otherwise queues, engaging the hostile for
-    /// an Enemy command; a toggle turns off when on, is refused when unavailable, and otherwise
-    /// turns on.
+    /// Press bar slot @p slot: 0 is Attack, then the commands. The bar's layout and the rules' list
+    /// keep one length for the fight, so a slot names one command. Attack renews the attack and drops
+    /// a queued command; a command unqueues when queued, is refused when unavailable (returning
+    /// why), and otherwise queues.
     [[nodiscard]] std::optional<std::string> press_slot(const rules::CombatContext &context, std::size_t slot);
-
-    /// Whether a wind-up in @p started calls for an auto-pause; sets pause_note_ when one does.
-    [[nodiscard]] bool check_auto_pause(std::span<const std::size_t> started);
 
     /// Plan each ordered combatant's movement: stand when in reach or winding up, else approach.
     void plan_movement(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
@@ -262,11 +233,6 @@ namespace corundum::gameplay::combat {
     /// Turn combatant @p index toward its target and play its attack clip, timed so the clip's middle
     /// meets the landing. Does nothing for a Self command or a character with no attack sheet.
     void play_attack_clip(entities::World &world, std::size_t index);
-
-    /// Turn combatant @p reactor toward @p mover_tile and play its attack clip at the sheet's speed.
-    /// One already winding up keeps its timed clip; a character with no attack sheet plays nothing.
-    void play_reaction_clip(entities::World &world, std::size_t reactor, entities::EntityId entity,
-                            world::TileCoord mover_tile);
 
     /// Play the hurt clip of each combatant whose Health fell since the last call and who can show
     /// it: still fighting, and not winding up.
@@ -302,19 +268,13 @@ namespace corundum::gameplay::combat {
 
     std::string first_actor_;
 
-    std::optional<rules::AutoPause> auto_pause_;
-
     std::vector<world::TileCoord> tiles_;
-
-    std::vector<world::TileCoord> walked_from_; ///< Each combatant's tile at the last Running step.
 
     screens::CombatHud hud_;
 
     std::vector<std::vector<world::TileCoord>> paths_; ///< Each hostile's path; the protagonist uses Scene::path.
 
     std::vector<std::optional<world::TileCoord>> planned_for_; ///< The target tile each path was planned for.
-
-    std::string pause_note_;
 
     std::size_t target_{k_hostile};
 

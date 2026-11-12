@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <expected>
 #include <format>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -37,38 +36,19 @@ namespace corundum::test {
   /// The minimal combat the framework is tested against, one tick per 60 Hz step.
   ///
   /// The protagonist ("hero") starts at the `test.hero.start` flag's beats with 2 Health less the
-  /// `test.hero.damage` flag. Its commands are "bash" (label "Bash": at an enemy, a 20-beat wind-up
-  /// returning to 0; it Breaks) and "tonic" (label "Tonic": on itself, 10 beats returning to 40;
-  /// available while the `test.hero.tonics` flag is above 0, it uses one up and heals 1).
+  /// `test.hero.damage` flag. Its commands are "focus" (label "Focus": always available, does
+  /// nothing), "tonic" (label "Tonic": available while the `test.hero.tonics` flag is above 0, it
+  /// uses one up and heals 1) and "salve" (label "Salve": always available, does nothing).
   ///
   /// A creature, named by its id, starts at 0 beats with 2 Health in its state and has no
-  /// commands, except "brute": its one command, "smash" (label "Smash", a 30-beat heavy wind-up
-  /// returning to 0), is the one it always chooses. Everyone has reach 1 and a 20-beat standing
-  /// attack returning to 0. Every hit lands for 1, reporting "<attacker> hits <target>", or
-  /// "<attacker> uses <command> on <target>" for a command. The fight auto-pauses on a hostile
-  /// wind-up of 30 beats or more within 3 tiles. The creature id "missing" fails to join.
-  ///
-  /// The hero's one toggle is "guard" (label "Guard"), on while the `test.hero.guard` flag is above
-  /// 0; toggling flips the flag. The hero can't move while the `test.hero.rooted` flag is above 0,
-  /// nor can the creature "statue"; the hero's status labels are {"Guard"} while guarded. Turns and
-  /// ticks do nothing.
-  ///
-  /// While the `test.reactions` flag is above 0, anyone who leaves an enemy's reach takes a 1-point
-  /// opportunity attack, reporting "<reactor> strikes <mover>"; otherwise it's declined.
+  /// commands. Reach is 1 and every wind-up 20 beats. Every attack lands for 1, reporting
+  /// "<attacker> hits <target>". The creature id "missing" fails to join.
   inline gameplay::rules::CombatRules make_flat_combat_rules() {
     using gameplay::rules::CombatContext;
     using gameplay::rules::Combatant;
     using gameplay::rules::CombatantSpec;
     using gameplay::rules::CommandOption;
-    using gameplay::rules::CommandResult;
-    using gameplay::rules::CommandTarget;
     const auto name_of = [](const Combatant &combatant) { return combatant.creature.value_or("hero"); };
-    const auto take_hit = [](const CombatContext &context, Combatant &target) {
-      if (target.creature)
-        target.state[k_flat_health_key] -= 1;
-      else
-        context.flag_writer.write("test.hero.damage", context.flags.read("test.hero.damage") + 1);
-    };
     const auto health_of = [](const CombatContext &context, const Combatant &combatant) {
       if (!combatant.creature)
         return gameplay::rules::Health{
@@ -83,129 +63,49 @@ namespace corundum::test {
     };
     const auto hero_commands = [](const CombatContext &context) {
       return std::vector<CommandOption>{
-          {
-              .id = "bash",
-              .is_available = true,
-              .label = "Bash",
-              .target = CommandTarget::Enemy,
-              .timing = {.return_to_beats = 0, .windup_beats = 20},
-          },
-          {
-              .id = "tonic",
-              .is_available = context.flags.read("test.hero.tonics") > 0,
-              .label = "Tonic",
-              .target = CommandTarget::Self,
-              .timing = {.return_to_beats = 40, .windup_beats = 10},
-          },
+          {.id = "focus", .is_available = true, .label = "Focus"},
+          {.id = "tonic", .is_available = context.flags.read("test.hero.tonics") > 0, .label = "Tonic"},
+          {.id = "salve", .is_available = true, .label = "Salve"},
       };
     };
-    const CommandOption smash{
-        .id = "smash",
-        .is_available = true,
-        .label = "Smash",
-        .target = CommandTarget::Enemy,
-        .timing = {.return_to_beats = 0, .windup_beats = 30},
-    };
     return gameplay::rules::CombatRules{
-        .auto_pause = gameplay::rules::AutoPause{.max_distance_tiles = 3, .min_windup_beats = 30},
-        .break_return_beats = 0,
         .command_point_beats = 100,
+        .reach_tiles = 1,
         .seconds_per_tick = 1.f / 60.f,
         .tempo_beats = 20,
+        .windup_beats = 20,
         .can_act = [health_of](const CombatContext &context,
                                const Combatant &combatant) { return health_of(context, combatant).current > 0; },
         .commands =
-            [hero_commands, smash](const CombatContext &context, const Combatant &combatant) {
-              if (!combatant.creature)
-                return hero_commands(context);
-              if (combatant.creature == "brute")
-                return std::vector<CommandOption>{smash};
-              return std::vector<CommandOption>{};
+            [hero_commands](const CombatContext &context, const Combatant &combatant) {
+              if (combatant.creature)
+                return std::vector<CommandOption>{};
+              return hero_commands(context);
             },
-        .end_turn = [](const CombatContext &, Combatant &,
-                       gameplay::rules::TurnEnd) { return gameplay::rules::TurnEndResult{}; },
         .health = health_of,
-        .hostile_command = [smash](const CombatContext &, Combatant &hostile) -> std::optional<CommandOption> {
-          if (hostile.creature == "brute")
-            return smash;
-          return std::nullopt;
-        },
         .join = [](const CombatContext &context, Combatant &combatant) -> std::expected<CombatantSpec, std::string> {
           if (combatant.creature == "missing")
             return std::unexpected(std::string{"no creature 'missing'"});
-          const gameplay::rules::Command attack{.return_to_beats = 0, .windup_beats = 20};
-          if (!combatant.creature) {
-            return CombatantSpec{
-                .attack = attack,
-                .initiative = 0,
-                .name = "hero",
-                .reach_tiles = 1,
-                .start_beats = context.flags.read("test.hero.start"),
-            };
-          }
+          if (!combatant.creature)
+            return CombatantSpec{.name = "hero", .start_beats = context.flags.read("test.hero.start")};
           combatant.state[k_flat_health_key] = k_flat_max_health;
-          return CombatantSpec{
-              .attack = attack,
-              .initiative = 0,
-              .name = *combatant.creature,
-              .reach_tiles = 1,
-              .start_beats = 0,
-          };
-        },
-        .opportunity_attack =
-            [name_of, take_hit](const CombatContext &context, Combatant &reactor,
-                                Combatant &mover) -> std::optional<CommandResult> {
-          if (context.flags.read("test.reactions") <= 0)
-            return std::nullopt;
-          take_hit(context, mover);
-          return CommandResult{.report = std::format("{} strikes {}", name_of(reactor), name_of(mover))};
+          return CombatantSpec{.name = *combatant.creature, .start_beats = 0};
         },
         .resolve =
-            [name_of, take_hit](const CombatContext &context, std::string_view command, Combatant &actor,
-                                Combatant &target) {
-              take_hit(context, target);
-              const std::string verb = command.empty() ? "hits" : std::format("uses {} on", command);
-              return CommandResult{
-                  .breaks = command == "bash",
-                  .report = std::format("{} {} {}", name_of(actor), verb, name_of(target)),
-                  .stagger_beats = 0,
-              };
+            [name_of](const CombatContext &context, Combatant &actor, Combatant &target) {
+              if (target.creature)
+                target.state[k_flat_health_key] -= 1;
+              else
+                context.flag_writer.write("test.hero.damage", context.flags.read("test.hero.damage") + 1);
+              return std::format("{} hits {}", name_of(actor), name_of(target));
             },
         .resolve_self =
-            [](const CombatContext &context, std::string_view, Combatant &) {
+            [](const CombatContext &context, std::string_view command, Combatant &) {
+              if (command != "tonic")
+                return std::format("hero uses {}", command);
               context.flag_writer.write("test.hero.tonics", context.flags.read("test.hero.tonics") - 1);
               context.flag_writer.write("test.hero.damage", std::max(0, context.flags.read("test.hero.damage") - 1));
               return std::string{"hero drinks a tonic"};
-            },
-        .start_turn = [](const CombatContext &, Combatant &) { return std::vector<std::string>{}; },
-        .status =
-            [](const CombatContext &context, const Combatant &combatant) {
-              if (combatant.creature)
-                return gameplay::rules::CombatantStatus{.can_move = combatant.creature != "statue"};
-              const bool is_guarded = context.flags.read("test.hero.guard") > 0;
-              return gameplay::rules::CombatantStatus{
-                  .can_advance = true,
-                  .can_move = context.flags.read("test.hero.rooted") == 0,
-                  .labels = is_guarded ? std::vector<std::string>{"Guard"} : std::vector<std::string>{},
-              };
-            },
-        .tick = [](const CombatContext &, Combatant &) {},
-        .toggle =
-            [](const CombatContext &context, Combatant &, std::string_view) {
-              context.flag_writer.write("test.hero.guard", context.flags.read("test.hero.guard") > 0 ? 0 : 1);
-            },
-        .toggles =
-            [](const CombatContext &context, const Combatant &combatant) {
-              if (combatant.creature)
-                return std::vector<gameplay::rules::ToggleOption>{};
-              return std::vector<gameplay::rules::ToggleOption>{
-                  {
-                      .id = "guard",
-                      .is_available = true,
-                      .is_on = context.flags.read("test.hero.guard") > 0,
-                      .label = "Guard",
-                  },
-              };
             },
     };
   }
