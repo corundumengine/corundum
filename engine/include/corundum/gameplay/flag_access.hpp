@@ -18,12 +18,4 @@ namespace corundum::gameplay {
     };
   }
 
-  /** @brief A ruleset's write view of @p flags; valid only for the duration of the call it is
-   *  passed to. */
-  [[nodiscard]] inline rules::FlagWriter make_flag_writer(world::FlagStore &flags) {
-    return rules::FlagWriter{
-        .write = [&flags](std::string_view key, int value) { flags[key] = value; },
-    };
-  }
-
 } // namespace corundum::gameplay

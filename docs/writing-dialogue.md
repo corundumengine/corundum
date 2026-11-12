@@ -245,11 +245,9 @@ Rather than reading raw flag values, you can check quest state with named helper
 { "condition": "rep(merchants_guild) >= 2" }
 ```
 
-Standing's scale is the game's, not the framework's: the ruleset sets its
-minimum and maximum, and the `reputation` event clamps a change to that range,
-so test condition values inside it. Don't write a `rep.*` flag directly (through
-`set_flag` or `starting_flags`): `rep()` reads the raw flag, so a direct write can
-leave it outside the scale.
+Standing is a plain count: each `reputation` event adds to the `rep.<id>` flag
+and nothing clamps it, so a condition tests it against whatever range the
+game's content keeps to.
 
 ### Node-visit helpers
 
@@ -332,7 +330,7 @@ These call engine functions. String arguments use single quotes.
 | `quest_advance('quest_id', 'stage_name')` | Advance the quest to the named stage |
 | `give_item('item_id'[, count])` | Add `count` (default 1) to the `item.<id>` flag |
 | `take_item('item_id'[, count])` | Subtract `count` (default 1) from the `item.<id>` flag; the flag is removed at 0 |
-| `reputation('faction_id', amount)` | Add `amount` to the `rep.<id>` flag, clamped to the game's standing scale |
+| `reputation('faction_id', amount)` | Add `amount` to the `rep.<id>` flag |
 | `unlock_codex('entry_id')` | Unlock a codex entry (sets the `codex.<id>` flag) and toast it |
 | `discover_location('location_id')` | Discover a fast-travel location (sets `location.<id>.discovered`) and toast it |
 | `open_container('container_id')` | Open the two-pane loot screen for `container.<id>.item.*` |
@@ -348,9 +346,6 @@ These call engine functions. String arguments use single quotes.
 ```
 
 Any hook name the engine doesn't recognise goes to the game's `on_event` callback, which can handle it or ignore it (an ignored hook logs a warning). That's how you wire up custom events like opening a door or spawning an NPC.
-
-`grant_xp(amount)` raises the protagonist's experience through the game's
-ruleset; the framework keeps no experience or level of its own.
 
 ### Divert actions
 

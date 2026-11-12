@@ -21,7 +21,6 @@
 #include <corundum/gameplay/dialogue/dialogue_npc.hpp>
 #include <corundum/gameplay/dialogue/validate_refs.hpp>
 #include <corundum/gameplay/faction/standing.hpp>
-#include <corundum/gameplay/flag_access.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/item/container.hpp>
 #include <corundum/gameplay/item/equipment.hpp>
@@ -220,20 +219,6 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Hand a `grant_xp(n)` event to the ruleset; the framework keeps no experience of its own. A
-    /// non-numeric amount parses to 0 and is skipped. Without a grant_experience callback the
-    /// event warns and does nothing.
-    void handle_grant_xp(Engine &engine, const Gameplay &gameplay, const dialogue::EventAction &ev) {
-      const int amount = event_int_arg(ev, 0, /*fallback=*/0);
-      if (amount == 0)
-        return;
-      if (!gameplay.ruleset.grant_experience) {
-        warn_log("[gameplay] WARN: grant_xp({}) ignored: the ruleset has no grant_experience", amount);
-        return;
-      }
-      gameplay.ruleset.grant_experience(make_flag_reader(engine.flags), make_flag_writer(engine.flags), amount);
-    }
-
     /// Tell the log and the player why a fight didn't start.
     void refuse_fight(Engine &engine, std::string_view reason) {
       warn_log("[gameplay] WARN: {}", reason);
@@ -258,17 +243,14 @@ namespace corundum::gameplay {
       gameplay.pending_encounter = std::move(request);
     }
 
-    /// Add a `reputation(faction, delta)` event's delta to the faction's standing and store what
-    /// the ruleset's scale makes of the sum. No clamp_standing callback means no scale. A
-    /// non-numeric delta parses to 0 and is skipped so no zero-valued standing flag is created.
-    void handle_reputation(Engine &engine, const Gameplay &gameplay, const dialogue::EventAction &ev) {
+    /// Add a `reputation(faction, delta)` event's delta to the faction's standing. A non-numeric
+    /// delta parses to 0 and is skipped so no zero-valued standing flag is created.
+    void handle_reputation(Engine &engine, const dialogue::EventAction &ev) {
       const int delta = event_int_arg(ev, 1, /*fallback=*/0);
       if (delta == 0)
         return;
       const std::string key = faction::standing_flag_key(ev.args[0]);
-      const int sum = world::visit_count(engine.flags, key) + delta;
-      const auto &clamp = gameplay.ruleset.clamp_standing;
-      engine.flags[key] = clamp ? clamp(sum) : sum;
+      engine.flags[key] = world::visit_count(engine.flags, key) + delta;
     }
 
     /// Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
@@ -386,14 +368,8 @@ namespace corundum::gameplay {
         {
             .name = "reputation",
             .min_args = 2,
-            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                         const dialogue::EventAction &ev) { handle_reputation(e, g, ev); },
-        },
-        {
-            .name = "grant_xp",
-            .min_args = 1,
-            .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                         const dialogue::EventAction &ev) { handle_grant_xp(e, g, ev); },
+            .handle = [](Engine &e, Gameplay &, quest::Runner &,
+                         const dialogue::EventAction &ev) { handle_reputation(e, ev); },
         },
         {
             .name = "start_encounter",
@@ -1006,81 +982,39 @@ namespace corundum::gameplay {
       }
     }
 
-    /// Flip the barter Buy/Sell tab and reset its row cursor.
-    void toggle_barter_tab(Gameplay &gameplay) noexcept {
-      gameplay.barter_screen.tab =
-          gameplay.barter_screen.tab == screens::BarterTab::Buy ? screens::BarterTab::Sell : screens::BarterTab::Buy;
-      gameplay.barter_screen.cursor = 0;
-    }
-
-    /// Apply mouse intent to the barter screen. Returns true when the pointer switched tabs and
-    /// the step should be consumed without also trading.
-    bool apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+    /// Apply mouse intent to the barter screen: a hovered row takes focus on a real mouse move or
+    /// click, and the wheel moves one row per notch.
+    void apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
                               const shop::Shop &shop, const std::vector<screens::BarterLine> &lines) {
       if (!pointer_active(intent))
-        return false;
+        return;
 
-      const screens::BarterLayout layout = screens::barter_panel_layout(
-          *engine.renderer, engine.render.panel_skin.style, shop.name,
-          world::visit_count(engine.flags, screens::k_gold_flag), lines, gameplay.barter_screen,
-          screen_viewport(engine), engine.input_mapper.last_device());
-      const core::math::Vec2 cursor = intent_cursor(intent);
-      const bool over_tabs = cursor_in(cursor, layout.tabs[0]) || cursor_in(cursor, layout.tabs[1]);
-
-      if (intent.cursor_clicked && over_tabs) {
-        const screens::BarterTab clicked =
-            cursor_in(cursor, layout.tabs[0]) ? screens::BarterTab::Buy : screens::BarterTab::Sell;
-        if (clicked != gameplay.barter_screen.tab) {
-          gameplay.barter_screen.tab = clicked;
-          gameplay.barter_screen.cursor = 0;
-        }
-        return true;
-      }
-      if (intent.scroll_y != 0.f && over_tabs) {
-        toggle_barter_tab(gameplay);
-        return true;
-      }
-
+      const screens::BarterLayout layout =
+          screens::barter_panel_layout(*engine.renderer, engine.render.panel_skin.style, shop.name,
+                                       world::visit_count(engine.flags, screens::k_gold_flag), lines,
+                                       screen_viewport(engine), engine.input_mapper.last_device());
       if (pointer_focus(intent)) {
-        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+        if (const int hovered = ui::hovered_row(intent_cursor(intent), layout.rows); hovered >= 0)
           gameplay.barter_screen.cursor = hovered;
       }
       if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && !lines.empty())
         gameplay.barter_screen.cursor =
             wrap_cursor(gameplay.barter_screen.cursor, steps, static_cast<int>(lines.size()));
-      return false;
     }
 
-    /// The barter rows for the active tab, priced by the ruleset.
-    std::vector<screens::BarterLine> build_barter_lines(const Engine &engine, const Gameplay &gameplay,
-                                                        const shop::Shop &shop) {
-      return gameplay.barter_screen.tab == screens::BarterTab::Buy
-                 ? screens::build_barter_stock(shop, gameplay.items, engine.flags, gameplay.ruleset)
-                 : screens::build_barter_sell_lines(shop, gameplay.items, engine.flags, gameplay.ruleset);
-    }
-
-    /// Buy or sell the highlighted barter row against the player's gold.
-    void trade_barter_row(Engine &engine, const Gameplay &gameplay, const screens::BarterLine &selected) {
-      int gold = world::visit_count(engine.flags, screens::k_gold_flag);
-      if (gameplay.barter_screen.tab == screens::BarterTab::Buy) {
-        if (selected.unit_price > gold) {
-          engine.notify("Not enough gold");
-          return;
-        }
-        gold -= selected.unit_price;
-        adjust_flag(engine.flags, item_flag_key(selected.id), 1);
-      } else {
-        if (selected.unit_price <= 0 || selected.count <= 0)
-          return;
-        gold += selected.unit_price;
-        adjust_flag(engine.flags, item_flag_key(selected.id), -1);
+    /// Buy one of the highlighted barter row's item with the player's gold.
+    void buy_barter_row(Engine &engine, const screens::BarterLine &selected) {
+      const int gold = world::visit_count(engine.flags, screens::k_gold_flag);
+      if (selected.unit_price > gold) {
+        engine.notify("Not enough gold");
+        return;
       }
-      engine.flags[screens::k_gold_flag] = gold;
+      adjust_flag(engine.flags, item_flag_key(selected.id), 1);
+      engine.flags[screens::k_gold_flag] = gold - selected.unit_price;
     }
 
-    /// Step the barter screen: Back closes, Left/Right, Tab or a click switch Buy/Sell, a hovered
-    /// row takes focus on a real mouse move or click, the wheel moves one row per notch (or
-    /// switches tabs over the tab strip), and Activate performs the trade.
+    /// Step the barter screen: Back closes, Up/Down move the row, a hovered row takes focus on a
+    /// real mouse move or click, the wheel moves one row per notch, and Activate buys.
     void update_barter(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
       if (intent.back) {
         gameplay.active_shop_id.clear();
@@ -1094,14 +1028,9 @@ namespace corundum::gameplay {
         return;
       }
 
-      const std::vector<screens::BarterLine> lines = build_barter_lines(engine, gameplay, *shop);
+      const std::vector<screens::BarterLine> lines = screens::build_barter_stock(*shop, gameplay.items);
       const int rows = static_cast<int>(lines.size());
-
-      if (intent.next_tab || intent.prev_tab || intent.navigate_x != 0)
-        toggle_barter_tab(gameplay);
-
-      if (apply_barter_pointer(engine, gameplay, intent, *shop, lines))
-        return;
+      apply_barter_pointer(engine, gameplay, intent, *shop, lines);
 
       if (intent.navigate_y != 0 && rows > 0)
         gameplay.barter_screen.cursor = wrap_cursor(gameplay.barter_screen.cursor, intent.navigate_y, rows);
@@ -1110,7 +1039,7 @@ namespace corundum::gameplay {
 
       const screens::BarterLine &selected =
           lines[static_cast<std::size_t>(std::clamp(gameplay.barter_screen.cursor, 0, rows - 1))];
-      trade_barter_row(engine, gameplay, selected);
+      buy_barter_row(engine, selected);
     }
 
     /// Step the shared confirmation modal: Back closes it without acting; Left/Right (or
@@ -1236,24 +1165,10 @@ namespace corundum::gameplay {
       gameplay.character_sheet_state.row = std::clamp(row, 0, rows - 1);
     }
 
-    /// Pass the highlighted Stats row to the ruleset when it can be activated.
-    void activate_stats_row(Engine &engine, Gameplay &gameplay) {
-      const std::optional<std::string_view> id =
-          screens::activatable_stat_id(gameplay.character_sheet_info, gameplay.character_sheet_state.row);
-      if (!id || !gameplay.ruleset.activate_character_row)
-        return;
-      gameplay.ruleset.activate_character_row(make_flag_reader(engine.flags), make_flag_writer(engine.flags), *id);
-      resample_character_sheet(engine, gameplay);
-    }
-
-    /// Run the highlighted character-sheet row. An equipment row unequips its item, an inventory
-    /// row toggles its item's equip state, and a Stats row goes to the ruleset if it can be
-    /// activated. Rebuilds the sheet values so every column reflects the change.
+    /// Run the highlighted character-sheet row: an equipment row unequips its item and an inventory
+    /// row toggles its item's equip state; a Stats row does nothing. An acting row rebuilds the sheet
+    /// values so every column reflects the change.
     void activate_character_row(Engine &engine, Gameplay &gameplay) {
-      if (gameplay.character_sheet_state.section == 0) {
-        activate_stats_row(engine, gameplay);
-        return;
-      }
       const screens::CharacterSheetState state = gameplay.character_sheet_state;
       const screens::CharacterInfo &info = gameplay.character_sheet_info;
       std::string_view item_id;
@@ -1616,7 +1531,7 @@ namespace corundum::gameplay {
       const shop::Shop *shop = gameplay.shops.find(gameplay.active_shop_id);
       if (shop == nullptr)
         return;
-      const std::vector<screens::BarterLine> lines = build_barter_lines(engine, gameplay, *shop);
+      const std::vector<screens::BarterLine> lines = screens::build_barter_stock(*shop, gameplay.items);
       screens::barter_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, shop->name,
                                    world::visit_count(engine.flags, screens::k_gold_flag), lines,
                                    gameplay.barter_screen, viewport, engine.input_mapper.last_device());

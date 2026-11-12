@@ -229,12 +229,10 @@ wrong from memory.
   holder; `Esc` closes. With the mouse, hovering a pane switches to it and
   hovering a row moves the highlight, a left click transfers the hovered item,
   and the wheel moves one row per notch.
-- **Barter**: Left/Right or TabNext/TabPrev switch the Buy/Sell tab; Up/Down
-  move the row; Enter/Space/gamepad A buys or sells at the prices the game's
-  ruleset sets, including the player's standing with the shop's faction; `Esc` closes.
-  With the mouse, clicking a Buy/Sell label switches the tab, hovering a row
-  moves the highlight, a left click trades the hovered item, and the wheel
-  moves one row per notch or cycles the tab over the labels.
+- **Barter**: Up/Down move the row; Enter/Space/gamepad A buys the highlighted
+  item at its base price; `Esc` closes. With the mouse, hovering a row moves the
+  highlight, a left click buys the hovered item, and the wheel moves one row per
+  notch.
 
 ### Zoom
 
@@ -356,7 +354,7 @@ device disconnects, so a held bit cannot latch.
 | `Action::Hub`                                 | `engine.cpp::update_engine_screens()`                                     | Toggles the menu hub on `Scene::last_hub_mode`                                                                                                         |
 | `Action::Codex`                               | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Codex hub tab; `update_codex()` navigates and closes it                                                                     |
 | `Action::Map`                                 | `engine.cpp::update_engine_screens()`                                     | Opens/switches/closes the Map hub tab; `update_map()` navigates and fast-travels on Activate                                                          |
-| `Action::TabNext/TabPrev`                     | `engine.cpp::update_engine_screens()`                                     | Cycles the four hub tabs when one is on top; settings pages and barter Buy/Sell keep their own handling                                                 |
+| `Action::TabNext/TabPrev`                     | `engine.cpp::update_engine_screens()`                                     | Cycles the four hub tabs when one is on top; settings pages keep their own handling                                                 |
 | `Action::Quit`                                | `engine.cpp`'s main loop                                                  | Sets `engine.quit` and closes the window                                                                                                             |
 | `Action::Pause`                               | `gameplay.cpp::update_battle()`                                           | Pushes CombatPaused over Combat, or pops it |
 | `Action::CombatCommand1`                      | `combat/battle.cpp::Battle::read_orders()`                                | Drops a queued command and renews the attack on the target |

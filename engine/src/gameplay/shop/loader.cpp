@@ -26,8 +26,6 @@ namespace corundum::gameplay::shop {
       Shop shop;
       shop.id = element["id"].get<std::string>();
       shop.name = element["name"].get<std::string>();
-      if (element.contains("faction"))
-        shop.faction = element["faction"].get<std::string>();
       if (element.contains("stock")) {
         for (const auto &stock : element["stock"]) {
           StockEntry entry;

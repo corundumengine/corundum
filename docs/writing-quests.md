@@ -38,9 +38,8 @@ the player can satisfy them. Author them in `game.json`:
 "starting_flags": { "gold": 50, "intro_seen": 1 }
 ```
 
-Don't seed a `rep.*` flag this way: `rep()` reads the raw flag, and only the
-`reputation` event clamps standing to the game's scale. Grant standing through
-dialogue.
+A `rep.<id>` entry seeds the player's standing with a faction; `reputation`
+events add to it from there.
 
 `Engine::initialize()` writes each entry into the FlagStore after the
 quest/item/dialogue registries load and before the first frame, so a fresh save

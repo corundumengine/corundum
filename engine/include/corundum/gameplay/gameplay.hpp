@@ -120,7 +120,7 @@ namespace corundum::gameplay {
     /** @brief Loot-screen state: active pane and highlighted row. */
     screens::LootState loot_screen;
 
-    /** @brief Barter-screen state: active tab and highlighted row. */
+    /** @brief Barter-screen state: the highlighted row. */
     screens::BarterState barter_screen;
 
     /** @brief Shared yes/no confirmation modal; pushed by open_confirm(). */

@@ -50,7 +50,7 @@ namespace corundum::gameplay::screens {
    *
    *  Sections are 0 = Stats, 1 = Equipment, 2 = Inventory. Every section exposes at least one
    *  highlightable row, so the cursor always has a valid target. Equipment and Inventory rows are
-   *  actionable, and so is a ruleset's Stats row that has an id; other Stats rows only highlight.
+   *  actionable; Stats rows only highlight.
    */
   struct CharacterSheetState {
     int section{};
@@ -79,11 +79,6 @@ namespace corundum::gameplay::screens {
    *  @param[in]     dy    Row step, -1/0/+1.
    */
   void move_character_cursor(CharacterSheetState &state, const CharacterInfo &info, int dx, int dy) noexcept;
-
-  /** @brief The StatRow::id of the ruleset row the Stats section shows at @p row; nullopt for Gold,
-   *  a row past the end, or a ruleset row with no id.
-   *  @note The view is into @p info; don't keep it past a resample. */
-  [[nodiscard]] std::optional<std::string_view> activatable_stat_id(const CharacterInfo &info, int row) noexcept;
 
   /** @brief Read the character sheet's values from @p flags and @p ruleset.
    *

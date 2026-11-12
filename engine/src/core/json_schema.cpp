@@ -238,7 +238,6 @@ namespace corundum::core {
       "properties": {
         "id":       { "type": "string", "minLength": 1 },
         "name":     { "type": "string", "minLength": 1 },
-        "faction":  { "type": "string" },
         "stock": {
           "type": "array",
           "items": { "$ref": "#/definitions/stock" }

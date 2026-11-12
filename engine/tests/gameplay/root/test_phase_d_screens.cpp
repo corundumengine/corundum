@@ -17,7 +17,6 @@
 #include <corundum/world/flags.hpp>
 #include <corundum/world/ui_stack.hpp>
 
-#include "gameplay/rules/flat_ruleset.hpp"
 #include "world_transition_fixtures.hpp"
 
 #include <cstddef>
@@ -121,7 +120,6 @@ TEST_CASE("barter: buying spends gold and grants the item") {
   corundum::Engine engine{};
   init_engine(engine);
   corundum::gameplay::Gameplay gameplay{engine};
-  gameplay.ruleset = corundum::test::make_flat_ruleset();
   gameplay.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
   gameplay.shops.add(corundum::gameplay::shop::Shop{
       .id = "corvin",
@@ -142,48 +140,6 @@ TEST_CASE("barter: buying spends gold and grants the item") {
   press(engine, corundum::input::Action::Activate);
   CHECK(corundum::world::visit_count(engine.flags, "item.salt") == 1);
   CHECK(corundum::world::visit_count(engine.flags, corundum::gameplay::screens::k_gold_flag) == 15);
-
-  // Switch to Sell and trade it back for half its base price (the flat ruleset's sell rule).
-  press(engine, corundum::input::Action::TabNext);
-  press(engine, corundum::input::Action::Activate);
-  CHECK(corundum::world::visit_count(engine.flags, "item.salt") == 0);
-  CHECK(corundum::world::visit_count(engine.flags, corundum::gameplay::screens::k_gold_flag) == 20);
-
-  engine.cleanup();
-}
-
-TEST_CASE("barter: the open screen prices from the shop faction's standing through the ruleset") {
-  corundum::Engine engine{};
-  init_engine(engine);
-  corundum::gameplay::Gameplay gameplay{engine};
-  gameplay.ruleset.buy_price = [](const corundum::gameplay::rules::FlagReader &,
-                                  const corundum::gameplay::rules::TradeQuery &query) {
-    return query.base_price - query.standing;
-  };
-  gameplay.ruleset.sell_price = [](const corundum::gameplay::rules::FlagReader &,
-                                   const corundum::gameplay::rules::TradeQuery &query) {
-    return query.base_price + query.standing;
-  };
-  gameplay.items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 5});
-  gameplay.shops.add(corundum::gameplay::shop::Shop{
-      .faction = "village",
-      .id = "corvin",
-      .name = "Corvin's Salt",
-      .stock = {corundum::gameplay::shop::StockEntry{.item = "salt", .price = 5}},
-  });
-  gameplay.active_shop_id = "corvin";
-  engine.flags[screens::k_gold_flag] = 20;
-  engine.flags["rep.village"] = 4;
-  engine.scene.ui.push(screens::Barter);
-  REQUIRE(engine.scene.mode() == screens::Barter);
-
-  // Village standing +4: Buy pays 5 - 4 = 1, Sell takes 5 + 4 = 9.
-  press(engine, corundum::input::Action::Activate);
-  CHECK(corundum::world::visit_count(engine.flags, screens::k_gold_flag) == 19);
-
-  press(engine, corundum::input::Action::TabNext);
-  press(engine, corundum::input::Action::Activate);
-  CHECK(corundum::world::visit_count(engine.flags, screens::k_gold_flag) == 28);
 
   engine.cleanup();
 }

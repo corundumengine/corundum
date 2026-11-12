@@ -19,12 +19,11 @@ namespace corundum::gameplay::shop {
    *  A @c price of 0 means "use the item definition's own price". */
   struct StockEntry {
     std::string item{}; ///< Item id.
-    int price{};        ///< Base buy price; 0 falls back to Item::price.
+    int price{};        ///< Unit price; 0 falls back to Item::price.
   };
 
   /** @brief A merchant definition authored in data/shops/<file>.json. */
   struct Shop {
-    std::string faction{};           ///< The faction whose standing the ruleset sees when pricing; empty: standing 0.
     std::string id{};                ///< Unique key.
     std::string name{};              ///< Display heading.
     std::vector<StockEntry> stock{}; ///< Items offered for sale.

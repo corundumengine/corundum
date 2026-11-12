@@ -24,10 +24,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
-#include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 namespace corundum::gameplay::screens {
@@ -45,9 +43,6 @@ namespace corundum::gameplay::screens {
 
     /// The Stats rows every sheet has: Gold.
     constexpr int k_fixed_stats_row_count = 1;
-
-    /// The Stats row the ruleset's rows start on: ruleset rows start at the top.
-    constexpr int k_first_rule_stats_row = 0;
 
     /// A number the game may not have written; absent and negative both read as 0.
     int flag_count(const world::FlagStore &flags, std::string_view key) {
@@ -178,16 +173,6 @@ namespace corundum::gameplay::screens {
       state.row = (state.row + dy + rows) % rows;
     else
       state.row = std::clamp(state.row, 0, rows - 1);
-  }
-
-  std::optional<std::string_view> activatable_stat_id(const CharacterInfo &info, int row) noexcept {
-    const int rule_row = row - k_first_rule_stats_row;
-    if (rule_row < 0 || std::cmp_greater_equal(rule_row, info.rule_rows.size()))
-      return std::nullopt;
-    const std::string &id = info.rule_rows[static_cast<std::size_t>(rule_row)].id;
-    if (id.empty())
-      return std::nullopt;
-    return id;
   }
 
   CharacterSheetLayout character_sheet_layout(const ui::PanelStyle &style, core::math::Vec2 viewport) {

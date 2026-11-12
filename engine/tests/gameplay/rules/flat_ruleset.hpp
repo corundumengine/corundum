@@ -15,13 +15,9 @@
 namespace corundum::test {
 
   /// The minimal ruleset the framework is tested against: one Health row read verbatim from the
-  /// `test.health` and `test.max_health` flags, buying at base price and selling at half of it.
-  /// It holds no game-specific rule.
+  /// `test.health` and `test.max_health` flags. It holds no game-specific rule.
   inline gameplay::rules::Ruleset make_flat_ruleset() {
     return gameplay::rules::Ruleset{
-        .buy_price = [](const gameplay::rules::FlagReader &, const gameplay::rules::TradeQuery &query) {
-          return query.base_price;
-        },
         .character_rows =
             [](const gameplay::rules::FlagReader &reader) {
               return std::vector<gameplay::rules::StatRow>{
@@ -31,9 +27,6 @@ namespace corundum::test {
                   },
               };
             },
-        .sell_price = [](const gameplay::rules::FlagReader &, const gameplay::rules::TradeQuery &query) {
-          return query.base_price / 2;
-        },
     };
   }
 

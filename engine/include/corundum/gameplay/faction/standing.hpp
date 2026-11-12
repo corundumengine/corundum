@@ -8,9 +8,8 @@
 #include <string_view>
 
 // The framework keeps the player's standing with a faction under its own key, unlike the rest of
-// the protagonist's lasting state, which a ruleset keeps under its prefix. Only the `reputation`
-// event clamps a standing to the ruleset's scale; content must not write a `rep.*` key directly
-// (no `set_flag`, no `starting_flags`), because `rep()` reads the raw flag.
+// the protagonist's lasting state, which a ruleset keeps under its prefix. A standing is a plain
+// count: the `reputation` event adds to it, and nothing clamps it.
 namespace corundum::gameplay::faction {
 
   /** @brief FlagStore key prefix of a faction's standing. */
