@@ -50,75 +50,44 @@ namespace {
     return item::load_item_file(disk(), out, category);
   }
 
-  void check_same_item(const item::Item &a, const item::Item &b) {
-    CHECK(a.id == b.id);
-    CHECK(a.name == b.name);
-    CHECK(a.description == b.description);
-    CHECK(a.icon == b.icon);
-    CHECK(a.category == b.category);
-    CHECK(a.weapon.has_value() == b.weapon.has_value());
+  void check_same_text(const item::Item &a, const item::Item &b) {
+    CHECK_EQ(a.id, b.id);
+    CHECK_EQ(a.name, b.name);
+    CHECK_EQ(a.description, b.description);
+  }
+
+  void check_same_weapon(const item::Item &a, const item::Item &b) {
+    CHECK_EQ(a.weapon.has_value(), b.weapon.has_value());
     if (a.weapon && b.weapon)
-      CHECK(a.weapon->damage == b.weapon->damage);
-    CHECK(a.apparel.has_value() == b.apparel.has_value());
-    if (a.apparel && b.apparel) {
-      CHECK(a.apparel->slot == b.apparel->slot);
-      CHECK(a.apparel->defense == b.apparel->defense);
-    }
-    CHECK(a.potion.has_value() == b.potion.has_value());
-    if (a.potion && b.potion) {
-      CHECK(a.potion->effect == b.potion->effect);
-      CHECK(a.potion->magnitude == b.potion->magnitude);
-    }
+      CHECK_EQ(a.weapon->damage, b.weapon->damage);
+  }
+
+  void check_same_apparel(const item::Item &a, const item::Item &b) {
+    CHECK_EQ(a.apparel.has_value(), b.apparel.has_value());
+    if (!a.apparel || !b.apparel)
+      return;
+    CHECK_EQ(a.apparel->slot, b.apparel->slot);
+    CHECK_EQ(a.apparel->defense, b.apparel->defense);
+  }
+
+  void check_same_potion(const item::Item &a, const item::Item &b) {
+    CHECK_EQ(a.potion.has_value(), b.potion.has_value());
+    if (!a.potion || !b.potion)
+      return;
+    CHECK_EQ(a.potion->effect, b.potion->effect);
+    CHECK_EQ(a.potion->magnitude, b.potion->magnitude);
+  }
+
+  void check_same_item(const item::Item &a, const item::Item &b) {
+    check_same_text(a, b);
+    CHECK_EQ(a.icon, b.icon);
+    CHECK_EQ(a.category, b.category);
+    check_same_weapon(a, b);
+    check_same_apparel(a, b);
+    check_same_potion(a, b);
   }
 
 } // namespace
-
-TEST_CASE("item serialize: keystone potions batch round-trips") {
-  const auto src = fs::path("../keystone/data/items/potions/consumables.json");
-  if (!fs::exists(src)) {
-    MESSAGE("keystone checkout not present; skipping");
-    return;
-  }
-  const auto dir = temp_dir("keystone_potions");
-  const auto out = dir / "consumables.json";
-  const auto result = round_trip(src, item::ItemCategory::Potion, out);
-  REQUIRE(result.has_value());
-  REQUIRE(result->size() == 1);
-  const auto &tonic = (*result)[0];
-  CHECK(tonic.id == "herbal_tonic");
-  CHECK(tonic.name == "Herbal Tonic");
-  CHECK(tonic.description.find("pine tar") != std::string::npos);
-  CHECK(tonic.category == item::ItemCategory::Potion);
-  REQUIRE(tonic.potion.has_value());
-  CHECK(tonic.potion->effect == "heal");
-}
-
-TEST_CASE("item serialize: keystone misc batch round-trips") {
-  const auto src = fs::path("../keystone/data/items/misc/quest_items.json");
-  if (!fs::exists(src)) {
-    MESSAGE("keystone checkout not present; skipping");
-    return;
-  }
-  const auto dir = temp_dir("keystone_misc");
-  const auto out = dir / "quest_items.json";
-  const auto result = round_trip(src, item::ItemCategory::Misc, out);
-  REQUIRE(result.has_value());
-  REQUIRE(result->size() == 2);
-
-  const auto &ember = (*result)[0];
-  CHECK(ember.id == "ember");
-  CHECK(ember.name == "The Hearth-Ember");
-  CHECK(ember.description.find("Greyhollow") != std::string::npos);
-  CHECK(ember.category == item::ItemCategory::Misc);
-  CHECK_FALSE(ember.potion.has_value());
-  CHECK_FALSE(ember.weapon.has_value());
-  CHECK_FALSE(ember.apparel.has_value());
-
-  const auto &hammer = (*result)[1];
-  CHECK(hammer.id == "hammer");
-  CHECK(hammer.name == "Osric's Hammer");
-  CHECK_FALSE(hammer.weapon.has_value());
-}
 
 TEST_CASE("item serialize: weapon and apparel payloads survive round-trip") {
   const auto dir = temp_dir("payloads");

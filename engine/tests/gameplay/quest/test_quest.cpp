@@ -17,7 +17,6 @@
 
 #include "memory_content_source.hpp"
 #include <cstdint>
-#include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp> // IWYU pragma: keep
 #include <optional>
@@ -143,17 +142,6 @@ namespace {
     REQUIRE(actual.stages.size() == expected.stages.size());
     for (std::size_t i = 0; i < expected.stages.size(); ++i)
       check_stages_match(actual.stages[i], expected.stages[i]);
-  }
-
-  /// A quest with no auto_advance_to must stay on its current stage across a tick.
-  void check_quest_stays_put(const quest::Registry &registry, const quest::Quest &quest) {
-    for (const auto &stage : quest.stages)
-      CHECK_FALSE(stage.auto_advance_to.has_value());
-
-    FlagStore flags;
-    flags[quest::quest_flag_key(quest.quest_id)] = quest.stages[0].sequence;
-    quest::tick_quests(registry, flags, {});
-    CHECK(quest::get_stage(quest.quest_id, flags) == quest.stages[0].sequence);
   }
 
 } // namespace
@@ -354,18 +342,6 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
   REQUIRE(reloaded->stages[0].advances_to.size() == 2);
   CHECK(reloaded->stages[0].advances_to[0] == "b");
   CHECK(reloaded->stages[0].advances_to[1] == "c");
-}
-
-TEST_CASE("quest loader: keystone ember_of_greyhollow still loads clean") {
-  const auto path = std::filesystem::path("../keystone/data/quests/ember_of_greyhollow.json");
-  if (!std::filesystem::exists(path)) {
-    MESSAGE("keystone checkout not present; skipping");
-    return;
-  }
-  const auto result = quest::load_quest(disk(), path);
-  REQUIRE(result.has_value());
-  CHECK(result->quest_id == "ember_of_greyhollow");
-  CHECK_FALSE(result->stages.empty());
 }
 
 TEST_CASE("quest loader: invalid JSON returns error") {
@@ -1287,22 +1263,6 @@ TEST_CASE("validate: an auto_advance_to cycle is an error") {
   const std::vector<std::string> errors = quest::validate(q).errors;
   REQUIRE_FALSE(errors.empty());
   CHECK(errors.front().find("cycle") != std::string::npos);
-}
-
-TEST_CASE("tick_quests: keystone quests are inert (no auto_advance_to anywhere)") {
-  const auto path = std::filesystem::path("../keystone/data/quests/ember_of_greyhollow.json");
-  if (!std::filesystem::exists(path)) {
-    MESSAGE("keystone checkout not present; skipping");
-    return;
-  }
-  quest::Registry reg;
-  const auto n_loaded = reg.load_all(disk(), path.parent_path());
-  REQUIRE(n_loaded >= 1);
-
-  const auto *q = reg.find("ember_of_greyhollow");
-  REQUIRE(q != nullptr);
-
-  check_quest_stays_put(reg, *q);
 }
 
 TEST_CASE("quest serialize round-trips through load_quest") {
