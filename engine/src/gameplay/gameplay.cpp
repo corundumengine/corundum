@@ -12,7 +12,6 @@
 #include <corundum/gameplay/codex/codex.hpp>
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/gameplay/combat/battle.hpp>
-#include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/credits/credits.hpp>
 #include <corundum/gameplay/credits/loader.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
@@ -31,6 +30,7 @@
 #include <corundum/gameplay/quest/runner.hpp>
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/gameplay/quest/system.hpp>
+#include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/gameplay/screens/character_sheet.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
@@ -1608,12 +1608,12 @@ namespace corundum::gameplay {
 
     /// End the fight with @p outcome: stop everyone, close the combat layers, and raise
     /// encounter_won/encounter_lost for the game's on_event hook.
-    void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle, combat::Outcome outcome) {
+    void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle, rules::Outcome outcome) {
       battle.halt(engine);
       battle.stand_down(engine);
       close_combat_layers(engine.scene.ui);
       dialogue::EventAction ended{
-          .name = outcome == combat::Outcome::Won ? "encounter_won" : "encounter_lost",
+          .name = outcome == rules::Outcome::Won ? "encounter_won" : "encounter_lost",
           .args = {std::string{battle.first_actor()}},
       };
       gameplay.pending_dialogue_events.push_back(std::move(ended));
@@ -1665,12 +1665,12 @@ namespace corundum::gameplay {
       const combat::EncounterRequest request = std::move(*gameplay.pending_encounter);
       gameplay.pending_encounter.reset();
 
-      if (!gameplay.ruleset.combat) {
+      if (!gameplay.ruleset.start_fight) {
         warn_log("[gameplay] WARN: start_encounter ignored: the ruleset has no combat rules");
         return;
       }
       std::expected<combat::Battle, std::string> started =
-          combat::Battle::start(engine, *gameplay.ruleset.combat, request);
+          combat::Battle::start(engine, gameplay.ruleset.start_fight, request);
       if (!started) {
         refuse_fight(engine, started.error());
         return;

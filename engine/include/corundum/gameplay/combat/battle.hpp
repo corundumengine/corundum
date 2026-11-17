@@ -5,7 +5,6 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/world.hpp>
-#include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/combat_hud.hpp>
 #include <corundum/world/picking.hpp>
@@ -24,11 +23,14 @@ namespace corundum {
   struct Engine;
 } // namespace corundum
 
-// One fight played out in the scene. Encounter keeps the timeline; Battle maps its combatants onto
-// entities, turns this step's click into an order and walks combatants into reach. Combatant
-// k_protagonist is the protagonist, and the hostiles follow in the order start_encounter named
-// them, from k_hostile.
+// One fight played out in the scene. The ruleset's rules::Fight keeps the timeline; Battle maps its
+// combatants onto entities, turns this step's click into an order and walks combatants into reach.
+// Combatant k_protagonist is the protagonist, and the hostiles follow in the order start_encounter
+// named them, from k_hostile.
 namespace corundum::gameplay::combat {
+
+  /** @brief The standing attack's label on the command bar. */
+  inline constexpr std::string_view k_attack_label = "Attack";
 
   /** @brief One hostile in a fight: its actor and the creature id its rules use. */
   struct EncounterHostile {
@@ -58,7 +60,7 @@ namespace corundum::gameplay::combat {
 
   /** @brief What one Battle step produced. */
   struct BattleStep {
-    std::optional<Outcome> outcome{}; ///< A lost fight reports this only once the protagonist's death clip ends.
+    std::optional<rules::Outcome> outcome{}; ///< A lost fight reports this only once the protagonist's death clip ends.
 
     std::vector<std::string> reports{}; ///< Toasts: each resolved command and each refusal.
   };
@@ -73,19 +75,26 @@ namespace corundum::gameplay::combat {
 
     static constexpr std::size_t k_hostile = 1; ///< The first hostile named.
 
-    /** @brief Start a fight between the protagonist and the actors @p request names. Each hostile
-     *  is given a standing attack on the protagonist, and the protagonist one on the nearest (ties to
-     *  the first named), so it fights without a click; a move order drops the protagonist's. The
-     *  command bar is Attack, then the protagonist's commands, on CombatCommand1–9.
+    /** @brief Start a fight between the protagonist and the actors @p request names. The fight
+     *  arrives with the creatures' orders set; the protagonist is given a standing attack on the
+     *  nearest hostile (ties to the first named), so it fights without a click, and a move order
+     *  drops that attack. The command bar is Attack, then the protagonist's commands, on
+     *  CombatCommand1–9.
      *  @return The battle, or an error: no protagonist in the scene, an empty request
      *          ("[gameplay] start_encounter: it names no hostiles"), no live actor with an id
      *          ("[gameplay] start_encounter: no actor '<id>' in this area"), an actor with no
      *          position ("[gameplay] start_encounter: actor '<id>' has no position in this area"),
      *          one actor named twice ("[gameplay] start_encounter: actor '<id>' is named twice"),
      *          no hostile that can act ("[gameplay] start_encounter: no hostile in this fight can
-     *          act"), more slots than the bar holds ("[gameplay] the command bar holds 9 slots; the
-     *          rules list <n>"), or Encounter::start's. */
-    [[nodiscard]] static std::expected<Battle, std::string> start(Engine &engine, const rules::CombatRules &rules,
+     *          act"), the ruleset refusing ("[gameplay] start_encounter: <the ruleset's error>"), a
+     *          fight missing a callback ("[gameplay] start_encounter: the ruleset's fight has no
+     *          '<name>' callback"), naming the wrong number of combatants ("[gameplay]
+     *          start_encounter: the ruleset's fight has <m> combatants but names <n>") or with no
+     *          reach ("[gameplay] start_encounter: the ruleset's fight needs a positive
+     *          reach_tiles"), or more slots than the bar holds ("[gameplay] the command bar holds 9
+     *          slots; the rules list <n>").
+     *  @pre @p start_fight is set. */
+    [[nodiscard]] static std::expected<Battle, std::string> start(Engine &engine, const rules::StartFight &start_fight,
                                                                   const EncounterRequest &request);
 
     /** @brief Run one fixed step:
@@ -118,9 +127,6 @@ namespace corundum::gameplay::combat {
      *  @note A combatant that has left the scene is skipped, so this needs no has_live_combatants(). */
     void stand_down(Engine &engine) const;
 
-    [[nodiscard]] const Encounter &encounter() const noexcept { return encounter_; }
-
-    /** @brief The actor named first; encounter_won and encounter_lost name it. */
     [[nodiscard]] std::string_view first_actor() const noexcept { return first_actor_; }
 
     /** @brief The fight's chosen hostile, by combatant index. It outlives an attack order, so a
@@ -140,7 +146,7 @@ namespace corundum::gameplay::combat {
     [[nodiscard]] const screens::CombatHud &hud() const noexcept { return hud_; }
 
   private:
-    Battle(Encounter encounter, std::vector<std::optional<entities::EntityId>> entities,
+    Battle(rules::Fight fight, std::vector<std::optional<entities::EntityId>> entities,
            std::vector<CombatantClips> clips, std::string first_actor);
 
     /// How one approach ended.
@@ -167,7 +173,7 @@ namespace corundum::gameplay::combat {
     /// Read every combatant still in the scene's tile into tiles_.
     void refresh_tiles(const Engine &engine);
 
-    /// Give each side its standing attack on the other, point the fight at @p target and refresh the
+    /// Give the protagonist its standing attack on @p target, point the fight at it and refresh the
     /// HUD. @pre refresh_tiles() has run, and @p target is a hostile that start() found able to act.
     void open_fight(Engine &engine, std::size_t target);
 
@@ -199,6 +205,9 @@ namespace corundum::gameplay::combat {
     /// When target() has fallen, move it to the nearest hostile, attacking that one when
     /// @p before is AttackOrder::Standing.
     void follow_fallen_target(const rules::CombatContext &context, AttackOrder before);
+
+    /// The combatant @p index has a standing attack on, checked to be one of this fight's.
+    [[nodiscard]] std::optional<std::size_t> target_of(std::size_t index) const;
 
     /// Press bar slot @p slot: 0 is Attack, then the commands. The bar's layout and the rules' list
     /// keep one length for the fight, so a slot names one command. Attack renews the attack and drops
@@ -242,7 +251,7 @@ namespace corundum::gameplay::combat {
     void play_protagonist_death(Engine &engine, const rules::CombatContext &context);
 
     /// The outcome to report: none yet while a lost fight's protagonist plays its death clip.
-    [[nodiscard]] std::optional<Outcome> finished_outcome(const Engine &engine) const;
+    [[nodiscard]] std::optional<rules::Outcome> finished_outcome(const Engine &engine) const;
 
     /// Stop everyone and keep the protagonist from moving: the fight is lost.
     void hold_for_defeat(Engine &engine) const;
@@ -258,7 +267,7 @@ namespace corundum::gameplay::combat {
     /// Drive each hostile that can act along its planned path.
     void walk_hostiles(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
 
-    Encounter encounter_;
+    rules::Fight fight_;
 
     std::vector<std::optional<entities::EntityId>> entities_; ///< nullopt once a hostile has fallen and left the scene.
 
@@ -269,6 +278,8 @@ namespace corundum::gameplay::combat {
     std::string first_actor_;
 
     std::vector<world::TileCoord> tiles_;
+
+    std::vector<rules::Tile> fight_tiles_; ///< tiles_ as the fight takes them; refresh_tiles keeps both.
 
     screens::CombatHud hud_;
 

@@ -12,7 +12,6 @@
 #include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/gameplay/combat/battle.hpp>
-#include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
@@ -30,12 +29,14 @@
 #include <corundum/world/ui_stack.hpp>
 
 #include "gameplay/rules/flat_ruleset.hpp"
+#include "gameplay/rules/flat_timeline.hpp"
 #include "ui/recording_renderer.hpp"
 #include "world_transition_fixtures.hpp"
 
 #include <cstddef>
 #include <expected>
 #include <format>
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <optional>
@@ -64,6 +65,8 @@ namespace {
 
     std::unique_ptr<corundum::gameplay::Gameplay> gameplay{};
 
+    std::shared_ptr<corundum::test::FlatCombat> combat{};
+
     EntityId foe{};
 
     std::vector<EventAction> raised{};
@@ -84,7 +87,9 @@ namespace {
                 *fight->engine, corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR))
                 .has_value());
     fight->gameplay = std::make_unique<corundum::gameplay::Gameplay>(*fight->engine);
-    fight->gameplay->ruleset.combat = corundum::test::make_flat_combat_rules();
+    fight->combat = std::make_shared<corundum::test::FlatCombat>();
+    fight->combat->rules = corundum::test::make_flat_combat_rules();
+    fight->gameplay->ruleset.start_fight = corundum::test::make_flat_start_fight(fight->combat);
     fight->gameplay->on_event = [raised = &fight->raised](corundum::Engine &, const EventAction &event) {
       raised->push_back(event);
       return true;
@@ -154,10 +159,10 @@ namespace {
       step(fight);
   }
 
-  const combat::Encounter &encounter_of(const Fight &fight) {
-    if (!fight.gameplay->battle)
+  const corundum::test::Encounter &encounter_of(const Fight &fight) {
+    if (!fight.gameplay->battle || !fight.combat->encounter)
       throw std::runtime_error("no fight is running");
-    return fight.gameplay->battle->encounter();
+    return *fight.combat->encounter;
   }
 
   const combat::Battle &battle_of(const Fight &fight) {
@@ -166,11 +171,21 @@ namespace {
     return *fight.gameplay->battle;
   }
 
-  /// The fight's combat rules; make_fight always installs the flat ruleset.
-  corundum::gameplay::rules::CombatRules &combat_rules(Fight &fight) {
-    if (!fight.gameplay->ruleset.combat)
-      throw std::runtime_error("the flat ruleset has no combat rules");
-    return *fight.gameplay->ruleset.combat;
+  /// The rules the next fight starts with; make_fight always installs the flat ruleset.
+  corundum::test::CombatRules &combat_rules(const Fight &fight) {
+    return fight.combat->rules;
+  }
+
+  /// Pass every fight the ruleset starts through @p change before the framework sees it.
+  void change_started_fight(Fight &fight, std::function<void(corundum::gameplay::rules::Fight &)> change) {
+    fight.gameplay->ruleset.start_fight = [start = fight.gameplay->ruleset.start_fight, change = std::move(change)](
+                                              const corundum::gameplay::rules::CombatContext &context,
+                                              const corundum::gameplay::rules::FightRequest &request) {
+      std::expected<corundum::gameplay::rules::Fight, std::string> started = start(context, request);
+      if (started)
+        change(*started);
+      return started;
+    };
   }
 
   std::string last_toast(const corundum::Engine &engine) {
@@ -255,11 +270,11 @@ namespace {
   }
 
   /// Make creature @p creature unable to act once the `test.felled` flag is set.
-  void fell_on_flag(Fight &fight, std::string creature) {
+  void fell_on_flag(const Fight &fight, std::string creature) {
     auto &rules = combat_rules(fight);
     rules.can_act = [original = rules.can_act,
                      creature = std::move(creature)](const corundum::gameplay::rules::CombatContext &context,
-                                                     const corundum::gameplay::rules::Combatant &combatant) {
+                                                     const corundum::test::Combatant &combatant) {
       if (combatant.creature == creature && context.flags.read("test.felled") > 0)
         return false;
       return original(context, combatant);
@@ -314,18 +329,52 @@ TEST_CASE("combat: a creature that can't join toasts and starts nothing") {
   start_fight(*fight, "missing");
 
   CHECK_FALSE(fight->gameplay->battle.has_value());
-  CHECK_EQ(last_toast(*fight->engine),
-           "The fight can't start: [gameplay] 'missing' can't join the encounter: no creature 'missing'");
+  CHECK_EQ(
+      last_toast(*fight->engine),
+      "The fight can't start: [gameplay] start_encounter: 'missing' can't join the encounter: no creature 'missing'");
 }
 
 TEST_CASE("combat: a ruleset without combat ignores start_encounter") {
   const auto fight = make_fight({.col = 9, .row = 8});
-  fight->gameplay->ruleset.combat.reset();
+  fight->gameplay->ruleset.start_fight = nullptr;
 
   start_fight(*fight);
 
   CHECK_FALSE(fight->gameplay->battle.has_value());
   CHECK_EQ(fight->engine->scene.mode(), corundum::world::GameMode::Exploring);
+}
+
+TEST_CASE("combat: a fight missing a callback toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  change_started_fight(*fight, [](corundum::gameplay::rules::Fight &started) { started.outcome = nullptr; });
+
+  start_fight(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] start_encounter: the ruleset's fight has no 'outcome' callback");
+}
+
+TEST_CASE("combat: a fight naming the wrong number of combatants toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  change_started_fight(*fight, [](corundum::gameplay::rules::Fight &started) { started.names.pop_back(); });
+
+  start_fight(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] start_encounter: the ruleset's fight has 2 combatants but names 1");
+}
+
+TEST_CASE("combat: a fight with no reach toasts and starts nothing") {
+  const auto fight = make_fight({.col = 9, .row = 8});
+  change_started_fight(*fight, [](corundum::gameplay::rules::Fight &started) { started.reach_tiles = 0; });
+
+  start_fight(*fight);
+
+  CHECK_FALSE(fight->gameplay->battle.has_value());
+  CHECK_EQ(last_toast(*fight->engine),
+           "The fight can't start: [gameplay] start_encounter: the ruleset's fight needs a positive reach_tiles");
 }
 
 TEST_CASE("combat: start_encounter during a fight is ignored") {
@@ -533,13 +582,13 @@ TEST_CASE("combat: holding a move key cancels the protagonist's wind-up") {
   fight->engine->flags["test.hero.start"] = 100;
   start_fight(*fight);
   click(*fight, {.col = 9, .row = 8});
-  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
+  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), corundum::test::Phase::WindUp);
 
   fight->engine->input_state.held.set(static_cast<std::size_t>(Action::MoveUp));
   step(*fight);
 
   // Cancelled to the return point (0), then this step's tick adds Tempo.
-  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::Ready);
+  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), corundum::test::Phase::Ready);
   CHECK_EQ(encounter_of(*fight).beats(combat::Battle::k_protagonist), 20);
   CHECK_FALSE(encounter_of(*fight).target_of(combat::Battle::k_protagonist).has_value());
 }
@@ -788,7 +837,7 @@ TEST_CASE("combat: on the second page, gamepad A presses the fourth slot") {
 TEST_CASE("combat: rules listing more slots than the bar holds can't start the fight") {
   const auto fight = make_fight({.col = 9, .row = 8});
   combat_rules(*fight).commands = [](const corundum::gameplay::rules::CombatContext &,
-                                     const corundum::gameplay::rules::Combatant &) {
+                                     const corundum::test::Combatant &) {
     return std::vector<corundum::gameplay::rules::CommandOption>(9, {.id = "focus", .label = "Focus"});
   };
 
@@ -1168,10 +1217,11 @@ TEST_CASE("combat: a queued command plays no attack clip") {
   start_fight(*fight);
   press(*fight, Action::CombatCommand3);
 
-  for (int i = 0; i < 40 && encounter_of(*fight).phase(combat::Battle::k_protagonist) != combat::Phase::WindUp; ++i)
+  for (int i = 0; i < 40 && encounter_of(*fight).phase(combat::Battle::k_protagonist) != corundum::test::Phase::WindUp;
+       ++i)
     step(*fight);
 
-  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
+  REQUIRE_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), corundum::test::Phase::WindUp);
   REQUIRE_FALSE(encounter_of(*fight).is_winding_up_at_enemy(combat::Battle::k_protagonist));
   CHECK_FALSE(plays(*fight, player, "fighter_attack"));
 }
@@ -1200,7 +1250,7 @@ TEST_CASE("combat: a hit doesn't interrupt a wind-up") {
   fight->engine->flags["test.hero.damage"] = 1;
   step(*fight);
 
-  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), combat::Phase::WindUp);
+  CHECK_EQ(encounter_of(*fight).phase(combat::Battle::k_protagonist), corundum::test::Phase::WindUp);
   CHECK(plays(*fight, player, "fighter_attack"));
 }
 
@@ -1326,9 +1376,10 @@ TEST_CASE("combat: target_tile is empty when the target falls with the protagoni
   fight->engine->flags["test.hero.start"] = 100;
   int hero_blows = 0;
   // As a backlash can: the hero's second blow fells the foe, and the hero with it.
-  rules::CombatRules &combat = combat_rules(*fight);
-  combat.resolve = [resolve = combat.resolve, &hero_blows](const rules::CombatContext &context, rules::Combatant &actor,
-                                                           rules::Combatant &target) {
+  corundum::test::CombatRules &combat = combat_rules(*fight);
+  combat.resolve = [resolve = combat.resolve, &hero_blows](const rules::CombatContext &context,
+                                                           corundum::test::Combatant &actor,
+                                                           corundum::test::Combatant &target) {
     std::string report = resolve(context, actor, target);
     if (!actor.creature && ++hero_blows == 2)
       context.flag_writer.write("test.hero.damage", 2);

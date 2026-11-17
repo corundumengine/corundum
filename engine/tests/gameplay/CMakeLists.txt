@@ -12,7 +12,6 @@ add_executable(corundum_gameplay_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../main.cpp
     codex/test_codex.cpp
     combat/test_battle.cpp
-    combat/test_encounter.cpp
     credits/test_credits.cpp
     dialogue/test_compiled_expr.cpp
     dialogue/test_dialogue.cpp
@@ -38,6 +37,7 @@ add_executable(corundum_gameplay_tests
     root/test_splash.cpp
     root/test_title_music.cpp
     root/test_title_saveload_gameover.cpp
+    rules/flat_timeline.cpp
     save/test_save.cpp
     screens/test_character_sheet.cpp
     screens/test_combat_hud.cpp

@@ -1,19 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <corundum/gameplay/combat/encounter.hpp>
+#include "gameplay/rules/flat_timeline.hpp"
 
 #include <corundum/core/verify.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
-#include <corundum/world/grid.hpp>
-#include <corundum/world/picking.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <expected>
 #include <format>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace corundum::gameplay::combat {
+namespace corundum::test {
 
   namespace {
 
@@ -41,7 +41,7 @@ namespace corundum::gameplay::combat {
     }
 
     /// The name of the first empty callback in @p rules, in declaration order; nullopt when all are set.
-    [[nodiscard]] std::optional<std::string_view> first_missing_callback(const rules::CombatRules &rules) {
+    [[nodiscard]] std::optional<std::string_view> first_missing_callback(const CombatRules &rules) {
       const std::array checks{
           missing_callback("can_act", rules.can_act), missing_callback("commands", rules.commands),
           missing_callback("health", rules.health),   missing_callback("join", rules.join),
@@ -56,18 +56,18 @@ namespace corundum::gameplay::combat {
 
     /// Whether @p index's ordered target stands within @p reach_tiles of it.
     template <typename Marker>
-    [[nodiscard]] bool in_reach(std::span<const world::TileCoord> tiles, int reach_tiles,
-                                const std::vector<Marker> &markers, std::size_t index) {
+    [[nodiscard]] bool in_reach(std::span<const rules::Tile> tiles, int reach_tiles, const std::vector<Marker> &markers,
+                                std::size_t index) {
       const std::optional<std::size_t> target = markers[index].target;
       if (!target)
         return false;
-      return world::tile_distance(tiles[index], tiles[*target]) <= reach_tiles;
+      return rules::tile_distance(tiles[index], tiles[*target]) <= reach_tiles;
     }
 
     /// Whether @p index's next command can start: a queued command needs nothing, the standing
     /// attack needs its target in reach.
     template <typename Marker>
-    [[nodiscard]] bool can_start_command(const rules::CombatRules &rules, std::span<const world::TileCoord> tiles,
+    [[nodiscard]] bool can_start_command(const CombatRules &rules, std::span<const rules::Tile> tiles,
                                          const std::vector<Marker> &markers, std::size_t index) {
       if (markers[index].queued)
         return true;
@@ -84,13 +84,13 @@ namespace corundum::gameplay::combat {
       windups_started.push_back(index);
     }
 
-    /// Advance one marker by its Tempo; returns true when its wind-up ends on this tick. A Ready
-    /// marker that reaches the command point starts its wind-up once its command can start, and
-    /// is held there until then.
+    /// Advance one marker by CombatRules::tempo_beats; returns true when its wind-up ends on this
+    /// tick. A Ready marker that reaches the command point starts its wind-up once its command can
+    /// start, and is held there until then.
     template <typename Marker>
-    [[nodiscard]] bool advance_marker(const rules::CombatRules &rules,
+    [[nodiscard]] bool advance_marker(const CombatRules &rules,
                                       const std::vector<std::vector<rules::CommandOption>> &commands,
-                                      std::span<const world::TileCoord> tiles, std::vector<Marker> &markers,
+                                      std::span<const rules::Tile> tiles, std::vector<Marker> &markers,
                                       std::size_t index, std::vector<std::size_t> &windups_started) {
       Marker &marker = markers[index];
       if (marker.phase == Phase::WindUp) {
@@ -115,10 +115,10 @@ namespace corundum::gameplay::combat {
 
     /// Advance every marker that can act, collecting the wind-ups that end on this tick.
     template <typename Marker>
-    void advance_tick(const rules::CombatRules &rules, const rules::CombatContext &context,
-                      const std::vector<rules::Combatant> &combatants,
+    void advance_tick(const CombatRules &rules, const rules::CombatContext &context,
+                      const std::vector<Combatant> &combatants,
                       const std::vector<std::vector<rules::CommandOption>> &commands,
-                      std::span<const world::TileCoord> tiles, std::vector<Marker> &markers, EncounterStep &step,
+                      std::span<const rules::Tile> tiles, std::vector<Marker> &markers, EncounterStep &step,
                       std::vector<Landing> &landing) {
       for (std::size_t index = 0; index < markers.size(); ++index) {
         if (!rules.can_act(context, combatants[index]))
@@ -140,13 +140,13 @@ namespace corundum::gameplay::combat {
 
     /// Ask the rules for every combatant's commands again, keeping each list's length: a queued
     /// index and the command bar index into the list, so a change is fatal.
-    void refresh_commands(const rules::CombatRules &rules, const rules::CombatContext &context,
-                          const std::vector<rules::Combatant> &combatants,
+    void refresh_commands(const CombatRules &rules, const rules::CombatContext &context,
+                          const std::vector<Combatant> &combatants,
                           std::vector<std::vector<rules::CommandOption>> &commands) {
       for (std::size_t index = 0; index < commands.size(); ++index) {
         std::vector<rules::CommandOption> listed = rules.commands(context, combatants[index]);
         core::verify(listed.size() == commands[index].size(),
-                     "[gameplay] a combat ruleset changed the length of a command list mid-fight");
+                     "a combat ruleset changed the length of a command list mid-fight");
         commands[index] = std::move(listed);
       }
     }
@@ -164,9 +164,9 @@ namespace corundum::gameplay::combat {
     /// Carry out a landed standing attack on the marker's target, or let it fizzle when the target
     /// left reach or can no longer act.
     template <typename Marker>
-    void land_attack(const rules::CombatRules &rules, const rules::CombatContext &context,
-                     std::vector<rules::Combatant> &combatants, std::span<const world::TileCoord> tiles,
-                     std::vector<Marker> &markers, std::size_t index, std::vector<std::string> &reports) {
+    void land_attack(const CombatRules &rules, const rules::CombatContext &context, std::vector<Combatant> &combatants,
+                     std::span<const rules::Tile> tiles, std::vector<Marker> &markers, std::size_t index,
+                     std::vector<std::string> &reports) {
       Marker &marker = markers[index];
       const bool is_target_gone = !marker.target || !rules.can_act(context, combatants[*marker.target]);
       if (is_target_gone)
@@ -178,9 +178,9 @@ namespace corundum::gameplay::combat {
 
     /// Carry out one landed command: a queued command on its actor, the standing attack on its target.
     template <typename Marker>
-    void land_command(const rules::CombatRules &rules, const rules::CombatContext &context,
-                      std::vector<rules::Combatant> &combatants, std::span<const world::TileCoord> tiles,
-                      std::vector<Marker> &markers, std::size_t index, std::vector<std::string> &reports) {
+    void land_command(const CombatRules &rules, const rules::CombatContext &context, std::vector<Combatant> &combatants,
+                      std::span<const rules::Tile> tiles, std::vector<Marker> &markers, std::size_t index,
+                      std::vector<std::string> &reports) {
       const std::optional<rules::CommandOption> command = take_command(markers[index]);
       if (command) {
         reports.push_back(rules.resolve_self(context, command->id, combatants[index]));
@@ -191,8 +191,8 @@ namespace corundum::gameplay::combat {
 
     /// Carry out the tick's landings in order, skipping combatants downed earlier in the same tick.
     template <typename Marker>
-    void land_commands(const rules::CombatRules &rules, const rules::CombatContext &context,
-                       std::vector<rules::Combatant> &combatants, std::span<const world::TileCoord> tiles,
+    void land_commands(const CombatRules &rules, const rules::CombatContext &context,
+                       std::vector<Combatant> &combatants, std::span<const rules::Tile> tiles,
                        std::vector<Marker> &markers, const std::vector<Landing> &landing,
                        std::vector<std::string> &reports) {
       for (const Landing &entry : landing) {
@@ -204,16 +204,16 @@ namespace corundum::gameplay::combat {
 
     /// Drop every order whose target can no longer act.
     template <typename Marker>
-    void drop_dead_orders(const rules::CombatRules &rules, const rules::CombatContext &context,
-                          const std::vector<rules::Combatant> &combatants, std::vector<Marker> &markers) {
+    void drop_dead_orders(const CombatRules &rules, const rules::CombatContext &context,
+                          const std::vector<Combatant> &combatants, std::vector<Marker> &markers) {
       for (Marker &marker : markers) {
         if (marker.target && !rules.can_act(context, combatants[*marker.target]))
           marker.target.reset();
       }
     }
 
-    [[nodiscard]] bool side_can_act(const rules::CombatRules &rules, const rules::CombatContext &context,
-                                    const std::vector<rules::Combatant> &combatants, const std::vector<Side> &sides,
+    [[nodiscard]] bool side_can_act(const CombatRules &rules, const rules::CombatContext &context,
+                                    const std::vector<Combatant> &combatants, const std::vector<Side> &sides,
                                     Side side) {
       for (std::size_t index = 0; index < combatants.size(); ++index) {
         if (sides[index] == side && rules.can_act(context, combatants[index]))
@@ -224,29 +224,28 @@ namespace corundum::gameplay::combat {
 
   } // namespace
 
-  std::expected<Encounter, std::string> Encounter::start(rules::CombatRules rules, const rules::CombatContext &context,
+  std::expected<Encounter, std::string> Encounter::start(CombatRules rules, const rules::CombatContext &context,
                                                          std::vector<Joining> joining, int steps_per_tick) {
     assert(steps_per_tick >= 1);
 
     if (const std::optional<std::string_view> missing = first_missing_callback(rules))
-      return std::unexpected(std::format("[gameplay] the combat rules have no '{}' callback", *missing));
+      return std::unexpected(std::format("the combat rules have no '{}' callback", *missing));
     const bool is_timeline_valid = rules.command_point_beats > 0 && rules.tempo_beats > 0;
     if (!is_timeline_valid || rules.reach_tiles <= 0)
-      return std::unexpected(
-          "[gameplay] the combat rules need a positive command_point_beats, tempo_beats and reach_tiles");
+      return std::unexpected("the combat rules need a positive command_point_beats, tempo_beats and reach_tiles");
 
-    std::vector<rules::Combatant> combatants;
+    std::vector<Combatant> combatants;
     std::vector<Side> sides;
-    std::vector<rules::CombatantSpec> specs;
+    std::vector<CombatantSpec> specs;
     combatants.reserve(joining.size());
     sides.reserve(joining.size());
     specs.reserve(joining.size());
     for (Joining &entry : joining) {
-      std::expected<rules::CombatantSpec, std::string> spec = rules.join(context, entry.combatant);
+      std::expected<CombatantSpec, std::string> spec = rules.join(context, entry.combatant);
       if (!spec) {
         const std::string who =
             entry.combatant.creature ? std::format("'{}'", *entry.combatant.creature) : std::string{"the protagonist"};
-        return std::unexpected(std::format("[gameplay] {} can't join the encounter: {}", who, spec.error()));
+        return std::unexpected(std::format("{} can't join the encounter: {}", who, spec.error()));
       }
       combatants.push_back(std::move(entry.combatant));
       sides.push_back(entry.side);
@@ -255,7 +254,7 @@ namespace corundum::gameplay::combat {
 
     std::vector<std::vector<rules::CommandOption>> commands;
     commands.reserve(combatants.size());
-    for (const rules::Combatant &combatant : combatants)
+    for (const Combatant &combatant : combatants)
       commands.push_back(rules.commands(context, combatant));
 
     return Encounter(std::move(rules), std::move(combatants), std::move(sides), std::move(specs), std::move(commands),
@@ -296,7 +295,7 @@ namespace corundum::gameplay::combat {
     markers_[actor].queued.reset();
   }
 
-  EncounterStep Encounter::update(const rules::CombatContext &context, std::span<const world::TileCoord> tiles) {
+  EncounterStep Encounter::update(const rules::CombatContext &context, std::span<const rules::Tile> tiles) {
     assert(tiles.size() == size());
     EncounterStep step;
     if (outcome_)
@@ -347,13 +346,13 @@ namespace corundum::gameplay::combat {
     return rules_.can_act(context, combatants_[index]);
   }
 
-  Encounter::Encounter(rules::CombatRules rules, std::vector<rules::Combatant> combatants, std::vector<Side> sides,
-                       std::vector<rules::CombatantSpec> specs, std::vector<std::vector<rules::CommandOption>> commands,
+  Encounter::Encounter(CombatRules rules, std::vector<Combatant> combatants, std::vector<Side> sides,
+                       std::vector<CombatantSpec> specs, std::vector<std::vector<rules::CommandOption>> commands,
                        int steps_per_tick)
       : rules_(std::move(rules)), combatants_(std::move(combatants)), commands_(std::move(commands)),
         sides_(std::move(sides)), specs_(std::move(specs)), steps_per_tick_(steps_per_tick) {
     markers_.reserve(specs_.size());
-    for (const rules::CombatantSpec &spec : specs_)
+    for (const CombatantSpec &spec : specs_)
       markers_.push_back({
           .active = std::nullopt,
           .beats = spec.start_beats,
@@ -363,4 +362,74 @@ namespace corundum::gameplay::combat {
       });
   }
 
-} // namespace corundum::gameplay::combat
+  namespace {
+
+    /// The rules::Fight that runs every command and query on @p encounter.
+    [[nodiscard]] rules::Fight bind_fight(const std::shared_ptr<Encounter> &encounter) {
+      rules::Fight fight{.reach_tiles = encounter->reach_tiles()};
+      for (std::size_t i = 0; i < encounter->size(); ++i)
+        fight.names.push_back(encounter->spec(i).name);
+      fight.clear_queued = [encounter](std::size_t actor) { encounter->clear_queued(actor); };
+      fight.order_attack = [encounter](std::size_t attacker, std::size_t target) {
+        encounter->order_attack(attacker, target);
+      };
+      fight.order_move = [encounter](std::size_t mover) { encounter->order_move(mover); };
+      fight.queue_command = [encounter](std::size_t actor, std::size_t option) {
+        encounter->queue_command(actor, option);
+      };
+      fight.update = [encounter](const rules::CombatContext &step_context, std::span<const rules::Tile> tiles) {
+        EncounterStep step = encounter->update(step_context, tiles);
+        return rules::FightStep{
+            .reports = std::move(step.reports),
+            .windups_started = std::move(step.windups_started),
+        };
+      };
+      fight.can_act = [encounter](const rules::CombatContext &query_context, std::size_t index) {
+        return encounter->can_act(query_context, index);
+      };
+      fight.commands = [encounter](std::size_t actor) { return encounter->commands(actor); };
+      fight.health = [encounter](const rules::CombatContext &query_context, std::size_t index) {
+        return encounter->health(query_context, index);
+      };
+      fight.outcome = [encounter] { return encounter->outcome(); };
+      fight.queued = [encounter](std::size_t actor) { return encounter->queued(actor); };
+      fight.target_of = [encounter](std::size_t attacker) { return encounter->target_of(attacker); };
+      fight.windup = [encounter](std::size_t index) -> std::optional<rules::WindUp> {
+        if (encounter->phase(index) != Phase::WindUp)
+          return std::nullopt;
+        return rules::WindUp{
+            .is_attack = encounter->is_winding_up_at_enemy(index),
+            .seconds_left = encounter->windup_seconds(index),
+        };
+      };
+      return fight;
+    }
+
+  } // namespace
+
+  rules::StartFight make_flat_start_fight(std::shared_ptr<FlatCombat> combat) {
+    return
+        [combat = std::move(combat)](const rules::CombatContext &context,
+                                     const rules::FightRequest &request) -> std::expected<rules::Fight, std::string> {
+          std::vector<Joining> joining(1 + request.creature_ids.size());
+          joining[0].side = Side::Party;
+          for (std::size_t i = 0; i < request.creature_ids.size(); ++i) {
+            joining[i + 1].combatant.creature = request.creature_ids[i];
+            joining[i + 1].side = Side::Hostile;
+          }
+          const int steps_per_tick =
+              std::max(1, static_cast<int>(std::lround(combat->rules.seconds_per_tick / request.step_seconds)));
+          std::expected<Encounter, std::string> started =
+              Encounter::start(combat->rules, context, std::move(joining), steps_per_tick);
+          if (!started)
+            return std::unexpected(std::move(started.error()));
+
+          const auto encounter = std::make_shared<Encounter>(std::move(*started));
+          combat->encounter = encounter;
+          for (std::size_t creature = 1; creature < encounter->size(); ++creature)
+            encounter->order_attack(creature, 0);
+          return bind_fight(encounter);
+        };
+  }
+
+} // namespace corundum::test

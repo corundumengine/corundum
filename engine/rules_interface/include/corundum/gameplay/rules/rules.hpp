@@ -3,22 +3,27 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <expected>
-#include <flat_map>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
-// The seam between the gameplay framework and a game's rules. The framework decides when a value
-// is needed, when a fight runs and how values and the fight are shown; the ruleset decides what
-// they are. A ruleset keeps the protagonist's lasting state in the playthrough's flags under its
-// own key prefix, so saves, loads and playthrough boundaries carry it with no hook of their own;
-// it reads and writes that state through FlagReader and FlagWriter, never the FlagStore itself.
-// State that lasts one encounter (a creature's damage) lives in the Combatant and ends with the
-// encounter. This header is part of corundum::rules_interface and includes no other corundum
-// header, so a ruleset builds against that target alone.
+// The seam between the gameplay framework and a game's rules. The framework owns the scene: where
+// each combatant stands, what the player ordered, which clip plays and what the HUD shows. The
+// ruleset owns the rules: the character sheet's values, and each fight from who acts when to what
+// a blow does. A ruleset keeps the protagonist's lasting state in the playthrough's flags under
+// its own key prefix, so saves, loads and playthrough boundaries carry it with no hook of their
+// own; it reads and writes that state through FlagReader and FlagWriter, never the FlagStore
+// itself. State that lasts one fight lives behind the ruleset's Fight and ends with it. This
+// header is part of corundum::rules_interface and includes no other corundum header, so a ruleset
+// builds against that target alone.
 namespace corundum::gameplay::rules {
 
   /** @brief One "label: value" row a ruleset supplies for display, such as {"Strength", "+2"}. */
@@ -59,35 +64,31 @@ namespace corundum::gameplay::rules {
     FlagReader flags{};
   };
 
-  /** @brief A combatant's integer state for one encounter, under keys the ruleset chooses. */
-  using CombatantState = std::flat_map<std::string, int, std::less<>>;
+  /** @brief A map tile, by column and row. */
+  struct Tile {
+    int col{};
 
-  /** @brief One combatant as the ruleset sees it. */
-  struct Combatant {
-    /** The creature id the game started the encounter with; nullopt for the protagonist, whose
-     *  lasting state lives in the flags. */
-    std::optional<std::string> creature{};
+    int row{};
 
-    CombatantState state{}; ///< This encounter's state, for the protagonist as for a creature.
+    bool operator==(const Tile &) const = default;
   };
 
+  /** @brief Steps between two tiles when a diagonal step counts as one: the distance
+   *  Fight::reach_tiles counts, and the one the framework walks a combatant into reach by. */
+  [[nodiscard]] inline int tile_distance(Tile a, Tile b) noexcept {
+    return std::max(std::abs(a.col - b.col), std::abs(a.row - b.row));
+  }
+
   /** @brief A command a combatant can order besides its standing attack, such as drinking a
-   *  potion. It acts on the combatant itself, so it needs no target and no reach. */
+   *  potion. */
   struct CommandOption {
-    std::string id{}; ///< The ruleset's name for it, passed back to resolve_self.
+    std::string id{}; ///< The ruleset's own name for it; the framework never reads it.
 
     bool is_available{true}; ///< False while it can't be ordered (none left).
 
     std::string label{}; ///< Shown on the command bar, such as "Herbal Tonic (2)".
 
     bool operator==(const CommandOption &) const = default;
-  };
-
-  /** @brief A combatant's fixed numbers for one encounter, from CombatRules::join. */
-  struct CombatantSpec {
-    std::string name{}; ///< Shown on the combat HUD.
-
-    int start_beats{}; ///< Where the marker starts.
   };
 
   /** @brief A combatant's Health as the HUD shows it. */
@@ -99,41 +100,89 @@ namespace corundum::gameplay::rules {
     bool operator==(const Health &) const = default;
   };
 
-  /** @brief A ruleset's combat: the timeline's constants and the callbacks that decide each
-   *  combatant's numbers, commands and results. Every callback must be set. */
-  struct CombatRules {
-    int command_point_beats{}; ///< Where a marker's command is carried out; must be positive.
+  /** @brief How a fight ended, from the party's side. */
+  enum class Outcome : std::uint8_t { Won, Lost };
 
-    int reach_tiles{1}; ///< Tiles every standing attack reaches, a diagonal step counting as one; must be positive.
+  /** @brief A command a combatant is winding up. */
+  struct WindUp {
+    bool is_attack{}; ///< The standing attack on its target; false for one of its commands.
 
-    float seconds_per_tick{}; ///< Game time per timeline tick.
-
-    int tempo_beats{}; ///< Beats a marker gains per tick; must be positive.
-
-    int windup_beats{}; ///< Beats past the command point before every command lands; 0 or less lands on the next tick.
-
-    /** Whether the combatant can still fight; the fight ends when one side has nobody who can. */
-    std::function<bool(const CombatContext &, const Combatant &)> can_act{};
-
-    /** The commands the combatant can order besides its standing attack, in command-bar order. The
-     *  same commands in the same order for the whole encounter; only is_available and a label may
-     *  change. The framework asks again after every tick. */
-    std::function<std::vector<CommandOption>(const CombatContext &, const Combatant &)> commands{};
-
-    std::function<Health(const CombatContext &, const Combatant &)> health{};
-
-    /** The combatant's numbers for this encounter, rolling where its marker starts and setting up
-     *  its state; an error (an unknown creature, no weapon) stops the fight from starting. */
-    std::function<std::expected<CombatantSpec, std::string>(const CombatContext &, Combatant &)> join{};
-
-    /** @p actor's standing attack on @p target, already in reach: roll, apply the damage to
-     *  @p target's state (or, for the protagonist, the flags), and return one line for the combat
-     *  log, such as "You → Brann: hit, 4 damage". @p actor and @p target are different combatants. */
-    std::function<std::string(const CombatContext &, Combatant &actor, Combatant &target)> resolve{};
-
-    /** Carry out @p command, the id of one of @p actor's commands(), and return a one-line report. */
-    std::function<std::string(const CombatContext &, std::string_view command, Combatant &actor)> resolve_self{};
+    float seconds_left{}; ///< Game time until the command lands.
   };
+
+  /** @brief What one Fight::update produced. */
+  struct FightStep {
+    std::vector<std::string> reports{}; ///< One line per command that landed, in order, for the combat log.
+
+    std::vector<std::size_t> windups_started{}; ///< Combatants whose wind-up started this step, by index.
+  };
+
+  /** @brief The fight the framework asks a ruleset to run. */
+  struct FightRequest {
+    std::vector<std::string> creature_ids{}; ///< The hostiles, in order: combatant i + 1 is creature_ids[i].
+
+    float step_seconds{}; ///< Game time per Fight::update.
+  };
+
+  /** @brief One fight as its ruleset runs it.
+   *
+   *  Combatant 0 is the protagonist and combatant i + 1 is the request's creature_ids[i]; every
+   *  index a callback takes or returns is one of those. The callbacks share the ruleset's state for
+   *  this fight, so a copy of a Fight is the same fight. Every callback must be set.
+   *
+   *  The framework orders only the protagonist, when the player's input calls for it. Who a
+   *  creature attacks is the ruleset's choice, made by the time start_fight returns and read back
+   *  through target_of. The framework calls update once per fixed step while the fight runs, and
+   *  asks the queries several times per step, so a query only reads the fight's state.
+   */
+  struct Fight {
+    std::vector<std::string> names{}; ///< Each combatant's name on the combat HUD, by index.
+
+    int reach_tiles{1}; ///< Tiles a standing attack reaches, by tile_distance; must be positive.
+
+    /** Drop @p actor's queued command, so its standing attack comes next. */
+    std::function<void(std::size_t actor)> clear_queued{};
+
+    /** Give @p attacker a standing attack on @p target, an enemy, replacing any order. */
+    std::function<void(std::size_t attacker, std::size_t target)> order_attack{};
+
+    /** @p mover walks on its own: drop its attack order. */
+    std::function<void(std::size_t mover)> order_move{};
+
+    /** Queue commands(actor)[@p option], which is available, in place of @p actor's next standing
+     *  attack. */
+    std::function<void(std::size_t actor, std::size_t option)> queue_command{};
+
+    /** Advance one fixed step of FightRequest::step_seconds. @p tiles holds each combatant's tile,
+     *  by index. */
+    std::function<FightStep(const CombatContext &, std::span<const Tile> tiles)> update{};
+
+    /** Whether the combatant can still fight; one that can't leaves the scene. */
+    std::function<bool(const CombatContext &, std::size_t index)> can_act{};
+
+    /** The commands @p actor can order besides its standing attack, in command-bar order. The list
+     *  keeps its length for the whole fight; only is_available and label change. The span must
+     *  stay valid until the next update; the framework keeps it no longer. */
+    std::function<std::span<const CommandOption>(std::size_t actor)> commands{};
+
+    std::function<Health(const CombatContext &, std::size_t index)> health{};
+
+    /** How the fight ended; nullopt while it runs. */
+    std::function<std::optional<Outcome>()> outcome{};
+
+    /** @p actor's queued command, as an index into commands(actor); nullopt for none. */
+    std::function<std::optional<std::size_t>(std::size_t actor)> queued{};
+
+    /** The combatant @p attacker has a standing attack on; nullopt for none. */
+    std::function<std::optional<std::size_t>(std::size_t attacker)> target_of{};
+
+    /** The command @p index is winding up; nullopt while it winds none up. */
+    std::function<std::optional<WindUp>(std::size_t index)> windup{};
+  };
+
+  /** @brief Start a fight between the protagonist and the request's creatures, or return why it
+   *  can't start (an unknown creature, no weapon). */
+  using StartFight = std::function<std::expected<Fight, std::string>(const CombatContext &, const FightRequest &)>;
 
   /** @brief A game's rules, as callbacks the framework calls when it needs a value.
    *
@@ -145,9 +194,9 @@ namespace corundum::gameplay::rules {
     /** @brief The protagonist's rows for the character sheet's Stats column, in display order. */
     std::function<std::vector<StatRow>(const FlagReader &)> character_rows{};
 
-    /** @brief The game's combat, or nullopt when it has none; start_encounter then warns and starts
+    /** @brief The game's combat; empty when it has none, and start_encounter then warns and starts
      *  nothing. */
-    std::optional<CombatRules> combat{};
+    StartFight start_fight{};
   };
 
 } // namespace corundum::gameplay::rules

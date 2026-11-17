@@ -3,31 +3,74 @@
 
 #pragma once
 #include <corundum/gameplay/rules/rules.hpp>
-#include <corundum/world/picking.hpp>
 
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <flat_map>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
-// The combat timeline, independent of the scene. Every combatant's marker fills toward the command
-// point, winds up a command there (a queued one, or else the standing attack) and drops back to 0
-// when the command lands or fizzles. A queued command acts on its own combatant; the standing
-// attack needs its target in reach. Combatants are indices, positions are tiles and the numbers
-// come from rules::CombatRules; combat::Battle maps an encounter onto the scene.
-namespace corundum::gameplay::combat {
+// The combat timeline the framework's tests run fights on: a test double for a ruleset's Fight.
+// Every combatant's marker fills toward the command point, winds up a command there (a queued
+// one, or else the standing attack) and drops back to 0 when the command lands or fizzles.
+namespace corundum::test {
 
-  /** @brief The standing attack's label on the command bar. */
-  inline constexpr std::string_view k_attack_label = "Attack";
+  namespace rules = gameplay::rules;
 
   enum class Side : std::uint8_t { Party, Hostile };
 
-  /** @brief How a fight ended, from the party's side. */
-  enum class Outcome : std::uint8_t { Won, Lost };
+  using rules::Outcome;
+
+  /// A combatant's integer state for one encounter, under keys the rules choose.
+  using CombatantState = std::flat_map<std::string, int, std::less<>>;
+
+  /// One combatant as the rules see it.
+  struct Combatant {
+    std::optional<std::string> creature{}; ///< The creature id; nullopt for the protagonist.
+
+    CombatantState state{};
+  };
+
+  /// A combatant's fixed numbers for one encounter, from CombatRules::join.
+  struct CombatantSpec {
+    std::string name{};
+
+    int start_beats{}; ///< Where the marker starts.
+  };
+
+  /// The timeline's constants and the callbacks that decide each combatant's numbers, commands and
+  /// results. Every callback must be set.
+  struct CombatRules {
+    int command_point_beats{}; ///< Where a marker's command is carried out; must be positive.
+
+    int reach_tiles{1}; ///< Tiles every standing attack reaches; must be positive.
+
+    float seconds_per_tick{}; ///< Game time per timeline tick.
+
+    int tempo_beats{}; ///< Beats a marker gains per tick; must be positive.
+
+    int windup_beats{}; ///< Beats past the command point before every command lands.
+
+    std::function<bool(const rules::CombatContext &, const Combatant &)> can_act{};
+
+    /// The same commands in the same order for the whole encounter.
+    std::function<std::vector<rules::CommandOption>(const rules::CombatContext &, const Combatant &)> commands{};
+
+    std::function<rules::Health(const rules::CombatContext &, const Combatant &)> health{};
+
+    std::function<std::expected<CombatantSpec, std::string>(const rules::CombatContext &, Combatant &)> join{};
+
+    std::function<std::string(const rules::CombatContext &, Combatant &actor, Combatant &target)> resolve{};
+
+    std::function<std::string(const rules::CombatContext &, std::string_view command, Combatant &actor)>
+        resolve_self{};
+  };
 
   enum class Phase : std::uint8_t {
     Ready,  ///< Filling toward the command point, or held there until its command can start.
@@ -36,7 +79,7 @@ namespace corundum::gameplay::combat {
 
   /** @brief One combatant joining an encounter. */
   struct Joining {
-    rules::Combatant combatant{};
+    Combatant combatant{};
 
     Side side{Side::Party};
   };
@@ -56,7 +99,7 @@ namespace corundum::gameplay::combat {
      *  @param steps_per_tick Fixed steps per timeline tick; at least 1.
      *  @return The encounter, or an error: a callback in @p rules is empty, its command point,
      *          tempo or reach isn't positive, or a combatant's join failed (the message names it). */
-    [[nodiscard]] static std::expected<Encounter, std::string> start(rules::CombatRules rules,
+    [[nodiscard]] static std::expected<Encounter, std::string> start(CombatRules rules,
                                                                      const rules::CombatContext &context,
                                                                      std::vector<Joining> joining, int steps_per_tick);
 
@@ -86,7 +129,7 @@ namespace corundum::gameplay::combat {
      *  outcome() is set.
      *  @param tiles Each combatant's tile, by index.
      *  @pre tiles.size() == size(). */
-    [[nodiscard]] EncounterStep update(const rules::CombatContext &context, std::span<const world::TileCoord> tiles);
+    [[nodiscard]] EncounterStep update(const rules::CombatContext &context, std::span<const rules::Tile> tiles);
 
     /** @brief How the fight ended, once one side has nobody who can act; nullopt until then. */
     [[nodiscard]] std::optional<Outcome> outcome() const noexcept { return outcome_; }
@@ -97,7 +140,7 @@ namespace corundum::gameplay::combat {
     [[nodiscard]] int reach_tiles() const noexcept { return rules_.reach_tiles; }
 
     /** @pre index < size() for every per-combatant query below. */
-    [[nodiscard]] const rules::CombatantSpec &spec(std::size_t index) const { return specs_[index]; }
+    [[nodiscard]] const CombatantSpec &spec(std::size_t index) const { return specs_[index]; }
 
     [[nodiscard]] Side side(std::size_t index) const { return sides_[index]; }
 
@@ -140,19 +183,19 @@ namespace corundum::gameplay::combat {
       std::optional<std::size_t> target{};
     };
 
-    Encounter(rules::CombatRules rules, std::vector<rules::Combatant> combatants, std::vector<Side> sides,
-              std::vector<rules::CombatantSpec> specs, std::vector<std::vector<rules::CommandOption>> commands,
+    Encounter(CombatRules rules, std::vector<Combatant> combatants, std::vector<Side> sides,
+              std::vector<CombatantSpec> specs, std::vector<std::vector<rules::CommandOption>> commands,
               int steps_per_tick);
 
-    rules::CombatRules rules_;
+    CombatRules rules_;
 
-    std::vector<rules::Combatant> combatants_;
+    std::vector<Combatant> combatants_;
 
     std::vector<std::vector<rules::CommandOption>> commands_;
 
     std::vector<Side> sides_;
 
-    std::vector<rules::CombatantSpec> specs_;
+    std::vector<CombatantSpec> specs_;
 
     std::vector<Marker> markers_;
 
@@ -163,4 +206,17 @@ namespace corundum::gameplay::combat {
     std::optional<Outcome> outcome_{};
   };
 
-} // namespace corundum::gameplay::combat
+  /// The flat combat a test installs. `rules` is copied into each fight as it starts, so a test
+  /// changes it before start_encounter; `encounter` is the timeline of the last fight started.
+  struct FlatCombat {
+    std::shared_ptr<Encounter> encounter{};
+
+    CombatRules rules{};
+  };
+
+  /// A Ruleset::start_fight that runs each fight on an Encounter over @p combat's rules: the
+  /// protagonist on Side::Party, then one Side::Hostile combatant per creature, each with a
+  /// standing attack on the protagonist.
+  [[nodiscard]] rules::StartFight make_flat_start_fight(std::shared_ptr<FlatCombat> combat);
+
+} // namespace corundum::test

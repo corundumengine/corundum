@@ -6,12 +6,12 @@
 #include <corundum/animation/animation_system.hpp>
 #include <corundum/core/direction.hpp>
 #include <corundum/core/math/isometric.hpp>
+#include <corundum/core/verify.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/animation_table.hpp>
 #include <corundum/entities/tables/clip_table.hpp>
 #include <corundum/entities/world.hpp>
-#include <corundum/gameplay/combat/encounter.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/combat_hud.hpp>
 #include <corundum/input/actions.hpp>
@@ -29,7 +29,6 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -75,6 +74,72 @@ namespace corundum::gameplay::combat {
       return key;
     }
 
+    /// Combatant 0 is the protagonist; every other combatant is a hostile.
+    [[nodiscard]] constexpr bool is_hostile(std::size_t index) noexcept {
+      return index >= Battle::k_hostile;
+    }
+
+    constexpr std::string_view k_stray_combatant = "[gameplay] a ruleset's fight named a combatant it doesn't have";
+
+    constexpr std::string_view k_changed_command_list =
+        "[gameplay] a ruleset's fight changed the length of its command list";
+
+    /// @p name when @p callback is empty, and nullopt when it is set.
+    template <typename Callback>
+    [[nodiscard]] std::optional<std::string_view> missing_callback(std::string_view name, const Callback &callback) {
+      if (callback)
+        return std::nullopt;
+      return name;
+    }
+
+    /// The name of the first empty callback in @p fight, in declaration order; nullopt when all are set.
+    [[nodiscard]] std::optional<std::string_view> first_missing_callback(const rules::Fight &fight) {
+      // The binding names every member of Fight, so a callback added there stops this compiling
+      // until it is checked here.
+      const auto &[names, reach_tiles, clear_queued, order_attack, order_move, queue_command, update, can_act, commands,
+                   health, outcome, queued, target_of, windup] = fight;
+      const std::array checks{
+          missing_callback("clear_queued", clear_queued),
+          missing_callback("order_attack", order_attack),
+          missing_callback("order_move", order_move),
+          missing_callback("queue_command", queue_command),
+          missing_callback("update", update),
+          missing_callback("can_act", can_act),
+          missing_callback("commands", commands),
+          missing_callback("health", health),
+          missing_callback("outcome", outcome),
+          missing_callback("queued", queued),
+          missing_callback("target_of", target_of),
+          missing_callback("windup", windup),
+      };
+      for (const std::optional<std::string_view> &check : checks) {
+        if (check)
+          return check;
+      }
+      return std::nullopt;
+    }
+
+    /// Check what Battle relies on in the fight a ruleset started for @p hostile_count hostiles.
+    [[nodiscard]] std::expected<void, std::string> validate_fight(const rules::Fight &fight,
+                                                                  std::size_t hostile_count) {
+      if (const std::optional<std::string_view> missing = first_missing_callback(fight))
+        return std::unexpected(
+            std::format("[gameplay] start_encounter: the ruleset's fight has no '{}' callback", *missing));
+      const std::size_t combatants = 1 + hostile_count;
+      if (fight.names.size() != combatants)
+        return std::unexpected(
+            std::format("[gameplay] start_encounter: the ruleset's fight has {} combatants but names {}", combatants,
+                        fight.names.size()));
+      if (fight.reach_tiles <= 0)
+        return std::unexpected("[gameplay] start_encounter: the ruleset's fight needs a positive reach_tiles");
+
+      const std::size_t slots = 1 + fight.commands(Battle::k_protagonist).size();
+      if (slots > k_slot_actions.size())
+        return std::unexpected(
+            std::format("[gameplay] the command bar holds {} slots; the rules list {}", k_slot_actions.size(), slots));
+      return {};
+    }
+
     /// The rules' window into the engine: its seeded dice and the playthrough's flags.
     rules::CombatContext make_combat_context(Engine &engine) {
       const auto roll = [&engine](int sides) {
@@ -110,15 +175,13 @@ namespace corundum::gameplay::combat {
       return hostiles;
     }
 
-    /// One Joining per side: the protagonist first, then a hostile for each creature named.
-    [[nodiscard]] std::vector<Joining> build_joining(const EncounterRequest &request) {
-      std::vector<Joining> joining(1 + request.hostiles.size());
-      joining[0].side = Side::Party;
-      for (std::size_t i = 0; i < request.hostiles.size(); ++i) {
-        joining[i + 1].combatant.creature = request.hostiles[i].creature_id;
-        joining[i + 1].side = Side::Hostile;
-      }
-      return joining;
+    /// The fight to ask the ruleset for: each hostile's creature, in the order named.
+    [[nodiscard]] rules::FightRequest build_fight_request(const EncounterRequest &request, float step_seconds) {
+      rules::FightRequest fight_request{.step_seconds = step_seconds};
+      fight_request.creature_ids.reserve(request.hostiles.size());
+      for (const EncounterHostile &hostile : request.hostiles)
+        fight_request.creature_ids.push_back(hostile.creature_id);
+      return fight_request;
     }
 
     /// The protagonist's entity first, then one per resolved hostile.
@@ -236,22 +299,22 @@ namespace corundum::gameplay::combat {
 
     /// Copy each combatant's Health and side into @p rows; the combatant at @p target is marked as
     /// the fight's target.
-    void refresh_rows(const Encounter &encounter, const rules::CombatContext &context,
+    void refresh_rows(const rules::Fight &fight, const rules::CombatContext &context,
                       std::span<screens::CombatHudRow> rows, std::size_t target) {
       for (std::size_t i = 0; i < rows.size(); ++i) {
-        rows[i].health = encounter.health(context, i);
-        rows[i].is_hostile = encounter.side(i) == Side::Hostile;
+        rows[i].health = fight.health(context, i);
+        rows[i].is_hostile = is_hostile(i);
         rows[i].is_target = i == target;
       }
     }
 
     /// Copy the protagonist's commands into the bar's slots after Attack. The bar's layout and the
-    /// rules' list keep one length for the whole fight (Encounter verifies it), so a slot and the
+    /// rules' list keep one length for the whole fight (verified here), so a slot and the
     /// command behind it always line up.
-    void refresh_slots(const Encounter &encounter, std::span<screens::CombatHudCommand> slots) {
-      const std::span<const rules::CommandOption> listed = encounter.commands(Battle::k_protagonist);
-      const std::optional<std::size_t> queued = encounter.queued(Battle::k_protagonist);
-      assert(listed.size() + 1 == slots.size());
+    void refresh_slots(const rules::Fight &fight, std::span<screens::CombatHudCommand> slots) {
+      const std::span<const rules::CommandOption> listed = fight.commands(Battle::k_protagonist);
+      const std::optional<std::size_t> queued = fight.queued(Battle::k_protagonist);
+      core::verify(listed.size() + 1 == slots.size(), k_changed_command_list);
       for (std::size_t option = 0; option < listed.size(); ++option) {
         screens::CombatHudCommand &command = slots[option + 1];
         assign_if_changed(command.label, listed[option].label);
@@ -268,10 +331,10 @@ namespace corundum::gameplay::combat {
 
     /// Copy the encounter's current numbers into @p hud, in place, for the gamepad page @p page and
     /// the fight's target.
-    void refresh_hud(const Encounter &encounter, const rules::CombatContext &context, screens::CombatHud &hud,
+    void refresh_hud(const rules::Fight &fight, const rules::CombatContext &context, screens::CombatHud &hud,
                      std::size_t page, std::size_t target) {
-      refresh_rows(encounter, context, hud.rows, target);
-      refresh_slots(encounter, hud.commands);
+      refresh_rows(fight, context, hud.rows, target);
+      refresh_slots(fight, hud.commands);
       refresh_gamepad_actions(hud.commands, page);
       hud.page.index = page;
     }
@@ -314,34 +377,37 @@ namespace corundum::gameplay::combat {
     }
 
     /// Give the protagonist a ground move order, dropping any attack and its planned approach.
-    void order_protagonist_move(Encounter &encounter, std::optional<world::TileCoord> &planned_approach) {
-      encounter.order_move(Battle::k_protagonist);
+    void order_protagonist_move(const rules::Fight &fight, std::optional<world::TileCoord> &planned_approach) {
+      fight.order_move(Battle::k_protagonist);
       planned_approach.reset();
     }
 
   } // namespace
 
-  Battle::Battle(Encounter encounter, std::vector<std::optional<entities::EntityId>> entities,
+  Battle::Battle(rules::Fight fight, std::vector<std::optional<entities::EntityId>> entities,
                  std::vector<CombatantClips> clips, std::string first_actor)
-      : encounter_(std::move(encounter)), entities_(std::move(entities)), clips_(std::move(clips)),
+      : fight_(std::move(fight)), entities_(std::move(entities)), clips_(std::move(clips)),
         first_actor_(std::move(first_actor)) {
-    tiles_.resize(encounter_.size());
-    hud_.rows.resize(encounter_.size());
-    paths_.resize(encounter_.size());
-    planned_for_.resize(encounter_.size());
+    tiles_.resize(entities_.size());
+    fight_tiles_.resize(entities_.size());
+    hud_.rows.resize(entities_.size());
+    paths_.resize(entities_.size());
+    planned_for_.resize(entities_.size());
     for (std::size_t i = 0; i < hud_.rows.size(); ++i)
-      hud_.rows[i].name = encounter_.spec(i).name;
+      hud_.rows[i].name = fight_.names[i];
 
     hud_.commands.push_back({.action = k_slot_actions[0], .label = std::string{k_attack_label}});
-    for (const rules::CommandOption &command : encounter_.commands(k_protagonist)) {
+    for (const rules::CommandOption &command : fight_.commands(k_protagonist)) {
       const std::size_t slot = hud_.commands.size();
+      core::verify(slot < k_slot_actions.size(), k_changed_command_list);
       hud_.commands.push_back({.action = k_slot_actions[slot], .label = command.label});
     }
     hud_.page.count = page_count(hud_.commands.size());
   }
 
-  std::expected<Battle, std::string> Battle::start(Engine &engine, const rules::CombatRules &rules,
+  std::expected<Battle, std::string> Battle::start(Engine &engine, const rules::StartFight &start_fight,
                                                    const EncounterRequest &request) {
+    assert(start_fight);
     if (!world::player_present(engine.scene))
       return std::unexpected("[gameplay] start_encounter: there is no protagonist in the scene");
     if (request.hostiles.empty())
@@ -351,22 +417,17 @@ namespace corundum::gameplay::combat {
     if (!hostiles)
       return std::unexpected(std::move(hostiles.error()));
 
-    const int steps_per_tick =
-        std::max(1, static_cast<int>(std::lround(rules.seconds_per_tick / engine.timer.target_dt)));
-    std::expected<Encounter, std::string> encounter =
-        Encounter::start(rules, make_combat_context(engine), build_joining(request), steps_per_tick);
-    if (!encounter)
-      return std::unexpected(encounter.error());
-
-    const std::size_t slots = 1 + encounter->commands(k_protagonist).size();
-    if (slots > k_slot_actions.size())
-      return std::unexpected(
-          std::format("[gameplay] the command bar holds {} slots; the rules list {}", k_slot_actions.size(), slots));
+    std::expected<rules::Fight, std::string> fight =
+        start_fight(make_combat_context(engine), build_fight_request(request, engine.timer.target_dt));
+    if (!fight)
+      return std::unexpected(std::format("[gameplay] start_encounter: {}", fight.error()));
+    if (std::expected<void, std::string> valid = validate_fight(*fight, request.hostiles.size()); !valid)
+      return std::unexpected(std::move(valid.error()));
 
     std::vector<entities::EntityId> combatants = build_combatants(engine, *hostiles);
     std::vector<std::optional<entities::EntityId>> entities(combatants.begin(), combatants.end());
     std::vector<CombatantClips> clips = build_clips(engine, combatants);
-    Battle battle(std::move(*encounter), std::move(entities), std::move(clips), request.hostiles.front().actor_id);
+    Battle battle(std::move(*fight), std::move(entities), std::move(clips), request.hostiles.front().actor_id);
     battle.refresh_tiles(engine);
     const std::optional<std::size_t> nearest = battle.nearest_hostile(make_combat_context(engine));
     if (!nearest)
@@ -381,13 +442,11 @@ namespace corundum::gameplay::combat {
 
   void Battle::open_fight(Engine &engine, std::size_t target) {
     const rules::CombatContext context = make_combat_context(engine);
-    for (std::size_t i = 0; i < encounter_.size(); ++i)
-      healths_.push_back(encounter_.health(context, i).current);
+    for (std::size_t i = 0; i < entities_.size(); ++i)
+      healths_.push_back(fight_.health(context, i).current);
     target_ = target;
-    for (std::size_t i = k_hostile; i < encounter_.size(); ++i)
-      encounter_.order_attack(i, k_protagonist);
-    encounter_.order_attack(k_protagonist, target_);
-    refresh_hud(encounter_, context, hud_, page_, target_);
+    fight_.order_attack(k_protagonist, target_);
+    refresh_hud(fight_, context, hud_, page_, target_);
   }
 
   void Battle::read_orders(const Engine &engine, const rules::CombatContext &context, Clock clock,
@@ -409,8 +468,11 @@ namespace corundum::gameplay::combat {
 
   void Battle::refresh_tiles(const Engine &engine) {
     for (std::size_t i = 0; i < entities_.size(); ++i) {
-      if (const std::optional<entities::EntityId> &entity = entities_[i])
-        tiles_[i] = transform_tile(engine, *entity);
+      const std::optional<entities::EntityId> &entity = entities_[i];
+      if (!entity)
+        continue;
+      tiles_[i] = transform_tile(engine, *entity);
+      fight_tiles_[i] = {.col = tiles_[i].col, .row = tiles_[i].row};
     }
   }
 
@@ -444,7 +506,7 @@ namespace corundum::gameplay::combat {
   void Battle::read_move_orders(const Engine &engine, const rules::CombatContext &context, Clock clock) {
     const bool can_order_move = clock == Clock::Running;
     if (can_order_move && is_move_held(engine.input_state))
-      order_protagonist_move(encounter_, planned_for_[k_protagonist]);
+      order_protagonist_move(fight_, planned_for_[k_protagonist]);
 
     if (!engine.input_state.mouse_click_pressed || !engine.scene.hovered_tile)
       return;
@@ -453,13 +515,13 @@ namespace corundum::gameplay::combat {
       return;
     }
     if (can_order_move)
-      order_protagonist_move(encounter_, planned_for_[k_protagonist]);
+      order_protagonist_move(fight_, planned_for_[k_protagonist]);
   }
 
   void Battle::engage(const rules::CombatContext &context) {
     if (!is_fighting(context, target_))
       return;
-    encounter_.order_attack(k_protagonist, target_);
+    fight_.order_attack(k_protagonist, target_);
     planned_for_[k_protagonist].reset();
   }
 
@@ -506,30 +568,36 @@ namespace corundum::gameplay::combat {
       engage(context);
   }
 
+  std::optional<std::size_t> Battle::target_of(std::size_t index) const {
+    const std::optional<std::size_t> target = fight_.target_of(index);
+    core::verify(!target || *target < entities_.size(), k_stray_combatant);
+    return target;
+  }
+
   std::optional<std::string> Battle::press_slot(const rules::CombatContext &context, std::size_t slot) {
     assert(slot < hud_.commands.size());
 
     if (slot == 0) {
-      encounter_.clear_queued(k_protagonist);
+      fight_.clear_queued(k_protagonist);
       engage(context);
       return std::nullopt;
     }
 
     const std::size_t option = slot - 1;
-    const std::span<const rules::CommandOption> commands = encounter_.commands(k_protagonist);
+    const std::span<const rules::CommandOption> commands = fight_.commands(k_protagonist);
     assert(option < commands.size());
-    if (encounter_.queued(k_protagonist) == option) {
-      encounter_.clear_queued(k_protagonist);
+    if (fight_.queued(k_protagonist) == option) {
+      fight_.clear_queued(k_protagonist);
       return std::nullopt;
     }
     if (!commands[option].is_available)
       return std::format("{} can't be used now", commands[option].label);
-    encounter_.queue_command(k_protagonist, option);
+    fight_.queue_command(k_protagonist, option);
     return std::nullopt;
   }
 
   BattleStep Battle::update(Engine &engine, Clock clock) {
-    if (encounter_.outcome() == Outcome::Lost) {
+    if (fight_.outcome() == rules::Outcome::Lost) {
       hold_for_defeat(engine);
       return BattleStep{.outcome = finished_outcome(engine)};
     }
@@ -541,8 +609,10 @@ namespace corundum::gameplay::combat {
     read_orders(engine, context, clock, step.reports);
 
     if (clock == Clock::Running) {
-      const AttackOrder before = encounter_.target_of(k_protagonist) ? AttackOrder::Standing : AttackOrder::None;
-      EncounterStep advanced = encounter_.update(context, tiles_);
+      const AttackOrder before = target_of(k_protagonist) ? AttackOrder::Standing : AttackOrder::None;
+      rules::FightStep advanced = fight_.update(context, fight_tiles_);
+      for (const std::size_t index : advanced.windups_started)
+        core::verify(index < entities_.size(), k_stray_combatant);
       for (std::string &report : advanced.reports)
         step.reports.push_back(std::move(report));
       play_step_clips(engine, context, advanced.windups_started);
@@ -558,9 +628,9 @@ namespace corundum::gameplay::combat {
       stand_still(engine, k_protagonist);
     }
 
-    refresh_hud(encounter_, context, hud_, page_, target_);
+    refresh_hud(fight_, context, hud_, page_, target_);
     // Hold the protagonist on the step it falls: the next world step runs before the next update.
-    if (encounter_.outcome() == Outcome::Lost)
+    if (fight_.outcome() == rules::Outcome::Lost)
       hold_for_defeat(engine);
     step.outcome = finished_outcome(engine);
     return step;
@@ -576,13 +646,13 @@ namespace corundum::gameplay::combat {
     const std::optional<entities::EntityId> entity = fighting_entity(context, index);
     if (!entity)
       return;
-    const std::optional<std::size_t> target = encounter_.target_of(index);
+    const std::optional<std::size_t> target = target_of(index);
     if (!target)
       return;
 
     const world::TileCoord target_tile = tiles_[*target];
-    const bool in_reach = world::tile_distance(tiles_[index], target_tile) <= encounter_.reach_tiles();
-    if ((in_reach && !is_claimed(engine, tiles_[index], index)) || encounter_.phase(index) == Phase::WindUp) {
+    const bool in_reach = world::tile_distance(tiles_[index], target_tile) <= fight_.reach_tiles;
+    if ((in_reach && !is_claimed(engine, tiles_[index], index)) || fight_.windup(index).has_value()) {
       stand_still(engine, index);
       return;
     }
@@ -598,7 +668,7 @@ namespace corundum::gameplay::combat {
 
   std::optional<entities::EntityId> Battle::fighting_entity(const rules::CombatContext &context,
                                                             std::size_t index) const {
-    if (!entities_[index] || !encounter_.can_act(context, index))
+    if (!entities_[index] || !fight_.can_act(context, index))
       return std::nullopt;
     return entities_[index];
   }
@@ -613,7 +683,7 @@ namespace corundum::gameplay::combat {
         continue;
       if (tiles_[i] == tile)
         return true;
-      const std::vector<world::TileCoord> &path = encounter_.side(i) == Side::Hostile ? paths_[i] : engine.scene.path;
+      const std::vector<world::TileCoord> &path = is_hostile(i) ? paths_[i] : engine.scene.path;
       if (!path.empty() && path.back() == tile)
         return true;
     }
@@ -623,7 +693,7 @@ namespace corundum::gameplay::combat {
   void Battle::remove_fallen(Engine &engine, const rules::CombatContext &context) {
     for (std::size_t i = k_hostile; i < entities_.size(); ++i) {
       const std::optional<entities::EntityId> &entity = entities_[i];
-      if (!entity || encounter_.can_act(context, i))
+      if (!entity || fight_.can_act(context, i))
         continue;
       if (const std::optional<entities::Clip> &die = clips_[i].die)
         become_corpse(engine.scene.world, *entity, *die);
@@ -644,28 +714,30 @@ namespace corundum::gameplay::combat {
 
   void Battle::play_attack_clip(entities::World &world, std::size_t index) {
     const std::optional<entities::Clip> &attack = clips_[index].attack;
-    const std::optional<std::size_t> target = encounter_.target_of(index);
+    const std::optional<std::size_t> target = target_of(index);
     const std::optional<entities::EntityId> &entity = entities_[index];
-    if (!attack || !target || !entity || !encounter_.is_winding_up_at_enemy(index))
+    const std::optional<rules::WindUp> windup = fight_.windup(index);
+    const bool is_attack_winding_up = windup && windup->is_attack;
+    if (!attack || !target || !entity || !is_attack_winding_up)
       return;
 
     turn_toward(world, *entity, tiles_[index], tiles_[*target]);
 
     entities::Clip timed = *attack;
-    const float clip_seconds = k_clip_seconds_per_windup_second * encounter_.windup_seconds(index);
+    const float clip_seconds = k_clip_seconds_per_windup_second * windup->seconds_left;
     timed.frame_duration = clip_seconds / static_cast<float>(std::ranges::max(attack->frame_counts));
     play(world, *entity, timed);
   }
 
   void Battle::play_hurt_clips(entities::World &world, const rules::CombatContext &context) {
     for (std::size_t i = 0; i < entities_.size(); ++i) {
-      const int health = encounter_.health(context, i).current;
+      const int health = fight_.health(context, i).current;
       const bool was_hurt = health < healths_[i];
       healths_[i] = health;
 
       const std::optional<entities::EntityId> &entity = entities_[i];
       const std::optional<entities::Clip> &hurt = clips_[i].hurt;
-      if (!was_hurt || !entity || !hurt || !is_fighting(context, i) || encounter_.phase(i) == Phase::WindUp)
+      if (!was_hurt || !entity || !hurt || !is_fighting(context, i) || fight_.windup(i).has_value())
         continue;
       play(world, *entity, *hurt);
     }
@@ -674,14 +746,14 @@ namespace corundum::gameplay::combat {
   void Battle::play_protagonist_death(Engine &engine, const rules::CombatContext &context) {
     const std::optional<entities::Clip> &die = clips_[k_protagonist].die;
     const std::optional<entities::EntityId> &protagonist = entities_[k_protagonist];
-    if (die && protagonist && !encounter_.can_act(context, k_protagonist))
+    if (die && protagonist && !fight_.can_act(context, k_protagonist))
       play(engine.scene.world, *protagonist, *die);
   }
 
-  std::optional<Outcome> Battle::finished_outcome(const Engine &engine) const {
-    const std::optional<Outcome> outcome = encounter_.outcome();
+  std::optional<rules::Outcome> Battle::finished_outcome(const Engine &engine) const {
+    const std::optional<rules::Outcome> outcome = fight_.outcome();
     const std::optional<entities::EntityId> &protagonist = entities_[k_protagonist];
-    if (outcome != Outcome::Lost || !protagonist)
+    if (outcome != rules::Outcome::Lost || !protagonist)
       return outcome;
     const entities::ClipTable &clip_table = engine.scene.world.clips;
     const bool has_death_clip =
@@ -697,7 +769,7 @@ namespace corundum::gameplay::combat {
   }
 
   void Battle::stand_still(Engine &engine, std::size_t index) {
-    std::vector<world::TileCoord> &path = encounter_.side(index) == Side::Hostile ? paths_[index] : engine.scene.path;
+    std::vector<world::TileCoord> &path = is_hostile(index) ? paths_[index] : engine.scene.path;
     path.clear();
     planned_for_[index].reset();
   }
@@ -706,11 +778,11 @@ namespace corundum::gameplay::combat {
                                            entities::EntityId mover_entity, std::size_t target_index) {
     if (map.walkability == nullptr)
       return ApproachOutcome::NoMap;
-    std::vector<world::TileCoord> &path = encounter_.side(mover) == Side::Hostile ? paths_[mover] : engine.scene.path;
+    std::vector<world::TileCoord> &path = is_hostile(mover) ? paths_[mover] : engine.scene.path;
 
     const world::TileCoord target_tile = tiles_[target_index];
     const std::vector<world::TileCoord> candidates =
-        approach_candidates(target_tile, encounter_.reach_tiles(), tiles_[mover]);
+        approach_candidates(target_tile, fight_.reach_tiles, tiles_[mover]);
 
     bool skipped = false;
     for (const world::TileCoord &candidate : candidates) {
@@ -735,7 +807,7 @@ namespace corundum::gameplay::combat {
     auto &transforms = engine.scene.world.transforms;
     for (std::size_t i = 0; i < entities_.size(); ++i) {
       const std::optional<entities::EntityId> &entity = entities_[i];
-      if (!entity || encounter_.side(i) != Side::Hostile || !is_fighting(context, i))
+      if (!entity || !is_hostile(i) || !is_fighting(context, i))
         continue;
       physics::follow_path(transforms, *entity, paths_[i], engine.cfg.player_speed, iso, engine.timer.target_dt);
     }
@@ -752,7 +824,7 @@ namespace corundum::gameplay::combat {
     auto &transforms = engine.scene.world.transforms;
     for (std::size_t i = 0; i < entities_.size(); ++i) {
       const std::optional<entities::EntityId> &entity = entities_[i];
-      if (encounter_.side(i) != Side::Hostile || !entity)
+      if (!is_hostile(i) || !entity)
         continue;
       const std::uint32_t slot = transforms.dense_index(*entity);
       transforms.dc[slot] = 0.f;

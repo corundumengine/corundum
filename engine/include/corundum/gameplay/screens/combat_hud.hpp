@@ -26,7 +26,7 @@ namespace corundum::gameplay::screens {
 
     bool is_target{}; ///< The fight's chosen hostile; its name draws in the selected colour.
 
-    std::string name{}; ///< Copied from CombatantSpec::name when the fight starts.
+    std::string name{}; ///< Copied from rules::Fight::names when the fight starts.
   };
 
   /** @brief One command-bar slot: the actions that press it, and what it does. */

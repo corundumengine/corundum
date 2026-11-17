@@ -4,6 +4,8 @@
 #pragma once
 #include <corundum/gameplay/rules/rules.hpp>
 
+#include "gameplay/rules/flat_timeline.hpp"
+
 #include <algorithm>
 #include <expected>
 #include <format>
@@ -43,10 +45,8 @@ namespace corundum::test {
   /// A creature, named by its id, starts at 0 beats with 2 Health in its state and has no
   /// commands. Reach is 1 and every wind-up 20 beats. Every attack lands for 1, reporting
   /// "<attacker> hits <target>". The creature id "missing" fails to join.
-  inline gameplay::rules::CombatRules make_flat_combat_rules() {
+  inline CombatRules make_flat_combat_rules() {
     using gameplay::rules::CombatContext;
-    using gameplay::rules::Combatant;
-    using gameplay::rules::CombatantSpec;
     using gameplay::rules::CommandOption;
     const auto name_of = [](const Combatant &combatant) { return combatant.creature.value_or("hero"); };
     const auto health_of = [](const CombatContext &context, const Combatant &combatant) {
@@ -68,7 +68,7 @@ namespace corundum::test {
           {.id = "salve", .is_available = true, .label = "Salve"},
       };
     };
-    return gameplay::rules::CombatRules{
+    return CombatRules{
         .command_point_beats = 100,
         .reach_tiles = 1,
         .seconds_per_tick = 1.f / 60.f,
