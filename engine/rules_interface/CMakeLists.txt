@@ -12,6 +12,6 @@ target_compile_features(corundum_rules_interface INTERFACE cxx_std_23)
 
 # Compiles the headers with nothing but this target on the include path, so a header that includes
 # anything outside its root fails every build that adds corundum, a ruleset's standalone one too.
-add_library(corundum_rules_interface_self_contained OBJECT self_contained.cpp)
-target_link_libraries(corundum_rules_interface_self_contained PRIVATE corundum::rules_interface)
-corundum_enable_warnings(corundum_rules_interface_self_contained)
+add_library(corundum_rules_interface_standalone_header_check OBJECT standalone_header_check.cpp)
+target_link_libraries(corundum_rules_interface_standalone_header_check PRIVATE corundum::rules_interface)
+corundum_enable_warnings(corundum_rules_interface_standalone_header_check)
