@@ -5,6 +5,11 @@ project(
   LANGUAGES CXX
 )
 
+# Corundum uses no C++ modules. Without this, CMake runs clang-scan-deps on every C++20 source and,
+# from CMake 4.5, builds an `import std` target from the standard library's modules metadata, which
+# fails configure with apt.llvm.org's libc++ packages (the metadata yields no usable source path).
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 # The rules interface needs no dependency, toolchain probe or ObjC++, so it comes first. A
 # ruleset's standalone build (CORUNDUM_RULES_INTERFACE_ONLY) stops right after it.
 option(CORUNDUM_RULES_INTERFACE_ONLY "Define only corundum::rules_interface, for a ruleset's standalone build" OFF)
