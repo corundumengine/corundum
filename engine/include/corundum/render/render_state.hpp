@@ -150,7 +150,7 @@ namespace corundum::render {
     std::array<float, entities::k_max_entities> row{};
   };
 
-  /** @brief All mutable rendering state, grouped by lifetime tier (see AGENTS.md, Lifetime tiers). */
+  /** @brief All mutable rendering state, grouped by lifetime tier. */
   struct RenderState {
     /// Area tier: replaced whole by load_map()/load_world(), reset by unload_world().
     Area area{};

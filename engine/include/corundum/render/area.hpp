@@ -22,8 +22,7 @@ namespace corundum::world {
   struct Scene;
 }
 
-/// Area residency: the only functions that load, stream or unload the area's tilemaps and
-/// textures (AGENTS.md, "The render layer owns world data").
+/// Area residency: the only functions that load, stream or unload the area's tilemaps and textures.
 namespace corundum::render {
 
   /** @brief Unload the current area: release its textures, reset the area to none and return to
