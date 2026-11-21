@@ -633,6 +633,72 @@ TEST_CASE("clip: a clip started over another keeps the sheet to return to") {
   CHECK_EQ(f.clips.end_of(f.player), corundum::entities::ClipEnd::Hold);
 }
 
+TEST_CASE("clip: stop_clip returns the entity to the sheet the clip interrupted") {
+  Fixture f;
+  f.facings.insert(f.player, corundum::core::Direction::West);
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Hold));
+  run_clip_steps(f, 5);
+  REQUIRE(f.clips.has_finished(f.player));
+
+  corundum::animation::stop_clip(f.sprites, f.animations, f.facings, f.clips, f.player);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), 0);
+  CHECK_EQ(f.sprites.anim_id_ref(f.player), corundum::sprites::AnimId::West);
+  CHECK_EQ(f.animations.frame_count(f.player, corundum::sprites::AnimId::West), 4);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 0);
+  CHECK_EQ(f.animations.timer_ref(f.player), 0.f);
+  CHECK_FALSE(f.clips.has(f.player));
+}
+
+TEST_CASE("clip: stop_clip with no clip row is a no-op") {
+  Fixture f;
+  std::array<uint8_t, corundum::sprites::k_num_anim_ids> sheet_counts{};
+  sheet_counts.fill(6);
+  f.animations.set_frame_counts(f.player, sheet_counts);
+  f.animations.timer_ref(f.player) = 0.05f;
+  f.sprites.sprite_id_ref(f.player) = corundum::sprites::SpriteId{5};
+  f.sprites.anim_id_ref(f.player) = corundum::sprites::AnimId::North;
+  f.sprites.frame_index_ref(f.player) = 2;
+
+  corundum::animation::stop_clip(f.sprites, f.animations, f.facings, f.clips, f.player);
+
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), corundum::sprites::SpriteId{5});
+  CHECK_EQ(f.sprites.anim_id_ref(f.player), corundum::sprites::AnimId::North);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 2);
+  CHECK_EQ(f.animations.timer_ref(f.player), 0.05f);
+  CHECK_EQ(f.animations.frame_count(f.player, corundum::sprites::AnimId::North), 6);
+  CHECK_FALSE(f.clips.has(f.player));
+}
+
+TEST_CASE("clip: stop_clip mid-play hands the entity back to update") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Resume));
+  run_clip_steps(f, 1);
+  REQUIRE(f.sprites.frame_index_ref(f.player) == 1);
+
+  corundum::animation::stop_clip(f.sprites, f.animations, f.facings, f.clips, f.player);
+
+  CHECK_FALSE(f.clips.has(f.player));
+  CHECK_EQ(f.sprites.sprite_id_ref(f.player), 0);
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 0);
+
+  corundum::animation::update(f.sprites, f.transforms, f.animations, f.facings, f.motion_sprites, f.clips, k_iso,
+                              k_reference_speed, /*dt=*/0.2f); // the restored sheet's frame_duration
+
+  CHECK_EQ(f.sprites.frame_index_ref(f.player), 1);
+}
+
+TEST_CASE("clip: stop_clip on a finished Remove clip cancels the removal") {
+  Fixture f;
+  play(f, f.player, make_clip(corundum::entities::ClipEnd::Remove));
+  run_clip_steps(f, 3);
+  REQUIRE(f.clips.has_finished(f.player));
+
+  corundum::animation::stop_clip(f.sprites, f.animations, f.facings, f.clips, f.player);
+
+  CHECK_FALSE(f.clips.has(f.player)); // nothing is left for mark_finished_clips_for_deletion to queue
+}
+
 TEST_CASE("clip: update_clips with no clips does nothing") {
   Fixture f;
 

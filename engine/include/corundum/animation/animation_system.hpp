@@ -49,14 +49,27 @@ namespace corundum::animation {
               corundum::core::math::IsometricParams iso, float reference_speed, float dt) noexcept;
 
   /** @brief Start @p clip on @p e, on the frame facing the way @p e faces. A clip started over
-   *  another keeps the sheet that one will return to.
-   *  @pre @p e has sprite and animation rows, and @p clip has frames for @p e's facing and a positive
-   *       frame_duration.
-   *  @post A ClipEnd::Hold clip stays on its last frame for good, so a game that carries on after
-   *        one (no Game Over) needs a way to end it; none exists yet. */
+   *  another keeps the sheet that one will return to. A ClipEnd::Hold clip stays on its last frame
+   *  until stop_clip.
+   *  @pre @p e has transform, sprite and animation rows, and @p clip has a positive frame_duration. */
   void play_clip(corundum::entities::SpriteTable &sprites, corundum::entities::AnimationTable &animations,
                  const corundum::entities::FacingTable &facings, corundum::entities::ClipTable &clips,
                  corundum::entities::EntityId e, const corundum::entities::Clip &clip) noexcept;
+
+  /** @brief End @p e's clip now, putting it back on the sheet the clip interrupted.
+   *
+   *  A finished ClipEnd::Hold clip leaves its last frame this way, and a game can end any clip
+   *  early instead of waiting for the movement that ends a Resume one.
+   *  @param[in,out] sprites    sprite_id, anim_id and frame_index are restored.
+   *  @param[in,out] animations frame counts and timer are restored.
+   *  @param[in]     facings    selects the anim_id of the restored sheet.
+   *  @param[in,out] clips      @p e's row is removed.
+   *  @pre @p e has sprite and animation rows when it has a clip row; play_clip established them.
+   *  @note An entity with no clip row is a no-op. Ending a ClipEnd::Remove clip cancels the removal
+   *        it would have caused, keeping the entity. */
+  void stop_clip(corundum::entities::SpriteTable &sprites, corundum::entities::AnimationTable &animations,
+                 const corundum::entities::FacingTable &facings, corundum::entities::ClipTable &clips,
+                 corundum::entities::EntityId e) noexcept;
 
   /** @brief Advance every playing clip by one fixed timestep, at its own frame_duration.
    *
@@ -70,6 +83,8 @@ namespace corundum::animation {
    *  @param[in]     facings    the direction each clip plays.
    *  @param[in,out] clips      rows are marked finished, or removed when a Resume clip ends.
    *  @param[in]     dt         fixed timestep in seconds.
+   *  @pre Clip rows come from play_clip, so each entity has its transform, sprite and animation
+   *       rows.
    *  Performance: O(n) over playing clips. No heap allocation. */
   void update_clips(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,
                     corundum::entities::AnimationTable &animations, const corundum::entities::FacingTable &facings,

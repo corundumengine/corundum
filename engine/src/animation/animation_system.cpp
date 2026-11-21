@@ -279,6 +279,12 @@ namespace corundum::animation {
     sprites.anim_id_ref(e) = pick_target_anim(animations, facings, e, /*moving=*/false, Direction::South);
   }
 
+  void stop_clip(SpriteTable &sprites, AnimationTable &animations, const FacingTable &facings, ClipTable &clips,
+                 EntityId e) noexcept {
+    if (clips.has(e))
+      resume_after_clip(sprites, animations, facings, clips, e);
+  }
+
   void update_clips(SpriteTable &sprites, const TransformTable &transforms, AnimationTable &animations,
                     const FacingTable &facings, ClipTable &clips, float dt) noexcept {
     // Backwards: ending a Resume clip swaps the last row, already processed, into this one.
