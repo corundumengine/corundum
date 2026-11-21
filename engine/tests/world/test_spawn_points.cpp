@@ -69,16 +69,12 @@ namespace {
 using corundum::test::initialize_with_world;
 using corundum::world::load_spawn_points;
 
-// ── Missing file ──────────────────────────────────────────────────────────────
-
 TEST_CASE("load_spawn_points - missing file returns empty SpawnPoints") {
   const auto result = load_spawn_points(disk(), "/nonexistent/path/spawn.json");
   REQUIRE(result.has_value());
   CHECK(result->actors.empty());
   CHECK(!result->player.has_value());
 }
-
-// ── Actors only (no player block) ──────────────────────────────────────────────
 
 TEST_CASE("load_spawn_points - actors only, no player block") {
   const auto dir = temp_dir("actors_only");
@@ -99,8 +95,6 @@ TEST_CASE("load_spawn_points - actors only, no player block") {
   CHECK(result->actors[1].dialogue_ref == "greeting");
   CHECK(result->actors[1].facing == "east");
 }
-
-// ── Player block ───────────────────────────────────────────────────────────────
 
 TEST_CASE("load_spawn_points - with player block") {
   const auto dir = temp_dir("with_player");
@@ -180,8 +174,6 @@ TEST_CASE("load_spawn_points - not an object returns error") {
   CHECK_EQ(result.error(), std::format("Spawn points '{}' must be a JSON object", p.string()));
 }
 
-// ── Actor id parsing ───────────────────────────────────────────────────────────
-
 TEST_CASE("load_spawn_points - parses the actor id field") {
   const auto dir = temp_dir("actor_id");
   const auto p = dir / "spawn.json";
@@ -212,6 +204,40 @@ TEST_CASE("load_spawn_points - duplicate actor id returns error") {
   CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[1] duplicate actor id 'brann'", p.string()));
 }
 
+TEST_CASE("load_spawn_points - an actor id longer than 127 characters returns error") {
+  const auto dir = temp_dir("actor_id_too_long");
+  const auto p = dir / "spawn.json";
+  const std::string too_long_id(128, 'a');
+  write_file(p,
+             std::format(R"({{ "actors": [{{ "col": 2, "row": 3, "sprite": "npc1", "id": "{}" }}] }})", too_long_id));
+  const auto result = load_spawn_points(disk(), p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[0] 'id' is longer than 127 characters", p.string()));
+}
+
+TEST_CASE("load_spawn_points - an actor id of exactly 127 characters loads whole") {
+  const auto dir = temp_dir("actor_id_longest");
+  const auto p = dir / "spawn.json";
+  const std::string longest_id(127, 'a');
+  write_file(p, std::format(R"({{ "actors": [{{ "col": 2, "row": 3, "sprite": "npc1", "id": "{}" }}] }})", longest_id));
+  const auto result = load_spawn_points(disk(), p);
+  REQUIRE(result.has_value());
+  REQUIRE_EQ(result->actors.size(), 1u);
+  CHECK_EQ(result->actors[0].id, longest_id);
+}
+
+TEST_CASE("load_spawn_points - a dialogue id longer than 127 characters returns error") {
+  const auto dir = temp_dir("dialogue_id_too_long");
+  const auto p = dir / "spawn.json";
+  const std::string too_long_id(128, 'd');
+  write_file(
+      p, std::format(R"({{ "actors": [{{ "col": 2, "row": 3, "sprite": "npc1", "dialogue": "{}" }}] }})", too_long_id));
+  const auto result = load_spawn_points(disk(), p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(),
+           std::format("Spawn points '{}' actors[0] 'dialogue' is longer than 127 characters", p.string()));
+}
+
 TEST_CASE("load_spawn_points - invalid facing returns error") {
   const auto dir = temp_dir("bad_facing");
   const auto p = dir / "spawn.json";
@@ -233,8 +259,6 @@ TEST_CASE("load_spawn_points - facing has wrong type returns error") {
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::format("Spawn points '{}' actors[0] 'facing' has wrong type", p.string()));
 }
-
-// ── find_actor wiring ─────────────────────────────────────────────────────────
 
 TEST_CASE("find_actor - world boot populates actor_ids from spawn points") {
   corundum::Engine engine{};
@@ -268,8 +292,6 @@ TEST_CASE("find_actor - world boot populates actor_ids from spawn points") {
 
   engine.cleanup();
 }
-
-// ── spawn_world / sync_chunk_actors ─────────────────────────────────────────────
 
 namespace {
 

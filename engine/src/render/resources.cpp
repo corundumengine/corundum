@@ -195,7 +195,8 @@ namespace corundum::render {
 
   std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSource &content,
                                                   corundum::platform::Renderer &r, render::RenderState &state,
-                                                  std::string_view path) {
+                                                  const corundum::core::ResourcePaths &paths) {
+    const std::string &path = paths.ui_borders_file;
     auto j_result = corundum::core::read_json(content, path);
     if (!j_result) {
       corundum::detail::warn_log("[renderer] WARNING: could not load '{}': {}", path, j_result.error());

@@ -4,6 +4,7 @@
 #pragma once
 #include <sokol_gfx.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -20,7 +21,7 @@ namespace corundum::platform::glfw {
    * @note Sokol reports a rejected upload as a non-zero handle in the `FAILED` state, so the failure is
    *       folded into an invalid handle rather than left for every caller to query.
    */
-  [[nodiscard]] inline sg_image make_rgba8_image(std::span<const uint8_t> pixels, int width, int height,
+  [[nodiscard]] inline sg_image make_rgba8_image(std::span<const std::byte> pixels, int width, int height,
                                                  const char *label) noexcept {
     if (width <= 0 || height <= 0 || pixels.size() < rgba8_byte_count(width, height))
       return {};

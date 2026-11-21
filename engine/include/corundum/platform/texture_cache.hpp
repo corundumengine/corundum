@@ -6,6 +6,7 @@
 #include <expected>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -67,14 +68,13 @@ namespace corundum::platform {
 
     /** @brief Create an RGBA8 texture from a raw pixel buffer.
      *
-     * @param[in] width   Width in pixels; must be non-zero.
-     * @param[in] height  Height in pixels; must be non-zero.
-     * @param[in] rgba    @p width * @p height RGBA8 pixels, borrowed for the call only.
-     * @param[in] wrap    Sampler wrap mode (clamp by default).
-     * @return TextureInfo on success, or std::unexpected with an error message.
+     * @param[in] rgba  @p width * @p height packed RGBA8 pixels, row-major; borrowed for the call only.
+     * @param[in] wrap  Sampler wrap mode (clamp by default).
+     * @return TextureInfo on success, or std::unexpected when a size is zero or out of range, or when
+     *         @p rgba does not hold exactly @p width * @p height pixels.
      */
-    [[nodiscard]] std::expected<TextureInfo, std::string> create(unsigned width, unsigned height, const void *rgba,
-                                                                 WrapMode wrap = WrapMode::Clamp);
+    [[nodiscard]] std::expected<TextureInfo, std::string>
+    create(unsigned width, unsigned height, std::span<const std::uint32_t> rgba, WrapMode wrap = WrapMode::Clamp);
 
     /** @brief Destroy a texture and release its GPU resources.
      *

@@ -106,7 +106,8 @@ namespace corundum {
           return std::unexpected(std::move(result).error());
 
         std::expected<void, std::string> ui_result;
-        ui_result = render::load_ui_assets(engine_->content_source(), *engine_->renderer, engine_->render);
+        ui_result = render::load_ui_assets(engine_->content_source(), *engine_->renderer, engine_->render,
+                                           engine_->cfg.paths);
         if (!ui_result)
           return std::unexpected(ui_result.error());
         return {};

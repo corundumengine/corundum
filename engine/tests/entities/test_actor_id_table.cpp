@@ -77,14 +77,14 @@ TEST_CASE("ActorIdTable swap-and-pop preserves the surviving row") {
   mgr.destroy(e3);
 }
 
-TEST_CASE("ActorIdTable truncates over-long ids") {
+TEST_CASE("ActorIdTable stores an id of k_max_id_len - 1 characters whole") {
   EntityManager mgr;
   ActorIdTable table;
 
   const EntityId e = mgr.create();
-  const std::string long_id(ActorIdTable::k_max_id_len * 2, 'x');
-  table.insert(e, long_id);
-  CHECK(table.get_actor_id(e).size() == ActorIdTable::k_max_id_len - 1);
+  const std::string longest_id(ActorIdTable::k_max_id_len - 1, 'x');
+  table.insert(e, longest_id);
+  CHECK_EQ(table.get_actor_id(e), longest_id);
   table.remove(e);
 
   mgr.destroy(e);

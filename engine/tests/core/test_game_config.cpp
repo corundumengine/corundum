@@ -40,8 +40,6 @@ using corundum::core::game_title;
 using corundum::core::k_default_game_title;
 using corundum::core::load_game_config;
 
-// ── File errors ──────────────────────────────────────────────────────────────
-
 TEST_CASE("load_game_config - missing file returns error") {
   const auto result = load_game_config(disk(), "/nonexistent/path/game.json");
   REQUIRE_FALSE(result.has_value());
@@ -131,8 +129,6 @@ TEST_CASE("load_game_config - full valid JSON loads all fields") {
   CHECK(cfg.dialogue_render.panel_height_frac == doctest::Approx(0.4f));
 }
 
-// ── Partial JSON ─────────────────────────────────────────────────────────────
-
 TEST_CASE("load_game_config - partial JSON overrides only specified fields") {
   const auto dir = temp_dir("partial");
   const auto p = dir / "game.json";
@@ -146,8 +142,6 @@ TEST_CASE("load_game_config - partial JSON overrides only specified fields") {
   CHECK(cfg.character_scale == doctest::Approx(2.f));   // default
   CHECK(cfg.elevation_step_px == doctest::Approx(4.f)); // default
 }
-
-// ── Numeric validation ────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config - win_w <= 0 returns error") {
   const auto dir = temp_dir("win_w_zero");
@@ -266,8 +260,6 @@ TEST_CASE("load_game_config - min_zoom == max_zoom is allowed") {
   CHECK(result->min_zoom == doctest::Approx(2.0));
   CHECK(result->max_zoom == doctest::Approx(2.0));
 }
-
-// ── String validation ─────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config - absent fonts block leaves families unset") {
   const auto dir = temp_dir("absent_fonts");
@@ -434,8 +426,6 @@ TEST_CASE("load_game_config - empty dialogue_dir returns error") {
   CHECK_EQ(result.error(), std::format("game.json 'dialogue_dir' must not be empty: {}", p.string()));
 }
 
-// ── panel_height_frac ─────────────────────────────────────────────────────────
-
 TEST_CASE("load_game_config - panel_height_frac = 0 returns error") {
   const auto dir = temp_dir("phf_zero");
   const auto p = dir / "game.json";
@@ -465,8 +455,6 @@ TEST_CASE("load_game_config - panel_height_frac > 1 returns error") {
   CHECK_EQ(result.error(),
            std::format("game.json 'dialogue_render.panel_height_frac' must be in (0, 1): {}", p.string()));
 }
-
-// ── dialogue_render sub-object ────────────────────────────────────────────────
 
 TEST_CASE("load_game_config - absent dialogue_render uses defaults") {
   const auto dir = temp_dir("no_dr");
@@ -500,8 +488,6 @@ TEST_CASE("load_game_config - dialogue_render not an object returns error") {
   CHECK_EQ(result.error(), std::format("game.json 'dialogue_render' must be an object: {}", p.string()));
 }
 
-// ── Default paths ──────────────────────────────────────────────────────────────
-
 TEST_CASE("load_game_config - quests_dir defaults to data/quests when absent") {
   const auto dir = temp_dir("default_quests");
   const auto p = dir / "game.json";
@@ -524,9 +510,26 @@ TEST_CASE("load_game_config - resource directories default to the standard proje
   CHECK(cfg.paths.spawn_points_dir == "data/spawn_points");
   CHECK(cfg.paths.portals_dir == "data/portals");
   CHECK(cfg.paths.dialogue_dir == "data/dialogue");
+  CHECK_EQ(cfg.paths.ui_borders_file, "data/sprite_sheets/ui/borders.json");
 }
 
-// ── Forward compatibility ─────────────────────────────────────────────────────
+TEST_CASE("load_game_config - ui_borders_file overrides the default") {
+  const auto dir = temp_dir("ui_borders_file");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"ui_borders_file": "art/ui/frame.json"})");
+  const auto result = load_game_config(disk(), p);
+  REQUIRE(result.has_value());
+  CHECK_EQ(result->paths.ui_borders_file, "art/ui/frame.json");
+}
+
+TEST_CASE("load_game_config - empty ui_borders_file returns error") {
+  const auto dir = temp_dir("empty_ui_borders_file");
+  const auto p = dir / "game.json";
+  write_file(p, R"({"ui_borders_file": ""})");
+  const auto result = load_game_config(disk(), p);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_EQ(result.error(), std::format("game.json 'ui_borders_file' must not be empty: {}", p.string()));
+}
 
 TEST_CASE("load_game_config - unknown top-level key is silently ignored") {
   const auto dir = temp_dir("unknown_key");
@@ -537,8 +540,6 @@ TEST_CASE("load_game_config - unknown top-level key is silently ignored") {
   const auto &cfg = *result;
   CHECK_EQ(cfg.win_w, 1024u);
 }
-
-// ── Player block ──────────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config - absent player block uses defaults") {
   const auto dir = temp_dir("no_player");
@@ -642,8 +643,6 @@ TEST_CASE("load_game_config - player col wrong type returns error") {
   CHECK_EQ(result.error(), std::format("game.json 'player.col' has wrong type: {}", p.string()));
 }
 
-// ── window_mode ───────────────────────────────────────────────────────────────
-
 TEST_CASE("load_game_config - window_mode fullscreen parses") {
   const auto dir = temp_dir("window_mode_fullscreen");
   const auto p = dir / "game.json";
@@ -680,8 +679,6 @@ TEST_CASE("load_game_config - non-string window_mode returns error") {
   CHECK(result.error().find("window_mode") != std::string::npos);
 }
 
-// ── rng_seed ──────────────────────────────────────────────────────────────────
-
 TEST_CASE("load_game_config - rng_seed parses as an unsigned integer") {
   const auto dir = temp_dir("rng_seed");
   const auto p = dir / "game.json";
@@ -709,8 +706,6 @@ TEST_CASE("load_game_config - non-integer rng_seed returns an error") {
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("rng_seed") != std::string::npos);
 }
-
-// ── starting_flags ────────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config - starting_flags parses integer values") {
   const auto dir = temp_dir("starting_flags");
@@ -750,8 +745,6 @@ TEST_CASE("load_game_config - non-integer starting_flags value returns an error"
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("starting_flags.gold") != std::string::npos);
 }
-
-// ── show_title ────────────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config - show_title defaults to true") {
   const auto dir = temp_dir("show_title_default");
@@ -825,8 +818,6 @@ TEST_CASE("load_game_config - an empty splash_images entry returns an error") {
   CHECK(result.error().find("splash_images") != std::string::npos);
 }
 
-// ── credits_file ─────────────────────────────────────────────────────────────
-
 TEST_CASE("load_game_config - credits_file defaults to empty and parses") {
   const auto dir = temp_dir("credits_file");
   const auto p = dir / "game.json";
@@ -841,8 +832,6 @@ TEST_CASE("load_game_config - credits_file defaults to empty and parses") {
   REQUIRE(parsed.has_value());
   CHECK(parsed->paths.credits_file == "data/credits.json");
 }
-
-// ── title ─────────────────────────────────────────────────────────────────────
 
 TEST_CASE("load_game_config - the game title is separate from the window title") {
   const auto dir = temp_dir("title_override");

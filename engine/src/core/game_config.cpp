@@ -80,6 +80,118 @@ namespace corundum::core {
       return v;
     }
 
+    /// Assign @p parsed to @p target, or forward the error that stopped it.
+    template <typename T> std::expected<void, std::string> read_into(std::expected<T, std::string> parsed, T &target) {
+      if (!parsed)
+        return std::unexpected(std::move(parsed).error());
+      target = std::move(*parsed);
+      return {};
+    }
+
+    /// Read @p key from the @p section object as a number, or @p default_val when absent.
+    template <typename T>
+    std::expected<T, std::string> read_section_number(const json &section, std::string_view section_name,
+                                                      std::string_view key, T default_val, const fs::path &path) {
+      if (!section.contains(key))
+        return default_val;
+      try {
+        return section.at(key).get<T>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json '{}.{}' has wrong type: {}", section_name, key, path.string()));
+      }
+    }
+
+    /// Read @p key from the @p section object as a non-empty string, or @p default_val when absent.
+    std::expected<std::string, std::string> read_section_string(const json &section, std::string_view section_name,
+                                                                std::string_view key, const std::string &default_val,
+                                                                const fs::path &path) {
+      if (!section.contains(key))
+        return default_val;
+      std::string value;
+      try {
+        value = section.at(key).get<std::string>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json '{}.{}' has wrong type: {}", section_name, key, path.string()));
+      }
+      if (value.empty())
+        return std::unexpected(
+            std::format("game.json '{}.{}' must not be empty: {}", section_name, key, path.string()));
+      return value;
+    }
+
+    /// Read @p key from the @p section object as a float >= 0, or @p default_val when absent.
+    std::expected<float, std::string> read_section_non_negative_float(const json &section,
+                                                                      std::string_view section_name,
+                                                                      std::string_view key, float default_val,
+                                                                      const fs::path &path) {
+      if (!section.contains(key))
+        return default_val;
+      float value{NAN};
+      try {
+        value = section.at(key).get<float>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json '{}.{}' has wrong type: {}", section_name, key, path.string()));
+      }
+      if (value < 0.f)
+        return std::unexpected(std::format("game.json '{}.{}' must be >= 0: {}", section_name, key, path.string()));
+      return value;
+    }
+
+    std::expected<unsigned, std::string> read_simulation_fps(const json &j, unsigned default_val,
+                                                             const fs::path &path) {
+      if (!j.contains("simulation_fps"))
+        return default_val;
+      unsigned frames_per_second{0};
+      try {
+        frames_per_second = j.at("simulation_fps").get<unsigned>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json 'simulation_fps' has wrong type: {}", path.string()));
+      }
+      if (frames_per_second == 0)
+        return std::unexpected(std::format("game.json 'simulation_fps' must be > 0: {}", path.string()));
+      if (frames_per_second > k_max_simulation_fps)
+        return std::unexpected(
+            std::format("game.json 'simulation_fps' must be <= {}: {}", k_max_simulation_fps, path.string()));
+      return frames_per_second;
+    }
+
+    std::expected<bool, std::string> read_bool_field(const json &j, std::string_view key, bool default_val,
+                                                     const fs::path &path) {
+      if (!j.contains(key))
+        return default_val;
+      try {
+        return j.at(key).get<bool>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json '{}' must be a boolean: {}", key, path.string()));
+      }
+    }
+
+    std::expected<WindowMode, std::string> read_window_mode(const json &j, WindowMode default_val,
+                                                            const fs::path &path) {
+      if (!j.contains("window_mode"))
+        return default_val;
+      const json &value = j.at("window_mode");
+      const std::optional<WindowMode> mode =
+          value.is_string() ? core::parse_window_mode(value.get<std::string>()) : std::nullopt;
+      if (!mode)
+        return std::unexpected(
+            std::format(R"(game.json 'window_mode' must be "windowed" or "fullscreen": {})", path.string()));
+      return *mode;
+    }
+
+    /// Assign the string at @p key to @p target when present; @p target keeps its default otherwise.
+    std::expected<void, std::string> read_optional_string_field(const json &j, std::string_view key,
+                                                                std::string &target, const fs::path &path) {
+      if (!j.contains(key))
+        return {};
+      try {
+        target = j.at(key).get<std::string>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json '{}' has wrong type: {}", key, path.string()));
+      }
+      return {};
+    }
+
     std::expected<DialogueRenderConfig, std::string> parse_dialogue_render(const json &j, const fs::path &path) {
       DialogueRenderConfig dr;
       if (!j.contains("dialogue_render"))
@@ -89,73 +201,43 @@ namespace corundum::core {
       if (!sub.is_object())
         return std::unexpected(std::format("game.json 'dialogue_render' must be an object: {}", path.string()));
 
-      const auto get_uint = [&](const std::string &key, unsigned default_val) -> std::expected<unsigned, std::string> {
-        if (!sub.contains(key))
-          return default_val;
-        unsigned v{0};
-        try {
-          v = sub.at(key).get<unsigned>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'dialogue_render.{}' has wrong type: {}", key, path.string()));
-        }
-        return v;
-      };
-
-      const auto get_pos_float = [&](const std::string &key, float default_val) -> std::expected<float, std::string> {
-        if (!sub.contains(key))
-          return default_val;
-        float v{NAN};
-        try {
-          v = sub.at(key).get<float>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'dialogue_render.{}' has wrong type: {}", key, path.string()));
-        }
-        return v;
-      };
-
-      {
-        auto res = get_uint("font_size_speaker", dr.font_size_speaker);
-        if (!res)
-          return std::unexpected(res.error());
-        dr.font_size_speaker = *res;
-      }
-      {
-        auto res = get_uint("font_size_body", dr.font_size_body);
-        if (!res)
-          return std::unexpected(res.error());
-        dr.font_size_body = *res;
-      }
-      {
-        auto res = get_uint("font_size_prompt", dr.font_size_prompt);
-        if (!res)
-          return std::unexpected(res.error());
-        dr.font_size_prompt = *res;
-      }
-      {
-        auto res = get_pos_float("margin", dr.margin);
-        if (!res)
-          return std::unexpected(res.error());
-        dr.margin = *res;
-      }
-      {
-        auto res = get_pos_float("line_spacing", dr.line_spacing);
-        if (!res)
-          return std::unexpected(res.error());
-        dr.line_spacing = *res;
-      }
+      if (auto res = read_into(
+              read_section_number<unsigned>(sub, "dialogue_render", "font_size_speaker", dr.font_size_speaker, path),
+              dr.font_size_speaker);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(
+              read_section_number<unsigned>(sub, "dialogue_render", "font_size_body", dr.font_size_body, path),
+              dr.font_size_body);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(
+              read_section_number<unsigned>(sub, "dialogue_render", "font_size_prompt", dr.font_size_prompt, path),
+              dr.font_size_prompt);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res =
+              read_into(read_section_number<float>(sub, "dialogue_render", "margin", dr.margin, path), dr.margin);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res =
+              read_into(read_section_number<float>(sub, "dialogue_render", "line_spacing", dr.line_spacing, path),
+                        dr.line_spacing);
+          !res)
+        return std::unexpected(res.error());
 
       if (sub.contains("panel_height_frac")) {
-        float frac{NAN};
+        float fraction{NAN};
         try {
-          frac = sub.at("panel_height_frac").get<float>();
+          fraction = sub.at("panel_height_frac").get<float>();
         } catch (...) {
           return std::unexpected(
               std::format("game.json 'dialogue_render.panel_height_frac' has wrong type: {}", path.string()));
         }
-        if (frac <= 0.f || frac >= 1.f)
+        if (fraction <= 0.f || fraction >= 1.f)
           return std::unexpected(
               std::format("game.json 'dialogue_render.panel_height_frac' must be in (0, 1): {}", path.string()));
-        dr.panel_height_frac = frac;
+        dr.panel_height_frac = fraction;
       }
 
       return dr;
@@ -170,60 +252,16 @@ namespace corundum::core {
       if (!sub.is_object())
         return std::unexpected(std::format("game.json 'player' must be an object: {}", path.string()));
 
-      const auto get_str = [&](const std::string &key,
-                               const std::string &default_val) -> std::expected<std::string, std::string> {
-        if (!sub.contains(key))
-          return default_val;
-        std::string v;
-        try {
-          v = sub.at(key).get<std::string>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'player.{}' has wrong type: {}", key, path.string()));
-        }
-        if (v.empty())
-          return std::unexpected(std::format("game.json 'player.{}' must not be empty: {}", key, path.string()));
-        return v;
-      };
-
-      const auto get_non_neg_float = [&](const std::string &key,
-                                         float default_val) -> std::expected<float, std::string> {
-        if (!sub.contains(key))
-          return default_val;
-        float v{NAN};
-        try {
-          v = sub.at(key).get<float>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'player.{}' has wrong type: {}", key, path.string()));
-        }
-        if (v < 0.f)
-          return std::unexpected(std::format("game.json 'player.{}' must be >= 0: {}", key, path.string()));
-        return v;
-      };
-
-      {
-        auto res = get_str("walk_sprite", pc.walk_sprite);
-        if (!res)
-          return std::unexpected(res.error());
-        pc.walk_sprite = std::move(*res);
-      }
-      {
-        auto res = get_str("idle_sprite", pc.idle_sprite);
-        if (!res)
-          return std::unexpected(res.error());
-        pc.idle_sprite = std::move(*res);
-      }
-      {
-        auto res = get_non_neg_float("col", pc.col);
-        if (!res)
-          return std::unexpected(res.error());
-        pc.col = *res;
-      }
-      {
-        auto res = get_non_neg_float("row", pc.row);
-        if (!res)
-          return std::unexpected(res.error());
-        pc.row = *res;
-      }
+      if (auto res = read_into(read_section_string(sub, "player", "walk_sprite", pc.walk_sprite, path), pc.walk_sprite);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_section_string(sub, "player", "idle_sprite", pc.idle_sprite, path), pc.idle_sprite);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_section_non_negative_float(sub, "player", "col", pc.col, path), pc.col); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_section_non_negative_float(sub, "player", "row", pc.row, path), pc.row); !res)
+        return std::unexpected(res.error());
 
       return pc;
     }
@@ -257,113 +295,74 @@ namespace corundum::core {
     }
 
     std::expected<void, std::string> parse_window_settings(const json &j, GameConfig &cfg, const fs::path &path) {
-      {
-        auto res = get_positive_unsigned(j, "win_w", cfg.win_w, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.win_w = *res;
-      }
-      {
-        auto res = get_positive_unsigned(j, "win_h", cfg.win_h, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.win_h = *res;
-      }
-      if (j.contains("simulation_fps")) {
-        unsigned fr{0};
-        try {
-          fr = j.at("simulation_fps").get<unsigned>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'simulation_fps' has wrong type: {}", path.string()));
-        }
-        if (fr == 0)
-          return std::unexpected(std::format("game.json 'simulation_fps' must be > 0: {}", path.string()));
-        if (fr > k_max_simulation_fps)
-          return std::unexpected(
-              std::format("game.json 'simulation_fps' must be <= {}: {}", k_max_simulation_fps, path.string()));
-        cfg.simulation_fps = fr;
-      }
-      if (j.contains("vsync")) {
-        try {
-          cfg.vsync = j.at("vsync").get<bool>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'vsync' must be a boolean: {}", path.string()));
-        }
-      }
-      if (j.contains("window_mode")) {
-        const json &value = j.at("window_mode");
-        const std::optional<core::WindowMode> mode =
-            value.is_string() ? core::parse_window_mode(value.get<std::string>()) : std::nullopt;
-        if (!mode)
-          return std::unexpected(
-              std::format(R"(game.json 'window_mode' must be "windowed" or "fullscreen": {})", path.string()));
-        cfg.window_mode = *mode;
-      }
+      if (auto res = read_into(get_positive_unsigned(j, "win_w", cfg.win_w, path), cfg.win_w); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(get_positive_unsigned(j, "win_h", cfg.win_h, path), cfg.win_h); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_simulation_fps(j, cfg.simulation_fps, path), cfg.simulation_fps); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_bool_field(j, "vsync", cfg.vsync, path), cfg.vsync); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_window_mode(j, cfg.window_mode, path), cfg.window_mode); !res)
+        return std::unexpected(res.error());
       return {};
     }
 
     std::expected<void, std::string> parse_gameplay_settings(const json &j, GameConfig &cfg, const fs::path &path) {
-      {
-        auto res = get_positive_float(j, "interact_radius", cfg.interact_radius, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.interact_radius = *res;
-      }
-      {
-        auto res = get_positive_float(j, "player_speed", cfg.player_speed, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.player_speed = *res;
-      }
-      {
-        auto res = get_positive_float(j, "character_scale", cfg.character_scale, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.character_scale = *res;
-      }
-      {
-        auto res = get_positive_float(j, "tile_scale", cfg.tile_scale, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.tile_scale = *res;
-      }
-      {
-        auto res = get_positive_float(j, "elevation_step_px", cfg.elevation_step_px, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.elevation_step_px = *res;
-      }
-      {
-        auto res = get_positive_unsigned(j, "max_step_height", cfg.max_step_height, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.max_step_height = *res;
-      }
+      if (auto res =
+              read_into(get_positive_float(j, "interact_radius", cfg.interact_radius, path), cfg.interact_radius);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(get_positive_float(j, "player_speed", cfg.player_speed, path), cfg.player_speed); !res)
+        return std::unexpected(res.error());
+      if (auto res =
+              read_into(get_positive_float(j, "character_scale", cfg.character_scale, path), cfg.character_scale);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(get_positive_float(j, "tile_scale", cfg.tile_scale, path), cfg.tile_scale); !res)
+        return std::unexpected(res.error());
+      if (auto res =
+              read_into(get_positive_float(j, "elevation_step_px", cfg.elevation_step_px, path), cfg.elevation_step_px);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res =
+              read_into(get_positive_unsigned(j, "max_step_height", cfg.max_step_height, path), cfg.max_step_height);
+          !res)
+        return std::unexpected(res.error());
       return {};
     }
 
     std::expected<void, std::string> parse_zoom_settings(const json &j, GameConfig &cfg, const fs::path &path) {
-      {
-        auto res = get_positive_float(j, "min_zoom", cfg.min_zoom, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.min_zoom = *res;
-      }
-      {
-        auto res = get_positive_float(j, "max_zoom", cfg.max_zoom, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.max_zoom = *res;
-      }
-      {
-        auto res = get_positive_float(j, "default_zoom", cfg.default_zoom, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.default_zoom = *res;
-      }
+      if (auto res = read_into(get_positive_float(j, "min_zoom", cfg.min_zoom, path), cfg.min_zoom); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(get_positive_float(j, "max_zoom", cfg.max_zoom, path), cfg.max_zoom); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(get_positive_float(j, "default_zoom", cfg.default_zoom, path), cfg.default_zoom); !res)
+        return std::unexpected(res.error());
       if (cfg.min_zoom > cfg.max_zoom)
         return std::unexpected(std::format("game.json 'min_zoom' must be <= 'max_zoom': {}", path.string()));
       return {};
+    }
+
+    /// Read one style file name of a font family; an optional style may be absent.
+    std::expected<std::string, std::string> read_font_style(const json &family, std::string_view prefix,
+                                                            std::string_view style, bool required,
+                                                            const fs::path &path) {
+      const std::string key = std::format("{}.{}", prefix, style);
+      if (!family.contains(style)) {
+        if (required)
+          return std::unexpected(std::format("game.json '{}' is required: {}", key, path.string()));
+        return std::string{};
+      }
+      std::string value;
+      try {
+        value = family.at(style).get<std::string>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json '{}' has wrong type: {}", key, path.string()));
+      }
+      if (value.empty())
+        return std::unexpected(std::format("game.json '{}' must not be empty: {}", key, path.string()));
+      return value;
     }
 
     std::expected<ui::FontFamilyPaths, std::string> parse_font_family(const json &fonts, std::string_view role,
@@ -375,44 +374,17 @@ namespace corundum::core {
       if (!family.is_object())
         return std::unexpected(std::format("game.json '{}' must be an object: {}", prefix, path.string()));
 
-      const auto read_style = [&](std::string_view style, bool required) -> std::expected<std::string, std::string> {
-        const std::string key = std::format("{}.{}", prefix, style);
-        if (!family.contains(style)) {
-          if (required)
-            return std::unexpected(std::format("game.json '{}' is required: {}", key, path.string()));
-          return std::string{};
-        }
-        std::string value;
-        try {
-          value = family.at(style).get<std::string>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json '{}' has wrong type: {}", key, path.string()));
-        }
-        if (value.empty())
-          return std::unexpected(std::format("game.json '{}' must not be empty: {}", key, path.string()));
-        return value;
-      };
-
       ui::FontFamilyPaths out;
-      auto regular = read_style("regular", true);
-      if (!regular)
-        return std::unexpected(regular.error());
-      out.regular = std::move(*regular);
-
-      auto bold = read_style("bold", false);
-      if (!bold)
-        return std::unexpected(bold.error());
-      out.bold = std::move(*bold);
-
-      auto bold_italic = read_style("bold_italic", false);
-      if (!bold_italic)
-        return std::unexpected(bold_italic.error());
-      out.bold_italic = std::move(*bold_italic);
-
-      auto italic = read_style("italic", false);
-      if (!italic)
-        return std::unexpected(italic.error());
-      out.italic = std::move(*italic);
+      if (auto res = read_into(read_font_style(family, prefix, "regular", /*required=*/true, path), out.regular); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_font_style(family, prefix, "bold", /*required=*/false, path), out.bold); !res)
+        return std::unexpected(res.error());
+      if (auto res =
+              read_into(read_font_style(family, prefix, "bold_italic", /*required=*/false, path), out.bold_italic);
+          !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(read_font_style(family, prefix, "italic", /*required=*/false, path), out.italic); !res)
+        return std::unexpected(res.error());
       return out;
     }
 
@@ -449,118 +421,72 @@ namespace corundum::core {
       return {};
     }
 
+    /// Read every named resource path in @p j, leaving the field's default when the key is absent.
+    std::expected<void, std::string> parse_path_fields(const json &j, ResourcePaths &paths, const fs::path &path) {
+      struct Field {
+        std::string_view key;
+        std::string ResourcePaths::*target;
+      };
+
+      static constexpr std::array k_fields{
+          Field{.key = "codex_dir", .target = &ResourcePaths::codex_dir},
+          Field{.key = "dialogue_dir", .target = &ResourcePaths::dialogue_dir},
+          Field{.key = "font_dir", .target = &ResourcePaths::font_dir},
+          Field{.key = "items_dir", .target = &ResourcePaths::items_dir},
+          Field{.key = "locations_dir", .target = &ResourcePaths::locations_dir},
+          Field{.key = "portals_dir", .target = &ResourcePaths::portals_dir},
+          Field{.key = "quests_dir", .target = &ResourcePaths::quests_dir},
+          Field{.key = "shops_dir", .target = &ResourcePaths::shops_dir},
+          Field{.key = "sounds_dir", .target = &ResourcePaths::sounds_dir},
+          Field{.key = "spawn_points_dir", .target = &ResourcePaths::spawn_points_dir},
+          Field{.key = "sprites_dir", .target = &ResourcePaths::sprites_dir},
+          Field{.key = "tilemap_path", .target = &ResourcePaths::tilemap_path},
+          Field{.key = "ui_borders_file", .target = &ResourcePaths::ui_borders_file},
+      };
+      for (const Field &field : k_fields) {
+        auto res = get_nonempty_string(j, std::string{field.key}, paths.*field.target, path);
+        if (!res)
+          return std::unexpected(res.error());
+        paths.*field.target = std::move(*res);
+      }
+      return {};
+    }
+
+    std::expected<void, std::string> parse_splash_images(const json &j, ResourcePaths &paths, const fs::path &path) {
+      if (!j.contains("splash_images"))
+        return {};
+      const json &images = j.at("splash_images");
+      if (!images.is_array() || images.size() > k_max_splash_images)
+        return std::unexpected(std::format("game.json 'splash_images' must be an array of at most {} paths: {}",
+                                           k_max_splash_images, path.string()));
+      for (const json &image : images) {
+        std::string splash_path = image.is_string() ? image.get<std::string>() : std::string{};
+        if (splash_path.empty())
+          return std::unexpected(
+              std::format("game.json 'splash_images' entries must be non-empty strings: {}", path.string()));
+        paths.splash_images.push_back(std::move(splash_path));
+      }
+      return {};
+    }
+
+    /// Read the free-form resource paths (no non-empty rule) and the splash image list.
+    std::expected<void, std::string> parse_free_paths(const json &j, ResourcePaths &paths, const fs::path &path) {
+      if (auto res = read_optional_string_field(j, "credits_file", paths.credits_file, path); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_optional_string_field(j, "sounds_catalog", paths.sounds_catalog, path); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_optional_string_field(j, "world_manifest_path", paths.world_manifest_path, path); !res)
+        return std::unexpected(res.error());
+      return parse_splash_images(j, paths, path);
+    }
+
     std::expected<void, std::string> parse_resource_paths(const json &j, GameConfig &cfg, const fs::path &path) {
-      {
-        auto res = get_nonempty_string(j, "font_dir", cfg.paths.font_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.font_dir = std::move(*res);
-      }
-      {
-        auto res = parse_fonts(j, cfg, path);
-        if (!res)
-          return std::unexpected(res.error());
-      }
-      {
-        auto res = get_nonempty_string(j, "tilemap_path", cfg.paths.tilemap_path, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.tilemap_path = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "sprites_dir", cfg.paths.sprites_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.sprites_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "spawn_points_dir", cfg.paths.spawn_points_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.spawn_points_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "portals_dir", cfg.paths.portals_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.portals_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "dialogue_dir", cfg.paths.dialogue_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.dialogue_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "codex_dir", cfg.paths.codex_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.codex_dir = std::move(*res);
-      }
-      if (j.contains("credits_file")) {
-        try {
-          cfg.paths.credits_file = j.at("credits_file").get<std::string>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'credits_file' has wrong type: {}", path.string()));
-        }
-      }
-      if (j.contains("splash_images")) {
-        const json &images = j.at("splash_images");
-        if (!images.is_array() || images.size() > k_max_splash_images)
-          return std::unexpected(std::format("game.json 'splash_images' must be an array of at most {} paths: {}",
-                                             k_max_splash_images, path.string()));
-        for (const json &image : images) {
-          std::string splash_path = image.is_string() ? image.get<std::string>() : std::string{};
-          if (splash_path.empty())
-            return std::unexpected(
-                std::format("game.json 'splash_images' entries must be non-empty strings: {}", path.string()));
-          cfg.paths.splash_images.push_back(std::move(splash_path));
-        }
-      }
-      {
-        auto res = get_nonempty_string(j, "locations_dir", cfg.paths.locations_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.locations_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "shops_dir", cfg.paths.shops_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.shops_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "quests_dir", cfg.paths.quests_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.quests_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "items_dir", cfg.paths.items_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.items_dir = std::move(*res);
-      }
-      {
-        auto res = get_nonempty_string(j, "sounds_dir", cfg.paths.sounds_dir, path);
-        if (!res)
-          return std::unexpected(res.error());
-        cfg.paths.sounds_dir = std::move(*res);
-      }
-      if (j.contains("sounds_catalog")) {
-        try {
-          cfg.paths.sounds_catalog = j.at("sounds_catalog").get<std::string>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'sounds_catalog' has wrong type: {}", path.string()));
-        }
-      }
-      if (j.contains("world_manifest_path")) {
-        try {
-          cfg.paths.world_manifest_path = j.at("world_manifest_path").get<std::string>();
-        } catch (...) {
-          return std::unexpected(std::format("game.json 'world_manifest_path' has wrong type: {}", path.string()));
-        }
-      }
+      if (auto res = parse_path_fields(j, cfg.paths, path); !res)
+        return std::unexpected(res.error());
+      if (auto res = parse_fonts(j, cfg, path); !res)
+        return std::unexpected(res.error());
+      if (auto res = parse_free_paths(j, cfg.paths, path); !res)
+        return std::unexpected(res.error());
       return {};
     }
 
@@ -622,6 +548,63 @@ namespace corundum::core {
       return display;
     }
 
+    std::expected<void, std::string> parse_rng_seed(const json &j, GameConfig &cfg, const fs::path &path) {
+      if (!j.contains("rng_seed"))
+        return {};
+      const json &value = j.at("rng_seed");
+      if (!value.is_number_integer() && !value.is_number_unsigned())
+        return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
+      try {
+        cfg.rng_seed = value.get<std::uint64_t>();
+      } catch (...) {
+        return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
+      }
+      return {};
+    }
+
+    std::expected<void, std::string> parse_settings(const json &j, GameConfig &cfg, const fs::path &path) {
+      if (auto err = parse_framing_settings(j, cfg, path); !err)
+        return std::unexpected(err.error());
+      if (auto err = parse_window_settings(j, cfg, path); !err)
+        return std::unexpected(err.error());
+      if (auto err = parse_gameplay_settings(j, cfg, path); !err)
+        return std::unexpected(err.error());
+      if (auto err = parse_zoom_settings(j, cfg, path); !err)
+        return std::unexpected(err.error());
+      if (auto err = parse_resource_paths(j, cfg, path); !err)
+        return std::unexpected(err.error());
+      return {};
+    }
+
+    std::expected<void, std::string> parse_titles(const json &j, GameConfig &cfg, const fs::path &path) {
+      if (auto res = read_into(get_nonempty_string(j, "window_title", cfg.window_title, path), cfg.window_title); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(get_nonempty_string(j, "title", cfg.title, path), cfg.title); !res)
+        return std::unexpected(res.error());
+
+      // An unset title falls back to the window title, then to the engine's own name; an unset
+      // window title falls back to the title. A loaded config therefore always carries both.
+      if (cfg.title.empty())
+        cfg.title = cfg.window_title;
+      if (cfg.title.empty())
+        cfg.title = std::string{k_default_game_title};
+      if (cfg.window_title.empty())
+        cfg.window_title = cfg.title;
+      return {};
+    }
+
+    std::expected<void, std::string> parse_optional_configs(const json &j, GameConfig &cfg, const fs::path &path) {
+      if (auto res = read_into(parse_dialogue_render(j, path), cfg.dialogue_render); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(parse_display_render(j, path), cfg.display); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(parse_player(j, path), cfg.player); !res)
+        return std::unexpected(res.error());
+      if (auto res = read_into(parse_starting_flags(j, path), cfg.starting_flags); !res)
+        return std::unexpected(res.error());
+      return {};
+    }
+
   } // namespace
 
   std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content, const fs::path &path) {
@@ -634,88 +617,16 @@ namespace corundum::core {
       return std::unexpected(std::format("game.json must be a JSON object: {}", path.string()));
 
     GameConfig cfg;
-
-    {
-      auto res = get_nonempty_string(j, "game_id", cfg.game_id, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.game_id = std::move(*res);
-    }
-
-    if (j.contains("rng_seed")) {
-      const json &value = j.at("rng_seed");
-      if (!value.is_number_integer() && !value.is_number_unsigned())
-        return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
-      try {
-        cfg.rng_seed = value.get<std::uint64_t>();
-      } catch (...) {
-        return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
-      }
-    }
-
-    if (auto err = parse_framing_settings(j, cfg, path); !err)
-      return std::unexpected(err.error());
-
-    if (auto err = parse_window_settings(j, cfg, path); !err)
-      return std::unexpected(err.error());
-    if (auto err = parse_gameplay_settings(j, cfg, path); !err)
-      return std::unexpected(err.error());
-    if (auto err = parse_zoom_settings(j, cfg, path); !err)
-      return std::unexpected(err.error());
-    if (auto err = parse_resource_paths(j, cfg, path); !err)
-      return std::unexpected(err.error());
-
-    {
-      auto res = get_nonempty_string(j, "window_title", cfg.window_title, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.window_title = std::move(*res);
-    }
-
-    {
-      auto res = get_nonempty_string(j, "title", cfg.title, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.title = std::move(*res);
-    }
-
-    // An unset title falls back to the window title, then to the engine's own name; an unset
-    // window title falls back to the title. A loaded config therefore always carries both.
-    if (cfg.title.empty())
-      cfg.title = cfg.window_title;
-    if (cfg.title.empty())
-      cfg.title = std::string{k_default_game_title};
-    if (cfg.window_title.empty())
-      cfg.window_title = cfg.title;
-
-    {
-      auto res = parse_dialogue_render(j, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.dialogue_render = *res;
-    }
-
-    {
-      auto res = parse_display_render(j, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.display = *res;
-    }
-
-    {
-      auto res = parse_player(j, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.player = std::move(*res);
-    }
-
-    {
-      auto res = parse_starting_flags(j, path);
-      if (!res)
-        return std::unexpected(res.error());
-      cfg.starting_flags = std::move(*res);
-    }
-
+    if (auto res = read_into(get_nonempty_string(j, "game_id", cfg.game_id, path), cfg.game_id); !res)
+      return std::unexpected(res.error());
+    if (auto res = parse_rng_seed(j, cfg, path); !res)
+      return std::unexpected(res.error());
+    if (auto res = parse_settings(j, cfg, path); !res)
+      return std::unexpected(res.error());
+    if (auto res = parse_titles(j, cfg, path); !res)
+      return std::unexpected(res.error());
+    if (auto res = parse_optional_configs(j, cfg, path); !res)
+      return std::unexpected(res.error());
     return cfg;
   }
 

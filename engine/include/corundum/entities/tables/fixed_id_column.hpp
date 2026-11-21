@@ -5,11 +5,11 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <corundum/core/verify.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/sparse_index.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <ranges>
 #include <span>
 #include <string_view>
 
@@ -20,7 +20,8 @@ namespace corundum::entities {
    * Backs the tables that map an entity to a stable authoring id (actor ids,
    * dialogue graph ids). Each id lives in a fixed-size `char[]` buffer so the
    * derived table stays trivially copyable (required by the GameTable concept);
-   * ids longer than k_max_id_len - 1 are truncated. The sparse/dense spine and
+   * an id must be shorter than k_max_id_len characters: loaders reject longer
+   * ones, and insert() and assign() abort on them. The sparse/dense spine and
    * the swap-and-pop bookkeeping live here once — derive and add domain-named
    * accessors over the protected helpers.
    */
@@ -46,7 +47,8 @@ namespace corundum::entities {
 
     /** @brief Add an id row for @p e.
      *  @param[in] e  Entity (must not already be present).
-     *  @param[in] id Id string (truncated to k_max_id_len-1).
+     *  @param[in] id Id string.
+     *  @pre id.size() < k_max_id_len, enforced in every build type.
      *  @pre has(e) must be false.
      */
     void insert(EntityId e, std::string_view id) noexcept {
@@ -82,10 +84,10 @@ namespace corundum::entities {
 
   private:
     void write(std::uint32_t slot, std::string_view id) noexcept {
-      const auto length = std::min(id.size(), k_max_id_len - 1);
-      std::ranges::copy(id | std::views::take(length), ids[slot].begin());
-      ids[slot][length] = '\0';
-      id_lengths[slot] = length;
+      core::verify(id.size() < k_max_id_len, "FixedIdColumn: id is longer than k_max_id_len - 1 characters");
+      std::ranges::copy(id, ids[slot].begin());
+      ids[slot][id.size()] = '\0';
+      id_lengths[slot] = id.size();
     }
   };
 

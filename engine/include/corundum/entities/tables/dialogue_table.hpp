@@ -20,7 +20,7 @@ namespace corundum::entities {
 
     /** @brief Set (or replace) the graph ID for @p e.
      *  @param[in] e  Entity to update. @pre has(e) must be true.
-     *  @param[in] id New graph identifier (truncated to k_max_id_len-1 if longer).
+     *  @param[in] id New graph identifier. @pre id.size() < k_max_id_len.
      */
     void set_graph_id(EntityId e, std::string_view id) noexcept { assign(e, id); }
 

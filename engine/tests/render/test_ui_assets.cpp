@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "null_renderer.hpp"
+#include <corundum/core/game_config.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/resources.hpp>
 
@@ -57,7 +58,8 @@ TEST_CASE("load_ui_assets - border cell size comes from the upper_left frame's s
 
   corundum::platform::null::NullRenderer renderer;
   corundum::render::RenderState state;
-  const auto result = corundum::render::load_ui_assets(disk(), renderer, state, manifest.string());
+  const auto result = corundum::render::load_ui_assets(
+      disk(), renderer, state, corundum::core::ResourcePaths{.ui_borders_file = manifest.string()});
 
   REQUIRE(result.has_value());
   CHECK(state.panel_skin.border.texture_id == corundum::platform::null::k_dummy_handle);
@@ -69,7 +71,8 @@ TEST_CASE("load_ui_assets - border cell size comes from the upper_left frame's s
 TEST_CASE("load_ui_assets - a missing manifest is a non-fatal no-op") {
   corundum::platform::null::NullRenderer renderer;
   corundum::render::RenderState state;
-  const auto result = corundum::render::load_ui_assets(disk(), renderer, state, "/nonexistent/borders.json");
+  const auto result = corundum::render::load_ui_assets(
+      disk(), renderer, state, corundum::core::ResourcePaths{.ui_borders_file = "/nonexistent/borders.json"});
 
   CHECK(result.has_value());
   CHECK(state.panel_skin.border.texture_id == 0);

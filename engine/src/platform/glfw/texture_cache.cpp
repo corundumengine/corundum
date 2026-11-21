@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <format>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -122,26 +123,26 @@ namespace corundum::platform {
       return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
 
     const sg_image image =
-        glfw::make_rgba8_image(std::span<const uint8_t>{pixels, glfw::rgba8_byte_count(w, h)}, w, h, "texture_cache");
+        glfw::make_rgba8_image(std::as_bytes(std::span{pixels, glfw::rgba8_byte_count(w, h)}), w, h, "texture_cache");
     stbi_image_free(pixels);
 
     return publish(impl_->slots, image, static_cast<unsigned>(w), static_cast<unsigned>(h), WrapMode::Clamp,
                    std::string{"TextureCache: could not create GPU resources for '"} + path_str + "'");
   }
 
-  std::expected<TextureInfo, std::string> TextureCache::create(unsigned width, unsigned height, const void *rgba,
-                                                               WrapMode wrap) {
+  std::expected<TextureInfo, std::string> TextureCache::create(unsigned width, unsigned height,
+                                                               std::span<const std::uint32_t> rgba, WrapMode wrap) {
     if (width == 0 || height == 0)
       return std::unexpected(std::string{"TextureCache: texture size must be non-zero"});
-    if (rgba == nullptr)
-      return std::unexpected(std::string{"TextureCache: texture pixels are null"});
     if (width > k_max_texture_dimension || height > k_max_texture_dimension)
       return std::unexpected(std::string{"TextureCache: texture size out of range"});
+    const std::size_t pixel_count = static_cast<std::size_t>(width) * height;
+    if (rgba.size() != pixel_count)
+      return std::unexpected(std::format("TextureCache: a {}x{} texture needs {} pixels, got {}", width, height,
+                                         pixel_count, rgba.size()));
 
-    const auto *pixels = static_cast<const uint8_t *>(rgba);
-    const sg_image image = glfw::make_rgba8_image(
-        std::span<const uint8_t>{pixels, glfw::rgba8_byte_count(static_cast<int>(width), static_cast<int>(height))},
-        static_cast<int>(width), static_cast<int>(height), "texture_cache");
+    const sg_image image =
+        glfw::make_rgba8_image(std::as_bytes(rgba), static_cast<int>(width), static_cast<int>(height), "texture_cache");
 
     return publish(impl_->slots, image, width, height, wrap, "TextureCache: could not create GPU resources");
   }

@@ -10,6 +10,7 @@
 
 #include <corundum/core/content_source.hpp>
 #include <corundum/core/utf8.hpp>
+#include <corundum/core/verify.hpp>
 #include <corundum/platform/gpu_context.hpp>
 #include <corundum/platform/texture_ref_counts.hpp>
 
@@ -360,7 +361,7 @@ namespace corundum::platform::glfw {
       vertex_buf_ = sg_make_buffer(&bdesc);
 
       const std::array<uint8_t, 4> white{255, 255, 255, 255};
-      white_tex_ = make_rgba8_image(white, 1, 1, "white_1x1");
+      white_tex_ = make_rgba8_image(std::as_bytes(std::span{white}), 1, 1, "white_1x1");
       white_view_ = make_texture_view(white_tex_, "white_1x1");
 
       sg_sampler_desc samdesc{};
@@ -435,7 +436,8 @@ namespace corundum::platform::glfw {
       if (atlas->data.atlas_w <= 0 || atlas->data.atlas_h <= 0 || atlas->data.pixels.empty())
         return nullptr;
 
-      atlas->image = make_rgba8_image(atlas->data.pixels, atlas->data.atlas_w, atlas->data.atlas_h, "font_atlas");
+      atlas->image = make_rgba8_image(std::as_bytes(std::span{atlas->data.pixels}), atlas->data.atlas_w,
+                                      atlas->data.atlas_h, "font_atlas");
       if (atlas->image.id == 0) {
         // Keep the CPU pixels so a later frame can retry the upload, but stop retrying on
         // every draw call so a permanently failing device doesn't flood stderr.
@@ -557,7 +559,7 @@ namespace corundum::platform::glfw {
       if (pixels == nullptr)
         return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
 
-      const auto image = make_rgba8_image(std::span<const uint8_t>{pixels, rgba8_byte_count(width, height)}, width,
+      const auto image = make_rgba8_image(std::as_bytes(std::span{pixels, rgba8_byte_count(width, height)}), width,
                                           height, key.c_str());
       stbi_image_free(pixels);
 
@@ -578,12 +580,10 @@ namespace corundum::platform::glfw {
     }
 
     core::math::Vec2 SokolRenderer::texture_size(uint32_t texture_id) const {
-      if (texture_id < textures_.size()) {
-        const LoadedTexture &texture = textures_[texture_id];
-        if (texture.width > 0 && texture.height > 0)
-          return {.x = static_cast<float>(texture.width), .y = static_cast<float>(texture.height)};
-      }
-      return {};
+      core::verify(texture_id < textures_.size(), "SokolRenderer::texture_size: id was never issued");
+      const LoadedTexture &texture = textures_[texture_id];
+      assert(texture.width > 0 && texture.height > 0 && "SokolRenderer::texture_size: texture was purged");
+      return {.x = static_cast<float>(texture.width), .y = static_cast<float>(texture.height)};
     }
 
     void SokolRenderer::release_texture(uint32_t texture_id) {

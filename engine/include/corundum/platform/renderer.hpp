@@ -97,7 +97,8 @@ namespace corundum::platform {
     /// @return Opaque texture ID, or std::unexpected with the reason.
     [[nodiscard]] virtual std::expected<uint32_t, std::string> load_texture(std::string_view path) = 0;
 
-    /// Pixel size of a texture returned by load_texture(), or {0, 0} if unknown.
+    /// Pixel size of a texture returned by load_texture().
+    /// @pre @p texture_id is live: returned by load_texture() and not yet purged.
     [[nodiscard]] virtual core::math::Vec2 texture_size(uint32_t texture_id) const = 0;
 
     /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).

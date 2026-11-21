@@ -176,7 +176,7 @@ namespace corundum::toolkit::host {
         const bool even = ((x / check_size) + (y / check_size)) % 2 == 0;
         pixels[(static_cast<std::size_t>(y) * w) + x] = even ? k_light : k_dark;
       }
-    return impl_->textures->create(w, h, pixels.data(), WrapMode::Repeat);
+    return impl_->textures->create(w, h, pixels, WrapMode::Repeat);
   }
 
 } // namespace corundum::toolkit::host

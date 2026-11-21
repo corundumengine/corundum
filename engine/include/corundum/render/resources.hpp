@@ -48,13 +48,14 @@ namespace corundum::render {
   /** @brief Load shared UI textures (dialog box border, etc.).
    *  @param[in,out] r     Renderer for texture creation.
    *  @param[out]    state Render state; panel_skin border is configured.
-   *  @param[in]     path  Borders manifest to read; the border cell size is taken from the
-   *                       upper_left frame, so multi-frame cells are supported.
+   *  @param[in]     paths Supplies ui_borders_file, the borders manifest; the border cell size is taken from
+   *                       its upper_left frame, so multi-frame cells are supported.
    *  @return ok on success, or an error string on failure.
    */
-  [[nodiscard]] std::expected<void, std::string>
-  load_ui_assets(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                 render::RenderState &state, std::string_view path = "data/sprite_sheets/ui/borders.json");
+  [[nodiscard]] std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSource &content,
+                                                                corundum::platform::Renderer &r,
+                                                                render::RenderState &state,
+                                                                const corundum::core::ResourcePaths &paths);
 
   /** @brief Apply panel style (colours, fonts, spacing) from game config.
    *  @param[out] state  Render state; panel_skin style is configured.

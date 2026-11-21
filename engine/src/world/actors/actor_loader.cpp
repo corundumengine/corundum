@@ -4,6 +4,8 @@
 #include <corundum/core/content_source.hpp>
 #include <corundum/core/direction.hpp>
 #include <corundum/core/json_io.hpp>
+#include <corundum/entities/tables/actor_id_table.hpp>
+#include <corundum/entities/tables/dialogue_table.hpp>
 #include <corundum/world/actors/actor.hpp>
 #include <cstddef>
 #include <expected>
@@ -48,10 +50,33 @@ namespace corundum::world {
       }
     }
 
-    std::expected<Actor, std::string> parse_actor(const json &entry, const std::string &path, std::size_t index) {
-      if (!entry.is_object())
-        return std::unexpected(std::format("Spawn points '{}' actors[{}] must be an object", path, index));
+    /// Error when @p value would not fit an entity id table's buffer of @p max_length characters.
+    std::expected<void, std::string> check_id_length(const std::optional<std::string> &value, std::string_view key,
+                                                     std::size_t max_length, const std::string &path,
+                                                     std::size_t index) {
+      if (value && value->size() > max_length)
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] '{}' is longer than {} characters", path,
+                                           index, key, max_length));
+      return {};
+    }
 
+    /// The already type-checked raw fields of one spawn actor.
+    struct ActorFields {
+      int col{};
+
+      std::optional<std::string> dialogue_ref{};
+
+      std::optional<std::string> facing{};
+
+      std::optional<std::string> id{};
+
+      int row{};
+
+      std::string sprite_name{};
+    };
+
+    std::expected<ActorFields, std::string> read_actor_fields(const json &entry, const std::string &path,
+                                                              std::size_t index) {
       const auto col = read_required<int>(entry, "col", path, index);
       const auto row = read_required<int>(entry, "row", path, index);
       const auto sprite_name = read_required<std::string>(entry, "sprite", path, index);
@@ -72,23 +97,55 @@ namespace corundum::world {
       if (!id)
         return std::unexpected(id.error());
 
-      if (*col < 0 || *row < 0)
-        return std::unexpected(std::format("Spawn points '{}' actors[{}] 'col' and 'row' must be >= 0", path, index));
-      if (sprite_name->empty())
-        return std::unexpected(std::format("Spawn points '{}' actors[{}] 'sprite' must not be empty", path, index));
-      if (*facing && !corundum::core::direction_from_name(**facing))
-        return std::unexpected(
-            std::format("Spawn points '{}' actors[{}] 'facing' is not a valid direction", path, index));
-
-      Actor actor{
+      return ActorFields{
           .col = *col,
+          .dialogue_ref = *dialogue_ref,
+          .facing = *facing,
+          .id = *id,
           .row = *row,
           .sprite_name = *sprite_name,
-          .dialogue_ref = dialogue_ref->value_or(""),
-          .id = id->value_or(""),
       };
-      if (*facing)
-        actor.facing = **facing;
+    }
+
+    std::expected<void, std::string> validate_actor(const ActorFields &fields, const std::string &path,
+                                                    std::size_t index) {
+      if (fields.col < 0 || fields.row < 0)
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] 'col' and 'row' must be >= 0", path, index));
+      if (fields.sprite_name.empty())
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] 'sprite' must not be empty", path, index));
+      if (auto checked =
+              check_id_length(fields.id, "id", corundum::entities::ActorIdTable::k_max_id_len - 1, path, index);
+          !checked)
+        return std::unexpected(checked.error());
+      if (auto checked = check_id_length(fields.dialogue_ref, "dialogue",
+                                         corundum::entities::DialogueTable::k_max_id_len - 1, path, index);
+          !checked)
+        return std::unexpected(checked.error());
+      if (fields.facing && !corundum::core::direction_from_name(*fields.facing))
+        return std::unexpected(
+            std::format("Spawn points '{}' actors[{}] 'facing' is not a valid direction", path, index));
+      return {};
+    }
+
+    std::expected<Actor, std::string> parse_actor(const json &entry, const std::string &path, std::size_t index) {
+      if (!entry.is_object())
+        return std::unexpected(std::format("Spawn points '{}' actors[{}] must be an object", path, index));
+
+      auto fields = read_actor_fields(entry, path, index);
+      if (!fields)
+        return std::unexpected(fields.error());
+      if (auto checked = validate_actor(*fields, path, index); !checked)
+        return std::unexpected(checked.error());
+
+      Actor actor{
+          .col = fields->col,
+          .row = fields->row,
+          .sprite_name = std::move(fields->sprite_name),
+          .dialogue_ref = fields->dialogue_ref.value_or(""),
+          .id = fields->id.value_or(""),
+      };
+      if (fields->facing)
+        actor.facing = *fields->facing;
       return actor;
     }
 

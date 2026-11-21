@@ -69,7 +69,7 @@ namespace corundum::core {
      *  Empty (the default) means the game has no credits, so the Title hides its Credits row
      *  and the screen is unreachable. A path that is missing or fails to parse is treated the
      *  same way, with a warning logged once. */
-    std::string credits_file;
+    std::string credits_file{};
 
     /** @brief Directory containing dialogue data files. Defaults to "data/dialogue". */
     std::string dialogue_dir{"data/dialogue"};
@@ -113,16 +113,19 @@ namespace corundum::core {
      *
      *  At most k_max_splash_images entries. Empty (the default) means no splash; an image that
      *  fails to load is skipped with a warning. The @c --no-splash flag clears the list. */
-    std::vector<std::string> splash_images;
+    std::vector<std::string> splash_images{};
 
     /** @brief Directory containing sprite sheet assets. Defaults to "data/sprite_sheets". */
     std::string sprites_dir{"data/sprite_sheets"};
 
     /** @brief Path to the main tilemap asset. */
-    std::string tilemap_path;
+    std::string tilemap_path{};
+
+    /** @brief Borders manifest the panel skin is built from. Defaults to "data/sprite_sheets/ui/borders.json". */
+    std::string ui_borders_file{"data/sprite_sheets/ui/borders.json"};
 
     /** @brief Path to the world manifest JSON. Empty → single-tilemap mode. */
-    std::string world_manifest_path;
+    std::string world_manifest_path{};
   };
 
   /// Player identity and default placement, configurable via game.json "player" block.
