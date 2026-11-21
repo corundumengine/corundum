@@ -52,7 +52,6 @@
 #include <random>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <utility>
 #include <variant>
 
@@ -637,12 +636,15 @@ namespace corundum {
         return;
 
       platform::Renderer &r = *engine.renderer;
-      render::render(r, engine.render, engine.cfg, engine.scene, alpha, engine.window_width(),
-                     engine.window_height());
+      const core::math::IntSize window_logical{
+          .width = engine.window_width(),
+          .height = engine.window_height(),
+      };
+      render::render(r, engine.render, engine.cfg, engine.scene, alpha, window_logical);
 
       const corundum::core::math::Vec2 viewport{
-          .x = static_cast<float>(engine.window_width()),
-          .y = static_cast<float>(engine.window_height()),
+          .x = static_cast<float>(window_logical.width),
+          .y = static_cast<float>(window_logical.height),
       };
       const bool screen_open = !engine.scene.ui.empty();
       const bool transition_showing =
@@ -787,7 +789,9 @@ namespace corundum {
   bool Engine::run_frame() noexcept {
     if (!window->is_open() || quit_)
       return false;
-    std::tie(window_width_, window_height_) = window->size();
+    const core::math::IntSize window_logical = window->size();
+    window_width_ = window_logical.width;
+    window_height_ = window_logical.height;
 
     process_input(*this);
     if (quit_)

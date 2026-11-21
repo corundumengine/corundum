@@ -51,8 +51,8 @@ namespace corundum::platform::null {
       scripted_events = {};
     }
 
-    [[nodiscard]] std::pair<int, int> size() const override {
-      return {static_cast<int>(width_), static_cast<int>(height_)};
+    [[nodiscard]] core::math::IntSize size() const override {
+      return {.width = static_cast<int>(width_), .height = static_cast<int>(height_)};
     }
 
     void set_vsync(bool /*enabled*/) override {}

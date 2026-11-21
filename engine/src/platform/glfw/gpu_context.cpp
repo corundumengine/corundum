@@ -36,6 +36,39 @@ namespace corundum::platform {
     constexpr float k_min_render_scale = 0.125f;
     constexpr float k_max_render_scale = 4.f;
 
+    /// The window's GLFW handle, or an error naming why it cannot back a GPU context.
+    std::expected<::GLFWwindow *, std::string> glfw_handle_of(Window &window) {
+      const auto *glfw_window = dynamic_cast<glfw::GLFWWindow *>(&window);
+      if (glfw_window == nullptr)
+        return std::unexpected("GpuContext::create: window is not a GLFW window");
+      auto *handle = static_cast<::GLFWwindow *>(glfw_window->native_handle());
+      if (handle == nullptr)
+        return std::unexpected("GpuContext::create: window has no GLFW handle");
+      return handle;
+    }
+
+    /// sokol's log hook: surface its failures only; routine warnings would be noise on the game's
+    /// stderr.
+    void log_sokol_message(const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
+                           const char *file, void * /*user_data*/) {
+      if (level > k_max_reported_log_level)
+        return;
+      corundum::detail::warn_log("[{}] item={} ({}:{}) {}", tag != nullptr ? tag : "sg", item_id,
+                                 file != nullptr ? file : "?", line, msg != nullptr ? msg : "");
+    }
+
+    /// Configure and start the process-wide sokol device over @p backend.
+    std::expected<void, std::string> start_sokol_device(const gpu_backend::Context *backend) {
+      sg_desc sdesc{};
+      if (auto configured = gpu_backend::configure_sokol(sdesc, backend); !configured)
+        return std::unexpected(std::format("GpuContext::create: {}", configured.error()));
+      sdesc.logger.func = log_sokol_message;
+      sg_setup(&sdesc);
+      if (!sg_isvalid())
+        return std::unexpected("GpuContext::create: sg_setup failed");
+      return {};
+    }
+
   } // namespace
 
   struct GpuContext::Impl {
@@ -55,37 +88,23 @@ namespace corundum::platform {
     if (s_gpu_device_live)
       return std::unexpected("GpuContext::create: a GPU context already owns the process-wide sokol device");
 
-    const auto *glfw_win = dynamic_cast<glfw::GLFWWindow *>(&window);
-    if (glfw_win == nullptr)
-      return std::unexpected("GpuContext::create: window is not a GLFW window");
-
-    auto *raw = static_cast<::GLFWwindow *>(glfw_win->native_handle());
-    if (raw == nullptr)
-      return std::unexpected("GpuContext::create: window has no GLFW handle");
+    auto raw = glfw_handle_of(window);
+    if (!raw)
+      return std::unexpected(std::move(raw).error());
 
     auto ctx = std::unique_ptr<GpuContext>(new GpuContext());
-    ctx->impl_->window = raw;
+    ctx->impl_->window = *raw;
     // Default to native resolution: tools drive begin_default_pass() directly and keep it. The game
     // renderer lowers itself to the logical resolution (SokolRenderer's constructor).
     ctx->impl_->render_scale = ctx->dpi_scale();
 
-    auto backend = gpu_backend::create(raw);
+    auto backend = gpu_backend::create(*raw);
     if (!backend)
       return std::unexpected(std::format("GpuContext::create: {}", backend.error()));
     ctx->impl_->backend = *backend;
 
-    sg_desc sdesc{};
-    if (auto configured = gpu_backend::configure_sokol(sdesc, ctx->impl_->backend); !configured)
-      return std::unexpected(std::format("GpuContext::create: {}", configured.error()));
-    sdesc.logger.func = [](const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
-                           const char *file, void *) {
-      if (level <= k_max_reported_log_level)
-        corundum::detail::warn_log("[{}] item={} ({}:{}) {}", tag ? tag : "sg", item_id, file ? file : "?", line,
-                                   msg ? msg : "");
-    };
-    sg_setup(&sdesc);
-    if (!sg_isvalid())
-      return std::unexpected("GpuContext::create: sg_setup failed");
+    if (auto started = start_sokol_device(ctx->impl_->backend); !started)
+      return std::unexpected(std::move(started).error());
 
     s_gpu_device_live = true;
     return ctx;
@@ -101,8 +120,8 @@ namespace corundum::platform {
   }
 
   bool GpuContext::begin_default_pass(core::math::Colour clear) {
-    const auto [fb_w, fb_h] = render_size();
-    if (fb_w <= 0 || fb_h <= 0) {
+    const core::math::IntSize render_target = render_size();
+    if (render_target.width <= 0 || render_target.height <= 0) {
       // Minimized or otherwise zero-sized window: no render target this frame.
       impl_->pass_active = false;
       return false;
@@ -118,12 +137,12 @@ namespace corundum::platform {
     };
 
     sg_swapchain swapchain{};
-    swapchain.width = fb_w;
-    swapchain.height = fb_h;
+    swapchain.width = render_target.width;
+    swapchain.height = render_target.height;
     swapchain.sample_count = 1;
     swapchain.depth_format = SG_PIXELFORMAT_NONE;
 
-    if (!gpu_backend::begin_pass(swapchain, impl_->backend, fb_w, fb_h)) {
+    if (!gpu_backend::begin_pass(swapchain, impl_->backend, render_target.width, render_target.height)) {
       impl_->pass_active = false;
       return false;
     }
@@ -145,30 +164,30 @@ namespace corundum::platform {
     gpu_backend::end_pass(impl_->backend, impl_->window);
   }
 
-  std::pair<int, int> GpuContext::window_size() const noexcept {
-    int w{};
-    int h{};
-    glfwGetWindowSize(impl_->window, &w, &h);
-    return {w, h};
+  core::math::IntSize GpuContext::window_size() const noexcept {
+    int width{};
+    int height{};
+    glfwGetWindowSize(impl_->window, &width, &height);
+    return {.width = width, .height = height};
   }
 
-  std::pair<int, int> GpuContext::framebuffer_size() const noexcept {
-    int w{};
-    int h{};
-    glfwGetFramebufferSize(impl_->window, &w, &h);
-    return {w, h};
+  core::math::IntSize GpuContext::framebuffer_size() const noexcept {
+    int width{};
+    int height{};
+    glfwGetFramebufferSize(impl_->window, &width, &height);
+    return {.width = width, .height = height};
   }
 
   void GpuContext::set_render_scale(float scale) noexcept {
     impl_->render_scale = std::clamp(scale, k_min_render_scale, k_max_render_scale);
   }
 
-  std::pair<int, int> GpuContext::render_size() const noexcept {
-    const auto [win_w, win_h] = window_size();
-    const auto [fb_w, fb_h] = framebuffer_size();
-    const core::RenderResolution resolution =
-        core::compute_render_resolution(win_w, win_h, fb_w, fb_h, impl_->render_scale);
-    return {resolution.width, resolution.height};
+  core::math::IntSize GpuContext::render_size() const noexcept {
+    const core::math::IntSize window = window_size();
+    const core::math::IntSize framebuffer = framebuffer_size();
+    const core::RenderResolution resolution = core::compute_render_resolution(
+        window.width, window.height, framebuffer.width, framebuffer.height, impl_->render_scale);
+    return {.width = resolution.width, .height = resolution.height};
   }
 
   float GpuContext::dpi_scale() const noexcept {

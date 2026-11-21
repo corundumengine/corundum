@@ -47,7 +47,7 @@ namespace corundum::platform::glfw {
     void poll_game_input(corundum::input::InputMapper &mapper, corundum::platform::PlatformEvents &events) override;
 
     /// @return {0, 0} once the underlying GLFW window no longer exists.
-    [[nodiscard]] std::pair<int, int> size() const override;
+    [[nodiscard]] corundum::core::math::IntSize size() const override;
 
     void set_vsync(bool enabled) override;
 

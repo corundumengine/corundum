@@ -30,12 +30,11 @@ namespace corundum::platform {
 
   } // namespace
 
-  std::expected<std::unique_ptr<Window>, std::string> create_window(unsigned width, unsigned height,
-                                                                    std::string_view title) {
+  std::expected<Handle<Window>, std::string> create_window(unsigned width, unsigned height, std::string_view title) {
     auto result = glfw::GLFWWindow::create(width, height, title);
     if (!result)
       return std::unexpected(std::format("Failed to create GLFW window: {}", glfw::to_string(result.error())));
-    return std::move(*result);
+    return Handle<Window>{result->release(), BackendDeleter<Window>{&destroy<Window>}};
   }
 
   std::expected<PlatformContext, std::string> create_platform(const corundum::core::ContentSource &content,
@@ -53,7 +52,7 @@ namespace corundum::platform {
     auto audio = miniaudio::make_miniaudio_backend(content);
 
     return PlatformContext{
-        .window = Handle<Window>{window->release(), BackendDeleter<Window>{&destroy<Window>}},
+        .window = std::move(*window),
         .gpu = Handle<GpuContext>{gpu_ptr.release(), BackendDeleter<GpuContext>{&destroy<GpuContext>}},
         .renderer = Handle<Renderer>{renderer.release(), BackendDeleter<Renderer>{&destroy<Renderer>}},
         .audio_backend = std::move(audio),

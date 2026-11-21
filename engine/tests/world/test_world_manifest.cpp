@@ -138,33 +138,6 @@ TEST_CASE("chunk_at_cart - clamped at world edge") {
   CHECK(chunk_at_cart(-1.f, -1.f, m, 16, 2.f) == ChunkCoord{0, 0});
 }
 
-TEST_CASE("chunk_origin_px - (0,0) at world origin") {
-  using namespace corundum::world::tilemap;
-  const auto dir = temp_dir("origin_px");
-  write_file(dir / "manifest.json", k_manifest_json);
-  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
-  REQUIRE(manifest_result.has_value());
-  const auto &m = *manifest_result;
-
-  auto [ox, oy] = chunk_origin_px({.col = 0, .row = 0}, m, 16, 2.f);
-  CHECK(ox == doctest::Approx(0.f));
-  CHECK(oy == doctest::Approx(0.f));
-}
-
-TEST_CASE("chunk_origin_px - (1,0) offset") {
-  using namespace corundum::world::tilemap;
-  const auto dir = temp_dir("origin_1_0");
-  write_file(dir / "manifest.json", k_manifest_json);
-  auto manifest_result = load_world_manifest(disk(), dir / "manifest.json");
-  REQUIRE(manifest_result.has_value());
-  const auto &m = *manifest_result;
-
-  // 128 * 16 * 2 = 4096
-  auto [ox, oy] = chunk_origin_px({.col = 1, .row = 0}, m, 16, 2.f);
-  CHECK(ox == doctest::Approx(4096.f));
-  CHECK(oy == doctest::Approx(0.f));
-}
-
 TEST_CASE("world_bounds_iso for 16x8 manifest") {
   using namespace corundum::world::tilemap;
   const auto dir = temp_dir("world_bounds");

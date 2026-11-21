@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/render/area.hpp>
 #include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
@@ -45,8 +46,8 @@ namespace {
   }
 
   void render_frame(TileRecordingRenderer &renderer, RenderState &state, const corundum::core::GameConfig &cfg,
-                    const corundum::world::Scene &scene, int win_w, int win_h) {
-    corundum::render::render(renderer, state, cfg, scene, 1.f, win_w, win_h);
+                    const corundum::world::Scene &scene, corundum::core::math::IntSize window_logical) {
+    corundum::render::render(renderer, state, cfg, scene, 1.f, window_logical);
   }
 
 } // namespace
@@ -65,7 +66,7 @@ TEST_CASE("render: a single map draws every non-empty visible cell once") {
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, 100000, 100000);
+  render_frame(renderer, state, cfg, *scene, {.width = 100000, .height = 100000});
 
   const std::size_t expected = count_drawable_cells(*corundum::render::active_tilemap(state));
   REQUIRE(expected > 0);
@@ -82,7 +83,7 @@ TEST_CASE("render: a world draws every non-empty visible cell of every resident 
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, 100000, 100000);
+  render_frame(renderer, state, cfg, *scene, {.width = 100000, .height = 100000});
 
   const auto &world_area = corundum::test::world_area_of(state);
   std::size_t expected = 0;
@@ -106,7 +107,7 @@ TEST_CASE("render: a camera far from the area draws no tiles") {
   state.previous_step.camera = {.x = 1e6f, .y = 1e6f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, 320, 240);
+  render_frame(renderer, state, cfg, *scene, {.width = 320, .height = 240});
 
   CHECK(renderer.sprites.empty());
 }
@@ -127,7 +128,7 @@ TEST_CASE("render: a failed load_map after a single map draws nothing") {
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, 100000, 100000);
+  render_frame(renderer, state, cfg, *scene, {.width = 100000, .height = 100000});
 
   CHECK(renderer.sprites.empty());
 }
@@ -143,7 +144,7 @@ TEST_CASE("render: the frame's world view is kept for screens that draw over the
   scene->camera.y = 60.f;
   scene->camera.zoom = 3.f;
 
-  corundum::render::render(renderer, state, cfg, *scene, 0.5f, 640, 480);
+  corundum::render::render(renderer, state, cfg, *scene, 0.5f, {.width = 640, .height = 480});
 
   CHECK_EQ(state.world_view.camera.x, 20.f);
   CHECK_EQ(state.world_view.camera.y, 40.f);

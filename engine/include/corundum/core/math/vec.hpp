@@ -20,6 +20,14 @@ namespace corundum::core::math {
     int height = 0;
   };
 
+  /// Integer width and height; the function returning it names the space (logical points or pixels).
+  struct IntSize {
+    int width = 0;
+    int height = 0;
+
+    bool operator==(const IntSize &) const = default;
+  };
+
   /// RGBA colour with 8-bit channels.
   struct Colour {
     uint8_t r = 255;

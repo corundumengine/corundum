@@ -7,7 +7,6 @@
 #include <expected>
 #include <memory>
 #include <string>
-#include <utility>
 
 namespace corundum::platform {
 
@@ -40,8 +39,8 @@ namespace corundum::platform {
 
     GpuContext(const GpuContext &) = delete;
     GpuContext &operator=(const GpuContext &) = delete;
-    GpuContext(GpuContext &&) noexcept = delete;
-    GpuContext &operator=(GpuContext &&) noexcept = delete;
+    GpuContext(GpuContext &&) = delete;
+    GpuContext &operator=(GpuContext &&) = delete;
 
     /** @brief Start the default render pass, clearing to @p clear.
      *
@@ -67,13 +66,13 @@ namespace corundum::platform {
     void set_render_scale(float scale) noexcept;
 
     /** @brief Internal render-target size in pixels (see set_render_scale()). */
-    [[nodiscard]] std::pair<int, int> render_size() const noexcept;
+    [[nodiscard]] core::math::IntSize render_size() const noexcept;
 
     /** @brief Logical window size in screen coordinates. */
-    [[nodiscard]] std::pair<int, int> window_size() const noexcept;
+    [[nodiscard]] core::math::IntSize window_size() const noexcept;
 
     /** @brief Physical framebuffer size in pixels (high-DPI aware). */
-    [[nodiscard]] std::pair<int, int> framebuffer_size() const noexcept;
+    [[nodiscard]] core::math::IntSize framebuffer_size() const noexcept;
 
     /** @brief Content scale factor of the window's monitor (x axis; e.g. 2.0 on a high-DPI display). */
     [[nodiscard]] float dpi_scale() const noexcept;

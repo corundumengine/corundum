@@ -93,9 +93,8 @@ namespace corundum::world {
     engine.scene.zone_id = world_zone_id(world_area->manifest, engine.cfg.paths.world_manifest_path);
     world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
 
-    const auto [world_width, world_height] =
+    const WorldBounds bounds =
         corundum::world::tilemap::world_bounds_iso(world_area->manifest, info.half_tw, info.half_th);
-    const WorldBounds bounds{.width_px = world_width, .height_px = world_height};
     // elev_step is pre-multiplied by tile_scale to match compute_isometric_params()
     // for consistency with the renderer's scaled iso.elev_step. Designated
     // initializers keep this robust to field-order changes in IsometricParams.

@@ -76,8 +76,7 @@ namespace {
         [&](const render_data::ChunkEntry &e) { return std::ranges::contains(desired, e.coord); });
     (void)world_area.chunks.consume_dirty();
     for (const tilemap::ChunkCoord c : desired)
-      if (!world_area.chunks.has(c))
-        world_area.chunks.enqueue_pending(c);
+      world_area.chunks.enqueue_pending(c);
     return state;
   }
 
@@ -219,12 +218,12 @@ TEST_CASE("render: alpha 0 draws the start-of-step camera and alpha 1 the curren
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.f, {.width = 800, .height = 600});
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(100.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(50.f));
   CHECK(renderer.last_zoom() == doctest::Approx(2.f));
 
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 1.f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 1.f, {.width = 800, .height = 600});
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(140.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(80.f));
   CHECK(renderer.last_zoom() == doctest::Approx(1.5f));
@@ -242,7 +241,7 @@ TEST_CASE("render: a normal single-step frame still blends the camera between sn
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.5f, 800, 600);
+  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.5f, {.width = 800, .height = 600});
 
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(120.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(65.f));
@@ -429,5 +428,14 @@ TEST_CASE("ChunkWindow - prune_pending drops coords the window has left") {
 
   const auto popped = window.pop_pending();
   CHECK_EQ(popped.value_or(tilemap::ChunkCoord{}).col, 1);
+  CHECK_FALSE(window.pop_pending().has_value());
+}
+
+TEST_CASE("ChunkWindow - enqueue_pending ignores a chunk that is already pending") {
+  render_data::ChunkWindow window;
+  window.enqueue_pending({.col = 2, .row = 1});
+  window.enqueue_pending({.col = 2, .row = 1});
+
+  CHECK_EQ(window.pop_pending(), tilemap::ChunkCoord{.col = 2, .row = 1});
   CHECK_FALSE(window.pop_pending().has_value());
 }

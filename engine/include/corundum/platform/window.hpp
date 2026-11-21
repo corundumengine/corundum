@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/platform_events.hpp>
 
 #include <string>
-#include <utility>
 
 namespace corundum::input {
   class InputMapper;
@@ -56,7 +56,7 @@ namespace corundum::platform {
      *  @return {width, height}; not framebuffer pixels, so a high-DPI display reports a smaller
      *          pair than the number of pixels actually drawn.
      */
-    [[nodiscard]] virtual std::pair<int, int> size() const = 0;
+    [[nodiscard]] virtual core::math::IntSize size() const = 0;
 
     /** @brief Enable or disable vertical synchronisation. */
     virtual void set_vsync(bool enabled) = 0;

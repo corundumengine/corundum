@@ -104,7 +104,11 @@ namespace corundum::entities {
   /// @pre e must be a live entity.
   inline void despawn(World &w, EntityId e) {
     assert(w.entities.is_live(e) && "despawn: not a live entity");
-    std::apply([e](auto &...tables) { ((tables.has(e) ? (tables.remove(e), 0) : 0), ...); }, all_tables(w));
+    const auto remove_if_present = [e](auto &table) {
+      if (table.has(e))
+        table.remove(e);
+    };
+    std::apply([&](auto &...tables) { (remove_if_present(tables), ...); }, all_tables(w));
     w.entities.destroy(e);
   }
 

@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_mapper.hpp>
@@ -54,7 +55,7 @@ namespace {
       scripted_events = {};
     }
 
-    [[nodiscard]] std::pair<int, int> size() const override { return {0, 0}; }
+    [[nodiscard]] corundum::core::math::IntSize size() const override { return {}; }
 
     void set_vsync(bool /*enabled*/) override {}
 

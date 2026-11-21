@@ -38,7 +38,7 @@ namespace corundum::entities {
     std::string graph_id;
   };
 
-  /// Per-frame movement delta in tile-grid units.
+  /// Velocity in tile-grid units per second; physics integrates it as col += dc * dt.
   struct Velocity {
     float dc = 0.f;
     float dr = 0.f;

@@ -8,7 +8,6 @@
 #include <expected>
 #include <filesystem>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace corundum::core {
@@ -79,11 +78,6 @@ namespace corundum::world::tilemap {
   [[nodiscard]] ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m,
                                         const corundum::core::math::IsometricParams &iso) noexcept;
 
-  /// Top-left Cartesian pixel coordinate of chunk @p c's origin.
-  /// Used to offset Cartesian collision rects to absolute world positions.
-  [[nodiscard]] std::pair<float, float> chunk_origin_px(ChunkCoord c, const WorldManifest &m, int tile_px,
-                                                        float tile_scale) noexcept;
-
   /// World-space extent of a @p tiles_wide × @p tiles_tall isometric grid, in display pixels.
   ///
   /// Shared by single-map and chunked bounds so the extent formula has one home. Each axis
@@ -92,14 +86,15 @@ namespace corundum::world::tilemap {
   [[nodiscard]] corundum::world::WorldBounds world_bounds_for_tiles(int tiles_wide, int tiles_tall, float half_tw,
                                                                     float half_th) noexcept;
 
-  /// Total isometric world extent in display pixels (width, height).
+  /// Total isometric world extent in display pixels.
   /// Uses the manifest's effective tile counts — tiles_wide/tiles_tall, or the full
   /// chunk grid when those are 0 — and each axis's own half-scale. Width and height are
   /// not generally equal: a diamond tile's screen height is typically half its screen
   /// width (the classic 2:1 isometric ratio), so this does not assume a square bounding
   /// box.
   /// @pre half_tw > 0 and half_th > 0.
-  [[nodiscard]] std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept;
+  [[nodiscard]] corundum::world::WorldBounds world_bounds_iso(const WorldManifest &m, float half_tw,
+                                                              float half_th) noexcept;
 
   /// Returns all valid ChunkCoords within @p radius chunks of @p center,
   /// clamped to the world bounds. radius=1 yields up to a 3×3 neighbourhood.

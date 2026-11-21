@@ -37,17 +37,17 @@ namespace corundum::render {
                                                             float alpha) noexcept;
 
   /** @brief Render the world for one frame; the caller owns screen-space overlays.
-   *  @param[in,out] r       Renderer for all draw calls.
-   *  @param[in,out] state   Render state (chunk streaming may modify active set).
-   *  @param[in]     cfg     Game config.
-   *  @param[in]     scene   Scene (camera, entities, dialogue mode).
-   *  @param[in]     alpha   Interpolation factor in [0,1] for render smoothing.
-   *  @param[in]     win_w   Live window width in screen pixels.
-   *  @param[in]     win_h   Live window height in screen pixels.
+   *  @param[in,out] r              Renderer for all draw calls.
+   *  @param[in,out] state          Writes frame scratch and WorldArea::above_z_cache, and records
+   *                                world_view. Never changes chunk residency.
+   *  @param[in]     cfg            Game config.
+   *  @param[in]     scene          Scene (camera, entities, dialogue mode).
+   *  @param[in]     alpha          Interpolation factor in [0,1] for render smoothing.
+   *  @param[in]     window_logical Live window size in logical points.
    *  @post The renderer's view is reset to screen space, ready for overlay drawing.
    *  @post state.world_view holds the view the world was drawn with.
    */
   void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
-              const corundum::world::Scene &scene, float alpha, int win_w, int win_h);
+              const corundum::world::Scene &scene, float alpha, core::math::IntSize window_logical);
 
 } // namespace corundum::render

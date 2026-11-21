@@ -47,10 +47,10 @@ namespace corundum::platform {
    *
    * @param[in] width   Initial window width in pixels.
    * @param[in] height  Initial window height in pixels.
-   * @return Owning pointer to the Window, or std::unexpected with an error message.
+   * @return Owning handle to the Window, or std::unexpected with an error message.
    */
-  [[nodiscard]] std::expected<std::unique_ptr<Window>, std::string> create_window(unsigned width, unsigned height,
-                                                                                  std::string_view title);
+  [[nodiscard]] std::expected<Handle<Window>, std::string> create_window(unsigned width, unsigned height,
+                                                                         std::string_view title);
 
   /** @brief Create a platform-specific Window, GPU context, Renderer and AudioBackend.
    *

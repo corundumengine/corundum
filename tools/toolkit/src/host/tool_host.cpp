@@ -6,6 +6,7 @@
 #include <imgui.h>
 
 #include <corundum/platform/gpu_context.hpp>
+#include <corundum/platform/handle.hpp>
 #include <corundum/platform/platform_factory.hpp>
 
 #include <GLFW/glfw3.h>
@@ -29,7 +30,7 @@ using namespace corundum::platform;
 namespace corundum::toolkit::host {
 
   struct ToolHost::Impl {
-    std::unique_ptr<Window> window;
+    Handle<Window> window;
     std::unique_ptr<GpuContext> gpu_ctx;
     std::unique_ptr<TextureCache> textures;
     GLFWwindow *glfw_win{nullptr};

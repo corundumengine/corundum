@@ -7,6 +7,7 @@
 #include "input_translator.hpp"
 #include "window_graphics.hpp"
 
+#include <corundum/core/math/vec.hpp>
 #include <corundum/core/window_mode.hpp>
 #include <corundum/input/input_mapper.hpp>
 #include <corundum/input/physical_input.hpp>
@@ -395,13 +396,13 @@ namespace corundum::platform::glfw {
     impl_->data.events = {};
   }
 
-  std::pair<int, int> GLFWWindow::size() const {
+  core::math::IntSize GLFWWindow::size() const {
     if (!impl_ || impl_->win == nullptr)
-      return {0, 0};
-    int w = 0;
-    int h = 0;
-    glfwGetWindowSize(impl_->win, &w, &h);
-    return {w, h};
+      return {};
+    int width = 0;
+    int height = 0;
+    glfwGetWindowSize(impl_->win, &width, &height);
+    return {.width = width, .height = height};
   }
 
   void GLFWWindow::set_vsync(bool enabled) {

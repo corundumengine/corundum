@@ -226,8 +226,7 @@ namespace corundum::render {
       area.chunks.prune_pending(is_desired);
 
       for (const corundum::world::tilemap::ChunkCoord c : desired.view())
-        if (!area.chunks.has(c))
-          area.chunks.enqueue_pending(c);
+        area.chunks.enqueue_pending(c);
 
       return any_stale;
     }

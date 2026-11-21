@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -52,7 +54,11 @@ namespace corundum::render {
 
     [[nodiscard]] std::size_t active_size() const noexcept { return active_.size(); }
 
-    [[nodiscard]] const ChunkEntry &active_at(std::size_t i) const noexcept { return active_[i]; }
+    /// @pre i < active_size().
+    [[nodiscard]] const ChunkEntry &active_at(std::size_t i) const noexcept {
+      assert(i < active_.size());
+      return active_[i];
+    }
 
     /// @return true if the active set changed since the last call, clearing the flag.
     [[nodiscard]] bool consume_dirty() noexcept {
@@ -89,7 +95,7 @@ namespace corundum::render {
 
     /// Remove active chunks for which @p keep returns false, re-deriving the slot table.
     /// @return true if any chunk was removed.
-    template <typename Keep> bool prune_active(const Keep &keep) {
+    template <std::predicate<const ChunkEntry &> Keep> bool prune_active(const Keep &keep) {
       const std::size_t before = active_.size();
       std::erase_if(active_, [&](const ChunkEntry &e) { return !keep(e); });
       if (active_.size() == before)
@@ -101,8 +107,7 @@ namespace corundum::render {
 
     /// True if @p c is active, queued in pending, or failed to load (see mark_failed()).
     [[nodiscard]] bool has(world::tilemap::ChunkCoord c) const noexcept {
-      return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; }) ||
-             std::ranges::contains(pending_, c) || std::ranges::contains(failed_, c);
+      return is_active(c) || std::ranges::contains(pending_, c) || std::ranges::contains(failed_, c);
     }
 
     /// True if @p c is resident in the active window (ignores chunks still pending).
@@ -110,13 +115,15 @@ namespace corundum::render {
       return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; });
     }
 
-    /// Queue @p c for loading. Caller should check has(c) first to avoid duplicates
-    /// (kept explicit rather than implicit to match the existing call-site logic).
-    void enqueue_pending(world::tilemap::ChunkCoord c) { pending_.push_back(c); }
+    /// Queue @p c for loading unless has(c) already reports it (active, pending or failed).
+    void enqueue_pending(world::tilemap::ChunkCoord c) {
+      if (!has(c))
+        pending_.push_back(c);
+    }
 
     /// Drop pending coords for which @p keep returns false — chunks the window moved away from
     /// before they were loaded.
-    template <typename Keep> void prune_pending(const Keep &keep) {
+    template <std::predicate<world::tilemap::ChunkCoord> Keep> void prune_pending(const Keep &keep) {
       std::erase_if(pending_, [&](world::tilemap::ChunkCoord c) { return !keep(c); });
     }
 

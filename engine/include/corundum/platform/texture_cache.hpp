@@ -55,8 +55,8 @@ namespace corundum::platform {
 
     TextureCache(const TextureCache &) = delete;
     TextureCache &operator=(const TextureCache &) = delete;
-    TextureCache(TextureCache &&) noexcept = delete;
-    TextureCache &operator=(TextureCache &&) noexcept = delete;
+    TextureCache(TextureCache &&) = delete;
+    TextureCache &operator=(TextureCache &&) = delete;
 
     /** @brief Load an RGBA8 texture from a PNG, BMP or TGA file.
      *

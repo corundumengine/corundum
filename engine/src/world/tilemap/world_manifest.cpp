@@ -116,22 +116,13 @@ namespace corundum::world::tilemap {
     return {.col = std::clamp(cx, 0, m.chunks_wide - 1), .row = std::clamp(cy, 0, m.chunks_tall - 1)};
   }
 
-  std::pair<float, float> chunk_origin_px(ChunkCoord c, const WorldManifest &m, int tile_px,
-                                          float tile_scale) noexcept {
-    const float chunk_px = static_cast<float>(m.chunk_size * tile_px) * tile_scale;
-    return {static_cast<float>(c.col) * chunk_px, static_cast<float>(c.row) * chunk_px};
-  }
-
   WorldBounds world_bounds_for_tiles(int tiles_wide, int tiles_tall, float half_tw, float half_th) noexcept {
     const float steps{static_cast<float>(tiles_wide + tiles_tall - 1)};
     return {.width_px = steps * half_tw * 2.f, .height_px = steps * half_th * 2.f};
   }
 
-  std::pair<float, float> world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept {
-    const WorldBounds bounds{
-        world_bounds_for_tiles(m.effective_tiles_wide(), m.effective_tiles_tall(), half_tw, half_th),
-    };
-    return {bounds.width_px, bounds.height_px};
+  WorldBounds world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept {
+    return world_bounds_for_tiles(m.effective_tiles_wide(), m.effective_tiles_tall(), half_tw, half_th);
   }
 
   std::vector<ChunkCoord> active_chunk_coords(ChunkCoord center, int radius, const WorldManifest &m) {
