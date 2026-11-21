@@ -1936,10 +1936,18 @@ namespace corundum::gameplay {
   Gameplay::~Gameplay() = default;
 
   void Gameplay::process_events() noexcept {
+    // A hook can end the session (clearing pending_dialogue_events) or queue new events, so swap
+    // the batch out first: the loop must never walk a vector that changes under it. Vector move
+    // assignment doesn't allocate, so this stays noexcept-safe.
+    const std::vector<dialogue::EventAction> events = std::exchange(pending_dialogue_events, {});
+    const std::uint64_t batch_generation = session_generation_;
     quest::Runner quest_runner{quests, engine_->flags};
-    for (const auto &ev : pending_dialogue_events)
+    for (const dialogue::EventAction &ev : events) {
+      // Events after a session reset belong to the session that just ended.
+      if (session_generation_ != batch_generation)
+        break;
       dispatch_dialogue_event(*this, *engine_, quest_runner, ev);
-    pending_dialogue_events.clear();
+    }
   }
 
   void Gameplay::fixed_step(float dt) {
@@ -2300,6 +2308,7 @@ namespace corundum::gameplay {
   }
 
   void Gameplay::reset_session_state() {
+    ++session_generation_;
     dialogue.reset();
     dialogue_npc.reset();
     pending_dialogue_events.clear();

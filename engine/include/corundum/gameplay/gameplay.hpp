@@ -40,6 +40,7 @@
 #include <corundum/world/flags.hpp> // IWYU pragma: export
 #include <corundum/world/ui_stack.hpp>
 
+#include <cstdint>
 #include <expected>
 #include <functional>
 #include <optional>
@@ -221,8 +222,13 @@ namespace corundum::gameplay {
 
     /** @brief Process every pending dialogue EventAction (built-in dispatch + on_event).
      *
-     *  Clears pending_dialogue_events after processing. Exposed for testability; fixed_step()
-     *  calls it once per step.
+     *  Takes the whole batch out of pending_dialogue_events before dispatching, so an event a
+     *  hook queues meanwhile waits for the next call. When a hook resets the session
+     *  (return_to_title(), new_game(), load_from_slot(), or anything else that calls
+     *  reset_session_state()), the rest of the batch is dropped: it was raised in the session
+     *  that just ended. Exposed for testability; fixed_step() calls it once per step.
+     *
+     *  @post pending_dialogue_events holds only the events queued during this call.
      */
     void process_events() noexcept;
 
@@ -475,6 +481,10 @@ namespace corundum::gameplay {
 
     /** @brief True once the Loading screen has rendered its first frame; gates advance_loading(). */
     bool loading_rendered_{false};
+
+    /** @brief Bumped by every reset_session_state(), so process_events() can tell that a hook
+     *  ended the session partway through a batch. */
+    std::uint64_t session_generation_{};
   };
 
   using dialogue::EventAction;

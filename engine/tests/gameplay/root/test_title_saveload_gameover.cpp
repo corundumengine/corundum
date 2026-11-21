@@ -7,6 +7,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/user_storage.hpp>
 #include <corundum/engine.hpp>
+#include <corundum/gameplay/dialogue/action.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
@@ -853,4 +854,33 @@ TEST_CASE("title boot: no world is loaded under the title") {
   CHECK(engine.render.area_texture_ids.empty());
 
   engine.cleanup();
+}
+
+TEST_CASE("title: an on_event hook that returns to the title drops the rest of the event batch") {
+  // Engine is ~0.5 MB: build it on the heap (AGENTS.md "No huge stack frames").
+  const std::unique_ptr<corundum::Engine> engine = std::make_unique<corundum::Engine>();
+  init_engine(*engine, /*show_title=*/true);
+  corundum::gameplay::Gameplay gameplay{*engine};
+  REQUIRE(gameplay.new_game().has_value());
+
+  bool probe_dispatched = false;
+  gameplay.on_event = [&gameplay, &probe_dispatched](corundum::Engine &,
+                                                     const corundum::gameplay::dialogue::EventAction &ev) {
+    if (ev.name == "to_title") {
+      gameplay.return_to_title();
+      return true;
+    }
+    probe_dispatched = true;
+    return true;
+  };
+  gameplay.pending_dialogue_events.push_back(corundum::gameplay::dialogue::EventAction{.name = "to_title", .args = {}});
+  gameplay.pending_dialogue_events.push_back(corundum::gameplay::dialogue::EventAction{.name = "probe", .args = {}});
+
+  gameplay.process_events();
+
+  CHECK_FALSE(probe_dispatched);
+  CHECK(gameplay.pending_dialogue_events.empty());
+  CHECK_EQ(engine->scene.ui.top(), screens::Title);
+
+  engine->cleanup();
 }

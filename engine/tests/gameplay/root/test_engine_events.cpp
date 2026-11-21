@@ -11,6 +11,7 @@
 #include <corundum/gameplay/quest/system.hpp>
 #include <corundum/ui/toast.hpp>
 #include <corundum/world/flags.hpp>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -302,4 +303,26 @@ TEST_CASE("engine events: grant_xp is no built-in, so it reaches on_event") {
 
   CHECK_EQ(received, std::vector<std::string>{"grant_xp"});
   CHECK(engine.flags.empty());
+}
+
+TEST_CASE("engine events: an event a hook queues during dispatch waits for the next process_events") {
+  // Engine is ~0.5 MB: build it on the heap (AGENTS.md "No huge stack frames").
+  const std::unique_ptr<corundum::Engine> engine = std::make_unique<corundum::Engine>();
+  corundum::gameplay::Gameplay gameplay{*engine};
+  std::vector<std::string> dispatched;
+  gameplay.on_event = [&gameplay, &dispatched](corundum::Engine &, const dialogue::EventAction &ev) {
+    dispatched.push_back(ev.name);
+    if (ev.name == "first")
+      gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "second", .args = {"queued"}});
+    return true;
+  };
+  gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "first", .args = {}});
+
+  gameplay.process_events();
+
+  CHECK_EQ(dispatched, std::vector<std::string>{"first"});
+  REQUIRE_EQ(gameplay.pending_dialogue_events.size(), 1U);
+  CHECK_EQ(gameplay.pending_dialogue_events[0].name, "second");
+  REQUIRE_EQ(gameplay.pending_dialogue_events[0].args.size(), 1U);
+  CHECK_EQ(gameplay.pending_dialogue_events[0].args[0], "queued");
 }
