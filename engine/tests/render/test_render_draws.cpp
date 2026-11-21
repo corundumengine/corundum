@@ -36,7 +36,7 @@ namespace {
     for (const tilemap::TilemapLayer &layer : tm.layers) {
       if (!layer.visible || layer.z_index < 0)
         continue;
-      REQUIRE(layer.baked_animations.empty());
+      REQUIRE(layer.animated_cells.empty());
       for (int row = 0; row < tm.height; ++row)
         for (int col = 0; col < tm.width; ++col)
           if (tm.tile_at(layer, col, row) != tilemap::k_empty_tile)

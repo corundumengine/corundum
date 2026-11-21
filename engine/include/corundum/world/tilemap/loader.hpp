@@ -38,8 +38,7 @@ namespace corundum::world::tilemap {
   /// @return Tilemap on success, or an error string on any schema, file-not-found, or consistency violation.
   /// @pre @p path must refer to a readable, valid-JSON file. Tileset `source` paths are resolved
   ///      relative to the current working directory, so they must be reachable from there.
-  /// @post On success, the returned Tilemap has all layers baked (bake_render_cache() already
-  ///       called). The `tilesets` vector is sorted ascending by `first_gid`. `diamond_w()` and
+  /// @post The `tilesets` vector is sorted ascending by `first_gid`. `diamond_w()` and
   ///       `diamond_h()` return the effective isometric step dimensions, falling back to the first
   ///       tileset's first tile's full frame size if `iso_diamond_w`/`iso_diamond_h` were not set
   ///       in the JSON.

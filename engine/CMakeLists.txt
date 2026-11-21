@@ -38,6 +38,7 @@ set(ENGINE_SOURCES
     src/physics/physics_system.cpp
     src/physics/walkability.cpp
     src/render/area.cpp
+    src/render/layer_render_cache.cpp
     src/render/render_system.cpp
     src/render/resources.cpp
     src/render/world_aggregates.cpp

@@ -10,6 +10,7 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/render/chunk_window.hpp>
+#include <corundum/render/layer_render_cache.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/world_aggregates.hpp>
 #include <corundum/world/portals/portal.hpp>
@@ -67,6 +68,8 @@ namespace corundum::render {
     struct TilemapAssets {
       std::vector<int> above_z{};
 
+      std::vector<render::LayerRenderCache> layer_caches{};
+
       corundum::world::tilemap::Tilemap tilemap{};
 
       std::vector<uint32_t> tileset_texture_ids{};
@@ -106,6 +109,7 @@ namespace corundum::render {
         return std::unexpected(std::move(tilemap).error());
       TilemapAssets assets{
           .above_z = collect_above_ground_bands(*tilemap),
+          .layer_caches = render::build_layer_render_caches(*tilemap),
           .tileset_texture_ids = load_tileset_textures(r, *tilemap),
       };
       assets.tilemap = std::move(*tilemap);
@@ -133,6 +137,7 @@ namespace corundum::render {
           .tilemap = std::move(assets->tilemap),
           .tileset_texture_ids = std::move(assets->tileset_texture_ids),
           .above_z = std::move(assets->above_z),
+          .layer_caches = std::move(assets->layer_caches),
           .portals = std::move(*portals),
       };
     }
@@ -354,6 +359,7 @@ namespace corundum::render {
         .tilemap = std::move(assets->tilemap),
         .tileset_texture_ids = std::move(assets->tileset_texture_ids),
         .above_z = std::move(assets->above_z),
+        .layer_caches = std::move(assets->layer_caches),
         .portals = std::move(*portals),
     };
 

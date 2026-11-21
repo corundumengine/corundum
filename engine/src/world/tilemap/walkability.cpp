@@ -15,18 +15,13 @@ namespace corundum::world::tilemap {
 
   namespace {
 
-    /// Linear index of cell (col, row) in a width-wide row-major grid.
-    [[nodiscard]] constexpr std::size_t cell_index(int col, int row, int width) noexcept {
-      return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
-    }
-
     /// Elevation of every cell, cached row-major: the neighbour scan samples each cell up to nine
     /// times, and elevation_at() re-scans every z-index-0 layer on each call.
     [[nodiscard]] std::vector<int> cache_cell_elevations(const Tilemap &tm, std::size_t cell_count) {
       std::vector<int> elevations(cell_count);
       for (int row = 0; row < tm.height; ++row) {
         for (int col = 0; col < tm.width; ++col) {
-          elevations[cell_index(col, row, tm.width)] = elevation_at(tm, col, row);
+          elevations[cell_index(tm.width, col, row)] = elevation_at(tm, col, row);
         }
       }
       return elevations;
@@ -38,14 +33,14 @@ namespace corundum::world::tilemap {
                            int max_step_height) {
       for (int row = 0; row < tm.height; ++row) {
         for (int col = 0; col < tm.width; ++col) {
-          const std::size_t idx = cell_index(col, row, tm.width);
+          const std::size_t idx = cell_index(tm.width, col, row);
           const int elevation = elevations[idx];
           for (const auto &[delta_col, delta_row] : k_walk_neighbors) {
             const int neighbor_col = col + delta_col;
             const int neighbor_row = row + delta_row;
             if (neighbor_col < 0 || neighbor_row < 0 || neighbor_col >= tm.width || neighbor_row >= tm.height)
               continue;
-            if (std::abs(elevation - elevations[cell_index(neighbor_col, neighbor_row, tm.width)]) > max_step_height)
+            if (std::abs(elevation - elevations[cell_index(tm.width, neighbor_col, neighbor_row)]) > max_step_height)
               g.edges[idx] &= static_cast<uint8_t>(~walk_dir_bit(delta_col, delta_row));
           }
         }
@@ -93,7 +88,7 @@ namespace corundum::world::tilemap {
     // unblocked: cells outside the map have no graph entry.
     if (std::abs(delta_col) > 1 || std::abs(delta_row) > 1)
       return false;
-    const std::size_t idx = cell_index(from_col, from_row, width);
+    const std::size_t idx = cell_index(width, from_col, from_row);
     return (edges[idx] & walk_dir_bit(delta_col, delta_row)) != 0;
   }
 
@@ -112,8 +107,8 @@ namespace corundum::world::tilemap {
       return;
     const uint8_t dir_ab = walk_dir_bit(delta_col, delta_row);
     const uint8_t dir_ba = walk_dir_bit(-delta_col, -delta_row);
-    const std::size_t idx_a = cell_index(col_a, row_a, width);
-    const std::size_t idx_b = cell_index(col_b, row_b, width);
+    const std::size_t idx_a = cell_index(width, col_a, row_a);
+    const std::size_t idx_b = cell_index(width, col_b, row_b);
     if (passable) {
       edges[idx_a] |= dir_ab;
       edges[idx_b] |= dir_ba;

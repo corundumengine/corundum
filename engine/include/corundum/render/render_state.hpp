@@ -69,6 +69,7 @@ namespace corundum::render {
     world::tilemap::Tilemap tilemap{};
     std::vector<uint32_t> tileset_texture_ids{};
     std::vector<int> above_z{};
+    std::vector<LayerRenderCache> layer_caches{}; ///< Parallel to tilemap.layers.
     std::vector<world::Portal> portals{};
   };
 

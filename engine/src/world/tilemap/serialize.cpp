@@ -43,8 +43,7 @@ namespace corundum::world::tilemap {
         for (int c = 0; c < width; ++c) {
           if (c > 0)
             row += ',';
-          const std::size_t index =
-              (static_cast<std::size_t>(r) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(c);
+          const std::size_t index = cell_index(width, c, r);
           row += std::to_string(project_gids[index]);
         }
         rows.push_back(std::move(row));

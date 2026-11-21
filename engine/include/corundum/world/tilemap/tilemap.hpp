@@ -94,6 +94,15 @@ namespace corundum::world::tilemap {
   /// (walkable both up and down); does nothing for the other axis or the four diagonals.
   enum class RampAxis : uint8_t { NorthSouth, EastWest };
 
+  /** @brief Row-major index of cell (@p col, @p row) in a grid @p width cells wide: the one place the
+   *  layout of tiles, elevation and every other per-cell array is spelled.
+   *  @pre 0 <= col < width and 0 <= row.
+   */
+  [[nodiscard]] constexpr std::size_t cell_index(int width, int col, int row) noexcept {
+    assert(0 <= col && col < width && 0 <= row);
+    return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
+  }
+
   /// One layer of tiles. Layers are drawn bottom-to-top; k_empty_tile is transparent.
   /// z_index controls depth relative to entities: 0 = below entities (default), 1+ = above.
   /// A z_index > 0 layer with depth_sorted = true is instead depth-sorted per-tile against
@@ -127,57 +136,9 @@ namespace corundum::world::tilemap {
         ramps; ///< cell_index → axis this ramp tile bridges; absent == not a ramp. The elevation delta it bridges is
                ///< inferred from its two axis-neighbors' elevation_at() values, never stored directly.
 
-    uint8_t max_elevation = 0; ///< Maximum elevation value in this layer (0 if elevation is empty). Computed in
-                               ///< bake_render_cache() from the elevation vector.
-
-    /// Sentinel for baked_animation_index meaning "this cell isn't animated".
-    static constexpr uint32_t k_no_animation = std::numeric_limits<uint32_t>::max();
-
-    /// Baked render cache: cell_index → flip bitmask (0 = none). Populated by bake_render_cache();
-    /// empty until baked. Lets the per-tile-per-frame render path do a flat array read instead of
-    /// a flip_flags.find() (sorted-vector binary search via std::flat_map) every tile every frame.
-    std::vector<uint8_t> baked_flip_flags;
-
-    /// Baked render cache: cell_index → index into baked_animations, or k_no_animation. The sparse
-    /// animated_cells map is compacted into dense storage at bake time so per-frame lookup is a
-    /// flat array read instead of a std::flat_map probe. Populated by bake_render_cache().
-    std::vector<uint32_t> baked_animation_index;
-
-    std::vector<AnimatedCell> baked_animations; ///< Dense storage indexed by baked_animation_index.
-
     /// Tile GID at (col, row); undefined behaviour if out of bounds. Prefer Tilemap::tile_at().
     [[nodiscard]] TileId tile_at_unchecked(int col, int row, int width) const noexcept {
-      return tiles[(static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col)];
-    }
-
-    /// Populates baked_flip_flags / baked_animation_index / baked_animations from flip_flags and
-    /// animated_cells. Call once after this layer's tiles/flip_flags/animated_cells are finalized
-    /// (see load_tilemap()) — the render hot path (resolve_tile_cell) reads only the baked arrays.
-    /// @note The tilesmith editor mutates flip_flags/animated_cells directly and never calls this,
-    /// so it reads the flat_maps themselves; re-run this if a loaded Tilemap's layers are ever
-    /// mutated and then handed to the game renderer. This method also computes max_elevation from
-    /// the elevation vector — tilesmith must recompute it if it ever alters elevation data.
-    void bake_render_cache(int width, int height) {
-      const auto n = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
-
-      baked_flip_flags.assign(n, uint8_t{0});
-      for (const auto &[idx, flags] : flip_flags)
-        if (idx >= 0 && std::cmp_less(idx, n))
-          baked_flip_flags[static_cast<std::size_t>(idx)] = flags;
-
-      baked_animation_index.assign(n, k_no_animation);
-      baked_animations.clear();
-      baked_animations.reserve(animated_cells.size());
-      for (const auto &[idx, anim] : animated_cells) {
-        if (idx < 0 || std::cmp_greater_equal(idx, n))
-          continue;
-        baked_animation_index[static_cast<std::size_t>(idx)] = static_cast<uint32_t>(baked_animations.size());
-        baked_animations.push_back(anim);
-      }
-
-      max_elevation = 0;
-      for (const auto e : elevation)
-        max_elevation = std::max(e, max_elevation);
+      return tiles[cell_index(width, col, row)];
     }
   };
 
@@ -536,8 +497,7 @@ namespace corundum::world::tilemap {
   [[nodiscard]] inline int elevation_at(const Tilemap &tilemap, int col, int row) noexcept {
     if (!in_bounds(tilemap, col, row))
       return 0;
-    const std::size_t uidx =
-        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tilemap.width)) + static_cast<std::size_t>(col);
+    const std::size_t uidx = cell_index(tilemap.width, col, row);
     if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
       return 0;
     const int idx = static_cast<int>(uidx);
@@ -570,8 +530,7 @@ namespace corundum::world::tilemap {
   [[nodiscard]] inline std::optional<RampAxis> ramp_axis_at(const Tilemap &tilemap, int col, int row) noexcept {
     if (!in_bounds(tilemap, col, row))
       return std::nullopt;
-    const std::size_t uidx =
-        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tilemap.width)) + static_cast<std::size_t>(col);
+    const std::size_t uidx = cell_index(tilemap.width, col, row);
     if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
       return std::nullopt;
     const int idx = static_cast<int>(uidx);
@@ -675,8 +634,7 @@ namespace corundum::world::tilemap {
   [[nodiscard]] inline std::string material_at(const Tilemap &tilemap, int col, int row) {
     if (!in_bounds(tilemap, col, row))
       return {};
-    const std::size_t uidx =
-        (static_cast<std::size_t>(row) * static_cast<std::size_t>(tilemap.width)) + static_cast<std::size_t>(col);
+    const std::size_t uidx = cell_index(tilemap.width, col, row);
     if (uidx > static_cast<std::size_t>(std::numeric_limits<int>::max()))
       return {};
     const int idx = static_cast<int>(uidx);

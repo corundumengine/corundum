@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/render/layer_render_cache.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
@@ -24,6 +25,7 @@ namespace corundum::render {
     corundum::world::tilemap::Tilemap tilemap{};
     std::vector<uint32_t> tileset_texture_ids;
     std::vector<int> above_z;
+    std::vector<LayerRenderCache> layer_caches{}; ///< Parallel to tilemap.layers.
     std::vector<corundum::world::Portal> portals;
   };
 

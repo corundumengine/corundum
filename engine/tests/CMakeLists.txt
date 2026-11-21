@@ -73,6 +73,7 @@ set(TEST_SOURCES
     render/test_area_textures.cpp
     render/test_chunk_collision_aggregate.cpp
     render/test_font_families.cpp
+    render/test_layer_render_cache.cpp
     render/test_render_draws.cpp
     render/test_render_state.cpp
     render/test_sprite_index.cpp
@@ -124,6 +125,7 @@ set(TEST_SOURCES
     world/test_picking.cpp
     world/test_portals.cpp
     world/test_spawn_points.cpp
+    world/test_tilemap_cell_index.cpp
     world/test_tilemap_loader.cpp
     world/test_tilemap_validate.cpp
     world/test_transition_prompt.cpp
