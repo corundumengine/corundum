@@ -186,25 +186,25 @@ TEST_CASE("interpolated_tile_position: a swap-and-pop removal after the snapshot
 
   scene.world.transforms.remove(first); // swap-and-pop moves `last` into dense slot 0
 
-  const auto drawn = corundum::render::interpolated_tile_position(state, last, 12.f, 14.f, 0.5f);
-  CHECK(drawn.x == doctest::Approx(11.f));
-  CHECK(drawn.y == doctest::Approx(12.f));
+  const auto drawn = corundum::render::interpolated_tile_position(state, last, {.col = 12.f, .row = 14.f}, 0.5f);
+  CHECK(drawn.col == doctest::Approx(11.f));
+  CHECK(drawn.row == doctest::Approx(12.f));
 }
 
 TEST_CASE("interpolated_tile_position: no snapshot, or a recycled index, draws the current position") {
   corundum::render::RenderState state;
   const corundum::entities::EntityId fresh{.index = 3, .generation = 1};
-  const auto unsnapshotted = corundum::render::interpolated_tile_position(state, fresh, 4.f, 6.f, 0.5f);
-  CHECK(unsnapshotted.x == doctest::Approx(4.f));
-  CHECK(unsnapshotted.y == doctest::Approx(6.f));
+  const auto unsnapshotted = corundum::render::interpolated_tile_position(state, fresh, {.col = 4.f, .row = 6.f}, 0.5f);
+  CHECK(unsnapshotted.col == doctest::Approx(4.f));
+  CHECK(unsnapshotted.row == doctest::Approx(6.f));
 
   state.previous_step.col[3] = 0.f;
   state.previous_step.row[3] = 0.f;
   state.previous_step.generation[3] = 1;
   const corundum::entities::EntityId recycled{.index = 3, .generation = 2};
-  const auto drawn = corundum::render::interpolated_tile_position(state, recycled, 4.f, 6.f, 0.5f);
-  CHECK(drawn.x == doctest::Approx(4.f));
-  CHECK(drawn.y == doctest::Approx(6.f));
+  const auto drawn = corundum::render::interpolated_tile_position(state, recycled, {.col = 4.f, .row = 6.f}, 0.5f);
+  CHECK(drawn.col == doctest::Approx(4.f));
+  CHECK(drawn.row == doctest::Approx(6.f));
 }
 
 TEST_CASE("render: alpha 0 draws the start-of-step camera and alpha 1 the current camera") {

@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/game_config.hpp>
+#include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/render/render_state.hpp>
 
@@ -46,21 +47,13 @@ namespace corundum::render {
                                                           const std::string &tilemap_path,
                                                           const corundum::core::GameConfig &cfg);
 
-  /** @brief Info returned by load_world so the caller can spawn the game world.
-   *
-   * Contains the isometric projection parameters and the spawn position
-   * (world centre in world coordinates) that the caller should pass to
-   * world::spawn_world(). Separates render resource loading from
-   * game entity creation per the layer dependency rules.
+  /** @brief What load_world() hands back so the caller can spawn the game world: the world's
+   *  isometric projection and the spawn tile (the manifest centre unless WorldLoadParams overrides it).
    */
   struct WorldLoadInfo {
-    float half_tw{};
+    corundum::core::math::IsometricParams projection{};
 
-    float half_th{};
-
-    float x_origin{};
-
-    corundum::core::math::Vec2 spawn_world_pos;
+    corundum::core::math::TilePos spawn_tile{};
   };
 
   /** @brief Optional spawn parameters for a (re)load of the world in world mode.

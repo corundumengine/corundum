@@ -56,9 +56,9 @@ namespace {
 
   MapView make_view(const Tilemap &tm) {
     MapView v;
-    v.half_tw = k_half_tw;
-    v.half_th = k_half_th;
-    v.x_origin = 0.f;
+    v.projection.half_tw = k_half_tw;
+    v.projection.half_th = k_half_th;
+    v.projection.x_origin = 0.f;
     v.elevation_map = &tm;
     return v;
   }
@@ -130,8 +130,8 @@ TEST_CASE("pick_tile - zoom scales the screen-to-world conversion") {
 
 TEST_CASE("pick_tile - null elevation_map (World mode) returns nullopt") {
   MapView map;
-  map.half_tw = k_half_tw;
-  map.half_th = k_half_th;
+  map.projection.half_tw = k_half_tw;
+  map.projection.half_th = k_half_th;
   map.elevation_map = nullptr;
   const Camera camera{.x = 0.f, .y = 0.f};
   const auto result = pick_tile(0.f, 16.f, camera, map, make_iso());

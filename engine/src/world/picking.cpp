@@ -26,8 +26,8 @@ namespace corundum::world {
     std::optional<CandidateHit> hit_at(const MapView &map, const core::math::Vec2 &world, int col, int row,
                                        const core::math::IsometricParams &iso) noexcept {
       const int elev = discrete_elevation_at(map, col, row);
-      const core::math::Vec2 frac = core::math::world_to_tile(world, elev, iso);
-      if (static_cast<int>(std::floor(frac.x)) != col || static_cast<int>(std::floor(frac.y)) != row)
+      const core::math::TilePos frac = core::math::world_to_tile(world, elev, iso);
+      if (static_cast<int>(std::floor(frac.col)) != col || static_cast<int>(std::floor(frac.row)) != row)
         return std::nullopt;
 
       return CandidateHit{

@@ -38,13 +38,8 @@ namespace {
     EntityId npc{};
   };
 
-  Fixture make_fixture(float npc_col = 5.f, float npc_row = 6.f, bool npc_present = true) {
-    const Sprite sprite{.sprite_id = k_null_sprite_id, .anim_id = AnimId::Default, .frame_index = 0};
-    const Velocity velocity{};
-    const Animation animation{};
+  void add_player(Fixture &f, const Sprite &sprite, const Velocity &velocity, const Animation &animation) {
     const Position player_pos{.col = 5.f, .row = 5.f};
-
-    Fixture f;
     const std::optional<EntityId> player =
         corundum::entities::spawn(f.scene.world, player_pos, velocity, sprite, animation);
     REQUIRE(player.has_value());
@@ -52,18 +47,29 @@ namespace {
     f.player = *player;
     f.scene.player = f.player;
     f.scene.world.collisions.insert(f.player, 1.f, 1.f);
+  }
 
-    if (npc_present) {
-      const Position npc_pos{.col = npc_col, .row = npc_row};
-      const std::optional<EntityId> npc =
-          corundum::entities::spawn(f.scene.world, npc_pos, velocity, sprite, DialogueRef{.graph_id = "npc"});
-      REQUIRE(npc.has_value());
-      // NOLINTNEXTLINE(bugprone-unchecked-optional-access): the REQUIRE above guards the deref.
-      f.npc = *npc;
-    }
+  void add_npc(Fixture &f, float npc_col, float npc_row, const Sprite &sprite, const Velocity &velocity) {
+    const Position npc_pos{.col = npc_col, .row = npc_row};
+    const std::optional<EntityId> npc =
+        corundum::entities::spawn(f.scene.world, npc_pos, velocity, sprite, DialogueRef{.graph_id = "npc"});
+    REQUIRE(npc.has_value());
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access): the REQUIRE above guards the deref.
+    f.npc = *npc;
+  }
 
-    f.map.half_tw = 64.f;
-    f.map.half_th = 32.f;
+  Fixture make_fixture(float npc_col = 5.f, float npc_row = 6.f, bool npc_present = true) {
+    const Sprite sprite{.sprite_id = k_null_sprite_id, .anim_id = AnimId::Default, .frame_index = 0};
+    const Velocity velocity{};
+    const Animation animation{};
+
+    Fixture f;
+    add_player(f, sprite, velocity, animation);
+    if (npc_present)
+      add_npc(f, npc_col, npc_row, sprite, velocity);
+
+    f.map.projection.half_tw = 64.f;
+    f.map.projection.half_th = 32.f;
     f.map.world_w_tiles = 100.f;
     f.map.world_h_tiles = 100.f;
     return f;

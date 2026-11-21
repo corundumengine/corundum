@@ -1689,8 +1689,8 @@ namespace corundum::gameplay {
       if (!target_tile)
         return;
       const world::TileCoord tile = *target_tile;
-      const world::TileDiamond diamond = world::tile_diamond(
-          tile, world::discrete_elevation_at(map, tile.col, tile.row), world::projection_of(map, engine.cfg));
+      const world::TileDiamond diamond =
+          world::tile_diamond(tile, world::discrete_elevation_at(map, tile.col, tile.row), map.projection);
       const std::array corners{diamond.top, diamond.right, diamond.bottom, diamond.left};
 
       const render::WorldView &view = engine.render.world_view;

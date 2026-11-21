@@ -203,7 +203,7 @@ namespace corundum::physics {
         p.col = transforms.col[player_slot];
         p.row = transforms.row[player_slot];
 
-        if (map.half_tw > 0.f && map.half_th > 0.f) {
+        if (map.projection.half_tw > 0.f && map.projection.half_th > 0.f) {
           const corundum::entities::GridBox box =
               corundum::entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
           const corundum::entities::GridBox prev_box =
@@ -443,7 +443,12 @@ namespace corundum::physics {
     const bool manual_move =
         input.is_held(corundum::input::Action::MoveUp) || input.is_held(corundum::input::Action::MoveDown) ||
         input.is_held(corundum::input::Action::MoveLeft) || input.is_held(corundum::input::Action::MoveRight);
-    const IsometricParams iso{.half_tw = map.half_tw, .half_th = map.half_th, .x_origin = 0.f, .elev_step = 0.f};
+    const IsometricParams iso{
+        .half_tw = map.projection.half_tw,
+        .half_th = map.projection.half_th,
+        .x_origin = 0.f,
+        .elev_step = 0.f,
+    };
     if (manual_move) {
       scene.path.clear(); // manual input always overrides/cancels an active path
       apply_input(transforms, player, input, player_speed, iso);

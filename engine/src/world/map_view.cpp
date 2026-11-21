@@ -31,9 +31,7 @@ namespace corundum::world {
           .world_h_px = bounds.height_px,
           .world_w_tiles = static_cast<float>(tm.width),
           .world_h_tiles = static_cast<float>(tm.height),
-          .half_tw = isometric.half_tw,
-          .half_th = isometric.half_th,
-          .x_origin = isometric.x_origin,
+          .projection = isometric,
           .character_scale = cfg.character_scale,
           .tile_scale = cfg.tile_scale,
           .portals = area.map.portals,
@@ -56,9 +54,7 @@ namespace corundum::world {
           .world_h_px = iso_h,
           .world_w_tiles = static_cast<float>(manifest.effective_tiles_wide()),
           .world_h_tiles = static_cast<float>(total_h),
-          .half_tw = isometric.half_tw,
-          .half_th = isometric.half_th,
-          .x_origin = isometric.x_origin,
+          .projection = isometric,
           .character_scale = cfg.character_scale,
           .tile_scale = cfg.tile_scale,
           .portals = std::span{area.aggregates.portals},
@@ -83,15 +79,6 @@ namespace corundum::world {
     if (const auto *single = std::get_if<render::SingleMapArea>(&render.area))
       return build_single_map_view(*single, cfg);
     return build_single_map_view(no_area(), cfg);
-  }
-
-  core::math::IsometricParams projection_of(const MapView &map, const core::GameConfig &cfg) noexcept {
-    return {
-        .half_tw = map.half_tw,
-        .half_th = map.half_th,
-        .x_origin = map.x_origin,
-        .elev_step = cfg.elevation_step_px * map.tile_scale,
-    };
   }
 
   WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float half_th) noexcept {

@@ -28,6 +28,14 @@ namespace corundum::core::math {
     bool operator==(const IntSize &) const = default;
   };
 
+  /// Fractional tile-grid position, in tile units, as the transform table stores it.
+  struct TilePos {
+    float col = 0.f;
+    float row = 0.f;
+
+    bool operator==(const TilePos &) const = default;
+  };
+
   /// RGBA colour with 8-bit channels.
   struct Colour {
     uint8_t r = 255;

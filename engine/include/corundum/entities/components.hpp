@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <corundum/core/direction.hpp>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <cstdint>
 #include <string>
@@ -20,10 +21,7 @@ namespace corundum::entities {
   };
 
   /// Tile-grid position of an entity (feet position in fractional tile coordinates).
-  struct Position {
-    float col = 0.f;
-    float row = 0.f;
-  };
+  using Position = corundum::core::math::TilePos;
 
   /// Rendering component: identifies which sprite asset and animation frame to draw.
   struct Sprite {

@@ -111,8 +111,8 @@ namespace corundum::world::tilemap {
     // truncate — to match the rest of the codebase (picking, tilesmith).
     const auto tile = corundum::core::math::world_to_tile({.x = iso_x, .y = iso_y}, /*elevation=*/0, iso);
     const float chunk_f = static_cast<float>(m.chunk_size);
-    const int cx = static_cast<int>(std::floor(tile.x / chunk_f));
-    const int cy = static_cast<int>(std::floor(tile.y / chunk_f));
+    const int cx = static_cast<int>(std::floor(tile.col / chunk_f));
+    const int cy = static_cast<int>(std::floor(tile.row / chunk_f));
     return {.col = std::clamp(cx, 0, m.chunks_wide - 1), .row = std::clamp(cy, 0, m.chunks_tall - 1)};
   }
 

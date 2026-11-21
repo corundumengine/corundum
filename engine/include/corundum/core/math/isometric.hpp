@@ -126,31 +126,6 @@ namespace corundum::core::math {
   }
 
   /**
-   * @brief Raw-scalar adapter for tile_to_world, exercised directly by test_iso_math.cpp.
-   *
-   * Production callers should prefer the IsometricParams overload above, which bundles the
-   * four scalars into one struct and eliminates the swap hazard.
-   *
-   * @param tx        Tile column (integer).
-   * @param ty        Tile row (integer).
-   * @param elevation Tile height [0–255]; 0 is flat ground level.
-   * @param half_tw   Half the scaled diamond width in screen pixels  (e.g. 32 for a 64-px diamond).
-   * @param half_th   Half the scaled diamond height in screen pixels (e.g. 16 for a 32-px diamond).
-   * @param elev_step Screen pixels lifted per unit of elevation.
-   * @param x_origin  Horizontal shift applied to the result.
-   * @return Isometric world-space position offset by x_origin.
-   */
-  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-  [[nodiscard]] constexpr Vec2 tile_to_world(int tx, int ty, int elevation, float half_tw, float half_th,
-                                             float elev_step, float x_origin) noexcept {
-    return tile_to_world(
-        static_cast<float>(tx), static_cast<float>(ty), elevation,
-        IsometricParams{.half_tw = half_tw, .half_th = half_th, .x_origin = x_origin, .elev_step = elev_step});
-  }
-
-  // NOLINTEND(bugprone-easily-swappable-parameters)
-
-  /**
    * @brief Convert an isometric world-space position back to fractional tile-grid
    * coordinates, given an assumed elevation. The direct inverse of tile_to_world.
    *
@@ -158,38 +133,15 @@ namespace corundum::core::math {
    * @param elevation Assumed tile height — the caller supplies this per-candidate
    *                  when resolving which of several stacked tiles a screen point hits.
    * @param iso       Packed projection parameters from compute_isometric_params().
-   * @return Fractional {col, row}; floor() each component to get the containing cell.
+   * @return Fractional tile position; floor() each field to get the containing cell.
    */
-  [[nodiscard]] constexpr Vec2 world_to_tile(Vec2 world_pos, int elevation, const IsometricParams &iso) noexcept {
+  [[nodiscard]] constexpr TilePos world_to_tile(Vec2 world_pos, int elevation, const IsometricParams &iso) noexcept {
     const float adj_x = world_pos.x - iso.x_origin;
     const float adj_y = world_pos.y + (static_cast<float>(elevation) * iso.elev_step);
     const float u = adj_x / iso.half_tw; // col - row
     const float v = adj_y / iso.half_th; // col + row
-    return {.x = (u + v) * 0.5f, .y = (v - u) * 0.5f};
+    return {.col = (u + v) * 0.5f, .row = (v - u) * 0.5f};
   }
-
-  /**
-   * @brief Raw-scalar adapter for world_to_tile, exercised directly by test_iso_math.cpp.
-   *
-   * Production callers should prefer the IsometricParams overload above.
-   *
-   * @param world_pos Isometric world-space position (already camera-adjusted).
-   * @param elevation Assumed tile height.
-   * @param half_tw   Half the scaled diamond width.
-   * @param half_th   Half the scaled diamond height.
-   * @param elev_step Screen pixels lifted per unit of elevation.
-   * @param x_origin  The same x_origin passed to tile_to_world.
-   * @return Fractional {col, row}; floor() each component to get the containing cell.
-   */
-  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-  [[nodiscard]] constexpr Vec2 world_to_tile(Vec2 world_pos, int elevation, float half_tw, float half_th,
-                                             float elev_step, float x_origin) noexcept {
-    return world_to_tile(
-        world_pos, elevation,
-        IsometricParams{.half_tw = half_tw, .half_th = half_th, .x_origin = x_origin, .elev_step = elev_step});
-  }
-
-  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   /**
    * @brief Cell-center anchor convention: returns the cell's geometric center in
@@ -270,8 +222,6 @@ namespace corundum::core::math {
     return iso_depth_key(tx, ty, elevation, iso.half_th, iso.elev_step);
   }
 
-  // ── Viewport culling ───────────────────────────────────────────────────
-
   /**
    * @brief Bounds of the visible isometric tile range for a world-space rectangle.
    *
@@ -321,8 +271,6 @@ namespace corundum::core::math {
    * @return Inclusive maximum column index.
    */
   [[nodiscard]] constexpr int isometric_cull_last_column(const IsometricCullBounds &b, int depth) noexcept;
-
-  // ── Cull implementation (constexpr, no <cmath> for AppleClang compat) ────
 
   namespace detail {
     [[nodiscard]] constexpr float ce_floor(float x) noexcept {

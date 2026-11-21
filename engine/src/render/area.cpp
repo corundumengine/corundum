@@ -311,15 +311,10 @@ namespace corundum::render {
 
     WorldLoadInfo make_world_load_info(const WorldArea &area, const corundum::core::GameConfig &cfg,
                                        const SpawnPlacement &spawn) {
-      const auto iso = isometric_params(area, cfg);
-      const core::math::Vec2 spawn_pos{.x = spawn.tile_col, .y = spawn.tile_row};
-      corundum::detail::info_log("[engine] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_pos.x, spawn_pos.y);
-      return {
-          .half_tw = iso.half_tw,
-          .half_th = iso.half_th,
-          .x_origin = iso.x_origin,
-          .spawn_world_pos = spawn_pos,
-      };
+      const core::math::TilePos spawn_tile{.col = spawn.tile_col, .row = spawn.tile_row};
+      corundum::detail::info_log("[engine] World ready — spawn at tile ({:.0f}, {:.0f})", spawn_tile.col,
+                                 spawn_tile.row);
+      return {.projection = isometric_params(area, cfg), .spawn_tile = spawn_tile};
     }
 
   } // namespace

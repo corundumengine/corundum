@@ -1177,8 +1177,7 @@ TEST_CASE("combat: the target marker outlines the target's tile through the worl
 
   const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.cfg);
   const corundum::world::TileDiamond expected = corundum::world::tile_diamond(
-      hostile_tile, corundum::world::discrete_elevation_at(map, hostile_tile.col, hostile_tile.row),
-      corundum::world::projection_of(map, engine.cfg));
+      hostile_tile, corundum::world::discrete_elevation_at(map, hostile_tile.col, hostile_tile.row), map.projection);
   REQUIRE_EQ(r.world_lines.size(), 4u);
   CHECK_EQ(r.world_lines[0].start.x, expected.top.x);
   CHECK_EQ(r.world_lines[0].start.y, expected.top.y);

@@ -27,15 +27,13 @@ namespace corundum::world {
   struct MapView {
     corundum::world::tilemap::CollisionRectsView collisions;
     corundum::world::tilemap::CollisionTrianglesView collision_triangles;
-    float world_w_px{0.f};      ///< Total isometric world width in display pixels.
-    float world_h_px{0.f};      ///< Total isometric world height in display pixels.
-    float world_w_tiles{0.f};   ///< Total map width in tile-grid columns.
-    float world_h_tiles{0.f};   ///< Total map height in tile-grid rows.
-    float half_tw{0.f};         ///< Half the scaled diamond width; used for iso↔cart conversion.
-    float half_th{0.f};         ///< Half the scaled diamond height; used for iso↔cart conversion.
-    float x_origin{0.f};        ///< Isometric x-shift so the leftmost tile lands at x = 0.
-    float character_scale{1.f}; ///< Character/entity sprite render scale.
-    float tile_scale{1.f};      ///< Tile render scale.
+    float world_w_px{0.f};                    ///< Total isometric world width in display pixels.
+    float world_h_px{0.f};                    ///< Total isometric world height in display pixels.
+    float world_w_tiles{0.f};                 ///< Total map width in tile-grid columns.
+    float world_h_tiles{0.f};                 ///< Total map height in tile-grid rows.
+    core::math::IsometricParams projection{}; ///< Diamond, origin and elevation step this map draws and picks with.
+    float character_scale{1.f};               ///< Character/entity sprite render scale.
+    float tile_scale{1.f};                    ///< Tile render scale.
     /// Tile-grid portals for the active map/world. In world mode this aliases
     /// render::WorldArea::aggregates.portals, rebuilt by rebuild_world_aggregates(); the span is
     /// invalidated when that buffer is rebuilt.
@@ -97,10 +95,6 @@ namespace corundum::world {
    *       single map.
    */
   [[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept;
-
-  /** @brief The projection @p map draws and picks with: its diamond and origin, and an elevation
-   *  step scaled by its tile scale, as compute_isometric_params() produces it. */
-  [[nodiscard]] core::math::IsometricParams projection_of(const MapView &map, const core::GameConfig &cfg) noexcept;
 
   /**
    * @brief World bounds of a single (non-chunked) tilemap.

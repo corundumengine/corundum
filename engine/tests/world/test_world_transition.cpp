@@ -344,9 +344,9 @@ TEST_CASE("world transition - pick_tile resolves a tile in world mode (hover wor
   const float mouse_x = 160.f;
   const float mouse_y = 120.f;
   const corundum::core::math::IsometricParams pick_iso{
-      .half_tw = map.half_tw,
-      .half_th = map.half_th,
-      .x_origin = map.x_origin,
+      .half_tw = map.projection.half_tw,
+      .half_th = map.projection.half_th,
+      .x_origin = map.projection.x_origin,
       .elev_step = engine.cfg.elevation_step_px * map.tile_scale,
   };
   const auto result = corundum::world::pick_tile(mouse_x, mouse_y, camera, map, pick_iso);

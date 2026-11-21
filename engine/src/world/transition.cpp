@@ -82,29 +82,20 @@ namespace corundum::world {
     assert(!world_area->chunks.active_empty());
 
     const corundum::render::WorldLoadInfo &info = *world_result;
-    const corundum::entities::Position spawn_pos{.col = info.spawn_world_pos.x, .row = info.spawn_world_pos.y};
 
     std::expected<std::unique_ptr<Scene>, std::string> scene_result =
         world::spawn_world(engine.content_source(), engine.cfg, engine.characters,
-                           world_area->chunks.active_at(0).tilemap, spawn_pos, false);
+                           world_area->chunks.active_at(0).tilemap, info.spawn_tile, false);
     if (!scene_result)
       return std::unexpected(std::move(scene_result).error());
     engine.scene = std::move(**scene_result);
     engine.scene.zone_id = world_zone_id(world_area->manifest, engine.cfg.paths.world_manifest_path);
     world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
 
-    const WorldBounds bounds =
-        corundum::world::tilemap::world_bounds_iso(world_area->manifest, info.half_tw, info.half_th);
-    // elev_step is pre-multiplied by tile_scale to match compute_isometric_params()
-    // for consistency with the renderer's scaled iso.elev_step. Designated
-    // initializers keep this robust to field-order changes in IsometricParams.
-    const corundum::core::math::IsometricParams iso{
-        .half_tw = info.half_tw,
-        .half_th = info.half_th,
-        .x_origin = info.x_origin,
-        .elev_step = engine.cfg.elevation_step_px * engine.cfg.tile_scale,
-    };
-    frame_camera_on(engine, iso, spawn_pos.col, spawn_pos.row, bounds, CameraAnchor::CellCenter);
+    const WorldBounds bounds = corundum::world::tilemap::world_bounds_iso(world_area->manifest, info.projection.half_tw,
+                                                                          info.projection.half_th);
+    frame_camera_on(engine, info.projection, info.spawn_tile.col, info.spawn_tile.row, bounds,
+                    CameraAnchor::CellCenter);
     return {};
   }
 

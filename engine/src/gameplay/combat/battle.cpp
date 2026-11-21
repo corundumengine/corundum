@@ -803,7 +803,7 @@ namespace corundum::gameplay::combat {
   }
 
   void Battle::walk_hostiles(Engine &engine, const world::MapView &map, const rules::CombatContext &context) {
-    const core::math::IsometricParams iso{.half_tw = map.half_tw, .half_th = map.half_th};
+    const core::math::IsometricParams iso{.half_tw = map.projection.half_tw, .half_th = map.projection.half_th};
     auto &transforms = engine.scene.world.transforms;
     for (std::size_t i = 0; i < entities_.size(); ++i) {
       const std::optional<entities::EntityId> &entity = entities_[i];

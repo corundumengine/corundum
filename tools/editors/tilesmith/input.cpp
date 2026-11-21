@@ -279,8 +279,8 @@ namespace tools::tilesmith {
       auto &cols = state.map.collisions;
       for (int i = static_cast<int>(cols.size()) - 1; i >= 0; --i) {
         const auto idx = static_cast<std::size_t>(i);
-        if (frac.x >= cols.cols[idx] && frac.x < cols.cols[idx] + cols.col_spans[idx] && frac.y >= cols.rows[idx] &&
-            frac.y < cols.rows[idx] + cols.row_spans[idx]) {
+        if (frac.col >= cols.cols[idx] && frac.col < cols.cols[idx] + cols.col_spans[idx] &&
+            frac.row >= cols.rows[idx] && frac.row < cols.rows[idx] + cols.row_spans[idx]) {
           cols.erase(idx);
           state.dirty = true;
           push_undo_checkpoint(state);
@@ -289,7 +289,6 @@ namespace tools::tilesmith {
       }
     }
 
-    // ── Layer properties popup state ─────────────────────────────────────────
     // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): TU-local editor UI state.
     bool layer_rename_requested = false;      ///< True when user double-clicked a layer.
     int layer_rename_idx = -1;                ///< Index of the layer being edited.
@@ -298,7 +297,6 @@ namespace tools::tilesmith {
     bool layer_props_depth_sorted = false;    ///< Buffer for the layer's depth_sorted flag.
     bool layer_add_popup_requested = false;   ///< True when the "+" button was clicked.
 
-    // ── Fill-blocked popup state ─────────────────────────────────────────────
     bool show_fill_blocked_popup = false; ///< True when F was pressed on a non-ground layer.
     // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -319,6 +317,45 @@ namespace tools::tilesmith {
       push_undo_checkpoint(state);
     }
 
+    /// The add/delete buttons sharing the layer panel's title row.
+    void handle_layer_title_click(EditorState &state, int panel_x, int panel_y) {
+      const float btn_y = (static_cast<float>(LAYER_TITLE_H) - LAYER_BTN_H) * 0.5f;
+      const float panel_x_f = static_cast<float>(panel_x);
+      const float panel_y_f = static_cast<float>(panel_y);
+      if (panel_y_f < btn_y || panel_y_f >= btn_y + LAYER_BTN_H)
+        return;
+      if (panel_x_f >= LAYER_BTN_ADD_X && panel_x_f < LAYER_BTN_ADD_X + LAYER_BTN_W) {
+        layer_add_popup_requested = true;
+        return;
+      }
+      if (panel_x_f >= LAYER_BTN_DEL_X && panel_x_f < LAYER_BTN_DEL_X + LAYER_BTN_W)
+        delete_layer(state);
+    }
+
+    /// A click on one layer row: double-click renames, the eye toggles visibility, else select.
+    void handle_layer_row_click(EditorState &state, int panel_x, int panel_y, int n_layers) {
+      const int idx = (panel_y - LAYER_TITLE_H) / LAYER_ROW_H;
+      if (idx < 0 || idx >= n_layers)
+        return;
+      const auto slot = static_cast<std::size_t>(idx);
+      const bool rename = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && panel_x < PALETTE_W - 24;
+      if (rename) {
+        layer_rename_requested = true;
+        layer_rename_idx = idx;
+        corundum::toolkit::widgets::copy_to_buffer(layer_rename_buf.data(), layer_rename_buf.size(),
+                                                   state.map.layers[slot].name);
+        layer_props_z_index = state.map.layers[slot].z_index;
+        layer_props_depth_sorted = state.map.layers[slot].depth_sorted;
+        return;
+      }
+      if (panel_x >= PALETTE_W - 24) {
+        state.map.layers[slot].visible = !state.map.layers[slot].visible;
+        push_undo_checkpoint(state);
+        return;
+      }
+      state.active_layer = idx;
+    }
+
     void handle_palette_click(EditorState &state, int win_x, int win_y) {
       const int panel_x = win_x - CANVAS_W;
       const int panel_y = win_y - k_menu_h;
@@ -326,41 +363,11 @@ namespace tools::tilesmith {
       const int n_layers = static_cast<int>(state.map.layers.size());
       const int layer_strip_h = LAYER_TITLE_H + (n_layers * LAYER_ROW_H);
       if (panel_y < LAYER_TITLE_H) {
-        const float btn_y = (static_cast<float>(LAYER_TITLE_H) - LAYER_BTN_H) * 0.5f;
-        const float panel_x_f = static_cast<float>(panel_x);
-        const float panel_y_f = static_cast<float>(panel_y);
-        if (panel_x_f >= LAYER_BTN_ADD_X && panel_x_f < LAYER_BTN_ADD_X + LAYER_BTN_W && panel_y_f >= btn_y &&
-            panel_y_f < btn_y + LAYER_BTN_H) {
-          layer_add_popup_requested = true;
-          return;
-        }
-        if (panel_x_f >= LAYER_BTN_DEL_X && panel_x_f < LAYER_BTN_DEL_X + LAYER_BTN_W && panel_y_f >= btn_y &&
-            panel_y_f < btn_y + LAYER_BTN_H) {
-          delete_layer(state);
-          return;
-        }
+        handle_layer_title_click(state, panel_x, panel_y);
         return;
       }
       if (panel_y < layer_strip_h) {
-        const int idx = (panel_y - LAYER_TITLE_H) / LAYER_ROW_H;
-        if (idx >= 0 && idx < n_layers) {
-          if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && panel_x < PALETTE_W - 24) {
-            layer_rename_requested = true;
-            layer_rename_idx = idx;
-            corundum::toolkit::widgets::copy_to_buffer(layer_rename_buf.data(), layer_rename_buf.size(),
-                                                       state.map.layers[static_cast<std::size_t>(idx)].name);
-            layer_props_z_index = state.map.layers[static_cast<std::size_t>(idx)].z_index;
-            layer_props_depth_sorted = state.map.layers[static_cast<std::size_t>(idx)].depth_sorted;
-            return;
-          }
-          if (panel_x >= PALETTE_W - 24) {
-            state.map.layers[static_cast<std::size_t>(idx)].visible =
-                !state.map.layers[static_cast<std::size_t>(idx)].visible;
-            push_undo_checkpoint(state);
-          } else {
-            state.active_layer = idx;
-          }
-        }
+        handle_layer_row_click(state, panel_x, panel_y, n_layers);
         return;
       }
 
@@ -387,8 +394,6 @@ namespace tools::tilesmith {
     const bool over_canvas = mx >= 0 && mx < CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H;
     const bool over_panel = mx >= CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H;
 
-    // Whether the canvas's own scrollbars are present this frame (mirrors the content-size vs.
-    // window-size check in main.cpp that decides whether ImGui draws them), and whether the
     // --- Canvas pan/zoom ---
     state.canvas.update(io, {0.f, static_cast<float>(k_menu_h)},
                         {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
@@ -666,7 +671,6 @@ namespace tools::tilesmith {
       state.palette_scroll_y = std::clamp(state.palette_scroll_y, 0.f, static_cast<float>(std::max(0, content_h)));
     }
 
-    // ── Add layer popup ──────────────────────────────────────────────────────
     if (layer_add_popup_requested) {
       ImGui::OpenPopup("Add Layer");
       layer_add_popup_requested = false;
@@ -689,7 +693,6 @@ namespace tools::tilesmith {
       ImGui::EndPopup();
     }
 
-    // ── Layer rename popup ──────────────────────────────────────────────────
     if (layer_rename_requested) {
       ImGui::OpenPopup("Rename Layer");
       layer_rename_requested = false;
@@ -731,7 +734,6 @@ namespace tools::tilesmith {
       ImGui::EndPopup();
     }
 
-    // ── Validation errors popup ──────────────────────────────────────────────
     if (state.show_validation_popup) {
       ImGui::OpenPopup("Validation Errors");
       state.show_validation_popup = false;
@@ -764,7 +766,6 @@ namespace tools::tilesmith {
       ImGui::EndPopup();
     }
 
-    // ── Fill-blocked popup ───────────────────────────────────────────────────
     if (show_fill_blocked_popup) {
       ImGui::OpenPopup("Fill Not Available");
       show_fill_blocked_popup = false;

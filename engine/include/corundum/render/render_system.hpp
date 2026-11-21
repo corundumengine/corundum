@@ -27,14 +27,14 @@ namespace corundum::render {
 
   /** @brief Tile position of @p e to draw this frame.
    *
-   *  Blends from @p e's start-of-step snapshot to (@p col, @p row) by @p alpha; returns
-   *  (@p col, @p row) unchanged when @p e has no snapshot (spawned since the step began, or its
+   *  Blends from @p e's start-of-step snapshot to @p current by @p alpha; returns
+   *  @p current unchanged when @p e has no snapshot (spawned since the step began, or its
    *  index was recycled).
    *  @param[in] alpha Fraction of a fixed step elapsed since the last step, in [0, 1].
    */
-  [[nodiscard]] core::math::Vec2 interpolated_tile_position(const render::RenderState &state,
-                                                            corundum::entities::EntityId e, float col, float row,
-                                                            float alpha) noexcept;
+  [[nodiscard]] core::math::TilePos interpolated_tile_position(const render::RenderState &state,
+                                                               corundum::entities::EntityId e,
+                                                               core::math::TilePos current, float alpha) noexcept;
 
   /** @brief Render the world for one frame; the caller owns screen-space overlays.
    *  @param[in,out] r              Renderer for all draw calls.

@@ -83,14 +83,14 @@ namespace corundum::render {
     snapshot.zoom = scene.camera.zoom;
   }
 
-  core::math::Vec2 interpolated_tile_position(const render::RenderState &state, corundum::entities::EntityId e,
-                                              float col, float row, float alpha) noexcept {
+  core::math::TilePos interpolated_tile_position(const render::RenderState &state, corundum::entities::EntityId e,
+                                                 core::math::TilePos current, float alpha) noexcept {
     const StepSnapshot &snapshot = state.previous_step;
     if (e.index >= corundum::entities::k_max_entities || snapshot.generation[e.index] != e.generation)
-      return {.x = col, .y = row};
+      return current;
     return {
-        .x = std::lerp(snapshot.col[e.index], col, alpha),
-        .y = std::lerp(snapshot.row[e.index], row, alpha),
+        .col = std::lerp(snapshot.col[e.index], current.col, alpha),
+        .row = std::lerp(snapshot.row[e.index], current.row, alpha),
     };
   }
 
@@ -457,10 +457,10 @@ namespace corundum::render {
           continue;
 
         const auto transform_slot = transforms.dense_index(entity);
-        const core::math::Vec2 drawn = interpolated_tile_position(state, entity, transforms.col[transform_slot],
-                                                                  transforms.row[transform_slot], alpha);
-        const float col_f = drawn.x;
-        const float row_f = drawn.y;
+        const core::math::TilePos drawn = interpolated_tile_position(
+            state, entity, {.col = transforms.col[transform_slot], .row = transforms.row[transform_slot]}, alpha);
+        const float col_f = drawn.col;
+        const float row_f = drawn.row;
 
         const auto result = state.sprite_index.get(sprites.sprite_id[i], sprites.anim_id[i], sprites.frame_index[i]);
         if (!result) [[unlikely]]
