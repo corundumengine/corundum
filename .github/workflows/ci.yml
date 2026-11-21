@@ -44,9 +44,12 @@ jobs:
           HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
         run: brew install llvm ninja
 
+      # The runner image preinstalls a pinned LLVM through choco, so `choco
+      # install` is a no-op; `upgrade` replaces it with the current release.
+      # The image's MSVC STL rejects clang versions older than it supports.
       - name: Install toolchain (Windows)
         if: runner.os == 'Windows'
-        run: choco install llvm ninja --no-progress -y
+        run: choco upgrade llvm ninja --no-progress -y
 
       # clang links with link.exe and needs the SDK/MSVC environment, not just
       # headers, so this must run after the LLVM install.
