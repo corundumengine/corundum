@@ -13,6 +13,7 @@
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/portals/portal.hpp>
+#include <corundum/world/tilemap/loader.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
@@ -115,6 +116,10 @@ namespace corundum::render {
     std::vector<int> above_z_cache{};
 
     WorldAggregates aggregates{};
+
+    /// Loads the window's chunks through the content source load_world() was given, keeping their
+    /// shared tilesets until the world is replaced. No default: a world can't stream without a source.
+    world::tilemap::TilemapLoader chunk_loader;
 
     ChunkWindow chunks{};
 

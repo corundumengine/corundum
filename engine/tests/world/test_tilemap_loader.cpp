@@ -726,40 +726,69 @@ TEST_CASE("load_tilemap - material_overrides entry missing 'material' returns er
                                        "'col', 'row', or 'material'"});
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
-TEST_CASE("load_tilemap - shared tileset resolves identically across separate maps (tileset info cached)") {
-  // Regression for the chunk-streaming stutter: load_tileset re-parsed every tileset from disk
-  // per chunk, so a shared atlas was recomputed (and the file re-read twice) for each chunk. The
-  // resolved TilesetInfo is now cached per source path. Two maps referencing the SAME atlas must
-  // produce identical TilesetInfo — proving the cache is transparent and not a false cache hit.
-  const auto dir = temp_dir("tileset_cache_shared");
-  const auto ts_path = dir / "shared.json";
-  write_file(ts_path, make_atlas_json("game/assets/textures/shared.png", 8, 16, 16));
+TEST_CASE("load_tileset - same path in two content sources loads each source's own tileset") {
+  constexpr std::string_view k_shared_tileset_path{"cache_collision/shared_tileset.json"};
+  corundum::test::MemoryContentSource source_a;
+  source_a.add(k_shared_tileset_path, make_atlas_json("textures/source_a.png", 3, 16, 16));
+  corundum::test::MemoryContentSource source_b;
+  source_b.add(k_shared_tileset_path, make_atlas_json("textures/source_b.png", 5, 16, 16));
 
-  const auto make_map_name = [&](const std::string &name) {
-    const auto map_path = dir / (name + ".json");
-    std::string content;
-    content += R"({"id":")" + name + R"(","tilesets":[{"first_gid":0,"source":")";
-    content += ts_path.generic_string();
-    content += R"("}],"width":2,"height":1,"layers":[{"name":"ground","tiles":["0,1"]}]})";
-    write_file(map_path, content);
-    return map_path;
-  };
+  const auto from_a = corundum::world::tilemap::load_tileset(source_a, k_shared_tileset_path);
+  const auto from_b = corundum::world::tilemap::load_tileset(source_b, k_shared_tileset_path);
 
-  auto a = corundum::world::tilemap::load_tilemap(disk(), make_map_name("map_a"));
-  auto b = corundum::world::tilemap::load_tilemap(disk(), make_map_name("map_b"));
-  REQUIRE(a.has_value());
-  REQUIRE(b.has_value());
-  REQUIRE(a->tilesets.size() == 1);
-  REQUIRE(b->tilesets.size() == 1);
+  REQUIRE_MESSAGE(from_a.has_value(), from_a.error());
+  REQUIRE_MESSAGE(from_b.has_value(), from_b.error());
+  CHECK_EQ(from_a->path, "textures/source_a.png");
+  CHECK_EQ(from_a->tile_count, 3);
+  CHECK_EQ(from_b->path, "textures/source_b.png");
+  CHECK_EQ(from_b->tile_count, 5);
+}
 
-  const auto &ta = a->tilesets[0].info;
-  const auto &tb = b->tilesets[0].info;
-  CHECK(ta.tile_count == 8);
-  CHECK(tb.tile_count == 8);
-  CHECK(ta.tile_count == tb.tile_count);
-  CHECK(ta.path == tb.path);
-  CHECK(ta.tile_names == tb.tile_names);
+namespace {
+
+  constexpr std::string_view k_edited_tileset_path{"edited/tileset.json"};
+
+  /// A one-tileset map at @p map_path in @p source, whose 2×1 layer uses the tileset's first tile.
+  void add_map_using_edited_tileset(corundum::test::MemoryContentSource &source, std::string_view map_path) {
+    source.add(map_path, std::format(R"({{"id":"edited","tilesets":[{{"first_gid":0,"source":"{}"}}],)"
+                                     R"("width":2,"height":1,"layers":[{{"name":"ground","tiles":["0,0"]}}]}})",
+                                     k_edited_tileset_path));
+  }
+
+} // namespace
+
+TEST_CASE("TilemapLoader - a second map sharing a tileset gets the kept copy, not the edited file") {
+  corundum::test::MemoryContentSource source;
+  add_map_using_edited_tileset(source, "edited/map_a.json");
+  add_map_using_edited_tileset(source, "edited/map_b.json");
+  source.add(k_edited_tileset_path, make_atlas_json("textures/before_edit.png", 3, 16, 16));
+  corundum::world::tilemap::TilemapLoader loader{source};
+  const auto map_a = loader.load_tilemap("edited/map_a.json");
+  REQUIRE_MESSAGE(map_a.has_value(), map_a.error());
+
+  source.add(k_edited_tileset_path, make_atlas_json("textures/after_edit.png", 5, 16, 16));
+  const auto map_b = loader.load_tilemap("edited/map_b.json");
+
+  REQUIRE_MESSAGE(map_b.has_value(), map_b.error());
+  REQUIRE_EQ(map_b->tilesets.size(), 1);
+  CHECK_EQ(map_b->tilesets[0].info.path, "textures/before_edit.png");
+  CHECK_EQ(map_b->tilesets[0].info.tile_count, 3);
+}
+
+TEST_CASE("load_tilemap - reloading a map sees its tileset's edited file") {
+  corundum::test::MemoryContentSource source;
+  add_map_using_edited_tileset(source, "edited/map.json");
+  source.add(k_edited_tileset_path, make_atlas_json("textures/before_edit.png", 3, 16, 16));
+  const auto before_edit = corundum::world::tilemap::load_tilemap(source, "edited/map.json");
+  REQUIRE_MESSAGE(before_edit.has_value(), before_edit.error());
+
+  source.add(k_edited_tileset_path, make_atlas_json("textures/after_edit.png", 5, 16, 16));
+  const auto after_edit = corundum::world::tilemap::load_tilemap(source, "edited/map.json");
+
+  REQUIRE_MESSAGE(after_edit.has_value(), after_edit.error());
+  REQUIRE_EQ(after_edit->tilesets.size(), 1);
+  CHECK_EQ(after_edit->tilesets[0].info.path, "textures/after_edit.png");
+  CHECK_EQ(after_edit->tilesets[0].info.tile_count, 5);
 }
 
 namespace {

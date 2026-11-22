@@ -341,7 +341,7 @@ namespace {
   corundum::render::RenderState make_world_render(std::initializer_list<corundum::world::tilemap::ChunkCoord> coords,
                                                   int chunk_size) {
     corundum::render::RenderState render;
-    auto &world_area = render.area.emplace<corundum::render::WorldArea>();
+    auto &world_area = corundum::test::emplace_world_area(render);
     world_area.manifest.chunk_size = chunk_size;
     for (const auto coord : coords) {
       corundum::render::ChunkEntry entry;

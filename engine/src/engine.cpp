@@ -820,7 +820,7 @@ namespace corundum {
 
     timer.tick();
 
-    render::stream_world_chunks(content_source(), *renderer_, render, cfg, scene);
+    render::stream_world_chunks(*renderer_, render, cfg, scene);
 
     const SimulationResult simulation{run_fixed_steps(*this)};
     // Portal scene changes are applied at full black by advance_scene_transition(); the

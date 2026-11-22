@@ -47,7 +47,7 @@ namespace corundum::test {
   /// World-mode RenderState with a horizontal run of `n` chunks along row 0, starting at (0,0).
   /// Each chunk's tilemap is produced by `mk(chunk_index)` so tests can inject elevation walls.
   template <typename Mk> void init_world(render::RenderState &state, int chunk_size, int n, const Mk &mk) {
-    auto &world_area = state.area.emplace<render::WorldArea>();
+    auto &world_area = emplace_world_area(state);
     world_area.manifest.chunk_size = chunk_size;
     world_area.manifest.chunks_wide = n + 2;
     world_area.manifest.chunks_tall = 3;

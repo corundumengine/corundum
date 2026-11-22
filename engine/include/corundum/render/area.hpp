@@ -81,6 +81,7 @@ namespace corundum::render {
    *                         and re-centres the streaming window on that tile's chunk.
    *  @return WorldLoadInfo on success, or std::unexpected with an error message.
    *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
+   *  @pre @p content outlives the loaded world, which streams its chunks through it.
    *  @post On success, std::holds_alternative<WorldArea>(state.area) and the window is non-empty.
    *        On failure, mode(state) is RenderMode::None and state.area_texture_ids is empty.
    */
@@ -95,10 +96,10 @@ namespace corundum::render {
    * aggregates (collision, walkability, portals) once if the active set changed. This is the only
    * place world residency changes after load_world(); call it once per frame before the fixed
    * steps, so the simulation always reads aggregates that match the resident chunks. No-op
-   * outside World mode or before any chunk is resident.
+   * outside World mode or before any chunk is resident. Chunks are read through the content
+   * source load_world() was given.
    */
-  void stream_world_chunks(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                           render::RenderState &state, const corundum::core::GameConfig &cfg,
-                           const corundum::world::Scene &scene);
+  void stream_world_chunks(corundum::platform::Renderer &r, render::RenderState &state,
+                           const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene);
 
 } // namespace corundum::render

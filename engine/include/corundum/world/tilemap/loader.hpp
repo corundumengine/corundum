@@ -6,6 +6,7 @@
 #include <expected>
 #include <filesystem>
 #include <string>
+#include <unordered_map>
 
 namespace corundum::core {
   class ContentSource;
@@ -21,17 +22,44 @@ namespace corundum::world::tilemap {
   /// Load a tileset from its JSON source file — a spritepacker atlas JSON (schema_version 2),
   /// optionally with tileset-only authoring fields layered on top (material, animations; see
   /// load_tileset's doc comment in loader.cpp for the on-disk shape).
+  /// Reads the file on every call; TilemapLoader keeps tilesets for reuse.
   /// @param path Path to the tileset JSON (e.g. "data/sprite_sheets/objects/terrain.json").
   /// @return TilesetInfo on success, or an error string on any parse or validation failure.
   [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &content,
                                                                      const std::filesystem::path &path);
 
-  /// Drop every cached TilesetInfo, forcing subsequent load_tileset() calls to re-read the atlas
-  /// from disk. Use after repacking an atlas so an already-running editor picks up the change;
-  /// chunk streaming during play can leave the cache intact.
-  void clear_tileset_cache();
+  /**
+   * @brief Loads tilemaps from one content source and keeps every tileset it resolves, keyed by
+   * path, so maps that share a tileset read and resolve it once.
+   *
+   * Streamed-world chunks share a handful of tilesets; resolving them again for every chunk was
+   * the dominant chunk-streaming cost (~43 ms per 16x16 chunk).
+   *
+   * A kept tileset is never re-read, so a change to its file reaches only a new loader.
+   * @note Not thread-safe. Call only from the main thread.
+   */
+  class TilemapLoader {
+  public:
+    /// @pre @p content outlives the loader.
+    explicit TilemapLoader(const core::ContentSource &content) : content_(&content) {}
 
-  /// Load and validate a tilemap from a JSON file; also loads the referenced tileset transitively.
+    /// Same contract as the free load_tilemap().
+    [[nodiscard]] std::expected<Tilemap, std::string> load_tilemap(const std::filesystem::path &path);
+
+    /// Same contract as the free load_tileset().
+    [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const std::filesystem::path &path);
+
+    /// The source every load reads from.
+    [[nodiscard]] const core::ContentSource &content() const { return *content_; }
+
+  private:
+    const core::ContentSource *content_;
+
+    std::unordered_map<std::string, TilesetInfo> tilesets_by_path_;
+  };
+
+  /// Load and validate a tilemap from a JSON file; also loads the referenced tileset transitively,
+  /// reading each tileset file afresh.
   /// Returns a fully populated Tilemap with world-pixel collision data scaled by the tile
   /// dimensions.
   /// @param path Path to the tilemap JSON (e.g. "data/maps/world.json").

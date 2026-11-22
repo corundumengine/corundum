@@ -8,7 +8,10 @@
 #include <corundum/render/render_state.hpp>
 #include <cstddef>
 #include <doctest/doctest.h>
+#include <format>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "null_renderer.hpp"
 #include <corundum/engine.hpp>
@@ -52,7 +55,7 @@ namespace {
   render_data::RenderState shifted_window_state() {
     constexpr int k_chunk_size = 16;
     render_data::RenderState state;
-    auto &world_area = state.area.emplace<render_data::WorldArea>();
+    auto &world_area = corundum::test::emplace_world_area(state);
     world_area.manifest.chunk_size = k_chunk_size;
     world_area.manifest.chunks_wide = 7;
     world_area.manifest.chunks_tall = 7;
@@ -102,7 +105,7 @@ TEST_CASE("active_tilemap: SingleMap mode returns &map.tilemap") {
 
 TEST_CASE("active_tilemap: World mode returns nullptr even with chunks loaded") {
   corundum::Engine engine;
-  auto &world_area = engine.render.area.emplace<render_data::WorldArea>();
+  auto &world_area = corundum::test::emplace_world_area(engine.render);
 
   render_data::ChunkEntry chunk;
   chunk.tilemap = make_flat_map();
@@ -118,7 +121,7 @@ TEST_CASE("mode: tracks the area alternative") {
   state.area.emplace<render_data::SingleMapArea>();
   CHECK(render_data::mode(state) == render_data::RenderMode::SingleMap);
 
-  state.area.emplace<render_data::WorldArea>();
+  corundum::test::emplace_world_area(state);
   CHECK(render_data::mode(state) == render_data::RenderMode::World);
 
   state.area = std::monostate{};
@@ -140,7 +143,7 @@ TEST_CASE("build_map_view: no area gives an empty single-map view") {
 
 TEST_CASE("build_map_view: a world with no resident chunks gives an empty single-map view") {
   render_data::RenderState state;
-  state.area.emplace<render_data::WorldArea>();
+  corundum::test::emplace_world_area(state);
   const corundum::core::GameConfig cfg;
 
   const corundum::world::MapView view = corundum::world::build_map_view(state, cfg);
@@ -256,7 +259,7 @@ TEST_CASE("elevation_under - negative col_f returns 0 (no chunk at floor cell), 
   // can't bite when anything (camera shake, knockback, chunk-local coords) goes negative.
   namespace render_system = corundum::render;
   render_data::RenderState state;
-  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  auto &world_area = corundum::test::emplace_world_area(state);
   world_area.manifest.chunk_size = 16;
   world_area.manifest.chunks_wide = 4;
   world_area.manifest.chunks_tall = 4;
@@ -284,7 +287,7 @@ TEST_CASE("elevation_under - negative col_f returns 0 (no chunk at floor cell), 
 TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk window dirty") {
   namespace render_system = corundum::render;
   render_data::RenderState state;
-  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  auto &world_area = corundum::test::emplace_world_area(state, disk());
   world_area.manifest.chunk_size = 16;
   world_area.manifest.chunks_wide = 3;
   world_area.manifest.chunks_tall = 3;
@@ -306,7 +309,7 @@ TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk w
   corundum::platform::null::NullRenderer renderer;
   const corundum::core::GameConfig cfg{};
 
-  render_system::stream_world_chunks(disk(), renderer, state, cfg, scene);
+  render_system::stream_world_chunks(renderer, state, cfg, scene);
 
   CHECK_EQ(world_area.chunks.active_size(), 2);
   CHECK(world_area.chunks.consume_dirty()); // fails before the fix
@@ -362,7 +365,7 @@ TEST_CASE("chunk window: a chunk streamed out and back in keeps its back-to-fron
   // seam flipped, making the boundary look like one tilemap riding slightly over the other.
   constexpr int k_chunk_size = 16;
   render_data::RenderState state;
-  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  auto &world_area = corundum::test::emplace_world_area(state);
   world_area.manifest.chunk_size = k_chunk_size;
   world_area.manifest.chunks_wide = 7;
   world_area.manifest.chunks_tall = 7;
@@ -436,4 +439,51 @@ TEST_CASE("ChunkWindow - enqueue_pending ignores a chunk that is already pending
 
   CHECK_EQ(window.pop_pending(), tilemap::ChunkCoord{.col = 2, .row = 1});
   CHECK_FALSE(window.pop_pending().has_value());
+}
+
+namespace {
+
+  constexpr std::string_view k_one_chunk_tileset_path{"one_chunk_world/tileset.json"};
+
+  /// A one-tile spritepacker atlas whose texture is @p texture_path.
+  std::string one_tile_atlas_json(std::string_view texture_path) {
+    return std::format(R"({{"schema_version":2,"path":"{}","width":16,"height":16,"sprites":[)"
+                       R"({{"name":"tile_0","x":0,"y":0,"w":16,"h":16,"trim_x":0,"trim_y":0,)"
+                       R"("source_width":16,"source_height":16,"pivot_x":0.5,"pivot_y":1.0}}]}})",
+                       texture_path);
+  }
+
+  /// A 1×1-chunk world of 2×2 tiles whose chunk uses the tileset at k_one_chunk_tileset_path,
+  /// which the caller adds. It has no portals file, which reads as no portals.
+  corundum::core::GameConfig add_one_chunk_world(corundum::test::MemoryContentSource &content) {
+    content.add("one_chunk_world/manifest.json", R"({"chunk_size":2,"chunks_wide":1,"chunks_tall":1})");
+    content.add("one_chunk_world/chunk_0_0.json",
+                std::format(R"({{"id":"chunk_0_0","iso_diamond_w":32,"iso_diamond_h":16,"width":2,"height":2,)"
+                            R"("layers":[{{"name":"ground","tiles":["0,0","0,0"]}}],)"
+                            R"("tilesets":[{{"first_gid":0,"source":"{}"}}]}})",
+                            k_one_chunk_tileset_path));
+    corundum::core::GameConfig cfg{};
+    cfg.paths.world_manifest_path = "one_chunk_world/manifest.json";
+    return cfg;
+  }
+
+} // namespace
+
+TEST_CASE("load_world: a world loaded again after its tileset file changed reads the changed tileset") {
+  corundum::test::MemoryContentSource content;
+  const corundum::core::GameConfig cfg = add_one_chunk_world(content);
+  content.add(k_one_chunk_tileset_path, one_tile_atlas_json("textures/before_edit.png"));
+  corundum::platform::null::NullRenderer renderer;
+  render_data::RenderState state;
+  const auto first_load = corundum::render::load_world(content, renderer, state, cfg);
+  REQUIRE_MESSAGE(first_load.has_value(), first_load.error());
+
+  content.add(k_one_chunk_tileset_path, one_tile_atlas_json("textures/after_edit.png"));
+  const auto second_load = corundum::render::load_world(content, renderer, state, cfg);
+
+  REQUIRE_MESSAGE(second_load.has_value(), second_load.error());
+  const auto &chunks = corundum::test::world_area_of(state).chunks.active();
+  REQUIRE_EQ(chunks.size(), 1);
+  REQUIRE_EQ(chunks[0].tilemap.tilesets.size(), 1);
+  CHECK_EQ(chunks[0].tilemap.tilesets[0].info.path, "textures/after_edit.png");
 }

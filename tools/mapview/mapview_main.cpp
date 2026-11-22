@@ -453,11 +453,13 @@ namespace tools::mapview {
     /// Load and resolve every chunk. Unreadable chunks are warned about and skipped.
     void collect_world_draws(const fs::path &world_dir, const WorldLayout &layout, const IsometricParams &iso,
                              float scale, bool labels, CollectedDraw &draw) {
+      const corundum::core::DirectoryContentSource content{};
+      corundum::world::tilemap::TilemapLoader chunk_loader{content};
       int rendered{};
       for (int cy = 0; cy < layout.chunks_tall; ++cy) {
         for (int cx = 0; cx < layout.chunks_wide; ++cx) {
           const fs::path chunk_path = world_dir / std::format("chunk_{}_{}.json", cx, cy);
-          const auto tilemap = load_tilemap(corundum::core::DirectoryContentSource{}, chunk_path);
+          const auto tilemap = chunk_loader.load_tilemap(chunk_path);
           if (!tilemap) {
             std::println(stderr, "Warning: cannot load {} : {}", chunk_path.string(), tilemap.error());
             continue;

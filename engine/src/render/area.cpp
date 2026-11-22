@@ -102,10 +102,10 @@ namespace corundum::render {
       return bands;
     }
 
-    std::expected<TilemapAssets, std::string> load_tilemap_assets(const corundum::core::ContentSource &content,
+    std::expected<TilemapAssets, std::string> load_tilemap_assets(corundum::world::tilemap::TilemapLoader &loader,
                                                                   corundum::platform::Renderer &r,
                                                                   const std::filesystem::path &path) {
-      auto tilemap = corundum::world::tilemap::load_tilemap(content, path);
+      auto tilemap = loader.load_tilemap(path);
       if (!tilemap)
         return std::unexpected(std::move(tilemap).error());
       TilemapAssets assets{
@@ -117,20 +117,19 @@ namespace corundum::render {
       return assets;
     }
 
-    std::expected<render::ChunkEntry, std::string>
-    load_chunk_entry(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                     const corundum::world::tilemap::WorldManifest &manifest, corundum::world::tilemap::ChunkCoord c,
-                     const corundum::core::GameConfig &cfg) {
+    std::expected<render::ChunkEntry, std::string> load_chunk_entry(corundum::platform::Renderer &r, WorldArea &area,
+                                                                    corundum::world::tilemap::ChunkCoord c,
+                                                                    const corundum::core::GameConfig &cfg) {
       // Portals before textures: a portals failure then returns before any texture reference is
       // taken, since the caller adopts the references only from a successful entry.
-      const std::filesystem::path chunk_path = manifest.chunk_path(c);
+      const std::filesystem::path chunk_path = area.manifest.chunk_path(c);
       const std::string stem = chunk_path.stem().string();
       const auto portals_path = std::filesystem::path(cfg.paths.portals_dir) / (stem + ".json");
-      auto portals = corundum::world::load_portals(content, portals_path);
+      auto portals = corundum::world::load_portals(area.chunk_loader.content(), portals_path);
       if (!portals)
         return std::unexpected(std::format("portals for chunk {}: {}", stem, portals.error()));
 
-      auto assets = load_tilemap_assets(content, r, chunk_path);
+      auto assets = load_tilemap_assets(area.chunk_loader, r, chunk_path);
       if (!assets)
         return std::unexpected(std::move(assets).error());
       return render::ChunkEntry{
@@ -239,13 +238,12 @@ namespace corundum::render {
 
     /// Load the front pending chunk into the active window. A chunk that fails to load is logged
     /// and marked failed so it is never retried. @return true if a chunk became active.
-    bool load_one_pending_chunk(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                                std::vector<platform::TextureId> &area_texture_ids, WorldArea &area,
-                                const corundum::core::GameConfig &cfg) {
+    bool load_one_pending_chunk(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids,
+                                WorldArea &area, const corundum::core::GameConfig &cfg) {
       const std::optional<corundum::world::tilemap::ChunkCoord> coord = area.chunks.pop_pending();
       if (!coord)
         return false;
-      auto entry = load_chunk_entry(content, r, area.manifest, *coord, cfg);
+      auto entry = load_chunk_entry(r, area, *coord, cfg);
       if (!entry) {
         corundum::detail::warn_log("[engine] WARN: chunk ({}, {}) failed to load: {}", coord->col, coord->row,
                                    entry.error());
@@ -286,13 +284,12 @@ namespace corundum::render {
 
     /// Load every chunk in the initial streaming window. Failed chunks are logged and marked
     /// failed so they are never retried.
-    void load_initial_chunks(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                             std::vector<platform::TextureId> &area_texture_ids, WorldArea &area,
-                             const corundum::core::GameConfig &cfg) {
+    void load_initial_chunks(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids,
+                             WorldArea &area, const corundum::core::GameConfig &cfg) {
       using namespace corundum::world::tilemap;
       for (const ChunkCoord c :
            active_chunk_coords(area.chunks.last_center(), render::ChunkWindow::k_radius, area.manifest)) {
-        auto entry = load_chunk_entry(content, r, area.manifest, c, cfg);
+        auto entry = load_chunk_entry(r, area, c, cfg);
         if (!entry) {
           corundum::detail::warn_log("[engine] WARN: chunk ({}, {}) skipped: {}", c.col, c.row, entry.error());
           area.chunks.mark_failed(c);
@@ -339,7 +336,8 @@ namespace corundum::render {
     release_area_textures(r, state.area_texture_ids);
     auto &area = state.area.emplace<SingleMapArea>();
 
-    auto assets = load_tilemap_assets(content, r, tilemap_path);
+    corundum::world::tilemap::TilemapLoader loader{content};
+    auto assets = load_tilemap_assets(loader, r, tilemap_path);
     if (!assets)
       return fail_area_load(r, state, std::move(assets).error());
     adopt_area_textures(r, state.area_texture_ids, assets->tileset_texture_ids);
@@ -377,7 +375,8 @@ namespace corundum::render {
                                                        const corundum::core::GameConfig &cfg,
                                                        const WorldLoadParams &params) {
     release_area_textures(r, state.area_texture_ids);
-    auto &area = state.area.emplace<WorldArea>();
+    auto &area =
+        state.area.emplace<WorldArea>(WorldArea{.chunk_loader = corundum::world::tilemap::TilemapLoader{content}});
 
     auto manifest = corundum::world::tilemap::load_world_manifest(content, cfg.paths.world_manifest_path);
     if (!manifest)
@@ -394,7 +393,7 @@ namespace corundum::render {
 
     const SpawnPlacement spawn = spawn_placement(area.manifest, params);
     area.chunks.set_last_center(spawn.center);
-    load_initial_chunks(content, r, state.area_texture_ids, area, cfg);
+    load_initial_chunks(r, state.area_texture_ids, area, cfg);
     if (area.chunks.active_empty())
       return fail_area_load(r, state, std::format("world '{}' loaded no chunks", cfg.paths.world_manifest_path));
     rebuild_world_aggregates(area, static_cast<int>(cfg.max_step_height));
@@ -404,14 +403,13 @@ namespace corundum::render {
     return info;
   }
 
-  void stream_world_chunks(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                           render::RenderState &state, const corundum::core::GameConfig &cfg,
-                           const corundum::world::Scene &scene) {
+  void stream_world_chunks(corundum::platform::Renderer &r, render::RenderState &state,
+                           const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene) {
     auto *world_area = std::get_if<WorldArea>(&state.area);
     if (world_area == nullptr || world_area->chunks.active_empty())
       return;
     const bool pruned = sync_active_chunks(*world_area, cfg, scene);
-    const bool loaded = load_one_pending_chunk(content, r, state.area_texture_ids, *world_area, cfg);
+    const bool loaded = load_one_pending_chunk(r, state.area_texture_ids, *world_area, cfg);
     if (pruned || loaded)
       rebuild_world_aggregates(*world_area, static_cast<int>(cfg.max_step_height));
   }

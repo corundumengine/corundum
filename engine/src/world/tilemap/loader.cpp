@@ -34,15 +34,6 @@ namespace corundum::world::tilemap {
 
   namespace {
 
-    // Tilesets are shared across many chunks/maps; parsing the same atlas from disk once per
-    // chunk was the dominant chunk-streaming cost (~43ms per 16x16 chunk, recomputing the same
-    // TilesetInfo for the handful of shared tilesets every time). Cache the fully-resolved result
-    // keyed by source path. Main-thread only (render/load), so no locking needed.
-    std::unordered_map<std::string, TilesetInfo> &tileset_cache() {
-      static std::unordered_map<std::string, TilesetInfo> cache;
-      return cache;
-    }
-
     /// Read the optional sidecar @c {atlas_path.stem()}.tiledata.json sitting next to @p atlas_path.
     /// @return The parsed object, or std::nullopt when the sidecar is absent or malformed — a broken
     ///         sidecar is treated as absent rather than failing the whole load.
@@ -261,10 +252,6 @@ namespace corundum::world::tilemap {
 
   } // namespace
 
-  void clear_tileset_cache() {
-    tileset_cache().clear();
-  }
-
   /// A tileset JSON *is* a spritepacker atlas JSON (schema_version 2), plus these optional
   /// tileset-only authoring fields layered on top: material, animations.
   /// Sprites are referenced by name rather than by local_id/col-row, since MaxRects packing
@@ -277,11 +264,6 @@ namespace corundum::world::tilemap {
   /// (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
   std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &content,
                                                        const fs::path &tileset_path) {
-    auto &cache = tileset_cache();
-    const std::string key = tileset_path.string();
-    if (const auto it = cache.find(key); it != cache.end())
-      return it->second;
-
     auto atlas = corundum::sprites::load_sprite_atlas(content, tileset_path);
     if (!atlas)
       return std::unexpected(atlas.error());
@@ -301,8 +283,7 @@ namespace corundum::world::tilemap {
       return std::unexpected(std::move(animations.error()));
     tiles.info.animations = std::move(*animations);
 
-    cache.emplace(key, tiles.info);
-    return tiles.info;
+    return std::move(tiles.info);
   }
 
   namespace {
@@ -544,7 +525,7 @@ namespace corundum::world::tilemap {
     }
 
     /// Load and validate one `tilesets[]` entry.
-    std::expected<TilemapTileset, std::string> parse_tileset(const core::ContentSource &content, const json &entry,
+    std::expected<TilemapTileset, std::string> parse_tileset(TilemapLoader &loader, const json &entry,
                                                              std::size_t index, const std::string &id) {
       if (!entry.is_object())
         return std::unexpected(std::format("Tilemap '{}' tilesets[{}] must be an object", id, index));
@@ -567,7 +548,7 @@ namespace corundum::world::tilemap {
       }
       if (source.empty())
         return std::unexpected(std::format("Tilemap '{}' tilesets[{}] 'source' must not be empty", id, index));
-      auto tileset_result = load_tileset(content, fs::path(source));
+      auto tileset_result = loader.load_tileset(fs::path(source));
       if (!tileset_result.has_value())
         return std::unexpected(std::format("[{}] tilesets[{}]: {}", id, index, tileset_result.error()));
       TilemapTileset ts;
@@ -602,8 +583,8 @@ namespace corundum::world::tilemap {
     }
 
     /// Parse the required `tilesets` array, then sort it and check its GID ranges are contiguous.
-    std::expected<std::vector<TilemapTileset>, std::string> parse_tilesets(const core::ContentSource &content,
-                                                                           const json &j, const std::string &id) {
+    std::expected<std::vector<TilemapTileset>, std::string> parse_tilesets(TilemapLoader &loader, const json &j,
+                                                                           const std::string &id) {
       if (!j.contains("tilesets") || !j["tilesets"].is_array())
         return std::unexpected(std::format("Tilemap '{}' missing 'tilesets' array", id));
       const auto &tilesets_json = j["tilesets"];
@@ -613,7 +594,7 @@ namespace corundum::world::tilemap {
       std::vector<TilemapTileset> tilesets;
       tilesets.reserve(tilesets_json.size());
       for (std::size_t ti = 0; ti < tilesets_json.size(); ++ti) {
-        auto tileset = parse_tileset(content, tilesets_json[ti], ti, id);
+        auto tileset = parse_tileset(loader, tilesets_json[ti], ti, id);
         if (!tileset)
           return std::unexpected(std::move(tileset.error()));
         tilesets.push_back(std::move(*tileset));
@@ -1109,8 +1090,18 @@ namespace corundum::world::tilemap {
 
   } // namespace
 
-  std::expected<Tilemap, std::string> load_tilemap(const core::ContentSource &content, const fs::path &path) {
-    auto parsed = corundum::core::read_json(content, path, "tilemap");
+  std::expected<TilesetInfo, std::string> TilemapLoader::load_tileset(const fs::path &path) {
+    const std::string key = path.string();
+    if (const auto found = tilesets_by_path_.find(key); found != tilesets_by_path_.end())
+      return found->second;
+    auto loaded = tilemap::load_tileset(*content_, path);
+    if (loaded)
+      tilesets_by_path_.emplace(key, *loaded);
+    return loaded;
+  }
+
+  std::expected<Tilemap, std::string> TilemapLoader::load_tilemap(const fs::path &path) {
+    auto parsed = corundum::core::read_json(*content_, path, "tilemap");
     if (!parsed)
       return std::unexpected(std::move(parsed.error()));
     json &j = *parsed;
@@ -1132,7 +1123,7 @@ namespace corundum::world::tilemap {
     if (!collision_triangles)
       return std::unexpected(std::move(collision_triangles.error()));
 
-    auto tilesets = parse_tilesets(content, j, id);
+    auto tilesets = parse_tilesets(*this, j, id);
     if (!tilesets)
       return std::unexpected(std::move(tilesets.error()));
 
@@ -1159,6 +1150,10 @@ namespace corundum::world::tilemap {
         .max_tile_full_w = extent.width,
         .max_tile_full_h = extent.height,
     };
+  }
+
+  std::expected<Tilemap, std::string> load_tilemap(const core::ContentSource &content, const fs::path &path) {
+    return TilemapLoader{content}.load_tilemap(path);
   }
 
 } // namespace corundum::world::tilemap

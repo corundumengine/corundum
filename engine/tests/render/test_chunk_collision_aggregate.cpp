@@ -3,6 +3,8 @@
 
 #include <doctest/doctest.h>
 
+#include "render_state_fixtures.hpp"
+
 #include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/world_aggregates.hpp>
@@ -15,7 +17,7 @@ namespace render_system = corundum::render;
 
 TEST_CASE("rebuild_collision - world mode aggregates rects across chunks with tile-unit offsets") {
   render_data::RenderState state;
-  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  auto &world_area = corundum::test::emplace_world_area(state);
   world_area.manifest.chunk_size = 16;
   world_area.manifest.chunks_wide = 4;
   world_area.manifest.chunks_tall = 4;
@@ -63,7 +65,7 @@ TEST_CASE("rebuild_collision - world mode aggregates rects across chunks with ti
 
 TEST_CASE("rebuild_collision - world mode: vertically adjacent chunk offsets by row, not col") {
   render_data::RenderState state;
-  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  auto &world_area = corundum::test::emplace_world_area(state);
   world_area.manifest.chunk_size = 8;
   world_area.manifest.chunks_wide = 4;
   world_area.manifest.chunks_tall = 4;
@@ -85,7 +87,7 @@ TEST_CASE("rebuild_collision - world mode: vertically adjacent chunk offsets by 
 
 TEST_CASE("rebuild_collision - empty active_chunks is a no-op") {
   render_data::RenderState state;
-  auto &world_area = state.area.emplace<render_data::WorldArea>();
+  auto &world_area = corundum::test::emplace_world_area(state);
   world_area.manifest.chunk_size = 16;
   // Pre-populate to confirm it's cleared (or left empty) and not touched.
   world_area.aggregates.collisions.push_back(99.f, 99.f, 1.f, 1.f, 0);
