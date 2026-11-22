@@ -21,7 +21,7 @@ namespace corundum::platform {
    *  texture). The trade-off: the backend's texture table keeps one tombstone per purged id, so
    *  it grows with the number of distinct textures ever loaded in the process.
    *
-   *  @note Not thread-safe. Call only from the render thread.
+   *  @note Not thread-safe. Call only from the main thread.
    */
   class TextureRefCounts {
   public:

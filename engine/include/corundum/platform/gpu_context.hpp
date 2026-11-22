@@ -21,7 +21,7 @@ namespace corundum::platform {
    *
    * @note The device is process-wide, so at most one context may be live; a second
    *       create() is reported as an error rather than left to the backend.
-   * @note Not thread-safe. Call only from the render thread.
+   * @note Not thread-safe. Call only from the main thread.
    */
   class GpuContext {
   public:

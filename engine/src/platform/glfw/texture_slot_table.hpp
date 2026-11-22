@@ -23,7 +23,7 @@ namespace corundum::platform {
    *
    * @tparam Payload  Backend handles belonging to one texture.
    *
-   * @note Not thread-safe. Call only from the render thread.
+   * @note Not thread-safe. Call only from the main thread.
    */
   template <typename Payload> class TextureSlotTable {
   public:

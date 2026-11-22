@@ -50,7 +50,7 @@ namespace corundum::debug {
    * resources to release. Defaults to disabled; call render() every frame — it
    * advances the FPS EMA unconditionally and draws only while @c enabled.
    *
-   * @note Not thread-safe. Call from the game thread, once per frame between
+   * @note Not thread-safe. Call from the main thread, once per frame between
    *       the renderer's begin_frame() and end_frame() calls.
    */
   class HudOverlay {

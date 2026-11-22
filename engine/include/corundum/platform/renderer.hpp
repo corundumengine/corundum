@@ -88,7 +88,7 @@ namespace corundum::platform {
    * Draw commands are only consumed inside a begin_frame()/end_frame() bracket; draws
    * issued outside one, or referencing an invalid resource ID, are discarded.
    *
-   * @note Not thread-safe. Call only from the render thread.
+   * @note Not thread-safe. Call only from the main thread.
    */
   class Renderer {
   public:

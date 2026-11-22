@@ -27,7 +27,7 @@ namespace corundum::audio {
    * well-defined lifecycle stages (e.g. `Engine::cleanup`) in addition to
    * letting the destructor run.
    *
-   * @note Not thread-safe — all methods must be called from the game thread.
+   * @note Not thread-safe — all methods must be called from the main thread.
    *       The backend owns its own mixing thread; no caller-visible locking is
    *       involved.
    */

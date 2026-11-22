@@ -34,7 +34,7 @@ namespace corundum::platform::miniaudio {
    *  miniaudio.h (~96k lines) stays out of this header behind State; only miniaudio_backend.cpp and
    *  miniaudio_impl.cpp include it.
    *
-   *  @note Game-thread only, like every AudioBackend.
+   *  @note Main-thread only, like every AudioBackend.
    */
   class MiniaudioBackend final : public audio::AudioBackend {
   public:

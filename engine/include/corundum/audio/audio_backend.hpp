@@ -72,7 +72,7 @@ namespace corundum::audio {
    * std::unique_ptr<AudioBackend>.
    *
    * @note Not thread-safe for concurrent calls from multiple threads — call only
-   *       from the game thread. The internal implementation may use a separate
+   *       from the main thread. The internal implementation may use a separate
    *       audio thread for mixing, but the API itself is single-threaded.
    */
   class AudioBackend {
@@ -132,7 +132,7 @@ namespace corundum::audio {
      *  No-op with no track. */
     virtual void stop_music(float fade_out_seconds) = 0;
 
-    /** @brief Per-frame game-thread housekeeping: schedule music loop restarts and reclaim finished
+    /** @brief Per-frame main-thread housekeeping: schedule music loop restarts and reclaim finished
      *  voices. */
     virtual void update() = 0;
   };

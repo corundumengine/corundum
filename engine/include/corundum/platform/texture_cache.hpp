@@ -44,7 +44,7 @@ namespace corundum::platform {
    * Ids are 1-based; 0 is the invalid sentinel. A cache is only valid while the
    * platform GPU context behind it is alive.
    *
-   * @note Not thread-safe. Call only from the render thread.
+   * @note Not thread-safe. Call only from the main thread.
    *
    * Editor-side texture registry used by the tools' ToolHost; it loads from the real filesystem by
    * design, while the engine renderer loads through Engine::content_source().
