@@ -7,7 +7,6 @@
 #include <corundum/gameplay/screens/dialog_layout.hpp>
 #include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
-#include <corundum/input/input_intent.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
 #include <cstddef>
@@ -19,7 +18,10 @@
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
 #include <corundum/gameplay/quest/registry.hpp>
+#include <corundum/input/input_intent.hpp>
+#include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -38,6 +40,7 @@
 using corundum::platform::DrawRect;
 using corundum::platform::DrawSprite;
 using corundum::platform::DrawText;
+using corundum::platform::FontId;
 using corundum::test::make_border;
 using corundum::test::RecordingRenderer;
 
@@ -317,7 +320,7 @@ TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped
   style.panel_height_frac = 0.32f;
   const corundum::gameplay::screens::DialogLayout layout = corundum::gameplay::screens::build_layout(
       conversation, style, 4, {.x = 200.f, .y = 720.f},
-      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(0, text, 22); });
+      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(FontId::Invalid, text, 22); });
 
   REQUIRE(layout.choices.size() == 1);
   REQUIRE(layout.choices[0].lines.size() > 1);
@@ -352,11 +355,10 @@ TEST_CASE("build_layout: choice label markup yields styled segments") {
 
   RecordingRenderer r;
   corundum::ui::PanelStyle style{};
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] =
-      corundum::ui::FontFamily{.ids = {10u, 11u, 12u, 13u}};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = corundum::test::make_font_family(10);
   const corundum::gameplay::screens::DialogLayout layout = corundum::gameplay::screens::build_layout(
       conversation, style, 4, {.x = 1280.f, .y = 720.f},
-      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(0, text, 22); });
+      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(FontId::Invalid, text, 22); });
 
   REQUIRE(layout.choices.size() == 1);
   REQUIRE(layout.choices[0].lines.size() == 1);

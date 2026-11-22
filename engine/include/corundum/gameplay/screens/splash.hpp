@@ -4,9 +4,9 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 
 #include <cstddef>
-#include <cstdint>
 #include <vector>
 
 namespace corundum::gameplay::screens {
@@ -31,7 +31,7 @@ namespace corundum::gameplay::screens {
   struct SplashImage {
     core::math::Vec2 size{}; ///< Texture size in pixels; {0, 0} when the backend cannot report it (not drawn).
 
-    std::uint32_t texture{}; ///< Renderer texture id; the splash holds one reference until it closes.
+    platform::TextureId texture{platform::TextureId::Invalid}; ///< Holds one reference until the splash closes.
   };
 
   /** @brief Splash-screen state: the images loaded from GameConfig's splash_images in play order,

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Gentle Lion Studios, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/resources.hpp>
 #include <corundum/sprites/character_registry.hpp>
@@ -54,7 +55,7 @@ TEST_CASE("load_sprite_index: every animated frame resolves to its sheet's textu
   for_each_animated_frame(registry, [&](const corundum::sprites::Frames &frame, AnimId anim) {
     const corundum::sprites::SpriteSheet *sheet = registry.get_sheet(frame.sheet_id);
     REQUIRE(sheet != nullptr);
-    const uint32_t expected = renderer.ids_by_path.at(sheet->path);
+    const corundum::platform::TextureId expected = renderer.ids_by_path.at(sheet->path);
 
     const auto entry = state.sprite_index.get(frame.sprite_id, anim, 0);
     REQUIRE(entry.has_value());

@@ -3,6 +3,7 @@
 
 #include "null_renderer.hpp"
 #include <corundum/core/game_config.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/resources.hpp>
 
@@ -62,7 +63,7 @@ TEST_CASE("load_ui_assets - border cell size comes from the upper_left frame's s
       disk(), renderer, state, corundum::core::ResourcePaths{.ui_borders_file = manifest.string()});
 
   REQUIRE(result.has_value());
-  CHECK(state.panel_skin.border.texture_id == corundum::platform::null::k_dummy_handle);
+  CHECK(state.panel_skin.border.texture_id == corundum::platform::null::k_dummy_texture);
   // 2×2 frames of 16px = a 32px cell; the nine-patch derives the 96px grid from this.
   CHECK(state.panel_skin.border.tile_w == 32);
   CHECK(state.panel_skin.border.tile_h == 32);
@@ -75,5 +76,5 @@ TEST_CASE("load_ui_assets - a missing manifest is a non-fatal no-op") {
       disk(), renderer, state, corundum::core::ResourcePaths{.ui_borders_file = "/nonexistent/borders.json"});
 
   CHECK(result.has_value());
-  CHECK(state.panel_skin.border.texture_id == 0);
+  CHECK(state.panel_skin.border.texture_id == corundum::platform::TextureId::Invalid);
 }

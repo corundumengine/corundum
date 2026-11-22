@@ -7,6 +7,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/input_glyph.hpp>
@@ -184,7 +185,7 @@ namespace corundum::gameplay::screens {
                               const SaveLoadState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
     const SaveLoadLayout layout = save_load_panel_layout(r, style, state, viewport, last_device);
     const float line_h = layout.rows.row_height;
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     const std::string title = state.saving ? "Save Game" : "Load Game";
     const std::string footer =
         std::format("{} Select   {} Close", ui::input_glyph(input::Action::Activate, last_device),

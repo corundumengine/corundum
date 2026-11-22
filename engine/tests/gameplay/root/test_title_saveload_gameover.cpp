@@ -13,6 +13,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/input_intent.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/screen_registry.hpp>
@@ -645,7 +646,7 @@ TEST_CASE("credits: a background key is loaded through the renderer") {
   REQUIRE(engine.initialize(std::move(cfg)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
-  CHECK(gameplay.credits_screen.background_texture == corundum::platform::null::k_dummy_handle);
+  CHECK(gameplay.credits_screen.background_texture == corundum::platform::null::k_dummy_texture);
   engine.cleanup();
 }
 
@@ -664,7 +665,7 @@ TEST_CASE("credits: a file without a background key leaves the texture unset") {
   REQUIRE(engine.initialize(std::move(cfg)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
-  CHECK(gameplay.credits_screen.background_texture == 0);
+  CHECK(gameplay.credits_screen.background_texture == corundum::platform::TextureId::Invalid);
   engine.cleanup();
 }
 

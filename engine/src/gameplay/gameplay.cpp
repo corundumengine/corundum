@@ -55,6 +55,7 @@
 #include <corundum/input/input_intent.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/save/save.hpp>
 #include <corundum/screen_registry.hpp>
@@ -2089,7 +2090,7 @@ namespace corundum::gameplay {
     splash_screen = {};
     platform::Renderer &renderer = engine_->renderer();
     for (const std::string &path : engine_->cfg.paths.splash_images) {
-      const std::expected<uint32_t, std::string> texture = renderer.load_texture(path);
+      const std::expected<platform::TextureId, std::string> texture = renderer.load_texture(path);
       if (!texture) {
         warn_log("[splash] cannot load '{}': {} (image skipped)", path, texture.error());
         continue;
@@ -2178,7 +2179,7 @@ namespace corundum::gameplay {
     credits_screen.sections = std::move(loaded->sections);
     if (!loaded->background.empty()) {
       platform::Renderer &renderer = engine_->renderer();
-      const std::expected<uint32_t, std::string> texture = renderer.load_texture(loaded->background);
+      const std::expected<platform::TextureId, std::string> texture = renderer.load_texture(loaded->background);
       if (texture) {
         credits_screen.background_texture = *texture;
         credits_screen.background_size = renderer.texture_size(*texture);

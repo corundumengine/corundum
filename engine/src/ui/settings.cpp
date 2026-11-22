@@ -11,6 +11,7 @@
 #include <corundum/input/bindings.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -18,7 +19,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <optional>
 #include <span>
@@ -256,7 +256,7 @@ namespace corundum::ui {
                                            core::math::Vec2 viewport, input::InputDevice last_device, float line_h,
                                            float title_h, float cursor_w, float general_w, float controls_w,
                                            int first_row, int visible_rows) {
-      const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+      const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
       float widest = std::max(r.measure_text(font_id, k_settings_title, style.font_size_speaker),
                               general_w + k_settings_tab_gap + controls_w);
       for (int i = first_row; i < first_row + visible_rows; ++i) {
@@ -290,7 +290,7 @@ namespace corundum::ui {
     const int visible_rows = std::min(row_count, k_settings_max_visible_rows);
     const int first_row = std::clamp(state.scroll, 0, std::max(0, row_count - visible_rows));
 
-    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     const float general_w = r.measure_text(font_id, settings_tab_label(SettingsTab::General), style.font_size_body);
     const float controls_w = r.measure_text(font_id, settings_tab_label(SettingsTab::Controls), style.font_size_body);
 
@@ -319,7 +319,7 @@ namespace corundum::ui {
       screen_backdrop(r, style, viewport);
     panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 
-    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     const float title_w = r.measure_text(font_id, k_settings_title, style.font_size_speaker);
     const float title_y = layout.panel_pos.y + pad_y;
     r.draw(platform::DrawText{

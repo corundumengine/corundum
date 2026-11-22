@@ -4,6 +4,7 @@
 #include <corundum/gameplay/dialogue/action.hpp>
 #include <doctest/doctest.h>
 
+#include "null_platform.hpp"
 #include <corundum/engine.hpp>
 #include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/quest/quest.hpp>
@@ -18,9 +19,21 @@
 
 namespace dialogue = corundum::gameplay::dialogue;
 
+namespace {
+
+  /// Adopt the null platform: building a Gameplay opens the Title, which reads the renderer, and
+  /// every case here asserts event dispatch, never drawing.
+  void adopt_null_platform(corundum::Engine &engine) {
+    corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(320, 240);
+    corundum::platform::null::adopt_null_platform(engine, platform);
+  }
+
+} // namespace
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("engine events: on_event hook handles custom event and returns true") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   auto &pending = gameplay.pending_dialogue_events;
 
@@ -50,6 +63,7 @@ TEST_CASE("engine events: on_event hook handles custom event and returns true") 
 
 TEST_CASE("engine events: on_event hook returning false falls through to WARN") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   auto &pending = gameplay.pending_dialogue_events;
 
@@ -69,6 +83,7 @@ TEST_CASE("engine events: on_event hook returning false falls through to WARN") 
 
 TEST_CASE("engine events: on_event hook unset - pending cleared and built-in dispatch works") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
 
   auto &pending = gameplay.pending_dialogue_events;
@@ -92,6 +107,7 @@ TEST_CASE("engine events: on_event hook unset - pending cleared and built-in dis
 
 TEST_CASE("engine events: quest_start enqueues a start toast with the quest name") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -109,6 +125,7 @@ TEST_CASE("engine events: quest_start enqueues a start toast with the quest name
 
 TEST_CASE("engine events: re-starting an underway quest does not toast again") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -128,6 +145,7 @@ TEST_CASE("engine events: re-starting an underway quest does not toast again") {
 
 TEST_CASE("engine events: quest_start auto-tracks the quest when nothing else is tracked") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -144,6 +162,7 @@ TEST_CASE("engine events: quest_start auto-tracks the quest when nothing else is
 
 TEST_CASE("engine events: quest_start does not override an existing tracked quest") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   for (const std::string &id : {std::string{"ember"}, std::string{"salt"}}) {
     corundum::gameplay::quest::Quest q;
@@ -166,6 +185,7 @@ TEST_CASE("engine events: quest_start does not override an existing tracked ques
 
 TEST_CASE("engine events: quest_advance to a live stage toasts an update") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -187,6 +207,7 @@ TEST_CASE("engine events: quest_advance to a live stage toasts an update") {
 
 TEST_CASE("engine events: quest_advance to a resolved stage toasts completion") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -205,6 +226,7 @@ TEST_CASE("engine events: quest_advance to a resolved stage toasts completion") 
 
 TEST_CASE("engine events: quest_advance to a failed stage toasts failure") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -223,6 +245,7 @@ TEST_CASE("engine events: quest_advance to a failed stage toasts failure") {
 
 TEST_CASE("engine events: an unknown advance stage does not toast") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   corundum::gameplay::quest::Quest q;
   q.quest_id = "ember";
@@ -240,6 +263,7 @@ TEST_CASE("engine events: an unknown advance stage does not toast") {
 
 TEST_CASE("engine events: give_item adds item.<id> count to flags") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "give_item", .args = {"gold", "5"}});
   gameplay.process_events();
@@ -249,6 +273,7 @@ TEST_CASE("engine events: give_item adds item.<id> count to flags") {
 
 TEST_CASE("engine events: give_item without a count defaults to +1") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "give_item", .args = {"salt"}});
   gameplay.process_events();
@@ -258,6 +283,7 @@ TEST_CASE("engine events: give_item without a count defaults to +1") {
 
 TEST_CASE("engine events: take_item subtracts and erases the key at or below zero") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   engine.flags["item.gold"] = 5;
 
@@ -272,6 +298,7 @@ TEST_CASE("engine events: take_item subtracts and erases the key at or below zer
 
 TEST_CASE("engine events: take_item on a missing item is a no-op") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "take_item", .args = {"gold", "1"}});
   gameplay.process_events();
@@ -281,6 +308,7 @@ TEST_CASE("engine events: take_item on a missing item is a no-op") {
 
 TEST_CASE("engine events: reputation accumulates rep.<faction> and can go negative") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "3"}});
   gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "reputation", .args = {"village", "-1"}});
@@ -291,6 +319,7 @@ TEST_CASE("engine events: reputation accumulates rep.<faction> and can go negati
 
 TEST_CASE("engine events: grant_xp is no built-in, so it reaches on_event") {
   corundum::Engine engine;
+  adopt_null_platform(engine);
   corundum::gameplay::Gameplay gameplay{engine};
   std::vector<std::string> received;
   gameplay.on_event = [&received](corundum::Engine &, const dialogue::EventAction &event) {
@@ -308,6 +337,7 @@ TEST_CASE("engine events: grant_xp is no built-in, so it reaches on_event") {
 TEST_CASE("engine events: an event a hook queues during dispatch waits for the next process_events") {
   // Engine is ~0.5 MB: build it on the heap (AGENTS.md "No huge stack frames").
   const std::unique_ptr<corundum::Engine> engine = std::make_unique<corundum::Engine>();
+  adopt_null_platform(*engine);
   corundum::gameplay::Gameplay gameplay{*engine};
   std::vector<std::string> dispatched;
   gameplay.on_event = [&gameplay, &dispatched](corundum::Engine &, const dialogue::EventAction &ev) {

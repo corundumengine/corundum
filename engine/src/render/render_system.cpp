@@ -10,6 +10,7 @@
 #include <corundum/entities/entity.hpp>
 #include <corundum/entities/tables/transform_table.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/chunk_window.hpp>
 #include <corundum/render/layer_render_cache.hpp>
 #include <corundum/render/render_state.hpp>
@@ -54,7 +55,7 @@ namespace corundum::render {
     const auto sid = static_cast<std::size_t>(sprite_id);
     if (sid >= tex_by_sprite_id.size())
       return std::nullopt;
-    const std::optional<uint32_t> &tex_id = tex_by_sprite_id[sid];
+    const std::optional<platform::TextureId> &tex_id = tex_by_sprite_id[sid];
     if (!tex_id.has_value())
       return std::nullopt;
 
@@ -119,7 +120,7 @@ namespace corundum::render {
 
       std::span<const LayerRenderCache> layer_caches{}; ///< Parallel to tilemap->layers.
 
-      std::span<const uint32_t> texture_ids{};
+      std::span<const platform::TextureId> texture_ids{};
 
       core::math::IsometricParams iso{};
 
@@ -171,7 +172,7 @@ namespace corundum::render {
 
     TileRenderParams make_tile_params(const world::tilemap::Tilemap &tilemap,
                                       std::span<const LayerRenderCache> layer_caches,
-                                      std::span<const uint32_t> texture_ids, int total_tiles_tall,
+                                      std::span<const platform::TextureId> texture_ids, int total_tiles_tall,
                                       world::tilemap::ChunkCoord offset_tiles, const core::GameConfig &cfg,
                                       const FrameView &view) noexcept {
       core::verify(layer_caches.size() == tilemap.layers.size(), "render: a tilemap layer has no render cache");
@@ -254,8 +255,8 @@ namespace corundum::render {
     ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::world::tilemap::TilemapLayer &layer,
                                     const LayerRenderCache &cache,
                                     const corundum::world::tilemap::TilemapTileset &tileset, int col, int row,
-                                    std::size_t cell_index, corundum::world::tilemap::TileId gid, uint32_t texture_id,
-                                    const corundum::core::GameConfig &cfg) {
+                                    std::size_t cell_index, corundum::world::tilemap::TileId gid,
+                                    platform::TextureId texture_id, const corundum::core::GameConfig &cfg) {
       const auto source = corundum::world::tilemap::tile_source_rect(tileset, gid);
       const uint8_t flags = cache.flip_flags[cell_index];
       const bool flip_x = (flags & corundum::world::tilemap::k_flip_h) != 0;
@@ -321,8 +322,8 @@ namespace corundum::render {
         return std::nullopt;
 
       const auto tileset_index = static_cast<std::size_t>(std::distance(tilemap.tilesets.data(), tileset));
-      const uint32_t texture_id = ctx.texture_ids[tileset_index];
-      if (texture_id == 0) [[unlikely]]
+      const platform::TextureId texture_id = ctx.texture_ids[tileset_index];
+      if (texture_id == platform::TextureId::Invalid) [[unlikely]]
         return std::nullopt;
 
       return make_resolved_tile(ctx, layer, cache, *tileset, col, row, cell_index, *gid, texture_id, cfg);

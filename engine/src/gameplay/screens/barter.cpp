@@ -11,6 +11,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -18,7 +19,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -78,7 +78,7 @@ namespace corundum::gameplay::screens {
 
     const std::string gold_line = std::format("Gold: {}", gold);
     const std::string footer = barter_footer(last_device);
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
     float widest = std::max({
         r.measure_text(font_id, shop_name, style.font_size_speaker),
@@ -117,7 +117,7 @@ namespace corundum::gameplay::screens {
 
     const std::string gold_line = std::format("Gold: {}", gold);
     const std::string footer = barter_footer(last_device);
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
     ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
 

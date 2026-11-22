@@ -8,6 +8,7 @@
 
 #include <array>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/prompt_box.hpp>
@@ -22,6 +23,8 @@
 using corundum::platform::DrawRect;
 using corundum::platform::DrawSprite;
 using corundum::platform::DrawText;
+using corundum::platform::FontId;
+using corundum::platform::TextureId;
 using corundum::test::make_border;
 using corundum::test::RecordingRenderer;
 
@@ -57,7 +60,7 @@ TEST_CASE("ui_draw: panel_chrome emits exactly one DrawRect then the border's sp
 TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border has no texture") {
   RecordingRenderer r;
   corundum::ui::NinePatchBorder border{};
-  border.texture_id = 0;
+  border.texture_id = TextureId::Invalid;
   border.tile_w = 4;
   border.tile_h = 4;
 
@@ -155,7 +158,7 @@ TEST_CASE("ui_draw: nine_patch_render is a no-op without a texture or with non-p
   corundum::ui::nine_patch_render(r, no_texture, 0.f, 0.f, 100.f, 60.f);
 
   corundum::ui::NinePatchBorder zero_cell{};
-  zero_cell.texture_id = 1u;
+  zero_cell.texture_id = TextureId{1};
   corundum::ui::nine_patch_render(r, zero_cell, 0.f, 0.f, 100.f, 60.f);
 
   CHECK(r.log.empty());
@@ -442,7 +445,7 @@ TEST_CASE("scroll_row_delta: wheel up moves up one row per notch and truncates f
 TEST_CASE("ui_draw: draw_option with a role and style draws the label in that face") {
   RecordingRenderer r;
   corundum::ui::PanelStyle style{};
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
 
   const float advance = corundum::ui::cursor_advance(r, style, corundum::ui::FontRole::Quest);
   corundum::ui::draw_option(r, style, corundum::ui::FontRole::Quest, corundum::ui::FontStyle::Bold, "Ember",
@@ -452,15 +455,15 @@ TEST_CASE("ui_draw: draw_option with a role and style draws the label in that fa
   const auto &cursor = std::get<DrawText>(r.log[0]);
   const auto &label = std::get<DrawText>(r.log[1]);
   CHECK(cursor.text == "> ");
-  CHECK(cursor.font_id == 5u); // role regular, not the bold label face
+  CHECK(cursor.font_id == FontId{5}); // role regular, not the bold label face
   CHECK(label.text == "Ember");
-  CHECK(label.font_id == 6u); // requested bold
+  CHECK(label.font_id == FontId{6}); // requested bold
   CHECK(label.position.x == 4.f + advance);
 }
 
 TEST_CASE("ui_draw: measure_styled sums each run at its own style") {
   RecordingRenderer r;
-  const corundum::ui::FontFamily family{.ids = {5u, 6u, 7u, 8u}};
+  const corundum::ui::FontFamily family = corundum::test::make_font_family(5);
   const auto runs = corundum::ui::parse_styled("a **bb** c");
   // RecordingRenderer measures every glyph at 8px, so the total is 8 * character count.
   CHECK(corundum::ui::measure_styled(r, family, runs, 22) == doctest::Approx(8.f * 6.f));
@@ -468,7 +471,7 @@ TEST_CASE("ui_draw: measure_styled sums each run at its own style") {
 
 TEST_CASE("ui_draw: draw_styled advances x across runs and uses each run's face") {
   RecordingRenderer r;
-  const corundum::ui::FontFamily family{.ids = {5u, 6u, 7u, 8u}};
+  const corundum::ui::FontFamily family = corundum::test::make_font_family(5);
   const auto runs = corundum::ui::parse_styled("a **bb** c");
 
   corundum::ui::draw_styled(r, family, runs, 22, corundum::core::math::Colour{.r = 10}, {.x = 3.f, .y = 4.f});
@@ -478,13 +481,13 @@ TEST_CASE("ui_draw: draw_styled advances x across runs and uses each run's face"
   const auto &second = std::get<DrawText>(r.log[1]);
   const auto &third = std::get<DrawText>(r.log[2]);
   CHECK(first.text == "a ");
-  CHECK(first.font_id == 5u);
+  CHECK(first.font_id == FontId{5});
   CHECK(first.position.x == 3.f);
   CHECK(second.text == "bb");
-  CHECK(second.font_id == 6u);
+  CHECK(second.font_id == FontId{6});
   CHECK(second.position.x == 3.f + 16.f); // "a " is two glyphs
   CHECK(third.text == " c");
-  CHECK(third.font_id == 5u);
+  CHECK(third.font_id == FontId{5});
   CHECK(third.position.x == 3.f + 16.f + 16.f);
 }
 

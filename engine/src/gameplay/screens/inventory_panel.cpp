@@ -8,6 +8,7 @@
 #include <corundum/gameplay/screens/hub_tabs.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -18,7 +19,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -66,7 +66,7 @@ namespace corundum::gameplay::screens {
       if (description.empty())
         return {};
       constexpr float k_max_description_width = 360.f;
-      const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
       const auto measure = [&](std::string_view text) { return r.measure_text(font_id, text, style.font_size_body); };
       return ui::wrap_text(description, k_max_description_width, measure);
     }
@@ -172,11 +172,10 @@ namespace corundum::gameplay::screens {
       return RowWindow{.first_row = first, .visible_rows = window_end(first) - first};
     }
 
-    InventoryGeometry compute_inventory_geometry(const platform::Renderer &r, const ui::PanelStyle &style,
-                                                 const std::vector<InventoryLine> &lines,
-                                                 const std::vector<EquipmentLine> &equipment, int cursor, int scroll,
-                                                 core::math::Vec2 viewport) {
-      InventoryGeometry geometry{};
+    /// Line heights, the panel rect and the two columns (equipment list plus item list, or one
+    /// full-width list when there is no equipment side).
+    void place_inventory_panel(const ui::PanelStyle &style, core::math::Vec2 viewport, bool has_equipment,
+                               InventoryGeometry &geometry) {
       geometry.body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
       geometry.header_line_h = std::max(geometry.body_line_h, static_cast<float>(style.font_size_speaker) + 4.f);
 
@@ -188,32 +187,42 @@ namespace corundum::gameplay::screens {
       geometry.title_y = geometry.panel_y + k_pad_y;
       geometry.content_top = geometry.title_y + geometry.header_line_h + k_header_gap;
 
-      const bool has_equipment = !equipment.empty();
-      if (has_equipment) {
-        geometry.equip_x = geometry.panel_x + k_pad_x;
-        geometry.list_x = geometry.equip_x + k_equipment_col_w + k_column_gap;
-        geometry.list_w = geometry.panel_x + geometry.panel_w - k_pad_x - geometry.list_x;
-      } else {
+      if (!has_equipment) {
         geometry.list_x = geometry.panel_x + k_pad_x;
         geometry.list_w = geometry.panel_w - (k_pad_x * 2.f);
+        return;
       }
+      geometry.equip_x = geometry.panel_x + k_pad_x;
+      geometry.list_x = geometry.equip_x + k_equipment_col_w + k_column_gap;
+      geometry.list_w = geometry.panel_x + geometry.panel_w - k_pad_x - geometry.list_x;
+    }
 
+    /// Build each line's "name  xN" label, and note whether any line is non-Misc: a list holding
+    /// only Misc items draws no Misc group header.
+    void collect_inventory_labels(const std::vector<InventoryLine> &lines, InventoryGeometry &geometry) {
       for (const InventoryLine &line : lines)
         geometry.labels.push_back(std::format("{}  x{}", line.name, line.count));
 
       geometry.has_non_misc = std::ranges::any_of(
           lines, [](const InventoryLine &line) { return line.category != gameplay::item::ItemCategory::Misc; });
+    }
 
+    /// Resolve the cursor, wrap the cursor row's description, and reserve that description's
+    /// height above the panel's bottom padding.
+    void place_inventory_description(const platform::Renderer &r, const ui::PanelStyle &style,
+                                     const std::vector<InventoryLine> &lines, int cursor, InventoryGeometry &geometry) {
       geometry.clamped_cursor = lines.empty() ? -1 : std::clamp(cursor, 0, static_cast<int>(lines.size()) - 1);
-      geometry.description_lines =
-          geometry.clamped_cursor >= 0
-              ? wrap_description(lines[static_cast<std::size_t>(geometry.clamped_cursor)].description, r, style)
-              : std::vector<std::string>{};
+      if (geometry.clamped_cursor >= 0)
+        geometry.description_lines =
+            wrap_description(lines[static_cast<std::size_t>(geometry.clamped_cursor)].description, r, style);
 
       const float description_h = static_cast<float>(geometry.description_lines.size()) * geometry.body_line_h;
       geometry.description_y = geometry.panel_y + geometry.panel_h - k_pad_y - description_h;
       geometry.content_bottom = geometry.description_y - (geometry.description_lines.empty() ? 0.f : k_header_gap);
+    }
 
+    /// Window the list, then lay out each visible line's group header (when it starts one) and option.
+    void collect_inventory_draw_rows(const std::vector<InventoryLine> &lines, int scroll, InventoryGeometry &geometry) {
       const float available = std::max(0.f, geometry.content_bottom - geometry.content_top);
       const RowWindow window = compute_row_window(scroll, std::max(0, geometry.clamped_cursor), lines, available,
                                                   geometry.body_line_h, geometry.header_line_h, geometry.has_non_misc);
@@ -243,6 +252,17 @@ namespace corundum::gameplay::screens {
         if (i + 1 < last_row && lines[static_cast<std::size_t>(i) + 1u].category != line.category)
           y += k_group_gap;
       }
+    }
+
+    InventoryGeometry compute_inventory_geometry(const platform::Renderer &r, const ui::PanelStyle &style,
+                                                 const std::vector<InventoryLine> &lines,
+                                                 const std::vector<EquipmentLine> &equipment, int cursor, int scroll,
+                                                 core::math::Vec2 viewport) {
+      InventoryGeometry geometry{};
+      place_inventory_panel(style, viewport, !equipment.empty(), geometry);
+      collect_inventory_labels(lines, geometry);
+      place_inventory_description(r, style, lines, cursor, geometry);
+      collect_inventory_draw_rows(lines, scroll, geometry);
       return geometry;
     }
 
@@ -335,7 +355,7 @@ namespace corundum::gameplay::screens {
     ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                      {.x = geometry.panel_w, .y = geometry.panel_h});
 
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     const float title_w = r.measure_text(font_id, k_panel_header, style.font_size_speaker);
     const float header_x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f);
     r.draw(platform::DrawText{

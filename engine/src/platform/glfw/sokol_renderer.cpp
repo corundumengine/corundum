@@ -201,10 +201,10 @@ namespace corundum::platform::glfw {
       SokolRenderer(SokolRenderer &&) = delete;
       SokolRenderer &operator=(SokolRenderer &&) = delete;
 
-      std::expected<uint32_t, std::string> load_texture(std::string_view path) override;
-      std::expected<uint32_t, std::string> load_font(std::string_view path) override;
-      [[nodiscard]] core::math::Vec2 texture_size(uint32_t texture_id) const override;
-      void release_texture(uint32_t texture_id) override;
+      std::expected<corundum::platform::TextureId, std::string> load_texture(std::string_view path) override;
+      std::expected<corundum::platform::FontId, std::string> load_font(std::string_view path) override;
+      [[nodiscard]] core::math::Vec2 texture_size(corundum::platform::TextureId texture_id) const override;
+      void release_texture(corundum::platform::TextureId texture_id) override;
       void purge_unused_textures() override;
       void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
       void reset_screen_view() override;
@@ -214,7 +214,7 @@ namespace corundum::platform::glfw {
       void draw(const DrawText &cmd) override;
       void draw(const DrawRect &cmd) override;
       void draw(const DrawLine &cmd) override;
-      float measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const override;
+      float measure_text(corundum::platform::FontId font_id, std::string_view text, uint32_t char_size) const override;
 
       corundum::platform::RendererStats stats() const override { return last_stats_; }
 
@@ -291,7 +291,7 @@ namespace corundum::platform::glfw {
       std::unordered_map<std::string, uint32_t> path_to_id_;
       corundum::platform::TextureRefCounts texture_refs_;
 
-      std::unordered_map<std::string, uint32_t> font_path_to_id_;
+      std::unordered_map<std::string, std::uint32_t> font_path_to_id_;
       std::vector<std::unique_ptr<FontAtlas>> font_atlases_;
 
       mutable std::unordered_map<uint64_t, BakedAtlas> baked_atlases_;
@@ -536,11 +536,11 @@ namespace corundum::platform::glfw {
       ++quad_count_;
     }
 
-    std::expected<uint32_t, std::string> SokolRenderer::load_texture(std::string_view path) {
+    std::expected<corundum::platform::TextureId, std::string> SokolRenderer::load_texture(std::string_view path) {
       const std::string key{path};
       if (const auto it = path_to_id_.find(key); it != path_to_id_.end()) {
         texture_refs_.acquire(it->second);
-        return it->second;
+        return corundum::platform::TextureId{it->second};
       }
 
       const std::expected<std::vector<std::uint8_t>, std::string> file = content_.read(key);
@@ -576,18 +576,19 @@ namespace corundum::platform::glfw {
       textures_.push_back({.path = key, .image = image, .view = view, .width = width, .height = height});
       path_to_id_[key] = id;
       texture_refs_.acquire(id);
-      return id;
+      return corundum::platform::TextureId{id};
     }
 
-    core::math::Vec2 SokolRenderer::texture_size(uint32_t texture_id) const {
-      core::verify(texture_id < textures_.size(), "SokolRenderer::texture_size: id was never issued");
-      const LoadedTexture &texture = textures_[texture_id];
+    core::math::Vec2 SokolRenderer::texture_size(corundum::platform::TextureId texture_id) const {
+      const std::size_t slot = std::to_underlying(texture_id);
+      core::verify(slot < textures_.size(), "SokolRenderer::texture_size: id was never issued");
+      const LoadedTexture &texture = textures_[slot];
       assert(texture.width > 0 && texture.height > 0 && "SokolRenderer::texture_size: texture was purged");
       return {.x = static_cast<float>(texture.width), .y = static_cast<float>(texture.height)};
     }
 
-    void SokolRenderer::release_texture(uint32_t texture_id) {
-      texture_refs_.release(texture_id);
+    void SokolRenderer::release_texture(corundum::platform::TextureId texture_id) {
+      texture_refs_.release(std::to_underlying(texture_id));
     }
 
     void SokolRenderer::purge_unused_textures() {
@@ -605,10 +606,10 @@ namespace corundum::platform::glfw {
       }
     }
 
-    std::expected<uint32_t, std::string> SokolRenderer::load_font(std::string_view path) {
+    std::expected<corundum::platform::FontId, std::string> SokolRenderer::load_font(std::string_view path) {
       const std::string key{path};
       if (const auto it = font_path_to_id_.find(key); it != font_path_to_id_.end())
-        return it->second;
+        return corundum::platform::FontId{it->second};
 
       if (ft_lib_ == nullptr)
         return std::unexpected(std::string{"FreeType: library unavailable for '"} + key + "'");
@@ -624,7 +625,7 @@ namespace corundum::platform::glfw {
       const auto id = static_cast<uint32_t>(font_atlases_.size());
       font_path_to_id_[key] = id;
       font_atlases_.push_back(std::move(atlas));
-      return id;
+      return corundum::platform::FontId{id};
     }
 
     void SokolRenderer::set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) {
@@ -694,10 +695,11 @@ namespace corundum::platform::glfw {
     }
 
     void SokolRenderer::draw(const DrawSprite &cmd) {
-      if (cmd.texture_id >= textures_.size())
+      const std::size_t slot = std::to_underlying(cmd.texture_id);
+      if (slot >= textures_.size())
         return;
 
-      const LoadedTexture &tex = textures_[cmd.texture_id];
+      const LoadedTexture &tex = textures_[slot];
       if (tex.image.id == 0 || tex.width <= 0 || tex.height <= 0)
         return;
 
@@ -779,7 +781,7 @@ namespace corundum::platform::glfw {
       if (!pass_active_ || cmd.text.empty())
         return;
 
-      const BakedAtlas *baked = ensure_uploaded(cmd.font_id, cmd.char_size);
+      const BakedAtlas *baked = ensure_uploaded(std::to_underlying(cmd.font_id), cmd.char_size);
       if (baked == nullptr || baked->view.id == 0)
         return;
 
@@ -859,8 +861,9 @@ namespace corundum::platform::glfw {
       add_to_batch(white_view_);
     }
 
-    float SokolRenderer::measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const {
-      const BakedAtlas *baked = ensure_metrics(font_id, char_size);
+    float SokolRenderer::measure_text(corundum::platform::FontId font_id, std::string_view text,
+                                      uint32_t char_size) const {
+      const BakedAtlas *baked = ensure_metrics(std::to_underlying(font_id), char_size);
       if (baked == nullptr)
         return 0.f;
 

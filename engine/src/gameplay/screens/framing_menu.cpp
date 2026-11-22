@@ -5,6 +5,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -12,7 +13,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -33,8 +33,8 @@ namespace corundum::gameplay::screens::detail {
     const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 6.f);
     const float heading_h = std::max(line_h, static_cast<float>(style.font_size_heading) + 8.f);
     const float cursor_w = ui::cursor_advance(r, style);
-    const std::uint32_t body_font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-    const std::uint32_t heading_font = style.family(ui::FontRole::Display).get(ui::FontStyle::Regular);
+    const platform::FontId body_font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId heading_font = style.family(ui::FontRole::Display).get(ui::FontStyle::Regular);
 
     float widest = std::max(r.measure_text(heading_font, heading, style.font_size_heading),
                             r.measure_text(body_font, footer, style.font_size_body));
@@ -65,8 +65,8 @@ namespace corundum::gameplay::screens::detail {
                            std::span<const bool> enabled, int cursor, std::string_view heading, std::string_view footer,
                            core::math::Vec2 viewport) {
     const float line_h = layout.rows.row_height;
-    const std::uint32_t body_font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-    const std::uint32_t heading_font = style.family(ui::FontRole::Display).get(ui::FontStyle::Regular);
+    const platform::FontId body_font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId heading_font = style.family(ui::FontRole::Display).get(ui::FontStyle::Regular);
 
     // The framing screen sits over whatever is behind it — no world under the title, the live
     // world under in-game Settings; an opaque backdrop keeps that scene from showing through.

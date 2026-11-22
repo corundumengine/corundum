@@ -3,6 +3,7 @@
 
 #pragma once
 #include <corundum/core/math/vec.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <cstdint>
 #include <expected>
 #include <string>
@@ -12,7 +13,7 @@ namespace corundum::platform {
 
   /// Textured quad draw command.
   struct DrawSprite {
-    uint32_t texture_id{};
+    TextureId texture_id{TextureId::Invalid};
 
     core::math::Vec2 position{};
 
@@ -31,7 +32,7 @@ namespace corundum::platform {
    *        not retain it.
    */
   struct DrawText {
-    uint32_t font_id{0};
+    FontId font_id{FontId::Invalid};
 
     std::string_view text{};
 
@@ -73,7 +74,7 @@ namespace corundum::platform {
 
   /** @brief Platform-independent rendering interface.
    *
-   * Resource IDs (textures, fonts) are opaque uint32_t handles. ID 0 is invalid.
+   * Textures and fonts are identified by TextureId and FontId; neither ever issues its Invalid (0).
    * Concrete implementations are created via the platform factory
    * (create_platform() in platform_factory.hpp).
    *
@@ -94,25 +95,25 @@ namespace corundum::platform {
     virtual ~Renderer() = default;
 
     /// Load a texture from an image file.
-    /// @return Opaque texture ID, or std::unexpected with the reason.
-    [[nodiscard]] virtual std::expected<uint32_t, std::string> load_texture(std::string_view path) = 0;
+    /// @return The texture's id, or std::unexpected with the reason.
+    [[nodiscard]] virtual std::expected<TextureId, std::string> load_texture(std::string_view path) = 0;
 
     /// Pixel size of a texture returned by load_texture().
     /// @pre @p texture_id is live: returned by load_texture() and not yet purged.
-    [[nodiscard]] virtual core::math::Vec2 texture_size(uint32_t texture_id) const = 0;
+    [[nodiscard]] virtual core::math::Vec2 texture_size(TextureId texture_id) const = 0;
 
     /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).
     /// Never destroys: an unreferenced texture stays usable until purge_unused_textures().
-    /// Id 0 is ignored.
-    virtual void release_texture(uint32_t texture_id) = 0;
+    /// TextureId::Invalid is ignored.
+    virtual void release_texture(TextureId texture_id) = 0;
 
     /// Destroy every texture whose references have all been released. Call only between frames
     /// (never between begin_frame() and end_frame()), at an area boundary. Ids are never reused.
     virtual void purge_unused_textures() = 0;
 
     /// Load a font face for rasterised text.
-    /// @return Opaque font ID, or std::unexpected with the reason.
-    [[nodiscard]] virtual std::expected<uint32_t, std::string> load_font(std::string_view path) = 0;
+    /// @return The font's id, or std::unexpected with the reason.
+    [[nodiscard]] virtual std::expected<FontId, std::string> load_font(std::string_view path) = 0;
 
     /// Set the world camera rect (top-left and viewport size, in world pixels) and zoom.
     /// Subsequent draws are interpreted in world units until reset_screen_view().
@@ -141,7 +142,7 @@ namespace corundum::platform {
     virtual void draw(const DrawLine &cmd) = 0;
 
     /// Advance width in pixels of @p text at @p char_size, or 0 if @p font_id resolves to no font.
-    [[nodiscard]] virtual float measure_text(uint32_t font_id, std::string_view text, uint32_t char_size) const = 0;
+    [[nodiscard]] virtual float measure_text(FontId font_id, std::string_view text, uint32_t char_size) const = 0;
 
     [[nodiscard]] virtual RendererStats stats() const = 0;
   };

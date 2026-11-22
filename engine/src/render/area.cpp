@@ -9,6 +9,7 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/chunk_window.hpp>
 #include <corundum/render/layer_render_cache.hpp>
 #include <corundum/render/render_state.hpp>
@@ -25,7 +26,6 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
-#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <format>
@@ -43,28 +43,28 @@ namespace corundum::render {
 
     /// Drop the area's reference on every texture it holds. Nothing is destroyed until the next
     /// purge_unused_textures(), so a texture the next area also uses survives the swap.
-    void release_area_textures(corundum::platform::Renderer &r, std::vector<uint32_t> &area_texture_ids) {
-      for (const uint32_t id : area_texture_ids)
+    void release_area_textures(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids) {
+      for (const platform::TextureId id : area_texture_ids)
         r.release_texture(id);
       area_texture_ids.clear();
     }
 
     /// Record @p ids (just returned by load_texture) as area textures. The area keeps one reference
     /// per distinct texture: a repeat (two chunks sharing a tileset) hands its extra reference
-    /// straight back. Id 0, a failed load, holds no reference.
-    void adopt_area_textures(corundum::platform::Renderer &r, std::vector<uint32_t> &area_texture_ids,
-                             std::span<const uint32_t> ids) {
-      for (const uint32_t id : ids) {
-        if (id == 0)
+    /// straight back. TextureId::Invalid, a failed load, holds no reference.
+    void adopt_area_textures(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids,
+                             std::span<const platform::TextureId> ids) {
+      for (const platform::TextureId id : ids) {
+        if (id == platform::TextureId::Invalid)
           continue;
-        if (std::ranges::find(area_texture_ids, id) != area_texture_ids.end())
+        if (std::ranges::contains(area_texture_ids, id))
           r.release_texture(id);
         else
           area_texture_ids.push_back(id);
       }
     }
 
-    /// A tilemap with its tileset textures (id 0 where a texture failed) and its bands above ground.
+    /// A tilemap with its tileset textures (Invalid where a texture failed) and its bands above ground.
     struct TilemapAssets {
       std::vector<int> above_z{};
 
@@ -72,20 +72,21 @@ namespace corundum::render {
 
       corundum::world::tilemap::Tilemap tilemap{};
 
-      std::vector<uint32_t> tileset_texture_ids{};
+      std::vector<platform::TextureId> tileset_texture_ids{};
     };
 
-    /// One id per tileset, in tileset order. A texture that fails to load is logged and gets id 0,
-    /// which the tile pass skips: missing art draws nothing rather than failing the area.
-    std::vector<uint32_t> load_tileset_textures(corundum::platform::Renderer &r,
-                                                const corundum::world::tilemap::Tilemap &tilemap) {
-      std::vector<uint32_t> ids;
+    /// One id per tileset, in tileset order. A texture that fails to load is logged and gets
+    /// TextureId::Invalid, which the tile pass skips: missing art draws nothing rather than failing
+    /// the area.
+    std::vector<platform::TextureId> load_tileset_textures(corundum::platform::Renderer &r,
+                                                           const corundum::world::tilemap::Tilemap &tilemap) {
+      std::vector<platform::TextureId> ids;
       ids.reserve(tilemap.tilesets.size());
       for (const auto &tileset : tilemap.tilesets) {
         const auto loaded = r.load_texture(tileset.info.path);
         if (!loaded)
           corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", tileset.info.path);
-        ids.push_back(loaded.value_or(0));
+        ids.push_back(loaded.value_or(platform::TextureId::Invalid));
       }
       return ids;
     }
@@ -239,7 +240,7 @@ namespace corundum::render {
     /// Load the front pending chunk into the active window. A chunk that fails to load is logged
     /// and marked failed so it is never retried. @return true if a chunk became active.
     bool load_one_pending_chunk(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                                std::vector<uint32_t> &area_texture_ids, WorldArea &area,
+                                std::vector<platform::TextureId> &area_texture_ids, WorldArea &area,
                                 const corundum::core::GameConfig &cfg) {
       const std::optional<corundum::world::tilemap::ChunkCoord> coord = area.chunks.pop_pending();
       if (!coord)
@@ -286,7 +287,7 @@ namespace corundum::render {
     /// Load every chunk in the initial streaming window. Failed chunks are logged and marked
     /// failed so they are never retried.
     void load_initial_chunks(const corundum::core::ContentSource &content, corundum::platform::Renderer &r,
-                             std::vector<uint32_t> &area_texture_ids, WorldArea &area,
+                             std::vector<platform::TextureId> &area_texture_ids, WorldArea &area,
                              const corundum::core::GameConfig &cfg) {
       using namespace corundum::world::tilemap;
       for (const ChunkCoord c :

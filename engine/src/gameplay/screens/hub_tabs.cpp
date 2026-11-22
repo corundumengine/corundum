@@ -9,6 +9,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/ui_stack.hpp>
@@ -16,7 +17,6 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
-#include <cstdint>
 #include <string_view>
 
 namespace corundum::gameplay::screens {
@@ -46,7 +46,7 @@ namespace corundum::gameplay::screens {
 
     std::array<float, k_hub_tab_modes.size()> widths{};
     float total = 0.f;
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     for (std::size_t i = 0; i < k_hub_tab_modes.size(); ++i) {
       widths[i] = r.measure_text(font_id, hub_tab_label(k_hub_tab_modes[i]), style.font_size_body);
       total += widths[i];
@@ -79,7 +79,7 @@ namespace corundum::gameplay::screens {
   void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
                             core::math::Vec2 viewport, input::InputDevice last_device) {
     const HubTabStrip strip = hub_tab_strip(r, style, viewport);
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     const std::string_view prev = ui::input_glyph(input::Action::TabPrev, last_device);
     const std::string_view next = ui::input_glyph(input::Action::TabNext, last_device);
 

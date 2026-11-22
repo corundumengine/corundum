@@ -11,6 +11,7 @@
 #include <corundum/entities/tables/collision_table.hpp>
 #include <corundum/entities/world.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/chunk_window.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/world_aggregates.hpp>
@@ -279,7 +280,7 @@ namespace corundum::debug {
     };
 
     /// Draw the panel background sized to its widest line, then every line.
-    void draw_panel(platform::Renderer &r, float x, const PanelLines &lines, std::uint32_t font_id) {
+    void draw_panel(platform::Renderer &r, float x, const PanelLines &lines, platform::FontId font_id) {
       float content_w = k_box_w;
       for (std::size_t i = 0; i < lines.count; ++i)
         content_w = std::max(content_w, r.measure_text(font_id, lines.line_at(i), k_font_sz));
@@ -402,7 +403,7 @@ namespace corundum::debug {
     if (stats.dropped_quads > 0u)
       std::format_to(std::back_inserter(lines.text), "  DROPPED {}", stats.dropped_quads);
 
-    const std::uint32_t font_id = render.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = render.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     draw_panel(r, x, lines, font_id);
   }
 

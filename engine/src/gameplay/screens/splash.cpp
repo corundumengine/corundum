@@ -5,6 +5,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 
 #include <algorithm>
 
@@ -19,7 +20,7 @@ namespace corundum::gameplay::screens {
     if (state.index >= state.images.size())
       return;
     const SplashImage &image = state.images[state.index];
-    if (image.texture == 0 || image.size.x <= 0.f || image.size.y <= 0.f)
+    if (image.texture == platform::TextureId::Invalid || image.size.x <= 0.f || image.size.y <= 0.f)
       return;
 
     // Contain, not cover: a logo must never be cropped. Fit within a centered box smaller than the

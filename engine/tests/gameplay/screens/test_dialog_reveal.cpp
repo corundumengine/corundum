@@ -9,6 +9,7 @@
 #include <corundum/gameplay/screens/dialog_layout.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
@@ -22,6 +23,8 @@
 #include <variant>
 
 namespace {
+
+  using corundum::platform::FontId;
 
   corundum::gameplay::dialogue::Graph make_talk_graph(std::string text) {
     using namespace corundum::gameplay::dialogue;
@@ -60,10 +63,6 @@ namespace {
         return text;
     }
     return nullptr;
-  }
-
-  corundum::ui::FontFamily dialogue_family() {
-    return corundum::ui::FontFamily{.ids = {10u, 11u, 12u, 13u}};
   }
 
 } // namespace
@@ -133,7 +132,7 @@ TEST_CASE("dialog reveal: a budget spanning a style boundary reveals each segmen
 
   corundum::gameplay::screens::DialogBoxState box{};
   corundum::ui::PanelSkin skin{};
-  skin.style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = dialogue_family();
+  skin.style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = corundum::test::make_font_family(10);
   const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
   corundum::test::RecordingRenderer r;
@@ -145,8 +144,8 @@ TEST_CASE("dialog reveal: a budget spanning a style boundary reveals each segmen
   const corundum::platform::DrawText *italic = find_text(r, "b");
   REQUIRE(regular != nullptr);
   REQUIRE(italic != nullptr);
-  CHECK(regular->font_id == 10u);
-  CHECK(italic->font_id == 12u);
+  CHECK(regular->font_id == FontId{10});
+  CHECK(italic->font_id == FontId{12});
   CHECK(italic->position.x > regular->position.x); // the italic run continues the line, not restarts it
   CHECK_FALSE(contains_text(r, " c"));
 }
@@ -158,7 +157,7 @@ TEST_CASE("dialog reveal: the full styled body draws each run with its own font 
 
   corundum::gameplay::screens::DialogBoxState box{};
   corundum::ui::PanelSkin skin{};
-  skin.style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = dialogue_family();
+  skin.style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = corundum::test::make_font_family(10);
 
   corundum::test::RecordingRenderer r;
   corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, 0.f);
@@ -168,8 +167,8 @@ TEST_CASE("dialog reveal: the full styled body draws each run with its own font 
   const corundum::platform::DrawText *italic = find_text(r, "i");
   REQUIRE(bold != nullptr);
   REQUIRE(italic != nullptr);
-  CHECK(bold->font_id == 11u);
-  CHECK(italic->font_id == 12u);
+  CHECK(bold->font_id == FontId{11});
+  CHECK(italic->font_id == FontId{12});
   CHECK_FALSE(contains_text(r, "**b**"));
   CHECK_FALSE(contains_text(r, "*i*"));
 }

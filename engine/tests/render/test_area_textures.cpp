@@ -4,6 +4,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/platform/texture_ref_counts.hpp>
 #include <corundum/render/area.hpp>
 #include <corundum/render/render_state.hpp>
@@ -18,6 +19,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "memory_content_source.hpp"
@@ -41,30 +43,38 @@ namespace {
   class CountingRenderer final : public corundum::platform::Renderer {
   public:
     corundum::platform::TextureRefCounts refs;
-    std::vector<uint32_t> purged;
+    std::vector<corundum::platform::TextureId> purged;
 
-    [[nodiscard]] uint32_t last_issued_id() const { return next_id_ - 1; }
+    [[nodiscard]] corundum::platform::TextureId last_issued_id() const {
+      return corundum::platform::TextureId{next_id_ - 1};
+    }
 
-    std::expected<uint32_t, std::string> load_texture(std::string_view path) override {
-      const auto [it, inserted] = ids_.try_emplace(std::string{path}, next_id_);
+    std::expected<corundum::platform::TextureId, std::string> load_texture(std::string_view path) override {
+      auto [it, inserted] = ids_.try_emplace(std::string{path});
       if (inserted)
-        ++next_id_;
-      refs.acquire(it->second);
+        it->second = corundum::platform::TextureId{next_id_++};
+      refs.acquire(std::to_underlying(it->second));
       return it->second;
     }
 
-    [[nodiscard]] corundum::core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override { return {}; }
+    [[nodiscard]] corundum::core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
+      return {};
+    }
 
-    void release_texture(uint32_t texture_id) override { refs.release(texture_id); }
+    void release_texture(corundum::platform::TextureId texture_id) override {
+      refs.release(std::to_underlying(texture_id));
+    }
 
     void purge_unused_textures() override {
       for (const uint32_t id : refs.take_unreferenced()) {
-        purged.push_back(id);
-        std::erase_if(ids_, [id](const auto &entry) { return entry.second == id; });
+        purged.push_back(corundum::platform::TextureId{id});
+        std::erase_if(ids_, [id](const auto &entry) { return std::to_underlying(entry.second) == id; });
       }
     }
 
-    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
+    std::expected<corundum::platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+      return corundum::platform::FontId{1};
+    }
 
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
                         float /*zoom*/) override {}
@@ -83,7 +93,7 @@ namespace {
 
     void draw(const DrawLine & /*cmd*/) override {}
 
-    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view /*text*/,
+    [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view /*text*/,
                                      uint32_t /*char_size*/) const override {
       return 0.f;
     }
@@ -91,8 +101,8 @@ namespace {
     [[nodiscard]] RendererStats stats() const override { return {}; }
 
   private:
-    std::unordered_map<std::string, uint32_t> ids_;
-    uint32_t next_id_{1};
+    std::unordered_map<std::string, corundum::platform::TextureId> ids_;
+    std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
   };
 
   GameConfig fixture_config() {
@@ -100,7 +110,7 @@ namespace {
   }
 
   /// Sorted copy, so set-equality checks read clearly and failures show both orderings.
-  std::vector<uint32_t> sorted(std::vector<uint32_t> ids) {
+  std::vector<corundum::platform::TextureId> sorted(std::vector<corundum::platform::TextureId> ids) {
     std::ranges::sort(ids);
     return ids;
   }
@@ -113,9 +123,9 @@ TEST_CASE("area textures: a loaded world holds one reference per distinct tilese
   REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
 
   REQUIRE_FALSE(state.area_texture_ids.empty());
-  for (const uint32_t id : state.area_texture_ids) {
-    INFO(id);
-    CHECK_EQ(renderer.refs.count(id), 1u);
+  for (const corundum::platform::TextureId id : state.area_texture_ids) {
+    INFO(std::to_underlying(id));
+    CHECK_EQ(renderer.refs.count(std::to_underlying(id)), 1u);
   }
 }
 
@@ -123,7 +133,7 @@ TEST_CASE("area textures: unload_world releases and purges every area texture") 
   CountingRenderer renderer;
   RenderState state;
   REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
-  const std::vector<uint32_t> loaded = state.area_texture_ids;
+  const std::vector<corundum::platform::TextureId> loaded = state.area_texture_ids;
 
   corundum::render::unload_world(renderer, state);
 
@@ -139,9 +149,9 @@ TEST_CASE("area textures: reloading the same world keeps its textures resident")
   REQUIRE(corundum::render::load_world(disk(), renderer, state, fixture_config(), {}).has_value());
 
   CHECK(renderer.purged.empty());
-  for (const uint32_t id : state.area_texture_ids) {
-    INFO(id);
-    CHECK_EQ(renderer.refs.count(id), 1u);
+  for (const corundum::platform::TextureId id : state.area_texture_ids) {
+    INFO(std::to_underlying(id));
+    CHECK_EQ(renderer.refs.count(std::to_underlying(id)), 1u);
   }
 }
 
@@ -156,7 +166,7 @@ TEST_CASE("area textures: a texture also held outside the area survives unload_w
   corundum::render::unload_world(renderer, state);
 
   CHECK(std::ranges::find(renderer.purged, *id) == renderer.purged.end());
-  CHECK_EQ(renderer.refs.count(*id), 1u);
+  CHECK_EQ(renderer.refs.count(std::to_underlying(*id)), 1u);
 }
 
 TEST_CASE("area textures: a process-lifetime texture loaded before the area survives unload_world") {
@@ -169,7 +179,7 @@ TEST_CASE("area textures: a process-lifetime texture loaded before the area surv
   corundum::render::unload_world(renderer, state);
 
   CHECK(std::ranges::find(renderer.purged, *process_id) == renderer.purged.end());
-  CHECK_EQ(renderer.refs.count(*process_id), 1u);
+  CHECK_EQ(renderer.refs.count(std::to_underlying(*process_id)), 1u);
 }
 
 TEST_CASE("area textures: a failed load_map after a world leaves no area and releases the world's textures") {
@@ -178,7 +188,7 @@ TEST_CASE("area textures: a failed load_map after a world leaves no area and rel
   CountingRenderer renderer;
   RenderState state;
   REQUIRE(corundum::render::load_world(disk(), renderer, state, cfg, {}).has_value());
-  const std::vector<uint32_t> world_textures = state.area_texture_ids;
+  const std::vector<corundum::platform::TextureId> world_textures = state.area_texture_ids;
   REQUIRE_FALSE(world_textures.empty());
 
   const auto missing_map_path = fixtures / "tilemaps/missing.json";
@@ -188,9 +198,9 @@ TEST_CASE("area textures: a failed load_map after a world leaves no area and rel
   CHECK_EQ(result.error(), std::format("tilemap: cannot open: {}", missing_map_path.string()));
   CHECK(corundum::render::mode(state) == RenderMode::None);
   CHECK(state.area_texture_ids.empty());
-  for (const uint32_t id : world_textures) {
-    INFO(id);
-    CHECK_EQ(renderer.refs.count(id), 0u);
+  for (const corundum::platform::TextureId id : world_textures) {
+    INFO(std::to_underlying(id));
+    CHECK_EQ(renderer.refs.count(std::to_underlying(id)), 0u);
     CHECK(std::ranges::find(renderer.purged, id) != renderer.purged.end());
   }
 }
@@ -202,7 +212,7 @@ TEST_CASE("area textures: a failed load_world after a single map leaves no area 
   RenderState state;
   REQUIRE(corundum::render::load_map(disk(), renderer, state, (fixtures / "tilemaps/lifecycle_test.json").string(), cfg)
               .has_value());
-  const std::vector<uint32_t> map_textures = state.area_texture_ids;
+  const std::vector<corundum::platform::TextureId> map_textures = state.area_texture_ids;
   REQUIRE_FALSE(map_textures.empty());
 
   GameConfig broken_cfg = cfg;
@@ -214,9 +224,9 @@ TEST_CASE("area textures: a failed load_world after a single map leaves no area 
                                        std::filesystem::path(broken_cfg.paths.world_manifest_path).string()));
   CHECK(corundum::render::mode(state) == RenderMode::None);
   CHECK(state.area_texture_ids.empty());
-  for (const uint32_t id : map_textures) {
-    INFO(id);
-    CHECK_EQ(renderer.refs.count(id), 0u);
+  for (const corundum::platform::TextureId id : map_textures) {
+    INFO(std::to_underlying(id));
+    CHECK_EQ(renderer.refs.count(std::to_underlying(id)), 0u);
     CHECK(std::ranges::find(renderer.purged, id) != renderer.purged.end());
   }
 }
@@ -234,8 +244,10 @@ TEST_CASE("load_world: a chunk whose portals file is malformed is marked failed 
   CHECK(world_area.chunks.is_active({.col = 0, .row = 0}));
   CHECK(world_area.chunks.has({.col = 1, .row = 0}));
 
-  for (uint32_t id = 1; id <= renderer.last_issued_id(); ++id) {
-    INFO(id);
-    CHECK_EQ(renderer.refs.count(id), static_cast<uint32_t>(std::ranges::count(state.area_texture_ids, id)));
+  const std::uint32_t last_id = std::to_underlying(renderer.last_issued_id());
+  for (std::uint32_t raw_id = 1; raw_id <= last_id; ++raw_id) {
+    INFO(raw_id);
+    const auto area_uses = std::ranges::count(state.area_texture_ids, corundum::platform::TextureId{raw_id});
+    CHECK_EQ(renderer.refs.count(raw_id), static_cast<std::uint32_t>(area_uses));
   }
 }

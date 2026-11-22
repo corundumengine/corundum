@@ -14,6 +14,7 @@
 #include <corundum/input/input_intent.hpp>
 #include <corundum/platform/handle.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/platform/texture_ref_counts.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/ui/screen_transition.hpp>
@@ -50,25 +51,27 @@ namespace {
   public:
     platform::TextureRefCounts refs;
 
-    std::expected<uint32_t, std::string> load_texture(std::string_view path) override {
+    std::expected<platform::TextureId, std::string> load_texture(std::string_view path) override {
       if (path.contains("missing"))
         return std::unexpected(std::string{"no such file"});
-      const auto [it, inserted] = ids_.try_emplace(std::string{path}, next_id_);
+      auto [it, inserted] = ids_.try_emplace(std::string{path});
       if (inserted)
-        ++next_id_;
-      refs.acquire(it->second);
+        it->second = platform::TextureId{next_id_++};
+      refs.acquire(std::to_underlying(it->second));
       return it->second;
     }
 
-    [[nodiscard]] corundum::core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override {
+    [[nodiscard]] corundum::core::math::Vec2 texture_size(platform::TextureId /*texture_id*/) const override {
       return {.x = 64.f, .y = 32.f};
     }
 
-    void release_texture(uint32_t texture_id) override { refs.release(texture_id); }
+    void release_texture(platform::TextureId texture_id) override { refs.release(std::to_underlying(texture_id)); }
 
     void purge_unused_textures() override {}
 
-    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
+    std::expected<platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+      return platform::FontId{1};
+    }
 
     void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
                         float /*zoom*/) override {}
@@ -87,23 +90,23 @@ namespace {
 
     void draw(const platform::DrawLine & /*cmd*/) override {}
 
-    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view /*text*/,
+    [[nodiscard]] float measure_text(platform::FontId /*font_id*/, std::string_view /*text*/,
                                      uint32_t /*char_size*/) const override {
       return 0.f;
     }
 
     [[nodiscard]] platform::RendererStats stats() const override { return {}; }
 
-    /// The id load_texture() gave @p path, or 0 when it never loaded.
-    [[nodiscard]] uint32_t id_of(std::string_view path) const {
+    /// The id load_texture() gave @p path, or TextureId::Invalid when it never loaded.
+    [[nodiscard]] platform::TextureId id_of(std::string_view path) const {
       const auto it = ids_.find(std::string{path});
-      return it == ids_.end() ? 0u : it->second;
+      return it == ids_.end() ? platform::TextureId::Invalid : it->second;
     }
 
   private:
-    std::unordered_map<std::string, uint32_t> ids_;
+    std::unordered_map<std::string, platform::TextureId> ids_;
 
-    uint32_t next_id_{1};
+    std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
   };
 
   /// Adopt the null platform, then swap in a SplashRenderer the engine owns; returns it for
@@ -322,25 +325,26 @@ TEST_CASE("splash: closing the splash gives back every texture reference") {
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
-  const uint32_t studio = renderer.id_of("studio.png");
-  const uint32_t engine_logo = renderer.id_of("engine.png");
-  REQUIRE(studio != 0);
-  REQUIRE(engine_logo != 0);
-  CHECK(renderer.refs.count(studio) == 1);
-  CHECK(renderer.refs.count(engine_logo) == 1);
+  const platform::TextureId studio = renderer.id_of("studio.png");
+  const platform::TextureId engine_logo = renderer.id_of("engine.png");
+  REQUIRE(studio != platform::TextureId::Invalid);
+  REQUIRE(engine_logo != platform::TextureId::Invalid);
+  CHECK(renderer.refs.count(std::to_underlying(studio)) == 1);
+  CHECK(renderer.refs.count(std::to_underlying(engine_logo)) == 1);
 
   step_until_splash_closes(engine);
 
   REQUIRE(engine.scene.ui.top() == screens::Title);
-  CHECK(renderer.refs.count(studio) == 0);
-  CHECK(renderer.refs.count(engine_logo) == 0);
+  CHECK(renderer.refs.count(std::to_underlying(studio)) == 0);
+  CHECK(renderer.refs.count(std::to_underlying(engine_logo)) == 0);
 
   engine.cleanup();
 }
 
 TEST_CASE("splash: the image fits a centered box k_splash_max_viewport_fraction of the viewport") {
   screens::SplashState state{};
-  state.images.push_back(screens::SplashImage{.size = {.x = 32.f, .y = 64.f}, .texture = 7});
+  state.images.push_back(
+      screens::SplashImage{.size = {.x = 32.f, .y = 64.f}, .texture = corundum::platform::TextureId{7}});
   RecordingRenderer r;
   screens::splash_render(r, {.x = 320.f, .y = 240.f}, state);
 
@@ -354,7 +358,7 @@ TEST_CASE("splash: the image fits a centered box k_splash_max_viewport_fraction 
 
   const auto *sprite = std::get_if<corundum::platform::DrawSprite>(&r.log[1]);
   REQUIRE(sprite != nullptr);
-  CHECK(sprite->texture_id == 7);
+  CHECK(sprite->texture_id == corundum::platform::TextureId{7});
   // The 0.75 box is 240 x 180; height-limited: 180 / 64 = 2.8125, so the 90 x 180 image centers at (115, 30).
   CHECK(sprite->scale.x == doctest::Approx(2.8125f));
   CHECK(sprite->scale.y == doctest::Approx(2.8125f));
@@ -365,7 +369,7 @@ TEST_CASE("splash: the image fits a centered box k_splash_max_viewport_fraction 
 TEST_CASE("splash: an image of unknown size draws only the black fill") {
   screens::SplashState state{};
   // NOLINTNEXTLINE(readability-trailing-comma): false positive on designated initializer separators.
-  state.images.push_back(screens::SplashImage{.size = {}, .texture = 7});
+  state.images.push_back(screens::SplashImage{.size = {}, .texture = corundum::platform::TextureId{7}});
   RecordingRenderer r;
   screens::splash_render(r, {.x = 320.f, .y = 240.f}, state);
 

@@ -6,6 +6,7 @@
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/render/resources.hpp>
 #include <corundum/ui/font_family.hpp>
@@ -22,20 +23,23 @@ namespace {
   /// the 0 sentinel), so fallback resolution can be asserted by id.
   class CountingRenderer final : public corundum::platform::Renderer {
   public:
-    [[nodiscard]] std::expected<std::uint32_t, std::string> load_texture(std::string_view /*path*/) override {
-      return 1u;
+    [[nodiscard]] std::expected<corundum::platform::TextureId, std::string>
+    load_texture(std::string_view /*path*/) override {
+      return corundum::platform::TextureId{1};
     }
 
-    [[nodiscard]] std::expected<std::uint32_t, std::string> load_font(std::string_view path) override {
+    [[nodiscard]] std::expected<corundum::platform::FontId, std::string> load_font(std::string_view path) override {
       // Mimic a real backend: a path with no file component (empty name) cannot load.
       if (path.empty() || path.back() == '/')
         return std::unexpected("no such font: " + std::string{path});
-      return next_font_id_++;
+      return corundum::platform::FontId{next_font_id_++};
     }
 
-    [[nodiscard]] corundum::core::math::Vec2 texture_size(std::uint32_t /*texture_id*/) const override { return {}; }
+    [[nodiscard]] corundum::core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
+      return {};
+    }
 
-    void release_texture(std::uint32_t /*texture_id*/) override {}
+    void release_texture(corundum::platform::TextureId /*texture_id*/) override {}
 
     void purge_unused_textures() override {}
 
@@ -56,7 +60,7 @@ namespace {
 
     void draw(const corundum::platform::DrawLine & /*cmd*/) override {}
 
-    [[nodiscard]] float measure_text(std::uint32_t /*font_id*/, std::string_view /*text*/,
+    [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view /*text*/,
                                      std::uint32_t /*char_size*/) const override {
       return 0.f;
     }
@@ -64,7 +68,7 @@ namespace {
     [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
 
   private:
-    std::uint32_t next_font_id_{1};
+    std::uint32_t next_font_id_{1}; ///< Raw counter, so issuing an id never converts types.
   };
 
   using corundum::ui::FontFamilyPaths;
@@ -94,22 +98,22 @@ TEST_CASE("load_fonts resolves every style and falls back to regular") {
   REQUIRE(corundum::render::load_fonts(r, state, paths).has_value());
 
   const auto &dialogue = state.fonts[role_index(FontRole::Dialogue)];
-  CHECK(dialogue.get(FontStyle::Regular) == 1u);
-  CHECK(dialogue.get(FontStyle::Bold) == 2u);
-  CHECK(dialogue.get(FontStyle::Italic) == 3u);
-  CHECK(dialogue.get(FontStyle::BoldItalic) == 4u);
+  CHECK(dialogue.get(FontStyle::Regular) == corundum::platform::FontId{1});
+  CHECK(dialogue.get(FontStyle::Bold) == corundum::platform::FontId{2});
+  CHECK(dialogue.get(FontStyle::Italic) == corundum::platform::FontId{3});
+  CHECK(dialogue.get(FontStyle::BoldItalic) == corundum::platform::FontId{4});
 
   const auto &quest = state.fonts[role_index(FontRole::Quest)];
-  CHECK(quest.get(FontStyle::Regular) == 5u);
-  CHECK(quest.get(FontStyle::Bold) == 5u);
-  CHECK(quest.get(FontStyle::Italic) == 5u);
-  CHECK(quest.get(FontStyle::BoldItalic) == 5u);
+  CHECK(quest.get(FontStyle::Regular) == corundum::platform::FontId{5});
+  CHECK(quest.get(FontStyle::Bold) == corundum::platform::FontId{5});
+  CHECK(quest.get(FontStyle::Italic) == corundum::platform::FontId{5});
+  CHECK(quest.get(FontStyle::BoldItalic) == corundum::platform::FontId{5});
 
-  CHECK(state.fonts[role_index(FontRole::Ui)].get(FontStyle::Regular) == 6u);
+  CHECK(state.fonts[role_index(FontRole::Ui)].get(FontStyle::Regular) == corundum::platform::FontId{6});
 
   // Display was not configured; it resolves to the ui family.
-  CHECK(state.fonts[role_index(FontRole::Display)].get(FontStyle::Regular) == 6u);
-  CHECK(state.fonts[role_index(FontRole::Display)].get(FontStyle::Bold) == 6u);
+  CHECK(state.fonts[role_index(FontRole::Display)].get(FontStyle::Regular) == corundum::platform::FontId{6});
+  CHECK(state.fonts[role_index(FontRole::Display)].get(FontStyle::Bold) == corundum::platform::FontId{6});
 }
 
 TEST_CASE("load_fonts loads the display family and falls back its optional styles") {
@@ -125,10 +129,10 @@ TEST_CASE("load_fonts loads the display family and falls back its optional style
   REQUIRE(corundum::render::load_fonts(r, state, paths).has_value());
 
   const auto &display = state.fonts[role_index(FontRole::Display)];
-  CHECK(display.get(FontStyle::Regular) == 4u);
-  CHECK(display.get(FontStyle::Bold) == 5u);
-  CHECK(display.get(FontStyle::Italic) == 4u);
-  CHECK(display.get(FontStyle::BoldItalic) == 5u);
+  CHECK(display.get(FontStyle::Regular) == corundum::platform::FontId{4});
+  CHECK(display.get(FontStyle::Bold) == corundum::platform::FontId{5});
+  CHECK(display.get(FontStyle::Italic) == corundum::platform::FontId{4});
+  CHECK(display.get(FontStyle::BoldItalic) == corundum::platform::FontId{5});
 }
 
 TEST_CASE("configure_panel_style scales the display sizes independently of the body sizes") {
@@ -159,17 +163,17 @@ TEST_CASE("load_fonts falls back bold-italic to italic when bold is absent") {
   REQUIRE(corundum::render::load_fonts(r, state, paths).has_value());
 
   const auto &quest = state.fonts[role_index(FontRole::Quest)];
-  CHECK(quest.get(FontStyle::Regular) == 2u);
-  CHECK(quest.get(FontStyle::Italic) == 3u);
-  CHECK(quest.get(FontStyle::BoldItalic) == 3u);
+  CHECK(quest.get(FontStyle::Regular) == corundum::platform::FontId{2});
+  CHECK(quest.get(FontStyle::Italic) == corundum::platform::FontId{3});
+  CHECK(quest.get(FontStyle::BoldItalic) == corundum::platform::FontId{3});
 }
 
 TEST_CASE("a default-constructed FontFamily is invalid") {
   const corundum::ui::FontFamily family{};
-  CHECK(family.get(FontStyle::Regular) == 0u);
-  CHECK(family.get(FontStyle::Bold) == 0u);
-  CHECK(family.get(FontStyle::Italic) == 0u);
-  CHECK(family.get(FontStyle::BoldItalic) == 0u);
+  CHECK(family.get(FontStyle::Regular) == corundum::platform::FontId{0});
+  CHECK(family.get(FontStyle::Bold) == corundum::platform::FontId{0});
+  CHECK(family.get(FontStyle::Italic) == corundum::platform::FontId{0});
+  CHECK(family.get(FontStyle::BoldItalic) == corundum::platform::FontId{0});
 }
 
 TEST_CASE("load_fonts reports a missing regular face as an error") {

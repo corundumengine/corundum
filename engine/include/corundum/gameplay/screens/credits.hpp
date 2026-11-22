@@ -5,9 +5,9 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/credits/credits.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/panel_style.hpp>
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -25,9 +25,11 @@ namespace corundum::gameplay::screens {
 
     std::vector<credits::CreditsSection> sections{};
 
-    std::uint32_t background_texture{}; ///< Renderer texture id of the parchment; 0 when none or it failed to load.
+    /// The parchment behind the roll; Invalid when none is configured or its load failed.
+    platform::TextureId background_texture{platform::TextureId::Invalid};
 
-    core::math::Vec2 background_size{}; ///< Texture size in pixels, for cover scaling.
+    /// Texture size in pixels, for cover scaling.
+    core::math::Vec2 background_size{};
 
     float hold{}; ///< Seconds the roll holds still before scrolling begins.
 

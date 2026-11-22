@@ -4,6 +4,7 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 
 #include <cstdint>
 #include <expected>
@@ -12,11 +13,12 @@
 
 namespace corundum::platform::null {
 
-  /** @brief Shared dummy handle returned for every loaded texture and font.
-   *
-   *  The null backend performs no real asset loading, so every request aliases this.
-   */
-  constexpr uint32_t k_dummy_handle = 1u;
+  /// The texture id every load_texture() returns.
+  constexpr corundum::platform::TextureId k_dummy_texture{1};
+
+  /// The font id every load_font() returns; the null backend performs no real asset loading, so
+  /// every request aliases this.
+  constexpr corundum::platform::FontId k_dummy_font{1};
 
   /** @brief Assumed per-glyph advance width reported by measure_text(). */
   constexpr float k_glyph_advance_px = 8.f;
@@ -24,22 +26,26 @@ namespace corundum::platform::null {
   /** @brief No-op Renderer for headless lifecycle tests.
    *
    * Satisfies the platform::Renderer interface without touching a GPU: every
-   * load returns the same dummy handle, drawing is discarded, and
-   * measure_text() reports a rough per-character width.
+   * load returns a fixed dummy id, drawing is discarded, and measure_text()
+   * reports a rough per-character width.
    */
   class NullRenderer final : public corundum::platform::Renderer {
   public:
-    [[nodiscard]] std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override {
-      return k_dummy_handle;
+    [[nodiscard]] std::expected<corundum::platform::TextureId, std::string> load_texture(
+        std::string_view /*path*/) override {
+      return k_dummy_texture;
     }
 
-    [[nodiscard]] std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override {
-      return k_dummy_handle;
+    [[nodiscard]] std::expected<corundum::platform::FontId, std::string> load_font(
+        std::string_view /*path*/) override {
+      return k_dummy_font;
     }
 
-    [[nodiscard]] core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override { return {}; }
+    [[nodiscard]] core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
+      return {};
+    }
 
-    void release_texture(uint32_t /*texture_id*/) override {}
+    void release_texture(corundum::platform::TextureId /*texture_id*/) override {}
 
     void purge_unused_textures() override {}
 
@@ -62,7 +68,7 @@ namespace corundum::platform::null {
 
     void draw(const DrawLine & /*cmd*/) override {}
 
-    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text,
+    [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view text,
                                      uint32_t /*char_size*/) const override {
       return static_cast<float>(text.size()) * k_glyph_advance_px;
     }

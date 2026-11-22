@@ -8,6 +8,7 @@
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/render_state.hpp>
 #include <corundum/sprites/character_registry.hpp>
 #include <corundum/sprites/sprite.hpp>
@@ -22,6 +23,7 @@
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <initializer_list>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
@@ -51,9 +53,9 @@ namespace corundum::render {
 
     /// Process-lifetime textures: references stored in sprite_index are deliberately never
     /// released, so area purges can never destroy them.
-    [[nodiscard]] std::unordered_map<corundum::sprites::Id, uint32_t>
+    [[nodiscard]] std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId>
     load_sheet_textures(corundum::platform::Renderer &r, const corundum::sprites::CharacterRegistry &registry) {
-      std::unordered_map<corundum::sprites::Id, uint32_t> sheet_textures;
+      std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId> sheet_textures;
       for (const auto &[sheet_id, sheet] : registry.sheets()) {
         auto result = r.load_texture(sheet.path);
         if (result.has_value())
@@ -65,7 +67,7 @@ namespace corundum::render {
     }
 
     void store_sprite_frames(SpriteFrameIndex &index, const corundum::sprites::Frames &frame,
-                             const corundum::sprites::SpriteSheet &sheet, uint32_t texture_id) {
+                             const corundum::sprites::SpriteSheet &sheet, corundum::platform::TextureId texture_id) {
       index.tex_by_sprite_id[frame.sprite_id] = texture_id;
       const auto sprite_id = static_cast<std::size_t>(frame.sprite_id);
       if (sprite_id >= index.walk_offsets.size())
@@ -98,7 +100,8 @@ namespace corundum::render {
     state.sprite_index.anim_frame_counts.assign(num_slots, 0);
     state.sprite_index.frame_rects.clear();
 
-    const std::unordered_map<corundum::sprites::Id, uint32_t> sheet_textures = load_sheet_textures(r, registry);
+    const std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId> sheet_textures =
+        load_sheet_textures(r, registry);
     for (const auto &[name, frame] : registry.frames()) {
       if (frame.sprite_id == k_null_sprite_id)
         continue;
@@ -122,7 +125,7 @@ namespace corundum::render {
                                                       std::string_view role_name,
                                                       const corundum::ui::FontFamilyPaths &family_paths,
                                                       corundum::ui::FontFamily &family) {
-      const auto load_face = [&](const std::string &name) -> std::expected<std::uint32_t, std::string> {
+      const auto load_face = [&](const std::string &name) -> std::expected<corundum::platform::FontId, std::string> {
         return r.load_font(std::format("{}/{}", font_dir, name));
       };
 
@@ -131,37 +134,40 @@ namespace corundum::render {
         return std::unexpected(std::format("[renderer] could not load {} font '{}': {}", role_name,
                                            family_paths.regular, regular.error()));
 
-      const auto set_style = [&](corundum::ui::FontStyle style, std::uint32_t id) {
+      const auto set_style = [&](corundum::ui::FontStyle style, corundum::platform::FontId id) {
         family.ids[static_cast<std::size_t>(style)] = id;
       };
-      const auto regular_id = *regular;
+      const corundum::platform::FontId regular_id = *regular;
       set_style(corundum::ui::FontStyle::Regular, regular_id);
 
-      // An optional face returns its id, or 0 when the config omits it or its file fails to
-      // load; the caller then substitutes the closest present style.
-      const auto load_optional = [&](const std::string &name) -> std::uint32_t {
+      // An optional face returns its id, or FontId::Invalid when the config omits it or its file
+      // fails to load; the caller then substitutes the closest present style.
+      const auto load_optional = [&](const std::string &name) -> corundum::platform::FontId {
         if (name.empty())
-          return 0;
+          return corundum::platform::FontId::Invalid;
         auto loaded = load_face(name);
         if (loaded)
           return *loaded;
         corundum::detail::warn_log("[renderer] WARNING: could not load {} font '{}': {}; using fallback", role_name,
                                    name, loaded.error());
-        return 0;
+        return corundum::platform::FontId::Invalid;
+      };
+      /// The first of @p ids this family holds; the regular face is always held, so it terminates
+      /// every fallback chain.
+      const auto first_held = [](std::initializer_list<corundum::platform::FontId> ids) {
+        for (const corundum::platform::FontId id : ids)
+          if (id != corundum::platform::FontId::Invalid)
+            return id;
+        return corundum::platform::FontId::Invalid;
       };
 
-      const std::uint32_t bold_id = load_optional(family_paths.bold);
-      set_style(corundum::ui::FontStyle::Bold, bold_id != 0 ? bold_id : regular_id);
+      const corundum::platform::FontId bold_id = load_optional(family_paths.bold);
+      const corundum::platform::FontId italic_id = load_optional(family_paths.italic);
+      const corundum::platform::FontId bold_italic_id = load_optional(family_paths.bold_italic);
 
-      const std::uint32_t italic_id = load_optional(family_paths.italic);
-      set_style(corundum::ui::FontStyle::Italic, italic_id != 0 ? italic_id : regular_id);
-
-      const std::uint32_t bold_italic_fallback = bold_id != 0 ? bold_id : italic_id;
-      const std::uint32_t bold_italic_id = load_optional(family_paths.bold_italic);
-      std::uint32_t resolved_bold_italic = bold_italic_id;
-      if (resolved_bold_italic == 0)
-        resolved_bold_italic = bold_italic_fallback != 0 ? bold_italic_fallback : regular_id;
-      set_style(corundum::ui::FontStyle::BoldItalic, resolved_bold_italic);
+      set_style(corundum::ui::FontStyle::Bold, first_held({bold_id, regular_id}));
+      set_style(corundum::ui::FontStyle::Italic, first_held({italic_id, regular_id}));
+      set_style(corundum::ui::FontStyle::BoldItalic, first_held({bold_italic_id, bold_id, italic_id, regular_id}));
       return {};
     }
 
@@ -231,7 +237,7 @@ namespace corundum::render {
       state.panel_skin.border.texture_id = result.value();
     } else {
       corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", tex_path);
-      state.panel_skin.border.texture_id = 0;
+      state.panel_skin.border.texture_id = corundum::platform::TextureId::Invalid;
     }
 
     // NinePatchBorder lays the frame out as a uniform 3×3 grid. A cell is the size of the

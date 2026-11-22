@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/layer_render_cache.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -23,7 +24,7 @@ namespace corundum::render {
   struct ChunkEntry {
     corundum::world::tilemap::ChunkCoord coord{};
     corundum::world::tilemap::Tilemap tilemap{};
-    std::vector<uint32_t> tileset_texture_ids;
+    std::vector<platform::TextureId> tileset_texture_ids;
     std::vector<int> above_z;
     std::vector<LayerRenderCache> layer_caches{}; ///< Parallel to tilemap.layers.
     std::vector<corundum::world::Portal> portals;

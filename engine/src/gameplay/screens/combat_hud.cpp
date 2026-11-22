@@ -7,6 +7,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -15,7 +16,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <span>
 #include <string>
@@ -105,7 +105,7 @@ namespace corundum::gameplay::screens {
     /// The panel at the top-left: one row per combatant, as wide as its longest row needs.
     void draw_rows_panel(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          std::span<const CombatHudRow> rows) {
-      const std::uint32_t font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      const platform::FontId font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
       std::vector<std::string> texts;
       texts.reserve(rows.size());
       float rows_width = k_min_row_width;
@@ -139,7 +139,7 @@ namespace corundum::gameplay::screens {
     };
 
     /// The width of @p items' texts and the gaps between them.
-    float items_width(const platform::Renderer &r, std::uint32_t font, const ui::PanelStyle &style,
+    float items_width(const platform::Renderer &r, platform::FontId font, const ui::PanelStyle &style,
                       std::span<const BarItem> items) {
       float width = 0.f;
       for (const BarItem &item : items)
@@ -150,7 +150,7 @@ namespace corundum::gameplay::screens {
     }
 
     /// Draw @p items in a row from @p left.
-    void draw_items(platform::Renderer &r, const ui::PanelStyle &style, std::uint32_t font,
+    void draw_items(platform::Renderer &r, const ui::PanelStyle &style, platform::FontId font,
                     std::span<const BarItem> items, float left, float y) {
       float x = left;
       for (const BarItem &item : items) {
@@ -183,7 +183,7 @@ namespace corundum::gameplay::screens {
       if (hud.commands.empty())
         return;
 
-      const std::uint32_t font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      const platform::FontId font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
       std::vector<BarItem> commands;
       commands.reserve(hud.commands.size() + 1);
       for (const CombatHudCommand &command : hud.commands)
@@ -210,7 +210,7 @@ namespace corundum::gameplay::screens {
                      std::string_view banner) {
       if (banner.empty())
         return;
-      const std::uint32_t font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+      const platform::FontId font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
       const float width = r.measure_text(font, banner, style.font_size_speaker);
       draw_text(r, style, banner, {.x = (viewport.x - width) / 2.f, .y = style.margin}, style.font_size_speaker,
                 style.speaker);

@@ -67,6 +67,7 @@ set(TEST_SOURCES
 
     # platform
     platform/test_handle.cpp
+    platform/test_resource_ids.cpp
     platform/test_texture_ref_counts.cpp
 
     # render

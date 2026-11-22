@@ -11,6 +11,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -21,7 +22,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -182,102 +182,128 @@ namespace corundum::gameplay::screens {
     return layout;
   }
 
-  void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                          const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
-                          core::math::Vec2 viewport, input::InputDevice last_device) {
-    constexpr float k_pad = 20.f;
-    constexpr std::string_view k_title = "Codex";
-    constexpr std::string_view k_empty = "(no entries)";
+  namespace {
 
-    const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
+    constexpr float k_codex_pad = 20.f;
+    constexpr std::string_view k_codex_title = "Codex";
+    constexpr std::string_view k_codex_empty = "(no entries)";
 
-    ui::screen_backdrop(r, style, viewport);
-    ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
-                     {.x = geometry.panel_w, .y = geometry.panel_h});
+    /// Backdrop, panel frame, title and footer hint: everything drawn around the list and body.
+    void draw_codex_chrome(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+                           const CodexGeometry &geometry, core::math::Vec2 viewport, input::InputDevice last_device) {
+      ui::screen_backdrop(r, style, viewport);
+      ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
+                       {.x = geometry.panel_w, .y = geometry.panel_h});
 
-    const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);
-    const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
-    const std::uint32_t quest_bold = quest_fonts.get(ui::FontStyle::Bold);
-    const std::uint32_t ui_regular = ui_fonts.get(ui::FontStyle::Regular);
-    const std::uint32_t ui_bold = ui_fonts.get(ui::FontStyle::Bold);
-    const float title_w = r.measure_text(ui_bold, k_title, style.font_size_speaker);
-    r.draw(platform::DrawText{
-        .font_id = ui_bold,
-        .text = k_title,
-        .position = {.x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f), .y = geometry.panel_y + k_pad},
-        .char_size = style.font_size_speaker,
-        .colour = style.speaker,
-    });
+      const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
+      const platform::FontId ui_bold = ui_fonts.get(ui::FontStyle::Bold);
+      const platform::FontId ui_regular = ui_fonts.get(ui::FontStyle::Regular);
 
-    const std::string footer =
-        std::format("{} Select   {} Close", ui::input_glyph(input::Action::Activate, last_device),
-                    ui::input_glyph(input::Action::Cancel, last_device));
-    const float footer_w = r.measure_text(ui_regular, footer, style.font_size_body);
-    r.draw(platform::DrawText{
-        .font_id = ui_regular,
-        .text = footer,
-        .position =
-            {
-                .x = geometry.panel_x + ((geometry.panel_w - footer_w) * 0.5f),
-                .y = geometry.panel_y + geometry.panel_h - k_pad - geometry.line_h,
-            },
-        .char_size = style.font_size_body,
-        .colour = style.choice,
-    });
+      const float title_w = r.measure_text(ui_bold, k_codex_title, style.font_size_speaker);
+      r.draw(platform::DrawText{
+          .font_id = ui_bold,
+          .text = k_codex_title,
+          .position =
+              {
+                  .x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f),
+                  .y = geometry.panel_y + k_codex_pad,
+              },
+          .char_size = style.font_size_speaker,
+          .colour = style.speaker,
+      });
 
-    if (entries.empty()) {
+      const std::string footer =
+          std::format("{} Select   {} Close", ui::input_glyph(input::Action::Activate, last_device),
+                      ui::input_glyph(input::Action::Cancel, last_device));
+      const float footer_w = r.measure_text(ui_regular, footer, style.font_size_body);
       r.draw(platform::DrawText{
           .font_id = ui_regular,
-          .text = k_empty,
-          .position = {.x = geometry.list_x, .y = geometry.content_top},
+          .text = footer,
+          .position =
+              {
+                  .x = geometry.panel_x + ((geometry.panel_w - footer_w) * 0.5f),
+                  .y = geometry.panel_y + geometry.panel_h - k_codex_pad - geometry.line_h,
+              },
           .char_size = style.font_size_body,
           .colour = style.choice,
       });
-      return;
     }
 
-    for (int i = geometry.first_row; codex_row_visible(geometry, i); ++i) {
-      const CodexRow &row = geometry.rows[static_cast<std::size_t>(i)];
-      const float y = codex_row_y(geometry, i);
-      if (row.header) {
+    /// The entry list, or the placeholder line when the registry has no entries.
+    void draw_codex_list(platform::Renderer &r, const ui::PanelStyle &style, const CodexGeometry &geometry,
+                         const std::vector<gameplay::codex::CodexEntry> &entries) {
+      const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
+      if (entries.empty()) {
         r.draw(platform::DrawText{
-            .font_id = ui_bold,
-            .text = row.text,
-            .position = {.x = geometry.list_x, .y = y},
-            .char_size = style.font_size_speaker,
-            .colour = style.speaker,
+            .font_id = ui_fonts.get(ui::FontStyle::Regular),
+            .text = k_codex_empty,
+            .position = {.x = geometry.list_x, .y = geometry.content_top},
+            .char_size = style.font_size_body,
+            .colour = style.choice,
         });
-      } else {
-        ui::draw_option(r, style, ui::FontRole::Quest, ui::FontStyle::Bold, row.text, {.x = geometry.list_x, .y = y},
-                        row.entry_index == geometry.clamped_cursor);
+        return;
+      }
+
+      const platform::FontId ui_bold = ui_fonts.get(ui::FontStyle::Bold);
+      for (int i = geometry.first_row; codex_row_visible(geometry, i); ++i) {
+        const CodexRow &row = geometry.rows[static_cast<std::size_t>(i)];
+        const float y = codex_row_y(geometry, i);
+        if (row.header) {
+          r.draw(platform::DrawText{
+              .font_id = ui_bold,
+              .text = row.text,
+              .position = {.x = geometry.list_x, .y = y},
+              .char_size = style.font_size_speaker,
+              .colour = style.speaker,
+          });
+        } else {
+          ui::draw_option(r, style, ui::FontRole::Quest, ui::FontStyle::Bold, row.text, {.x = geometry.list_x, .y = y},
+                          row.entry_index == geometry.clamped_cursor);
+        }
       }
     }
 
-    const gameplay::codex::CodexEntry &selected = entries[static_cast<std::size_t>(geometry.clamped_cursor)];
-    const auto measure = [&](std::string_view text, ui::FontStyle font_style) -> float {
-      return r.measure_text(quest_fonts.get(font_style), text, style.font_size_body);
-    };
-    const std::vector<ui::StyledLine> body_lines =
-        ui::wrap_styled(ui::parse_styled(selected.body), geometry.body_w, measure);
+    /// The selected entry's title and wrapped body, scrolled by @p scroll lines.
+    void draw_codex_body(platform::Renderer &r, const ui::PanelStyle &style, const CodexGeometry &geometry,
+                         const gameplay::codex::CodexEntry &selected, float scroll) {
+      const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);
+      const auto measure = [&](std::string_view text, ui::FontStyle font_style) -> float {
+        return r.measure_text(quest_fonts.get(font_style), text, style.font_size_body);
+      };
+      const std::vector<ui::StyledLine> body_lines =
+          ui::wrap_styled(ui::parse_styled(selected.body), geometry.body_w, measure);
 
-    const int visible_body = geometry.visible_rows;
-    const float max_scroll = std::max(0.f, static_cast<float>(body_lines.size()) - static_cast<float>(visible_body));
-    const int first_body = std::clamp(static_cast<int>(scroll), 0, static_cast<int>(max_scroll));
+      const int visible_body = geometry.visible_rows;
+      const float max_scroll = std::max(0.f, static_cast<float>(body_lines.size()) - static_cast<float>(visible_body));
+      const int first_body = std::clamp(static_cast<int>(scroll), 0, static_cast<int>(max_scroll));
 
-    float body_y = geometry.content_top;
-    r.draw(platform::DrawText{
-        .font_id = quest_bold,
-        .text = selected.title,
-        .position = {.x = geometry.body_x, .y = body_y},
-        .char_size = style.font_size_speaker,
-        .colour = style.speaker,
-    });
-    body_y += geometry.header_h;
-    for (int i = first_body; std::cmp_less(i, body_lines.size()) && i < first_body + visible_body; ++i) {
-      ui::draw_styled(r, quest_fonts, body_lines[static_cast<std::size_t>(i)].segments, style.font_size_body,
-                      style.body, {.x = geometry.body_x, .y = body_y});
-      body_y += geometry.line_h;
+      float body_y = geometry.content_top;
+      r.draw(platform::DrawText{
+          .font_id = quest_fonts.get(ui::FontStyle::Bold),
+          .text = selected.title,
+          .position = {.x = geometry.body_x, .y = body_y},
+          .char_size = style.font_size_speaker,
+          .colour = style.speaker,
+      });
+      body_y += geometry.header_h;
+      for (int i = first_body; std::cmp_less(i, body_lines.size()) && i < first_body + visible_body; ++i) {
+        ui::draw_styled(r, quest_fonts, body_lines[static_cast<std::size_t>(i)].segments, style.font_size_body,
+                        style.body, {.x = geometry.body_x, .y = body_y});
+        body_y += geometry.line_h;
+      }
     }
+
+  } // namespace
+
+  void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+                          const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
+                          core::math::Vec2 viewport, input::InputDevice last_device) {
+    const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
+    draw_codex_chrome(r, style, border, geometry, viewport, last_device);
+    draw_codex_list(r, style, geometry, entries);
+    if (entries.empty())
+      return;
+    draw_codex_body(r, style, geometry, entries[static_cast<std::size_t>(geometry.clamped_cursor)], scroll);
   }
 
 } // namespace corundum::gameplay::screens

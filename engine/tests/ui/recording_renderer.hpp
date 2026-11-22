@@ -4,8 +4,11 @@
 #pragma once
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
+#include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 
+#include <cstdint>
 #include <deque>
 #include <expected>
 #include <string>
@@ -36,17 +39,17 @@ namespace corundum::test {
 
     bool is_world_view{}; ///< True between set_world_view() and reset_screen_view().
 
-    std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override {
-      return 1u;
+    std::expected<platform::TextureId, std::string> load_texture(std::string_view /*path*/) override {
+      return platform::TextureId{1};
     }
 
-    std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override {
-      return 2u;
+    std::expected<platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+      return platform::FontId{2};
     }
 
-    [[nodiscard]] core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override { return {}; }
+    [[nodiscard]] core::math::Vec2 texture_size(platform::TextureId /*texture_id*/) const override { return {}; }
 
-    void release_texture(uint32_t /*texture_id*/) override {}
+    void release_texture(platform::TextureId /*texture_id*/) override {}
 
     void purge_unused_textures() override {}
 
@@ -85,7 +88,7 @@ namespace corundum::test {
         world_lines.push_back(cmd);
     }
 
-    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text,
+    [[nodiscard]] float measure_text(platform::FontId /*font_id*/, std::string_view text,
                                      uint32_t /*char_size*/) const override {
       return static_cast<float>(text.size()) * 8.f;
     }
@@ -97,10 +100,19 @@ namespace corundum::test {
 
   inline corundum::ui::NinePatchBorder make_border() {
     corundum::ui::NinePatchBorder border{};
-    border.texture_id = 1u;
+    border.texture_id = platform::TextureId{1};
     border.tile_w = 4;
     border.tile_h = 4;
     return border;
+  }
+
+  /// A family whose four style ids run from @p first upward, so a case can say which face a run
+  /// drew in by number: bold is @p first + 1, italic @p first + 2, bold-italic @p first + 3.
+  [[nodiscard]] inline corundum::ui::FontFamily make_font_family(std::uint32_t first) {
+    corundum::ui::FontFamily family{};
+    for (std::uint32_t style = 0; style < corundum::ui::k_font_style_count; ++style)
+      family.ids[style] = platform::FontId{first + style};
+    return family;
   }
 
 } // namespace corundum::test

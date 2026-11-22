@@ -3,6 +3,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -11,7 +12,6 @@
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
-#include <cstdint>
 #include <string_view>
 
 namespace corundum::ui {
@@ -26,7 +26,7 @@ namespace corundum::ui {
     constexpr std::string_view k_yes = "Yes";
     constexpr std::string_view k_no = "No";
 
-    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     const float q_w = r.measure_text(font_id, question, style.font_size_body);
     const float yes_w = r.measure_text(font_id, k_yes, style.font_size_body);
     const float no_w = r.measure_text(font_id, k_no, style.font_size_body);

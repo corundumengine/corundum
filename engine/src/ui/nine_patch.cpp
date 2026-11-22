@@ -3,6 +3,7 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/nine_patch.hpp>
 
 #include <algorithm>
@@ -10,7 +11,7 @@
 namespace corundum::ui {
 
   void nine_patch_render(platform::Renderer &r, const NinePatchBorder &border, float x, float y, float w, float h) {
-    if (border.texture_id == 0 || border.tile_w <= 0 || border.tile_h <= 0)
+    if (border.texture_id == platform::TextureId::Invalid || border.tile_w <= 0 || border.tile_h <= 0)
       return;
 
     const float corner_w = static_cast<float>(border.tile_w);

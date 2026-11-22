@@ -10,6 +10,7 @@
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
@@ -31,6 +32,8 @@ namespace fs = std::filesystem;
 namespace codex = corundum::gameplay::codex;
 
 namespace {
+
+  using corundum::platform::FontId;
 
   void write_file(const fs::path &p, std::string_view content) {
     fs::create_directories(p.parent_path());
@@ -159,8 +162,8 @@ TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family
 
   RecordingRenderer r;
   corundum::ui::PanelStyle style{};
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)] = {.ids = {10u, 11u, 12u, 13u}};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)] = corundum::test::make_font_family(10);
 
   const std::vector<codex::CodexEntry> entries = {
       codex::CodexEntry{.body = "A **quiet** village.", .id = "village", .title = "Greyhollow"},
@@ -178,14 +181,14 @@ TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family
 
   const auto *title = find_text("Codex");
   REQUIRE(title != nullptr);
-  CHECK(title->font_id == 11u); // UI Bold
+  CHECK(title->font_id == FontId{11}); // UI Bold
 
   const auto *bold = find_text("quiet");
   const auto *regular = find_text("A ");
   REQUIRE(bold != nullptr);
   REQUIRE(regular != nullptr);
-  CHECK(bold->font_id == 6u);               // Quest Bold
-  CHECK(regular->font_id == 5u);            // Quest Regular
+  CHECK(bold->font_id == FontId{6});        // Quest Bold
+  CHECK(regular->font_id == FontId{5});     // Quest Regular
   CHECK(find_text("**quiet**") == nullptr); // markup stripped from the drawn text
 }
 

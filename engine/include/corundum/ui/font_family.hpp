@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <corundum/platform/resource_ids.hpp>
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -37,13 +39,13 @@ namespace corundum::ui {
   constexpr std::size_t k_font_style_count{4};
 
   /// The renderer's font ids for one role, indexed by FontStyle. A fully loaded family has no
-  /// zero slots; a default-constructed family is all zeros and represents "not loaded" (the
+  /// Invalid slots; a default-constructed family is all Invalid and represents "not loaded" (the
   /// loader reserves id 0 as an invalid sentinel).
   struct FontFamily {
-    std::array<std::uint32_t, k_font_style_count> ids{};
+    std::array<platform::FontId, k_font_style_count> ids{};
 
-    /// @return The renderer id for @p style, or 0 when the family is unloaded.
-    [[nodiscard]] std::uint32_t get(FontStyle style) const noexcept { return ids[static_cast<std::size_t>(style)]; }
+    /// @return The renderer id for @p style, or FontId::Invalid when the family is unloaded.
+    [[nodiscard]] platform::FontId get(FontStyle style) const noexcept { return ids[static_cast<std::size_t>(style)]; }
   };
 
   /// Config-supplied file names for one role, relative to ResourcePaths::font_dir.

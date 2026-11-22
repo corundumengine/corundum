@@ -6,7 +6,9 @@
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
 #include <corundum/entities/entity.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/render/chunk_window.hpp>
+#include <corundum/render/layer_render_cache.hpp>
 #include <corundum/sprites/sprite.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
@@ -41,7 +43,7 @@ namespace corundum::render {
    * @performance O(1) lookup with no pointer chasing — all frame data in contiguous arrays.
    */
   struct SpriteFrameIndex {
-    std::vector<std::optional<uint32_t>> tex_by_sprite_id;
+    std::vector<std::optional<platform::TextureId>> tex_by_sprite_id;
     std::vector<corundum::core::math::IntRect> frame_rects;
     std::vector<float> walk_offsets; ///< walk_around_offset per sprite_id.
     std::vector<uint32_t> anim_offsets;
@@ -49,7 +51,7 @@ namespace corundum::render {
 
     /// Lookup result: texture ID, source rect, and walk_around_offset.
     struct Entry {
-      uint32_t tex_id = 0;
+      platform::TextureId tex_id{platform::TextureId::Invalid};
       corundum::core::math::IntRect src{};
       float walk_offset = 0.f;
     };
@@ -67,7 +69,7 @@ namespace corundum::render {
   /** @brief A single pre-loaded tilemap (single-map mode). */
   struct MapData {
     world::tilemap::Tilemap tilemap{};
-    std::vector<uint32_t> tileset_texture_ids{};
+    std::vector<platform::TextureId> tileset_texture_ids{};
     std::vector<int> above_z{};
     std::vector<LayerRenderCache> layer_caches{}; ///< Parallel to tilemap.layers.
     std::vector<world::Portal> portals{};
@@ -75,7 +77,7 @@ namespace corundum::render {
 
   /** @brief Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
   struct DepthEntry {
-    uint32_t tex_id = 0;
+    platform::TextureId tex_id{platform::TextureId::Invalid};
     corundum::core::math::IntRect src{};
     float x = 0.f;
     float y = 0.f;
@@ -158,7 +160,7 @@ namespace corundum::render {
 
     /// Textures the loaded area holds one reference on each. Kept outside @ref area so replacing the
     /// area can never drop references unreleased; see unload_world().
-    std::vector<uint32_t> area_texture_ids{};
+    std::vector<platform::TextureId> area_texture_ids{};
 
     /// Per-role font families, indexed by ui::FontRole; loaded by load_fonts().
     std::array<corundum::ui::FontFamily, corundum::ui::k_font_role_count> fonts{};

@@ -7,6 +7,7 @@
 #include <corundum/gameplay/credits/loader.hpp>
 #include <corundum/gameplay/screens/credits.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/panel_style.hpp>
 
 #include "memory_content_source.hpp"
@@ -166,7 +167,7 @@ TEST_CASE("credits render: a background image is drawn over the backdrop and swi
   const corundum::ui::PanelStyle style{};
   corundum::gameplay::screens::CreditsState state;
   state.title = "Title";
-  state.background_texture = 1;
+  state.background_texture = corundum::platform::TextureId{1};
   state.background_size = {.x = 2560.f, .y = 1440.f};
 
   RecordingRenderer r;

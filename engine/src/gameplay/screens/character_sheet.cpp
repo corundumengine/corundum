@@ -12,6 +12,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
@@ -22,7 +23,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <string>
 #include <string_view>
@@ -84,7 +84,7 @@ namespace corundum::gameplay::screens {
       };
     }
 
-    std::uint32_t regular_font(const ui::PanelStyle &style) noexcept {
+    platform::FontId regular_font(const ui::PanelStyle &style) noexcept {
       return style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
     }
 

@@ -11,6 +11,7 @@
 #include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
@@ -26,6 +27,7 @@
 
 namespace {
 
+  using corundum::platform::FontId;
   using corundum::world::FlagStore;
   namespace screens = corundum::gameplay::screens;
 
@@ -268,7 +270,7 @@ TEST_CASE("journal_panel_render: objective markup draws per-style Quest segments
 
   RecordingRenderer r;
   corundum::ui::PanelStyle style{};
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
 
   const std::vector<screens::JournalEntry> entries = {
       {
@@ -287,8 +289,8 @@ TEST_CASE("journal_panel_render: objective markup draws per-style Quest segments
   const auto *regular = find_text(r, " the shrine");
   REQUIRE(bold != nullptr);
   REQUIRE(regular != nullptr);
-  CHECK(bold->font_id == 6u);    // Quest Bold
-  CHECK(regular->font_id == 5u); // Quest Regular
+  CHECK(bold->font_id == FontId{6});    // Quest Bold
+  CHECK(regular->font_id == FontId{5}); // Quest Regular
 }
 
 TEST_CASE("journal_panel_render: the quest list row uses the Quest family") {
@@ -297,7 +299,7 @@ TEST_CASE("journal_panel_render: the quest list row uses the Quest family") {
 
   RecordingRenderer r;
   corundum::ui::PanelStyle style{};
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = {.ids = {5u, 6u, 7u, 8u}};
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
 
   const std::vector<screens::JournalEntry> entries = {
       {
@@ -313,5 +315,5 @@ TEST_CASE("journal_panel_render: the quest list row uses the Quest family") {
 
   const auto *name = find_text(r, "Ember");
   REQUIRE(name != nullptr);
-  CHECK(name->font_id == 6u); // Quest Bold
+  CHECK(name->font_id == FontId{6}); // Quest Bold
 }

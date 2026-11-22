@@ -126,7 +126,7 @@ namespace corundum::ui {
 
   /** @brief Draw the @p border nine-patch frame around @p pos/@p size, with no fill.
    *
-   *  A zero texture_id or non-positive cell size skips the frame.
+   *  A texture_id of TextureId::Invalid or a non-positive cell size skips the frame.
    *  @param r      Renderer; emits the border's DrawSprite commands.
    *  @param border Nine-patch frame texture/tile dims.
    *  @param pos    Top-left in screen pixels.

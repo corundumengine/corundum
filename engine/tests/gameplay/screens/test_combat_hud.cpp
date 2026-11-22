@@ -8,6 +8,7 @@
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 
@@ -241,7 +242,11 @@ TEST_CASE("combat HUD: each row draws one bar, its Health, and no timer") {
 
 TEST_CASE("combat HUD: a thick border insets both panels' content past its corner cells") {
   RecordingRenderer r;
-  const corundum::ui::NinePatchBorder border{.texture_id = 1, .tile_w = 32, .tile_h = 40};
+  const corundum::ui::NinePatchBorder border{
+      .texture_id = corundum::platform::TextureId{1},
+      .tile_w = 32,
+      .tile_h = 40,
+  };
 
   render_hud(r, make_hud(), border);
 
@@ -263,7 +268,11 @@ TEST_CASE("combat HUD: a thick border insets both panels' content past its corne
 TEST_CASE("combat HUD: a thick border leaves the command bar a margin from the viewport's bottom") {
   RecordingRenderer r;
   const corundum::ui::PanelStyle style{};
-  const corundum::ui::NinePatchBorder border{.texture_id = 1, .tile_w = 32, .tile_h = 40};
+  const corundum::ui::NinePatchBorder border{
+      .texture_id = corundum::platform::TextureId{1},
+      .tile_w = 32,
+      .tile_h = 40,
+  };
 
   render_hud(r, make_hud(), border);
 

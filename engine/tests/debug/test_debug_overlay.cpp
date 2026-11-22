@@ -11,6 +11,7 @@
 #include <corundum/debug/debug_overlay.hpp>
 #include <corundum/engine.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/world/transition.hpp>
 
 #include "ui/recording_renderer.hpp"
@@ -72,13 +73,20 @@ namespace {
   public:
     std::vector<corundum::core::math::Vec2> viewports{};
 
-    [[nodiscard]] std::expected<uint32_t, std::string> load_texture(std::string_view /*path*/) override { return 1u; }
+    [[nodiscard]] std::expected<corundum::platform::TextureId, std::string>
+    load_texture(std::string_view /*path*/) override {
+      return corundum::platform::TextureId{1};
+    }
 
-    [[nodiscard]] std::expected<uint32_t, std::string> load_font(std::string_view /*path*/) override { return 1u; }
+    [[nodiscard]] std::expected<corundum::platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+      return corundum::platform::FontId{1};
+    }
 
-    [[nodiscard]] corundum::core::math::Vec2 texture_size(uint32_t /*texture_id*/) const override { return {}; }
+    [[nodiscard]] corundum::core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
+      return {};
+    }
 
-    void release_texture(uint32_t /*texture_id*/) override {}
+    void release_texture(corundum::platform::TextureId /*texture_id*/) override {}
 
     void purge_unused_textures() override {}
 
@@ -101,7 +109,7 @@ namespace {
 
     void draw(const corundum::platform::DrawLine & /*cmd*/) override {}
 
-    [[nodiscard]] float measure_text(uint32_t /*font_id*/, std::string_view text,
+    [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view text,
                                      uint32_t /*char_size*/) const override {
       return static_cast<float>(text.size()) * 8.f;
     }

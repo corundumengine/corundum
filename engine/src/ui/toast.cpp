@@ -6,13 +6,13 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -59,7 +59,7 @@ namespace corundum::ui {
     const NinePatchBorder no_border{};
 
     // Oldest first, then downward, so the newest toast sits nearest the bottom edge.
-    const std::uint32_t font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
+    const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
     float y = viewport.y - k_margin - total_h;
     for (const Toast &toast : toasts_) {
       const float text_w = r.measure_text(font_id, toast.text, style.font_size_body);

@@ -3,7 +3,7 @@
 
 #pragma once
 #include <corundum/platform/renderer.hpp>
-#include <cstdint>
+#include <corundum/platform/resource_ids.hpp>
 
 namespace corundum::ui {
 
@@ -14,11 +14,11 @@ namespace corundum::ui {
   /// their natural cell size; edges are stretched to span the gap between them; the
   /// middle cell is never drawn.
   ///
-  /// @note nine_patch_render() is a no-op when @c texture_id is 0 (no texture loaded)
+  /// @note nine_patch_render() is a no-op when @c texture_id is TextureId::Invalid (no texture loaded)
   ///       or @c tile_w / @c tile_h are non-positive (malformed asset), so callers need
   ///       not guard those cases.
   struct NinePatchBorder {
-    uint32_t texture_id{0};
+    platform::TextureId texture_id{platform::TextureId::Invalid};
 
     int tile_w{0}; ///< Width in pixels of one source cell; must be > 0 for the frame to draw.
 

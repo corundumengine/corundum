@@ -5,18 +5,18 @@
 
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/renderer.hpp>
+#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
-#include <cstdint>
 #include <string_view>
 
 namespace corundum::gameplay::screens {
 
   void loading_panel_render(platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport) {
     constexpr std::string_view k_loading_text = "Loading...";
-    const std::uint32_t font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
+    const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
     ui::screen_backdrop(r, style, viewport);
 
