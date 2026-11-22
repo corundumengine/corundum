@@ -19,11 +19,13 @@
 #include <corundum/toolkit/widgets/text_buffer.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <format>
 #include <imgui.h>
+#include <iterator>
 #include <optional>
 #include <print>
 #include <utility>
@@ -408,9 +410,9 @@ namespace tools::tilesmith {
           TriangleCut::SouthEast,
           TriangleCut::SouthWest,
       };
-      const TriangleCut *const found = std::ranges::find(k_cuts, state.collision_tri_cut);
-      const int count = static_cast<int>(k_cuts.size());
-      const int index = static_cast<int>(found - k_cuts.begin());
+      // std::array's iterator is a class in MSVC's STL, so name the offset rather than the iterator type.
+      const std::ptrdiff_t count = std::ssize(k_cuts);
+      const std::ptrdiff_t index = std::ranges::find(k_cuts, state.collision_tri_cut) - k_cuts.begin();
       state.collision_tri_cut = k_cuts[static_cast<std::size_t>(((index + delta) + count) % count)];
     }
 
