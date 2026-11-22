@@ -53,7 +53,7 @@ TEST_CASE("list_dir_entries returns directories first, then files alphabetically
   fs::create_directory(dir / "zoo");
   fs::create_directory(dir / "beta");
 
-  const auto result = corundum::core::list_dir_entries(dir);
+  const auto result = corundum::core::list_dir_entries(dir.path());
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 5);
 
@@ -80,7 +80,7 @@ TEST_CASE("list_dir_entries returns directories first, then files alphabetically
 
 TEST_CASE("list_dir_entries on empty dir returns an empty vector") {
   const auto dir = temp_dir("empty");
-  const auto result = corundum::core::list_dir_entries(dir);
+  const auto result = corundum::core::list_dir_entries(dir.path());
   REQUIRE(result.has_value());
   CHECK(result->empty());
 }
@@ -93,7 +93,7 @@ TEST_CASE("list_dir_entries with extensions filter only keeps matching files") {
   fs::create_directory(dir / "subdir_json");
   write_file(dir / "subdir_json" / "nested.json", "{}");
 
-  const auto result = corundum::core::list_dir_entries(dir, {.extensions = {"json"}});
+  const auto result = corundum::core::list_dir_entries(dir.path(), {.extensions = {"json"}});
   REQUIRE(result.has_value());
 
   // Two matching files + one subdir, sorted dirs-first then alphabetical by name.
@@ -114,7 +114,7 @@ TEST_CASE("list_dir_entries recursive walks subdirectories and applies the exten
   fs::create_directory(dir / "sub" / "deep");
   write_file(dir / "sub" / "deep" / "leaf.json", "{}");
 
-  const auto result = corundum::core::list_dir_entries(dir, {.extensions = {"json"}, .recursive = true});
+  const auto result = corundum::core::list_dir_entries(dir.path(), {.extensions = {"json"}, .recursive = true});
   REQUIRE(result.has_value());
 
   // Five matching entries; sort is directories-first then alphabetical by filename component.
@@ -140,7 +140,7 @@ TEST_CASE("list_dir_entries recursive without filter returns every entry") {
   fs::create_directory(dir / "d");
   write_file(dir / "d" / "b.json", "{}");
 
-  const auto result = corundum::core::list_dir_entries(dir, {.extensions = {}, .recursive = true});
+  const auto result = corundum::core::list_dir_entries(dir.path(), {.extensions = {}, .recursive = true});
   REQUIRE(result.has_value());
   // One file at root + one subdir + one file inside the subdir = 3 entries.
   REQUIRE(result->size() == 3);
@@ -149,13 +149,13 @@ TEST_CASE("list_dir_entries recursive without filter returns every entry") {
 TEST_CASE("list_dir_entries rejects with error on the same path used twice in a row") {
   const auto dir = temp_dir("fresh");
   write_file(dir / "ok.txt", "x");
-  const auto ok = corundum::core::list_dir_entries(dir);
+  const auto ok = corundum::core::list_dir_entries(dir.path());
   REQUIRE(ok.has_value());
 
   // After removing the directory, the second call surfaces the missing-dir error instead of
   // silently producing an empty vector — this is the core behavior change behind the API.
-  fs::remove_all(dir);
-  const auto gone = corundum::core::list_dir_entries(dir);
+  fs::remove_all(dir.path());
+  const auto gone = corundum::core::list_dir_entries(dir.path());
   REQUIRE_FALSE(gone.has_value());
   CHECK_MESSAGE(gone.error().starts_with(std::format("Error accessing {}: ", dir.path().string())), gone.error());
 }

@@ -266,7 +266,7 @@ TEST_CASE("registry load_all loads category folders, skips unknown and bad files
   write_file(dir / "weapons" / "notes.txt", "not an item");
 
   item::Registry reg;
-  const int loaded = reg.load_all(disk(), dir);
+  const int loaded = reg.load_all(disk(), dir.path());
 
   CHECK(loaded == 4);
   CHECK(reg.size() == 4);
@@ -307,7 +307,7 @@ TEST_CASE("registry load_all: duplicate id across two files warns and keeps the 
   })");
 
   item::Registry reg;
-  const int loaded = reg.load_all(disk(), dir);
+  const int loaded = reg.load_all(disk(), dir.path());
 
   CHECK(loaded == 1);
   const auto *sword = reg.find("sword");

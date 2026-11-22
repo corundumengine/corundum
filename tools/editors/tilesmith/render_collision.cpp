@@ -9,7 +9,6 @@
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <cstddef>
 #include <imgui.h>
-#include <utility>
 
 namespace tools::tilesmith {
 
@@ -116,7 +115,6 @@ namespace tools::tilesmith {
           b = right;
           c = bottom;
           break;
-        default: std::unreachable();
       }
       ctx.dl->AddTriangleFilled(a, b, c, fill);
       ctx.dl->AddTriangle(a, b, c, outline, 1.f);

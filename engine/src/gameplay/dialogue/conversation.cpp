@@ -19,8 +19,6 @@
 
 namespace corundum::gameplay::dialogue {
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-
   namespace {
 
     int wrap(int current, int delta, int count) {
@@ -29,8 +27,6 @@ namespace corundum::gameplay::dialogue {
 
   } // namespace
 
-  // ── Conversation ──────────────────────────────────────────────────────────────
-
   Conversation::Conversation(const Graph &graph, corundum::world::FlagStore &flags, const quest::Registry *quests,
                              const Registry *graphs, std::string zone_id)
       : flags_(&flags), graphs_(graphs), quests_(quests), zone_id_(std::move(zone_id)) {
@@ -38,8 +34,6 @@ namespace corundum::gameplay::dialogue {
     if (!graph.nodes.empty())
       go_to(graph.nodes.data());
   }
-
-  // ── Conversation queries ──────────────────────────────────────────────────────
 
   bool Conversation::is_active() const noexcept {
     return active_;
@@ -102,8 +96,6 @@ namespace corundum::gameplay::dialogue {
     return call_stack_.back().second;
   }
 
-  // ── Conversation internals ────────────────────────────────────────────────────
-
   const Node *Conversation::current_node() const noexcept {
     if (!active_ || (graph_ == nullptr))
       return nullptr;
@@ -144,43 +136,51 @@ namespace corundum::gameplay::dialogue {
     std::erase_if(events, [&](const EventAction &ev) {
       if (ev.name == "goto_graph") {
         diverted = true;
-        if (graphs_ == nullptr || ev.args.size() < 2) {
-          corundum::detail::warn_log("[dialogue] goto_graph needs 'graph_id' and 'node_id'");
-          return true;
-        }
-        const Graph *target_graph = graphs_->find(ev.args[0]);
-        if (target_graph == nullptr) {
-          corundum::detail::warn_log("[dialogue] goto_graph references unknown graph '{}'", ev.args[0]);
-          return true;
-        }
-        const Node *target_node = target_graph->find(ev.args[1]);
-        if (target_node == nullptr || target_node->type == NodeType::End) {
-          corundum::detail::warn_log("[dialogue] goto_graph references unknown node '{}' in '{}'", ev.args[1],
-                                     ev.args[0]);
-          return true;
-        }
-
-        const Node *resume = advance(*graph_, *current_node, choice_index);
-        call_stack_.emplace_back(graph_, resume ? resume->id : std::string{});
-        start_graph(*target_graph);
-        go_to(target_node);
+        goto_graph(ev, current_node, choice_index);
         return true;
       }
       if (ev.name == "return_graph") {
         diverted = true;
-        if (call_stack_.empty()) {
-          reset();
-          return true;
-        }
-        const auto [resume_graph, resume_id] = call_stack_.back();
-        call_stack_.pop_back();
-        graph_ = resume_graph;
-        go_to(resume_graph->find(resume_id));
+        return_graph();
         return true;
       }
       return false;
     });
     return diverted;
+  }
+
+  void Conversation::goto_graph(const EventAction &event, const Node *current_node, int choice_index) {
+    if (graphs_ == nullptr || event.args.size() < 2) {
+      corundum::detail::warn_log("[dialogue] goto_graph needs 'graph_id' and 'node_id'");
+      return;
+    }
+    const Graph *target_graph = graphs_->find(event.args[0]);
+    if (target_graph == nullptr) {
+      corundum::detail::warn_log("[dialogue] goto_graph references unknown graph '{}'", event.args[0]);
+      return;
+    }
+    const Node *target_node = target_graph->find(event.args[1]);
+    if (target_node == nullptr || target_node->type == NodeType::End) {
+      corundum::detail::warn_log("[dialogue] goto_graph references unknown node '{}' in '{}'", event.args[1],
+                                 event.args[0]);
+      return;
+    }
+
+    const Node *resume = advance(*graph_, *current_node, choice_index);
+    call_stack_.emplace_back(graph_, resume != nullptr ? resume->id : std::string{});
+    start_graph(*target_graph);
+    go_to(target_node);
+  }
+
+  void Conversation::return_graph() {
+    if (call_stack_.empty()) {
+      reset();
+      return;
+    }
+    const auto [resume_graph, resume_id] = call_stack_.back();
+    call_stack_.pop_back();
+    graph_ = resume_graph;
+    go_to(resume_graph->find(resume_id));
   }
 
   void Conversation::flush_events(std::vector<EventAction> &pending) {
@@ -280,8 +280,6 @@ namespace corundum::gameplay::dialogue {
     go_to(advance(*graph_, node));
   }
 
-  // ── Conversation public API ───────────────────────────────────────────────────
-
   std::vector<EventAction> Conversation::update(const input::InputIntent &intent) {
     std::vector<EventAction> pending;
 
@@ -299,7 +297,6 @@ namespace corundum::gameplay::dialogue {
       case NodeType::Choice: handle_choice(*node, intent, pending); break;
       case NodeType::Event: handle_event(*node, pending); break;
       case NodeType::End: reset(); break;
-      default: std::unreachable();
     }
 
     // Auto-advance through any chain of Event nodes reached after a transition.

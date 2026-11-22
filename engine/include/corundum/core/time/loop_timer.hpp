@@ -56,7 +56,7 @@ namespace corundum::core::time {
      */
     [[nodiscard]] bool step() noexcept {
       if (accumulator < target_dt) {
-        [[unlikely]] return false;
+        return false;
       }
 
       accumulator -= target_dt;

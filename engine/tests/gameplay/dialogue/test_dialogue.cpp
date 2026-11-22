@@ -233,6 +233,18 @@ TEST_CASE("execute_actions applies state mutations and returns event actions") {
   CHECK(events[0].args[0] == "coin");
 }
 
+// Characterization: recorded before the exhaustive-visitor refactoring of execute_actions.
+TEST_CASE("execute_actions: += adds to the flag's current value") {
+  corundum::world::FlagStore flags;
+  flags["gold"] = 10;
+
+  const std::vector<std::string> actions = {"gold += 3"};
+  const auto events = corundum::gameplay::dialogue::execute_actions(actions, flags);
+
+  CHECK_EQ(flags["gold"], 13);
+  CHECK(events.empty());
+}
+
 TEST_CASE("Graph::find returns correct node for known id") {
   const auto g = make_innkeeper_graph();
   const auto *n0 = g.find("n0");

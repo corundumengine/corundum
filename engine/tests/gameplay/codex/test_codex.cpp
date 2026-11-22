@@ -10,7 +10,6 @@
 #include <corundum/gameplay/codex/registry.hpp>
 #include <corundum/gameplay/screens/codex.hpp>
 #include <corundum/platform/renderer.hpp>
-#include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
@@ -32,8 +31,6 @@ namespace fs = std::filesystem;
 namespace codex = corundum::gameplay::codex;
 
 namespace {
-
-  using corundum::platform::FontId;
 
   void write_file(const fs::path &p, std::string_view content) {
     fs::create_directories(p.parent_path());
@@ -111,7 +108,7 @@ TEST_CASE("codex registry: loads a directory and skips duplicates") {
   })");
 
   codex::Registry registry;
-  CHECK(registry.load_all(disk(), dir) == 3);
+  CHECK(registry.load_all(disk(), dir.path()) == 3);
   REQUIRE(registry.find("shared") != nullptr);
   CHECK(registry.find("shared")->title == "First");
 }
@@ -162,8 +159,10 @@ TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family
 
   RecordingRenderer r;
   corundum::ui::PanelStyle style{};
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
-  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)] = corundum::test::make_font_family(10);
+  const corundum::ui::FontFamily quest_fonts = corundum::test::make_font_family(5);
+  const corundum::ui::FontFamily ui_fonts = corundum::test::make_font_family(10);
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = quest_fonts;
+  style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)] = ui_fonts;
 
   const std::vector<codex::CodexEntry> entries = {
       codex::CodexEntry{.body = "A **quiet** village.", .id = "village", .title = "Greyhollow"},
@@ -181,14 +180,14 @@ TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family
 
   const auto *title = find_text("Codex");
   REQUIRE(title != nullptr);
-  CHECK(title->font_id == FontId{11}); // UI Bold
+  CHECK(title->font_id == ui_fonts.get(corundum::ui::FontStyle::Bold));
 
   const auto *bold = find_text("quiet");
   const auto *regular = find_text("A ");
   REQUIRE(bold != nullptr);
   REQUIRE(regular != nullptr);
-  CHECK(bold->font_id == FontId{6});        // Quest Bold
-  CHECK(regular->font_id == FontId{5});     // Quest Regular
+  CHECK(bold->font_id == quest_fonts.get(corundum::ui::FontStyle::Bold));
+  CHECK(regular->font_id == quest_fonts.get(corundum::ui::FontStyle::Regular));
   CHECK(find_text("**quiet**") == nullptr); // markup stripped from the drawn text
 }
 

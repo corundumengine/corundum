@@ -28,7 +28,6 @@ namespace corundum::gameplay::dialogue {
       }
 
       case NodeType::End: return nullptr;
-      default: std::unreachable();
     }
 
     return nullptr;
@@ -65,6 +64,31 @@ namespace corundum::gameplay::dialogue {
       std::unreachable();
     }
 
+    /// The position, among the node's Cycle edges and among its Random edges, of the one edge
+    /// of each mode this visit shows.
+    struct SequenceSlots {
+      std::size_t cycle{};
+
+      std::size_t random{};
+    };
+
+    SequenceSlots pick_sequence_slots(const Node &node, std::string_view graph_id, int visit_cnt) {
+      std::size_t total_cycle = 0;
+      std::size_t total_random = 0;
+      for (const ChoiceEdge &edge : node.choices) {
+        if (edge.sequence == SequenceMode::Cycle)
+          ++total_cycle;
+        if (edge.sequence == SequenceMode::Random)
+          ++total_random;
+      }
+
+      const std::size_t cycle_slot =
+          (total_cycle > 0) ? static_cast<std::size_t>(visit_cnt > 0 ? visit_cnt - 1 : 0) % total_cycle : 0;
+      const std::size_t random_slot_index =
+          (total_random > 0) ? random_slot(graph_id, node.id, visit_cnt, total_random) : 0;
+      return {.cycle = cycle_slot, .random = random_slot_index};
+    }
+
   } // namespace
 
   std::vector<std::size_t> visible_choices(const Node &node, const corundum::world::FlagStore &flags,
@@ -75,27 +99,14 @@ namespace corundum::gameplay::dialogue {
       return result;
 
     const int visit_cnt = corundum::world::visit_count(flags, visit_flag_key(graph_id, node.id));
-
-    std::size_t total_cycle = 0;
-    std::size_t total_random = 0;
-    for (const ChoiceEdge &edge : node.choices) {
-      if (edge.sequence == SequenceMode::Cycle)
-        ++total_cycle;
-      if (edge.sequence == SequenceMode::Random)
-        ++total_random;
-    }
-
-    const std::size_t cycle_slot =
-        (total_cycle > 0) ? static_cast<std::size_t>(visit_cnt > 0 ? visit_cnt - 1 : 0) % total_cycle : 0;
-    const std::size_t random_slot_index =
-        (total_random > 0) ? random_slot(graph_id, node.id, visit_cnt, total_random) : 0;
+    const SequenceSlots slots = pick_sequence_slots(node, graph_id, visit_cnt);
 
     std::size_t cycle_index = 0;
     std::size_t random_index = 0;
     for (std::size_t i = 0; i < node.choices.size(); ++i) {
       const ChoiceEdge &edge = node.choices[i];
 
-      if (!passes_sequence(edge, flags, graph_id, node.id, i, cycle_slot, random_slot_index, cycle_index, random_index))
+      if (!passes_sequence(edge, flags, graph_id, node.id, i, slots.cycle, slots.random, cycle_index, random_index))
         continue;
 
       // Compiled at load; a malformed expression is rejected when the graph loads.

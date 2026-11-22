@@ -9,6 +9,7 @@ Checks: >
   cppcoreguidelines-*,
   clang-analyzer-*,
   misc-*,
+  google-explicit-constructor,
   -bugprone-easily-swappable-parameters,
   -readability-identifier-length,
   -readability-braces-around-statements,

@@ -92,7 +92,7 @@ TEST_CASE("location registry: loads a directory and skips duplicate ids") {
   })");
 
   location::Registry registry;
-  CHECK(registry.load_all(disk(), dir) == 3);
+  CHECK(registry.load_all(disk(), dir.path()) == 3);
   REQUIRE(registry.find("shared") != nullptr);
   CHECK(registry.find("shared")->name == "First");
 }

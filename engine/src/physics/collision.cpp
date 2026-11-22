@@ -76,7 +76,7 @@ namespace corundum::physics {
         const float ty = triangles.rows[i];
         const float tw = triangles.col_spans[i];
         const float th = triangles.row_spans[i];
-        if (ax >= tx + tw || ax1 <= tx || ay >= ty + th || ay1 <= ty) [[likely]]
+        if (ax >= tx + tw || ax1 <= tx || ay >= ty + th || ay1 <= ty)
           continue;
         const float u0 = (ax - tx) / tw;  // left edge (min u)
         const float u1 = (ax1 - tx) / tw; // right edge (max u)
@@ -88,9 +88,8 @@ namespace corundum::physics {
           case TriangleCut::NorthEast: in_empty = u0 - v1 > 0.f; break;
           case TriangleCut::SouthWest: in_empty = u1 - v0 < 0.f; break;
           case TriangleCut::SouthEast: in_empty = u0 + v0 > 1.f; break;
-          default: std::unreachable();
         }
-        if (!in_empty) [[unlikely]]
+        if (!in_empty)
           return true;
       }
       return false;

@@ -139,6 +139,15 @@ namespace corundum::gameplay::dialogue {
     /// caller must not advance the current graph or flush its event chain.
     bool divert(const Node *current_node, int choice_index, std::vector<EventAction> &events);
 
+    /// Push a resume point after @p current_node and enter the graph and node named by
+    /// @p event's two arguments. A missing argument, graph or node logs a warning and leaves
+    /// the conversation where it is.
+    void goto_graph(const EventAction &event, const Node *current_node, int choice_index);
+
+    /// Resume the graph and node the innermost goto_graph saved; ends the conversation when
+    /// no goto_graph is pending.
+    void return_graph();
+
     /// Flush any Event nodes just landed on, collecting their emitted actions. Returns
     /// once the current node is not an Event.
     void flush_events(std::vector<EventAction> &pending);

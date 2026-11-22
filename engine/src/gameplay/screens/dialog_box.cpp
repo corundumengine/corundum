@@ -202,7 +202,6 @@ namespace corundum::gameplay::screens {
                            skin.style.choice, layout.panel_pos.x + layout.inset, layout.panel_pos.y + layout.inset);
         break;
       case gameplay::dialogue::NodeType::Event: break;
-      default: std::unreachable();
     }
   }
 

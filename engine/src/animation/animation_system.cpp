@@ -95,7 +95,7 @@ namespace corundum::animation {
                                    const MotionSpriteTable &motion_sprites, EntityId e,
                                    std::size_t animation_slot) noexcept {
       const float base_frame_duration = animations.frame_duration[animation_slot];
-      if (!motion_sprites.has(e)) [[likely]]
+      if (!motion_sprites.has(e))
         return base_frame_duration;
       const SpriteId active_sprite = sprites.sprite_id[sprites.dense_index(e)];
       const float sheet_frame_duration = motion_sprites.frame_duration_for(e, active_sprite);
@@ -109,7 +109,7 @@ namespace corundum::animation {
      */
     void tick_motion_sprite(SpriteTable &sprites, AnimationTable &animations, MotionSpriteTable &motion_sprites,
                             EntityId e, bool moving, float dt) noexcept {
-      if (!motion_sprites.has(e)) [[likely]]
+      if (!motion_sprites.has(e))
         return;
 
       const SpriteId desired = moving ? motion_sprites.walk_sprite(e) : motion_sprites.idle_sprite(e);
@@ -124,7 +124,7 @@ namespace corundum::animation {
         motion_sprites.set_pending(e, desired);
 
       const float elapsed = motion_sprites.tick_transition(e, dt);
-      if (elapsed < motion_sprites.delay_for(e, desired)) [[likely]]
+      if (elapsed < motion_sprites.delay_for(e, desired))
         return;
 
       current_sprite_id = desired;
@@ -173,7 +173,7 @@ namespace corundum::animation {
       if (frame_count <= 1 || frame_duration <= 0.f) [[unlikely]]
         return;
       animation_timer += dt * speed_scale;
-      if (animation_timer < frame_duration) [[likely]]
+      if (animation_timer < frame_duration)
         return;
       // Advance every whole frame that elapsed this tick, wrapping the count modulo the
       // clip length so playback keeps the authored rate; fmod keeps the residual within
@@ -223,7 +223,7 @@ namespace corundum::animation {
               float reference_speed, float dt) noexcept {
     for (uint32_t i = 0; i < animations.count; ++i) {
       const EntityId e = animations.index.entities[i];
-      if (clips.has(e)) [[unlikely]]
+      if (clips.has(e))
         continue;
 
       if (!sprites.has(e) || !transforms.has(e)) [[unlikely]]
@@ -246,12 +246,12 @@ namespace corundum::animation {
 
       const Direction facing = moving ? core::direction_from_tile_delta(vel_dc, vel_dr) : Direction::South;
 
-      if (moving && facings.has(e)) [[likely]]
+      if (moving && facings.has(e))
         facings.dir_ref(e) = facing;
 
       const AnimId target = pick_target_anim(animations, facings, e, moving, facing);
 
-      if (sprite_anim_id != target) [[unlikely]] {
+      if (sprite_anim_id != target) {
         sprite_anim_id = target;
         sprite_frame_index = 0;
         animation_timer = 0.f;

@@ -15,7 +15,6 @@
 #include <string>
 #include <string_view>
 #include <system_error>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -23,8 +22,6 @@
 namespace corundum::gameplay::dialogue {
 
   namespace {
-
-    // ── Parsing helpers ───────────────────────────────────────────────────────────
 
     struct ParseCursor {
       std::string_view src;
@@ -169,9 +166,28 @@ namespace corundum::gameplay::dialogue {
       return sa;
     }
 
-  } // namespace
+    /// Applies one parsed Action. It has one call operator per Action alternative, so visiting
+    /// an Action that gains an alternative fails to compile until this handles it.
+    struct ActionExecutor {
+      std::vector<EventAction> *events{};
 
-  // ── Public API ────────────────────────────────────────────────────────────────
+      corundum::world::FlagStore *flags{};
+
+      std::string_view zone_id{};
+
+      void operator()(const StateAction &action) const {
+        int &flag = (*flags)[corundum::world::scoped_flag_key(action.var, zone_id)];
+        switch (action.op) {
+          case StateAction::Op::Assign: flag = action.value; return;
+          case StateAction::Op::Add: flag += action.value; return;
+          case StateAction::Op::Sub: flag -= action.value; return;
+        }
+      }
+
+      void operator()(EventAction &&action) const { events->push_back(std::move(action)); }
+    };
+
+  } // namespace
 
   std::expected<Action, ActionError> parse_action(std::string_view src) {
     try {
@@ -184,27 +200,13 @@ namespace corundum::gameplay::dialogue {
   std::vector<EventAction> execute_actions(std::span<const std::string> actions, corundum::world::FlagStore &flags,
                                            std::string_view zone_id) {
     std::vector<EventAction> events;
+    const ActionExecutor executor{.events = &events, .flags = &flags, .zone_id = zone_id};
     for (const auto &src : actions) {
       auto result = parse_action(src);
       if (!result.has_value())
         continue; // validated at load time; runtime failures are a data bug
 
-      std::visit(
-          [&](auto &&a) {
-            using T = std::decay_t<decltype(a)>;
-            if constexpr (std::is_same_v<T, StateAction>) {
-              const std::string key = corundum::world::scoped_flag_key(a.var, zone_id);
-              switch (a.op) {
-                case StateAction::Op::Assign: flags[key] = a.value; break;
-                case StateAction::Op::Add: flags[key] += a.value; break;
-                case StateAction::Op::Sub: flags[key] -= a.value; break;
-                default: std::unreachable();
-              }
-            } else if constexpr (std::is_same_v<T, EventAction>) {
-              events.push_back(std::forward<decltype(a)>(a));
-            }
-          },
-          std::move(*result));
+      std::visit(executor, std::move(*result));
     }
     return events;
   }

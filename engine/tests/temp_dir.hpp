@@ -53,13 +53,6 @@ namespace corundum::test {
       return path_;
     }
 
-    // Implicit conversion is intentional: callers pass the scratch dir straight to APIs
-    // expecting a path (e.g. Registry::load_all(dir)) without an explicit .path().
-    // NOLINTNEXTLINE(cppcoreguidelines-explicit-constructor, misc-explicit-constructor)
-    operator const std::filesystem::path &() const noexcept {
-      return path_;
-    }
-
     [[nodiscard]] std::filesystem::path operator/(std::string_view child) const {
       return path_ / std::filesystem::path{child};
     }

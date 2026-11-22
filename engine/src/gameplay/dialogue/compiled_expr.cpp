@@ -30,8 +30,6 @@ namespace corundum::gameplay::dialogue {
 
   namespace {
 
-    // ── Tokens (grammar identical to the original string evaluator) ─────────────
-
     enum class TokKind : uint8_t {
       Int,    // integer literal
       True,   // true
@@ -70,11 +68,6 @@ namespace corundum::gameplay::dialogue {
       }
 
       [[nodiscard]] bool is(TokKind kind) const noexcept { return kind_ == kind; }
-
-      [[nodiscard]] bool is_comparison() const noexcept {
-        return kind_ == TokKind::EqEq || kind_ == TokKind::NotEq || kind_ == TokKind::Lt || kind_ == TokKind::Gt ||
-               kind_ == TokKind::LtEq || kind_ == TokKind::GtEq;
-      }
 
       [[nodiscard]] TokKind kind() const noexcept { return kind_; }
 
@@ -223,8 +216,6 @@ namespace corundum::gameplay::dialogue {
       std::size_t pos_ = 0;
     };
 
-    // ── Recursive-descent parser emitting arena nodes ───────────────────────────
-
     // The grammar and the node tree are processed by recursive descent / recursive
     // walk; the mutual recursion between precedence levels is inherent to that design,
     // so misc-no-recursion does not apply across these two classes.
@@ -280,15 +271,14 @@ namespace corundum::gameplay::dialogue {
       int parse_cmp() {
         const int lhs = parse_primary();
 
-        if (cur_.is_comparison()) {
-          const auto op = cmp_op(cur_.kind());
+        if (const std::optional<CmpOp> op = comparison_op(cur_.kind())) {
           advance();
           // Remember whether the RHS is a bool literal so evaluation can do a
           // truthiness comparison instead of an exact integer comparison.
           const bool rhs_is_bool = cur_.is(TokKind::True) || cur_.is(TokKind::False);
           const int rhs = parse_primary();
           return push(
-              ExprNode{.kind = ExprNode::Kind::Cmp, .lhs = lhs, .op = op, .rhs = rhs, .rhs_is_bool = rhs_is_bool});
+              ExprNode{.kind = ExprNode::Kind::Cmp, .lhs = lhs, .op = *op, .rhs = rhs, .rhs_is_bool = rhs_is_bool});
         }
 
         // Bare value — truthy if non-zero.
@@ -356,7 +346,8 @@ namespace corundum::gameplay::dialogue {
         throw std::runtime_error("unknown quest helper: " + name);
       }
 
-      static CmpOp cmp_op(TokKind kind) {
+      // Lists every token kind, so a new one must be classified as a comparison or not.
+      static std::optional<CmpOp> comparison_op(TokKind kind) {
         switch (kind) {
           case TokKind::EqEq: return CmpOp::Eq;
           case TokKind::NotEq: return CmpOp::Ne;
@@ -364,16 +355,25 @@ namespace corundum::gameplay::dialogue {
           case TokKind::Gt: return CmpOp::Gt;
           case TokKind::LtEq: return CmpOp::Le;
           case TokKind::GtEq: return CmpOp::Ge;
-          default: std::unreachable();
+          case TokKind::Int:
+          case TokKind::True:
+          case TokKind::False:
+          case TokKind::Ident:
+          case TokKind::And:
+          case TokKind::Or:
+          case TokKind::Not:
+          case TokKind::LParen:
+          case TokKind::Comma:
+          case TokKind::RParen:
+          case TokKind::End: return std::nullopt;
         }
+        return std::nullopt;
       }
 
       Lexer lex_;
       Token cur_;
       std::vector<ExprNode> *arena_;
     };
-
-    // ── Arena evaluator ──────────────────────────────────────────────────────────
 
     class Evaluator {
     public:

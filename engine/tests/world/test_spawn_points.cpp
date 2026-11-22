@@ -355,7 +355,7 @@ namespace {
 
 TEST_CASE("spawn_world - explicit player_pos wins over per-map and game.json placement") {
   const auto dir = temp_dir("spawn_world_precedence");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "village.json", R"({"player":{"col":1.5,"row":2.5},"actors":[]})");
 
@@ -371,7 +371,7 @@ TEST_CASE("spawn_world - explicit player_pos wins over per-map and game.json pla
 
 TEST_CASE("spawn_world - per-map player block wins over the game.json default") {
   const auto dir = temp_dir("spawn_world_per_map");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "village.json", R"({"player":{"col":1.5,"row":2.5},"actors":[]})");
 
@@ -385,7 +385,7 @@ TEST_CASE("spawn_world - per-map player block wins over the game.json default") 
 
 TEST_CASE("spawn_world - game.json placement is used when the spawn file has no player block") {
   const auto dir = temp_dir("spawn_world_default");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   fs::create_directories(spawn_dir);
 
@@ -399,7 +399,7 @@ TEST_CASE("spawn_world - game.json placement is used when the spawn file has no 
 
 TEST_CASE("spawn_world - file actors spawn at their authored tiles and spawn_file_actors=false skips them") {
   const auto dir = temp_dir("spawn_world_actors");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "village.json",
              R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"hero_walk","facing":"north"}]})");
@@ -422,7 +422,7 @@ TEST_CASE("spawn_world - file actors spawn at their authored tiles and spawn_fil
 
 TEST_CASE("spawn_world - an actor with a walk companion gets a motion row") {
   const auto dir = temp_dir("spawn_world_walk_companion");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"hero_idle"}]})");
 
@@ -442,7 +442,7 @@ TEST_CASE("spawn_world - an actor with no walk companion gets no motion row") {
   write_file(dir / "characters" / "loner.json",
              R"({"id":"loners","path":"game/assets/loner.png","frame_width":32,"frame_height":32,"frames":{)"
              R"("loner_idle":{"footprint_col_span":0.25,"footprint_row_span":0.75,"south":[{"col":0,"row":0}]}}})");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"loner_idle"}]})");
 
@@ -460,7 +460,7 @@ TEST_CASE("spawn_world - the player and an actor with a ready companion can take
              R"({"id":"stance","path":"game/assets/heroes.png","frame_width":32,"frame_height":32,"frames":{)"
              R"("hero_ready":{"footprint_col_span":0.25,"footprint_row_span":0.75,"fps":5.0,)"
              R"("south":[{"col":0,"row":0},{"col":1,"row":0},{"col":2,"row":0}]}}})");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"hero_idle"}]})");
 
@@ -480,7 +480,7 @@ TEST_CASE("spawn_world - the player and an actor with a ready companion can take
 
 TEST_CASE("spawn_world - an actor with no ready companion can't take a stance") {
   const auto dir = temp_dir("spawn_world_no_ready_companion");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "village.json", R"({"actors":[{"id":"npc","col":3,"row":4,"sprite":"hero_idle"}]})");
 
@@ -496,7 +496,7 @@ TEST_CASE("spawn_world - an actor with no ready companion can't take a stance") 
 
 TEST_CASE("spawn_world - unknown player walk sprite is an error") {
   const auto dir = temp_dir("spawn_world_bad_sprite");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   fs::create_directories(spawn_dir);
 
@@ -510,7 +510,7 @@ TEST_CASE("spawn_world - unknown player walk sprite is an error") {
 
 TEST_CASE("sync_chunk_actors - spawns actors for resident chunks") {
   const auto dir = temp_dir("sync_chunk_actors_spawn");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"c00","col":1,"row":2,"sprite":"hero_walk"}]})");
   write_file(spawn_dir / "chunk_1_0.json", R"({"actors":[{"id":"c10","col":3,"row":4,"sprite":"hero_walk"}]})");
@@ -537,7 +537,7 @@ TEST_CASE("sync_chunk_actors - spawns actors for resident chunks") {
 
 TEST_CASE("sync_chunk_actors - retains a departed set until flush, then prunes it") {
   const auto dir = temp_dir("sync_chunk_actors_prune");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"c00","col":1,"row":2,"sprite":"hero_walk"}]})");
   write_file(spawn_dir / "chunk_1_0.json", R"({"actors":[{"id":"c10","col":3,"row":4,"sprite":"hero_walk"}]})");
@@ -565,7 +565,7 @@ TEST_CASE("sync_chunk_actors - retains a departed set until flush, then prunes i
 
 TEST_CASE("sync_chunk_actors - chunk actor spawn failure rolls back and is not retried") {
   const auto dir = temp_dir("sync_chunk_actors_failure");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"ok","col":1,"row":1,"sprite":"hero_walk"},)"
                                            R"({"id":"bad","col":2,"row":2,"sprite":"missing"}]})");
@@ -585,7 +585,7 @@ TEST_CASE("sync_chunk_actors - chunk actor spawn failure rolls back and is not r
 
 TEST_CASE("sync_chunk_actors - actors despawned by gameplay stay gone while their chunk is resident") {
   const auto dir = temp_dir("sync_chunk_actors_no_resurrect");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"c00","col":1,"row":2,"sprite":"hero_walk"}]})");
 
@@ -608,7 +608,7 @@ TEST_CASE("sync_chunk_actors - actors despawned by gameplay stay gone while thei
 
 TEST_CASE("sync_chunk_actors - a resident chunk's spawn file is read once, not every step") {
   const auto dir = temp_dir("sync_chunk_actors_read_once");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   fs::create_directories(spawn_dir);
 
@@ -627,7 +627,7 @@ TEST_CASE("sync_chunk_actors - a resident chunk's spawn file is read once, not e
 
 TEST_CASE("sync_chunk_actors - a departed chunk that returns after the flush respawns its actors") {
   const auto dir = temp_dir("sync_chunk_actors_return");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"c00","col":1,"row":2,"sprite":"hero_walk"}]})");
   write_file(spawn_dir / "chunk_1_0.json", R"({"actors":[{"id":"c10","col":3,"row":4,"sprite":"hero_walk"}]})");
@@ -653,7 +653,7 @@ TEST_CASE("sync_chunk_actors - a departed chunk that returns after the flush res
 
 TEST_CASE("sync_chunk_actors - no-op outside World mode") {
   const auto dir = temp_dir("sync_chunk_actors_single_map");
-  const auto registry = make_registry(dir);
+  const auto registry = make_registry(dir.path());
   const auto spawn_dir = dir / "spawn_points";
   write_file(spawn_dir / "chunk_0_0.json", R"({"actors":[{"id":"c00","col":1,"row":2,"sprite":"hero_walk"}]})");
 

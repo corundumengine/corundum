@@ -129,7 +129,7 @@ TEST_CASE("shop registry: loads a directory and skips duplicate ids") {
   })");
 
   shop::Registry registry;
-  CHECK(registry.load_all(disk(), dir) == 2);
+  CHECK(registry.load_all(disk(), dir.path()) == 2);
   REQUIRE(registry.find("shared") != nullptr);
   CHECK(registry.find("shared")->name == "First");
 }

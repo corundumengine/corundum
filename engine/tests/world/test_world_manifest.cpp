@@ -51,7 +51,7 @@ TEST_CASE("load_world_manifest parses valid JSON") {
   CHECK(m.chunk_size == 128);
   CHECK(m.chunks_wide == 16);
   CHECK(m.chunks_tall == 8);
-  CHECK(m.base_dir == dir);
+  CHECK(m.base_dir == dir.path());
 }
 
 TEST_CASE("load_world_manifest returns error on missing file") {
