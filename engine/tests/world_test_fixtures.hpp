@@ -31,7 +31,6 @@ namespace corundum::test {
     TilemapLayer layer;
     layer.name = "ground";
     layer.z_index = 0;
-    layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 1);
     layer.elevation.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 0);
     tm.layers.push_back(std::move(layer));

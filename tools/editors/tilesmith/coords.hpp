@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include "layer_visibility.hpp"
 #include <algorithm>
 #include <cmath>
 #include <corundum/core/math/isometric.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/core/verify.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <optional>
 #include <span>
@@ -129,19 +131,27 @@ namespace tools::tilesmith {
    * on raised terrain selected the cell behind/below it.
    *
    * @param map   Tilemap providing per-cell elevations (only z_index==0 layers read).
+   * @param layer_visible  Per-layer visibility; layers hidden here neither raise the search ceiling nor
+   *                 catch the click.
+   * @pre layer_visible.size() == map.layers.size().
    */
   [[nodiscard]] inline corundum::core::math::TilePos
   pixel_to_fractional_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
                            float camera_y, float tile_scale, float elev_step, int map_h, int tw, int diamond_h,
-                           const corundum::world::tilemap::Tilemap &map) noexcept {
+                           const corundum::world::tilemap::Tilemap &map,
+                           const LayerVisibility &layer_visible) noexcept {
+    corundum::core::verify(layer_visible.size() == map.layers.size(),
+                           "pixel_to_fractional_tile: layer visibility is out of step with the map");
     const auto iso = detail::canvas_iso(tw, diamond_h, map_h, tile_scale, elev_step);
     const corundum::core::math::Vec2 world =
         detail::canvas_pixel_to_world(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, iso);
 
-    // Find the topmost elevation authored on any z_index==0 layer with a tile.
+    const auto layer_is_visible = [&layer_visible](std::size_t layer_index) { return layer_visible[layer_index]; };
+    // Find the topmost elevation authored on any visible z_index==0 layer with a tile.
     int max_elev = 0;
-    for (const auto &layer : map.layers) {
-      if (layer.z_index != 0 || !layer.visible)
+    for (std::size_t layer_index = 0; layer_index < map.layers.size(); ++layer_index) {
+      const corundum::world::tilemap::TilemapLayer &layer = map.layers[layer_index];
+      if (layer.z_index != 0 || !layer_is_visible(layer_index))
         continue;
       for (const uint8_t elevation : layer.elevation)
         max_elev = std::max(max_elev, static_cast<int>(elevation));
@@ -154,7 +164,7 @@ namespace tools::tilesmith {
       const int row = static_cast<int>(std::floor(frac.row));
       if (col < 0 || col >= map.width || row < 0 || row >= map.height)
         continue;
-      if (corundum::world::tilemap::elevation_at(map, col, row) == elev)
+      if (corundum::world::tilemap::elevation_at(map, col, row, layer_is_visible) == elev)
         return frac;
     }
     // No elev matched — fall back to elev=0 (preserves the original behavior for clicks
@@ -207,12 +217,12 @@ namespace tools::tilesmith {
    * returns that cell rather than the cell whose flat projection sits below it.
    *
    * @param map  Tilemap for elevation lookup (must match the map_w/map_h bounds).
+   * @param layer_visible  Per-layer visibility; hidden layers do not catch the click.
    */
-  [[nodiscard]] inline std::optional<TileCoord> screen_to_tile(int px, int py, int canvas_left, int canvas_top,
-                                                               int canvas_w, int canvas_h, float camera_x,
-                                                               float camera_y, float tile_scale, float elev_step,
-                                                               int map_w, int map_h, int tw, int diamond_h,
-                                                               const corundum::world::tilemap::Tilemap &map) noexcept {
+  [[nodiscard]] inline std::optional<TileCoord>
+  screen_to_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
+                 float camera_y, float tile_scale, float elev_step, int map_w, int map_h, int tw, int diamond_h,
+                 const corundum::world::tilemap::Tilemap &map, const LayerVisibility &layer_visible) noexcept {
     if (px < canvas_left || px >= canvas_left + canvas_w)
       return std::nullopt;
     if (py < canvas_top || py >= canvas_top + canvas_h)
@@ -220,7 +230,7 @@ namespace tools::tilesmith {
 
     const corundum::core::math::TilePos frac =
         pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
-                                 elev_step, map_h, tw, diamond_h, map);
+                                 elev_step, map_h, tw, diamond_h, map, layer_visible);
 
     const int col = static_cast<int>(std::floor(frac.col));
     const int row = static_cast<int>(std::floor(frac.row));
@@ -376,15 +386,19 @@ namespace tools::tilesmith {
    * raised terrain.
    *
    * @param map  Tilemap for elevation lookup (sub-tile precision on raised cells).
+   * @param layer_visible  Per-layer visibility; hidden layers do not catch the click.
    */
   [[nodiscard]] inline corundum::world::tilemap::CollisionRect
   pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
                       int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
-                      int diamond_w, int diamond_h, const corundum::world::tilemap::Tilemap &map) noexcept {
-    const auto ta = pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
-                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h, map);
-    const auto tb = pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
-                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h, map);
+                      int diamond_w, int diamond_h, const corundum::world::tilemap::Tilemap &map,
+                      const LayerVisibility &layer_visible) noexcept {
+    const auto ta =
+        pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
+                                 tile_scale, elev_step, map_h, diamond_w, diamond_h, map, layer_visible);
+    const auto tb =
+        pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
+                                 tile_scale, elev_step, map_h, diamond_w, diamond_h, map, layer_visible);
     return detail::tiled_rect(ta, tb, diamond_w, diamond_h);
   }
 

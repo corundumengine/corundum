@@ -7,7 +7,7 @@
 
 namespace tools::tilesmith {
 
-  using MouseState = corundum::toolkit::editor::MouseState;
+  using corundum::toolkit::editor::MouseState;
 
   /**
    * @brief Process all editor input for one frame using ImGui IO.

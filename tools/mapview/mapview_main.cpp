@@ -435,13 +435,11 @@ namespace tools::mapview {
         draw.depth_items.push_back(*item);
     }
 
-    /// Resolve every visible cell of @p tm into @p draw's depth-sorted or above lists.
+    /// Resolve every cell of @p tm into @p draw's depth-sorted or above lists.
     void collect_chunk(const Tilemap &tm, int chunk_col, int chunk_row, const WorldLayout &layout,
                        const IsometricParams &iso, float scale, CollectedDraw &draw) {
       const std::vector<int> image_slots = chunk_image_slots(tm, draw);
       for (const TilemapLayer &layer : tm.layers) {
-        if (!layer.visible)
-          continue;
         for (int row = 0; row < tm.height; ++row) {
           for (int col = 0; col < tm.width; ++col) {
             const int world_col = (chunk_col * layout.chunk_size) + col;

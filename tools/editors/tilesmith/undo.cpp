@@ -9,11 +9,11 @@
 namespace tools::tilesmith {
 
   void push_undo_checkpoint(EditorState &state) {
-    state.undo.push(TilemapDoc{state.map, state.portals});
+    state.undo.push(TilemapDoc{.map = state.map, .portals = state.portals, .layer_visible = state.layer_visible});
   }
 
   namespace {
-    void adopt_doc(EditorState &state, TilemapDoc &&doc) {
+    void adopt_doc(EditorState &state, TilemapDoc doc) {
       // Tileset management (which sprite sheets are loaded) is intentionally outside undo's
       // scope — TilesetView::tileset (owned by main.cpp's tileset_views, rebuilt only by
       // do_add_tileset()/do_remove_tileset()) holds raw pointers into state.map.tilesets's
@@ -27,13 +27,14 @@ namespace tools::tilesmith {
       state.map = std::move(doc.map);
       state.map.tilesets = std::move(tilesets);
       state.portals = std::move(doc.portals);
+      state.layer_visible = std::move(doc.layer_visible);
       // active_layer is intentionally NOT sourced from the checkpoint (see TilemapDoc's comment)
       // — only clamped, so switching layers between edits isn't silently undone along with the
       // edit itself. Only matters if the restored layer count shrank (undoing a layer add) or the
       // current selection otherwise fell out of range.
       state.active_layer =
           std::clamp(state.active_layer, 0, std::max(0, static_cast<int>(state.map.layers.size()) - 1));
-      if (state.selected_portal >= static_cast<int>(state.portals.size()))
+      if (std::cmp_greater_equal(state.selected_portal, state.portals.size()))
         state.selected_portal = -1;
       // A structural change may have just happened underneath any in-progress drag; bail out of
       // all of them rather than let a stale drag keep mutating the just-restored document.

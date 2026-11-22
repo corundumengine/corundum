@@ -5,6 +5,10 @@
 
 #include <corundum/world/tilemap/tilemap.hpp>
 
+#include <cstddef>
+
+#include <optional>
+
 namespace ctt = corundum::world::tilemap;
 
 namespace {
@@ -52,6 +56,27 @@ TEST_CASE("elevation_at - topmost z=0 layer with a tile at the cell wins") {
   CHECK(ctt::elevation_at(tm, 1, 0) == 1); // top layer empty here — falls through to bottom
 }
 
+TEST_CASE("elevation_at with a layer filter ignores layers the filter rejects") {
+  ctt::Tilemap tm;
+  tm.width = 2;
+  tm.height = 1;
+
+  ctt::TilemapLayer bottom;
+  bottom.z_index = 0;
+  bottom.tiles = {0, ctt::k_empty_tile};
+  bottom.elevation = {1, 0};
+  tm.layers.push_back(bottom);
+
+  ctt::TilemapLayer raised;
+  raised.z_index = 0;
+  raised.tiles = {0, ctt::k_empty_tile};
+  raised.elevation = {4, 0};
+  tm.layers.push_back(raised);
+
+  CHECK_EQ(ctt::elevation_at(tm, 0, 0), 4);
+  CHECK_EQ(ctt::elevation_at(tm, 0, 0, [](std::size_t layer) { return layer != 1; }), 1);
+}
+
 TEST_CASE("elevation_at - empty elevation vector defaults to 0") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer layer;
@@ -88,8 +113,6 @@ TEST_CASE("elevation_at - out-of-bounds col/row returns 0, not UB") {
   CHECK(ctt::elevation_at(tm, 0, 2) == 0);
 }
 
-// ── ramp_axis_at / interpolated_elevation_at ─────────────────────────────────
-
 TEST_CASE("ramp_axis_at - resolves a marked cell, nullopt elsewhere") {
   auto tm = make_2x2_map();
   ctt::TilemapLayer layer;
@@ -98,8 +121,7 @@ TEST_CASE("ramp_axis_at - resolves a marked cell, nullopt elsewhere") {
   layer.ramps[0] = ctt::RampAxis::NorthSouth; // cell (0,0)
   tm.layers.push_back(layer);
 
-  REQUIRE(ctt::ramp_axis_at(tm, 0, 0).has_value());
-  CHECK(*ctt::ramp_axis_at(tm, 0, 0) == ctt::RampAxis::NorthSouth);
+  CHECK_EQ(ctt::ramp_axis_at(tm, 0, 0), std::optional(ctt::RampAxis::NorthSouth));
   CHECK_FALSE(ctt::ramp_axis_at(tm, 1, 0).has_value());
   CHECK_FALSE(ctt::ramp_axis_at(tm, -1, 0).has_value());
 }
@@ -137,8 +159,6 @@ TEST_CASE("interpolated_elevation_at - a north-south ramp blends between its nei
   // Just short of the south edge: nearly the south neighbor's elevation.
   CHECK(ctt::interpolated_elevation_at(tm, 0.5f, 1.9f) == doctest::Approx(1.f));
 }
-
-// ── in_bounds ─────────────────────────────────────────────────────────────────
 
 TEST_CASE("in_bounds - returns true for valid indices") {
   ctt::Tilemap tm;

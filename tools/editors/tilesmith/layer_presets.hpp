@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <cstdint>
 
 #include <algorithm>
 #include <corundum/world/tilemap/tilemap.hpp>
@@ -12,7 +13,7 @@
 
 namespace tools::tilesmith {
 
-  enum class LayerPreset { Ground, FloorDetail, Water, Walls, Roof, Decor, Blank };
+  enum class LayerPreset : std::uint8_t { Ground, FloorDetail, Water, Walls, Roof, Decor, Blank };
 
   /** @brief Display string for a preset in the "+" popup; also its canonical layer name.
    *
@@ -76,7 +77,7 @@ namespace tools::tilesmith {
    * @param width           Map width in tiles (per the owning Tilemap).
    * @param height          Map height in tiles (per the owning Tilemap).
    * @param existing_layers Layers already on the map, used for name-deduplication.
-   * @return A fully-initialized TilemapLayer; tiles are all k_empty_tile and visible=true.
+   * @return A fully-initialized TilemapLayer; tiles are all k_empty_tile.
    */
   [[nodiscard]] inline corundum::world::tilemap::TilemapLayer
   make_layer_from_preset(LayerPreset preset, int width, int height,
@@ -122,7 +123,6 @@ namespace tools::tilesmith {
         layer.depth_sorted = false;
         break;
     }
-    layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), k_empty_tile);
     return layer;
   }

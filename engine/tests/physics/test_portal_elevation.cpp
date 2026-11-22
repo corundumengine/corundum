@@ -26,7 +26,6 @@ namespace {
     TilemapLayer layer;
     layer.name = "ground";
     layer.z_index = 0;
-    layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 1);
     layer.elevation.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), elev);
     tm.layers.push_back(std::move(layer));
@@ -69,7 +68,6 @@ TEST_CASE("portal_elev_matches - adjacent cells at different elev reject trigger
   TilemapLayer layer;
   layer.name = "ground";
   layer.z_index = 0;
-  layer.visible = true;
   layer.tiles.assign(static_cast<std::size_t>(4 * 4), 1);
   layer.elevation.assign(static_cast<std::size_t>(4 * 4), 0);
   layer.elevation[0] = 5; // (0, 0) is the bridge cell — player stands here
@@ -98,7 +96,6 @@ TEST_CASE("portal_elev_matches - tolerance widens the gate (ramp-aware)") {
   TilemapLayer layer;
   layer.name = "ground";
   layer.z_index = 0;
-  layer.visible = true;
   layer.tiles.assign(static_cast<std::size_t>(4 * 4), 1);
   layer.elevation.assign(static_cast<std::size_t>(4 * 4), 4); // all cells elev 4
   tm.layers.push_back(std::move(layer));

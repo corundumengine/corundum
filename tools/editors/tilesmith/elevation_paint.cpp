@@ -14,7 +14,7 @@ namespace tools::tilesmith {
     const auto tc =
         screen_to_tile(win_x, win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
                        state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
-                       effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
+                       effective_diamond_w(state.map), effective_diamond_h(state.map), state.map, state.layer_visible);
     if (!tc)
       return;
     set_elevation(state, state.active_layer, tc->col, tc->row, erase ? 0 : state.selected_elevation);

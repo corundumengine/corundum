@@ -15,27 +15,62 @@ namespace tools::tilesmith {
 
   namespace {
 
+    /// The projection, Tiled-pixel cell size and camera offset the collision overlays all draw with.
+    struct CollisionGeometry {
+      corundum::core::math::IsometricParams iso{};
+
+      float tile_w = 0.f;
+
+      float tile_h = 0.f;
+
+      float inv_tw = 0.f;
+
+      float inv_th = 0.f;
+
+      float offset_x = 0.f;
+
+      float offset_y = 0.f;
+    };
+
+    [[nodiscard]] CollisionGeometry collision_geometry(const EditorState &state) noexcept {
+      const float tile_w = static_cast<float>(state.map.diamond_w());
+      const float tile_h = static_cast<float>(state.map.diamond_h());
+      return {
+          .iso = corundum::core::math::compute_isometric_params(effective_diamond_w(state.map),
+                                                                effective_diamond_h(state.map), state.map.height,
+                                                                state.canvas.scale, state.elev_step_px),
+          .tile_w = tile_w,
+          .tile_h = tile_h,
+          .inv_tw = 1.f / tile_w,
+          .inv_th = 1.f / tile_h,
+          .offset_x = state.canvas.offset_x,
+          .offset_y = state.canvas.offset_y,
+      };
+    }
+
     // Convert a Tiled-pixel position (x_px, y_px) to canvas screen space, lifted by
     // elevation so a shape authored on a raised platform renders sitting on it.
     // x_px = col * tile_w, y_px = row * tile_h (sub-tile fractions allowed).
     // Delegates the iso projection to corundum::core::math::tile_to_world.
-    inline ImVec2 tiled_to_iso(const CanvasContext &ctx, float x_px, float y_px, float inv_tw, float inv_th, float elev,
-                               const corundum::core::math::IsometricParams &iso, float offset_x,
-                               float offset_y) noexcept {
-      const float col_f = x_px * inv_tw;
-      const float row_f = y_px * inv_th;
-      const auto w = corundum::core::math::tile_to_world(col_f, row_f, elev, iso);
-      return {ctx.origin.x + w.x - offset_x, ctx.origin.y + w.y - offset_y};
+    inline ImVec2 tiled_to_iso(const CanvasContext &ctx, const CollisionGeometry &geometry, float x_px, float y_px,
+                               int elevation) noexcept {
+      const float col_f = x_px * geometry.inv_tw;
+      const float row_f = y_px * geometry.inv_th;
+      const auto world = corundum::core::math::tile_to_world(col_f, row_f, elevation, geometry.iso);
+      return {ctx.origin.x + world.x - geometry.offset_x, ctx.origin.y + world.y - geometry.offset_y};
     }
 
-    // Draw a Tiled-pixel rect as an isometric rhombus (4-vertex quad).
-    void draw_iso_rect(const CanvasContext &ctx, float x, float y, float w, float h, float inv_tw, float inv_th,
-                       float elev, const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y,
-                       ImU32 fill, ImU32 outline) noexcept {
-      const ImVec2 top = tiled_to_iso(ctx, x, y, inv_tw, inv_th, elev, iso, offset_x, offset_y);
-      const ImVec2 right = tiled_to_iso(ctx, x + w, y, inv_tw, inv_th, elev, iso, offset_x, offset_y);
-      const ImVec2 bottom = tiled_to_iso(ctx, x + w, y + h, inv_tw, inv_th, elev, iso, offset_x, offset_y);
-      const ImVec2 left = tiled_to_iso(ctx, x, y + h, inv_tw, inv_th, elev, iso, offset_x, offset_y);
+    // Draw a tile-grid rect as an isometric rhombus (4-vertex quad).
+    void draw_iso_rect(const CanvasContext &ctx, const CollisionGeometry &geometry, float col, float row,
+                       float col_span, float row_span, int elevation, ImU32 fill, ImU32 outline) noexcept {
+      const float x = col * geometry.tile_w;
+      const float y = row * geometry.tile_h;
+      const float w = col_span * geometry.tile_w;
+      const float h = row_span * geometry.tile_h;
+      const ImVec2 top = tiled_to_iso(ctx, geometry, x, y, elevation);
+      const ImVec2 right = tiled_to_iso(ctx, geometry, x + w, y, elevation);
+      const ImVec2 bottom = tiled_to_iso(ctx, geometry, x + w, y + h, elevation);
+      const ImVec2 left = tiled_to_iso(ctx, geometry, x, y + h, elevation);
       ctx.dl->AddQuadFilled(top, right, bottom, left, fill);
       ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
     }
@@ -44,16 +79,22 @@ namespace tools::tilesmith {
     // vertices are top=NW corner, right=NE corner, bottom=SE corner, left=SW corner
     // (per tiled_to_iso's corner mapping); TriangleCut names the EMPTY corner, so the
     // solid triangle is the other three vertices.
-    void draw_iso_triangle(const CanvasContext &ctx, float x, float y, float w, float h, float inv_tw, float inv_th,
-                           float elev, const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y,
-                           corundum::world::tilemap::TriangleCut cut, ImU32 fill, ImU32 outline) noexcept {
+    void draw_iso_triangle(const CanvasContext &ctx, const CollisionGeometry &geometry, float col, float row,
+                           float col_span, float row_span, int elevation, corundum::world::tilemap::TriangleCut cut,
+                           ImU32 fill, ImU32 outline) noexcept {
       using corundum::world::tilemap::TriangleCut;
-      const ImVec2 top = tiled_to_iso(ctx, x, y, inv_tw, inv_th, elev, iso, offset_x, offset_y);
-      const ImVec2 right = tiled_to_iso(ctx, x + w, y, inv_tw, inv_th, elev, iso, offset_x, offset_y);
-      const ImVec2 bottom = tiled_to_iso(ctx, x + w, y + h, inv_tw, inv_th, elev, iso, offset_x, offset_y);
-      const ImVec2 left = tiled_to_iso(ctx, x, y + h, inv_tw, inv_th, elev, iso, offset_x, offset_y);
+      const float x = col * geometry.tile_w;
+      const float y = row * geometry.tile_h;
+      const float w = col_span * geometry.tile_w;
+      const float h = row_span * geometry.tile_h;
+      const ImVec2 top = tiled_to_iso(ctx, geometry, x, y, elevation);
+      const ImVec2 right = tiled_to_iso(ctx, geometry, x + w, y, elevation);
+      const ImVec2 bottom = tiled_to_iso(ctx, geometry, x + w, y + h, elevation);
+      const ImVec2 left = tiled_to_iso(ctx, geometry, x, y + h, elevation);
 
-      ImVec2 a, b, c;
+      ImVec2 a;
+      ImVec2 b;
+      ImVec2 c;
       switch (cut) {
         case TriangleCut::NorthWest:
           a = right;
@@ -86,27 +127,18 @@ namespace tools::tilesmith {
   void render_collisions(CanvasContext ctx, const EditorState &state) {
     if (state.map.tilesets.empty())
       return;
-    const int dw = effective_diamond_w(state.map);
-    const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
-                                                                    state.elev_step_px);
-    const int tw = state.map.diamond_w();
-    const int th = state.map.diamond_h();
-    const float inv_tw = 1.f / static_cast<float>(tw);
-    const float inv_th = 1.f / static_cast<float>(th);
+    const CollisionGeometry geometry = collision_geometry(state);
 
     const auto &cols = state.map.collisions;
     for (std::size_t i = 0; i < cols.size(); ++i) {
-      draw_iso_rect(ctx, cols.cols[i] * tw, cols.rows[i] * th, cols.col_spans[i] * tw, cols.row_spans[i] * th, inv_tw,
-                    inv_th, static_cast<float>(cols.elevations[i]), iso, state.canvas.offset_x, state.canvas.offset_y,
+      draw_iso_rect(ctx, geometry, cols.cols[i], cols.rows[i], cols.col_spans[i], cols.row_spans[i], cols.elevations[i],
                     IM_COL32(255, 80, 80, 60), IM_COL32(255, 80, 80, 200));
     }
 
     const auto &tris = state.map.collision_triangles;
     for (std::size_t i = 0; i < tris.size(); ++i) {
-      draw_iso_triangle(ctx, tris.cols[i] * tw, tris.rows[i] * th, tris.col_spans[i] * tw, tris.row_spans[i] * th,
-                        inv_tw, inv_th, static_cast<float>(tris.elevations[i]), iso, state.canvas.offset_x,
-                        state.canvas.offset_y, tris.cuts[i], IM_COL32(255, 140, 60, 70), IM_COL32(255, 140, 60, 210));
+      draw_iso_triangle(ctx, geometry, tris.cols[i], tris.rows[i], tris.col_spans[i], tris.row_spans[i],
+                        tris.elevations[i], tris.cuts[i], IM_COL32(255, 140, 60, 70), IM_COL32(255, 140, 60, 210));
     }
 
     if (state.show_collisions && state.triangle_collision_mode && state.hover_tile_col >= 0 &&
@@ -127,11 +159,10 @@ namespace tools::tilesmith {
       }
       if (!occupied) {
         // Preview at the elevation this triangle would actually be authored at if placed now.
-        const float preview_elev = static_cast<float>(
-            corundum::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row));
-        draw_iso_triangle(ctx, hover_col_f * tw, hover_row_f * th, static_cast<float>(tw), static_cast<float>(th),
-                          inv_tw, inv_th, preview_elev, iso, state.canvas.offset_x, state.canvas.offset_y,
-                          state.collision_tri_cut, IM_COL32(100, 255, 100, 50), IM_COL32(100, 255, 100, 220));
+        const int preview_elevation =
+            corundum::world::tilemap::elevation_at(state.map, state.hover_tile_col, state.hover_tile_row);
+        draw_iso_triangle(ctx, geometry, hover_col_f, hover_row_f, 1.f, 1.f, preview_elevation, state.collision_tri_cut,
+                          IM_COL32(100, 255, 100, 50), IM_COL32(100, 255, 100, 220));
       }
     }
   }
@@ -139,49 +170,33 @@ namespace tools::tilesmith {
   void render_collision_preview(CanvasContext ctx, const EditorState &state) {
     if (!state.collision_dragging || state.map.tilesets.empty())
       return;
-    const int dw = effective_diamond_w(state.map);
-    const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
-                                                                    state.elev_step_px);
-    const int tw = state.map.diamond_w();
-    const int th = state.map.diamond_h();
-    const float inv_tw = 1.f / static_cast<float>(tw);
-    const float inv_th = 1.f / static_cast<float>(th);
+    const CollisionGeometry geometry = collision_geometry(state);
 
     corundum::world::tilemap::CollisionRect cr;
     if (state.col_drag_sub_tile) {
       cr = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y, state.col_drag_cur_win_x,
                                state.col_drag_cur_win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x,
-                               state.canvas.offset_y, state.canvas.scale, state.elev_step_px, state.map.height, tw, th,
-                               state.map);
+                               state.canvas.offset_y, state.canvas.scale, state.elev_step_px, state.map.height,
+                               state.map.diamond_w(), state.map.diamond_h(), state.map, state.layer_visible);
     } else {
       cr = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
                              state.col_drag_cur_row);
     }
     // Preview at the elevation this rect would actually be authored at if committed now.
-    const float preview_elev = static_cast<float>(
-        corundum::world::tilemap::elevation_at(state.map, static_cast<int>(cr.col), static_cast<int>(cr.row)));
-    draw_iso_rect(ctx, cr.col * tw, cr.row * th, cr.col_span * tw, cr.row_span * th, inv_tw, inv_th, preview_elev, iso,
-                  state.canvas.offset_x, state.canvas.offset_y, IM_COL32(100, 255, 100, 40),
-                  IM_COL32(100, 255, 100, 230));
+    const int preview_elevation =
+        corundum::world::tilemap::elevation_at(state.map, static_cast<int>(cr.col), static_cast<int>(cr.row));
+    draw_iso_rect(ctx, geometry, cr.col, cr.row, cr.col_span, cr.row_span, preview_elevation,
+                  IM_COL32(100, 255, 100, 40), IM_COL32(100, 255, 100, 230));
   }
 
   void render_erase_preview(CanvasContext ctx, const EditorState &state) {
     if (!state.erase_dragging || state.map.tilesets.empty())
       return;
-    const int dw = effective_diamond_w(state.map);
-    const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
-                                                                    state.elev_step_px);
-    const int tw = state.map.diamond_w();
-    const int th = state.map.diamond_h();
-    const float inv_tw = 1.f / static_cast<float>(tw);
-    const float inv_th = 1.f / static_cast<float>(th);
+    const CollisionGeometry geometry = collision_geometry(state);
 
     const auto cr = snap_to_tile_rect(state.erase_drag_anchor_col, state.erase_drag_anchor_row,
                                       state.erase_drag_cur_col, state.erase_drag_cur_row);
-    draw_iso_rect(ctx, cr.col * tw, cr.row * th, cr.col_span * tw, cr.row_span * th, inv_tw, inv_th, 0.f, iso,
-                  state.canvas.offset_x, state.canvas.offset_y, IM_COL32(255, 100, 60, 50),
+    draw_iso_rect(ctx, geometry, cr.col, cr.row, cr.col_span, cr.row_span, 0, IM_COL32(255, 100, 60, 50),
                   IM_COL32(255, 100, 60, 220));
   }
 

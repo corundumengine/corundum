@@ -41,7 +41,6 @@ namespace {
     tilemap::TilemapLayer layer;
     layer.name = "ground";
     layer.z_index = 0;
-    layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
     tm.layers.push_back(std::move(layer));
     return tm;
@@ -271,7 +270,6 @@ TEST_CASE("elevation_under - negative col_f returns 0 (no chunk at floor cell), 
   tilemap::TilemapLayer layer;
   layer.name = "ground";
   layer.z_index = 0;
-  layer.visible = true;
   layer.tiles.assign(static_cast<std::size_t>(16 * 16), 1); // non-empty at every cell
   layer.elevation.assign(static_cast<std::size_t>(16 * 16), 0);
   layer.elevation[0] = 42; // (col=0, row=0)

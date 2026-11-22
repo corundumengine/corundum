@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <concepts>
 #include <corundum/core/math/vec.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -116,8 +117,6 @@ namespace corundum::world::tilemap {
                                ///< entities (rooftops, canopy, decals) — unchanged legacy behavior. true: layer's tiles
                                ///< are depth-sorted against entities and elevated ground tiles via iso_depth_key
                                ///< instead (walls, pillars, other tall props players walk around/behind).
-
-    bool visible = true; ///< When false, the renderer skips this layer entirely.
 
     std::vector<TileId> tiles; ///< Row-major, size == map width * height; k_empty_tile for animated cells.
 
@@ -476,6 +475,9 @@ namespace corundum::world::tilemap {
     return col >= 0 && row >= 0 && col < tilemap.width && row < tilemap.height;
   }
 
+  template <std::predicate<std::size_t> KeepLayer>
+  [[nodiscard]] int elevation_at(const Tilemap &tilemap, int col, int row, const KeepLayer &keep_layer) noexcept;
+
   /**
    * @brief Elevation of the tile at (col, row), for entities standing on it.
    *
@@ -495,6 +497,13 @@ namespace corundum::world::tilemap {
    *       fallback when sampling outside the map during interpolation.
    */
   [[nodiscard]] inline int elevation_at(const Tilemap &tilemap, int col, int row) noexcept {
+    return elevation_at(tilemap, col, row, [](std::size_t /*layer_index*/) { return true; });
+  }
+
+  /** @brief elevation_at(), counting only the layers @p keep_layer accepts (by index in tilemap.layers).
+   *  Same resolution rule: the topmost accepted z_index==0 layer with a tile at the cell wins. */
+  template <std::predicate<std::size_t> KeepLayer>
+  [[nodiscard]] int elevation_at(const Tilemap &tilemap, int col, int row, const KeepLayer &keep_layer) noexcept {
     if (!in_bounds(tilemap, col, row))
       return 0;
     const std::size_t uidx = cell_index(tilemap.width, col, row);
@@ -502,8 +511,9 @@ namespace corundum::world::tilemap {
       return 0;
     const int idx = static_cast<int>(uidx);
     int result = 0;
-    for (const auto &layer : tilemap.layers) {
-      if (layer.z_index != 0 || !layer.visible)
+    for (std::size_t layer_index = 0; layer_index < tilemap.layers.size(); ++layer_index) {
+      const TilemapLayer &layer = tilemap.layers[layer_index];
+      if (layer.z_index != 0 || !keep_layer(layer_index))
         continue;
       if (uidx >= layer.elevation.size())
         continue;
@@ -536,7 +546,7 @@ namespace corundum::world::tilemap {
     const int idx = static_cast<int>(uidx);
     std::optional<RampAxis> result;
     for (const auto &layer : tilemap.layers) {
-      if (layer.z_index != 0 || !layer.visible)
+      if (layer.z_index != 0)
         continue;
       const bool has_tile =
           layer.animated_cells.contains(idx) || (uidx < layer.tiles.size() && layer.tiles[uidx] != k_empty_tile);
@@ -590,7 +600,7 @@ namespace corundum::world::tilemap {
    */
   [[nodiscard]] inline std::optional<std::string> layer_material_at(const Tilemap &tilemap, const TilemapLayer &layer,
                                                                     std::size_t uidx, int idx) {
-    if (layer.z_index != 0 || !layer.visible)
+    if (layer.z_index != 0)
       return std::nullopt;
     if (uidx >= layer.tiles.size())
       return std::nullopt;

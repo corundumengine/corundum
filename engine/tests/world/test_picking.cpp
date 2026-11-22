@@ -36,7 +36,6 @@ namespace {
     TilemapLayer layer;
     layer.name = "ground";
     layer.z_index = 0;
-    layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
     tm.layers.push_back(std::move(layer));
     return tm;

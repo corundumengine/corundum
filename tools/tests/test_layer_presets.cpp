@@ -22,7 +22,6 @@ TEST_CASE("make_layer_from_preset - Ground produces name=z=0 depth=false") {
   CHECK(layer.name == "Ground");
   CHECK(layer.z_index == 0);
   CHECK(layer.depth_sorted == false);
-  CHECK(layer.visible == true);
   CHECK(layer.tiles.size() == 80);
 }
 

@@ -30,11 +30,11 @@ namespace {
   using corundum::test::TileRecordingRenderer;
   namespace tilemap = corundum::world::tilemap;
 
-  /// Non-empty cells in every visible layer at or above the ground band.
+  /// Non-empty cells in every layer at or above the ground band.
   std::size_t count_drawable_cells(const tilemap::Tilemap &tm) {
     std::size_t count = 0;
     for (const tilemap::TilemapLayer &layer : tm.layers) {
-      if (!layer.visible || layer.z_index < 0)
+      if (layer.z_index < 0)
         continue;
       REQUIRE(layer.animated_cells.empty());
       for (int row = 0; row < tm.height; ++row)
@@ -52,7 +52,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("render: a single map draws every non-empty visible cell once") {
+TEST_CASE("render: a single map draws every non-empty cell once") {
   const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;
@@ -73,7 +73,7 @@ TEST_CASE("render: a single map draws every non-empty visible cell once") {
   CHECK_EQ(renderer.sprites.size(), expected);
 }
 
-TEST_CASE("render: a world draws every non-empty visible cell of every resident chunk once") {
+TEST_CASE("render: a world draws every non-empty cell of every resident chunk once") {
   const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;

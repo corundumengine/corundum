@@ -7,6 +7,7 @@
 #include <doctest/doctest.h>
 
 #include "coords.hpp"
+#include "layer_visibility.hpp"
 #include <corundum/core/math/vec.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <optional>
@@ -14,6 +15,7 @@
 
 namespace tilemap = corundum::world::tilemap;
 using corundum::core::math::TilePos;
+using tools::tilesmith::LayerVisibility;
 using tools::tilesmith::pixel_to_fractional_tile;
 using tools::tilesmith::screen_to_tile;
 
@@ -30,7 +32,6 @@ namespace {
     tilemap::TilemapLayer layer;
     layer.name = "ground";
     layer.z_index = 0;
-    layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(16 * 16), 1);
     layer.elevation.assign(static_cast<std::size_t>(16 * 16), 0);
     layer.elevation[0] = corner_elev; // (0, 0)
@@ -60,8 +61,9 @@ TEST_CASE("pixel_to_fractional_tile - flat map (all elev 0) matches current beha
   // World position of (8, 8) center: x_origin=480 → ((8-8)*32+480, (8+8)*16) = (480, 256).
   // Origin shift: x = k_content_margin*half_tw = 2*32 = 64, y = half_th = 16.
   // Window px = 0 + 64 + 480 = 544, py = 0 + 16 + 256 = 272.
-  const TilePos frac = pixel_to_fractional_tile(/*px=*/544, /*py=*/272, canvas_left, canvas_top, canvas_w, canvas_h,
-                                                camera_x, camera_y, tile_scale, elev_step, map_h, tw, dh, tm);
+  const TilePos frac =
+      pixel_to_fractional_tile(/*px=*/544, /*py=*/272, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
+                               tile_scale, elev_step, map_h, tw, dh, tm, LayerVisibility(tm.layers.size(), true));
   CHECK(static_cast<int>(std::floor(frac.col)) == 8);
   CHECK(static_cast<int>(std::floor(frac.row)) == 8);
 }
@@ -94,8 +96,9 @@ TEST_CASE("pixel_to_fractional_tile - elevated cell picks itself, not its flat-p
   //   origin_shift_y = half_th = 16
   //   px = canvas_left + origin_shift_x + world_x = 0 + 64 + 480 = 544
   //   py = canvas_top + origin_shift_y + world_y = 0 + 16 + (-4) = 12
-  const TilePos frac = pixel_to_fractional_tile(/*px=*/544, /*py=*/12, canvas_left, canvas_top, canvas_w, canvas_h,
-                                                camera_x, camera_y, tile_scale, elev_step, map_h, tw, dh, tm);
+  const TilePos frac =
+      pixel_to_fractional_tile(/*px=*/544, /*py=*/12, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
+                               tile_scale, elev_step, map_h, tw, dh, tm, LayerVisibility(tm.layers.size(), true));
   // The click is on the visible diamond of (0, 0) — its center in world space is
   // (480, -4) (elevated by 20 px above the flat projection at (480, 0)). The picker
   // accounts for the elevation lift and returns the diamond's center (0.5, 0.5),
@@ -105,13 +108,64 @@ TEST_CASE("pixel_to_fractional_tile - elevated cell picks itself, not its flat-p
   CHECK(static_cast<int>(std::floor(frac.row)) == 0);
 }
 
+TEST_CASE("pixel_to_fractional_tile - a hidden raised layer does not catch the click") {
+  // Same click as "elevated cell picks itself": on the visible diamond of the raised tile at
+  // (0, 0). With that layer hidden the tile is not drawn, so the click lands on the flat ground
+  // the un-elevated projection points at.
+  const int tw = 64;
+  const int dh = 32;
+  const int map_h = 16;
+  const int canvas_left = 0;
+  const int canvas_top = 0;
+  const int canvas_w = 1024;
+  const int canvas_h = 768;
+  const float tile_scale = 1.f;
+  const float elev_step = 4.f;
+  const float camera_x = 0.f;
+  const float camera_y = 0.f;
+
+  constexpr std::size_t k_cell_count = std::size_t{16} * 16;
+  tilemap::Tilemap tm;
+  tm.width = 16;
+  tm.height = 16;
+  tm.iso_diamond_w = 64;
+  tm.iso_diamond_h = 32;
+
+  tilemap::TilemapLayer ground;
+  ground.name = "ground";
+  ground.z_index = 0;
+  ground.tiles.assign(k_cell_count, 1);
+  ground.elevation.assign(k_cell_count, 0);
+  tm.layers.push_back(std::move(ground));
+
+  tilemap::TilemapLayer raised;
+  raised.name = "raised";
+  raised.z_index = 0;
+  raised.tiles.assign(k_cell_count, tilemap::k_empty_tile);
+  raised.tiles[0] = 1;
+  raised.elevation.assign(k_cell_count, 0);
+  raised.elevation[0] = 5;
+  tm.layers.push_back(std::move(raised));
+
+  const LayerVisibility layer_visible{true, false};
+
+  const TilePos frac =
+      pixel_to_fractional_tile(/*px=*/544, /*py=*/12, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
+                               tile_scale, elev_step, map_h, tw, dh, tm, layer_visible);
+  const TilePos flat = pixel_to_fractional_tile(/*px=*/544, /*py=*/12, canvas_left, canvas_top, canvas_w, canvas_h,
+                                                camera_x, camera_y, tile_scale, elev_step, map_h, tw, dh);
+  CHECK_EQ(static_cast<int>(std::floor(frac.col)), static_cast<int>(std::floor(flat.col)));
+  CHECK_EQ(static_cast<int>(std::floor(frac.row)), static_cast<int>(std::floor(flat.row)));
+}
+
 TEST_CASE("screen_to_tile - elevated cell returns correct tile, not flat-projected neighbor") {
   // Verifies the higher-level screen_to_tile wrapper also benefits from elev-aware picking.
   const tilemap::Tilemap tm = make_map_with_elevated_corner(5);
   const std::optional<tools::tilesmith::TileCoord> tile =
       screen_to_tile(/*px=*/544, /*py=*/12, /*canvas_left=*/0, /*canvas_top=*/0,
                      /*canvas_w=*/1024, /*canvas_h=*/768, /*camera_x=*/0.f, /*camera_y=*/0.f, /*tile_scale=*/1.f,
-                     /*elev_step=*/4.f, /*map_w=*/16, /*map_h=*/16, /*tw=*/64, /*diamond_h=*/32, tm);
+                     /*elev_step=*/4.f, /*map_w=*/16, /*map_h=*/16, /*tw=*/64, /*diamond_h=*/32, tm,
+                     LayerVisibility(tm.layers.size(), true));
   REQUIRE(tile.has_value());
   if (!tile)
     return;
@@ -132,8 +186,8 @@ TEST_CASE("screen_to_tile - flat map baseline (no regression)") {
   const float world_y_center = (16.f * 16.f) + 16.f;        // 256 + 16 = 272 (diamond center)
   const int px = 0 + 64 + x_origin;                         // 544
   const int py = 0 + 16 + static_cast<int>(world_y_center); // 288
-  const std::optional<tools::tilesmith::TileCoord> tile =
-      screen_to_tile(px, py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh, tm);
+  const std::optional<tools::tilesmith::TileCoord> tile = screen_to_tile(
+      px, py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh, tm, LayerVisibility(tm.layers.size(), true));
   REQUIRE(tile.has_value());
   if (!tile)
     return;
@@ -176,7 +230,8 @@ TEST_CASE(
 
   // Elevation-aware overload: picks the raised cell.
   const std::optional<tools::tilesmith::TileCoord> elev_tile =
-      screen_to_tile(k_px, k_py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh, tm);
+      screen_to_tile(k_px, k_py, 0, 0, 1024, 768, 0.f, 0.f, 1.f, 4.f, map_w, map_h, tw, dh, tm,
+                     LayerVisibility(tm.layers.size(), true));
   REQUIRE(elev_tile.has_value());
   if (!elev_tile)
     return;

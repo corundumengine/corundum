@@ -12,6 +12,7 @@
 #include "save.hpp"
 #include <algorithm>
 #include <corundum/platform/texture_cache.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/toolkit/widgets/file_browser.hpp>

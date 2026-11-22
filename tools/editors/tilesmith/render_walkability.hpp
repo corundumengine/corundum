@@ -7,7 +7,7 @@
 
 namespace tools::tilesmith {
 
-  using CanvasContext = corundum::toolkit::editor::CanvasContext;
+  using corundum::toolkit::editor::CanvasContext;
 
   /**
    * @brief Render a highlighted line on every disconnected cardinal walkability

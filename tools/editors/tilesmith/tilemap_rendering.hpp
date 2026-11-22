@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include "layer_visibility.hpp"
 #include "tileset_view.hpp"
 #include <corundum/core/math/vec.hpp>
 #include <corundum/platform/texture_cache.hpp>
@@ -15,7 +16,7 @@ namespace corundum::toolkit::host {
 
 namespace tools::tilesmith {
 
-  using CanvasContext = corundum::toolkit::editor::CanvasContext;
+  using corundum::toolkit::editor::CanvasContext;
 
   /// Owns a texture ID for each tileset in a Tilemap, parallel to Tilemap::tilesets.
   struct TilemapTextureStore {
@@ -59,12 +60,14 @@ namespace tools::tilesmith {
                                                  const corundum::world::tilemap::Tilemap &map,
                                                  corundum::world::tilemap::TileId gid) noexcept;
 
-  /// Render a single z-index layer of map into the canvas draw list.
+  /// Render a single z-index layer of map into the canvas draw list, skipping layers @p layer_visible hides.
+  /// @pre layer_visible.size() == map.layers.size().
   void render_tilemap(corundum::toolkit::host::ToolHost &host, CanvasContext ctx,
-                      const corundum::world::tilemap::Tilemap &map, const TilemapTextureStore &store, float camera_x,
-                      float camera_y, int z_index, float tile_scale, float elapsed_time, float elev_step);
+                      const corundum::world::tilemap::Tilemap &map, const LayerVisibility &layer_visible,
+                      const TilemapTextureStore &store, float camera_x, float camera_y, int z_index, float tile_scale,
+                      float elapsed_time, float elev_step);
 
   /// Return a sorted, deduplicated list of z-indices that are > 0 (above-entity layers).
-  [[nodiscard]] std::vector<int> above_z_indices(const corundum::world::tilemap::Tilemap &map) noexcept;
+  [[nodiscard]] std::vector<int> above_z_indices(const corundum::world::tilemap::Tilemap &map);
 
 } // namespace tools::tilesmith

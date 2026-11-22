@@ -1051,7 +1051,6 @@ namespace corundum::world::tilemap {
           .name = std::move(header->name),
           .z_index = header->z_index,
           .depth_sorted = header->depth_sorted,
-          .visible = true,
           .tiles = std::move(tiles->tiles),
           .animated_cells = std::move(tiles->animated_cells),
           .flip_flags = std::move(tiles->flip_flags),

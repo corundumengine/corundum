@@ -394,7 +394,7 @@ namespace corundum::render {
     void draw_ground_band(platform::Renderer &r, const TileRenderParams &ctx, const core::GameConfig &cfg,
                           const world::Scene &scene, std::vector<DepthEntry> &sorted) {
       for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
-        if (!layer.visible || layer.z_index != 0)
+        if (layer.z_index != 0)
           continue;
         for_each_visible_tile(ctx, layer, cache, cfg, scene, [&](const ResolvedTile &tile) {
           if (tile.elevation <= 0)
@@ -413,19 +413,19 @@ namespace corundum::render {
     void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig &cfg, const world::Scene &scene,
                                  std::vector<DepthEntry> &sorted) {
       for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
-        if (!layer.visible || layer.z_index <= 0 || !layer.depth_sorted)
+        if (layer.z_index <= 0 || !layer.depth_sorted)
           continue;
         for_each_visible_tile(ctx, layer, cache, cfg, scene,
                               [&](const ResolvedTile &tile) { sorted.push_back(tile.sprite); });
       }
     }
 
-    /// Draws the visible layers of band @p z_index that are not depth-sorted, immediately, above
+    /// Draws the layers of band @p z_index that are not depth-sorted, immediately, above
     /// everything in the ground band.
     void draw_overlay_band(platform::Renderer &r, const TileRenderParams &ctx, int z_index, const core::GameConfig &cfg,
                            const world::Scene &scene) {
       for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
-        if (!layer.visible || layer.z_index != z_index || layer.depth_sorted)
+        if (layer.z_index != z_index || layer.depth_sorted)
           continue;
         for_each_visible_tile(ctx, layer, cache, cfg, scene,
                               [&](const ResolvedTile &tile) { r.draw(to_draw_sprite(tile.sprite)); });

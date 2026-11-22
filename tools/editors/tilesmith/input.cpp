@@ -37,7 +37,8 @@ namespace tools::tilesmith {
     [[nodiscard]] std::optional<TileCoord> editor_screen_to_tile(int px, int py, const EditorState &state) noexcept {
       return screen_to_tile(px, py, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
                             state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
-                            effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
+                            effective_diamond_w(state.map), effective_diamond_h(state.map), state.map,
+                            state.layer_visible);
     }
 
     void begin_collision_drag(EditorState &state, int win_x, int win_y) noexcept {
@@ -80,7 +81,7 @@ namespace tools::tilesmith {
         candidate = pixel_to_tiled_rect(state.col_drag_anchor_win_x, state.col_drag_anchor_win_y,
                                         state.col_drag_cur_win_x, state.col_drag_cur_win_y, 0, k_menu_h, CANVAS_W,
                                         CANVAS_H, state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale,
-                                        state.elev_step_px, state.map.height, tw, th, state.map);
+                                        state.elev_step_px, state.map.height, tw, th, state.map, state.layer_visible);
       } else {
         candidate = snap_to_tile_rect(state.col_drag_anchor_col, state.col_drag_anchor_row, state.col_drag_cur_col,
                                       state.col_drag_cur_row);
@@ -272,10 +273,10 @@ namespace tools::tilesmith {
         return;
       // Use the same fractional isometric projection as placement so sub-tile rects (Shift-drag)
       // are hit-testable — integer floor would miss any rect whose col/row is non-integral.
-      const auto frac =
-          pixel_to_fractional_tile(win_x, win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x,
-                                   state.canvas.offset_y, state.canvas.scale, state.elev_step_px, state.map.height,
-                                   effective_diamond_w(state.map), effective_diamond_h(state.map), state.map);
+      const auto frac = pixel_to_fractional_tile(win_x, win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x,
+                                                 state.canvas.offset_y, state.canvas.scale, state.elev_step_px,
+                                                 state.map.height, effective_diamond_w(state.map),
+                                                 effective_diamond_h(state.map), state.map, state.layer_visible);
       auto &cols = state.map.collisions;
       for (int i = static_cast<int>(cols.size()) - 1; i >= 0; --i) {
         const auto idx = static_cast<std::size_t>(i);
@@ -302,6 +303,7 @@ namespace tools::tilesmith {
 
     void add_layer(EditorState &state, LayerPreset preset) {
       state.map.layers.push_back(make_layer_from_preset(preset, state.map.width, state.map.height, state.map.layers));
+      state.layer_visible.push_back(true);
       state.dirty = true;
       push_undo_checkpoint(state);
     }
@@ -311,6 +313,7 @@ namespace tools::tilesmith {
         return;
       const int idx = state.active_layer;
       state.map.layers.erase(state.map.layers.begin() + idx);
+      state.layer_visible.erase(state.layer_visible.begin() + idx);
       if (std::cmp_greater_equal(state.active_layer, state.map.layers.size()))
         state.active_layer = static_cast<int>(state.map.layers.size()) - 1;
       state.dirty = true;
@@ -349,7 +352,8 @@ namespace tools::tilesmith {
         return;
       }
       if (panel_x >= PALETTE_W - 24) {
-        state.map.layers[slot].visible = !state.map.layers[slot].visible;
+        const auto layer_index = static_cast<std::size_t>(idx);
+        state.layer_visible[layer_index] = !state.layer_visible[layer_index];
         push_undo_checkpoint(state);
         return;
       }
@@ -384,69 +388,51 @@ namespace tools::tilesmith {
         state.selected_gid = *gid;
     }
 
-  } // namespace
+    /// Nudge the camera by (@p dx, @p dy) canvas pixels, then keep it inside the map bounds.
+    void nudge_camera(EditorState &state, float dx, float dy) noexcept {
+      state.canvas.offset_x += dx;
+      state.canvas.offset_y += dy;
+      auto [cx, cy] = clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
+                                   state.map.height, effective_diamond_w(state.map), effective_diamond_h(state.map),
+                                   CANVAS_W, CANVAS_H);
+      state.canvas.offset_x = cx;
+      state.canvas.offset_y = cy;
+    }
 
-  // NOLINTNEXTLINE(readability-function-cognitive-complexity): flat input-dispatch routine.
-  void handle_input(EditorState &state, MouseState &mouse, bool &running) {
-    const ImGuiIO &io = ImGui::GetIO();
-    const int mx = static_cast<int>(io.MousePos.x);
-    const int my = static_cast<int>(io.MousePos.y);
-    const bool over_canvas = mx >= 0 && mx < CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H;
-    const bool over_panel = mx >= CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H;
+    /// Step the collision triangle cut @p delta places around the four orientations, wrapping.
+    void cycle_triangle_cut(EditorState &state, int delta) noexcept {
+      using corundum::world::tilemap::TriangleCut;
+      constexpr std::array<TriangleCut, 4> k_cuts{
+          TriangleCut::NorthWest,
+          TriangleCut::NorthEast,
+          TriangleCut::SouthEast,
+          TriangleCut::SouthWest,
+      };
+      const TriangleCut *const found = std::ranges::find(k_cuts, state.collision_tri_cut);
+      const int count = static_cast<int>(k_cuts.size());
+      const int index = static_cast<int>(found - k_cuts.begin());
+      state.collision_tri_cut = k_cuts[static_cast<std::size_t>(((index + delta) + count) % count)];
+    }
 
-    // --- Canvas pan/zoom ---
-    state.canvas.update(io, {0.f, static_cast<float>(k_menu_h)},
-                        {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
-                        /*zoom_to_cursor=*/true);
-
-    // --- Keyboard ---
-    if (!io.WantCaptureKeyboard) {
-      if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (ImGui::IsKeyPressed(ImGuiKey_Q) && !io.KeyCtrl)) {
-        if (state.dirty)
-          request_exit_confirm(state);
-        else
-          running = false;
+    /// Arrow keys pan the camera by one tile along the pressed axis.
+    void handle_camera_keys(EditorState &state) {
+      if (state.map.tilesets.empty())
         return;
-      }
+      const float diamond_w = static_cast<float>(effective_diamond_w(state.map));
+      const float step_px = diamond_w * state.canvas.scale * 0.5f;
+      const float step_py = diamond_w * state.canvas.scale * 0.25f;
+      if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+        nudge_camera(state, -step_px, 0.f);
+      if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        nudge_camera(state, step_px, 0.f);
+      if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+        nudge_camera(state, 0.f, -step_py);
+      if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+        nudge_camera(state, 0.f, step_py);
+    }
 
-      if (!state.map.tilesets.empty()) {
-        const int dw = effective_diamond_w(state.map);
-        const float step_px = static_cast<float>(dw) * state.canvas.scale * 0.5f;
-        const float step_py = static_cast<float>(dw) * state.canvas.scale * 0.25f;
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) {
-          state.canvas.offset_x -= step_px;
-          auto [cx, cy] =
-              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
-                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.canvas.offset_x = cx;
-          state.canvas.offset_y = cy;
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) {
-          state.canvas.offset_x += step_px;
-          auto [cx, cy] =
-              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
-                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.canvas.offset_x = cx;
-          state.canvas.offset_y = cy;
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
-          state.canvas.offset_y -= step_py;
-          auto [cx, cy] =
-              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
-                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.canvas.offset_x = cx;
-          state.canvas.offset_y = cy;
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-          state.canvas.offset_y += step_py;
-          auto [cx, cy] =
-              clamp_camera(state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width,
-                           state.map.height, dw, effective_diamond_h(state.map), CANVAS_W, CANVAS_H);
-          state.canvas.offset_x = cx;
-          state.canvas.offset_y = cy;
-        }
-      }
-
+    /// G, C and T toggle the grid and the collision overlay, and the collision mode with it.
+    void handle_overlay_keys(EditorState &state) {
       if (ImGui::IsKeyPressed(ImGuiKey_G))
         state.show_grid = !state.show_grid;
 
@@ -458,41 +444,10 @@ namespace tools::tilesmith {
 
       if (ImGui::IsKeyPressed(ImGuiKey_T) && state.show_collisions)
         state.triangle_collision_mode = !state.triangle_collision_mode;
+    }
 
-      if (state.show_collisions && state.triangle_collision_mode) {
-        using Cut = corundum::world::tilemap::TriangleCut;
-        constexpr std::array<Cut, 4> k_order{Cut::NorthWest, Cut::NorthEast, Cut::SouthEast, Cut::SouthWest};
-        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket)) {
-          for (int k = 0; k < 4; ++k) {
-            if (state.collision_tri_cut == k_order[k]) {
-              state.collision_tri_cut = k_order[(k + 1) % 4];
-              break;
-            }
-          }
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
-          for (int k = 0; k < 4; ++k) {
-            if (state.collision_tri_cut == k_order[k]) {
-              state.collision_tri_cut = k_order[(k + 3) % 4];
-              break;
-            }
-          }
-        }
-      } else if (state.show_elevation) {
-        const int step = io.KeyShift ? 10 : 1;
-        if (ImGui::IsKeyPressed(ImGuiKey_RightBracket))
-          state.selected_elevation =
-              static_cast<uint8_t>(std::min(100, static_cast<int>(state.selected_elevation) + step));
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket))
-          state.selected_elevation =
-              static_cast<uint8_t>(std::max(0, static_cast<int>(state.selected_elevation) - step));
-      } else if (state.show_ramps &&
-                 (ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket))) {
-        using corundum::world::tilemap::RampAxis;
-        state.selected_ramp_axis =
-            state.selected_ramp_axis == RampAxis::NorthSouth ? RampAxis::EastWest : RampAxis::NorthSouth;
-      }
-
+    /// P/E/R/W toggle the portal, elevation, ramp and walkability overlays.
+    void handle_panel_overlay_keys(EditorState &state) {
       if (ImGui::IsKeyPressed(ImGuiKey_P))
         state.show_portals = !state.show_portals;
 
@@ -504,18 +459,56 @@ namespace tools::tilesmith {
 
       if (ImGui::IsKeyPressed(ImGuiKey_W))
         state.show_walkability = !state.show_walkability;
+    }
 
-      if (ImGui::IsKeyPressed(ImGuiKey_F) && !io.KeyCtrl &&
-          !fill_ground_layer(state, state.selected_gid, state.selected_flip))
-        show_fill_blocked_popup = true;
+    /// The bracket keys step the collision triangle's orientation.
+    void handle_triangle_cut_keys(EditorState &state) {
+      if (ImGui::IsKeyPressed(ImGuiKey_RightBracket))
+        cycle_triangle_cut(state, 1);
+      if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket))
+        cycle_triangle_cut(state, -1);
+    }
 
-      if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z))
-        apply_redo(state);
-      else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
-        apply_undo(state);
+    /// The bracket keys step the elevation brush by 1, or by 10 with Shift held.
+    void handle_elevation_brush_keys(EditorState &state, const ImGuiIO &io) {
+      const int step = io.KeyShift ? 10 : 1;
+      if (ImGui::IsKeyPressed(ImGuiKey_RightBracket))
+        state.selected_elevation =
+            static_cast<uint8_t>(std::min(100, static_cast<int>(state.selected_elevation) + step));
+      if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket))
+        state.selected_elevation = static_cast<uint8_t>(std::max(0, static_cast<int>(state.selected_elevation) - step));
+    }
 
-      if ((ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) && state.show_portals &&
-          state.selected_portal >= 0 && std::cmp_less(state.selected_portal, state.portals.size())) {
+    /// Either bracket key flips the ramp brush's axis.
+    void handle_ramp_brush_keys(EditorState &state) {
+      const bool bracket_pressed =
+          ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket);
+      if (!bracket_pressed)
+        return;
+      using corundum::world::tilemap::RampAxis;
+      state.selected_ramp_axis =
+          state.selected_ramp_axis == RampAxis::NorthSouth ? RampAxis::EastWest : RampAxis::NorthSouth;
+    }
+
+    /// The bracket keys step whichever brush value the open overlay authors.
+    void handle_brush_keys(EditorState &state, const ImGuiIO &io) {
+      if (state.show_collisions && state.triangle_collision_mode) {
+        handle_triangle_cut_keys(state);
+        return;
+      }
+      if (state.show_elevation) {
+        handle_elevation_brush_keys(state, io);
+        return;
+      }
+      if (state.show_ramps)
+        handle_ramp_brush_keys(state);
+    }
+
+    /// X/Y flip the brush, Tab and 1-9 pick the active layer, Delete drops the selected portal.
+    void handle_selection_keys(EditorState &state) {
+      const bool delete_pressed = ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace);
+      if (delete_pressed && state.show_portals && state.selected_portal >= 0 &&
+          std::cmp_less(state.selected_portal, state.portals.size())) {
         state.portals.erase(state.portals.begin() + state.selected_portal);
         state.selected_portal = -1;
         state.dirty = true;
@@ -540,143 +533,235 @@ namespace tools::tilesmith {
           break;
         }
       }
+    }
 
-      if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
+    /// F fills the ground layer, Ctrl+Z/Ctrl+Shift+Z walk the undo history.
+    void handle_edit_keys(EditorState &state, const ImGuiIO &io) {
+      if (ImGui::IsKeyPressed(ImGuiKey_F) && !io.KeyCtrl &&
+          !fill_ground_layer(state, state.selected_gid, state.selected_flip))
+        show_fill_blocked_popup = true;
+
+      if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z))
+        apply_redo(state);
+      else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+        apply_undo(state);
+    }
+
+    /// Keyboard shortcuts: quit, camera pan, overlay toggles, brushes, undo and save.
+    void handle_keyboard_input(EditorState &state, const ImGuiIO &io, bool &running) {
+      if (io.WantCaptureKeyboard)
+        return;
+      if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (ImGui::IsKeyPressed(ImGuiKey_Q) && !io.KeyCtrl)) {
+        if (state.dirty)
+          request_exit_confirm(state);
+        else
+          running = false;
+        return;
+      }
+
+      handle_camera_keys(state);
+      handle_overlay_keys(state);
+      handle_brush_keys(state, io);
+      handle_panel_overlay_keys(state);
+      handle_edit_keys(state, io);
+      handle_selection_keys(state);
+
+      if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S))
         try_save(state);
+    }
+
+    /// Where the cursor is this frame, and which of the two panels it is over.
+    struct Pointer {
+      int mx{};
+
+      int my{};
+
+      bool over_canvas{};
+
+      bool over_panel{};
+    };
+
+    /// The cursor position and panel hit-test for the current frame.
+    [[nodiscard]] Pointer read_pointer() {
+      const ImGuiIO &io = ImGui::GetIO();
+      const int mx = static_cast<int>(io.MousePos.x);
+      const int my = static_cast<int>(io.MousePos.y);
+      return {
+          .mx = mx,
+          .my = my,
+          .over_canvas = mx >= 0 && mx < CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H,
+          .over_panel = mx >= CANVAS_W && my >= k_menu_h && my < k_menu_h + CANVAS_H,
+      };
+    }
+
+    /// A left press starts whatever the open overlay paints with, or picks a palette tile.
+    void handle_left_press(EditorState &state, const Pointer &pointer) {
+      if (state.show_portals) {
+        if (pointer.over_canvas)
+          select_portal_at(state, pointer.mx, pointer.my);
+        return;
+      }
+      if (!pointer.over_canvas) {
+        const bool no_brush_overlay = !state.show_collisions && !state.show_elevation && !state.show_ramps;
+        if (pointer.over_panel && no_brush_overlay)
+          handle_palette_click(state, pointer.mx, pointer.my);
+        return;
+      }
+      if (state.show_collisions) {
+        if (state.triangle_collision_mode)
+          place_triangle_at(state, pointer.mx, pointer.my);
+        else
+          begin_collision_drag(state, pointer.mx, pointer.my);
+      } else if (state.show_elevation) {
+        paint_or_erase_elevation(state, pointer.mx, pointer.my, false);
+        state.painting_active = true;
+      } else if (state.show_ramps) {
+        paint_or_erase_ramp(state, pointer.mx, pointer.my, false);
+        state.painting_active = true;
+      } else {
+        paint_or_erase(state, pointer.mx, pointer.my, false);
+        state.painting_active = true;
       }
     }
 
-    // --- Mouse button down ---
-    const bool popup_or_modal_open = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
-
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-      mouse.left_held = true;
-      if (!popup_or_modal_open && !ImGui::IsAnyItemActive()) {
-        if (state.show_portals) {
-          if (over_canvas)
-            select_portal_at(state, mx, my);
-        } else if (state.show_collisions) {
-          if (over_canvas) {
-            if (state.triangle_collision_mode)
-              place_triangle_at(state, mx, my);
-            else
-              begin_collision_drag(state, mx, my);
-          }
-        } else if (state.show_elevation) {
-          if (over_canvas) {
-            paint_or_erase_elevation(state, mx, my, false);
-            state.painting_active = true;
-          }
-        } else if (state.show_ramps) {
-          if (over_canvas) {
-            paint_or_erase_ramp(state, mx, my, false);
-            state.painting_active = true;
-          }
-        } else {
-          if (over_canvas) {
-            paint_or_erase(state, mx, my, false);
-            state.painting_active = true;
-          } else if (over_panel) {
-            handle_palette_click(state, mx, my);
-          }
-        }
+    /// A right press erases, or starts the drag that erases when released.
+    void handle_right_press(EditorState &state, const Pointer &pointer) {
+      if (!pointer.over_canvas)
+        return;
+      if (state.show_portals) {
+        begin_portal_drag(state, pointer.mx, pointer.my);
+      } else if (state.show_collisions) {
+        if (!remove_triangle_at(state, pointer.mx, pointer.my))
+          remove_collision_at(state, pointer.mx, pointer.my);
+      } else if (state.show_elevation) {
+        paint_or_erase_elevation(state, pointer.mx, pointer.my, true);
+      } else if (state.show_ramps) {
+        paint_or_erase_ramp(state, pointer.mx, pointer.my, true);
+      } else {
+        begin_erase_drag(state, pointer.mx, pointer.my);
       }
     }
 
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !popup_or_modal_open) {
-      mouse.right_held = true;
-      if (over_canvas) {
-        if (state.show_portals) {
-          begin_portal_drag(state, mx, my);
-        } else if (state.show_collisions) {
-          if (!remove_triangle_at(state, mx, my)) {
-            remove_collision_at(state, mx, my);
-          }
-        } else if (state.show_elevation) {
-          paint_or_erase_elevation(state, mx, my, true);
-        } else if (state.show_ramps) {
-          paint_or_erase_ramp(state, mx, my, true);
-        } else {
-          begin_erase_drag(state, mx, my);
-        }
+    /// Left and right button presses over the canvas or the palette.
+    void handle_mouse_press(EditorState &state, MouseState &mouse, const Pointer &pointer) {
+      const bool popup_or_modal_open = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
+      if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        mouse.left_held = true;
+        if (!popup_or_modal_open && !ImGui::IsAnyItemActive())
+          handle_left_press(state, pointer);
+      }
+      if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !popup_or_modal_open) {
+        mouse.right_held = true;
+        handle_right_press(state, pointer);
       }
     }
 
-    // --- Mouse button released ---
-    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-      mouse.left_held = false;
-      const bool was_painting = state.painting_active;
-      state.painting_active = false;
-      if (!state.show_portals && state.show_collisions && !state.triangle_collision_mode && state.collision_dragging)
-        commit_collision_rect(state);
-      else if (was_painting)
-        push_undo_checkpoint(state);
-    }
-    if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
-      mouse.right_held = false;
-      if (state.show_portals && state.portal_dragging)
-        commit_portal_rect(state);
-      else if (state.erase_dragging)
-        commit_erase_rect(state);
-      else if (state.show_elevation || state.show_ramps)
-        push_undo_checkpoint(state);
+    /// Button releases: commit whichever drag or paint pass was running.
+    void handle_mouse_release(EditorState &state, MouseState &mouse) {
+      if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+        mouse.left_held = false;
+        const bool was_painting = state.painting_active;
+        state.painting_active = false;
+        if (!state.show_portals && state.show_collisions && !state.triangle_collision_mode && state.collision_dragging)
+          commit_collision_rect(state);
+        else if (was_painting)
+          push_undo_checkpoint(state);
+      }
+      if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+        mouse.right_held = false;
+        if (state.show_portals && state.portal_dragging)
+          commit_portal_rect(state);
+        else if (state.erase_dragging)
+          commit_erase_rect(state);
+        else if (state.show_elevation || state.show_ramps)
+          push_undo_checkpoint(state);
+      }
     }
 
-    // --- Mouse moved (continuous) ---
-    {
-      const auto tc = editor_screen_to_tile(mx, my, state);
+    /// Track the cell under the cursor for the overlays and the status bar.
+    void update_hovered_cell(EditorState &state, const Pointer &pointer) {
+      const auto tc = editor_screen_to_tile(pointer.mx, pointer.my, state);
       state.hover_tile_col = tc ? tc->col : -1;
       state.hover_tile_row = tc ? tc->row : -1;
     }
 
-    if (state.show_portals) {
-      if (state.portal_dragging)
-        update_portal_drag(state, mx, my);
-    } else if (state.show_collisions) {
-      if (state.collision_dragging)
-        update_collision_drag(state, mx, my);
-    } else if (state.show_elevation) {
-      if (state.painting_active && over_canvas && !popup_or_modal_open)
-        paint_or_erase_elevation(state, mx, my, false);
-      if (mouse.right_held && over_canvas)
-        paint_or_erase_elevation(state, mx, my, true);
-    } else if (state.show_ramps) {
-      if (state.painting_active && over_canvas && !popup_or_modal_open)
-        paint_or_erase_ramp(state, mx, my, false);
-      if (mouse.right_held && over_canvas)
-        paint_or_erase_ramp(state, mx, my, true);
-    } else {
-      if (state.painting_active && over_canvas && !popup_or_modal_open)
-        paint_or_erase(state, mx, my, false);
-      if (mouse.right_held && over_canvas)
-        update_erase_drag(state, mx, my);
+    /// Which overlay's paint brush a drag feeds.
+    enum class Brush : std::uint8_t { Elevation, Ramp, Tile };
+
+    /// The open overlay's continuous paint pass: a held left button paints, a held right button erases.
+    void update_paint_pass(EditorState &state, const MouseState &mouse, const Pointer &pointer, Brush brush) {
+      const bool popup_or_modal_open = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
+      const bool painting = state.painting_active && pointer.over_canvas && !popup_or_modal_open;
+      const bool erasing = mouse.right_held && pointer.over_canvas && !popup_or_modal_open;
+      switch (brush) {
+        case Brush::Elevation:
+          if (painting)
+            paint_or_erase_elevation(state, pointer.mx, pointer.my, false);
+          if (erasing)
+            paint_or_erase_elevation(state, pointer.mx, pointer.my, true);
+          return;
+        case Brush::Ramp:
+          if (painting)
+            paint_or_erase_ramp(state, pointer.mx, pointer.my, false);
+          if (erasing)
+            paint_or_erase_ramp(state, pointer.mx, pointer.my, true);
+          return;
+        case Brush::Tile:
+          if (painting)
+            paint_or_erase(state, pointer.mx, pointer.my, false);
+          if (erasing)
+            update_erase_drag(state, pointer.mx, pointer.my);
+          return;
+      }
     }
 
-    // --- Mouse wheel over the palette panel: Ctrl+scroll zooms (palette_tile_scale is user-
-    // controlled, not auto-fit — see render_tile_grid.cpp), plain scroll pans vertically (the flow
-    // layout has no columns, so only vertical scroll applies). ---
-    const bool wheel_over_palette = over_panel && io.MouseWheel != 0.f && !state.map.tilesets.empty();
-    if (wheel_over_palette && io.KeyCtrl) {
-      constexpr float k_zoom_step = 0.1f;
-      state.palette_tile_scale = std::clamp(state.palette_tile_scale + (io.MouseWheel * k_zoom_step),
-                                            k_palette_min_scale, k_palette_max_scale);
-    } else if (wheel_over_palette) {
-      const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
-      const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
-      int content_h = 0;
-      for (const auto &cell : layout)
-        content_h = std::max(content_h, cell.y + cell.h);
-      constexpr float k_wheel_scroll_px = 60.f;
-      state.palette_scroll_y -= io.MouseWheel * k_wheel_scroll_px;
-      state.palette_scroll_y = std::clamp(state.palette_scroll_y, 0.f, static_cast<float>(std::max(0, content_h)));
+    /// Keep the open overlay's drag or paint pass following the cursor.
+    void update_active_drag(EditorState &state, const MouseState &mouse, const Pointer &pointer) {
+      if (state.show_portals) {
+        if (state.portal_dragging)
+          update_portal_drag(state, pointer.mx, pointer.my);
+      } else if (state.show_collisions) {
+        if (state.collision_dragging)
+          update_collision_drag(state, pointer.mx, pointer.my);
+      } else if (state.show_elevation) {
+        update_paint_pass(state, mouse, pointer, Brush::Elevation);
+      } else if (state.show_ramps) {
+        update_paint_pass(state, mouse, pointer, Brush::Ramp);
+      } else {
+        update_paint_pass(state, mouse, pointer, Brush::Tile);
+      }
     }
 
-    if (layer_add_popup_requested) {
-      ImGui::OpenPopup("Add Layer");
-      layer_add_popup_requested = false;
+    /// Ctrl+scroll zooms the palette, plain scroll pans it.
+    void handle_palette_wheel(EditorState &state, const ImGuiIO &io, bool over_panel) {
+      // palette_tile_scale is user-controlled, not auto-fit (see render_tile_grid.cpp), and the palette's
+      // flow layout has no columns, so a plain wheel scroll can only pan vertically.
+      const bool wheel_over_palette = over_panel && io.MouseWheel != 0.f && !state.map.tilesets.empty();
+      if (wheel_over_palette && io.KeyCtrl) {
+        constexpr float k_zoom_step = 0.1f;
+        state.palette_tile_scale = std::clamp(state.palette_tile_scale + (io.MouseWheel * k_zoom_step),
+                                              k_palette_min_scale, k_palette_max_scale);
+      } else if (wheel_over_palette) {
+        const auto &ts = state.map.tilesets[static_cast<std::size_t>(state.palette_tileset_idx)];
+        const auto layout = compute_palette_layout(ts, PALETTE_W, state.palette_tile_scale);
+        int content_h = 0;
+        for (const auto &cell : layout)
+          content_h = std::max(content_h, cell.y + cell.h);
+        constexpr float k_wheel_scroll_px = 60.f;
+        state.palette_scroll_y -= io.MouseWheel * k_wheel_scroll_px;
+        state.palette_scroll_y = std::clamp(state.palette_scroll_y, 0.f, static_cast<float>(std::max(0, content_h)));
+      }
     }
 
-    if (ImGui::BeginPopupModal("Add Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    /// The "Add Layer" preset picker.
+    void show_add_layer_popup(EditorState &state) {
+      if (layer_add_popup_requested) {
+        ImGui::OpenPopup("Add Layer");
+        layer_add_popup_requested = false;
+      }
+
+      if (!ImGui::BeginPopupModal("Add Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
       constexpr std::array<LayerPreset, 7> k_presets{
           LayerPreset::Ground, LayerPreset::FloorDetail, LayerPreset::Water, LayerPreset::Walls,
           LayerPreset::Roof,   LayerPreset::Decor,       LayerPreset::Blank,
@@ -693,12 +778,15 @@ namespace tools::tilesmith {
       ImGui::EndPopup();
     }
 
-    if (layer_rename_requested) {
-      ImGui::OpenPopup("Rename Layer");
-      layer_rename_requested = false;
-    }
+    /// The rename picker, which also edits the layer's z-index and depth sorting.
+    void show_rename_layer_popup(EditorState &state) {
+      if (layer_rename_requested) {
+        ImGui::OpenPopup("Rename Layer");
+        layer_rename_requested = false;
+      }
 
-    if (ImGui::BeginPopupModal("Rename Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (!ImGui::BeginPopupModal("Rename Layer", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
       ImGui::TextUnformatted("Layer name:");
       ImGui::InputText("##rename", layer_rename_buf.data(), layer_rename_buf.size());
 
@@ -734,12 +822,15 @@ namespace tools::tilesmith {
       ImGui::EndPopup();
     }
 
-    if (state.show_validation_popup) {
-      ImGui::OpenPopup("Validation Errors");
-      state.show_validation_popup = false;
-    }
+    /// The save-time validation report, which still lets the author save anyway.
+    void show_validation_popup(EditorState &state) {
+      if (state.show_validation_popup) {
+        ImGui::OpenPopup("Validation Errors");
+        state.show_validation_popup = false;
+      }
 
-    if (ImGui::BeginPopupModal("Validation Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (!ImGui::BeginPopupModal("Validation Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): ImGui's printf-style API is varargs.
       ImGui::TextColored(ImVec4{1.f, .6f, 0.f, 1.f},
                          "%zu problem(s) found in this map:", state.validation_errors.size());
@@ -753,11 +844,11 @@ namespace tools::tilesmith {
       ImGui::Spacing();
 
       if (ImGui::Button("Save Anyway", ImVec2{150.f, 0.f})) {
-        if (auto r = save_tilemap(state); r)
+        if (auto saved = save_tilemap(state); saved)
           std::println("[Tilesmith] Saved with {} validation warning(s): {}", state.validation_errors.size(),
                        state.map_path.string());
         else
-          std::println(stderr, "[Tilesmith] Save failed: {}", r.error());
+          std::println(stderr, "[Tilesmith] Save failed: {}", saved.error());
         ImGui::CloseCurrentPopup();
       }
       ImGui::SameLine();
@@ -766,18 +857,50 @@ namespace tools::tilesmith {
       ImGui::EndPopup();
     }
 
-    if (show_fill_blocked_popup) {
-      ImGui::OpenPopup("Fill Not Available");
-      show_fill_blocked_popup = false;
-    }
+    /// The notice shown when F is pressed on a layer fill cannot touch.
+    void show_fill_blocked_notice() {
+      if (show_fill_blocked_popup) {
+        ImGui::OpenPopup("Fill Not Available");
+        show_fill_blocked_popup = false;
+      }
 
-    if (ImGui::BeginPopupModal("Fill Not Available", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (!ImGui::BeginPopupModal("Fill Not Available", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
       ImGui::TextUnformatted("Fill only works on the ground layer (z_index 0).");
       ImGui::Spacing();
       if (ImGui::Button("OK", ImVec2{120.f, 0.f}))
         ImGui::CloseCurrentPopup();
       ImGui::EndPopup();
     }
+
+    /// The layer add/rename, validation and fill popups.
+    void handle_input_popups(EditorState &state) {
+      show_add_layer_popup(state);
+      show_rename_layer_popup(state);
+      show_validation_popup(state);
+      show_fill_blocked_notice();
+    }
+
+  } // namespace
+
+  void handle_input(EditorState &state, MouseState &mouse, bool &running) {
+    const ImGuiIO &io = ImGui::GetIO();
+    const Pointer pointer = read_pointer();
+
+    // --- Canvas pan/zoom ---
+    state.canvas.update(io, {0.f, static_cast<float>(k_menu_h)},
+                        {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
+                        /*zoom_to_cursor=*/true);
+
+    if (!io.WantCaptureKeyboard)
+      handle_keyboard_input(state, io, running);
+
+    handle_mouse_press(state, mouse, pointer);
+    handle_mouse_release(state, mouse);
+    update_hovered_cell(state, pointer);
+    update_active_drag(state, mouse, pointer);
+    handle_palette_wheel(state, io, pointer.over_panel);
+    handle_input_popups(state);
   }
 
 } // namespace tools::tilesmith

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include "layer_visibility.hpp"
 #include "new_map_dialog.hpp"
 #include <corundum/toolkit/editor/canvas_controller.hpp>
 #include <corundum/toolkit/editor/undo.hpp>
@@ -14,8 +15,9 @@
 
 namespace tools::tilesmith {
 
-  /// @brief One undo/redo checkpoint: everything that gets saved to the tilemap JSON plus the
-  /// portals sidecar. Deliberately does NOT include active_layer — which layer is selected is
+  /// @brief One undo/redo checkpoint: the tilemap document (its map and portals sidecar) plus the
+  /// editor's per-layer visibility, which stays undoable even though it is never saved.
+  /// Deliberately does NOT include active_layer — which layer is selected is
   /// live UI state (like selected_gid or the camera), not document content; bundling it here
   /// caused undo to snap the active layer back to whatever it was at the *previous* checkpoint
   /// instead of leaving the user's current layer selection alone. See adopt_doc() in undo.cpp
@@ -23,6 +25,7 @@ namespace tools::tilesmith {
   struct TilemapDoc {
     corundum::world::tilemap::Tilemap map;
     std::vector<corundum::world::Portal> portals;
+    LayerVisibility layer_visible;
   };
 
   /**
@@ -33,6 +36,7 @@ namespace tools::tilesmith {
    */
   struct EditorState {
     corundum::world::tilemap::Tilemap map; ///< Loaded tilemap (edited in place).
+    LayerVisibility layer_visible;         ///< Parallel to map.layers; see LayerVisibility.
     std::filesystem::path map_path;        ///< Source file path used for save.
 
     int active_layer = 0;                              ///< Index of the currently selected layer.

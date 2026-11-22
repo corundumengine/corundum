@@ -34,7 +34,6 @@ namespace {
     TilemapLayer layer;
     layer.name = "ground";
     layer.z_index = 0;
-    layer.visible = true;
     layer.tiles.assign(9, 1);
     layer.elevation.assign(elevation.begin(), elevation.end());
     tm.layers.push_back(std::move(layer));
@@ -57,8 +56,6 @@ namespace {
   }
 
 } // namespace
-
-// ── build_walkability_graph ──────────────────────────────────────────────────
 
 TEST_CASE("build_walkability_graph - disconnects an edge exceeding max_step_height") {
   const Tilemap tm = make_test_map(1, 1, 50);
@@ -134,8 +131,6 @@ TEST_CASE("WalkabilityGraph::can_move - origin translates the global coords call
   CHECK(g.can_move(0, 0, 1, 0));
 }
 
-// ── resolve_walkability ──────────────────────────────────────────────────────
-
 TEST_CASE("resolve_walkability - no graph is a no-op") {
   Position pos{.col = 1.5f, .row = 1.5f};
   const Position prev{.col = 0.5f, .row = 1.5f};
@@ -202,8 +197,6 @@ TEST_CASE("resolve_walkability - a two-axis step across a connected diagonal is 
   CHECK(pos.col == doctest::Approx(1.5f));
   CHECK(pos.row == doctest::Approx(0.5f));
 }
-
-// ── ramps ─────────────────────────────────────────────────────────────────────
 
 TEST_CASE("build_walkability_graph - a ramp reconnects its axis across a large elevation delta") {
   // (1,1) is raised 50 (far beyond max_step_height=4) and marked as a north-south ramp.

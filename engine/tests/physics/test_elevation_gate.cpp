@@ -33,7 +33,6 @@ namespace {
     TilemapLayer layer;
     layer.name = "ground";
     layer.z_index = 0;
-    layer.visible = true;
     layer.tiles.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 1);
     layer.elevation = elevs;
     if (ramp_cell) {

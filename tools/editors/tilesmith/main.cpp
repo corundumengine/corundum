@@ -19,14 +19,17 @@
 #include "undo.hpp"
 #include <algorithm>
 #include <corundum/core/content_source.hpp>
+#include <corundum/toolkit/editor/canvas_controller.hpp>
 #include <corundum/toolkit/host/tool_config.hpp>
 #include <corundum/toolkit/host/tool_host.hpp>
 #include <corundum/toolkit/widgets/fonts.hpp>
 #include <corundum/world/tilemap/loader.hpp>
 #include <cstdio>
 #include <exception>
+#include <expected>
 #include <imgui.h>
 #include <print>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -39,56 +42,40 @@ using corundum::toolkit::widgets::ThemeColors;
 using tools::tilesmith::CanvasContext;
 using tools::tilesmith::EditorState;
 
-using tools::tilesmith::load_tilemap_textures;
 using tools::tilesmith::MapRenderFn;
 using tools::tilesmith::MouseState;
 using tools::tilesmith::TilemapTextureStore;
 using tools::tilesmith::TilesetView;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+namespace {
 
-// load_fonts replaced by corundum::toolkit::widgets::load_tool_fonts(config)
+  // Compute a canvas tile_scale that targets ~64px rendered cells so large
+  // tiles (e.g. 256px isometric) don't fill the entire viewport. Small tiles
+  // are capped at 2x (their historical default).
+  [[nodiscard]] float compute_tile_scale(int frame_width) noexcept {
+    constexpr float k_target_px = 64.f;
+    constexpr float k_max_scale = 2.f;
+    return std::clamp(k_target_px / static_cast<float>(frame_width), 0.125f, k_max_scale);
+  }
 
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
+  void center_camera(EditorState &state) noexcept {
+    if (state.map.tilesets.empty())
+      return;
+    state.canvas.set_scale(compute_tile_scale(state.map.diamond_w()));
+    const float half_tw = static_cast<float>(state.map.diamond_w()) * state.canvas.scale * 0.5f;
+    const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
+    const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw;
+    const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th;
+    state.canvas.offset_x = (virtual_w - static_cast<float>(tools::tilesmith::CANVAS_W)) * 0.5f;
+    state.canvas.offset_y = (virtual_h - static_cast<float>(tools::tilesmith::CANVAS_H)) * 0.5f;
+    auto [cx, cy] = tools::tilesmith::clamp_camera(
+        state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width, state.map.height,
+        state.map.diamond_w(), state.map.diamond_h(), tools::tilesmith::CANVAS_W, tools::tilesmith::CANVAS_H);
+    state.canvas.offset_x = cx;
+    state.canvas.offset_y = cy;
+  }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// Compute a canvas tile_scale that targets ~64px rendered cells so large
-// tiles (e.g. 256px isometric) don't fill the entire viewport. Small tiles
-// are capped at 2x (their historical default).
-[[nodiscard]] static float compute_tile_scale(int frame_width) noexcept {
-  constexpr float k_target_px = 64.f;
-  constexpr float k_max_scale = 2.f;
-  return std::clamp(k_target_px / static_cast<float>(frame_width), 0.125f, k_max_scale);
-}
-
-static void center_camera(EditorState &state) noexcept {
-  if (state.map.tilesets.empty())
-    return;
-  state.canvas.set_scale(compute_tile_scale(state.map.diamond_w()));
-  const float half_tw = static_cast<float>(state.map.diamond_w()) * state.canvas.scale * 0.5f;
-  const float half_th = static_cast<float>(state.map.diamond_h()) * state.canvas.scale * 0.5f;
-  const float virtual_w = static_cast<float>(state.map.width + state.map.height) * half_tw;
-  const float virtual_h = static_cast<float>(state.map.width + state.map.height) * half_th;
-  state.canvas.offset_x = (virtual_w - static_cast<float>(tools::tilesmith::CANVAS_W)) * 0.5f;
-  state.canvas.offset_y = (virtual_h - static_cast<float>(tools::tilesmith::CANVAS_H)) * 0.5f;
-  auto [cx, cy] = tools::tilesmith::clamp_camera(
-      state.canvas.offset_x, state.canvas.offset_y, state.canvas.scale, state.map.width, state.map.height,
-      state.map.diamond_w(), state.map.diamond_h(), tools::tilesmith::CANVAS_W, tools::tilesmith::CANVAS_H);
-  state.canvas.offset_x = cx;
-  state.canvas.offset_y = cy;
-}
-
-// ---------------------------------------------------------------------------
-// New-map setup: load map + portals + textures, center camera, update title.
-// Called once from inside the frame loop after JSON is written.
-// ---------------------------------------------------------------------------
+} // namespace
 
 namespace tools::tilesmith {
 
@@ -112,6 +99,7 @@ namespace tools::tilesmith {
 
     // Commit phase: moves and the view rebuild cannot throw.
     state.map = std::move(new_map);
+    state.layer_visible.assign(state.map.layers.size(), true);
     texture_store = std::move(new_store);
     tileset_views = tools::tilesmith::rebuild_tileset_views(host, state.map, texture_store);
     center_camera(state);
@@ -121,102 +109,79 @@ namespace tools::tilesmith {
 
 } // namespace tools::tilesmith
 
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
+namespace {
 
-int main(int argc, char *argv[]) {
-  if (argc > 2) {
-    std::println(stderr, "Usage: tilesmith [map.json]");
-    std::println(stderr, "  Omit map.json to create a new tilemap.");
-    std::println(stderr, "  Run from the project root directory.");
-    return 1;
-  }
-  const bool load_map_mode = (argc > 1);
+  /// Command-line and game.json inputs, plus the map path they imply.
+  struct Launch {
+    corundum::toolkit::host::ToolConfig tool{};
 
-  auto cfg_result = corundum::toolkit::host::load_tool_config(argc, argv);
-  if (!cfg_result) {
-    std::println(stderr, "[Tilesmith] FATAL: {}", cfg_result.error());
-    return 1;
-  }
-  corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
+    bool load_map_mode{};
 
-  EditorState state;
-  state.elev_step_px = cfg.elevation_step_px;
-  state.max_step_height = cfg.max_step_height;
-
-  if (load_map_mode)
-    state.map_path = argv[1];
-
-  const std::string initial_title =
-      load_map_mode ? ("Tilesmith :: " + state.map_path.filename().string()) : "Tilesmith";
-
-  auto host_result = corundum::toolkit::host::ToolHost::create(
-      {tools::tilesmith::WINDOW_W, tools::tilesmith::WINDOW_H, initial_title});
-  if (!host_result) {
-    std::println(stderr, "[Tilesmith] FATAL: {}", host_result.error());
-    return 1;
-  }
-  auto host = std::move(*host_result);
-
-  // Fonts must be loaded after ImGui context is created (inside ToolHost ctor).
-  [[maybe_unused]] corundum::toolkit::widgets::FontHandles fonts = load_tool_fonts(cfg);
-
-  ThemeColors theme;
-  if (!cfg.theme_path.empty()) {
-    auto t = load_theme(cfg.theme_path.string());
-    if (t)
-      theme = *t;
-    else {
-      std::println(stderr, "[Tilesmith] Theme load failed: {} — using fallback", t.error());
-      theme = ApplyEditorThemeRefined();
-    }
-  } else {
-    theme = ApplyEditorThemeRefined();
-  }
-
-  TilemapTextureStore texture_store;
-  std::vector<TilesetView> tileset_views;
-
-  if (load_map_mode) {
-    try {
-      tools::tilesmith::finish_map_load(*host, state, texture_store, tileset_views);
-    } catch (const std::exception &e) {
-      std::println(stderr, "[Tilesmith] FATAL: {}", e.what());
-      return 1;
-    }
-  }
-
-  MouseState mouse;
-  bool running = true;
-  float elapsed_time = 0.f;
-  bool triggered_initial_new_map = false;
-
-  // Closure that renders all tilemap passes into a canvas context.
-  const MapRenderFn render_map = [&host, &state, &texture_store, &elapsed_time](CanvasContext ctx) {
-    tools::tilesmith::render_tilemap(*host, ctx, state.map, texture_store, state.canvas.offset_x, state.canvas.offset_y,
-                                     0, state.canvas.scale, elapsed_time, state.elev_step_px);
-    for (const int z : tools::tilesmith::above_z_indices(state.map))
-      tools::tilesmith::render_tilemap(*host, ctx, state.map, texture_store, state.canvas.offset_x,
-                                       state.canvas.offset_y, z, state.canvas.scale, elapsed_time, state.elev_step_px);
+    std::filesystem::path map_path{};
   };
 
-  host->run([&]() {
-    if (!running) {
-      host->request_close();
-      return;
-    }
+  [[nodiscard]] std::expected<Launch, std::string> make_launch(std::span<char *> args) {
+    auto tool = corundum::toolkit::host::load_tool_config(static_cast<int>(args.size()), args.data());
+    if (!tool)
+      return std::unexpected(tool.error());
+    Launch launch{.tool = std::move(*tool), .load_map_mode = args.size() > 1};
+    if (launch.load_map_mode)
+      launch.map_path = args[1];
+    return launch;
+  }
 
-    if (!load_map_mode && !triggered_initial_new_map) {
-      tools::tilesmith::open_new_map_dialog(state);
-      triggered_initial_new_map = true;
-    }
+  [[nodiscard]] std::string window_title(const Launch &launch) {
+    if (!launch.load_map_mode)
+      return "Tilesmith";
+    return "Tilesmith :: " + launch.map_path.filename().string();
+  }
 
-    const ImGuiIO &io = ImGui::GetIO();
-    elapsed_time += io.DeltaTime;
+  [[nodiscard]] ThemeColors load_editor_theme(const corundum::toolkit::host::ToolConfig &tool) {
+    if (tool.theme_path.empty())
+      return ApplyEditorThemeRefined();
+    auto loaded = load_theme(tool.theme_path.string());
+    if (loaded)
+      return *loaded;
+    std::println(stderr, "[Tilesmith] Theme load failed: {} — using fallback", loaded.error());
+    return ApplyEditorThemeRefined();
+  }
 
-    tools::tilesmith::render_menu_bar(*host, state, texture_store, tileset_views, running);
+  /// Everything the frame loop reads, so one named function can own a frame.
+  /// @note The pointers are main()'s objects, live for the whole run and never null.
+  struct FrameContext {
+    corundum::toolkit::host::ToolHost *host{};
 
+    EditorState *state{};
+
+    TilemapTextureStore *texture_store{};
+
+    std::vector<TilesetView> *tileset_views{};
+
+    const ThemeColors *theme{};
+
+    MouseState *mouse{};
+
+    /// Open the New Map dialog on the first frame (no map was named on the command line).
+    bool open_new_map_on_first_frame{};
+
+    bool running{true};
+
+    bool dialog_opened{};
+
+    float elapsed_time{};
+  };
+
+  /// Every layer of band @p z_index, in the canvas space of @p ctx.
+  void render_layer_band(const FrameContext &frame, CanvasContext ctx, int z_index) {
+    const EditorState &state = *frame.state;
+    tools::tilesmith::render_tilemap(*frame.host, ctx, state.map, state.layer_visible, *frame.texture_store,
+                                     state.canvas.offset_x, state.canvas.offset_y, z_index, state.canvas.scale,
+                                     frame.elapsed_time, state.elev_step_px);
+  }
+
+  /// The canvas window: the pan/zoom origin shift plus every tilemap pass, clipped to the canvas.
+  void draw_canvas_window(const FrameContext &frame) {
+    const EditorState &state = *frame.state;
     ImGui::SetNextWindowPos({0.f, static_cast<float>(tools::tilesmith::k_menu_h)});
     ImGui::SetNextWindowSize(
         {static_cast<float>(tools::tilesmith::CANVAS_W), static_cast<float>(tools::tilesmith::CANVAS_H)});
@@ -246,13 +211,21 @@ int main(int argc, char *argv[]) {
 
       dl->PushClipRect(origin, {origin.x + tools::tilesmith::CANVAS_W, origin.y + tools::tilesmith::CANVAS_H}, true);
 
-      CanvasContext ctx{dl, content_origin};
+      const MapRenderFn render_map = [&frame, &state](CanvasContext band_ctx) {
+        render_layer_band(frame, band_ctx, 0);
+        for (const int z : tools::tilesmith::above_z_indices(state.map))
+          render_layer_band(frame, band_ctx, z);
+      };
+      CanvasContext ctx{.dl = dl, .origin = content_origin};
       tools::tilesmith::render_canvas(ctx, state, render_map);
 
       dl->PopClipRect();
     }
     ImGui::End();
+  }
 
+  /// The right-hand panel: the separator plus the layer strip.
+  void draw_panel_window(const FrameContext &frame) {
     ImGui::SetNextWindowPos(
         {static_cast<float>(tools::tilesmith::CANVAS_W), static_cast<float>(tools::tilesmith::k_menu_h)});
     ImGui::SetNextWindowSize(
@@ -269,16 +242,91 @@ int main(int argc, char *argv[]) {
       const ImVec2 sep = ImGui::GetCursorScreenPos();
       dl->AddRectFilled(sep, {sep.x + 1.f, sep.y + tools::tilesmith::CANVAS_H}, IM_COL32(80, 80, 100, 255));
 
-      tools::tilesmith::render_layer_strip(state, theme);
+      tools::tilesmith::render_layer_strip(*frame.state, *frame.theme);
     }
     ImGui::End();
+  }
 
-    tools::tilesmith::render_tile_grid(*host, state, texture_store, tileset_views);
-    tools::tilesmith::render_status_bar(state, theme);
-    tools::tilesmith::render_portal_panel(state);
+  /// One frame: the menu, both windows, the overlays and the input pass.
+  void run_frame(FrameContext &frame) {
+    if (!frame.running) {
+      frame.host->request_close();
+      return;
+    }
 
-    tools::tilesmith::handle_input(state, mouse, running);
-  });
+    if (frame.open_new_map_on_first_frame && !frame.dialog_opened) {
+      tools::tilesmith::open_new_map_dialog(*frame.state);
+      frame.dialog_opened = true;
+    }
+
+    frame.elapsed_time += ImGui::GetIO().DeltaTime;
+
+    tools::tilesmith::render_menu_bar(*frame.host, *frame.state, *frame.texture_store, *frame.tileset_views,
+                                      frame.running);
+    draw_canvas_window(frame);
+    draw_panel_window(frame);
+    tools::tilesmith::render_tile_grid(*frame.host, *frame.state, *frame.texture_store, *frame.tileset_views);
+    tools::tilesmith::render_status_bar(*frame.state, *frame.theme);
+    tools::tilesmith::render_portal_panel(*frame.state);
+    tools::tilesmith::handle_input(*frame.state, *frame.mouse, frame.running);
+  }
+
+} // namespace
+
+int main(int argc, char *argv[]) {
+  if (argc > 2) {
+    std::println(stderr, "Usage: tilesmith [map.json]");
+    std::println(stderr, "  Omit map.json to create a new tilemap.");
+    std::println(stderr, "  Run from the project root directory.");
+    return 1;
+  }
+
+  auto launch = make_launch({argv, static_cast<std::size_t>(argc)});
+  if (!launch) {
+    std::println(stderr, "[Tilesmith] FATAL: {}", launch.error());
+    return 1;
+  }
+
+  EditorState state;
+  state.elev_step_px = launch->tool.elevation_step_px;
+  state.max_step_height = launch->tool.max_step_height;
+  state.map_path = launch->map_path;
+
+  auto host_result = corundum::toolkit::host::ToolHost::create(
+      {.width = tools::tilesmith::WINDOW_W, .height = tools::tilesmith::WINDOW_H, .title = window_title(*launch)});
+  if (!host_result) {
+    std::println(stderr, "[Tilesmith] FATAL: {}", host_result.error());
+    return 1;
+  }
+  auto host = std::move(*host_result);
+
+  // Fonts must be loaded after the ImGui context is created (inside the ToolHost constructor).
+  [[maybe_unused]] const corundum::toolkit::widgets::FontHandles fonts = load_tool_fonts(launch->tool);
+  const ThemeColors theme = load_editor_theme(launch->tool);
+
+  TilemapTextureStore texture_store;
+  std::vector<TilesetView> tileset_views;
+
+  if (launch->load_map_mode) {
+    try {
+      tools::tilesmith::finish_map_load(*host, state, texture_store, tileset_views);
+    } catch (const std::exception &e) {
+      std::println(stderr, "[Tilesmith] FATAL: {}", e.what());
+      return 1;
+    }
+  }
+
+  MouseState mouse;
+  FrameContext frame{
+      .host = host.get(),
+      .state = &state,
+      .texture_store = &texture_store,
+      .tileset_views = &tileset_views,
+      .theme = &theme,
+      .mouse = &mouse,
+      .open_new_map_on_first_frame = !launch->load_map_mode,
+  };
+  host->run([&frame] { run_frame(frame); });
 
   return 0;
 }
