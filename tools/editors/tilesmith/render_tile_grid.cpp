@@ -187,7 +187,7 @@ namespace tools::tilesmith {
     }
 
     /// Display name of the sheet at @p idx, or std::nullopt when @p idx names no sheet.
-    std::optional<std::string> sheet_name(const std::vector<TilesetView> &tileset_views, int idx) {
+    std::optional<std::string> find_sheet_name(const std::vector<TilesetView> &tileset_views, int idx) {
       if (idx < 0 || std::cmp_greater_equal(idx, tileset_views.size()))
         return std::nullopt;
       return sheet_display_name(tileset_views[static_cast<std::size_t>(idx)]);
@@ -268,7 +268,7 @@ namespace tools::tilesmith {
         return;
 
       std::string msg;
-      if (const std::optional<std::string> name = sheet_name(tileset_views, dialogs.remove_idx))
+      if (const std::optional<std::string> name = find_sheet_name(tileset_views, dialogs.remove_idx))
         msg = std::format("Cannot remove '{}': the sprite sheet is in use by tiles in the map.\n\n"
                           "Erase all tiles using this sheet before removing it.",
                           *name);
@@ -292,7 +292,7 @@ namespace tools::tilesmith {
         return;
 
       std::string msg;
-      if (const std::optional<std::string> name = sheet_name(tileset_views, dialogs.remove_idx))
+      if (const std::optional<std::string> name = find_sheet_name(tileset_views, dialogs.remove_idx))
         msg = std::format("Remove '{}'?\n\nThis will shift GIDs for all subsequent tilesets.\n"
                           "Existing tiles referencing shifted GIDs will display incorrectly.\n\n"
                           "Remove anyway?",
