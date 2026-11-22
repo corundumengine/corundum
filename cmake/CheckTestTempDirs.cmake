@@ -3,7 +3,8 @@
 #
 # Scratch-directory gate for the engine tests: a test that writes to disk does so under a
 # corundum::test::TempDir (engine/tests/temp_dir.hpp), whose per-process token keeps concurrent
-# runs (build/ and build-sanitized/) out of each other's directories. Run standalone with:
+# test processes (parallel CTest cases, or build/ and build-release/ runs) out of each other's
+# directories. Run standalone with:
 #
 #   cmake -DROOT=<repo root> -P cmake/CheckTestTempDirs.cmake
 #

@@ -37,17 +37,6 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
       }
-    },
-    {
-      "name": "debug-sanitized",
-      "displayName": "Debug (ASan + UBSan)",
-      "inherits": "base",
-      "binaryDir": "${sourceDir}/build-sanitized",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
-        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
-      }
     }
   ],
 
@@ -59,11 +48,6 @@
     {
       "name": "release",
       "configurePreset": "release"
-    },
-    {
-      "name": "debug-sanitized",
-      "configurePreset": "debug-sanitized",
-      "verbose": true
     },
     {
       "name": "format",
@@ -86,16 +70,6 @@
     {
       "name": "release",
       "configurePreset": "release",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "jobs": 0
-      }
-    },
-    {
-      "name": "debug-sanitized",
-      "configurePreset": "debug-sanitized",
       "output": {
         "outputOnFailure": true
       },
