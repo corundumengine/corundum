@@ -47,7 +47,7 @@ TEST_CASE("item loader: batch file loads multiple items and injects the folder c
     ]
   })");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Weapon);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Weapon);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 2);
 
@@ -79,10 +79,25 @@ TEST_CASE("item loader: item missing id fails schema validation for that element
     ]
   })");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Misc);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].id == "good");
+}
+
+TEST_CASE("item Loader: a document its schema forbids is refused") {
+  const auto dir = temp_dir("schema_forbidden");
+  const auto path = dir / "batch.json";
+  write_file(path, R"({
+    "schema_version": 1,
+    "items": [
+      { "name": "No Id" }
+    ]
+  })");
+
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Misc);
+  REQUIRE(result.has_value());
+  CHECK(result->empty());
 }
 
 TEST_CASE("item loader: explicit conflicting category is overridden by the folder") {
@@ -98,7 +113,7 @@ TEST_CASE("item loader: explicit conflicting category is overridden by the folde
   // Folder says Weapon; the explicit "category": "misc" must be overridden and
   // the item still loads (with a warning on stderr). The "weapon" payload is
   // required because the injected category is Weapon.
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Weapon);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Weapon);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].id == "misc_item");
@@ -120,7 +135,7 @@ TEST_CASE("item loader: apparel and potion payloads parse into the Item struct")
     ]
   })");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Apparel);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Apparel);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
 
@@ -155,7 +170,7 @@ TEST_CASE("item loader: missing schema_version fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"items":[]})");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Misc);
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::format("item file '{}' missing 'schema_version'", path.string()));
 }
@@ -165,7 +180,7 @@ TEST_CASE("item loader: wrong-type schema_version fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"schema_version":"one","items":[]})");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Misc);
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::format("item file '{}' field 'schema_version' has wrong type", path.string()));
 }
@@ -175,7 +190,7 @@ TEST_CASE("item loader: unsupported schema_version fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"schema_version":2,"items":[]})");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
   CHECK(result.error().find('1') != std::string::npos);
 }
@@ -185,7 +200,7 @@ TEST_CASE("item loader: non-array items fails") {
   const auto path = dir / "batch.json";
   write_file(path, R"({"schema_version":1,"items":{}})");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Misc);
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::format("item file '{}' 'items' must be an array", path.string()));
 }
@@ -195,7 +210,7 @@ TEST_CASE("item loader: malformed JSON returns error") {
   const auto path = dir / "batch.json";
   write_file(path, "not valid json");
 
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Misc);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Misc);
   CHECK(!result.has_value());
   CHECK(result.error().find("malformed item JSON") != std::string::npos);
 }
@@ -212,7 +227,7 @@ TEST_CASE("item loader: weapon folder item missing weapon object fails schema va
 
   // Injected category is Weapon, so the missing "weapon" object fails schema
   // validation for that element only — the file still loads (with zero items).
-  const auto result = item::load_item_file(disk(), path, item::ItemCategory::Weapon);
+  const auto result = item::Loader{}.load(disk(), path, item::ItemCategory::Weapon);
   REQUIRE(result.has_value());
   CHECK(result->empty());
 }

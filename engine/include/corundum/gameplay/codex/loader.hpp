@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <corundum/core/json_schema.hpp>
 #include <corundum/gameplay/codex/codex.hpp>
 
 #include <expected>
@@ -16,16 +17,24 @@ namespace corundum::core {
 
 namespace corundum::gameplay::codex {
 
-  /** @brief Load one codex batch file (`data/codex/<file>.json`).
-   *
-   *  Expects an object with a `schema_version` and an `entries` array. Each entry is
-   *  validated against the codex schema; an invalid entry is skipped with a warning
-   *  rather than failing the whole file.
-   *
-   *  @param path Batch file to load.
-   *  @return The loaded entries, or an error describing an open, version, or format failure.
-   */
-  [[nodiscard]] std::expected<std::vector<CodexEntry>, std::string> load_codex_file(const core::ContentSource &content,
-                                                                                    const std::filesystem::path &path);
+  /** @brief Loads codex batch files, validating each against the codex schema compiled once at construction. */
+  class Loader {
+  public:
+    Loader();
+
+    /** @brief Load one codex batch file (`data/codex/<file>.json`).
+     *
+     *  Expects an object with a `schema_version` and an `entries` array. The whole document
+     *  is validated against the codex schema, so one malformed entry fails the file.
+     *
+     *  @param path Batch file to load.
+     *  @return The loaded entries, or an error describing an open, version, or format failure.
+     */
+    [[nodiscard]] std::expected<std::vector<CodexEntry>, std::string> load(const core::ContentSource &content,
+                                                                           const std::filesystem::path &path) const;
+
+  private:
+    core::SchemaValidator schema_;
+  };
 
 } // namespace corundum::gameplay::codex

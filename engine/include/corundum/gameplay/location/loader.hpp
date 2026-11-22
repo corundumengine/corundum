@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <corundum/core/json_schema.hpp>
 #include <corundum/gameplay/location/location.hpp>
 
 #include <expected>
@@ -16,15 +17,24 @@ namespace corundum::core {
 
 namespace corundum::gameplay::location {
 
-  /** @brief Load one location batch file (`data/locations/<file>.json`).
-   *
-   *  Expects an object with a `schema_version` and a `locations` array. Each entry is
-   *  validated against the location schema; an invalid entry is skipped with a warning.
-   *
-   *  @param path Batch file to load.
-   *  @return The loaded locations, or an error describing an open, version, or format failure.
-   */
-  [[nodiscard]] std::expected<std::vector<Location>, std::string> load_location_file(const core::ContentSource &content,
-                                                                                     const std::filesystem::path &path);
+  /** @brief Loads location batch files, validating each against the location schema compiled once at construction. */
+  class Loader {
+  public:
+    Loader();
+
+    /** @brief Load one location batch file (`data/locations/<file>.json`).
+     *
+     *  Expects an object with a `schema_version` and a `locations` array. The whole document
+     *  is validated against the location schema, so one malformed entry fails the file.
+     *
+     *  @param path Batch file to load.
+     *  @return The loaded locations, or an error describing an open, version, or format failure.
+     */
+    [[nodiscard]] std::expected<std::vector<Location>, std::string> load(const core::ContentSource &content,
+                                                                         const std::filesystem::path &path) const;
+
+  private:
+    core::SchemaValidator schema_;
+  };
 
 } // namespace corundum::gameplay::location

@@ -13,7 +13,7 @@ namespace corundum::gameplay::item {
   /**
    * @brief Serialize a batch of items to the engine's item batch JSON format.
    *
-   * Mirrors `load_item_file`: emits `{ "schema_version": k_item_schema_version,
+   * Mirrors `Loader::load`: emits `{ "schema_version": k_item_schema_version,
    * "items": [ ... ] }`. The category is folder-derived and therefore omitted
    * from each element (the loader injects it), so the element's payload is
    * emitted for @p category exactly as the loader would read it back.

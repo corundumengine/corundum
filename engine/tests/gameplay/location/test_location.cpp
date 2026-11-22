@@ -48,7 +48,7 @@ TEST_CASE("location loader: parses world and interior destinations") {
     ]
   })");
 
-  const auto result = location::load_location_file(disk(), path);
+  const auto result = location::Loader{}.load(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 2);
   CHECK((*result)[0].id == "village");
@@ -65,14 +65,14 @@ TEST_CASE("location loader: schema failures are reported") {
   write_file(bad_version_path, R"({"schema_version":2,"locations":[]})");
   write_file(missing_name_path, R"({"schema_version":1,"locations":[{"id":"x"}]})");
 
-  const auto bad_version = location::load_location_file(disk(), bad_version_path);
+  const auto bad_version = location::Loader{}.load(disk(), bad_version_path);
   REQUIRE_FALSE(bad_version.has_value());
   CHECK_EQ(bad_version.error(),
            std::format("Location '{}' has schema_version 2, newer than this engine supports (max 1) — update the "
                        "engine",
                        bad_version_path.string()));
 
-  const auto missing_name = location::load_location_file(disk(), missing_name_path);
+  const auto missing_name = location::Loader{}.load(disk(), missing_name_path);
   REQUIRE_FALSE(missing_name.has_value());
   CHECK_MESSAGE(missing_name.error().starts_with(std::format("[schema] {}: ", missing_name_path.string())),
                 missing_name.error());

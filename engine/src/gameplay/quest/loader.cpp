@@ -95,7 +95,8 @@ namespace corundum::gameplay::quest {
     }
 
     /// Read @p path, check its schema version, and return its schema-validated root.
-    json load_validated_root(const core::ContentSource &content, const std::string &path) {
+    json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
+                             const std::string &path) {
       auto root_result = core::read_json(content, path, "quest JSON");
       if (!root_result)
         throw LoadError(std::move(root_result).error());
@@ -106,7 +107,7 @@ namespace corundum::gameplay::quest {
       if (!prepared)
         throw LoadError(std::move(prepared).error());
 
-      auto validated = core::schema_catalog().quest_schema().validate(root);
+      auto validated = schema.validate(root);
       if (!validated)
         throw LoadError(std::format("[schema] {}: {}", path, validated.error()));
 
@@ -119,8 +120,9 @@ namespace corundum::gameplay::quest {
     }
 
     /// Build a Quest from an already schema-validated root.
-    Quest load_quest_impl(const core::ContentSource &content, const std::string &path) {
-      const json root = load_validated_root(content, path);
+    Quest load_quest_impl(const core::SchemaValidator &schema, const core::ContentSource &content,
+                          const std::string &path) {
+      const json root = load_validated_root(schema, content, path);
 
       // Schema guarantees: id, name, description are present; id and name are non-empty.
       Quest quest;
@@ -145,11 +147,62 @@ namespace corundum::gameplay::quest {
       return quest;
     }
 
+    constexpr std::string_view k_quest_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/quest",
+  "type": "object",
+  "required": ["id", "name", "description", "stages"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "type": { "type": "string" },
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/stage" }
+    }
+  },
+  "definitions": {
+    "stage": {
+      "type": "object",
+      "required": ["name", "sequence", "objectives"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "resolved": { "type": "boolean" },
+        "failed": { "type": "boolean" },
+        "advances_to": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "auto_advance_to": { "type": "string", "minLength": 1 },
+        "objectives": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/objective" }
+        }
+      }
+    },
+    "objective": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "done_condition": { "type": "string" }
+      }
+    }
+  }
+})";
+
   } // namespace
 
-  std::expected<Quest, std::string> load_quest(const core::ContentSource &content, const std::filesystem::path &path) {
+  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_quest_schema)) {}
+
+  std::expected<Quest, std::string> Loader::load(const core::ContentSource &content,
+                                                 const std::filesystem::path &path) const {
     try {
-      return load_quest_impl(content, path.string());
+      return load_quest_impl(schema_, content, path.string());
     } catch (const std::exception &e) {
       return std::unexpected(std::string(e.what()));
     }

@@ -6,12 +6,15 @@
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
 #include <corundum/gameplay/location/loader.hpp>
+#include <corundum/gameplay/location/location.hpp>
 
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -38,10 +41,41 @@ namespace corundum::gameplay::location {
       return location;
     }
 
+    constexpr std::string_view k_location_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/location",
+  "type": "object",
+  "required": ["locations"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "locations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/location" }
+    }
+  },
+  "definitions": {
+    "location": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id":              { "type": "string", "minLength": 1 },
+        "name":            { "type": "string", "minLength": 1 },
+        "zone":            { "type": "string" },
+        "map":             { "type": "string" },
+        "col":             { "type": "number", "minimum": 0 },
+        "row":             { "type": "number", "minimum": 0 },
+        "return_to_world": { "type": "boolean" }
+      }
+    }
+  }
+})";
+
   } // namespace
 
-  std::expected<std::vector<Location>, std::string> load_location_file(const core::ContentSource &content,
-                                                                       const std::filesystem::path &path) {
+  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_location_schema)) {}
+
+  std::expected<std::vector<Location>, std::string> Loader::load(const core::ContentSource &content,
+                                                                 const std::filesystem::path &path) const {
     const std::string path_string = path.string();
 
     auto root_result = core::read_json(content, path, "location JSON");
@@ -53,7 +87,7 @@ namespace corundum::gameplay::location {
         !prepared)
       return std::unexpected(std::move(prepared).error());
 
-    if (auto validated = core::schema_catalog().location_schema().validate(root); !validated)
+    if (auto validated = schema_.validate(root); !validated)
       return std::unexpected(std::format("[schema] {}: {}", path_string, validated.error()));
 
     std::vector<Location> locations;

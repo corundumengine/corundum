@@ -2,116 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
+#include <nlohmann/json_fwd.hpp>
+
 #include <expected>
-#include <nlohmann/json-schema.hpp>
+#include <memory>
 #include <string>
 #include <string_view>
 
 namespace corundum::core {
 
-  /// Load-once, validate-many JSON Schema validator.
-  ///
-  /// Parses a JSON Schema document and caches the compiled validator. Call
-  /// validate() on each document; errors include the offending field path
-  /// when the schema library provides it.
-  ///
-  /// @note Not safe for concurrent use (nlohmann::json_schema::json_validator is not thread-safe).
+  /** @brief A compiled JSON Schema: compile once, validate many documents.
+   *  @note Not safe for concurrent use; give each thread its own validator.
+   */
   class SchemaValidator {
   public:
-    SchemaValidator(SchemaValidator &&) noexcept = default;
-    SchemaValidator &operator=(SchemaValidator &&) noexcept = default;
-
+    SchemaValidator(SchemaValidator &&) noexcept;
+    SchemaValidator &operator=(SchemaValidator &&) noexcept;
     SchemaValidator(const SchemaValidator &) = delete;
     SchemaValidator &operator=(const SchemaValidator &) = delete;
-    ~SchemaValidator() = default;
+    ~SchemaValidator();
 
-    /// Construct from a JSON Schema string (e.g. an embedded string literal).
-    /// @param schema_json A valid JSON Schema document as a string.
-    /// @return The validator on success, or an error message on failure.
+    /** @return The compiled validator, or an error when @p schema_json is not JSON
+     *          ("schema parse error: …") or not a valid schema ("schema compile error: …"). */
     [[nodiscard]] static std::expected<SchemaValidator, std::string> from_string(std::string_view schema_json);
 
-    /// Validate a JSON document against the loaded schema.
-    /// @param document The JSON document to validate.
-    /// @return ok on success, or an error description on failure.
+    /** @brief Compile a schema embedded in the engine binary.
+     *  @pre @p schema_json is a valid schema. A failure is a build defect, not a content error,
+     *       so it aborts through core::verify in every build type. */
+    [[nodiscard]] static SchemaValidator from_embedded(std::string_view schema_json);
+
+    /** @return ok, or the validator's description of the first violation, with the field path
+     *          when the schema library reports one. */
     [[nodiscard]] std::expected<void, std::string> validate(const nlohmann::json &document) const noexcept;
 
   private:
-    friend class SchemaCatalog;
+    struct Impl;
 
-    SchemaValidator() = default;
-    explicit SchemaValidator(const nlohmann::json &schema_json);
+    explicit SchemaValidator(std::unique_ptr<Impl> impl) noexcept;
 
-    nlohmann::json_schema::json_validator validator_;
+    std::unique_ptr<Impl> impl_;
   };
-
-  /// Owns the pre-built SchemaValidators for every asset format the engine
-  /// validates (dialogue graphs, quests, items, codex entries, fast-travel
-  /// locations, shops). Each validator is compiled once from its embedded schema
-  /// at construction and reused for every document.
-  ///
-  /// @note Not safe for concurrent use (see SchemaValidator). Construct via
-  ///       schema_catalog() once; do not create multiple catalogs.
-  class SchemaCatalog {
-  public:
-    SchemaCatalog(SchemaCatalog &&) noexcept = default;
-    SchemaCatalog &operator=(SchemaCatalog &&) noexcept = default;
-
-    SchemaCatalog(const SchemaCatalog &) = delete;
-    SchemaCatalog &operator=(const SchemaCatalog &) = delete;
-    ~SchemaCatalog() = default;
-
-    /// Returns the pre-built validator for dialogue graph JSON files.
-    /// @return Reference to the validator compiled from the embedded dialogue schema.
-    [[nodiscard]] const SchemaValidator &dialogue_graph_schema() const noexcept;
-
-    /// Returns the pre-built validator for quest JSON files.
-    /// @return Reference to the validator compiled from the embedded quest schema.
-    [[nodiscard]] const SchemaValidator &quest_schema() const noexcept;
-
-    /// Returns the pre-built validator for item JSON files.
-    /// @return Reference to the validator compiled from the embedded item schema.
-    [[nodiscard]] const SchemaValidator &item_schema() const noexcept;
-
-    /// Returns the pre-built validator for codex batch JSON files.
-    /// @return Reference to the validator compiled from the embedded codex schema.
-    [[nodiscard]] const SchemaValidator &codex_schema() const noexcept;
-
-    /// Returns the pre-built validator for location batch JSON files.
-    /// @return Reference to the validator compiled from the embedded location schema.
-    [[nodiscard]] const SchemaValidator &location_schema() const noexcept;
-
-    /// Returns the pre-built validator for shop batch JSON files.
-    /// @return Reference to the validator compiled from the embedded shop schema.
-    [[nodiscard]] const SchemaValidator &shop_schema() const noexcept;
-
-  private:
-    friend const SchemaCatalog &schema_catalog() noexcept;
-
-    SchemaCatalog() = default;
-
-    /// Builds a fully-populated catalog, compiling every embedded schema.
-    /// @return A SchemaCatalog with all validators compiled.
-    /// @pre All embedded schema strings must be valid JSON Schema; enforced via std::terminate on failure.
-    [[nodiscard]] static SchemaCatalog create();
-
-    /// Compiles a validator from an embedded schema string, terminating on failure.
-    /// @param schema_json A valid JSON Schema document as a string.
-    /// @return The compiled validator.
-    /// @pre schema_json must be valid JSON Schema; enforced via std::terminate on failure.
-    [[nodiscard]] static SchemaValidator compile_or_terminate(std::string_view schema_json);
-
-    SchemaValidator dialogue_;
-    SchemaValidator quest_;
-    SchemaValidator item_;
-    SchemaValidator codex_;
-    SchemaValidator location_;
-    SchemaValidator shop_;
-  };
-
-  /// Returns the engine-wide schema catalog, constructed once on first call
-  /// (thread-safe since C++11).
-  /// @return Reference to the static SchemaCatalog with all embedded validators.
-  /// @pre All embedded schema strings must be valid JSON Schema (enforced via std::terminate on failure).
-  [[nodiscard]] const SchemaCatalog &schema_catalog() noexcept;
 
 } // namespace corundum::core

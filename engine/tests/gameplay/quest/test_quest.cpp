@@ -17,6 +17,8 @@
 
 #include "memory_content_source.hpp"
 #include <cstdint>
+#include <expected>
+#include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp> // IWYU pragma: keep
 #include <optional>
@@ -144,6 +146,12 @@ namespace {
       check_stages_match(actual.stages[i], expected.stages[i]);
   }
 
+  /// One loader per case keeps cases independent; compiling the schema per case is cheap enough for tests.
+  std::expected<quest::Quest, std::string> load_with_fresh_loader(const corundum::core::ContentSource &content,
+                                                                  const std::filesystem::path &path) {
+    return quest::Loader{}.load(content, path);
+  }
+
 } // namespace
 
 TEST_CASE("quest loader: malformed done_condition is a load error") {
@@ -153,7 +161,7 @@ TEST_CASE("quest loader: malformed done_condition is a load error") {
       {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":"gold >="}]}
     ]})");
 
-  auto result = quest::load_quest(content, path);
+  auto result = load_with_fresh_loader(content, path);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("done_condition invalid") != std::string::npos);
 }
@@ -167,13 +175,13 @@ TEST_CASE("quest loader: empty done_condition is a load error") {
       {"name":"a","sequence":1,"objectives":[{"text":"t","done_condition":""}]}
     ]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("done_condition") != std::string::npos);
 }
 
 TEST_CASE("quest loader: valid JSON produces correct Quest struct") {
-  const auto result = quest::load_quest(disk(), "engine/tests/fixtures/find_sword.json");
+  const auto result = load_with_fresh_loader(disk(), "engine/tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
   const auto &q = *result;
 
@@ -206,7 +214,7 @@ TEST_CASE("quest loader: missing type field loads") {
   content.add(path, R"({"id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   REQUIRE(result.has_value());
   CHECK(result->quest_id == "x");
 }
@@ -217,7 +225,7 @@ TEST_CASE("quest loader: wrong type field warns but loads") {
   content.add(path, R"({"type":"dialogue","id":"x","name":"x","description":"","stages":[
       {"name":"a","sequence":1,"resolved":true,"objectives":[]}]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   REQUIRE(result.has_value());
   CHECK(result->quest_id == "x");
 }
@@ -229,7 +237,7 @@ TEST_CASE("quest loader: missing id fails") {
       path,
       R"({"type":"quest","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   REQUIRE_FALSE(result.has_value());
   const std::string &error = result.error();
   CHECK_MESSAGE(error.starts_with(std::format("[schema] {}: ", path)), error);
@@ -243,7 +251,7 @@ TEST_CASE("quest loader: empty id fails") {
       path,
       R"({"type":"quest","id":"","name":"x","description":"","stages":[{"name":"s","sequence":1,"resolved":true,"objectives":[]}]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   REQUIRE_FALSE(result.has_value());
   const std::string &error = result.error();
   CHECK_MESSAGE(error.starts_with(std::format("[schema] {}: ", path)), error);
@@ -258,7 +266,7 @@ TEST_CASE("quest loader: duplicate stage sequences rejected") {
       {"name":"b","sequence":1,"resolved":true,"objectives":[]}
     ]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::string{R"([quest] "x": duplicate stage sequence 1)"});
 }
@@ -270,7 +278,7 @@ TEST_CASE("quest loader: sequence <= 0 rejected") {
       {"name":"a","sequence":0,"resolved":true,"objectives":[]}
     ]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   REQUIRE_FALSE(result.has_value());
   const std::string &error = result.error();
   CHECK_MESSAGE(error.starts_with(std::format("[schema] {}: ", path)), error);
@@ -284,7 +292,7 @@ TEST_CASE("quest loader: no resolved stage rejected") {
       {"name":"a","sequence":1,"objectives":[]}
     ]})");
 
-  const auto result = quest::load_quest(content, path);
+  const auto result = load_with_fresh_loader(content, path);
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::string{R"([quest] "x" has no resolved stage)"});
 }
@@ -297,7 +305,7 @@ TEST_CASE("quest loader: stage order disagreeing with sequences warns but loads"
       {"name":"earlier","sequence":1,"objectives":[]}
     ]})");
 
-  auto result = quest::load_quest(content, path);
+  auto result = load_with_fresh_loader(content, path);
   REQUIRE(result.has_value());
   CHECK(result->stages[0].name == "later");
   CHECK(result->stages[1].name == "earlier");
@@ -310,7 +318,7 @@ TEST_CASE("quest loader: failed flag auto-sets resolved") {
       {"name":"fail","sequence":1,"failed":true,"objectives":[]}
     ]})");
 
-  auto result = quest::load_quest(content, path);
+  auto result = load_with_fresh_loader(content, path);
   REQUIRE(result.has_value());
   CHECK(result->stages[0].failed);
   CHECK(result->stages[0].resolved);
@@ -325,7 +333,7 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
       {"name":"c","sequence":3,"resolved":true,"objectives":[]}
     ]})");
 
-  auto result = quest::load_quest(content, path);
+  auto result = load_with_fresh_loader(content, path);
   REQUIRE(result.has_value());
   REQUIRE(result->stages[0].advances_to.size() == 2);
   CHECK(result->stages[0].advances_to[0] == "b");
@@ -337,7 +345,7 @@ TEST_CASE("quest loader: advances_to parses and round-trips") {
   const std::string reloaded_path = "quests/advances_to_reloaded.json";
   reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = quest::load_quest(reloaded_content, reloaded_path);
+  const auto reloaded = load_with_fresh_loader(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
   REQUIRE(reloaded->stages[0].advances_to.size() == 2);
   CHECK(reloaded->stages[0].advances_to[0] == "b");
@@ -349,7 +357,7 @@ TEST_CASE("quest loader: invalid JSON returns error") {
   const std::string path = "quests/bad_json.json";
   content.add(path, "not valid json");
 
-  auto result = quest::load_quest(content, path);
+  auto result = load_with_fresh_loader(content, path);
   CHECK_FALSE(result.has_value());
   CHECK(result.error().find("malformed quest JSON") != std::string::npos);
   CHECK(result.error().find(path) != std::string::npos);
@@ -1266,7 +1274,7 @@ TEST_CASE("validate: an auto_advance_to cycle is an error") {
 }
 
 TEST_CASE("quest serialize round-trips through load_quest") {
-  const auto result = quest::load_quest(disk(), "engine/tests/fixtures/find_sword.json");
+  const auto result = load_with_fresh_loader(disk(), "engine/tests/fixtures/find_sword.json");
   REQUIRE(result.has_value());
   const auto &q = *result;
 
@@ -1276,7 +1284,7 @@ TEST_CASE("quest serialize round-trips through load_quest") {
   const std::string reloaded_path = "quests/find_sword_reloaded.json";
   reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = quest::load_quest(reloaded_content, reloaded_path);
+  const auto reloaded = load_with_fresh_loader(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
 
   check_quests_match(*reloaded, q);
@@ -1307,7 +1315,7 @@ TEST_CASE("quest serialize round-trips failed, auto_advance_to, and done_conditi
   const std::string reloaded_path = "quests/round_trip_all_reloaded.json";
   reloaded_content.add(reloaded_path, corundum::core::format_json(j));
 
-  const auto reloaded = quest::load_quest(reloaded_content, reloaded_path);
+  const auto reloaded = load_with_fresh_loader(reloaded_content, reloaded_path);
   REQUIRE(reloaded.has_value());
   check_quests_match(*reloaded, q);
 }

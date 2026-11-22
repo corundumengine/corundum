@@ -88,6 +88,59 @@ namespace corundum::gameplay::item {
       return item;
     }
 
+    constexpr std::string_view k_item_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/item",
+  "type": "object",
+  "required": ["id", "name"],
+  "properties": {
+    "id":          { "type": "string", "minLength": 1 },
+    "name":        { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "icon":        { "type": "string" },
+    "price":       { "type": "integer", "minimum": 0 },
+    "category":    { "type": "string", "enum": ["weapon", "apparel", "potion", "misc"] },
+    "weapon":      { "type": "object", "properties": { "damage": { "type": "integer", "minimum": 0 } } },
+    "apparel":     { "type": "object", "properties": { "slot": { "type": "string" }, "defense": { "type": "integer", "minimum": 0 } } },
+    "potion":      { "type": "object", "properties": { "effect": { "type": "string", "minLength": 1 }, "magnitude": { "type": "integer" } } }
+  },
+  "allOf": [
+    { "if": { "required": ["category"], "properties": { "category": { "const": "weapon"  } } }, "then": { "required": ["weapon"]  } },
+    { "if": { "required": ["category"], "properties": { "category": { "const": "apparel" } } }, "then": { "required": ["apparel"] } },
+    { "if": { "required": ["category"], "properties": { "category": { "const": "potion"  } } }, "then": { "required": ["potion"], "properties": { "potion": { "required": ["effect"] } } } }
+  ]
+})";
+
+    /// One batch file's items and the file name, so a duplicate can say which file shadowed it.
+    struct LoadedBatch {
+      std::string file_name{};
+
+      std::vector<Item> items{};
+    };
+
+    /// Every batch file under @p dir, each with the items it produced; a file that fails to load is skipped.
+    std::vector<LoadedBatch> load_batch_files(const core::ContentSource &content, const std::filesystem::path &dir,
+                                              ItemCategory category, const Loader &loader) {
+      std::vector<LoadedBatch> batches;
+      const auto files = content.list(dir, {.extensions = {"json"}});
+      if (!files)
+        return batches;
+
+      for (const core::DirEntry &file_entry : *files) {
+        if (file_entry.is_dir)
+          continue;
+
+        auto result = loader.load(content, file_entry.path, category);
+        if (!result) {
+          corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.name, result.error());
+          continue;
+        }
+
+        batches.push_back({.file_name = file_entry.name, .items = std::move(*result)});
+      }
+      return batches;
+    }
+
   } // namespace
 
   ItemCategory category_from_string(std::string_view name) noexcept {
@@ -133,8 +186,10 @@ namespace corundum::gameplay::item {
     return std::nullopt;
   }
 
+  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_item_schema)) {}
+
   std::expected<std::vector<Item>, std::string>
-  load_item_file(const core::ContentSource &content, const std::filesystem::path &path, ItemCategory category) {
+  Loader::load(const core::ContentSource &content, const std::filesystem::path &path, ItemCategory category) const {
     const auto path_string = path.string();
 
     auto root_result = core::read_json(content, path, "item JSON");
@@ -169,7 +224,7 @@ namespace corundum::gameplay::item {
       // The category folder is authoritative; inject it before validating.
       element["category"] = to_string(category);
 
-      auto validation = core::schema_catalog().item_schema().validate(element);
+      auto validation = schema_.validate(element);
       if (!validation) {
         corundum::detail::warn_log("[item] skipping invalid item in '{}': {}", path_string, validation.error());
         continue;
@@ -182,14 +237,14 @@ namespace corundum::gameplay::item {
   }
 
   int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
-    int loaded = 0;
-
     const auto categories = content.list(dir, {});
     if (!categories) {
       corundum::detail::warn_log("[item] no item directory at '{}'", dir.string());
-      return loaded;
+      return 0;
     }
 
+    int loaded = 0;
+    const Loader loader;
     for (const core::DirEntry &category_entry : *categories) {
       if (!category_entry.is_dir)
         continue;
@@ -200,33 +255,25 @@ namespace corundum::gameplay::item {
         continue;
       }
 
-      const auto files = content.list(category_entry.path, {.extensions = {"json"}});
-      if (!files)
-        continue;
-
-      for (const core::DirEntry &file_entry : *files) {
-        if (file_entry.is_dir)
-          continue;
-
-        auto result = load_item_file(content, file_entry.path, *category);
-        if (!result) {
-          corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.name, result.error());
-          continue;
-        }
-
-        for (auto &item : *result) {
-          const std::string id = item.id;
-          if (items_.contains(id)) {
-            corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id, file_entry.name);
-          } else {
-            items_.emplace(id, std::move(item));
-            ++loaded;
-          }
-        }
-      }
+      for (LoadedBatch &batch : load_batch_files(content, category_entry.path, *category, loader))
+        loaded += add_batch(batch.items, batch.file_name);
     }
 
     return loaded;
+  }
+
+  int Registry::add_batch(std::vector<Item> &batch, const std::string &file_name) {
+    int added = 0;
+    for (Item &item : batch) {
+      const std::string id = item.id;
+      if (items_.contains(id)) {
+        corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id, file_name);
+        continue;
+      }
+      items_.emplace(id, std::move(item));
+      ++added;
+    }
+    return added;
   }
 
   const Item *Registry::find(std::string_view id) const {

@@ -34,8 +34,6 @@ namespace corundum::gameplay::dialogue {
 
   namespace {
 
-    // ── File-local error type ──────────────────────────────────────────────────
-
     struct LoadError : std::runtime_error {
       using std::runtime_error::runtime_error;
     };
@@ -189,7 +187,8 @@ namespace corundum::gameplay::dialogue {
     }
 
     /// Read @p path and return its schema-validated root object.
-    json load_validated_root(const core::ContentSource &content, const std::string &path) {
+    json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
+                             const std::string &path) {
       auto root_result = core::read_json(content, path, "dialogue JSON");
       if (!root_result)
         throw LoadError(std::move(root_result).error());
@@ -200,7 +199,7 @@ namespace corundum::gameplay::dialogue {
       if (!prepared)
         throw LoadError(std::move(prepared).error());
 
-      auto validated = core::schema_catalog().dialogue_graph_schema().validate(root);
+      auto validated = schema.validate(root);
       if (!validated)
         throw LoadError(std::format("[schema] {}: {}", path, validated.error()));
 
@@ -212,8 +211,9 @@ namespace corundum::gameplay::dialogue {
       return root;
     }
 
-    Graph load_graph_impl(const core::ContentSource &content, const std::string &path) {
-      const json root = load_validated_root(content, path);
+    Graph load_graph_impl(const core::SchemaValidator &schema, const core::ContentSource &content,
+                          const std::string &path) {
+      const json root = load_validated_root(schema, content, path);
 
       // Schema guarantees: id is present and non-empty.
       Graph graph;
@@ -243,13 +243,86 @@ namespace corundum::gameplay::dialogue {
       return graph;
     }
 
+    constexpr std::string_view k_dialogue_graph_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/dialogue_graph",
+  "type": "object",
+  "required": ["id", "nodes"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "type": { "type": "string" },
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "speaker": { "type": "string" },
+    "actor_id": { "type": "string" },
+    "variables": { "type": "object" },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/node" }
+    }
+  },
+  "definitions": {
+    "node": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["talk", "choice", "event", "end"] },
+        "text": { "type": "string" },
+        "next": { "type": "string" },
+        "once": { "type": "boolean" },
+        "choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/choice" }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "metadata": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "talk" } } },
+          "then": { "required": ["text", "next"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "choice" } } },
+          "then": { "required": ["choices"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "event" } } },
+          "then": { "required": ["next", "actions"] }
+        }
+      ]
+    },
+    "choice": {
+      "type": "object",
+      "required": ["label", "target"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "condition": { "type": "string" },
+        "sequence": { "type": "string", "enum": ["none", "once", "cycle", "random"] },
+        "min_visits": { "type": "integer", "minimum": 1 },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+})";
+
   } // namespace
 
-  // ── Public API ────────────────────────────────────────────────────────────────
+  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_dialogue_graph_schema)) {}
 
-  std::expected<Graph, std::string> load_graph(const core::ContentSource &content, const std::filesystem::path &path) {
+  std::expected<Graph, std::string> Loader::load(const core::ContentSource &content,
+                                                 const std::filesystem::path &path) const {
     try {
-      return load_graph_impl(content, path.string());
+      return load_graph_impl(schema_, content, path.string());
     } catch (const std::exception &e) {
       return std::unexpected(std::string(e.what()));
     }

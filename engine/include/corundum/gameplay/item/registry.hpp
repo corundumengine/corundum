@@ -9,6 +9,7 @@
 #include <flat_map>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace corundum::core {
   class ContentSource;
@@ -27,7 +28,7 @@ namespace corundum::gameplay::item {
      * @brief Load every item under a directory's per-category subfolders.
      *
      * Walks the known category folders (`weapons`, `apparel`, `potions`, `misc`)
-     * beneath @p dir and loads each `*.json` batch file via load_item_file().
+     * beneath @p dir and loads each `*.json` batch file via Loader::load().
      * Files sitting directly under @p dir, unknown category folders, non-`.json`
      * files, and items failing validation are skipped with a stderr message (non-fatal).
      *
@@ -60,6 +61,14 @@ namespace corundum::gameplay::item {
     [[nodiscard]] auto end() const noexcept { return items_.end(); }
 
   private:
+    /** @brief Add @p batch's items, skipping ids already loaded.
+     *
+     *  @param batch Items to add; each is moved into the registry unless its id is taken.
+     *  @param file_name Batch file named in the skip warning.
+     *  @return How many items were newly added.
+     */
+    int add_batch(std::vector<Item> &batch, const std::string &file_name);
+
     std::flat_map<std::string, Item, std::less<>> items_;
   };
 

@@ -58,7 +58,7 @@ TEST_CASE("codex loader: parses entries and preserves category and body") {
     ]
   })");
 
-  const auto result = codex::load_codex_file(disk(), path);
+  const auto result = codex::Loader{}.load(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 2);
   CHECK((*result)[0].id == "village");
@@ -78,20 +78,20 @@ TEST_CASE("codex loader: schema failures are reported") {
   write_file(missing_title_path, R"({"schema_version":1,"entries":[{"id":"x"}]})");
   write_file(no_entries_path, R"({"schema_version":1})");
 
-  const auto bad_version = codex::load_codex_file(disk(), bad_version_path);
+  const auto bad_version = codex::Loader{}.load(disk(), bad_version_path);
   REQUIRE_FALSE(bad_version.has_value());
   CHECK_EQ(bad_version.error(),
            std::format("Codex '{}' has schema_version 2, newer than this engine supports (max 1) — update the engine",
                        bad_version_path.string()));
 
-  const auto missing_title = codex::load_codex_file(disk(), missing_title_path);
+  const auto missing_title = codex::Loader{}.load(disk(), missing_title_path);
   REQUIRE_FALSE(missing_title.has_value());
   CHECK_MESSAGE(missing_title.error().starts_with(std::format("[schema] {}: ", missing_title_path.string())),
                 missing_title.error());
   CHECK_MESSAGE(missing_title.error().find("required property 'title' not found") != std::string::npos,
                 missing_title.error());
 
-  const auto no_entries = codex::load_codex_file(disk(), no_entries_path);
+  const auto no_entries = codex::Loader{}.load(disk(), no_entries_path);
   REQUIRE_FALSE(no_entries.has_value());
   CHECK_MESSAGE(no_entries.error().starts_with(std::format("[schema] {}: ", no_entries_path.string())),
                 no_entries.error());

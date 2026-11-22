@@ -12,7 +12,9 @@
 #include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -38,10 +40,48 @@ namespace corundum::gameplay::shop {
       return shop;
     }
 
+    constexpr std::string_view k_shop_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/shop",
+  "type": "object",
+  "required": ["shops"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "shops": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/shop" }
+    }
+  },
+  "definitions": {
+    "shop": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id":       { "type": "string", "minLength": 1 },
+        "name":     { "type": "string", "minLength": 1 },
+        "stock": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/stock" }
+        }
+      }
+    },
+    "stock": {
+      "type": "object",
+      "required": ["item"],
+      "properties": {
+        "item":  { "type": "string", "minLength": 1 },
+        "price": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+})";
+
   } // namespace
 
-  std::expected<std::vector<Shop>, std::string> load_shop_file(const core::ContentSource &content,
-                                                               const std::filesystem::path &path) {
+  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_shop_schema)) {}
+
+  std::expected<std::vector<Shop>, std::string> Loader::load(const core::ContentSource &content,
+                                                             const std::filesystem::path &path) const {
     const std::string path_string = path.string();
 
     auto root_result = core::read_json(content, path, "shop JSON");
@@ -52,7 +92,7 @@ namespace corundum::gameplay::shop {
     if (auto prepared = core::prepare_schema_version(root, k_shop_schema_version, "Shop", path_string, {}); !prepared)
       return std::unexpected(std::move(prepared).error());
 
-    if (auto validated = core::schema_catalog().shop_schema().validate(root); !validated)
+    if (auto validated = schema_.validate(root); !validated)
       return std::unexpected(std::format("[schema] {}: {}", path_string, validated.error()));
 
     std::vector<Shop> shops;

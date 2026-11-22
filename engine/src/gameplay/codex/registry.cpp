@@ -23,11 +23,12 @@ namespace corundum::gameplay::codex {
     }
 
     int loaded = 0;
+    const Loader loader;
     for (const auto &entry : *entries) {
       if (entry.is_dir)
         continue;
 
-      auto result = load_codex_file(content, entry.path);
+      auto result = loader.load(content, entry.path);
       if (!result) {
         corundum::detail::warn_log("[codex] skipping '{}': {}", entry.name, result.error());
         continue;

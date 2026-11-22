@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <doctest/doctest.h>
-#include <nlohmann/json_fwd.hpp>
 
 #include <corundum/core/json_schema.hpp>
+#include <nlohmann/json.hpp> // IWYU pragma: keep
 
 #include <string>
 #include <string_view>
@@ -42,29 +42,8 @@ TEST_CASE("SchemaValidator: from_string rejects malformed schema JSON") {
   CHECK_MESSAGE(validator.error().starts_with("schema parse error: "), validator.error());
 }
 
-TEST_CASE("SchemaCatalog: schema_catalog() owns pre-built validators for every format") {
-  const corundum::core::SchemaCatalog &catalog = corundum::core::schema_catalog();
-
-  auto dialogue_ok =
-      catalog.dialogue_graph_schema().validate(nlohmann::json{{"id", "intro"}, {"nodes", nlohmann::json::array()}});
-  REQUIRE_FALSE(dialogue_ok.has_value()); // nodes must be non-empty per schema
-  CHECK_MESSAGE(dialogue_ok.error().find("At /nodes ") != std::string::npos, dialogue_ok.error());
-
-  auto quest_ok = catalog.quest_schema().validate(
-      nlohmann::json{{"id", "q1"}, {"name", "Quest"}, {"description", ""}, {"stages", nlohmann::json::array()}});
-  REQUIRE_FALSE(quest_ok.has_value()); // stages must be non-empty per schema
-  CHECK_MESSAGE(quest_ok.error().find("At /stages ") != std::string::npos, quest_ok.error());
-
-  const auto item_ok = catalog.item_schema().validate(nlohmann::json{{"id", "sword"}, {"name", "Sword"}});
-  CHECK(item_ok.has_value());
-}
-
-TEST_CASE("SchemaCatalog: accessors are stable references across calls") {
-  const corundum::core::SchemaCatalog &a = corundum::core::schema_catalog();
-  const corundum::core::SchemaCatalog &b = corundum::core::schema_catalog();
-
-  CHECK(&a == &b);
-  CHECK(&a.dialogue_graph_schema() == &b.dialogue_graph_schema());
-  CHECK(&a.quest_schema() == &b.quest_schema());
-  CHECK(&a.item_schema() == &b.item_schema());
+TEST_CASE("SchemaValidator: from_string rejects JSON that is not a valid schema") {
+  const auto validator = corundum::core::SchemaValidator::from_string(R"({"required": 42})");
+  REQUIRE_FALSE(validator.has_value());
+  CHECK_MESSAGE(validator.error().starts_with("schema compile error: "), validator.error());
 }

@@ -7,14 +7,15 @@
 #include <corundum/core/json_io.hpp>
 #include <corundum/core/json_schema.hpp>
 #include <corundum/core/schema_version.hpp>
-
-#include "core/warn_log.hpp"
+#include <corundum/gameplay/codex/codex.hpp>
 
 #include <expected>
 #include <filesystem>
 #include <format>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -35,10 +36,38 @@ namespace corundum::gameplay::codex {
       return entry;
     }
 
+    constexpr std::string_view k_codex_schema = R"({
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://corundum.dev/schemas/codex",
+  "type": "object",
+  "required": ["entries"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id":       { "type": "string", "minLength": 1 },
+        "title":    { "type": "string", "minLength": 1 },
+        "category": { "type": "string" },
+        "body":     { "type": "string" }
+      }
+    }
+  }
+})";
+
   } // namespace
 
-  std::expected<std::vector<CodexEntry>, std::string> load_codex_file(const core::ContentSource &content,
-                                                                      const std::filesystem::path &path) {
+  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_codex_schema)) {}
+
+  std::expected<std::vector<CodexEntry>, std::string> Loader::load(const core::ContentSource &content,
+                                                                   const std::filesystem::path &path) const {
     const std::string path_string = path.string();
 
     auto root_result = core::read_json(content, path, "codex JSON");
@@ -49,7 +78,7 @@ namespace corundum::gameplay::codex {
     if (auto prepared = core::prepare_schema_version(root, k_codex_schema_version, "Codex", path_string, {}); !prepared)
       return std::unexpected(std::move(prepared).error());
 
-    if (auto validated = core::schema_catalog().codex_schema().validate(root); !validated)
+    if (auto validated = schema_.validate(root); !validated)
       return std::unexpected(std::format("[schema] {}: {}", path_string, validated.error()));
 
     std::vector<CodexEntry> entries;

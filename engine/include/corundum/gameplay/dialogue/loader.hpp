@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include <corundum/core/json_schema.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+
 #include <expected>
 #include <filesystem>
 #include <string>
@@ -18,10 +20,19 @@ namespace corundum::gameplay::dialogue {
   /// Sentinel node id that terminates a dialogue without a matching graph node.
   constexpr std::string_view k_ending_node = "end";
 
-  /// Parses a dialogue JSON file and returns a fully-validated Graph.
-  /// All error categories (schema, unknown types, broken edges, bad JSON,
-  /// file-not-found) are unified into the error string.
-  [[nodiscard]] std::expected<Graph, std::string> load_graph(const core::ContentSource &content,
-                                                             const std::filesystem::path &path);
+  /** @brief Loads dialogue graphs, validating each against the dialogue schema compiled once at construction. */
+  class Loader {
+  public:
+    Loader();
+
+    /// Parses a dialogue JSON file and returns a fully-validated Graph.
+    /// All error categories (schema, unknown types, broken edges, bad JSON,
+    /// file-not-found) are unified into the error string.
+    [[nodiscard]] std::expected<Graph, std::string> load(const core::ContentSource &content,
+                                                         const std::filesystem::path &path) const;
+
+  private:
+    core::SchemaValidator schema_;
+  };
 
 } // namespace corundum::gameplay::dialogue

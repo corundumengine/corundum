@@ -13,6 +13,7 @@
 #include <corundum/gameplay/shop/shop.hpp>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string_view>
 #include <vector>
@@ -60,7 +61,7 @@ TEST_CASE("shop loader: parses stock and prices") {
     ]
   })");
 
-  const auto result = shop::load_shop_file(disk(), path);
+  const auto result = shop::Loader{}.load(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   CHECK((*result)[0].id == "corvin");
@@ -80,7 +81,7 @@ TEST_CASE("shop loader: an old file's faction key is ignored") {
     ]
   })");
 
-  const auto result = shop::load_shop_file(disk(), path);
+  const auto result = shop::Loader{}.load(disk(), path);
   REQUIRE(result.has_value());
   REQUIRE_EQ(result->size(), 1);
   CHECK_EQ((*result)[0].id, "corvin");
@@ -104,6 +105,16 @@ TEST_CASE("build_barter_stock: explicit price overrides, absent falls back to it
   CHECK(lines[0].name == "Salt");
   CHECK(lines[0].unit_price == 5);
   CHECK(lines[1].unit_price == 40);
+}
+
+TEST_CASE("shop Loader: a document its schema forbids is refused") {
+  const auto dir = temp_dir("schema_forbidden");
+  const auto path = dir / "nameless.json";
+  write_file(path, R"({"schema_version": 1, "shops": [ { "id": "nameless" } ]})");
+
+  const auto result = shop::Loader{}.load(disk(), path);
+  REQUIRE_FALSE(result.has_value());
+  CHECK_MESSAGE(result.error().starts_with(std::format("[schema] {}: ", path.string())), result.error());
 }
 
 TEST_CASE("shop registry: loads a directory and skips duplicate ids") {

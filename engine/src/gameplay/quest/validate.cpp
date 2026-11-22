@@ -74,7 +74,7 @@ namespace corundum::gameplay::quest {
       result.errors.emplace_back("quest has an empty quest_id");
 
     // The schema requires a non-empty name, so an empty one would serialize to a
-    // file load_quest() rejects.
+    // file Loader::load() rejects.
     if (quest.name.empty())
       result.errors.emplace_back("quest has an empty name");
 

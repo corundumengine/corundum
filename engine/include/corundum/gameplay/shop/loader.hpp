@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <corundum/core/json_schema.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 
 #include <expected>
@@ -16,15 +17,24 @@ namespace corundum::core {
 
 namespace corundum::gameplay::shop {
 
-  /** @brief Load one shop batch file (`data/shops/<file>.json`).
-   *
-   *  Expects an object with a `schema_version` and a `shops` array. Each shop is validated
-   *  against the shop schema; an invalid shop is skipped with a warning.
-   *
-   *  @param path Batch file to load.
-   *  @return The loaded shops, or an error describing an open, version, or format failure.
-   */
-  [[nodiscard]] std::expected<std::vector<Shop>, std::string> load_shop_file(const core::ContentSource &content,
-                                                                             const std::filesystem::path &path);
+  /** @brief Loads shop batch files, validating each against the shop schema compiled once at construction. */
+  class Loader {
+  public:
+    Loader();
+
+    /** @brief Load one shop batch file (`data/shops/<file>.json`).
+     *
+     *  Expects an object with a `schema_version` and a `shops` array. The whole document is
+     *  validated against the shop schema, so one malformed shop fails the file.
+     *
+     *  @param path Batch file to load.
+     *  @return The loaded shops, or an error describing an open, version, or format failure.
+     */
+    [[nodiscard]] std::expected<std::vector<Shop>, std::string> load(const core::ContentSource &content,
+                                                                     const std::filesystem::path &path) const;
+
+  private:
+    core::SchemaValidator schema_;
+  };
 
 } // namespace corundum::gameplay::shop
