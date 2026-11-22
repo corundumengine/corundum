@@ -64,8 +64,8 @@ namespace {
   }
 
   /// The concrete null window behind @p engine, so a test can script platform events.
-  [[nodiscard]] corundum::platform::null::NullWindow *null_window(const corundum::Engine &engine) {
-    return dynamic_cast<corundum::platform::null::NullWindow *>(engine.window.get());
+  [[nodiscard]] corundum::platform::null::NullWindow *null_window(corundum::Engine &engine) {
+    return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
   }
 
   /// Records every platform-event hook invocation for assertions.
@@ -160,9 +160,9 @@ TEST_CASE("lifecycle: initialize succeeds with NullPlatform and a fixture GameCo
   corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
   const std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
   REQUIRE(result.has_value());
-  CHECK(engine.window->is_open());
+  CHECK(engine.window().is_open());
   engine.cleanup();
-  CHECK_FALSE(engine.window->is_open());
+  CHECK_FALSE(engine.window().is_open());
 }
 
 // ── 3. Failure path runs cleanup (window closes, error returned) ────────────
@@ -181,7 +181,7 @@ TEST_CASE("lifecycle: initialize failure runs cleanup so the window is closed") 
   CHECK_MESSAGE(result.error().starts_with(std::format("Characters sprite sheets are missing: Error accessing {}: ",
                                                        (sprites_dir / "characters").string())),
                 result.error());
-  CHECK_FALSE(engine.window->is_open());
+  CHECK_FALSE(engine.window().is_open());
 }
 
 TEST_CASE("lifecycle: the window is revealed only after the first frame is presented") {
@@ -248,9 +248,9 @@ TEST_CASE("lifecycle: on_fixed_update calling request_quit ends the main loop") 
   CHECK(engine.quit_requested());
   // Window should still be open after run_loop (single-close-path contract);
   // cleanup closes it.
-  CHECK(engine.window->is_open());
+  CHECK(engine.window().is_open());
   engine.cleanup();
-  CHECK_FALSE(engine.window->is_open());
+  CHECK_FALSE(engine.window().is_open());
 }
 
 // ── 6. run_frame returns true across N steps, then false after request_quit ──
@@ -414,11 +414,11 @@ TEST_CASE("lifecycle: the configured window mode is applied when the window is f
   // Deferred until after show(): entering fullscreen while the window is hidden leaves it hidden
   // on macOS, so the mode is applied by reveal_window() on the first frame.
   CHECK_FALSE(null_window(engine)->visible);
-  CHECK(engine.window->window_mode() == corundum::core::WindowMode::Windowed);
+  CHECK(engine.window().window_mode() == corundum::core::WindowMode::Windowed);
 
   CHECK(engine.run_frame());
   CHECK(null_window(engine)->visible);
-  CHECK(engine.window->window_mode() == corundum::core::WindowMode::Fullscreen);
+  CHECK(engine.window().window_mode() == corundum::core::WindowMode::Fullscreen);
 
   engine.cleanup();
 }

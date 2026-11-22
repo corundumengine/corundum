@@ -36,7 +36,7 @@ namespace {
   }
 
   corundum::core::math::Vec2 viewport(const corundum::Engine &engine) {
-    const auto [width, height] = engine.window->size();
+    const auto [width, height] = engine.window().size();
     return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
   }
 
@@ -88,7 +88,7 @@ TEST_CASE("mouse: hovering a pause-menu row moves focus, a stationary pointer do
   REQUIRE(engine.scene.mode() == GameMode::Menu);
 
   const corundum::ui::MenuLayout layout = corundum::ui::menu_panel_layout(
-      *engine.renderer, engine.render.panel_skin.style, viewport(engine), engine.input_mapper.last_device());
+      engine.renderer(), engine.render.panel_skin.style, viewport(engine), engine.input_mapper.last_device());
   const float row_x = layout.rows.row_pos.x + 5.f;
   const float row2_y = layout.rows.row_pos.y + (2.5f * layout.rows.row_height);
 
@@ -109,7 +109,7 @@ TEST_CASE("mouse: clicking a pause-menu row focuses and activates it the same st
   REQUIRE(press(engine, corundum::input::Action::Menu));
 
   const corundum::ui::MenuLayout layout = corundum::ui::menu_panel_layout(
-      *engine.renderer, engine.render.panel_skin.style, viewport(engine), engine.input_mapper.last_device());
+      engine.renderer(), engine.render.panel_skin.style, viewport(engine), engine.input_mapper.last_device());
   const float row_x = layout.rows.row_pos.x + 5.f;
   const float row1_y = layout.rows.row_pos.y + (1.5f * layout.rows.row_height);
 
@@ -166,7 +166,7 @@ TEST_CASE("mouse: hovering an inventory row moves focus, and the wheel steps the
   gameplay.inventory_cursor = 0;
 
   const screens::InventoryLayout layout = screens::inventory_panel_layout(
-      *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+      engine.renderer(), engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
       gameplay.inventory_cursor, gameplay.inventory_scroll, viewport(engine));
   REQUIRE(layout.rows.size() == 3);
   const corundum::core::math::Vec2 row2{
@@ -191,7 +191,7 @@ TEST_CASE("mouse: clicking a hub tab switches to it and the wheel cycles tabs") 
   REQUIRE(press(engine, corundum::input::Action::Inventory));
 
   const screens::HubTabStrip strip =
-      screens::hub_tab_strip(*engine.renderer, engine.render.panel_skin.style, viewport(engine));
+      screens::hub_tab_strip(engine.renderer(), engine.render.panel_skin.style, viewport(engine));
   const corundum::core::math::Vec2 map_tab{.x = strip.tabs[3].pos.x + (strip.tabs[3].width * 0.5f), .y = strip.y + 1.f};
 
   step_mouse(engine, map_tab, {.x = map_tab.x - 10.f, .y = map_tab.y}, /*clicked=*/true);
@@ -211,7 +211,7 @@ TEST_CASE("mouse: clicking a journal sub-tab and the wheel over the strip switch
   REQUIRE(press(engine, corundum::input::Action::Journal));
 
   const screens::JournalLayout layout =
-      screens::journal_panel_layout(*engine.renderer, engine.render.panel_skin.style, {}, gameplay.journal_screen,
+      screens::journal_panel_layout(engine.renderer(), engine.render.panel_skin.style, {}, gameplay.journal_screen,
                                     viewport(engine), engine.input_mapper.last_device());
   const auto &completed = layout.sub_tabs[1];
   const corundum::core::math::Vec2 completed_tab{

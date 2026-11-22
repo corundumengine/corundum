@@ -89,8 +89,8 @@ namespace corundum::platform::glfw {
 
       corundum::platform::PlatformEvents events{};
 
-      /// Backend graphics seam for this window; null when the backend needs no separate object.
-      window_graphics::Context *context{nullptr};
+      /// Backend graphics seam for this window; empty when the backend needs no separate object.
+      window_graphics::ContextHandle context{};
     };
 
     void key_callback(GLFWwindow *win, int key, int /*scancode*/, int action, int /*mods*/) noexcept {
@@ -260,7 +260,7 @@ namespace corundum::platform::glfw {
     void content_scale_callback(GLFWwindow *win, float /*xscale*/, float /*yscale*/) noexcept {
       const auto *data = static_cast<const WindowData *>(glfwGetWindowUserPointer(win));
       if (data != nullptr)
-        window_graphics::sync_content_scale(data->context, win);
+        window_graphics::sync_content_scale(data->context.get(), win);
     }
   } // namespace
 
@@ -346,11 +346,9 @@ namespace corundum::platform::glfw {
   GLFWWindow::~GLFWWindow() {
     if (impl_) {
       if (impl_->win != nullptr) {
-        // Destroying the window below can drive the content-scale callback, so drop the context
-        // reference before the context is freed.
-        window_graphics::Context *context = impl_->data.context;
-        impl_->data.context = nullptr;
-        window_graphics::destroy(context);
+        // Destroying the window below can drive the content-scale callback, so free the context first;
+        // the callback then sees an empty handle.
+        impl_->data.context.reset();
         glfwDestroyWindow(impl_->win);
       }
       glfw_term_if_done();
@@ -408,7 +406,7 @@ namespace corundum::platform::glfw {
   void GLFWWindow::set_vsync(bool enabled) {
     if (!impl_ || impl_->win == nullptr)
       return;
-    window_graphics::set_vsync(impl_->data.context, impl_->win, enabled);
+    window_graphics::set_vsync(impl_->data.context.get(), impl_->win, enabled);
   }
 
   std::string GLFWWindow::input_label(corundum::input::PhysicalInput input) const {

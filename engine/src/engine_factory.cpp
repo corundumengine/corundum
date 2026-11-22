@@ -15,13 +15,6 @@
 
 namespace corundum {
 
-  void Engine::adopt_platform(platform::PlatformContext platform) {
-    adopt_window(std::move(platform.window));
-    adopt_gpu(std::move(platform.gpu));
-    adopt_renderer(std::move(platform.renderer));
-    audio.adopt_backend(std::move(platform.audio_backend));
-  }
-
   std::expected<std::unique_ptr<Engine>, std::string> make_engine(const EngineOptions &options) {
     // Created first so the engine's content source outlives the platform adapters adopted below.
     auto engine = std::make_unique<Engine>();

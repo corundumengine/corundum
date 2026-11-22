@@ -409,7 +409,7 @@ namespace corundum::gameplay {
 
     /// The window's size in logical points, the space panels and the cursor share.
     core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
-      const auto [width, height] = engine.window->size();
+      const auto [width, height] = engine.window().size();
       return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
     }
 
@@ -506,7 +506,7 @@ namespace corundum::gameplay {
         return false;
 
       const screens::HubTabStrip strip =
-          screens::hub_tab_strip(*engine.renderer, engine.render.panel_skin.style, screen_viewport(engine));
+          screens::hub_tab_strip(engine.renderer(), engine.render.panel_skin.style, screen_viewport(engine));
       const int tab = screens::hub_tab_at(strip, intent_cursor(intent));
       if (tab < 0)
         return false;
@@ -608,7 +608,7 @@ namespace corundum::gameplay {
       if (!pointer_active(intent))
         return;
       const screens::InventoryLayout layout = screens::inventory_panel_layout(
-          *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+          engine.renderer(), engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
           gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
       const core::math::Vec2 cursor = intent_cursor(intent);
       if (pointer_focus(intent)) {
@@ -654,7 +654,7 @@ namespace corundum::gameplay {
         activate_inventory_row(engine, gameplay, rows);
 
       const screens::InventoryLayout visible = screens::inventory_panel_layout(
-          *engine.renderer, engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+          engine.renderer(), engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
           gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
       gameplay.inventory_scroll = visible.first_row;
     }
@@ -695,7 +695,7 @@ namespace corundum::gameplay {
 
       screens::JournalState &state = gameplay.journal_screen;
       const screens::JournalLayout layout =
-          screens::journal_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state,
+          screens::journal_panel_layout(engine.renderer(), engine.render.panel_skin.style, entries, state,
                                         screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
       if (const int sub = ui::hovered_row(cursor, layout.sub_tabs); sub >= 0) {
@@ -772,7 +772,7 @@ namespace corundum::gameplay {
       if (!pointer_active(intent))
         return;
       const screens::CodexLayout layout =
-          screens::codex_panel_layout(*engine.renderer, engine.render.panel_skin.style, state.entries, state.cursor,
+          screens::codex_panel_layout(engine.renderer(), engine.render.panel_skin.style, state.entries, state.cursor,
                                       screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
       if (pointer_focus(intent))
@@ -817,7 +817,7 @@ namespace corundum::gameplay {
       if (!pointer_active(intent))
         return;
       const screens::MapLayout layout =
-          screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state.cursor,
+          screens::map_panel_layout(engine.renderer(), engine.render.panel_skin.style, entries, state.cursor,
                                     state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
       if (pointer_focus(intent)) {
@@ -870,7 +870,7 @@ namespace corundum::gameplay {
 
       // Keep the highlighted destination inside the window; the layout clamps the offset.
       const screens::MapLayout visible =
-          screens::map_panel_layout(*engine.renderer, engine.render.panel_skin.style, entries, state.cursor,
+          screens::map_panel_layout(engine.renderer(), engine.render.panel_skin.style, entries, state.cursor,
                                     state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
       state.scroll = visible.rows.first_row;
 
@@ -921,7 +921,7 @@ namespace corundum::gameplay {
         return;
 
       const screens::LootLayout layout =
-          screens::loot_panel_layout(*engine.renderer, engine.render.panel_skin.style, container_name, container_lines,
+          screens::loot_panel_layout(engine.renderer(), engine.render.panel_skin.style, container_name, container_lines,
                                      player_lines, screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
 
@@ -990,7 +990,7 @@ namespace corundum::gameplay {
         return;
 
       const screens::BarterLayout layout =
-          screens::barter_panel_layout(*engine.renderer, engine.render.panel_skin.style, shop.name,
+          screens::barter_panel_layout(engine.renderer(), engine.render.panel_skin.style, shop.name,
                                        world::visit_count(engine.flags, screens::k_gold_flag), lines,
                                        screen_viewport(engine), engine.input_mapper.last_device());
       if (pointer_focus(intent)) {
@@ -1098,7 +1098,7 @@ namespace corundum::gameplay {
         return;
       screens::TitleState &state = gameplay.title_screen;
       const screens::TitleLayout layout = screens::title_panel_layout(
-          *engine.renderer, engine.render.panel_skin.style, state, core::game_title(engine.cfg),
+          engine.renderer(), engine.render.panel_skin.style, state, core::game_title(engine.cfg),
           screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
       if (pointer_focus(intent)) {
@@ -1243,7 +1243,7 @@ namespace corundum::gameplay {
         state.hold = std::max(state.hold - engine.timer.target_dt, 0.f);
         return;
       }
-      const float content = screens::credits_content_height(*engine.renderer, engine.render.panel_skin.style, state);
+      const float content = screens::credits_content_height(engine.renderer(), engine.render.panel_skin.style, state);
       constexpr float k_credits_scroll_speed = 24.f;
       state.scroll = std::min(state.scroll + (k_credits_scroll_speed * engine.timer.target_dt), content);
     }
@@ -1302,8 +1302,9 @@ namespace corundum::gameplay {
                                  const input::InputIntent &intent) {
       if (!pointer_active(intent))
         return;
-      const screens::GameOverLayout layout = screens::game_over_panel_layout(
-          *engine.renderer, engine.render.panel_skin.style, screen_viewport(engine), engine.input_mapper.last_device());
+      const screens::GameOverLayout layout =
+          screens::game_over_panel_layout(engine.renderer(), engine.render.panel_skin.style, screen_viewport(engine),
+                                          engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
       if (pointer_focus(intent)) {
         if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0) {
@@ -1389,7 +1390,7 @@ namespace corundum::gameplay {
       if (!pointer_active(intent))
         return;
       const screens::SaveLoadLayout layout =
-          screens::save_load_panel_layout(*engine.renderer, engine.render.panel_skin.style, state,
+          screens::save_load_panel_layout(engine.renderer(), engine.render.panel_skin.style, state,
                                           screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor = intent_cursor(intent);
       if (pointer_focus(intent)) {
@@ -1437,7 +1438,7 @@ namespace corundum::gameplay {
       }
 
       const screens::SaveLoadLayout visible =
-          screens::save_load_panel_layout(*engine.renderer, engine.render.panel_skin.style, state,
+          screens::save_load_panel_layout(engine.renderer(), engine.render.panel_skin.style, state,
                                           screen_viewport(engine), engine.input_mapper.last_device());
       state.scroll = visible.rows.first_row;
 
@@ -2086,16 +2087,15 @@ namespace corundum::gameplay {
 
   bool Gameplay::open_splash() {
     splash_screen = {};
-    if (!engine_->renderer)
-      return false;
+    platform::Renderer &renderer = engine_->renderer();
     for (const std::string &path : engine_->cfg.paths.splash_images) {
-      const std::expected<uint32_t, std::string> texture = engine_->renderer->load_texture(path);
+      const std::expected<uint32_t, std::string> texture = renderer.load_texture(path);
       if (!texture) {
         warn_log("[splash] cannot load '{}': {} (image skipped)", path, texture.error());
         continue;
       }
       splash_screen.images.push_back(screens::SplashImage{
-          .size = engine_->renderer->texture_size(*texture),
+          .size = renderer.texture_size(*texture),
           .texture = *texture,
       });
     }
@@ -2118,7 +2118,7 @@ namespace corundum::gameplay {
     }
     // Splash art is screen-tier: give every reference back now; the first area load purges it.
     for (const screens::SplashImage &image : splash_screen.images)
-      engine_->renderer->release_texture(image.texture);
+      engine_->renderer().release_texture(image.texture);
     splash_screen = {};
     engine_->scene.ui.pop();
     open_first_screen();
@@ -2163,8 +2163,7 @@ namespace corundum::gameplay {
     // open_title() refreshes the credits on every visit; hand back the previous visit's reference
     // so the background's count stays at one. Credits art is process-lifetime: only area unloads
     // purge, and the reference is re-taken below before any purge.
-    if (engine_->renderer)
-      engine_->renderer->release_texture(credits_screen.background_texture);
+    engine_->renderer().release_texture(credits_screen.background_texture);
     credits_screen = {};
     const std::string &path = engine_->cfg.paths.credits_file;
     if (path.empty())
@@ -2177,11 +2176,12 @@ namespace corundum::gameplay {
     }
     credits_screen.title = std::move(loaded->title);
     credits_screen.sections = std::move(loaded->sections);
-    if (!loaded->background.empty() && engine_->renderer) {
-      const std::expected<uint32_t, std::string> texture = engine_->renderer->load_texture(loaded->background);
+    if (!loaded->background.empty()) {
+      platform::Renderer &renderer = engine_->renderer();
+      const std::expected<uint32_t, std::string> texture = renderer.load_texture(loaded->background);
       if (texture) {
         credits_screen.background_texture = *texture;
-        credits_screen.background_size = engine_->renderer->texture_size(*texture);
+        credits_screen.background_size = renderer.texture_size(*texture);
       } else {
         warn_log("[credits] cannot load background '{}': {} (flat backdrop used)", loaded->background, texture.error());
       }

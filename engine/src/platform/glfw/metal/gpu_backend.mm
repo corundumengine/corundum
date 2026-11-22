@@ -23,7 +23,7 @@ namespace corundum::platform::glfw::gpu_backend {
     const void *drawable{nullptr};
   };
 
-  std::expected<Context *, std::string> create(GLFWwindow *win) {
+  std::expected<ContextHandle, std::string> create(GLFWwindow *win) {
     // Borrowed wrapper: the window owns the layer, so this handle only needs its wrapper freed.
     MetalLayer *layer = metal_get_layer(win);
     if (layer == nullptr)
@@ -34,7 +34,7 @@ namespace corundum::platform::glfw::gpu_backend {
       return std::unexpected("failed to allocate Metal context state");
     }
     context->layer = layer;
-    return context.release();
+    return ContextHandle{context.release()};
   }
 
   std::expected<void, std::string> configure_sokol(sg_desc &desc, const Context *context) {
@@ -61,10 +61,8 @@ namespace corundum::platform::glfw::gpu_backend {
     context->drawable = nullptr;
   }
 
-  void destroy(Context *context) noexcept {
+  void ContextDeleter::operator()(Context *context) const noexcept {
     const std::unique_ptr<Context> owned{context};
-    if (owned == nullptr)
-      return;
     metal_release_drawable(owned->drawable);
     metal_teardown_layer(owned->layer);
   }

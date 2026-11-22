@@ -391,11 +391,11 @@ TEST_CASE("settings: Left/Right edits text speed and UI scale, and Activate togg
 
   // Window Mode toggles on Activate.
   move_to_general_row(engine, SettingsGeneralRow::WindowMode);
-  CHECK(engine.window->window_mode() == corundum::core::WindowMode::Windowed);
+  CHECK(engine.window().window_mode() == corundum::core::WindowMode::Windowed);
   press(engine, corundum::input::Action::Select);
-  CHECK(engine.window->window_mode() == corundum::core::WindowMode::Fullscreen);
+  CHECK(engine.window().window_mode() == corundum::core::WindowMode::Fullscreen);
   press(engine, corundum::input::Action::Select);
-  CHECK(engine.window->window_mode() == corundum::core::WindowMode::Windowed);
+  CHECK(engine.window().window_mode() == corundum::core::WindowMode::Windowed);
 
   engine.cleanup();
 }

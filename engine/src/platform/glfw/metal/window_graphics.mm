@@ -29,17 +29,17 @@ namespace corundum::platform::glfw::window_graphics {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   }
 
-  Context *create(GLFWwindow *win) noexcept {
+  ContextHandle create(GLFWwindow *win) noexcept {
     MetalLayer *layer = metal_setup_layer(win);
     if (layer == nullptr)
-      return nullptr;
+      return {};
     std::unique_ptr<Context> context{new (std::nothrow) Context{}};
     if (context == nullptr) {
       metal_teardown_layer(layer);
-      return nullptr;
+      return {};
     }
     context->layer = layer;
-    return context.release();
+    return ContextHandle{context.release()};
   }
 
   void sync_content_scale(const Context *context, GLFWwindow *win) noexcept {
@@ -52,11 +52,9 @@ namespace corundum::platform::glfw::window_graphics {
       metal_set_display_sync(context->layer, enabled ? 1 : 0);
   }
 
-  // NOLINTNEXTLINE(misc-const-correctness): consumes @p context and frees it.
-  void destroy(Context *context) noexcept {
+  void ContextDeleter::operator()(Context *context) const noexcept {
     const std::unique_ptr<Context> owned{context};
-    if (owned != nullptr)
-      metal_teardown_layer(owned->layer);
+    metal_teardown_layer(owned->layer);
   }
 
 } // namespace corundum::platform::glfw::window_graphics

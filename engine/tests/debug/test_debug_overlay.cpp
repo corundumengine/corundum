@@ -151,7 +151,7 @@ TEST_CASE("HudOverlay::render on NullRenderer draws without crashing and updates
       .viewport = {.x = 320.f, .y = 240.f},
   };
 
-  engine.hud.render(*engine.renderer, input);
+  engine.hud.render(engine.renderer(), input);
 
   // First-tick EMA on 60 Hz should sit at alpha * 60 = 0.05 * 60 = 3.0.
   CHECK(engine.hud.smoothed_fps == doctest::Approx(3.0f).epsilon(1e-4f));
@@ -177,7 +177,7 @@ TEST_CASE("HudOverlay::render is a no-op on the renderer when smoothed_fps start
       .viewport = {.x = 320.f, .y = 240.f},
   };
 
-  engine.hud.render(*engine.renderer, input);
+  engine.hud.render(engine.renderer(), input);
 
   // EMA: 50 + 0.05 * (60 - 50) = 50.5.
   CHECK(engine.hud.smoothed_fps == doctest::Approx(50.5f).epsilon(1e-4f));
@@ -203,7 +203,7 @@ TEST_CASE("HudOverlay::render handles a zero last_frame_dt without dividing by z
       .viewport = {.x = 320.f, .y = 240.f},
   };
 
-  engine.hud.render(*engine.renderer, input);
+  engine.hud.render(engine.renderer(), input);
 
   // raw_fps clamps to 0 when last_frame_dt is 0, so the EMA pulls toward zero:
   // 30 + 0.05 * (0 - 30) = 30 - 1.5 = 28.5. No division-by-zero, no NaN.
@@ -231,7 +231,7 @@ TEST_CASE("HudOverlay: counts only the frames whose step budget was exhausted") 
         .viewport = {.x = 320.f, .y = 240.f},
         .step_budget_exhausted = budget_exhausted,
     };
-    engine.hud.render(*engine.renderer, input);
+    engine.hud.render(engine.renderer(), input);
   };
 
   render_with(true);
@@ -262,7 +262,7 @@ TEST_CASE("HudOverlay::render advances the FPS EMA but skips drawing while disab
       .step_budget_exhausted = true,
   };
 
-  engine.hud.render(*engine.renderer, input);
+  engine.hud.render(engine.renderer(), input);
 
   // EMA still advances (0.05 * 60 = 3.0); shed frames are not counted while disabled.
   CHECK(engine.hud.smoothed_fps == doctest::Approx(3.0f).epsilon(1e-4f));

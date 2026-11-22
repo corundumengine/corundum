@@ -184,7 +184,7 @@ TEST_CASE("settings: load rejects a non-object entry and leaves the engine uncha
   REQUIRE_FALSE(loaded.has_value());
   CHECK(loaded.error().find("object") != std::string::npos);
   CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
-  CHECK(engine.window->window_mode() == WindowMode::Windowed);
+  CHECK(engine.window().window_mode() == WindowMode::Windowed);
 }
 
 TEST_CASE("settings: load with no settings entry keeps the engine's settings") {
@@ -195,7 +195,7 @@ TEST_CASE("settings: load with no settings entry keeps the engine's settings") {
   const auto loaded = corundum::settings::load(engine, storage);
   CHECK(loaded.has_value());
   CHECK(engine.input_mapper.bindings() == corundum::input::default_bindings());
-  CHECK(engine.window->window_mode() == WindowMode::Windowed);
+  CHECK(engine.window().window_mode() == WindowMode::Windowed);
 }
 
 TEST_CASE("settings: save/load round-trips bindings and window mode") {
@@ -207,14 +207,14 @@ TEST_CASE("settings: save/load round-trips bindings and window mode") {
   corundum::input::Bindings bindings = engine.input_mapper.bindings();
   corundum::input::bind(bindings, Action::MoveUp, physical(Key::K));
   REQUIRE(engine.input_mapper.set_bindings(bindings).has_value());
-  engine.window->set_window_mode(WindowMode::Fullscreen);
+  engine.window().set_window_mode(WindowMode::Fullscreen);
 
   const auto saved = corundum::settings::save(engine, storage);
   REQUIRE(saved.has_value());
   REQUIRE(storage.contains(corundum::settings::k_settings_name));
 
   REQUIRE(engine.input_mapper.set_bindings(corundum::input::default_bindings()).has_value());
-  engine.window->set_window_mode(WindowMode::Windowed);
+  engine.window().set_window_mode(WindowMode::Windowed);
 
   const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE(loaded.has_value());
@@ -222,7 +222,7 @@ TEST_CASE("settings: save/load round-trips bindings and window mode") {
   const std::vector<corundum::input::PhysicalInput> move_up =
       corundum::input::inputs_for(engine.input_mapper.bindings(), Action::MoveUp);
   CHECK(std::ranges::find(move_up, physical(Key::K)) != move_up.end());
-  CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
+  CHECK(engine.window().window_mode() == WindowMode::Fullscreen);
 }
 
 TEST_CASE("settings: a Cancel rebind to gamepad A saved before the swap fix reloads without A on Select or Activate") {
@@ -302,7 +302,7 @@ TEST_CASE("settings: a newer schema version is rejected and the engine keeps its
            std::format("User settings 'settings.json' has schema_version 2, newer than this engine supports (max {}) "
                        "\u2014 update the engine",
                        corundum::settings::k_user_settings_schema_version));
-  CHECK(engine.window->window_mode() == WindowMode::Windowed);
+  CHECK(engine.window().window_mode() == WindowMode::Windowed);
   const std::vector<corundum::input::PhysicalInput> cancel =
       corundum::input::inputs_for(engine.input_mapper.bindings(), Action::Cancel);
   CHECK(std::ranges::find(cancel, physical(corundum::input::MouseButton::Right)) != cancel.end());
@@ -332,28 +332,28 @@ TEST_CASE("settings: the settings entry overrides game.json's window mode") {
   adopt_platform(engine, 320, 240);
 
   // Stands in for initialize() applying cfg.window_mode.
-  engine.window->set_window_mode(WindowMode::Fullscreen);
+  engine.window().set_window_mode(WindowMode::Fullscreen);
 
   MemoryUserStorage storage;
   storage.entries["settings.json"] = R"({"schema_version": 1, "window_mode": "windowed"})";
 
   const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE(loaded.has_value());
-  CHECK(engine.window->window_mode() == WindowMode::Windowed);
+  CHECK(engine.window().window_mode() == WindowMode::Windowed);
 }
 
 TEST_CASE("settings: an absent window_mode keeps game.json's") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  engine.window->set_window_mode(WindowMode::Fullscreen);
+  engine.window().set_window_mode(WindowMode::Fullscreen);
 
   MemoryUserStorage storage;
   storage.entries["settings.json"] = R"({"schema_version": 1})";
 
   const auto loaded = corundum::settings::load(engine, storage);
   REQUIRE(loaded.has_value());
-  CHECK(engine.window->window_mode() == WindowMode::Fullscreen);
+  CHECK(engine.window().window_mode() == WindowMode::Fullscreen);
 }
 
 TEST_CASE("settings: apply syncs cfg.window_mode for the deferred reveal") {

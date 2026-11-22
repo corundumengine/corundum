@@ -4,6 +4,7 @@
 #pragma once
 #include <corundum/engine.hpp>
 #include <corundum/platform/handle.hpp>
+#include <corundum/platform/platform_factory.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 
@@ -33,7 +34,7 @@ namespace corundum::platform::null {
   /** @brief Owned bundle of no-op Window + Renderer for tests.
    *
    * Carries no @c GpuContext: this backend provides none, and initialize()
-   * permits a null @c Engine::gpu because the main loop never touches it.
+   * permits @c Engine::gpu() to be null because the main loop never touches it.
    *
    * adopt_null_platform() moves the members into the Engine, leaving the bundle
    * empty and safe to destroy at any point afterwards.
@@ -64,15 +65,19 @@ namespace corundum::platform::null {
   /** @brief Move the NullPlatform's Window/Renderer into @p engine.
    *
    *  @p platform is left empty and may be destroyed immediately; nothing in the
-   *  engine refers back to it. The audio backend and @c Engine::gpu stay null
+   *  engine refers back to it. The audio backend and @c Engine::gpu() stay null
    *  (initialize() downgrades audio init to a WARN when no backend is present).
    *
    *  @param[in,out] engine Uninitialised Engine.
    *  @param[in,out] platform The bundle; its members are moved out.
    */
   inline void adopt_null_platform(corundum::Engine &engine, NullPlatform &platform) {
-    engine.adopt_window(std::move(platform.window));
-    engine.adopt_renderer(std::move(platform.renderer));
+    engine.adopt_platform(PlatformContext{
+        .window = std::move(platform.window),
+        .gpu = {},
+        .renderer = std::move(platform.renderer),
+        .audio_backend = nullptr,
+    });
   }
 
 } // namespace corundum::platform::null

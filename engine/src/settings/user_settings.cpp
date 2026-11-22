@@ -117,7 +117,7 @@ namespace corundum::settings {
   UserSettings capture(const Engine &engine) {
     return UserSettings{
         .bindings = engine.input_mapper.bindings(),
-        .window_mode = engine.window->window_mode(),
+        .window_mode = engine.window().window_mode(),
         .ambience_volume = engine.audio.bus_volume(audio::AudioBus::Ambience),
         .master_volume = engine.audio.bus_volume(audio::AudioBus::Master),
         .music_volume = engine.audio.bus_volume(audio::AudioBus::Music),
@@ -131,7 +131,7 @@ namespace corundum::settings {
   std::expected<void, std::string> apply(Engine &engine, const UserSettings &settings) {
     if (std::expected<void, std::string> result = engine.input_mapper.set_bindings(settings.bindings); !result)
       return result;
-    engine.window->set_window_mode(settings.window_mode);
+    engine.window().set_window_mode(settings.window_mode);
     // Keep cfg in sync: reveal_window() re-applies cfg.window_mode once the window is visible, so
     // without this the loaded mode would be clobbered on the first frame.
     engine.cfg.window_mode = settings.window_mode;

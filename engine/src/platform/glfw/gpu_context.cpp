@@ -74,8 +74,9 @@ namespace corundum::platform {
   struct GpuContext::Impl {
     GLFWwindow *window{nullptr};
 
-    /// Backend device/swapchain seam for this context; null when the backend needs no separate state.
-    gpu_backend::Context *backend{nullptr};
+    /// Backend device/swapchain state; empty when the backend needs none. Freed when Impl is destroyed,
+    /// after ~GpuContext() has shut the sokol device down, as the backend requires.
+    gpu_backend::ContextHandle backend{};
 
     float render_scale{1.f};
 
@@ -101,9 +102,9 @@ namespace corundum::platform {
     auto backend = gpu_backend::create(*raw);
     if (!backend)
       return std::unexpected(std::format("GpuContext::create: {}", backend.error()));
-    ctx->impl_->backend = *backend;
+    ctx->impl_->backend = std::move(*backend);
 
-    if (auto started = start_sokol_device(ctx->impl_->backend); !started)
+    if (auto started = start_sokol_device(ctx->impl_->backend.get()); !started)
       return std::unexpected(std::move(started).error());
 
     s_gpu_device_live = true;
@@ -116,7 +117,6 @@ namespace corundum::platform {
       if (sg_isvalid())
         sg_shutdown();
     }
-    gpu_backend::destroy(impl_->backend);
   }
 
   bool GpuContext::begin_default_pass(core::math::Colour clear) {
@@ -142,7 +142,7 @@ namespace corundum::platform {
     swapchain.sample_count = 1;
     swapchain.depth_format = SG_PIXELFORMAT_NONE;
 
-    if (!gpu_backend::begin_pass(swapchain, impl_->backend, render_target.width, render_target.height)) {
+    if (!gpu_backend::begin_pass(swapchain, impl_->backend.get(), render_target.width, render_target.height)) {
       impl_->pass_active = false;
       return false;
     }
@@ -161,7 +161,7 @@ namespace corundum::platform {
     impl_->pass_active = false;
     sg_end_pass();
     sg_commit();
-    gpu_backend::end_pass(impl_->backend, impl_->window);
+    gpu_backend::end_pass(impl_->backend.get(), impl_->window);
   }
 
   core::math::IntSize GpuContext::window_size() const noexcept {

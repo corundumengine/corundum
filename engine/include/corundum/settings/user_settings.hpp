@@ -71,7 +71,7 @@ namespace corundum::settings {
 
   /** @brief The engine's live settings: the mapper's bindings and the window's mode.
    *
-   *  @pre @p engine.window is non-null (make_engine(), or an adopted platform).
+   *  @pre @c engine.window() is non-null (make_engine(), or an adopted platform).
    */
   [[nodiscard]] UserSettings capture(const Engine &engine);
 
@@ -80,7 +80,7 @@ namespace corundum::settings {
    *  Also updates `cfg.window_mode` so the deferred first-frame window-mode reveal does not
    *  overwrite the applied mode with the boot config's.
    *
-   *  @pre @p engine.window is non-null.
+   *  @pre @c engine.window() is non-null.
    *  @return An error, leaving the engine unchanged, when the bindings are rejected by InputMapper::set_bindings.
    */
   [[nodiscard]] std::expected<void, std::string> apply(Engine &engine, const UserSettings &settings);
@@ -95,7 +95,7 @@ namespace corundum::settings {
    *  initialize(), a field the entry sets overrides the matching game.json value (window_mode), and a
    *  field it omits keeps it.
    *
-   *  @pre @p engine.window is non-null.
+   *  @pre @c engine.window() is non-null.
    *  @return An error, leaving the engine unchanged, when the entry is unreadable, malformed, from a
    *          newer schema version, or rejected by apply().
    */
@@ -103,7 +103,7 @@ namespace corundum::settings {
 
   /** @brief Write capture(engine) to @p storage's k_settings_name entry, replacing it atomically.
    *
-   *  @pre @p engine.window is non-null.
+   *  @pre @c engine.window() is non-null.
    */
   [[nodiscard]] std::expected<void, std::string> save(const Engine &engine, core::UserStorage &storage);
 

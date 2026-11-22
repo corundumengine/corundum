@@ -15,6 +15,7 @@
 #include <corundum/input/input_system.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/platform_events.hpp>
+#include <corundum/platform/platform_factory.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/window.hpp>
 #include <corundum/render/area.hpp>
@@ -72,7 +73,7 @@ namespace corundum {
       std::expected<void, std::string> run(core::GameConfig &&cfg) {
         engine_->cfg = std::move(cfg);
         engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
-        engine_->window->set_vsync(engine_->cfg.vsync);
+        engine_->window().set_vsync(engine_->cfg.vsync);
 
         const std::uint64_t rng_seed = engine_->cfg.rng_seed.value_or([] {
           std::random_device rd;
@@ -100,13 +101,13 @@ namespace corundum {
         characters_result = engine_->characters.load_all(engine_->content_source(), engine_->cfg.paths.sprites_dir);
         if (!characters_result)
           return std::unexpected(characters_result.error());
-        render::load_sprite_index(*engine_->renderer, engine_->render, engine_->characters);
+        render::load_sprite_index(engine_->renderer(), engine_->render, engine_->characters);
 
-        if (auto result = render::load_fonts(*engine_->renderer, engine_->render, engine_->cfg.paths); !result)
+        if (auto result = render::load_fonts(engine_->renderer(), engine_->render, engine_->cfg.paths); !result)
           return std::unexpected(std::move(result).error());
 
         std::expected<void, std::string> ui_result;
-        ui_result = render::load_ui_assets(engine_->content_source(), *engine_->renderer, engine_->render,
+        ui_result = render::load_ui_assets(engine_->content_source(), engine_->renderer(), engine_->render,
                                            engine_->cfg.paths);
         if (!ui_result)
           return std::unexpected(ui_result.error());
@@ -128,8 +129,15 @@ namespace corundum {
 
   } // namespace
 
+  void Engine::adopt_platform(platform::PlatformContext platform) {
+    window_ = std::move(platform.window);
+    gpu_ = std::move(platform.gpu);
+    renderer_ = std::move(platform.renderer);
+    audio.adopt_backend(std::move(platform.audio_backend));
+  }
+
   std::expected<void, std::string> Engine::initialize(core::GameConfig &&cfg) {
-    if (!window || !renderer)
+    if (!window_ || !renderer_)
       return std::unexpected("Engine::initialize: window and renderer must be non-null "
                              "(use make_engine(), or adopt a platform before calling)");
 
@@ -145,7 +153,7 @@ namespace corundum {
   std::expected<void, std::string> Engine::set_content_source(std::unique_ptr<core::ContentSource> source) {
     if (!source)
       return std::unexpected("Engine::set_content_source: source must be non-null");
-    if (window || gpu || renderer)
+    if (window_ || gpu_ || renderer_)
       return std::unexpected("Engine::set_content_source: a platform is already adopted");
     content_ = std::move(source);
     return {};
@@ -187,7 +195,7 @@ namespace corundum {
     /// then hand the frame to the on_platform_event hook.
     void process_input(Engine &engine) noexcept {
       platform::PlatformEvents events{};
-      input::poll(engine.input_mapper, engine.input_state, *engine.window, events);
+      input::poll(engine.input_mapper, engine.input_state, engine.window(), events);
 
       if (events.focus_lost)
         engine.pause(PauseReason::Focus);
@@ -268,13 +276,13 @@ namespace corundum {
           .voice_volume = engine.audio.bus_volume(audio::AudioBus::Voice),
           .text_speed = engine.render.text_speed,
           .ui_scale = engine.render.ui_scale,
-          .window_mode = engine.window->window_mode(),
+          .window_mode = engine.window().window_mode(),
       };
     }
 
     /// The window's size in logical points, the space panels and the cursor share.
     core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
-      const auto [width, height] = engine.window->size();
+      const auto [width, height] = engine.window().size();
       return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
     }
 
@@ -351,7 +359,7 @@ namespace corundum {
         return;
 
       if (intent.mouse_moved || intent.cursor_clicked) {
-        const ui::MenuLayout layout = ui::menu_panel_layout(*engine.renderer, engine.render.panel_skin.style,
+        const ui::MenuLayout layout = ui::menu_panel_layout(engine.renderer(), engine.render.panel_skin.style,
                                                             screen_viewport(engine), engine.input_mapper.last_device());
         const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
         if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
@@ -435,7 +443,7 @@ namespace corundum {
         return false;
 
       const ui::SettingsLayout layout = ui::settings_panel_layout(
-          *engine.renderer, engine.render.panel_skin.style, state, settings_values(engine),
+          engine.renderer(), engine.render.panel_skin.style, state, settings_values(engine),
           engine.input_mapper.bindings(), screen_viewport(engine), engine.input_mapper.last_device());
       const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
 
@@ -486,8 +494,8 @@ namespace corundum {
       if (intent.navigate_x != 0) {
         adjust_general_row(engine, row, intent.navigate_x);
       } else if (intent.activate && row == ui::SettingsGeneralRow::WindowMode) {
-        const bool fullscreen = engine.window->window_mode() == core::WindowMode::Fullscreen;
-        engine.window->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
+        const bool fullscreen = engine.window().window_mode() == core::WindowMode::Fullscreen;
+        engine.window().set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
       }
     }
 
@@ -633,10 +641,10 @@ namespace corundum {
     // frame path is intentionally fatal (noexcept).
     // NOLINTNEXTLINE(bugprone-exception-escape)
     void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
-      if (!engine.renderer->begin_frame(engine.clear_colour))
+      platform::Renderer &r = engine.renderer();
+      if (!r.begin_frame(engine.clear_colour))
         return;
 
-      platform::Renderer &r = *engine.renderer;
       const core::math::IntSize window_logical{
           .width = engine.window_width(),
           .height = engine.window_height(),
@@ -692,7 +700,7 @@ namespace corundum {
       };
       engine.hud.render(r, hud_input);
 
-      engine.renderer->end_frame();
+      r.end_frame();
     }
 
   } // namespace
@@ -788,9 +796,9 @@ namespace corundum {
   }
 
   bool Engine::run_frame() noexcept {
-    if (!window->is_open() || quit_)
+    if (!window_->is_open() || quit_)
       return false;
-    const core::math::IntSize window_logical = window->size();
+    const core::math::IntSize window_logical = window_->size();
     window_width_ = window_logical.width;
     window_height_ = window_logical.height;
 
@@ -812,7 +820,7 @@ namespace corundum {
 
     timer.tick();
 
-    render::stream_world_chunks(content_source(), *renderer, render, cfg, scene);
+    render::stream_world_chunks(content_source(), *renderer_, render, cfg, scene);
 
     const SimulationResult simulation{run_fixed_steps(*this)};
     // Portal scene changes are applied at full black by advance_scene_transition(); the
@@ -828,10 +836,10 @@ namespace corundum {
     if (window_shown_)
       return;
     window_shown_ = true;
-    window->show();
+    window_->show();
     // Enter the configured mode only after the window is visible: glfwSetWindowMonitor on a hidden
     // window leaves it permanently hidden on macOS, and a later show() cannot recover it.
-    window->set_window_mode(cfg.window_mode);
+    window_->set_window_mode(cfg.window_mode);
   }
 
   void Engine::pause(PauseReason reason) noexcept {
@@ -857,8 +865,8 @@ namespace corundum {
 
   void Engine::cleanup() noexcept {
     audio.shutdown();
-    if (window)
-      window->close();
+    if (window_)
+      window_->close();
     quit_ = true;
   }
 
@@ -881,8 +889,8 @@ namespace corundum {
   }
 
   void Engine::toggle_fullscreen() const noexcept {
-    const bool fullscreen{window->window_mode() == core::WindowMode::Fullscreen};
-    window->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
+    const bool fullscreen{window_->window_mode() == core::WindowMode::Fullscreen};
+    window_->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
   }
 
 } // namespace corundum

@@ -68,7 +68,7 @@ namespace corundum::world {
    *  empty one (no player, empty UI stack). Flags are untouched; they belong to the playthrough.
    *
    *  @param[in,out] engine Initialised application state.
-   *  @pre engine.renderer is non-null. Call between frames.
+   *  @pre engine.renderer() is non-null. Call between frames.
    *  @post render::mode(engine.render) is RenderMode::None, world::player_present(engine.scene) is false,
    *        engine.entered_from_world is false.
    */

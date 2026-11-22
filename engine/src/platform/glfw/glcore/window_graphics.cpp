@@ -22,10 +22,10 @@ namespace corundum::platform::glfw::window_graphics {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   }
 
-  Context *create(GLFWwindow *win) noexcept {
+  ContextHandle create(GLFWwindow *win) noexcept {
     glfwMakeContextCurrent(win);
     // The GL context lives on the GLFW window; there is no separate object to own.
-    return nullptr;
+    return {};
   }
 
   void sync_content_scale(const Context * /*context*/, GLFWwindow * /*win*/) noexcept {}
@@ -35,6 +35,6 @@ namespace corundum::platform::glfw::window_graphics {
     glfwSwapInterval(enabled ? 1 : 0);
   }
 
-  void destroy(Context * /*context*/) noexcept {}
+  void ContextDeleter::operator()(Context * /*context*/) const noexcept {}
 
 } // namespace corundum::platform::glfw::window_graphics

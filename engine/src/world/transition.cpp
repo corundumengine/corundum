@@ -40,7 +40,7 @@ namespace corundum::world {
     void fail(corundum::Engine &engine, std::string_view context, std::string_view error) noexcept {
       warn_log("[engine] {} failed: {}", context, error);
       engine.request_quit();
-      engine.window->close();
+      engine.window().close();
     }
 
     /// Zone id for world mode: the manifest's directory name, falling back to the manifest
@@ -73,7 +73,7 @@ namespace corundum::world {
   std::expected<void, std::string> enter_world(corundum::Engine &engine,
                                                const corundum::render::WorldLoadParams &params) {
     std::expected<corundum::render::WorldLoadInfo, std::string> world_result =
-        render::load_world(engine.content_source(), *engine.renderer, engine.render, engine.cfg, params);
+        render::load_world(engine.content_source(), engine.renderer(), engine.render, engine.cfg, params);
     if (!world_result)
       return std::unexpected(std::move(world_result).error());
     // load_world's @post: on success the area is a World with at least one resident chunk.
@@ -148,7 +148,7 @@ namespace corundum::world {
       return enter_world(engine, {});
 
     std::expected<void, std::string> map_result = render::load_map(
-        engine.content_source(), *engine.renderer, engine.render, engine.cfg.paths.tilemap_path, engine.cfg);
+        engine.content_source(), engine.renderer(), engine.render, engine.cfg.paths.tilemap_path, engine.cfg);
     if (!map_result)
       return std::unexpected(std::move(map_result).error());
 
@@ -170,7 +170,7 @@ namespace corundum::world {
   }
 
   void unload_world(corundum::Engine &engine) {
-    render::unload_world(*engine.renderer, engine.render);
+    render::unload_world(engine.renderer(), engine.render);
     // Scene is ~0.5 MB: build the empty replacement on the heap, never on the stack.
     const std::unique_ptr<Scene> empty = std::make_unique<Scene>();
     engine.scene = std::move(*empty);
@@ -192,7 +192,7 @@ namespace corundum::world {
     }
 
     std::expected<void, std::string> map_result =
-        render::load_map(engine.content_source(), *engine.renderer, engine.render, std::string(id), engine.cfg);
+        render::load_map(engine.content_source(), engine.renderer(), engine.render, std::string(id), engine.cfg);
     if (!map_result)
       return std::unexpected(std::move(map_result).error());
 

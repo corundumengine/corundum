@@ -109,10 +109,11 @@ namespace {
   /// Adopt the null platform, then swap in a SplashRenderer the engine owns; returns it for
   /// assertions. Call before Engine::initialize().
   SplashRenderer &adopt_splash_renderer(corundum::Engine &engine) {
-    adopt_platform(engine, 320, 240);
+    platform::null::NullPlatform bundle = platform::null::make_null_platform(320, 240);
     auto *renderer = new SplashRenderer(); // NOLINT(cppcoreguidelines-owning-memory): the Handle below owns it.
-    engine.adopt_renderer(platform::Handle<platform::Renderer>{
-        renderer, platform::BackendDeleter<platform::Renderer>{&platform::null::detail::destroy_renderer}});
+    bundle.renderer = platform::Handle<platform::Renderer>{
+        renderer, platform::BackendDeleter<platform::Renderer>{&platform::null::detail::destroy_renderer}};
+    platform::null::adopt_null_platform(engine, bundle);
     return *renderer;
   }
 

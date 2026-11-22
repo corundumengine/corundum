@@ -67,8 +67,8 @@ namespace {
     corundum::platform::null::adopt_null_platform(engine, platform);
   }
 
-  corundum::platform::null::NullWindow *null_window(const corundum::Engine &engine) {
-    return dynamic_cast<corundum::platform::null::NullWindow *>(engine.window.get());
+  corundum::platform::null::NullWindow *null_window(corundum::Engine &engine) {
+    return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
   }
 
   /// Run one frame with @p dt of simulation owed.

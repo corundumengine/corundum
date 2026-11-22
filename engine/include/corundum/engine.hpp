@@ -138,15 +138,38 @@ namespace corundum {
     // reference to it from create_platform(); set_content_source() refuses to replace it afterwards.
     std::unique_ptr<core::ContentSource> content_{std::make_unique<core::DirectoryContentSource>()};
 
+    // Declared window → gpu → renderer, after content_, so reverse-order destruction is renderer → gpu →
+    // window → content: sokol resources are released while the device is still alive, the device and
+    // window outlive the renderer, and the content source outlives the adapters that read through it.
+    platform::Handle<platform::Window> window_;
+
+    platform::Handle<platform::GpuContext> gpu_;
+
+    platform::Handle<platform::Renderer> renderer_;
+
   public:
-    // Declared window → gpu → renderer so reverse-order destruction is
-    // renderer → gpu → window: sokol resources are released while the device is
-    // still alive, and the device/window outlive the renderer.
-    platform::Handle<platform::Window> window;
+    /** @brief The adopted window. @pre adopt_platform() has run (make_engine() runs it). */
+    [[nodiscard]] platform::Window &window() noexcept {
+      core::verify(window_ != nullptr, "Engine::window: no platform adopted");
+      return *window_;
+    }
 
-    platform::Handle<platform::GpuContext> gpu;
+    [[nodiscard]] const platform::Window &window() const noexcept {
+      core::verify(window_ != nullptr, "Engine::window: no platform adopted");
+      return *window_;
+    }
 
-    platform::Handle<platform::Renderer> renderer;
+    /** @brief The adopted renderer. @pre adopt_platform() has run (make_engine() runs it).
+     *
+     *  `const` because a screen's render hook sees a const Engine yet still draws through it: the
+     *  handle is what the Engine owns, not the renderer's mutable drawing state. */
+    [[nodiscard]] platform::Renderer &renderer() const noexcept {
+      core::verify(renderer_ != nullptr, "Engine::renderer: no platform adopted");
+      return *renderer_;
+    }
+
+    /** @brief The adopted GPU context, or nullptr on a platform without one (the null platform). */
+    [[nodiscard]] platform::GpuContext *gpu() noexcept { return gpu_.get(); }
 
     audio::AudioSystem audio;
 
@@ -260,24 +283,6 @@ namespace corundum {
     /// True while inside an interior reached from the overworld.
     bool entered_from_world{false};
 
-    /** @brief Take ownership of a backend-created platform handle.
-     *
-     *  The platform::Handle already carries the backend's destruction function, so
-     *  these are plain moves. adopt_platform() and the NullPlatform test bundle use
-     *  them to satisfy initialize()'s non-null window/renderer precondition.
-     */
-    void adopt_window(platform::Handle<platform::Window> value) noexcept {
-      window = std::move(value);
-    }
-
-    void adopt_gpu(platform::Handle<platform::GpuContext> value) noexcept {
-      gpu = std::move(value);
-    }
-
-    void adopt_renderer(platform::Handle<platform::Renderer> value) noexcept {
-      renderer = std::move(value);
-    }
-
     /** @brief Take ownership of a complete platform bundle.
      *
      *  Moves the window, GPU context, renderer and audio backend out of @p platform in the
@@ -295,8 +300,8 @@ namespace corundum {
      *
      *  @param[in] cfg Fully-loaded game configuration (move-ownership).
      *  @return ok on success, or std::unexpected with an error message.
-     *  @pre window and renderer are non-null (make_engine() satisfies this).
-     *       gpu may be left null (the main loop never touches it) for backends
+     *  @pre window() and renderer() are non-null (make_engine() satisfies this).
+     *       gpu() may be null (the main loop never touches it) for backends
      *       that don't need a GPU context.
      *  @post On failure, cleanup() has been run on the partially-initialised
      *        engine; discard it.

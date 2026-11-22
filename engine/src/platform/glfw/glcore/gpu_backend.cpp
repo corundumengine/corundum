@@ -9,14 +9,15 @@
 #include <GLFW/glfw3.h>
 #include <sokol_gfx.h>
 
+#include <expected>
 #include <string>
 
 namespace corundum::platform::glfw::gpu_backend {
 
-  std::expected<Context *, std::string> create(GLFWwindow * /*win*/) {
+  std::expected<ContextHandle, std::string> create(GLFWwindow * /*win*/) {
     // The GL backend has no separate device or drawable state; sokol drives the default
     // framebuffer directly.
-    return nullptr;
+    return ContextHandle{};
   }
 
   std::expected<void, std::string> configure_sokol(sg_desc & /*desc*/, const Context * /*context*/) {
@@ -32,6 +33,6 @@ namespace corundum::platform::glfw::gpu_backend {
     glfwSwapBuffers(win);
   }
 
-  void destroy(Context * /*context*/) noexcept {}
+  void ContextDeleter::operator()(Context * /*context*/) const noexcept {}
 
 } // namespace corundum::platform::glfw::gpu_backend

@@ -9,6 +9,7 @@
 // carries no graphics-API conditional.
 
 #include <expected>
+#include <memory>
 #include <string>
 
 #include <sokol_gfx.h>
@@ -24,12 +25,20 @@ namespace corundum::platform::glfw::gpu_backend {
    */
   struct Context;
 
+  /** @brief Frees a Context; defined by each backend's translation unit beside create(). */
+  struct ContextDeleter {
+    void operator()(Context *context) const noexcept;
+  };
+
+  /** @brief Owning handle to a backend's per-context state; empty when the backend needs none. */
+  using ContextHandle = std::unique_ptr<Context, ContextDeleter>;
+
   /** @brief Create the backend state for the GLFW window @p win.
    *
    * @pre @p win is a valid GLFW window whose graphics surface is already set up.
    * @return The context, or an error when the backend's native surface is unavailable.
    */
-  [[nodiscard]] std::expected<Context *, std::string> create(GLFWwindow *win);
+  [[nodiscard]] std::expected<ContextHandle, std::string> create(GLFWwindow *win);
 
   /** @brief Fill the sokol device fields this backend needs before sg_setup().
    *
@@ -45,8 +54,5 @@ namespace corundum::platform::glfw::gpu_backend {
 
   /** @brief Present or release this frame's native resources, after sg_commit(). */
   void end_pass(Context *context, GLFWwindow *win) noexcept;
-
-  /** @brief Destroy @p context; no-op if null. @pre the sokol device is already shut down. */
-  void destroy(Context *context) noexcept;
 
 } // namespace corundum::platform::glfw::gpu_backend
