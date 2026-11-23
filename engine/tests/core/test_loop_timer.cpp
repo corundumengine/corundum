@@ -14,12 +14,8 @@ namespace {
   constexpr float k_fps = 60.f;
   constexpr float k_hitch_cap_seconds = 0.25f;
 
-  // Rewind the timer's clock so the next tick() observes at least `seconds` of elapsed time.
-  void rewind_clock(LoopTimer &timer, float seconds) {
-    const auto offset =
-        std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<float>(seconds));
-    timer.prev_time = std::chrono::steady_clock::now() - offset;
-  }
+  // An arbitrary steady-clock reading; only differences from it matter.
+  constexpr std::chrono::steady_clock::time_point k_start{std::chrono::seconds{100}};
 
 } // namespace
 
@@ -87,35 +83,57 @@ TEST_CASE("LoopTimer - a multi-period hitch drains over multiple steps") {
   CHECK(timer.step_count == 3u);
 }
 
-TEST_CASE("LoopTimer - tick() accumulates elapsed wall time") {
+TEST_CASE("LoopTimer - the first tick() records the reading and adds no time") {
   LoopTimer timer{k_fps};
-  rewind_clock(timer, 0.01f);
 
-  timer.tick();
+  timer.tick(k_start);
 
-  CHECK(timer.last_frame_dt == doctest::Approx(0.01f).epsilon(0.01));
-  CHECK(timer.accumulator == doctest::Approx(0.01f).epsilon(0.01));
+  CHECK(timer.last_frame_dt == 0.f);
+  CHECK(timer.accumulator == 0.f);
+  CHECK(timer.prev_time == k_start);
+}
+
+TEST_CASE("LoopTimer - tick() accumulates the time since the previous tick") {
+  LoopTimer timer{k_fps};
+  timer.tick(k_start);
+
+  timer.tick(k_start + std::chrono::milliseconds{125});
+
+  // Tolerance covers the float conversion of a nanosecond count.
+  CHECK(timer.last_frame_dt == doctest::Approx(0.125f).epsilon(1e-6));
+  CHECK(timer.accumulator == doctest::Approx(0.125f).epsilon(1e-6));
 }
 
 TEST_CASE("LoopTimer - tick() caps a long hitch at 250 ms") {
   LoopTimer timer{k_fps};
-  rewind_clock(timer, 2.f);
+  timer.tick(k_start);
 
-  timer.tick();
+  timer.tick(k_start + std::chrono::seconds{2});
 
   CHECK(timer.last_frame_dt == doctest::Approx(k_hitch_cap_seconds));
   CHECK(timer.accumulator == doctest::Approx(k_hitch_cap_seconds));
 }
 
-TEST_CASE("LoopTimer - tick() advances prev_time so elapsed time is not double-counted") {
+TEST_CASE("LoopTimer - tick() measures from the previous tick, not the first") {
   LoopTimer timer{k_fps};
-  rewind_clock(timer, 0.01f);
+  timer.tick(k_start);
+  timer.tick(k_start + std::chrono::milliseconds{100});
 
-  timer.tick();
-  timer.tick();
+  timer.tick(k_start + std::chrono::milliseconds{125});
 
-  // The second tick sees only the microseconds between the two calls, not another 10 ms.
-  CHECK(timer.last_frame_dt < 0.01f);
+  CHECK(timer.last_frame_dt == doctest::Approx(0.025f).epsilon(1e-5));
+  CHECK(timer.accumulator == doctest::Approx(0.125f).epsilon(1e-6));
+}
+
+TEST_CASE("LoopTimer - after prev_time is reset the next tick adds no time") {
+  LoopTimer timer{k_fps};
+  timer.tick(k_start);
+  timer.prev_time.reset();
+
+  timer.tick(k_start + std::chrono::seconds{2});
+
+  CHECK(timer.accumulator == 0.f);
+  CHECK(timer.prev_time == k_start + std::chrono::seconds{2});
 }
 
 TEST_CASE("LoopTimer - alpha() reports the fraction of the way to the next step") {

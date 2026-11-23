@@ -42,6 +42,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::gamepad_inputs;
   using corundum::test::make_world_config;
+  using corundum::test::run_one_step;
   using corundum::world::GameMode;
   namespace screens = corundum::gameplay::screens;
 
@@ -520,13 +521,11 @@ TEST_CASE("pause menu: Save closes the menu and raises QuickSave exactly once") 
   CHECK(engine.scene.mode() == GameMode::Exploring);
   CHECK(quick_saves == 0); // not promoted until a screen-free fixed step runs
 
-  engine.timer.accumulator = engine.timer.target_dt;
-  REQUIRE(engine.run_frame());
+  REQUIRE(run_one_step(engine));
   CHECK(quick_saves == 1);
   CHECK(quick_loads == 0);
 
-  engine.timer.accumulator = engine.timer.target_dt;
-  REQUIRE(engine.run_frame());
+  REQUIRE(run_one_step(engine));
   CHECK(quick_saves == 1); // observed exactly once, then cleared
 
   engine.cleanup();
@@ -553,12 +552,10 @@ TEST_CASE("pause menu: Load closes the menu and raises QuickLoad exactly once") 
   press(engine, corundum::input::Action::Select);
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
-  engine.timer.accumulator = engine.timer.target_dt;
-  REQUIRE(engine.run_frame());
+  REQUIRE(run_one_step(engine));
   CHECK(quick_loads == 1);
 
-  engine.timer.accumulator = engine.timer.target_dt;
-  REQUIRE(engine.run_frame());
+  REQUIRE(run_one_step(engine));
   CHECK(quick_loads == 1);
 
   engine.cleanup();
@@ -574,8 +571,7 @@ TEST_CASE("pause menu: Save with no on_fixed_update hook does not crash") {
   press(engine, corundum::input::Action::Select);
   CHECK(engine.scene.mode() == GameMode::Exploring);
 
-  engine.timer.accumulator = engine.timer.target_dt;
-  CHECK(engine.run_frame());
+  CHECK(run_one_step(engine));
 
   engine.cleanup();
 }

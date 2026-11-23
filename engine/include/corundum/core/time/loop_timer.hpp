@@ -3,17 +3,23 @@
 
 #pragma once
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <cstdint>
+#include <optional>
 
 namespace corundum::core::time {
 
   /// Fixed-timestep accumulator for platform-independent game loop timing.
+  ///
+  /// The timer reads no clock: the main loop passes each frame's steady-clock reading to tick(), so a
+  /// test states elapsed time exactly.
   struct LoopTimer {
     /** @brief Seconds of unprocessed time carried between frames. */
     float accumulator = 0.f;
-    /** @brief Wall-clock instant of the previous tick(). */
-    std::chrono::steady_clock::time_point prev_time = std::chrono::steady_clock::now();
+    /** @brief The reading passed to the previous tick(). Empty until the first tick, and reset by the
+     *  engine when the loop starts and when a pause ends, so that the next tick adds no time. */
+    std::optional<std::chrono::steady_clock::time_point> prev_time;
     /** @brief Length of one fixed step in seconds, derived from the target rate. */
     float target_dt = 0.f;
 
@@ -36,14 +42,18 @@ namespace corundum::core::time {
      */
     void set_target_fps(float fps) noexcept { target_dt = 1.f / fps; }
 
-    /** @brief Sample wall time and add it to the accumulator; call once per frame.
+    /** @brief Add the time since the previous tick() to the accumulator; call once per frame.
      *
      *  Elapsed time is capped at 250 ms so a hitch — debugger breakpoint, asset load, OS
-     *  preemption — cannot queue an unbounded burst of fixed steps.
+     *  preemption — cannot queue an unbounded burst of fixed steps. With prev_time empty the
+     *  tick records @p now and adds nothing.
+     *
+     *  @param[in] now This frame's steady-clock reading.
+     *  @pre @p now is not earlier than the previous reading.
      */
-    void tick() noexcept {
-      const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-      const float raw_frame_time = std::chrono::duration<float>(now - prev_time).count();
+    void tick(std::chrono::steady_clock::time_point now) noexcept {
+      assert(!prev_time || *prev_time <= now);
+      const float raw_frame_time = prev_time ? std::chrono::duration<float>(now - *prev_time).count() : 0.f;
       const float capped = std::min(raw_frame_time, 0.25f);
 
       last_frame_dt = capped;

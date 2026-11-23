@@ -25,6 +25,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::initialize_with_world;
   using corundum::test::make_world_config;
+  using corundum::test::run_one_step;
   using corundum::world::WorldStep;
 
   /// An extension mode no framework registers; a test registers the screen it needs.
@@ -104,9 +105,7 @@ TEST_CASE("world step: a mode that runs the world targets no interaction") {
 TEST_CASE("world step: the engine runs the world beneath a screen registered with WorldStep::Runs") {
   const std::unique_ptr<corundum::Engine> engine = make_walking_engine();
   engine->screens.add(k_test_mode, corundum::ScreenSpec{.owns_step = false, .world_step = WorldStep::Runs});
-  engine->timer.accumulator = engine->timer.target_dt;
-
-  std::ignore = engine->run_frame();
+  std::ignore = run_one_step(*engine);
 
   CHECK_GT(player_col(*engine), 8.f);
   engine->cleanup();

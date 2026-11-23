@@ -783,10 +783,10 @@ namespace corundum {
   }
 
   void Engine::run_loop() noexcept {
-    // Measure the first frame from the start of the loop, so asset-load time during initialize() is not
-    // replayed as a burst of catch-up fixed steps.
-    timer.prev_time = std::chrono::steady_clock::now();
-    while (run_frame()) {
+    // Start the timer unseeded so the first frame adds no time: asset-load time during initialize() is
+    // not replayed as a burst of catch-up fixed steps.
+    timer.prev_time.reset();
+    while (run_frame(std::chrono::steady_clock::now())) {
     }
   }
 
@@ -795,7 +795,7 @@ namespace corundum {
     cleanup();
   }
 
-  bool Engine::run_frame() noexcept {
+  bool Engine::run_frame(std::chrono::steady_clock::time_point now) noexcept {
     if (!window_->is_open() || quit_)
       return false;
     const core::math::IntSize window_logical = window_->size();
@@ -818,7 +818,7 @@ namespace corundum {
       return true;
     }
 
-    timer.tick();
+    timer.tick(now);
 
     render::stream_world_chunks(*renderer_, render, cfg, scene);
 
@@ -859,7 +859,7 @@ namespace corundum {
 
     audio.set_paused(false);
     timer.accumulator = 0.f;
-    timer.prev_time = std::chrono::steady_clock::now();
+    timer.prev_time.reset();
     input::clear_pressed(input_state);
   }
 

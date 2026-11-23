@@ -18,12 +18,16 @@
 #include <corundum/world/scene.hpp>
 #include <corundum/world/tilemap/world_manifest.hpp>
 
+#include <chrono>
 #include <filesystem>
 #include <string>
 
 namespace fs = std::filesystem;
 
 namespace {
+
+  using corundum::test::initialize_with_world;
+  using corundum::test::run_one_step;
 
   /// Single-map config matching the lifecycle fixtures (interior tilemap).
   corundum::core::GameConfig make_single_map_config(const fs::path &fixtures) {
@@ -71,15 +75,7 @@ namespace {
     return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
   }
 
-  /// Run one frame with @p dt of simulation owed.
-  bool step(corundum::Engine &engine) {
-    engine.timer.accumulator = engine.timer.target_dt;
-    return engine.run_frame();
-  }
-
 } // namespace
-
-using corundum::test::initialize_with_world;
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("player absent - single-map frames run without the player") {
@@ -100,7 +96,7 @@ TEST_CASE("player absent - single-map frames run without the player") {
   window->scripted_mouse.emplace_back(corundum::input::MouseButton::Left, true);
 
   for (int i = 0; i < 5; ++i)
-    CHECK(step(engine));
+    CHECK(run_one_step(engine));
 
   engine.cleanup();
 }
@@ -121,7 +117,7 @@ TEST_CASE("player absent - streaming frames leave the window where it is") {
   REQUIRE_FALSE(corundum::world::player_present(engine.scene));
 
   for (int i = 0; i < 5; ++i)
-    CHECK(step(engine));
+    CHECK(run_one_step(engine));
 
   CHECK(corundum::test::world_area_of(engine.render).chunks.last_center() == center);
 
@@ -141,7 +137,8 @@ TEST_CASE("player absent - save_game reports no player entity") {
 
   const corundum::test::TempDir tmp{"corundum_player_absent_", "save"};
   corundum::core::DirectoryUserStorage storage{tmp.path()};
-  const auto result = corundum::save::save_game(engine, storage, "save", "", 0);
+  const auto result =
+      corundum::save::save_game(engine, storage, "save", "", 0, std::chrono::system_clock::time_point{});
 
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("no player") != std::string::npos);

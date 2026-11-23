@@ -35,6 +35,9 @@ namespace fs = std::filesystem;
 
 namespace {
 
+  using corundum::test::initialize_with_world;
+  using corundum::test::k_frame_time;
+
   /// Build a GameConfig pointing at the headless fixtures bundled with the
   /// test target. sprites_dir ends at the parent directory so that
   /// `<sprites_dir>/characters/<sheet>.json` resolves correctly.
@@ -128,18 +131,14 @@ namespace {
     corundum::input::GamepadState pressed{};
     pressed.buttons[static_cast<std::size_t>(corundum::input::GamepadControl::A)] = true;
     null_window(engine)->gamepad = pressed;
-    static_cast<void>(engine.run_frame());
+    static_cast<void>(engine.run_frame(k_frame_time));
 
     null_window(engine)->gamepad = std::nullopt;
     null_window(engine)->scripted_events.controller_disconnected = true;
-    static_cast<void>(engine.run_frame());
+    static_cast<void>(engine.run_frame(k_frame_time));
   }
 
 } // namespace
-
-using corundum::test::initialize_with_world;
-
-// ── 1. Precondition guard ────────────────────────────────────────────────────
 
 TEST_CASE("lifecycle: initialize on a default-constructed Engine returns an error") {
   corundum::Engine engine{};
@@ -147,8 +146,6 @@ TEST_CASE("lifecycle: initialize on a default-constructed Engine returns an erro
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error().find("must be non-null") != std::string::npos);
 }
-
-// ── 2. Initialize succeeds with NullPlatform + fixture GameConfig ───────────
 
 TEST_CASE("lifecycle: initialize succeeds with NullPlatform and a fixture GameConfig") {
   corundum::Engine engine{};
@@ -164,8 +161,6 @@ TEST_CASE("lifecycle: initialize succeeds with NullPlatform and a fixture GameCo
   engine.cleanup();
   CHECK_FALSE(engine.window().is_open());
 }
-
-// ── 3. Failure path runs cleanup (window closes, error returned) ────────────
 
 TEST_CASE("lifecycle: initialize failure runs cleanup so the window is closed") {
   corundum::Engine engine{};
@@ -196,13 +191,11 @@ TEST_CASE("lifecycle: the window is revealed only after the first frame is prese
   CHECK_FALSE(null_window(engine)->visible);
 
   engine.timer.accumulator = engine.timer.target_dt * 2.f;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
   CHECK(null_window(engine)->visible);
 
   engine.cleanup();
 }
-
-// ── 4. Double cleanup safe; run_frame/run_loop after cleanup return false ────
 
 TEST_CASE("lifecycle: cleanup is idempotent and post-cleanup run_frame returns false") {
   corundum::Engine engine{};
@@ -217,12 +210,10 @@ TEST_CASE("lifecycle: cleanup is idempotent and post-cleanup run_frame returns f
   engine.cleanup();
 
   // Both run_frame and run_loop must exit immediately.
-  CHECK_FALSE(engine.run_frame());
+  CHECK_FALSE(engine.run_frame(k_frame_time));
   engine.run_loop();
   CHECK(engine.quit_requested());
 }
-
-// ── 5. on_fixed_update can request_quit, run_loop exits cleanly ─────────────
 
 TEST_CASE("lifecycle: on_fixed_update calling request_quit ends the main loop") {
   corundum::Engine engine{};
@@ -253,8 +244,6 @@ TEST_CASE("lifecycle: on_fixed_update calling request_quit ends the main loop") 
   CHECK_FALSE(engine.window().is_open());
 }
 
-// ── 6. run_frame returns true across N steps, then false after request_quit ──
-
 TEST_CASE("lifecycle: run_frame steps the simulation N times then returns false") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
@@ -269,17 +258,15 @@ TEST_CASE("lifecycle: run_frame steps the simulation N times then returns false"
   // Pump frames; each should succeed.
   for (int i = 0; i < k_frames_to_pump; ++i) {
     engine.timer.accumulator = engine.timer.target_dt * k_steps_to_accumulate;
-    CHECK(engine.run_frame());
+    CHECK(engine.run_frame(k_frame_time));
   }
 
   // request_quit sets the quit flag; the next call must return false.
   engine.request_quit();
-  CHECK_FALSE(engine.run_frame());
+  CHECK_FALSE(engine.run_frame(k_frame_time));
 
   engine.cleanup();
 }
-
-// ── 7. Single-map startup camera uses the map's true height, not its width ───
 
 TEST_CASE("lifecycle: single-map startup camera frames the map with per-axis bounds") {
   corundum::Engine engine{};
@@ -300,8 +287,6 @@ TEST_CASE("lifecycle: single-map startup camera frames the map with per-axis bou
   engine.cleanup();
 }
 
-// ── 8. Focus loss pauses the simulation and audio ────────────────────────────
-
 TEST_CASE("lifecycle: focus loss stops fixed steps and pauses audio") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
@@ -316,7 +301,7 @@ TEST_CASE("lifecycle: focus loss stops fixed steps and pauses audio") {
   const std::uint64_t steps_before = engine.timer.step_count;
 
   null_window(engine)->scripted_events.focus_lost = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK(engine.is_paused());
   CHECK(audio->last_paused);
@@ -324,13 +309,11 @@ TEST_CASE("lifecycle: focus loss stops fixed steps and pauses audio") {
 
   // Still paused, and still no catch-up, on later frames with time queued.
   engine.timer.accumulator = engine.timer.target_dt * 2.f;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
   CHECK(engine.timer.step_count == steps_before);
 
   engine.cleanup();
 }
-
-// ── 9. Focus gain resumes without replaying the paused interval ──────────────
 
 TEST_CASE("lifecycle: focus gain resumes with no catch-up burst") {
   corundum::Engine engine{};
@@ -342,7 +325,7 @@ TEST_CASE("lifecycle: focus gain resumes with no catch-up burst") {
   REQUIRE(engine.initialize(std::move(cfg)).has_value());
 
   null_window(engine)->scripted_events.focus_lost = true;
-  REQUIRE(engine.run_frame());
+  REQUIRE(engine.run_frame(k_frame_time));
   REQUIRE(engine.is_paused());
 
   // Simulate a long pause having queued a large backlog, then regain focus.
@@ -350,7 +333,7 @@ TEST_CASE("lifecycle: focus gain resumes with no catch-up burst") {
   const std::uint64_t steps_before = engine.timer.step_count;
 
   null_window(engine)->scripted_events.focus_gained = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK_FALSE(engine.is_paused());
   CHECK_FALSE(audio->last_paused);
@@ -359,8 +342,6 @@ TEST_CASE("lifecycle: focus gain resumes with no catch-up burst") {
 
   engine.cleanup();
 }
-
-// ── 10. quit_requested ends the frame; display changes reach the hook ─────────
 
 TEST_CASE("lifecycle: quit_requested ends run_frame") {
   corundum::Engine engine{};
@@ -371,7 +352,7 @@ TEST_CASE("lifecycle: quit_requested ends run_frame") {
   REQUIRE(engine.initialize(std::move(cfg)).has_value());
 
   null_window(engine)->scripted_events.quit_requested = true;
-  CHECK_FALSE(engine.run_frame());
+  CHECK_FALSE(engine.run_frame(k_frame_time));
   CHECK(engine.quit_requested());
 
   engine.cleanup();
@@ -389,18 +370,16 @@ TEST_CASE("lifecycle: on_platform_event hook observes display changes") {
   engine.on_platform_event = std::ref(recorder);
 
   null_window(engine)->scripted_events.display_changed = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
   CHECK(recorder.calls == 1);
   CHECK(recorder.seen.display_changed);
 
   // A frame with no OS events does not invoke the hook.
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
   CHECK(recorder.calls == 1);
 
   engine.cleanup();
 }
-
-// ── 11. Window mode ──────────────────────────────────────────────────────────
 
 TEST_CASE("lifecycle: the configured window mode is applied when the window is first revealed") {
   corundum::Engine engine{};
@@ -416,14 +395,12 @@ TEST_CASE("lifecycle: the configured window mode is applied when the window is f
   CHECK_FALSE(null_window(engine)->visible);
   CHECK(engine.window().window_mode() == corundum::core::WindowMode::Windowed);
 
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
   CHECK(null_window(engine)->visible);
   CHECK(engine.window().window_mode() == corundum::core::WindowMode::Fullscreen);
 
   engine.cleanup();
 }
-
-// ── 12. Pause reasons ────────────────────────────────────────────────────────
 
 TEST_CASE("lifecycle: a game pause survives a focus round-trip") {
   corundum::Engine engine{};
@@ -436,10 +413,10 @@ TEST_CASE("lifecycle: a game pause survives a focus round-trip") {
   engine.pause(corundum::PauseReason::Game);
 
   null_window(engine)->scripted_events.focus_lost = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   null_window(engine)->scripted_events.focus_gained = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK(engine.is_paused());
   CHECK(engine.is_paused_for(corundum::PauseReason::Game));
@@ -476,7 +453,7 @@ TEST_CASE("lifecycle: reconnecting the controller resumes") {
 
   null_window(engine)->gamepad = corundum::input::GamepadState{};
   null_window(engine)->scripted_events.controller_connected = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK_FALSE(engine.is_paused());
 
@@ -495,7 +472,7 @@ TEST_CASE("lifecycle: a keyboard press resumes a controller pause") {
   REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
 
   null_window(engine)->scripted_keys.emplace_back(corundum::input::Key::Enter, true);
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK_FALSE(engine.is_paused());
   // The resuming press is consumed by resume(), not routed to the game.
@@ -514,11 +491,11 @@ TEST_CASE("lifecycle: a disconnect while playing on keyboard does not pause") {
 
   null_window(engine)->scripted_keys.emplace_back(corundum::input::Key::W, true);
   null_window(engine)->gamepad = corundum::input::GamepadState{};
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   null_window(engine)->gamepad = std::nullopt;
   null_window(engine)->scripted_events.controller_disconnected = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK_FALSE(engine.is_paused());
 
@@ -534,14 +511,14 @@ TEST_CASE("lifecycle: resume drops presses latched while paused") {
   REQUIRE(engine.initialize(std::move(cfg)).has_value());
 
   null_window(engine)->scripted_events.focus_lost = true;
-  REQUIRE(engine.run_frame());
+  REQUIRE(engine.run_frame(k_frame_time));
 
   null_window(engine)->scripted_keys.emplace_back(corundum::input::Key::Escape, true);
-  REQUIRE(engine.run_frame());
+  REQUIRE(engine.run_frame(k_frame_time));
   REQUIRE(engine.input_state.is_pressed(corundum::input::Action::Cancel));
 
   null_window(engine)->scripted_events.focus_gained = true;
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK_FALSE(engine.input_state.is_pressed(corundum::input::Action::Cancel));
 
@@ -560,9 +537,9 @@ TEST_CASE("lifecycle: cursor movement does not resume a controller pause") {
   REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
 
   null_window(engine)->cursor = {100.f, 50.f};
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
   null_window(engine)->cursor = {200.f, 80.f};
-  CHECK(engine.run_frame());
+  CHECK(engine.run_frame(k_frame_time));
 
   CHECK(engine.is_paused_for(corundum::PauseReason::Controller));
   CHECK(engine.input_state.mouse_x == 200.f);

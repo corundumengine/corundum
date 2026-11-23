@@ -47,6 +47,7 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::make_world_config;
   using corundum::test::RecordingRenderer;
+  using corundum::test::run_one_step;
   using corundum::world::GameMode;
   namespace screens = corundum::gameplay::screens;
 
@@ -435,8 +436,7 @@ TEST_CASE("game over: a game hook watching a death flag opens it on the next ste
   };
 
   engine.flags["player_dead"] = 1;
-  engine.timer.accumulator = engine.timer.target_dt;
-  REQUIRE(engine.run_frame());
+  REQUIRE(run_one_step(engine));
   CHECK(engine.scene.ui.top() == screens::GameOver);
   CHECK_FALSE(engine.flags.contains("player_dead"));
 

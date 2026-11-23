@@ -22,15 +22,10 @@ namespace {
   using corundum::test::adopt_platform;
   using corundum::test::initialize_with_world;
   using corundum::test::make_world_config;
+  using corundum::test::run_one_step;
   using corundum::ui::TransitionPhase;
   using corundum::world::GameMode;
   using corundum::world::MapTransition;
-
-  /// Advance exactly one fixed step; run_frame() renders through the null renderer.
-  void step(corundum::Engine &engine) {
-    engine.timer.accumulator = engine.timer.target_dt;
-    static_cast<void>(engine.run_frame());
-  }
 
   std::string interior_path(const fs::path &fixtures) {
     return (fixtures / "tilemaps/interior.json").string();
@@ -47,13 +42,13 @@ TEST_CASE("engine screen transition - a UI screen push or pop never starts a fad
 
   engine.scene.ui.push(GameMode::Menu);
   for (int i = 0; i < 4; ++i)
-    step(engine);
+    static_cast<void>(run_one_step(engine));
   CHECK_FALSE(engine.screen_transition.active());
   CHECK_EQ(engine.screen_transition.alpha(), 0.f);
 
   engine.scene.ui.pop();
   for (int i = 0; i < 4; ++i)
-    step(engine);
+    static_cast<void>(run_one_step(engine));
   CHECK_FALSE(engine.screen_transition.active());
   CHECK_EQ(engine.screen_transition.alpha(), 0.f);
 

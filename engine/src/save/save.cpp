@@ -164,14 +164,14 @@ namespace corundum::save {
   }
 
   std::expected<void, std::string> save_game(const Engine &engine, core::UserStorage &storage, std::string_view slot_id,
-                                             std::string_view location_name, std::int64_t playtime_seconds) {
+                                             std::string_view location_name, std::int64_t playtime_seconds,
+                                             std::chrono::system_clock::time_point saved_at) {
     SaveState state;
     state.version = k_save_version;
     state.game_id = engine.cfg.game_id;
     state.meta.location_name = std::string{location_name};
     state.meta.playtime_seconds = playtime_seconds;
-    const auto now = std::chrono::system_clock::now().time_since_epoch();
-    state.meta.saved_at_unix = std::chrono::duration_cast<std::chrono::seconds>(now).count();
+    state.meta.saved_at_unix = std::chrono::duration_cast<std::chrono::seconds>(saved_at.time_since_epoch()).count();
     state.mode = render::mode(engine.render) == render::RenderMode::World ? std::string{k_mode_world}
                                                                           : std::string{k_mode_single_map};
 

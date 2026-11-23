@@ -5,6 +5,7 @@
 
 #include <corundum/world/flags.hpp>
 
+#include <chrono>
 #include <cstdint>
 #include <expected>
 #include <nlohmann/json_fwd.hpp>
@@ -141,12 +142,13 @@ namespace corundum::save {
    * @param slot_id         Slot to write (`slot_01`, `quicksave`, `autosave`).
    * @param location_name   Display name of the current location, for the slot list.
    * @param playtime_seconds Accumulated playtime to record, in seconds.
+   * @param saved_at        Wall-clock time to record as the slot's saved_at_unix, truncated to whole seconds.
    * @return ok, or an error if the engine has no active map or the file cannot be written.
-   * @post The slot's saved_at_unix is stamped with the current wall-clock time.
    */
   [[nodiscard]] std::expected<void, std::string> save_game(const Engine &engine, core::UserStorage &storage,
                                                            std::string_view slot_id, std::string_view location_name,
-                                                           std::int64_t playtime_seconds);
+                                                           std::int64_t playtime_seconds,
+                                                           std::chrono::system_clock::time_point saved_at);
 
   /** @brief Load a save file, replacing flags and respawning at the saved location.
    *

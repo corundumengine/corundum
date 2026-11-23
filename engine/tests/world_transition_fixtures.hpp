@@ -12,18 +12,29 @@
 #include <corundum/world/update.hpp>
 
 #include "font_fixtures.hpp"
-#include "render_state_fixtures.hpp"
 
+#include <chrono>
 #include <cstddef>
 #include <expected>
 #include <filesystem>
 #include <string>
 #include <utility>
 
-/// Fixtures shared by the world-transition tests and the root inventory-toggle
-/// test: both boot the same fixture world through a null platform. Every helper
-/// is `inline` so the two translation units share one definition.
+/// Fixtures shared by the tests that boot the fixture world through a null platform and drive
+/// Engine frames. Every helper is `inline` so the translation units share one definition.
 namespace corundum::test {
+
+  /// The steady-clock reading every test frame passes to Engine::run_frame. Because it never changes,
+  /// a frame adds no wall time, so a test's fixed steps are exactly what it puts in timer.accumulator.
+  constexpr std::chrono::steady_clock::time_point k_frame_time{};
+
+  /// Run one frame owing the timer exactly one fixed step, so a case advances the simulation once per
+  /// call. The frame's reading is k_frame_time, so tick() itself adds no time.
+  /// @return true while the loop should continue; false once quit is requested.
+  [[nodiscard]] inline bool run_one_step(Engine &engine) {
+    engine.timer.accumulator = engine.timer.target_dt;
+    return engine.run_frame(k_frame_time);
+  }
 
   inline core::GameConfig make_world_config(const std::filesystem::path &fixtures) {
     core::GameConfig cfg{};

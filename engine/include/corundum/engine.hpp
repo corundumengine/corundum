@@ -35,6 +35,7 @@
 #include <corundum/world/ui_stack.hpp>
 
 #include <bitset>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -311,9 +312,12 @@ namespace corundum {
     /** @brief Advance the engine by exactly one frame: poll input, run pending
      *  fixed steps, render once with interpolation.
      *
+     *  @param now This frame's steady-clock reading. run_loop() passes
+     *         std::chrono::steady_clock::now(); a test passes a fixed reading so the
+     *         frame adds no wall time.
      *  @return true while the loop should continue; false once quit is requested
      *          or the window has closed. run_loop() is equivalent to
-     *          while (run_frame()) {}.
+     *          while (run_frame(std::chrono::steady_clock::now())) {}.
      *
      *  @pre initialize() must have returned successfully.
      *  @post If no step-owning screen was on top during a fixed step, both fixed_step_systems
@@ -324,11 +328,11 @@ namespace corundum {
      *  @note Allocates only for dialogue-event item/flag bookkeeping and, in World
      *        mode, for the one chunk streamed in per frame.
      */
-    [[nodiscard]] bool run_frame() noexcept;
+    [[nodiscard]] bool run_frame(std::chrono::steady_clock::time_point now) noexcept;
 
     /** @brief Run the main loop until the window closes or quit is requested.
      *
-     *  Equivalent to while (run_frame()) {}.
+     *  Equivalent to while (run_frame(std::chrono::steady_clock::now())) {}.
      *
      *  @pre initialize() must have returned successfully.
      *  @note Allocation behaviour is that of run_frame(), once per iteration.

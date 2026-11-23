@@ -79,6 +79,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -2004,8 +2005,9 @@ namespace corundum::gameplay {
     if (!engine_->user_storage)
       return std::unexpected(engine_->user_storage.error());
 
-    const auto result = save::save_game(*engine_, **engine_->user_storage, slot_id, current_location_name(),
-                                        static_cast<std::int64_t>(playthrough.playtime_seconds));
+    const auto result =
+        save::save_game(*engine_, **engine_->user_storage, slot_id, current_location_name(),
+                        static_cast<std::int64_t>(playthrough.playtime_seconds), std::chrono::system_clock::now());
     if (result)
       playthrough.last_slot = std::string{slot_id};
     return result;

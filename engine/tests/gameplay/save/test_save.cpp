@@ -28,7 +28,9 @@
 #include <corundum/world/flags.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <format>
 #include <memory>
@@ -43,7 +45,20 @@ using nlohmann::json;
 namespace {
 
   using corundum::save::slot_name;
+  using corundum::test::initialize_with_world;
   using corundum::test::MemoryUserStorage;
+
+  // An arbitrary instant with a non-zero seconds digit, distinct from the 1'700'000'000 the
+  // serialize/parse cases use.
+  constexpr std::int64_t k_saved_at_unix = 1'700'000'123;
+  constexpr std::chrono::sys_seconds k_saved_at{std::chrono::seconds{k_saved_at_unix}};
+
+  /// The fixture root every save case boots from; fails the case when the fixtures are missing.
+  [[nodiscard]] fs::path fixture_root() {
+    const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+    REQUIRE(fs::is_directory(fixtures));
+    return fixtures;
+  }
 
   corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
     corundum::core::GameConfig cfg{};
@@ -76,11 +91,14 @@ namespace {
     corundum::platform::null::adopt_null_platform(engine, platform);
   }
 
+  /// Boot @p engine on the null platform with the fixture world loaded, for the cases that only
+  /// need a player in a world to save.
+  void boot_fixture_world(corundum::Engine &engine) {
+    adopt_platform(engine, 320, 240);
+    REQUIRE(initialize_with_world(engine, make_world_config(fixture_root())).has_value());
+  }
+
 } // namespace
-
-using corundum::test::initialize_with_world;
-
-// ── serialize / parse ─────────────────────────────────────────────────────────
 
 TEST_CASE("save: serialize/parse round-trips a state with an unknown flag key verbatim") {
   corundum::save::SaveState s;
@@ -191,8 +209,6 @@ TEST_CASE("save: parse rejects an unknown mode") {
   CHECK(state.error().find("mode") != std::string::npos);
 }
 
-// ── load_game guards ──────────────────────────────────────────────────────────
-
 TEST_CASE("save: load_game refuses a save for a different game_id") {
   corundum::Engine engine;
   engine.cfg.game_id = "keystone";
@@ -223,14 +239,11 @@ TEST_CASE("save: load_game refuses a save whose version is newer than the engine
            std::format("save version 999 is not supported (expected {})", corundum::save::k_save_version));
 }
 
-// ── Integration ───────────────────────────────────────────────────────────────
-
 TEST_CASE("save: single-map save/load restores the interior, zone_id, and player position") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
 
   corundum::core::GameConfig cfg = make_world_config(fixtures);
   cfg.paths.world_manifest_path.clear(); // single-map mode
@@ -244,7 +257,7 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
   transforms.pos_row_ref(engine.scene.player) = 6.f;
 
   MemoryUserStorage storage;
-  REQUIRE(corundum::save::save_game(engine, storage, "integration_single", "test", 0).has_value());
+  REQUIRE(corundum::save::save_game(engine, storage, "integration_single", "test", 0, k_saved_at).has_value());
 
   engine.flags.clear();
   transforms.pos_col_ref(engine.scene.player) = 1.f;
@@ -267,8 +280,7 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
 
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
@@ -296,7 +308,7 @@ TEST_CASE("save: save_game/load_game restore quest lifecycle, zone flags, and pl
   transforms.pos_row_ref(engine.scene.player) = 3.f;
 
   MemoryUserStorage storage;
-  REQUIRE(corundum::save::save_game(engine, storage, "integration", "test", 0).has_value());
+  REQUIRE(corundum::save::save_game(engine, storage, "integration", "test", 0, k_saved_at).has_value());
 
   // Mutate everything the save captures.
   engine.flags.clear();
@@ -324,8 +336,7 @@ TEST_CASE("save: world save/load preserves a fractional player position") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
@@ -338,7 +349,7 @@ TEST_CASE("save: world save/load preserves a fractional player position") {
   transforms.pos_row_ref(engine.scene.player) = 3.75f;
 
   MemoryUserStorage storage;
-  REQUIRE(corundum::save::save_game(engine, storage, "fractional_world", "test", 0).has_value());
+  REQUIRE(corundum::save::save_game(engine, storage, "fractional_world", "test", 0, k_saved_at).has_value());
 
   transforms.pos_col_ref(engine.scene.player) = 1.f;
   transforms.pos_row_ref(engine.scene.player) = 1.f;
@@ -356,8 +367,7 @@ TEST_CASE("save: load_game refuses a save whose world manifest differs") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
@@ -382,8 +392,7 @@ TEST_CASE("save: a failed load leaves the engine's flags untouched") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
 
   corundum::core::GameConfig cfg = make_world_config(fixtures);
   cfg.paths.world_manifest_path.clear(); // single-map mode
@@ -409,8 +418,6 @@ TEST_CASE("save: a failed load leaves the engine's flags untouched") {
 
   engine.cleanup();
 }
-
-// ── SaveMeta, slots and the saves directory ───────────────────────────────────
 
 TEST_CASE("save: SaveMeta round-trips through serialize/parse") {
   corundum::save::SaveState s;
@@ -445,16 +452,12 @@ TEST_CASE("save: manual_slot_id formats zero-padded slot ids") {
 
 TEST_CASE("save: save_game creates a missing parent directory and leaves no temp file") {
   corundum::Engine engine{};
-  adopt_platform(engine, 320, 240);
-
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
-  REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
+  boot_fixture_world(engine);
 
   ScratchStorage scratch;
   REQUIRE_FALSE(fs::exists(scratch.dir.path() / "saves"));
 
-  const auto result = corundum::save::save_game(engine, scratch.storage, "autosave", "Village", 90);
+  const auto result = corundum::save::save_game(engine, scratch.storage, "autosave", "Village", 90, k_saved_at);
   REQUIRE(result.has_value());
   const fs::path file = scratch.dir.path() / "saves" / "autosave.json";
   CHECK(fs::exists(file));
@@ -469,7 +472,24 @@ TEST_CASE("save: save_game creates a missing parent directory and leaves no temp
   REQUIRE(state.has_value());
   CHECK(state->meta.location_name == "Village");
   CHECK(state->meta.playtime_seconds == 90);
-  CHECK(state->meta.saved_at_unix > 0);
+
+  engine.cleanup();
+}
+
+TEST_CASE("save: save_game stamps saved_at_unix with the given time, truncated to whole seconds") {
+  corundum::Engine engine{};
+  boot_fixture_world(engine);
+
+  MemoryUserStorage storage;
+  const auto result =
+      corundum::save::save_game(engine, storage, "autosave", "Village", 0, k_saved_at + std::chrono::milliseconds{900});
+  REQUIRE(result.has_value());
+
+  const auto read = corundum::core::read_json(storage, slot_name("autosave"));
+  REQUIRE(read.has_value());
+  const auto state = corundum::save::parse(*read);
+  REQUIRE(state.has_value());
+  CHECK_EQ(state->meta.saved_at_unix, k_saved_at_unix);
 
   engine.cleanup();
 }
@@ -534,23 +554,17 @@ TEST_CASE("save: list_saves returns valid rows and marks corrupt ones") {
 
 TEST_CASE("save_game: a failed storage write is returned") {
   corundum::Engine engine{};
-  adopt_platform(engine, 320, 240);
-
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
-  REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
+  boot_fixture_world(engine);
 
   MemoryUserStorage storage;
   storage.injected_write_error = "disk full";
 
-  const auto result = corundum::save::save_game(engine, storage, "autosave", "Village", 0);
+  const auto result = corundum::save::save_game(engine, storage, "autosave", "Village", 0, k_saved_at);
   REQUIRE_FALSE(result.has_value());
   CHECK(result.error() == "disk full");
 
   engine.cleanup();
 }
-
-// ── Gameplay quick save/load and autosave ─────────────────────────────────────
 
 TEST_CASE("gameplay: autosave writes the autosave slot and sets last_slot") {
   const corundum::test::TempDir scratch{"crpg_test_save_", "autosave"};
@@ -559,8 +573,7 @@ TEST_CASE("gameplay: autosave writes the autosave slot and sets last_slot") {
   engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(scratch.path());
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
   gameplay.playthrough.playtime_seconds = 12.0;
@@ -589,8 +602,7 @@ TEST_CASE("gameplay: the QuickSave action writes the quicksave slot and toasts s
   engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(scratch.path());
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -614,8 +626,7 @@ TEST_CASE("gameplay: a failed QuickLoad action raises a failure toast") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -636,8 +647,7 @@ TEST_CASE("Gameplay: save with no user storage reports the storage error") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  REQUIRE(fs::is_directory(fixtures));
+  const fs::path fixtures = fixture_root();
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
 

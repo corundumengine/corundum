@@ -39,6 +39,7 @@ namespace {
   using corundum::test::advance_with;
   using corundum::test::initialize_with_world;
   using corundum::test::make_world_config;
+  using corundum::test::run_one_step;
 
   /// Like make_world_config but with the 5×1 streaming-world manifest.
   corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
@@ -760,10 +761,8 @@ TEST_CASE("world streaming - streaming a chunk out despawns its actors, streamin
   // (0,0) and chunks (2,0)/(3,0) prune. Chunk (0,0) loads one-per-frame via
   // stream_world_chunks.
   move_player_to(engine, 3.f, 4.f);
-  for (int i = 0; i < 30; ++i) {
-    engine.timer.accumulator = engine.timer.target_dt;
-    REQUIRE(engine.run_frame());
-  }
+  for (int i = 0; i < 30; ++i)
+    REQUIRE(run_one_step(engine));
 
   // Chunk (0,0) streamed in: its a00 actor exists now.
   const auto west_a00 = entity_at(engine, 2, 3);
@@ -774,10 +773,8 @@ TEST_CASE("world streaming - streaming a chunk out despawns its actors, streamin
 
   // Walk back east to tile 20; the window recentres on chunk (2,0) and (3,0) reloads.
   move_player_to(engine, 20.f, 4.f);
-  for (int i = 0; i < 30; ++i) {
-    engine.timer.accumulator = engine.timer.target_dt;
-    REQUIRE(engine.run_frame());
-  }
+  for (int i = 0; i < 30; ++i)
+    REQUIRE(run_one_step(engine));
 
   const auto back_a30 = entity_at(engine, 4 + (3 * 8), 4);
   REQUIRE(back_a30.has_value());
@@ -800,10 +797,8 @@ TEST_CASE("world streaming - the recenter margin scales with chunk_size, not a f
 
   // Tile 1 is chunk (0,0) at local col 1: inside the chunk-relative margin, outside a 2.56 one.
   move_player_to(engine, 1.f, 4.f);
-  for (int i = 0; i < 30; ++i) {
-    engine.timer.accumulator = engine.timer.target_dt;
-    REQUIRE(engine.run_frame());
-  }
+  for (int i = 0; i < 30; ++i)
+    REQUIRE(run_one_step(engine));
 
   const corundum::world::tilemap::ChunkCoord west_center{.col = 0, .row = 0};
   CHECK(corundum::test::world_area_of(engine.render).chunks.last_center() == west_center);

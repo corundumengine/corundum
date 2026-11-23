@@ -23,6 +23,7 @@ namespace fs = std::filesystem;
 namespace {
 
   using corundum::test::adopt_platform;
+  using corundum::test::k_frame_time;
   using corundum::test::make_world_config;
   using corundum::world::GameMode;
   namespace screens = corundum::gameplay::screens;
@@ -164,7 +165,7 @@ TEST_CASE("inventory - rows are built once on open and not rebuilt while it stay
   // (same address) after stepping, not merely the same size: the step path never rebuilds it.
   const auto *const cached_lines = &gameplay.inventory_lines;
   engine.timer.accumulator = 2.f * engine.timer.target_dt;
-  REQUIRE(engine.run_frame());
+  REQUIRE(engine.run_frame(k_frame_time));
   CHECK(&gameplay.inventory_lines == cached_lines);
 
   // The inventory is read-only while open: a flag mutated from outside must not change the
