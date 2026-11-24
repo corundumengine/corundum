@@ -14,8 +14,9 @@
 
 namespace corundum::gameplay::item {
 
-// The key spelling is part of the rules interface (player_flags.hpp), so a ruleset can read
-// what is equipped; item code keeps naming it item::.
+/** The key spelling is part of the rules interface (player_flags.hpp), so a ruleset can read
+ *  what is equipped; item code keeps naming it item::.
+ */
 using gameplay::equip_flag_key;
 using gameplay::k_weapon_slot;
 

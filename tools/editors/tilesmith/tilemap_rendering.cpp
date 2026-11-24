@@ -113,8 +113,9 @@ struct PendingTileDraw {
   float depth{};
 };
 
-/// The invariants one render_tilemap pass holds still for every cell it draws.
-/// @note The pointers are the caller's, live for the whole call and never null.
+/** The invariants one render_tilemap pass holds still for every cell it draws.
+ *  @note The pointers are the caller's, live for the whole call and never null.
+ */
 struct TilePass {
   corundum::toolkit::host::ToolHost *host{};
 
@@ -137,15 +138,16 @@ struct TilePass {
   int z_index{};
 };
 
-/// One cell's draw, and whether the ground band has to depth-sort it against entities.
+/** One cell's draw, and whether the ground band has to depth-sort it against entities. */
 struct ResolvedCell {
   PendingTileDraw draw{};
 
   bool depth_sorted{};
 };
 
-/// The GID to draw for `cell_index`, resolving an animated cell to its current frame.
-/// @return std::nullopt for an empty cell or an animation with no frames.
+/** The GID to draw for `cell_index`, resolving an animated cell to its current frame.
+ *  @return std::nullopt for an empty cell or an animation with no frames.
+ */
 [[nodiscard]] std::optional<corundum::world::tilemap::TileId>
 cell_gid(const corundum::world::tilemap::TilemapLayer &layer, int cell_index, float elapsed_time) {
   const auto animated = layer.animated_cells.find(cell_index);
@@ -163,7 +165,7 @@ cell_gid(const corundum::world::tilemap::TilemapLayer &layer, int cell_index, fl
   return animation.frame_gids[static_cast<std::size_t>(frame_index)];
 }
 
-/// Screen-space quad, UVs and depth for (`col`, `row`), laid out the way the canvas draws it.
+/** Screen-space quad, UVs and depth for (`col`, `row`), laid out the way the canvas draws it. */
 [[nodiscard]] ResolvedCell resolve_cell(const TilePass &pass, const corundum::world::tilemap::TilemapLayer &layer,
                                         int col, int row, int cell_index, corundum::world::tilemap::TileId gid) {
   const auto [img_id, tex_w, tex_h, src] = get_tile_texture(*pass.host, *pass.store, *pass.map, gid);
@@ -221,18 +223,18 @@ cell_gid(const corundum::world::tilemap::TilemapLayer &layer, int cell_index, fl
   return {.draw = draw, .depth_sorted = depth_sorted};
 }
 
-/// Draw `draw` immediately to the canvas.
+/** Draw `draw` immediately to the canvas. */
 void draw_now(CanvasContext ctx, const PendingTileDraw &draw) {
   ctx.dl->AddImage(draw.img_id, draw.p0, draw.p1, draw.uv0, draw.uv1);
 }
 
-/// Whether `draw` lands outside the canvas viewport.
+/** Whether `draw` lands outside the canvas viewport. */
 [[nodiscard]] bool off_canvas(const CanvasContext &ctx, const PendingTileDraw &draw) noexcept {
   return draw.p1.x < ctx.origin.x || draw.p0.x > ctx.origin.x + CANVAS_W || draw.p1.y < ctx.origin.y ||
          draw.p0.y > ctx.origin.y + CANVAS_H;
 }
 
-/// The cell's resolved draw, or std::nullopt when it is empty, has no texture, or lands off-canvas.
+/** The cell's resolved draw, or std::nullopt when it is empty, has no texture, or lands off-canvas. */
 [[nodiscard]] std::optional<ResolvedCell>
 visible_cell(const TilePass &pass, const corundum::world::tilemap::TilemapLayer &layer, int col, int row) {
   const int cell_index = (row * pass.map->width) + col;
@@ -245,7 +247,7 @@ visible_cell(const TilePass &pass, const corundum::world::tilemap::TilemapLayer 
   return cell;
 }
 
-/// Queue every tile of `layer` into `pending`, in depth order, or draw it straight to the canvas.
+/** Queue every tile of `layer` into `pending`, in depth order, or draw it straight to the canvas. */
 void draw_layer(const TilePass &pass, const corundum::world::tilemap::TilemapLayer &layer,
                 std::vector<PendingTileDraw> &pending) {
   const int depth_max = pass.map->width + pass.map->height - 2;

@@ -26,7 +26,7 @@ namespace corundum::world {
 
 namespace {
 
-/// Read a required actor field, or an error naming the field and actor.
+/** Read a required actor field, or an error naming the field and actor. */
 template <typename T>
 std::expected<T, std::string> read_required(const json &entry, std::string_view key, const std::string &path,
                                             std::size_t index) {
@@ -37,7 +37,7 @@ std::expected<T, std::string> read_required(const json &entry, std::string_view 
   }
 }
 
-/// Read an optional actor field; absent key yields nullopt, wrong type is an error.
+/** Read an optional actor field; absent key yields nullopt, wrong type is an error. */
 template <typename T>
 std::expected<std::optional<T>, std::string> read_optional(const json &entry, std::string_view key,
                                                            const std::string &path, std::size_t index) {
@@ -50,7 +50,7 @@ std::expected<std::optional<T>, std::string> read_optional(const json &entry, st
   }
 }
 
-/// Error when `value` would not fit an entity id table's buffer of `max_length` characters.
+/** Error when `value` would not fit an entity id table's buffer of `max_length` characters. */
 std::expected<void, std::string> check_id_length(const std::optional<std::string> &value, std::string_view key,
                                                  std::size_t max_length, const std::string &path, std::size_t index) {
   if (value && value->size() > max_length)
@@ -59,7 +59,7 @@ std::expected<void, std::string> check_id_length(const std::optional<std::string
   return {};
 }
 
-/// The already type-checked raw fields of one spawn actor.
+/** The already type-checked raw fields of one spawn actor. */
 struct ActorFields {
   int col{};
 

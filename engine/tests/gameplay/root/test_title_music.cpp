@@ -31,7 +31,7 @@ using corundum::test::adopt_platform;
 using corundum::test::make_world_config;
 namespace screens = corundum::gameplay::screens;
 
-/// AudioBackend double that records what the gameplay framework asks the music system to do.
+/** AudioBackend double that records what the gameplay framework asks the music system to do. */
 class MusicRecorder final : public corundum::audio::AudioBackend {
 public:
   std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view /*path*/) override {
@@ -69,8 +69,9 @@ public:
   std::vector<float> stop_fades;
 };
 
-/// Adopt the null platform and a MusicRecorder, initialise the engine with the title-music
-/// config, and return the recorder for assertions. Call before constructing Gameplay.
+/** Adopt the null platform and a MusicRecorder, initialise the engine with the title-music
+ *  config, and return the recorder for assertions. Call before constructing Gameplay.
+ */
 MusicRecorder &boot(corundum::Engine &engine, bool show_title,
                     corundum::core::TitleMusicConfig music = {.loop_delay_seconds = 7.f, .track = "music/title.ogg"},
                     std::vector<std::string> splash_images = {}) {
@@ -88,11 +89,12 @@ MusicRecorder &boot(corundum::Engine &engine, bool show_title,
   return *raw;
 }
 
-/// Fixed steps that comfortably cover any splash or load these tests drive.
+/** Fixed steps that comfortably cover any splash or load these tests drive. */
 constexpr int k_step_budget = 60 * 10;
 
-/// One fixed step as run_fixed_steps() drives a step-owning screen: advance the fade, then
-/// dispatch the top screen with `action` (if any) pressed.
+/** One fixed step as run_fixed_steps() drives a step-owning screen: advance the fade, then
+ *  dispatch the top screen with `action` (if any) pressed.
+ */
 void step(corundum::Engine &engine, std::optional<corundum::input::Action> action = std::nullopt) {
   engine.screen_transition.update(engine.timer.target_dt);
   corundum::input::InputState state{};

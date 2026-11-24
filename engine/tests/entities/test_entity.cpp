@@ -21,14 +21,16 @@ using corundum::entities::Velocity;
 
 namespace {
 
-/// A one-frame sprite using the default animation, pointing at `sprite_id`. Cases that need a
-/// Sprite but don't care which art it names use this instead of repeating its three fields.
+/** A one-frame sprite using the default animation, pointing at `sprite_id`. Cases that need a
+ *  Sprite but don't care which art it names use this instead of repeating its three fields.
+ */
 Sprite default_sprite(corundum::sprites::SpriteId sprite_id) {
   return Sprite{.sprite_id = sprite_id, .anim_id = corundum::sprites::AnimId::Default, .frame_index = 0};
 }
 
-/// Spawn with the standard components, requiring success. The pool-exhaustion case exercises the
-/// failure path directly, so every other case here can assume a free slot.
+/** Spawn with the standard components, requiring success. The pool-exhaustion case exercises the
+ *  failure path directly, so every other case here can assume a free slot.
+ */
 EntityId spawn_or_require(World &w, Position pos, Velocity vel, Sprite spr) {
   const std::optional<EntityId> id = spawn(w, pos, vel, spr);
   REQUIRE(id.has_value());

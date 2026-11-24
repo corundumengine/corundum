@@ -22,7 +22,7 @@ class ContentSource;
 
 namespace corundum::core {
 
-/// Font sizes and layout parameters for the dialogue panel.
+/** Font sizes and layout parameters for the dialogue panel. */
 struct DialogueRenderConfig {
   /** Font size for body text. */
   unsigned font_size_body = 22;
@@ -43,9 +43,10 @@ struct DialogueRenderConfig {
   float panel_height_frac = 0.32f;
 };
 
-/// Font sizes for the optional display role. Unlike every other role, whose text shares the
-/// body sizes, display text is sized per kind: one size for static headings, a larger one for
-/// transient banners. A game with no display family ignores both.
+/** Font sizes for the optional display role. Unlike every other role, whose text shares the
+ *  body sizes, display text is sized per kind: one size for static headings, a larger one for
+ *  transient banners. A game with no display family ignores both.
+ */
 struct DisplayRenderConfig {
   /** Size of static headings (screen titles, the title screen's game name). */
   unsigned heading_size{48};
@@ -57,9 +58,10 @@ struct DisplayRenderConfig {
 /** Maximum number of images game.json's "splash_images" may list (a studio logo and an engine logo). */
 constexpr std::size_t k_max_splash_images{2};
 
-/// Contains all file paths required by the game engine and logic. Directory fields default to
-/// the standard project layout so a project following convention needs a near-empty game.json;
-/// only the per-game file names (the "fonts" families and tilemap_path) require explicit values.
+/** Contains all file paths required by the game engine and logic. Directory fields default to
+ *  the standard project layout so a project following convention needs a near-empty game.json;
+ *  only the per-game file names (the "fonts" families and tilemap_path) require explicit values.
+ */
 struct ResourcePaths {
   /** Directory containing codex lore batch files. Defaults to "data/codex". */
   std::string codex_dir{"data/codex"};
@@ -132,7 +134,7 @@ struct ResourcePaths {
   std::string world_manifest_path{};
 };
 
-/// Player identity and default placement, configurable via game.json "player" block.
+/** Player identity and default placement, configurable via game.json "player" block. */
 struct PlayerConfig {
   /** Default spawn tile column (fractional tile-grid units). */
   float col = 8.f;
@@ -160,8 +162,9 @@ constexpr std::string_view k_default_game_title = "Corundum Engine";
  */
 constexpr float k_default_title_music_loop_delay_seconds = 5.f;
 
-/// Music for the framing screens, from game.json's optional "title_music" block. It starts at
-/// boot, plays under the splash and the Title, and fades out once a playthrough's world loads.
+/** Music for the framing screens, from game.json's optional "title_music" block. It starts at
+ *  boot, plays under the splash and the Title, and fades out once a playthrough's world loads.
+ */
 struct TitleMusicConfig {
   /** Seconds of silence between the end of the track and its restart. */
   float loop_delay_seconds{k_default_title_music_loop_delay_seconds};
@@ -172,7 +175,7 @@ struct TitleMusicConfig {
   std::string track;
 };
 
-/// Full runtime configuration loaded from game.json.
+/** Full runtime configuration loaded from game.json. */
 struct GameConfig {
   /** Machine-readable id of the game this config belongs to.
    *
@@ -277,9 +280,10 @@ struct GameConfig {
   std::flat_map<std::string, int> starting_flags{};
 };
 
-/// Parses game.json at `path` and returns a validated GameConfig.
-/// @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
-/// failure.
+/** Parses game.json at `path` and returns a validated GameConfig.
+ *  @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
+ *  failure.
+ */
 [[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content,
                                                                       const std::filesystem::path &path);
 

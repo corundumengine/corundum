@@ -70,8 +70,11 @@ struct InspectorState {
   int quick_graph_idx = 0;
   char quick_divert_node_buf[128]{};
 
-  CondEditState choice_cond_edit;    ///< Choice-edge condition field in the inspector.
-  CondEditState objective_cond_edit; ///< Objective done_condition field in the quest editor.
+  /** Choice-edge condition field in the inspector. */
+  CondEditState choice_cond_edit;
+
+  /** Objective done_condition field in the quest editor. */
+  CondEditState objective_cond_edit;
 
   void clear() {
     std::memset(id_buf, 0, sizeof(id_buf));

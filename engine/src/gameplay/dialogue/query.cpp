@@ -35,13 +35,14 @@ const Node *advance(const Graph &graph, const Node &node, int choice_index) noex
 
 namespace {
 
-// C++23: std::ranges::fold_left — FNV-1a mix over the hashed characters.
+/** C++23: std::ranges::fold_left — FNV-1a mix over the hashed characters. */
 constexpr auto k_fnv_mix = [](std::size_t hash, char c) noexcept -> std::size_t {
   return (hash ^ static_cast<unsigned char>(c)) * 1099511628211ULL;
 };
 
-/// Deterministic per-visit pick among `total_random` Random edges — hashes
-/// (graph, node, visit) so a visit always shows the same edge without storing state.
+/** Deterministic per-visit pick among `total_random` Random edges — hashes
+ *  (graph, node, visit) so a visit always shows the same edge without storing state.
+ */
 std::size_t random_slot(std::string_view graph_id, std::string_view node_id, int visit_cnt, std::size_t total_random) {
   std::size_t hash = std::ranges::fold_left(graph_id, 14695981039346656037ULL, k_fnv_mix);
   hash = std::ranges::fold_left(node_id, hash, k_fnv_mix);
@@ -49,8 +50,9 @@ std::size_t random_slot(std::string_view graph_id, std::string_view node_id, int
   return hash % total_random;
 }
 
-/// Applies `edge`'s sequencing mode, advancing the Cycle/Random counters, and
-/// reports whether it survives for this visit.
+/** Applies `edge`'s sequencing mode, advancing the Cycle/Random counters, and
+ *  reports whether it survives for this visit.
+ */
 bool passes_sequence(const ChoiceEdge &edge, const corundum::world::FlagStore &flags, std::string_view graph_id,
                      std::string_view node_id, std::size_t edge_index, std::size_t cycle_slot,
                      std::size_t random_slot_index, std::size_t &cycle_index, std::size_t &random_index) {
@@ -63,8 +65,9 @@ bool passes_sequence(const ChoiceEdge &edge, const corundum::world::FlagStore &f
   std::unreachable();
 }
 
-/// The position, among the node's Cycle edges and among its Random edges, of the one edge
-/// of each mode this visit shows.
+/** The position, among the node's Cycle edges and among its Random edges, of the one edge
+ *  of each mode this visit shows.
+ */
 struct SequenceSlots {
   std::size_t cycle{};
 

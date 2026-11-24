@@ -14,7 +14,7 @@ class ContentSource;
 
 namespace corundum::world {
 
-/// Current schema version for portals JSON. Absent field is treated as version 1.
+/** Current schema version for portals JSON. Absent field is treated as version 1. */
 constexpr int k_portals_schema_version = 1;
 
 /** A one-way map transition trigger in tile-grid space.
@@ -29,19 +29,39 @@ constexpr int k_portals_schema_version = 1;
  *  per-frame conversion round trip needed.
  */
 struct Portal {
-  float col = 0.f;              ///< Left tile column of the trigger rect.
-  float row = 0.f;              ///< Top tile row of the trigger rect.
-  float w = 0.f;                ///< Width of trigger rect in tiles.
-  float h = 0.f;                ///< Height of trigger rect in tiles.
-  std::string target_map{};     ///< Path to the target tilemap JSON (empty for chunk-to-chunk portals).
-  int spawn_col = 0;            ///< Tile column for player spawn in the target map or chunk.
-  int spawn_row = 0;            ///< Tile row for player spawn in the target map or chunk.
-  int target_chunk_col = -1;    ///< World-mode target chunk column (-1 = single-map portal).
-  int target_chunk_row = -1;    ///< World-mode target chunk row.
-  bool return_to_world = false; ///< Exit the current interior back to the configured overworld.
+  /** Left tile column of the trigger rect. */
+  float col = 0.f;
 
-  /// Value equality over every field — lets a consumer tell two triggers apart even
-  /// when they share a rect (e.g. the same cell at different elevations/targets).
+  /** Top tile row of the trigger rect. */
+  float row = 0.f;
+
+  /** Width of trigger rect in tiles. */
+  float w = 0.f;
+
+  /** Height of trigger rect in tiles. */
+  float h = 0.f;
+
+  /** Path to the target tilemap JSON (empty for chunk-to-chunk portals). */
+  std::string target_map{};
+
+  /** Tile column for player spawn in the target map or chunk. */
+  int spawn_col = 0;
+
+  /** Tile row for player spawn in the target map or chunk. */
+  int spawn_row = 0;
+
+  /** World-mode target chunk column (-1 = single-map portal). */
+  int target_chunk_col = -1;
+
+  /** World-mode target chunk row. */
+  int target_chunk_row = -1;
+
+  /** Exit the current interior back to the configured overworld. */
+  bool return_to_world = false;
+
+  /** Value equality over every field — lets a consumer tell two triggers apart even
+   *  when they share a rect (e.g. the same cell at different elevations/targets).
+   */
   [[nodiscard]] friend bool operator==(const Portal &, const Portal &) = default;
 };
 
@@ -68,10 +88,17 @@ struct Portal {
  *  cleared by corundum::world::handle_map_transition.
  */
 struct MapTransition {
-  std::string target_map{};     ///< Path to the target tilemap JSON.
-  int spawn_col = 0;            ///< Tile column for player spawn in the target map.
-  int spawn_row = 0;            ///< Tile row for player spawn in the target map.
-  bool return_to_world = false; ///< Re-load the configured overworld instead of a named map.
+  /** Path to the target tilemap JSON. */
+  std::string target_map{};
+
+  /** Tile column for player spawn in the target map. */
+  int spawn_col = 0;
+
+  /** Tile row for player spawn in the target map. */
+  int spawn_row = 0;
+
+  /** Re-load the configured overworld instead of a named map. */
+  bool return_to_world = false;
 };
 
 /** Load portals from a portal JSON file.

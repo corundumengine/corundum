@@ -27,39 +27,47 @@ enum class Side : std::uint8_t { Party, Hostile };
 
 using rules::Outcome;
 
-/// A combatant's integer state for one encounter, under keys the rules choose.
+/** A combatant's integer state for one encounter, under keys the rules choose. */
 using CombatantState = std::flat_map<std::string, int, std::less<>>;
 
-/// One combatant as the rules see it.
+/** One combatant as the rules see it. */
 struct Combatant {
-  std::optional<std::string> creature{}; ///< The creature id; nullopt for the protagonist.
+  /** The creature id; nullopt for the protagonist. */
+  std::optional<std::string> creature{};
 
   CombatantState state{};
 };
 
-/// A combatant's fixed numbers for one encounter, from CombatRules::join.
+/** A combatant's fixed numbers for one encounter, from CombatRules::join. */
 struct CombatantSpec {
   std::string name{};
 
-  int start_beats{}; ///< Where the marker starts.
+  /** Where the marker starts. */
+  int start_beats{};
 };
 
-/// The timeline's constants and the callbacks that decide each combatant's numbers, commands and
-/// results. Every callback must be set.
+/** The timeline's constants and the callbacks that decide each combatant's numbers, commands and
+ *  results. Every callback must be set.
+ */
 struct CombatRules {
-  int command_point_beats{}; ///< Where a marker's command is carried out; must be positive.
+  /** Where a marker's command is carried out; must be positive. */
+  int command_point_beats{};
 
-  int reach_tiles{1}; ///< Tiles every standing attack reaches; must be positive.
+  /** Tiles every standing attack reaches; must be positive. */
+  int reach_tiles{1};
 
-  float seconds_per_tick{}; ///< Game time per timeline tick.
+  /** Game time per timeline tick. */
+  float seconds_per_tick{};
 
-  int tempo_beats{}; ///< Beats a marker gains per tick; must be positive.
+  /** Beats a marker gains per tick; must be positive. */
+  int tempo_beats{};
 
-  int windup_beats{}; ///< Beats past the command point before every command lands.
+  /** Beats past the command point before every command lands. */
+  int windup_beats{};
 
   std::function<bool(const rules::CombatContext &, const Combatant &)> can_act{};
 
-  /// The same commands in the same order for the whole encounter.
+  /** The same commands in the same order for the whole encounter. */
   std::function<std::vector<rules::CommandOption>(const rules::CombatContext &, const Combatant &)> commands{};
 
   std::function<rules::Health(const rules::CombatContext &, const Combatant &)> health{};
@@ -72,8 +80,11 @@ struct CombatRules {
 };
 
 enum class Phase : std::uint8_t {
-  Ready,  ///< Filling toward the command point, or held there until its command can start.
-  WindUp, ///< Past the command point; the command lands when its wind-up ends.
+  /** Filling toward the command point, or held there until its command can start. */
+  Ready,
+
+  /** Past the command point; the command lands when its wind-up ends. */
+  WindUp,
 };
 
 /** One combatant joining an encounter. */
@@ -85,9 +96,11 @@ struct Joining {
 
 /** What one Encounter step produced. */
 struct EncounterStep {
-  std::vector<std::string> reports{}; ///< One line per command that resolved, in order.
+  /** One line per command that resolved, in order. */
+  std::vector<std::string> reports{};
 
-  std::vector<std::size_t> windups_started{}; ///< Combatants whose wind-up started this step, by index.
+  /** Combatants whose wind-up started this step, by index. */
+  std::vector<std::size_t> windups_started{};
 };
 
 /** One fight's timeline: markers, attack orders, queued commands and the outcome. */
@@ -178,7 +191,8 @@ public:
 
 private:
   struct Marker {
-    std::optional<rules::CommandOption> active{}; ///< The command winding up; nullopt for the standing attack.
+    /** The command winding up; nullopt for the standing attack. */
+    std::optional<rules::CommandOption> active{};
 
     int beats{};
 
@@ -212,17 +226,19 @@ private:
   std::optional<Outcome> outcome_{};
 };
 
-/// The flat combat a test installs. `rules` is copied into each fight as it starts, so a test
-/// changes it before start_encounter; `encounter` is the timeline of the last fight started.
+/** The flat combat a test installs. `rules` is copied into each fight as it starts, so a test
+ *  changes it before start_encounter; `encounter` is the timeline of the last fight started.
+ */
 struct FlatCombat {
   std::shared_ptr<Encounter> encounter{};
 
   CombatRules rules{};
 };
 
-/// A Ruleset::start_fight that runs each fight on an Encounter over `combat`'s rules: the
-/// protagonist on Side::Party, then one Side::Hostile combatant per creature, each with a
-/// standing attack on the protagonist.
+/** A Ruleset::start_fight that runs each fight on an Encounter over `combat`'s rules: the
+ *  protagonist on Side::Party, then one Side::Hostile combatant per creature, each with a
+ *  standing attack on the protagonist.
+ */
 [[nodiscard]] rules::StartFight make_flat_start_fight(std::shared_ptr<FlatCombat> combat);
 
 } // namespace corundum::test

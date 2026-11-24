@@ -26,13 +26,14 @@ struct CreditsState {
 
   std::vector<credits::CreditsSection> sections{};
 
-  /// The parchment behind the roll; Invalid when none is configured or its load failed.
+  /** The parchment behind the roll; Invalid when none is configured or its load failed. */
   platform::TextureId background_texture{platform::TextureId::Invalid};
 
-  /// Texture size in pixels, for cover scaling.
+  /** Texture size in pixels, for cover scaling. */
   core::math::Vec2 background_size{};
 
-  float hold{}; ///< Seconds the roll holds still before scrolling begins.
+  /** Seconds the roll holds still before scrolling begins. */
+  float hold{};
 
   float scroll{};
 };

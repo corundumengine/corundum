@@ -14,9 +14,10 @@ namespace tools::tilesmith {
 
 namespace {
 
-// Convert tile-grid coords (col, row) to canvas screen position, lifted by
-// elevation — same convention as render_elevation.cpp's elev_tile_to_iso.
-// Delegates the iso projection to corundum::core::math::tile_to_world.
+/** Convert tile-grid coords (col, row) to canvas screen position, lifted by
+ *  elevation — same convention as render_elevation.cpp's elev_tile_to_iso.
+ *  Delegates the iso projection to corundum::core::math::tile_to_world.
+ */
 inline ImVec2 walk_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev,
                                const corundum::core::math::IsometricParams &iso, float offset_x,
                                float offset_y) noexcept {

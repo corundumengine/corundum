@@ -34,9 +34,10 @@ namespace corundum::world::tilemap {
 
 namespace {
 
-/// Read the optional sidecar `{atlas_path.stem()}.tiledata.json` sitting next to `atlas_path`.
-/// @return The parsed object, or std::nullopt when the sidecar is absent or malformed — a broken
-///         sidecar is treated as absent rather than failing the whole load.
+/** Read the optional sidecar `{atlas_path.stem()}.tiledata.json` sitting next to `atlas_path`.
+ *  @return The parsed object, or std::nullopt when the sidecar is absent or malformed — a broken
+ *          sidecar is treated as absent rather than failing the whole load.
+ */
 std::optional<json> read_sidecar(const core::ContentSource &content, const fs::path &atlas_path) {
   const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
   auto sc = corundum::core::read_json(content, sidecar);
@@ -45,14 +46,15 @@ std::optional<json> read_sidecar(const core::ContentSource &content, const fs::p
   return *sc;
 }
 
-/// Per-tile data resolved from a spritepacker atlas, plus the sprite-name → local-id lookup the
-/// animations block uses to resolve frame names.
+/** Per-tile data resolved from a spritepacker atlas, plus the sprite-name → local-id lookup the
+ *  animations block uses to resolve frame names.
+ */
 struct TilesetTiles {
   TilesetInfo info;
   std::unordered_map<std::string, int> name_to_local_id;
 };
 
-/// Build `atlas`'s per-tile arrays (rects, trim, pivot, names) into a fresh TilesetInfo.
+/** Build `atlas`'s per-tile arrays (rects, trim, pivot, names) into a fresh TilesetInfo. */
 TilesetTiles build_tileset_tiles(const corundum::sprites::SpriteAtlas &atlas, const fs::path &tileset_path) {
   TilesetTiles tiles;
   TilesetInfo &info = tiles.info;
@@ -92,8 +94,9 @@ TilesetTiles build_tileset_tiles(const corundum::sprites::SpriteAtlas &atlas, co
   return tiles;
 }
 
-/// Resolve a tileset's default material tag, preferring the sidecar's `material` string when
-/// present; empty when neither the sidecar nor the atlas JSON sets one.
+/** Resolve a tileset's default material tag, preferring the sidecar's `material` string when
+ *  present; empty when neither the sidecar nor the atlas JSON sets one.
+ */
 std::string resolve_tileset_material(const json &atlas_json, const json *sidecar) {
   const json *source = &atlas_json;
   if (sidecar != nullptr && sidecar->contains("material") && (*sidecar)["material"].is_string())
@@ -103,7 +106,7 @@ std::string resolve_tileset_material(const json &atlas_json, const json *sidecar
   return {};
 }
 
-/// @return `name`'s local tile id in `name_to_local_id`, or nullopt if the atlas has no such sprite.
+/** @return `name`'s local tile id in `name_to_local_id`, or nullopt if the atlas has no such sprite. */
 std::optional<int> resolve_sprite_id(const std::unordered_map<std::string, int> &name_to_local_id,
                                      const std::string &name) {
   const auto it = name_to_local_id.find(name);
@@ -112,13 +115,13 @@ std::optional<int> resolve_sprite_id(const std::unordered_map<std::string, int> 
   return it->second;
 }
 
-/// A parsed `animations.clips` entry: its name paired with the resolved clip.
+/** A parsed `animations.clips` entry: its name paired with the resolved clip. */
 struct AnimationClip {
   std::string name;
   TileAnimation animation;
 };
 
-/// Read a clip's required non-empty `name`.
+/** Read a clip's required non-empty `name`. */
 std::expected<std::string, std::string> parse_clip_name(const json &clip, std::size_t clip_index,
                                                         const fs::path &tileset_path) {
   std::string name;
@@ -134,7 +137,7 @@ std::expected<std::string, std::string> parse_clip_name(const json &clip, std::s
   return name;
 }
 
-/// Read a clip's optional positive `fps`, falling back to `default_fps`.
+/** Read a clip's optional positive `fps`, falling back to `default_fps`. */
 std::expected<float, std::string> parse_clip_fps(const json &clip, std::size_t clip_index, float default_fps,
                                                  const fs::path &tileset_path) {
   if (!clip.contains("fps"))
@@ -152,7 +155,7 @@ std::expected<float, std::string> parse_clip_fps(const json &clip, std::size_t c
   return fps;
 }
 
-/// Resolve a clip's `frames` array of sprite names to tileset-local ids.
+/** Resolve a clip's `frames` array of sprite names to tileset-local ids. */
 std::expected<std::vector<int>, std::string>
 parse_clip_frames(const json &clip, std::size_t clip_index, const fs::path &tileset_path,
                   const std::unordered_map<std::string, int> &name_to_local_id) {
@@ -179,10 +182,11 @@ parse_clip_frames(const json &clip, std::size_t clip_index, const fs::path &tile
   return frames;
 }
 
-/// Parse one `animations.clips` entry.
-/// @param clip_index Index of `clip` in the clips array, for error messages.
-/// @param default_fps Clip fps used when the entry does not set its own.
-/// @return The resolved clip, or a message describing the first malformed field.
+/** Parse one `animations.clips` entry.
+ *  @param clip_index Index of `clip` in the clips array, for error messages.
+ *  @param default_fps Clip fps used when the entry does not set its own.
+ *  @return The resolved clip, or a message describing the first malformed field.
+ */
 std::expected<AnimationClip, std::string>
 parse_animation_clip(const json &clip, std::size_t clip_index, float default_fps, const fs::path &tileset_path,
                      const std::unordered_map<std::string, int> &name_to_local_id) {
@@ -209,8 +213,9 @@ parse_animation_clip(const json &clip, std::size_t clip_index, float default_fps
   return AnimationClip{.name = std::move(*name), .animation = {.frames = std::move(*frames), .fps = *fps}};
 }
 
-/// Parse a tileset's `animations` block — the sidecar's when present, else the atlas JSON's.
-/// @return name → clip, or a message describing the first malformed clip; empty when absent.
+/** Parse a tileset's `animations` block — the sidecar's when present, else the atlas JSON's.
+ *  @return name → clip, or a message describing the first malformed clip; empty when absent.
+ */
 std::expected<std::flat_map<std::string, TileAnimation>, std::string>
 parse_tileset_animations(const json &atlas_json, const json *sidecar, const fs::path &tileset_path,
                          const std::unordered_map<std::string, int> &name_to_local_id) {
@@ -252,16 +257,17 @@ parse_tileset_animations(const json &atlas_json, const json *sidecar, const fs::
 
 } // namespace
 
-/// A tileset JSON *is* a spritepacker atlas JSON (schema_version 2), plus these optional
-/// tileset-only authoring fields layered on top: material, animations.
-/// Sprites are referenced by name rather than by local_id/col-row, since MaxRects packing
-/// gives no stable grid position and array order isn't something an author should have to
-/// track across repacks.
-///
-/// When a sidecar file `{tileset_path.stem()}.tiledata.json` exists alongside the atlas JSON,
-/// its fields override the atlas-sourced authoring data (material, animations). Pivots and tile
-/// footprints are intentionally NOT read from the sidecar — pivots live in the atlas JSON
-/// (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
+/** A tileset JSON *is* a spritepacker atlas JSON (schema_version 2), plus these optional
+ *  tileset-only authoring fields layered on top: material, animations.
+ *  Sprites are referenced by name rather than by local_id/col-row, since MaxRects packing
+ *  gives no stable grid position and array order isn't something an author should have to
+ *  track across repacks.
+ *
+ *  When a sidecar file `{tileset_path.stem()}.tiledata.json` exists alongside the atlas JSON,
+ *  its fields override the atlas-sourced authoring data (material, animations). Pivots and tile
+ *  footprints are intentionally NOT read from the sidecar — pivots live in the atlas JSON
+ *  (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
+ */
 std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &content, const fs::path &tileset_path) {
   auto atlas = corundum::sprites::load_sprite_atlas(content, tileset_path);
   if (!atlas)
@@ -287,9 +293,10 @@ std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &
 
 namespace {
 
-/// Split `row_str` into comma-separated integers, rejecting a count other than `width`.
-/// @param what Human-readable locator (e.g. "layer 'ground' row 3") prefixed to any error.
-/// @return Exactly `width` values, or a message describing the first malformed token.
+/** Split `row_str` into comma-separated integers, rejecting a count other than `width`.
+ *  @param what Human-readable locator (e.g. "layer 'ground' row 3") prefixed to any error.
+ *  @return Exactly `width` values, or a message describing the first malformed token.
+ */
 std::expected<std::vector<int>, std::string> parse_csv_row(const std::string &row_str, int width,
                                                            const std::string &what) {
   std::vector<int> values;
@@ -310,7 +317,7 @@ std::expected<std::vector<int>, std::string> parse_csv_row(const std::string &ro
   return values;
 }
 
-/// Parse a collision entry's optional "elevation" field, range-checked to [0, 255]; absent -> 0.
+/** Parse a collision entry's optional "elevation" field, range-checked to [0, 255]; absent -> 0. */
 std::expected<uint8_t, std::string> parse_collision_elevation(const json &entry) {
   if (!entry.contains("elevation"))
     return uint8_t{0};
@@ -325,7 +332,7 @@ std::expected<uint8_t, std::string> parse_collision_elevation(const json &entry)
   return static_cast<uint8_t>(value);
 }
 
-/// The map-wide values a layer parser needs.
+/** The map-wide values a layer parser needs. */
 struct LayerParseContext {
   std::string_view id{};
 
@@ -338,7 +345,7 @@ struct LayerParseContext {
   const std::vector<TilemapTileset> *tilesets{nullptr};
 };
 
-/// A layer's dense tile grid with its sparse animation and flip maps.
+/** A layer's dense tile grid with its sparse animation and flip maps. */
 struct LayerTiles {
   std::vector<TileId> tiles{};
 
@@ -347,7 +354,7 @@ struct LayerTiles {
   std::flat_map<int, uint8_t> flip_flags{};
 };
 
-/// A layer's name plus its z-order flags.
+/** A layer's name plus its z-order flags. */
 struct LayerHeader {
   std::string name{};
 
@@ -356,7 +363,7 @@ struct LayerHeader {
   bool depth_sorted{false};
 };
 
-/// A map's cell dimensions and optional isometric diamond override.
+/** A map's cell dimensions and optional isometric diamond override. */
 struct MapDimensions {
   int width{0};
 
@@ -367,21 +374,21 @@ struct MapDimensions {
   int iso_diamond_h{0};
 };
 
-/// The largest full tile frame across every tileset, in pixels.
+/** The largest full tile frame across every tileset, in pixels. */
 struct TileExtent {
   int width{0};
 
   int height{0};
 };
 
-/// A cell's integer grid position.
+/** A cell's integer grid position. */
 struct CellPosition {
   int col{0};
 
   int row{0};
 };
 
-/// One parsed sparse `objects[]` entry.
+/** One parsed sparse `objects[]` entry. */
 struct SparseObject {
   int col{0};
 
@@ -398,7 +405,7 @@ struct SparseObject {
   AnimatedCell animation{};
 };
 
-/// One parsed `collision_triangles[]` entry.
+/** One parsed `collision_triangles[]` entry. */
 struct TriangleShape {
   float col{};
 
@@ -427,7 +434,7 @@ std::expected<std::string, std::string> parse_tilemap_id(const json &j, const fs
   return id;
 }
 
-/// Parse the optional `collisions` array; absent leaves it empty.
+/** Parse the optional `collisions` array; absent leaves it empty. */
 std::expected<CollisionRects, std::string> parse_collisions(const json &j, const std::string &id) {
   CollisionRects collisions;
   if (!j.contains("collisions"))
@@ -498,7 +505,7 @@ std::expected<TriangleShape, std::string> parse_triangle(const json &entry, std:
   return shape;
 }
 
-/// Parse the optional `collision_triangles` array; absent leaves it empty.
+/** Parse the optional `collision_triangles` array; absent leaves it empty. */
 std::expected<CollisionTriangles, std::string> parse_collision_triangles(const json &j, const std::string &id) {
   CollisionTriangles collision_triangles;
   if (!j.contains("collision_triangles"))
@@ -522,7 +529,7 @@ std::expected<CollisionTriangles, std::string> parse_collision_triangles(const j
   return collision_triangles;
 }
 
-/// Load and validate one `tilesets[]` entry.
+/** Load and validate one `tilesets[]` entry. */
 std::expected<TilemapTileset, std::string> parse_tileset(TilemapLoader &loader, const json &entry, std::size_t index,
                                                          const std::string &id) {
   if (!entry.is_object())
@@ -561,7 +568,7 @@ std::expected<TilemapTileset, std::string> parse_tileset(TilemapLoader &loader, 
   return ts;
 }
 
-/// Check `tilesets` starts at GID 0 and its sorted ranges are duplicate-free and contiguous.
+/** Check `tilesets` starts at GID 0 and its sorted ranges are duplicate-free and contiguous. */
 std::expected<void, std::string> validate_tileset_ranges(const std::vector<TilemapTileset> &tilesets,
                                                          const std::string &id) {
   if (tilesets[0].first_gid != 0)
@@ -580,7 +587,7 @@ std::expected<void, std::string> validate_tileset_ranges(const std::vector<Tilem
   return {};
 }
 
-/// Parse the required `tilesets` array, then sort it and check its GID ranges are contiguous.
+/** Parse the required `tilesets` array, then sort it and check its GID ranges are contiguous. */
 std::expected<std::vector<TilemapTileset>, std::string> parse_tilesets(TilemapLoader &loader, const json &j,
                                                                        const std::string &id) {
   if (!j.contains("tilesets") || !j["tilesets"].is_array())
@@ -633,7 +640,7 @@ std::expected<int, std::string> parse_optional_diamond(const json &j, const std:
   return value;
 }
 
-/// Parse the required width/height and the optional isometric diamond override.
+/** Parse the required width/height and the optional isometric diamond override. */
 std::expected<MapDimensions, std::string> parse_map_dimensions(const json &j, const std::string &id) {
   auto width = parse_required_dimension(j, id, "width");
   if (!width)
@@ -655,7 +662,7 @@ std::expected<MapDimensions, std::string> parse_map_dimensions(const json &j, co
   };
 }
 
-/// Read a layer's name, clamped z_index and depth_sorted flag.
+/** Read a layer's name, clamped z_index and depth_sorted flag. */
 std::expected<LayerHeader, std::string> parse_layer_header(const json &layer_json, const LayerParseContext &ctx) {
   if (!layer_json.is_object())
     return std::unexpected(std::format("Tilemap '{}' each layer must be an object", ctx.id));
@@ -692,7 +699,7 @@ std::expected<LayerHeader, std::string> parse_layer_header(const json &layer_jso
   return header;
 }
 
-/// Parse a layer's dense `tiles` rows into a flat tile grid.
+/** Parse a layer's dense `tiles` rows into a flat tile grid. */
 std::expected<std::vector<TileId>, std::string> parse_dense_layer(const json &layer_json, const std::string &layer_name,
                                                                   const LayerParseContext &ctx) {
   const auto &tiles_json = layer_json["tiles"];
@@ -801,7 +808,7 @@ std::expected<TileId, std::string> parse_sparse_tile(const json &entry, std::siz
   return static_cast<TileId>(tile_id);
 }
 
-/// Resolve one sparse `objects[]` entry to its cell and its tile or animation.
+/** Resolve one sparse `objects[]` entry to its cell and its tile or animation. */
 std::expected<SparseObject, std::string>
 parse_sparse_object(const json &entry, std::size_t i, const std::string &layer_name, const LayerParseContext &ctx) {
   if (!entry.is_object())
@@ -841,7 +848,7 @@ parse_sparse_object(const json &entry, std::size_t i, const std::string &layer_n
   return object;
 }
 
-/// Parse a layer's sparse `objects` list into a flat tile grid.
+/** Parse a layer's sparse `objects` list into a flat tile grid. */
 std::expected<LayerTiles, std::string> parse_sparse_layer(const json &layer_json, const std::string &layer_name,
                                                           const LayerParseContext &ctx) {
   LayerTiles tiles{.tiles = std::vector<TileId>(ctx.cell_count, k_empty_tile)};
@@ -866,7 +873,7 @@ std::expected<LayerTiles, std::string> parse_sparse_layer(const json &layer_json
   return tiles;
 }
 
-/// Parse a layer's dense tile grid or sparse object list.
+/** Parse a layer's dense tile grid or sparse object list. */
 std::expected<LayerTiles, std::string> parse_layer_tiles(const json &layer_json, const std::string &layer_name,
                                                          const LayerParseContext &ctx) {
   const bool has_dense = layer_json.contains("tiles") && layer_json["tiles"].is_array();
@@ -886,7 +893,7 @@ std::expected<LayerTiles, std::string> parse_layer_tiles(const json &layer_json,
                                      ctx.id, layer_name));
 }
 
-/// Parse a layer's optional elevation grid (same rows-of-CSV layout as its tiles).
+/** Parse a layer's optional elevation grid (same rows-of-CSV layout as its tiles). */
 std::expected<std::vector<std::uint8_t>, std::string>
 parse_layer_elevation(const json &layer_json, const std::string &layer_name, const LayerParseContext &ctx) {
   std::vector<std::uint8_t> elevation;
@@ -924,7 +931,7 @@ parse_layer_elevation(const json &layer_json, const std::string &layer_name, con
   return elevation;
 }
 
-/// Parse a layer's optional per-cell terrain-material overrides.
+/** Parse a layer's optional per-cell terrain-material overrides. */
 std::expected<std::flat_map<int, std::string>, std::string>
 parse_material_overrides(const json &layer_json, const std::string &layer_name, const LayerParseContext &ctx) {
   std::flat_map<int, std::string> material_overrides;
@@ -962,7 +969,7 @@ parse_material_overrides(const json &layer_json, const std::string &layer_name, 
   return material_overrides;
 }
 
-/// Parse a layer's optional per-cell ramp axes.
+/** Parse a layer's optional per-cell ramp axes. */
 std::expected<std::flat_map<int, RampAxis>, std::string>
 parse_ramps(const json &layer_json, const std::string &layer_name, const LayerParseContext &ctx) {
   std::flat_map<int, RampAxis> ramps;
@@ -1001,7 +1008,7 @@ parse_ramps(const json &layer_json, const std::string &layer_name, const LayerPa
   return ramps;
 }
 
-/// Parse one layer from its header, tile data and optional elevation, materials and ramps.
+/** Parse one layer from its header, tile data and optional elevation, materials and ramps. */
 std::expected<TilemapLayer, std::string> parse_layer(const json &layer_json, const LayerParseContext &ctx) {
   auto header = parse_layer_header(layer_json, ctx);
   if (!header)
@@ -1033,7 +1040,7 @@ std::expected<TilemapLayer, std::string> parse_layer(const json &layer_json, con
   };
 }
 
-/// Validate the required `layers` array and parse every layer in it.
+/** Validate the required `layers` array and parse every layer in it. */
 std::expected<std::vector<TilemapLayer>, std::string>
 parse_layers(const json &j, const std::string &id, int width, int height, const std::vector<TilemapTileset> &tilesets) {
   if (!j.contains("layers") || !j["layers"].is_array())
@@ -1067,7 +1074,7 @@ parse_layers(const json &j, const std::string &id, int width, int height, const 
   return layers;
 }
 
-/// The largest full tile frame across `tilesets`, in pixels.
+/** The largest full tile frame across `tilesets`, in pixels. */
 TileExtent max_tile_extent(const std::vector<TilemapTileset> &tilesets) {
   TileExtent extent;
   for (const auto &ts : tilesets) {

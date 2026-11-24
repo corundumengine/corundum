@@ -33,9 +33,7 @@ using corundum::toolkit::widgets::ThemeColors;
 using tools::spritesmith::CanvasContext;
 using tools::spritesmith::EditorState;
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 namespace {
 
@@ -81,9 +79,7 @@ void do_open(corundum::toolkit::host::ToolHost &host, EditorState &state, const 
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Entry point
-// ---------------------------------------------------------------------------
 
 // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity, bugprone-exception-escape)
 int main(int argc, char *argv[]) {

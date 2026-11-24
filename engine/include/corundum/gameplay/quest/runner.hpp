@@ -46,8 +46,9 @@ public:
   [[nodiscard]] std::expected<void, std::string> advance(std::string_view quest_id, std::string_view stage_name);
 
 private:
-  // Pointers, not references: the project's clang-tidy config rejects reference data members
-  // (cppcoreguidelines-avoid-const-or-ref-data-members). Both are non-null by construction.
+  /** Pointers, not references: the project's clang-tidy config rejects reference data members
+   *  (cppcoreguidelines-avoid-const-or-ref-data-members). Both are non-null by construction.
+   */
   const Registry *registry_;
   corundum::world::FlagStore *flags_;
 };

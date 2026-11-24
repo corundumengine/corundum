@@ -39,7 +39,7 @@ using corundum::platform::RendererStats;
 using corundum::render::RenderMode;
 using corundum::render::RenderState;
 
-/// Renderer that hands out a distinct id per path and tracks references like SokolRenderer.
+/** Renderer that hands out a distinct id per path and tracks references like SokolRenderer. */
 class CountingRenderer final : public corundum::platform::Renderer {
 public:
   corundum::platform::TextureRefCounts refs;
@@ -102,14 +102,16 @@ public:
 
 private:
   std::unordered_map<std::string, corundum::platform::TextureId> ids_;
-  std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
+
+  /** Raw counter, so issuing an id never converts types. */
+  std::uint32_t next_id_{1};
 };
 
 GameConfig fixture_config() {
   return corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
 }
 
-/// Sorted copy, so set-equality checks read clearly and failures show both orderings.
+/** Sorted copy, so set-equality checks read clearly and failures show both orderings. */
 std::vector<corundum::platform::TextureId> sorted(std::vector<corundum::platform::TextureId> ids) {
   std::ranges::sort(ids);
   return ids;

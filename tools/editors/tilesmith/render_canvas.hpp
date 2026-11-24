@@ -10,8 +10,9 @@ namespace tools::tilesmith {
 
 using corundum::toolkit::editor::CanvasContext;
 
-/// Injected callback that renders all tilemap passes into the canvas.
-/// Constructed in main.cpp, which owns TilemapTextureStore.
+/** Injected callback that renders all tilemap passes into the canvas.
+ *  Constructed in main.cpp, which owns TilemapTextureStore.
+ */
 using MapRenderFn = std::function<void(CanvasContext)>;
 
 /** Render the tilemap canvas including collision and portal overlays.

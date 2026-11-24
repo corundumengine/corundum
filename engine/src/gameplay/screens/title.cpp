@@ -28,7 +28,7 @@ constexpr std::array<TitleRow, k_title_row_count> k_title_rows{
     TitleRow::Continue, TitleRow::NewGame, TitleRow::Load, TitleRow::Settings, TitleRow::Credits, TitleRow::Quit,
 };
 
-// Credits is hidden when the game configures none, so Quit shifts down one index.
+/** Credits is hidden when the game configures none, so Quit shifts down one index. */
 constexpr std::array<TitleRow, k_title_row_count - 1> k_title_rows_without_credits{
     TitleRow::Continue, TitleRow::NewGame, TitleRow::Load, TitleRow::Settings, TitleRow::Quit,
 };
@@ -38,8 +38,9 @@ std::string title_footer(input::InputDevice last_device) {
                      ui::input_glyph(input::Action::Cancel, last_device));
 }
 
-/// The labels of the visible rows, packed to the front of the array; the returned span
-/// covers exactly title_visible_row_count entries.
+/** The labels of the visible rows, packed to the front of the array; the returned span
+ *  covers exactly title_visible_row_count entries.
+ */
 std::span<const std::string_view> title_labels(const TitleState &state,
                                                std::array<std::string_view, k_title_row_count> &storage) {
   const int count = title_visible_row_count(state.credits_available);

@@ -16,7 +16,7 @@ template <std::copyable Doc> class UndoStack {
   static constexpr int k_max_depth = 256;
 
 public:
-  /// Push a new snapshot, discarding any redo history.
+  /** Push a new snapshot, discarding any redo history. */
   void push(const Doc &snap) {
     if (cursor_ >= 0 && cursor_ < static_cast<int>(states_.size()) - 1)
       states_.resize(static_cast<std::size_t>(cursor_ + 1));

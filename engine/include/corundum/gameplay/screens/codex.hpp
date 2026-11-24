@@ -39,10 +39,10 @@ struct CodexState {
 
   float scroll{};
 
-  /// True when `entries` no longer reflects the registry + flags; refresh_codex() rebuilds.
+  /** True when `entries` no longer reflects the registry + flags; refresh_codex() rebuilds. */
   bool dirty{true};
 
-  /// Cached unlocked entries, ordered by (category, title).
+  /** Cached unlocked entries, ordered by (category, title). */
   std::vector<gameplay::codex::CodexEntry> entries{};
 };
 
@@ -58,7 +58,8 @@ inline void codex_mark_dirty(CodexState &state) noexcept {
 struct CodexListRow {
   ui::RowRect rect{};
 
-  int entry_index{-1}; ///< Entry the row selects, or -1 for a category header (not selectable).
+  /** Entry the row selects, or -1 for a category header (not selectable). */
+  int entry_index{-1};
 };
 
 /** Screen-space geometry of the codex panel, shared by render and mouse hit-testing. */
@@ -67,9 +68,11 @@ struct CodexLayout {
 
   core::math::Vec2 panel_size{};
 
-  ui::RowRect body_rect{}; ///< Right-hand detail pane; wheel over it scrolls the body.
+  /** Right-hand detail pane; wheel over it scrolls the body. */
+  ui::RowRect body_rect{};
 
-  std::vector<CodexListRow> list_rows{}; ///< Only the rows currently visible, in draw order.
+  /** Only the rows currently visible, in draw order. */
+  std::vector<CodexListRow> list_rows{};
 };
 
 /** Compute the codex panel's visible geometry for `viewport`. */

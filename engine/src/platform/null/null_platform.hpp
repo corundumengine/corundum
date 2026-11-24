@@ -18,9 +18,10 @@ namespace corundum::platform::null {
 
 namespace detail {
 
-// Backend-side destruction for the null bundle: the handle's function pointer
-// deletes the concrete NullWindow/NullRenderer through the interface's virtual
-// destructor, so the engine core never needs those destructors.
+/** Backend-side destruction for the null bundle: the handle's function pointer
+ *  deletes the concrete NullWindow/NullRenderer through the interface's virtual
+ *  destructor, so the engine core never needs those destructors.
+ */
 inline void destroy_window(platform::Window *window) noexcept {
   std::default_delete<platform::Window>{}(window);
 }

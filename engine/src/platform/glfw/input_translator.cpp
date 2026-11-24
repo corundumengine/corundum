@@ -17,8 +17,9 @@ using corundum::input::GamepadControl;
 using corundum::input::Key;
 using corundum::input::MouseButton;
 
-// The engine's physical-input enums mirror GLFW's values, so conversion is a cast; these
-// pin the ends of every range so a GLFW renumbering fails the build instead of misrouting keys.
+/** The engine's physical-input enums mirror GLFW's values, so conversion is a cast; these
+ *  pin the ends of every range so a GLFW renumbering fails the build instead of misrouting keys.
+ */
 static_assert(static_cast<int>(Key::Space) == GLFW_KEY_SPACE);
 static_assert(static_cast<int>(Key::Z) == GLFW_KEY_Z);
 static_assert(static_cast<int>(Key::GraveAccent) == GLFW_KEY_GRAVE_ACCENT);

@@ -13,10 +13,11 @@ namespace corundum::core {
 
 namespace {
 
-// Returns the value of an environment variable when it names an absolute
-// path. Unset, empty, and relative values are all treated as absent — the
-// XDG base-directory rule requires ignoring a relative path, and skipping
-// one keeps this function's absolute-path guarantee.
+/** Returns the value of an environment variable when it names an absolute
+ *  path. Unset, empty, and relative values are all treated as absent — the
+ *  XDG base-directory rule requires ignoring a relative path, and skipping
+ *  one keeps this function's absolute-path guarantee.
+ */
 [[nodiscard]] std::optional<std::filesystem::path> env_dir(const char *name) {
   const std::optional<std::string> value = read_env(name);
   if (!value || value->empty())

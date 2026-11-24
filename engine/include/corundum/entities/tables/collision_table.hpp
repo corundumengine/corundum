@@ -82,9 +82,10 @@ inline constexpr float k_entity_anchor_offset = 0.5f;
 struct CollisionTable {
   static constexpr auto k_max = k_max_entities;
 
-  // Collision data is always loaded as a unit. Front-loaded so the cold sparse/
-  // entities data below never shares a cache line with — or sits immediately
-  // before — hot data.
+  /** Collision data is always loaded as a unit. Front-loaded so the cold sparse/
+   *  entities data below never shares a cache line with — or sits immediately
+   *  before — hot data.
+   */
   struct Rect {
     float col_span = 0.f;
 

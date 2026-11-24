@@ -27,16 +27,26 @@ inline constexpr std::uint8_t k_first_extension_mode = 16;
  *  non-empty stack, so a mode that does not push silently re-enables the HUD under itself.
  */
 enum class GameMode : std::uint8_t {
-  Exploring, ///< Base state; represented by an empty UIStack, never a pushed layer.
-  Prompt,    ///< Portal-confirm prompt.
-  Menu,      ///< Pause menu.
-  Settings,  ///< In-game settings screen.
+  /** Base state; represented by an empty UIStack, never a pushed layer. */
+  Exploring,
+
+  /** Portal-confirm prompt. */
+  Prompt,
+
+  /** Pause menu. */
+  Menu,
+
+  /** In-game settings screen. */
+  Settings,
 };
 
 /** What world::update runs beneath a mode other than Exploring and Prompt. */
 enum class WorldStep : std::uint8_t {
-  Frozen, ///< Nothing moves; only the hovered tile updates (dialogue, a paused fight).
-  Runs,   ///< Movement, animation, zoom and camera follow as in Exploring, without interaction targeting (a fight).
+  /** Nothing moves; only the hovered tile updates (dialogue, a paused fight). */
+  Frozen,
+
+  /** Movement, animation, zoom and camera follow as in Exploring, without interaction targeting (a fight). */
+  Runs,
 };
 
 /** The ordered stack of open UI screens, top last.

@@ -16,14 +16,16 @@ using corundum::platform::Handle;
 
 namespace {
 
-/// Counts destructions; lives in the test because the object under test is gone
-/// by the time the count is read.
+/** Counts destructions; lives in the test because the object under test is gone
+ *  by the time the count is read.
+ */
 struct DestroyTally {
   int count = 0;
 };
 
-/// Stands in for a platform interface: abstract, virtual destructor, deleted
-/// through the base by the backend-supplied function.
+/** Stands in for a platform interface: abstract, virtual destructor, deleted
+ *  through the base by the backend-supplied function.
+ */
 class ProbeInterface {
 public:
   virtual ~ProbeInterface() = default;
@@ -48,7 +50,7 @@ private:
   DestroyTally *tally_;
 };
 
-/// Backend-side destruction, as platform::null::detail::destroy_window does it.
+/** Backend-side destruction, as platform::null::detail::destroy_window does it. */
 void destroy_probe(ProbeInterface *object) {
   std::default_delete<ProbeInterface>{}(object);
 }

@@ -34,7 +34,7 @@ std::vector<std::string> names_of(const std::vector<corundum::core::DirEntry> &e
   return names;
 }
 
-// One flat list of contract assertions; splitting it would hide the shared contract.
+/** One flat list of contract assertions; splitting it would hide the shared contract. */
 // NOLINTNEXTLINE(readability-function-size)
 void check_contract(const corundum::core::ContentSource &source, std::string_view label) {
   INFO(label);

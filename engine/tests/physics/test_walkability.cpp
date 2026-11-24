@@ -24,8 +24,9 @@ using corundum::world::tilemap::WalkabilityGraph;
 
 namespace {
 
-// A 3x3 map whose per-cell elevations are given row-major (index == row * 3 + col), with a
-// non-empty tile everywhere so elevation_at() sees a tile present. No ramps.
+/** A 3x3 map whose per-cell elevations are given row-major (index == row * 3 + col), with a
+ *  non-empty tile everywhere so elevation_at() sees a tile present. No ramps.
+ */
 Tilemap make_elevation_map(const std::array<uint8_t, 9> &elevation) {
   Tilemap tm;
   tm.width = 3;
@@ -40,8 +41,9 @@ Tilemap make_elevation_map(const std::array<uint8_t, 9> &elevation) {
   return tm;
 }
 
-// A flat map (elevation 0 everywhere) with one raised tile at the caller-chosen
-// (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
+/** A flat map (elevation 0 everywhere) with one raised tile at the caller-chosen
+ *  (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
+ */
 Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev,
                       std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
                       RampAxis ramp_axis = RampAxis::NorthSouth) {

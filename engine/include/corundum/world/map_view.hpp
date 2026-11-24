@@ -26,27 +26,49 @@ namespace corundum::world {
 struct MapView {
   corundum::world::tilemap::CollisionRectsView collisions;
   corundum::world::tilemap::CollisionTrianglesView collision_triangles;
-  float world_w_px{0.f};                    ///< Total isometric world width in display pixels.
-  float world_h_px{0.f};                    ///< Total isometric world height in display pixels.
-  float world_w_tiles{0.f};                 ///< Total map width in tile-grid columns.
-  float world_h_tiles{0.f};                 ///< Total map height in tile-grid rows.
-  core::math::IsometricParams projection{}; ///< Diamond, origin and elevation step this map draws and picks with.
-  float character_scale{1.f};               ///< Character/entity sprite render scale.
-  float tile_scale{1.f};                    ///< Tile render scale.
-  /// Tile-grid portals for the active map/world. In world mode this aliases
-  /// render::WorldArea::aggregates.portals, rebuilt by rebuild_world_aggregates(); the span is
-  /// invalidated when that buffer is rebuilt.
+
+  /** Total isometric world width in display pixels. */
+  float world_w_px{0.f};
+
+  /** Total isometric world height in display pixels. */
+  float world_h_px{0.f};
+
+  /** Total map width in tile-grid columns. */
+  float world_w_tiles{0.f};
+
+  /** Total map height in tile-grid rows. */
+  float world_h_tiles{0.f};
+
+  /** Diamond, origin and elevation step this map draws and picks with. */
+  core::math::IsometricParams projection{};
+
+  /** Character/entity sprite render scale. */
+  float character_scale{1.f};
+
+  /** Tile render scale. */
+  float tile_scale{1.f};
+
+  /** Tile-grid portals for the active map/world. In world mode this aliases
+   *  render::WorldArea::aggregates.portals, rebuilt by rebuild_world_aggregates(); the span is
+   *  invalidated when that buffer is rebuilt.
+   */
   std::span<const corundum::world::Portal> portals;
-  /// Single-map tilemap, used to look up an entity's own elevation for elevation-aware
-  /// collision. Null in chunked/streamed World mode (use world_area + elevation_at_tile instead).
+
+  /** Single-map tilemap, used to look up an entity's own elevation for elevation-aware
+   *  collision. Null in chunked/streamed World mode (use world_area + elevation_at_tile instead).
+   */
   const corundum::world::tilemap::Tilemap *elevation_map{nullptr};
-  /// Walkability graph for movement gating across too-steep elevation edges. In single-map
-  /// mode this is render::SingleMapArea::walkability; in world mode it is
-  /// render::WorldAggregates::walkability, a graph spanning the active chunk window
-  /// (origin-offset into global tile coords).
+
+  /** Walkability graph for movement gating across too-steep elevation edges. In single-map
+   *  mode this is render::SingleMapArea::walkability; in world mode it is
+   *  render::WorldAggregates::walkability, a graph spanning the active chunk window
+   *  (origin-offset into global tile coords).
+   */
   const corundum::world::tilemap::WalkabilityGraph *walkability{nullptr};
-  /// Active-chunk window for world-mode elevation lookups via elevation_under().
-  /// Set by build_map_view() only in World render mode; nullptr in single-map mode.
+
+  /** Active-chunk window for world-mode elevation lookups via elevation_under().
+   *  Set by build_map_view() only in World render mode; nullptr in single-map mode.
+   */
   const corundum::render::WorldArea *world_area{nullptr};
 };
 

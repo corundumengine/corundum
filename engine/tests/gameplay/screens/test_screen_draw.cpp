@@ -48,8 +48,9 @@ using corundum::test::RecordingRenderer;
 
 namespace {
 
-// Flattens a styled line back to plain text, so tests can assert on content regardless of
-// how the markup parser split it into segments.
+/** Flattens a styled line back to plain text, so tests can assert on content regardless of
+ *  how the markup parser split it into segments.
+ */
 std::string styled_line_text(const corundum::ui::StyledLine &line) {
   std::string result;
   for (const corundum::ui::StyledSegment &segment : line.segments)
@@ -57,8 +58,9 @@ std::string styled_line_text(const corundum::ui::StyledLine &line) {
   return result;
 }
 
-// Wraps one plain-text line as a single Regular segment, for tests that construct a layout
-// by hand rather than through build_layout.
+/** Wraps one plain-text line as a single Regular segment, for tests that construct a layout
+ *  by hand rather than through build_layout.
+ */
 corundum::ui::StyledLine plain_line(std::string text) {
   corundum::ui::StyledLine line;
   if (!text.empty()) {
@@ -70,9 +72,10 @@ corundum::ui::StyledLine plain_line(std::string text) {
   return line;
 }
 
-// Builds a Talk graph with the requested graph_id, speaker, and a node literally
-// named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
-// id but have different speakers.
+/** Builds a Talk graph with the requested graph_id, speaker, and a node literally
+ *  named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
+ *  id but have different speakers.
+ */
 corundum::gameplay::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker, std::string talk_text) {
   using namespace corundum::gameplay::dialogue;
   Graph g;
@@ -88,9 +91,10 @@ corundum::gameplay::dialogue::Graph make_talk_graph(std::string graph_id, std::s
   return g;
 }
 
-// Builds a Choice graph where the second option is gated by quest_is_at.
-// Used to verify that threading the quest registry through dialog_box_update
-// yields the gated choice in the layout (not hidden by a parse failure).
+/** Builds a Choice graph where the second option is gated by quest_is_at.
+ *  Used to verify that threading the quest registry through dialog_box_update
+ *  yields the gated choice in the layout (not hidden by a parse failure).
+ */
 corundum::gameplay::dialogue::Graph make_choice_graph_with_quest_gate() {
   using namespace corundum::gameplay::dialogue;
   Graph g;
@@ -108,8 +112,9 @@ corundum::gameplay::dialogue::Graph make_choice_graph_with_quest_gate() {
   return g;
 }
 
-// Builds a Choice graph whose second option is gated by a plain boolean flag,
-// for exercising a visibility change at an otherwise unchanged node.
+/** Builds a Choice graph whose second option is gated by a plain boolean flag,
+ *  for exercising a visibility change at an otherwise unchanged node.
+ */
 corundum::gameplay::dialogue::Graph make_flag_gated_choice_graph() {
   using namespace corundum::gameplay::dialogue;
   Graph g;
@@ -334,8 +339,9 @@ TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped
   CHECK(joined == "Alpha Beta Gamma Delta");
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("build_layout: choice label markup yields styled segments") {
   using namespace corundum::gameplay::dialogue;
@@ -411,8 +417,9 @@ TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colou
 
 // ── inventory_panel_render ───────────────────────────────────────────────────
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pair per row") {
   RecordingRenderer r;
@@ -502,8 +509,9 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
 
 // ── build_inventory_lines ────────────────────────────────────────────────────
 
-// doctest's CHECK macros expand to control flow, so the assertion count — not the test's logic —
-// dominates this metric.
+/** doctest's CHECK macros expand to control flow, so the assertion count — not the test's logic —
+ *  dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: the highlighted row's description draws as a footer tooltip") {
   const corundum::ui::NinePatchBorder border = make_border();
@@ -610,8 +618,9 @@ TEST_CASE("build_inventory_lines: groups items by category, ordering by (categor
   CHECK(lines[3].category == ItemCategory::Weapon);
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: category groups draw one header per group, in category order") {
   using corundum::gameplay::item::ItemCategory;

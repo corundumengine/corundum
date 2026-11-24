@@ -13,7 +13,7 @@
 
 namespace {
 
-// One flat list of contract assertions; splitting it would hide the shared contract.
+/** One flat list of contract assertions; splitting it would hide the shared contract. */
 // NOLINTNEXTLINE(readability-function-size)
 void check_contract(corundum::core::UserStorage &storage, std::string_view label) {
   INFO(label);

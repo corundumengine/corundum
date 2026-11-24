@@ -65,8 +65,9 @@ constexpr float k_sqrt2_minus_1 = k_sqrt2 - 1.f;
   return !elevations.empty() && std::abs(static_cast<int>(elevations[i]) - gate.player_elevation) > gate.tolerance;
 }
 
-/// True if any authored collider in the parallel spans overlaps the cell while inside
-/// `gate`'s elevation band.
+/** True if any authored collider in the parallel spans overlaps the cell while inside
+ *  `gate`'s elevation band.
+ */
 [[nodiscard]] bool spans_block_cell(float c0, float c1, float r0, float r1, std::span<const float> cols,
                                     std::span<const float> rows, std::span<const float> col_spans,
                                     std::span<const float> row_spans, std::span<const uint8_t> elevations,
@@ -80,7 +81,7 @@ constexpr float k_sqrt2_minus_1 = k_sqrt2 - 1.f;
   return false;
 }
 
-/// True if any NPC AABB overlaps the cell while inside `gate`'s elevation band.
+/** True if any NPC AABB overlaps the cell while inside `gate`'s elevation band. */
 [[nodiscard]] bool npc_colliders_block_cell(float c0, float c1, float r0, float r1,
                                             const corundum::physics::ElevationGate &gate,
                                             const corundum::world::MapView &map,
@@ -149,7 +150,9 @@ struct CollisionQuery {
   int width;
   int col0;
   int row0;
-  std::vector<std::int8_t> memo; ///< -1 unknown, 0 clear, 1 blocked; lazily filled.
+
+  /** -1 unknown, 0 clear, 1 blocked; lazily filled. */
+  std::vector<std::int8_t> memo;
 
   [[nodiscard]] bool blocked(TileCoord cell) noexcept {
     std::int8_t &cached = memo[index_of(cell, width, col0, row0)];
@@ -201,16 +204,19 @@ struct CollisionQuery {
 
 struct OpenEntry {
   float f;
-  std::size_t idx; ///< Index into the search grid.
+
+  /** Index into the search grid. */
+  std::size_t idx;
 };
 
-// Min-heap comparator for std::ranges heap algorithms: the lowest f sorts first.
+/** Min-heap comparator for std::ranges heap algorithms: the lowest f sorts first. */
 [[nodiscard]] bool open_entry_before(const OpenEntry &a, const OpenEntry &b) noexcept {
   return a.f > b.f;
 }
 
-/// Relax `cur`'s eight neighbors into the open set: gated by step_allowed, then pushed
-/// only when the new cost beats the recorded one.
+/** Relax `cur`'s eight neighbors into the open set: gated by step_allowed, then pushed
+ *  only when the new cost beats the recorded one.
+ */
 void expand_neighbors(const corundum::world::tilemap::WalkabilityGraph &graph, CollisionQuery &collision, TileCoord cur,
                       TileCoord goal, int width, int col0, int row0, std::vector<float> &g_score,
                       std::vector<std::size_t> &came_from, std::vector<OpenEntry> &open) {
@@ -231,8 +237,9 @@ void expand_neighbors(const corundum::world::tilemap::WalkabilityGraph &graph, C
   }
 }
 
-/// Run the A* loop over the caller-built state, returning the reached goal index or
-/// std::nullopt when the open set drains first.
+/** Run the A* loop over the caller-built state, returning the reached goal index or
+ *  std::nullopt when the open set drains first.
+ */
 [[nodiscard]] std::optional<std::size_t> run_astar(const corundum::world::tilemap::WalkabilityGraph &graph,
                                                    CollisionQuery &collision, std::vector<float> &g_score,
                                                    std::vector<std::size_t> &came_from, std::vector<bool> &closed,

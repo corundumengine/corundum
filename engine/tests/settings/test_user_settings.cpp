@@ -48,13 +48,13 @@ using corundum::settings::UserSettings;
 using corundum::test::gamepad_inputs;
 using corundum::test::MemoryUserStorage;
 
-/// Adopt a NullPlatform so capture()/apply() have a window to read and write.
+/** Adopt a NullPlatform so capture()/apply() have a window to read and write. */
 void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
   corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
   corundum::platform::null::adopt_null_platform(engine, platform);
 }
 
-/// A non-default settings value: Fullscreen with MoveUp moved off W onto Q.
+/** A non-default settings value: Fullscreen with MoveUp moved off W onto Q. */
 [[nodiscard]] UserSettings make_settings() {
   UserSettings settings;
   settings.bindings = corundum::input::default_bindings();
@@ -70,7 +70,7 @@ void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
   return settings;
 }
 
-/// A JSON array of k_max_input_sources + 1 distinct, otherwise valid binding rows.
+/** A JSON array of k_max_input_sources + 1 distinct, otherwise valid binding rows. */
 [[nodiscard]] nlohmann::json oversized_bindings_json() {
   nlohmann::json rows = nlohmann::json::array();
   std::size_t made{};

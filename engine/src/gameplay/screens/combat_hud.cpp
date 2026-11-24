@@ -26,8 +26,9 @@ namespace corundum::gameplay::screens {
 
 namespace {
 
-/// The rows panel's minimum content width, so the panel doesn't resize as Health numbers
-/// change. A longer row still widens it.
+/** The rows panel's minimum content width, so the panel doesn't resize as Health numbers
+ *  change. A longer row still widens it.
+ */
 constexpr float k_min_row_width = 300.f;
 constexpr float k_pad = 12.f;
 constexpr float k_bar_height = 6.f;
@@ -43,7 +44,7 @@ float body_line_height(const ui::PanelStyle &style) noexcept {
   return std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
 }
 
-/// A panel's inset: content must clear the nine-patch corners, whose cells draw at natural size.
+/** A panel's inset: content must clear the nine-patch corners, whose cells draw at natural size. */
 core::math::Vec2 panel_padding(const ui::NinePatchBorder &border) noexcept {
   return {
       .x = std::max(k_pad, static_cast<float>(border.tile_w)),
@@ -51,7 +52,7 @@ core::math::Vec2 panel_padding(const ui::NinePatchBorder &border) noexcept {
   };
 }
 
-/// A bar's fill fraction, clamped to [0, 1]; 0 when `whole` isn't positive.
+/** A bar's fill fraction, clamped to [0, 1]; 0 when `whole` isn't positive. */
 float fraction(int part, int whole) noexcept {
   if (whole <= 0)
     return 0.f;
@@ -73,19 +74,19 @@ void draw_text(platform::Renderer &r, const ui::PanelStyle &style, std::string_v
   });
 }
 
-/// One combatant's heading: its name and Health.
+/** One combatant's heading: its name and Health. */
 std::string row_text(const CombatHudRow &row) {
   return std::format("{}  {} / {}", row.name, row.health.current, row.health.max);
 }
 
-/// A row's name colour: the selected colour for the fight's target, else the hostile's own.
+/** A row's name colour: the selected colour for the fight's target, else the hostile's own. */
 core::math::Colour row_colour(const ui::PanelStyle &style, const CombatHudRow &row) noexcept {
   if (row.is_target)
     return style.selected;
   return row.is_hostile ? style.speaker : style.body;
 }
 
-/// Draw one combatant's row from the top of its cell and return the y below it.
+/** Draw one combatant's row from the top of its cell and return the y below it. */
 float draw_row(platform::Renderer &r, const ui::PanelStyle &style, const CombatHudRow &row, std::string_view text,
                core::math::Vec2 pos, float bar_width) {
   const float x = pos.x;
@@ -102,7 +103,7 @@ float draw_row(platform::Renderer &r, const ui::PanelStyle &style, const CombatH
   return y;
 }
 
-/// The panel at the top-left: one row per combatant, as wide as its longest row needs.
+/** The panel at the top-left: one row per combatant, as wide as its longest row needs. */
 void draw_rows_panel(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                      std::span<const CombatHudRow> rows) {
   const platform::FontId font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
@@ -131,14 +132,14 @@ void draw_rows_panel(platform::Renderer &r, const ui::PanelStyle &style, const u
   }
 }
 
-/// One item on a command-bar line: its text, and the colour it draws in.
+/** One item on a command-bar line: its text, and the colour it draws in. */
 struct BarItem {
   std::string text{};
 
   core::math::Colour colour{};
 };
 
-/// The width of `items`' texts and the gaps between them.
+/** The width of `items`' texts and the gaps between them. */
 float items_width(const platform::Renderer &r, platform::FontId font, const ui::PanelStyle &style,
                   std::span<const BarItem> items) {
   float width = 0.f;
@@ -149,7 +150,7 @@ float items_width(const platform::Renderer &r, platform::FontId font, const ui::
   return width;
 }
 
-/// Draw `items` in a row from `left`.
+/** Draw `items` in a row from `left`. */
 void draw_items(platform::Renderer &r, const ui::PanelStyle &style, platform::FontId font,
                 std::span<const BarItem> items, float left, float y) {
   float x = left;
@@ -159,8 +160,9 @@ void draw_items(platform::Renderer &r, const ui::PanelStyle &style, platform::Fo
   }
 }
 
-/// One command-bar slot's text: the device's glyph, then the command's label. A gamepad draws a
-/// slot off the shown page with its label only.
+/** One command-bar slot's text: the device's glyph, then the command's label. A gamepad draws a
+ *  slot off the shown page with its label only.
+ */
 std::string command_text(const CombatHudCommand &command, input::InputDevice device) {
   if (device != input::InputDevice::Gamepad)
     return std::format("{} {}", ui::input_glyph(command.action, device), command.label);
@@ -169,15 +171,16 @@ std::string command_text(const CombatHudCommand &command, input::InputDevice dev
   return std::format("{} {}", ui::input_glyph(*command.gamepad_action, device), command.label);
 }
 
-/// A slot's colour: highlighted when queued, dimmed when unavailable, else the body colour.
+/** A slot's colour: highlighted when queued, dimmed when unavailable, else the body colour. */
 core::math::Colour command_colour(const ui::PanelStyle &style, const CombatHudCommand &command) noexcept {
   if (command.is_highlighted)
     return style.selected;
   return command.is_available ? style.body : k_dimmed;
 }
 
-/// The command bar along the bottom: the commands' line over a panel sized around it, with the
-/// page hint on a gamepad.
+/** The command bar along the bottom: the commands' line over a panel sized around it, with the
+ *  page hint on a gamepad.
+ */
 void draw_command_bar(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                       const CombatHud &hud, core::math::Vec2 viewport, input::InputDevice device) {
   if (hud.commands.empty())

@@ -11,7 +11,7 @@
 
 namespace corundum::platform {
 
-/// Textured quad draw command.
+/** Textured quad draw command. */
 struct DrawSprite {
   TextureId texture_id{TextureId::Invalid};
 
@@ -43,7 +43,7 @@ struct DrawText {
   core::math::Colour colour{.r = 255, .g = 255, .b = 255, .a = 255};
 };
 
-/// Filled axis-aligned rectangle draw command.
+/** Filled axis-aligned rectangle draw command. */
 struct DrawRect {
   core::math::Vec2 position{};
 
@@ -52,7 +52,7 @@ struct DrawRect {
   core::math::Colour colour{};
 };
 
-/// Line segment draw command with configurable thickness.
+/** Line segment draw command with configurable thickness. */
 struct DrawLine {
   core::math::Vec2 start{};
 
@@ -63,7 +63,7 @@ struct DrawLine {
   float thickness{1.f};
 };
 
-/// Per-frame rendering diagnostics. Best-effort, not a contract.
+/** Per-frame rendering diagnostics. Best-effort, not a contract. */
 struct RendererStats {
   uint32_t draw_calls{};
 
@@ -94,32 +94,38 @@ class Renderer {
 public:
   virtual ~Renderer() = default;
 
-  /// Load a texture from an image file.
-  /// @return The texture's id, or std::unexpected with the reason.
+  /** Load a texture from an image file.
+   *  @return The texture's id, or std::unexpected with the reason.
+   */
   [[nodiscard]] virtual std::expected<TextureId, std::string> load_texture(std::string_view path) = 0;
 
-  /// Pixel size of a texture returned by load_texture().
-  /// @pre `texture_id` is live: returned by load_texture() and not yet purged.
+  /** Pixel size of a texture returned by load_texture().
+   *  @pre `texture_id` is live: returned by load_texture() and not yet purged.
+   */
   [[nodiscard]] virtual core::math::Vec2 texture_size(TextureId texture_id) const = 0;
 
-  /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).
-  /// Never destroys: an unreferenced texture stays usable until purge_unused_textures().
-  /// TextureId::Invalid is ignored.
+  /** Drop one reference taken by load_texture() (every call takes one, a cached hit included).
+   *  Never destroys: an unreferenced texture stays usable until purge_unused_textures().
+   *  TextureId::Invalid is ignored.
+   */
   virtual void release_texture(TextureId texture_id) = 0;
 
-  /// Destroy every texture whose references have all been released. Call only between frames
-  /// (never between begin_frame() and end_frame()), at an area boundary. Ids are never reused.
+  /** Destroy every texture whose references have all been released. Call only between frames
+   *  (never between begin_frame() and end_frame()), at an area boundary. Ids are never reused.
+   */
   virtual void purge_unused_textures() = 0;
 
-  /// Load a font face for rasterised text.
-  /// @return The font's id, or std::unexpected with the reason.
+  /** Load a font face for rasterised text.
+   *  @return The font's id, or std::unexpected with the reason.
+   */
   [[nodiscard]] virtual std::expected<FontId, std::string> load_font(std::string_view path) = 0;
 
-  /// Set the world camera rect (top-left and viewport size, in world pixels) and zoom.
-  /// Subsequent draws are interpreted in world units until reset_screen_view().
+  /** Set the world camera rect (top-left and viewport size, in world pixels) and zoom.
+   *  Subsequent draws are interpreted in world units until reset_screen_view().
+   */
   virtual void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) = 0;
 
-  /// Return to screen-space drawing, where coordinates are logical window points.
+  /** Return to screen-space drawing, where coordinates are logical window points. */
   virtual void reset_screen_view() = 0;
 
   /** Start a frame's default render pass, clearing to `clear_colour`.
@@ -130,7 +136,7 @@ public:
    */
   [[nodiscard]] virtual bool begin_frame(core::math::Colour clear_colour) = 0;
 
-  /// End the pass started by begin_frame() and present the frame. No-op if the frame was skipped.
+  /** End the pass started by begin_frame() and present the frame. No-op if the frame was skipped. */
   virtual void end_frame() = 0;
 
   virtual void draw(const DrawSprite &cmd) = 0;
@@ -141,7 +147,7 @@ public:
 
   virtual void draw(const DrawLine &cmd) = 0;
 
-  /// Advance width in pixels of `text` at `char_size`, or 0 if `font_id` resolves to no font.
+  /** Advance width in pixels of `text` at `char_size`, or 0 if `font_id` resolves to no font. */
   [[nodiscard]] virtual float measure_text(FontId font_id, std::string_view text, uint32_t char_size) const = 0;
 
   [[nodiscard]] virtual RendererStats stats() const = 0;

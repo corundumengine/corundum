@@ -59,14 +59,14 @@ float credits_content_height(const platform::Renderer & /*r*/, const ui::PanelSt
 
 namespace {
 
-/// The centered text column the roll draws into, in screen pixels.
+/** The centered text column the roll draws into, in screen pixels. */
 struct CreditsColumn {
   float center_x{};
 
   float width{};
 };
 
-/// The face, size and colour one kind of credits line (title, section heading, body) draws in.
+/** The face, size and colour one kind of credits line (title, section heading, body) draws in. */
 struct CreditsTextStyle {
   platform::FontId font{platform::FontId::Invalid};
 
@@ -75,7 +75,7 @@ struct CreditsTextStyle {
   core::math::Colour colour{};
 };
 
-/// Draw `text` centered in `column` at `y`.
+/** Draw `text` centered in `column` at `y`. */
 void draw_centered_line(platform::Renderer &r, const CreditsColumn &column, const CreditsTextStyle &text_style,
                         std::string_view text, float y) {
   const float width = r.measure_text(text_style.font, text, text_style.char_size);
@@ -88,8 +88,9 @@ void draw_centered_line(platform::Renderer &r, const CreditsColumn &column, cons
   });
 }
 
-/// Cover-scale the parchment background across the whole viewport, never cropping it narrower
-/// than the roll. @return Whether a background drew; the roll switches to dark ink when one did.
+/** Cover-scale the parchment background across the whole viewport, never cropping it narrower
+ *  than the roll. @return Whether a background drew; the roll switches to dark ink when one did.
+ */
 bool draw_credits_background(platform::Renderer &r, core::math::Vec2 viewport, const CreditsState &state) {
   const core::math::Vec2 size = state.background_size;
   if (state.background_texture == platform::TextureId::Invalid || size.x <= 0.f || size.y <= 0.f)

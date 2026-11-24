@@ -21,9 +21,10 @@ namespace corundum::platform {
 
 namespace {
 
-// Destruction functions live here (the backend TU). They give Engine's default-
-// constructible handles a runtime-supplied deleter and keep the delete-expression in
-// this TU; the actual virtual dispatch still happens through the interface destructors.
+/** Destruction functions live here (the backend TU). They give Engine's default-
+ *  constructible handles a runtime-supplied deleter and keep the delete-expression in
+ *  this TU; the actual virtual dispatch still happens through the interface destructors.
+ */
 template <typename T> void destroy(T *object) noexcept {
   std::default_delete<T>{}(object);
 }

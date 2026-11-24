@@ -17,8 +17,9 @@ namespace corundum::gameplay::quest {
 
 namespace {
 
-/// Append the "unknown stage" error for `target`, naming the field it came
-/// from ("advances_to" or "auto_advance_to") in the message.
+/** Append the "unknown stage" error for `target`, naming the field it came
+ *  from ("advances_to" or "auto_advance_to") in the message.
+ */
 void check_target(const Quest &quest, std::string_view stage_name, std::string_view field, std::string_view target,
                   std::vector<std::string> &errors) {
   if (quest.find_stage(target) == nullptr)
@@ -26,9 +27,10 @@ void check_target(const Quest &quest, std::string_view stage_name, std::string_v
         std::format(R"("{}": stage "{}" "{}" targets unknown stage "{}")", quest.quest_id, stage_name, field, target));
 }
 
-/// Append an error for each cycle in the auto-advance graph. A cycle re-enters its
-/// stages every tick, re-recording their breadcrumbs without bound — the same
-/// failure a self-target causes, and one the per-stage check alone misses.
+/** Append an error for each cycle in the auto-advance graph. A cycle re-enters its
+ *  stages every tick, re-recording their breadcrumbs without bound — the same
+ *  failure a self-target causes, and one the per-stage check alone misses.
+ */
 void check_auto_advance_cycles(const Quest &quest, std::vector<std::string> &errors) {
   // 0 = unseen, 1 = on the current walk, 2 = settled (walked, provably acyclic).
   std::unordered_map<std::string_view, int> state;

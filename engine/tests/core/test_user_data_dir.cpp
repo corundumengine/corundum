@@ -14,20 +14,21 @@
 
 namespace {
 
-// Saves the current value of an environment variable, installs the requested
-// state for the guard's lifetime, and restores the original on destruction, so
-// tests can mutate process env vars without leaking state into later cases.
+/** Saves the current value of an environment variable, installs the requested
+ *  state for the guard's lifetime, and restores the original on destruction, so
+ *  tests can mutate process env vars without leaking state into later cases.
+ */
 struct EnvGuard {
   std::string name;
   std::optional<std::string> saved;
 
-  /// Removes the variable for the guard's lifetime.
+  /** Removes the variable for the guard's lifetime. */
   explicit EnvGuard(std::string_view variable_name)
       : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
     unset_env(name);
   }
 
-  /// Sets the variable to `value` for the guard's lifetime.
+  /** Sets the variable to `value` for the guard's lifetime. */
   EnvGuard(std::string_view variable_name, const std::string &value)
       : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
     set_env(name, value);
@@ -46,9 +47,10 @@ struct EnvGuard {
   EnvGuard &operator=(EnvGuard &&) = delete;
 
 private:
-  // setenv/unsetenv are POSIX, declared by the platform's <stdlib.h>.
-  // include-cleaner's only accepted header for them is Darwin's private
-  // <_stdlib.h>, which is not portable.
+  /** setenv/unsetenv are POSIX, declared by the platform's <stdlib.h>.
+   *  include-cleaner's only accepted header for them is Darwin's private
+   *  <_stdlib.h>, which is not portable.
+   */
   // NOLINTBEGIN(misc-include-cleaner)
   static void set_env(const std::string &variable_name, const std::string &value) {
 #ifdef _WIN32

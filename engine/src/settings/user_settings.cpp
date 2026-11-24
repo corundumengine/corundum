@@ -27,8 +27,9 @@ namespace corundum::settings {
 
 namespace {
 
-/// Read an optional numeric field into `out`, clamped to [`min`, `max`]. Leaves `out`
-/// unchanged when the field is absent; rejects a present-but-non-numeric value.
+/** Read an optional numeric field into `out`, clamped to [`min`, `max`]. Leaves `out`
+ *  unchanged when the field is absent; rejects a present-but-non-numeric value.
+ */
 std::expected<void, std::string> read_clamped_float(const nlohmann::json &root, std::string_view key, float min,
                                                     float max, float &out) {
   if (!root.contains(key))
@@ -40,7 +41,7 @@ std::expected<void, std::string> read_clamped_float(const nlohmann::json &root, 
   return {};
 }
 
-/// Read every bus volume present in `root` into `settings`, each clamped to [0, 1].
+/** Read every bus volume present in `root` into `settings`, each clamped to [0, 1]. */
 std::expected<void, std::string> read_volumes(const nlohmann::json &root, UserSettings &settings) {
   const std::array<std::pair<std::string_view, float *>, 5> volumes{
       {

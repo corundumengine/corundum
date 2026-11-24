@@ -35,7 +35,7 @@ void write_file(const fs::path &path, const std::string &contents) {
   out << contents;
 }
 
-/// Arguments plus the mutable argv view load_tool_config() expects.
+/** Arguments plus the mutable argv view load_tool_config() expects. */
 class Args {
 public:
   explicit Args(std::vector<std::string> values) : values_(std::move(values)) {
@@ -52,7 +52,7 @@ private:
   std::vector<char *> argv_;
 };
 
-/// Set an environment variable for the test's duration and restore the prior value.
+/** Set an environment variable for the test's duration and restore the prior value. */
 class ScopedEnv {
 public:
   ScopedEnv(const char *name, const std::string &value) : name_(name), prior_(corundum::core::read_env(name)) {

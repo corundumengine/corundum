@@ -27,13 +27,26 @@ inline constexpr std::string_view k_flag_prefix = "location.";
  *  from the map screen until its discovery flag is set.
  */
 struct Location {
-  float col{};            ///< Spawn tile column in the destination.
-  std::string id{};       ///< Unique key; also the suffix of the discovery flag.
-  std::string map{};      ///< Target tilemap path; empty means the overworld.
-  std::string name{};     ///< Display heading.
-  bool return_to_world{}; ///< True to re-enter the overworld instead of loading `map`.
-  float row{};            ///< Spawn tile row in the destination.
-  std::string zone{};     ///< Zone id to force after travelling; empty derives it.
+  /** Spawn tile column in the destination. */
+  float col{};
+
+  /** Unique key; also the suffix of the discovery flag. */
+  std::string id{};
+
+  /** Target tilemap path; empty means the overworld. */
+  std::string map{};
+
+  /** Display heading. */
+  std::string name{};
+
+  /** True to re-enter the overworld instead of loading `map`. */
+  bool return_to_world{};
+
+  /** Spawn tile row in the destination. */
+  float row{};
+
+  /** Zone id to force after travelling; empty derives it. */
+  std::string zone{};
 };
 
 } // namespace corundum::gameplay::location

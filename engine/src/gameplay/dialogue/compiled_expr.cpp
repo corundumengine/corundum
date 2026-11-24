@@ -52,8 +52,9 @@ enum class TokKind : uint8_t {
 
 class Token {
 public:
-  /// Build from kind + source span; an Int's value is derived here so the
-  /// lexer never has to know how a token stores its value.
+  /** Build from kind + source span; an Int's value is derived here so the
+   *  lexer never has to know how a token stores its value.
+   */
   static Token make(TokKind kind, std::string_view text = {}) {
     Token token;
     token.kind_ = kind;
@@ -101,7 +102,7 @@ private:
   return is_alnum(c) || c == '_' || c == '.';
 }
 
-/// Kind of the single-character operator `c`, or nullopt when it is not one.
+/** Kind of the single-character operator `c`, or nullopt when it is not one. */
 [[nodiscard]] std::optional<TokKind> single_char_operator(char c) noexcept {
   switch (c) {
     case '<': return TokKind::Lt;
@@ -134,7 +135,7 @@ public:
   }
 
 private:
-  /// Consume a single- or two-character operator, if one starts at the cursor.
+  /** Consume a single- or two-character operator, if one starts at the cursor. */
   [[nodiscard]] std::optional<Token> scan_operator() {
     const auto start = pos_;
     const char c = src_[pos_];
@@ -172,7 +173,7 @@ private:
     return Token::make(*kind, src_.substr(start, 1));
   }
 
-  /// Consume an integer literal (optional leading minus), if one starts here.
+  /** Consume an integer literal (optional leading minus), if one starts here. */
   [[nodiscard]] std::optional<Token> scan_int() {
     const char c = src_[pos_];
     const char next_char = (pos_ + 1 < src_.size()) ? src_[pos_ + 1] : '\0';
@@ -189,8 +190,9 @@ private:
     return Token::make(TokKind::Int, src_.substr(start, pos_ - start));
   }
 
-  /// Consume an identifier or keyword, if one starts here. '.' is permitted inside
-  /// so dotted flag keys (e.g. `local.x`, `quest.find_sword`) parse as one token.
+  /** Consume an identifier or keyword, if one starts here. '.' is permitted inside
+   *  so dotted flag keys (e.g. `local.x`, `quest.find_sword`) parse as one token.
+   */
   [[nodiscard]] std::optional<Token> scan_identifier() {
     const char c = src_[pos_];
     if (!is_alpha(c) && c != '_')
@@ -216,9 +218,10 @@ private:
   std::size_t pos_ = 0;
 };
 
-// The grammar and the node tree are processed by recursive descent / recursive
-// walk; the mutual recursion between precedence levels is inherent to that design,
-// so misc-no-recursion does not apply across these two classes.
+/** The grammar and the node tree are processed by recursive descent / recursive
+ *  walk; the mutual recursion between precedence levels is inherent to that design,
+ *  so misc-no-recursion does not apply across these two classes.
+ */
 // NOLINTBEGIN(misc-no-recursion)
 class Parser {
 public:
@@ -345,7 +348,7 @@ private:
     throw std::runtime_error("unknown quest helper: " + name);
   }
 
-  // Lists every token kind, so a new one must be classified as a comparison or not.
+  /** Lists every token kind, so a new one must be classified as a comparison or not. */
   static std::optional<CmpOp> comparison_op(TokKind kind) {
     switch (kind) {
       case TokKind::EqEq: return CmpOp::Eq;
@@ -403,7 +406,7 @@ private:
     std::unreachable();
   }
 
-  /// Compare two values as booleans: Eq and Ne only, which is all a bool rhs accepts.
+  /** Compare two values as booleans: Eq and Ne only, which is all a bool rhs accepts. */
   [[nodiscard]] static int compare_truthy(int lhs, int rhs, CmpOp op) {
     const bool same = (lhs != 0) == (rhs != 0);
     const bool matches = op == CmpOp::Eq ? same : !same;
@@ -447,7 +450,7 @@ private:
     std::unreachable();
   }
 
-  /// seen/visits — resolved against the owning graph; 0 without graph context.
+  /** seen/visits — resolved against the owning graph; 0 without graph context. */
   [[nodiscard]] std::optional<int> eval_visit_helper(const ExprNode &n) const {
     if (n.name == "seen") {
       if (graph_id_.empty())
@@ -462,7 +465,7 @@ private:
     return std::nullopt;
   }
 
-  /// quest_is_resolved / quest_is_failed, or nullopt for another helper.
+  /** quest_is_resolved / quest_is_failed, or nullopt for another helper. */
   [[nodiscard]] std::optional<int> eval_quest_state_helper(const ExprNode &n, const quest::Quest *quest) const {
     if (n.name == "quest_is_resolved")
       return (quest != nullptr && corundum::gameplay::quest::is_resolved(*quest, *vars_)) ? 1 : 0;

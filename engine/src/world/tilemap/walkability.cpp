@@ -15,8 +15,9 @@ namespace corundum::world::tilemap {
 
 namespace {
 
-/// Elevation of every cell, cached row-major: the neighbour scan samples each cell up to nine
-/// times, and elevation_at() re-scans every z-index-0 layer on each call.
+/** Elevation of every cell, cached row-major: the neighbour scan samples each cell up to nine
+ *  times, and elevation_at() re-scans every z-index-0 layer on each call.
+ */
 [[nodiscard]] std::vector<int> cache_cell_elevations(const Tilemap &tm, std::size_t cell_count) {
   std::vector<int> elevations(cell_count);
   for (int row = 0; row < tm.height; ++row) {
@@ -27,8 +28,9 @@ namespace {
   return elevations;
 }
 
-/// First pass: clear the edge from each cell to any neighbour whose elevation differs by more
-/// than `max_step_height`.
+/** First pass: clear the edge from each cell to any neighbour whose elevation differs by more
+ *  than `max_step_height`.
+ */
 void clear_steep_edges(const Tilemap &tm, WalkabilityGraph &g, const std::vector<int> &elevations,
                        int max_step_height) {
   for (int row = 0; row < tm.height; ++row) {
@@ -47,10 +49,11 @@ void clear_steep_edges(const Tilemap &tm, WalkabilityGraph &g, const std::vector
   }
 }
 
-/// Second pass: a ramp cell forces both directions along its axis back open, overriding the
-/// max_step_height disconnect above for exactly those two directions — the ramp's height delta
-/// is inferred from its two axis-neighbors' elevations, never stored directly. Diagonals and
-/// the other axis are untouched and still governed normally.
+/** Second pass: a ramp cell forces both directions along its axis back open, overriding the
+ *  max_step_height disconnect above for exactly those two directions — the ramp's height delta
+ *  is inferred from its two axis-neighbors' elevations, never stored directly. Diagonals and
+ *  the other axis are untouched and still governed normally.
+ */
 void reopen_ramp_edges(const Tilemap &tm, WalkabilityGraph &g) {
   for (int row = 0; row < tm.height; ++row) {
     for (int col = 0; col < tm.width; ++col) {

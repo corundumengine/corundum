@@ -49,8 +49,9 @@ void init_engine(corundum::Engine &engine) {
 
 } // namespace
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("session reset: clears session state but preserves flags and registries") {
   corundum::Engine engine{};

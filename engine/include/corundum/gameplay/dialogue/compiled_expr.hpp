@@ -44,15 +44,30 @@ enum class CmpOp : uint8_t { Eq, Ne, Lt, Gt, Le, Ge };
 struct ExprNode {
   enum class Kind : uint8_t { Int, Ident, Call, Cmp, And, Or, Not, Bool };
 
-  std::string arg = {}; ///< Call: first argument (quest / item / faction / node id).
+  /** Call: first argument (quest / item / faction / node id). */
+  std::string arg = {};
   Kind kind = Kind::Int;
-  int32_t lhs = -1;            ///< Left operand arena index.
-  std::string name = {};       ///< Ident: flag key. Call: helper name.
-  CmpOp op = CmpOp::Eq;        ///< Cmp: comparison operator.
-  int32_t rhs = -1;            ///< Right operand arena index.
-  bool rhs_is_bool = false;    ///< Cmp: RHS was a true/false literal.
-  std::string stage_name = {}; ///< Call: second argument (stage name; quest_is_at only).
-  int value = 0;               ///< Int: literal value.
+
+  /** Left operand arena index. */
+  int32_t lhs = -1;
+
+  /** Ident: flag key. Call: helper name. */
+  std::string name = {};
+
+  /** Cmp: comparison operator. */
+  CmpOp op = CmpOp::Eq;
+
+  /** Right operand arena index. */
+  int32_t rhs = -1;
+
+  /** Cmp: RHS was a true/false literal. */
+  bool rhs_is_bool = false;
+
+  /** Call: second argument (stage name; quest_is_at only). */
+  std::string stage_name = {};
+
+  /** Int: literal value. */
+  int value = 0;
 };
 
 /** Identifiers a compiled condition references, for cross-file validation.
@@ -62,9 +77,14 @@ struct ExprNode {
  *  each quest_is_at call, so validators can check the stage exists too.
  */
 struct ExprRefs {
-  std::vector<std::string> idents;                               ///< Bare flag keys read by the expression.
-  std::vector<std::string> quest_ids;                            ///< Quest ids named by quest-helper calls.
-  std::vector<std::pair<std::string, std::string>> quest_stages; ///< (quest, stage) from quest_is_at.
+  /** Bare flag keys read by the expression. */
+  std::vector<std::string> idents;
+
+  /** Quest ids named by quest-helper calls. */
+  std::vector<std::string> quest_ids;
+
+  /** (quest, stage) from quest_is_at. */
+  std::vector<std::pair<std::string, std::string>> quest_stages;
 };
 
 /** A condition expression parsed once into a reusable node arena.

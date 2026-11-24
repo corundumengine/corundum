@@ -35,9 +35,10 @@ using corundum::test::make_world_config;
 using corundum::world::GameMode;
 namespace screens = corundum::gameplay::screens;
 
-/// Route one physical action press through the engine's UI step, exactly as the fixed-step
-/// loop does. The character sheet is stepped by Engine, not world::update, so the shared
-/// world helper cannot drive it.
+/** Route one physical action press through the engine's UI step, exactly as the fixed-step
+ *  loop does. The character sheet is stepped by Engine, not world::update, so the shared
+ *  world helper cannot drive it.
+ */
 bool press(corundum::Engine &engine, corundum::input::Action action) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(action));
@@ -48,7 +49,7 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
 
 using corundum::gameplay::rules::FlagReader;
 
-/// Give `gameplay` one ruleset row, "Stance", showing the `test.stance` flag.
+/** Give `gameplay` one ruleset row, "Stance", showing the `test.stance` flag. */
 void add_stance_row(corundum::gameplay::Gameplay &gameplay) {
   gameplay.ruleset.character_rows = [](const FlagReader &flags) {
     return std::vector<StatRow>{

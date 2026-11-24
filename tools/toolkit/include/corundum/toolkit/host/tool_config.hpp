@@ -23,9 +23,11 @@ struct ToolConfig {
   std::filesystem::path quests_dir;
   float elevation_step_px = 4.f;
   unsigned int max_step_height = 4;
-  /// Tile diamond size in pixels, for tools that draw ground geometry at true scale — the
-  /// footprint a character sheet declares, for instance. Set from tools.json; keep it in
-  /// step with the project's tilemap diamonds.
+
+  /** Tile diamond size in pixels, for tools that draw ground geometry at true scale — the
+   *  footprint a character sheet declares, for instance. Set from tools.json; keep it in
+   *  step with the project's tilemap diamonds.
+   */
   int tile_diamond_w = 128;
   int tile_diamond_h = 64;
 };

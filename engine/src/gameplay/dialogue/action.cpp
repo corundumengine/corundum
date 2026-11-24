@@ -38,8 +38,9 @@ struct ParseCursor {
       ++pos;
   }
 
-  // Reads an identifier; '.' is permitted inside so dotted keys
-  // (e.g. `local.x`) parse as a single token.
+  /** Reads an identifier; '.' is permitted inside so dotted keys
+   *  (e.g. `local.x`) parse as a single token.
+   */
   std::string read_ident() {
     const auto start = pos;
     while (pos < src.size() &&
@@ -61,7 +62,7 @@ struct ParseCursor {
     return v;
   }
 
-  // Reads a value token: INT | true | false
+  /** Reads a value token: INT | true | false */
   int read_value() {
     skip_ws();
     if (at_end())
@@ -77,7 +78,7 @@ struct ParseCursor {
     throw std::runtime_error("expected int, true, or false, got: " + word);
   }
 
-  // Reads a single-quoted string literal; returns content without quotes.
+  /** Reads a single-quoted string literal; returns content without quotes. */
   std::string read_quoted() {
     if (peek() != '\'')
       throw std::runtime_error("expected single-quoted string");
@@ -93,8 +94,9 @@ struct ParseCursor {
   }
 };
 
-/// Parse a function call's argument list; the cursor is on the opening '('. `name` is the
-/// identifier that preceded it.
+/** Parse a function call's argument list; the cursor is on the opening '('. `name` is the
+ *  identifier that preceded it.
+ */
 EventAction parse_call(ParseCursor &ctx, std::string name) {
   ctx.consume(); // '('
   EventAction ev;
@@ -166,8 +168,9 @@ Action parse_impl(std::string_view src) {
   return sa;
 }
 
-/// Applies one parsed Action. It has one call operator per Action alternative, so visiting
-/// an Action that gains an alternative fails to compile until this handles it.
+/** Applies one parsed Action. It has one call operator per Action alternative, so visiting
+ *  an Action that gains an alternative fails to compile until this handles it.
+ */
 struct ActionExecutor {
   std::vector<EventAction> *events{};
 

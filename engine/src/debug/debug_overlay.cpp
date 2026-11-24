@@ -41,15 +41,18 @@ constexpr core::math::Colour k_hud_bg{.r = 0, .g = 0, .b = 0, .a = 75};
 constexpr core::math::Colour k_hud_text{.r = 220, .g = 220, .b = 200, .a = 255};
 constexpr core::math::Colour k_player_col{.r = 0, .g = 255, .b = 0, .a = 220};
 constexpr core::math::Colour k_footprint_col{.r = 255, .g = 200, .b = 0, .a = 220};
-/// The feet marker — deliberately not the player's green, so the anchor point reads as
-/// its own glyph instead of disappearing inside the player's footprint outline.
+
+/** The feet marker — deliberately not the player's green, so the anchor point reads as
+ *  its own glyph instead of disappearing inside the player's footprint outline.
+ */
 constexpr core::math::Colour k_marker_col{.r = 255, .g = 0, .b = 255, .a = 220};
 
 constexpr float k_y = 10.f;
 constexpr uint32_t k_font_sz = 16;
 constexpr float k_line_h = 20.f;
 constexpr float k_pad = 8.f;
-/// Minimum HUD panel width; the panel grows to fit its widest rendered line.
+
+/** Minimum HUD panel width; the panel grows to fit its widest rendered line. */
 constexpr float k_box_w = 360.f;
 
 constexpr float k_fps_ema_alpha = 0.05f;
@@ -57,11 +60,12 @@ constexpr float k_marker_hw = 5.f;
 constexpr float k_marker_hh = 3.f;
 constexpr float k_line_thickness = 2.f;
 
-/// Outline `box` as an isometric diamond sitting at `elev`.
-///
-/// tile_to_world takes a whole-tile elevation, so the sub-tile part of an interpolated
-/// ramp elevation rounds away — up to half a step of drift on a ramp, which a debug
-/// outline can live with.
+/** Outline `box` as an isometric diamond sitting at `elev`.
+ *
+ *  tile_to_world takes a whole-tile elevation, so the sub-tile part of an interpolated
+ *  ramp elevation rounds away — up to half a step of drift on a ramp, which a debug
+ *  outline can live with.
+ */
 void draw_iso_box(platform::Renderer &r, const entities::GridBox &box, float elev, core::math::IsometricParams iso,
                   core::math::Colour colour) noexcept {
   const int whole_elev = static_cast<int>(std::round(elev));
@@ -100,8 +104,9 @@ void draw_flat_collisions(platform::Renderer &r, const View &view, core::math::C
   }
 }
 
-/// Path of the map the player currently occupies: the single map's path, or the
-/// active chunk containing the player in world mode. Empty when neither applies.
+/** Path of the map the player currently occupies: the single map's path, or the
+ *  active chunk containing the player in world mode. Empty when neither applies.
+ */
 [[nodiscard]] std::string resolve_map_name(const render::RenderState &render, const entities::World &w,
                                            entities::EntityId player) {
   const auto *single = std::get_if<render::SingleMapArea>(&render.area);
@@ -238,9 +243,10 @@ void HudOverlay::draw_entity_footprints(platform::Renderer &r, core::math::Vec2 
 
 namespace {
 
-/// Format every line into one buffer, recording each line's start offset. The buffer may
-/// reallocate as it grows, so offsets (not views) are kept and sliced at draw time — DrawText
-/// takes a string_view, so no per-line allocation.
+/** Format every line into one buffer, recording each line's start offset. The buffer may
+ *  reallocate as it grows, so offsets (not views) are kept and sliced at draw time — DrawText
+ *  takes a string_view, so no per-line allocation.
+ */
 struct PanelLines {
   static constexpr std::size_t k_max_lines = 8;
 
@@ -278,7 +284,7 @@ struct WorldPanelValues {
   std::string map_name;
 };
 
-/// Draw the panel background sized to its widest line, then every line.
+/** Draw the panel background sized to its widest line, then every line. */
 void draw_panel(platform::Renderer &r, float x, const PanelLines &lines, platform::FontId font_id) {
   float content_w = k_box_w;
   for (std::size_t i = 0; i < lines.count; ++i)

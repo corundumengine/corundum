@@ -24,12 +24,23 @@ struct SoundHandle {
 
 /** A mixer bus: every voice is summed into one bus, and every bus into Master. */
 enum class AudioBus : std::uint8_t {
-  Master,   ///< The engine output bus; other buses sum into it. A voice routed here takes only master volume.
-  Sound,    ///< One-shot and looping sound effects.
-  Music,    ///< Streamed music.
-  Ambience, ///< Looping background beds.
-  Voice,    ///< Dialogue and narration.
-  Count,    ///< Not a bus: marks the end of the table, so k_audio_bus_count stays in step.
+  /** The engine output bus; other buses sum into it. A voice routed here takes only master volume. */
+  Master,
+
+  /** One-shot and looping sound effects. */
+  Sound,
+
+  /** Streamed music. */
+  Music,
+
+  /** Looping background beds. */
+  Ambience,
+
+  /** Dialogue and narration. */
+  Voice,
+
+  /** Not a bus: marks the end of the table, so k_audio_bus_count stays in step. */
+  Count,
 };
 
 /** Number of buses; sizes the per-bus volume tables. */

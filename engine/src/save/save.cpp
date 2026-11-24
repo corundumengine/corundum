@@ -28,8 +28,9 @@ namespace corundum::save {
 
 namespace {
 
-/// Copy `j[key]` into `out` when present, rejecting a present value whose JSON
-/// type doesn't match `T`. Absent keys leave `out` at its existing default.
+/** Copy `j[key]` into `out` when present, rejecting a present value whose JSON
+ *  type doesn't match `T`. Absent keys leave `out` at its existing default.
+ */
 template <typename T>
 [[nodiscard]] std::expected<void, std::string> read_field(const nlohmann::json &j, std::string_view key, T &out) {
   const auto it = j.find(key);
@@ -54,9 +55,10 @@ template <typename T>
   return {};
 }
 
-/// Serialize the whole FlagStore as a `{ "key": int }` object. Written
-/// manually (not via nlohmann's map support) so no conversion surprises
-/// depend on which container flat_map aliases.
+/** Serialize the whole FlagStore as a `{ "key": int }` object. Written
+ *  manually (not via nlohmann's map support) so no conversion surprises
+ *  depend on which container flat_map aliases.
+ */
 [[nodiscard]] nlohmann::json serialize_flags(const corundum::world::FlagStore &flags) {
   nlohmann::json j = nlohmann::json::object();
   for (const auto &[key, value] : flags)
@@ -72,8 +74,9 @@ template <typename T>
   };
 }
 
-/// Parse the optional `meta` object. Absent leaves `out` at its defaults; present must be an
-/// object with correctly-typed fields.
+/** Parse the optional `meta` object. Absent leaves `out` at its defaults; present must be an
+ *  object with correctly-typed fields.
+ */
 [[nodiscard]] std::expected<void, std::string> parse_meta(const nlohmann::json &j, SaveMeta &out) {
   const auto it = j.find("meta");
   if (it == j.end())

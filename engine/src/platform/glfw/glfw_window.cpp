@@ -30,13 +30,14 @@
 namespace corundum::platform::glfw {
 
 namespace {
-/// Main-thread-only refcount: the first window brings GLFW up, the last tears it down.
+/** Main-thread-only refcount: the first window brings GLFW up, the last tears it down. */
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): TU-local, must stay mutable.
 int s_glfw_refcount = 0;
 
-/// Add SDL_GameControllerDB's mappings to GLFW's built-in subset, so pads GLFW doesn't list
-/// (the 8BitDo Pro 2 on macOS) report as gamepads. A failure is a warning: those pads stay
-/// unmapped, and every other input still works.
+/** Add SDL_GameControllerDB's mappings to GLFW's built-in subset, so pads GLFW doesn't list
+ *  (the 8BitDo Pro 2 on macOS) report as gamepads. A failure is a warning: those pads stay
+ *  unmapped, and every other input still works.
+ */
 void load_gamepad_mappings() {
   const std::string joined = join_gamepad_mappings(gamepad_mappings());
   if (glfwUpdateGamepadMappings(joined.c_str()) == GLFW_FALSE)
@@ -58,7 +59,7 @@ void glfw_term_if_done() {
     glfwTerminate();
 }
 
-/// A window's position and size in screen coordinates.
+/** A window's position and size in screen coordinates. */
 struct WindowRect {
   int height{};
 
@@ -70,26 +71,28 @@ struct WindowRect {
 };
 
 struct WindowData {
-  /// Engine input sink, set only for the duration of poll_game_input. Callbacks fired by another
-  /// event pump (a tool's own glfwPollEvents) find it null and drop the event.
+  /** Engine input sink, set only for the duration of poll_game_input. Callbacks fired by another
+   *  event pump (a tool's own glfwPollEvents) find it null and drop the event.
+   */
   corundum::input::InputMapper *mapper{nullptr};
 
-  /// Joystick id whose state drives input, or -1 while no gamepad is connected.
+  /** Joystick id whose state drives input, or -1 while no gamepad is connected. */
   int active_gamepad{-1};
 
-  /// Bit j is set while joystick j is a mapped gamepad; diffed each poll to report hot-plug.
+  /** Bit j is set while joystick j is a mapped gamepad; diffed each poll to report hot-plug. */
   std::uint32_t gamepads_present{};
 
-  /// Bit j is set while joystick j is connected but has no gamepad mapping; diffed each poll so
-  /// each connection is reported once.
+  /** Bit j is set while joystick j is connected but has no gamepad mapping; diffed each poll so
+   *  each connection is reported once.
+   */
   std::uint32_t unmapped_joysticks{};
 
-  /// Windowed placement saved on entering fullscreen, restored on leaving it.
+  /** Windowed placement saved on entering fullscreen, restored on leaving it. */
   WindowRect windowed_rect{};
 
   corundum::platform::PlatformEvents events{};
 
-  /// Backend graphics seam for this window; empty when the backend needs no separate object.
+  /** Backend graphics seam for this window; empty when the backend needs no separate object. */
   window_graphics::ContextHandle context{};
 };
 
@@ -150,12 +153,12 @@ void scroll_callback(GLFWwindow *win, double /*xoffset*/, double yoffset) noexce
     data->mapper->scroll(static_cast<float>(yoffset));
 }
 
-/// The bit for `joystick` in a gamepad-presence mask.
+/** The bit for `joystick` in a gamepad-presence mask. */
 constexpr std::uint32_t joystick_bit(int joystick) noexcept {
   return 1u << static_cast<unsigned>(joystick);
 }
 
-/// Bitmask of the joystick ids that are currently mapped gamepads.
+/** Bitmask of the joystick ids that are currently mapped gamepads. */
 std::uint32_t connected_gamepads() noexcept {
   std::uint32_t mask{};
   for (int joystick = GLFW_JOYSTICK_1; joystick <= GLFW_JOYSTICK_LAST; ++joystick) {
@@ -165,13 +168,14 @@ std::uint32_t connected_gamepads() noexcept {
   return mask;
 }
 
-/// `text`, or an empty view when GLFW returns null for a joystick that vanished mid-scan.
+/** `text`, or an empty view when GLFW returns null for a joystick that vanished mid-scan. */
 std::string_view text_or_empty(const char *text) noexcept {
   return text != nullptr ? std::string_view{text} : std::string_view{};
 }
 
-/// Warn once per connection about a joystick GLFW sees but cannot map. Its input is ignored, and
-/// the logged GUID is what a mapping row for it needs.
+/** Warn once per connection about a joystick GLFW sees but cannot map. Its input is ignored, and
+ *  the logged GUID is what a mapping row for it needs.
+ */
 void report_unmapped_joysticks(WindowData &data) noexcept {
   std::uint32_t unmapped{};
   for (int joystick = GLFW_JOYSTICK_1; joystick <= GLFW_JOYSTICK_LAST; ++joystick) {
@@ -190,9 +194,10 @@ void report_unmapped_joysticks(WindowData &data) noexcept {
   data.unmapped_joysticks = unmapped;
 }
 
-/// Report gamepad hot-plug edges and feed the active pad to `mapper`. The active pad stays
-/// active while connected; when it goes, the lowest-numbered remaining pad takes over. Only
-/// mapped gamepads count: an unmapped joystick has no portable button layout to bind.
+/** Report gamepad hot-plug edges and feed the active pad to `mapper`. The active pad stays
+ *  active while connected; when it goes, the lowest-numbered remaining pad takes over. Only
+ *  mapped gamepads count: an unmapped joystick has no portable button layout to bind.
+ */
 void poll_gamepads(WindowData &data, corundum::input::InputMapper &mapper) noexcept {
   report_unmapped_joysticks(data);
   std::uint32_t present{connected_gamepads()};
@@ -225,7 +230,7 @@ void poll_gamepads(WindowData &data, corundum::input::InputMapper &mapper) noexc
   mapper.gamepad(to_gamepad_state(state));
 }
 
-/// The monitor overlapping most of `win`, falling back to the primary monitor.
+/** The monitor overlapping most of `win`, falling back to the primary monitor. */
 GLFWmonitor *monitor_for_window(GLFWwindow *win) noexcept {
   int window_x{};
   int window_y{};

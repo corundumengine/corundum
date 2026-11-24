@@ -7,7 +7,7 @@
 
 namespace corundum::toolkit::widgets {
 
-/// ImGui font handles loaded at startup.
+/** ImGui font handles loaded at startup. */
 struct FontHandles {
   ImFont *ui{nullptr};
   ImFont *icons{nullptr};

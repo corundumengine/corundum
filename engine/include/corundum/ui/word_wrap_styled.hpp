@@ -13,7 +13,7 @@
 
 namespace corundum::ui {
 
-/// One wrapped line: the styled segments that compose it and their total rendered width.
+/** One wrapped line: the styled segments that compose it and their total rendered width. */
 struct StyledLine {
   std::vector<StyledSegment> segments{};
 
@@ -22,8 +22,9 @@ struct StyledLine {
 
 namespace detail {
 
-/// A run of non-space characters. A word may weave through several styles, so it holds one
-/// or more pieces rather than a single style.
+/** A run of non-space characters. A word may weave through several styles, so it holds one
+ *  or more pieces rather than a single style.
+ */
 struct StyledWord {
   std::vector<StyledSegment> pieces{};
 
@@ -32,14 +33,16 @@ struct StyledWord {
   FontStyle space_style{FontStyle::Regular};
 };
 
-/// A paragraph is the words between two hard newlines. Consecutive newlines yield an empty
-/// paragraph, which wraps to one blank line.
+/** A paragraph is the words between two hard newlines. Consecutive newlines yield an empty
+ *  paragraph, which wraps to one blank line.
+ */
 struct StyledParagraph {
   std::vector<StyledWord> words{};
 };
 
-/// Accumulates paragraphs of styled words one character at a time. A one-shot builder behind
-/// styled_paragraphs(): feed it every character, then finish().
+/** Accumulates paragraphs of styled words one character at a time. A one-shot builder behind
+ *  styled_paragraphs(): feed it every character, then finish().
+ */
 class StyledParagraphBuilder {
 public:
   void consume(char c, FontStyle style) {
@@ -107,9 +110,10 @@ private:
   FontStyle space_style_{FontStyle::Regular};
 };
 
-/// Splits `runs` into paragraphs of words, collapsing space runs and dropping leading and
-/// trailing spaces. Assumes newlines are already normalized by parse_styled; a '\r' is not
-/// a break here.
+/** Splits `runs` into paragraphs of words, collapsing space runs and dropping leading and
+ *  trailing spaces. Assumes newlines are already normalized by parse_styled; a '\r' is not
+ *  a break here.
+ */
 [[nodiscard]] inline std::vector<StyledParagraph> styled_paragraphs(std::span<const StyledRun> runs) {
   StyledParagraphBuilder builder;
   for (const StyledRun &run : runs)
@@ -118,8 +122,9 @@ private:
   return builder.finish();
 }
 
-/// Appends `text` with `style` to `line`, merging into the last segment when the style
-/// matches, and advances the line width by `width`.
+/** Appends `text` with `style` to `line`, merging into the last segment when the style
+ *  matches, and advances the line width by `width`.
+ */
 inline void append_styled(StyledLine &line, std::string_view text, FontStyle style, float width) {
   if (!line.segments.empty() && line.segments.back().style == style) {
     line.segments.back().text.append(text);
@@ -133,8 +138,9 @@ inline void append_styled(StyledLine &line, std::string_view text, FontStyle sty
   line.width += width;
 }
 
-/// Measures each piece of `word` into `piece_widths` (cleared first) and returns the word's
-/// total width. The caller owns the buffer so it is reused across words without allocating.
+/** Measures each piece of `word` into `piece_widths` (cleared first) and returns the word's
+ *  total width. The caller owns the buffer so it is reused across words without allocating.
+ */
 template <class MeasureFn>
 [[nodiscard]] float measure_word(const StyledWord &word, const MeasureFn &measure, std::vector<float> &piece_widths) {
   piece_widths.clear();
@@ -147,8 +153,9 @@ template <class MeasureFn>
   return word_width;
 }
 
-/// Appends `word` using the widths measure_word() already computed, so no piece is measured
-/// twice.
+/** Appends `word` using the widths measure_word() already computed, so no piece is measured
+ *  twice.
+ */
 inline void append_measured_word(StyledLine &line, const StyledWord &word, std::span<const float> piece_widths) {
   for (std::size_t i = 0; i < word.pieces.size(); ++i)
     append_styled(line, word.pieces[i].text, word.pieces[i].style, piece_widths[i]);
@@ -156,15 +163,16 @@ inline void append_measured_word(StyledLine &line, const StyledWord &word, std::
 
 } // namespace detail
 
-/// Splits styled text into lines no wider than `max_width` as reported by `measure`, with the
-/// same greedy behavior as ui::wrap_text: hard newlines force a break, space runs collapse, and
-/// a word wider than `max_width` is placed on its own line rather than broken. A word keeps
-/// its own style, and a separating space takes the style of the run it sat in, so a caller can
-/// draw each segment at `line.segments[i].x` without reconstructing styles.
-/// @param runs Styled runs, typically from parse_styled, which normalizes CRLF first.
-/// @param measure Callable (std::string_view, FontStyle) -> float returning rendered width.
-/// @return At least one line; empty input yields a single empty line.
-/// @pre `max_width` <= 0 places every word on its own line.
+/** Splits styled text into lines no wider than `max_width` as reported by `measure`, with the
+ *  same greedy behavior as ui::wrap_text: hard newlines force a break, space runs collapse, and
+ *  a word wider than `max_width` is placed on its own line rather than broken. A word keeps
+ *  its own style, and a separating space takes the style of the run it sat in, so a caller can
+ *  draw each segment at `line.segments[i].x` without reconstructing styles.
+ *  @param runs Styled runs, typically from parse_styled, which normalizes CRLF first.
+ *  @param measure Callable (std::string_view, FontStyle) -> float returning rendered width.
+ *  @return At least one line; empty input yields a single empty line.
+ *  @pre `max_width` <= 0 places every word on its own line.
+ */
 template <class MeasureFn>
 [[nodiscard]] std::vector<StyledLine> wrap_styled(std::span<const StyledRun> runs, float max_width, MeasureFn measure) {
   const std::vector<detail::StyledParagraph> paragraphs = detail::styled_paragraphs(runs);

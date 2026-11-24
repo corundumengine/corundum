@@ -41,7 +41,7 @@ using corundum::test::initialize_with_world;
 using corundum::test::make_world_config;
 using corundum::test::run_one_step;
 
-/// Like make_world_config but with the 5×1 streaming-world manifest.
+/** Like make_world_config but with the 5×1 streaming-world manifest. */
 corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
   corundum::core::GameConfig cfg = make_world_config(fixtures);
   cfg.window_title = "streaming_test";
@@ -49,7 +49,7 @@ corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
   return cfg;
 }
 
-/// Read the player's tile col/row from the scene transforms.
+/** Read the player's tile col/row from the scene transforms. */
 std::pair<int, int> player_tile(const corundum::Engine &engine) {
   const auto &transforms = engine.scene.world.transforms;
   return {static_cast<int>(transforms.pos_col(engine.scene.player)),
@@ -60,7 +60,7 @@ std::string interior_path(const fs::path &fixtures) {
   return (fixtures / "tilemaps/interior.json").string();
 }
 
-/// Run one fixed simulation step (physics + portal detection) with no input.
+/** Run one fixed simulation step (physics + portal detection) with no input. */
 void advance(corundum::Engine &engine) {
   const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
   const corundum::input::InputState input{};
@@ -68,16 +68,18 @@ void advance(corundum::Engine &engine) {
                           static_cast<float>(engine.window_height()), engine.input_mapper.last_device());
 }
 
-/// Drive fixed steps until the queued click-to-move path empties. Capped, so a path that
-/// never completes fails the assertions that follow instead of hanging.
+/** Drive fixed steps until the queued click-to-move path empties. Capped, so a path that
+ *  never completes fails the assertions that follow instead of hanging.
+ */
 void advance_until_path_clear(corundum::Engine &engine, int max_steps = 120) {
   for (int i = 0; i < max_steps && !engine.scene.path.empty(); ++i)
     advance(engine);
 }
 
-/// Place the player entity on tile (col, row) without pathing. A position indexes a tile —
-/// an integer coordinate means "standing on that tile" — which is also where follow_path
-/// leaves an entity that walked there, since waypoints are tile indices.
+/** Place the player entity on tile (col, row) without pathing. A position indexes a tile —
+ *  an integer coordinate means "standing on that tile" — which is also where follow_path
+ *  leaves an entity that walked there, since waypoints are tile indices.
+ */
 void move_player_to(corundum::Engine &engine, float col, float row) {
   auto &transforms = engine.scene.world.transforms;
   const auto slot = transforms.dense_index(engine.scene.player);
@@ -86,7 +88,7 @@ void move_player_to(corundum::Engine &engine, float col, float row) {
   engine.scene.path.clear();
 }
 
-/// Scan live transforms for an entity standing exactly at tile (col, row).
+/** Scan live transforms for an entity standing exactly at tile (col, row). */
 std::optional<corundum::entities::EntityId> entity_at(const corundum::Engine &engine, int col, int row) {
   const auto &transforms = engine.scene.world.transforms;
   for (const auto eid : transforms.active_entities())

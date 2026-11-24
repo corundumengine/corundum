@@ -41,10 +41,10 @@ constexpr float k_title_gap = 10.f;
 constexpr float k_column_gap = 28.f;
 constexpr float k_footer_gap = 10.f;
 
-/// The Stats rows every sheet has: Gold.
+/** The Stats rows every sheet has: Gold. */
 constexpr int k_fixed_stats_row_count = 1;
 
-/// A number the game may not have written; absent and negative both read as 0.
+/** A number the game may not have written; absent and negative both read as 0. */
 int flag_count(const world::FlagStore &flags, std::string_view key) {
   return std::max(0, world::visit_count(flags, key));
 }
@@ -57,7 +57,7 @@ float header_line_height(const ui::PanelStyle &style) noexcept {
   return std::max(body_line_height(style), static_cast<float>(style.font_size_speaker) + 4.f);
 }
 
-/// The three section columns under the title, and the footer baseline they stop above.
+/** The three section columns under the title, and the footer baseline they stop above. */
 struct SectionGeometry {
   ui::RowRect stats{};
   ui::RowRect equipment{};
@@ -104,7 +104,7 @@ void draw_section_header(platform::Renderer &r, const ui::PanelStyle &style, std
   draw_text(r, style, title, section.pos, style.font_size_speaker, style.speaker);
 }
 
-/// Draw one "label: value" row and return the y of the next row.
+/** Draw one "label: value" row and return the y of the next row. */
 float draw_labeled_row(platform::Renderer &r, const ui::PanelStyle &style, const ui::RowRect &section, float y,
                        std::string_view label, std::string_view value) {
   const std::string text = std::format("{}: {}", label, value);
@@ -112,8 +112,9 @@ float draw_labeled_row(platform::Renderer &r, const ui::PanelStyle &style, const
   return y + body_line_height(style);
 }
 
-/// Draw `rows` from `first_y` down `section`, scrolling so `cursor` stays visible.
-/// A negative `cursor` draws every row unselected (a section the cursor is not in).
+/** Draw `rows` from `first_y` down `section`, scrolling so `cursor` stays visible.
+ *  A negative `cursor` draws every row unselected (a section the cursor is not in).
+ */
 void draw_section_rows(platform::Renderer &r, const ui::PanelStyle &style, const ui::RowRect &section, float first_y,
                        const std::vector<std::string> &rows, int cursor) {
   if (rows.empty())
@@ -130,7 +131,7 @@ void draw_section_rows(platform::Renderer &r, const ui::PanelStyle &style, const
   }
 }
 
-/// The Stats column's rows: the ruleset's rows in order, then Gold.
+/** The Stats column's rows: the ruleset's rows in order, then Gold. */
 std::vector<std::string> build_stats_rows(const CharacterInfo &info) {
   std::vector<std::string> rows;
   rows.reserve(info.rule_rows.size() + 1);

@@ -23,14 +23,16 @@
 
 namespace corundum::entities {
 
-/// Top-level entity container; owns the entity pool and all component tables.
-/// Member order is alignment-driven rather than alphabetical: the cache-line-aligned tables stay
-/// first and contiguous so the smaller members never force padding between them.
-/// @note Not thread-safe.
+/** Top-level entity container; owns the entity pool and all component tables.
+ *  Member order is alignment-driven rather than alphabetical: the cache-line-aligned tables stay
+ *  first and contiguous so the smaller members never force padding between them.
+ *  @note Not thread-safe.
+ */
 struct World {
   CollisionTable collisions;
 
-  TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
+  /** Hot: col, row, dc, dr — updated every frame. */
+  TransformTable transforms;
 
   AnimationTable animations;
 
@@ -38,10 +40,12 @@ struct World {
 
   DialogueTable dialogue_refs;
 
-  ActorIdTable actor_ids; ///< Stable authoring ids, read on quest/save resolution.
+  /** Stable authoring ids, read on quest/save resolution. */
+  ActorIdTable actor_ids;
 
-  /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
-  /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
+  /** Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
+   *  Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
+   */
   std::array<EntityId, k_max_entities> pending_deletions{};
 
   std::uint32_t pending_deletion_count = 0;
@@ -55,8 +59,9 @@ struct World {
   MotionSpriteTable motion_sprites;
 };
 
-/// Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
-/// @return The new entity, or std::nullopt when the pool already holds k_max_entities.
+/** Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
+ *  @return The new entity, or std::nullopt when the pool already holds k_max_entities.
+ */
 [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr) {
   if (w.entities.full())
     return std::nullopt;
@@ -66,7 +71,7 @@ struct World {
   return e;
 }
 
-/// Spawn a fully animated entity (player). @return std::nullopt when the pool is full.
+/** Spawn a fully animated entity (player). @return std::nullopt when the pool is full. */
 [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr, Animation anim) {
   const std::optional<EntityId> e = spawn(w, pos, vel, spr);
   if (!e)
@@ -76,7 +81,7 @@ struct World {
   return e;
 }
 
-/// Spawn an NPC that triggers a dialogue graph. @return std::nullopt when the pool is full.
+/** Spawn an NPC that triggers a dialogue graph. @return std::nullopt when the pool is full. */
 [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr,
                                                    const DialogueRef &ref) {
   const std::optional<EntityId> e = spawn(w, pos, vel, spr);
@@ -86,11 +91,12 @@ struct World {
   return e;
 }
 
-/// Tie all component tables into a tuple for fold-expression iteration.
-/// Adding a new table means adding one member to World and one entry in this tie, so
-/// despawn and any future cross-table operation pick it up automatically.
-/// @pre Every tied table must satisfy GameTable; the static_assert enforces it so despawn()
-///      can call has()/remove() on each.
+/** Tie all component tables into a tuple for fold-expression iteration.
+ *  Adding a new table means adding one member to World and one entry in this tie, so
+ *  despawn and any future cross-table operation pick it up automatically.
+ *  @pre Every tied table must satisfy GameTable; the static_assert enforces it so despawn()
+ *       can call has()/remove() on each.
+ */
 [[nodiscard]] inline auto all_tables(World &w) noexcept {
   static_assert(GameTable<TransformTable> && GameTable<SpriteTable> && GameTable<AnimationTable> &&
                 GameTable<CollisionTable> && GameTable<DialogueTable> && GameTable<ActorIdTable> &&
@@ -99,9 +105,10 @@ struct World {
                   w.motion_sprites, w.clips);
 }
 
-/// Remove e and all of its components from the world immediately.
-/// Safe to call between update frames. During an update, prefer mark_for_deletion().
-/// @pre e must be a live entity.
+/** Remove e and all of its components from the world immediately.
+ *  Safe to call between update frames. During an update, prefer mark_for_deletion().
+ *  @pre e must be a live entity.
+ */
 inline void despawn(World &w, EntityId e) {
   assert(w.entities.is_live(e) && "despawn: not a live entity");
   const auto remove_if_present = [e](auto &table) {

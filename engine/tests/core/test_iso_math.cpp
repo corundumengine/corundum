@@ -429,7 +429,7 @@ struct CullRect {
   return world.x >= rect.cx && world.x <= rect.cx + rect.vpw && world.y >= rect.cy && world.y <= rect.cy + rect.vph;
 }
 
-/// Every tile anchor inside `rect` must fall inside `iso`'s cull bounds.
+/** Every tile anchor inside `rect` must fall inside `iso`'s cull bounds. */
 [[nodiscard]] ViewportSweep sweep_viewport(const ccm::IsometricParams &iso, const CullRect &rect, int offset_x,
                                            int offset_y) {
   const ccm::IsometricCullBounds cull =

@@ -31,7 +31,7 @@ using corundum::platform::FontId;
 using corundum::world::FlagStore;
 namespace screens = corundum::gameplay::screens;
 
-/// Two-stage quest: a non-resolved start with one bare objective, then a resolved end.
+/** Two-stage quest: a non-resolved start with one bare objective, then a resolved end. */
 corundum::gameplay::quest::Quest make_two_stage_quest(std::string id, std::string name) {
   corundum::gameplay::quest::Quest q;
   q.quest_id = std::move(id);
@@ -41,12 +41,12 @@ corundum::gameplay::quest::Quest make_two_stage_quest(std::string id, std::strin
   return q;
 }
 
-/// Advance `id` to its second (resolved) stage.
+/** Advance `id` to its second (resolved) stage. */
 void complete(FlagStore &flags, std::string_view quest_id) {
   flags[corundum::gameplay::quest::quest_flag_key(quest_id)] = 2;
 }
 
-/// Every text payload the recording renderer received, in draw order.
+/** Every text payload the recording renderer received, in draw order. */
 std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer &r) {
   std::vector<std::string> texts;
   for (const auto &call : r.log)
@@ -55,7 +55,7 @@ std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer 
   return texts;
 }
 
-/// The recorded DrawText with exactly `text`, or nullptr.
+/** The recorded DrawText with exactly `text`, or nullptr. */
 const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view text) {
   for (const auto &call : r.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
@@ -139,8 +139,9 @@ TEST_CASE("cycle_journal_tab: wraps both ways") {
   CHECK(screens::cycle_journal_tab(screens::JournalTab::Active, -1) == screens::JournalTab::Failed);
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("journal_panel_render: sub-tab strip, then the highlighted quest's checklist") {
   using corundum::test::make_border;

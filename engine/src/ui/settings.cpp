@@ -125,7 +125,7 @@ void settings_scroll_to_cursor(SettingsState &state, int row_count, int visible_
 
 namespace {
 
-/// Every binding on `action`, joined with commas; "(unbound)" when it has none.
+/** Every binding on `action`, joined with commas; "(unbound)" when it has none. */
 std::string bindings_text(const input::Bindings &bindings, input::Action action) {
   std::string result;
   for (const input::PhysicalInput input : input::inputs_for(bindings, action)) {
@@ -139,12 +139,12 @@ std::string bindings_text(const input::Bindings &bindings, input::Action action)
   return result.empty() ? std::string{"(unbound)"} : result;
 }
 
-/// `fraction` as a whole-number percentage: 0.5 → "50%".
+/** `fraction` as a whole-number percentage: 0.5 → "50%". */
 std::string percent_text(float fraction) {
   return std::format("{:.0f}%", fraction * 100.f);
 }
 
-/// Value column text for one General row.
+/** Value column text for one General row. */
 std::string general_value_text(SettingsGeneralRow row, const SettingsValues &values) {
   switch (row) {
     case SettingsGeneralRow::MasterVolume: return percent_text(values.master_volume);
@@ -162,7 +162,7 @@ std::string general_value_text(SettingsGeneralRow row, const SettingsValues &val
 
 constexpr std::string_view k_controls_reset_label = "Reset to Defaults";
 
-/// (label, value) for every row of `tab`, in draw order.
+/** (label, value) for every row of `tab`, in draw order. */
 std::vector<std::pair<std::string, std::string>> build_rows(const SettingsState &state, const SettingsValues &values,
                                                             const input::Bindings &bindings) {
   std::vector<std::pair<std::string, std::string>> rows;
@@ -193,14 +193,15 @@ constexpr float k_settings_value_gap = 24.f;
 constexpr float k_settings_footer_gap = 12.f;
 constexpr std::string_view k_settings_title = "Settings";
 
-// The framing page (opened from the Title) fills the viewport and uses roomier spacing
-// than the compact in-game panel the pause menu opens.
+/** The framing page (opened from the Title) fills the viewport and uses roomier spacing
+ *  than the compact in-game panel the pause menu opens.
+ */
 constexpr float k_framing_settings_pad_x = 48.f;
 constexpr float k_framing_settings_pad_y = 36.f;
 constexpr float k_framing_settings_tab_gap = 40.f;
 constexpr float k_framing_settings_title_gap = 22.f;
 
-/// Footer hint, using the last-used device's glyphs.
+/** Footer hint, using the last-used device's glyphs. */
 std::string settings_footer(input::InputDevice last_device) {
   return std::format("{} / {} Tab   {} Select   {} Back", input_glyph(input::Action::TabPrev, last_device),
                      input_glyph(input::Action::TabNext, last_device),
@@ -212,8 +213,9 @@ float settings_line_height(const PanelStyle &style) noexcept {
   return std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
 }
 
-/// Place the tab rects and row hit-box for a panel at `panel_pos`/`panel_size` with `pad_x`
-/// and `pad_y` insets and `tab_gap`/`title_gap` spacing.
+/** Place the tab rects and row hit-box for a panel at `panel_pos`/`panel_size` with `pad_x`
+ *  and `pad_y` insets and `tab_gap`/`title_gap` spacing.
+ */
 void place_tabs_and_rows(SettingsLayout &layout, core::math::Vec2 panel_pos, core::math::Vec2 panel_size, float pad_x,
                          float pad_y, float tab_gap, float title_gap, float line_h, float title_h, float general_w,
                          float controls_w, int first_row, int visible_rows) {
@@ -238,7 +240,7 @@ void place_tabs_and_rows(SettingsLayout &layout, core::math::Vec2 panel_pos, cor
   };
 }
 
-/// The full-viewport framing page: the panel is the screen minus the shared margin.
+/** The full-viewport framing page: the panel is the screen minus the shared margin. */
 SettingsLayout framing_settings_layout(const PanelStyle &style, core::math::Vec2 viewport, float line_h, float title_h,
                                        float general_w, float controls_w, int first_row, int visible_rows) {
   const PanelRect panel = screen_panel_rect(viewport, style);
@@ -249,7 +251,7 @@ SettingsLayout framing_settings_layout(const PanelStyle &style, core::math::Vec2
   return layout;
 }
 
-/// The compact in-game panel: sized to its widest visible row, title, tabs and footer.
+/** The compact in-game panel: sized to its widest visible row, title, tabs and footer. */
 SettingsLayout in_game_settings_layout(const platform::Renderer &r, const PanelStyle &style,
                                        std::span<const std::pair<std::string, std::string>> rows,
                                        core::math::Vec2 viewport, input::InputDevice last_device, float line_h,

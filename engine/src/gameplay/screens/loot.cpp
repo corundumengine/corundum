@@ -35,8 +35,9 @@ std::vector<std::string> row_labels(const std::vector<InventoryLine> &lines) {
   return labels;
 }
 
-/// Draw one pane's rows; the active pane uses ui::draw_option (cursor + selected colour), the
-/// inactive one plain text.
+/** Draw one pane's rows; the active pane uses ui::draw_option (cursor + selected colour), the
+ *  inactive one plain text.
+ */
 void draw_pane(platform::Renderer &r, const ui::PanelStyle &style, const std::vector<std::string> &labels, float x,
                float y, bool active, int cursor, float line_h) {
   constexpr std::string_view k_empty = "(empty)";
@@ -73,7 +74,7 @@ constexpr float k_loot_min_w = 440.f;
 constexpr float k_loot_split_frac = 0.5f;
 constexpr std::string_view k_loot_player_title = "Inventory";
 
-/// Footer hint, using the last-used device's glyphs.
+/** Footer hint, using the last-used device's glyphs. */
 std::string loot_footer(input::InputDevice last_device) {
   return std::format("{} Take/Give   {} Switch   {} Close", ui::input_glyph(input::Action::Activate, last_device),
                      ui::input_glyph(input::Action::MoveLeft, last_device),

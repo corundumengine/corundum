@@ -16,11 +16,12 @@ namespace {
 
 using corundum::world::tilemap::TriangleCut;
 
-// Test whether an AABB at (ax, ay, aw, ah) overlaps any rect in the SoA view.
-// The four parallel float spans let the compiler auto-vectorize this loop with SIMD.
-// Once the view carries per-rect elevations, a rect is skipped unless its elevation is
-// within elevation.tolerance of elevation.player_elevation — lets a raised platform's
-// walls block only entities standing on that platform, not something beside it.
+/** Test whether an AABB at (ax, ay, aw, ah) overlaps any rect in the SoA view.
+ *  The four parallel float spans let the compiler auto-vectorize this loop with SIMD.
+ *  Once the view carries per-rect elevations, a rect is skipped unless its elevation is
+ *  within elevation.tolerance of elevation.player_elevation — lets a raised platform's
+ *  walls block only entities standing on that platform, not something beside it.
+ */
 [[nodiscard]] bool overlaps_any(float ax, float ay, float aw, float ah,
                                 corundum::world::tilemap::CollisionRectsView rects, ElevationGate elevation) noexcept {
   const float ax1 = ax + aw;
@@ -38,28 +39,30 @@ using corundum::world::tilemap::TriangleCut;
   return false;
 }
 
-// True when the AABB at (x, y) introduces overlap the AABB at (prev_x, prev_y) did
-// not have — the escape rule that lets an entity already inside a collider slide
-// free instead of being trapped by it.
+/** True when the AABB at (x, y) introduces overlap the AABB at (prev_x, prev_y) did
+ *  not have — the escape rule that lets an entity already inside a collider slide
+ *  free instead of being trapped by it.
+ */
 [[nodiscard]] bool blocks_new_overlap(float x, float y, float prev_x, float prev_y, float aw, float ah,
                                       corundum::world::tilemap::CollisionRectsView rects,
                                       ElevationGate elevation) noexcept {
   return overlaps_any(x, y, aw, ah, rects, elevation) && !overlaps_any(prev_x, prev_y, aw, ah, rects, elevation);
 }
 
-// Test whether an AABB at (ax, ay, aw, ah) overlaps the solid region of any triangle.
-//
-// SAT test: project the AABB onto the hypotenuse normal for each triangle.
-// If the AABB lies entirely in the empty half-space, there is no collision.
-// This correctly handles players wider or taller than the tile.
-//
-// Solid half-spaces (u=(px-tx)/tw, v=(py-ty)/th). TriangleCut names the EMPTY
-// corner (tilemap.hpp), so e.g. NW means the NW corner is empty and the rest
-// of the tile (u+v > 1) is solid:
-//   NW: solid u+v > 1  — AABB in empty if max u+v < 1  → u1+v1 < 1
-//   NE: solid u-v < 0  — AABB in empty if min u-v > 0  → u0-v1 > 0
-//   SW: solid u-v > 0  — AABB in empty if max u-v < 0  → u1-v0 < 0
-//   SE: solid u+v < 1  — AABB in empty if min u+v > 1  → u0+v0 > 1
+/** Test whether an AABB at (ax, ay, aw, ah) overlaps the solid region of any triangle.
+ *
+ *  SAT test: project the AABB onto the hypotenuse normal for each triangle.
+ *  If the AABB lies entirely in the empty half-space, there is no collision.
+ *  This correctly handles players wider or taller than the tile.
+ *
+ *  Solid half-spaces (u=(px-tx)/tw, v=(py-ty)/th). TriangleCut names the EMPTY
+ *  corner (tilemap.hpp), so e.g. NW means the NW corner is empty and the rest
+ *  of the tile (u+v > 1) is solid:
+ *    NW: solid u+v > 1  — AABB in empty if max u+v < 1  → u1+v1 < 1
+ *    NE: solid u-v < 0  — AABB in empty if min u-v > 0  → u0-v1 > 0
+ *    SW: solid u-v > 0  — AABB in empty if max u-v < 0  → u1-v0 < 0
+ *    SE: solid u+v < 1  — AABB in empty if min u+v > 1  → u0+v0 > 1
+ */
 [[nodiscard]] bool overlaps_any_triangle(float ax, float ay, float aw, float ah,
                                          corundum::world::tilemap::CollisionTrianglesView triangles,
                                          ElevationGate elevation) noexcept {
@@ -94,7 +97,7 @@ using corundum::world::tilemap::TriangleCut;
   return false;
 }
 
-// Triangle counterpart of blocks_new_overlap.
+/** Triangle counterpart of blocks_new_overlap. */
 [[nodiscard]] bool blocks_new_overlap_triangle(float x, float y, float prev_x, float prev_y, float aw, float ah,
                                                corundum::world::tilemap::CollisionTrianglesView triangles,
                                                ElevationGate elevation) noexcept {
@@ -102,10 +105,11 @@ using corundum::world::tilemap::TriangleCut;
          !overlaps_any_triangle(prev_x, prev_y, aw, ah, triangles, elevation);
 }
 
-// Keep the nearest of two candidate contacts, where "nearest" is the smallest
-// candidate reachable while moving positive, and the largest while moving negative.
-// Reachable means at or beyond `previous`, so a clamp never pushes the entity
-// backwards. Returns the winning candidate, or std::nullopt if it loses.
+/** Keep the nearest of two candidate contacts, where "nearest" is the smallest
+ *  candidate reachable while moving positive, and the largest while moving negative.
+ *  Reachable means at or beyond `previous`, so a clamp never pushes the entity
+ *  backwards. Returns the winning candidate, or std::nullopt if it loses.
+ */
 [[nodiscard]] std::optional<float> nearest_contact(float candidate, float previous, bool moving_positive, float best,
                                                    bool found) noexcept {
   const bool reachable = moving_positive ? candidate >= previous : candidate <= previous;
@@ -115,12 +119,13 @@ using corundum::world::tilemap::TriangleCut;
   return std::nullopt;
 }
 
-/// X-axis contact for one triangle cut: solve its empty-side boundary for col. Each
-/// cut's boundary is one of:
-///   NW: u1 + v1 = 1  → pc + aw = tx + tw * (1 - v1_norm)
-///   NE: u0 - v1 = 0  → pc = tx + tw * v1_norm
-///   SW: u1 - v0 = 0  → pc + aw = tx + tw * v0_norm
-///   SE: u0 + v0 = 1  → pc = tx + tw * (1 - v0_norm)
+/** X-axis contact for one triangle cut: solve its empty-side boundary for col. Each
+ *  cut's boundary is one of:
+ *    NW: u1 + v1 = 1  → pc + aw = tx + tw * (1 - v1_norm)
+ *    NE: u0 - v1 = 0  → pc = tx + tw * v1_norm
+ *    SW: u1 - v0 = 0  → pc + aw = tx + tw * v0_norm
+ *    SE: u0 + v0 = 1  → pc = tx + tw * (1 - v0_norm)
+ */
 [[nodiscard]] float triangle_x_contact(float y_top, float y_bottom, float tx, float ty, float tw, float th, float aw,
                                        TriangleCut cut) noexcept {
   const float v1_norm = (y_bottom - ty) / th;
@@ -134,7 +139,7 @@ using corundum::world::tilemap::TriangleCut;
   std::unreachable();
 }
 
-/// Y-axis equivalent of triangle_x_contact.
+/** Y-axis equivalent of triangle_x_contact. */
 [[nodiscard]] float triangle_y_contact(float x_left, float x_right, float tx, float ty, float tw, float th, float ah,
                                        TriangleCut cut) noexcept {
   const float u1_norm = (x_right - tx) / tw;
@@ -148,16 +153,17 @@ using corundum::world::tilemap::TriangleCut;
   std::unreachable();
 }
 
-// X-axis clamp-to-contact: smallest col in direction of motion such that the AABB
-// does not overlap any rect. Only valid when proposed introduces NEW overlap
-// (escape rule lets pre-existing overlap slide through). Returns prev_col unchanged
-// if no overlapping rect yields a reachable contact (shouldn't happen given the
-// caller's overlap check, but defensive).
-//
-// For "moving right" into a wall on the right: contact = rect.left - aw (player
-// just left of the wall). For "moving left": contact = rect.right. Among all
-// overlapping rects, take the smallest contact that's still >= prev_col so the
-// clamp never pushes the entity backwards.
+/** X-axis clamp-to-contact: smallest col in direction of motion such that the AABB
+ *  does not overlap any rect. Only valid when proposed introduces NEW overlap
+ *  (escape rule lets pre-existing overlap slide through). Returns prev_col unchanged
+ *  if no overlapping rect yields a reachable contact (shouldn't happen given the
+ *  caller's overlap check, but defensive).
+ *
+ *  For "moving right" into a wall on the right: contact = rect.left - aw (player
+ *  just left of the wall). For "moving left": contact = rect.right. Among all
+ *  overlapping rects, take the smallest contact that's still >= prev_col so the
+ *  clamp never pushes the entity backwards.
+ */
 [[nodiscard]] float clamp_x_contact(float pos_col, float prev_col, float y_top, float aw, float ah,
                                     corundum::world::tilemap::CollisionRectsView rects,
                                     ElevationGate elevation) noexcept {
@@ -183,7 +189,7 @@ using corundum::world::tilemap::TriangleCut;
   return found ? best : prev_col;
 }
 
-// Y-axis equivalent of clamp_x_contact.
+/** Y-axis equivalent of clamp_x_contact. */
 [[nodiscard]] float clamp_y_contact(float pos_row, float prev_row, float x_left, float aw, float ah,
                                     corundum::world::tilemap::CollisionRectsView rects,
                                     ElevationGate elevation) noexcept {
@@ -209,8 +215,9 @@ using corundum::world::tilemap::TriangleCut;
   return found ? best : prev_row;
 }
 
-// Triangle X-axis clamp-to-contact: solve the empty-side boundary for col with the row
-// fixed (post-X-Y), then keep the closest contact reachable in the direction of motion.
+/** Triangle X-axis clamp-to-contact: solve the empty-side boundary for col with the row
+ *  fixed (post-X-Y), then keep the closest contact reachable in the direction of motion.
+ */
 [[nodiscard]] float clamp_x_contact_triangle(float pos_col, float prev_col, float y_top, float aw, float ah,
                                              corundum::world::tilemap::CollisionTrianglesView triangles,
                                              ElevationGate elevation) noexcept {
@@ -240,7 +247,7 @@ using corundum::world::tilemap::TriangleCut;
   return found ? best : prev_col;
 }
 
-// Y-axis equivalent of clamp_x_contact_triangle.
+/** Y-axis equivalent of clamp_x_contact_triangle. */
 [[nodiscard]] float clamp_y_contact_triangle(float pos_row, float prev_row, float x_left, float aw, float ah,
                                              corundum::world::tilemap::CollisionTrianglesView triangles,
                                              ElevationGate elevation) noexcept {

@@ -23,24 +23,26 @@ using corundum::test::disk;
 
 namespace {
 
-// Must match the packer's border; kept in sync by the layout test below.
+/** Must match the packer's border; kept in sync by the layout test below. */
 constexpr int k_padding = 1;
 
-// Bundled with the test target via CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR.
-// Keeps the test deterministic without reaching outside the test sandbox.
+/** Bundled with the test target via CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR.
+ *  Keeps the test deterministic without reaching outside the test sandbox.
+ */
 fs::path fixture_font_path() {
   return fs::path(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR) / "fonts" / "NotoSans.ttf";
 }
 
-/// The fixture font's bytes; fails the test if the file can't be read.
+/** The fixture font's bytes; fails the test if the file can't be read. */
 std::vector<uint8_t> fixture_font_bytes() {
   std::expected<std::vector<std::uint8_t>, std::string> bytes = disk().read(fixture_font_path());
   REQUIRE(bytes.has_value());
   return std::move(*bytes);
 }
 
-/// Owns the FreeType library for a test case so FT_Done_FreeType still runs if a
-/// REQUIRE aborts the case before the end.
+/** Owns the FreeType library for a test case so FT_Done_FreeType still runs if a
+ *  REQUIRE aborts the case before the end.
+ */
 struct FreeTypeLibrary {
   FT_Library lib{nullptr};
 
@@ -57,14 +59,14 @@ struct FreeTypeLibrary {
   FreeTypeLibrary &operator=(FreeTypeLibrary &&other) = delete;
 };
 
-/// Bake `char_size`, aborting the case if FreeType rejects the request.
+/** Bake `char_size`, aborting the case if FreeType rejects the request. */
 pg::BakedSize require_bake(const pg::FontAtlas &atlas, uint32_t char_size) {
   std::expected<pg::BakedSize, std::string> baked = atlas.bake(char_size);
   REQUIRE(baked.has_value());
   return std::move(*baked);
 }
 
-/// Look up an extended-set glyph by codepoint, mirroring the renderer's search.
+/** Look up an extended-set glyph by codepoint, mirroring the renderer's search. */
 const pg::GlyphInfo *find_extended(const pg::BakedSize &baked, uint32_t codepoint) {
   for (const pg::ExtendedGlyph &extended : baked.extended_glyphs)
     if (extended.codepoint == codepoint)
@@ -72,8 +74,9 @@ const pg::GlyphInfo *find_extended(const pg::BakedSize &baked, uint32_t codepoin
   return nullptr;
 }
 
-/// Assert `glyph`'s rectangle sits inside the atlas, leaving a uniform
-/// one-pixel border on all four sides.
+/** Assert `glyph`'s rectangle sits inside the atlas, leaving a uniform
+ *  one-pixel border on all four sides.
+ */
 // A flat list of four bound assertions; splitting it would hide the shared rectangle rule.
 // NOLINTNEXTLINE(readability-function-size)
 void check_glyph_rect(const pg::BakedSize &baked, const pg::GlyphInfo &glyph) {
@@ -85,7 +88,7 @@ void check_glyph_rect(const pg::BakedSize &baked, const pg::GlyphInfo &glyph) {
   CHECK(glyph.atlas_y + glyph.height + k_padding <= baked.atlas_h);
 }
 
-/// Assert every packed glyph (Latin-1 and extended) sits inside the atlas.
+/** Assert every packed glyph (Latin-1 and extended) sits inside the atlas. */
 void check_glyph_bounds(const pg::BakedSize &baked) {
   for (std::size_t c = pg::k_first_baked_ascii; c < pg::k_latin1_count; ++c)
     check_glyph_rect(baked, baked.glyphs[c]);
@@ -93,15 +96,16 @@ void check_glyph_bounds(const pg::BakedSize &baked) {
     check_glyph_rect(baked, extended.info);
 }
 
-/// Assert the pixel at `offset` is opaque white in RGB (alpha carries coverage).
+/** Assert the pixel at `offset` is opaque white in RGB (alpha carries coverage). */
 void check_pixel_is_white(const pg::BakedSize &baked, std::size_t offset) {
   CHECK(baked.pixels[offset + 0] == 255);
   CHECK(baked.pixels[offset + 1] == 255);
   CHECK(baked.pixels[offset + 2] == 255);
 }
 
-/// Assert `glyph`'s rectangle is opaque white in RGB (alpha carries coverage)
-/// and return how many of its cells actually contain ink.
+/** Assert `glyph`'s rectangle is opaque white in RGB (alpha carries coverage)
+ *  and return how many of its cells actually contain ink.
+ */
 int count_inked_pixels(const pg::BakedSize &baked, const pg::GlyphInfo &glyph) {
   int inked = 0;
   for (int row = 0; row < glyph.height; ++row)
@@ -270,8 +274,9 @@ TEST_CASE("FontAtlas::bake: face destruction order is correct when the library o
     FT_Done_Face(probe);
 }
 
-// doctest's CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("FontAtlas::bake: extended punctuation and Latin-1 letters are baked") {
   FreeTypeLibrary ft;

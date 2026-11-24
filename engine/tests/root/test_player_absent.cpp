@@ -29,7 +29,7 @@ namespace {
 using corundum::test::initialize_with_world;
 using corundum::test::run_one_step;
 
-/// Single-map config matching the lifecycle fixtures (interior tilemap).
+/** Single-map config matching the lifecycle fixtures (interior tilemap). */
 corundum::core::GameConfig make_single_map_config(const fs::path &fixtures) {
   corundum::core::GameConfig cfg{};
   cfg.window_title = "player_absent_test";
@@ -48,7 +48,7 @@ corundum::core::GameConfig make_single_map_config(const fs::path &fixtures) {
   return cfg;
 }
 
-/// Streaming-world config matching test_world_transition's 5×1 manifest.
+/** Streaming-world config matching test_world_transition's 5×1 manifest. */
 corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
   corundum::core::GameConfig cfg{};
   cfg.window_title = "player_absent_streaming_test";

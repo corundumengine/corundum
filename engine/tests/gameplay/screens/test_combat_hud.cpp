@@ -30,23 +30,24 @@ using corundum::test::RecordingRenderer;
 
 constexpr corundum::core::math::Vec2 k_viewport{.x = 640.f, .y = 360.f};
 
-/// RecordingRenderer::measure_text's width for one byte of text.
+/** RecordingRenderer::measure_text's width for one byte of text. */
 constexpr float k_glyph_width = 8.f;
 
-/// The rows panel's content width when every row is shorter than it.
+/** The rows panel's content width when every row is shorter than it. */
 constexpr float k_min_row_width = 300.f;
 
-/// The HUD's padding when the border's cells are smaller than it.
+/** The HUD's padding when the border's cells are smaller than it. */
 constexpr float k_thin_border_pad = 12.f;
 
-/// The panel fill, which panel_chrome draws before anything else in a panel.
+/** The panel fill, which panel_chrome draws before anything else in a panel. */
 constexpr std::size_t k_rows_panel_rect = 0;
 
-/// The command bar's fill: after the rows panel and make_hud()'s two rows, each with a Health-bar
-/// back and fill.
+/** The command bar's fill: after the rows panel and make_hud()'s two rows, each with a Health-bar
+ *  back and fill.
+ */
 constexpr std::size_t k_command_panel_rect = 5;
 
-/// The protagonist and a hostile; Shield Bash queued, the tonic spent. The gamepad shows page 1 of 2.
+/** The protagonist and a hostile; Shield Bash queued, the tonic spent. The gamepad shows page 1 of 2. */
 screens::CombatHud make_hud() {
   screens::CombatHud hud;
   hud.commands = {
@@ -95,7 +96,7 @@ screens::CombatHud make_hud() {
   return hud;
 }
 
-/// make_hud() with the gamepad on page 2: Salve has A, the other commands have no button.
+/** make_hud() with the gamepad on page 2: Salve has A, the other commands have no button. */
 screens::CombatHud make_second_page_hud() {
   screens::CombatHud hud = make_hud();
   for (screens::CombatHudCommand &command : hud.commands)
@@ -111,7 +112,7 @@ void render(RecordingRenderer &r, const screens::CombatHud &hud, InputDevice dev
   screens::combat_hud_render(r, style, border, hud, k_viewport, device, banner);
 }
 
-/// Render `hud` in the default style with keyboard glyphs and `border`.
+/** Render `hud` in the default style with keyboard glyphs and `border`. */
 void render_hud(RecordingRenderer &r, const screens::CombatHud &hud, const corundum::ui::NinePatchBorder &border = {}) {
   const corundum::ui::PanelStyle style{};
   screens::combat_hud_render(r, style, border, hud, k_viewport, InputDevice::Keyboard, "");

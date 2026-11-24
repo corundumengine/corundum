@@ -19,8 +19,9 @@ using corundum::world::FlagStore;
 
 namespace {
 
-// Compiles then evaluates; CHECKs the compile succeeded so a regression in the
-// parser surfaces as a test failure rather than a silent false.
+/** Compiles then evaluates; CHECKs the compile succeeded so a regression in the
+ *  parser surfaces as a test failure rather than a silent false.
+ */
 bool eval_str(std::string_view src, const FlagStore &flags,
               const corundum::gameplay::quest::Registry *quests = nullptr) {
   const auto compiled = dialogue::compile(src);

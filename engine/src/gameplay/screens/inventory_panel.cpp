@@ -33,8 +33,9 @@ constexpr std::string_view k_panel_header = "Inventory";
 constexpr std::string_view k_empty_label = "(empty)";
 constexpr std::string_view k_equipment_header = "Equipment";
 
-/// UI display name for a category. Deliberately separate from gameplay::item::to_string(),
-/// which is the lowercase serialized/schema form, not presentation text.
+/** UI display name for a category. Deliberately separate from gameplay::item::to_string(),
+ *  which is the lowercase serialized/schema form, not presentation text.
+ */
 std::string_view category_display_name(gameplay::item::ItemCategory category) noexcept {
   switch (category) {
     case gameplay::item::ItemCategory::Apparel: return "Apparel";
@@ -45,22 +46,25 @@ std::string_view category_display_name(gameplay::item::ItemCategory category) no
   return "Misc";
 }
 
-/// A run of consecutive rows sharing one category (input is sorted by (category, name)).
+/** A run of consecutive rows sharing one category (input is sorted by (category, name)). */
 struct Group {
   gameplay::item::ItemCategory category = gameplay::item::ItemCategory::Misc;
 
-  std::size_t first = 0; ///< Index of the group's first label in the labels vector.
+  /** Index of the group's first label in the labels vector. */
+  std::size_t first = 0;
 
-  std::size_t count = 0; ///< Number of labels in the group.
+  /** Number of labels in the group. */
+  std::size_t count = 0;
 };
 
-/// Headers are drawn for every category once any non-Misc row is present; an all-Misc
-/// inventory omits them so a handful of un-categorized items don't look over-organized.
+/** Headers are drawn for every category once any non-Misc row is present; an all-Misc
+ *  inventory omits them so a handful of un-categorized items don't look over-organized.
+ */
 bool show_group_header(gameplay::item::ItemCategory category, bool has_non_misc) noexcept {
   return category != gameplay::item::ItemCategory::Misc || has_non_misc;
 }
 
-/// Wrap a row's description to the tooltip's reading width; empty when there is none.
+/** Wrap a row's description to the tooltip's reading width; empty when there is none. */
 std::vector<std::string> wrap_description(std::string_view description, const platform::Renderer &r,
                                           const ui::PanelStyle &style) {
   if (description.empty())
@@ -71,7 +75,7 @@ std::vector<std::string> wrap_description(std::string_view description, const pl
   return ui::wrap_text(description, k_max_description_width, measure);
 }
 
-/// Draw the wrapped tooltip starting at (`x`, `y`).
+/** Draw the wrapped tooltip starting at (`x`, `y`). */
 void draw_description(platform::Renderer &r, const ui::PanelStyle &style,
                       const std::vector<std::string> &description_lines, float x, float y, float line_height) {
   for (const std::string &line : description_lines) {
@@ -93,18 +97,20 @@ constexpr float k_group_gap = 6.f;
 constexpr float k_equipment_col_w = 240.f;
 constexpr float k_column_gap = 32.f;
 
-/// One row of the panel's vertical draw sequence: a group header or an item option.
+/** One row of the panel's vertical draw sequence: a group header or an item option. */
 struct InventoryDrawRow {
   bool header{false};
 
-  std::string_view header_text{}; ///< Category name, valid only when `header`.
+  /** Category name, valid only when `header`. */
+  std::string_view header_text{};
 
-  std::size_t line_index{}; ///< Index into `labels`, valid only when not `header`.
+  /** Index into `labels`, valid only when not `header`. */
+  std::size_t line_index{};
 
   float y{};
 };
 
-/// Everything both the draw and the hit-test need, derived once from the same formulas.
+/** Everything both the draw and the hit-test need, derived once from the same formulas. */
 struct InventoryGeometry {
   std::vector<std::string> labels;
   bool has_non_misc{false};
@@ -128,7 +134,7 @@ struct InventoryGeometry {
   std::vector<InventoryDrawRow> draw_rows;
 };
 
-/// Row height of entry `index`: an item line, plus a header line when it starts a group.
+/** Row height of entry `index`: an item line, plus a header line when it starts a group. */
 float entry_row_height(std::size_t index, const std::vector<InventoryLine> &lines, float body_h, float header_h,
                        bool has_non_misc) {
   float height = body_h;
@@ -138,14 +144,14 @@ float entry_row_height(std::size_t index, const std::vector<InventoryLine> &line
   return height;
 }
 
-/// The visible slice of the inventory list.
+/** The visible slice of the inventory list. */
 struct RowWindow {
   int first_row{};
 
   int visible_rows{};
 };
 
-/// First visible entry: keeps `cursor` inside the window and fits row/header heights.
+/** First visible entry: keeps `cursor` inside the window and fits row/header heights. */
 RowWindow compute_row_window(int scroll, int cursor, const std::vector<InventoryLine> &lines, float available,
                              float body_h, float header_h, bool has_non_misc) {
   const int entry_count = static_cast<int>(lines.size());
@@ -172,8 +178,9 @@ RowWindow compute_row_window(int scroll, int cursor, const std::vector<Inventory
   return RowWindow{.first_row = first, .visible_rows = window_end(first) - first};
 }
 
-/// Line heights, the panel rect and the two columns (equipment list plus item list, or one
-/// full-width list when there is no equipment side).
+/** Line heights, the panel rect and the two columns (equipment list plus item list, or one
+ *  full-width list when there is no equipment side).
+ */
 void place_inventory_panel(const ui::PanelStyle &style, core::math::Vec2 viewport, bool has_equipment,
                            InventoryGeometry &geometry) {
   geometry.body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
@@ -197,8 +204,9 @@ void place_inventory_panel(const ui::PanelStyle &style, core::math::Vec2 viewpor
   geometry.list_w = geometry.panel_x + geometry.panel_w - k_pad_x - geometry.list_x;
 }
 
-/// Build each line's "name  xN" label, and note whether any line is non-Misc: a list holding
-/// only Misc items draws no Misc group header.
+/** Build each line's "name  xN" label, and note whether any line is non-Misc: a list holding
+ *  only Misc items draws no Misc group header.
+ */
 void collect_inventory_labels(const std::vector<InventoryLine> &lines, InventoryGeometry &geometry) {
   for (const InventoryLine &line : lines)
     geometry.labels.push_back(std::format("{}  x{}", line.name, line.count));
@@ -207,8 +215,9 @@ void collect_inventory_labels(const std::vector<InventoryLine> &lines, Inventory
       lines, [](const InventoryLine &line) { return line.category != gameplay::item::ItemCategory::Misc; });
 }
 
-/// Resolve the cursor, wrap the cursor row's description, and reserve that description's
-/// height above the panel's bottom padding.
+/** Resolve the cursor, wrap the cursor row's description, and reserve that description's
+ *  height above the panel's bottom padding.
+ */
 void place_inventory_description(const platform::Renderer &r, const ui::PanelStyle &style,
                                  const std::vector<InventoryLine> &lines, int cursor, InventoryGeometry &geometry) {
   geometry.clamped_cursor = lines.empty() ? -1 : std::clamp(cursor, 0, static_cast<int>(lines.size()) - 1);
@@ -221,7 +230,7 @@ void place_inventory_description(const platform::Renderer &r, const ui::PanelSty
   geometry.content_bottom = geometry.description_y - (geometry.description_lines.empty() ? 0.f : k_header_gap);
 }
 
-/// Window the list, then lay out each visible line's group header (when it starts one) and option.
+/** Window the list, then lay out each visible line's group header (when it starts one) and option. */
 void collect_inventory_draw_rows(const std::vector<InventoryLine> &lines, int scroll, InventoryGeometry &geometry) {
   const float available = std::max(0.f, geometry.content_bottom - geometry.content_top);
   const RowWindow window = compute_row_window(scroll, std::max(0, geometry.clamped_cursor), lines, available,

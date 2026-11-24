@@ -15,8 +15,9 @@ namespace corundum::gameplay::dialogue {
 
 namespace {
 
-/// Walks the Event chain from `start` and returns the node that closes a cycle,
-/// or nullptr when the chain is acyclic (or reaches the end).
+/** Walks the Event chain from `start` and returns the node that closes a cycle,
+ *  or nullptr when the chain is acyclic (or reaches the end).
+ */
 const Node *find_event_cycle(const Graph &graph, const Node &start) {
   std::vector<std::string_view> visited;
   const Node *current = &start;
@@ -29,7 +30,7 @@ const Node *find_event_cycle(const Graph &graph, const Node &start) {
   return nullptr;
 }
 
-/// Collects the edge-target errors for one node.
+/** Collects the edge-target errors for one node. */
 void check_node_edges(const Graph &graph, const Node &node, std::vector<std::string> &errors) {
   const auto check = [&](const std::string &target, const std::string &context) {
     if (target == k_ending_node)

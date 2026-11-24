@@ -20,11 +20,13 @@ enum class ItemCategory : uint8_t { Apparel, Misc, Potion, Weapon };
 
 /** Parse a category name ("weapon", "apparel", ...). Unknown or absent → Misc. */
 [[nodiscard]] ItemCategory category_from_string(std::string_view name) noexcept;
+
 /** Canonical serialized form of a category, matching the JSON schema enum. */
 [[nodiscard]] std::string_view to_string(ItemCategory category) noexcept;
 
 /** On-disk directory name for a category's batch files under data/items/. */
 [[nodiscard]] std::string_view category_dir_name(ItemCategory category) noexcept;
+
 /** Parse a category directory name ("weapons", "apparel", ...). Unknown → nullopt. */
 [[nodiscard]] std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept;
 
@@ -58,8 +60,10 @@ struct ApparelData {
 /** Category payload for consumables. */
 struct PotionData {
   std::string effect; // free-form identifier, e.g. "heal" — read by game code via
-                      // on_event/on_fixed_update, same convention as the existing
-                      // "give_item"/"reputation" EventActions.
+
+  /** on_event/on_fixed_update, same convention as the existing
+   *  "give_item"/"reputation" EventActions.
+   */
   int magnitude = 0;
 };
 
@@ -76,15 +80,30 @@ struct WeaponData {
  *  Runtime quantity is tracked separately as an "item.<id>" count in the FlagStore.
  */
 struct Item {
-  std::optional<ApparelData> apparel{}; ///< Populated when category is Apparel.
+  /** Populated when category is Apparel. */
+  std::optional<ApparelData> apparel{};
   ItemCategory category = ItemCategory::Misc;
-  std::string description{};          ///< Flavor / tooltip text.
-  std::string icon{};                 ///< Optional icon reference (unused in MVP; reserved).
-  std::string id{};                   ///< Unique key.
-  std::string name{};                 ///< Display name.
-  std::optional<PotionData> potion{}; ///< Populated when category is Potion.
-  int price{};                        ///< Base gold value; 0 means not for sale. Shops may override per stock entry.
-  std::optional<WeaponData> weapon{}; ///< Populated when category is Weapon.
+
+  /** Flavor / tooltip text. */
+  std::string description{};
+
+  /** Optional icon reference (unused in MVP; reserved). */
+  std::string icon{};
+
+  /** Unique key. */
+  std::string id{};
+
+  /** Display name. */
+  std::string name{};
+
+  /** Populated when category is Potion. */
+  std::optional<PotionData> potion{};
+
+  /** Base gold value; 0 means not for sale. Shops may override per stock entry. */
+  int price{};
+
+  /** Populated when category is Weapon. */
+  std::optional<WeaponData> weapon{};
 };
 
 } // namespace corundum::gameplay::item

@@ -19,19 +19,20 @@
 namespace corundum::platform::miniaudio {
 namespace {
 
-/// One opened file: the whole contents in memory and a read cursor. Owned by miniaudio
-/// between onOpen and onClose.
+/** One opened file: the whole contents in memory and a read cursor. Owned by miniaudio
+ *  between onOpen and onClose.
+ */
 struct OpenFile {
   std::vector<std::uint8_t> bytes;
   std::size_t cursor{};
 };
 
-/// The ContentSource behind a callback's opaque ma_vfs pointer.
+/** The ContentSource behind a callback's opaque ma_vfs pointer. */
 [[nodiscard]] const corundum::core::ContentSource &source_of(void *p_vfs) {
   return *static_cast<ContentVfs *>(p_vfs)->content;
 }
 
-// The callback signatures are fixed by ma_vfs_callbacks; their raw pointers cannot be const.
+/** The callback signatures are fixed by ma_vfs_callbacks; their raw pointers cannot be const. */
 // NOLINTBEGIN(misc-const-correctness, readability-non-const-parameter)
 ma_result on_open(void *p_vfs, const char *file_path, ma_uint32 open_mode, void **p_file) {
   if ((open_mode & MA_OPEN_MODE_WRITE) != 0)

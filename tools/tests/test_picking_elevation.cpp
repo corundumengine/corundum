@@ -21,8 +21,9 @@ using tools::tilesmith::screen_to_tile;
 
 namespace {
 
-// 16x16 flat map with a single elevated tile at (0, 0). Defaults: tile_w=64, tile_h=32,
-// elev_step=4, k_content_margin=2.
+/** 16x16 flat map with a single elevated tile at (0, 0). Defaults: tile_w=64, tile_h=32,
+ *  elev_step=4, k_content_margin=2.
+ */
 tilemap::Tilemap make_map_with_elevated_corner(uint8_t corner_elev) {
   tilemap::Tilemap tm;
   tm.width = 16;

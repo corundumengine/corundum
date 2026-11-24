@@ -19,15 +19,23 @@ inline constexpr int k_shop_schema_version = 1;
  *  A `price` of 0 means "use the item definition's own price".
  */
 struct StockEntry {
-  std::string item{}; ///< Item id.
-  int price{};        ///< Unit price; 0 falls back to Item::price.
+  /** Item id. */
+  std::string item{};
+
+  /** Unit price; 0 falls back to Item::price. */
+  int price{};
 };
 
 /** A merchant definition authored in data/shops/<file>.json. */
 struct Shop {
-  std::string id{};                ///< Unique key.
-  std::string name{};              ///< Display heading.
-  std::vector<StockEntry> stock{}; ///< Items offered for sale.
+  /** Unique key. */
+  std::string id{};
+
+  /** Display heading. */
+  std::string name{};
+
+  /** Items offered for sale. */
+  std::vector<StockEntry> stock{};
 };
 
 } // namespace corundum::gameplay::shop

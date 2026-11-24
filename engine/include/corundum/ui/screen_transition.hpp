@@ -14,9 +14,14 @@ namespace corundum::ui {
 
 /** Which way a fade is currently moving. */
 enum class TransitionPhase : std::uint8_t {
-  None,      ///< Not fading; the overlay sits at its current alpha.
-  FadingOut, ///< Alpha is rising toward 1 (into black).
-  FadingIn,  ///< Alpha is falling toward 0 (out of black).
+  /** Not fading; the overlay sits at its current alpha. */
+  None,
+
+  /** Alpha is rising toward 1 (into black). */
+  FadingOut,
+
+  /** Alpha is falling toward 0 (out of black). */
+  FadingIn,
 };
 
 /** Value type driving a full-screen scene fade.
@@ -29,7 +34,7 @@ enum class TransitionPhase : std::uint8_t {
  */
 class ScreenTransition {
 public:
-  /// Seconds for each direction of the fade — long enough to read as a deliberate transition.
+  /** Seconds for each direction of the fade — long enough to read as a deliberate transition. */
   static constexpr float k_fade_duration_seconds = 0.4f;
 
   /** Start fading toward black from the current alpha.
@@ -105,7 +110,8 @@ private:
 
   float alpha_{0.f};
 
-  float duration_seconds_{k_fade_duration_seconds}; ///< Length of the fade in progress.
+  /** Length of the fade in progress. */
+  float duration_seconds_{k_fade_duration_seconds};
 };
 
 /** Fill the viewport with black at `transition`'s current alpha.

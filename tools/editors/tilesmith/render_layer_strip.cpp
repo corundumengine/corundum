@@ -22,7 +22,7 @@ void center_text_in_button(const ImVec2 &btn_min, const ImVec2 &btn_max, const c
   ImGui::TextUnformatted(text);
 }
 
-/// A small filled button with a centred glyph, spanning [btn_x, btn_x + LAYER_BTN_W) on the title row.
+/** A small filled button with a centred glyph, spanning [btn_x, btn_x + LAYER_BTN_W) on the title row. */
 void layer_button(ImDrawList *dl, float btn_x, float btn_y, const char *glyph) {
   const ImVec2 btn_min{btn_x, btn_y};
   const ImVec2 btn_max{btn_min.x + LAYER_BTN_W, btn_min.y + LAYER_BTN_H};
@@ -53,7 +53,7 @@ void draw_visibility_icon(ImDrawList *dl, const ThemeColors &theme, const ImVec2
     dl->AddCircle(center, radius, color, 0, 2.f);
 }
 
-/// One layer row: background, name (with the depth-sorted marker) and visibility eye.
+/** One layer row: background, name (with the depth-sorted marker) and visibility eye. */
 void draw_layer_row(ImDrawList *dl, const EditorState &state, const ThemeColors &theme, int index,
                     const ImVec2 &win_pos) {
   const bool active = (index == state.active_layer);

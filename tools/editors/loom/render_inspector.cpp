@@ -32,7 +32,7 @@ std::string from_buf(const char *buf) {
 
 constexpr auto k_warning_col = ImVec4{1.f, 0.6f, 0.f, 1.f};
 
-/// Seed a condition InputText buffer, honouring a pending failed edit.
+/** Seed a condition InputText buffer, honouring a pending failed edit. */
 void seed_cond_buf(const std::optional<corundum::gameplay::dialogue::CompiledExpr> &slot, char *buf, int buf_size,
                    const CondEditState &edit, int owner) {
   if (edit.active && edit.owner == owner)
@@ -43,7 +43,7 @@ void seed_cond_buf(const std::optional<corundum::gameplay::dialogue::CompiledExp
     copy_to_buffer(buf, static_cast<std::size_t>(buf_size), "");
 }
 
-/// Render the compile-error line under a condition field when one is pending.
+/** Render the compile-error line under a condition field when one is pending. */
 void render_cond_error(const CondEditState &edit, int owner) {
   if (edit.active && edit.owner == owner && !edit.error.empty()) {
     ImGui::PushStyleColor(ImGuiCol_Text, k_warning_col);

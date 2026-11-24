@@ -41,48 +41,61 @@ enum class SequenceMode : uint8_t { None, Once, Cycle, Random };
 /** A single outgoing edge from a Choice node.
  */
 struct ChoiceEdge {
-  std::string label;     ///< Displayed to the player.
-  std::string target_id; ///< ID of the destination node.
+  /** Displayed to the player. */
+  std::string label;
 
-  /// Optional compiled boolean expression evaluated against the FlagStore.
-  /// The edge is hidden when the expression evaluates to false. An absent
-  /// condition means the edge is always visible. Compiled once at load —
-  /// loaders reject expressions that do not compile.
+  /** ID of the destination node. */
+  std::string target_id;
+
+  /** Optional compiled boolean expression evaluated against the FlagStore.
+   *  The edge is hidden when the expression evaluates to false. An absent
+   *  condition means the edge is always visible. Compiled once at load —
+   *  loaders reject expressions that do not compile.
+   */
   std::optional<CompiledExpr> condition = std::nullopt;
 
-  /// Action strings executed when this edge is taken.
-  /// State mutations are applied immediately; engine hook calls are returned
-  /// to the platform for dispatch.
+  /** Action strings executed when this edge is taken.
+   *  State mutations are applied immediately; engine hook calls are returned
+   *  to the platform for dispatch.
+   */
   std::vector<std::string> actions = {};
 
-  /// Sequencing behaviour across repeated visits to this Choice node.
+  /** Sequencing behaviour across repeated visits to this Choice node. */
   SequenceMode sequence = SequenceMode::None;
 
-  /// If set, this edge is only offered after the current Choice node has been
-  /// visited at least N times (N >= 1).
+  /** If set, this edge is only offered after the current Choice node has been
+   *  visited at least N times (N >= 1).
+   */
   std::optional<int> min_visits = std::nullopt;
 };
 
 /** One node in the dialogue graph.
  */
 struct Node {
-  std::string id; ///< Unique within the graph.
+  /** Unique within the graph. */
+  std::string id;
   NodeType type = NodeType::End;
 
-  std::string text;    ///< Body text (Talk nodes only).
-  std::string next_id; ///< Target node id (Talk and Event nodes).
+  /** Body text (Talk nodes only). */
+  std::string text;
 
-  /// If true (Talk nodes only), the line is shown once; on a later visit the
-  /// node is skipped straight to next_id. Persists via a FlagStore once-key.
+  /** Target node id (Talk and Event nodes). */
+  std::string next_id;
+
+  /** If true (Talk nodes only), the line is shown once; on a later visit the
+   *  node is skipped straight to next_id. Persists via a FlagStore once-key.
+   */
   bool once = false;
 
-  std::vector<ChoiceEdge> choices; ///< Choice options (Choice nodes only).
+  /** Choice options (Choice nodes only). */
+  std::vector<ChoiceEdge> choices;
 
-  /// Action strings executed when this Event node is processed.
+  /** Action strings executed when this Event node is processed. */
   std::vector<std::string> actions = {};
 
-  /// Arbitrary key-value pairs passed through to the presentation layer.
-  /// Ignored by core dialogue logic.
+  /** Arbitrary key-value pairs passed through to the presentation layer.
+   *  Ignored by core dialogue logic.
+   */
   // C++23: flat_map — cold, read-only after load; sorted contiguous pairs hit fewer cache lines
   std::flat_map<std::string, std::string> metadata;
 };
@@ -99,19 +112,22 @@ struct Graph {
    *  spawn-points "id" from `ActorIdTable`). Empty when unset; optional.
    */
   std::string actor_id;
+
   /** On-disk format version; a file without the field reads as 1. */
   int schema_version = k_dialogue_schema_version;
   std::string graph_id;
   std::string speaker;
   std::vector<Node> nodes;
 
-  // C++23: flat_map — built once, then read-only; sorted contiguous keys hit
-  // fewer cache lines per lookup than a hash bucket chain
+  /** C++23: flat_map — built once, then read-only; sorted contiguous keys hit
+   *  fewer cache lines per lookup than a hash bucket chain
+   */
   std::flat_map<std::string, std::size_t> id_to_index;
 
-  /// Default variable values loaded from the JSON "variables" object.
-  /// Copied into the FlagStore on dialogue start without overwriting
-  /// already-set values from prior sessions.
+  /** Default variable values loaded from the JSON "variables" object.
+   *  Copied into the FlagStore on dialogue start without overwriting
+   *  already-set values from prior sessions.
+   */
   // C++23: flat_map — small set of named ints; sorted iteration is predictable
   std::flat_map<std::string, int> variables;
 

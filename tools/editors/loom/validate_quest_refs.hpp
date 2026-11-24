@@ -12,10 +12,11 @@
 
 namespace tools::loom {
 
-/// Cross-checks quest_start/quest_advance references (node and choice-edge actions,
-/// plus quest_is_* helpers in choice conditions) against the loaded quest registry,
-/// and goto_graph/return_graph divert targets against the loaded graph registry.
-/// Delegates to corundum::gameplay::dialogue's shared validator — see validate_refs.hpp.
+/** Cross-checks quest_start/quest_advance references (node and choice-edge actions,
+ *  plus quest_is_* helpers in choice conditions) against the loaded quest registry,
+ *  and goto_graph/return_graph divert targets against the loaded graph registry.
+ *  Delegates to corundum::gameplay::dialogue's shared validator — see validate_refs.hpp.
+ */
 inline std::vector<std::string> validate_quest_refs(const EditorState &state) {
   if (!state.quests_loaded_)
     return {};

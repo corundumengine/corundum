@@ -21,14 +21,29 @@ namespace corundum::world::tilemap {
  *  (col,row) grid, not the rendered screen.
  */
 enum class WalkDir : uint8_t {
-  North = 0x01,     ///< row - 1
-  NorthEast = 0x02, ///< col + 1, row - 1
-  East = 0x04,      ///< col + 1
-  SouthEast = 0x08, ///< col + 1, row + 1
-  South = 0x10,     ///< row + 1
-  SouthWest = 0x20, ///< col - 1, row + 1
-  West = 0x40,      ///< col - 1
-  NorthWest = 0x80, ///< col - 1, row - 1
+  /** row - 1 */
+  North = 0x01,
+
+  /** col + 1, row - 1 */
+  NorthEast = 0x02,
+
+  /** col + 1 */
+  East = 0x04,
+
+  /** col + 1, row + 1 */
+  SouthEast = 0x08,
+
+  /** row + 1 */
+  South = 0x10,
+
+  /** col - 1, row + 1 */
+  SouthWest = 0x20,
+
+  /** col - 1 */
+  West = 0x40,
+
+  /** col - 1, row - 1 */
+  NorthWest = 0x80,
 };
 
 /** WalkDir bit for a single-step grid delta in {-1,0,1}^2, or 0 if the delta is not grid-adjacent.
@@ -53,14 +68,14 @@ enum class WalkDir : uint8_t {
   return k_lookup[(static_cast<std::size_t>(delta_row + 1) * 3) + static_cast<std::size_t>(delta_col + 1)];
 }
 
-/// Every WalkDir bit set — a freshly built cell starts fully connected.
+/** Every WalkDir bit set — a freshly built cell starts fully connected. */
 inline constexpr uint8_t k_all_walk_dirs =
     static_cast<uint8_t>(0u | std::to_underlying(WalkDir::North) | std::to_underlying(WalkDir::NorthEast) |
                          std::to_underlying(WalkDir::East) | std::to_underlying(WalkDir::SouthEast) |
                          std::to_underlying(WalkDir::South) | std::to_underlying(WalkDir::SouthWest) |
                          std::to_underlying(WalkDir::West) | std::to_underlying(WalkDir::NorthWest));
 
-/// The eight grid-adjacent (delta_col, delta_row) offsets, in WalkDir order.
+/** The eight grid-adjacent (delta_col, delta_row) offsets, in WalkDir order. */
 inline constexpr std::array<std::pair<int, int>, 8> k_walk_neighbors{
     std::pair{0, -1}, std::pair{1, -1}, std::pair{1, 0},  std::pair{1, 1},
     std::pair{0, 1},  std::pair{-1, 1}, std::pair{-1, 0}, std::pair{-1, -1},
@@ -83,9 +98,15 @@ inline constexpr std::array<std::pair<int, int>, 8> k_walk_neighbors{
 struct WalkabilityGraph {
   int width = 0;
   int height = 0;
-  int col_origin = 0;         ///< Global tile col of cell (0,0). Non-zero only for the world-mode window graph.
-  int row_origin = 0;         ///< Global tile row of cell (0,0). See col_origin.
-  std::vector<uint8_t> edges; ///< width*height; bitmask of WalkDir passable FROM each cell.
+
+  /** Global tile col of cell (0,0). Non-zero only for the world-mode window graph. */
+  int col_origin = 0;
+
+  /** Global tile row of cell (0,0). See col_origin. */
+  int row_origin = 0;
+
+  /** width*height; bitmask of WalkDir passable FROM each cell. */
+  std::vector<uint8_t> edges;
 
   /** Can an entity step directly from (from_col,from_row) to (to_col,to_row)?
    *

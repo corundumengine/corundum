@@ -62,10 +62,11 @@ namespace {
 
 using corundum::detail::warn_log;
 
-/// Owns the initialize() sequence as private, ordered phases. The only
-/// public entry point is run() — phase order is therefore structural
-/// (nothing outside this class can call a phase out of order), not a
-/// convention enforced by statement order in one function.
+/** Owns the initialize() sequence as private, ordered phases. The only
+ *  public entry point is run() — phase order is therefore structural
+ *  (nothing outside this class can call a phase out of order), not a
+ *  convention enforced by statement order in one function.
+ */
 class InitPipeline {
 public:
   explicit InitPipeline(Engine &engine) : engine_(&engine) {}
@@ -161,15 +162,17 @@ std::expected<void, std::string> Engine::set_content_source(std::unique_ptr<core
 
 namespace {
 
-/// Result of one frame's fixed-step simulation.
+/** Result of one frame's fixed-step simulation. */
 struct SimulationResult {
   int steps_run{0};
-  /// True when the drain exhausted its step budget and dropped queued simulation time.
+
+  /** True when the drain exhausted its step budget and dropped queued simulation time. */
   bool budget_exhausted{false};
 };
 
-/// Invoke the user-provided platform-event hook, swallowing any exceptions
-/// so the frame's noexcept contract holds.
+/** Invoke the user-provided platform-event hook, swallowing any exceptions
+ *  so the frame's noexcept contract holds.
+ */
 void invoke_platform_event_hook(Engine &engine, const platform::PlatformEvents &events) noexcept {
   if (!engine.on_platform_event)
     return;
@@ -180,8 +183,9 @@ void invoke_platform_event_hook(Engine &engine, const platform::PlatformEvents &
   }
 }
 
-/// Pause when the player loses their only controller mid-play; resume once a pad is back or
-/// they have pressed something on the keyboard or mouse instead.
+/** Pause when the player loses their only controller mid-play; resume once a pad is back or
+ *  they have pressed something on the keyboard or mouse instead.
+ */
 void update_controller_pause(Engine &engine, const platform::PlatformEvents &events) noexcept {
   const input::InputMapper &mapper{engine.input_mapper};
   const bool playing_on_gamepad{mapper.last_device() == input::InputDevice::Gamepad};
@@ -191,8 +195,9 @@ void update_controller_pause(Engine &engine, const platform::PlatformEvents &eve
     engine.resume(PauseReason::Controller);
 }
 
-/// Poll platform input and OS lifecycle events, apply focus, controller and quit behaviour,
-/// then hand the frame to the on_platform_event hook.
+/** Poll platform input and OS lifecycle events, apply focus, controller and quit behaviour,
+ *  then hand the frame to the on_platform_event hook.
+ */
 void process_input(Engine &engine) noexcept {
   platform::PlatformEvents events{};
   input::poll(engine.input_mapper, engine.input_state, engine.window(), events);
@@ -213,8 +218,9 @@ void process_input(Engine &engine) noexcept {
     engine.request_quit();
 }
 
-/// Invoke the user-provided per-fixed-step hook, swallowing any exceptions
-/// so the noexcept contract on the simulation loop holds.
+/** Invoke the user-provided per-fixed-step hook, swallowing any exceptions
+ *  so the noexcept contract on the simulation loop holds.
+ */
 void invoke_fixed_update_hook(Engine &engine, float dt) noexcept {
   if (!engine.on_fixed_update)
     return;
@@ -225,8 +231,9 @@ void invoke_fixed_update_hook(Engine &engine, float dt) noexcept {
   }
 }
 
-/// Invoke the pause menu's Quit hook, swallowing any exception so the fixed-step
-/// noexcept contract holds, as invoke_fixed_update_hook() does.
+/** Invoke the pause menu's Quit hook, swallowing any exception so the fixed-step
+ *  noexcept contract holds, as invoke_fixed_update_hook() does.
+ */
 void invoke_menu_quit_hook(Engine &engine) noexcept {
   if (!engine.on_menu_quit)
     return;
@@ -237,7 +244,7 @@ void invoke_menu_quit_hook(Engine &engine) noexcept {
   }
 }
 
-/// Invoke the pause menu's Save/Load hook, swallowing any exception.
+/** Invoke the pause menu's Save/Load hook, swallowing any exception. */
 void invoke_menu_save_load_hook(Engine &engine, SaveLoadIntent intent) noexcept {
   if (!engine.on_menu_save_load)
     return;
@@ -248,7 +255,7 @@ void invoke_menu_save_load_hook(Engine &engine, SaveLoadIntent intent) noexcept 
   }
 }
 
-/// Consult the game's pause-menu block hook, treating a throw as "not blocked".
+/** Consult the game's pause-menu block hook, treating a throw as "not blocked". */
 bool pause_menu_blocked(const Engine &engine, world::GameMode mode) noexcept {
   if (!engine.blocks_pause_menu)
     return false;
@@ -260,13 +267,14 @@ bool pause_menu_blocked(const Engine &engine, world::GameMode mode) noexcept {
   }
 }
 
-/// Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
-/// row lands on the first, Up past the first lands on the last. `count` must be > 0.
+/** Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
+ *  row lands on the first, Up past the first lands on the last. `count` must be > 0.
+ */
 int wrap_cursor(int current, int delta, int count) noexcept {
   return (current + delta + count) % count;
 }
 
-/// Live values the Settings screen shows, read from the engine each frame it renders.
+/** Live values the Settings screen shows, read from the engine each frame it renders. */
 ui::SettingsValues settings_values(const Engine &engine) {
   return ui::SettingsValues{
       .ambience_volume = engine.audio.bus_volume(audio::AudioBus::Ambience),
@@ -280,20 +288,21 @@ ui::SettingsValues settings_values(const Engine &engine) {
   };
 }
 
-/// The window's size in logical points, the space panels and the cursor share.
+/** The window's size in logical points, the space panels and the cursor share. */
 core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
   const auto [width, height] = engine.window().size();
   return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
 }
 
-/// Re-derive the dialogue style after an edit to ui_scale or text_speed.
+/** Re-derive the dialogue style after an edit to ui_scale or text_speed. */
 void refresh_dialog_style(Engine &engine) {
   render::configure_panel_style(engine.render, engine.cfg);
 }
 
-/// Persist the live settings to settings.json when the Settings screen closes. Persistence is
-/// skipped when the project has no game_id or user data directory; a failed write is a warning,
-/// never fatal to the close.
+/** Persist the live settings to settings.json when the Settings screen closes. Persistence is
+ *  skipped when the project has no game_id or user data directory; a failed write is a warning,
+ *  never fatal to the close.
+ */
 void save_user_settings(const Engine &engine) {
   if (!engine.user_storage)
     return;
@@ -301,14 +310,15 @@ void save_user_settings(const Engine &engine) {
     warn_log("[engine] WARN: could not save settings: {}", saved.error());
 }
 
-/// True when `input` is the conventional Back press during a rebind capture. Capture
-/// swallows every press before it reaches the action bitsets, so Back must be recognised
-/// from the captured physical input itself.
+/** True when `input` is the conventional Back press during a rebind capture. Capture
+ *  swallows every press before it reaches the action bitsets, so Back must be recognised
+ *  from the captured physical input itself.
+ */
 bool is_cancel_capture(input::PhysicalInput input) noexcept {
   return input == input::physical(input::Key::Escape) || input == input::physical(input::GamepadControl::B);
 }
 
-/// Apply the change for a Left/Right press on a General-tab row.
+/** Apply the change for a Left/Right press on a General-tab row. */
 void adjust_general_row(Engine &engine, ui::SettingsGeneralRow row, int direction) {
   if (const std::optional<audio::AudioBus> bus = ui::volume_row_bus(row)) {
     // set_bus_volume clamps to [0, 1].
@@ -340,8 +350,9 @@ void adjust_general_row(Engine &engine, ui::SettingsGeneralRow row, int directio
   }
 }
 
-/// Bind `captured` to the action under the Controls cursor, replacing that action's binding on
-/// the same device class and swapping its old input to any action the capture leaves unbound.
+/** Bind `captured` to the action under the Controls cursor, replacing that action's binding on
+ *  the same device class and swapping its old input to any action the capture leaves unbound.
+ */
 void rebind_captured(Engine &engine, input::PhysicalInput captured) {
   assert(engine.settings_screen.cursor < ui::k_controls_reset_row);
   const auto action = static_cast<input::Action>(engine.settings_screen.cursor);
@@ -351,8 +362,9 @@ void rebind_captured(Engine &engine, input::PhysicalInput captured) {
     warn_log("[engine] WARN: rebind failed: {}", result.error());
 }
 
-/// Apply a mouse move, click or wheel to the pause menu: a hovered row takes focus, and the
-/// wheel moves the cursor.
+/** Apply a mouse move, click or wheel to the pause menu: a hovered row takes focus, and the
+ *  wheel moves the cursor.
+ */
 void apply_menu_pointer(Engine &engine, const input::InputIntent &intent) {
   if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
     return;
@@ -368,7 +380,7 @@ void apply_menu_pointer(Engine &engine, const input::InputIntent &intent) {
     engine.menu.cursor = wrap_cursor(engine.menu.cursor, steps, ui::k_menu_command_count);
 }
 
-/// Run the highlighted pause-menu command.
+/** Run the highlighted pause-menu command. */
 void activate_menu_command(Engine &engine) {
   switch (ui::menu_command_at(engine.menu.cursor)) {
     case ui::MenuCommand::Resume: engine.scene.ui.pop(); break;
@@ -400,8 +412,9 @@ void activate_menu_command(Engine &engine) {
   }
 }
 
-/// Step the pause menu: Back/Menu closes it; Up/Down move the selection; a hovered row takes
-/// focus on a real mouse move or click; Activate runs the highlighted command.
+/** Step the pause menu: Back/Menu closes it; Up/Down move the selection; a hovered row takes
+ *  focus on a real mouse move or click; Activate runs the highlighted command.
+ */
 void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
   if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
     engine.scene.ui.pop();
@@ -416,23 +429,24 @@ void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
     activate_menu_command(engine);
 }
 
-/// Switch the settings tab to `tab`, resetting the cursor and scroll.
+/** Switch the settings tab to `tab`, resetting the cursor and scroll. */
 void switch_settings_tab(ui::SettingsState &state, ui::SettingsTab tab) noexcept {
   state.tab = tab;
   state.cursor = 0;
   state.scroll = 0;
 }
 
-/// Switch to the tab `direction` steps away, wrapping around.
+/** Switch to the tab `direction` steps away, wrapping around. */
 void cycle_settings_tab(ui::SettingsState &state, int direction) {
   const int tabs = ui::k_settings_tab_count;
   switch_settings_tab(state, static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
 }
 
-/// Apply mouse intent to the settings screen: a click on a tab switches to it, the wheel over
-/// the tabs cycles them, a hovered row (on a real move or click) takes focus, and the wheel
-/// over the list moves the cursor. Returns true when the pointer switched tabs and the step
-/// should be consumed.
+/** Apply mouse intent to the settings screen: a click on a tab switches to it, the wheel over
+ *  the tabs cycles them, a hovered row (on a real move or click) takes focus, and the wheel
+ *  over the list moves the cursor. Returns true when the pointer switched tabs and the step
+ *  should be consumed.
+ */
 bool apply_settings_pointer(const Engine &engine, ui::SettingsState &state, const input::InputIntent &intent) {
   if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
     return false;
@@ -465,8 +479,9 @@ bool apply_settings_pointer(const Engine &engine, ui::SettingsState &state, cons
   return false;
 }
 
-/// Consume the press captured for a rebind, or cancel it on Back, and clear the capture.
-/// Returns true while the Settings screen is still capturing, so the step is consumed.
+/** Consume the press captured for a rebind, or cancel it on Back, and clear the capture.
+ *  Returns true while the Settings screen is still capturing, so the step is consumed.
+ */
 bool update_rebind_capture(Engine &engine) {
   ui::SettingsState &state = engine.settings_screen;
   if (!state.rebinding)
@@ -482,8 +497,9 @@ bool update_rebind_capture(Engine &engine) {
   return true;
 }
 
-/// Apply a Left/Right press to the General-tab row under the cursor, or toggle Window Mode on
-/// Activate. Non-volume rows do nothing on Left/Right, and Window Mode only toggles on Activate.
+/** Apply a Left/Right press to the General-tab row under the cursor, or toggle Window Mode on
+ *  Activate. Non-volume rows do nothing on Left/Right, and Window Mode only toggles on Activate.
+ */
 void edit_general_row(Engine &engine, int cursor, const input::InputIntent &intent) {
   const auto row = static_cast<ui::SettingsGeneralRow>(cursor);
   if (intent.navigate_x != 0) {
@@ -494,8 +510,9 @@ void edit_general_row(Engine &engine, int cursor, const input::InputIntent &inte
   }
 }
 
-/// Activate on a Controls row: the Reset row restores the default bindings; an action row
-/// starts capturing its new input.
+/** Activate on a Controls row: the Reset row restores the default bindings; an action row
+ *  starts capturing its new input.
+ */
 void activate_controls_row(Engine &engine, ui::SettingsState &state) {
   if (state.cursor == ui::k_controls_reset_row) {
     if (auto result = engine.input_mapper.set_bindings(input::default_bindings()); !result)
@@ -506,9 +523,10 @@ void activate_controls_row(Engine &engine, ui::SettingsState &state) {
   state.rebinding = true;
 }
 
-/// Step the Settings screen. While the Controls tab is capturing a rebind, every other
-/// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, the
-/// cursor edits the focused row, and the pointer can click a tab or a row.
+/** Step the Settings screen. While the Controls tab is capturing a rebind, every other
+ *  intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, the
+ *  cursor edits the focused row, and the pointer can click a tab or a row.
+ */
 void update_settings(Engine &engine, const input::InputIntent &intent) {
   ui::SettingsState &state = engine.settings_screen;
 
@@ -544,15 +562,17 @@ void update_settings(Engine &engine, const input::InputIntent &intent) {
   }
 }
 
-/// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
-/// simulation sheds the remaining time rather than compounding a backlog.
+/** Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
+ *  simulation sheds the remaining time rather than compounding a backlog.
+ */
 constexpr int k_max_steps_per_frame{8};
 
-/// Drain the timer accumulator: run the world step, the registered fixed-step systems and the
-/// on_fixed_update hook, and flush deletions once per fixed step.
-///
-/// Simulation work is intentionally not wrapped — a throw here (allocation failure in an
-/// engine UI screen) is fatal, not recoverable.
+/** Drain the timer accumulator: run the world step, the registered fixed-step systems and the
+ *  on_fixed_update hook, and flush deletions once per fixed step.
+ *
+ *  Simulation work is intentionally not wrapped — a throw here (allocation failure in an
+ *  engine UI screen) is fatal, not recoverable.
+ */
 // NOLINTNEXTLINE(bugprone-exception-escape)
 [[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
   const float pending_time{engine.timer.accumulator};
@@ -628,8 +648,9 @@ void render_settings(const Engine &engine, platform::Renderer &r, core::math::Ve
                             engine.input_mapper.last_device());
 }
 
-/// begin_frame → world → layered overlays (HUD, toasts, modals, screens, hub) → debug HUD →
-/// end_frame. The overlay order is fixed; each registered hook gates on its own state.
+/** begin_frame → world → layered overlays (HUD, toasts, modals, screens, hub) → debug HUD →
+ *  end_frame. The overlay order is fixed; each registered hook gates on its own state.
+ */
 // std::format with a literal format string cannot throw at run time, and a throw from the
 // frame path is intentionally fatal (noexcept).
 // NOLINTNEXTLINE(bugprone-exception-escape)

@@ -32,9 +32,11 @@ constexpr float k_splash_max_viewport_fraction = 0.75f;
 
 /** One loaded splash image. */
 struct SplashImage {
-  core::math::Vec2 size{}; ///< Texture size in pixels; {0, 0} when the backend cannot report it (not drawn).
+  /** Texture size in pixels; {0, 0} when the backend cannot report it (not drawn). */
+  core::math::Vec2 size{};
 
-  platform::TextureId texture{platform::TextureId::Invalid}; ///< Holds one reference until the splash closes.
+  /** Holds one reference until the splash closes. */
+  platform::TextureId texture{platform::TextureId::Invalid};
 };
 
 /** Splash-screen state: the images loaded from GameConfig's splash_images in play order,
@@ -46,11 +48,14 @@ struct SplashImage {
 struct SplashState {
   std::vector<SplashImage> images{};
 
-  std::size_t index{}; ///< The image showing; below images.size() while the splash is open.
+  /** The image showing; below images.size() while the splash is open. */
+  std::size_t index{};
 
-  float initial_delay_seconds{}; ///< Seconds of black still to hold before the first fade-in starts; 0 after that.
+  /** Seconds of black still to hold before the first fade-in starts; 0 after that. */
+  float initial_delay_seconds{};
 
-  float shown_seconds{}; ///< Seconds the current image has held since its fade-in finished.
+  /** Seconds the current image has held since its fade-in finished. */
+  float shown_seconds{};
 };
 
 /** Draw the splash: black over the whole viewport, then the current image scaled to fit

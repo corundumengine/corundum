@@ -16,8 +16,9 @@
 
 namespace corundum::gameplay::screens {
 
-/// One row of the inventory list: the item's category, held count, and display name
-/// (falls back to the raw id).
+/** One row of the inventory list: the item's category, held count, and display name
+ *  (falls back to the raw id).
+ */
 struct InventoryLine {
   corundum::gameplay::item::ItemCategory category = corundum::gameplay::item::ItemCategory::Misc;
 
@@ -25,12 +26,14 @@ struct InventoryLine {
 
   std::string name{};
 
-  /// Flavor text shown as a tooltip under the list for the highlighted row; empty when the
-  /// item has no definition or no description.
+  /** Flavor text shown as a tooltip under the list for the highlighted row; empty when the
+   *  item has no definition or no description.
+   */
   std::string description{};
 
-  /// Item id the row was built from, with the flag prefix stripped; useful to look up the
-  /// row's definition or move it between holders.
+  /** Item id the row was built from, with the flag prefix stripped; useful to look up the
+   *  row's definition or move it between holders.
+   */
   std::string id{};
 };
 
@@ -62,11 +65,14 @@ struct InventoryLine {
 
 /** One equipped-slot row of the inventory's left column. */
 struct EquipmentLine {
-  std::string slot{}; ///< Slot name from ApparelData::slot, or "weapon".
+  /** Slot name from ApparelData::slot, or "weapon". */
+  std::string slot{};
 
-  std::string item_name{}; ///< Equipped item's display name; empty → "(empty)".
+  /** Equipped item's display name; empty → "(empty)". */
+  std::string item_name{};
 
-  std::string item_id{}; ///< Equipped item's id; empty when the slot has no equipped item.
+  /** Equipped item's id; empty when the slot has no equipped item. */
+  std::string item_id{};
 };
 
 /** Collect the player's equipment slots from the FlagStore.
@@ -85,11 +91,14 @@ struct InventoryLayout {
 
   core::math::Vec2 panel_size{};
 
-  std::vector<ui::RowRect> rows{}; ///< One hit rect per visible item row, in draw order.
+  /** One hit rect per visible item row, in draw order. */
+  std::vector<ui::RowRect> rows{};
 
-  int first_row{}; ///< Absolute index of `rows.front()`; add it to a hovered index.
+  /** Absolute index of `rows.front()`; add it to a hovered index. */
+  int first_row{};
 
-  int visible_rows{}; ///< Number of item rows actually drawn.
+  /** Number of item rows actually drawn. */
+  int visible_rows{};
 };
 
 /** Compute the inventory panel's geometry for `viewport`, scrolling to keep `cursor` visible.

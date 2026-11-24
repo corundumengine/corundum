@@ -40,7 +40,7 @@ corundum::core::math::Vec2 viewport(const corundum::Engine &engine) {
   return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
 }
 
-/// Route one action press through the engine's UI step (see test_pause_menu.cpp).
+/** Route one action press through the engine's UI step (see test_pause_menu.cpp). */
 bool press(corundum::Engine &engine, corundum::input::Action action) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(action));
@@ -49,8 +49,9 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
   return engine.update_engine_screens(intent);
 }
 
-/// Drive one fixed UI step with a synthetic cursor. `prev` is the baseline from the previous
-/// poll; a left click also raises Activate/Select the way the binding table would.
+/** Drive one fixed UI step with a synthetic cursor. `prev` is the baseline from the previous
+ *  poll; a left click also raises Activate/Select the way the binding table would.
+ */
 bool step_mouse(corundum::Engine &engine, corundum::core::math::Vec2 cursor, corundum::core::math::Vec2 prev,
                 bool clicked = false, float scroll = 0.f) {
   engine.input_state = {};
@@ -68,7 +69,7 @@ bool step_mouse(corundum::Engine &engine, corundum::core::math::Vec2 cursor, cor
   return engine.update_engine_screens(intent);
 }
 
-/// Simulate a physical right mouse press and route it through the current UI step.
+/** Simulate a physical right mouse press and route it through the current UI step. */
 bool press_right_mouse(corundum::Engine &engine) {
   corundum::input::clear_pressed(engine.input_state);
   engine.input_mapper.begin_poll();

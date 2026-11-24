@@ -26,7 +26,9 @@ struct ChunkEntry {
   corundum::world::tilemap::Tilemap tilemap{};
   std::vector<platform::TextureId> tileset_texture_ids;
   std::vector<int> above_z;
-  std::vector<LayerRenderCache> layer_caches{}; ///< Parallel to tilemap.layers.
+
+  /** Parallel to tilemap.layers. */
+  std::vector<LayerRenderCache> layer_caches{};
   std::vector<corundum::world::Portal> portals;
 };
 
@@ -42,13 +44,13 @@ struct ChunkEntry {
  */
 class ChunkWindow {
 public:
-  /// Streaming radius in chunks: the resident window is a (2 * k_radius + 1) square.
+  /** Streaming radius in chunks: the resident window is a (2 * k_radius + 1) square. */
   static constexpr int k_radius = 1;
 
-  /// Chunks per side of the resident window.
+  /** Chunks per side of the resident window. */
   static constexpr int k_side = (2 * k_radius) + 1;
 
-  /// Maximum chunks resident at once; the bound callers may reserve against.
+  /** Maximum chunks resident at once; the bound callers may reserve against. */
   static constexpr std::size_t k_max_active_chunks = static_cast<std::size_t>(k_side) * k_side;
 
   [[nodiscard]] const std::vector<ChunkEntry> &active() const noexcept { return active_; }
@@ -57,13 +59,13 @@ public:
 
   [[nodiscard]] std::size_t active_size() const noexcept { return active_.size(); }
 
-  /// @pre i < active_size().
+  /** @pre i < active_size(). */
   [[nodiscard]] const ChunkEntry &active_at(std::size_t i) const noexcept {
     assert(i < active_.size());
     return active_[i];
   }
 
-  /// @return true if the active set changed since the last call, clearing the flag.
+  /** @return true if the active set changed since the last call, clearing the flag. */
   [[nodiscard]] bool consume_dirty() noexcept {
     const bool was_dirty = dirty_;
     dirty_ = false;
@@ -72,14 +74,15 @@ public:
 
   [[nodiscard]] world::tilemap::ChunkCoord last_center() const noexcept { return last_center_; }
 
-  /// Recenter the window and re-derive the offset→slot lookup.
+  /** Recenter the window and re-derive the offset→slot lookup. */
   void set_last_center(world::tilemap::ChunkCoord c) noexcept {
     last_center_ = c;
     rebuild_slot_table();
   }
 
-  /// @return Slot index into active() of the chunk at (dx, dy) from last_center(), or
-  ///         std::nullopt when the offset is outside the window or that chunk isn't resident.
+  /** @return Slot index into active() of the chunk at (dx, dy) from last_center(), or
+   *          std::nullopt when the offset is outside the window or that chunk isn't resident.
+   */
   [[nodiscard]] std::optional<std::size_t> slot_at_offset(int dx, int dy) const noexcept {
     if (dx < -k_radius || dx > k_radius || dy < -k_radius || dy > k_radius)
       return std::nullopt;
@@ -89,15 +92,16 @@ public:
     return static_cast<std::size_t>(slot);
   }
 
-  /// Add a freshly loaded chunk to the active set. Always marks dirty.
+  /** Add a freshly loaded chunk to the active set. Always marks dirty. */
   void add_active(ChunkEntry entry) {
     active_.push_back(std::move(entry));
     sort_active();
     dirty_ = true;
   }
 
-  /// Remove active chunks for which `keep` returns false, re-deriving the slot table.
-  /// @return true if any chunk was removed.
+  /** Remove active chunks for which `keep` returns false, re-deriving the slot table.
+   *  @return true if any chunk was removed.
+   */
   template <std::predicate<const ChunkEntry &> Keep> bool prune_active(const Keep &keep) {
     const std::size_t before = active_.size();
     std::erase_if(active_, [&](const ChunkEntry &e) { return !keep(e); });
@@ -108,33 +112,35 @@ public:
     return true;
   }
 
-  /// True if `c` is active, queued in pending, or failed to load (see mark_failed()).
+  /** True if `c` is active, queued in pending, or failed to load (see mark_failed()). */
   [[nodiscard]] bool has(world::tilemap::ChunkCoord c) const noexcept {
     return is_active(c) || std::ranges::contains(pending_, c) || std::ranges::contains(failed_, c);
   }
 
-  /// True if `c` is resident in the active window (ignores chunks still pending).
+  /** True if `c` is resident in the active window (ignores chunks still pending). */
   [[nodiscard]] bool is_active(world::tilemap::ChunkCoord c) const noexcept {
     return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; });
   }
 
-  /// Queue `c` for loading unless has(c) already reports it (active, pending or failed).
+  /** Queue `c` for loading unless has(c) already reports it (active, pending or failed). */
   void enqueue_pending(world::tilemap::ChunkCoord c) {
     if (!has(c))
       pending_.push_back(c);
   }
 
-  /// Drop pending coords for which `keep` returns false — chunks the window moved away from
-  /// before they were loaded.
+  /** Drop pending coords for which `keep` returns false — chunks the window moved away from
+   *  before they were loaded.
+   */
   template <std::predicate<world::tilemap::ChunkCoord> Keep> void prune_pending(const Keep &keep) {
     std::erase_if(pending_, [&](world::tilemap::ChunkCoord c) { return !keep(c); });
   }
 
-  /// Record that `c` failed to load, so has() reports it and it is never re-queued. Failed
-  /// chunks stay failed until the WorldArea is replaced (the next load_world()).
+  /** Record that `c` failed to load, so has() reports it and it is never re-queued. Failed
+   *  chunks stay failed until the WorldArea is replaced (the next load_world()).
+   */
   void mark_failed(world::tilemap::ChunkCoord c) { failed_.push_back(c); }
 
-  /// Remove and return the front of the pending queue, or std::nullopt when it is empty.
+  /** Remove and return the front of the pending queue, or std::nullopt when it is empty. */
   [[nodiscard]] std::optional<world::tilemap::ChunkCoord> pop_pending() {
     if (pending_.empty())
       return std::nullopt;
@@ -144,19 +150,19 @@ public:
   }
 
 private:
-  /// Flatten a window offset into a slot_by_offset_ index. Callers bound-check first.
+  /** Flatten a window offset into a slot_by_offset_ index. Callers bound-check first. */
   [[nodiscard]] static constexpr std::size_t offset_index(int dx, int dy) noexcept {
     return (static_cast<std::size_t>(dy + k_radius) * k_side) + static_cast<std::size_t>(dx + k_radius);
   }
 
-  /// All offsets absent — the value slot_by_offset_ holds before the first rebuild.
+  /** All offsets absent — the value slot_by_offset_ holds before the first rebuild. */
   [[nodiscard]] static constexpr std::array<int32_t, k_max_active_chunks> empty_slots() noexcept {
     std::array<int32_t, k_max_active_chunks> slots{};
     slots.fill(-1);
     return slots;
   }
 
-  /// Re-derive the offset→slot lookup from the current active set and last_center().
+  /** Re-derive the offset→slot lookup from the current active set and last_center(). */
   void rebuild_slot_table() noexcept {
     slot_by_offset_ = empty_slots();
     for (std::size_t i = 0; i < active_.size(); ++i) {
@@ -167,13 +173,14 @@ private:
     }
   }
 
-  /// Restore the canonical back-to-front draw order, then re-derive the offset→slot table.
-  ///
-  /// The render pass draws chunks in active() order. Appending a streamed-in chunk (rather
-  /// than ordering it) left it drawing ahead of the chunk in front of it after a walk
-  /// away-and-back, so their overlapping art at the shared seam flipped — one chunk's tiles
-  /// riding over the neighbour's. Row-major (row, then col) is the load_world() bootstrap
-  /// order; within a window a greater row or col is nearer the camera, so it draws later.
+  /** Restore the canonical back-to-front draw order, then re-derive the offset→slot table.
+   *
+   *  The render pass draws chunks in active() order. Appending a streamed-in chunk (rather
+   *  than ordering it) left it drawing ahead of the chunk in front of it after a walk
+   *  away-and-back, so their overlapping art at the shared seam flipped — one chunk's tiles
+   *  riding over the neighbour's. Row-major (row, then col) is the load_world() bootstrap
+   *  order; within a window a greater row or col is nearer the camera, so it draws later.
+   */
   void sort_active() noexcept {
     std::ranges::sort(active_, {}, [](const ChunkEntry &e) noexcept { return std::pair{e.coord.row, e.coord.col}; });
     rebuild_slot_table();

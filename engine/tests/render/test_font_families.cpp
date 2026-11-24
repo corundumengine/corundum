@@ -19,8 +19,9 @@
 
 namespace {
 
-/// Hands out a distinct id per load (starting at 1, as the real backends do after reserving
-/// the 0 sentinel), so fallback resolution can be asserted by id.
+/** Hands out a distinct id per load (starting at 1, as the real backends do after reserving
+ *  the 0 sentinel), so fallback resolution can be asserted by id.
+ */
 class CountingRenderer final : public corundum::platform::Renderer {
 public:
   [[nodiscard]] std::expected<corundum::platform::TextureId, std::string>
@@ -68,7 +69,8 @@ public:
   [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
 
 private:
-  std::uint32_t next_font_id_{1}; ///< Raw counter, so issuing an id never converts types.
+  /** Raw counter, so issuing an id never converts types. */
+  std::uint32_t next_font_id_{1};
 };
 
 using corundum::ui::FontFamilyPaths;

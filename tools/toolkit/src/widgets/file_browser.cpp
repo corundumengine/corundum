@@ -16,12 +16,12 @@
 namespace corundum::toolkit::widgets {
 
 namespace {
-/// ImGui id that stays unique per browser instance; the part after "###" is hashed but not displayed.
+/** ImGui id that stays unique per browser instance; the part after "###" is hashed but not displayed. */
 [[nodiscard]] std::string popup_id_of(const FileBrowserState &fb) {
   return std::format("{}###{}", fb.title, static_cast<const void *>(&fb));
 }
 
-/// Draw the listing; `double_clicked` receives the file double-clicked this frame, if any.
+/** Draw the listing; `double_clicked` receives the file double-clicked this frame, if any. */
 void render_entries(FileBrowserState &fb, std::optional<std::filesystem::path> &double_clicked) {
   ImGui::BeginChild("##entries", ImVec2{0.f, -ImGui::GetFrameHeightWithSpacing() * 2.f}, ImGuiChildFlags_Borders);
   for (std::size_t index = 0; index < fb.entries.size(); ++index) {
@@ -45,7 +45,7 @@ void render_entries(FileBrowserState &fb, std::optional<std::filesystem::path> &
   ImGui::EndChild();
 }
 
-/// Draw the confirm/cancel row: confirm writes the chosen path to `result`, cancel closes the modal.
+/** Draw the confirm/cancel row: confirm writes the chosen path to `result`, cancel closes the modal. */
 void render_confirm_row(FileBrowserState &fb, const char *label, std::optional<std::filesystem::path> &result) {
   const std::optional<std::filesystem::path> choice = confirm_path(fb);
   ImGui::BeginDisabled(!choice.has_value());

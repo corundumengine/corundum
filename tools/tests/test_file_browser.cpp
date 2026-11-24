@@ -24,7 +24,7 @@ using corundum::toolkit::widgets::SaveRequest;
 
 namespace {
 
-/// A throwaway directory holding sub/, a.json, b.txt, c.JSON and sub/inner.json, removed on exit.
+/** A throwaway directory holding sub/, a.json, b.txt, c.JSON and sub/inner.json, removed on exit. */
 class ScratchTree {
 public:
   ScratchTree() {

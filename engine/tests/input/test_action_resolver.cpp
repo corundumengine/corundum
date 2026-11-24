@@ -14,7 +14,7 @@ using corundum::input::Action;
 using corundum::input::ActionResolver;
 using corundum::input::InputState;
 
-/// Arbitrary distinct source indices; the resolver treats them as opaque.
+/** Arbitrary distinct source indices; the resolver treats them as opaque. */
 constexpr std::size_t k_source_primary = 0;
 constexpr std::size_t k_source_secondary = 1;
 constexpr std::size_t k_source_tertiary = 2;

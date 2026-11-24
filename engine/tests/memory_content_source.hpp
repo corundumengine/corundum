@@ -18,21 +18,24 @@
 
 namespace corundum::test {
 
-/// In-memory ContentSource for loader tests. Files are keyed by generic-string path.
-///
-/// A directory only exists here when at least one file lives under it, so an empty directory
-/// reads as missing (unlike DirectoryContentSource, which enumerates the real tree).
+/** In-memory ContentSource for loader tests. Files are keyed by generic-string path.
+ *
+ *  A directory only exists here when at least one file lives under it, so an empty directory
+ *  reads as missing (unlike DirectoryContentSource, which enumerates the real tree).
+ */
 class MemoryContentSource final : public corundum::core::ContentSource {
 public:
-  /// Add a text fixture.
-  /// @note Not thread-safe. Call before handing the source to anything that reads it.
+  /** Add a text fixture.
+   *  @note Not thread-safe. Call before handing the source to anything that reads it.
+   */
   void add(std::string_view path, std::string_view contents) {
     const std::string key = std::filesystem::path(path).generic_string();
     files_.insert_or_assign(key, std::vector<std::uint8_t>(contents.begin(), contents.end()));
   }
 
-  /// Add a binary fixture (WAV, fonts).
-  /// @note Not thread-safe. Call before handing the source to anything that reads it.
+  /** Add a binary fixture (WAV, fonts).
+   *  @note Not thread-safe. Call before handing the source to anything that reads it.
+   */
   void add(std::string_view path, std::span<const std::uint8_t> bytes) {
     const std::string key = std::filesystem::path(path).generic_string();
     files_.insert_or_assign(key, std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
@@ -75,7 +78,7 @@ public:
   }
 
 private:
-  /// Insert the file at `remainder` and, depending on `recursive`, its directory entries.
+  /** Insert the file at `remainder` and, depending on `recursive`, its directory entries. */
   static void insert_entries(std::map<std::string, corundum::core::DirEntry> &by_path, const std::filesystem::path &dir,
                              std::string_view remainder, bool recursive) {
     if (!recursive) {
@@ -95,7 +98,7 @@ private:
     add_file(by_path, dir, remainder);
   }
 
-  /// Apply the extension filter to files, then sort directories first and by name.
+  /** Apply the extension filter to files, then sort directories first and by name. */
   static std::vector<corundum::core::DirEntry> collect(const std::map<std::string, corundum::core::DirEntry> &by_path,
                                                        const std::vector<std::string_view> &extensions) {
     std::vector<corundum::core::DirEntry> entries;
@@ -135,7 +138,7 @@ private:
   std::flat_map<std::string, std::vector<std::uint8_t>, std::less<>> files_;
 };
 
-/// The real filesystem with paths as given — what every pre-existing test passes to a loader.
+/** The real filesystem with paths as given — what every pre-existing test passes to a loader. */
 [[nodiscard]] inline const core::ContentSource &disk() {
   static const corundum::core::DirectoryContentSource source;
   return source;

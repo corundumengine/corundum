@@ -17,10 +17,11 @@ namespace {
 using corundum::world::tilemap::elevation_at;
 using corundum::world::tilemap::RampAxis;
 
-// Convert tile-grid coords (col, row) to canvas screen position, lifted by
-// elevation. Delegates the iso projection to corundum::core::math::tile_to_world
-// so this stays in lockstep with engine entity/camera sites — kills one of the
-// five tilesmith inline projection copies called out in the audit.
+/** Convert tile-grid coords (col, row) to canvas screen position, lifted by
+ *  elevation. Delegates the iso projection to corundum::core::math::tile_to_world
+ *  so this stays in lockstep with engine entity/camera sites — kills one of the
+ *  five tilesmith inline projection copies called out in the audit.
+ */
 inline ImVec2 ramp_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev,
                                const corundum::core::math::IsometricParams &iso, float offset_x,
                                float offset_y) noexcept {

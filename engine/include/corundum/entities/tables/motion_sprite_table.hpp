@@ -52,7 +52,7 @@ struct MotionSpriteTable {
 
     float idle_frame_duration = 0.f;
 
-    /// The sheet to stand on in a stance; k_null_sprite_id = the character has none.
+    /** The sheet to stand on in a stance; k_null_sprite_id = the character has none. */
     corundum::sprites::SpriteId ready_id = corundum::sprites::k_null_sprite_id;
 
     std::array<uint8_t, corundum::sprites::k_num_anim_ids> ready_counts{};
@@ -70,26 +70,34 @@ struct MotionSpriteTable {
 
   std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> idle_counts{};
 
-  std::array<float, k_max> idle_to_walk_delay{}; ///< Delay before idle→walk commits.
+  /** Delay before idle→walk commits. */
+  std::array<float, k_max> idle_to_walk_delay{};
 
-  std::array<float, k_max> walk_to_idle_delay{}; ///< Delay before walk→idle commits.
+  /** Delay before walk→idle commits. */
+  std::array<float, k_max> walk_to_idle_delay{};
 
-  std::array<float, k_max> walk_frame_duration{}; ///< Seconds per frame while walking; 0 = no override.
+  /** Seconds per frame while walking; 0 = no override. */
+  std::array<float, k_max> walk_frame_duration{};
 
-  std::array<float, k_max> idle_frame_duration{}; ///< Seconds per frame while idle; 0 = no override.
+  /** Seconds per frame while idle; 0 = no override. */
+  std::array<float, k_max> idle_frame_duration{};
 
-  std::array<corundum::sprites::SpriteId, k_max> ready_id{}; ///< k_null_sprite_id = no ready sheet.
+  /** k_null_sprite_id = no ready sheet. */
+  std::array<corundum::sprites::SpriteId, k_max> ready_id{};
 
   std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> ready_counts{};
 
-  std::array<float, k_max> ready_frame_duration{}; ///< Seconds per frame in a stance; 0 = no override.
+  /** Seconds per frame in a stance; 0 = no override. */
+  std::array<float, k_max> ready_frame_duration{};
 
-  std::array<bool, k_max> in_stance{}; ///< Between enter_stance and leave_stance.
+  /** Between enter_stance and leave_stance. */
+  std::array<bool, k_max> in_stance{};
 
-  /// SpriteId the entity is transitioning toward; k_null_sprite_id = no pending transition.
+  /** SpriteId the entity is transitioning toward; k_null_sprite_id = no pending transition. */
   std::array<corundum::sprites::SpriteId, k_max> pending_sid{};
 
-  std::array<float, k_max> transition_timer{}; ///< Accumulated time toward the pending transition.
+  /** Accumulated time toward the pending transition. */
+  std::array<float, k_max> transition_timer{};
 
   std::uint32_t count = 0;
 

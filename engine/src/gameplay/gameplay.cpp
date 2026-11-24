@@ -99,15 +99,17 @@ namespace {
 
 using corundum::detail::warn_log;
 
-/// Drop the fight and let the player walk again. Every path that ends or abandons a fight goes
-/// through here, so a protagonist the fight held never stays held.
+/** Drop the fight and let the player walk again. Every path that ends or abandons a fight goes
+ *  through here, so a protagonist the fight held never stays held.
+ */
 void drop_battle(Engine &engine, Gameplay &gameplay) noexcept {
   engine.scene.is_player_held = false;
   gameplay.battle.reset();
 }
 
-/// Parse ev.args[index] as an int; returns `fallback` if absent, unparseable, or only
-/// partially numeric.
+/** Parse ev.args[index] as an int; returns `fallback` if absent, unparseable, or only
+ *  partially numeric.
+ */
 int event_int_arg(const dialogue::EventAction &ev, std::size_t index, int fallback) noexcept {
   if (index >= ev.args.size())
     return fallback;
@@ -129,16 +131,22 @@ void validate_quest_references(const dialogue::Registry &graphs, const quest::Re
   }
 }
 
-/// Outcome of consulting the game-provided dialogue-event hook.
+/** Outcome of consulting the game-provided dialogue-event hook. */
 enum class EventHookResult : std::uint8_t {
-  NotHandled, ///< No hook is installed, or it reported the event as unhandled.
-  Handled,    ///< The hook reported the event as handled.
-  Threw,      ///< The hook threw; already logged, and the event is left suppressed.
+  /** No hook is installed, or it reported the event as unhandled. */
+  NotHandled,
+
+  /** The hook reported the event as handled. */
+  Handled,
+
+  /** The hook threw; already logged, and the event is left suppressed. */
+  Threw,
 };
 
-/// Invoke the game's dialogue-event hook, swallowing any exceptions so the noexcept contract
-/// on the dispatch loop holds. A throwing hook maps to Threw so dispatch does not also report
-/// the event as unknown.
+/** Invoke the game's dialogue-event hook, swallowing any exceptions so the noexcept contract
+ *  on the dispatch loop holds. A throwing hook maps to Threw so dispatch does not also report
+ *  the event as unknown.
+ */
 EventHookResult invoke_event_hook(const Gameplay &gameplay, Engine &engine, const dialogue::EventAction &ev) noexcept {
   if (!gameplay.on_event)
     return EventHookResult::NotHandled;
@@ -206,7 +214,7 @@ void handle_quest_advance(Engine &engine, const Gameplay &gameplay, quest::Runne
   }
 }
 
-/// The FlagStore key holding an item's runtime count (`item.<id>`).
+/** The FlagStore key holding an item's runtime count (`item.<id>`). */
 std::string item_flag_key(std::string_view id) {
   return std::format("{}{}", item::k_flag_prefix, id);
 }
@@ -220,14 +228,15 @@ void handle_take_item(Engine &engine, const dialogue::EventAction &ev) {
   }
 }
 
-/// Tell the log and the player why a fight didn't start.
+/** Tell the log and the player why a fight didn't start. */
 void refuse_fight(Engine &engine, std::string_view reason) {
   warn_log("[gameplay] WARN: {}", reason);
   engine.notify(std::format("The fight can't start: {}", reason), ui::k_toast_failed_colour);
 }
 
-/// Queue a `start_encounter(actor, creature, ...)` fight, one pair per hostile; fixed_step()
-/// starts it once the mode is back to Exploring, after the dialogue that asked for it closes.
+/** Queue a `start_encounter(actor, creature, ...)` fight, one pair per hostile; fixed_step()
+ *  starts it once the mode is back to Exploring, after the dialogue that asked for it closes.
+ */
 void handle_start_encounter(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
   if (gameplay.battle || gameplay.pending_encounter) {
     warn_log("[gameplay] WARN: start_encounter('{}') ignored: a fight is already queued or under way", ev.args[0]);
@@ -244,8 +253,9 @@ void handle_start_encounter(Engine &engine, Gameplay &gameplay, const dialogue::
   gameplay.pending_encounter = std::move(request);
 }
 
-/// Add a `reputation(faction, delta)` event's delta to the faction's standing. A non-numeric
-/// delta parses to 0 and is skipped so no zero-valued standing flag is created.
+/** Add a `reputation(faction, delta)` event's delta to the faction's standing. A non-numeric
+ *  delta parses to 0 and is skipped so no zero-valued standing flag is created.
+ */
 void handle_reputation(Engine &engine, const dialogue::EventAction &ev) {
   const int delta = event_int_arg(ev, 1, /*fallback=*/0);
   if (delta == 0)
@@ -254,8 +264,9 @@ void handle_reputation(Engine &engine, const dialogue::EventAction &ev) {
   engine.flags[key] = world::visit_count(engine.flags, key) + delta;
 }
 
-/// Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
-/// cache stale, and notify only when the entry was not already unlocked.
+/** Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
+ *  cache stale, and notify only when the entry was not already unlocked.
+ */
 void handle_unlock_codex(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
   const std::string key{codex::flag_key(ev.args[0])};
   screens::codex_mark_dirty(gameplay.codex_screen);
@@ -266,8 +277,9 @@ void handle_unlock_codex(Engine &engine, Gameplay &gameplay, const dialogue::Eve
     engine.notify(std::format("Codex updated: {}", entry->title), ui::k_toast_default_colour);
 }
 
-/// Discover a fast-travel location (`discover_location('id')`): set its discovery flag and
-/// notify only when it was not already known.
+/** Discover a fast-travel location (`discover_location('id')`): set its discovery flag and
+ *  notify only when it was not already known.
+ */
 void handle_discover_location(Engine &engine, const Gameplay &gameplay, const dialogue::EventAction &ev) {
   const std::string key{location::discovery_flag_key(ev.args[0])};
   if (world::has_flag(engine.flags, key))
@@ -277,15 +289,16 @@ void handle_discover_location(Engine &engine, const Gameplay &gameplay, const di
     engine.notify(std::format("Location discovered: {}", location->name), ui::k_toast_default_colour);
 }
 
-/// Open a container's two-pane loot screen (`open_container('id')`). The screen is pushed onto
-/// the UI stack so closing it returns to whatever was beneath (dialogue included).
+/** Open a container's two-pane loot screen (`open_container('id')`). The screen is pushed onto
+ *  the UI stack so closing it returns to whatever was beneath (dialogue included).
+ */
 void handle_open_container(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
   gameplay.active_container_id = ev.args[0];
   gameplay.loot_screen = {};
   engine.scene.ui.push(screens::Loot);
 }
 
-/// Open a merchant's barter screen (`open_shop('id')`). Unknown ids warn and are ignored.
+/** Open a merchant's barter screen (`open_shop('id')`). Unknown ids warn and are ignored. */
 void handle_open_shop(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
   if (gameplay.shops.find(ev.args[0]) == nullptr) {
     warn_log("[gameplay] WARN: open_shop unknown shop '{}'", ev.args[0]);
@@ -296,12 +309,12 @@ void handle_open_shop(Engine &engine, Gameplay &gameplay, const dialogue::EventA
   engine.scene.ui.push(screens::Barter);
 }
 
-/// Add the event's item count to its `item.<id>` flag (`give_item('id', n)`).
+/** Add the event's item count to its `item.<id>` flag (`give_item('id', n)`). */
 void handle_give_item(Engine &engine, const dialogue::EventAction &ev) {
   engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
 }
 
-/// One row of the built-in dialogue-event table.
+/** One row of the built-in dialogue-event table. */
 struct BuiltinEvent {
   std::string_view name{};
 
@@ -310,7 +323,7 @@ struct BuiltinEvent {
   void (*handle)(Engine &, Gameplay &, quest::Runner &, const dialogue::EventAction &){};
 };
 
-/// The built-in dialogue events, in dispatch order.
+/** The built-in dialogue events, in dispatch order. */
 constexpr auto k_builtin_events = std::to_array<BuiltinEvent>({
     {
         .name = "play_sound",
@@ -402,47 +415,48 @@ void dispatch_dialogue_event(Gameplay &gameplay, Engine &engine, quest::Runner &
   }
 }
 
-/// Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
-/// row lands on the first, Up past the first lands on the last. `count` must be > 0.
+/** Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
+ *  row lands on the first, Up past the first lands on the last. `count` must be > 0.
+ */
 int wrap_cursor(int current, int delta, int count) noexcept {
   return (current + delta + count) % count;
 }
 
-/// The window's size in logical points, the space panels and the cursor share.
+/** The window's size in logical points, the space panels and the cursor share. */
 core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
   const auto [width, height] = engine.window().size();
   return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
 }
 
-/// Whether `cursor` lies inside the half-open screen-space `rect`.
+/** Whether `cursor` lies inside the half-open screen-space `rect`. */
 bool cursor_in(core::math::Vec2 cursor, const ui::RowRect &rect) noexcept {
   return cursor.x >= rect.pos.x && cursor.x <= rect.pos.x + rect.width && cursor.y >= rect.pos.y &&
          cursor.y <= rect.pos.y + rect.height;
 }
 
-/// The cursor's current position as a point.
+/** The cursor's current position as a point. */
 core::math::Vec2 intent_cursor(const input::InputIntent &intent) noexcept {
   return {.x = intent.cursor_x, .y = intent.cursor_y};
 }
 
-/// True when the step carries pointer or wheel motion a screen should react to.
+/** True when the step carries pointer or wheel motion a screen should react to. */
 bool pointer_active(const input::InputIntent &intent) noexcept {
   return intent.mouse_moved || intent.cursor_clicked || intent.scroll_y != 0.f;
 }
 
-/// True when the cursor should re-focus the row it is over: a real move or a click.
+/** True when the cursor should re-focus the row it is over: a real move or a click. */
 bool pointer_focus(const input::InputIntent &intent) noexcept {
   return intent.mouse_moved || intent.cursor_clicked;
 }
 
-/// One row of the menu hub's action → tab table.
+/** One row of the menu hub's action → tab table. */
 struct HubTabAction {
   input::Action action{};
 
   world::GameMode mode{};
 };
 
-/// The keyboard hotkeys that open a hub tab directly (I/J/C/M).
+/** The keyboard hotkeys that open a hub tab directly (I/J/C/M). */
 constexpr std::array<HubTabAction, 4> k_hub_tab_actions{
     {
         {.action = input::Action::Inventory, .mode = screens::Inventory},
@@ -452,7 +466,7 @@ constexpr std::array<HubTabAction, 4> k_hub_tab_actions{
     },
 };
 
-/// Next hub tab relative to `mode` by `direction` (+1 / -1), wrapping.
+/** Next hub tab relative to `mode` by `direction` (+1 / -1), wrapping. */
 world::GameMode cycle_hub_tab(world::GameMode mode, int direction) noexcept {
   std::size_t index = 0;
   for (std::size_t i = 0; i < screens::k_hub_tab_modes.size(); ++i) {
@@ -464,7 +478,7 @@ world::GameMode cycle_hub_tab(world::GameMode mode, int direction) noexcept {
   return screens::k_hub_tab_modes[static_cast<std::size_t>(next)];
 }
 
-/// Reset a hub tab's open-time state: its cursor, and any cache the tab owns.
+/** Reset a hub tab's open-time state: its cursor, and any cache the tab owns. */
 void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode) {
   gameplay.last_hub_mode = mode;
   switch (mode) {
@@ -494,14 +508,14 @@ void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode
   }
 }
 
-/// Replace the top hub layer with `mode` (tab switch), reselecting that tab's state.
+/** Replace the top hub layer with `mode` (tab switch), reselecting that tab's state. */
 void switch_hub_tab(Engine &engine, Gameplay &gameplay, world::GameMode mode) {
   engine.scene.ui.pop();
   engine.scene.ui.push(mode);
   open_hub_tab(engine, gameplay, mode);
 }
 
-/// Handle a click or wheel over the hub tab strip. Returns true when the step was consumed.
+/** Handle a click or wheel over the hub tab strip. Returns true when the step was consumed. */
 bool handle_hub_strip_pointer(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (!pointer_active(intent))
     return false;
@@ -526,7 +540,7 @@ bool handle_hub_strip_pointer(Engine &engine, Gameplay &gameplay, const input::I
   return false;
 }
 
-/// Handle the Hub button: toggle the last-used tab on a hub, open it from Exploring.
+/** Handle the Hub button: toggle the last-used tab on a hub, open it from Exploring. */
 bool handle_hub_button(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
   if (!engine.input_state.is_pressed(input::Action::Hub))
     return false;
@@ -541,7 +555,7 @@ bool handle_hub_button(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
   return true;
 }
 
-/// Handle the I/J/C/M hotkeys: toggle their tab on a hub, open it from Exploring.
+/** Handle the I/J/C/M hotkeys: toggle their tab on a hub, open it from Exploring. */
 bool handle_hub_hotkeys(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
   for (const HubTabAction &row : k_hub_tab_actions) {
     if (!engine.input_state.is_pressed(row.action))
@@ -563,9 +577,10 @@ bool handle_hub_hotkeys(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
   return false;
 }
 
-/// The gameplay framework's pre-dispatch input hook: handles the menu hub's open/close/switch
-/// and tab cycling. Returns true when it consumed the step; safe to register as the only
-/// entry in Engine::screen_input_hooks.
+/** The gameplay framework's pre-dispatch input hook: handles the menu hub's open/close/switch
+ *  and tab cycling. Returns true when it consumed the step; safe to register as the only
+ *  entry in Engine::screen_input_hooks.
+ */
 bool handle_hub_input(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   // The menu hub: one gamepad button (Hub) toggles the last-used tab, and the I/J/C/M hotkeys
   // select a tab directly. The hub is not a GameMode of its own — it is the convention that the
@@ -587,9 +602,10 @@ bool handle_hub_input(Engine &engine, Gameplay &gameplay, const input::InputInte
   return false;
 }
 
-/// Handle the Character hotkey (P / gamepad Back): open the sheet from Exploring, close it
-/// when already on top. Any other top mode leaves the press alone, so the hotkey cannot
-/// stack the sheet over a dialogue or prompt.
+/** Handle the Character hotkey (P / gamepad Back): open the sheet from Exploring, close it
+ *  when already on top. Any other top mode leaves the press alone, so the hotkey cannot
+ *  stack the sheet over a dialogue or prompt.
+ */
 bool handle_character_input(Engine &engine, Gameplay &gameplay) {
   if (!engine.input_state.is_pressed(input::Action::Character))
     return false;
@@ -604,7 +620,7 @@ bool handle_character_input(Engine &engine, Gameplay &gameplay) {
   return false;
 }
 
-/// Apply mouse intent to the inventory: a hovered row takes focus and the wheel moves a row.
+/** Apply mouse intent to the inventory: a hovered row takes focus and the wheel moves a row. */
 void apply_inventory_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent, int rows) {
   if (!pointer_active(intent))
     return;
@@ -620,7 +636,7 @@ void apply_inventory_pointer(const Engine &engine, Gameplay &gameplay, const inp
     gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, steps, rows);
 }
 
-/// Equip or unequip the highlighted inventory row, rebuilding the equipment column on success.
+/** Equip or unequip the highlighted inventory row, rebuilding the equipment column on success. */
 void activate_inventory_row(Engine &engine, Gameplay &gameplay, int rows) {
   const std::size_t index = static_cast<std::size_t>(std::clamp(gameplay.inventory_cursor, 0, rows - 1));
   const screens::InventoryLine &selected = gameplay.inventory_lines[index];
@@ -630,8 +646,9 @@ void activate_inventory_row(Engine &engine, Gameplay &gameplay, int rows) {
     gameplay.inventory_equipment = screens::build_equipment_lines(engine.flags, gameplay.items);
 }
 
-/// Step the Inventory hub tab: Cancel closes it; a hovered row takes focus on a real mouse
-/// move or click; the wheel moves one row per notch; Up/Down wrap the highlight.
+/** Step the Inventory hub tab: Cancel closes it; a hovered row takes focus on a real mouse
+ *  move or click; the wheel moves one row per notch; Up/Down wrap the highlight.
+ */
 void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     engine.scene.ui.pop();
@@ -660,7 +677,7 @@ void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputInte
   gameplay.inventory_scroll = visible.first_row;
 }
 
-/// Switch the journal to `tab`, resetting the row cursor when it changes.
+/** Switch the journal to `tab`, resetting the row cursor when it changes. */
 void select_journal_tab(screens::JournalState &state, screens::JournalTab tab) noexcept {
   if (state.tab == tab)
     return;
@@ -668,8 +685,9 @@ void select_journal_tab(screens::JournalState &state, screens::JournalTab tab) n
   state.cursor = 0;
 }
 
-/// Toggle tracking on `entry`: tracking it clears the flag on every other started quest.
-/// Only an Active quest is trackable.
+/** Toggle tracking on `entry`: tracking it clears the flag on every other started quest.
+ *  Only an Active quest is trackable.
+ */
 void toggle_journal_track(Engine &engine, const Gameplay &gameplay, const screens::JournalEntry &entry) {
   if (entry.lifecycle != quest::Lifecycle::Active)
     return;
@@ -685,10 +703,11 @@ void toggle_journal_track(Engine &engine, const Gameplay &gameplay, const screen
   world::set_flag(engine.flags, key);
 }
 
-/// Apply mouse intent to the journal: a click on the sub-tab strip selects a tab, the wheel
-/// over it cycles sub-tabs, a hovered row takes focus on a real mouse move or click, and the
-/// wheel moves one row per notch. Returns true when the pointer switched tabs and the step
-/// should be consumed without also activating a row.
+/** Apply mouse intent to the journal: a click on the sub-tab strip selects a tab, the wheel
+ *  over it cycles sub-tabs, a hovered row takes focus on a real mouse move or click, and the
+ *  wheel moves one row per notch. Returns true when the pointer switched tabs and the step
+ *  should be consumed without also activating a row.
+ */
 bool apply_journal_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
                            const std::vector<screens::JournalEntry> &entries) {
   if (!pointer_active(intent))
@@ -719,10 +738,11 @@ bool apply_journal_pointer(const Engine &engine, Gameplay &gameplay, const input
   return false;
 }
 
-/// Step the Journal hub tab: Cancel closes it; SubTabNext/Prev cycle sub-tabs (resetting the
-/// cursor); a click on the sub-tab strip selects a tab and the wheel over it cycles; a hovered
-/// row takes focus on a real mouse move or click; the wheel moves one row per notch; Activate
-/// toggles tracking on the highlighted Active quest; Up/Down wrap the highlight.
+/** Step the Journal hub tab: Cancel closes it; SubTabNext/Prev cycle sub-tabs (resetting the
+ *  cursor); a click on the sub-tab strip selects a tab and the wheel over it cycles; a hovered
+ *  row takes focus on a real mouse move or click; the wheel moves one row per notch; Activate
+ *  toggles tracking on the highlighted Active quest; Up/Down wrap the highlight.
+ */
 void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   screens::JournalState &state = gameplay.journal_screen;
   if (intent.back) {
@@ -754,7 +774,7 @@ void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent
   state.cursor = wrap_cursor(state.cursor, delta, rows);
 }
 
-/// Focus the hovered codex list row, resetting the body scroll.
+/** Focus the hovered codex list row, resetting the body scroll. */
 void focus_hovered_codex_row(screens::CodexState &state, const screens::CodexLayout &layout, core::math::Vec2 cursor) {
   for (const screens::CodexListRow &row : layout.list_rows) {
     if (row.entry_index >= 0 && cursor_in(cursor, row.rect)) {
@@ -765,8 +785,9 @@ void focus_hovered_codex_row(screens::CodexState &state, const screens::CodexLay
   }
 }
 
-/// Apply mouse intent to the codex: a hovered list row takes focus, the wheel over the list
-/// moves the cursor and over the body scrolls it.
+/** Apply mouse intent to the codex: a hovered list row takes focus, the wheel over the list
+ *  moves the cursor and over the body scrolls it.
+ */
 void apply_codex_pointer(const Engine &engine, screens::CodexState &state, const input::InputIntent &intent, int rows) {
   if (!pointer_active(intent))
     return;
@@ -786,11 +807,12 @@ void apply_codex_pointer(const Engine &engine, screens::CodexState &state, const
   }
 }
 
-/// Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, the wheel
-/// over the list moves the cursor and over the detail body scrolls it, and a hovered list row
-/// takes focus on a real mouse move or click. Rows are refreshed from the registry + flags on
-/// the first step after an open or unlock (dirty-flagged). The Codex hotkey is handled by the
-/// hub table, which toggles this tab off before this step would run.
+/** Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, the wheel
+ *  over the list moves the cursor and over the detail body scrolls it, and a hovered list row
+ *  takes focus on a real mouse move or click. Rows are refreshed from the registry + flags on
+ *  the first step after an open or unlock (dirty-flagged). The Codex hotkey is handled by the
+ *  hub table, which toggles this tab off before this step would run.
+ */
 void update_codex(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   screens::CodexState &state = gameplay.codex_screen;
   screens::refresh_codex(state, gameplay.codex, engine.flags);
@@ -810,7 +832,7 @@ void update_codex(Engine &engine, Gameplay &gameplay, const input::InputIntent &
   }
 }
 
-/// Apply mouse intent to the map: a hovered row takes focus and the wheel moves a row.
+/** Apply mouse intent to the map: a hovered row takes focus and the wheel moves a row. */
 void apply_map_pointer(const Engine &engine, screens::MapState &state, const std::vector<screens::MapEntry> &entries,
                        const input::InputIntent &intent, int rows) {
   if (!pointer_active(intent))
@@ -827,7 +849,7 @@ void apply_map_pointer(const Engine &engine, screens::MapState &state, const std
     state.cursor = wrap_cursor(state.cursor, steps, rows);
 }
 
-/// Fast-travel to the selected destination, notifying when it is already the active one.
+/** Fast-travel to the selected destination, notifying when it is already the active one. */
 void travel_to(Engine &engine, const Gameplay &gameplay, const screens::MapEntry &selected) {
   if (selected.current) {
     engine.notify("You are already here");
@@ -848,9 +870,10 @@ void travel_to(Engine &engine, const Gameplay &gameplay, const screens::MapEntry
   engine.scene.ui.pop();
 }
 
-/// Step the Map hub tab: Cancel closes it, a hovered row takes focus on a real mouse move or
-/// click, Up/Down and the wheel move the highlighted destination, and Activate fast-travels.
-/// A destination already in the active zone is a no-op.
+/** Step the Map hub tab: Cancel closes it, a hovered row takes focus on a real mouse move or
+ *  click, Up/Down and the wheel move the highlighted destination, and Activate fast-travels.
+ *  A destination already in the active zone is a no-op.
+ */
 void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     engine.scene.ui.pop();
@@ -880,8 +903,9 @@ void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &in
   travel_to(engine, gameplay, selected);
 }
 
-/// Add `delta` to `key`'s count, creating it when positive and erasing it once it reaches
-/// zero. Keeps the FlagStore free of zero-valued rows (matching item grant/take semantics).
+/** Add `delta` to `key`'s count, creating it when positive and erasing it once it reaches
+ *  zero. Keeps the FlagStore free of zero-valued rows (matching item grant/take semantics).
+ */
 void adjust_flag(world::FlagStore &flags, const std::string &key, int delta) {
   if (delta == 0)
     return;
@@ -896,7 +920,7 @@ void adjust_flag(world::FlagStore &flags, const std::string &key, int delta) {
     flags.erase(it);
 }
 
-/// Switch to the hovered loot pane and focus its hovered row.
+/** Switch to the hovered loot pane and focus its hovered row. */
 void focus_hovered_loot_pane(Gameplay &gameplay, const screens::LootLayout &layout, core::math::Vec2 cursor) {
   const bool over_player = cursor_in(cursor, layout.player_pane);
   if (over_player || cursor_in(cursor, layout.container_pane)) {
@@ -911,8 +935,9 @@ void focus_hovered_loot_pane(Gameplay &gameplay, const screens::LootLayout &layo
   }
 }
 
-/// Apply mouse intent to the loot screen: hovering a pane switches to it, hovering a row (on a
-/// real move or click) focuses it, and the wheel moves one row per notch.
+/** Apply mouse intent to the loot screen: hovering a pane switches to it, hovering a row (on a
+ *  real move or click) focuses it, and the wheel moves one row per notch.
+ */
 void apply_loot_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
                         std::string_view container_name, const std::vector<screens::InventoryLine> &container_lines,
                         const std::vector<screens::InventoryLine> &player_lines) {
@@ -933,9 +958,10 @@ void apply_loot_pointer(const Engine &engine, Gameplay &gameplay, const input::I
     gameplay.loot_screen.cursor = wrap_cursor(gameplay.loot_screen.cursor, steps, active_rows);
 }
 
-/// Step the loot screen: Back closes, Left/Right or a click switch the active pane, a hovered
-/// row takes focus on a real mouse move or click, the wheel moves one row per notch, and
-/// Activate moves one unit of the highlighted item to the other holder.
+/** Step the loot screen: Back closes, Left/Right or a click switch the active pane, a hovered
+ *  row takes focus on a real mouse move or click, the wheel moves one row per notch, and
+ *  Activate moves one unit of the highlighted item to the other holder.
+ */
 void update_loot(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     gameplay.active_container_id.clear();
@@ -981,8 +1007,9 @@ void update_loot(Engine &engine, Gameplay &gameplay, const input::InputIntent &i
   }
 }
 
-/// Apply mouse intent to the barter screen: a hovered row takes focus on a real mouse move or
-/// click, and the wheel moves one row per notch.
+/** Apply mouse intent to the barter screen: a hovered row takes focus on a real mouse move or
+ *  click, and the wheel moves one row per notch.
+ */
 void apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
                           const shop::Shop &shop, const std::vector<screens::BarterLine> &lines) {
   if (!pointer_active(intent))
@@ -1000,7 +1027,7 @@ void apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input:
     gameplay.barter_screen.cursor = wrap_cursor(gameplay.barter_screen.cursor, steps, static_cast<int>(lines.size()));
 }
 
-/// Buy one of the highlighted barter row's item with the player's gold.
+/** Buy one of the highlighted barter row's item with the player's gold. */
 void buy_barter_row(Engine &engine, const screens::BarterLine &selected) {
   const int gold = world::visit_count(engine.flags, screens::k_gold_flag);
   if (selected.unit_price > gold) {
@@ -1011,8 +1038,9 @@ void buy_barter_row(Engine &engine, const screens::BarterLine &selected) {
   engine.flags[screens::k_gold_flag] = gold - selected.unit_price;
 }
 
-/// Step the barter screen: Back closes, Up/Down move the row, a hovered row takes focus on a
-/// real mouse move or click, the wheel moves one row per notch, and Activate buys.
+/** Step the barter screen: Back closes, Up/Down move the row, a hovered row takes focus on a
+ *  real mouse move or click, the wheel moves one row per notch, and Activate buys.
+ */
 void update_barter(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     gameplay.active_shop_id.clear();
@@ -1040,10 +1068,11 @@ void update_barter(Engine &engine, Gameplay &gameplay, const input::InputIntent 
   buy_barter_row(engine, selected);
 }
 
-/// Step the shared confirmation modal: Back closes it without acting; Left/Right (or
-/// Up/Down) toggle the highlight; Activate runs on_yes when Yes is highlighted. The
-/// callback is moved out and the state cleared before it runs, so it may itself open a
-/// screen or reset the session without racing the modal it just answered.
+/** Step the shared confirmation modal: Back closes it without acting; Left/Right (or
+ *  Up/Down) toggle the highlight; Activate runs on_yes when Yes is highlighted. The
+ *  callback is moved out and the state cleared before it runs, so it may itself open a
+ *  screen or reset the session without racing the modal it just answered.
+ */
 void update_confirm(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   screens::ConfirmState &state = gameplay.confirm;
   if (intent.back) {
@@ -1064,8 +1093,9 @@ void update_confirm(Engine &engine, Gameplay &gameplay, const input::InputIntent
     on_yes(gameplay);
 }
 
-/// Draw the confirmation modal while Confirm is the top mode. Pure render; prompt_box_render
-/// owns the layout so there is nothing to share with hit-testing.
+/** Draw the confirmation modal while Confirm is the top mode. Pure render; prompt_box_render
+ *  owns the layout so there is nothing to share with hit-testing.
+ */
 void render_confirm(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Confirm)
     return;
@@ -1073,9 +1103,10 @@ void render_confirm(const Engine &engine, const Gameplay &gameplay, platform::Re
                         gameplay.confirm.yes_selected, viewport);
 }
 
-/// Move the title cursor by `delta`, wrapping and skipping disabled rows (Continue when no
-/// save exists). No-op when every row is disabled, which cannot happen today. The row count
-/// follows the Credits row's visibility, so the cursor never lands on a hidden row.
+/** Move the title cursor by `delta`, wrapping and skipping disabled rows (Continue when no
+ *  save exists). No-op when every row is disabled, which cannot happen today. The row count
+ *  follows the Credits row's visibility, so the cursor never lands on a hidden row.
+ */
 void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
   screens::TitleState &state = gameplay.title_screen;
   const int rows = screens::title_visible_row_count(state.credits_available);
@@ -1089,7 +1120,7 @@ void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
   }
 }
 
-/// Apply mouse intent to the title: a hovered enabled row takes focus and the wheel moves the cursor.
+/** Apply mouse intent to the title: a hovered enabled row takes focus and the wheel moves the cursor. */
 void apply_title_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (!pointer_active(intent))
     return;
@@ -1108,7 +1139,7 @@ void apply_title_pointer(const Engine &engine, Gameplay &gameplay, const input::
     move_title_cursor(gameplay, steps);
 }
 
-/// Run the title row the player activated.
+/** Run the title row the player activated. */
 void run_title_row(Engine &engine, Gameplay &gameplay, screens::TitleRow row) {
   switch (row) {
     case screens::TitleRow::Continue:
@@ -1126,9 +1157,10 @@ void run_title_row(Engine &engine, Gameplay &gameplay, screens::TitleRow row) {
   }
 }
 
-/// Step the Title screen: a hovered enabled row takes focus on a real mouse move or click,
-/// Up/Down move the highlight (skipping Continue when no save exists), and Activate runs the
-/// highlighted command. Cancel does nothing — Title is the bottom of the framing flow.
+/** Step the Title screen: a hovered enabled row takes focus on a real mouse move or click,
+ *  Up/Down move the highlight (skipping Continue when no save exists), and Activate runs the
+ *  highlighted command. Cancel does nothing — Title is the bottom of the framing flow.
+ */
 void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   const screens::TitleState &state = gameplay.title_screen;
   apply_title_pointer(engine, gameplay, intent);
@@ -1150,7 +1182,7 @@ void render_title(const Engine &engine, const Gameplay &gameplay, platform::Rend
                               core::game_title(engine.cfg), viewport, engine.input_mapper.last_device());
 }
 
-/// Read the sheet's values again after a change, keeping the cursor on a row that still exists.
+/** Read the sheet's values again after a change, keeping the cursor on a row that still exists. */
 void resample_character_sheet(const Engine &engine, Gameplay &gameplay) {
   const int row = gameplay.character_sheet_state.row;
   gameplay.character_sheet_info = screens::build_character_info(engine.flags, gameplay.items, gameplay.ruleset);
@@ -1159,9 +1191,10 @@ void resample_character_sheet(const Engine &engine, Gameplay &gameplay) {
   gameplay.character_sheet_state.row = std::clamp(row, 0, rows - 1);
 }
 
-/// Run the highlighted character-sheet row: an equipment row unequips its item and an inventory
-/// row toggles its item's equip state; a Stats row does nothing. An acting row rebuilds the sheet
-/// values so every column reflects the change.
+/** Run the highlighted character-sheet row: an equipment row unequips its item and an inventory
+ *  row toggles its item's equip state; a Stats row does nothing. An acting row rebuilds the sheet
+ *  values so every column reflects the change.
+ */
 void activate_character_row(Engine &engine, Gameplay &gameplay) {
   const screens::CharacterSheetState state = gameplay.character_sheet_state;
   const screens::CharacterInfo &info = gameplay.character_sheet_info;
@@ -1179,9 +1212,10 @@ void activate_character_row(Engine &engine, Gameplay &gameplay) {
   resample_character_sheet(engine, gameplay);
 }
 
-/// Step the character sheet: Cancel closes it, the navigation axes move the highlight, and
-/// Activate runs the highlighted row. The hotkey that opens it is handled by
-/// the input hook before this step runs.
+/** Step the character sheet: Cancel closes it, the navigation axes move the highlight, and
+ *  Activate runs the highlighted row. The hotkey that opens it is handled by
+ *  the input hook before this step runs.
+ */
 void update_character(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     engine.scene.ui.pop();
@@ -1201,12 +1235,12 @@ void render_character(const Engine &engine, const Gameplay &gameplay, platform::
                                   gameplay.character_sheet_state);
 }
 
-/// Step the Loading overlay: once the overlay has actually rendered, run the queued load.
+/** Step the Loading overlay: once the overlay has actually rendered, run the queued load. */
 void update_loading(Gameplay &gameplay) {
   gameplay.advance_loading();
 }
 
-/// Draw "Loading..." and record that it happened, so the next step may run the queued work.
+/** Draw "Loading..." and record that it happened, so the next step may run the queued work. */
 void render_loading(const Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Loading)
     return;
@@ -1214,19 +1248,21 @@ void render_loading(const Engine &engine, Gameplay &gameplay, platform::Renderer
   gameplay.notify_loading_rendered();
 }
 
-/// Seconds the credits hold still after opening before the roll begins to move.
+/** Seconds the credits hold still after opening before the roll begins to move. */
 constexpr float k_credits_hold_seconds = 1.f;
 
-/// Seconds the title music takes to fade in at boot and when the Title reopens.
+/** Seconds the title music takes to fade in at boot and when the Title reopens. */
 constexpr float k_title_music_fade_in_seconds = 1.f;
 
-/// Seconds the title music takes to fade out once a world loads: just longer than the 0.4 s
-/// screen fade, so the new area appears under the tail of the music.
+/** Seconds the title music takes to fade out once a world loads: just longer than the 0.4 s
+ *  screen fade, so the new area appears under the tail of the music.
+ */
 constexpr float k_title_music_fade_out_seconds = 0.5f;
 
-/// Step the Credits screen: Cancel closes it, otherwise the roll holds still for
-/// k_credits_hold_seconds, then the text scrolls upward at a fixed rate per step until the
-/// last line reaches the vertical center.
+/** Step the Credits screen: Cancel closes it, otherwise the roll holds still for
+ *  k_credits_hold_seconds, then the text scrolls upward at a fixed rate per step until the
+ *  last line reaches the vertical center.
+ */
 void update_credits(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     engine.scene.ui.pop();
@@ -1248,12 +1284,13 @@ void render_credits(const Engine &engine, const Gameplay &gameplay, platform::Re
   screens::credits_panel_render(r, engine.render.panel_skin.style, viewport, gameplay.credits_screen);
 }
 
-/// Step the Splash screen. engine.screen_transition carries each image's fade: the image fades
-/// in from black, holds for screens::k_splash_hold_seconds, then fades out, each fade taking
-/// screens::k_splash_fade_seconds. The first image first waits out
-/// screens::k_splash_initial_delay_seconds at black. Once the fade-out reaches black, the next
-/// image (or the first screen) takes over. Activate, Cancel or a click jumps straight to the
-/// fade-out, including from part-way through the fade-in or the initial delay.
+/** Step the Splash screen. engine.screen_transition carries each image's fade: the image fades
+ *  in from black, holds for screens::k_splash_hold_seconds, then fades out, each fade taking
+ *  screens::k_splash_fade_seconds. The first image first waits out
+ *  screens::k_splash_initial_delay_seconds at black. Once the fade-out reaches black, the next
+ *  image (or the first screen) takes over. Activate, Cancel or a click jumps straight to the
+ *  fade-out, including from part-way through the fade-in or the initial delay.
+ */
 void update_splash(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   ui::ScreenTransition &fade = engine.screen_transition;
   screens::SplashState &state = gameplay.splash_screen;
@@ -1289,7 +1326,7 @@ void render_splash(const Engine &engine, const Gameplay &gameplay, platform::Ren
   screens::splash_render(r, viewport, gameplay.splash_screen);
 }
 
-/// Apply mouse intent to the game-over screen: a hovered enabled row takes focus and the wheel moves it.
+/** Apply mouse intent to the game-over screen: a hovered enabled row takes focus and the wheel moves it. */
 void apply_game_over_pointer(const Engine &engine, screens::GameOverState &state, const input::InputIntent &intent) {
   if (!pointer_active(intent))
     return;
@@ -1307,7 +1344,7 @@ void apply_game_over_pointer(const Engine &engine, screens::GameOverState &state
     state.cursor = wrap_cursor(state.cursor, steps, screens::k_game_over_row_count);
 }
 
-/// Run the game-over row the player activated.
+/** Run the game-over row the player activated. */
 void run_game_over_row(Engine &engine, Gameplay &gameplay, screens::GameOverRow row) {
   switch (row) {
     case screens::GameOverRow::Reload:
@@ -1321,8 +1358,9 @@ void run_game_over_row(Engine &engine, Gameplay &gameplay, screens::GameOverRow 
   }
 }
 
-/// Step the Game over screen: a hovered enabled row takes focus, Up/Down move the highlight,
-/// and Activate reloads the last slot, opens the Load screen, or returns to Title.
+/** Step the Game over screen: a hovered enabled row takes focus, Up/Down move the highlight,
+ *  and Activate reloads the last slot, opens the Load screen, or returns to Title.
+ */
 void update_game_over(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   screens::GameOverState &state = gameplay.game_over_screen;
   apply_game_over_pointer(engine, state, intent);
@@ -1344,7 +1382,7 @@ void render_game_over(const Engine &engine, const Gameplay &gameplay, platform::
                                   gameplay.game_over_screen, viewport, engine.input_mapper.last_device());
 }
 
-/// Save `slot_id`, raising a success or failure toast, then pop the Save/Load screen.
+/** Save `slot_id`, raising a success or failure toast, then pop the Save/Load screen. */
 void commit_slot_save(Engine &engine, Gameplay &gameplay, const std::string &slot_id) {
   if (const std::expected<void, std::string> result = gameplay.save_to_slot(slot_id); !result)
     engine.notify(std::format("Save failed: {}", result.error()), ui::k_toast_failed_colour);
@@ -1353,8 +1391,9 @@ void commit_slot_save(Engine &engine, Gameplay &gameplay, const std::string &slo
   engine.scene.ui.pop();
 }
 
-/// Save the selected row, first confirming when it would overwrite an existing slot. The
-/// autosave slot is never overwritable from the UI; the game decides when to autosave.
+/** Save the selected row, first confirming when it would overwrite an existing slot. The
+ *  autosave slot is never overwritable from the UI; the game decides when to autosave.
+ */
 void activate_save_load_row(Engine &engine, Gameplay &gameplay, const save::SaveSlotInfo &selected) {
   const std::string slot_id = selected.slot_id;
   if (slot_id == save::k_autosave_slot) {
@@ -1374,7 +1413,7 @@ void activate_save_load_row(Engine &engine, Gameplay &gameplay, const save::Save
                         [&engine, slot_id](Gameplay &g) { commit_slot_save(engine, g, slot_id); });
 }
 
-/// Apply mouse intent to the save/load screen: a hovered row takes focus and the wheel moves a row.
+/** Apply mouse intent to the save/load screen: a hovered row takes focus and the wheel moves a row. */
 void apply_save_load_pointer(const Engine &engine, screens::SaveLoadState &state, const input::InputIntent &intent,
                              int rows) {
   if (!pointer_active(intent))
@@ -1391,7 +1430,7 @@ void apply_save_load_pointer(const Engine &engine, screens::SaveLoadState &state
     state.cursor = wrap_cursor(state.cursor, steps, rows);
 }
 
-/// Save or load the selected slot, honouring the screen's mode.
+/** Save or load the selected slot, honouring the screen's mode. */
 void activate_selected_slot(Engine &engine, Gameplay &gameplay, const screens::SaveLoadState &state,
                             const save::SaveSlotInfo &selected) {
   if (state.saving) {
@@ -1407,9 +1446,10 @@ void activate_selected_slot(Engine &engine, Gameplay &gameplay, const screens::S
   gameplay.begin_load([slot_id](Gameplay &g) { return g.load_from_slot(slot_id); });
 }
 
-/// Step the Save/Load screen: Cancel closes it; Up/Down and the wheel move the highlighted
-/// slot; Activate saves (confirming an overwrite) or loads a valid slot. Empty and corrupt
-/// slots cannot be loaded.
+/** Step the Save/Load screen: Cancel closes it; Up/Down and the wheel move the highlighted
+ *  slot; Activate saves (confirming an overwrite) or loads a valid slot. Empty and corrupt
+ *  slots cannot be loaded.
+ */
 void update_save_load(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   screens::SaveLoadState &state = gameplay.save_load_screen;
   if (intent.back) {
@@ -1447,8 +1487,9 @@ void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::
                                   gameplay.save_load_screen, viewport, engine.input_mapper.last_device());
 }
 
-/// Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
-/// empty UI stack and no transition prompt; the dialogue check is defensive.
+/** Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
+ *  empty UI stack and no transition prompt; the dialogue check is defensive.
+ */
 void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 /*viewport*/) {
   if (gameplay.dialogue)
     return;
@@ -1456,10 +1497,11 @@ void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Render
                             screens::build_hud_strip(engine.flags, gameplay.quests, engine.scene.zone_id));
 }
 
-/// Modal dialogue box: draws only while a conversation is active and Dialogue is the top
-/// mode, so a screen pushed over it (the pause menu) never double-draws. Hiding clears
-/// visibility only — the cached layout and reveal progress are untouched, so popping the
-/// screen above restores the box exactly.
+/** Modal dialogue box: draws only while a conversation is active and Dialogue is the top
+ *  mode, so a screen pushed over it (the pause menu) never double-draws. Hiding clears
+ *  visibility only — the cached layout and reveal progress are untouched, so popping the
+ *  screen above restores the box exactly.
+ */
 void render_dialogue(const Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
   if (gameplay.dialogue && engine.scene.mode() == screens::Dialogue)
     screens::dialog_box_update(gameplay.dialog_box, *gameplay.dialogue, r, viewport, engine.render.panel_skin,
@@ -1524,7 +1566,7 @@ void render_barter(const Engine &engine, const Gameplay &gameplay, platform::Ren
                                viewport, engine.input_mapper.last_device());
 }
 
-/// The hub tab strip draws over every hub panel, in the top margin so it never overlaps one.
+/** The hub tab strip draws over every hub panel, in the top margin so it never overlaps one. */
 void render_hub_strip(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
   if (!screens::is_hub_mode(engine.scene.mode()))
     return;
@@ -1574,7 +1616,7 @@ void load_content(Gameplay &gameplay, Engine &engine) {
   }
 }
 
-/// Pop the combat layers off the top of `ui`: CombatPaused, then Combat.
+/** Pop the combat layers off the top of `ui`: CombatPaused, then Combat. */
 void close_combat_layers(world::UIStack &ui) noexcept {
   if (ui.top() == screens::CombatPaused)
     ui.pop();
@@ -1582,7 +1624,7 @@ void close_combat_layers(world::UIStack &ui) noexcept {
     ui.pop();
 }
 
-/// Toggle the fight between running and paused on the Pause action.
+/** Toggle the fight between running and paused on the Pause action. */
 void toggle_combat_pause(world::UIStack &ui, const input::InputState &input) {
   if (!input.is_pressed(input::Action::Pause))
     return;
@@ -1592,8 +1634,9 @@ void toggle_combat_pause(world::UIStack &ui, const input::InputState &input) {
     ui.pop();
 }
 
-/// End the fight with `outcome`: stop everyone, close the combat layers, and raise
-/// encounter_won/encounter_lost for the game's on_event hook.
+/** End the fight with `outcome`: stop everyone, close the combat layers, and raise
+ *  encounter_won/encounter_lost for the game's on_event hook.
+ */
 void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle, rules::Outcome outcome) {
   battle.halt(engine);
   battle.stand_down(engine);
@@ -1606,8 +1649,9 @@ void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle
   drop_battle(engine, gameplay);
 }
 
-/// Run the fight for one fixed step: drop it when its scene is gone, toggle the pause, then step
-/// it and toast its reports.
+/** Run the fight for one fixed step: drop it when its scene is gone, toggle the pause, then step
+ *  it and toast its reports.
+ */
 void update_battle(Engine &engine, Gameplay &gameplay) {
   if (!gameplay.battle)
     return;
@@ -1644,7 +1688,7 @@ void update_battle(Engine &engine, Gameplay &gameplay) {
   }
 }
 
-/// Start the fight start_encounter asked for, once the dialogue that asked has closed.
+/** Start the fight start_encounter asked for, once the dialogue that asked has closed. */
 void start_pending_encounter(Engine &engine, Gameplay &gameplay) {
   if (!gameplay.pending_encounter || engine.scene.mode() != world::GameMode::Exploring)
     return;
@@ -1667,8 +1711,9 @@ void start_pending_encounter(Engine &engine, Gameplay &gameplay) {
 
 constexpr float k_target_line_thickness = 2.f;
 
-/// Outline the fight's target's tile in the selected colour, through the view the world just
-/// drew with so the outline stays on the ground while the camera moves.
+/** Outline the fight's target's tile in the selected colour, through the view the world just
+ *  drew with so the outline stays on the ground while the camera moves.
+ */
 void draw_target_marker(const Engine &engine, const combat::Battle &battle, platform::Renderer &r) {
   const world::MapView map = world::build_map_view(engine.render, engine.cfg);
   const std::optional<world::TileCoord> target_tile = battle.target_tile();
@@ -1693,7 +1738,7 @@ void draw_target_marker(const Engine &engine, const combat::Battle &battle, plat
   r.reset_screen_view();
 }
 
-/// Draw the target's tile marker, then the combat HUD with `banner` (empty for none).
+/** Draw the target's tile marker, then the combat HUD with `banner` (empty for none). */
 void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &r, core::math::Vec2 viewport,
                    std::string_view banner) {
   draw_target_marker(engine, battle, r);
@@ -1701,13 +1746,14 @@ void render_combat(const Engine &engine, const combat::Battle &battle, platform:
                              engine.input_mapper.last_device(), banner);
 }
 
-/// The paused fight's banner: "Paused" and the key that resumes it.
+/** The paused fight's banner: "Paused" and the key that resumes it. */
 std::string paused_banner(input::InputDevice device) {
   return std::format("Paused: {} to resume", ui::input_glyph(input::Action::Pause, device));
 }
 
-/// Register the hub tab screens and the in-world screens: dialogue, combat, inventory, character,
-/// journal, codex and map.
+/** Register the hub tab screens and the in-world screens: dialogue, combat, inventory, character,
+ *  journal, codex and map.
+ */
 void register_hub_screens(Gameplay &gameplay, Engine &engine) {
   engine.screens.add(screens::Dialogue, ScreenSpec{.owns_step = false});
   engine.screens.add(screens::Combat, ScreenSpec{
@@ -1770,7 +1816,7 @@ void register_hub_screens(Gameplay &gameplay, Engine &engine) {
       });
 }
 
-/// Register the modal screens: loot, barter and confirm.
+/** Register the modal screens: loot, barter and confirm. */
 void register_modal_screens(Gameplay &gameplay, Engine &engine) {
   engine.screens.add(
       screens::Loot,
@@ -1794,7 +1840,7 @@ void register_modal_screens(Gameplay &gameplay, Engine &engine) {
       });
 }
 
-/// Register the framing screens: splash, title, save/load, game over, loading and credits.
+/** Register the framing screens: splash, title, save/load, game over, loading and credits. */
 void register_framing_screens(Gameplay &gameplay, Engine &engine) {
   engine.screens.add(
       screens::Splash,
@@ -1845,7 +1891,7 @@ void register_framing_screens(Gameplay &gameplay, Engine &engine) {
       });
 }
 
-/// Install the engine hooks and the fixed-step system that drive the framework.
+/** Install the engine hooks and the fixed-step system that drive the framework. */
 void register_hooks(Gameplay &gameplay, Engine &engine) {
   engine.on_menu_quit = [&gameplay](Engine &) {
     gameplay.open_confirm("Quit to Title?", [](Gameplay &g) { g.return_to_title(); });
@@ -1865,7 +1911,7 @@ void register_hooks(Gameplay &gameplay, Engine &engine) {
       [&gameplay](Engine &e, const input::InputIntent &) { return handle_character_input(e, gameplay); });
 }
 
-/// Register the gameplay render layers.
+/** Register the gameplay render layers. */
 void register_render_layers(Gameplay &gameplay, Engine &engine) {
   engine.screens.add_layer(RenderLayer::Hud, [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 v) {
     render_hud(e, gameplay, r, v);
@@ -1883,9 +1929,10 @@ void register_render_layers(Gameplay &gameplay, Engine &engine) {
                            [](Engine &e, platform::Renderer &r, core::math::Vec2 v) { render_hub_strip(e, r, v); });
 }
 
-/// Register the gameplay framework with `engine`: its fixed-step system, hub input hook,
-/// screens and render layers. Every closure captures `gameplay`, which outlives the engine
-/// under the Runtime member-order contract.
+/** Register the gameplay framework with `engine`: its fixed-step system, hub input hook,
+ *  screens and render layers. Every closure captures `gameplay`, which outlives the engine
+ *  under the Runtime member-order contract.
+ */
 void register_gameplay(Gameplay &gameplay, Engine &engine) {
   register_hub_screens(gameplay, engine);
   register_modal_screens(gameplay, engine);

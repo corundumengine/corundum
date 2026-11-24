@@ -13,8 +13,10 @@ namespace corundum::core {
 namespace {
 
 #ifdef _MSC_VER
-// The UCRT deprecates getenv as unsafe and points at _dupenv_s, which
-// allocates the result; free its buffer before returning.
+
+/** The UCRT deprecates getenv as unsafe and points at _dupenv_s, which
+ *  allocates the result; free its buffer before returning.
+ */
 [[nodiscard]] std::optional<std::string> read_env_msvc(const char *name) {
   char *buffer = nullptr;
   std::size_t size = 0;

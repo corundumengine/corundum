@@ -54,15 +54,20 @@ struct CombatantClips {
 };
 
 enum class Clock : std::uint8_t {
-  Running, ///< Combat is on top: orders, the timeline and movement all run.
-  Paused,  ///< CombatPaused is on top: commands, the next-target key and clicks on a hostile give orders.
+  /** Combat is on top: orders, the timeline and movement all run. */
+  Running,
+
+  /** CombatPaused is on top: commands, the next-target key and clicks on a hostile give orders. */
+  Paused,
 };
 
 /** What one Battle step produced. */
 struct BattleStep {
-  std::optional<rules::Outcome> outcome{}; ///< A lost fight reports this only once the protagonist's death clip ends.
+  /** A lost fight reports this only once the protagonist's death clip ends. */
+  std::optional<rules::Outcome> outcome{};
 
-  std::vector<std::string> reports{}; ///< Toasts: each resolved command and each refusal.
+  /** Toasts: each resolved command and each refusal. */
+  std::vector<std::string> reports{};
 };
 
 /** One encounter played out in the scene.
@@ -74,7 +79,8 @@ class Battle {
 public:
   static constexpr std::size_t k_protagonist = 0;
 
-  static constexpr std::size_t k_hostile = 1; ///< The first hostile named.
+  /** The first hostile named. */
+  static constexpr std::size_t k_hostile = 1;
 
   /** Start a fight between the protagonist and the actors `request` names. The fight
    *  arrives with the creatures' orders set; the protagonist is given a standing attack on the
@@ -156,146 +162,166 @@ private:
   Battle(rules::Fight fight, std::vector<std::optional<entities::EntityId>> entities, std::vector<CombatantClips> clips,
          std::string first_actor);
 
-  /// How one approach ended.
+  /** How one approach ended. */
   enum class ApproachOutcome : std::uint8_t {
-    Settled, ///< A path was found, or none can be until the target moves.
-    Blocked, ///< Claimed tiles stood in the way; try again next step.
-    NoMap,   ///< There is no walkable map yet; try again next step.
+    /** A path was found, or none can be until the target moves. */
+    Settled,
+
+    /** Claimed tiles stood in the way; try again next step. */
+    Blocked,
+
+    /** There is no walkable map yet; try again next step. */
+    NoMap,
   };
 
-  /// Whether the protagonist had an attack order before a step's timeline ran. Read it first:
-  /// the timeline drops an order whose target falls.
+  /** Whether the protagonist had an attack order before a step's timeline ran. Read it first:
+   *  the timeline drops an order whose target falls.
+   */
   enum class AttackOrder : std::uint8_t {
     Standing,
     None,
   };
 
-  /// Turn this step's input into the protagonist's orders, appending the refusals to toast.
+  /** Turn this step's input into the protagonist's orders, appending the refusals to toast. */
   void read_orders(const Engine &engine, const rules::CombatContext &context, Clock clock,
                    std::vector<std::string> &reports);
 
-  /// Move the gamepad's page on CombatPageNext/CombatPagePrev, wrapping within the pages.
+  /** Move the gamepad's page on CombatPageNext/CombatPagePrev, wrapping within the pages. */
   void read_pages(const Engine &engine);
 
-  /// Read every combatant still in the scene's tile into tiles_.
+  /** Read every combatant still in the scene's tile into tiles_. */
   void refresh_tiles(const Engine &engine);
 
-  /// Give the protagonist its standing attack on `target`, point the fight at it and refresh the
-  /// HUD. @pre refresh_tiles() has run, and `target` is a hostile that start() found able to act.
+  /** Give the protagonist its standing attack on `target`, point the fight at it and refresh the
+   *  HUD. @pre refresh_tiles() has run, and `target` is a hostile that start() found able to act.
+   */
   void open_fight(Engine &engine, std::size_t target);
 
-  /// Press the slot each pressed key names on the current page, appending the refusals to toast.
+  /** Press the slot each pressed key names on the current page, appending the refusals to toast. */
   void read_slot_presses(const Engine &engine, const rules::CombatContext &context, std::vector<std::string> &refusals);
 
-  /// Turn held movement keys and a click into a move or attack order.
+  /** Turn held movement keys and a click into a move or attack order. */
   void read_move_orders(const Engine &engine, const rules::CombatContext &context, Clock clock);
 
-  /// Give the protagonist a standing attack on target(), re-planning its approach.
+  /** Give the protagonist a standing attack on target(), re-planning its approach. */
   void engage(const rules::CombatContext &context);
 
-  /// Target `hostile` and attack it.
+  /** Target `hostile` and attack it. */
   void engage(const rules::CombatContext &context, std::size_t hostile);
 
-  /// On CombatTargetNext, attack the next hostile still fighting after target(), wrapping.
+  /** On CombatTargetNext, attack the next hostile still fighting after target(), wrapping. */
   void read_next_target(const Engine &engine, const rules::CombatContext &context);
 
-  /// The hostile still fighting that's nearest the protagonist, ties to the first named; nullopt
-  /// when none is.
+  /** The hostile still fighting that's nearest the protagonist, ties to the first named; nullopt
+   *  when none is.
+   */
   [[nodiscard]] std::optional<std::size_t> nearest_hostile(const rules::CombatContext &context) const;
 
-  /// The hostile still fighting that a click on `clicked` means: one standing there, else the
-  /// first whose sprite covers it; nullopt for none.
+  /** The hostile still fighting that a click on `clicked` means: one standing there, else the
+   *  first whose sprite covers it; nullopt for none.
+   */
   [[nodiscard]] std::optional<std::size_t> hostile_at(world::TileCoord clicked,
                                                       const rules::CombatContext &context) const;
 
-  /// When target() has fallen, move it to the nearest hostile, attacking that one when
-  /// `before` is AttackOrder::Standing.
+  /** When target() has fallen, move it to the nearest hostile, attacking that one when
+   *  `before` is AttackOrder::Standing.
+   */
   void follow_fallen_target(const rules::CombatContext &context, AttackOrder before);
 
-  /// The combatant `index` has a standing attack on, checked to be one of this fight's.
+  /** The combatant `index` has a standing attack on, checked to be one of this fight's. */
   [[nodiscard]] std::optional<std::size_t> target_of(std::size_t index) const;
 
-  /// Press bar slot `slot`: 0 is Attack, then the commands. The bar's layout and the rules' list
-  /// keep one length for the fight, so a slot names one command. Attack renews the attack and drops
-  /// a queued command; a command unqueues when queued, is refused when unavailable (returning
-  /// why), and otherwise queues.
+  /** Press bar slot `slot`: 0 is Attack, then the commands. The bar's layout and the rules' list
+   *  keep one length for the fight, so a slot names one command. Attack renews the attack and drops
+   *  a queued command; a command unqueues when queued, is refused when unavailable (returning
+   *  why), and otherwise queues.
+   */
   [[nodiscard]] std::optional<std::string> press_slot(const rules::CombatContext &context, std::size_t slot);
 
-  /// Plan each ordered combatant's movement: stand when in reach or winding up, else approach.
+  /** Plan each ordered combatant's movement: stand when in reach or winding up, else approach. */
   void plan_movement(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
 
-  /// Plan combatant `index`'s movement: stand when in reach or winding up, else approach.
+  /** Plan combatant `index`'s movement: stand when in reach or winding up, else approach. */
   void plan_combatant(Engine &engine, const world::MapView &map, const rules::CombatContext &context,
                       std::size_t index);
 
-  /// Combatant `index`'s entity while it is still in the fight: in the scene, and able to act.
+  /** Combatant `index`'s entity while it is still in the fight: in the scene, and able to act. */
   [[nodiscard]] std::optional<entities::EntityId> fighting_entity(const rules::CombatContext &context,
                                                                   std::size_t index) const;
 
-  /// Whether combatant `index` is still in the fight: in the scene, and able to act.
+  /** Whether combatant `index` is still in the fight: in the scene, and able to act. */
   [[nodiscard]] bool is_fighting(const rules::CombatContext &context, std::size_t index) const;
 
-  /// Whether a combatant other than `mover` stands on `tile` or is walking to it.
+  /** Whether a combatant other than `mover` stands on `tile` or is walking to it. */
   [[nodiscard]] bool is_claimed(const Engine &engine, world::TileCoord tile, std::size_t mover) const;
 
-  /// Remove every hostile that can no longer act from the scene.
+  /** Remove every hostile that can no longer act from the scene. */
   void remove_fallen(Engine &engine, const rules::CombatContext &context);
 
-  /// Play each clip this step calls for: attacks for the wind-ups in `windups_started`, then hurts.
+  /** Play each clip this step calls for: attacks for the wind-ups in `windups_started`, then hurts. */
   void play_step_clips(Engine &engine, const rules::CombatContext &context,
                        std::span<const std::size_t> windups_started);
 
-  /// Turn combatant `index` toward its target and play its attack clip, timed so the clip's middle
-  /// meets the landing. Does nothing for a Self command or a character with no attack sheet.
+  /** Turn combatant `index` toward its target and play its attack clip, timed so the clip's middle
+   *  meets the landing. Does nothing for a Self command or a character with no attack sheet.
+   */
   void play_attack_clip(entities::World &world, std::size_t index);
 
-  /// Play the hurt clip of each combatant whose Health fell since the last call and who can show
-  /// it: still fighting, and not winding up.
+  /** Play the hurt clip of each combatant whose Health fell since the last call and who can show
+   *  it: still fighting, and not winding up.
+   */
   void play_hurt_clips(entities::World &world, const rules::CombatContext &context);
 
-  /// When the protagonist has fallen, play its death clip.
+  /** When the protagonist has fallen, play its death clip. */
   void play_protagonist_death(Engine &engine, const rules::CombatContext &context);
 
-  /// The outcome to report: none yet while a lost fight's protagonist plays its death clip.
+  /** The outcome to report: none yet while a lost fight's protagonist plays its death clip. */
   [[nodiscard]] std::optional<rules::Outcome> finished_outcome(const Engine &engine) const;
 
-  /// Stop everyone and keep the protagonist from moving: the fight is lost.
+  /** Stop everyone and keep the protagonist from moving: the fight is lost. */
   void hold_for_defeat(Engine &engine) const;
 
-  /// Stop combatant `index`: clear its path and forget what it was planned for.
+  /** Stop combatant `index`: clear its path and forget what it was planned for. */
   void stand_still(Engine &engine, std::size_t index);
 
-  /// Path combatant `mover` to the nearest tile within reach of combatant `target_index` that
-  /// nobody else has claimed.
+  /** Path combatant `mover` to the nearest tile within reach of combatant `target_index` that
+   *  nobody else has claimed.
+   */
   [[nodiscard]] ApproachOutcome approach(Engine &engine, const world::MapView &map, std::size_t mover,
                                          entities::EntityId mover_entity, std::size_t target_index);
 
-  /// Drive each hostile that can act along its planned path.
+  /** Drive each hostile that can act along its planned path. */
   void walk_hostiles(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
 
   rules::Fight fight_;
 
-  std::vector<std::optional<entities::EntityId>> entities_; ///< nullopt once a hostile has fallen and left the scene.
+  /** nullopt once a hostile has fallen and left the scene. */
+  std::vector<std::optional<entities::EntityId>> entities_;
 
   std::vector<CombatantClips> clips_;
 
-  std::vector<int> healths_; ///< Each combatant's Health at the last play_hurt_clips.
+  /** Each combatant's Health at the last play_hurt_clips. */
+  std::vector<int> healths_;
 
   std::string first_actor_;
 
   std::vector<world::TileCoord> tiles_;
 
-  std::vector<rules::Tile> fight_tiles_; ///< tiles_ as the fight takes them; refresh_tiles keeps both.
+  /** tiles_ as the fight takes them; refresh_tiles keeps both. */
+  std::vector<rules::Tile> fight_tiles_;
 
   screens::CombatHud hud_;
 
-  std::vector<std::vector<world::TileCoord>> paths_; ///< Each hostile's path; the protagonist uses Scene::path.
+  /** Each hostile's path; the protagonist uses Scene::path. */
+  std::vector<std::vector<world::TileCoord>> paths_;
 
-  std::vector<std::optional<world::TileCoord>> planned_for_; ///< The target tile each path was planned for.
+  /** The target tile each path was planned for. */
+  std::vector<std::optional<world::TileCoord>> planned_for_;
 
   std::size_t target_{k_hostile};
 
-  std::size_t page_{}; ///< The command-bar page a gamepad's A/Y/B press; below hud_.page.count.
+  /** The command-bar page a gamepad's A/Y/B press; below hud_.page.count. */
+  std::size_t page_{};
 };
 
 } // namespace corundum::gameplay::combat

@@ -51,8 +51,9 @@ namespace {
   return max_id;
 }
 
-/// Process-lifetime textures: references stored in sprite_index are deliberately never
-/// released, so area purges can never destroy them.
+/** Process-lifetime textures: references stored in sprite_index are deliberately never
+ *  released, so area purges can never destroy them.
+ */
 [[nodiscard]] std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId>
 load_sheet_textures(corundum::platform::Renderer &r, const corundum::sprites::CharacterRegistry &registry) {
   std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId> sheet_textures;
@@ -117,9 +118,10 @@ void load_sprite_index(corundum::platform::Renderer &r, render::RenderState &sta
 
 namespace {
 
-/// Loads one family's regular face and resolves every optional style to the closest present
-/// face. An absent or unloadable optional face logs a warning and falls back; only a failed
-/// regular face is an error.
+/** Loads one family's regular face and resolves every optional style to the closest present
+ *  face. An absent or unloadable optional face logs a warning and falls back; only a failed
+ *  regular face is an error.
+ */
 std::expected<void, std::string> load_font_family(corundum::platform::Renderer &r, const std::string &font_dir,
                                                   std::string_view role_name,
                                                   const corundum::ui::FontFamilyPaths &family_paths,
@@ -151,8 +153,8 @@ std::expected<void, std::string> load_font_family(corundum::platform::Renderer &
                                loaded.error());
     return corundum::platform::FontId::Invalid;
   };
-  /// The first of `ids` this family holds; the regular face is always held, so it terminates
-  /// every fallback chain.
+  // The first of `ids` this family holds; the regular face is always held, so it terminates
+  // every fallback chain.
   const auto first_held = [](std::initializer_list<corundum::platform::FontId> ids) {
     for (const corundum::platform::FontId id : ids)
       if (id != corundum::platform::FontId::Invalid)

@@ -73,10 +73,14 @@ enum class RunState : std::uint8_t {
  *  consumed and does not act in the game, even when it is the fullscreen key.
  */
 enum class PauseReason : std::uint8_t {
-  Focus,      ///< The window lost focus or was minimised; cleared when focus returns.
-  Controller, ///< The active gamepad disconnected with no pad left; cleared on reconnect or a keyboard/mouse
-              ///< press.
-  Game,       ///< Requested by game code (e.g. a pause menu); only game code clears it.
+  /** The window lost focus or was minimised; cleared when focus returns. */
+  Focus,
+
+  /** The active gamepad disconnected with no pad left; cleared on reconnect or a keyboard/mouse press. */
+  Controller,
+
+  /** Requested by game code (e.g. a pause menu); only game code clears it. */
+  Game,
   Count,
 };
 
@@ -106,7 +110,7 @@ enum class SaveLoadIntent : std::uint8_t {
 // check finds would interleave private state and defeat that grouping on a ~0.5 MB heap object.
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct Engine {
-  // Declared first: Scene's 64-byte alignment packs cleanly at offset 0 and keeps the rest dense.
+  /** Declared first: Scene's 64-byte alignment packs cleanly at offset 0 and keeps the rest dense. */
   world::Scene scene;
 
   /** Read-only game content: every runtime load reads through this source.
@@ -132,13 +136,15 @@ struct Engine {
       std::unexpected(std::string{"user storage is not configured"})};
 
 private:
-  // Declared before window/gpu/renderer/audio so it outlives the platform adapters, which keep a
-  // reference to it from create_platform(); set_content_source() refuses to replace it afterwards.
+  /** Declared before window/gpu/renderer/audio so it outlives the platform adapters, which keep a
+   *  reference to it from create_platform(); set_content_source() refuses to replace it afterwards.
+   */
   std::unique_ptr<core::ContentSource> content_{std::make_unique<core::DirectoryContentSource>()};
 
-  // Declared window → gpu → renderer, after content_, so reverse-order destruction is renderer → gpu →
-  // window → content: sokol resources are released while the device is still alive, the device and
-  // window outlive the renderer, and the content source outlives the adapters that read through it.
+  /** Declared window → gpu → renderer, after content_, so reverse-order destruction is renderer → gpu →
+   *  window → content: sokol resources are released while the device is still alive, the device and
+   *  window outlive the renderer, and the content source outlives the adapters that read through it.
+   */
   platform::Handle<platform::Window> window_;
 
   platform::Handle<platform::GpuContext> gpu_;
@@ -174,7 +180,7 @@ public:
 
   input::InputState input_state;
 
-  /// Physical input → Action translation and the live binding table; see input::InputMapper.
+  /** Physical input → Action translation and the live binding table; see input::InputMapper. */
   input::InputMapper input_mapper;
 
   render::RenderState render;
@@ -281,7 +287,7 @@ public:
    */
   std::vector<std::function<bool(Engine &, const input::InputIntent &)>> screen_input_hooks;
 
-  /// True while inside an interior reached from the overworld.
+  /** True while inside an interior reached from the overworld. */
   bool entered_from_world{false};
 
   /** Take ownership of a complete platform bundle.
@@ -485,18 +491,23 @@ private:
    */
   void register_screens();
 
-  bool quit_{false}; ///< Set by request_quit()/cleanup(); see quit_requested().
+  /** Set by request_quit()/cleanup(); see quit_requested(). */
+  bool quit_{false};
 
   /** One-slot action queued by raise_action_next_step(); promoted in update_engine_screens(). */
   std::optional<input::Action> pending_action_{};
 
-  int window_height_{0}; ///< Cached each frame by run_frame(); see window_height().
+  /** Cached each frame by run_frame(); see window_height(). */
+  int window_height_{0};
 
-  int window_width_{0}; ///< Cached each frame by run_frame(); see window_width().
+  /** Cached each frame by run_frame(); see window_width(). */
+  int window_width_{0};
 
-  std::bitset<static_cast<std::size_t>(PauseReason::Count)> pause_reasons_{}; ///< See pause()/resume().
+  /** See pause()/resume(). */
+  std::bitset<static_cast<std::size_t>(PauseReason::Count)> pause_reasons_{};
 
-  bool window_shown_{false}; ///< Set by reveal_window(); true once the window has been shown.
+  /** Set by reveal_window(); true once the window has been shown. */
+  bool window_shown_{false};
 
   /** True while a portal scene change is held back for the fade to cover it. */
   bool scene_swap_pending_{false};

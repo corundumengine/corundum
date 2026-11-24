@@ -25,9 +25,10 @@ namespace corundum::sprites {
 
 namespace {
 
-/// Read a required integer field as int, rejecting a missing field, a wrong type, or a value
-/// outside int range. Values are checked here rather than left to nlohmann, whose get<int>()
-/// throws on a wrong type and narrows an out-of-range integer.
+/** Read a required integer field as int, rejecting a missing field, a wrong type, or a value
+ *  outside int range. Values are checked here rather than left to nlohmann, whose get<int>()
+ *  throws on a wrong type and narrows an out-of-range integer.
+ */
 std::expected<int, std::string> require_int(const json &object, const char *key, const std::string &file) {
   if (!object.contains(key))
     return std::unexpected(std::format("Sprite sheet '{}' missing '{}'", file, key));
@@ -40,7 +41,7 @@ std::expected<int, std::string> require_int(const json &object, const char *key,
   return static_cast<int>(value);
 }
 
-/// Read an optional integer field, returning `fallback` when the field is absent.
+/** Read an optional integer field, returning `fallback` when the field is absent. */
 std::expected<int, std::string> optional_int(const json &object, const char *key, int fallback,
                                              const std::string &file) {
   if (!object.contains(key))
@@ -48,8 +49,9 @@ std::expected<int, std::string> optional_int(const json &object, const char *key
   return require_int(object, key, file);
 }
 
-/// Parse one "animations.clips" entry, checking every field's type and range. An empty
-/// "frames" array is allowed so a clip being authored in spritesmith survives a save/load.
+/** Parse one "animations.clips" entry, checking every field's type and range. An empty
+ *  "frames" array is allowed so a clip being authored in spritesmith survives a save/load.
+ */
 std::expected<AnimClip, std::string> parse_clip(const json &clip_json, const std::string &file) {
   if (!clip_json.is_object())
     return std::unexpected(std::format("Sprite sheet '{}' has a non-object clip entry", file));
@@ -86,8 +88,9 @@ std::expected<AnimClip, std::string> parse_clip(const json &clip_json, const std
   return clip;
 }
 
-/// Read the optional, non-negative frame-placement fields (offset_x/y, spacing_x/y), which
-/// share a shape but land in distinct members. Defaults to 0 for each absent field.
+/** Read the optional, non-negative frame-placement fields (offset_x/y, spacing_x/y), which
+ *  share a shape but land in distinct members. Defaults to 0 for each absent field.
+ */
 std::expected<void, std::string> read_placement(const json &root, SpriteSheetClips &data, const std::string &file) {
   for (const auto &[key, member] : std::array{
            std::pair{"offset_x", &SpriteSheetClips::offset_x},
@@ -105,7 +108,7 @@ std::expected<void, std::string> read_placement(const json &root, SpriteSheetCli
   return {};
 }
 
-/// Parse and validate the optional "animations" block into `data`.
+/** Parse and validate the optional "animations" block into `data`. */
 std::expected<void, std::string> read_animations(const json &root, SpriteSheetClips &data, const std::string &file) {
   if (!root.contains("animations"))
     return {};

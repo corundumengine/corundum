@@ -8,7 +8,7 @@
 
 namespace corundum::platform::glfw {
 
-/// Per-axis logical-point -> physical-pixel factors for screen-space rendering.
+/** Per-axis logical-point -> physical-pixel factors for screen-space rendering. */
 struct ScreenScale {
   float x{1.f};
   float y{1.f};

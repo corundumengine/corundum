@@ -28,7 +28,7 @@ using corundum::test::make_world_config;
 using corundum::test::run_one_step;
 using corundum::world::WorldStep;
 
-/// An extension mode no framework registers; a test registers the screen it needs.
+/** An extension mode no framework registers; a test registers the screen it needs. */
 constexpr corundum::world::GameMode k_test_mode{
     static_cast<corundum::world::GameMode>(corundum::world::k_first_extension_mode + 40),
 };
@@ -40,7 +40,7 @@ void place_player(corundum::Engine &engine, float col, float row) {
   transforms.row[slot] = row;
 }
 
-/// The fixture world with the player on (8, 8), a path queued to (9, 8), and k_test_mode on top.
+/** The fixture world with the player on (8, 8), a path queued to (9, 8), and k_test_mode on top. */
 std::unique_ptr<corundum::Engine> make_walking_engine() {
   auto engine = std::make_unique<corundum::Engine>();
   adopt_platform(*engine, 320, 240);

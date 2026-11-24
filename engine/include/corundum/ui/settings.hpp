@@ -93,8 +93,11 @@ inline constexpr int k_controls_reset_row = static_cast<int>(input::k_action_cou
  *  same screen renders correctly in both contexts.
  */
 enum class SettingsPresentation : std::uint8_t {
-  InGame,  ///< Compact centered panel over the world (pause menu).
-  Framing, ///< Full-viewport page over an opaque backdrop (Title).
+  /** Compact centered panel over the world (pause menu). */
+  InGame,
+
+  /** Full-viewport page over an opaque backdrop (Title). */
+  Framing,
 };
 
 /** Settings-screen state: active tab, cursor, scroll offset, presentation and rebind capture.
@@ -109,11 +112,12 @@ struct SettingsState {
 
   int scroll{};
 
-  /// Which presentation the screen draws; set by the push site, read by layout and render.
+  /** Which presentation the screen draws; set by the push site, read by layout and render. */
   SettingsPresentation presentation{SettingsPresentation::InGame};
 
-  /// Controls tab: true while InputMapper is capturing the next physical press for the
-  /// cursor row. Cleared by take_captured() or Cancel.
+  /** Controls tab: true while InputMapper is capturing the next physical press for the
+   *  cursor row. Cleared by take_captured() or Cancel.
+   */
   bool rebinding{};
 };
 

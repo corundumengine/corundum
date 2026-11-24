@@ -28,8 +28,9 @@ using corundum::platform::TextureId;
 using corundum::test::make_border;
 using corundum::test::RecordingRenderer;
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("ui_draw: panel_chrome emits exactly one DrawRect then the border's sprite commands") {
   RecordingRenderer r;

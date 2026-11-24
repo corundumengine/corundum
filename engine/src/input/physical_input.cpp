@@ -15,17 +15,19 @@ namespace corundum::input {
 
 namespace {
 
-/// One enumerator's code paired with its stable JSON name. The three name tables below use
-/// the same shape so one drift guard validates each of them.
+/** One enumerator's code paired with its stable JSON name. The three name tables below use
+ *  the same shape so one drift guard validates each of them.
+ */
 struct NamedCode {
   std::uint16_t code{};
 
   std::string_view name{};
 };
 
-/// True when every name is non-empty and every code is strictly greater than the one before.
-/// A forgotten row value-initialises its name to empty; a duplicated or out-of-order row
-/// repeats or decreases a code, so both fail the static_assert a table is checked with.
+/** True when every name is non-empty and every code is strictly greater than the one before.
+ *  A forgotten row value-initialises its name to empty; a duplicated or out-of-order row
+ *  repeats or decreases a code, so both fail the static_assert a table is checked with.
+ */
 template <std::size_t N> constexpr bool names_are_well_formed(const std::array<NamedCode, N> &table) noexcept {
   for (std::size_t i = 0; i < N; ++i) {
     if (table[i].name.empty())
@@ -36,7 +38,7 @@ template <std::size_t N> constexpr bool names_are_well_formed(const std::array<N
   return true;
 }
 
-/// Row order is ascending enumerator order; the spelling is the enumerator's own name.
+/** Row order is ascending enumerator order; the spelling is the enumerator's own name. */
 constexpr std::array<NamedCode, 120> k_key_names{
     {
         {.code = static_cast<std::uint16_t>(Key::Space), .name = "Space"},
@@ -204,7 +206,7 @@ static_assert(names_are_well_formed(k_key_names));
 static_assert(names_are_well_formed(k_mouse_names));
 static_assert(names_are_well_formed(k_gamepad_names));
 
-/// The name registered for `code`, or an empty view when none is.
+/** The name registered for `code`, or an empty view when none is. */
 template <std::size_t N>
 std::string_view find_name(const std::array<NamedCode, N> &table, std::uint16_t code) noexcept {
   for (const NamedCode &entry : table) {
@@ -214,7 +216,7 @@ std::string_view find_name(const std::array<NamedCode, N> &table, std::uint16_t 
   return {};
 }
 
-/// The input named `name` in `table`, or nullopt when none is.
+/** The input named `name` in `table`, or nullopt when none is. */
 template <typename Enum, std::size_t N>
 std::optional<PhysicalInput> find_input(const std::array<NamedCode, N> &table, std::string_view name) noexcept {
   for (const NamedCode &entry : table) {
@@ -224,23 +226,26 @@ std::optional<PhysicalInput> find_input(const std::array<NamedCode, N> &table, s
   return std::nullopt;
 }
 
-// Radial magnitude gate for the stick, plus a per-axis floor for direction. A radial gate keeps
-// the centre dead while still letting a gentle diagonal register — a per-axis 0.5 threshold
-// required ~0.7 on each axis before a diagonal moved at all.
+/** Radial magnitude gate for the stick, plus a per-axis floor for direction. A radial gate keeps
+ *  the centre dead while still letting a gentle diagonal register — a per-axis 0.5 threshold
+ *  required ~0.7 on each axis before a diagonal moved at all.
+ */
 constexpr float k_stick_deadzone = 0.5f;
 constexpr float k_stick_direction_threshold = 0.3f;
 
-// Gamepad triggers rest at -1.0 (released) and read +1.0 fully pressed, so 0.0 is roughly a
-// half-press and serves as the "engaged" threshold.
+/** Gamepad triggers rest at -1.0 (released) and read +1.0 fully pressed, so 0.0 is roughly a
+ *  half-press and serves as the "engaged" threshold.
+ */
 constexpr float k_trigger_threshold = 0.f;
 
-/// True when axis `value` points at least k_stick_direction_threshold in `positive`'s
-/// direction, and the owning stick's radial magnitude clears the dead zone.
+/** True when axis `value` points at least k_stick_direction_threshold in `positive`'s
+ *  direction, and the owning stick's radial magnitude clears the dead zone.
+ */
 bool axis_direction_down(float value, bool positive) noexcept {
   return positive ? value >= k_stick_direction_threshold : value <= -k_stick_direction_threshold;
 }
 
-/// True when the two-axis stick the given components belong to is outside its dead zone.
+/** True when the two-axis stick the given components belong to is outside its dead zone. */
 bool stick_engaged(float x, float y) noexcept {
   return std::sqrt((x * x) + (y * y)) >= k_stick_deadzone;
 }

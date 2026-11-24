@@ -15,7 +15,7 @@
 
 namespace corundum::entities {
 
-/// Frame duration used when an animation row is inserted without an authored rate.
+/** Frame duration used when an animation row is inserted without an authored rate. */
 inline constexpr float k_default_frame_duration = 0.15f;
 
 /** SoA table for the Animation component.
@@ -35,8 +35,9 @@ struct AnimationTable {
 
   SparseIndex<k_max> index;
 
-  // frame_counts[dense_slot * k_num_anim_ids + anim_id]; read on animation
-  // transition, cached at spawn from character registry.
+  /** frame_counts[dense_slot * k_num_anim_ids + anim_id]; read on animation
+   *  transition, cached at spawn from character registry.
+   */
   std::array<uint8_t, static_cast<std::size_t>(k_max) * corundum::sprites::k_num_anim_ids> frame_counts{};
 
   std::uint32_t count = 0;

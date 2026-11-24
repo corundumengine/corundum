@@ -13,11 +13,12 @@
 
 namespace corundum::platform::null {
 
-/// The texture id every load_texture() returns.
+/** The texture id every load_texture() returns. */
 constexpr corundum::platform::TextureId k_dummy_texture{1};
 
-/// The font id every load_font() returns; the null backend performs no real asset loading, so
-/// every request aliases this.
+/** The font id every load_font() returns; the null backend performs no real asset loading, so
+ *  every request aliases this.
+ */
 constexpr corundum::platform::FontId k_dummy_font{1};
 
 /** Assumed per-glyph advance width reported by measure_text(). */

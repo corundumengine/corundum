@@ -10,11 +10,11 @@
 #include <algorithm>
 #include <vector>
 
-/// Binding-table query helpers shared by the engine and gameplay suites. Every helper is `inline`
-/// so translation units in both test binaries share one definition.
+// Binding-table query helpers shared by the engine and gameplay suites. Every helper is `inline`
+// so translation units in both test binaries share one definition.
 namespace corundum::test {
 
-/// `action`'s inputs on `device`, in row order.
+/** `action`'s inputs on `device`, in row order. */
 [[nodiscard]] inline std::vector<input::PhysicalInput>
 inputs_on_device(const input::Bindings &bindings, input::Action action, input::InputDevice device) {
   std::vector<input::PhysicalInput> inputs = input::inputs_for(bindings, action);
@@ -22,7 +22,7 @@ inputs_on_device(const input::Bindings &bindings, input::Action action, input::I
   return inputs;
 }
 
-/// `action`'s gamepad inputs, in row order.
+/** `action`'s gamepad inputs, in row order. */
 [[nodiscard]] inline std::vector<input::PhysicalInput> gamepad_inputs(const input::Bindings &bindings,
                                                                       input::Action action) {
   return inputs_on_device(bindings, action, input::InputDevice::Gamepad);

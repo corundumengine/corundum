@@ -23,15 +23,17 @@ namespace corundum::sprites {
 
 namespace {
 
-/// Record `message` in `error` unless an earlier failure already set it, so a parser can read
-/// every field before reporting the first problem.
+/** Record `message` in `error` unless an earlier failure already set it, so a parser can read
+ *  every field before reporting the first problem.
+ */
 void record_first_error(std::string &error, std::string message) {
   if (error.empty())
     error = std::move(message);
 }
 
-/// Check a parsed sprite's geometry against itself and the atlas bounds.
-/// @return ok, or the first violation as a message.
+/** Check a parsed sprite's geometry against itself and the atlas bounds.
+ *  @return ok, or the first violation as a message.
+ */
 std::expected<void, std::string> validate_sprite(const AtlasSprite &sprite, const std::string &file, int atlas_width,
                                                  int atlas_height) {
   if (sprite.w <= 0 || sprite.h <= 0)
@@ -59,16 +61,17 @@ std::expected<void, std::string> validate_sprite(const AtlasSprite &sprite, cons
   return {};
 }
 
-/// Parse one "sprites" entry. `name/x/y/w/h` are required; the trim, source-size, and pivot
-/// fields are optional and default to an untrimmed sprite anchored at its top-left. Values are
-/// type- and range-checked here because nlohmann's `value()`/`get()` throw on a wrong-typed
-/// field, and a malformed atlas must return an error rather than throw out of the loader.
-///
-/// @param sj The sprite object.
-/// @param file Source file name, for error messages.
-/// @param atlas_width Packed atlas width, used to bound `x + w`.
-/// @param atlas_height Packed atlas height, used to bound `y + h`.
-/// @return The validated sprite, or an error string.
+/** Parse one "sprites" entry. `name/x/y/w/h` are required; the trim, source-size, and pivot
+ *  fields are optional and default to an untrimmed sprite anchored at its top-left. Values are
+ *  type- and range-checked here because nlohmann's `value()`/`get()` throw on a wrong-typed
+ *  field, and a malformed atlas must return an error rather than throw out of the loader.
+ *
+ *  @param sj The sprite object.
+ *  @param file Source file name, for error messages.
+ *  @param atlas_width Packed atlas width, used to bound `x + w`.
+ *  @param atlas_height Packed atlas height, used to bound `y + h`.
+ *  @return The validated sprite, or an error string.
+ */
 std::expected<AtlasSprite, std::string> parse_sprite(const json &sj, const std::string &file, int atlas_width,
                                                      int atlas_height) {
   if (!sj.is_object())
@@ -134,7 +137,7 @@ std::expected<AtlasSprite, std::string> parse_sprite(const json &sj, const std::
   return sprite;
 }
 
-/// Parse and validate the "sprites" array, rejecting duplicate names.
+/** Parse and validate the "sprites" array, rejecting duplicate names. */
 std::expected<std::vector<AtlasSprite>, std::string> parse_sprites(const json &root, const std::string &file,
                                                                    int atlas_width, int atlas_height) {
   if (!root.contains("sprites") || !root["sprites"].is_array())
@@ -158,7 +161,7 @@ std::expected<std::vector<AtlasSprite>, std::string> parse_sprites(const json &r
   return sprites;
 }
 
-/// Parse the required, non-empty string field `key` from `root`.
+/** Parse the required, non-empty string field `key` from `root`. */
 std::expected<std::string, std::string> require_string(const json &root, const std::string &file, const char *key) {
   if (!root.contains(key))
     return std::unexpected(std::format("Sprite atlas '{}' missing '{}'", file, key));
@@ -171,7 +174,7 @@ std::expected<std::string, std::string> require_string(const json &root, const s
   return value;
 }
 
-/// Parse the required, positive integer field `key` from `root`.
+/** Parse the required, positive integer field `key` from `root`. */
 std::expected<int, std::string> require_positive_int(const json &root, const std::string &file, const char *key) {
   if (!root.contains(key))
     return std::unexpected(std::format("Sprite atlas '{}' missing '{}'", file, key));
@@ -184,9 +187,10 @@ std::expected<int, std::string> require_positive_int(const json &root, const std
   return value;
 }
 
-/// Hard-fail on a missing or mismatched schema_version rather than routing through
-/// core::prepare_schema_version: unlike other formats, an atlas without the field is an error,
-/// not an implicit version 1.
+/** Hard-fail on a missing or mismatched schema_version rather than routing through
+ *  core::prepare_schema_version: unlike other formats, an atlas without the field is an error,
+ *  not an implicit version 1.
+ */
 std::expected<void, std::string> check_schema_version(const json &root, const std::string &file) {
   if (!root.contains("schema_version") || !root["schema_version"].is_number_integer())
     return std::unexpected(std::format("Sprite atlas '{}' has a missing or non-integer 'schema_version'", file));
@@ -200,8 +204,9 @@ std::expected<void, std::string> check_schema_version(const json &root, const st
   return {};
 }
 
-/// Parse the optional "pivot_basis" field, defaulting to PivotBasis::TrimmedTopOrigin when
-/// absent.
+/** Parse the optional "pivot_basis" field, defaulting to PivotBasis::TrimmedTopOrigin when
+ *  absent.
+ */
 std::expected<PivotBasis, std::string> parse_pivot_basis(const json &root, const std::string &file) {
   if (!root.contains("pivot_basis"))
     return PivotBasis::TrimmedTopOrigin;

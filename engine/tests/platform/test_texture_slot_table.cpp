@@ -12,7 +12,7 @@ using corundum::platform::TextureSlotTable;
 
 namespace {
 
-/// Stands in for a backend's handle set; the table only stores and returns it.
+/** Stands in for a backend's handle set; the table only stores and returns it. */
 struct FakeHandles {
   uint32_t image{0};
 
@@ -22,9 +22,10 @@ struct FakeHandles {
 using Table = TextureSlotTable<FakeHandles>;
 using Slot = Table::Slot;
 
-/// Unwrap a value the case has already established is present. Returning by value keeps
-/// the helper safe to call on a temporary; the REQUIRE aborts the case when the value is
-/// empty, which the analyzer cannot see through the doctest macro.
+/** Unwrap a value the case has already established is present. Returning by value keeps
+ *  the helper safe to call on a temporary; the REQUIRE aborts the case when the value is
+ *  empty, which the analyzer cannot see through the doctest macro.
+ */
 template <typename T> T require_value(const std::optional<T> &value) {
   REQUIRE(value.has_value());
 

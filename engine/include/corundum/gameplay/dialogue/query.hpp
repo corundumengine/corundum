@@ -24,18 +24,18 @@ namespace corundum::gameplay::dialogue {
 //
 // Keys are prefixed with '_' to prevent collision with author-defined variables.
 
-// Key set when a Once-sequence edge is traversed. Unique per graph + node + edge.
+/** Key set when a Once-sequence edge is traversed. Unique per graph + node + edge. */
 [[nodiscard]] inline std::string once_flag_key(std::string_view graph_id, std::string_view node_id,
                                                std::size_t edge_index) {
   return std::format("_once_{}_{}_{}", graph_id, node_id, edge_index);
 }
 
-// Key incremented each time the system enters a node. Unique per graph + node.
+/** Key incremented each time the system enters a node. Unique per graph + node. */
 [[nodiscard]] inline std::string visit_flag_key(std::string_view graph_id, std::string_view node_id) {
   return std::format("_visit_{}_{}", graph_id, node_id);
 }
 
-// Key set when a Once-marked Talk node has been shown. Unique per graph + node.
+/** Key set when a Once-marked Talk node has been shown. Unique per graph + node. */
 [[nodiscard]] inline std::string node_once_flag_key(std::string_view graph_id, std::string_view node_id) {
   return std::format("_node_once_{}_{}", graph_id, node_id);
 }

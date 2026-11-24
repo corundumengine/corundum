@@ -33,9 +33,10 @@ namespace fs = std::filesystem;
 
 namespace {
 
-/// Bundle the lifecycle setup used by every case here so each TEST_CASE reads
-/// as a single focused scenario. With `load_world` the configured initial scene is built, as a
-/// no-title boot does; pass false to exercise the no-world Title state.
+/** Bundle the lifecycle setup used by every case here so each TEST_CASE reads
+ *  as a single focused scenario. With `load_world` the configured initial scene is built, as a
+ *  no-title boot does; pass false to exercise the no-world Title state.
+ */
 corundum::Engine make_initialised_engine(const fs::path &fixtures, bool load_world = true) {
   corundum::Engine engine{};
   corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(320, 240);
@@ -67,8 +68,9 @@ corundum::Engine make_initialised_engine(const fs::path &fixtures, bool load_wor
   return engine;
 }
 
-/// Renderer double that records the viewport each world view is set with, so a test can prove the
-/// overlay projects world geometry with the live viewport rather than the configured window size.
+/** Renderer double that records the viewport each world view is set with, so a test can prove the
+ *  overlay projects world geometry with the live viewport rather than the configured window size.
+ */
 class ViewportRecordingRenderer final : public corundum::platform::Renderer {
 public:
   std::vector<corundum::core::math::Vec2> viewports{};
@@ -279,8 +281,9 @@ TEST_CASE("HudOverlay::render advances the FPS EMA but skips drawing while disab
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to branches, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to branches, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("HudOverlay: world geometry uses the live viewport, not the configured window size") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
@@ -313,8 +316,9 @@ TEST_CASE("HudOverlay: world geometry uses the live viewport, not the configured
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to branches, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to branches, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("HudOverlay: with no world the panel shows only the frame-rate, World and draw lines") {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;

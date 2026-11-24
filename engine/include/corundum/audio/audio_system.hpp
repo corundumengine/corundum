@@ -38,8 +38,9 @@ public:
   AudioSystem(const AudioSystem &) = delete;
   AudioSystem &operator=(const AudioSystem &) = delete;
 
-  /// User-declared destructor suppresses the implicit move ctor; define the moves so a
-  /// moved-from system drops its ready state instead of claiming a backend it no longer owns.
+  /** User-declared destructor suppresses the implicit move ctor; define the moves so a
+   *  moved-from system drops its ready state instead of claiming a backend it no longer owns.
+   */
   AudioSystem(AudioSystem &&other) noexcept;
   AudioSystem &operator=(AudioSystem &&other) noexcept;
 
@@ -147,7 +148,8 @@ private:
   /** Logical-name → relative-path catalog loaded from JSON. */
   std::flat_map<std::string, std::string, std::less<>> catalog_;
 
-  std::string current_music_; ///< Path of the playing track; empty when none.
+  /** Path of the playing track; empty when none. */
+  std::string current_music_;
 
   bool initialized_{false};
 

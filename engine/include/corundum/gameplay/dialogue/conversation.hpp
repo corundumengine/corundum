@@ -77,88 +77,99 @@ public:
 
   // ── Read-only queries for the presentation layer ──
 
-  /// True while a conversation is running.
+  /** True while a conversation is running. */
   [[nodiscard]] bool is_active() const noexcept;
 
-  /// Type of the node currently being presented. End when the Conversation is inactive
-  /// or the current node cannot be resolved.
+  /** Type of the node currently being presented. End when the Conversation is inactive
+   *  or the current node cannot be resolved.
+   */
   [[nodiscard]] NodeType node_type() const noexcept;
 
-  /// Graph id of the running conversation; empty when inactive.
+  /** Graph id of the running conversation; empty when inactive. */
   [[nodiscard]] std::string_view graph_id() const noexcept;
 
-  /// Id of the node currently being processed; empty when inactive.
+  /** Id of the node currently being processed; empty when inactive. */
   [[nodiscard]] std::string_view current_node_id() const noexcept;
 
-  /// Speaker display name of the running graph; empty when inactive.
+  /** Speaker display name of the running graph; empty when inactive. */
   [[nodiscard]] std::string_view speaker() const noexcept;
 
-  /// Body text of the current node (Talk nodes); empty otherwise.
+  /** Body text of the current node (Talk nodes); empty otherwise. */
   [[nodiscard]] std::string_view current_text() const noexcept;
 
-  /// Display label of choice `full_index` (index into the node's full choice list);
-  /// empty when out of range or the current node is not a Choice.
+  /** Display label of choice `full_index` (index into the node's full choice list);
+   *  empty when out of range or the current node is not a Choice.
+   */
   [[nodiscard]] std::string_view choice_label(std::size_t full_index) const noexcept;
 
-  /// Indices (into the node's full choice list) of the choices visible this step.
-  /// Empty for non-Choice nodes.
+  /** Indices (into the node's full choice list) of the choices visible this step.
+   *  Empty for non-Choice nodes.
+   */
   [[nodiscard]] std::vector<std::size_t> visible_choice_indices() const;
 
-  /// Cursor into the visible choice list (for the presentation layer to highlight).
+  /** Cursor into the visible choice list (for the presentation layer to highlight). */
   [[nodiscard]] int selected_choice() const noexcept;
 
-  /// Number of pending goto_graph return frames.
+  /** Number of pending goto_graph return frames. */
   [[nodiscard]] std::size_t call_stack_depth() const noexcept;
 
-  /// Graph id the conversation would resume in on the next return_graph();
-  /// empty when the stack is empty.
+  /** Graph id the conversation would resume in on the next return_graph();
+   *  empty when the stack is empty.
+   */
   [[nodiscard]] std::string_view resume_graph_id() const noexcept;
 
-  /// Node id the conversation would resume at on the next return_graph();
-  /// empty when the stack is empty.
+  /** Node id the conversation would resume at on the next return_graph();
+   *  empty when the stack is empty.
+   */
   [[nodiscard]] std::string_view resume_node_id() const noexcept;
 
 private:
-  /// Node currently being processed; nullptr when inactive or unresolvable.
+  /** Node currently being processed; nullptr when inactive or unresolvable. */
   [[nodiscard]] const Node *current_node() const noexcept;
 
-  /// Make `graph` current after applying its variable defaults; the caller then
-  /// advances to the entry node. No-op when the graph has no nodes.
+  /** Make `graph` current after applying its variable defaults; the caller then
+   *  advances to the entry node. No-op when the graph has no nodes.
+   */
   void start_graph(const Graph &graph);
 
-  /// Advance to a node, resetting the choice cursor and recording a visit. Ends the
-  /// conversation if next is null or an End node.
+  /** Advance to a node, resetting the choice cursor and recording a visit. Ends the
+   *  conversation if next is null or an End node.
+   */
   void go_to(const Node *next);
 
-  /// Handle goto_graph / return_graph EventActions before they reach the engine queue.
-  /// The handled divert is erased from `events`; any other events survive and must still
-  /// be dispatched by the caller. Returns true when a divert consumed the flow — the
-  /// caller must not advance the current graph or flush its event chain.
+  /** Handle goto_graph / return_graph EventActions before they reach the engine queue.
+   *  The handled divert is erased from `events`; any other events survive and must still
+   *  be dispatched by the caller. Returns true when a divert consumed the flow — the
+   *  caller must not advance the current graph or flush its event chain.
+   */
   bool divert(const Node *current_node, int choice_index, std::vector<EventAction> &events);
 
-  /// Push a resume point after `current_node` and enter the graph and node named by
-  /// `event`'s two arguments. A missing argument, graph or node logs a warning and leaves
-  /// the conversation where it is.
+  /** Push a resume point after `current_node` and enter the graph and node named by
+   *  `event`'s two arguments. A missing argument, graph or node logs a warning and leaves
+   *  the conversation where it is.
+   */
   void goto_graph(const EventAction &event, const Node *current_node, int choice_index);
 
-  /// Resume the graph and node the innermost goto_graph saved; ends the conversation when
-  /// no goto_graph is pending.
+  /** Resume the graph and node the innermost goto_graph saved; ends the conversation when
+   *  no goto_graph is pending.
+   */
   void return_graph();
 
-  /// Flush any Event nodes just landed on, collecting their emitted actions. Returns
-  /// once the current node is not an Event.
+  /** Flush any Event nodes just landed on, collecting their emitted actions. Returns
+   *  once the current node is not an Event.
+   */
   void flush_events(std::vector<EventAction> &pending);
 
-  /// Handle a Talk node: Cancel closes; Select (or a previously-shown once-node) advances.
+  /** Handle a Talk node: Cancel closes; Select (or a previously-shown once-node) advances. */
   void handle_talk(const Node &node, const input::InputIntent &intent);
 
-  /// Handle a Choice node: cursor movement, selection (executing the edge's actions), Cancel.
+  /** Handle a Choice node: cursor movement, selection (executing the edge's actions), Cancel. */
   void handle_choice(const Node &node, const input::InputIntent &intent, std::vector<EventAction> &pending);
 
-  /// Handle an Event node: execute its actions and advance unless a divert consumes the flow.
+  /** Handle an Event node: execute its actions and advance unless a divert consumes the flow. */
   void handle_event(const Node &node, std::vector<EventAction> &pending);
 
-  /// Deactivate and clear all traversal state.
+  /** Deactivate and clear all traversal state. */
   void reset() noexcept;
 
   bool active_ = false;

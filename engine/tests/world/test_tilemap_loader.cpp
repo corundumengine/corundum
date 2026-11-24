@@ -34,10 +34,11 @@ corundum::test::TempDir temp_dir(std::string_view tag) {
   return corundum::test::TempDir{"crpg_test_tilemap_", tag};
 }
 
-// Builds a spritepacker atlas JSON (schema_version 2) with `count` sprites named "tile_0".."tile_
-// {count-1}", each tile_w x tile_h, laid out in a single non-overlapping row — geometry doesn't
-// need to be visually valid, just structurally valid for the loader. No trim, bottom-center pivot
-// (spritepacker's default), matching what a real pack run would emit for untrimmed square tiles.
+/** Builds a spritepacker atlas JSON (schema_version 2) with `count` sprites named "tile_0".."tile_
+ *  {count-1}", each tile_w x tile_h, laid out in a single non-overlapping row — geometry doesn't
+ *  need to be visually valid, just structurally valid for the loader. No trim, bottom-center pivot
+ *  (spritepacker's default), matching what a real pack run would emit for untrimmed square tiles.
+ */
 std::string make_atlas_json(const std::string &path, int count, int tile_w, int tile_h) {
   std::string sprites;
   for (int i = 0; i < count; ++i) {
@@ -60,11 +61,12 @@ std::string tileset_b_json() {
   return make_atlas_json("game/assets/textures/tileset2.png", 16, 16, 16);
 }
 
-// Builds a minimal single-tileset 2×1 map using tileset A (32 tiles, GIDs 0–31).
-// extra_tiles is the comma-separated row string for the single layer row.
-//
-// Every map in this file embeds its tileset path with generic_string(): a native Windows path's
-// backslashes are invalid JSON escapes, and the loader accepts forward slashes on every platform.
+/** Builds a minimal single-tileset 2×1 map using tileset A (32 tiles, GIDs 0–31).
+ *  extra_tiles is the comma-separated row string for the single layer row.
+ *
+ *  Every map in this file embeds its tileset path with generic_string(): a native Windows path's
+ *  backslashes are invalid JSON escapes, and the loader accepts forward slashes on every platform.
+ */
 fs::path make_single_tileset_map(const fs::path &dir, std::string_view extra_tiles = "0,0") {
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -80,7 +82,7 @@ fs::path make_single_tileset_map(const fs::path &dir, std::string_view extra_til
   return map_path;
 }
 
-/// Builds a 2x1 single-tileset map with an explicit schema_version.
+/** Builds a 2x1 single-tileset map with an explicit schema_version. */
 fs::path make_schema_map(const fs::path &dir, int version) {
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -748,7 +750,7 @@ namespace {
 
 constexpr std::string_view k_edited_tileset_path{"edited/tileset.json"};
 
-/// A one-tileset map at `map_path` in `source`, whose 2×1 layer uses the tileset's first tile.
+/** A one-tileset map at `map_path` in `source`, whose 2×1 layer uses the tileset's first tile. */
 void add_map_using_edited_tileset(corundum::test::MemoryContentSource &source, std::string_view map_path) {
   source.add(map_path, std::format(R"({{"id":"edited","tilesets":[{{"first_gid":0,"source":"{}"}}],)"
                                    R"("width":2,"height":1,"layers":[{{"name":"ground","tiles":["0,0"]}}]}})",
@@ -793,8 +795,9 @@ TEST_CASE("load_tilemap - reloading a map sees its tileset's edited file") {
 
 namespace {
 
-/// Builds a 2×1 single-tileset map whose `collisions` / `collision_triangles` entry carries
-/// `extra_fields` (already comma-prefixed, e.g. `,"elevation":7`).
+/** Builds a 2×1 single-tileset map whose `collisions` / `collision_triangles` entry carries
+ *  `extra_fields` (already comma-prefixed, e.g. `,"elevation":7`).
+ */
 fs::path make_collision_extra_map(const fs::path &dir, std::string_view key, std::string_view extra_fields) {
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";
@@ -812,7 +815,7 @@ fs::path make_collision_extra_map(const fs::path &dir, std::string_view key, std
   return map_path;
 }
 
-/// Builds a 2×1 single-tileset map with a layer-level `elevation` value spliced in verbatim.
+/** Builds a 2×1 single-tileset map with a layer-level `elevation` value spliced in verbatim. */
 fs::path make_elevation_map(const fs::path &dir, std::string_view elevation_json) {
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";

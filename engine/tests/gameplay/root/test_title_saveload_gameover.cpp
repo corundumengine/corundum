@@ -55,7 +55,7 @@ fs::path fixture_root() {
   return CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
 }
 
-/// The shared fixture world with a title and a non-empty game id, so the saves carry a game id.
+/** The shared fixture world with a title and a non-empty game id, so the saves carry a game id. */
 corundum::core::GameConfig make_config(bool show_title) {
   corundum::core::GameConfig cfg = make_world_config(fixture_root());
   cfg.show_title = show_title;
@@ -69,8 +69,9 @@ void init_engine(corundum::Engine &engine, bool show_title) {
   REQUIRE(engine.initialize(make_config(show_title)).has_value());
 }
 
-/// Route one physical action press through the engine's UI step, exactly as the fixed-step
-/// loop does.
+/** Route one physical action press through the engine's UI step, exactly as the fixed-step
+ *  loop does.
+ */
 bool press(corundum::Engine &engine, corundum::input::Action action) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(action));
@@ -79,7 +80,7 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
   return engine.update_engine_screens(intent);
 }
 
-/// True when the recorded frame contains a DrawText whose text equals `text`.
+/** True when the recorded frame contains a DrawText whose text equals `text`. */
 bool rendered_text(const RecordingRenderer &r, std::string_view text) {
   for (const RecordingRenderer::DrawCall &call : r.log) {
     if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call); draw != nullptr && draw->text == text)
@@ -88,7 +89,7 @@ bool rendered_text(const RecordingRenderer &r, std::string_view text) {
   return false;
 }
 
-/// True when any recorded DrawText contains `needle`.
+/** True when any recorded DrawText contains `needle`. */
 bool rendered_text_contains(const RecordingRenderer &r, std::string_view needle) {
   for (const RecordingRenderer::DrawCall &call : r.log) {
     if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call);
@@ -98,29 +99,29 @@ bool rendered_text_contains(const RecordingRenderer &r, std::string_view needle)
   return false;
 }
 
-/// A scratch tree to root the engine's user storage at, standing in for the real user-data dir.
+/** A scratch tree to root the engine's user storage at, standing in for the real user-data dir. */
 struct ScratchUserData {
   corundum::test::TempDir home{"crpg_test_framing_", "user_data"};
 
-  /// Give `engine` a user storage rooted at this scratch tree; call before init_engine().
+  /** Give `engine` a user storage rooted at this scratch tree; call before init_engine(). */
   void attach(corundum::Engine &engine) const {
     engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
   }
 };
 
-/// Overwrite a slot with deliberately invalid JSON.
+/** Overwrite a slot with deliberately invalid JSON. */
 void write_corrupt_slot(corundum::core::UserStorage &storage, std::string_view slot_id) {
   REQUIRE(storage.write(corundum::save::slot_name(slot_id), "not json").has_value());
 }
 
-/// Write `content` to `path`, creating parent directories.
+/** Write `content` to `path`, creating parent directories. */
 void write_file(const fs::path &path, std::string_view content) {
   fs::create_directories(path.parent_path());
   std::ofstream file(path);
   file << content;
 }
 
-/// Render the Loading overlay as run_frame() would; this is what arms Gameplay::advance_loading().
+/** Render the Loading overlay as run_frame() would; this is what arms Gameplay::advance_loading(). */
 void render_loading(corundum::Engine &engine) {
   const corundum::ScreenSpec *spec = engine.screens.find(screens::Loading);
   REQUIRE(spec != nullptr);
@@ -129,8 +130,9 @@ void render_loading(corundum::Engine &engine) {
   spec->render(engine, renderer, {.x = 320.f, .y = 240.f});
 }
 
-/// A credits document long enough to overflow the 320x240 test viewport, so the scroll offset
-/// has somewhere to move.
+/** A credits document long enough to overflow the 320x240 test viewport, so the scroll offset
+ *  has somewhere to move.
+ */
 std::string long_credits_json() {
   std::string lines;
   for (int i = 0; i < 60; ++i) {
@@ -304,8 +306,9 @@ TEST_CASE("title: Settings opens the framing page and Back returns to Title") {
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("save/load: save mode confirms before overwriting and refuses autosave") {
   const ScratchUserData user_data;
@@ -338,8 +341,9 @@ TEST_CASE("save/load: save mode confirms before overwriting and refuses autosave
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("save/load: a corrupt slot cannot be loaded and shows its error") {
   const ScratchUserData user_data;

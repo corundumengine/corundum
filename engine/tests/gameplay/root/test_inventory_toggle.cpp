@@ -28,9 +28,10 @@ using corundum::test::make_world_config;
 using corundum::world::GameMode;
 namespace screens = corundum::gameplay::screens;
 
-/// Route one physical action press through the engine's UI step, exactly as the fixed-step
-/// loop does. Inventory is an engine-owned hub tab, stepped by Engine, not world::update, so
-/// the shared advance_with() helper cannot drive it.
+/** Route one physical action press through the engine's UI step, exactly as the fixed-step
+ *  loop does. Inventory is an engine-owned hub tab, stepped by Engine, not world::update, so
+ *  the shared advance_with() helper cannot drive it.
+ */
 bool press(corundum::Engine &engine, corundum::input::Action action) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(action));

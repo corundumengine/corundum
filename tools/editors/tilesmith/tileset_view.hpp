@@ -16,10 +16,17 @@ namespace tools::tilesmith {
  *  which the view is used.
  */
 struct TilesetView {
-  const corundum::world::tilemap::TilemapTileset *tileset; ///< Pointer into map.tilesets.
-  ImTextureID tex_id; ///< Pre-resolved from sf::Texture::getNativeHandle() by main.cpp.
-  unsigned tex_w;     ///< Texture width in pixels.
-  unsigned tex_h;     ///< Texture height in pixels.
+  /** Pointer into map.tilesets. */
+  const corundum::world::tilemap::TilemapTileset *tileset;
+
+  /** Pre-resolved from sf::Texture::getNativeHandle() by main.cpp. */
+  ImTextureID tex_id;
+
+  /** Texture width in pixels. */
+  unsigned tex_w;
+
+  /** Texture height in pixels. */
+  unsigned tex_h;
 };
 
 } // namespace tools::tilesmith

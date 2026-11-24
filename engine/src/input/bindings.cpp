@@ -68,7 +68,7 @@ constexpr std::array<std::pair<Action, std::string_view>, k_action_count> k_acti
     },
 };
 
-/// `action`'s first input on `device` other than `input`, or nullopt when it has none.
+/** `action`'s first input on `device` other than `input`, or nullopt when it has none. */
 std::optional<PhysicalInput> first_other_input(const Bindings &bindings, Action action, InputDevice device,
                                                PhysicalInput input) {
   const auto row = std::ranges::find_if(bindings, [action, device, input](const Binding &candidate) {
@@ -79,7 +79,7 @@ std::optional<PhysicalInput> first_other_input(const Bindings &bindings, Action 
   return row->input;
 }
 
-/// Whether `action` has any row on `device`.
+/** Whether `action` has any row on `device`. */
 bool has_input_on(const Bindings &bindings, Action action, InputDevice device) {
   return std::ranges::any_of(bindings, [action, device](const Binding &row) {
     return row.action == action && device_of(row.input) == device;
@@ -259,7 +259,7 @@ nlohmann::json serialize(const Bindings &bindings) {
 
 namespace {
 
-/// Why one entry of the serialized array could not be read; empty when it was.
+/** Why one entry of the serialized array could not be read; empty when it was. */
 std::string parse_entry_error(const nlohmann::json &entry, std::size_t index) {
   if (!entry.is_object() || !entry.contains("action") || !entry["action"].is_string() || !entry.contains("device") ||
       !entry["device"].is_string() || !entry.contains("input") || !entry["input"].is_string()) {
@@ -268,23 +268,25 @@ std::string parse_entry_error(const nlohmann::json &entry, std::size_t index) {
   return {};
 }
 
-/// Whether `default_row`'s input is shared with another action by `defaults` themselves.
+/** Whether `default_row`'s input is shared with another action by `defaults` themselves. */
 bool is_shared_default(const Bindings &defaults, const Binding &default_row) {
   return std::ranges::any_of(defaults, [&default_row](const Binding &row) {
     return row.action != default_row.action && row.input == default_row.input;
   });
 }
 
-/// Whether `bindings` holds `default_row`'s input on a row the defaults don't contain, which
-/// means the player moved it to another action.
+/** Whether `bindings` holds `default_row`'s input on a row the defaults don't contain, which
+ *  means the player moved it to another action.
+ */
 bool is_moved_by_player(const Bindings &bindings, const Bindings &defaults, const Binding &default_row) {
   return std::ranges::any_of(bindings, [&defaults, &default_row](const Binding &row) {
     return row.input == default_row.input && std::ranges::find(defaults, row) == defaults.end();
   });
 }
 
-/// Restore the defaults a file omitted, preserving deliberate partial unbinds. See
-/// parse_bindings()'s contract for the exact rules.
+/** Restore the defaults a file omitted, preserving deliberate partial unbinds. See
+ *  parse_bindings()'s contract for the exact rules.
+ */
 void fill_missing_defaults(Bindings &result, const Bindings &defaults) {
   // Whether an action was bound *before* any defaults were restored decides whether its plain
   // defaults are restored as a group; without the snapshot, restoring the first one would make

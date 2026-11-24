@@ -49,9 +49,10 @@ tilemap::Tilemap make_flat_map() {
   return tm;
 }
 
-// A 7x7 world whose chunk window starts centred at (3,3), then shifts one chunk east to
-// (4,3) — mirroring sync_active_chunks()'s recenter → prune → enqueue sequence. Returns the
-// state with the new centre applied and the newly-adjacent east column queued for loading.
+/** A 7x7 world whose chunk window starts centred at (3,3), then shifts one chunk east to
+ *  (4,3) — mirroring sync_active_chunks()'s recenter → prune → enqueue sequence. Returns the
+ *  state with the new centre applied and the newly-adjacent east column queued for loading.
+ */
 render_data::RenderState shifted_window_state() {
   constexpr int k_chunk_size = 16;
   render_data::RenderState state;
@@ -445,7 +446,7 @@ namespace {
 
 constexpr std::string_view k_one_chunk_tileset_path{"one_chunk_world/tileset.json"};
 
-/// A one-tile spritepacker atlas whose texture is `texture_path`.
+/** A one-tile spritepacker atlas whose texture is `texture_path`. */
 std::string one_tile_atlas_json(std::string_view texture_path) {
   return std::format(R"({{"schema_version":2,"path":"{}","width":16,"height":16,"sprites":[)"
                      R"({{"name":"tile_0","x":0,"y":0,"w":16,"h":16,"trim_x":0,"trim_y":0,)"
@@ -453,8 +454,9 @@ std::string one_tile_atlas_json(std::string_view texture_path) {
                      texture_path);
 }
 
-/// A 1×1-chunk world of 2×2 tiles whose chunk uses the tileset at k_one_chunk_tileset_path,
-/// which the caller adds. It has no portals file, which reads as no portals.
+/** A 1×1-chunk world of 2×2 tiles whose chunk uses the tileset at k_one_chunk_tileset_path,
+ *  which the caller adds. It has no portals file, which reads as no portals.
+ */
 corundum::core::GameConfig add_one_chunk_world(corundum::test::MemoryContentSource &content) {
   content.add("one_chunk_world/manifest.json", R"({"chunk_size":2,"chunks_wide":1,"chunks_tall":1})");
   content.add("one_chunk_world/chunk_0_0.json",

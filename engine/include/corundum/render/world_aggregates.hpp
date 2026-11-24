@@ -4,8 +4,8 @@
 #pragma once
 #include <corundum/render/render_state.hpp>
 
-/// World-mode data derived from the active chunk window (collision, walkability, portals) and
-/// the global-tile queries that resolve a tile to its owning chunk.
+// World-mode data derived from the active chunk window (collision, walkability, portals) and
+// the global-tile queries that resolve a tile to its owning chunk.
 namespace corundum::render {
 
 /** Elevation of the world tile under (col_f, row_f), resolved through the active chunk window.

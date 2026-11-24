@@ -107,12 +107,13 @@ void resolve_portals(corundum::entities::TransformTable &transforms, std::uint32
   }
 }
 
-/// Queue a click-to-move path from the player's current cell to the hovered tile.
-///
-/// Deliberately keyed on mouse_click_pressed, not Action::Select — Select is also raised by
-/// keyboard/gamepad confirm presses (which carry no click position), and using it here would
-/// spuriously queue a path toward wherever the mouse happens to hover any time the player
-/// presses Enter/Space/a gamepad button for an unrelated reason (e.g. confirming dialogue).
+/** Queue a click-to-move path from the player's current cell to the hovered tile.
+ *
+ *  Deliberately keyed on mouse_click_pressed, not Action::Select — Select is also raised by
+ *  keyboard/gamepad confirm presses (which carry no click position), and using it here would
+ *  spuriously queue a path toward wherever the mouse happens to hover any time the player
+ *  presses Enter/Space/a gamepad button for an unrelated reason (e.g. confirming dialogue).
+ */
 void queue_click_path(corundum::world::Scene &scene, const corundum::world::MapView &map,
                       const corundum::input::InputState &input, const corundum::entities::CollisionTable &collisions,
                       const corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
@@ -149,9 +150,10 @@ struct NpcColliders {
   }
 };
 
-/// Fill `out` with every entity in `collisions` except `exclude`, converting each feet
-/// position to a collision AABB top-left and capturing its elevation so the player-vs-NPC pass
-/// can gate by elevation (same band as player-vs-world).
+/** Fill `out` with every entity in `collisions` except `exclude`, converting each feet
+ *  position to a collision AABB top-left and capturing its elevation so the player-vs-NPC pass
+ *  can gate by elevation (same band as player-vs-world).
+ */
 void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable &transforms,
                           const corundum::entities::CollisionTable &collisions, corundum::entities::EntityId exclude,
                           const corundum::world::MapView &map) noexcept {
@@ -178,11 +180,12 @@ void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable 
   }
 }
 
-/// Integrate the player in ≤0.5-tile substeps, resolving tile rect/triangle collision and
-/// walkability each step, and return the resolved tile-grid position. Substepping is the
-/// tunneling guard: at high speed the resolver never has to clear more than one cell of
-/// geometry, so thin walls can't be skipped. The initial position is wherever the movement
-/// branch left the entity, so a follow_path snap is preserved.
+/** Integrate the player in ≤0.5-tile substeps, resolving tile rect/triangle collision and
+ *  walkability each step, and return the resolved tile-grid position. Substepping is the
+ *  tunneling guard: at high speed the resolver never has to clear more than one cell of
+ *  geometry, so thin walls can't be skipped. The initial position is wherever the movement
+ *  branch left the entity, so a follow_path snap is preserved.
+ */
 [[nodiscard]] corundum::entities::Position integrate_and_resolve_player(
     corundum::entities::TransformTable &transforms, corundum::entities::EntityId player, std::uint32_t player_slot,
     const corundum::world::MapView &map, const corundum::entities::CollisionTable::Rect &player_rect,
@@ -224,8 +227,9 @@ void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable 
   return p;
 }
 
-/// Resolve the player's footprint against the gathered NPC boxes, anchored on the same point
-/// as the world pass, and return the corrected tile-grid position.
+/** Resolve the player's footprint against the gathered NPC boxes, anchored on the same point
+ *  as the world pass, and return the corrected tile-grid position.
+ */
 [[nodiscard]] corundum::entities::Position
 resolve_npc_collisions(const corundum::entities::CollisionTable::Rect &player_rect,
                        corundum::world::tilemap::CollisionRectsView npc_view, corundum::entities::Position pos,
@@ -245,7 +249,7 @@ resolve_npc_collisions(const corundum::entities::CollisionTable::Rect &player_re
   });
 }
 
-/// Clamp the stored position so the footprint never leaves the map.
+/** Clamp the stored position so the footprint never leaves the map. */
 [[nodiscard]] corundum::entities::Position
 clamp_to_map_bounds(corundum::entities::Position pos, const corundum::entities::CollisionTable::Rect &player_rect,
                     const corundum::world::MapView &map) noexcept {

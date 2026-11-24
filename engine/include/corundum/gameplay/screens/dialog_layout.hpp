@@ -17,19 +17,21 @@
 
 namespace corundum::gameplay::screens {
 
-/// One visible dialogue choice: the index into the node's full choice list and its label
-/// pre-wrapped into the lines the renderer draws in order (at least one, possibly empty).
+/** One visible dialogue choice: the index into the node's full choice list and its label
+ *  pre-wrapped into the lines the renderer draws in order (at least one, possibly empty).
+ */
 struct ChoiceLayout {
   std::size_t index{0};
 
   std::vector<ui::StyledLine> lines{};
 };
 
-/// Computed layout for one dialogue frame. Pure data — no renderer dependency.
-///
-/// Every field carries a default member initializer: build_layout designated-initializes
-/// DialogLayout, and -Wmissing-designated-field-initializers (compiled with warnings-as-errors)
-/// requires each field to have one.
+/** Computed layout for one dialogue frame. Pure data — no renderer dependency.
+ *
+ *  Every field carries a default member initializer: build_layout designated-initializes
+ *  DialogLayout, and -Wmissing-designated-field-initializers (compiled with warnings-as-errors)
+ *  requires each field to have one.
+ */
 struct DialogLayout {
   core::math::Vec2 panel_pos{};
 
@@ -48,8 +50,9 @@ struct DialogLayout {
   gameplay::dialogue::NodeType node_type{gameplay::dialogue::NodeType::End};
 };
 
-/// True when `layout`'s choices carry `indices` in order. Labels are a pure function of
-/// the index, so comparing indices is enough to detect a changed visible-choice set.
+/** True when `layout`'s choices carry `indices` in order. Labels are a pure function of
+ *  the index, so comparing indices is enough to detect a changed visible-choice set.
+ */
 [[nodiscard]] inline bool choices_match(const DialogLayout &layout, const std::vector<std::size_t> &indices) noexcept {
   if (layout.choices.size() != indices.size())
     return false;
@@ -62,19 +65,20 @@ struct DialogLayout {
   return true;
 }
 
-/// Builds a DialogLayout from the current dialogue conversation.
-///
-/// The measure callable is the only coupling to font/platform — callers supply
-/// a lambda wrapping Renderer::measure_text, or a fixed stub for tests.
-///
-/// An inactive conversation yields an End-type layout with empty text, matching the
-/// values Conversation reports while inactive.
-///
-/// @param conversation Active dialogue conversation.
-/// @param style         Panel style; its margin and panel_height_frac drive the frame.
-/// @param border_tile_w Tile width of the nine-patch border (determines inset).
-/// @param viewport      Viewport dimensions in pixels.
-/// @param measure       Callable (std::string_view, ui::FontStyle) -> float returning rendered width.
+/** Builds a DialogLayout from the current dialogue conversation.
+ *
+ *  The measure callable is the only coupling to font/platform — callers supply
+ *  a lambda wrapping Renderer::measure_text, or a fixed stub for tests.
+ *
+ *  An inactive conversation yields an End-type layout with empty text, matching the
+ *  values Conversation reports while inactive.
+ *
+ *  @param conversation Active dialogue conversation.
+ *  @param style         Panel style; its margin and panel_height_frac drive the frame.
+ *  @param border_tile_w Tile width of the nine-patch border (determines inset).
+ *  @param viewport      Viewport dimensions in pixels.
+ *  @param measure       Callable (std::string_view, ui::FontStyle) -> float returning rendered width.
+ */
 template <typename MeasureFn>
 [[nodiscard]] DialogLayout build_layout(const gameplay::dialogue::Conversation &conversation,
                                         const ui::PanelStyle &style, int border_tile_w, core::math::Vec2 viewport,

@@ -14,9 +14,11 @@ namespace corundum::gameplay::credits {
  *  codex entry: the Credits screen owns presentation, this only holds the text.
  */
 struct CreditsSection {
-  std::string heading{}; ///< Section heading, e.g. "Design"; shown above its lines.
+  /** Section heading, e.g. "Design"; shown above its lines. */
+  std::string heading{};
 
-  std::vector<std::string> lines{}; ///< Body lines, drawn in order beneath the heading.
+  /** Body lines, drawn in order beneath the heading. */
+  std::vector<std::string> lines{};
 };
 
 /** A whole credits file: an optional title and background, plus its sections.
@@ -27,7 +29,8 @@ struct CreditsSection {
 struct CreditsFile {
   std::string title{};
 
-  std::string background{}; ///< Path to a background image, empty for none.
+  /** Path to a background image, empty for none. */
+  std::string background{};
 
   std::vector<CreditsSection> sections{};
 };

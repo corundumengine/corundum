@@ -17,8 +17,12 @@ struct NewMapDialogState {
   char id[128] = {};
   int width = 60;
   int height = 45;
-  int iso_diamond_w = 128; ///< Tile footprint width in pixels.
-  int iso_diamond_h = 64;  ///< Tile footprint height in pixels.
+
+  /** Tile footprint width in pixels. */
+  int iso_diamond_w = 128;
+
+  /** Tile footprint height in pixels. */
+  int iso_diamond_h = 64;
   char layer_name[64] = "ground";
   char tileset_source[512] = {};
   std::string error_msg;

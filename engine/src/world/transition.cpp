@@ -36,15 +36,16 @@ namespace {
 
 using corundum::detail::warn_log;
 
-/// Common failure path: log `error` under `context`, request quit, and close the window.
+/** Common failure path: log `error` under `context`, request quit, and close the window. */
 void fail(corundum::Engine &engine, std::string_view context, std::string_view error) noexcept {
   warn_log("[engine] {} failed: {}", context, error);
   engine.request_quit();
   engine.window().close();
 }
 
-/// Zone id for world mode: the manifest's directory name, falling back to the manifest
-/// file stem when it sits directly in the working directory (empty parent).
+/** Zone id for world mode: the manifest's directory name, falling back to the manifest
+ *  file stem when it sits directly in the working directory (empty parent).
+ */
 std::string world_zone_id(const tilemap::WorldManifest &manifest, std::string_view manifest_path) {
   std::string directory = manifest.base_dir.filename().string();
   if (!directory.empty())

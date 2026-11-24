@@ -31,8 +31,9 @@ corundum::test::TempDir temp_dir(std::string_view tag) {
   return corundum::test::TempDir{"crpg_test_ui_assets_", tag};
 }
 
-/// A 6×6-frame atlas whose nine-patch cells are 2×2 frames (32px), matching the shipped
-/// border. The loader must report the cell size (span × frame), not the single-frame size.
+/** A 6×6-frame atlas whose nine-patch cells are 2×2 frames (32px), matching the shipped
+ *  border. The loader must report the cell size (span × frame), not the single-frame size.
+ */
 constexpr std::string_view k_borders_json = R"({
     "frame_width": 16,
     "frame_height": 16,

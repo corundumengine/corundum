@@ -24,7 +24,7 @@ namespace {
   });
 }
 
-// Returns a non-empty error string if validation fails, empty string on success.
+/** Returns a non-empty error string if validation fails, empty string on success. */
 [[nodiscard]] static std::string validate(const NewMapDialogState &dlg) {
   if (!is_valid_id(dlg.id))
     return "Map ID must be non-empty and contain only letters, digits, _ or -.";

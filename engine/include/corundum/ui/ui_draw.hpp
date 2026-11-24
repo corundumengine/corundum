@@ -30,7 +30,7 @@ struct PanelRect {
   core::math::Vec2 size{};
 };
 
-/// Maximum width, in logical pixels, of a viewport-filling screen panel.
+/** Maximum width, in logical pixels, of a viewport-filling screen panel. */
 inline constexpr float k_screen_panel_max_width = 1600.f;
 
 /** Geometry of a screen panel that fills the viewport.
@@ -53,15 +53,20 @@ inline constexpr float k_screen_panel_max_width = 1600.f;
  *  exactly the space InputIntent::cursor_x/cursor_y use.
  */
 struct ListHit {
-  core::math::Vec2 row_pos{}; ///< Top-left of the first visible row's hit rectangle.
+  /** Top-left of the first visible row's hit rectangle. */
+  core::math::Vec2 row_pos{};
 
-  float row_width{}; ///< Hit width of every row.
+  /** Hit width of every row. */
+  float row_width{};
 
-  float row_height{}; ///< Row stride.
+  /** Row stride. */
+  float row_height{};
 
-  int first_row{}; ///< Index of the topmost visible row (a scroll offset).
+  /** Index of the topmost visible row (a scroll offset). */
+  int first_row{};
 
-  int visible_rows{}; ///< Number of rows actually drawn.
+  /** Number of rows actually drawn. */
+  int visible_rows{};
 };
 
 /** Index of the row under `cursor` in a uniform list, or -1.

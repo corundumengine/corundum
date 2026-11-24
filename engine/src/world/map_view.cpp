@@ -18,7 +18,7 @@ namespace corundum::world {
 
 namespace {
 
-/// MapView for a single map.
+/** MapView for a single map. */
 [[nodiscard]] MapView build_single_map_view(const render::SingleMapArea &area, const core::GameConfig &cfg) noexcept {
   const tilemap::Tilemap &tm = area.map.tilemap;
   const core::math::IsometricParams isometric = render::isometric_params(area, cfg);
@@ -39,8 +39,9 @@ namespace {
   };
 }
 
-/// MapView for a streamed world.
-/// @pre `area` has at least one active chunk and its aggregates are rebuilt.
+/** MapView for a streamed world.
+ *  @pre `area` has at least one active chunk and its aggregates are rebuilt.
+ */
 [[nodiscard]] MapView build_world_map_view(const render::WorldArea &area, const core::GameConfig &cfg) noexcept {
   const tilemap::WorldManifest &manifest = area.manifest;
   const int total_h{manifest.effective_tiles_tall()};
@@ -62,8 +63,9 @@ namespace {
   };
 }
 
-/// With no area loaded, fixed steps still run (see the fixed-step loop in engine.cpp) and see
-/// an empty single map, as they did before RenderState::area became a variant.
+/** With no area loaded, fixed steps still run (see the fixed-step loop in engine.cpp) and see
+ *  an empty single map, as they did before RenderState::area became a variant.
+ */
 [[nodiscard]] const render::SingleMapArea &no_area() noexcept {
   static const render::SingleMapArea k_empty{};
   return k_empty;

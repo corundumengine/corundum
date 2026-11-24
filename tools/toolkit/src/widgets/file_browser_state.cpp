@@ -31,7 +31,7 @@ namespace {
   return std::get_if<OpenRequest>(&*fb.request);
 }
 
-/// Append `extension` to `name` unless `name` already ends in it.
+/** Append `extension` to `name` unless `name` already ends in it. */
 [[nodiscard]] std::string with_extension(std::string_view name, std::string_view extension) {
   const bool already_has_extension = corundum::core::has_extension(std::filesystem::path{name}, extension);
   if (extension.empty() || already_has_extension)
@@ -42,8 +42,9 @@ namespace {
   return extended;
 }
 
-/// Rebuild `fb`'s listing from current_dir: directories, plus in Open mode the files whose extension
-/// matches. list_dir_entries() already sorts directories first, then alphabetically.
+/** Rebuild `fb`'s listing from current_dir: directories, plus in Open mode the files whose extension
+ *  matches. list_dir_entries() already sorts directories first, then alphabetically.
+ */
 void refresh_entries(FileBrowserState &fb) {
   fb.entries.clear();
   fb.selected_entry.reset();

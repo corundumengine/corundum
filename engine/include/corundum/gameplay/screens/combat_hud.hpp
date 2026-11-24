@@ -24,21 +24,26 @@ struct CombatHudRow {
 
   bool is_hostile{};
 
-  bool is_target{}; ///< The fight's chosen hostile; its name draws in the selected colour.
+  /** The fight's chosen hostile; its name draws in the selected colour. */
+  bool is_target{};
 
-  std::string name{}; ///< Copied from rules::Fight::names when the fight starts.
+  /** Copied from rules::Fight::names when the fight starts. */
+  std::string name{};
 };
 
 /** One command-bar slot: the actions that press it, and what it does. */
 struct CombatHudCommand {
-  input::Action action{input::Action::CombatCommand1}; ///< The key that presses it.
+  /** The key that presses it. */
+  input::Action action{input::Action::CombatCommand1};
 
   /** The action whose gamepad button presses it while its page shows; nullopt off the page. */
   std::optional<input::Action> gamepad_action{};
 
-  bool is_available{true}; ///< Drawn dimmed when false.
+  /** Drawn dimmed when false. */
+  bool is_available{true};
 
-  bool is_highlighted{}; ///< Drawn highlighted: the queued command.
+  /** Drawn highlighted: the queued command. */
+  bool is_highlighted{};
 
   std::string label{};
 };
@@ -47,12 +52,14 @@ struct CombatHudCommand {
 struct CombatHudPage {
   std::size_t count{1};
 
-  std::size_t index{}; ///< Below count.
+  /** Below count. */
+  std::size_t index{};
 };
 
 /** What the combat HUD shows: the command bar and one row per combatant. */
 struct CombatHud {
-  std::vector<CombatHudCommand> commands{}; ///< Attack, then the protagonist's commands.
+  /** Attack, then the protagonist's commands. */
+  std::vector<CombatHudCommand> commands{};
 
   CombatHudPage page{};
 

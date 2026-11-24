@@ -32,7 +32,7 @@ corundum::test::TempDir temp_dir(std::string_view tag) {
   return corundum::test::TempDir{"crpg_test_character_registry_", tag};
 }
 
-/// Minimal valid character sheet: one sprite with authored footprints on a 3x1 grid.
+/** Minimal valid character sheet: one sprite with authored footprints on a 3x1 grid. */
 std::string sheet_json(std::string_view id, std::string_view sprite) {
   return R"({"id":")" + std::string{id} + R"(","path":"game/assets/)" + std::string{id} +
          R"(.png","frame_width":32,"frame_height":32,"frames":{")" + std::string{sprite} +

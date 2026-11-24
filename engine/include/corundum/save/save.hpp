@@ -42,11 +42,14 @@ constexpr std::string_view k_quicksave_slot = "quicksave";
  *  (Gameplay maps the scene's zone id through its location registry).
  */
 struct SaveMeta {
-  std::string location_name{}; ///< Display name of the location at save time.
+  /** Display name of the location at save time. */
+  std::string location_name{};
 
-  std::int64_t playtime_seconds{}; ///< Accumulated playtime, in seconds.
+  /** Accumulated playtime, in seconds. */
+  std::int64_t playtime_seconds{};
 
-  std::int64_t saved_at_unix{}; ///< Wall-clock save time, as Unix epoch seconds.
+  /** Wall-clock save time, as Unix epoch seconds. */
+  std::int64_t saved_at_unix{};
 };
 
 /** One row of the save/load list: a slot on disk, or the error that makes it corrupt.
@@ -55,11 +58,14 @@ struct SaveMeta {
  *  A slot whose file does not exist produces no row at all.
  */
 struct SaveSlotInfo {
-  std::string slot_id{}; ///< File stem: `slot_01`, `quicksave` or `autosave`.
+  /** File stem: `slot_01`, `quicksave` or `autosave`. */
+  std::string slot_id{};
 
-  std::optional<SaveMeta> meta{}; ///< Metadata when the slot is valid; empty when corrupt.
+  /** Metadata when the slot is valid; empty when corrupt. */
+  std::optional<SaveMeta> meta{};
 
-  std::string error{}; ///< Why the slot is corrupt; empty when valid.
+  /** Why the slot is corrupt; empty when valid. */
+  std::string error{};
 };
 
 /** JSON `mode` value for a single loaded tilemap. */
@@ -76,25 +82,35 @@ constexpr std::string_view k_mode_world = "world";
  *  to be mirrored into the FlagStore; the record captures nothing else.
  */
 struct SaveState {
-  int version = k_save_version; ///< On-disk format version.
+  /** On-disk format version. */
+  int version = k_save_version;
 
-  std::string game_id; ///< From game.json — guards cross-game loads.
+  /** From game.json — guards cross-game loads. */
+  std::string game_id;
 
-  std::string mode = std::string{k_mode_single_map}; ///< k_mode_single_map or k_mode_world.
+  /** k_mode_single_map or k_mode_world. */
+  std::string mode = std::string{k_mode_single_map};
 
-  std::string map_or_world_id; ///< Tilemap path (single_map) or world manifest path (world).
+  /** Tilemap path (single_map) or world manifest path (world). */
+  std::string map_or_world_id;
 
-  std::string active_zone; ///< Scene::zone_id at save time.
+  /** Scene::zone_id at save time. */
+  std::string active_zone;
 
-  float player_col = 0.f; ///< Player tile column.
+  /** Player tile column. */
+  float player_col = 0.f;
 
-  float player_row = 0.f; ///< Player tile row.
+  /** Player tile row. */
+  float player_row = 0.f;
 
-  bool entered_from_world = false; ///< Return-journey marker across interiors.
+  /** Return-journey marker across interiors. */
+  bool entered_from_world = false;
 
-  SaveMeta meta{}; ///< Slot-list metadata (location name, playtime, timestamp).
+  /** Slot-list metadata (location name, playtime, timestamp). */
+  SaveMeta meta{};
 
-  corundum::world::FlagStore flags; ///< Global flags, verbatim.
+  /** Global flags, verbatim. */
+  corundum::world::FlagStore flags;
 };
 
 /** The file name for manual slot `index` (0-based), e.g. `slot_01`.

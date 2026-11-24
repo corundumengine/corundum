@@ -18,7 +18,7 @@ using corundum::world::TileCoord;
 
 namespace {
 
-// Minimal single-entity TransformTable setup shared by these cases.
+/** Minimal single-entity TransformTable setup shared by these cases. */
 struct Fixture {
   TransformTable transforms;
   EntityId player = static_cast<EntityId>(0);

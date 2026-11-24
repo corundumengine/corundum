@@ -7,34 +7,38 @@
 
 namespace corundum::ui {
 
-/// A nine-patch border defined by a uniform 3×3 grid of equal cells.
-///
-/// The source texture is laid out as three equal columns and three equal rows of
-/// `tile_w × tile_h` cells, anchored at the texture origin. Corners are drawn at
-/// their natural cell size; edges are stretched to span the gap between them; the
-/// middle cell is never drawn.
-///
-/// @note nine_patch_render() is a no-op when `texture_id` is TextureId::Invalid (no texture loaded)
-///       or `tile_w` / `tile_h` are non-positive (malformed asset), so callers need
-///       not guard those cases.
+/** A nine-patch border defined by a uniform 3×3 grid of equal cells.
+ *
+ *  The source texture is laid out as three equal columns and three equal rows of
+ *  `tile_w × tile_h` cells, anchored at the texture origin. Corners are drawn at
+ *  their natural cell size; edges are stretched to span the gap between them; the
+ *  middle cell is never drawn.
+ *
+ *  @note nine_patch_render() is a no-op when `texture_id` is TextureId::Invalid (no texture loaded)
+ *        or `tile_w` / `tile_h` are non-positive (malformed asset), so callers need
+ *        not guard those cases.
+ */
 struct NinePatchBorder {
   platform::TextureId texture_id{platform::TextureId::Invalid};
 
-  int tile_w{0}; ///< Width in pixels of one source cell; must be > 0 for the frame to draw.
+  /** Width in pixels of one source cell; must be > 0 for the frame to draw. */
+  int tile_w{0};
 
-  int tile_h{0}; ///< Height in pixels of one source cell; must be > 0 for the frame to draw.
+  /** Height in pixels of one source cell; must be > 0 for the frame to draw. */
+  int tile_h{0};
 };
 
-/// Draw `border` as a frame around the rect at (`x`, `y`) with size (`w`, `h`).
-///
-/// @param r      Renderer; receives up to eight DrawSprite commands (corners, then edges).
-/// @param border Border texture and cell dimensions.
-/// @param x      Left of the framed rect in screen pixels.
-/// @param y      Top of the framed rect in screen pixels.
-/// @param w      Width of the framed rect in screen pixels; must be non-negative.
-/// @param h      Height of the framed rect in screen pixels; must be non-negative.
-/// @note A rect narrower or shorter than two cells collapses the affected inner span to
-///       zero rather than emitting a negative-scaled (inverted) edge quad.
+/** Draw `border` as a frame around the rect at (`x`, `y`) with size (`w`, `h`).
+ *
+ *  @param r      Renderer; receives up to eight DrawSprite commands (corners, then edges).
+ *  @param border Border texture and cell dimensions.
+ *  @param x      Left of the framed rect in screen pixels.
+ *  @param y      Top of the framed rect in screen pixels.
+ *  @param w      Width of the framed rect in screen pixels; must be non-negative.
+ *  @param h      Height of the framed rect in screen pixels; must be non-negative.
+ *  @note A rect narrower or shorter than two cells collapses the affected inner span to
+ *        zero rather than emitting a negative-scaled (inverted) edge quad.
+ */
 void nine_patch_render(platform::Renderer &r, const NinePatchBorder &border, float x, float y, float w, float h);
 
 } // namespace corundum::ui

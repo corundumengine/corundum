@@ -24,8 +24,9 @@ namespace corundum::sprites {
 
 namespace {
 
-/// Reads a required key as T, converting a missing key or a wrong-typed value into an error
-/// string rather than letting nlohmann throw out of the load path.
+/** Reads a required key as T, converting a missing key or a wrong-typed value into an error
+ *  string rather than letting nlohmann throw out of the load path.
+ */
 template <typename T>
 std::expected<T, std::string> required_value(const json &object, const char *key, const fs::path &path) {
   if (!object.contains(key))
@@ -37,9 +38,10 @@ std::expected<T, std::string> required_value(const json &object, const char *key
   }
 }
 
-/// Parse one "frames" entry. Metadata keys are read first; every remaining key must resolve
-/// to an AnimId, because the runtime only ever plays the direction-indexed anim_frames and a
-/// misspelled clip would otherwise load without error and do nothing.
+/** Parse one "frames" entry. Metadata keys are read first; every remaining key must resolve
+ *  to an AnimId, because the runtime only ever plays the direction-indexed anim_frames and a
+ *  misspelled clip would otherwise load without error and do nothing.
+ */
 std::expected<CharacterSpriteEntry, std::string> parse_sprite_entry(const std::string &sprite_name,
                                                                     const json &anims_json, const fs::path &path) {
   CharacterSpriteEntry entry;

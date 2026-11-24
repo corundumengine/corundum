@@ -17,15 +17,23 @@ struct MapView; // defined in map_view.hpp — forward-declared to keep this hea
  */
 class Camera {
 public:
-  /// Camera feel constants — tuned for feel, deliberately not GameConfig fields.
-  static constexpr float k_horizontal_margin{200.0f}; ///< On-screen follow dead-zone width in px.
-  static constexpr float k_vertical_margin{150.0f};   ///< On-screen follow dead-zone height in px.
-  static constexpr float k_zoom_base{1.1f};           ///< Multiplicative step per zoom notch.
+  // Camera feel constants — tuned for feel, deliberately not GameConfig fields.
+
+  /** On-screen follow dead-zone width in px. */
+  static constexpr float k_horizontal_margin{200.0f};
+
+  /** On-screen follow dead-zone height in px. */
+  static constexpr float k_vertical_margin{150.0f};
+
+  /** Multiplicative step per zoom notch. */
+  static constexpr float k_zoom_base{1.1f};
 
   float x{0.f};
   float y{0.f};
-  /// Camera-level zoom factor; 1.0 = no zoom. Renderer-only projection scale —
-  /// never baked into tile/collision/walkability projection math.
+
+  /** Camera-level zoom factor; 1.0 = no zoom. Renderer-only projection scale —
+   *  never baked into tile/collision/walkability projection math.
+   */
   float zoom{1.f};
 
   /** Update the camera position to follow a target with a dead zone.

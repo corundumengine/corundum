@@ -19,8 +19,11 @@ namespace corundum::platform::miniaudio {
 
 /** Where a MiniaudioBackend sends its mix. */
 enum class MiniaudioOutput : std::uint8_t {
-  Device,   ///< The default OS output device; miniaudio's audio thread pulls the mix.
-  Headless, ///< No device: the mix advances only through render_frames(), for deterministic tests.
+  /** The default OS output device; miniaudio's audio thread pulls the mix. */
+  Device,
+
+  /** No device: the mix advances only through render_frames(), for deterministic tests. */
+  Headless,
 };
 
 /** AudioBackend over miniaudio's high-level engine (ma_engine).

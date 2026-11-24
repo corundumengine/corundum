@@ -11,18 +11,18 @@
 
 namespace corundum::core {
 
-/// Cardinal and intercardinal screen-space directions. Count is a sentinel; keep it last.
+/** Cardinal and intercardinal screen-space directions. Count is a sentinel; keep it last. */
 enum class Direction : uint8_t { South, North, East, West, NorthEast, SouthEast, SouthWest, NorthWest, Count };
 
-/// Number of real directions; use as array extent.
+/** Number of real directions; use as array extent. */
 inline constexpr uint8_t k_num_directions = static_cast<uint8_t>(Direction::Count);
 
-/// Canonical lowercase name of each Direction, indexed by value (also the sheet JSON key).
+/** Canonical lowercase name of each Direction, indexed by value (also the sheet JSON key). */
 inline constexpr std::array<std::string_view, k_num_directions> k_direction_names = {
     "south", "north", "east", "west", "northeast", "southeast", "southwest", "northwest",
 };
 
-/// Lookup table mapping a Direction to its opposite, indexed by Direction value.
+/** Lookup table mapping a Direction to its opposite, indexed by Direction value. */
 inline constexpr std::array<Direction, k_num_directions> k_opposite_direction = {
     Direction::North,     Direction::South,     Direction::West,      Direction::East,
     Direction::SouthWest, Direction::NorthWest, Direction::NorthEast, Direction::SouthEast,

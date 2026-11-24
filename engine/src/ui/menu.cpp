@@ -30,7 +30,7 @@ constexpr float k_menu_title_gap = 12.f;
 constexpr float k_menu_footer_gap = 14.f;
 constexpr std::string_view k_menu_title = "Paused";
 
-/// Footer hint, using the last-used device's glyphs.
+/** Footer hint, using the last-used device's glyphs. */
 std::string menu_footer(input::InputDevice last_device) {
   return std::format("{} Select   {} Close", input_glyph(input::Action::Activate, last_device),
                      input_glyph(input::Action::Cancel, last_device));

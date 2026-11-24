@@ -24,8 +24,9 @@ namespace corundum::core {
 
 namespace {
 
-/// A storage name must stay inside root_: non-empty, with no root component (a leading '/'
-/// or "C:" would replace root_'s root in operator/) and no ".." component.
+/** A storage name must stay inside root_: non-empty, with no root component (a leading '/'
+ *  or "C:" would replace root_'s root in operator/) and no ".." component.
+ */
 [[nodiscard]] bool is_valid_storage_name(std::string_view name) {
   const std::filesystem::path relative{name};
   return !name.empty() && !relative.has_root_path() &&
@@ -36,9 +37,10 @@ namespace {
   return std::format("invalid storage name '{}' (must be non-empty, relative, with no '..' component)", name);
 }
 
-/// Join a `/`-separated storage name onto `root` using the platform's separator, so
-/// error messages show one consistent path (`saves/slot_01.json` would otherwise keep
-/// its forward slashes next to the root's backslashes).
+/** Join a `/`-separated storage name onto `root` using the platform's separator, so
+ *  error messages show one consistent path (`saves/slot_01.json` would otherwise keep
+ *  its forward slashes next to the root's backslashes).
+ */
 [[nodiscard]] std::filesystem::path native_path(const std::filesystem::path &root, std::string_view name) {
   std::filesystem::path path = root;
   for (const std::filesystem::path &part : std::filesystem::path(name))
@@ -93,7 +95,7 @@ std::expected<std::unique_ptr<UserStorage>, std::string> make_user_storage(std::
   return std::make_unique<DirectoryUserStorage>(std::move(*root));
 }
 
-// clang-tidy maps nlohmann::json to json_fwd.hpp; json.hpp above is the full definition it needs.
+/** clang-tidy maps nlohmann::json to json_fwd.hpp; json.hpp above is the full definition it needs. */
 // NOLINTNEXTLINE(misc-include-cleaner)
 std::expected<nlohmann::json, std::string> read_json(const UserStorage &storage, std::string_view name,
                                                      std::string_view label) {

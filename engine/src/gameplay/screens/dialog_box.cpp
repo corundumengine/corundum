@@ -28,8 +28,9 @@ namespace corundum::gameplay::screens {
 
 namespace {
 
-/// Emits one DrawText in the Dialogue family's `font_style`. Empty text is skipped, so
-/// callers never special-case an absent speaker or an empty line.
+/** Emits one DrawText in the Dialogue family's `font_style`. Empty text is skipped, so
+ *  callers never special-case an absent speaker or an empty line.
+ */
 void draw_dialogue_text(platform::Renderer &r, const ui::PanelStyle &style, ui::FontStyle font_style,
                         std::string_view text, unsigned size, core::math::Colour colour, float x, float y) {
   if (text.empty())
@@ -43,32 +44,33 @@ void draw_dialogue_text(platform::Renderer &r, const ui::PanelStyle &style, ui::
   });
 }
 
-/// Draws one wrapped segment, offset by its cumulative x within the line.
+/** Draws one wrapped segment, offset by its cumulative x within the line. */
 void draw_dialogue_segment(platform::Renderer &r, const ui::PanelStyle &style, const ui::StyledSegment &segment,
                            unsigned size, core::math::Colour colour, float x, float y) {
   draw_dialogue_text(r, style, segment.style, segment.text, size, colour, x + segment.x, y);
 }
 
-/// Draws every segment of a wrapped — possibly partially revealed — line, preserving each
-/// run's style.
+/** Draws every segment of a wrapped — possibly partially revealed — line, preserving each
+ *  run's style.
+ */
 void draw_segments(platform::Renderer &r, const ui::PanelStyle &style, const std::vector<ui::StyledSegment> &segments,
                    unsigned size, core::math::Colour colour, float x, float y) {
   for (const ui::StyledSegment &segment : segments)
     draw_dialogue_segment(r, style, segment, size, colour, x, y);
 }
 
-/// Device-aware footer for a Talk node: Select continues, Cancel closes.
+/** Device-aware footer for a Talk node: Select continues, Cancel closes. */
 std::string talk_footer(input::InputDevice last_device) {
   return std::format("{} Continue   {} Close", ui::input_glyph(input::Action::Select, last_device),
                      ui::input_glyph(input::Action::Cancel, last_device));
 }
 
-/// Device-aware footer for an End node: Select closes.
+/** Device-aware footer for an End node: Select closes. */
 std::string end_footer(input::InputDevice last_device) {
   return std::format("{} Close", ui::input_glyph(input::Action::Select, last_device));
 }
 
-/// Draws the speaker header, the revealed body, and the continue prompt of a Talk node.
+/** Draws the speaker header, the revealed body, and the continue prompt of a Talk node. */
 void render_talk_body(const DialogLayout &layout, const DialogBoxState &ds, platform::Renderer &r,
                       const ui::PanelStyle &style, input::InputDevice last_device) {
   const float x = layout.panel_pos.x + layout.inset;
@@ -97,8 +99,9 @@ void render_talk_body(const DialogLayout &layout, const DialogBoxState &ds, plat
                      x, y + (style.line_spacing / 2.f));
 }
 
-/// Draws each visible choice, one StyledLine at a time, keeping the selected colour on
-/// continuation lines while only the first shows the cursor.
+/** Draws each visible choice, one StyledLine at a time, keeping the selected colour on
+ *  continuation lines while only the first shows the cursor.
+ */
 void render_choices(const DialogLayout &layout, platform::Renderer &r, const ui::PanelStyle &style) {
   const float x = layout.panel_pos.x + layout.inset;
   const std::string_view header = layout.speaker.empty() ? std::string_view{"Choose:"} : layout.speaker;

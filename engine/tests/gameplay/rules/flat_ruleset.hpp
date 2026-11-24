@@ -15,8 +15,9 @@
 
 namespace corundum::test {
 
-/// The minimal ruleset the framework is tested against: one Health row read verbatim from the
-/// `test.health` and `test.max_health` flags. It holds no game-specific rule.
+/** The minimal ruleset the framework is tested against: one Health row read verbatim from the
+ *  `test.health` and `test.max_health` flags. It holds no game-specific rule.
+ */
 inline gameplay::rules::Ruleset make_flat_ruleset() {
   return gameplay::rules::Ruleset{
       .character_rows =
@@ -35,16 +36,17 @@ inline constexpr std::string_view k_flat_health_key = "health";
 
 inline constexpr int k_flat_max_health = 2;
 
-/// The minimal combat the framework is tested against, one tick per 60 Hz step.
-///
-/// The protagonist ("hero") starts at the `test.hero.start` flag's beats with 2 Health less the
-/// `test.hero.damage` flag. Its commands are "focus" (label "Focus": always available, does
-/// nothing), "tonic" (label "Tonic": available while the `test.hero.tonics` flag is above 0, it
-/// uses one up and heals 1) and "salve" (label "Salve": always available, does nothing).
-///
-/// A creature, named by its id, starts at 0 beats with 2 Health in its state and has no
-/// commands. Reach is 1 and every wind-up 20 beats. Every attack lands for 1, reporting
-/// "<attacker> hits <target>". The creature id "missing" fails to join.
+/** The minimal combat the framework is tested against, one tick per 60 Hz step.
+ *
+ *  The protagonist ("hero") starts at the `test.hero.start` flag's beats with 2 Health less the
+ *  `test.hero.damage` flag. Its commands are "focus" (label "Focus": always available, does
+ *  nothing), "tonic" (label "Tonic": available while the `test.hero.tonics` flag is above 0, it
+ *  uses one up and heals 1) and "salve" (label "Salve": always available, does nothing).
+ *
+ *  A creature, named by its id, starts at 0 beats with 2 Health in its state and has no
+ *  commands. Reach is 1 and every wind-up 20 beats. Every attack lands for 1, reporting
+ *  "<attacker> hits <target>". The creature id "missing" fails to join.
+ */
 inline CombatRules make_flat_combat_rules() {
   using gameplay::rules::CombatContext;
   using gameplay::rules::CommandOption;

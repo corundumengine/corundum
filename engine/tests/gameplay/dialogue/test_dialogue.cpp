@@ -27,17 +27,18 @@
 #include <utility>
 #include <vector>
 
-// Builds an in-memory graph matching the innkeeper scenario (new schema):
-//   n0 (Talk) → n1 (Choice)
-//     choice 0: "I need a room." — condition: gold >= 5 && !paid_innkeeper
-//                                  actions: gold -= 5, paid_innkeeper = true
-//                                  sequence: Once → n_pay
-//     choice 1: "I need a room." — condition: paid_innkeeper == true → n_already_paid
-//     choice 2: "Just passing through." → n_bye
-//   n_pay   (Event) actions: play_sound('coin') → n2
-//   n2      (Talk)  → end
-//   n_already_paid (Talk) → end
-//   n_bye   (Talk)  → end
+/** Builds an in-memory graph matching the innkeeper scenario (new schema):
+ *    n0 (Talk) → n1 (Choice)
+ *      choice 0: "I need a room." — condition: gold >= 5 && !paid_innkeeper
+ *                                   actions: gold -= 5, paid_innkeeper = true
+ *                                   sequence: Once → n_pay
+ *      choice 1: "I need a room." — condition: paid_innkeeper == true → n_already_paid
+ *      choice 2: "Just passing through." → n_bye
+ *    n_pay   (Event) actions: play_sound('coin') → n2
+ *    n2      (Talk)  → end
+ *    n_already_paid (Talk) → end
+ *    n_bye   (Talk)  → end
+ */
 using corundum::test::disk;
 
 namespace {
@@ -124,15 +125,16 @@ corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
 
 namespace {
 
-/// Pushes a node into a graph, maintaining the id→index map.
+/** Pushes a node into a graph, maintaining the id→index map. */
 void push_node(corundum::gameplay::dialogue::Graph &g, corundum::gameplay::dialogue::Node n) {
   g.id_to_index[n.id] = g.nodes.size();
   g.nodes.push_back(std::move(n));
 }
 
-/// Source text of a compiled choice condition, or empty when the edge has none. The optional
-/// access lives here behind an early-return guard rather than inside a CHECK, which
-/// bugprone-unchecked-optional-access cannot reason about through the doctest macro.
+/** Source text of a compiled choice condition, or empty when the edge has none. The optional
+ *  access lives here behind an early-return guard rather than inside a CHECK, which
+ *  bugprone-unchecked-optional-access cannot reason about through the doctest macro.
+ */
 std::string_view condition_source(const corundum::gameplay::dialogue::ChoiceEdge &edge) {
   if (!edge.condition.has_value())
     return {};
@@ -733,8 +735,9 @@ using corundum::gameplay::dialogue::Graph;
 using corundum::gameplay::dialogue::Node;
 using corundum::gameplay::dialogue::NodeType;
 
-/// Hub graph: a0 (Talk) → a_divert (Event goto_graph) → a1 (Talk) → end.
-/// The resume point after return_graph() is a1 (the divert node's successor).
+/** Hub graph: a0 (Talk) → a_divert (Event goto_graph) → a1 (Talk) → end.
+ *  The resume point after return_graph() is a1 (the divert node's successor).
+ */
 Graph make_hub_graph(const std::string &spoke, const std::string &spoke_entry) {
   Graph g;
   g.graph_id = "hub";
@@ -766,7 +769,7 @@ Graph make_hub_graph(const std::string &spoke, const std::string &spoke_entry) {
   return g;
 }
 
-/// Spoke graph: b0 (Talk) → b_ret (Event return_graph) → end.
+/** Spoke graph: b0 (Talk) → b_ret (Event return_graph) → end. */
 Graph make_leaf_graph(const std::string &id, const std::string &entry) {
   Graph g;
   g.graph_id = id;
@@ -790,7 +793,7 @@ Graph make_leaf_graph(const std::string &id, const std::string &entry) {
   return g;
 }
 
-/// Mid graph: b0 (Talk) → b_divert (Event goto_graph leaf) → b1 (Talk) → b_ret (return).
+/** Mid graph: b0 (Talk) → b_divert (Event goto_graph leaf) → b1 (Talk) → b_ret (return). */
 Graph make_mid_graph() {
   Graph g;
   g.graph_id = "mid";

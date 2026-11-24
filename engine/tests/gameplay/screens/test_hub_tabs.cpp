@@ -37,8 +37,9 @@ TEST_CASE("hub_tab_label: names the four tabs and nothing else") {
   CHECK(hub_tab_label(GameMode::Menu).empty());
 }
 
-// doctest's CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("hub_tab_strip: tabs are ordered, non-overlapping and centered") {
   RecordingRenderer r;

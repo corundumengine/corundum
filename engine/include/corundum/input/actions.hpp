@@ -18,37 +18,91 @@ enum class Action : uint8_t {
   MoveLeft,
   MoveRight,
   Select,
-  Activate, ///< World/UI "use this thing" intent, distinct from the dialogue/confirm Select.
+
+  /** World/UI "use this thing" intent, distinct from the dialogue/confirm Select. */
+  Activate,
   Cancel,
   Quit,
   ZoomIn,
   ZoomOut,
-  Inventory,  ///< Inventory hotkey (I). Opens the hub on the Inventory tab.
-  Journal,    ///< Journal hotkey (J). Opens the hub on the Journal tab.
-  Codex,      ///< Codex hotkey (C). Opens the hub on the Codex tab.
-  Map,        ///< Map/fast-travel hotkey (M). Opens the hub on the Map tab.
-  Character,  ///< Character-sheet hotkey (P). Opens the character sheet from Exploring.
-  Menu,       ///< Pause/system menu toggle (Esc / gamepad Start).
-  Hub,        ///< Menu-hub toggle (gamepad Y). Opens the last hub tab; closes it when one is on top.
-  TabNext,    ///< Next tab: settings pages, barter Buy/Sell, hub tabs (] / gamepad R1).
-  TabPrev,    ///< Previous tab: settings pages, barter Buy/Sell, hub tabs ([ / gamepad L1).
-  SubTabNext, ///< Next sub-tab inside a hub tab: journal Active/Completed/Failed (. / gamepad R2).
-  SubTabPrev, ///< Previous sub-tab inside a hub tab: journal Active/Completed/Failed (, / gamepad L2).
-  Pause,      ///< Combat pause toggle (Space / gamepad X). Only a fight reads it; Space also raises Select/Activate.
-  CombatCommand1,   ///< Fight: attack the hostile (1 / gamepad A, shared with Select/Activate).
-  CombatCommand2,   ///< Fight: press the command bar's second slot (2 / gamepad Y, shared with Hub).
-  CombatCommand3,   ///< Fight: press the command bar's third slot (3 / gamepad B, shared with Cancel).
-  CombatCommand4,   ///< Fight: press the fourth slot (4). Slots 4 to 9 are keyboard only; a gamepad pages A/Y/B.
-  CombatCommand5,   ///< Fight: press the fifth slot (5).
-  CombatCommand6,   ///< Fight: press the sixth slot (6).
-  CombatCommand7,   ///< Fight: press the seventh slot (7).
-  CombatCommand8,   ///< Fight: press the eighth slot (8).
-  CombatCommand9,   ///< Fight: press the ninth slot (9).
-  CombatPageNext,   ///< Fight: show the bar's next three slots on A/Y/B (gamepad R1, shared with TabNext).
-  CombatPagePrev,   ///< Fight: show the bar's previous three slots on A/Y/B (gamepad L1, shared with TabPrev).
-  CombatTargetNext, ///< Fight: attack the next hostile still fighting, wrapping (Tab / gamepad R3).
-  QuickSave,        ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
-  QuickLoad,        ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
+
+  /** Inventory hotkey (I). Opens the hub on the Inventory tab. */
+  Inventory,
+
+  /** Journal hotkey (J). Opens the hub on the Journal tab. */
+  Journal,
+
+  /** Codex hotkey (C). Opens the hub on the Codex tab. */
+  Codex,
+
+  /** Map/fast-travel hotkey (M). Opens the hub on the Map tab. */
+  Map,
+
+  /** Character-sheet hotkey (P). Opens the character sheet from Exploring. */
+  Character,
+
+  /** Pause/system menu toggle (Esc / gamepad Start). */
+  Menu,
+
+  /** Menu-hub toggle (gamepad Y). Opens the last hub tab; closes it when one is on top. */
+  Hub,
+
+  /** Next tab: settings pages, barter Buy/Sell, hub tabs (] / gamepad R1). */
+  TabNext,
+
+  /** Previous tab: settings pages, barter Buy/Sell, hub tabs ([ / gamepad L1). */
+  TabPrev,
+
+  /** Next sub-tab inside a hub tab: journal Active/Completed/Failed (. / gamepad R2). */
+  SubTabNext,
+
+  /** Previous sub-tab inside a hub tab: journal Active/Completed/Failed (, / gamepad L2). */
+  SubTabPrev,
+
+  /** Combat pause toggle (Space / gamepad X). Only a fight reads it; Space also raises Select/Activate. */
+  Pause,
+
+  /** Fight: attack the hostile (1 / gamepad A, shared with Select/Activate). */
+  CombatCommand1,
+
+  /** Fight: press the command bar's second slot (2 / gamepad Y, shared with Hub). */
+  CombatCommand2,
+
+  /** Fight: press the command bar's third slot (3 / gamepad B, shared with Cancel). */
+  CombatCommand3,
+
+  /** Fight: press the fourth slot (4). Slots 4 to 9 are keyboard only; a gamepad pages A/Y/B. */
+  CombatCommand4,
+
+  /** Fight: press the fifth slot (5). */
+  CombatCommand5,
+
+  /** Fight: press the sixth slot (6). */
+  CombatCommand6,
+
+  /** Fight: press the seventh slot (7). */
+  CombatCommand7,
+
+  /** Fight: press the eighth slot (8). */
+  CombatCommand8,
+
+  /** Fight: press the ninth slot (9). */
+  CombatCommand9,
+
+  /** Fight: show the bar's next three slots on A/Y/B (gamepad R1, shared with TabNext). */
+  CombatPageNext,
+
+  /** Fight: show the bar's previous three slots on A/Y/B (gamepad L1, shared with TabPrev). */
+  CombatPagePrev,
+
+  /** Fight: attack the next hostile still fighting, wrapping (Tab / gamepad R3). */
+  CombatTargetNext,
+
+  /** Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it. */
+  QuickSave,
+
+  /** Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it. */
+  QuickLoad,
   Count,
 };
 
@@ -82,15 +136,18 @@ struct InputState {
   /** True while the key bound to an action is held down.
    */
   std::bitset<k_action_count> held{};
+
   /** True only on the frame the key bound to an action was pressed.
    */
   std::bitset<k_action_count> pressed{};
+
   /** Cursor position in window pixels, updated once per poll cycle.
    *
    *  Analog data, deliberately separate from the discrete Action bitsets above.
    */
   float mouse_x{};
   float mouse_y{};
+
   /** Cursor position at the previous poll cycle.
    *
    *  make_input_intent() compares these against `mouse_x`/`mouse_y` to raise
@@ -100,6 +157,7 @@ struct InputState {
    */
   float prev_mouse_x{};
   float prev_mouse_y{};
+
   /** True only on the frame the left mouse button was pressed.
    *
    *  Deliberately separate from Action::Select (also bound to the mouse button for
@@ -108,6 +166,7 @@ struct InputState {
    *  also raised by keyboard/gamepad confirm presses that carry no click position.
    */
   bool mouse_click_pressed{};
+
   /** Accumulated scroll wheel delta this poll cycle (positive = away from user).
    *
    *  Analog and transient like mouse_click_pressed — reset each cycle, not a discrete
@@ -115,13 +174,13 @@ struct InputState {
    */
   float scroll_delta_y{};
 
-  /// @pre `action` must not be Action::Count; Count is a sentinel, not an action.
+  /** @pre `action` must not be Action::Count; Count is a sentinel, not an action. */
   [[nodiscard]] bool is_held(Action action) const noexcept {
     assert(action != Action::Count && "Count is a sentinel, not an action");
     return held[static_cast<std::size_t>(action)];
   }
 
-  /// @pre `action` must not be Action::Count; Count is a sentinel, not an action.
+  /** @pre `action` must not be Action::Count; Count is a sentinel, not an action. */
   [[nodiscard]] bool is_pressed(Action action) const noexcept {
     assert(action != Action::Count && "Count is a sentinel, not an action");
     return pressed[static_cast<std::size_t>(action)];

@@ -93,13 +93,17 @@ struct JournalLayout {
 
   core::math::Vec2 panel_size{};
 
-  std::array<ui::RowRect, k_journal_tabs.size()> sub_tabs{}; ///< Active, Completed, Failed.
+  /** Active, Completed, Failed. */
+  std::array<ui::RowRect, k_journal_tabs.size()> sub_tabs{};
 
-  std::vector<ui::RowRect> rows{}; ///< One hit rect per visible entry, in draw order.
+  /** One hit rect per visible entry, in draw order. */
+  std::vector<ui::RowRect> rows{};
 
-  int first_row{}; ///< Absolute index of `rows.front()`; add it to a hovered index.
+  /** Absolute index of `rows.front()`; add it to a hovered index. */
+  int first_row{};
 
-  int visible_rows{}; ///< Number of entries actually drawn.
+  /** Number of entries actually drawn. */
+  int visible_rows{};
 };
 
 /** Compute the journal panel's geometry for `viewport`. */

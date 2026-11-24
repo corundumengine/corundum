@@ -19,18 +19,18 @@ public:
     bool operator==(const State &) const = default;
   };
 
-  /// Seeds as pcg32_srandom_r(seed, stream).
+  /** Seeds as pcg32_srandom_r(seed, stream). */
   explicit Rng(std::uint64_t seed = 0x853c49e6748fea9bULL, std::uint64_t stream = 0xda3e39cb94b95bdbULL) noexcept;
 
   [[nodiscard]] std::uint32_t next_u32() noexcept;
 
-  /// Uniform integer in [lo, hi] inclusive, unbiased (Lemire's method). @pre lo <= hi.
+  /** Uniform integer in [lo, hi] inclusive, unbiased (Lemire's method). @pre lo <= hi. */
   [[nodiscard]] std::int32_t range(std::int32_t lo, std::int32_t hi) noexcept;
 
-  /// Uniform float in [0, 1), built from the top 24 bits of next_u32().
+  /** Uniform float in [0, 1), built from the top 24 bits of next_u32(). */
   [[nodiscard]] float unit() noexcept;
 
-  /// True with probability `p`, clamped to [0, 1]; chance(0) is always false and chance(1) always true.
+  /** True with probability `p`, clamped to [0, 1]; chance(0) is always false and chance(1) always true. */
   [[nodiscard]] bool chance(float p) noexcept;
 
   [[nodiscard]] State state() const noexcept;
@@ -38,7 +38,7 @@ public:
   void set_state(State s) noexcept;
 
 private:
-  /// Uniform draw in [0, bound), unbiased. @pre bound > 0.
+  /** Uniform draw in [0, bound), unbiased. @pre bound > 0. */
   [[nodiscard]] std::uint32_t uniform_bounded(std::uint32_t bound) noexcept;
 
   State s_{};

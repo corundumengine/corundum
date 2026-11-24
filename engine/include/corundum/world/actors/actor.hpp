@@ -25,10 +25,14 @@ struct Actor {
 
   std::string sprite_name;
 
-  std::string dialogue_ref;     ///< Empty if the actor has no dialogue.
-  std::string facing = "south"; ///< Direction the NPC faces; must name a core::Direction.
+  /** Empty if the actor has no dialogue. */
+  std::string dialogue_ref;
 
-  std::string id; ///< Stable authoring id (optional; unique within one spawn-points file, key for persistence).
+  /** Direction the NPC faces; must name a core::Direction. */
+  std::string facing = "south";
+
+  /** Stable authoring id (optional; unique within one spawn-points file, key for persistence). */
+  std::string id;
 };
 
 /** Optional per-map player placement from a spawn-points file.

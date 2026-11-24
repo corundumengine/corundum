@@ -17,15 +17,15 @@
 
 namespace corundum::test {
 
-/// Renderer that records sprite draws and hands out a distinct texture id per path.
+/** Renderer that records sprite draws and hands out a distinct texture id per path. */
 class TileRecordingRenderer final : public corundum::platform::Renderer {
 public:
   std::vector<corundum::platform::DrawSprite> sprites;
 
-  /// Paths load_texture() refuses with std::unexpected.
+  /** Paths load_texture() refuses with std::unexpected. */
   std::vector<std::string> failing_paths;
 
-  /// Path → the id load_texture() handed out for it.
+  /** Path → the id load_texture() handed out for it. */
   std::unordered_map<std::string, corundum::platform::TextureId> ids_by_path;
 
   std::expected<corundum::platform::TextureId, std::string> load_texture(std::string_view path) override {
@@ -75,7 +75,8 @@ public:
   [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
 
 private:
-  std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
+  /** Raw counter, so issuing an id never converts types. */
+  std::uint32_t next_id_{1};
 };
 
 } // namespace corundum::test

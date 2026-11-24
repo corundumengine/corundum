@@ -13,14 +13,15 @@ namespace corundum::world {
 
 namespace {
 
-/// Center offset that keeps a world smaller than the viewport centered on screen.
+/** Center offset that keeps a world smaller than the viewport centered on screen. */
 float centered_offset(float world_extent, float effective_extent) {
   return (world_extent - effective_extent) * 0.5f;
 }
 
-/// Clamp one camera axis so the viewport stays within the world, following the
-/// player when it crosses the dead-zone margin. Centers the axis when the world
-/// is smaller than the effective viewport.
+/** Clamp one camera axis so the viewport stays within the world, following the
+ *  player when it crosses the dead-zone margin. Centers the axis when the world
+ *  is smaller than the effective viewport.
+ */
 float follow_axis(float player_pos, float camera_pos, float world_extent, float effective_extent,
                   float effective_margin) {
   if (world_extent <= effective_extent)
@@ -39,8 +40,9 @@ float follow_axis(float player_pos, float camera_pos, float world_extent, float 
   return std::clamp(out, 0.f, world_extent - effective_extent);
 }
 
-/// Center one camera axis on `target` and clamp the viewport to the world,
-/// centering the axis when the world is smaller than the effective viewport.
+/** Center one camera axis on `target` and clamp the viewport to the world,
+ *  centering the axis when the world is smaller than the effective viewport.
+ */
 float center_axis(float target, float world_extent, float effective_extent) {
   if (world_extent <= effective_extent)
     return centered_offset(world_extent, effective_extent);

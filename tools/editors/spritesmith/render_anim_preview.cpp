@@ -19,8 +19,9 @@ namespace {
 
 using corundum::sprites::FrameCoord;
 
-// Retrieve the active frame sequence (character or sprite sheet mode). Atlas mode is
-// handled separately since its frames are names, not grid coordinates.
+/** Retrieve the active frame sequence (character or sprite sheet mode). Atlas mode is
+ *  handled separately since its frames are names, not grid coordinates.
+ */
 std::span<const FrameCoord> active_frames(const EditorState &state) {
   if (state.mode == SheetMode::Character) {
     if (state.selected_sprite < 0 || state.selected_sprite >= static_cast<int>(state.sprites.size()))
@@ -52,7 +53,7 @@ float frame_duration(const EditorState &state) {
   return k_default_character_frame_duration;
 }
 
-// Resolve the atlas clip's frame names to sprite indices, skipping dangling names.
+/** Resolve the atlas clip's frame names to sprite indices, skipping dangling names. */
 std::vector<int> active_atlas_frame_indices(const EditorState &state) {
   std::vector<int> indices;
   if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
@@ -67,7 +68,7 @@ std::vector<int> active_atlas_frame_indices(const EditorState &state) {
   return indices;
 }
 
-// Return {col_span, row_span} for the active selection (1,1 for sprite sheet mode).
+/** Return {col_span, row_span} for the active selection (1,1 for sprite sheet mode). */
 std::pair<int, int> active_span(const EditorState &state) {
   if (state.mode == SheetMode::Character && state.selected_sprite >= 0 &&
       state.selected_sprite < static_cast<int>(state.sprites.size())) {
@@ -77,7 +78,7 @@ std::pair<int, int> active_span(const EditorState &state) {
   return {1, 1};
 }
 
-// Return UV rect {u0,v0,u1,v1} covering pixel_w × pixel_h at frame (col,row).
+/** Return UV rect {u0,v0,u1,v1} covering pixel_w × pixel_h at frame (col,row). */
 std::array<float, 4> frame_uvs(const FrameCoord &fc, const EditorState &state, float tex_w, float tex_h, int pixel_w,
                                int pixel_h) {
   const corundum::sprites::IntPoint origin =
@@ -89,9 +90,10 @@ std::array<float, 4> frame_uvs(const FrameCoord &fc, const EditorState &state, f
           (py + static_cast<float>(pixel_h)) / tex_h};
 }
 
-// Atlas mode: frames are resolved sprite indices, each with its own trim/source-canvas.
-// The trimmed quad is positioned inside a source_width x source_height virtual canvas so
-// playback doesn't jitter as trim varies frame to frame.
+/** Atlas mode: frames are resolved sprite indices, each with its own trim/source-canvas.
+ *  The trimmed quad is positioned inside a source_width x source_height virtual canvas so
+ *  playback doesn't jitter as trim varies frame to frame.
+ */
 void render_atlas_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h, float dt_seconds) {
   const auto indices = active_atlas_frame_indices(state);
   if (indices.empty())

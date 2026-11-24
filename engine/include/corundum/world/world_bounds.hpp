@@ -11,9 +11,11 @@ namespace corundum::world {
  *  where the height is expected. For non-square diamonds the two axes differ.
  */
 struct WorldBounds {
-  float width_px{0.f}; ///< Total world width in display pixels.
+  /** Total world width in display pixels. */
+  float width_px{0.f};
 
-  float height_px{0.f}; ///< Total world height in display pixels.
+  /** Total world height in display pixels. */
+  float height_px{0.f};
 };
 
 } // namespace corundum::world

@@ -8,14 +8,14 @@
 
 namespace corundum::toolkit::editor {
 
-/// Drawing context for an editor canvas — draw list + screen-space origin.
+/** Drawing context for an editor canvas — draw list + screen-space origin. */
 struct CanvasContext {
   ImDrawList *dl{nullptr};
 
   ImVec2 origin{};
 };
 
-/// Mouse button state sampled once per frame.
+/** Mouse button state sampled once per frame. */
 struct MouseState {
   bool left_held{};
 
@@ -30,8 +30,9 @@ struct MouseState {
  *  spritesmith and loom.
  */
 struct CanvasController {
-  /// @param min_scale Lower zoom limit enforced by update() and set_scale().
-  /// @param max_scale Upper zoom limit enforced by update() and set_scale().
+  /** @param min_scale Lower zoom limit enforced by update() and set_scale().
+   *  @param max_scale Upper zoom limit enforced by update() and set_scale().
+   */
   explicit CanvasController(float min_scale = 0.125f, float max_scale = 16.f) noexcept
       : min_scale_{min_scale}, max_scale_{max_scale} {}
 
@@ -54,10 +55,10 @@ struct CanvasController {
     apply_wheel_zoom(io, canvas_origin, canvas_size, zoom_to_cursor);
   }
 
-  /// Set zoom, clamped to the controller's [min_scale, max_scale] range.
+  /** Set zoom, clamped to the controller's [min_scale, max_scale] range. */
   void set_scale(float value) { scale = std::clamp(value, min_scale_, max_scale_); }
 
-  /// Multiply the current zoom by `factor`, clamped to the controller's range.
+  /** Multiply the current zoom by `factor`, clamped to the controller's range. */
   void zoom_by(float factor) { set_scale(scale * factor); }
 
   /** Convert screen space to canvas space.

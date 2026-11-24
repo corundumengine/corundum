@@ -33,8 +33,9 @@ using corundum::world::GameMode;
 namespace screens = corundum::gameplay::screens;
 namespace quest = corundum::gameplay::quest;
 
-/// Route one physical action press through the engine's UI step. Journal is an engine-owned hub
-/// tab, stepped by Engine, not world::update.
+/** Route one physical action press through the engine's UI step. Journal is an engine-owned hub
+ *  tab, stepped by Engine, not world::update.
+ */
 bool press(corundum::Engine &engine, corundum::input::Action action) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(action));
@@ -43,7 +44,7 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
   return engine.update_engine_screens(intent);
 }
 
-/// Register a two-stage quest and start it, so the journal has one Active row.
+/** Register a two-stage quest and start it, so the journal has one Active row. */
 void add_started_quest(corundum::Engine &engine, corundum::gameplay::Gameplay &gameplay, std::string_view id,
                        std::string name) {
   quest::Quest q;
@@ -55,7 +56,7 @@ void add_started_quest(corundum::Engine &engine, corundum::gameplay::Gameplay &g
   quest::start(*gameplay.quests.find(id), engine.flags);
 }
 
-/// Complete the quest whose id is `id`.
+/** Complete the quest whose id is `id`. */
 void complete(corundum::Engine &engine, std::string_view id) {
   engine.flags[quest::quest_flag_key(id)] = 2;
 }

@@ -11,7 +11,7 @@ class ToolHost;
 
 namespace tools::spritesmith {
 
-/// Render the permanent "Preview" section in the side panel.
+/** Render the permanent "Preview" section in the side panel. */
 void render_preview_panel(corundum::toolkit::host::ToolHost &host, const EditorState &state,
                           const corundum::platform::TextureInfo &tex, float dt_seconds);
 

@@ -44,22 +44,22 @@ namespace corundum::gameplay::combat {
 
 namespace {
 
-/// Every command-bar slot's key action, in slot order: Attack first, then the commands.
+/** Every command-bar slot's key action, in slot order: Attack first, then the commands. */
 constexpr std::array k_slot_actions{
     input::Action::CombatCommand1, input::Action::CombatCommand2, input::Action::CombatCommand3,
     input::Action::CombatCommand4, input::Action::CombatCommand5, input::Action::CombatCommand6,
     input::Action::CombatCommand7, input::Action::CombatCommand8, input::Action::CombatCommand9,
 };
 
-/// The slots a gamepad's A, Y and B press.
+/** The slots a gamepad's A, Y and B press. */
 constexpr std::size_t k_page_size = 3;
 
-/// How many pages `slots` need, at k_page_size slots a page.
+/** How many pages `slots` need, at k_page_size slots a page. */
 [[nodiscard]] std::size_t page_count(std::size_t slots) noexcept {
   return (slots + k_page_size - 1) / k_page_size;
 }
 
-/// The button that presses `slot` while `page` shows; nullopt off the page.
+/** The button that presses `slot` while `page` shows; nullopt off the page. */
 [[nodiscard]] std::optional<input::Action> gamepad_action_of(std::size_t slot, std::size_t page) noexcept {
   const std::size_t first = page * k_page_size;
   if (slot < first || slot >= first + k_page_size)
@@ -67,14 +67,14 @@ constexpr std::size_t k_page_size = 3;
   return k_slot_actions[slot - first];
 }
 
-/// The slot a gamepad key index presses on `page`; a keyboard key names its slot directly.
+/** The slot a gamepad key index presses on `page`; a keyboard key names its slot directly. */
 [[nodiscard]] std::size_t slot_for_key(std::size_t key, std::size_t page, input::InputDevice device) noexcept {
   if (device == input::InputDevice::Gamepad && key < k_page_size)
     return (page * k_page_size) + key;
   return key;
 }
 
-/// Combatant 0 is the protagonist; every other combatant is a hostile.
+/** Combatant 0 is the protagonist; every other combatant is a hostile. */
 [[nodiscard]] constexpr bool is_hostile(std::size_t index) noexcept {
   return index >= Battle::k_hostile;
 }
@@ -84,7 +84,7 @@ constexpr std::string_view k_stray_combatant = "[gameplay] a ruleset's fight nam
 constexpr std::string_view k_changed_command_list =
     "[gameplay] a ruleset's fight changed the length of its command list";
 
-/// `name` when `callback` is empty, and nullopt when it is set.
+/** `name` when `callback` is empty, and nullopt when it is set. */
 template <typename Callback>
 [[nodiscard]] std::optional<std::string_view> missing_callback(std::string_view name, const Callback &callback) {
   if (callback)
@@ -92,7 +92,7 @@ template <typename Callback>
   return name;
 }
 
-/// The name of the first empty callback in `fight`, in declaration order; nullopt when all are set.
+/** The name of the first empty callback in `fight`, in declaration order; nullopt when all are set. */
 [[nodiscard]] std::optional<std::string_view> first_missing_callback(const rules::Fight &fight) {
   // The binding names every member of Fight, so a callback added there stops this compiling
   // until it is checked here.
@@ -119,7 +119,7 @@ template <typename Callback>
   return std::nullopt;
 }
 
-/// Check what Battle relies on in the fight a ruleset started for `hostile_count` hostiles.
+/** Check what Battle relies on in the fight a ruleset started for `hostile_count` hostiles. */
 [[nodiscard]] std::expected<void, std::string> validate_fight(const rules::Fight &fight, std::size_t hostile_count) {
   if (const std::optional<std::string_view> missing = first_missing_callback(fight))
     return std::unexpected(
@@ -138,7 +138,7 @@ template <typename Callback>
   return {};
 }
 
-/// The rules' window into the engine: its seeded dice and the playthrough's flags.
+/** The rules' window into the engine: its seeded dice and the playthrough's flags. */
 rules::CombatContext make_combat_context(Engine &engine) {
   const auto roll = [&engine](int sides) {
     assert(sides >= 1);
@@ -153,7 +153,7 @@ rules::CombatContext make_combat_context(Engine &engine) {
   };
 }
 
-/// The entity each hostile in `request` names, in order; an error when one is missing or named twice.
+/** The entity each hostile in `request` names, in order; an error when one is missing or named twice. */
 [[nodiscard]] std::expected<std::vector<entities::EntityId>, std::string>
 resolve_hostiles(const Engine &engine, const EncounterRequest &request) {
   std::vector<entities::EntityId> hostiles;
@@ -171,7 +171,7 @@ resolve_hostiles(const Engine &engine, const EncounterRequest &request) {
   return hostiles;
 }
 
-/// The fight to ask the ruleset for: each hostile's creature, in the order named.
+/** The fight to ask the ruleset for: each hostile's creature, in the order named. */
 [[nodiscard]] rules::FightRequest build_fight_request(const EncounterRequest &request, float step_seconds) {
   rules::FightRequest fight_request{.step_seconds = step_seconds};
   fight_request.creature_ids.reserve(request.hostiles.size());
@@ -180,7 +180,7 @@ resolve_hostiles(const Engine &engine, const EncounterRequest &request) {
   return fight_request;
 }
 
-/// The protagonist's entity first, then one per resolved hostile.
+/** The protagonist's entity first, then one per resolved hostile. */
 [[nodiscard]] std::vector<entities::EntityId> build_combatants(const Engine &engine,
                                                                std::span<const entities::EntityId> hostiles) {
   std::vector<entities::EntityId> combatants;
@@ -190,11 +190,12 @@ resolve_hostiles(const Engine &engine, const EncounterRequest &request) {
   return combatants;
 }
 
-/// A clip's middle meets its command's landing, so it runs twice the wind-up: the pack's attack
-/// sheets strike around their middle frames.
+/** A clip's middle meets its command's landing, so it runs twice the wind-up: the pack's attack
+ *  sheets strike around their middle frames.
+ */
 constexpr float k_clip_seconds_per_windup_second = 2.f;
 
-/// Whether `frame_counts` gives every facing frames: a default clip, or all eight directions.
+/** Whether `frame_counts` gives every facing frames: a default clip, or all eight directions. */
 [[nodiscard]] bool covers_every_facing(const std::array<std::uint8_t, sprites::k_num_anim_ids> &frame_counts) {
   if (frame_counts[std::to_underlying(sprites::AnimId::Default)] > 0)
     return true;
@@ -202,8 +203,9 @@ constexpr float k_clip_seconds_per_windup_second = 2.f;
                              [](std::uint8_t count) { return count > 0; });
 }
 
-/// The clip `sprite_id`'s character has for `motion`; nullopt with no such sheet, or one that
-/// leaves a facing with no frames.
+/** The clip `sprite_id`'s character has for `motion`; nullopt with no such sheet, or one that
+ *  leaves a facing with no frames.
+ */
 [[nodiscard]] std::optional<entities::Clip> find_clip(const sprites::CharacterRegistry &characters,
                                                       sprites::SpriteId sprite_id, std::string_view motion,
                                                       entities::ClipEnd end) {
@@ -222,7 +224,7 @@ constexpr float k_clip_seconds_per_windup_second = 2.f;
   return clip;
 }
 
-/// Each combatant's clips, by index. A hostile's death removes it; the protagonist's holds.
+/** Each combatant's clips, by index. A hostile's death removes it; the protagonist's holds. */
 [[nodiscard]] std::vector<CombatantClips> build_clips(const Engine &engine,
                                                       std::span<const entities::EntityId> combatants) {
   const auto &sprite_table = engine.scene.world.sprites;
@@ -250,14 +252,15 @@ void play(entities::World &world, entities::EntityId entity, const entities::Cli
   animation::play_clip(world.sprites, world.animations, world.facings, world.clips, entity, clip);
 }
 
-/// Turn `entity`, standing on `from`, toward `to`.
+/** Turn `entity`, standing on `from`, toward `to`. */
 void turn_toward(entities::World &world, entities::EntityId entity, world::TileCoord from, world::TileCoord to) {
   world.facings.dir_ref(entity) =
       core::direction_from_tile_delta(static_cast<float>(to.col - from.col), static_cast<float>(to.row - from.row));
 }
 
-/// Leave `entity` as a corpse playing `die`: gone from the fight, the paths and the dialogue,
-/// and from any lookup by actor id. The clip removes it when it ends.
+/** Leave `entity` as a corpse playing `die`: gone from the fight, the paths and the dialogue,
+ *  and from any lookup by actor id. The clip removes it when it ends.
+ */
 void become_corpse(entities::World &world, entities::EntityId entity, const entities::Clip &die) {
   if (world.collisions.has(entity))
     world.collisions.remove(entity);
@@ -271,29 +274,31 @@ void become_corpse(entities::World &world, entities::EntityId entity, const enti
   play(world, entity, die);
 }
 
-/// The tile an entity stands on.
+/** The tile an entity stands on. */
 [[nodiscard]] world::TileCoord transform_tile(const Engine &engine, entities::EntityId entity) {
   const auto &transforms = engine.scene.world.transforms;
   return world::tile_of(transforms.pos_col(entity), transforms.pos_row(entity));
 }
 
-/// Whether a click on `clicked` is a click on a combatant standing on `feet`: its own tile,
-/// or one of the three tiles its sprite is drawn over, one column back, one row back, or both
-/// (a column or row back sits above it on screen, to the left or right; both, straight above).
+/** Whether a click on `clicked` is a click on a combatant standing on `feet`: its own tile,
+ *  or one of the three tiles its sprite is drawn over, one column back, one row back, or both
+ *  (a column or row back sits above it on screen, to the left or right; both, straight above).
+ */
 [[nodiscard]] bool is_on_sprite(world::TileCoord clicked, world::TileCoord feet) noexcept {
   const int columns_back = feet.col - clicked.col;
   const int rows_back = feet.row - clicked.row;
   return (columns_back == 0 || columns_back == 1) && (rows_back == 0 || rows_back == 1);
 }
 
-/// Copy `text` into `slot` only when it changed, so a step with no new text allocates nothing.
+/** Copy `text` into `slot` only when it changed, so a step with no new text allocates nothing. */
 void assign_if_changed(std::string &slot, std::string_view text) {
   if (slot != text)
     slot = text;
 }
 
-/// Copy each combatant's Health and side into `rows`; the combatant at `target` is marked as
-/// the fight's target.
+/** Copy each combatant's Health and side into `rows`; the combatant at `target` is marked as
+ *  the fight's target.
+ */
 void refresh_rows(const rules::Fight &fight, const rules::CombatContext &context, std::span<screens::CombatHudRow> rows,
                   std::size_t target) {
   for (std::size_t i = 0; i < rows.size(); ++i) {
@@ -303,9 +308,10 @@ void refresh_rows(const rules::Fight &fight, const rules::CombatContext &context
   }
 }
 
-/// Copy the protagonist's commands into the bar's slots after Attack. The bar's layout and the
-/// rules' list keep one length for the whole fight (verified here), so a slot and the
-/// command behind it always line up.
+/** Copy the protagonist's commands into the bar's slots after Attack. The bar's layout and the
+ *  rules' list keep one length for the whole fight (verified here), so a slot and the
+ *  command behind it always line up.
+ */
 void refresh_slots(const rules::Fight &fight, std::span<screens::CombatHudCommand> slots) {
   const std::span<const rules::CommandOption> listed = fight.commands(Battle::k_protagonist);
   const std::optional<std::size_t> queued = fight.queued(Battle::k_protagonist);
@@ -318,14 +324,15 @@ void refresh_slots(const rules::Fight &fight, std::span<screens::CombatHudComman
   }
 }
 
-/// Point each slot at the button that presses it while `page` shows.
+/** Point each slot at the button that presses it while `page` shows. */
 void refresh_gamepad_actions(std::span<screens::CombatHudCommand> slots, std::size_t page) {
   for (std::size_t i = 0; i < slots.size(); ++i)
     slots[i].gamepad_action = gamepad_action_of(i, page);
 }
 
-/// Copy the encounter's current numbers into `hud`, in place, for the gamepad page `page` and
-/// the fight's target.
+/** Copy the encounter's current numbers into `hud`, in place, for the gamepad page `page` and
+ *  the fight's target.
+ */
 void refresh_hud(const rules::Fight &fight, const rules::CombatContext &context, screens::CombatHud &hud,
                  std::size_t page, std::size_t target) {
   refresh_rows(fight, context, hud.rows, target);
@@ -334,15 +341,16 @@ void refresh_hud(const rules::Fight &fight, const rules::CombatContext &context,
   hud.page.index = page;
 }
 
-/// The squared Euclidean distance between two tiles, for ordering approach candidates.
+/** The squared Euclidean distance between two tiles, for ordering approach candidates. */
 [[nodiscard]] int squared_tile_distance(world::TileCoord a, world::TileCoord b) noexcept {
   const int dc = a.col - b.col;
   const int dr = a.row - b.row;
   return (dc * dc) + (dr * dr);
 }
 
-/// Every tile within `reach` of `target` but not on it, nearest to `from` first, then by
-/// column and row.
+/** Every tile within `reach` of `target` but not on it, nearest to `from` first, then by
+ *  column and row.
+ */
 [[nodiscard]] std::vector<world::TileCoord> approach_candidates(world::TileCoord target, int reach,
                                                                 world::TileCoord from) {
   std::vector<world::TileCoord> candidates;
@@ -365,13 +373,13 @@ void refresh_hud(const rules::Fight &fight, const rules::CombatContext &context,
   return candidates;
 }
 
-/// Whether any of the four movement keys is held this step.
+/** Whether any of the four movement keys is held this step. */
 [[nodiscard]] bool is_move_held(const input::InputState &input) noexcept {
   return input.is_held(input::Action::MoveUp) || input.is_held(input::Action::MoveDown) ||
          input.is_held(input::Action::MoveLeft) || input.is_held(input::Action::MoveRight);
 }
 
-/// Give the protagonist a ground move order, dropping any attack and its planned approach.
+/** Give the protagonist a ground move order, dropping any attack and its planned approach. */
 void order_protagonist_move(const rules::Fight &fight, std::optional<world::TileCoord> &planned_approach) {
   fight.order_move(Battle::k_protagonist);
   planned_approach.reset();

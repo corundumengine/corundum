@@ -71,7 +71,7 @@ void validate_actions(const json &arr, const std::string &context) {
   }
 }
 
-/// Parse one choice edge; `context` names it in error messages.
+/** Parse one choice edge; `context` names it in error messages. */
 ChoiceEdge parse_choice_edge(const json &j, const std::string &context) {
   ChoiceEdge edge;
 
@@ -104,7 +104,7 @@ ChoiceEdge parse_choice_edge(const json &j, const std::string &context) {
   return edge;
 }
 
-/// Parse the optional "metadata" object; non-string values are ignored.
+/** Parse the optional "metadata" object; non-string values are ignored. */
 std::flat_map<std::string, std::string> parse_metadata(const json &j) {
   std::flat_map<std::string, std::string> metadata;
   if (j.contains("metadata") && j["metadata"].is_object()) {
@@ -152,7 +152,7 @@ Node parse_node(const json &j) {
   return node;
 }
 
-/// Build the id→index lookup, rejecting duplicate node ids.
+/** Build the id→index lookup, rejecting duplicate node ids. */
 std::flat_map<std::string, std::size_t> build_id_index(const std::vector<Node> &nodes) {
   std::vector<std::pair<std::string, std::size_t>> index_pairs;
   index_pairs.reserve(nodes.size());
@@ -172,7 +172,7 @@ std::flat_map<std::string, std::size_t> build_id_index(const std::vector<Node> &
   return {std::sorted_unique, index_pairs.begin(), index_pairs.end()};
 }
 
-/// Parse the optional graph-level "variables" defaults.
+/** Parse the optional graph-level "variables" defaults. */
 std::flat_map<std::string, int> parse_variables(const json &j) {
   std::flat_map<std::string, int> variables;
   if (j.contains("variables") && j["variables"].is_object()) {
@@ -186,7 +186,7 @@ std::flat_map<std::string, int> parse_variables(const json &j) {
   return variables;
 }
 
-/// Read `path` and return its schema-validated root object.
+/** Read `path` and return its schema-validated root object. */
 json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
                          const std::string &path) {
   auto root_result = core::read_json(content, path, "dialogue JSON");

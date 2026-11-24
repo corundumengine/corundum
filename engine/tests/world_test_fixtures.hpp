@@ -14,12 +14,12 @@
 #include <cstddef>
 #include <utility>
 
-/// Chunked-world fixtures shared by the world pathfinding and render walkability
-/// tests: both build the same RenderState and wire it into a MapView. Every
-/// helper is `inline` so the two translation units share one definition.
+// Chunked-world fixtures shared by the world pathfinding and render walkability
+// tests: both build the same RenderState and wire it into a MapView. Every
+// helper is `inline` so the two translation units share one definition.
 namespace corundum::test {
 
-/// A flat chunk_size x chunk_size tilemap: one tile per cell, elevation 0 everywhere.
+/** A flat chunk_size x chunk_size tilemap: one tile per cell, elevation 0 everywhere. */
 inline world::tilemap::Tilemap flat_chunk(int chunk_size) {
   using world::tilemap::Tilemap;
   using world::tilemap::TilemapLayer;
@@ -44,8 +44,9 @@ inline render::ChunkEntry make_chunk(int ccol, int crow, world::tilemap::Tilemap
   return c;
 }
 
-/// World-mode RenderState with a horizontal run of `n` chunks along row 0, starting at (0,0).
-/// Each chunk's tilemap is produced by `mk(chunk_index)` so tests can inject elevation walls.
+/** World-mode RenderState with a horizontal run of `n` chunks along row 0, starting at (0,0).
+ *  Each chunk's tilemap is produced by `mk(chunk_index)` so tests can inject elevation walls.
+ */
 template <typename Mk> void init_world(render::RenderState &state, int chunk_size, int n, const Mk &mk) {
   auto &world_area = emplace_world_area(state);
   world_area.manifest.chunk_size = chunk_size;
@@ -57,8 +58,9 @@ template <typename Mk> void init_world(render::RenderState &state, int chunk_siz
   render::rebuild_world_aggregates(world_area, /*max_step_height=*/4);
 }
 
-/// MapView as build_map_view's world branch wires it (minus the iso math the pathfinder
-/// does not use).
+/** MapView as build_map_view's world branch wires it (minus the iso math the pathfinder
+ *  does not use).
+ */
 inline world::MapView world_map_view(const render::RenderState &state) {
   const render::WorldArea &world_area = world_area_of(state);
   world::MapView m;

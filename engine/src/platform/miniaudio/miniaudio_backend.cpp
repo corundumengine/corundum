@@ -37,8 +37,9 @@ namespace corundum::platform::miniaudio {
 
 namespace {
 
-/// Deletes an ma_sound after uninitialising it. An ma_sound must never move once
-/// ma_sound_init_* has written into it, so it is always owned behind a pointer.
+/** Deletes an ma_sound after uninitialising it. An ma_sound must never move once
+ *  ma_sound_init_* has written into it, so it is always owned behind a pointer.
+ */
 struct SoundDeleter {
   void operator()(ma_sound *sound) const noexcept {
     ma_sound_uninit(sound);
@@ -51,49 +52,59 @@ using SoundPtr = std::unique_ptr<ma_sound, SoundDeleter>;
 } // namespace
 
 struct MiniaudioBackend::State {
-  /// One streamed music track and the gap to leave before its next loop.
+  /** One streamed music track and the gap to leave before its next loop. */
   struct MusicTrack {
     SoundPtr sound;
     ma_uint64 loop_delay_frames{};
   };
 
-  /// One mixer bus's miniaudio group. Master has no group: it is the engine volume.
+  /** One mixer bus's miniaudio group. Master has no group: it is the engine volume. */
   struct Bus {
     ma_sound_group group{};
     bool active{false};
   };
 
-  /// One reusable playback voice; a null sound marks a free slot.
+  /** One reusable playback voice; a null sound marks a free slot. */
   struct Voice {
     SoundPtr sound;
-    std::uint32_t generation{}; ///< 0 until first use; incremented on every play.
+
+    /** 0 until first use; incremented on every play. */
+    std::uint32_t generation{};
   };
 
-  /// Declared before the engine: the resource manager keeps this pointer for the engine's life.
+  /** Declared before the engine: the resource manager keeps this pointer for the engine's life. */
   ContentVfs vfs;
   ma_engine engine{};
   std::array<Bus, audio::k_audio_bus_count> buses{};
   MiniaudioOutput output{MiniaudioOutput::Device};
   bool is_ready{false};
-  std::vector<SoundPtr> effect_sources; ///< Index = handle - 1; decoded at load.
-  std::vector<Voice> effect_voices;     ///< Reusable playback slots, reclaimed in play()/update().
 
-  std::optional<MusicTrack> music_track; ///< The one streamed track, when one is playing.
-  std::vector<SoundPtr> fading_tracks;   ///< Replaced/stopped tracks still fading out.
+  /** Index = handle - 1; decoded at load. */
+  std::vector<SoundPtr> effect_sources;
 
-  /// Seconds → milliseconds, the unit miniaudio's fade calls take.
+  /** Reusable playback slots, reclaimed in play()/update(). */
+  std::vector<Voice> effect_voices;
+
+  /** The one streamed track, when one is playing. */
+  std::optional<MusicTrack> music_track;
+
+  /** Replaced/stopped tracks still fading out. */
+  std::vector<SoundPtr> fading_tracks;
+
+  /** Seconds → milliseconds, the unit miniaudio's fade calls take. */
   [[nodiscard]] static ma_uint64 seconds_to_milliseconds(float seconds) {
     return static_cast<ma_uint64>(std::lround(seconds * 1000.f));
   }
 
-  /// The miniaudio group for `bus`, or nullptr for Master. miniaudio attaches a sound with no
-  /// group straight to the engine endpoint, which is exactly what the Master bus means.
+  /** The miniaudio group for `bus`, or nullptr for Master. miniaudio attaches a sound with no
+   *  group straight to the engine endpoint, which is exactly what the Master bus means.
+   */
   [[nodiscard]] ma_sound_group *group_for(audio::AudioBus bus) {
     Bus &found = buses[audio::bus_index(bus)];
     return found.active ? &found.group : nullptr;
   }
 
-  /// The live sound behind `id`, or nullptr when the id is stale or out of range.
+  /** The live sound behind `id`, or nullptr when the id is stale or out of range. */
   [[nodiscard]] ma_sound *find_voice(audio::SoundInstanceId id) {
     if (!id.is_valid() || id.index > effect_voices.size())
       return nullptr;
@@ -103,14 +114,14 @@ struct MiniaudioBackend::State {
     return voice.sound.get();
   }
 
-  /// Mark every slot whose sound has finished as free, so play() can reuse it.
+  /** Mark every slot whose sound has finished as free, so play() can reuse it. */
   void reclaim_finished_voices() {
     for (Voice &voice : effect_voices)
       if (voice.sound != nullptr && ma_sound_is_playing(voice.sound.get()) == MA_FALSE)
         voice.sound.reset();
   }
 
-  /// Stop `sound` over `seconds` (0 stops at once), leaving it live until it goes silent.
+  /** Stop `sound` over `seconds` (0 stops at once), leaving it live until it goes silent. */
   static void stop_sound_over(ma_sound *sound, float seconds) {
     if (seconds > 0.f)
       ma_sound_stop_with_fade_in_milliseconds(sound, seconds_to_milliseconds(seconds));
@@ -118,13 +129,13 @@ struct MiniaudioBackend::State {
       ma_sound_stop(sound);
   }
 
-  /// Move `sound` into the fading set after starting its stop, so it is freed once silent.
+  /** Move `sound` into the fading set after starting its stop, so it is freed once silent. */
   void fade_out_and_retire(SoundPtr sound, float seconds) {
     stop_sound_over(sound.get(), seconds);
     fading_tracks.push_back(std::move(sound));
   }
 
-  /// Uninit every bus group that was created. Master has no group.
+  /** Uninit every bus group that was created. Master has no group. */
   void uninit_buses() {
     for (Bus &bus : buses)
       if (bus.active) {

@@ -45,7 +45,7 @@ constexpr std::string_view k_journal_empty = "(no quests)";
 constexpr std::string_view k_objective_done = "[x] ";
 constexpr std::string_view k_objective_pending = "[ ] ";
 
-/// True when `lifecycle` belongs to the section `tab` names.
+/** True when `lifecycle` belongs to the section `tab` names. */
 bool tab_matches(JournalTab tab, gameplay::quest::Lifecycle lifecycle) noexcept {
   switch (tab) {
     case JournalTab::Active: return lifecycle == gameplay::quest::Lifecycle::Active;
@@ -55,7 +55,7 @@ bool tab_matches(JournalTab tab, gameplay::quest::Lifecycle lifecycle) noexcept 
   return false;
 }
 
-/// Current objective label: first not-yet-done entry, falling back to the first, or empty.
+/** Current objective label: first not-yet-done entry, falling back to the first, or empty. */
 std::string current_objective(std::span<const gameplay::quest::ObjectiveView> views) {
   if (views.empty())
     return {};
@@ -66,19 +66,23 @@ std::string current_objective(std::span<const gameplay::quest::ObjectiveView> vi
   return std::string(views.front().text);
 }
 
-/// One line of the panel's vertical draw sequence, with y relative to the body top.
+/** One line of the panel's vertical draw sequence, with y relative to the body top. */
 struct JournalDrawRow {
   enum class Kind : std::uint8_t { Option, Objective, Checklist };
 
   Kind kind{Kind::Option};
 
-  std::string_view text{}; ///< Objective/checklist text; options read entries[index].name.
+  /** Objective/checklist text; options read entries[index].name. */
+  std::string_view text{};
 
-  std::size_t index{}; ///< Entry index for Option rows.
+  /** Entry index for Option rows. */
+  std::size_t index{};
 
-  bool checked{false}; ///< Checklist done mark.
+  /** Checklist done mark. */
+  bool checked{false};
 
-  float y{}; ///< Offset from the body top.
+  /** Offset from the body top. */
+  float y{};
 };
 
 struct JournalGeometry {
@@ -101,16 +105,17 @@ struct JournalGeometry {
   std::vector<JournalDrawRow> draw_rows{};
 };
 
-/// The visible slice of the journal list.
+/** The visible slice of the journal list. */
 struct JournalWindow {
   int first_row{};
 
   int visible_rows{};
 };
 
-/// Window the journal list to `available` pixels, keeping `cursor` visible. Each entry is an
-/// option line plus either its single objective line or, when highlighted, its full checklist,
-/// so the window is sized by the summed row heights rather than a fixed slot count.
+/** Window the journal list to `available` pixels, keeping `cursor` visible. Each entry is an
+ *  option line plus either its single objective line or, when highlighted, its full checklist,
+ *  so the window is sized by the summed row heights rather than a fixed slot count.
+ */
 JournalWindow compute_journal_window(int scroll, int cursor, const std::vector<JournalEntry> &entries, float available,
                                      float body_line_h) {
   const int entry_count = static_cast<int>(entries.size());
@@ -143,7 +148,7 @@ JournalWindow compute_journal_window(int scroll, int cursor, const std::vector<J
   return JournalWindow{.first_row = first, .visible_rows = window_end(first) - first};
 }
 
-/// Line heights, the panel rect, and the title/sub-tab/body baselines inside it.
+/** Line heights, the panel rect, and the title/sub-tab/body baselines inside it. */
 void place_journal_panel(const platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport,
                          JournalGeometry &geometry) {
   geometry.body_line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
@@ -161,14 +166,14 @@ void place_journal_panel(const platform::Renderer &r, const ui::PanelStyle &styl
   geometry.row_x = geometry.panel_x + k_journal_pad_x;
 }
 
-/// The footer hint line naming the track, tab and close bindings for the last-used device.
+/** The footer hint line naming the track, tab and close bindings for the last-used device. */
 std::string journal_footer(input::InputDevice last_device) {
   return std::format("{} Track   {} Tabs   {} Close", ui::input_glyph(input::Action::Activate, last_device),
                      ui::input_glyph(input::Action::SubTabNext, last_device),
                      ui::input_glyph(input::Action::Cancel, last_device));
 }
 
-/// The sub-tab row rects, centered under the title.
+/** The sub-tab row rects, centered under the title. */
 void place_journal_sub_tabs(const platform::Renderer &r, const ui::PanelStyle &style, JournalGeometry &geometry) {
   const platform::FontId regular = style.family(ui::FontRole::Quest).get(ui::FontStyle::Regular);
   std::array<float, k_journal_tabs.size()> sub_tab_widths{};
@@ -189,8 +194,9 @@ void place_journal_sub_tabs(const platform::Renderer &r, const ui::PanelStyle &s
   }
 }
 
-/// Window the list to the content area above the footer, leaving room for the footer line, then
-/// lay out each visible entry's option line and its objective or checklist lines.
+/** Window the list to the content area above the footer, leaving room for the footer line, then
+ *  lay out each visible entry's option line and its objective or checklist lines.
+ */
 void collect_journal_draw_rows(const std::vector<JournalEntry> &entries, const JournalState &state,
                                JournalGeometry &geometry) {
   const int entry_count = static_cast<int>(entries.size());
@@ -241,7 +247,7 @@ JournalGeometry compute_journal_geometry(const platform::Renderer &r, const ui::
   return geometry;
 }
 
-/// Backdrop, frame, title, sub-tab strip and footer: everything drawn around the list.
+/** Backdrop, frame, title, sub-tab strip and footer: everything drawn around the list. */
 void draw_journal_chrome(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          const JournalGeometry &geometry, core::math::Vec2 viewport, JournalTab active_tab) {
   const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
@@ -287,7 +293,7 @@ void draw_journal_chrome(platform::Renderer &r, const ui::PanelStyle &style, con
   });
 }
 
-/// The centered "no quests" line an empty list shows instead of rows.
+/** The centered "no quests" line an empty list shows instead of rows. */
 void draw_journal_empty(platform::Renderer &r, const ui::PanelStyle &style, const JournalGeometry &geometry) {
   const platform::FontId ui_regular = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
   const float empty_w = r.measure_text(ui_regular, k_journal_empty, style.font_size_body);
@@ -300,7 +306,7 @@ void draw_journal_empty(platform::Renderer &r, const ui::PanelStyle &style, cons
   });
 }
 
-/// One list row: an option line, an objective line, or a checklist mark plus its text.
+/** One list row: an option line, an objective line, or a checklist mark plus its text. */
 void draw_journal_row(platform::Renderer &r, const ui::PanelStyle &style, const JournalGeometry &geometry,
                       const JournalDrawRow &row, const std::vector<JournalEntry> &entries) {
   const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);

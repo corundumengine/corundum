@@ -87,11 +87,14 @@ struct Tile {
  *  potion.
  */
 struct CommandOption {
-  std::string id{}; ///< The ruleset's own name for it; the framework never reads it.
+  /** The ruleset's own name for it; the framework never reads it. */
+  std::string id{};
 
-  bool is_available{true}; ///< False while it can't be ordered (none left).
+  /** False while it can't be ordered (none left). */
+  bool is_available{true};
 
-  std::string label{}; ///< Shown on the command bar, such as "Herbal Tonic (2)".
+  /** Shown on the command bar, such as "Herbal Tonic (2)". */
+  std::string label{};
 
   bool operator==(const CommandOption &) const = default;
 };
@@ -110,23 +113,29 @@ enum class Outcome : std::uint8_t { Won, Lost };
 
 /** A command a combatant is winding up. */
 struct WindUp {
-  bool is_attack{}; ///< The standing attack on its target; false for one of its commands.
+  /** The standing attack on its target; false for one of its commands. */
+  bool is_attack{};
 
-  float seconds_left{}; ///< Game time until the command lands.
+  /** Game time until the command lands. */
+  float seconds_left{};
 };
 
 /** What one Fight::update produced. */
 struct FightStep {
-  std::vector<std::string> reports{}; ///< One line per command that landed, in order, for the combat log.
+  /** One line per command that landed, in order, for the combat log. */
+  std::vector<std::string> reports{};
 
-  std::vector<std::size_t> windups_started{}; ///< Combatants whose wind-up started this step, by index.
+  /** Combatants whose wind-up started this step, by index. */
+  std::vector<std::size_t> windups_started{};
 };
 
 /** The fight the framework asks a ruleset to run. */
 struct FightRequest {
-  std::vector<std::string> creature_ids{}; ///< The hostiles, in order: combatant i + 1 is creature_ids[i].
+  /** The hostiles, in order: combatant i + 1 is creature_ids[i]. */
+  std::vector<std::string> creature_ids{};
 
-  float step_seconds{}; ///< Game time per Fight::update.
+  /** Game time per Fight::update. */
+  float step_seconds{};
 };
 
 /** One fight as its ruleset runs it.
@@ -141,9 +150,11 @@ struct FightRequest {
  *  asks the queries several times per step, so a query only reads the fight's state.
  */
 struct Fight {
-  std::vector<std::string> names{}; ///< Each combatant's name on the combat HUD, by index.
+  /** Each combatant's name on the combat HUD, by index. */
+  std::vector<std::string> names{};
 
-  int reach_tiles{1}; ///< Tiles a standing attack reaches, by tile_distance; must be positive.
+  /** Tiles a standing attack reaches, by tile_distance; must be positive. */
+  int reach_tiles{1};
 
   /** Drop `actor`'s queued command, so its standing attack comes next. */
   std::function<void(std::size_t actor)> clear_queued{};

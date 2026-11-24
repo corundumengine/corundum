@@ -30,7 +30,7 @@ using corundum::render::RenderState;
 using corundum::test::TileRecordingRenderer;
 namespace tilemap = corundum::world::tilemap;
 
-/// Non-empty cells in every layer at or above the ground band.
+/** Non-empty cells in every layer at or above the ground band. */
 std::size_t count_drawable_cells(const tilemap::Tilemap &tm) {
   std::size_t count = 0;
   for (const tilemap::TilemapLayer &layer : tm.layers) {

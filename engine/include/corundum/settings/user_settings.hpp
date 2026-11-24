@@ -30,25 +30,25 @@ struct UserSettings {
 
   core::WindowMode window_mode{core::WindowMode::Windowed};
 
-  /// Ambience-bus volume in [0, 1], applied under master_volume.
+  /** Ambience-bus volume in [0, 1], applied under master_volume. */
   float ambience_volume{1.f};
 
-  /// Master audio volume in [0, 1].
+  /** Master audio volume in [0, 1]. */
   float master_volume{1.f};
 
-  /// Music volume in [0, 1], applied under master_volume.
+  /** Music volume in [0, 1], applied under master_volume. */
   float music_volume{1.f};
 
-  /// Sound-effect bus volume in [0, 1], applied under master_volume.
+  /** Sound-effect bus volume in [0, 1], applied under master_volume. */
   float sound_volume{1.f};
 
-  /// Voice (dialogue, narration) bus volume in [0, 1], applied under master_volume.
+  /** Voice (dialogue, narration) bus volume in [0, 1], applied under master_volume. */
   float voice_volume{1.f};
 
-  /// Dialogue text-reveal multiplier; 0 reveals instantly (see ui::k_text_speed_presets).
+  /** Dialogue text-reveal multiplier; 0 reveals instantly (see ui::k_text_speed_presets). */
   float text_speed{1.f};
 
-  /// Font and margin scale applied to the in-game screens; 1 is the game.json size.
+  /** Font and margin scale applied to the in-game screens; 1 is the game.json size. */
   float ui_scale{1.f};
 };
 

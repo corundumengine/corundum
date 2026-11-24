@@ -295,7 +295,7 @@ TEST_CASE("find_actor - world boot populates actor_ids from spawn points") {
 
 namespace {
 
-/// Minimal character sheet exposing the two sprites the spawn code resolves by name.
+/** Minimal character sheet exposing the two sprites the spawn code resolves by name. */
 std::string_view two_sprite_sheet_json() {
   return R"({"id":"heroes","path":"game/assets/heroes.png","frame_width":32,"frame_height":32,"frames":{)"
          R"("hero_walk":{"col_span":1,"row_span":2,"footprint_col_span":0.25,"footprint_row_span":0.75,)"
@@ -327,7 +327,7 @@ corundum::sprites::CharacterRegistry make_registry(const fs::path &dir) {
   return registry;
 }
 
-/// The entity of actor `id`; fails the case when there is none.
+/** The entity of actor `id`; fails the case when there is none. */
 corundum::entities::EntityId require_actor(const corundum::entities::World &world, std::string_view id) {
   const std::optional<corundum::entities::EntityId> actor = corundum::entities::find_actor(world, id);
   if (!actor) {
@@ -337,7 +337,7 @@ corundum::entities::EntityId require_actor(const corundum::entities::World &worl
   return *actor;
 }
 
-/// A World-mode render state with `coords` resident and `chunk_size` tiles per chunk side.
+/** A World-mode render state with `coords` resident and `chunk_size` tiles per chunk side. */
 corundum::render::RenderState make_world_render(std::initializer_list<corundum::world::tilemap::ChunkCoord> coords,
                                                 int chunk_size) {
   corundum::render::RenderState render;

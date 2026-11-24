@@ -82,8 +82,9 @@ TEST_CASE("ToastQueue: clear drops every toast") {
   CHECK(queue.empty());
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("ToastQueue: render draws a background rect and one text per live toast") {
   using corundum::test::RecordingRenderer;

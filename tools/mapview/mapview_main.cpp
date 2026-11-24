@@ -104,17 +104,19 @@ std::optional<Args> parse_args(int argc, const char *const *argv) {
   return args;
 }
 
-/// A decoded atlas PNG (RGBA) referenced by one or more tilesets.
+/** A decoded atlas PNG (RGBA) referenced by one or more tilesets. */
 struct AtlasImage {
   std::vector<uint8_t> pixels;
   int w{};
   int h{};
 };
 
-/// One resolved, drawable tile sprite.
+/** One resolved, drawable tile sprite. */
 struct DrawItem {
-  int image_slot{}; ///< Index into the (fully-loaded) `images` vector; all images are loaded
-                    ///< before any drawing, so indexing by slot is stable across reallocation.
+  /** Index into the (fully-loaded) `images` vector; all images are loaded before any drawing, so indexing by slot is
+   *  stable across reallocation.
+   */
+  int image_slot{};
   IntRect src{};
   float pos_x{};
   float pos_y{};
@@ -122,12 +124,15 @@ struct DrawItem {
   bool flip_x{};
   bool flip_y{};
   float depth{};
-  bool above{}; ///< Non-depth-sorted z>0 layer (roofs) drawn on top of everything.
+
+  /** Non-depth-sorted z>0 layer (roofs) drawn on top of everything. */
+  bool above{};
 };
 
-/// Loads (cached) the atlas image for `png_path`, storing it in `images`. All images are loaded
-/// before any drawing begins, so indexing `images` by the returned slot is stable. Returns the
-/// image slot, or std::nullopt on failure.
+/** Loads (cached) the atlas image for `png_path`, storing it in `images`. All images are loaded
+ *  before any drawing begins, so indexing `images` by the returned slot is stable. Returns the
+ *  image slot, or std::nullopt on failure.
+ */
 std::optional<int> load_image(std::unordered_map<std::string, int> &slot_by_path, std::vector<AtlasImage> &images,
                               const std::string &png_path) {
   if (const auto it = slot_by_path.find(png_path); it != slot_by_path.end())
@@ -153,7 +158,7 @@ std::optional<int> load_image(std::unordered_map<std::string, int> &slot_by_path
   return slot;
 }
 
-/// The tile GID at `cell_index`: the layer's tile, or an animation's first frame; nullopt when empty.
+/** The tile GID at `cell_index`: the layer's tile, or an animation's first frame; nullopt when empty. */
 std::optional<TileId> cell_gid(const TilemapLayer &layer, std::size_t cell_index) {
   const TileId tile = layer.tiles[cell_index];
   if (tile != k_empty_tile)
@@ -164,7 +169,7 @@ std::optional<TileId> cell_gid(const TilemapLayer &layer, std::size_t cell_index
   return animation->second.frame_gids[0];
 }
 
-/// A tile cell resolved to the tileset, texture slot and source rect it draws from.
+/** A tile cell resolved to the tileset, texture slot and source rect it draws from. */
 struct TileSource {
   const TilemapTileset *tileset{nullptr};
 
@@ -175,7 +180,7 @@ struct TileSource {
   TileId gid{k_empty_tile};
 };
 
-/// Resolve a cell's GID to its tileset, texture slot and non-empty source rect.
+/** Resolve a cell's GID to its tileset, texture slot and non-empty source rect. */
 std::optional<TileSource> resolve_tile_source(const Tilemap &tm, const TilemapLayer &layer, int cell_idx,
                                               const std::vector<int> &image_slots) {
   const std::optional<TileId> gid = cell_gid(layer, static_cast<std::size_t>(cell_idx));
@@ -193,7 +198,7 @@ std::optional<TileSource> resolve_tile_source(const Tilemap &tm, const TilemapLa
   return TileSource{.tileset = tileset, .rect = rect, .image_slot = image_slots[index], .gid = *gid};
 }
 
-/// Build a tile's draw item from its resolved source, mirroring the engine renderer's anchor math.
+/** Build a tile's draw item from its resolved source, mirroring the engine renderer's anchor math. */
 DrawItem make_draw_item(const TilemapLayer &layer, const TileSource &source, int cell_idx, int world_col, int world_row,
                         int elevation, const IsometricParams &iso, float scale) {
   const int local_id = static_cast<int>(source.gid) - static_cast<int>(source.tileset->first_gid);
@@ -222,8 +227,9 @@ DrawItem make_draw_item(const TilemapLayer &layer, const TileSource &source, int
   return item;
 }
 
-/// Resolves a single tile cell to a draw item, mirroring the engine renderer's anchor math
-/// (render_system.cpp resolve_tile_cell) so the image matches the in-game view.
+/** Resolves a single tile cell to a draw item, mirroring the engine renderer's anchor math
+ *  (render_system.cpp resolve_tile_cell) so the image matches the in-game view.
+ */
 std::optional<DrawItem> resolve_tile(const Tilemap &tm, const TilemapLayer &layer, const IsometricParams &iso,
                                      int local_col, int local_row, int world_col, int world_row, float scale,
                                      const std::vector<int> &image_slots) {
@@ -237,12 +243,12 @@ std::optional<DrawItem> resolve_tile(const Tilemap &tm, const TilemapLayer &laye
   return make_draw_item(layer, *source, cell_idx, world_col, world_row, elevation, iso, scale);
 }
 
-/// Mirror a clamped source coordinate onto its flipped counterpart when `flipped` is set.
+/** Mirror a clamped source coordinate onto its flipped counterpart when `flipped` is set. */
 int flip_coordinate(int coordinate, int last, bool flipped) {
   return flipped ? (last - coordinate) : coordinate;
 }
 
-/// Copy one source pixel into `pixels` at `destination_index` unless it is mostly transparent.
+/** Copy one source pixel into `pixels` at `destination_index` unless it is mostly transparent. */
 void blend_pixel(std::vector<std::uint8_t> &pixels, const std::vector<std::uint8_t> &source, std::size_t source_index,
                  std::size_t destination_index) {
   if (source[source_index + 3] < 128)
@@ -292,7 +298,7 @@ void draw_item(std::vector<uint8_t> &pixels, int out_w, int out_h, const std::ve
   }
 }
 
-/// Each quad vertex from stb_easy_font: x, y, z (float) + color (4 bytes).
+/** Each quad vertex from stb_easy_font: x, y, z (float) + color (4 bytes). */
 struct EasyFontVertex {
   float x{};
   float y{};
@@ -336,7 +342,7 @@ void draw_label(std::vector<uint8_t> &pixels, int out_w, int out_h, int cx, int 
   fill_quads(pixels, out_w, out_h, cx, cy, text, 255, 255, 255);
 }
 
-/// The world manifest's chunk layout.
+/** The world manifest's chunk layout. */
 struct WorldLayout {
   int chunks_wide{0};
 
@@ -345,14 +351,14 @@ struct WorldLayout {
   int chunk_size{0};
 };
 
-/// One chunk label's chunk coordinates.
+/** One chunk label's chunk coordinates. */
 struct ChunkLabel {
   int chunk_col{0};
 
   int chunk_row{0};
 };
 
-/// Everything one world render needs: loaded atlases, draw items, labels and world-pixel bounds.
+/** Everything one world render needs: loaded atlases, draw items, labels and world-pixel bounds. */
 struct CollectedDraw {
   std::unordered_map<std::string, int> slot_by_path{};
 
@@ -373,7 +379,7 @@ struct CollectedDraw {
   float max_y{std::numeric_limits<float>::lowest()};
 };
 
-/// Read and announce the world manifest's layout; nullopt when it can't be opened or parsed.
+/** Read and announce the world manifest's layout; nullopt when it can't be opened or parsed. */
 std::optional<WorldLayout> load_world_layout(const fs::path &world_dir) {
   const fs::path manifest_path = world_dir / "manifest.json";
   std::ifstream manifest_file(manifest_path);
@@ -391,7 +397,7 @@ std::optional<WorldLayout> load_world_layout(const fs::path &world_dir) {
   return layout;
 }
 
-/// Isometric projection shared by every chunk, anchored on chunk_0_0's diamond.
+/** Isometric projection shared by every chunk, anchored on chunk_0_0's diamond. */
 std::optional<IsometricParams> probe_projection(const fs::path &world_dir, const WorldLayout &layout, float scale) {
   const fs::path probe = world_dir / std::format("chunk_{}_{}.json", 0, 0);
   const auto tilemap = load_tilemap(corundum::core::DirectoryContentSource{}, probe);
@@ -410,7 +416,7 @@ void track_bounds(CollectedDraw &draw, const DrawItem &item) {
   draw.max_y = std::max(draw.max_y, item.pos_y + (static_cast<float>(item.src.height) * item.scale));
 }
 
-/// One image slot per tileset of `tm`, loading each atlas once into `draw`.
+/** One image slot per tileset of `tm`, loading each atlas once into `draw`. */
 std::vector<int> chunk_image_slots(const Tilemap &tm, CollectedDraw &draw) {
   std::vector<int> image_slots;
   image_slots.reserve(tm.tilesets.size());
@@ -419,7 +425,7 @@ std::vector<int> chunk_image_slots(const Tilemap &tm, CollectedDraw &draw) {
   return image_slots;
 }
 
-/// Resolve one cell and, when it draws, file it into `draw` and widen the bounds.
+/** Resolve one cell and, when it draws, file it into `draw` and widen the bounds. */
 void collect_cell(const Tilemap &tm, const TilemapLayer &layer, int col, int row, int world_col, int world_row,
                   const IsometricParams &iso, float scale, const std::vector<int> &image_slots, CollectedDraw &draw) {
   const auto item = resolve_tile(tm, layer, iso, col, row, world_col, world_row, scale, image_slots);
@@ -432,7 +438,7 @@ void collect_cell(const Tilemap &tm, const TilemapLayer &layer, int col, int row
     draw.depth_items.push_back(*item);
 }
 
-/// Resolve every cell of `tm` into `draw`'s depth-sorted or above lists.
+/** Resolve every cell of `tm` into `draw`'s depth-sorted or above lists. */
 void collect_chunk(const Tilemap &tm, int chunk_col, int chunk_row, const WorldLayout &layout,
                    const IsometricParams &iso, float scale, CollectedDraw &draw) {
   const std::vector<int> image_slots = chunk_image_slots(tm, draw);
@@ -447,7 +453,7 @@ void collect_chunk(const Tilemap &tm, int chunk_col, int chunk_row, const WorldL
   }
 }
 
-/// Load and resolve every chunk. Unreadable chunks are warned about and skipped.
+/** Load and resolve every chunk. Unreadable chunks are warned about and skipped. */
 void collect_world_draws(const fs::path &world_dir, const WorldLayout &layout, const IsometricParams &iso, float scale,
                          bool labels, CollectedDraw &draw) {
   const corundum::core::DirectoryContentSource content{};
@@ -471,7 +477,7 @@ void collect_world_draws(const fs::path &world_dir, const WorldLayout &layout, c
   }
 }
 
-/// Draw the collected items into a PNG; false when nothing was collected or the write fails.
+/** Draw the collected items into a PNG; false when nothing was collected or the write fails. */
 bool write_map_png(const std::string &output_path, const WorldLayout &layout, const IsometricParams &iso,
                    CollectedDraw &draw) {
   constexpr int k_margin = 4;
@@ -508,7 +514,7 @@ bool write_map_png(const std::string &output_path, const WorldLayout &layout, co
   return true;
 }
 
-/// Parse arguments, build the world render and write it; returns the process exit code.
+/** Parse arguments, build the world render and write it; returns the process exit code. */
 int run(int argc, const char *const *argv) {
   if (argc < 2) {
     print_usage(argv[0]);

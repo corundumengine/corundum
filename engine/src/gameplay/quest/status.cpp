@@ -13,8 +13,9 @@ namespace corundum::gameplay::quest {
 
 namespace {
 
-/// The stage whose sequence equals `stage_seq`, or nullptr. Non-positive
-/// sequences never name a stage (0 is the not-started sentinel).
+/** The stage whose sequence equals `stage_seq`, or nullptr. Non-positive
+ *  sequences never name a stage (0 is the not-started sentinel).
+ */
 [[nodiscard]] const Stage *stage_for_sequence(const Quest &quest, int stage_seq) {
   if (stage_seq <= 0)
     return nullptr;

@@ -16,10 +16,13 @@
 #include <new>
 
 struct MetalLayer {
-  /// Whether teardown releases the CAMetalLayer or only frees this wrapper.
+  /** Whether teardown releases the CAMetalLayer or only frees this wrapper. */
   enum class Ownership : std::uint8_t {
-    Borrowed, ///< The window's content view owns the layer.
-    Owned,    ///< This handle holds the layer's sole CF retain.
+    /** The window's content view owns the layer. */
+    Borrowed,
+
+    /** This handle holds the layer's sole CF retain. */
+    Owned,
   };
 
   CAMetalLayer *layer{nullptr};

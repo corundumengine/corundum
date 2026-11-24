@@ -46,9 +46,10 @@ using corundum::test::run_one_step;
 using corundum::world::GameMode;
 namespace screens = corundum::gameplay::screens;
 
-/// Route one physical action press through the engine's UI step, exactly as the fixed-step
-/// loop does. The Menu/Settings screens are stepped by Engine, not world::update, so the
-/// shared advance_with() helper (which only calls world::update) cannot drive them.
+/** Route one physical action press through the engine's UI step, exactly as the fixed-step
+ *  loop does. The Menu/Settings screens are stepped by Engine, not world::update, so the
+ *  shared advance_with() helper (which only calls world::update) cannot drive them.
+ */
 bool press(corundum::Engine &engine, corundum::input::Action action) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(action));
@@ -57,8 +58,9 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
   return engine.update_engine_screens(intent);
 }
 
-/// Route Escape — which the default bindings raise as both Cancel and Menu — through the UI
-/// step, so an open screen's back handling wins over opening the pause menu on the same press.
+/** Route Escape — which the default bindings raise as both Cancel and Menu — through the UI
+ *  step, so an open screen's back handling wins over opening the pause menu on the same press.
+ */
 bool press_escape(corundum::Engine &engine) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Cancel));
@@ -90,15 +92,16 @@ void init_engine(corundum::Engine &engine) {
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 }
 
-/// Open Menu → Settings on the General tab and return the engine.
+/** Open Menu → Settings on the General tab and return the engine. */
 void open_settings(corundum::Engine &engine) {
   press(engine, corundum::input::Action::Menu);
   press(engine, corundum::input::Action::MoveDown); // Resume → Settings
   press(engine, corundum::input::Action::Select);
 }
 
-/// Press MoveDown until the Settings cursor reaches General-tab `row`.
-/// @pre The cursor is at or above `row`.
+/** Press MoveDown until the Settings cursor reaches General-tab `row`.
+ *  @pre The cursor is at or above `row`.
+ */
 void move_to_general_row(corundum::Engine &engine, corundum::ui::SettingsGeneralRow row) {
   while (engine.settings_screen.cursor < static_cast<int>(row))
     press(engine, corundum::input::Action::MoveDown);
@@ -234,8 +237,9 @@ TEST_CASE("pause menu: a rebind-capture press never opens the menu") {
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("pause menu: Esc opens it from a binding table that predates Action::Menu") {
   corundum::Engine engine{};
@@ -494,11 +498,12 @@ TEST_CASE("pause menu: rows are Resume / Settings / Save / Load / Quit") {
   CHECK(corundum::ui::menu_command_label(MenuCommand::Load) == "Load");
 }
 
-// The Save/Load entries do not save or load themselves; they raise QuickSave/QuickLoad one fixed
-// step later so the menu's own Activate press cannot reach the simulation. The game observes the
-// raised action in on_fixed_update.
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** The Save/Load entries do not save or load themselves; they raise QuickSave/QuickLoad one fixed
+ *  step later so the menu's own Activate press cannot reach the simulation. The game observes the
+ *  raised action in on_fixed_update.
+ *  doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("pause menu: Save closes the menu and raises QuickSave exactly once") {
   corundum::Engine engine{};
@@ -531,8 +536,9 @@ TEST_CASE("pause menu: Save closes the menu and raises QuickSave exactly once") 
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("pause menu: Load closes the menu and raises QuickLoad exactly once") {
   corundum::Engine engine{};
@@ -578,7 +584,7 @@ TEST_CASE("pause menu: Save with no on_fixed_update hook does not crash") {
 
 namespace {
 
-/// Move the pause-menu cursor onto the Quit row and Activate it.
+/** Move the pause-menu cursor onto the Quit row and Activate it. */
 void activate_quit(corundum::Engine &engine) {
   press(engine, corundum::input::Action::Menu);
   for (int row = 0; row < corundum::ui::k_menu_command_count - 1; ++row)
@@ -630,8 +636,9 @@ TEST_CASE("pause menu: blocks_pause_menu suppresses opening the menu") {
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("confirm: Yes runs on_yes and pops, No and Back do not") {
   corundum::Engine engine{};

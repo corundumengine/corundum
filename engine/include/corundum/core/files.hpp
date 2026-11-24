@@ -11,20 +11,26 @@
 
 namespace corundum::core {
 
-/// One directory entry as returned by list_dir_entries().
+/** One directory entry as returned by list_dir_entries(). */
 struct DirEntry {
-  bool is_dir;                ///< True if this entry is a directory.
-  std::string name;           ///< Filename component only.
-  std::filesystem::path path; ///< Full path of the entry.
+  /** True if this entry is a directory. */
+  bool is_dir;
+
+  /** Filename component only. */
+  std::string name;
+
+  /** Full path of the entry. */
+  std::filesystem::path path;
 };
 
-/// Options controlling how list_dir_entries() walks a directory.
+/** Options controlling how list_dir_entries() walks a directory. */
 struct ListOptions {
-  /// Extensions to include; empty matches all. Compared case-insensitively, leading dot optional.
+  /** Extensions to include; empty matches all. Compared case-insensitively, leading dot optional. */
   std::vector<std::string_view> extensions = {};
 
-  /// If true, walk subdirectories recursively. Subdirectories themselves are always reported;
-  /// the `extensions` filter applies only to non-directory entries.
+  /** If true, walk subdirectories recursively. Subdirectories themselves are always reported;
+   *  the `extensions` filter applies only to non-directory entries.
+   */
   bool recursive = false;
 };
 

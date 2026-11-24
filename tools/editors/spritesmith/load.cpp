@@ -31,9 +31,10 @@ SheetMode detect_mode(const nlohmann::json &j) {
   return SheetMode::SpriteSheet;
 }
 
-// Clears every mode's containers so a prior load can't stay reachable through the UI's
-// Character/Sprite Sheet toggle. Called only after the incoming file validates, so a failed
-// open leaves the current document intact.
+/** Clears every mode's containers so a prior load can't stay reachable through the UI's
+ *  Character/Sprite Sheet toggle. Called only after the incoming file validates, so a failed
+ *  open leaves the current document intact.
+ */
 void reset_mode_containers(EditorState &state) {
   state.sprites.clear();
   state.anim_clips.clear();

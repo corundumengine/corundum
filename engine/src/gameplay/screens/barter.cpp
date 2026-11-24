@@ -35,12 +35,12 @@ constexpr float k_barter_pad_y = 16.f;
 constexpr float k_barter_gap = 10.f;
 constexpr std::string_view k_barter_empty = "(nothing)";
 
-/// Display label for one barter row.
+/** Display label for one barter row. */
 std::string barter_row_label(const BarterLine &line) {
   return std::format("{}  {} g", line.name, line.unit_price);
 }
 
-/// Footer hint, using the last-used device's glyphs.
+/** Footer hint, using the last-used device's glyphs. */
 std::string barter_footer(input::InputDevice last_device) {
   return std::format("{} Buy   {} Close", ui::input_glyph(input::Action::Activate, last_device),
                      ui::input_glyph(input::Action::Cancel, last_device));

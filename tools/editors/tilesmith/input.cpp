@@ -34,8 +34,9 @@ namespace tools::tilesmith {
 
 namespace {
 
-/// Convenience overload: fills in the EditorState-derived parameters that are
-/// always the same (canvas at k_menu_h origin, CANVAS_W/H, camera/scale from state).
+/** Convenience overload: fills in the EditorState-derived parameters that are
+ *  always the same (canvas at k_menu_h origin, CANVAS_W/H, camera/scale from state).
+ */
 [[nodiscard]] std::optional<TileCoord> editor_screen_to_tile(int px, int py, const EditorState &state) noexcept {
   return screen_to_tile(px, py, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
                         state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
@@ -292,14 +293,27 @@ void remove_collision_at(EditorState &state, int win_x, int win_y) noexcept {
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): TU-local editor UI state.
-bool layer_rename_requested = false;      ///< True when user double-clicked a layer.
-int layer_rename_idx = -1;                ///< Index of the layer being edited.
-std::array<char, 256> layer_rename_buf{}; ///< Buffer for the layer name.
-int layer_props_z_index = 0;              ///< Buffer for the layer's z_index, edited in the popup.
-bool layer_props_depth_sorted = false;    ///< Buffer for the layer's depth_sorted flag.
-bool layer_add_popup_requested = false;   ///< True when the "+" button was clicked.
 
-bool show_fill_blocked_popup = false; ///< True when F was pressed on a non-ground layer.
+/** True when user double-clicked a layer. */
+bool layer_rename_requested = false;
+
+/** Index of the layer being edited. */
+int layer_rename_idx = -1;
+
+/** Buffer for the layer name. */
+std::array<char, 256> layer_rename_buf{};
+
+/** Buffer for the layer's z_index, edited in the popup. */
+int layer_props_z_index = 0;
+
+/** Buffer for the layer's depth_sorted flag. */
+bool layer_props_depth_sorted = false;
+
+/** True when the "+" button was clicked. */
+bool layer_add_popup_requested = false;
+
+/** True when F was pressed on a non-ground layer. */
+bool show_fill_blocked_popup = false;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 void add_layer(EditorState &state, LayerPreset preset) {
@@ -321,7 +335,7 @@ void delete_layer(EditorState &state) noexcept {
   push_undo_checkpoint(state);
 }
 
-/// The add/delete buttons sharing the layer panel's title row.
+/** The add/delete buttons sharing the layer panel's title row. */
 void handle_layer_title_click(EditorState &state, int panel_x, int panel_y) {
   const float btn_y = (static_cast<float>(LAYER_TITLE_H) - LAYER_BTN_H) * 0.5f;
   const float panel_x_f = static_cast<float>(panel_x);
@@ -336,7 +350,7 @@ void handle_layer_title_click(EditorState &state, int panel_x, int panel_y) {
     delete_layer(state);
 }
 
-/// A click on one layer row: double-click renames, the eye toggles visibility, else select.
+/** A click on one layer row: double-click renames, the eye toggles visibility, else select. */
 void handle_layer_row_click(EditorState &state, int panel_x, int panel_y, int n_layers) {
   const int idx = (panel_y - LAYER_TITLE_H) / LAYER_ROW_H;
   if (idx < 0 || idx >= n_layers)
@@ -389,7 +403,7 @@ void handle_palette_click(EditorState &state, int win_x, int win_y) {
     state.selected_gid = *gid;
 }
 
-/// Nudge the camera by (`dx`, `dy`) canvas pixels, then keep it inside the map bounds.
+/** Nudge the camera by (`dx`, `dy`) canvas pixels, then keep it inside the map bounds. */
 void nudge_camera(EditorState &state, float dx, float dy) noexcept {
   state.canvas.offset_x += dx;
   state.canvas.offset_y += dy;
@@ -400,7 +414,7 @@ void nudge_camera(EditorState &state, float dx, float dy) noexcept {
   state.canvas.offset_y = cy;
 }
 
-/// Step the collision triangle cut `delta` places around the four orientations, wrapping.
+/** Step the collision triangle cut `delta` places around the four orientations, wrapping. */
 void cycle_triangle_cut(EditorState &state, int delta) noexcept {
   using corundum::world::tilemap::TriangleCut;
   constexpr std::array<TriangleCut, 4> k_cuts{
@@ -415,7 +429,7 @@ void cycle_triangle_cut(EditorState &state, int delta) noexcept {
   state.collision_tri_cut = k_cuts[static_cast<std::size_t>(((index + delta) + count) % count)];
 }
 
-/// Arrow keys pan the camera by one tile along the pressed axis.
+/** Arrow keys pan the camera by one tile along the pressed axis. */
 void handle_camera_keys(EditorState &state) {
   if (state.map.tilesets.empty())
     return;
@@ -432,7 +446,7 @@ void handle_camera_keys(EditorState &state) {
     nudge_camera(state, 0.f, step_py);
 }
 
-/// G, C and T toggle the grid and the collision overlay, and the collision mode with it.
+/** G, C and T toggle the grid and the collision overlay, and the collision mode with it. */
 void handle_overlay_keys(EditorState &state) {
   if (ImGui::IsKeyPressed(ImGuiKey_G))
     state.show_grid = !state.show_grid;
@@ -447,7 +461,7 @@ void handle_overlay_keys(EditorState &state) {
     state.triangle_collision_mode = !state.triangle_collision_mode;
 }
 
-/// P/E/R/W toggle the portal, elevation, ramp and walkability overlays.
+/** P/E/R/W toggle the portal, elevation, ramp and walkability overlays. */
 void handle_panel_overlay_keys(EditorState &state) {
   if (ImGui::IsKeyPressed(ImGuiKey_P))
     state.show_portals = !state.show_portals;
@@ -462,7 +476,7 @@ void handle_panel_overlay_keys(EditorState &state) {
     state.show_walkability = !state.show_walkability;
 }
 
-/// The bracket keys step the collision triangle's orientation.
+/** The bracket keys step the collision triangle's orientation. */
 void handle_triangle_cut_keys(EditorState &state) {
   if (ImGui::IsKeyPressed(ImGuiKey_RightBracket))
     cycle_triangle_cut(state, 1);
@@ -470,7 +484,7 @@ void handle_triangle_cut_keys(EditorState &state) {
     cycle_triangle_cut(state, -1);
 }
 
-/// The bracket keys step the elevation brush by 1, or by 10 with Shift held.
+/** The bracket keys step the elevation brush by 1, or by 10 with Shift held. */
 void handle_elevation_brush_keys(EditorState &state, const ImGuiIO &io) {
   const int step = io.KeyShift ? 10 : 1;
   if (ImGui::IsKeyPressed(ImGuiKey_RightBracket))
@@ -479,7 +493,7 @@ void handle_elevation_brush_keys(EditorState &state, const ImGuiIO &io) {
     state.selected_elevation = static_cast<uint8_t>(std::max(0, static_cast<int>(state.selected_elevation) - step));
 }
 
-/// Either bracket key flips the ramp brush's axis.
+/** Either bracket key flips the ramp brush's axis. */
 void handle_ramp_brush_keys(EditorState &state) {
   const bool bracket_pressed = ImGui::IsKeyPressed(ImGuiKey_RightBracket) || ImGui::IsKeyPressed(ImGuiKey_LeftBracket);
   if (!bracket_pressed)
@@ -489,7 +503,7 @@ void handle_ramp_brush_keys(EditorState &state) {
       state.selected_ramp_axis == RampAxis::NorthSouth ? RampAxis::EastWest : RampAxis::NorthSouth;
 }
 
-/// The bracket keys step whichever brush value the open overlay authors.
+/** The bracket keys step whichever brush value the open overlay authors. */
 void handle_brush_keys(EditorState &state, const ImGuiIO &io) {
   if (state.show_collisions && state.triangle_collision_mode) {
     handle_triangle_cut_keys(state);
@@ -503,7 +517,7 @@ void handle_brush_keys(EditorState &state, const ImGuiIO &io) {
     handle_ramp_brush_keys(state);
 }
 
-/// X/Y flip the brush, Tab and 1-9 pick the active layer, Delete drops the selected portal.
+/** X/Y flip the brush, Tab and 1-9 pick the active layer, Delete drops the selected portal. */
 void handle_selection_keys(EditorState &state) {
   const bool delete_pressed = ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace);
   if (delete_pressed && state.show_portals && state.selected_portal >= 0 &&
@@ -534,7 +548,7 @@ void handle_selection_keys(EditorState &state) {
   }
 }
 
-/// F fills the ground layer, Ctrl+Z/Ctrl+Shift+Z walk the undo history.
+/** F fills the ground layer, Ctrl+Z/Ctrl+Shift+Z walk the undo history. */
 void handle_edit_keys(EditorState &state, const ImGuiIO &io) {
   if (ImGui::IsKeyPressed(ImGuiKey_F) && !io.KeyCtrl &&
       !fill_ground_layer(state, state.selected_gid, state.selected_flip))
@@ -546,7 +560,7 @@ void handle_edit_keys(EditorState &state, const ImGuiIO &io) {
     apply_undo(state);
 }
 
-/// Keyboard shortcuts: quit, camera pan, overlay toggles, brushes, undo and save.
+/** Keyboard shortcuts: quit, camera pan, overlay toggles, brushes, undo and save. */
 void handle_keyboard_input(EditorState &state, const ImGuiIO &io, bool &running) {
   if (io.WantCaptureKeyboard)
     return;
@@ -569,7 +583,7 @@ void handle_keyboard_input(EditorState &state, const ImGuiIO &io, bool &running)
     try_save(state);
 }
 
-/// Where the cursor is this frame, and which of the two panels it is over.
+/** Where the cursor is this frame, and which of the two panels it is over. */
 struct Pointer {
   int mx{};
 
@@ -580,7 +594,7 @@ struct Pointer {
   bool over_panel{};
 };
 
-/// The cursor position and panel hit-test for the current frame.
+/** The cursor position and panel hit-test for the current frame. */
 [[nodiscard]] Pointer read_pointer() {
   const ImGuiIO &io = ImGui::GetIO();
   const int mx = static_cast<int>(io.MousePos.x);
@@ -593,7 +607,7 @@ struct Pointer {
   };
 }
 
-/// A left press starts whatever the open overlay paints with, or picks a palette tile.
+/** A left press starts whatever the open overlay paints with, or picks a palette tile. */
 void handle_left_press(EditorState &state, const Pointer &pointer) {
   if (state.show_portals) {
     if (pointer.over_canvas)
@@ -623,7 +637,7 @@ void handle_left_press(EditorState &state, const Pointer &pointer) {
   }
 }
 
-/// A right press erases, or starts the drag that erases when released.
+/** A right press erases, or starts the drag that erases when released. */
 void handle_right_press(EditorState &state, const Pointer &pointer) {
   if (!pointer.over_canvas)
     return;
@@ -641,7 +655,7 @@ void handle_right_press(EditorState &state, const Pointer &pointer) {
   }
 }
 
-/// Left and right button presses over the canvas or the palette.
+/** Left and right button presses over the canvas or the palette. */
 void handle_mouse_press(EditorState &state, MouseState &mouse, const Pointer &pointer) {
   const bool popup_or_modal_open = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
   if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -655,7 +669,7 @@ void handle_mouse_press(EditorState &state, MouseState &mouse, const Pointer &po
   }
 }
 
-/// Button releases: commit whichever drag or paint pass was running.
+/** Button releases: commit whichever drag or paint pass was running. */
 void handle_mouse_release(EditorState &state, MouseState &mouse) {
   if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
     mouse.left_held = false;
@@ -677,17 +691,17 @@ void handle_mouse_release(EditorState &state, MouseState &mouse) {
   }
 }
 
-/// Track the cell under the cursor for the overlays and the status bar.
+/** Track the cell under the cursor for the overlays and the status bar. */
 void update_hovered_cell(EditorState &state, const Pointer &pointer) {
   const auto tc = editor_screen_to_tile(pointer.mx, pointer.my, state);
   state.hover_tile_col = tc ? tc->col : -1;
   state.hover_tile_row = tc ? tc->row : -1;
 }
 
-/// Which overlay's paint brush a drag feeds.
+/** Which overlay's paint brush a drag feeds. */
 enum class Brush : std::uint8_t { Elevation, Ramp, Tile };
 
-/// The open overlay's continuous paint pass: a held left button paints, a held right button erases.
+/** The open overlay's continuous paint pass: a held left button paints, a held right button erases. */
 void update_paint_pass(EditorState &state, const MouseState &mouse, const Pointer &pointer, Brush brush) {
   const bool popup_or_modal_open = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
   const bool painting = state.painting_active && pointer.over_canvas && !popup_or_modal_open;
@@ -714,7 +728,7 @@ void update_paint_pass(EditorState &state, const MouseState &mouse, const Pointe
   }
 }
 
-/// Keep the open overlay's drag or paint pass following the cursor.
+/** Keep the open overlay's drag or paint pass following the cursor. */
 void update_active_drag(EditorState &state, const MouseState &mouse, const Pointer &pointer) {
   if (state.show_portals) {
     if (state.portal_dragging)
@@ -731,7 +745,7 @@ void update_active_drag(EditorState &state, const MouseState &mouse, const Point
   }
 }
 
-/// Ctrl+scroll zooms the palette, plain scroll pans it.
+/** Ctrl+scroll zooms the palette, plain scroll pans it. */
 void handle_palette_wheel(EditorState &state, const ImGuiIO &io, bool over_panel) {
   // palette_tile_scale is user-controlled, not auto-fit (see render_tile_grid.cpp), and the palette's
   // flow layout has no columns, so a plain wheel scroll can only pan vertically.
@@ -752,7 +766,7 @@ void handle_palette_wheel(EditorState &state, const ImGuiIO &io, bool over_panel
   }
 }
 
-/// The "Add Layer" preset picker.
+/** The "Add Layer" preset picker. */
 void show_add_layer_popup(EditorState &state) {
   if (layer_add_popup_requested) {
     ImGui::OpenPopup("Add Layer");
@@ -777,7 +791,7 @@ void show_add_layer_popup(EditorState &state) {
   ImGui::EndPopup();
 }
 
-/// The rename picker, which also edits the layer's z-index and depth sorting.
+/** The rename picker, which also edits the layer's z-index and depth sorting. */
 void show_rename_layer_popup(EditorState &state) {
   if (layer_rename_requested) {
     ImGui::OpenPopup("Rename Layer");
@@ -821,7 +835,7 @@ void show_rename_layer_popup(EditorState &state) {
   ImGui::EndPopup();
 }
 
-/// The save-time validation report, which still lets the author save anyway.
+/** The save-time validation report, which still lets the author save anyway. */
 void show_validation_popup(EditorState &state) {
   if (state.show_validation_popup) {
     ImGui::OpenPopup("Validation Errors");
@@ -855,7 +869,7 @@ void show_validation_popup(EditorState &state) {
   ImGui::EndPopup();
 }
 
-/// The notice shown when F is pressed on a layer fill cannot touch.
+/** The notice shown when F is pressed on a layer fill cannot touch. */
 void show_fill_blocked_notice() {
   if (show_fill_blocked_popup) {
     ImGui::OpenPopup("Fill Not Available");
@@ -871,7 +885,7 @@ void show_fill_blocked_notice() {
   ImGui::EndPopup();
 }
 
-/// The layer add/rename, validation and fill popups.
+/** The layer add/rename, validation and fill popups. */
 void handle_input_popups(EditorState &state) {
   show_add_layer_popup(state);
   show_rename_layer_popup(state);
@@ -885,7 +899,7 @@ void handle_input(EditorState &state, MouseState &mouse, bool &running) {
   const ImGuiIO &io = ImGui::GetIO();
   const Pointer pointer = read_pointer();
 
-  // --- Canvas pan/zoom ---
+  // Canvas pan/zoom
   state.canvas.update(io, {0.f, static_cast<float>(k_menu_h)},
                       {static_cast<float>(CANVAS_W), static_cast<float>(CANVAS_H)},
                       /*zoom_to_cursor=*/true);

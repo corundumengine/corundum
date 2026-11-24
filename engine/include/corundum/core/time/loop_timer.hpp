@@ -10,22 +10,26 @@
 
 namespace corundum::core::time {
 
-/// Fixed-timestep accumulator for platform-independent game loop timing.
-///
-/// The timer reads no clock: the main loop passes each frame's steady-clock reading to tick(), so a
-/// test states elapsed time exactly.
+/** Fixed-timestep accumulator for platform-independent game loop timing.
+ *
+ *  The timer reads no clock: the main loop passes each frame's steady-clock reading to tick(), so a
+ *  test states elapsed time exactly.
+ */
 struct LoopTimer {
   /** Seconds of unprocessed time carried between frames. */
   float accumulator = 0.f;
+
   /** The reading passed to the previous tick(). Empty until the first tick, and reset by the
    *  engine when the loop starts and when a pause ends, so that the next tick adds no time.
    */
   std::optional<std::chrono::steady_clock::time_point> prev_time;
+
   /** Length of one fixed step in seconds, derived from the target rate. */
   float target_dt = 0.f;
 
   /** Elapsed time measured by the last tick(), after the hitch cap. */
   float last_frame_dt = 0.f;
+
   /** Monotonic fixed-step counter. Prefer over elapsed_time for cooldowns and scripted events. */
   uint64_t step_count = 0;
 

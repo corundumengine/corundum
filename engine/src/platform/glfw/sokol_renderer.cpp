@@ -129,7 +129,7 @@ void emit_quad_verts(std::vector<Vertex> &out, core::math::Vec2 v0, core::math::
   out.insert(out.end(), verts.begin(), verts.end());
 }
 
-/// RGBA unpacked from an 8-bit-per-channel Colour into the 0..1 range the shader blends.
+/** RGBA unpacked from an 8-bit-per-channel Colour into the 0..1 range the shader blends. */
 struct ColourF {
   float r{};
   float g{};
@@ -147,7 +147,7 @@ ColourF unpack_colour(core::math::Colour colour) noexcept {
   };
 }
 
-/// The sprite pipeline's shader descriptor: backend shader sources plus the uniform/view/sampler slots.
+/** The sprite pipeline's shader descriptor: backend shader sources plus the uniform/view/sampler slots. */
 sg_shader_desc make_pipeline_shader_desc() {
   sg_shader_desc shdesc{};
   shdesc.vertex_func.source = render_backend::vertex_shader_source();
@@ -166,7 +166,7 @@ sg_shader_desc make_pipeline_shader_desc() {
   return shdesc;
 }
 
-/// The sprite pipeline descriptor: 2D position/UV/RGBA vertices, alpha blending, no depth.
+/** The sprite pipeline descriptor: 2D position/UV/RGBA vertices, alpha blending, no depth. */
 sg_pipeline_desc make_sprite_pipeline_desc(sg_shader shader) {
   sg_pipeline_desc pdesc{};
   pdesc.shader = shader;
@@ -242,8 +242,10 @@ private:
   [[nodiscard]] bool has_quad_space();
   [[nodiscard]] bool begin_primitive(sg_view view);
   void add_to_batch(sg_view view);
-  /// Set `advance` to `g`'s logical advance and, when it has ink, emit its quad.
-  /// @return false when the quad budget is exhausted and drawing must stop.
+
+  /** Set `advance` to `g`'s logical advance and, when it has ink, emit its quad.
+   *  @return false when the quad budget is exhausted and drawing must stop.
+   */
   [[nodiscard]] bool draw_glyph(const GlyphInfo &g, const BakedAtlas &baked, float pen_x, float pen_y, float char_size,
                                 ColourF colour, float &advance);
   void flush_batch();
@@ -296,8 +298,10 @@ private:
   mutable std::unordered_map<uint64_t, BakedAtlas> baked_atlases_;
   mutable uint64_t last_key_{~0ull};
   mutable BakedAtlas *last_atlas_{nullptr};
-  // (font_id, char_size) pairs whose bake or GPU upload failed. Caching the failure
-  // stops a broken font/size re-rasterising and re-logging on every frame.
+
+  /** (font_id, char_size) pairs whose bake or GPU upload failed. Caching the failure
+   *  stops a broken font/size re-rasterising and re-logging on every frame.
+   */
   mutable std::unordered_set<uint64_t> failed_keys_;
 
   FT_Library ft_lib_{nullptr};
@@ -729,11 +733,12 @@ void SokolRenderer::draw(const DrawSprite &cmd) {
   add_to_batch(tex.view);
 }
 
-/// Looks up a codepoint's glyph in `baked`: the dense Latin-1 table first
-/// (codepoints inside it that were never baked carry zeroed metrics, i.e. a
-/// zero-width skip), then a scan of the extended set. Returns nullptr only for
-/// codepoints in neither table (e.g. CJK, emoji) — same silent-skip behavior as
-/// today for genuinely unsupported characters.
+/** Looks up a codepoint's glyph in `baked`: the dense Latin-1 table first
+ *  (codepoints inside it that were never baked carry zeroed metrics, i.e. a
+ *  zero-width skip), then a scan of the extended set. Returns nullptr only for
+ *  codepoints in neither table (e.g. CJK, emoji) — same silent-skip behavior as
+ *  today for genuinely unsupported characters.
+ */
 const GlyphInfo *find_glyph(const BakedSize &baked, uint32_t codepoint) {
   if (codepoint < k_latin1_count)
     return &baked.glyphs[codepoint];

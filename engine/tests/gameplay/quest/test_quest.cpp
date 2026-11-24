@@ -71,7 +71,7 @@ quest::Quest make_quest_with_objectives() {
   return q;
 }
 
-/// A single-stage quest whose sole objective is auto-checked by `condition`.
+/** A single-stage quest whose sole objective is auto-checked by `condition`. */
 quest::Quest make_quest_with_condition(std::string_view condition) {
   quest::Quest q;
   q.quest_id = "cond_quest";
@@ -88,7 +88,7 @@ quest::Quest make_quest_with_condition(std::string_view condition) {
   return q;
 }
 
-/// Condition source text for an objective, or empty when it carries no condition.
+/** Condition source text for an objective, or empty when it carries no condition. */
 std::string_view condition_source(const quest::Objective &objective) {
   return objective.done_condition.has_value() ? objective.done_condition->source() : std::string_view{};
 }
@@ -146,7 +146,7 @@ void check_quests_match(const quest::Quest &actual, const quest::Quest &expected
     check_stages_match(actual.stages[i], expected.stages[i]);
 }
 
-/// One loader per case keeps cases independent; compiling the schema per case is cheap enough for tests.
+/** One loader per case keeps cases independent; compiling the schema per case is cheap enough for tests. */
 std::expected<quest::Quest, std::string> load_with_fresh_loader(const corundum::core::ContentSource &content,
                                                                 const std::filesystem::path &path) {
   return quest::Loader{}.load(content, path);

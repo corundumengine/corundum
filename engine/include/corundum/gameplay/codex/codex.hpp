@@ -39,10 +39,17 @@ inline constexpr std::string_view k_flag_prefix = "codex.";
  *  `set_flag` dialogue action, an `unlock_codex` event, or `starting_flags`.
  */
 struct CodexEntry {
-  std::string body{};     ///< Long-form lore text shown in the codex detail pane.
-  std::string category{}; ///< Author-defined grouping label, e.g. "Places"; empty groups under "Lore".
-  std::string id{};       ///< Unique key; also the suffix of the unlock flag.
-  std::string title{};    ///< Display heading.
+  /** Long-form lore text shown in the codex detail pane. */
+  std::string body{};
+
+  /** Author-defined grouping label, e.g. "Places"; empty groups under "Lore". */
+  std::string category{};
+
+  /** Unique key; also the suffix of the unlock flag. */
+  std::string id{};
+
+  /** Display heading. */
+  std::string title{};
 };
 
 } // namespace corundum::gameplay::codex

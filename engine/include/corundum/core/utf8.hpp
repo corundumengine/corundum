@@ -9,22 +9,29 @@
 
 namespace corundum::core {
 
-/// Codepoint returned for a truncated or malformed UTF-8 sequence.
+/** Codepoint returned for a truncated or malformed UTF-8 sequence. */
 constexpr uint32_t k_utf8_replacement_char = 0xFFFD;
-/// Largest codepoint UTF-8 can encode; anything above it is malformed.
+
+/** Largest codepoint UTF-8 can encode; anything above it is malformed. */
 constexpr uint32_t k_utf8_max_codepoint = 0x10FFFF;
 
 namespace detail {
-/// Classification of a multi-byte UTF-8 lead byte.
+/** Classification of a multi-byte UTF-8 lead byte. */
 struct Utf8Lead {
-  int extra_bytes{};        ///< Continuation bytes that must follow the lead.
-  uint32_t seed{};          ///< The codepoint bits carried by the lead byte itself.
-  uint32_t min_codepoint{}; ///< Overlong-encoding floor for this sequence length.
+  /** Continuation bytes that must follow the lead. */
+  int extra_bytes{};
+
+  /** The codepoint bits carried by the lead byte itself. */
+  uint32_t seed{};
+
+  /** Overlong-encoding floor for this sequence length. */
+  uint32_t min_codepoint{};
 };
 
-/// Classify `b0` as a multi-byte lead byte.
-/// @return the lead's classification, or nullopt for a continuation byte or a lead that would
-///         encode an overlong or out-of-range codepoint.
+/** Classify `b0` as a multi-byte lead byte.
+ *  @return the lead's classification, or nullopt for a continuation byte or a lead that would
+ *          encode an overlong or out-of-range codepoint.
+ */
 [[nodiscard]] inline std::optional<Utf8Lead> classify_utf8_lead(unsigned char b0) {
   if (b0 >= 0xC2 && b0 <= 0xDF) // 0xC0/0xC1 would encode an overlong 2-byte form
     return Utf8Lead{.extra_bytes = 1, .seed = b0 & 0x1Fu, .min_codepoint = 0x80};
@@ -36,13 +43,14 @@ struct Utf8Lead {
 }
 } // namespace detail
 
-/// Decodes one UTF-8 codepoint starting at `text[i]` and advances `i` past
-/// it (by 1-4 bytes on success, by exactly 1 byte on a malformed sequence,
-/// so callers always make forward progress).
-///
-/// Rejects overlong encodings, UTF-16 surrogate halves (U+D800-U+DFFF), and
-/// codepoints above U+10FFFF, returning k_utf8_replacement_char for each.
-/// @pre i < text.size()
+/** Decodes one UTF-8 codepoint starting at `text[i]` and advances `i` past
+ *  it (by 1-4 bytes on success, by exactly 1 byte on a malformed sequence,
+ *  so callers always make forward progress).
+ *
+ *  Rejects overlong encodings, UTF-16 surrogate halves (U+D800-U+DFFF), and
+ *  codepoints above U+10FFFF, returning k_utf8_replacement_char for each.
+ *  @pre i < text.size()
+ */
 [[nodiscard]] inline uint32_t decode_utf8(std::string_view text, std::size_t &i) {
   const auto b0 = static_cast<unsigned char>(text[i]);
   if (b0 < 0x80) {

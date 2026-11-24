@@ -98,43 +98,50 @@ core::math::TilePos interpolated_tile_position(const render::RenderState &state,
 
 namespace {
 
-/// Fallback half diamond height used when no tilemap is loaded yet (ISO diamond_h default for 32×32
-/// tiles at 1×).
+/** Fallback half diamond height used when no tilemap is loaded yet (ISO diamond_h default for 32×32
+ *  tiles at 1×).
+ */
 constexpr float k_default_half_th = 8.f;
 
-/// The interpolated camera for one frame and the viewport it sees.
+/** The interpolated camera for one frame and the viewport it sees. */
 struct FrameView {
-  core::math::Vec2 camera{}; ///< Top-left, world pixels.
+  /** Top-left, world pixels. */
+  core::math::Vec2 camera{};
 
-  core::math::Vec2 viewport_screen{}; ///< Window size, screen pixels.
+  /** Window size, screen pixels. */
+  core::math::Vec2 viewport_screen{};
 
-  /// Window size in world pixels; {0, 0} when zoom <= 0, which disables tile culling.
+  /** Window size in world pixels; {0, 0} when zoom <= 0, which disables tile culling. */
   core::math::Vec2 viewport_world{};
 
   float zoom{1.f};
 };
 
-/// One tilemap to draw this frame (the single map, or one resident chunk) with its projection.
+/** One tilemap to draw this frame (the single map, or one resident chunk) with its projection. */
 struct TileRenderParams {
   const world::tilemap::Tilemap *tilemap{nullptr};
 
-  std::span<const LayerRenderCache> layer_caches{}; ///< Parallel to tilemap->layers.
+  /** Parallel to tilemap->layers. */
+  std::span<const LayerRenderCache> layer_caches{};
 
   std::span<const platform::TextureId> texture_ids{};
 
   core::math::IsometricParams iso{};
 
-  core::math::Vec2 camera{}; ///< Top-left, world pixels (interpolated).
+  /** Top-left, world pixels (interpolated). */
+  core::math::Vec2 camera{};
 
-  core::math::Vec2 viewport_world{}; ///< Viewport size, world pixels.
+  /** Viewport size, world pixels. */
+  core::math::Vec2 viewport_world{};
 
   int chunk_offset_col{0};
 
   int chunk_offset_row{0};
 };
 
-/// This frame's tile sources in draw order: at most one per resident chunk, so the fixed array
-/// never allocates.
+/** This frame's tile sources in draw order: at most one per resident chunk, so the fixed array
+ *  never allocates.
+ */
 struct TileSources {
   std::array<TileRenderParams, ChunkWindow::k_max_active_chunks> items{};
 
@@ -143,11 +150,12 @@ struct TileSources {
   [[nodiscard]] std::span<const TileRenderParams> view() const noexcept { return {items.data(), count}; }
 };
 
-/// One resolved tile: its sprite, ready to draw or depth-sort, and its raw elevation.
+/** One resolved tile: its sprite, ready to draw or depth-sort, and its raw elevation. */
 struct ResolvedTile {
   DepthEntry sprite{};
 
-  int elevation{0}; ///< Raw elevation [0-255]; 0 for flat ground.
+  /** Raw elevation [0-255]; 0 for flat ground. */
+  int elevation{0};
 };
 
 FrameView make_frame_view(const RenderState &state, const world::Scene &scene, float alpha, int win_w,
@@ -189,7 +197,7 @@ TileRenderParams make_tile_params(const world::tilemap::Tilemap &tilemap,
   };
 }
 
-/// Every tilemap that has tilesets: each active chunk in draw order, else the single map.
+/** Every tilemap that has tilesets: each active chunk in draw order, else the single map. */
 TileSources collect_tile_sources(const RenderState &state, const core::GameConfig &cfg,
                                  const FrameView &view) noexcept {
   TileSources sources;
@@ -230,7 +238,7 @@ platform::DrawSprite to_draw_sprite(const DepthEntry &entry) noexcept {
   };
 }
 
-/// Global tile id at (col, row), or std::nullopt for an empty cell or an animation with no frames.
+/** Global tile id at (col, row), or std::nullopt for an empty cell or an animation with no frames. */
 std::optional<corundum::world::tilemap::TileId> resolve_tile_gid(const corundum::world::tilemap::TilemapLayer &layer,
                                                                  const LayerRenderCache &cache,
                                                                  const corundum::world::tilemap::Tilemap &tilemap,
@@ -304,7 +312,7 @@ ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::wor
   };
 }
 
-/// Resolves the tile at (col, row) in `layer` to draw data, or std::nullopt if the cell is empty/unrenderable.
+/** Resolves the tile at (col, row) in `layer` to draw data, or std::nullopt if the cell is empty/unrenderable. */
 std::optional<ResolvedTile>
 resolve_tile_cell(const TileRenderParams &ctx, const corundum::world::tilemap::TilemapLayer &layer,
                   const LayerRenderCache &cache, const corundum::world::tilemap::Tilemap &tilemap, int col, int row,
@@ -328,9 +336,10 @@ resolve_tile_cell(const TileRenderParams &ctx, const corundum::world::tilemap::T
   return make_resolved_tile(ctx, layer, cache, *tileset, col, row, cell_index, *gid, texture_id, cfg);
 }
 
-/// Computes cull bounds for one tile layer, expanding the camera rect by per-side
-/// art-extent pads so tiles whose anchors fall outside the viewport but whose sprite
-/// art extends into it aren't skipped.
+/** Computes cull bounds for one tile layer, expanding the camera rect by per-side
+ *  art-extent pads so tiles whose anchors fall outside the viewport but whose sprite
+ *  art extends into it aren't skipped.
+ */
 core::math::IsometricCullBounds compute_layer_cull_bounds(const TileRenderParams &params, const LayerRenderCache &cache,
                                                           const corundum::world::tilemap::Tilemap &tilemap,
                                                           float tile_scale) {
@@ -357,9 +366,10 @@ core::math::IsometricCullBounds compute_layer_cull_bounds(const TileRenderParams
   return core::math::compute_isometric_cull_bounds(padded_left, padded_top, padded_right, padded_bottom, params.iso);
 }
 
-/// Calls `visit` with each renderable cell of `layer` inside the cull bounds, back to front
-/// (ascending col + row, then ascending col).
-/// @pre ctx.tilemap has at least one tileset (collect_tile_sources() guarantees it).
+/** Calls `visit` with each renderable cell of `layer` inside the cull bounds, back to front
+ *  (ascending col + row, then ascending col).
+ *  @pre ctx.tilemap has at least one tileset (collect_tile_sources() guarantees it).
+ */
 template <typename Visit>
 void for_each_visible_tile(const TileRenderParams &ctx, const world::tilemap::TilemapLayer &layer,
                            const LayerRenderCache &cache, const core::GameConfig &cfg, const world::Scene &scene,
@@ -382,12 +392,13 @@ void for_each_visible_tile(const TileRenderParams &ctx, const world::tilemap::Ti
   }
 }
 
-/// Flat ground (elevation 0, the vast majority of tiles) draws immediately, unconditionally beneath
-/// entities — exactly the old behavior, so flat maps are visually unaffected. Only elevated tiles
-/// (elevation > 0) are collected into `sorted` to be depth-sorted against entities, since only those
-/// need occlusion interaction (see design checklist §2). A flat tile can never be taller than the
-/// diamond it occupies, so it can never occlude a taller entity sprite standing nearby; an elevated
-/// tile can, which is the whole point of this fix.
+/** Flat ground (elevation 0, the vast majority of tiles) draws immediately, unconditionally beneath
+ *  entities — exactly the old behavior, so flat maps are visually unaffected. Only elevated tiles
+ *  (elevation > 0) are collected into `sorted` to be depth-sorted against entities, since only those
+ *  need occlusion interaction (see design checklist §2). A flat tile can never be taller than the
+ *  diamond it occupies, so it can never occlude a taller entity sprite standing nearby; an elevated
+ *  tile can, which is the whole point of this fix.
+ */
 void draw_ground_band(platform::Renderer &r, const TileRenderParams &ctx, const core::GameConfig &cfg,
                       const world::Scene &scene, std::vector<DepthEntry> &sorted) {
   for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
@@ -402,11 +413,12 @@ void draw_ground_band(platform::Renderer &r, const TileRenderParams &ctx, const 
   }
 }
 
-/// Collects tiles from every z_index>0, depth_sorted==true layer into `sorted`, unconditionally —
-/// unlike draw_ground_band's elevation<=0 fast path, an overlay tile's occlusion potential comes
-/// from its art/pivot (a wall body taller than one cell), not its terrain-elevation value, so there
-/// is no "this tile can't occlude anything" case to skip. Every matching tile always goes into
-/// `sorted` to be depth-sorted against entities and elevated ground tiles.
+/** Collects tiles from every z_index>0, depth_sorted==true layer into `sorted`, unconditionally —
+ *  unlike draw_ground_band's elevation<=0 fast path, an overlay tile's occlusion potential comes
+ *  from its art/pivot (a wall body taller than one cell), not its terrain-elevation value, so there
+ *  is no "this tile can't occlude anything" case to skip. Every matching tile always goes into
+ *  `sorted` to be depth-sorted against entities and elevated ground tiles.
+ */
 void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig &cfg, const world::Scene &scene,
                              std::vector<DepthEntry> &sorted) {
   for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
@@ -417,8 +429,9 @@ void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig
   }
 }
 
-/// Draws the layers of band `z_index` that are not depth-sorted, immediately, above
-/// everything in the ground band.
+/** Draws the layers of band `z_index` that are not depth-sorted, immediately, above
+ *  everything in the ground band.
+ */
 void draw_overlay_band(platform::Renderer &r, const TileRenderParams &ctx, int z_index, const core::GameConfig &cfg,
                        const world::Scene &scene) {
   for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
@@ -429,8 +442,9 @@ void draw_overlay_band(platform::Renderer &r, const TileRenderParams &ctx, int z
   }
 }
 
-/// Projection for entity anchors: the first resident chunk's, else the single map's, else a flat
-/// default so an entity still draws before any tilemap loads.
+/** Projection for entity anchors: the first resident chunk's, else the single map's, else a flat
+ *  default so an entity still draws before any tilemap loads.
+ */
 core::math::IsometricParams entity_isometric_params(const RenderState &state, const core::GameConfig &cfg) noexcept {
   core::math::IsometricParams iso{};
   const auto *world_area = std::get_if<WorldArea>(&state.area);
@@ -446,7 +460,7 @@ core::math::IsometricParams entity_isometric_params(const RenderState &state, co
   return iso;
 }
 
-/// Appends every on-screen entity sprite to `sorted`.
+/** Appends every on-screen entity sprite to `sorted`. */
 void collect_entities(const RenderState &state, const core::GameConfig &cfg, const world::Scene &scene, float alpha,
                       const FrameView &view, std::vector<DepthEntry> &sorted) {
   const float scale = cfg.character_scale;
@@ -501,13 +515,14 @@ void collect_entities(const RenderState &state, const core::GameConfig &cfg, con
   }
 }
 
-/// Depth-sort and draw the collected ground tiles and entities.
-///
-/// Sort indices, not the 40-byte DepthEntry structs: std::ranges::sort is introsort (in-place,
-/// no O(n) aux buffer), unlike stable_sort. Depth ties only occur for flat tiles on integer
-/// anti-diagonals — not for entities at fractional positions — so stability was barely exercised;
-/// an unstable sort on 4-byte indices is both cheaper to move and allocation-free. draw_order is
-/// reused across frames (resized, never freed) so this touches no per-frame heap allocation.
+/** Depth-sort and draw the collected ground tiles and entities.
+ *
+ *  Sort indices, not the 40-byte DepthEntry structs: std::ranges::sort is introsort (in-place,
+ *  no O(n) aux buffer), unlike stable_sort. Depth ties only occur for flat tiles on integer
+ *  anti-diagonals — not for entities at fractional positions — so stability was barely exercised;
+ *  an unstable sort on 4-byte indices is both cheaper to move and allocation-free. draw_order is
+ *  reused across frames (resized, never freed) so this touches no per-frame heap allocation.
+ */
 void draw_depth_sorted(platform::Renderer &r, const std::vector<DepthEntry> &entries, std::vector<uint32_t> &order) {
   order.resize(entries.size());
   std::ranges::iota(order, 0u);
@@ -516,12 +531,13 @@ void draw_depth_sorted(platform::Renderer &r, const std::vector<DepthEntry> &ent
     r.draw(to_draw_sprite(entries[index]));
 }
 
-/// Draws the z_index==0 tile band and all entities. Flat ground (elevation 0) draws immediately,
-/// unconditionally beneath entities — a flat tile can never be taller than its own diamond, so it can
-/// never legitimately occlude a taller entity sprite standing near it; this preserves the old two-pass
-/// behavior exactly for flat maps. Elevated tiles (elevation > 0) are depth-sorted together with entities
-/// (see iso_depth_key) so a raised platform correctly occludes/is-occluded-by nearby entities and tiles.
-/// z_index>0 layers remain a separate, subsequent immediate-draw pass (always above entities).
+/** Draws the z_index==0 tile band and all entities. Flat ground (elevation 0) draws immediately,
+ *  unconditionally beneath entities — a flat tile can never be taller than its own diamond, so it can
+ *  never legitimately occlude a taller entity sprite standing near it; this preserves the old two-pass
+ *  behavior exactly for flat maps. Elevated tiles (elevation > 0) are depth-sorted together with entities
+ *  (see iso_depth_key) so a raised platform correctly occludes/is-occluded-by nearby entities and tiles.
+ *  z_index>0 layers remain a separate, subsequent immediate-draw pass (always above entities).
+ */
 void draw_ground_and_entities(platform::Renderer &r, RenderState &state, const core::GameConfig &cfg,
                               const world::Scene &scene, float alpha, const FrameView &view,
                               std::span<const TileRenderParams> sources) {
@@ -534,8 +550,9 @@ void draw_ground_and_entities(platform::Renderer &r, RenderState &state, const c
   draw_depth_sorted(r, state.draw_list, state.draw_order);
 }
 
-/// The z_index > 0 bands to draw over the ground band, ascending. In World mode, first rebuilds
-/// the cached union of the active chunks' bands when the active set changed.
+/** The z_index > 0 bands to draw over the ground band, ascending. In World mode, first rebuilds
+ *  the cached union of the active chunks' bands when the active set changed.
+ */
 std::span<const int> refresh_above_ground_bands(RenderState &state) {
   if (const auto *single = std::get_if<SingleMapArea>(&state.area))
     return single->map.above_z;

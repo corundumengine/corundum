@@ -25,14 +25,14 @@ namespace corundum::test {
 
 namespace {
 
-/// One combatant whose wind-up ends on this tick, with the beats its marker reached.
+/** One combatant whose wind-up ends on this tick, with the beats its marker reached. */
 struct Landing {
   std::size_t index{};
 
   int beats{};
 };
 
-/// `name` when `callback` is empty, and nullopt when it is set.
+/** `name` when `callback` is empty, and nullopt when it is set. */
 template <typename Callback>
 [[nodiscard]] std::optional<std::string_view> missing_callback(std::string_view name, const Callback &callback) {
   if (callback)
@@ -40,7 +40,7 @@ template <typename Callback>
   return name;
 }
 
-/// The name of the first empty callback in `rules`, in declaration order; nullopt when all are set.
+/** The name of the first empty callback in `rules`, in declaration order; nullopt when all are set. */
 [[nodiscard]] std::optional<std::string_view> first_missing_callback(const CombatRules &rules) {
   const std::array checks{
       missing_callback("can_act", rules.can_act), missing_callback("commands", rules.commands),
@@ -54,7 +54,7 @@ template <typename Callback>
   return std::nullopt;
 }
 
-/// Whether `index`'s ordered target stands within `reach_tiles` of it.
+/** Whether `index`'s ordered target stands within `reach_tiles` of it. */
 template <typename Marker>
 [[nodiscard]] bool in_reach(std::span<const rules::Tile> tiles, int reach_tiles, const std::vector<Marker> &markers,
                             std::size_t index) {
@@ -64,8 +64,9 @@ template <typename Marker>
   return rules::tile_distance(tiles[index], tiles[*target]) <= reach_tiles;
 }
 
-/// Whether `index`'s next command can start: a queued command needs nothing, the standing
-/// attack needs its target in reach.
+/** Whether `index`'s next command can start: a queued command needs nothing, the standing
+ *  attack needs its target in reach.
+ */
 template <typename Marker>
 [[nodiscard]] bool can_start_command(const CombatRules &rules, std::span<const rules::Tile> tiles,
                                      const std::vector<Marker> &markers, std::size_t index) {
@@ -74,7 +75,7 @@ template <typename Marker>
   return in_reach(tiles, rules.reach_tiles, markers, index);
 }
 
-/// Start `marker`'s wind-up: its queued command, or else the standing attack. The queue empties.
+/** Start `marker`'s wind-up: its queued command, or else the standing attack. The queue empties. */
 template <typename Marker>
 void start_windup(const std::vector<rules::CommandOption> &commands, Marker &marker, std::size_t index,
                   std::vector<std::size_t> &windups_started) {
@@ -84,9 +85,10 @@ void start_windup(const std::vector<rules::CommandOption> &commands, Marker &mar
   windups_started.push_back(index);
 }
 
-/// Advance one marker by CombatRules::tempo_beats; returns true when its wind-up ends on this
-/// tick. A Ready marker that reaches the command point starts its wind-up once its command can
-/// start, and is held there until then.
+/** Advance one marker by CombatRules::tempo_beats; returns true when its wind-up ends on this
+ *  tick. A Ready marker that reaches the command point starts its wind-up once its command can
+ *  start, and is held there until then.
+ */
 template <typename Marker>
 [[nodiscard]] bool advance_marker(const CombatRules &rules,
                                   const std::vector<std::vector<rules::CommandOption>> &commands,
@@ -113,7 +115,7 @@ template <typename Marker>
   return false;
 }
 
-/// Advance every marker that can act, collecting the wind-ups that end on this tick.
+/** Advance every marker that can act, collecting the wind-ups that end on this tick. */
 template <typename Marker>
 void advance_tick(const CombatRules &rules, const rules::CombatContext &context,
                   const std::vector<Combatant> &combatants,
@@ -127,8 +129,9 @@ void advance_tick(const CombatRules &rules, const rules::CombatContext &context,
   }
 }
 
-/// Order the tick's landings: further along, then the party, then join order (which stable_sort
-/// keeps for the remaining ties).
+/** Order the tick's landings: further along, then the party, then join order (which stable_sort
+ *  keeps for the remaining ties).
+ */
 void sort_landings(std::vector<Landing> &landing, const std::vector<Side> &sides) {
   std::ranges::stable_sort(landing, [&](const Landing &first, const Landing &second) {
     if (first.beats != second.beats)
@@ -137,8 +140,9 @@ void sort_landings(std::vector<Landing> &landing, const std::vector<Side> &sides
   });
 }
 
-/// Ask the rules for every combatant's commands again, keeping each list's length: a queued
-/// index and the command bar index into the list, so a change is fatal.
+/** Ask the rules for every combatant's commands again, keeping each list's length: a queued
+ *  index and the command bar index into the list, so a change is fatal.
+ */
 void refresh_commands(const CombatRules &rules, const rules::CombatContext &context,
                       const std::vector<Combatant> &combatants,
                       std::vector<std::vector<rules::CommandOption>> &commands) {
@@ -150,8 +154,9 @@ void refresh_commands(const CombatRules &rules, const rules::CombatContext &cont
   }
 }
 
-/// Take the command a landing marker was winding up, dropping the marker to 0; nullopt for the
-/// standing attack.
+/** Take the command a landing marker was winding up, dropping the marker to 0; nullopt for the
+ *  standing attack.
+ */
 template <typename Marker> [[nodiscard]] std::optional<rules::CommandOption> take_command(Marker &marker) {
   std::optional<rules::CommandOption> command = marker.active;
   marker.phase = Phase::Ready;
@@ -160,8 +165,9 @@ template <typename Marker> [[nodiscard]] std::optional<rules::CommandOption> tak
   return command;
 }
 
-/// Carry out a landed standing attack on the marker's target, or let it fizzle when the target
-/// left reach or can no longer act.
+/** Carry out a landed standing attack on the marker's target, or let it fizzle when the target
+ *  left reach or can no longer act.
+ */
 template <typename Marker>
 void land_attack(const CombatRules &rules, const rules::CombatContext &context, std::vector<Combatant> &combatants,
                  std::span<const rules::Tile> tiles, std::vector<Marker> &markers, std::size_t index,
@@ -175,7 +181,7 @@ void land_attack(const CombatRules &rules, const rules::CombatContext &context, 
   reports.push_back(rules.resolve(context, combatants[index], combatants[*marker.target]));
 }
 
-/// Carry out one landed command: a queued command on its actor, the standing attack on its target.
+/** Carry out one landed command: a queued command on its actor, the standing attack on its target. */
 template <typename Marker>
 void land_command(const CombatRules &rules, const rules::CombatContext &context, std::vector<Combatant> &combatants,
                   std::span<const rules::Tile> tiles, std::vector<Marker> &markers, std::size_t index,
@@ -188,7 +194,7 @@ void land_command(const CombatRules &rules, const rules::CombatContext &context,
   land_attack(rules, context, combatants, tiles, markers, index, reports);
 }
 
-/// Carry out the tick's landings in order, skipping combatants downed earlier in the same tick.
+/** Carry out the tick's landings in order, skipping combatants downed earlier in the same tick. */
 template <typename Marker>
 void land_commands(const CombatRules &rules, const rules::CombatContext &context, std::vector<Combatant> &combatants,
                    std::span<const rules::Tile> tiles, std::vector<Marker> &markers,
@@ -200,7 +206,7 @@ void land_commands(const CombatRules &rules, const rules::CombatContext &context
   }
 }
 
-/// Drop every order whose target can no longer act.
+/** Drop every order whose target can no longer act. */
 template <typename Marker>
 void drop_dead_orders(const CombatRules &rules, const rules::CombatContext &context,
                       const std::vector<Combatant> &combatants, std::vector<Marker> &markers) {
@@ -361,7 +367,7 @@ Encounter::Encounter(CombatRules rules, std::vector<Combatant> combatants, std::
 
 namespace {
 
-/// The rules::Fight that runs every command and query on `encounter`.
+/** The rules::Fight that runs every command and query on `encounter`. */
 [[nodiscard]] rules::Fight bind_fight(const std::shared_ptr<Encounter> &encounter) {
   rules::Fight fight{.reach_tiles = encounter->reach_tiles()};
   for (std::size_t i = 0; i < encounter->size(); ++i)

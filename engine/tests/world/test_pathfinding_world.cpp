@@ -24,7 +24,7 @@ using corundum::world::find_path;
 using corundum::world::MapView;
 using corundum::world::tilemap::Tilemap;
 
-// Row-major index into a per-cell tilemap array.
+/** Row-major index into a per-cell tilemap array. */
 std::size_t cell_index(int col, int row, int width) {
   return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
 }

@@ -34,11 +34,11 @@ using corundum::test::adopt_platform;
 using corundum::test::make_world_config;
 using corundum::world::GameMode;
 
-/// A scratch tree to root the engine's user storage at, standing in for the real user-data dir.
+/** A scratch tree to root the engine's user storage at, standing in for the real user-data dir. */
 struct ScratchUserData {
   corundum::test::TempDir home{"crpg_test_settings_persist_", "user_data"};
 
-  /// Give `engine` a user storage rooted at this scratch tree; call before init_engine().
+  /** Give `engine` a user storage rooted at this scratch tree; call before init_engine(). */
   void attach(corundum::Engine &engine) const {
     engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
   }
@@ -50,7 +50,7 @@ void init_engine(corundum::Engine &engine) {
   REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
 }
 
-/// Route one action press through the engine's UI step, exactly as the fixed-step loop does.
+/** Route one action press through the engine's UI step, exactly as the fixed-step loop does. */
 void press(corundum::Engine &engine, Action action) {
   corundum::input::InputState state{};
   state.pressed.set(static_cast<std::size_t>(action));

@@ -46,11 +46,13 @@ enum class RenderMode : uint8_t { None, SingleMap, World };
 struct SpriteFrameIndex {
   std::vector<std::optional<platform::TextureId>> tex_by_sprite_id;
   std::vector<corundum::core::math::IntRect> frame_rects;
-  std::vector<float> walk_offsets; ///< walk_around_offset per sprite_id.
+
+  /** walk_around_offset per sprite_id. */
+  std::vector<float> walk_offsets;
   std::vector<uint32_t> anim_offsets;
   std::vector<uint8_t> anim_frame_counts;
 
-  /// Lookup result: texture ID, source rect, and walk_around_offset.
+  /** Lookup result: texture ID, source rect, and walk_around_offset. */
   struct Entry {
     platform::TextureId tex_id{platform::TextureId::Invalid};
     corundum::core::math::IntRect src{};
@@ -72,7 +74,9 @@ struct MapData {
   world::tilemap::Tilemap tilemap{};
   std::vector<platform::TextureId> tileset_texture_ids{};
   std::vector<int> above_z{};
-  std::vector<LayerRenderCache> layer_caches{}; ///< Parallel to tilemap.layers.
+
+  /** Parallel to tilemap.layers. */
+  std::vector<LayerRenderCache> layer_caches{};
   std::vector<world::Portal> portals{};
 };
 
@@ -94,12 +98,12 @@ struct DepthEntry {
 struct WorldAggregates {
   world::tilemap::CollisionRects collisions{};
 
-  /// Each chunk's portals offset into world tiles; MapView hands them out as a span.
+  /** Each chunk's portals offset into world tiles; MapView hands them out as a span. */
   std::vector<world::Portal> portals{};
 
   world::tilemap::CollisionTriangles triangles{};
 
-  /// Spans the bounding box of the active chunks; col_origin/row_origin record the offset.
+  /** Spans the bounding box of the active chunks; col_origin/row_origin record the offset. */
   world::tilemap::WalkabilityGraph walkability{};
 };
 
@@ -112,14 +116,16 @@ struct SingleMapArea {
 
 /** A streamed world: its manifest, the resident chunk window and the window's aggregates. */
 struct WorldArea {
-  /// Sorted, deduplicated z_index > 0 bands across the active chunks; render() rebuilds it when
-  /// chunks.consume_dirty() reports a change.
+  /** Sorted, deduplicated z_index > 0 bands across the active chunks; render() rebuilds it when
+   *  chunks.consume_dirty() reports a change.
+   */
   std::vector<int> above_z_cache{};
 
   WorldAggregates aggregates{};
 
-  /// Loads the window's chunks through the content source load_world() was given, keeping their
-  /// shared tilesets until the world is replaced. No default: a world can't stream without a source.
+  /** Loads the window's chunks through the content source load_world() was given, keeping their
+   *  shared tilesets until the world is replaced. No default: a world can't stream without a source.
+   */
   world::tilemap::TilemapLoader chunk_loader;
 
   ChunkWindow chunks{};
@@ -164,17 +170,18 @@ struct StepSnapshot {
 
 /** All mutable rendering state, grouped by lifetime tier. */
 struct RenderState {
-  /// Area tier: replaced whole by load_map()/load_world(), reset by unload_world().
+  /** Area tier: replaced whole by load_map()/load_world(), reset by unload_world(). */
   Area area{};
 
-  /// Textures the loaded area holds one reference on each. Kept outside `area` so replacing the
-  /// area can never drop references unreleased; see unload_world().
+  /** Textures the loaded area holds one reference on each. Kept outside `area` so replacing the
+   *  area can never drop references unreleased; see unload_world().
+   */
   std::vector<platform::TextureId> area_texture_ids{};
 
-  /// Per-role font families, indexed by ui::FontRole; loaded by load_fonts().
+  /** Per-role font families, indexed by ui::FontRole; loaded by load_fonts(). */
   std::array<corundum::ui::FontFamily, corundum::ui::k_font_role_count> fonts{};
 
-  /// @return The family for `role`.
+  /** @return The family for `role`. */
   [[nodiscard]] const corundum::ui::FontFamily &family(corundum::ui::FontRole role) const noexcept {
     return fonts[static_cast<std::size_t>(role)];
   }
@@ -183,15 +190,17 @@ struct RenderState {
 
   SpriteFrameIndex sprite_index{};
 
-  /// Dialogue text-reveal multiplier applied to k_base_reveal_chars_per_second; 0 = instant.
-  /// Set from UserSettings::text_speed.
+  /** Dialogue text-reveal multiplier applied to k_base_reveal_chars_per_second; 0 = instant.
+   *  Set from UserSettings::text_speed.
+   */
   float text_speed{1.f};
 
-  /// Font/margin scale applied by configure_panel_style(); 1 = the game.json sizes. Set from
-  /// UserSettings::ui_scale.
+  /** Font/margin scale applied by configure_panel_style(); 1 = the game.json sizes. Set from
+   *  UserSettings::ui_scale.
+   */
   float ui_scale{1.f};
 
-  /// Frame scratch, reused across frames.
+  /** Frame scratch, reused across frames. */
   std::vector<DepthEntry> draw_list{};
 
   /** Indices into draw_list, sorted by depth each frame. Reused across frames
@@ -201,8 +210,9 @@ struct RenderState {
 
   StepSnapshot previous_step{};
 
-  /// The view the last render() drew the world with, interpolated by the loop's alpha. A screen
-  /// that draws over the world uses this rather than Scene::camera, which is up to a step ahead.
+  /** The view the last render() drew the world with, interpolated by the loop's alpha. A screen
+   *  that draws over the world uses this rather than Scene::camera, which is up to a step ahead.
+   */
   WorldView world_view{};
 };
 

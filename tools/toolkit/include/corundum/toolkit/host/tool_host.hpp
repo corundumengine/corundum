@@ -18,15 +18,16 @@ class GpuContext;
 
 namespace corundum::toolkit::host {
 
-/// Parameters for ToolHost creation.
+/** Parameters for ToolHost creation. */
 struct ToolHostDesc {
   int width;
   int height;
   std::string_view title;
 };
 
-/// RAII host owning the window, GPU context, texture cache, and ImGui/sokol_imgui lifecycle.
-/// Replaces the old ToolApp with engine APIs (create_window, GpuContext, TextureCache).
+/** RAII host owning the window, GPU context, texture cache, and ImGui/sokol_imgui lifecycle.
+ *  Replaces the old ToolApp with engine APIs (create_window, GpuContext, TextureCache).
+ */
 class ToolHost {
 public:
   [[nodiscard]] static std::expected<std::unique_ptr<ToolHost>, std::string> create(const ToolHostDesc &desc);
@@ -37,26 +38,27 @@ public:
   ToolHost(ToolHost &&) = delete;
   ToolHost &operator=(ToolHost &&) = delete;
 
-  /// Run the main loop, calling `frame_fn` each frame after ImGui new frame.
+  /** Run the main loop, calling `frame_fn` each frame after ImGui new frame. */
   void run(const std::function<void()> &frame_fn);
 
-  /// Request that the main loop exit after the current frame.
+  /** Request that the main loop exit after the current frame. */
   void request_close();
 
-  /// Set the OS window title.
+  /** Set the OS window title. */
   void set_title(std::string_view title);
 
-  /// Access the platform window.
+  /** Access the platform window. */
   [[nodiscard]] platform::Window &window();
 
-  /// Access the texture cache.
+  /** Access the texture cache. */
   [[nodiscard]] platform::TextureCache &textures();
 
-  /// Convert a texture ID to an ImTextureID for use with ImGui::Image.
+  /** Convert a texture ID to an ImTextureID for use with ImGui::Image. */
   [[nodiscard]] ImTextureID imgui_id(uint32_t texture_id);
 
-  /// Create a checkerboard pattern texture (RGBA8, REPEAT wrap).
-  /// @return TextureInfo on success, or std::unexpected with the reason.
+  /** Create a checkerboard pattern texture (RGBA8, REPEAT wrap).
+   *  @return TextureInfo on success, or std::unexpected with the reason.
+   */
   [[nodiscard]] std::expected<platform::TextureInfo, std::string> make_checkerboard(unsigned w, unsigned h,
                                                                                     unsigned check_size = 8);
 

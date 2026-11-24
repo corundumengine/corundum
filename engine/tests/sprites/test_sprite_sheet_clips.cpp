@@ -34,7 +34,7 @@ corundum::test::TempDir temp_dir(std::string_view tag) {
   return corundum::test::TempDir{"crpg_test_sprite_sheet_clips_", tag};
 }
 
-/// A minimal valid document: the four required geometry fields plus "path".
+/** A minimal valid document: the four required geometry fields plus "path". */
 constexpr std::string_view k_minimal_json = R"({
     "frame_width": 16,
     "frame_height": 24,

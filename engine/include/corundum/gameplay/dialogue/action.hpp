@@ -30,8 +30,11 @@ struct StateAction {
  *  Parsed from: "name(args...)" where args are quoted strings, identifiers, or integers.
  */
 struct EventAction {
-  std::string name;              ///< Function name, e.g. "play_sound"
-  std::vector<std::string> args; ///< Arguments (unquoted)
+  /** Function name, e.g. "play_sound" */
+  std::string name;
+
+  /** Arguments (unquoted) */
+  std::vector<std::string> args;
 };
 
 /** One parsed action — either a state mutation or an engine hook. */

@@ -21,7 +21,8 @@ namespace corundum::gameplay::screens {
 struct MapEntry {
   std::string id{};
 
-  bool current{false}; ///< The location's zone matches the active zone; travel is a no-op.
+  /** The location's zone matches the active zone; travel is a no-op. */
+  bool current{false};
 
   std::string name{};
 };

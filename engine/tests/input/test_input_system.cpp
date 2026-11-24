@@ -25,8 +25,9 @@ using corundum::input::InputState;
 using corundum::input::Key;
 using corundum::platform::PlatformEvents;
 
-/// Window double that records polls and feeds scripted physical input through the mapper,
-/// mirroring how the GLFW backend reports physical input to it.
+/** Window double that records polls and feeds scripted physical input through the mapper,
+ *  mirroring how the GLFW backend reports physical input to it.
+ */
 class RecordingWindow final : public corundum::platform::Window {
 public:
   int poll_count{};

@@ -12,8 +12,9 @@
 #include <optional>
 #include <span>
 
-// Pure coordinate math — no GLFW, no I/O, no rendering.
-// Returns effective isometric world-step width (diamond_w) for a tilemap.
+/** Pure coordinate math — no GLFW, no I/O, no rendering.
+ *  Returns effective isometric world-step width (diamond_w) for a tilemap.
+ */
 [[nodiscard]] inline int effective_diamond_w(const corundum::world::tilemap::Tilemap &map) noexcept {
   return map.diamond_w();
 }
@@ -24,21 +25,23 @@
 
 namespace tools::tilesmith {
 
-// Number of half-diamonds of margin added to the computed virtual canvas
-// extent so the outermost tile diamond footprints aren't clipped by the
-// scroll region edge.
+/** Number of half-diamonds of margin added to the computed virtual canvas
+ *  extent so the outermost tile diamond footprints aren't clipped by the
+ *  scroll region edge.
+ */
 inline constexpr float k_content_margin = 2.f;
 
 namespace detail {
-/// Projection a canvas picker uses, with the same diamond fallback both pixel pickers need.
+/** Projection a canvas picker uses, with the same diamond fallback both pixel pickers need. */
 [[nodiscard]] inline corundum::core::math::IsometricParams canvas_iso(int tw, int diamond_h, int map_h,
                                                                       float tile_scale, float elev_step) noexcept {
   return corundum::core::math::compute_isometric_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h, tile_scale,
                                                         elev_step);
 }
 
-/// A window pixel, clamped to the canvas interior and undoing the renderer's origin shift, in
-/// the world space world_to_tile() reads.
+/** A window pixel, clamped to the canvas interior and undoing the renderer's origin shift, in
+ *  the world space world_to_tile() reads.
+ */
 [[nodiscard]] inline corundum::core::math::Vec2
 canvas_pixel_to_world(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
                       float camera_y, const corundum::core::math::IsometricParams &iso) noexcept {
@@ -51,8 +54,9 @@ canvas_pixel_to_world(int px, int py, int canvas_left, int canvas_top, int canva
   return {.x = world_x, .y = world_y};
 }
 
-/// The tile-grid collision rect spanning two fractional drag endpoints, at least one diamond
-/// wide and tall.
+/** The tile-grid collision rect spanning two fractional drag endpoints, at least one diamond
+ *  wide and tall.
+ */
 [[nodiscard]] inline corundum::world::tilemap::CollisionRect tiled_rect(corundum::core::math::TilePos from,
                                                                         corundum::core::math::TilePos to, int diamond_w,
                                                                         int diamond_h) noexcept {
@@ -242,10 +246,10 @@ struct PaletteCell {
   int w, h;
 };
 
-/// Padding in pixels between adjacent palette cells, both horizontally and between rows.
+/** Padding in pixels between adjacent palette cells, both horizontally and between rows. */
 inline constexpr int k_palette_cell_padding = 2;
 
-/// Clamp range for EditorState::palette_tile_scale (user zoom via Ctrl+scroll; see input.cpp).
+/** Clamp range for EditorState::palette_tile_scale (user zoom via Ctrl+scroll; see input.cpp). */
 inline constexpr float k_palette_min_scale = 0.25f;
 inline constexpr float k_palette_max_scale = 4.f;
 

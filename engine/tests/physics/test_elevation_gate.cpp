@@ -22,8 +22,9 @@ using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 
-// Build a single-tile-per-cell tilemap with a per-cell elevation vector. Ramps
-// are optional; ramp_cell is the (col, row) of the ramp and ramp_axis is its axis.
+/** Build a single-tile-per-cell tilemap with a per-cell elevation vector. Ramps
+ *  are optional; ramp_cell is the (col, row) of the ramp and ramp_axis is its axis.
+ */
 Tilemap make_map(int w, int h, const std::vector<uint8_t> &elevs,
                  std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
                  RampAxis ramp_axis = RampAxis::NorthSouth) {

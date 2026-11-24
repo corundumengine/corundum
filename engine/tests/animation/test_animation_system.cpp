@@ -30,13 +30,15 @@ using corundum::entities::TransformTable;
 
 namespace {
 
-// half_tw/half_th form a 3-4-5 right triangle so every screen-speed ratio exercised
-// below is exact in floating point (no ulp slop flipping an exact >= threshold check).
+/** half_tw/half_th form a 3-4-5 right triangle so every screen-speed ratio exercised
+ *  below is exact in floating point (no ulp slop flipping an exact >= threshold check).
+ */
 constexpr IsometricParams k_iso{.half_tw = 4.f, .half_th = 3.f, .x_origin = 0.f, .elev_step = 0.f};
 constexpr float k_reference_speed = 10.f; // screen px/s
 
-// Field order is the padding-optimal one (transform/animations/player/facings/sprites/
-// motion_sprites) rather than declaration order; the test only ever reads them by name.
+/** Field order is the padding-optimal one (transform/animations/player/facings/sprites/
+ *  motion_sprites) rather than declaration order; the test only ever reads them by name.
+ */
 struct Fixture {
   TransformTable transforms;
   AnimationTable animations;
@@ -63,7 +65,7 @@ constexpr corundum::sprites::SpriteId k_other_clip_sprite{8};
 
 constexpr float k_clip_frame_seconds = 0.1f;
 
-/// A 3-frame clip: every AnimId has frames, so any facing resolves.
+/** A 3-frame clip: every AnimId has frames, so any facing resolves. */
 corundum::entities::Clip make_clip(corundum::entities::ClipEnd end,
                                    corundum::sprites::SpriteId sprite = k_clip_sprite) {
   corundum::entities::Clip clip{
@@ -85,12 +87,12 @@ void run_clip_steps(Fixture &f, int steps) {
     corundum::animation::update_clips(f.sprites, f.transforms, f.animations, f.facings, f.clips, k_clip_frame_seconds);
 }
 
-/// Give `e` a velocity, so a Resume clip sees it as moving.
+/** Give `e` a velocity, so a Resume clip sees it as moving. */
 void move(Fixture &f, EntityId e) {
   f.transforms.dc[f.transforms.dense_index(e)] = 1.f;
 }
 
-/// A second animated entity, shaped like the fixture's player.
+/** A second animated entity, shaped like the fixture's player. */
 EntityId add_animated_entity(Fixture &f, std::uint32_t id) {
   const auto e = static_cast<EntityId>(id);
   f.transforms.insert(e, 0.5f, 0.5f, 0.f, 0.f);
@@ -112,7 +114,7 @@ constexpr float k_stance_idle_frame_seconds = 0.2f;
 
 constexpr float k_stance_ready_frame_seconds = 0.3f;
 
-/// Give `e` a motion row with distinct walk, idle and ready sheets, standing on idle.
+/** Give `e` a motion row with distinct walk, idle and ready sheets, standing on idle. */
 void add_stance_row(Fixture &f, EntityId e) {
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_and_idle_counts{};
   walk_and_idle_counts.fill(4);

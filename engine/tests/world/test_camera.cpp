@@ -15,7 +15,7 @@ namespace {
 constexpr float k_min_zoom{0.5f};
 constexpr float k_max_zoom{3.f};
 
-// World-space point currently under (anchor_x, anchor_y) at the camera's current zoom.
+/** World-space point currently under (anchor_x, anchor_y) at the camera's current zoom. */
 float world_under_anchor(float camera_pos, float anchor, float zoom) {
   return camera_pos + anchor / zoom;
 }

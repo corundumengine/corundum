@@ -33,10 +33,17 @@ class Renderer;
  *  double-draw.
  */
 enum class RenderLayer : std::uint8_t {
-  Hud,      ///< Gameplay HUD strip; only while no screen is open and no prompt is showing.
-  Modal,    ///< Modal overlays (the dialogue box).
-  HubPanel, ///< Hub panels drawn above the tab strip (Codex, Map, Loot, Barter).
-  HubStrip, ///< Hub tab strip.
+  /** Gameplay HUD strip; only while no screen is open and no prompt is showing. */
+  Hud,
+
+  /** Modal overlays (the dialogue box). */
+  Modal,
+
+  /** Hub panels drawn above the tab strip (Codex, Map, Loot, Barter). */
+  HubPanel,
+
+  /** Hub tab strip. */
+  HubStrip,
   Count,
 };
 

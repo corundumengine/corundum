@@ -15,9 +15,11 @@ namespace corundum::physics {
  *  platform. A view with no per-collider elevation data ignores the gate entirely.
  */
 struct ElevationGate {
-  int player_elevation{}; ///< The entity's own elevation [0–255].
+  /** The entity's own elevation [0–255]. */
+  int player_elevation{};
 
-  int tolerance{}; ///< Largest elevation difference a collider may have and still block.
+  /** Largest elevation difference a collider may have and still block. */
+  int tolerance{};
 };
 
 /** Axis-separated AABB collision resolution.

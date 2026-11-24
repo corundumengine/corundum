@@ -41,17 +41,19 @@ namespace corundum::render {
 
 namespace {
 
-/// Drop the area's reference on every texture it holds. Nothing is destroyed until the next
-/// purge_unused_textures(), so a texture the next area also uses survives the swap.
+/** Drop the area's reference on every texture it holds. Nothing is destroyed until the next
+ *  purge_unused_textures(), so a texture the next area also uses survives the swap.
+ */
 void release_area_textures(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids) {
   for (const platform::TextureId id : area_texture_ids)
     r.release_texture(id);
   area_texture_ids.clear();
 }
 
-/// Record `ids` (just returned by load_texture) as area textures. The area keeps one reference
-/// per distinct texture: a repeat (two chunks sharing a tileset) hands its extra reference
-/// straight back. TextureId::Invalid, a failed load, holds no reference.
+/** Record `ids` (just returned by load_texture) as area textures. The area keeps one reference
+ *  per distinct texture: a repeat (two chunks sharing a tileset) hands its extra reference
+ *  straight back. TextureId::Invalid, a failed load, holds no reference.
+ */
 void adopt_area_textures(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids,
                          std::span<const platform::TextureId> ids) {
   for (const platform::TextureId id : ids) {
@@ -64,7 +66,7 @@ void adopt_area_textures(corundum::platform::Renderer &r, std::vector<platform::
   }
 }
 
-/// A tilemap with its tileset textures (Invalid where a texture failed) and its bands above ground.
+/** A tilemap with its tileset textures (Invalid where a texture failed) and its bands above ground. */
 struct TilemapAssets {
   std::vector<int> above_z{};
 
@@ -75,9 +77,10 @@ struct TilemapAssets {
   std::vector<platform::TextureId> tileset_texture_ids{};
 };
 
-/// One id per tileset, in tileset order. A texture that fails to load is logged and gets
-/// TextureId::Invalid, which the tile pass skips: missing art draws nothing rather than failing
-/// the area.
+/** One id per tileset, in tileset order. A texture that fails to load is logged and gets
+ *  TextureId::Invalid, which the tile pass skips: missing art draws nothing rather than failing
+ *  the area.
+ */
 std::vector<platform::TextureId> load_tileset_textures(corundum::platform::Renderer &r,
                                                        const corundum::world::tilemap::Tilemap &tilemap) {
   std::vector<platform::TextureId> ids;
@@ -91,7 +94,7 @@ std::vector<platform::TextureId> load_tileset_textures(corundum::platform::Rende
   return ids;
 }
 
-/// Sorted, deduplicated z_index values above the ground band (z_index > 0).
+/** Sorted, deduplicated z_index values above the ground band (z_index > 0). */
 std::vector<int> collect_above_ground_bands(const corundum::world::tilemap::Tilemap &tilemap) {
   std::vector<int> bands;
   for (const auto &layer : tilemap.layers)
@@ -142,9 +145,10 @@ std::expected<render::ChunkEntry, std::string> load_chunk_entry(corundum::platfo
   };
 }
 
-/// Fraction of a chunk the player must cross before the streaming window recenters.
-/// Relative to chunk_size so the margin scales with the world (2.56 tiles for a 128-tile
-/// chunk, 0.16 for an 8-tile one) rather than being tuned for a single chunk size.
+/** Fraction of a chunk the player must cross before the streaming window recenters.
+ *  Relative to chunk_size so the margin scales with the world (2.56 tiles for a 128-tile
+ *  chunk, 0.16 for an 8-tile one) rather than being tuned for a single chunk size.
+ */
 constexpr float k_recenter_margin_fraction = 0.02f;
 
 struct PlayerCenter {
@@ -155,7 +159,7 @@ struct PlayerCenter {
   float row{};
 };
 
-/// Where the player stands and which chunk contains that position.
+/** Where the player stands and which chunk contains that position. */
 PlayerCenter player_center(const WorldArea &area, const corundum::core::GameConfig &cfg,
                            const corundum::world::Scene &scene) {
   using namespace corundum::world::tilemap;
@@ -167,7 +171,7 @@ PlayerCenter player_center(const WorldArea &area, const corundum::core::GameConf
   return {.chunk = chunk_at_iso(world_x, world_y, area.manifest, iso), .col = col, .row = row};
 }
 
-/// Recenter the window once the player has crossed far enough into the new center chunk.
+/** Recenter the window once the player has crossed far enough into the new center chunk. */
 void recenter_window(WorldArea &area, const PlayerCenter &player) {
   const corundum::world::tilemap::ChunkCoord last = area.chunks.last_center();
   if (player.chunk == last)
@@ -185,7 +189,7 @@ void recenter_window(WorldArea &area, const PlayerCenter &player) {
     area.chunks.set_last_center(player.chunk);
 }
 
-/// Chunks the current window should hold, in row-major order.
+/** Chunks the current window should hold, in row-major order. */
 struct DesiredChunks {
   std::array<corundum::world::tilemap::ChunkCoord, render::ChunkWindow::k_max_active_chunks> coords{};
 
@@ -209,9 +213,10 @@ DesiredChunks desired_chunks(const WorldArea &area) {
   return desired;
 }
 
-/// Recenter the window on the player, drop chunks and pending loads it has left, and queue
-/// newly needed chunks. @return true if any active chunk was removed. Does not rebuild the
-/// aggregates.
+/** Recenter the window on the player, drop chunks and pending loads it has left, and queue
+ *  newly needed chunks. @return true if any active chunk was removed. Does not rebuild the
+ *  aggregates.
+ */
 bool sync_active_chunks(WorldArea &area, const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene) {
   if (area.chunks.active_empty())
     return false;
@@ -235,8 +240,9 @@ bool sync_active_chunks(WorldArea &area, const corundum::core::GameConfig &cfg, 
   return any_stale;
 }
 
-/// Load the front pending chunk into the active window. A chunk that fails to load is logged
-/// and marked failed so it is never retried. @return true if a chunk became active.
+/** Load the front pending chunk into the active window. A chunk that fails to load is logged
+ *  and marked failed so it is never retried. @return true if a chunk became active.
+ */
 bool load_one_pending_chunk(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids,
                             WorldArea &area, const corundum::core::GameConfig &cfg) {
   const std::optional<corundum::world::tilemap::ChunkCoord> coord = area.chunks.pop_pending();
@@ -263,10 +269,11 @@ struct SpawnPlacement {
   float tile_row{};
 };
 
-/// Default spawn is the manifest geometric centre. A supplied spawn (e.g. an interior
-/// exit portal back into the overworld) overrides it and re-centres the streaming window
-/// on that tile's chunk. Each coordinate independently falls back to the centre so a
-/// half-specified params (only one of spawn_col/spawn_row) is not silently ignored.
+/** Default spawn is the manifest geometric centre. A supplied spawn (e.g. an interior
+ *  exit portal back into the overworld) overrides it and re-centres the streaming window
+ *  on that tile's chunk. Each coordinate independently falls back to the centre so a
+ *  half-specified params (only one of spawn_col/spawn_row) is not silently ignored.
+ */
 SpawnPlacement spawn_placement(const corundum::world::tilemap::WorldManifest &manifest,
                                const render::WorldLoadParams &params) {
   const int chunk_size = manifest.chunk_size;
@@ -281,8 +288,9 @@ SpawnPlacement spawn_placement(const corundum::world::tilemap::WorldManifest &ma
   };
 }
 
-/// Load every chunk in the initial streaming window. Failed chunks are logged and marked
-/// failed so they are never retried.
+/** Load every chunk in the initial streaming window. Failed chunks are logged and marked
+ *  failed so they are never retried.
+ */
 void load_initial_chunks(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids,
                          WorldArea &area, const corundum::core::GameConfig &cfg) {
   using namespace corundum::world::tilemap;
@@ -299,10 +307,11 @@ void load_initial_chunks(corundum::platform::Renderer &r, std::vector<platform::
   }
 }
 
-/// Drop whatever the failed load had adopted and leave no area, so nothing can draw or simulate
-/// against a half-built one.
-/// @pre Called between frames at an area boundary, as load_map()/load_world() are: it purges
-///      textures, which Renderer::purge_unused_textures() forbids between begin_frame() and end_frame().
+/** Drop whatever the failed load had adopted and leave no area, so nothing can draw or simulate
+ *  against a half-built one.
+ *  @pre Called between frames at an area boundary, as load_map()/load_world() are: it purges
+ *       textures, which Renderer::purge_unused_textures() forbids between begin_frame() and end_frame().
+ */
 std::unexpected<std::string> fail_area_load(corundum::platform::Renderer &r, render::RenderState &state,
                                             std::string error) {
   release_area_textures(r, state.area_texture_ids);

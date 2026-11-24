@@ -48,12 +48,13 @@ using corundum::save::slot_name;
 using corundum::test::initialize_with_world;
 using corundum::test::MemoryUserStorage;
 
-// An arbitrary instant with a non-zero seconds digit, distinct from the 1'700'000'000 the
-// serialize/parse cases use.
+/** An arbitrary instant with a non-zero seconds digit, distinct from the 1'700'000'000 the
+ *  serialize/parse cases use.
+ */
 constexpr std::int64_t k_saved_at_unix = 1'700'000'123;
 constexpr std::chrono::sys_seconds k_saved_at{std::chrono::seconds{k_saved_at_unix}};
 
-/// The fixture root every save case boots from; fails the case when the fixtures are missing.
+/** The fixture root every save case boots from; fails the case when the fixtures are missing. */
 [[nodiscard]] fs::path fixture_root() {
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
   REQUIRE(fs::is_directory(fixtures));
@@ -79,8 +80,9 @@ corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
   return cfg;
 }
 
-/// A scratch directory with user storage rooted at it, for tests that check real files.
-/// TempDir and DirectoryUserStorage are neither movable nor copyable, so declare one as a local.
+/** A scratch directory with user storage rooted at it, for tests that check real files.
+ *  TempDir and DirectoryUserStorage are neither movable nor copyable, so declare one as a local.
+ */
 struct ScratchStorage {
   corundum::test::TempDir dir{"crpg_test_save_", "scratch"};
   corundum::core::DirectoryUserStorage storage{dir.path()};
@@ -91,8 +93,9 @@ void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
   corundum::platform::null::adopt_null_platform(engine, platform);
 }
 
-/// Boot `engine` on the null platform with the fixture world loaded, for the cases that only
-/// need a player in a world to save.
+/** Boot `engine` on the null platform with the fixture world loaded, for the cases that only
+ *  need a player in a world to save.
+ */
 void boot_fixture_world(corundum::Engine &engine) {
   adopt_platform(engine, 320, 240);
   REQUIRE(initialize_with_world(engine, make_world_config(fixture_root())).has_value());
@@ -494,8 +497,9 @@ TEST_CASE("save: save_game stamps saved_at_unix with the given time, truncated t
   engine.cleanup();
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
-// logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the test's
+ *  logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("save: list_saves returns valid rows and marks corrupt ones") {
   MemoryUserStorage storage;

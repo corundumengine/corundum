@@ -19,12 +19,12 @@ using corundum::ui::wrap_styled;
 
 namespace {
 
-// Character count proxy for a fixed-width font.
+/** Character count proxy for a fixed-width font. */
 float char_count(std::string_view s, FontStyle /*style*/) {
   return static_cast<float>(s.size());
 }
 
-// Bold text is far wider, so a line that fits a bold word must have measured it as bold.
+/** Bold text is far wider, so a line that fits a bold word must have measured it as bold. */
 float bold_is_wide(std::string_view s, FontStyle style) {
   return static_cast<float>(s.size()) + (style == FontStyle::Bold ? 100.f : 0.f);
 }

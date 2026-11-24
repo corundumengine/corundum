@@ -28,8 +28,9 @@ namespace corundum::core {
 
 namespace {
 
-/// Upper bound on the configured simulation rate. Real rates top out in the low hundreds, so
-/// anything past this is a corrupt or hand-edited config.
+/** Upper bound on the configured simulation rate. Real rates top out in the low hundreds, so
+ *  anything past this is a corrupt or hand-edited config.
+ */
 constexpr unsigned int k_max_simulation_fps{1000};
 
 std::expected<unsigned int, std::string> get_positive_unsigned(const json &j, const std::string &key,
@@ -80,7 +81,7 @@ std::expected<std::string, std::string> get_nonempty_string(const json &j, const
   return v;
 }
 
-/// Assign `parsed` to `target`, or forward the error that stopped it.
+/** Assign `parsed` to `target`, or forward the error that stopped it. */
 template <typename T> std::expected<void, std::string> read_into(std::expected<T, std::string> parsed, T &target) {
   if (!parsed)
     return std::unexpected(std::move(parsed).error());
@@ -88,7 +89,7 @@ template <typename T> std::expected<void, std::string> read_into(std::expected<T
   return {};
 }
 
-/// Read `key` from the `section` object as a number, or `default_val` when absent.
+/** Read `key` from the `section` object as a number, or `default_val` when absent. */
 template <typename T>
 std::expected<T, std::string> read_section_number(const json &section, std::string_view section_name,
                                                   std::string_view key, T default_val, const fs::path &path) {
@@ -101,7 +102,7 @@ std::expected<T, std::string> read_section_number(const json &section, std::stri
   }
 }
 
-/// Read `key` from the `section` object as a non-empty string, or `default_val` when absent.
+/** Read `key` from the `section` object as a non-empty string, or `default_val` when absent. */
 std::expected<std::string, std::string> read_section_string(const json &section, std::string_view section_name,
                                                             std::string_view key, const std::string &default_val,
                                                             const fs::path &path) {
@@ -118,7 +119,7 @@ std::expected<std::string, std::string> read_section_string(const json &section,
   return value;
 }
 
-/// Read `key` from the `section` object as a float >= 0, or `default_val` when absent.
+/** Read `key` from the `section` object as a float >= 0, or `default_val` when absent. */
 std::expected<float, std::string> read_section_non_negative_float(const json &section, std::string_view section_name,
                                                                   std::string_view key, float default_val,
                                                                   const fs::path &path) {
@@ -175,7 +176,7 @@ std::expected<WindowMode, std::string> read_window_mode(const json &j, WindowMod
   return *mode;
 }
 
-/// Assign the string at `key` to `target` when present; `target` keeps its default otherwise.
+/** Assign the string at `key` to `target` when present; `target` keeps its default otherwise. */
 std::expected<void, std::string> read_optional_string_field(const json &j, std::string_view key, std::string &target,
                                                             const fs::path &path) {
   if (!j.contains(key))
@@ -335,7 +336,7 @@ std::expected<void, std::string> parse_zoom_settings(const json &j, GameConfig &
   return {};
 }
 
-/// Read one style file name of a font family; an optional style may be absent.
+/** Read one style file name of a font family; an optional style may be absent. */
 std::expected<std::string, std::string> read_font_style(const json &family, std::string_view prefix,
                                                         std::string_view style, bool required, const fs::path &path) {
   const std::string key = std::format("{}.{}", prefix, style);
@@ -410,7 +411,7 @@ std::expected<void, std::string> parse_fonts(const json &j, GameConfig &cfg, con
   return {};
 }
 
-/// Read every named resource path in `j`, leaving the field's default when the key is absent.
+/** Read every named resource path in `j`, leaving the field's default when the key is absent. */
 std::expected<void, std::string> parse_path_fields(const json &j, ResourcePaths &paths, const fs::path &path) {
   struct Field {
     std::string_view key;
@@ -458,7 +459,7 @@ std::expected<void, std::string> parse_splash_images(const json &j, ResourcePath
   return {};
 }
 
-/// Read the free-form resource paths (no non-empty rule) and the splash image list.
+/** Read the free-form resource paths (no non-empty rule) and the splash image list. */
 std::expected<void, std::string> parse_free_paths(const json &j, ResourcePaths &paths, const fs::path &path) {
   if (auto res = read_optional_string_field(j, "credits_file", paths.credits_file, path); !res)
     return std::unexpected(res.error());

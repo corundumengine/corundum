@@ -15,9 +15,10 @@ namespace tools::tilesmith {
 
 namespace {
 
-// Convert tile-grid coords (col, row) to canvas screen position, lifted by
-// elevation so the tint sits on the tile's actual (raised) rendered position.
-// Delegates the iso projection to corundum::core::math::tile_to_world.
+/** Convert tile-grid coords (col, row) to canvas screen position, lifted by
+ *  elevation so the tint sits on the tile's actual (raised) rendered position.
+ *  Delegates the iso projection to corundum::core::math::tile_to_world.
+ */
 inline ImVec2 elev_tile_to_iso(const CanvasContext &ctx, float col_f, float row_f, float elev,
                                const corundum::core::math::IsometricParams &iso, float offset_x,
                                float offset_y) noexcept {
@@ -37,7 +38,7 @@ void draw_iso_cell(const CanvasContext &ctx, float col, float row, float elev,
     ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
 }
 
-// Cool blue (low) -> warm red (high) lerp for elevation tint.
+/** Cool blue (low) -> warm red (high) lerp for elevation tint. */
 ImU32 elevation_fill_color(uint8_t v) {
   const float t = std::clamp(static_cast<float>(v) / 100.f, 0.f, 1.f);
   const int r = static_cast<int>(40.f + t * (230.f - 40.f));

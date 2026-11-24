@@ -37,7 +37,7 @@ std::string_view category_label(const gameplay::codex::CodexEntry &entry) noexce
   return entry.category.empty() ? std::string_view{"Lore"} : std::string_view{entry.category};
 }
 
-/// One flattened list row: a category header or a selectable entry.
+/** One flattened list row: a category header or a selectable entry. */
 struct CodexRow {
   bool header{false};
 
@@ -65,7 +65,7 @@ struct CodexGeometry {
   std::vector<CodexRow> rows;
 };
 
-/// Flatten entries into header/entry rows and scroll the window to keep `cursor` visible.
+/** Flatten entries into header/entry rows and scroll the window to keep `cursor` visible. */
 std::vector<CodexRow> build_codex_rows(const std::vector<gameplay::codex::CodexEntry> &entries) {
   std::vector<CodexRow> rows;
   std::string_view last_category;
@@ -80,12 +80,12 @@ std::vector<CodexRow> build_codex_rows(const std::vector<gameplay::codex::CodexE
   return rows;
 }
 
-/// Whether `index` is a currently-drawn row: inside both the scroll window and the row list.
+/** Whether `index` is a currently-drawn row: inside both the scroll window and the row list. */
 bool codex_row_visible(const CodexGeometry &geometry, int index) noexcept {
   return index < geometry.first_row + geometry.visible_rows && std::cmp_less(index, geometry.rows.size());
 }
 
-/// Screen y of drawn row `index`.
+/** Screen y of drawn row `index`. */
 float codex_row_y(const CodexGeometry &geometry, int index) noexcept {
   return geometry.content_top + (static_cast<float>(index - geometry.first_row) * geometry.line_h);
 }
@@ -188,7 +188,7 @@ constexpr float k_codex_pad = 20.f;
 constexpr std::string_view k_codex_title = "Codex";
 constexpr std::string_view k_codex_empty = "(no entries)";
 
-/// Backdrop, panel frame, title and footer hint: everything drawn around the list and body.
+/** Backdrop, panel frame, title and footer hint: everything drawn around the list and body. */
 void draw_codex_chrome(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                        const CodexGeometry &geometry, core::math::Vec2 viewport, input::InputDevice last_device) {
   ui::screen_backdrop(r, style, viewport);
@@ -228,7 +228,7 @@ void draw_codex_chrome(platform::Renderer &r, const ui::PanelStyle &style, const
   });
 }
 
-/// The entry list, or the placeholder line when the registry has no entries.
+/** The entry list, or the placeholder line when the registry has no entries. */
 void draw_codex_list(platform::Renderer &r, const ui::PanelStyle &style, const CodexGeometry &geometry,
                      const std::vector<gameplay::codex::CodexEntry> &entries) {
   const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
@@ -262,7 +262,7 @@ void draw_codex_list(platform::Renderer &r, const ui::PanelStyle &style, const C
   }
 }
 
-/// The selected entry's title and wrapped body, scrolled by `scroll` lines.
+/** The selected entry's title and wrapped body, scrolled by `scroll` lines. */
 void draw_codex_body(platform::Renderer &r, const ui::PanelStyle &style, const CodexGeometry &geometry,
                      const gameplay::codex::CodexEntry &selected, float scroll) {
   const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);

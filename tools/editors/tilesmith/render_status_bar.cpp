@@ -16,11 +16,12 @@ namespace tools::tilesmith {
 using namespace corundum::toolkit::widgets;
 
 namespace {
-/// Draws one status-bar segment in `role`'s color, preceded by a muted "|" separator (unless
-/// `first` is true, for the very first segment on the line). No-op for an empty `text` so an
-/// inactive conditional segment (e.g. elevation_label when show_elevation is false) doesn't
-/// leave a stray separator behind — the next rendered segment ends up directly after the last
-/// one that actually drew something, with exactly one "|" between them either way.
+/** Draws one status-bar segment in `role`'s color, preceded by a muted "|" separator (unless
+ *  `first` is true, for the very first segment on the line). No-op for an empty `text` so an
+ *  inactive conditional segment (e.g. elevation_label when show_elevation is false) doesn't
+ *  leave a stray separator behind — the next rendered segment ends up directly after the last
+ *  one that actually drew something, with exactly one "|" between them either way.
+ */
 void segment(const ThemeColors &theme, TextRole role, const std::string &text, bool first = false) {
   if (text.empty())
     return;

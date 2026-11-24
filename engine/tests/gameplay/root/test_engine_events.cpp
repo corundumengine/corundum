@@ -21,8 +21,9 @@ namespace dialogue = corundum::gameplay::dialogue;
 
 namespace {
 
-/// Adopt the null platform: building a Gameplay opens the Title, which reads the renderer, and
-/// every case here asserts event dispatch, never drawing.
+/** Adopt the null platform: building a Gameplay opens the Title, which reads the renderer, and
+ *  every case here asserts event dispatch, never drawing.
+ */
 void adopt_null_platform(corundum::Engine &engine) {
   corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(320, 240);
   corundum::platform::null::adopt_null_platform(engine, platform);

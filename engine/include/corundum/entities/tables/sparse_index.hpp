@@ -13,11 +13,12 @@
 
 namespace corundum::entities {
 
-/// Sparse-index bookkeeping shared by all component tables.
-/// Owns the sparse map and dense entity array. The has/insert/remove spine
-/// logic is extracted here once; payload-specific reads and writes are
-/// supplied via lambdas at the call site.  Each table retains its own
-/// uint32_t count member (GameTable concept requires t.count).
+/** Sparse-index bookkeeping shared by all component tables.
+ *  Owns the sparse map and dense entity array. The has/insert/remove spine
+ *  logic is extracted here once; payload-specific reads and writes are
+ *  supplied via lambdas at the call site.  Each table retains its own
+ *  uint32_t count member (GameTable concept requires t.count).
+ */
 template <std::uint32_t KMax = k_max_entities> struct SparseIndex {
   static constexpr std::uint32_t k_invalid = std::numeric_limits<std::uint32_t>::max();
 
@@ -55,11 +56,12 @@ template <std::uint32_t KMax = k_max_entities> struct SparseIndex {
     return std::span(self.entities).first(count);
   }
 
-  /// Insert spine: allocates a dense slot, links the sparse index, then
-  /// calls `write(slot)` to let the table initialise its payload.
-  /// `count` is the table's own count member (incremented after the write).
-  /// @pre `e`'s index is in range, `e` is not already present, and the table is not full;
-  ///      all three enforced in every build type.
+  /** Insert spine: allocates a dense slot, links the sparse index, then
+   *  calls `write(slot)` to let the table initialise its payload.
+   *  `count` is the table's own count member (incremented after the write).
+   *  @pre `e`'s index is in range, `e` is not already present, and the table is not full;
+   *       all three enforced in every build type.
+   */
   template <typename Fn> void insert(EntityId e, std::uint32_t &count, Fn &&write) noexcept {
     core::verify(e.index < KMax, "SparseIndex::insert: EntityId index out of range");
     core::verify(!has(e), "SparseIndex::insert: EntityId already present");
@@ -72,10 +74,11 @@ template <std::uint32_t KMax = k_max_entities> struct SparseIndex {
     ++count;
   }
 
-  /// Remove spine: swap-and-pop. Calls `swap(slot, last)` so the table
-  /// can copy its own payload arrays, then invalidates the removed slot.
-  /// `count` is the table's own count member (decremented after the swap).
-  /// @pre has(e) must be true; enforced in every build type.
+  /** Remove spine: swap-and-pop. Calls `swap(slot, last)` so the table
+   *  can copy its own payload arrays, then invalidates the removed slot.
+   *  `count` is the table's own count member (decremented after the swap).
+   *  @pre has(e) must be true; enforced in every build type.
+   */
   template <typename Fn> void remove(EntityId e, std::uint32_t &count, Fn &&swap) noexcept {
     core::verify(has(e), "SparseIndex::remove: EntityId not present");
     const auto i = e.index;

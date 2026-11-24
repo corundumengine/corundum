@@ -14,7 +14,7 @@ namespace tools::tilesmith {
 
 namespace {
 
-/// The projection, Tiled-pixel cell size and camera offset the collision overlays all draw with.
+/** The projection, Tiled-pixel cell size and camera offset the collision overlays all draw with. */
 struct CollisionGeometry {
   corundum::core::math::IsometricParams iso{};
 
@@ -47,10 +47,11 @@ struct CollisionGeometry {
   };
 }
 
-// Convert a Tiled-pixel position (x_px, y_px) to canvas screen space, lifted by
-// elevation so a shape authored on a raised platform renders sitting on it.
-// x_px = col * tile_w, y_px = row * tile_h (sub-tile fractions allowed).
-// Delegates the iso projection to corundum::core::math::tile_to_world.
+/** Convert a Tiled-pixel position (x_px, y_px) to canvas screen space, lifted by
+ *  elevation so a shape authored on a raised platform renders sitting on it.
+ *  x_px = col * tile_w, y_px = row * tile_h (sub-tile fractions allowed).
+ *  Delegates the iso projection to corundum::core::math::tile_to_world.
+ */
 inline ImVec2 tiled_to_iso(const CanvasContext &ctx, const CollisionGeometry &geometry, float x_px, float y_px,
                            int elevation) noexcept {
   const float col_f = x_px * geometry.inv_tw;
@@ -59,7 +60,7 @@ inline ImVec2 tiled_to_iso(const CanvasContext &ctx, const CollisionGeometry &ge
   return {ctx.origin.x + world.x - geometry.offset_x, ctx.origin.y + world.y - geometry.offset_y};
 }
 
-// Draw a tile-grid rect as an isometric rhombus (4-vertex quad).
+/** Draw a tile-grid rect as an isometric rhombus (4-vertex quad). */
 void draw_iso_rect(const CanvasContext &ctx, const CollisionGeometry &geometry, float col, float row, float col_span,
                    float row_span, int elevation, ImU32 fill, ImU32 outline) noexcept {
   const float x = col * geometry.tile_w;
@@ -74,10 +75,11 @@ void draw_iso_rect(const CanvasContext &ctx, const CollisionGeometry &geometry, 
   ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
 }
 
-// Draw only the solid half of a tile for a given TriangleCut. The rhombus's four
-// vertices are top=NW corner, right=NE corner, bottom=SE corner, left=SW corner
-// (per tiled_to_iso's corner mapping); TriangleCut names the EMPTY corner, so the
-// solid triangle is the other three vertices.
+/** Draw only the solid half of a tile for a given TriangleCut. The rhombus's four
+ *  vertices are top=NW corner, right=NE corner, bottom=SE corner, left=SW corner
+ *  (per tiled_to_iso's corner mapping); TriangleCut names the EMPTY corner, so the
+ *  solid triangle is the other three vertices.
+ */
 void draw_iso_triangle(const CanvasContext &ctx, const CollisionGeometry &geometry, float col, float row,
                        float col_span, float row_span, int elevation, corundum::world::tilemap::TriangleCut cut,
                        ImU32 fill, ImU32 outline) noexcept {

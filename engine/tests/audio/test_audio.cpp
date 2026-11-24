@@ -21,14 +21,14 @@ using corundum::test::disk;
 
 namespace {
 
-/// Per-bus recording pre-filled with -1 so "never called" is distinguishable from a real 0.
+/** Per-bus recording pre-filled with -1 so "never called" is distinguishable from a real 0. */
 [[nodiscard]] std::array<float, corundum::audio::k_audio_bus_count> unset_bus_volumes() {
   std::array<float, corundum::audio::k_audio_bus_count> volumes{};
   volumes.fill(-1.f);
   return volumes;
 }
 
-/// Records load/play calls; hands out sequential handles starting at 1.
+/** Records load/play calls; hands out sequential handles starting at 1. */
 class StubBackend final : public corundum::audio::AudioBackend {
 public:
   struct Played {
@@ -115,8 +115,9 @@ private:
   std::uint32_t next_instance_ = 1;
 };
 
-/// Make an AudioSystem with an adopted stub backend; returns the raw stub
-/// pointer for assertions (owned by the system).
+/** Make an AudioSystem with an adopted stub backend; returns the raw stub
+ *  pointer for assertions (owned by the system).
+ */
 StubBackend *make_system(corundum::audio::AudioSystem &sys) {
   std::unique_ptr<StubBackend> stub = std::make_unique<StubBackend>();
   StubBackend *raw = stub.get();

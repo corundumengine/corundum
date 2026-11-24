@@ -17,19 +17,19 @@ namespace corundum::render {
  *  Every vector is indexed by world::tilemap::cell_index().
  */
 struct LayerRenderCache {
-  /// animation_index value for a cell that is not animated.
+  /** animation_index value for a cell that is not animated. */
   static constexpr std::uint32_t k_no_animation = std::numeric_limits<std::uint32_t>::max();
 
-  /// Cell → index into animations, or k_no_animation.
+  /** Cell → index into animations, or k_no_animation. */
   std::vector<std::uint32_t> animation_index{};
 
-  /// Animated cells, densely packed.
+  /** Animated cells, densely packed. */
   std::vector<world::tilemap::AnimatedCell> animations{};
 
-  /// Cell → k_flip_h | k_flip_v; 0 = no flip.
+  /** Cell → k_flip_h | k_flip_v; 0 = no flip. */
   std::vector<std::uint8_t> flip_flags{};
 
-  /// Highest elevation in the layer; 0 when the layer has no elevation data.
+  /** Highest elevation in the layer; 0 when the layer has no elevation data. */
   std::uint8_t max_elevation{0};
 };
 

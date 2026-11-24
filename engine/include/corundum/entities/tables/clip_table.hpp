@@ -15,9 +15,14 @@ namespace corundum::entities {
 
 /** What happens when a clip plays its last frame. */
 enum class ClipEnd : std::uint8_t {
-  Resume, ///< Return to the sheet it interrupted. Moving also ends it early.
-  Hold,   ///< Stay on the last frame until the entity goes.
-  Remove, ///< Remove the entity.
+  /** Return to the sheet it interrupted. Moving also ends it early. */
+  Resume,
+
+  /** Stay on the last frame until the entity goes. */
+  Hold,
+
+  /** Remove the entity. */
+  Remove,
 };
 
 /** A one-shot sheet to play over an entity's walking and idling. */
@@ -26,7 +31,8 @@ struct Clip {
 
   std::array<std::uint8_t, corundum::sprites::k_num_anim_ids> frame_counts{};
 
-  float frame_duration{}; ///< Seconds per frame; must be positive.
+  /** Seconds per frame; must be positive. */
+  float frame_duration{};
 
   corundum::sprites::SpriteId sprite{corundum::sprites::k_null_sprite_id};
 };
@@ -44,9 +50,10 @@ struct ClipTable {
 
   std::array<float, k_max> frame_duration{};
 
-  std::array<bool, k_max> is_finished{}; ///< A Hold or Remove clip has played its last frame.
+  /** A Hold or Remove clip has played its last frame. */
+  std::array<bool, k_max> is_finished{};
 
-  /// The sheet and frame counts to return to.
+  /** The sheet and frame counts to return to. */
   std::array<corundum::sprites::SpriteId, k_max> resume_sprite{};
 
   std::array<std::array<std::uint8_t, corundum::sprites::k_num_anim_ids>, k_max> resume_counts{};

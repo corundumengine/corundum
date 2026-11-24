@@ -52,12 +52,12 @@ constexpr std::string_view k_map_title = "Map";
 constexpr std::string_view k_map_empty = "(no locations)";
 constexpr std::string_view k_map_here = " (here)";
 
-/// A destination's display label, tagged when it is the zone the player is already in.
+/** A destination's display label, tagged when it is the zone the player is already in. */
 std::string map_entry_label(const MapEntry &entry) {
   return entry.current ? entry.name + std::string(k_map_here) : entry.name;
 }
 
-/// Footer hint, using the last-used device's glyphs.
+/** Footer hint, using the last-used device's glyphs. */
 std::string map_footer(input::InputDevice last_device) {
   return std::format("{} Travel   {} Close", ui::input_glyph(input::Action::Activate, last_device),
                      ui::input_glyph(input::Action::Cancel, last_device));

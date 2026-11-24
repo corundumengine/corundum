@@ -21,8 +21,8 @@ namespace corundum::sprites {
 class CharacterRegistry;
 }
 
-/// Process-lifetime render resources: the sprite-frame index, font families, the UI border
-/// skin and the panel style. Loaded once at startup; their textures are never released.
+// Process-lifetime render resources: the sprite-frame index, font families, the UI border
+// skin and the panel style. Loaded once at startup; their textures are never released.
 namespace corundum::render {
 
 /** Build the sprite-index lookup tables from the character registry.

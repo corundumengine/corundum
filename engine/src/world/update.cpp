@@ -71,8 +71,9 @@ void update_exploring(corundum::world::Scene &scene, const corundum::input::Inpu
   scene.camera.follow_player(player_pos_x, player_pos_y, map, win_w, win_h);
 }
 
-// Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel
-// constant, not a GameConfig field, same rationale as follow_player's margins.
+/** Zoom rate for held keyboard/gamepad zoom, in "scroll notches" per second — a feel
+ *  constant, not a GameConfig field, same rationale as follow_player's margins.
+ */
 constexpr float k_zoom_rate_per_sec = 3.f;
 
 void update_zoom(corundum::world::Scene &scene, const corundum::input::InputState &input,
@@ -91,11 +92,12 @@ void update_zoom(corundum::world::Scene &scene, const corundum::input::InputStat
   }
 }
 
-/// Step a paused-on-prompt scene: TransitionPrompt::step decodes the input and returns
-/// Confirmed (commit and resume), Dismissed (Cancel / Select-on-No; resumes with the
-/// prompt latched as declined), or Pending (stay paused). The physics system resets
-/// the prompt once the player walks off the portal rect, so re-entering starts with
-/// Yes highlighted again.
+/** Step a paused-on-prompt scene: TransitionPrompt::step decodes the input and returns
+ *  Confirmed (commit and resume), Dismissed (Cancel / Select-on-No; resumes with the
+ *  prompt latched as declined), or Pending (stay paused). The physics system resets
+ *  the prompt once the player walks off the portal rect, so re-entering starts with
+ *  Yes highlighted again.
+ */
 void update_transition_prompt(corundum::world::Scene &scene, const corundum::input::InputIntent &intent) {
   using Step = corundum::world::TransitionPrompt::Step;
 
@@ -120,11 +122,12 @@ void update_transition_prompt(corundum::world::Scene &scene, const corundum::inp
   }
 }
 
-/// Resolve this step's interact press into the entity it targets, or nullopt when no
-/// interactable is in range. The engine owns the generic targeting (proximity plus click aim);
-/// gameplay owns whether the target actually starts a dialogue, since it holds the graph
-/// registry. A mouse click must be aimed at the target's tile; a keyboard/gamepad press is
-/// gated on proximity alone.
+/** Resolve this step's interact press into the entity it targets, or nullopt when no
+ *  interactable is in range. The engine owns the generic targeting (proximity plus click aim);
+ *  gameplay owns whether the target actually starts a dialogue, since it holds the graph
+ *  registry. A mouse click must be aimed at the target's tile; a keyboard/gamepad press is
+ *  gated on proximity alone.
+ */
 [[nodiscard]] std::optional<corundum::entities::EntityId>
 pick_interaction_target(const corundum::world::Scene &scene, const corundum::core::GameConfig &cfg,
                         const corundum::input::InputIntent &intent) {

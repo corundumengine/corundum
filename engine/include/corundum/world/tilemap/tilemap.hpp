@@ -21,34 +21,39 @@
 
 namespace corundum::world::tilemap {
 
-// Zero-based index into a tileset's flat per-tile arrays (TilesetInfo::tile_rects etc.).
-// 0xFFFF is reserved as "empty / transparent" — renderer skips it.
+/** Zero-based index into a tileset's flat per-tile arrays (TilesetInfo::tile_rects etc.).
+ *  0xFFFF is reserved as "empty / transparent" — renderer skips it.
+ */
 using TileId = uint16_t;
 inline constexpr TileId k_empty_tile = 0xFFFF;
 
-/// Named animation clip defined in a tileset JSON. frames are local tile IDs (indices into the
-/// owning tileset's per-tile arrays).
+/** Named animation clip defined in a tileset JSON. frames are local tile IDs (indices into the
+ *  owning tileset's per-tile arrays).
+ */
 struct TileAnimation {
   std::vector<int> frames;
 
   float fps = 5.f;
 };
 
-/// Resolved animated cell stored in a layer after load.
-/// frame_gids are global tile IDs, ready for direct use with get_tile_texture.
+/** Resolved animated cell stored in a layer after load.
+ *  frame_gids are global tile IDs, ready for direct use with get_tile_texture.
+ */
 struct AnimatedCell {
-  std::string anim_name; ///< Original clip name, used when saving.
+  /** Original clip name, used when saving. */
+  std::string anim_name;
 
   std::vector<TileId> frame_gids;
 
   float fps = 5.f;
 };
 
-/// Metadata about the tileset PNG — owned by core, used by platform. Loaded directly from a
-/// spritepacker atlas JSON (schema_version 2): local_id is the tile's index into the atlas's
-/// `sprites[]` array, and every per-tile field below is dense (one entry per local_id, size ==
-/// tile_count) rather than a sparse override on a tileset-wide default — spritepacker already
-/// computes trim and pivot per sprite, so there's no shared default left to override.
+/** Metadata about the tileset PNG — owned by core, used by platform. Loaded directly from a
+ *  spritepacker atlas JSON (schema_version 2): local_id is the tile's index into the atlas's
+ *  `sprites[]` array, and every per-tile field below is dense (one entry per local_id, size ==
+ *  tile_count) rather than a sparse override on a tileset-wide default — spritepacker already
+ *  computes trim and pivot per sprite, so there's no shared default left to override.
+ */
 struct TilesetInfo {
   std::string path;
 
@@ -57,40 +62,53 @@ struct TilesetInfo {
   int tile_count = 0;
 
   // Per-tile data, parallel arrays indexed by local_id (size == tile_count).
-  std::vector<corundum::core::math::IntRect> tile_rects; ///< Sampled (already-trimmed) rect in the atlas texture —
-                                                         ///< ready to use directly as a texture source rect.
 
-  std::vector<int> tile_full_width; ///< Original (untrimmed) sprite canvas width, from spritepacker's source_width.
-                                    ///< Used to scale pivot into pixels, since the trimmed rect alone can't recover it.
+  /** Sampled (already-trimmed) rect in the atlas texture — ready to use directly as a texture source rect. */
+  std::vector<corundum::core::math::IntRect> tile_rects;
 
-  std::vector<int> tile_full_height; ///< Same, for source_height.
+  /** Original (untrimmed) sprite canvas width, from spritepacker's source_width. Used to scale pivot into pixels, since
+   *  the trimmed rect alone can't recover it.
+   */
+  std::vector<int> tile_full_width;
 
-  std::vector<int> tile_trim_x; ///< Offset from the untrimmed canvas's top-left corner to tile_rects' content, from
-                                ///< spritepacker's trim_x.
+  /** Same, for source_height. */
+  std::vector<int> tile_full_height;
 
-  std::vector<int> tile_trim_y; ///< Same, for trim_y.
+  /** Offset from the untrimmed canvas's top-left corner to tile_rects' content, from spritepacker's trim_x. */
+  std::vector<int> tile_trim_x;
 
-  std::vector<float> tile_pivot_x; ///< Anchor point as a fraction of the *full* (untrimmed) frame, left = 0. From
-                                   ///< spritepacker's pivot_x, converted from the trimmed-box basis it's authored in.
+  /** Same, for trim_y. */
+  std::vector<int> tile_trim_y;
 
-  std::vector<float> tile_pivot_y; ///< Same, for the vertical anchor, bottom = 0 (matching the isometric ground-contact
-                                   ///< convention used elsewhere in this codebase) — inverted from spritepacker's
-                                   ///< pivot_y, which measures from the top in raster (image-row) convention.
+  /** Anchor point as a fraction of the *full* (untrimmed) frame, left = 0. From spritepacker's pivot_x, converted from
+   *  the trimmed-box basis it's authored in.
+   */
+  std::vector<float> tile_pivot_x;
 
-  std::vector<std::string> tile_names; ///< Sprite name from the atlas; used by tilesmith's palette.
+  /** Same, for the vertical anchor, bottom = 0 (matching the isometric ground-contact convention used elsewhere in this
+   *  codebase) — inverted from spritepacker's pivot_y, which measures from the top in raster (image-row) convention.
+   */
+  std::vector<float> tile_pivot_y;
 
-  std::flat_map<std::string, TileAnimation> animations; ///< name → animation
+  /** Sprite name from the atlas; used by tilesmith's palette. */
+  std::vector<std::string> tile_names;
 
-  std::string material; ///< Default terrain-material tag (footstep/ambient audio selection); empty == none.
+  /** name → animation */
+  std::flat_map<std::string, TileAnimation> animations;
+
+  /** Default terrain-material tag (footstep/ambient audio selection); empty == none. */
+  std::string material;
 };
 
-/// Bitmask for horizontal flip. Set in TilemapLayer::flip_flags.
+/** Bitmask for horizontal flip. Set in TilemapLayer::flip_flags. */
 inline constexpr uint8_t k_flip_h = 0x01;
-/// Bitmask for vertical flip. Set in TilemapLayer::flip_flags.
+
+/** Bitmask for vertical flip. Set in TilemapLayer::flip_flags. */
 inline constexpr uint8_t k_flip_v = 0x02;
 
-/// Axis a ramp/stair tile bridges. Set in TilemapLayer::ramps. Bidirectional along its axis
-/// (walkable both up and down); does nothing for the other axis or the four diagonals.
+/** Axis a ramp/stair tile bridges. Set in TilemapLayer::ramps. Bidirectional along its axis
+ *  (walkable both up and down); does nothing for the other axis or the four diagonals.
+ */
 enum class RampAxis : uint8_t { NorthSouth, EastWest };
 
 /** Row-major index of cell (`col`, `row`) in a grid `width` cells wide: the one place the
@@ -102,54 +120,64 @@ enum class RampAxis : uint8_t { NorthSouth, EastWest };
   return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
 }
 
-/// One layer of tiles. Layers are drawn bottom-to-top; k_empty_tile is transparent.
-/// z_index controls depth relative to entities: 0 = below entities (default), 1+ = above.
-/// A z_index > 0 layer with depth_sorted = true is instead depth-sorted per-tile against
-/// entities (see TilemapLayer::depth_sorted).
+/** One layer of tiles. Layers are drawn bottom-to-top; k_empty_tile is transparent.
+ *  z_index controls depth relative to entities: 0 = below entities (default), 1+ = above.
+ *  A z_index > 0 layer with depth_sorted = true is instead depth-sorted per-tile against
+ *  entities (see TilemapLayer::depth_sorted).
+ */
 struct TilemapLayer {
   std::string name;
 
-  int z_index = 0; ///< >= 0; clamped to 0 by loader if negative.
+  /** >= 0; clamped to 0 by loader if negative. */
+  int z_index = 0;
 
-  bool depth_sorted = false; ///< Only meaningful when z_index > 0. false (default): layer always draws above all
-                             ///< entities (rooftops, canopy, decals). true: layer's tiles
-                             ///< are depth-sorted against entities and elevated ground tiles via iso_depth_key
-                             ///< instead (walls, pillars, other tall props players walk around/behind).
+  /** Only meaningful when z_index > 0. false (default): layer always draws above all entities (rooftops, canopy,
+   *  decals). true: layer's tiles are depth-sorted against entities and elevated ground tiles via iso_depth_key instead
+   *  (walls, pillars, other tall props players walk around/behind).
+   */
+  bool depth_sorted = false;
 
-  std::vector<TileId> tiles; ///< Row-major, size == map width * height; k_empty_tile for animated cells.
+  /** Row-major, size == map width * height; k_empty_tile for animated cells. */
+  std::vector<TileId> tiles;
 
-  std::flat_map<int, AnimatedCell> animated_cells; ///< cell_index (row*width+col) → resolved animation.
+  /** cell_index (row*width+col) → resolved animation. */
+  std::flat_map<int, AnimatedCell> animated_cells;
 
-  std::flat_map<int, uint8_t> flip_flags; ///< cell_index → k_flip_h | k_flip_v; absent == no flip.
+  /** cell_index → k_flip_h | k_flip_v; absent == no flip. */
+  std::flat_map<int, uint8_t> flip_flags;
 
-  std::vector<uint8_t> elevation; ///< Per-tile elevation [0–255]; empty == all flat (optional for isometric).
+  /** Per-tile elevation [0–255]; empty == all flat (optional for isometric). */
+  std::vector<uint8_t> elevation;
 
-  std::flat_map<int, std::string>
-      material_overrides; ///< cell_index → terrain-material tag, overriding the owning tileset's default
-                          ///< TilesetInfo::material for that one cell (e.g. a snow-dusted patch of an otherwise-stone
-                          ///< floor); absent == use the tileset default.
+  /** cell_index → terrain-material tag, overriding the owning tileset's default TilesetInfo::material for that one cell
+   *  (e.g. a snow-dusted patch of an otherwise-stone floor); absent == use the tileset default.
+   */
+  std::flat_map<int, std::string> material_overrides;
 
-  std::flat_map<int, RampAxis>
-      ramps; ///< cell_index → axis this ramp tile bridges; absent == not a ramp. The elevation delta it bridges is
-             ///< inferred from its two axis-neighbors' elevation_at() values, never stored directly.
+  /** cell_index → axis this ramp tile bridges; absent == not a ramp. The elevation delta it bridges is inferred from
+   *  its two axis-neighbors' elevation_at() values, never stored directly.
+   */
+  std::flat_map<int, RampAxis> ramps;
 
-  /// Tile GID at (col, row); undefined behaviour if out of bounds. Prefer Tilemap::tile_at().
+  /** Tile GID at (col, row); undefined behaviour if out of bounds. Prefer Tilemap::tile_at(). */
   [[nodiscard]] TileId tile_at_unchecked(int col, int row, int width) const noexcept {
     return tiles[cell_index(width, col, row)];
   }
 };
 
-/// One tileset entry in a map's tileset table.
-/// first_gid is the GID assigned to local tile 0; the tile count lives on info.
+/** One tileset entry in a map's tileset table.
+ *  first_gid is the GID assigned to local tile 0; the tile count lives on info.
+ */
 struct TilemapTileset {
   TilesetInfo info;
 
   TileId first_gid = 0;
 };
 
-/// Returns the TilemapTileset that owns gid, or nullptr if gid is k_empty_tile
-/// or falls outside every tileset's range. tilesets must be sorted ascending
-/// by first_gid (guaranteed by the loader).
+/** Returns the TilemapTileset that owns gid, or nullptr if gid is k_empty_tile
+ *  or falls outside every tileset's range. tilesets must be sorted ascending
+ *  by first_gid (guaranteed by the loader).
+ */
 [[nodiscard]] inline const TilemapTileset *find_tileset(const std::vector<TilemapTileset> &tilesets,
                                                         TileId gid) noexcept {
   if (gid == k_empty_tile)
@@ -166,17 +194,18 @@ struct TilemapTileset {
   return &result;
 }
 
-/// A tile's anchor point, as a fraction of its *full* (untrimmed) frame — horizontal measured from
-/// the left edge (0 = left), vertical from the bottom edge (0 = bottom). Sourced from
-/// TilesetInfo::tile_pivot_x/y, which the loader converts from spritepacker's trimmed-box, raster
-/// (top=0) convention into this full-frame, bottom-origin one.
+/** A tile's anchor point, as a fraction of its *full* (untrimmed) frame — horizontal measured from
+ *  the left edge (0 = left), vertical from the bottom edge (0 = bottom). Sourced from
+ *  TilesetInfo::tile_pivot_x/y, which the loader converts from spritepacker's trimmed-box, raster
+ *  (top=0) convention into this full-frame, bottom-origin one.
+ */
 struct TilePivot {
   float x = 0.5f;
 
   float y = 0.f;
 };
 
-/// Returns the pivot for `local_id` in `info`; {0.5, 0} if local_id is out of range.
+/** Returns the pivot for `local_id` in `info`; {0.5, 0} if local_id is out of range. */
 [[nodiscard]] inline TilePivot get_tile_pivot(const TilesetInfo &info, int local_id) noexcept {
   const auto i = static_cast<std::size_t>(local_id);
   if (local_id < 0 || i >= info.tile_pivot_x.size() || i >= info.tile_pivot_y.size())
@@ -184,10 +213,11 @@ struct TilePivot {
   return {.x = info.tile_pivot_x[i], .y = info.tile_pivot_y[i]};
 }
 
-/// A tile's placement data relative to its own full (untrimmed) frame: how far the sampled,
-/// already-trimmed tile_rects entry is offset from that frame's top-left corner (trim_x/trim_y),
-/// and the frame's own size (full_width/full_height) — needed to scale TilePivot into pixels,
-/// since the trimmed rect alone can't recover the original canvas size.
+/** A tile's placement data relative to its own full (untrimmed) frame: how far the sampled,
+ *  already-trimmed tile_rects entry is offset from that frame's top-left corner (trim_x/trim_y),
+ *  and the frame's own size (full_width/full_height) — needed to scale TilePivot into pixels,
+ *  since the trimmed rect alone can't recover the original canvas size.
+ */
 struct TileFrameOffset {
   int trim_x = 0;
 
@@ -198,7 +228,7 @@ struct TileFrameOffset {
   int full_height = 0;
 };
 
-/// Returns the frame offset/size for `local_id` in `info`; all-zero if local_id is out of range.
+/** Returns the frame offset/size for `local_id` in `info`; all-zero if local_id is out of range. */
 [[nodiscard]] inline TileFrameOffset get_tile_frame_offset(const TilesetInfo &info, int local_id) noexcept {
   const auto i = static_cast<std::size_t>(local_id);
   if (local_id < 0 || i >= info.tile_trim_x.size() || i >= info.tile_trim_y.size() ||
@@ -212,12 +242,13 @@ struct TileFrameOffset {
   };
 }
 
-/// Returns the source rect in the tileset texture for `gid` — spritepacker already trims and
-/// packs tightly, so this is a direct array read, not a computed grid cell.
-/// @param tileset Tileset entry that owns gid (caller must use find_tileset first).
-/// @param gid Global tile ID.
-/// @return Source rectangle, in pixels, within the tileset texture for this tile; all-zero if gid
-///         resolves to a local_id outside the tileset's range.
+/** Returns the source rect in the tileset texture for `gid` — spritepacker already trims and
+ *  packs tightly, so this is a direct array read, not a computed grid cell.
+ *  @param tileset Tileset entry that owns gid (caller must use find_tileset first).
+ *  @param gid Global tile ID.
+ *  @return Source rectangle, in pixels, within the tileset texture for this tile; all-zero if gid
+ *          resolves to a local_id outside the tileset's range.
+ */
 [[nodiscard]] inline corundum::core::math::IntRect tile_source_rect(const TilemapTileset &tileset,
                                                                     TileId gid) noexcept {
   const int local_id = static_cast<int>(gid) - static_cast<int>(tileset.first_gid);
@@ -226,8 +257,9 @@ struct TileFrameOffset {
   return tileset.info.tile_rects[static_cast<std::size_t>(local_id)];
 }
 
-/// Axis-aligned rectangle in tile-grid space.
-/// Used as a temporary during loading; runtime collision uses CollisionRects (SoA).
+/** Axis-aligned rectangle in tile-grid space.
+ *  Used as a temporary during loading; runtime collision uses CollisionRects (SoA).
+ */
 struct CollisionRect {
   float col = 0.f;
 
@@ -245,25 +277,31 @@ struct CollisionRect {
  *  Construct from CollisionRects::view() or directly from stack arrays.
  */
 struct CollisionRectsView {
-  std::span<const float> cols; ///< Left edges (tile columns).
+  /** Left edges (tile columns). */
+  std::span<const float> cols;
 
-  std::span<const float> rows; ///< Top edges (tile rows).
+  /** Top edges (tile rows). */
+  std::span<const float> rows;
 
-  std::span<const float> col_spans; ///< Horizontal extents in tiles.
+  /** Horizontal extents in tiles. */
+  std::span<const float> col_spans;
 
-  std::span<const float> row_spans; ///< Vertical extents in tiles.
+  /** Vertical extents in tiles. */
+  std::span<const float> row_spans;
 
-  /// Per-rect elevation [0–255], same semantics as TilemapLayer::elevation; empty means
-  /// "no elevation data for any rect in this view" and disables elevation filtering entirely.
+  /** Per-rect elevation [0–255], same semantics as TilemapLayer::elevation; empty means
+   *  "no elevation data for any rect in this view" and disables elevation filtering entirely.
+   */
   std::span<const uint8_t> elevations;
 
-  /// Number of rects in the view.
+  /** Number of rects in the view. */
   [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
 };
 
 namespace detail {
-/// O(1) swap-and-pop erase of `i` across parallel SoA vectors; order is not preserved.
-/// @pre every vector is non-empty, shares the same size, and i < size().
+/** O(1) swap-and-pop erase of `i` across parallel SoA vectors; order is not preserved.
+ *  @pre every vector is non-empty, shares the same size, and i < size().
+ */
 template <typename First, typename... Rest> void swap_pop_at(std::size_t i, First &first, Rest &...rest) noexcept {
   const std::size_t last = first.size() - 1;
   const auto apply = [i, last](auto &vector) {
@@ -285,17 +323,22 @@ template <typename First, typename... Rest> void swap_pop_at(std::size_t i, Firs
  *  CollisionRectsView is the non-owning counterpart passed to collision functions.
  */
 struct CollisionRects {
-  std::vector<float> cols; ///< Left edges (tile columns).
+  /** Left edges (tile columns). */
+  std::vector<float> cols;
 
-  std::vector<float> rows; ///< Top edges (tile rows).
+  /** Top edges (tile rows). */
+  std::vector<float> rows;
 
-  std::vector<float> col_spans; ///< Horizontal extents in tiles.
+  /** Horizontal extents in tiles. */
+  std::vector<float> col_spans;
 
-  std::vector<float> row_spans; ///< Vertical extents in tiles.
+  /** Vertical extents in tiles. */
+  std::vector<float> row_spans;
 
-  std::vector<uint8_t> elevations; ///< Per-rect elevation [0–255]; see CollisionRectsView.
+  /** Per-rect elevation [0–255]; see CollisionRectsView. */
+  std::vector<uint8_t> elevations;
 
-  /// Append one collision rect in tile-grid space.
+  /** Append one collision rect in tile-grid space. */
   // elevation (uint8_t) sits next to float row_span; both are required so the append keeps the
   // SoA layout, and the two types are only convertible by implicit narrowing which callers avoid.
   void push_back(float col, float row, float col_span, float row_span, uint8_t elevation = 0) {
@@ -306,16 +349,17 @@ struct CollisionRects {
     elevations.push_back(elevation);
   }
 
-  /// Number of stored rects.
+  /** Number of stored rects. */
   [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
 
-  /// Non-owning view over the stored data.
+  /** Non-owning view over the stored data. */
   [[nodiscard]] CollisionRectsView view() const noexcept {
     return {.cols = cols, .rows = rows, .col_spans = col_spans, .row_spans = row_spans, .elevations = elevations};
   }
 
-  /// Remove the rect at index `i` in O(1) via swap-and-pop. Order is not preserved.
-  /// @pre i < size()
+  /** Remove the rect at index `i` in O(1) via swap-and-pop. Order is not preserved.
+   *  @pre i < size()
+   */
   void erase(std::size_t i) noexcept { detail::swap_pop_at(i, cols, rows, col_spans, row_spans, elevations); }
 };
 
@@ -326,22 +370,27 @@ struct CollisionRects {
  */
 enum class TriangleCut : uint8_t { NorthWest, NorthEast, SouthWest, SouthEast };
 
-/// Non-owning Structure-of-Arrays view over diagonal collision triangle data in tile-grid space.
+/** Non-owning Structure-of-Arrays view over diagonal collision triangle data in tile-grid space. */
 struct CollisionTrianglesView {
-  std::span<const float> cols; ///< Left edges (tile columns).
+  /** Left edges (tile columns). */
+  std::span<const float> cols;
 
-  std::span<const float> rows; ///< Top edges (tile rows).
+  /** Top edges (tile rows). */
+  std::span<const float> rows;
 
-  std::span<const float> col_spans; ///< Horizontal extents in tiles.
+  /** Horizontal extents in tiles. */
+  std::span<const float> col_spans;
 
-  std::span<const float> row_spans; ///< Vertical extents in tiles.
+  /** Vertical extents in tiles. */
+  std::span<const float> row_spans;
 
-  std::span<const TriangleCut> cuts; ///< Which corner is empty.
+  /** Which corner is empty. */
+  std::span<const TriangleCut> cuts;
 
-  /// Per-triangle elevation [0–255]; empty disables elevation filtering. See CollisionRectsView.
+  /** Per-triangle elevation [0–255]; empty disables elevation filtering. See CollisionRectsView. */
   std::span<const uint8_t> elevations;
 
-  /// Number of triangles in the view.
+  /** Number of triangles in the view. */
   [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
 };
 
@@ -351,19 +400,25 @@ struct CollisionTrianglesView {
  *  is identified by TriangleCut; the other half is solid.
  */
 struct CollisionTriangles {
-  std::vector<float> cols; ///< Left edges (tile columns).
+  /** Left edges (tile columns). */
+  std::vector<float> cols;
 
-  std::vector<float> rows; ///< Top edges (tile rows).
+  /** Top edges (tile rows). */
+  std::vector<float> rows;
 
-  std::vector<float> col_spans; ///< Horizontal extents in tiles.
+  /** Horizontal extents in tiles. */
+  std::vector<float> col_spans;
 
-  std::vector<float> row_spans; ///< Vertical extents in tiles.
+  /** Vertical extents in tiles. */
+  std::vector<float> row_spans;
 
-  std::vector<TriangleCut> cuts; ///< Which corner is empty.
+  /** Which corner is empty. */
+  std::vector<TriangleCut> cuts;
 
-  std::vector<uint8_t> elevations; ///< Per-triangle elevation [0–255]; see CollisionTrianglesView.
+  /** Per-triangle elevation [0–255]; see CollisionTrianglesView. */
+  std::vector<uint8_t> elevations;
 
-  /// Append one diagonal collision triangle in tile-grid space.
+  /** Append one diagonal collision triangle in tile-grid space. */
   void push_back(float col, float row, float col_span, float row_span, TriangleCut cut, uint8_t elevation = 0) {
     cols.push_back(col);
     rows.push_back(row);
@@ -373,10 +428,10 @@ struct CollisionTriangles {
     elevations.push_back(elevation);
   }
 
-  /// Number of stored triangles.
+  /** Number of stored triangles. */
   [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
 
-  /// Non-owning view over the stored data.
+  /** Non-owning view over the stored data. */
   [[nodiscard]] CollisionTrianglesView view() const noexcept {
     return {
         .cols = cols,
@@ -388,37 +443,46 @@ struct CollisionTriangles {
     };
   }
 
-  /// Remove the triangle at index `i` in O(1) via swap-and-pop. Order is not preserved.
-  /// @pre i < size()
+  /** Remove the triangle at index `i` in O(1) via swap-and-pop. Order is not preserved.
+   *  @pre i < size()
+   */
   void erase(std::size_t i) noexcept { detail::swap_pop_at(i, cols, rows, col_spans, row_spans, cuts, elevations); }
 };
 
-/// Static multi-layer tile grid loaded from a JSON map file.
+/** Static multi-layer tile grid loaded from a JSON map file. */
 struct Tilemap {
-  std::string path; ///< Source file path passed to load_tilemap().
+  /** Source file path passed to load_tilemap(). */
+  std::string path;
 
-  std::vector<TilemapTileset> tilesets; ///< Sorted ascending by first_gid.
+  /** Sorted ascending by first_gid. */
+  std::vector<TilemapTileset> tilesets;
 
   int width = 0;
 
   int height = 0;
 
-  int iso_diamond_w = 0; ///< Isometric world step width in pixels (diamond width). 0 = use frame_width.
+  /** Isometric world step width in pixels (diamond width). 0 = use frame_width. */
+  int iso_diamond_w = 0;
 
-  int iso_diamond_h = 0; ///< Isometric world step height in pixels (diamond height). 0 = iso_diamond_w / 2.
+  /** Isometric world step height in pixels (diamond height). 0 = iso_diamond_w / 2. */
+  int iso_diamond_h = 0;
 
-  std::vector<TilemapLayer> layers; ///< Index 0 is the bottom-most layer.
+  /** Index 0 is the bottom-most layer. */
+  std::vector<TilemapLayer> layers;
 
-  CollisionRects collisions; ///< Impassable rects in tile-grid space; empty if absent.
+  /** Impassable rects in tile-grid space; empty if absent. */
+  CollisionRects collisions;
 
-  CollisionTriangles collision_triangles; ///< Diagonal half-tile collision shapes; empty if absent.
+  /** Diagonal half-tile collision shapes; empty if absent. */
+  CollisionTriangles collision_triangles;
 
   int max_tile_full_w = 0;
 
   int max_tile_full_h = 0;
 
-  /// Effective isometric diamond width (world step), falling back to the first tileset's first
-  /// tile's full frame width if not set.
+  /** Effective isometric diamond width (world step), falling back to the first tileset's first
+   *  tile's full frame width if not set.
+   */
   [[nodiscard]] int diamond_w() const noexcept {
     if (iso_diamond_w > 0)
       return iso_diamond_w;
@@ -427,22 +491,24 @@ struct Tilemap {
     return tilesets[0].info.tile_full_width[0];
   }
 
-  /// Effective isometric diamond height, falling back to diamond_w / 2 if not set.
+  /** Effective isometric diamond height, falling back to diamond_w / 2 if not set. */
   [[nodiscard]] int diamond_h() const noexcept {
     if (iso_diamond_h > 0)
       return iso_diamond_h;
     return diamond_w() / 2;
   }
 
-  /// Tile GID at (col, row) in `layer`; undefined behaviour if out of bounds.
-  /// @pre `layer` belongs to this Tilemap.
+  /** Tile GID at (col, row) in `layer`; undefined behaviour if out of bounds.
+   *  @pre `layer` belongs to this Tilemap.
+   */
   [[nodiscard]] TileId tile_at(const TilemapLayer &layer, int col, int row) const noexcept {
     return layer.tile_at_unchecked(col, row, width);
   }
 
-  /// 2D mdspan view over `layer`'s tile grid — rows × cols layout. Lives on Tilemap
-  /// (not TilemapLayer) since width/height are Tilemap-owned; layer doesn't self-construct.
-  /// @pre &layer must belong to this Tilemap's layers, and layer.tiles.size() == width * height.
+  /** 2D mdspan view over `layer`'s tile grid — rows × cols layout. Lives on Tilemap
+   *  (not TilemapLayer) since width/height are Tilemap-owned; layer doesn't self-construct.
+   *  @pre &layer must belong to this Tilemap's layers, and layer.tiles.size() == width * height.
+   */
   [[nodiscard]] auto layer_view(TilemapLayer &layer) const noexcept {
     assert(layer.tiles.size() == static_cast<std::size_t>(width) * static_cast<std::size_t>(height) &&
            "layer_view: layer.tiles must be width * height");
@@ -450,7 +516,7 @@ struct Tilemap {
                                                               static_cast<std::size_t>(width));
   }
 
-  /// Const overload of layer_view().
+  /** Const overload of layer_view(). */
   [[nodiscard]] auto layer_view(const TilemapLayer &layer) const noexcept {
     assert(layer.tiles.size() == static_cast<std::size_t>(width) * static_cast<std::size_t>(height) &&
            "layer_view: layer.tiles must be width * height");

@@ -28,7 +28,7 @@ using corundum::input::physical;
 
 namespace {
 
-/// One full poll: begin, feed the mapper, then accumulate into a fresh state.
+/** One full poll: begin, feed the mapper, then accumulate into a fresh state. */
 template <typename Feed> InputState run(InputMapper &mapper, Feed feed) {
   mapper.begin_poll();
   feed(mapper);

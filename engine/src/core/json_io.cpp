@@ -23,8 +23,9 @@ namespace {
 
 using nlohmann::ordered_json;
 
-/// Rebuild a json value as an ordered_json with keys in sorted order.
-/// Recursive — handles objects, arrays, and leaf values.
+/** Rebuild a json value as an ordered_json with keys in sorted order.
+ *  Recursive — handles objects, arrays, and leaf values.
+ */
 ordered_json sort_keys(const nlohmann::json &j) { // NOLINT(misc-no-recursion)
   switch (j.type()) {
     case nlohmann::json::value_t::object: {
@@ -51,7 +52,7 @@ ordered_json sort_keys(const nlohmann::json &j) { // NOLINT(misc-no-recursion)
   }
 }
 
-/// Parse any contiguous range of 1-byte values, mapping nlohmann's exception to the shared message.
+/** Parse any contiguous range of 1-byte values, mapping nlohmann's exception to the shared message. */
 template <typename Range>
 std::expected<nlohmann::json, std::string> parse_range(const Range &range, std::string_view source,
                                                        std::string_view label) {

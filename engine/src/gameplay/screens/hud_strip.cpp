@@ -47,8 +47,9 @@ constexpr float k_hud_min_w = 220.f;
 constexpr std::string_view k_hud_separator = "    ";
 constexpr std::string_view k_hud_dash_separator = " - ";
 
-/// Everything one HUD strip frame needs, measured once: the run texts and widths, the faces
-/// they draw in, and the panel rect around them.
+/** Everything one HUD strip frame needs, measured once: the run texts and widths, the faces
+ *  they draw in, and the panel rect around them.
+ */
 struct HudStripLayout {
   platform::FontId quest_bold{platform::FontId::Invalid};
 
@@ -68,7 +69,7 @@ struct HudStripLayout {
 
   float separator_w{};
 
-  /// The objective run is measured and drawn: a quest is tracked and its objective is not empty.
+  /** The objective run is measured and drawn: a quest is tracked and its objective is not empty. */
   bool has_objective{};
 
   float pad_x{};
@@ -80,7 +81,7 @@ struct HudStripLayout {
   core::math::Vec2 panel_size{};
 };
 
-/// Measure every run of the strip and size the panel around them.
+/** Measure every run of the strip and size the panel around them. */
 HudStripLayout measure_hud_strip(const platform::Renderer &r, const ui::PanelStyle &style,
                                  const ui::NinePatchBorder &border, const HudStripData &data) {
   const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
@@ -125,8 +126,9 @@ HudStripLayout measure_hud_strip(const platform::Renderer &r, const ui::PanelSty
   };
 }
 
-/// Gold is HUD chrome (UI role); the tracked quest and objective are the quest tracker and
-/// follow the Quest family, with the quest name bolded.
+/** Gold is HUD chrome (UI role); the tracked quest and objective are the quest tracker and
+ *  follow the Quest family, with the quest name bolded.
+ */
 void draw_hud_runs(platform::Renderer &r, const ui::PanelStyle &style, const HudStripData &data,
                    const HudStripLayout &layout) {
   const float y = layout.panel_pos.y + layout.pad_y;

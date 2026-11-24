@@ -29,7 +29,7 @@ corundum::test::TempDir temp_dir(std::string_view tag) {
   return corundum::test::TempDir{"crpg_test_manifest_", tag};
 }
 
-// 16×8 grid, 128 tiles per chunk
+/** 16×8 grid, 128 tiles per chunk */
 constexpr std::string_view k_manifest_json = R"({
     "chunk_size": 128,
     "chunks_wide": 16,

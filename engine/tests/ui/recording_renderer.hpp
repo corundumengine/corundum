@@ -18,26 +18,32 @@
 
 namespace corundum::test {
 
-/// Records every draw call into one ordered log so tests can assert both counts and
-/// ordering. measure_text mirrors the null backend's per-glyph width so tests don't
-/// depend on real font metrics.
+/** Records every draw call into one ordered log so tests can assert both counts and
+ *  ordering. measure_text mirrors the null backend's per-glyph width so tests don't
+ *  depend on real font metrics.
+ */
 class RecordingRenderer final : public corundum::platform::Renderer {
 public:
   using DrawCall = std::variant<platform::DrawRect, platform::DrawSprite, platform::DrawText>;
 
   std::vector<DrawCall> log{};
-  // DrawText::text is a string_view that may point into temporaries that die when the render
-  // call returns (e.g. formatted inventory labels); the real renderer consumes it
-  // synchronously, but this recorder must keep it alive. A deque (not vector) keeps
-  // references to stored strings stable across push_back, since the recorded DrawText views
-  // point into this container.
+
+  /** DrawText::text is a string_view that may point into temporaries that die when the render
+   *  call returns (e.g. formatted inventory labels); the real renderer consumes it
+   *  synchronously, but this recorder must keep it alive. A deque (not vector) keeps
+   *  references to stored strings stable across push_back, since the recorded DrawText views
+   *  point into this container.
+   */
   std::deque<std::string> text_owner{};
 
-  std::vector<platform::DrawLine> world_lines{}; ///< Lines drawn in world view; screen-space lines are dropped.
+  /** Lines drawn in world view; screen-space lines are dropped. */
+  std::vector<platform::DrawLine> world_lines{};
 
-  core::math::Vec2 world_view_camera{}; ///< The last set_world_view's top-left.
+  /** The last set_world_view's top-left. */
+  core::math::Vec2 world_view_camera{};
 
-  bool is_world_view{}; ///< True between set_world_view() and reset_screen_view().
+  /** True between set_world_view() and reset_screen_view(). */
+  bool is_world_view{};
 
   std::expected<platform::TextureId, std::string> load_texture(std::string_view /*path*/) override {
     return platform::TextureId{1};
@@ -96,8 +102,9 @@ inline corundum::ui::NinePatchBorder make_border() {
   return border;
 }
 
-/// A family whose four style ids run from `first` upward, so a case can say which face a run
-/// drew in by number: bold is `first` + 1, italic `first` + 2, bold-italic `first` + 3.
+/** A family whose four style ids run from `first` upward, so a case can say which face a run
+ *  drew in by number: bold is `first` + 1, italic `first` + 2, bold-italic `first` + 3.
+ */
 [[nodiscard]] inline corundum::ui::FontFamily make_font_family(std::uint32_t first) {
   corundum::ui::FontFamily family{};
   for (std::uint32_t style = 0; style < corundum::ui::k_font_style_count; ++style)

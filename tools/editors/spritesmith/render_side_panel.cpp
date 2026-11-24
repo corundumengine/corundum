@@ -24,9 +24,7 @@ namespace {
 
 using namespace corundum::sprites;
 
-// ---------------------------------------------------------------------------
 // Shared helpers
-// ---------------------------------------------------------------------------
 
 void input_text_field(const char *label, std::string &value, EditorState &state, float width = 0.f) {
   std::array<char, 512> buf{};
@@ -71,12 +69,11 @@ void frame_list(std::vector<FrameCoord> &frames, EditorState &state, const char 
   ImGui::EndChild();
 }
 
-// ---------------------------------------------------------------------------
 // Sheet configuration (common)
-// ---------------------------------------------------------------------------
 
-// Atlas mode is a distinct, read-only-geometry sheet type; it can't toggle into a grid mode
-// (there's no grid to switch to), so it gets its own minimal config header.
+/** Atlas mode is a distinct, read-only-geometry sheet type; it can't toggle into a grid mode
+ *  (there's no grid to switch to), so it gets its own minimal config header.
+ */
 void render_atlas_sheet_config(const EditorState &state) {
   ImGui::SeparatorText("Atlas (read-only)");
   ImGui::TextDisabled("Image: %s", state.image_path.c_str());
@@ -144,12 +141,11 @@ void render_sheet_config(EditorState &state) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Character mode: compass-grid animation selector
-// ---------------------------------------------------------------------------
 
-// 3×3 compass grid: [NW N NE / W _ E / SW S SE]
-// AnimId::Count is the sentinel for the blank center cell.
+/** 3×3 compass grid: [NW N NE / W _ E / SW S SE]
+ *  AnimId::Count is the sentinel for the blank center cell.
+ */
 struct CompassEntry {
   AnimId id;
   const char *label;
@@ -239,9 +235,7 @@ void render_anim_section(SpriteDefinition &sp, EditorState &state) {
   frame_list(sp.anim_frames[static_cast<std::size_t>(ai)], state, "##chr_frames");
 }
 
-// ---------------------------------------------------------------------------
 // Character mode
-// ---------------------------------------------------------------------------
 
 void render_character_section(EditorState &state) {
   ImGui::SeparatorText("Sprites");
@@ -339,9 +333,7 @@ void render_character_section(EditorState &state) {
   render_anim_section(sp, state);
 }
 
-// ---------------------------------------------------------------------------
 // Sprite Sheet mode
-// ---------------------------------------------------------------------------
 
 void render_sprite_sheet_section(EditorState &state) {
   ImGui::SeparatorText("Grid Dimensions");
@@ -403,9 +395,7 @@ void render_sprite_sheet_section(EditorState &state) {
   frame_list(clip.frames, state, "##ts_frames");
 }
 
-// ---------------------------------------------------------------------------
 // Atlas mode: read-only sprite list + sidecar-backed clips
-// ---------------------------------------------------------------------------
 
 void push_atlas_undo(EditorState &state) {
   state.atlas_undo.push({state.atlas_clips, state.selected_atlas_clip});
@@ -521,9 +511,7 @@ void render_atlas_section(EditorState &state) {
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Public entry point
-// ---------------------------------------------------------------------------
 
 void render_side_panel(EditorState &state, const corundum::toolkit::widgets::FontHandles & /*fonts*/,
                        const corundum::toolkit::widgets::ThemeColors & /*theme*/) {

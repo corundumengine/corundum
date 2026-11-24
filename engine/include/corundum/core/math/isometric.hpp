@@ -15,12 +15,15 @@ namespace corundum::core::math {
 struct IsometricParams {
   /** Half the scaled diamond width (diamond_w * tile_scale * 0.5). */
   float half_tw{};
+
   /** Half the scaled diamond height (diamond_h * tile_scale * 0.5). */
   float half_th{};
+
   /** Horizontal origin shift so the leftmost tile (0, height-1) lands at x = 0.
    *   Equals (height - 1) * half_tw.
    */
   float x_origin{};
+
   /** Screen pixels lifted per unit of elevation, already scaled by tile_scale. */
   float elev_step{};
 };
@@ -217,10 +220,17 @@ struct IsometricParams {
  *  (min/max col−row) are used to clamp tile iteration loops to only visible bands.
  */
 struct IsometricCullBounds {
-  int depth_min = 0; ///< Smallest visible col+row (top-most band), inclusive.
-  int depth_max = 0; ///< Largest visible col+row (bottom-most band), inclusive.
-  float u_min = 0.f; ///< Smallest visible (col − row), fractional.
-  float u_max = 0.f; ///< Largest visible (col − row), fractional.
+  /** Smallest visible col+row (top-most band), inclusive. */
+  int depth_min = 0;
+
+  /** Largest visible col+row (bottom-most band), inclusive. */
+  int depth_max = 0;
+
+  /** Smallest visible (col − row), fractional. */
+  float u_min = 0.f;
+
+  /** Largest visible (col − row), fractional. */
+  float u_max = 0.f;
 };
 
 /** Compute culling bounds from a world-space rectangle.

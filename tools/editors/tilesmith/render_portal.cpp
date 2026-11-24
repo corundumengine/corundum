@@ -18,9 +18,10 @@ namespace tools::tilesmith {
 
 namespace {
 
-// Convert tile-grid coords (col, row) to canvas screen position.
-// Delegates the iso projection to corundum::core::math::tile_to_world so this
-// stays in lockstep with engine entity/camera sites.
+/** Convert tile-grid coords (col, row) to canvas screen position.
+ *  Delegates the iso projection to corundum::core::math::tile_to_world so this
+ *  stays in lockstep with engine entity/camera sites.
+ */
 inline ImVec2 tile_to_iso(const CanvasContext &ctx, float col_f, float row_f,
                           const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y) noexcept {
   const auto w = corundum::core::math::tile_to_world(col_f, row_f, 0, iso);

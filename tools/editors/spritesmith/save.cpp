@@ -80,8 +80,9 @@ namespace {
   return data;
 }
 
-/// Reject clip names the loader refuses (empty or duplicated), so a save can never write a
-/// sheet that load_sprite_sheet_clips() would then reject.
+/** Reject clip names the loader refuses (empty or duplicated), so a save can never write a
+ *  sheet that load_sprite_sheet_clips() would then reject.
+ */
 [[nodiscard]] std::expected<void, std::string> validate_sprite_sheet_clip_names(const EditorState &state) {
   std::unordered_set<std::string> seen;
   for (const auto &clip : state.anim_clips) {

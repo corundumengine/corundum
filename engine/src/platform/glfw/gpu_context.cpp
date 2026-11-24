@@ -21,22 +21,25 @@ namespace gpu_backend = glfw::gpu_backend;
 
 namespace {
 
-/// sokol_gfx's device is process-global: sg_setup() asserts when one is already live and
-/// sg_shutdown() tears the device down for the whole process. Track ownership so a second
-/// context is rejected instead of asserting.
+/** sokol_gfx's device is process-global: sg_setup() asserts when one is already live and
+ *  sg_shutdown() tears the device down for the whole process. Track ownership so a second
+ *  context is rejected instead of asserting.
+ */
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): TU-local, must stay mutable.
 bool s_gpu_device_live = false;
 
-/// sokol log levels: 0 = panic, 1 = error, 2 = warn, 3 = info, 4 = debug. Surface failures
-/// only; routine warnings would be noise on the game's stderr.
+/** sokol log levels: 0 = panic, 1 = error, 2 = warn, 3 = info, 4 = debug. Surface failures
+ *  only; routine warnings would be noise on the game's stderr.
+ */
 constexpr uint32_t k_max_reported_log_level = 1;
 
-/// Supported range for the internal render scale, so a caller cannot ask for a zero-size target
-/// or an absurd supersample. The upper bound is generous enough for a 3x panel.
+/** Supported range for the internal render scale, so a caller cannot ask for a zero-size target
+ *  or an absurd supersample. The upper bound is generous enough for a 3x panel.
+ */
 constexpr float k_min_render_scale = 0.125f;
 constexpr float k_max_render_scale = 4.f;
 
-/// The window's GLFW handle, or an error naming why it cannot back a GPU context.
+/** The window's GLFW handle, or an error naming why it cannot back a GPU context. */
 std::expected<::GLFWwindow *, std::string> glfw_handle_of(Window &window) {
   const auto *glfw_window = dynamic_cast<glfw::GLFWWindow *>(&window);
   if (glfw_window == nullptr)
@@ -47,8 +50,9 @@ std::expected<::GLFWwindow *, std::string> glfw_handle_of(Window &window) {
   return handle;
 }
 
-/// sokol's log hook: surface its failures only; routine warnings would be noise on the game's
-/// stderr.
+/** sokol's log hook: surface its failures only; routine warnings would be noise on the game's
+ *  stderr.
+ */
 void log_sokol_message(const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
                        const char *file, void * /*user_data*/) {
   if (level > k_max_reported_log_level)
@@ -57,7 +61,7 @@ void log_sokol_message(const char *tag, uint32_t level, uint32_t item_id, const 
                              file != nullptr ? file : "?", line, msg != nullptr ? msg : "");
 }
 
-/// Configure and start the process-wide sokol device over `backend`.
+/** Configure and start the process-wide sokol device over `backend`. */
 std::expected<void, std::string> start_sokol_device(const gpu_backend::Context *backend) {
   sg_desc sdesc{};
   if (auto configured = gpu_backend::configure_sokol(sdesc, backend); !configured)
@@ -74,8 +78,9 @@ std::expected<void, std::string> start_sokol_device(const gpu_backend::Context *
 struct GpuContext::Impl {
   GLFWwindow *window{nullptr};
 
-  /// Backend device/swapchain state; empty when the backend needs none. Freed when Impl is destroyed,
-  /// after ~GpuContext() has shut the sokol device down, as the backend requires.
+  /** Backend device/swapchain state; empty when the backend needs none. Freed when Impl is destroyed,
+   *  after ~GpuContext() has shut the sokol device down, as the backend requires.
+   */
   gpu_backend::ContextHandle backend{};
 
   float render_scale{1.f};

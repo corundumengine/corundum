@@ -39,11 +39,12 @@ using corundum::sprites::k_null_sprite_id;
 using corundum::sprites::SpriteId;
 using corundum::sprites::to_anim;
 
-/// Below this tile-space speed an entity counts as still. Physics writes an exact zero
-/// when idle, but a fractionally retained velocity must not read as motion.
+/** Below this tile-space speed an entity counts as still. Physics writes an exact zero
+ *  when idle, but a fractionally retained velocity must not read as motion.
+ */
 constexpr float k_motion_speed_epsilon = 1e-4f;
 
-// Fallbacks indexed by Direction value (AnimId's directional values mirror Direction).
+/** Fallbacks indexed by Direction value (AnimId's directional values mirror Direction). */
 constexpr std::array k_cardinal_fallback_h = {
     AnimId::South, AnimId::North, AnimId::East, AnimId::West, AnimId::East, AnimId::East, AnimId::West, AnimId::West,
 };
@@ -53,8 +54,9 @@ constexpr std::array k_cardinal_fallback_v = {
     AnimId::North, AnimId::South, AnimId::South, AnimId::North,
 };
 
-// Deduced extents (CTAD) so these checks catch a table that no longer covers the full
-// set — adding a Direction fails to compile instead of silently mis-indexing.
+/** Deduced extents (CTAD) so these checks catch a table that no longer covers the full
+ *  set — adding a Direction fails to compile instead of silently mis-indexing.
+ */
 static_assert(k_cardinal_fallback_h.size() == core::k_num_directions,
               "k_cardinal_fallback_h must cover every Direction value");
 static_assert(k_cardinal_fallback_v.size() == core::k_num_directions,
@@ -182,13 +184,13 @@ void advance_frame_timer(float &animation_timer, float frame_duration, uint8_t f
   sprite_frame_index = static_cast<uint8_t>((sprite_frame_index + frame_advance) % frame_count);
 }
 
-/// Whether the velocity at dense slot `transform_slot` says the entity has moved this step.
+/** Whether the velocity at dense slot `transform_slot` says the entity has moved this step. */
 [[nodiscard]] bool is_moving(const TransformTable &transforms, std::uint32_t transform_slot) noexcept {
   return std::abs(transforms.dc[transform_slot]) > k_motion_speed_epsilon ||
          std::abs(transforms.dr[transform_slot]) > k_motion_speed_epsilon;
 }
 
-/// Put `e` back on the sheet its clip interrupted, and drop the clip.
+/** Put `e` back on the sheet its clip interrupted, and drop the clip. */
 void resume_after_clip(SpriteTable &sprites, AnimationTable &animations, const FacingTable &facings, ClipTable &clips,
                        EntityId e) noexcept {
   sprites.sprite_id_ref(e) = clips.resume_sprite_of(e);
@@ -199,7 +201,7 @@ void resume_after_clip(SpriteTable &sprites, AnimationTable &animations, const F
   clips.remove(e);
 }
 
-/// Advance `e`'s clip by `dt`; returns true on the step it plays past its last frame.
+/** Advance `e`'s clip by `dt`; returns true on the step it plays past its last frame. */
 [[nodiscard]] bool advance_clip(AnimationTable &animations, const ClipTable &clips, EntityId e, uint8_t &frame_index,
                                 uint8_t frame_count, float dt) noexcept {
   const float frame_duration = clips.frame_duration_of(e);

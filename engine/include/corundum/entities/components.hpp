@@ -12,43 +12,51 @@
 
 namespace corundum::entities {
 
-/// Animation input for a spawned entity: the per-AnimId frame counts read from the character registry.
-/// Spawn input only — the playback timer and frame duration live in the AnimationTable, which caches
-/// these counts so animation::update never reads the registry in its hot loop.
+/** Animation input for a spawned entity: the per-AnimId frame counts read from the character registry.
+ *  Spawn input only — the playback timer and frame duration live in the AnimationTable, which caches
+ *  these counts so animation::update never reads the registry in its hot loop.
+ */
 struct Animation {
-  /// Frame count per AnimId; 0 means the clip is absent.
+  /** Frame count per AnimId; 0 means the clip is absent. */
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> frame_counts{};
 };
 
-/// Tile-grid position of an entity (feet position in fractional tile coordinates).
+/** Tile-grid position of an entity (feet position in fractional tile coordinates). */
 using Position = corundum::core::math::TilePos;
 
-/// Rendering component: identifies which sprite asset and animation frame to draw.
+/** Rendering component: identifies which sprite asset and animation frame to draw. */
 struct Sprite {
-  corundum::sprites::SpriteId sprite_id = corundum::sprites::k_null_sprite_id; ///< Interned sprite asset.
-  corundum::sprites::AnimId anim_id = corundum::sprites::AnimId::Default;      ///< Current animation.
-  uint8_t frame_index = 0;                                                     ///< Frame within anim_id.
+  /** Interned sprite asset. */
+  corundum::sprites::SpriteId sprite_id = corundum::sprites::k_null_sprite_id;
+
+  /** Current animation. */
+  corundum::sprites::AnimId anim_id = corundum::sprites::AnimId::Default;
+
+  /** Frame within anim_id. */
+  uint8_t frame_index = 0;
 };
 
-/// Marks an entity as the trigger for a dialogue graph.
-/// graph_id must match the "id" field in the JSON file and the key in the graph registry.
+/** Marks an entity as the trigger for a dialogue graph.
+ *  graph_id must match the "id" field in the JSON file and the key in the graph registry.
+ */
 struct DialogueRef {
   std::string graph_id;
 };
 
-/// Velocity in tile-grid units per second; physics integrates it as col += dc * dt.
+/** Velocity in tile-grid units per second; physics integrates it as col += dc * dt. */
 struct Velocity {
   float dc = 0.f;
   float dr = 0.f;
 };
 
-/// Last-faced direction; used by animation::update to pick directional idle animations.
-/// Only entities with directional idle behaviour (e.g. the player) receive this component.
+/** Last-faced direction; used by animation::update to pick directional idle animations.
+ *  Only entities with directional idle behaviour (e.g. the player) receive this component.
+ */
 struct Facing {
   corundum::core::Direction dir = corundum::core::Direction::South;
 };
 
-/// Euclidean distance between two tile-grid positions.
+/** Euclidean distance between two tile-grid positions. */
 [[nodiscard]] inline float distance(Position a, Position b) noexcept {
   const float dcol = a.col - b.col;
   const float drow = a.row - b.row;

@@ -33,21 +33,23 @@ public:
   ContentSource &operator=(ContentSource &&) = delete;
   virtual ~ContentSource() = default;
 
-  /// Read the whole file at `path`. The error names the path.
-  /// @note Every failure is reported through the returned error and must not throw anything
-  ///       except std::bad_alloc. Callers in a `noexcept` C callback catch only std::bad_alloc.
+  /** Read the whole file at `path`. The error names the path.
+   *  @note Every failure is reported through the returned error and must not throw anything
+   *        except std::bad_alloc. Callers in a `noexcept` C callback catch only std::bad_alloc.
+   */
   [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string>
   read(const std::filesystem::path &path) const = 0;
 
-  /// True only for an existing regular file. A directory is false.
+  /** True only for an existing regular file. A directory is false. */
   [[nodiscard]] virtual bool contains(const std::filesystem::path &path) const = 0;
 
-  /// List `dir` with the same ordering, filtering and error cases as list_dir_entries().
-  /// Each returned DirEntry::path is a content path that read() accepts.
-  ///
-  /// A separate pure virtual, not synthesized from read()/contains(), because those two can't
-  /// enumerate a directory. Each adapter enumerates natively (the directory adapter through
-  /// list_dir_entries, a future pack adapter through its index).
+  /** List `dir` with the same ordering, filtering and error cases as list_dir_entries().
+   *  Each returned DirEntry::path is a content path that read() accepts.
+   *
+   *  A separate pure virtual, not synthesized from read()/contains(), because those two can't
+   *  enumerate a directory. Each adapter enumerates natively (the directory adapter through
+   *  list_dir_entries, a future pack adapter through its index).
+   */
   [[nodiscard]] virtual std::expected<std::vector<DirEntry>, std::string> list(const std::filesystem::path &dir,
                                                                                ListOptions options) const = 0;
 
@@ -55,14 +57,15 @@ protected:
   ContentSource() = default;
 };
 
-/// Content source over a real directory tree.
-///
-/// An empty root, the default, resolves paths exactly as given (cwd-relative or absolute),
-/// which is today's desktop behaviour. A non-empty root prefixes relative paths, and list()
-/// returns root-relative paths.
+/** Content source over a real directory tree.
+ *
+ *  An empty root, the default, resolves paths exactly as given (cwd-relative or absolute),
+ *  which is today's desktop behaviour. A non-empty root prefixes relative paths, and list()
+ *  returns root-relative paths.
+ */
 class DirectoryContentSource final : public ContentSource {
 public:
-  /// Empty root: paths resolve exactly as given (cwd-relative or absolute).
+  /** Empty root: paths resolve exactly as given (cwd-relative or absolute). */
   DirectoryContentSource() = default;
 
   explicit DirectoryContentSource(std::filesystem::path root);

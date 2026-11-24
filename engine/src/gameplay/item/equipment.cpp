@@ -17,12 +17,12 @@ namespace corundum::gameplay::item {
 
 namespace {
 
-/// The held-item count key for `item_id` (`item.<id>`).
+/** The held-item count key for `item_id` (`item.<id>`). */
 std::string held_flag_key(std::string_view item_id) {
   return std::format("{}{}", k_flag_prefix, item_id);
 }
 
-/// The name to show in an error line; falls back to the raw id when the definition is absent.
+/** The name to show in an error line; falls back to the raw id when the definition is absent. */
 std::string display_name(const Item *item, std::string_view item_id) {
   return item != nullptr && !item->name.empty() ? item->name : std::string{item_id};
 }

@@ -71,8 +71,9 @@ bool within_panel(const corundum::ui::RowRect &row, Vec2 panel_pos, Vec2 panel_s
 
 } // namespace
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("journal_panel_layout: fills the viewport and windows rows to keep the cursor visible") {
   RecordingRenderer r;
@@ -119,8 +120,9 @@ TEST_CASE("journal_panel_layout: a scroll offset moves first_row") {
   CHECK(layout.first_row == 8); // cursor 10 still inside the window, so the offset holds
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_layout: windows item rows and keeps hit rects inside the panel") {
   RecordingRenderer r;
@@ -158,8 +160,9 @@ TEST_CASE("inventory_panel_layout: a scroll offset moves first_row") {
   CHECK(layout.first_row == 8);
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("map_panel_layout: fills the viewport, windows rows, and scrolls") {
   RecordingRenderer r;

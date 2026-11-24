@@ -25,14 +25,20 @@ namespace corundum::world {
 
 /** Which scene layout apply_spawn() should rebuild. */
 enum class SpawnMode : uint8_t {
-  World,     ///< Re-enter the streamed overworld.
-  SingleMap, ///< Load a single tilemap by path.
+  /** Re-enter the streamed overworld. */
+  World,
+
+  /** Load a single tilemap by path. */
+  SingleMap,
 };
 
 /** Which point of a tile the camera centres on while framing a scene. */
 enum class CameraAnchor : uint8_t {
-  CellCenter, ///< Cell-centre anchor (tile_to_world_center) — the world-load path.
-  TopVertex,  ///< Top-vertex anchor (tile_to_world) — cross-map transitions.
+  /** Cell-centre anchor (tile_to_world_center) — the world-load path. */
+  CellCenter,
+
+  /** Top-vertex anchor (tile_to_world) — cross-map transitions. */
+  TopVertex,
 };
 
 /** (Re)initialise the overworld scene, optionally at a specific spawn tile.

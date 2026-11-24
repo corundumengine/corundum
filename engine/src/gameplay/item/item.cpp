@@ -111,14 +111,14 @@ constexpr std::string_view k_item_schema = R"({
   ]
 })";
 
-/// One batch file's items and the file name, so a duplicate can say which file shadowed it.
+/** One batch file's items and the file name, so a duplicate can say which file shadowed it. */
 struct LoadedBatch {
   std::string file_name{};
 
   std::vector<Item> items{};
 };
 
-/// Every batch file under `dir`, each with the items it produced; a file that fails to load is skipped.
+/** Every batch file under `dir`, each with the items it produced; a file that fails to load is skipped. */
 std::vector<LoadedBatch> load_batch_files(const core::ContentSource &content, const std::filesystem::path &dir,
                                           ItemCategory category, const Loader &loader) {
   std::vector<LoadedBatch> batches;

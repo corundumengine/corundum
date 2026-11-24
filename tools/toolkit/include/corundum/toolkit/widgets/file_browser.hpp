@@ -14,22 +14,25 @@
 
 namespace corundum::toolkit::widgets {
 
-/// Capacity of FileBrowserState::name_buf, the buffer ImGui's text field writes into.
+/** Capacity of FileBrowserState::name_buf, the buffer ImGui's text field writes into. */
 inline constexpr std::size_t k_name_buffer_size = 512;
 
-/// An Open request: list directories plus files whose extension matches one of `extensions`.
+/** An Open request: list directories plus files whose extension matches one of `extensions`. */
 struct OpenRequest {
-  /// Extensions to list, compared case-insensitively without a leading dot; empty lists every file.
+  /** Extensions to list, compared case-insensitively without a leading dot; empty lists every file. */
   std::vector<std::string> extensions;
 };
 
-/// A Save request: name a file, appending `extension` when the chosen name doesn't carry it.
+/** A Save request: name a file, appending `extension` when the chosen name doesn't carry it. */
 struct SaveRequest {
-  std::string default_name; ///< Initial contents of the name field.
-  std::string extension;    ///< Extension enforced on the chosen name (no leading dot; empty for none).
+  /** Initial contents of the name field. */
+  std::string default_name;
+
+  /** Extension enforced on the chosen name (no leading dot; empty for none). */
+  std::string extension;
 };
 
-/// What a browser is open for; the alternative decides the listing filter and the confirm semantics.
+/** What a browser is open for; the alternative decides the listing filter and the confirm semantics. */
 using FileBrowserRequest = std::variant<OpenRequest, SaveRequest>;
 
 /** State for one file-browser modal instance.
@@ -42,12 +45,23 @@ using FileBrowserRequest = std::variant<OpenRequest, SaveRequest>;
  *  `fb` while its modal is open.
  */
 struct FileBrowserState {
-  std::filesystem::path current_dir;               ///< Currently-displayed directory.
-  std::vector<corundum::core::DirEntry> entries;   ///< Listing of current_dir, directories first then alphabetical.
-  std::array<char, k_name_buffer_size> name_buf{}; ///< Text field holding the chosen filename.
-  std::optional<FileBrowserRequest> request;       ///< What the modal is open for; nullopt while closed.
-  std::optional<std::size_t> selected_entry;       ///< Index into entries, or nullopt when nothing is highlighted.
-  std::string title;                               ///< Modal title, displayed only.
+  /** Currently-displayed directory. */
+  std::filesystem::path current_dir;
+
+  /** Listing of current_dir, directories first then alphabetical. */
+  std::vector<corundum::core::DirEntry> entries;
+
+  /** Text field holding the chosen filename. */
+  std::array<char, k_name_buffer_size> name_buf{};
+
+  /** What the modal is open for; nullopt while closed. */
+  std::optional<FileBrowserRequest> request;
+
+  /** Index into entries, or nullopt when nothing is highlighted. */
+  std::optional<std::size_t> selected_entry;
+
+  /** Modal title, displayed only. */
+  std::string title;
 };
 
 /** Open `fb`'s modal for `request`, titled `title`, starting in `start_dir`.

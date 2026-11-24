@@ -44,7 +44,8 @@ namespace corundum::gameplay::screens {
 
 /** Save/Load screen state: mode, highlighted row, scroll offset and the slot rows. */
 struct SaveLoadState {
-  bool saving{}; ///< True in save mode, false in load mode.
+  /** True in save mode, false in load mode. */
+  bool saving{};
 
   int cursor{};
 
@@ -59,9 +60,11 @@ struct SaveLoadLayout {
 
   core::math::Vec2 panel_size{};
 
-  ui::ListHit rows{}; ///< Left-hand slot list.
+  /** Left-hand slot list. */
+  ui::ListHit rows{};
 
-  ui::RowRect detail{}; ///< Right-hand detail pane.
+  /** Right-hand detail pane. */
+  ui::RowRect detail{};
 };
 
 /** Compute the Save/Load panel's geometry for `viewport`, scrolling to keep the cursor

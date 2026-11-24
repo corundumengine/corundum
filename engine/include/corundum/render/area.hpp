@@ -23,7 +23,7 @@ namespace corundum::world {
 struct Scene;
 }
 
-/// Area residency: the only functions that load, stream or unload the area's tilemaps and textures.
+// Area residency: the only functions that load, stream or unload the area's tilemaps and textures.
 namespace corundum::render {
 
 /** Unload the current area: release its textures, reset the area to none and return to
@@ -63,9 +63,11 @@ struct WorldLoadInfo {
  *  overworld location spawns the player into a streamed chunk.
  */
 struct WorldLoadParams {
-  std::optional<float> spawn_col; ///< Overworld tile column (may be fractional); defaults to manifest centre.
+  /** Overworld tile column (may be fractional); defaults to manifest centre. */
+  std::optional<float> spawn_col;
 
-  std::optional<float> spawn_row; ///< Overworld tile row (may be fractional); defaults to manifest centre.
+  /** Overworld tile row (may be fractional); defaults to manifest centre. */
+  std::optional<float> spawn_row;
 };
 
 /** Load the world manifest and initial chunks for world mode.

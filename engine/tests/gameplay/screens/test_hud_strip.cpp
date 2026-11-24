@@ -117,8 +117,9 @@ TEST_CASE("build_hud_strip: falls back to the first active quest once the tracke
   CHECK(data.quest_name == "Debt of Salt");
 }
 
-// doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
-// test's logic — dominates this metric.
+/** doctest's REQUIRE/CHECK macros expand to control flow, so the assertion count — not the
+ *  test's logic — dominates this metric.
+ */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("hud_strip_render: an opaque panel plus one line with gold and the objective") {
   using corundum::test::make_border;

@@ -49,9 +49,10 @@ using tools::tilesmith::TilesetView;
 
 namespace {
 
-// Compute a canvas tile_scale that targets ~64px rendered cells so large
-// tiles (e.g. 256px isometric) don't fill the entire viewport. Small tiles
-// are capped at 2x.
+/** Compute a canvas tile_scale that targets ~64px rendered cells so large
+ *  tiles (e.g. 256px isometric) don't fill the entire viewport. Small tiles
+ *  are capped at 2x.
+ */
 [[nodiscard]] float compute_tile_scale(int frame_width) noexcept {
   constexpr float k_target_px = 64.f;
   constexpr float k_max_scale = 2.f;
@@ -109,7 +110,7 @@ void finish_map_load(corundum::toolkit::host::ToolHost &host, EditorState &state
 
 namespace {
 
-/// Command-line and game.json inputs, plus the map path they imply.
+/** Command-line and game.json inputs, plus the map path they imply. */
 struct Launch {
   corundum::toolkit::host::ToolConfig tool{};
 
@@ -144,8 +145,9 @@ struct Launch {
   return ApplyEditorThemeRefined();
 }
 
-/// Everything the frame loop reads, so one named function can own a frame.
-/// @note The pointers are main()'s objects, live for the whole run and never null.
+/** Everything the frame loop reads, so one named function can own a frame.
+ *  @note The pointers are main()'s objects, live for the whole run and never null.
+ */
 struct FrameContext {
   corundum::toolkit::host::ToolHost *host{};
 
@@ -159,7 +161,7 @@ struct FrameContext {
 
   MouseState *mouse{};
 
-  /// Open the New Map dialog on the first frame (no map was named on the command line).
+  /** Open the New Map dialog on the first frame (no map was named on the command line). */
   bool open_new_map_on_first_frame{};
 
   bool running{true};
@@ -169,7 +171,7 @@ struct FrameContext {
   float elapsed_time{};
 };
 
-/// Every layer of band `z_index`, in the canvas space of `ctx`.
+/** Every layer of band `z_index`, in the canvas space of `ctx`. */
 void render_layer_band(const FrameContext &frame, CanvasContext ctx, int z_index) {
   const EditorState &state = *frame.state;
   tools::tilesmith::render_tilemap(*frame.host, ctx, state.map, state.layer_visible, *frame.texture_store,
@@ -177,7 +179,7 @@ void render_layer_band(const FrameContext &frame, CanvasContext ctx, int z_index
                                    frame.elapsed_time, state.elev_step_px);
 }
 
-/// The canvas window: the pan/zoom origin shift plus every tilemap pass, clipped to the canvas.
+/** The canvas window: the pan/zoom origin shift plus every tilemap pass, clipped to the canvas. */
 void draw_canvas_window(const FrameContext &frame) {
   const EditorState &state = *frame.state;
   ImGui::SetNextWindowPos({0.f, static_cast<float>(tools::tilesmith::k_menu_h)});
@@ -222,7 +224,7 @@ void draw_canvas_window(const FrameContext &frame) {
   ImGui::End();
 }
 
-/// The right-hand panel: the separator plus the layer strip.
+/** The right-hand panel: the separator plus the layer strip. */
 void draw_panel_window(const FrameContext &frame) {
   ImGui::SetNextWindowPos(
       {static_cast<float>(tools::tilesmith::CANVAS_W), static_cast<float>(tools::tilesmith::k_menu_h)});
@@ -245,7 +247,7 @@ void draw_panel_window(const FrameContext &frame) {
   ImGui::End();
 }
 
-/// One frame: the menu, both windows, the overlays and the input pass.
+/** One frame: the menu, both windows, the overlays and the input pass. */
 void run_frame(FrameContext &frame) {
   if (!frame.running) {
     frame.host->request_close();

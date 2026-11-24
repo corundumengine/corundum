@@ -16,10 +16,17 @@ namespace tools::spritesmith {
 /** Canvas-space bounding rectangle for a single frame cell.
  */
 struct FrameRect {
-  float x; ///< Left edge in canvas pixels.
-  float y; ///< Top edge in canvas pixels.
-  float w; ///< Width in canvas pixels.
-  float h; ///< Height in canvas pixels.
+  /** Left edge in canvas pixels. */
+  float x;
+
+  /** Top edge in canvas pixels. */
+  float y;
+
+  /** Width in canvas pixels. */
+  float w;
+
+  /** Height in canvas pixels. */
+  float h;
 };
 
 /** Convert a canvas pixel position to a frame grid coordinate.

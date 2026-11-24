@@ -20,7 +20,7 @@ using corundum::gameplay::item::Registry;
 using corundum::gameplay::item::WeaponData;
 using corundum::world::FlagStore;
 
-/// Two body items (to exercise slot replacement), one weapon, and one misc item.
+/** Two body items (to exercise slot replacement), one weapon, and one misc item. */
 Registry make_items() {
   Registry items;
   items.add(Item{

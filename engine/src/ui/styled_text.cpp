@@ -18,16 +18,18 @@ namespace corundum::ui {
 
 namespace {
 
-/// One token of the raw stream: either literal text or a run of 1-3 asterisks that may
-/// become a delimiter. `stars == 0` marks literal text.
+/** One token of the raw stream: either literal text or a run of 1-3 asterisks that may
+ *  become a delimiter. `stars == 0` marks literal text.
+ */
 struct Token {
   std::string text{};
 
   int stars{0};
 };
 
-/// Splits `text` into literal-text and asterisk-delimiter tokens, resolving `\*` and `\\`.
-/// Asterisk runs longer than three are literal text.
+/** Splits `text` into literal-text and asterisk-delimiter tokens, resolving `\*` and `\\`.
+ *  Asterisk runs longer than three are literal text.
+ */
 std::vector<Token> tokenize(std::string_view text) {
   std::vector<Token> tokens;
   std::string buffer;
@@ -71,14 +73,14 @@ std::vector<Token> tokenize(std::string_view text) {
   return tokens;
 }
 
-/// Maps the bold/italic bits to the FontStyle the run should render with.
+/** Maps the bold/italic bits to the FontStyle the run should render with. */
 FontStyle style_of(bool bold, bool italic) {
   if (bold)
     return italic ? FontStyle::BoldItalic : FontStyle::Bold;
   return italic ? FontStyle::Italic : FontStyle::Regular;
 }
 
-/// Appends `text` with `style`, merging into the previous run when the style matches.
+/** Appends `text` with `style`, merging into the previous run when the style matches. */
 void append_run(std::vector<StyledRun> &runs, std::string_view text, FontStyle style) {
   if (!runs.empty() && runs.back().style == style) {
     runs.back().text.append(text);

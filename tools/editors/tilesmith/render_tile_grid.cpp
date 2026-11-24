@@ -37,7 +37,7 @@ using corundum::world::tilemap::TilemapTileset;
 
 constexpr int k_pivot_panel_h = 80;
 
-/// The add and remove sprite-sheet dialogs, which stay open across frames.
+/** The add and remove sprite-sheet dialogs, which stay open across frames. */
 struct SheetDialogs {
   std::array<char, 512> add_path{};
 
@@ -50,8 +50,9 @@ struct SheetDialogs {
   bool show_remove_warning{};
 };
 
-/// Heights of the palette panel's bands, in screen pixels: the layer strip, then the tab bar,
-/// then the tile grid, then the pivot panel at the bottom of the canvas.
+/** Heights of the palette panel's bands, in screen pixels: the layer strip, then the tab bar,
+ *  then the tile grid, then the pivot panel at the bottom of the canvas.
+ */
 struct PaletteBands {
   int layer_strip_h{};
 
@@ -160,8 +161,9 @@ void do_remove_tileset(corundum::toolkit::host::ToolHost &host, EditorState &sta
   state.dirty = true;
 }
 
-/// Add the sheet at `typed_path`, accepting a pasted path wrapped in double quotes.
-/// @return Whether the sheet was added; a failure is printed to stderr.
+/** Add the sheet at `typed_path`, accepting a pasted path wrapped in double quotes.
+ *  @return Whether the sheet was added; a failure is printed to stderr.
+ */
 bool try_add_tileset(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                      std::vector<TilesetView> &tileset_views, std::string_view typed_path) {
   const bool has_quotes = typed_path.starts_with('"') && typed_path.ends_with('"');
@@ -178,12 +180,12 @@ bool try_add_tileset(corundum::toolkit::host::ToolHost &host, EditorState &state
   }
 }
 
-/// Display name of the sheet a view shows: its source file's stem.
+/** Display name of the sheet a view shows: its source file's stem. */
 std::string sheet_display_name(const TilesetView &view) {
   return std::filesystem::path(view.tileset->info.source).stem().string();
 }
 
-/// Display name of the sheet at `idx`, or std::nullopt when `idx` names no sheet.
+/** Display name of the sheet at `idx`, or std::nullopt when `idx` names no sheet. */
 std::optional<std::string> find_sheet_name(const std::vector<TilesetView> &tileset_views, int idx) {
   if (idx < 0 || std::cmp_greater_equal(idx, tileset_views.size()))
     return std::nullopt;
@@ -197,9 +199,10 @@ int measure_tab_h() {
       std::ceil(frame_h + frame_h + style.TabBarBorderSize + style.ItemSpacing.y + (style.WindowPadding.y * 0.5f)));
 }
 
-/// Draw the sprite-sheet tab bar. Selecting a tab shows that sheet in the palette; the "+" tab
-/// opens the add dialog.
-/// @return The indices of the tabs the user closed this frame.
+/** Draw the sprite-sheet tab bar. Selecting a tab shows that sheet in the palette; the "+" tab
+ *  opens the add dialog.
+ *  @return The indices of the tabs the user closed this frame.
+ */
 std::vector<int> render_tileset_tabs(EditorState &state, const std::vector<TilesetView> &tileset_views,
                                      const PaletteBands &bands, SheetDialogs &dialogs) {
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.f, 0.f});
@@ -239,8 +242,9 @@ std::vector<int> render_tileset_tabs(EditorState &state, const std::vector<Tiles
   return closed;
 }
 
-/// Act on a closed tab: refuse a sheet the map still uses, remove the last sheet at once, and
-/// ask before removing any other, because that shifts the GIDs of every later sheet.
+/** Act on a closed tab: refuse a sheet the map still uses, remove the last sheet at once, and
+ *  ask before removing any other, because that shifts the GIDs of every later sheet.
+ */
 void request_tileset_removal(corundum::toolkit::host::ToolHost &host, EditorState &state,
                              TilemapTextureStore &texture_store, std::vector<TilesetView> &tileset_views, int idx,
                              SheetDialogs &dialogs) {
@@ -335,8 +339,9 @@ void render_add_popup(corundum::toolkit::host::ToolHost &host, EditorState &stat
   ImGui::EndPopup();
 }
 
-/// The panel-local y at which to draw `cell` once scrolled by `scroll_y`, or std::nullopt
-/// when no part of the cell lies inside the grid's `grid_h`-pixel band.
+/** The panel-local y at which to draw `cell` once scrolled by `scroll_y`, or std::nullopt
+ *  when no part of the cell lies inside the grid's `grid_h`-pixel band.
+ */
 std::optional<float> visible_cell_y(const PaletteCell &cell, float scroll_y, int grid_h) {
   const float draw_y = static_cast<float>(cell.y) - scroll_y;
   const bool is_above = draw_y + static_cast<float>(cell.h) < 0.f;
@@ -346,8 +351,9 @@ std::optional<float> visible_cell_y(const PaletteCell &cell, float scroll_y, int
   return draw_y;
 }
 
-/// Checkerboard the whole grid window, not just each tile, so transparency reads clearly
-/// everywhere, including the empty space around and between variable-sized packed tiles.
+/** Checkerboard the whole grid window, not just each tile, so transparency reads clearly
+ *  everywhere, including the empty space around and between variable-sized packed tiles.
+ */
 void draw_checkerboard(int grid_h) {
   constexpr float k_checker_size = 8.f;
   constexpr ImU32 k_checker_light = IM_COL32(180, 180, 180, 255);
@@ -401,8 +407,9 @@ void render_tile_images(const EditorState &state, const TilesetView &view, const
   ImGui::End();
 }
 
-/// Local id of the palette's selected tile within `ts`, or std::nullopt when the selection
-/// belongs to another sheet.
+/** Local id of the palette's selected tile within `ts`, or std::nullopt when the selection
+ *  belongs to another sheet.
+ */
 std::optional<std::size_t> selected_local_id(const EditorState &state, const TilemapTileset &ts) {
   const int local_id = static_cast<int>(state.selected_gid) - static_cast<int>(ts.first_gid);
   if (local_id < 0 || local_id >= ts.info.tile_count)
@@ -410,7 +417,7 @@ std::optional<std::size_t> selected_local_id(const EditorState &state, const Til
   return static_cast<std::size_t>(local_id);
 }
 
-/// Outline the selected tile on the foreground draw list, on top of the tile images.
+/** Outline the selected tile on the foreground draw list, on top of the tile images. */
 void draw_selection_highlight(const EditorState &state, const PaletteCell &cell, const PaletteBands &bands) {
   const std::optional<float> draw_y = visible_cell_y(cell, state.palette_scroll_y, bands.grid_h());
   if (!draw_y)
@@ -420,14 +427,14 @@ void draw_selection_highlight(const EditorState &state, const PaletteCell &cell,
   ImGui::GetForegroundDrawList()->AddRect(p_min, p_max, IM_COL32(255, 200, 0, 255), 0.f, 0, 2.f);
 }
 
-/// ImGui::TextDisabled without the printf-style formatting.
+/** ImGui::TextDisabled without the printf-style formatting. */
 void text_disabled(const char *text) {
   ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
   ImGui::TextUnformatted(text);
   ImGui::PopStyleColor();
 }
 
-/// ImGui::SetTooltip without the printf-style formatting.
+/** ImGui::SetTooltip without the printf-style formatting. */
 void show_tooltip(const char *text) {
   if (!ImGui::BeginTooltip())
     return;
@@ -435,9 +442,10 @@ void show_tooltip(const char *text) {
   ImGui::EndTooltip();
 }
 
-/// Edit the selected tile's own pivot; spritepacker computes one per tile, so there is no
-/// tileset-wide default to edit. With no tile selected the sliders show the default pivot and
-/// change nothing.
+/** Edit the selected tile's own pivot; spritepacker computes one per tile, so there is no
+ *  tileset-wide default to edit. With no tile selected the sliders show the default pivot and
+ *  change nothing.
+ */
 void render_pivot_panel(EditorState &state, TilemapTileset &active_ts, std::optional<std::size_t> selected) {
   float pivot_x = selected ? active_ts.info.tile_pivot_x[*selected] : 0.5f;
   float pivot_y = selected ? active_ts.info.tile_pivot_y[*selected] : 0.f;

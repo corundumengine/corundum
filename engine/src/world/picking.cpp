@@ -21,8 +21,9 @@ struct CandidateHit {
   float depth{};
 };
 
-/// The candidate cell the mouse point resolves to at (`col`, `row`), or std::nullopt when
-/// the point does not fall in that cell at its elevation.
+/** The candidate cell the mouse point resolves to at (`col`, `row`), or std::nullopt when
+ *  the point does not fall in that cell at its elevation.
+ */
 std::optional<CandidateHit> hit_at(const MapView &map, const core::math::Vec2 &world, int col, int row,
                                    const core::math::IsometricParams &iso) noexcept {
   const int elev = discrete_elevation_at(map, col, row);
@@ -37,14 +38,15 @@ std::optional<CandidateHit> hit_at(const MapView &map, const core::math::Vec2 &w
   };
 }
 
-/// world_to_tile's horizontal term is elevation-independent, so a matching cell must sit on the
-/// mouse's diagonal band; the +/-1 margin absorbs float drift near an integer.
+/** world_to_tile's horizontal term is elevation-independent, so a matching cell must sit on the
+ *  mouse's diagonal band; the +/-1 margin absorbs float drift near an integer.
+ */
 bool on_candidate_diagonal(int col, int row, int u_floor) noexcept {
   const int diagonal = col - row;
   return diagonal >= u_floor - 1 && diagonal <= u_floor + 2;
 }
 
-/// Highest-depth candidate cell under the mouse, or std::nullopt when none matches.
+/** Highest-depth candidate cell under the mouse, or std::nullopt when none matches. */
 std::optional<TileCoord> best_candidate(const MapView &map, const core::math::Vec2 &world,
                                         const core::math::IsometricParams &iso, int u_floor, int grid_w,
                                         int grid_h) noexcept {

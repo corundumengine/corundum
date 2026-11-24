@@ -21,7 +21,7 @@ namespace corundum::world {
 
 namespace {
 
-/// Trigger rectangle in tile-grid units, prior to the float conversion Portal stores.
+/** Trigger rectangle in tile-grid units, prior to the float conversion Portal stores. */
 struct PortalRect {
   int col = 0;
   int row = 0;
@@ -29,7 +29,7 @@ struct PortalRect {
   int h = 0;
 };
 
-/// Read the required trigger rectangle, validating its extent. `context` prefixes errors.
+/** Read the required trigger rectangle, validating its extent. `context` prefixes errors. */
 std::expected<PortalRect, std::string> read_rect(const json &entry, const std::string &context) {
   try {
     PortalRect rect;
@@ -45,8 +45,9 @@ std::expected<PortalRect, std::string> read_rect(const json &entry, const std::s
   }
 }
 
-/// Resolve a world-mode chunk target from the current or legacy key names. Returns
-/// (-1, -1) when neither spelling is present.
+/** Resolve a world-mode chunk target from the current or legacy key names. Returns
+ *  (-1, -1) when neither spelling is present.
+ */
 std::expected<std::pair<int, int>, std::string> read_chunk_target(const json &entry, const std::string &context) {
   const char *col_key = nullptr;
   const char *row_key = nullptr;
@@ -71,7 +72,7 @@ std::expected<std::pair<int, int>, std::string> read_chunk_target(const json &en
   }
 }
 
-/// Read optional scalar `key` as `T`, defaulting to `fallback` when absent.
+/** Read optional scalar `key` as `T`, defaulting to `fallback` when absent. */
 template <typename T>
 std::expected<T, std::string> read_optional(const json &entry, const char *key, T fallback,
                                             const std::string &context) {
@@ -84,7 +85,7 @@ std::expected<T, std::string> read_optional(const json &entry, const char *key, 
   }
 }
 
-/// Read the required spawn tile, validating that it is non-negative.
+/** Read the required spawn tile, validating that it is non-negative. */
 std::expected<std::pair<int, int>, std::string> read_spawn(const json &entry, const std::string &context) {
   try {
     const int col = entry.at("spawn_col").get<int>();
@@ -97,8 +98,9 @@ std::expected<std::pair<int, int>, std::string> read_spawn(const json &entry, co
   }
 }
 
-/// Build one Portal from a JSON array entry, applying the same validation the file had
-/// when it was hand-authored. `context` is "Portals '<path>' portals[<i>]".
+/** Build one Portal from a JSON array entry, applying the same validation the file had
+ *  when it was hand-authored. `context` is "Portals '<path>' portals[<i>]".
+ */
 std::expected<Portal, std::string> read_portal(const json &entry, const std::string &context) {
   if (!entry.is_object())
     return std::unexpected(std::format("{} must be an object", context));

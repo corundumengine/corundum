@@ -51,7 +51,7 @@ using corundum::sprites::AnimId;
 using corundum::sprites::CharacterRegistry;
 using corundum::sprites::SpriteId;
 
-/// Spawn-relevant stats read from one registry sprite: frame counts, collision footprint, frame duration.
+/** Spawn-relevant stats read from one registry sprite: frame counts, collision footprint, frame duration. */
 struct SpriteStats {
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> frame_counts{};
 
@@ -60,7 +60,7 @@ struct SpriteStats {
   float frame_duration{};
 };
 
-/// Read `sid`'s stats, leaving every field at its default when the id is unknown.
+/** Read `sid`'s stats, leaving every field at its default when the id is unknown. */
 SpriteStats read_sprite_stats(const CharacterRegistry &registry, SpriteId sid) {
   SpriteStats stats;
   const auto *sprite = registry.get_sprite_by_id(sid);
@@ -79,15 +79,16 @@ constexpr float k_idle_to_walk_delay_seconds = 0.05f;
 
 constexpr float k_walk_to_idle_delay_seconds = 0.12f;
 
-/// One sheet of a walk/idle pair.
+/** One sheet of a walk/idle pair. */
 struct MotionSheet {
   SpriteId sprite_id{};
 
   SpriteStats stats{};
 };
 
-/// Let `entity` switch between `walk` and `idle` as it moves and stops, and stand on its
-/// character's ready sheet in a stance, when it has one.
+/** Let `entity` switch between `walk` and `idle` as it moves and stops, and stand on its
+ *  character's ready sheet in a stance, when it has one.
+ */
 void insert_motion_sprites(World &world, const CharacterRegistry &registry, EntityId entity, const MotionSheet &walk,
                            const MotionSheet &idle) {
   corundum::entities::MotionSpriteTable::Config config{
@@ -109,13 +110,13 @@ void insert_motion_sprites(World &world, const CharacterRegistry &registry, Enti
   world.motion_sprites.insert(entity, config);
 }
 
-/// Destroy every entity in `spawned` so a failed batch never leaves live, untracked actors.
+/** Destroy every entity in `spawned` so a failed batch never leaves live, untracked actors. */
 void rollback_spawned(World &world, const std::vector<EntityId> &spawned) {
   for (const EntityId eid : spawned)
     corundum::entities::despawn(world, eid);
 }
 
-/// Spawn every actor in `actors`, adding (col_off, row_off) to each actor's tile coords.
+/** Spawn every actor in `actors`, adding (col_off, row_off) to each actor's tile coords. */
 std::expected<std::vector<EntityId>, std::string> spawn_actors(World &world, const CharacterRegistry &registry,
                                                                const std::vector<Actor> &actors, int col_off,
                                                                int row_off) {
@@ -168,7 +169,7 @@ std::expected<std::vector<EntityId>, std::string> spawn_actors(World &world, con
   return spawned;
 }
 
-/// Load `path` and spawn its actors offset by (col_off, row_off); a missing file yields no actors.
+/** Load `path` and spawn its actors offset by (col_off, row_off); a missing file yields no actors. */
 std::expected<std::vector<EntityId>, std::string>
 spawn_actors_from_file(const core::ContentSource &content, World &world, const CharacterRegistry &registry,
                        const std::filesystem::path &path, int col_off, int row_off) {
@@ -178,7 +179,7 @@ spawn_actors_from_file(const core::ContentSource &content, World &world, const C
   return spawn_actors(world, registry, spawn_points->actors, col_off, row_off);
 }
 
-/// Spawn the player (collision, facing, animation, motion sprite) from `cfg`'s player sprite names.
+/** Spawn the player (collision, facing, animation, motion sprite) from `cfg`'s player sprite names. */
 std::expected<EntityId, std::string> spawn_player(World &world, const CharacterRegistry &registry,
                                                   const corundum::core::GameConfig &cfg, Position spawn_pos) {
   const SpriteId walk_id = registry.get_sprite_id(cfg.player.walk_sprite);
@@ -213,19 +214,19 @@ std::expected<EntityId, std::string> spawn_player(World &world, const CharacterR
   return player;
 }
 
-/// Queue every live entity in `entities` for deletion; already-queued entities are ignored.
+/** Queue every live entity in `entities` for deletion; already-queued entities are ignored. */
 void mark_entities_for_deletion(World &world, const std::vector<EntityId> &entities) {
   for (const EntityId eid : entities)
     if (world.entities.is_live(eid))
       corundum::entities::mark_for_deletion(world, eid);
 }
 
-/// True if any entity in `entities` is still live, including ones only queued for deletion.
+/** True if any entity in `entities` is still live, including ones only queued for deletion. */
 bool any_live(const World &world, const std::vector<EntityId> &entities) {
   return std::ranges::any_of(entities, [&](EntityId eid) { return world.entities.is_live(eid); });
 }
 
-/// Queue the actors of every chunk that has left the active window, and flag its set departed.
+/** Queue the actors of every chunk that has left the active window, and flag its set departed. */
 void despawn_departed_chunks(Scene &scene, const corundum::render::ChunkWindow &chunks) {
   for (ChunkActorSet &set : scene.chunk_actors) {
     if (chunks.is_active(set.coord))
@@ -235,9 +236,10 @@ void despawn_departed_chunks(Scene &scene, const corundum::render::ChunkWindow &
   }
 }
 
-/// Spawn actors for active chunks with no tracked set, and respawn a departed chunk that has returned once its
-/// previous actors are flushed. A resident, non-departed set is never re-read: it already spawned (or failed) for
-/// this residency.
+/** Spawn actors for active chunks with no tracked set, and respawn a departed chunk that has returned once its
+ *  previous actors are flushed. A resident, non-departed set is never re-read: it already spawned (or failed) for
+ *  this residency.
+ */
 void spawn_new_chunks(const core::ContentSource &content, Scene &scene, const corundum::render::ChunkWindow &chunks,
                       const corundum::core::GameConfig &cfg, const CharacterRegistry &registry, int chunk_size) {
   for (const auto &entry : chunks.active()) {
@@ -272,7 +274,7 @@ void spawn_new_chunks(const core::ContentSource &content, Scene &scene, const co
   }
 }
 
-/// Drop tracked sets once they are out of the window and all their actors have been despawned.
+/** Drop tracked sets once they are out of the window and all their actors have been despawned. */
 void prune_departed_chunks(Scene &scene, const corundum::render::ChunkWindow &chunks) {
   std::erase_if(scene.chunk_actors, [&](const ChunkActorSet &set) {
     return !chunks.is_active(set.coord) && !any_live(scene.world, set.entities);

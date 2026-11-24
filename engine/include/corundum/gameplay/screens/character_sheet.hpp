@@ -105,11 +105,14 @@ struct CharacterSheetLayout {
 
   core::math::Vec2 panel_size{};
 
-  ui::RowRect stats{}; ///< The ruleset's stat rows and gold column.
+  /** The ruleset's stat rows and gold column. */
+  ui::RowRect stats{};
 
-  ui::RowRect equipment{}; ///< Weapon/armor/accessory column.
+  /** Weapon/armor/accessory column. */
+  ui::RowRect equipment{};
 
-  ui::RowRect inventory{}; ///< Item count and capacity column.
+  /** Item count and capacity column. */
+  ui::RowRect inventory{};
 };
 
 /** Compute the character sheet panel and section geometry for `viewport`.
